@@ -1,0 +1,676 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Basic
+import "OnePieceEastBlueAtlasData.js" as AtlasData
+import "OnePieceEastBlueData.js" as EastBlue
+
+FocusScope {
+    id: root
+
+    property bool reducedMotion: false
+    property real zoom: 1.0
+    property string selectedMarkerId: ""
+    property var selectedArc: null
+    property bool previewVisible: false
+    property bool indexVisible: false
+    property bool nonCanonMode: false
+    property real shellChromeInset: 172
+    readonly property real shellChromeReservedLeft: root.width - 54 - (22 * 3 + 20 * 2)
+    readonly property real shellChromeReservedRight: root.width - 54
+    readonly property bool transientOpen: root.previewVisible || root.indexVisible
+    readonly property real fitScale: Math.max(0.01, Math.max(mapViewport.width / 1680, mapViewport.height / 960))
+    readonly property real badgeDiameter: 66 * root.fitScale * root.zoom
+    readonly property real badgeHitDiameter: Math.max(44, root.badgeDiameter)
+    readonly property bool fontsReady: atlasDisplayFont.status === FontLoader.Ready
+            && atlasBodyFont.status === FontLoader.Ready
+    readonly property bool captureReady: root.fontsReady && mapPlate.status === Image.Ready
+
+    signal arcRequested(var arc)
+    signal mediaRequested(var entry)
+    signal paradiseRequested()
+
+    FontLoader {
+        id: atlasDisplayFont
+        objectName: "eastBlueAtlasDisplayFont"
+        source: "../assets/fonts/Fraunces-Regular.ttf"
+    }
+    FontLoader {
+        id: atlasBodyFont
+        objectName: "eastBlueAtlasBodyFont"
+        source: "../assets/fonts/Literata-Regular.ttf"
+    }
+
+    function arcFor(id) {
+        var result = EastBlue.arc(id)
+        return result && result.id === id ? result : null
+    }
+
+    function openPreview(id) {
+        var arc = root.arcFor(id)
+        if (!arc) return
+        root.selectedMarkerId = id
+        root.selectedArc = arc
+        root.previewVisible = true
+        root.previewMarkerHovered = false
+        root.previewMarkerFocused = false
+        closeGrace.stop()
+    }
+
+    function closePreviewSoon() {
+        closeGrace.restart()
+    }
+
+    function closePreview() {
+        closeGrace.stop()
+        root.previewVisible = false
+        root.selectedMarkerId = ""
+        root.selectedArc = null
+        root.previewMarkerHovered = false
+        root.previewMarkerFocused = false
+    }
+
+    function requestEscape() {
+        if (root.previewVisible) {
+            root.closePreview()
+            return true
+        }
+        if (root.indexVisible) {
+            root.indexVisible = false
+            root.nonCanonMode = false
+            return true
+        }
+        return false
+    }
+
+    onVisibleChanged: {
+        if (!visible) {
+            root.closePreview()
+            root.indexVisible = false
+            root.nonCanonMode = false
+        }
+    }
+
+    function openSelectedArc() {
+        var arc = root.selectedArc
+        if (arc) root.arcRequested(arc)
+    }
+
+    function focusMarker(id) {
+        root.openPreview(id)
+        for (var i = 0; i < markerRepeater.count; ++i) {
+            var marker = markerRepeater.itemAt(i)
+            if (marker && marker.objectName === "eastBlueBadge-" + id) {
+                marker.forceActiveFocus()
+                break
+            }
+        }
+    }
+
+    // Deterministic inspection seams used by the Qt Test harness; production
+    // interaction still travels through the native controls themselves.
+    function markerForTest(id) {
+        var target = String(id).indexOf("eastBlueBadge-") === 0 ? String(id) : "eastBlueBadge-" + id
+        for (var i = 0; i < markerRepeater.count; ++i) {
+            var marker = markerRepeater.itemAt(i)
+            if (marker && marker.objectName === target)
+                return marker
+        }
+        return null
+    }
+
+    function nonCanonActionForTest(id) {
+        for (var i = 0; i < nonCanonRepeater.count; ++i) {
+            var row = nonCanonRepeater.itemAt(i)
+            if (!row) continue
+            for (var j = 0; j < row.children.length; ++j) {
+                var child = row.children[j]
+                if (child && child.objectName === "eastBlueNonCanonAction-" + id)
+                    return child
+            }
+        }
+        return null
+    }
+
+    Timer {
+        id: closeGrace
+        interval: 160
+        repeat: false
+        onTriggered: {
+            if (!bannerHover.hovered && !root.previewMarkerHovered && !root.previewMarkerFocused && !preview.activeFocus)
+                root.closePreview()
+        }
+    }
+
+    property bool previewMarkerHovered: false
+    property bool previewMarkerFocused: false
+
+    Rectangle { anchors.fill: parent; color: "#101816" }
+
+    // A single logical 1680×960 stage keeps artwork and controls aligned while
+    // the Flickable provides constrained-height panning at higher zoom levels.
+    Flickable {
+        id: mapViewport
+        anchors.fill: parent
+        anchors.margins: 22
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        contentWidth: Math.max(mapStage.width, width)
+        contentHeight: Math.max(mapStage.height, height)
+        interactive: root.zoom > 1.0
+
+        Item {
+            id: mapStage
+            width: 1680 * root.fitScale * root.zoom
+            height: 960 * root.fitScale * root.zoom
+            x: Math.max(0, (mapViewport.width - width) / 2)
+            y: Math.max(0, (mapViewport.height - height) / 2)
+
+            Image {
+                id: mapPlate
+                objectName: "eastBlueAtlasPlate"
+                anchors.fill: parent
+                source: "../assets/universes/one-piece/east-blue/east-blue-atlas.png"
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                smooth: true
+                mipmap: true
+                sourceSize: Qt.size(3360, 1920)
+            }
+            Rectangle {
+                anchors.fill: mapPlate
+                visible: mapPlate.status === Image.Error
+                color: "#e7d5aa"
+                border.color: "#80633e"
+                Text { anchors.centerIn: parent; text: "EAST BLUE ATLAS ART UNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.bold: true }
+            }
+
+            Repeater {
+                id: markerRepeater
+                model: AtlasData.canonMarkers
+
+                delegate: FocusScope {
+                    id: marker
+                    required property var modelData
+                    property string markerId: modelData.id
+                    property var markerArc: root.arcFor(markerId)
+                    property bool markerHovered: markerHover.hovered
+                    objectName: "eastBlueBadge-" + markerId
+                    Accessible.role: Accessible.Button
+                    Accessible.name: markerArc ? markerArc.title : markerId
+                    Accessible.description: "Hover or focus to preview this East Blue arc"
+
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: root.openPreview(marker.markerId)
+                    Keys.onEnterPressed: root.openPreview(marker.markerId)
+                    onActiveFocusChanged: {
+                        if (marker.markerId === root.selectedMarkerId)
+                            root.previewMarkerFocused = activeFocus
+                        if (activeFocus) {
+                            root.openPreview(marker.markerId)
+                            root.previewMarkerFocused = true
+                        } else {
+                            root.closePreviewSoon()
+                        }
+                    }
+
+                    x: modelData.x * mapStage.width - width / 2
+                    y: modelData.y * mapStage.height - height / 2
+                    width: root.badgeHitDiameter
+                    height: root.badgeHitDiameter
+                    z: 4
+
+                    HoverHandler {
+                        id: markerHover
+                        onHoveredChanged: {
+                            if (hovered) {
+                                root.previewMarkerHovered = true
+                                root.openPreview(marker.markerId)
+                            } else {
+                                if (root.selectedMarkerId === marker.markerId)
+                                    root.previewMarkerHovered = false
+                                root.closePreviewSoon()
+                            }
+                        }
+                    }
+                    // Deliberately consumes no pointer buttons: badge clicks are no-ops.
+                    TapHandler { acceptedButtons: Qt.NoButton }
+
+                    Button {
+                        id: badgeButton
+                        objectName: "eastBlueBadgeImage-" + marker.markerId
+                        width: root.badgeDiameter
+                        height: root.badgeDiameter
+                        anchors.centerIn: parent
+                        activeFocusOnTab: false
+                        // Keyboard-only badges follow focusPolicy: Qt.TabFocus
+                        // semantics on the delegate FocusScope. Keeping
+                        // this visual Button unfocusable makes pointer clicks
+                        // inert without opening a preview through focus changes.
+                        focusPolicy: Qt.NoFocus
+                        hoverEnabled: false
+                        padding: 0
+                        background: null
+                        contentItem: Image {
+                            id: badgeImage
+                            source: marker.modelData.badge
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            mipmap: true
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: badgeImage.status === Image.Error
+                            color: "#d8bd8a"
+                            border.color: "#80633e"
+                            Text { anchors.centerIn: parent; text: "ARC"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 9; font.bold: true }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -3
+                        radius: width / 2
+                        color: "transparent"
+                        border.width: badgeButton.activeFocus ? 2 : 0
+                        border.color: "#f4d282"
+                    }
+                }
+            }
+
+            Button {
+                id: paradiseButton
+                objectName: "eastBlueToParadise"
+                x: 0.1619 * mapStage.width
+                // The design coordinate sits beside Reverse Mountain. At short
+                // viewports the 48 px native hit target would otherwise fall
+                // through the Flickable clip by a few pixels; keep it in the
+                // same mapped lower-left region while clamping its bottom edge.
+                y: Math.min(0.8938 * mapStage.height,
+                            Math.max(0, mapViewport.height - mapStage.y - height))
+                width: 148 * root.zoom
+                height: 48 * root.zoom
+                text: "TO PARADISE"
+                activeFocusOnTab: true
+                focusPolicy: Qt.StrongFocus
+                font.family: atlasBodyFont.name
+                font.pixelSize: Math.max(8, 11 * root.zoom)
+                font.bold: true
+                palette.buttonText: "#584126"
+                contentItem: Text {
+                    text: paradiseButton.text
+                    color: paradiseButton.palette.buttonText
+                    font.family: atlasBodyFont.name
+                    font.pixelSize: Math.max(8, 11 * root.zoom)
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                background: Rectangle {
+                    radius: 3
+                    color: paradiseButton.activeFocus ? "#f2dfb2" : "#ead2a0"
+                    border.width: 1
+                    border.color: "#795a35"
+                }
+                onClicked: root.paradiseRequested()
+            }
+        }
+    }
+
+    Row {
+        id: zoomTools
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 34
+        anchors.bottomMargin: 30
+        spacing: 4
+        z: 20
+        Button {
+            id: zoomOutButton
+            text: "−"; width: 44; height: 44
+            font.family: atlasBodyFont.name
+            contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            onClicked: root.zoom = Math.max(1.0, root.zoom - 0.25)
+        }
+        Button {
+            id: zoomResetButton
+            text: "100%"; width: 58; height: 44
+            font.family: atlasBodyFont.name
+            contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            onClicked: root.zoom = 1.0
+        }
+        Button {
+            id: zoomInButton
+            text: "+"; width: 44; height: 44
+            font.family: atlasBodyFont.name
+            contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            onClicked: root.zoom = Math.min(2.0, root.zoom + 0.25)
+        }
+    }
+
+                        Button {
+        id: indexButton
+        objectName: "eastBlueIndexButton"
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 24
+        anchors.rightMargin: root.shellChromeInset
+        width: 116
+        height: 48
+        z: 30
+        text: ""
+        font.family: atlasBodyFont.name
+        activeFocusOnTab: true
+        focusPolicy: Qt.StrongFocus
+        contentItem: Row {
+            anchors.centerIn: parent
+            spacing: 8
+            Item {
+                width: 18
+                height: 16
+                Rectangle { x: 0; y: 1; width: 18; height: 2; radius: 1; color: "#584126" }
+                Rectangle { x: 0; y: 7; width: 18; height: 2; radius: 1; color: "#584126" }
+                Rectangle { x: 0; y: 13; width: 18; height: 2; radius: 1; color: "#584126" }
+            }
+            Text {
+                text: "INDEX"
+                color: "#584126"
+                font.family: atlasBodyFont.name
+                font.pixelSize: 12
+                font.bold: true
+            }
+        }
+        onClicked: {
+            root.indexVisible = !root.indexVisible
+            root.nonCanonMode = false
+            if (root.indexVisible) root.closePreview()
+        }
+    }
+
+    Rectangle {
+        id: indexPanel
+        objectName: "eastBlueIndexPanel"
+        visible: root.indexVisible
+        anchors.top: indexButton.bottom
+        anchors.right: indexButton.right
+        anchors.topMargin: 8
+        width: Math.min(420, Math.max(290, root.width * 0.34))
+        height: Math.min(root.height - indexButton.y - indexButton.height - 30, 610)
+        color: "#efe1bd"
+        border.color: "#8a6b41"
+        border.width: 1
+        z: 29
+
+        Rectangle {
+            objectName: "eastBlueIndexCaret"
+            width: 12
+            height: 12
+            x: indexPanel.width - 24
+            y: -6
+            rotation: 45
+            color: indexPanel.color
+            border.color: indexPanel.border.color
+            border.width: 1
+            z: -1
+        }
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 7
+            Text { text: root.nonCanonMode ? "EAST BLUE / INDEX" : "THE EAST BLUE SAGA"; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.4 }
+            Text { text: root.nonCanonMode ? "Non-canon material" : "Ports of the voyage"; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 23 }
+
+            Flickable {
+                id: indexFlick
+                width: parent.width
+                height: parent.height - (root.nonCanonMode ? 110 : 66)
+                clip: true
+                contentWidth: width
+                contentHeight: indexContent.height
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                Column {
+                    id: indexContent
+                    width: indexFlick.width
+                    spacing: 6
+
+                    Repeater {
+                        model: root.nonCanonMode ? 0 : AtlasData.canonMarkers.length
+                        delegate: Button {
+                            id: canonRowButton
+                            required property int index
+                            objectName: "eastBlueCanonRow-" + AtlasData.canonMarkers[index].id
+                            width: indexContent.width
+                            height: 46
+                            text: String(index + 1).padStart(2, "0") + "   " + EastBlue.arc(AtlasData.canonMarkers[index].id).title
+                            font.family: atlasBodyFont.name
+                            font.pixelSize: 14
+                            palette.buttonText: "#523a25"
+                            contentItem: Text {
+                                text: canonRowButton.text
+                                font.family: atlasBodyFont.name
+                                font.pixelSize: 14
+                                color: canonRowButton.palette.buttonText
+                                horizontalAlignment: Text.AlignLeft
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+                            onClicked: {
+                                root.indexVisible = false
+                                root.focusMarker(AtlasData.canonMarkers[index].id)
+                            }
+                        }
+                    }
+
+                    Button {
+                        id: nonCanonToggleButton
+                        objectName: "eastBlueNonCanonToggle"
+                        visible: !root.nonCanonMode
+                        width: indexContent.width
+                        height: 44
+                        text: "NON-CANON MATERIAL"
+                        font.family: atlasBodyFont.name
+                        font.pixelSize: 11
+                        font.bold: true
+                        contentItem: Text {
+                            text: nonCanonToggleButton.text
+                            font.family: atlasBodyFont.name
+                            font.pixelSize: 11
+                            font.bold: true
+                            color: nonCanonToggleButton.palette.buttonText
+                            horizontalAlignment: Text.AlignLeft
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+                        onClicked: root.nonCanonMode = true
+                    }
+
+                    Repeater {
+                        id: nonCanonRepeater
+                        model: root.nonCanonMode ? AtlasData.nonCanonEntries : []
+                        delegate: Row {
+                            id: nonCanonRow
+                            required property var modelData
+                            width: indexContent.width
+                            height: 98
+                            spacing: 8
+
+                            Item {
+                                width: 64; height: 82
+                                Image {
+                                    id: nonCanonPoster
+                                    anchors.fill: parent
+                                    source: nonCanonRow.modelData.poster
+                                    fillMode: Image.PreserveAspectFit
+                                    asynchronous: true
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    visible: nonCanonPoster.status === Image.Error
+                                    color: "#d8bd8a"
+                                    border.color: "#80633e"
+                                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 8; horizontalAlignment: Text.AlignHCenter }
+                                }
+                            }
+                            Column {
+                                width: Math.max(110, parent.width - 160)
+                                spacing: 2
+                                Text { width: parent.width; text: nonCanonRow.modelData.title; color: "#523a25"; font.family: atlasBodyFont.name; font.pixelSize: 13; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                                Text { text: nonCanonRow.modelData.year + " · " + nonCanonRow.modelData.kindLabel; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 10 }
+                                Text { width: parent.width; text: nonCanonRow.modelData.placement; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                            }
+                            Button {
+                                id: nonCanonActionButton
+                                objectName: "eastBlueNonCanonAction-" + nonCanonRow.modelData.id
+                                width: 76; height: 28
+                                text: nonCanonRow.modelData.entry ? "OPEN" : "UNAVAILABLE"
+                                enabled: !!nonCanonRow.modelData.entry
+                                contentItem: Text {
+                                    text: nonCanonActionButton.text
+                                    font.family: atlasBodyFont.name
+                                    font.pixelSize: 12
+                                    color: nonCanonActionButton.enabled ? nonCanonActionButton.palette.buttonText : "#9c927e"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+                                Accessible.description: nonCanonRow.modelData.entry ? "Open media detail" : "No verified local media identity is available"
+                                onClicked: if (nonCanonRow.modelData.entry) {
+                                    root.indexVisible = false
+                                    root.mediaRequested(nonCanonRow.modelData.entry)
+                                }
+                            }
+                        }
+                    }
+
+                    Button {
+                        id: backToIndexRowButton
+                        objectName: "eastBlueBackToIndexRow"
+                        visible: root.nonCanonMode
+                        width: indexContent.width
+                        height: 38
+                        text: "BACK TO INDEX"
+                        font.family: atlasBodyFont.name
+                        contentItem: Text {
+                            text: backToIndexRowButton.text
+                            font.family: atlasBodyFont.name
+                            font.pixelSize: 12
+                            color: backToIndexRowButton.palette.buttonText
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+                        onClicked: root.nonCanonMode = false
+                    }
+                }
+            }
+
+            Button {
+                id: backToIndexButton
+                objectName: "eastBlueBackToIndex"
+                visible: root.nonCanonMode
+                width: parent.width
+                height: 38
+                z: 2
+                text: "BACK TO INDEX"
+                contentItem: Text {
+                    text: backToIndexButton.text
+                            font.family: atlasBodyFont.name
+                            font.pixelSize: 11
+                            font.bold: true
+                    color: backToIndexButton.palette.buttonText
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                onClicked: root.nonCanonMode = false
+            }
+        }
+
+        Keys.onEscapePressed: root.requestEscape()
+    }
+
+    Rectangle {
+        id: preview
+        visible: root.previewVisible && root.selectedArc !== null
+        objectName: "eastBlueArcPreview"
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 34
+        anchors.bottomMargin: 72
+        width: Math.min(500, Math.max(360, root.width * 0.38))
+        height: 230
+        color: "#efe1bd"
+        border.color: "#8a6b41"
+        border.width: 1
+        z: 40
+
+        HoverHandler {
+            id: bannerHover
+            onHoveredChanged: if (!hovered) root.closePreviewSoon()
+        }
+        activeFocusOnTab: true
+
+        Row {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 14
+            Item {
+                width: 135; height: 204
+                Image {
+                    id: previewPoster
+                    anchors.fill: parent
+                    source: root.selectedArc ? "../assets/universes/one-piece/east-blue-markers/" + root.selectedArc.id + ".png" : ""
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    visible: previewPoster.status === Image.Error
+                    color: "#d8bd8a"
+                    border.color: "#80633e"
+                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
+                }
+            }
+            Column {
+                width: parent.width - 150
+                spacing: 6
+                Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
+                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
+                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
+                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
+                Row {
+                    spacing: 8
+                    Button {
+                        id: openArcButton
+                        objectName: "eastBlueOpenArc"
+                        text: "OPEN ARC"
+                    contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        onClicked: root.openSelectedArc()
+                    }
+                    Button {
+                        id: closePreviewButton
+                        objectName: "eastBlueClosePreview"
+                        text: "CLOSE"
+                    contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        onClicked: root.closePreview()
+                    }
+                }
+            }
+        }
+
+        Keys.onEscapePressed: root.requestEscape()
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                root.requestEscape()
+                event.accepted = true
+            }
+        }
+    }
+
+    Keys.onEscapePressed: {
+        root.requestEscape()
+    }
+}

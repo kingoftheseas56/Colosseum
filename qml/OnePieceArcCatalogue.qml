@@ -10,6 +10,7 @@ Item {
     property string focusLane: "anime"
     property bool reducedMotion: false
     property var installedExtensions: []
+    property var relatedItems: []
     property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
     property int mangaMalId: 13
 
@@ -25,6 +26,7 @@ Item {
     signal backRequested()
     signal episodeRequested(var entry)
     signal mangaVolumeRequested(bool colorEdition, string volumeNumber)
+    signal relatedRequested(var entry)
 
     Theme { id: theme }
 
@@ -343,6 +345,41 @@ Item {
                                 entry: modelData
                                 sourceLabel: "LIVE ACTION"
                                 onActivated: root.episodeRequested(root.episodeRoute(modelData, "live"))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Column {
+                id: relatedBlock
+                width: parent.width
+                spacing: 18
+                visible: root.relatedItems.length > 0
+                WidgetHeader {
+                    width: parent.width
+                    title: "Related Adaptations"
+                    sub: root.countLabel(root.relatedItems.length, "title")
+                    navigable: false
+                }
+                Flickable {
+                    width: parent.width
+                    height: 216
+                    contentWidth: relatedRow.width
+                    contentHeight: height
+                    clip: true
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    Row {
+                        id: relatedRow
+                        spacing: 20
+                        Repeater {
+                            model: root.relatedItems
+                            delegate: OnePieceEpisodeCard {
+                                required property var modelData
+                                entry: modelData
+                                sourceLabel: "RELATED"
+                                onActivated: root.relatedRequested(modelData)
                             }
                         }
                     }

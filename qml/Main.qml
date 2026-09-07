@@ -616,6 +616,11 @@ Window {
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
             seriesActive: seriesLayer.active,
+            onePieceArcActive: onePieceArcLayer.active,
+            onePieceAtlasTransientOpen: universeLayer.active
+                    && universeLayer.extensionId === "com.colosseum.universe.onepiece"
+                    && universeLayer.item
+                    && universeLayer.item.atlasTransientOpen === true,
             universeActive: universeLayer.active,
             universeHallActive: universeHallLayer.active,
             searchActive: searchLayer.active,
@@ -686,6 +691,13 @@ Window {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
     }
+    function requestOnePieceAtlasEscape() {
+        if (universeLayer.active
+                && universeLayer.extensionId === "com.colosseum.universe.onepiece"
+                && universeLayer.item
+                && universeLayer.item.requestEscape)
+            universeLayer.item.requestEscape()
+    }
     function cancelPendingIdentityCeremony() {
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
@@ -717,6 +729,8 @@ Window {
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
         case "series": win.closeSeries(); return
+        case "onePieceArc": win.closeOnePieceArc(); return
+        case "onePieceAtlasTransient": win.requestOnePieceAtlasEscape(); return
         case "universe": win.requestUniverseEscape(); return
         case "universeHall": win.closeUniverseHall(); return
         case "search": win.closeSearch(); return
@@ -1645,6 +1659,7 @@ Window {
     // pick between bespoke per-IP pages, and those are being deleted (next task).
     function openUniverse(extensionId, name) {
         if (!extensionId) return
+        win.closeOnePieceArc()
         universeLayer.extensionId = extensionId
         universeLayer.universeName = name || ""
         if (universeLayer.item) {
@@ -1653,7 +1668,30 @@ Window {
         }
         universeLayer.active = true
     }
-    function closeUniverse() { universeLayer.active = false }
+    function closeUniverse() {
+        win.closeOnePieceArc()
+        universeLayer.active = false
+    }
+    function openOnePieceArc(arc) {
+        if (!arc) return
+        onePieceArcLayer.arcData = arc
+        onePieceArcLayer.active = true
+    }
+    function closeOnePieceArc() {
+        onePieceArcLayer.active = false
+        onePieceArcLayer.arcData = null
+    }
+    function routeUniverseSeries(e) {
+        var requested = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
+        if (e && e.provider === "weebcentral") win.openWeebCentralSeries(e.title || "", requested)
+        else if (e && e.provider === "tankoban") win.openSeries(e.title || "", e.malId || "", {
+            malId: e.malId || "", seriesId: e.seriesId || "",
+            sourceSearchTitle: e.sourceSearchTitle || "",
+            sourceSearchAliases: e.sourceSearchAliases || [],
+            sourceRequiredMarkers: e.sourceRequiredMarkers || []
+        }, requested)
+        else win.openSeries((e && e.title) || e || "", "", null, requested)
+    }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
     function openUniverseHall() { universeHallLayer.active = true }
     function closeUniverseHall() { universeHallLayer.active = false }
@@ -3692,8 +3730,6 @@ Window {
                       ? "OnePieceUniversePage.qml"
                       : "UniverseExtensionPage.qml"))
         onLoaded: {
-            // NO item.backdrop — UniverseExtensionPage has no such property; it paints its
-            // own flat #0c0e11 instead of sampling the shared wallpaper.
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
             if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
@@ -3717,35 +3753,51 @@ Window {
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
-            item.watchRequested.connect(win.openTheatreSeries)
-            if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
-                item.comicRequested.connect(win.openGcdSeries)
-                item.continueResumeRequested.connect(win.resumeContinue)
-                item.continueDetailRequested.connect(win.detailContinue)
+            if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+                item.arcRequested.connect(win.openOnePieceArc)
+                item.mediaRequested.connect(win.openTheatreSeries)
             } else {
-                item.bookRequested.connect(win.openBook)
-                item.comicsArchiveRequested.connect(win.openUniverseComic)
-                // manga → Tankoban. Edition-aware entries can carry a discovery/storage
-                // profile while reusing the same catalogue identity as the base manga.
-                item.seriesRequested.connect(function(e) {
-                    var requested = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
-                    if (e && e.provider === "weebcentral") win.openWeebCentralSeries(e.title || "", requested)
-                    else if (e && e.provider === "tankoban") win.openSeries(e.title || "", e.malId || "", {
-                        malId: e.malId || "", seriesId: e.seriesId || "",
-                        sourceSearchTitle: e.sourceSearchTitle || "",
-                        sourceSearchAliases: e.sourceSearchAliases || [],
-                        sourceRequiredMarkers: e.sourceRequiredMarkers || []
-                    }, requested)
-                    else win.openSeries((e && e.title) || e || "", "", null, requested)
-                })
-                if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
-                    item.onePaceRequested.connect(win.openOnePaceArc)
+                item.watchRequested.connect(win.openTheatreSeries)
+                if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
+                    item.comicRequested.connect(win.openGcdSeries)
                     item.continueResumeRequested.connect(win.resumeContinue)
                     item.continueDetailRequested.connect(win.detailContinue)
+                } else {
+                    item.bookRequested.connect(win.openBook)
+                    item.comicsArchiveRequested.connect(win.openUniverseComic)
+                    item.seriesRequested.connect(win.routeUniverseSeries)
                 }
             }
         }
     }
+
+    Loader {
+        id: onePieceArcLayer
+        anchors.fill: parent
+        z: 52.5
+        active: false
+        visible: active
+        asynchronous: true
+        property var arcData: null
+        sourceComponent: Component {
+            OnePieceArcPage {
+                arc: onePieceArcLayer.arcData
+                extensionId: universeLayer.extensionId
+                installedExtensions: win.installedExtensions
+                reducedMotion: win.reducedMotion
+            }
+        }
+        onLoaded: {
+            item.backRequested.connect(win.closeOnePieceArc)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.watchRequested.connect(win.openTheatreSeries)
+            item.seriesRequested.connect(win.routeUniverseSeries)
+            item.onePaceRequested.connect(win.openOnePaceArc)
+        }
+    }
+
     Loader {
         id: universeHallLayer
         anchors.fill: parent

@@ -47,6 +47,11 @@ eq(action({ downloadsActive: true, bookActive: true }), 'downloads', 'taskbar fu
 eq(action({ bookActive: true, theatreSeriesActive: true }), 'book', 'book detail is highest z53 sibling');
 eq(action({ theatreSeriesActive: true, westernActive: true }), 'theatreSeries', 'Theatre detail beats earlier z53 western page');
 eq(action({ westernActive: true, seriesActive: true }), 'western', 'western page beats earlier z53 manga page');
+eq(action({ theatreSeriesActive: true, onePieceArcActive: true, universeActive: true }), 'theatreSeries', 'media detail beats One Piece arc page');
+eq(action({ onePieceArcActive: true, universeActive: true }), 'onePieceArc', 'One Piece arc page closes before its globe');
+eq(action({ theatreSeriesActive: true, onePieceAtlasTransientOpen: true, universeActive: true }), 'theatreSeries', 'Theatre detail beats atlas transient');
+eq(action({ onePieceArcActive: true, onePieceAtlasTransientOpen: true, universeActive: true }), 'onePieceArc', 'One Piece arc page beats atlas transient');
+eq(action({ onePieceAtlasTransientOpen: true, universeActive: true }), 'onePieceAtlasTransient', 'atlas transient closes before its globe');
 eq(action({ universeActive: true, searchActive: true }), 'universe', 'universe z52 beats search z51');
 eq(action({ comicIndexActive: true, continueSeeAllActive: true }), 'comicIndex', 'later z49 comic index wins');
 eq(action({ theatreGenreActive: true, theatreGenreIndexActive: true }), 'theatreGenre', 'Theatre genre page beats its index');

@@ -132,66 +132,51 @@ const featuredCarouselSrc = fs.readFileSync('qml/FeaturedCarousel.qml', 'utf8');
 eq(featuredCarouselSrc.includes('SwipeView {'), true, 'shared world carousel remains SwipeView-backed');
 const carouselSlideSrc = fs.readFileSync('qml/CarouselSlide.qml', 'utf8');
 eq(carouselSlideSrc.includes('visible: slideRoot.secondaryLabel.length > 0'), true, 'shared slide hides secondary action when label is blank');
-console.log('\nEast Blue map source contract');
-const mapPath = 'qml/OnePieceEastBlueMap.qml';
-eq(fs.existsSync(mapPath), true, 'OnePieceEastBlueMap.qml exists');
-if (fs.existsSync(mapPath)) {
-    const mapSrc = fs.readFileSync(mapPath, 'utf8');
-    for (const needle of [
-        'import QtQuick.Shapes',
-        'east-blue-relief.png',
-        'ShapePath.DashLine',
-        'dashPattern',
-        'dashOffset',
-        'NumberAnimation',
-        'property bool reducedMotion',
-        'Scale',
-        'OnePieceArcMarker',
-        'OnePieceSeaGate',
-        'signal paradiseRequested()'
-    ]) eq(mapSrc.includes(needle), true, `map contains ${needle}`);
-    eq(mapSrc.includes('id: logPose'), false, 'map has no Log Pose component');
-    eq(mapSrc.includes('LOG POSE'), false, 'map has no Log Pose label');
-    eq(mapSrc.includes('OnePieceArcDock'), false, 'map owns no media dock overlay');
-}
-
-console.log('\nOne Piece page source contract');
+console.log('\nOne Piece native atlas page source contract');
 const pagePath = 'qml/OnePieceUniversePage.qml';
 eq(fs.existsSync(pagePath), true, 'OnePieceUniversePage.qml exists');
 if (fs.existsSync(pagePath)) {
     const pageSrc = fs.readFileSync(pagePath, 'utf8');
     for (const needle of [
-        'import "UniverseExtApi.js" as UniverseApi',
         'property string extensionId',
         'property string universeName',
         'property bool reducedMotion',
-        'UniverseApi.load(root.extensionId',
-        'OnePieceEastBlueMap',
+        'property var installedExtensions: []',
+        'signal arcRequested(var arc)',
+        'signal mediaRequested(var entry)',
+        'readonly property bool atlasTransientOpen',
+        'function requestEscape()',
+        'OnePieceEastBlueAtlas {',
+        'atlasTransientOpen: atlas.transientOpen',
+        'return atlas.requestEscape()',
+        'onArcRequested: function(arc)',
+        'onMediaRequested: function(entry)',
+        'root.arcRequested(arc)',
+        'root.mediaRequested(entry)'
+    ]) eq(pageSrc.includes(needle), true, `page contains ${needle}`);
+    for (const forbidden of [
+        'import "UniverseExtApi.js" as UniverseApi',
+        'OnePieceWorld3D {',
+        'OnePieceArcDock {',
+        'OnePieceArcCatalogue {',
+        'ContinueTile {',
+        'Progress.recent("", 100)',
         'signal watchRequested(var payload)',
         'signal seriesRequested(var entry)',
         'signal onePaceRequested(var arc)',
         'signal paradiseRequested()',
-        'Progress.recent("", 100)',
-        'ContinueTile',
-        'signal continueResumeRequested(var entry)',
-        'signal continueDetailRequested(var entry)',
-        'onParadiseRequested: root.paradiseRequested()',
-        'onLiveActionRequested:',
-        'onSpecialRequested:' ,
-        'OnePieceArcDock',
-        'OnePieceArcCatalogue'
-    ]) eq(pageSrc.includes(needle), true, `page contains ${needle}`);
-    eq(pageSrc.includes('arc.liveActionSeason'), true, 'live-action route uses mapped season');
-    eq(pageSrc.includes('arc.liveActionEpisodes'), true, 'live-action route uses mapped episode range');
-    eq(pageSrc.includes('height: 520'), true, 'arc media widget uses taller presentation');
-    eq(pageSrc.includes('function openArcCatalogue'), true, 'format cards open the One Piece arc catalogue');
-    eq(pageSrc.includes('onEpisodeRequested: function(entry) { root.watchRequested(entry) }'), true, 'arc catalogue forwards provider episode selection');
-    eq(pageSrc.includes('onMangaVolumeRequested:'), true, 'arc catalogue forwards manga-volume selection');
-    eq(pageSrc.includes('property var installedExtensions: []'), true, 'One Piece page accepts installed extensions');
-    eq(pageSrc.includes('onOnePaceRequested: root.openArcCatalogue("pace")'), true, 'One Pace carousel opens the arc catalogue');
-    eq(pageSrc.includes('installedExtensions: root.installedExtensions'), true, 'arc catalogue receives installed extensions');
+        'contentHeight:'
+    ]) eq(pageSrc.includes(forbidden), false, `globe page removes ${forbidden}`);
+    eq(pageSrc.includes('OnePieceWorld3D {'), false, 'legacy globe is not instantiated');
 }
 
+const arcPagePath = 'qml/OnePieceArcPage.qml';
+eq(fs.existsSync(arcPagePath), true, 'OnePieceArcPage.qml exists');
+if (fs.existsSync(arcPagePath)) {
+    const arcPageSrc = fs.readFileSync(arcPagePath, 'utf8');
+    eq(arcPageSrc.includes('OnePieceArcCatalogue {'), true, 'dedicated arc page owns the media catalogue');
+    eq(arcPageSrc.includes('arc: root.arc'), true, 'dedicated arc page passes selected arc metadata');
+}
 
 console.log('\nOne Piece arc catalogue contract');
 const catalogueApiPath = 'qml/OnePieceCatalogApi.js';
@@ -243,16 +228,19 @@ eq(volumeCardSrc.includes('text: "Volume " + root.entry.number'), true, 'volume 
 console.log('\nMain One Piece routing contract');
 const mainSrc = fs.readFileSync('qml/Main.qml', 'utf8');
 eq(mainSrc.includes('com.colosseum.universe.onepiece'), true, 'Main recognizes One Piece universe id');
-eq(mainSrc.includes('OnePieceUniversePage.qml'), true, 'Main routes One Piece to bespoke page');
-eq(mainSrc.includes('UniverseExtensionPage.qml'), true, 'Main preserves generic universe fallback');
-eq(mainSrc.includes('item.continueResumeRequested.connect(win.resumeContinue)'), true, 'Main wires One Piece Continue resume');
-eq(mainSrc.includes('item.continueDetailRequested.connect(win.detailContinue)'), true, 'Main wires One Piece Continue detail');
-eq(mainSrc.includes('item.onePaceRequested.connect(win.openOnePaceArc)'), true,'Main wires One Pace route');
-eq(mainSrc.includes('item.installedExtensions = Qt.binding(function() { return win.installedExtensions })'), true, 'Main binds installed extensions into One Piece');
-eq(mainSrc.includes('function openWeebCentralSeries'), true, 'Main exposes narrow WeebCentral series route');
+eq(mainSrc.includes('OnePieceUniversePage.qml'), true, 'Main routes One Piece to globe page');
+eq(mainSrc.includes('id: onePieceArcLayer'), true, 'Main owns a dedicated One Piece arc layer');
+eq(mainSrc.includes('OnePieceArcPage {'), true, 'Main instantiates the dedicated arc page');
+eq(mainSrc.includes('item.arcRequested.connect(win.openOnePieceArc)'), true, 'globe canon nodes open arc pages');
+eq(mainSrc.includes('item.mediaRequested.connect(win.openTheatreSeries)'), true, 'globe non-canon media routes directly to Theatre detail');
+eq(mainSrc.includes('item.watchRequested.connect(win.openTheatreSeries)'), true, 'arc page media routes through existing Theatre detail');
+eq(mainSrc.includes('item.seriesRequested.connect(win.routeUniverseSeries)'), true, 'arc manga routes through the shared universe series router');
+eq(mainSrc.includes('onePieceArcActive: onePieceArcLayer.active'), true, 'shell back state includes the arc layer');
+eq(mainSrc.includes('case "onePieceArc": win.closeOnePieceArc(); return'), true, 'Escape closes arc page before globe');
+eq(mainSrc.includes('function openWeebCentralSeries'), true, 'Main preserves narrow WeebCentral series route');
 eq(mainSrc.includes('seriesLayer.legacyWeebCentral'), true, 'Main tracks legacy WeebCentral mode');
 eq(mainSrc.includes('MangaSeriesThumbnailMock.qml'), true, 'legacy WeebCentral mode uses provider-backed series surface');
-eq(mainSrc.includes('e.provider === "weebcentral"'), true, 'Main preserves returning WeebCentral provider routing');
+eq(mainSrc.includes('e.provider === "weebcentral"'), true, 'shared universe router preserves WeebCentral routing');
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green');
 process.exit(failed ? 1 : 0);
