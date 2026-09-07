@@ -270,7 +270,7 @@ private slots:
         QFile verify(path);
         QVERIFY(verify.open(QIODevice::ReadOnly));
         QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
-                     .value(QStringLiteral("defaultsVersion")).toInt(), 13);
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 14);
     }
 
     void configured_manifest_urls_keep_query_before_manifest_suffix()

@@ -32,7 +32,7 @@ constexpr int kDescriptionCap = 400;
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 13;
+constexpr int kHouseDefaultsVersion = 14;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -295,6 +295,15 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         universe("com.colosseum.universe.onepiece", "One Piece",
                  "https://images.metahub.space/logo/medium/tt0388629/img",
                  "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg"));
+    // Cosmere — the Cognitive Atlas. A book universe with no film identity, so it carries no
+    // metahub wordmark; the Home carousel and Hall render its name in Fraunces over the
+    // Wikimedia "Window to the Cosmos" star field (the same banner Universes.js pins, already
+    // IPv4-allowed). The page self-sources from CosmereApi/Universes.js. Restored slot 2, the
+    // seat Hemanth gave it (promoteUniverse "Cosmere", 1).
+    add("com.colosseum.universe.cosmere", "colosseum://universe/cosmere", false,
+        universe("com.colosseum.universe.cosmere", "Cosmere",
+                 "",
+                 "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Window_to_the_Cosmos.jpg/1920px-Window_to_the_Cosmos.jpg"));
     add("com.colosseum.universe.dcau", "colosseum://universe/dcau", false,
         universe("com.colosseum.universe.dcau", "DC Animated Universe",
                  "https://images.metahub.space/logo/medium/tt0103359/img",
