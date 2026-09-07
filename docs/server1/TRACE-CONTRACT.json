@@ -1,0 +1,57 @@
+{
+  "schema": "colosseum-server1-trace-contract/v1",
+  "packet": "P05-B",
+  "parent_packet": "P05",
+  "observation_level": "policy-trace",
+  "oracle": {
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "source": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+  },
+  "modules": [
+    { "id": 564, "authority_lines": "46578-46979", "authority_sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569", "extracted_sha256": "02c4ccd2ce56543271b541484b376ab7fd11a04fecef0bdd656808fe96fac4cf" },
+    { "id": 730, "authority_lines": "67869-68057", "authority_sha256": "fa8e623de0a6f3552cf712cca7434c7f24df62c6e9727d318e04b3afa8ba9c90", "extracted_sha256": "337242535632cf933991eb152f2686a8384ab458c4db9b5d3e8d7df50d173146" },
+    { "id": 874, "authority_lines": "77415-77483", "authority_sha256": "397e6a2bd0140fe23a26df69bf77836acee795f8712cb658ae581c13b3e3021a", "extracted_sha256": "13051e26dfc0998d2abab73f11e015580f009798c262927a5b29246394979df8" }
+  ],
+  "injected_inputs": {
+    "clock_ms": 1700000000000,
+    "random_values": [0.25, 0.75],
+    "request_id": "p05-fixture-request-001"
+  },
+  "event_schema": {
+    "required_fields": ["seq", "generation", "kind", "identity", "payload"],
+    "raw_trace_is_authoritative": true,
+    "normalized_trace": { "allowed": false, "comparison_role": "none", "diagnostic_role": "none" },
+    "payload_key_presence": "exact; omitted and null are distinct"
+  },
+  "comparison_rules": {
+    "cardinality": "exact",
+    "terminal_event_uniqueness": "one stream.terminal per identity per generation",
+    "generation": "exact; cancellation must target the active generation",
+    "order": "exact list order; seq is compared as an observed value",
+    "priority": "selection.priority decisions retain source order and priority values",
+    "callback_identity": "exact identity and terminal completion presence",
+    "omission_vs_null": "an omitted key cannot be materialized as null",
+    "divergence_reporting": ["identity", "path", "rule"]
+  },
+  "mutation_fixtures": [
+    { "id": "P05-01-callback-removal", "rule": "required-terminal-callback-present" },
+    { "id": "P05-01-duplicate-terminal-event", "rule": "terminal-event-cardinality-one" },
+    { "id": "P05-01-priority-reorder", "rule": "priority-decision-order" },
+    { "id": "P05-01-null-replaces-omitted-key", "rule": "omitted-key-is-not-null" },
+    { "id": "P05-01-wrong-cancellation-generation", "rule": "cancellation-targets-active-generation" }
+  ],
+  "qualified_node_runtime": {
+    "kind": "portable-node",
+    "version": "v22.16.0",
+    "identity_source": "docs/server1/REFERENCE-RUNTIME.json",
+    "probe": "immediate, process.nextTick, Promise continuation, timer",
+    "expected_order": ["immediate", "nextTick", "promise", "timer"],
+    "classes_are_distinct": true
+  },
+  "fixture_consumer": {
+    "worker": "P05-B",
+    "interface": "TraceComparator",
+    "runner": "OracleModuleTraceRunner",
+    "execution_owner": "P05-B"
+  }
+}

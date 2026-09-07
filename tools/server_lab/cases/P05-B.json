@@ -1,0 +1,44 @@
+{
+  "schema": "colosseum-server1-p05-b-case/v1",
+  "packet": "P05-B",
+  "base": "44991721e48ef21bcd207bdf42698720ac0e181a",
+  "contract": "docs/server1/TRACE-CONTRACT.json",
+  "source_authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "modules": [564, 730, 874],
+    "planning_pack": "C:/b/Colosseum-Server-1.0-Planning-Pack",
+    "module_authority": {
+      "564": { "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569" },
+      "730": { "lines": "67869-68057", "sha256": "fa8e623de0a6f3552cf712cca7434c7f24df62c6e9727d318e04b3afa8ba9c90" },
+      "874": { "lines": "77415-77483", "sha256": "397e6a2bd0140fe23a26df69bf77836acee795f8712cb658ae581c13b3e3021a" }
+    }
+  },
+  "consumes": {
+    "fixture_source": "tools/server_lab/cases/P05-A.json",
+    "fixture_ids": [
+      "P05-01-callback-removal",
+      "P05-01-duplicate-terminal-event",
+      "P05-01-priority-reorder",
+      "P05-01-null-replaces-omitted-key",
+      "P05-01-wrong-cancellation-generation"
+    ],
+    "runner": "OracleModuleTraceRunner"
+  },
+  "p05_02": {
+    "qualified_node_version": "v22.16.0",
+    "ordering_classes": ["immediate", "nextTick", "promise", "timer"],
+    "ordering": ["immediate-1", "nextTick-1", "promise-1", "timer-1"]
+  },
+  "verification": {
+    "state_before": "planned",
+    "state_after": "test-executed",
+    "commands": [
+      { "command": "python -m unittest tools.server_lab.tests.test_comparator", "exit": 0, "evidence": "artifacts/server1/P05/P05-B/TEST-GREEN.raw.txt" },
+      { "command": "node --test artifacts/server1/P05/P05-A/test_p05_a.mjs", "runtime": "v22.16.0", "exit": 0, "evidence": "artifacts/server1/P05/P05-B/P05-A-REGRESSION.raw.txt" },
+      { "command": "python -m py_compile tools/server_lab/tests/test_comparator.py", "exit": 0 },
+      { "command": "python -m json.tool docs/server1/TRACE-CONTRACT.json", "exit": 0 },
+      { "command": "python -m json.tool tools/server_lab/cases/P05-B.json", "exit": 0 },
+      { "command": "git diff --check", "exit": 0 }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+command: python -m unittest tools.server_lab.tests.test_comparator
+exit: 1
+result: 7 tests ran; 7 errors
+failure identities:
+- TraceComparatorMutationTests: NameError: name 'TraceComparator' is not defined
+- QualifiedNodeOrderingTests: NameError: name 'run_qualified_node_order_probe' is not defined
+red_reason: required comparator and qualified Node probe symbols were absent before implementation

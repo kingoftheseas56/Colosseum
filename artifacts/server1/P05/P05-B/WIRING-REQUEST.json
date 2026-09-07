@@ -1,0 +1,27 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P05-B",
+  "parent_packet": "P05",
+  "status": "packet-local",
+  "interface_produced": "TraceComparator",
+  "contract_produced": "docs/server1/TRACE-CONTRACT.json",
+  "consumes": [
+    "tools/server_lab/cases/P05-A.json",
+    "OracleModuleTraceRunner",
+    "docs/server1/REFERENCE-RUNTIME.json"
+  ],
+  "fixture_ids": [
+    "P05-01-callback-removal",
+    "P05-01-duplicate-terminal-event",
+    "P05-01-priority-reorder",
+    "P05-01-null-replaces-omitted-key",
+    "P05-01-wrong-cancellation-generation"
+  ],
+  "production_wiring_requested": false,
+  "integration_destination": "B-W1C",
+  "evidence": [
+    "artifacts/server1/P05/P05-B/TEST-RED.raw.txt",
+    "artifacts/server1/P05/P05-B/TEST-GREEN.raw.txt",
+    "artifacts/server1/P05/P05-B/P05-A-REGRESSION.raw.txt"
+  ]
+}

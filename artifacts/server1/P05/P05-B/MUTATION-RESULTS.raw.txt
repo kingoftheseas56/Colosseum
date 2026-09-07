@@ -1,0 +1,7 @@
+command: python -c "load P05-A.json; compare all five mutation_fixtures"
+exit: 0
+P05-01-callback-removal {"accepted": false, "rejection": {"identity": "callback:completion:4", "path": "trace[2]", "rule": "required-terminal-callback-present"}}
+P05-01-duplicate-terminal-event {"accepted": false, "rejection": {"identity": "stream:p05-fixture-request-001", "path": "trace[2]", "rule": "terminal-event-cardinality-one"}}
+P05-01-priority-reorder {"accepted": false, "rejection": {"identity": "track:video-main", "path": "trace[0].identity", "rule": "priority-decision-order"}}
+P05-01-null-replaces-omitted-key {"accepted": false, "rejection": {"identity": "response:p05-fixture-request-001", "path": "trace[0].payload.contentLength", "rule": "omitted-key-is-not-null"}}
+P05-01-wrong-cancellation-generation {"accepted": false, "rejection": {"identity": "request:p05-fixture-request-001", "path": "trace[1].generation", "rule": "cancellation-targets-active-generation"}}

@@ -1,0 +1,30 @@
+{
+  "schema": "colosseum-server1-case-receipt/v1",
+  "worker_id": "P05-B",
+  "branch": "codex/server1-p05-b",
+  "base_sha": "44991721e48ef21bcd207bdf42698720ac0e181a",
+  "state_boundary": {
+    "authored": true,
+    "compiled": "not_applicable_python_and_json",
+    "tested": true,
+    "runtime_verified": true,
+    "committed": false,
+    "pushed": false,
+    "integrated": false
+  },
+  "cases": {
+    "P05-01": { "state": "PASS", "evidence": "TEST-GREEN.raw.txt", "mutations": 5 },
+    "P05-02": { "state": "PASS", "evidence": "TEST-GREEN.raw.txt", "runtime": "v22.16.0", "classes": ["immediate", "nextTick", "promise", "timer"] }
+  },
+  "scope": {
+    "owned_files": [
+      "tools/server_lab/tests/test_comparator.py",
+      "docs/server1/TRACE-CONTRACT.json"
+    ],
+    "allowed_packet_files": [
+      "tools/server_lab/cases/P05-B.json",
+      "artifacts/server1/P05/P05-B/**"
+    ],
+    "forbidden_files_touched": []
+  }
+}
