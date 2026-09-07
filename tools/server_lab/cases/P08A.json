@@ -1,0 +1,23 @@
+{
+  "cases": [
+    {
+      "id": "P08A-CONTROL",
+      "kind": "adversarial-control",
+      "requirement": "Two peers advertise the same 32 KiB piece and ordinary libtorrent picking must produce at least one 16 KiB request when suppression is disabled."
+    },
+    {
+      "id": "P08A-01",
+      "requirement": "Command exactly piece 0, offset 0, length 16384 to peer B. Raw wire evidence must show that request on B and none on A."
+    },
+    {
+      "id": "P08A-02",
+      "requirement": "With the same second block still eligible, suppress ordinary picker traffic on both peers while the owned B request and response still succeed; zero unowned requests are allowed."
+    },
+    {
+      "id": "P08A-03",
+      "requirement": "Hold the owned B request outstanding, destroy torrent/session, then require clean process exit, peer socket closure, and no hidden replay request."
+    }
+  ],
+  "packet": "P08A",
+  "schema_version": 1
+}

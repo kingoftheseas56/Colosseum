@@ -1,0 +1,43 @@
+{
+  "accepted": false,
+  "base_gate": "G-SUBSTRATE",
+  "behavioral_oracle": {
+    "block_size": 16384,
+    "cdn_selector": "v4.21.1",
+    "modules": [
+      "M814",
+      "M851"
+    ],
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "blockers": [
+    "wire evidence not yet executed"
+  ],
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "cases": {
+    "P08A-01": "one exact 16 KiB request to B, none to A",
+    "P08A-02": "owned request succeeds while zero unowned requests occur despite eligible work",
+    "P08A-03": "teardown with outstanding owned request exits cleanly with no replay/orphan",
+    "P08A-CONTROL": "same two-peer/two-block fixture must exhibit ordinary picker work with suppression disabled"
+  },
+  "ci": {
+    "status": "not yet executed for this probe revision",
+    "workflow": ".github/workflows/server1-p08a-feasibility.yml"
+  },
+  "gate": "G-NATIVE-FEASIBILITY",
+  "hypothesis": {
+    "dependency_patch_required": false,
+    "owned_response": "peer_plugin::on_piece()",
+    "picker_suppression": "exact-version native_handle()->no_download(true)",
+    "production_code": false,
+    "seam_classification": "public plugin API plus narrow exact-version internal-header state access",
+    "selected_peer_request": "peer_connection_handle::send_buffer() from peer_plugin callback"
+  },
+  "packet": "P08A",
+  "required_lanes": {
+    "linux": "P01A Linux lane",
+    "windows": "P01A Windows lane"
+  },
+  "schema_version": 1,
+  "state": "test-authored"
+}

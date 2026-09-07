@@ -1,0 +1,225 @@
+name: server1-p08a-feasibility
+
+on:
+  push:
+    branches:
+      - feature/colosseum-server-1.0-preflight
+    paths:
+      - artifacts/server1/P08A/**
+      - docs/server1/P08A-FEASIBILITY.json
+      - tools/server_lab/cases/P08A.json
+      - .github/workflows/server1-p08a-feasibility.yml
+      - artifacts/server1/P01A/probe-src/make_project.py
+      - native/CMakeLists.txt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-feasibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1 Core
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Install the P01A-locked Linux dependency lane
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config \
+            libtorrent-rasterbar-dev libboost-all-dev libssl-dev
+      - name: Generate disposable project from the live Colosseum authority
+        run: |
+          python artifacts/server1/P01A/probe-src/make_project.py \
+            --colosseum-cmake native/CMakeLists.txt \
+            --probe-source artifacts/server1/P08A/probe-src/exact_block_probe.cpp \
+            --out "$RUNNER_TEMP/server1-p08a-project"
+      - name: Build exact-block probe
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/server1-p08a-project"
+          build="$RUNNER_TEMP/server1-p08a-build"
+          evidence="$RUNNER_TEMP/p08a-evidence-linux"
+          mkdir -p "$evidence"
+          cmake --version | tee "$evidence/cmake-version.txt"
+          ninja --version | tee "$evidence/ninja-version.txt"
+          c++ --version | head -1 | tee "$evidence/compiler-version.txt"
+          dpkg-query -W -f='${Package}=${Version}\n' \
+            libtorrent-rasterbar-dev libtorrent-rasterbar2.0 \
+            libboost-dev libboost-filesystem-dev libboost-system-dev \
+            libssl-dev 2>&1 | tee "$evidence/dpkg-versions.txt"
+          cmake -S "$project" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR"
+          cmake --build "$build" --target server1_p01a_probe --parallel 2
+          "$build/server1_p01a_probe" --identity | tee "$evidence/identity.txt"
+          ldd "$build/server1_p01a_probe" | tee "$evidence/linked-libraries.txt"
+          sha256sum "$build/server1_p01a_probe" | tee "$evidence/binary-sha256.txt"
+          cp "$project/authority.json" "$evidence/authority.json"
+      - name: Prove eligible ordinary picker work exists
+        run: |
+          set -euo pipefail
+          python artifacts/server1/P08A/probe-src/tiny_peer.py \
+            --probe "$RUNNER_TEMP/server1-p08a-build/server1_p01a_probe" \
+            --case P08A-CONTROL \
+            --out "$RUNNER_TEMP/p08a-evidence-linux/P08A-CONTROL"
+      - name: P08A-01 selected peer exact block
+        run: |
+          set -euo pipefail
+          python artifacts/server1/P08A/probe-src/tiny_peer.py \
+            --probe "$RUNNER_TEMP/server1-p08a-build/server1_p01a_probe" \
+            --case P08A-01 \
+            --out "$RUNNER_TEMP/p08a-evidence-linux/P08A-01"
+      - name: P08A-02 suppress ordinary picker with eligible work
+        run: |
+          set -euo pipefail
+          python artifacts/server1/P08A/probe-src/tiny_peer.py \
+            --probe "$RUNNER_TEMP/server1-p08a-build/server1_p01a_probe" \
+            --case P08A-02 \
+            --out "$RUNNER_TEMP/p08a-evidence-linux/P08A-02"
+      - name: P08A-03 teardown with request outstanding
+        run: |
+          set -euo pipefail
+          python artifacts/server1/P08A/probe-src/tiny_peer.py \
+            --probe "$RUNNER_TEMP/server1-p08a-build/server1_p01a_probe" \
+            --case P08A-03 \
+            --out "$RUNNER_TEMP/p08a-evidence-linux/P08A-03"
+      - name: Upload Linux feasibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server1-p08a-linux
+          path: ${{ runner.temp }}/p08a-evidence-linux
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-feasibility:
+    runs-on: windows-2025
+    timeout-minutes: 50
+    env:
+      VCPKG_TAG: "2026.07.29"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1 Core
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Enable MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: x64
+      - name: Install the P01A-locked Windows dependency lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone --depth 1 --branch $env:VCPKG_TAG https://github.com/microsoft/vcpkg.git $vcpkg
+          & "$vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$vcpkg/vcpkg.exe" install `
+            libtorrent:x64-windows `
+            openssl:x64-windows `
+            boost-filesystem:x64-windows `
+            boost-system:x64-windows `
+            ecm:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "VCPKG_ROOT=$vcpkg" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vcpkg/installed/x64-windows/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Generate disposable project from the live Colosseum authority
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $project = Join-Path $env:RUNNER_TEMP "server1-p08a-project"
+          python artifacts/server1/P01A/probe-src/make_project.py `
+            --colosseum-cmake native/CMakeLists.txt `
+            --probe-source artifacts/server1/P08A/probe-src/exact_block_probe.cpp `
+            --out $project
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build exact-block probe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $project = Join-Path $env:RUNNER_TEMP "server1-p08a-project"
+          $build = Join-Path $env:RUNNER_TEMP "server1-p08a-build"
+          $evidence = Join-Path $env:RUNNER_TEMP "p08a-evidence-windows"
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $prefix = "$env:QT_ROOT_DIR;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake --version | Tee-Object -FilePath (Join-Path $evidence "cmake-version.txt")
+          ninja --version | Tee-Object -FilePath (Join-Path $evidence "ninja-version.txt")
+          (cl 2>&1 | Select-Object -First 5) | Tee-Object -FilePath (Join-Path $evidence "compiler-version.txt")
+          & "$env:VCPKG_ROOT/vcpkg.exe" list | Tee-Object -FilePath (Join-Path $evidence "vcpkg-list.txt")
+          cmake -S $project -B $build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build $build --target server1_p01a_probe --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PATH = "$env:QT_ROOT_DIR/bin;$env:VCPKG_ROOT/installed/x64-windows/bin;$env:PATH"
+          $exe = Join-Path $build "server1_p01a_probe.exe"
+          & $exe --identity | Tee-Object -FilePath (Join-Path $evidence "identity.txt")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dumpbin /dependents $exe | Tee-Object -FilePath (Join-Path $evidence "dependents.txt")
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "sha256=$hash" | Set-Content (Join-Path $evidence "binary-sha256.txt")
+          Copy-Item (Join-Path $project "authority.json") (Join-Path $evidence "authority.json")
+      - name: Prove eligible ordinary picker work exists
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $env:RUNNER_TEMP "server1-p08a-build/server1_p01a_probe.exe"
+          $out = Join-Path $env:RUNNER_TEMP "p08a-evidence-windows/P08A-CONTROL"
+          python artifacts/server1/P08A/probe-src/tiny_peer.py --probe $exe --case P08A-CONTROL --out $out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: P08A-01 selected peer exact block
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $env:RUNNER_TEMP "server1-p08a-build/server1_p01a_probe.exe"
+          $out = Join-Path $env:RUNNER_TEMP "p08a-evidence-windows/P08A-01"
+          python artifacts/server1/P08A/probe-src/tiny_peer.py --probe $exe --case P08A-01 --out $out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: P08A-02 suppress ordinary picker with eligible work
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $env:RUNNER_TEMP "server1-p08a-build/server1_p01a_probe.exe"
+          $out = Join-Path $env:RUNNER_TEMP "p08a-evidence-windows/P08A-02"
+          python artifacts/server1/P08A/probe-src/tiny_peer.py --probe $exe --case P08A-02 --out $out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: P08A-03 teardown with request outstanding
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $env:RUNNER_TEMP "server1-p08a-build/server1_p01a_probe.exe"
+          $out = Join-Path $env:RUNNER_TEMP "p08a-evidence-windows/P08A-03"
+          python artifacts/server1/P08A/probe-src/tiny_peer.py --probe $exe --case P08A-03 --out $out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload Windows feasibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server1-p08a-windows
+          path: ${{ runner.temp }}/p08a-evidence-windows
+          if-no-files-found: warn
+          retention-days: 14
