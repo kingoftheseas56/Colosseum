@@ -98,5 +98,5 @@
   "orchestration_note": "The INT-W1 Luna Max context stalled without modifying files. Sol performed the authorized integration/barrier review; no feature implementation was performed by Sol.",
   "unresolved_failures": [],
   "status": "accepted",
-  "push": false
+  "push": true
 }

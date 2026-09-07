@@ -33,6 +33,6 @@
     "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "completed_at_B-W1C", "P06-C": "completed_at_B-W1C", "P02S-A": "completed_at_B-W1D", "P07-A": "completed_at_B-W1D", "P07-B": "completed_at_B-W1D", "P07-C": "completed_at_B-W1D", "P08-A": "completed_at_B-W1D"},
     "integrated_sha": "9898964da604ba4a4d6d4d70036e26b09d8d87bc",
     "receipt": "artifacts/server1/INT-W1/B-W1D.json",
-    "push": false
+    "push": true
   }
 }
