@@ -1,0 +1,1 @@
+ctest --test-dir C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-build --output-on-failure -R ^K13-

@@ -1,0 +1,18 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-B",
+  "source_command": "artifacts/server1/K13/K13-B/comparison/SOURCE-COMMAND.txt",
+  "candidate_command": "artifacts/server1/K13/K13-B/comparison/CANDIDATE-COMMAND.txt",
+  "comparison_command": "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON-COMMAND.txt",
+  "source_output": "artifacts/server1/K13/K13-B/comparison/source.raw.txt",
+  "candidate_output": "artifacts/server1/K13/K13-B/comparison/candidate.raw.txt",
+  "comparison_output": "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON.txt",
+  "source_exit_code": 0,
+  "candidate_exit_code": 0,
+  "comparison_exit_code": 0,
+  "source_lines": 9,
+  "candidate_lines": 9,
+  "differences": 0,
+  "differential_match": true,
+  "note": "The atime/mtime filesystem fixture is covered by the focused native test and is not part of the deterministic JS trace."
+}

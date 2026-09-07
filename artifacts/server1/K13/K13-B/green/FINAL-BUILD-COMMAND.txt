@@ -1,0 +1,1 @@
+cmd.exe /d /s /c "VsDevCmd.bat -arch=x64 && cmake --build C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-build --target server1_k13_settings_cache_test --clean-first -j 2"

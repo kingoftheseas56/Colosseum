@@ -1,0 +1,4 @@
+$test = C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-build\server1_k13_settings_cache_test.exe
+& $test C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-run-01 K13-01
+& $test C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-run-02 K13-02
+& $test C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-run-03 K13-03

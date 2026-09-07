@@ -1,0 +1,11 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-B",
+  "phase": "RED",
+  "configure": {
+    "command_file": "artifacts/server1/K13/K13-B/red/RED-CONFIGURE-COMMAND.txt",
+    "raw_output": "artifacts/server1/K13/K13-B/red/RED-CONFIGURE-OUTPUT.txt",
+    "exit_code": 1,
+    "expected_failure": "K13 packet source absent before implementation"
+  }
+}

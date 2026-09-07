@@ -1,0 +1,1 @@
+Compare-Object (Get-Content comparison/source.raw.txt) (Get-Content comparison/candidate.raw.txt); write RAW-COMPARISON.txt with DIFFERENTIAL_MATCH=1 and line counts

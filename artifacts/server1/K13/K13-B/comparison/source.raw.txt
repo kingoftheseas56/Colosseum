@@ -1,0 +1,9 @@
+K13-02 default.cacheSize=2147483648
+K13-02 default.btMaxConnections=55
+K13-02 noCache.buffer=15728640
+K13-02 noCache.circularBuffer.size=47185920
+K13-03 equal-atime-order=newest,equal-atime-a,equal-atime-b
+K13-03 active-omitted=1
+K13-03 disk-target=9
+K13-03 delayed-latest=5368709120
+K13-03 fallback-temp=1

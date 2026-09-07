@@ -1,0 +1,1 @@
+cmd.exe /d /s /c "VsDevCmd.bat -arch=x64 && cmake -S C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-driver -B C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-build -G Ninja"

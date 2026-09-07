@@ -1,0 +1,28 @@
+{
+  "case": "K13-02",
+  "expected": {
+    "freshDesktop": {
+      "cacheSize": 2147483648,
+      "btMaxConnections": 55
+    },
+    "noCacheEntrypoint": {
+      "readerWindowBytes": 15728640,
+      "circularStorageBytes": 47185920,
+      "circularStorageInMemory": true,
+      "maxBufferFraction": 0.75
+    },
+    "cachePolicy": {
+      "activeFilesOmitted": true,
+      "equalAtimeOrderStable": true,
+      "diskAdjustedTarget": 9,
+      "fallbackCacheDirectory": "system temporary directory",
+      "delayedCleaningUsesLatestValue": true,
+      "evictionOrdersByAtime": true
+    }
+  },
+  "observed": {
+    "directCaseOutput": "artifacts/server1/K13/K13-B/green/K13-02-TEST-OUTPUT.txt",
+    "atimeOrdering": "PASS",
+    "focusedCtest": "PASS"
+  }
+}

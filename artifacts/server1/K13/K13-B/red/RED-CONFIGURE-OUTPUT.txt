@@ -1,0 +1,20 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+-- Configuring done (1.6s)
+CMake Error at C:/b/Colosseum-Server-1.0-workers/K13-B/native/colosseum_server_v1/cmake/packets/K13.cmake:4 (add_library):
+  Cannot find source file:
+
+    C:/b/Colosseum-Server-1.0-workers/K13-B/native/colosseum_server_v1/src/settings/CachePolicy.cpp
+Call Stack (most recent call first):
+  CMakeLists.txt:9 (server1_register_k13_packet)
+
+
+CMake Error at C:/b/Colosseum-Server-1.0-workers/K13-B/native/colosseum_server_v1/cmake/packets/K13.cmake:4 (add_library):
+  No SOURCES given to target: server1_k13_settings_cache
+Call Stack (most recent call first):
+  CMakeLists.txt:9 (server1_register_k13_packet)
+
+
+CMake Generate step failed.  Build files cannot be regenerated correctly.

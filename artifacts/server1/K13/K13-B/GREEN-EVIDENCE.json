@@ -1,0 +1,40 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-B",
+  "phase": "GREEN",
+  "configure": {
+    "command_file": "artifacts/server1/K13/K13-B/green/FINAL-CONFIGURE-COMMAND.txt",
+    "raw_output": "artifacts/server1/K13/K13-B/green/FINAL-CONFIGURE-OUTPUT.txt",
+    "exit_code": 0
+  },
+  "compile": {
+    "command_file": "artifacts/server1/K13/K13-B/green/FINAL-BUILD-COMMAND.txt",
+    "raw_output": "artifacts/server1/K13/K13-B/green/FINAL-BUILD-OUTPUT.txt",
+    "exit_code": 0,
+    "production_headers": [
+      "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "native/colosseum_server_v1/include/server1/platform/DiskSpace.h",
+      "native/colosseum_server_v1/include/server1/settings/SettingsStore.h"
+    ]
+  },
+  "direct_cases": {
+    "command_file": "artifacts/server1/K13/K13-B/green/DIRECT-CASES-COMMAND.txt",
+    "K13-01": {"raw_output": "artifacts/server1/K13/K13-B/green/K13-01-TEST-OUTPUT.txt", "exit_code": 0},
+    "K13-02": {"raw_output": "artifacts/server1/K13/K13-B/green/K13-02-TEST-OUTPUT.txt", "exit_code": 0},
+    "K13-03": {"raw_output": "artifacts/server1/K13/K13-B/green/K13-03-TEST-OUTPUT.txt", "exit_code": 0}
+  },
+  "focused_ctest": {
+    "command_file": "artifacts/server1/K13/K13-B/green/FINAL-CTEST-COMMAND.txt",
+    "raw_output": "artifacts/server1/K13/K13-B/green/FINAL-CTEST-OUTPUT.txt",
+    "exit_code": 0,
+    "passed": 3,
+    "failed": 0
+  },
+  "atime_ordering": {
+    "result": "PASS",
+    "platform": "Windows",
+    "fixture": "crossed access and modification times; eviction selected the older-atime file"
+  },
+  "runtime": "not run; no full-server runtime claim",
+  "integration": "not integrated; waiting for B-W2B"
+}
