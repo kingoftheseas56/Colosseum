@@ -83,7 +83,13 @@ class TorrentFixture:
 
     @property
     def bitfield_bytes(self) -> bytes:
-        return bytes([0xFF] * ((len(self.pieces) + 7) // 8))
+        piece_count = len(self.pieces)
+        byte_count = (piece_count + 7) // 8
+        if not byte_count:
+            return b""
+        trailing_bits = piece_count % 8
+        final_mask = 0xFF if trailing_bits == 0 else (0xFF << (8 - trailing_bits)) & 0xFF
+        return bytes([0xFF] * (byte_count - 1) + [final_mask])
 
     def metainfo_again(self) -> bytes:
         return self.metainfo

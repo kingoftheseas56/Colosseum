@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import socket
+import select
 import threading
 import time
 from typing import Optional
@@ -51,6 +52,7 @@ class ScriptedPeerServer:
         self._listener.listen(1)
         self._thread: Optional[threading.Thread] = None
         self._sequence = 0
+        self._live_requests: dict[tuple[int, int, int], dict] = {}
 
     @property
     def address(self) -> tuple[str, int]:
@@ -97,6 +99,7 @@ class ScriptedPeerServer:
                     elif action.kind == "unchoke":
                         self._send(client, 1, b"\x01")
                     elif action.kind in {"deliver", "corrupt"}:
+                        self._read_until_request_or_cancel(client, action)
                         self._deliver(client, action)
                     elif action.kind == "disconnect":
                         return
@@ -106,14 +109,58 @@ class ScriptedPeerServer:
             self.error = exc
 
     def _deliver(self, client: socket.socket, action: PeerAction) -> None:
-        requested = self.fixture.block_size(action.piece, action.begin)
+        try:
+            requested = self.fixture.block_size(action.piece, action.begin)
+        except ValueError:
+            requested = None
         length = action.length if action.length is not None else requested
-        authorized = length == requested
+        request_key = (action.piece, action.begin, length) if length is not None else None
+        request = self._live_requests.pop(request_key, None) if request_key is not None else None
+        authorized = request is not None and length == requested
         self._record(action, authorized)
+        if not authorized:
+            return
         data = self.fixture.pieces[action.piece][action.begin:action.begin + length]
         if action.kind == "corrupt" and data:
             data = bytes([data[0] ^ 0xFF]) + data[1:]
         self._send(client, 9 + len(data), b"\x07" + action.piece.to_bytes(4, "big") + action.begin.to_bytes(4, "big") + data)
+
+    def _read_peer_message(self, client: socket.socket) -> tuple[int, bytes]:
+        length = int.from_bytes(self._recv_exact(client, 4), "big")
+        if length == 0:
+            return -1, b""
+        payload = self._recv_exact(client, length)
+        return payload[0], payload[1:]
+
+    def _record_wire_message(self, message_id: int, payload: bytes) -> tuple[int, int, int] | None:
+        if message_id == 2:
+            self._record(PeerAction("interested"))
+        elif message_id in {6, 8} and len(payload) == 12:
+            piece = int.from_bytes(payload[0:4], "big")
+            begin = int.from_bytes(payload[4:8], "big")
+            length = int.from_bytes(payload[8:12], "big")
+            key = (piece, begin, length)
+            if message_id == 6:
+                self._live_requests[key] = {"order": self._sequence}
+                self._record(PeerAction("request", piece, begin, length))
+            else:
+                self._live_requests.pop(key, None)
+                self._record(PeerAction("cancel", piece, begin, length))
+            return key
+        return None
+
+    def _read_until_request_or_cancel(self, client: socket.socket, action: PeerAction) -> None:
+        target = (action.piece, action.begin, action.length if action.length is not None else self.fixture.block_size(action.piece, action.begin))
+        while True:
+            if target in self._live_requests and not select.select([client], [], [], 0.01)[0]:
+                return
+            try:
+                message_id, payload = self._read_peer_message(client)
+            except (socket.timeout, ConnectionError):
+                return
+            key = self._record_wire_message(message_id, payload)
+            if key == target and target not in self._live_requests:
+                return
 
     @staticmethod
     def _send(client: socket.socket, length: int, payload: bytes) -> None:
