@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "colosseum-server1-lab-run/v1",
+  "type": "object",
+  "required": ["schema", "run_id", "engine", "source", "scenario", "environment", "configuration", "fixture_identifiers", "request_sequence", "timestamps", "raw_lane", "normalized_lane", "observations", "errors", "result", "replay"],
+  "properties": {
+    "schema": {"const": "colosseum-server1-lab-run/v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "engine": {"type": "object"},
+    "source": {"type": "object"},
+    "scenario": {"type": "string"},
+    "environment": {"type": "object"},
+    "configuration": {"type": "object"},
+    "fixture_identifiers": {"type": "object"},
+    "request_sequence": {"type": "array"},
+    "timestamps": {"type": "object"},
+    "raw_lane": {"type": "object"},
+    "normalized_lane": {"type": "object"},
+    "observations": {"type": "array"},
+    "errors": {"type": "array"},
+    "result": {"enum": ["PASS", "FAIL", "ERROR", "UNSUPPORTED", "INDETERMINATE", "NOT_RUN"]},
+    "replay": {"type": "object"}
+  },
+  "additionalProperties": true
+}

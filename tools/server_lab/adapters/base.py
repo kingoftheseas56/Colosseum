@@ -1,0 +1,13 @@
+"""Small adapter contract consumed by the standalone lab runner."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Protocol, Sequence
+
+
+class LabAdapter(Protocol):
+    def launch(self, run_root: Path, command: Sequence[str], environment: dict[str, str]) -> Any: ...
+    def configure(self, run_root: Path, configuration: dict[str, Any]) -> dict[str, Any]: ...
+    def discover(self, run_root: Path) -> dict[str, Any]: ...
+    def translate(self, operation: str, value: Any) -> Any: ...

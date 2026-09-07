@@ -1,0 +1,21 @@
+test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (tools.server_lab.tests.test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) ... ok
+test_cleanup_cli_is_usable_without_subject_arguments (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_cli_is_usable_without_subject_arguments) ... ok
+test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (tools.server_lab.tests.test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... ok
+test_p04_02_statuses_remain_distinct_and_never_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_p04_02_statuses_remain_distinct_and_never_pass) ... ok
+test_raw_protocol_divergence_cannot_be_normalized_into_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass) ... ok
+test_schema_round_trip_and_raw_normalized_lanes_are_separate (tools.server_lab.tests.test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate) ... ok
+test_fingerprint_preserves_bundle_identity_and_runtime_metadata (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_fingerprint_preserves_bundle_identity_and_runtime_metadata) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_missing_companions_are_recorded_without_silent_repair (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_missing_companions_are_recorded_without_silent_repair) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_reference_reports_port_exhaustion_without_trying_port_11475 (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_reference_reports_port_exhaustion_without_trying_port_11475) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_reference_serves_heartbeat_and_settings_in_disposable_paths (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_reference_serves_heartbeat_and_settings_in_disposable_paths) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_source_trace_matches_all_six_p02_authorities_from_worker_plan (tools.server_lab.tests.test_reference_identity.SourceAuthorityTraceTests.test_source_trace_matches_all_six_p02_authorities_from_worker_plan) ... ok
+test_portable_node_is_official_verified_and_disposable (tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_portable_node_is_official_verified_and_disposable) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_all_five_occupied_ports_are_exhausted_without_11475 (tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_wsl_all_five_occupied_ports_are_exhausted_without_11475) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing (tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_reference_serves_heartbeat_and_settings (tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings) ... skipped 'oracle and WSL Ubuntu are required'
+
+----------------------------------------------------------------------
+Ran 15 tests in 31.400s
+
+OK (skipped=8)
+EXIT=0

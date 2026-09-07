@@ -1,0 +1,8 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P04-A",
+  "wiring_needed": false,
+  "shared_files_requested": [],
+  "interfaces_changed": [],
+  "reason": "P04-A is packet-local standalone lab work. P02 adapters are consumed without edits; no root, native, registry, CI, or shared wiring is required."
+}
