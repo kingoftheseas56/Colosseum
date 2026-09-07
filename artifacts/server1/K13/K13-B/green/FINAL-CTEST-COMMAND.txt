@@ -1,1 +1,1 @@
-ctest --test-dir C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-build --output-on-failure -R ^K13-
+$vs='C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat'; $build='C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-repair-build-01'; $cmd='call "'+$vs+'" -arch=x64 && ctest --test-dir "'+$build+'" --output-on-failure -R ^K13-'; cmd.exe /d /s /c $cmd

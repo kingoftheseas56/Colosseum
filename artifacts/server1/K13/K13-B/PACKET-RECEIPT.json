@@ -18,7 +18,7 @@
     "K13-A": "accepted handoff 9f68c56dcfe9f60be9accd9bb78bebbbb6330358"
   },
   "source_authority": {
-    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "path": "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "range_hashes": [
       {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
@@ -95,12 +95,12 @@
     "implementation_authored": "complete",
     "compiled": "verified with production headers; configure/build exit 0",
     "test_executed": "K13-01, K13-02, K13-03 focused CTest 3/3 passed; direct cases exit 0",
-    "differentially_qualified": "complete; nine source/candidate lines, zero differences",
+    "differentially_qualified": "complete; executable local-oracle and candidate traces each emitted nine raw lines, zero differences, with the oracle mirror SHA-256 verified",
     "integrated": "not integrated; waiting for B-W2B",
     "runtime": "not claimed; no full-server runtime execution"
   },
   "cases": {
-    "K13-02": "GREEN, atime ordering PASS on Windows, and differentially qualified",
+    "K13-02": "GREEN, atime ordering PASS on Windows, and differentially qualified against the exact local oracle mirror",
     "K13-01": "GREEN through combined settings/cache convergence test",
     "K13-03": "GREEN for fallback cache directory, delayed cleaning, and cache-location behavior"
   },

@@ -1,6 +1,16 @@
 {
   "packet": "K13",
   "worker_id": "K13-B",
+  "oracle": {
+    "path": "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "hash_convention": {
+    "oracle": "SHA-256 over the exact raw mirror bytes; no newline normalization",
+    "artifacts": "SHA-256 over each captured artifact file's raw bytes",
+    "comparison": "Compare-Object over the captured source and candidate stdout line sequences; no normalization"
+  },
+  "source_trace_execution": "The probe executes oracle modules 106 and 414 and the module-564 getDefaults/getCachePath function bodies with controlled adapters; it does not print hardcoded behavioral results.",
   "source_command": "artifacts/server1/K13/K13-B/comparison/SOURCE-COMMAND.txt",
   "candidate_command": "artifacts/server1/K13/K13-B/comparison/CANDIDATE-COMMAND.txt",
   "comparison_command": "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON-COMMAND.txt",
@@ -14,5 +24,5 @@
   "candidate_lines": 9,
   "differences": 0,
   "differential_match": true,
-  "note": "The atime/mtime filesystem fixture is covered by the focused native test and is not part of the deterministic JS trace."
+  "note": "The atime/mtime filesystem fixture is covered by the focused native test; the source trace itself uses the oracle cache module with controlled file metadata."
 }

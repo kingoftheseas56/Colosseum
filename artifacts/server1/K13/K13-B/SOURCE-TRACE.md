@@ -2,8 +2,21 @@
 
 Worker: `K13-B`
 Packet: `K13`
-Oracle: `C:\b\Colosseum-Server-1.0-Planning-Pack\oracle\stremio-service-v4.21.1-server-bundle\server.js`
+Oracle: `C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\oracle\server.js`
 Oracle SHA-256: `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f`
+
+Hash convention: the oracle hash is SHA-256 over the exact raw bytes of the local mirror with no
+newline normalization. The module/range hashes above retain the planning-pack source-byte
+convention for the identified inclusive line ranges; artifact hashes in `HASHES.json` are SHA-256
+over each captured file's raw bytes. The differential compares the captured source and candidate
+stdout line sequences without normalization or generated claims.
+
+The probe reads and verifies the local oracle bytes, disables only the webpack entrypoint so the
+module table can be exercised in a controlled VM, and executes the oracle's module 106 settings
+initializer, module 414 cache API, and module 564 `getCachePath`/`getDefaults` function bodies.
+The walker, disk probe, engine list, and filesystem unlink surface are controlled adapters that
+feed the same values as the native trace; cache policy decisions and emitted values come from the
+oracle functions, not probe literals.
 
 The source ranges used for this slice are:
 
@@ -25,4 +38,6 @@ Implementation mapping:
 - Cache creation falls back to the system temporary directory when `stremio-cache` cannot be created.
 - Windows keeps `GetFileAttributesExW` access-time retrieval. Supported POSIX targets use `stat` atime fields; failures return unknown atime `0` and never substitute mtime.
 
-The source-derived nine-line trace and candidate trace match byte-for-byte. The focused atime test separately crosses atime and mtime and passes on Windows; it will report `NOT_APPLICABLE` only on unsupported platforms.
+The executable nine-line source trace and candidate trace match byte-for-byte. The focused atime
+test separately crosses atime and mtime and passes on Windows; it will report `NOT_APPLICABLE`
+only on unsupported platforms.

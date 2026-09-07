@@ -1,1 +1,1 @@
-server1_k13_settings_cache_test.exe C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-final-trace --trace > artifacts/server1/K13/K13-B/comparison/candidate.raw.txt
+& 'C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-repair-build-01\server1_k13_settings_cache_test.exe' 'C:\Users\Suprabha\AppData\Local\Temp\server1-k13-b-repair-final-trace' --trace > artifacts/server1/K13/K13-B/comparison/candidate.raw.txt

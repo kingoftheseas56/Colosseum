@@ -1,1 +1,4 @@
-DIFFERENTIAL_MATCH=1 source_lines=9 candidate_lines=9
+source_exit=0 source_lines=9
+candidate_exit=0 candidate_lines=9
+differences=0
+DIFFERENTIAL_MATCH=1
