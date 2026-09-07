@@ -1,0 +1,106 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-A",
+  "status": "READY_FOR_B-W2B",
+  "branch": "codex/server1-k13-a",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "implementation_commit": "659341e6545accced51e4a8c9d1adb33ddac8827",
+  "merge_endpoint": {
+    "destination_branch": "feature/colosseum-server-1.0",
+    "destination_marker": "B-W2B",
+    "condition": "accepted commit merges at B-W2B; otherwise retire this branch",
+    "pushed": false
+  },
+  "dependencies": {
+    "B-W2A": "accepted and pushed",
+    "B-W1A": "accepted",
+    "B-W1C": "accepted"
+  },
+  "source_authority": {
+    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "range_hashes": [
+      {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
+      {"module": "M194", "lines": "19675-19682", "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"},
+      {"module": "M400", "lines": "34767-34775", "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"},
+      {"module": "M414", "lines": "35959-36170", "sha256": "16b1c32e135ce079b4d718a627c0a6405f34bb0878a6804f1dbecd51a5b5770d"},
+      {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"}
+    ]
+  },
+  "scope": {
+    "original_owned_files": [
+      "native/colosseum_server_v1/src/settings/SettingsStore.cpp"
+    ],
+    "authorized_ownership_correction": [
+      "native/colosseum_server_v1/include/server1/settings/SettingsStore.h"
+    ],
+    "owned_files_changed": [
+      "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+      "native/colosseum_server_v1/src/settings/SettingsStore.cpp"
+    ],
+    "packet_local_probe": "artifacts/server1/K13/K13-A/probe-src/settings_store_probe.cpp",
+    "shared_files_modified": [],
+    "forbidden_paths_changed": [],
+    "topology_unchanged": true,
+    "affected_workers": ["K13-A", "K13-B"],
+    "affected_barrier": "B-W2B",
+    "integration_owner": "INT-W2",
+    "build_outputs_committed": false
+  },
+  "implementation": {
+    "behavior": [
+      "translates M106 effective defaults in source order",
+      "loads (SETTINGS_PATH || appPath)/server-settings.json and shallow-merges valid objects",
+      "retains unknown fields and ignores serverVersion writes",
+      "persists successful loads and explicit saves using JSON.stringify-compatible observable rules",
+      "logs and preserves state on missing or corrupt input"
+    ],
+    "interface_change": "Adds the smallest required production declaration surface; no semantic API redesign.",
+    "interface_assumptions": [
+      "Caller supplies resolved appPath and package serverVersion.",
+      "Caller maps platform and DISABLE_CACHING state into SettingsStoreConfig.",
+      "K13-B consumes value()/find()/path getters and owns cache policy, disk-space, atime, delayed-cleaning, and fallback-directory behavior.",
+      "INT-W2 wires the production header/include path and SettingsStore.cpp through the K13 manifest; K13-A does not edit shared CMake or tests."
+    ]
+  },
+  "evidence_state": {
+    "red_test": "recorded",
+    "source_traced": "complete",
+    "tests_authored": "packet-local executable probe; no K13 test/manifests changed",
+    "implementation_authored": "complete",
+    "compiled": "verified with production header include path; exit 0",
+    "tests_executed": "K13-01, K13-03 settings slice, and combined probe; all exit 0",
+    "differentially_qualified": "11 trace lines; 0 differences; source and candidate exit 0",
+    "integrated": "not integrated; waiting for K13-B and B-W2B",
+    "runtime": "not claimed"
+  },
+  "cases": {
+    "K13-01": "GREEN and differential-qualified",
+    "K13-03": "GREEN and differential-qualified for settings load/merge/unknown-field/persistence slice; cache-policy subcases remain K13-B-owned"
+  },
+  "commands": [
+    {"kind": "RED", "command_file": "artifacts/server1/K13/K13-A/red/RED-TEST-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/red/RED-TEST-OUTPUT.txt", "exit_code": 2},
+    {"kind": "production-header-compile", "command_file": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
+    {"kind": "all-probe-cases", "command_file": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
+    {"kind": "K13-01", "command_file": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
+    {"kind": "K13-03", "command_file": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
+    {"kind": "source-trace", "command_file": "artifacts/server1/K13/K13-A/comparison/SOURCE-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/comparison/source.raw.txt", "exit_code": 0},
+    {"kind": "candidate-trace", "command_file": "artifacts/server1/K13/K13-A/comparison/CANDIDATE-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/comparison/candidate.raw.txt", "exit_code": 0},
+    {"kind": "differential", "command_file": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON.txt", "exit_code": 0}
+  ],
+  "artifacts": [
+    "artifacts/server1/K13/K13-A/SOURCE-TRACE.md",
+    "artifacts/server1/K13/K13-A/OWNERSHIP-CORRECTION.md",
+    "artifacts/server1/K13/K13-A/HASHES.json",
+    "artifacts/server1/K13/K13-A/GREEN-EVIDENCE.json",
+    "artifacts/server1/K13/K13-A/DIFFERENTIAL-EVIDENCE.json",
+    "artifacts/server1/K13/K13-A/cases/K13-01-GOLDEN.json",
+    "artifacts/server1/K13/K13-A/cases/K13-03-GOLDEN.json",
+    "artifacts/server1/K13/K13-A/red/RED-TEST-EVIDENCE.json",
+    "artifacts/server1/K13/K13-A/WIRING-REQUEST.json"
+  ],
+  "blocked_evidence": [
+    "K13-B cache directory enumeration, equal-access-time eviction, disk-space adjustment, delayed cleaning, and fallback directory behavior",
+    "shared CMake/test-manifest convergence and full-server runtime verification"
+  ]
+}

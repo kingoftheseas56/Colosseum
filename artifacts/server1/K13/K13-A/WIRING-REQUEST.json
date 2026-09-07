@@ -1,0 +1,58 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-A",
+  "request_type": "shared-wiring",
+  "implementation_commit": "659341e6545accced51e4a8c9d1adb33ddac8827",
+  "destination_branch": "feature/colosseum-server-1.0",
+  "destination_marker": "B-W2B",
+  "requested_owner": "B-W2B",
+  "consumer_owner": "K13-B",
+  "integration_owner": "INT-W2",
+  "pushed": false,
+  "ownership_correction": {
+    "original_assumption": "K13-A owned only native/colosseum_server_v1/src/settings/SettingsStore.cpp.",
+    "live_evidence": "That source included server1/settings/SettingsStore.h, but the production header did not exist at base e5660e27a320845ab993201918443e609e1a34d5 and no worker entry owned it.",
+    "authorized_addition": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+    "affected_workers": ["K13-A", "K13-B"],
+    "barrier": "B-W2B",
+    "topology_changed": false,
+    "evidence": "artifacts/server1/K13/K13-A/OWNERSHIP-CORRECTION.md"
+  },
+  "worker_scope_guard": {
+    "shared_files_modified": false,
+    "forbidden_paths_changed": [],
+    "build_outputs_committed": false
+  },
+  "include_requests": [
+    {
+      "shared_file": "native/colosseum_server_v1/CMakeLists.txt",
+      "action": "INT-W2/B-W2B should include the K13 packet manifest without changing K13-A-owned source."
+    },
+    {
+      "shared_file": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "action": "INT-W2/B-W2B should include K13-B's K13 test manifest; K13-A supplied no production test changes."
+    },
+    {
+      "owned_by_K13-B": "native/colosseum_server_v1/cmake/packets/K13.cmake",
+      "action": "Compile native/colosseum_server_v1/src/settings/SettingsStore.cpp with include root native/colosseum_server_v1/include and expose the production SettingsStore.h declaration to EffectiveSettingsContract consumers."
+    },
+    {
+      "owned_by_K13-B": "native/colosseum_server_v1/tests/cmake/K13.cmake",
+      "action": "Wire K13-B convergence tests to the production declaration; do not copy the removed probe-only header."
+    }
+  ],
+  "public_contract": {
+    "header": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+    "constructor": "SettingsStore(SettingsStoreConfig{appPath, serverVersion, settingsPathOverride, android, disableCaching})",
+    "methods": ["extend", "set", "load", "save", "value", "find", "appPath", "settingsPath", "serverVersion", "serialized"],
+    "readonly": ["serverVersion"],
+    "unknown_fields": "retained by shallow merge and persistence",
+    "settings_path": "(settingsPathOverride if nonempty, otherwise appPath)/server-settings.json"
+  },
+  "acceptance_evidence": [
+    "artifacts/server1/K13/K13-A/PACKET-RECEIPT.json",
+    "artifacts/server1/K13/K13-A/GREEN-EVIDENCE.json",
+    "artifacts/server1/K13/K13-A/DIFFERENTIAL-EVIDENCE.json",
+    "artifacts/server1/K13/K13-A/HASHES.json"
+  ]
+}
