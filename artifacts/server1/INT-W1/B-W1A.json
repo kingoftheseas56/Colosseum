@@ -32,7 +32,7 @@
       {"command": "python artifacts/server1/P01A/verify_p01a.py", "exit": 0},
       {"command": "python -m unittest -v tools.server_lab.tests.test_reference_identity.SourceAuthorityTraceTests", "exit": 0},
       {"command": "python -m py_compile tools/server_lab/adapters/stremio.py tools/server_lab/tests/test_reference_identity.py artifacts/server1/P02/qualify_p02.py", "exit": 0},
-      {"command": "validate committed artifacts/server1/P08A/PACKET-RECEIPT.json verification_runs", "exit": 0, "observed": "2 inherited runs; cases 01/02/03 PASS; no external probe replay"},
+      {"command": "python -c \"import json,sys,pathlib; r=json.loads(pathlib.Path('artifacts/server1/P08A/PACKET-RECEIPT.json').read_text()); ok=bool(r.get('verification_runs')) and all(x.get('test_exit')==0 and x.get('case_01')=='PASS' and x.get('case_02')=='PASS' and x.get('case_03')=='PASS' and x.get('probe_executable_sha256')==r['probe_executable']['sha256'] for x in r['verification_runs']); print('P08A_INHERITED_RECEIPT_VALID='+str(ok)); print('P08A_RUNS='+str(len(r['verification_runs']))); sys.exit(0 if ok else 1)\"", "exit": 0, "observed": "2 inherited runs; cases 01/02/03 PASS; no external probe replay"},
       {"command": "git diff --check", "exit": 0}
     ],
     "inherited": [
