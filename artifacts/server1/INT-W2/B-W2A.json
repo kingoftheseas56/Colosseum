@@ -1,0 +1,109 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W2",
+  "barrier": "B-W2A",
+  "branch": "feature/colosseum-server-1.0",
+  "integration_base": "0202977c0477efaee12b01a8701ad6b3bd1c6b23",
+  "integrated_sha": "bd39020125eed2180ba59043f1e1088be11ad73a",
+  "predecessor_barrier": "B-W1D",
+  "predecessor_integrated_sha": "9898964da604ba4a4d6d4d70036e26b09d8d87bc",
+  "accepted_inputs": {
+    "K00-A": [
+      "8b88dda782e56b0e7f0a6abffb8295518de87bbf",
+      "64ef2c491bce48bffa60c456d47435ddf6af34b1"
+    ]
+  },
+  "gates": {
+    "K00-oracle-differential": {
+      "state": "PASS",
+      "basis": "Pinned oracle hash matched; fresh Node and integrated-tree candidate probes each emitted 25 lines and Compare-Object reported zero differences."
+    },
+    "aggregate-native": {
+      "state": "PASS",
+      "basis": "Clean VS x64 Ninja configure/build and aggregate CTest passed predecessor P03-02-server1-host plus all three K00 tests."
+    }
+  },
+  "verification": {
+    "environment": {
+      "generator": "Ninja 1.12.1",
+      "cmake": "3.30.5",
+      "compiler": "MSVC 19.44.35227.0 x64",
+      "language_standard": "C++17",
+      "runtime_library": "MultiThreadedDLL",
+      "dependency_lock": "docs/server1/DEPENDENCY-LOCK.json",
+      "dependency_lock_sha256": "3b282d0d5de8d98bdf8c1498145b9f932c6448a5c0a432943496c0ea7e17be42",
+      "libtorrent": {
+        "version": "2.0.11.0",
+        "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+      },
+      "boost": "1.84.0",
+      "openssl": "3.6.2",
+      "qt": "C:/Qt/6.11.1/msvc2022_64"
+    },
+    "build_dir": "artifacts/server1/INT-W2/B-W2A-run-vs-20260907",
+    "configure": {
+      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" -S \"C:\\b\\Colosseum-Server-1.0\\native\\colosseum_server_v1\" -B \"C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\INT-W2\\B-W2A-run-vs-20260907\" -G Ninja -DCMAKE_MAKE_PROGRAM=\"C:\\Qt\\Tools\\Ninja\\ninja.exe\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+      "exit": 0
+    },
+    "build": {
+      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" --build \"C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\INT-W2\\B-W2A-run-vs-20260907\" --parallel 2",
+      "exit": 0
+    },
+    "ctest": {
+      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe\" --test-dir \"C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\INT-W2\\B-W2A-run-vs-20260907\" --output-on-failure",
+      "exit": 0,
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        "P03-02-server1-host",
+        "K00-01-js-semantics",
+        "K00-02-js-semantics",
+        "K00-03-js-semantics"
+      ]
+    },
+    "oracle_differential": {
+      "oracle_path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+      "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+      "oracle_command": "node artifacts/server1/K00/K00-A/scenarios/oracle_k00_probe.mjs",
+      "oracle_exit": 0,
+      "candidate_command": "artifacts/server1/INT-W2/B-W2A-run-vs-20260907/server1_k00_js_semantics.exe --trace",
+      "candidate_exit": 0,
+      "source_lines": 25,
+      "candidate_lines": 25,
+      "comparison": "Compare-Object source probe output against integrated candidate output",
+      "comparison_exit": 0,
+      "differences": 0,
+      "candidate_hash_scope": {
+        "method": "SHA-256 after canonical LF normalization",
+        "files_checked": 6,
+        "mismatches": 0,
+        "exit": 0
+      }
+    }
+  },
+  "shared_file_diff": {
+    "files": [
+      {
+        "path": "native/colosseum_server_v1/CMakeLists.txt",
+        "change": "Include cmake/packets/K00.cmake and invoke server1_register_k00_packet()."
+      },
+      {
+        "path": "native/colosseum_server_v1/tests/CMakeLists.txt",
+        "change": "Include tests/cmake/K00.cmake and invoke server1_register_k00_tests()."
+      }
+    ],
+    "forbidden_paths_changed": [],
+    "topology_changed": false,
+    "production_behavior_changed_by_integration_worker": false
+  },
+  "cases": {
+    "P03-02-server1-host": "PASS",
+    "K00-01": "PASS and differential-qualified",
+    "K00-02": "PASS and differential-qualified",
+    "K00-03": "PASS and differential-qualified"
+  },
+  "runtime": "not run; no runtime claim",
+  "unresolved_failures": [],
+  "status": "accepted",
+  "push": false
+}

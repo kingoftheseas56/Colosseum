@@ -25,14 +25,16 @@
     "P07": "P07-A/P07-B/P07-C accepted through 9bb4f584; Stremio baseline evidence is complete and remains separate from Server 1.0 parity/performance verdicts.",
     "P08-A": "Accepted and integration-verified at 9898964d; every mandatory pinned-libtorrent control passed real-wire tests and no dependency patch is required.",
     "B-W1D": "Accepted at integrated source 9898964d; G-LAB, G-SURFACE, and G-NATIVE passed with topology unchanged.",
-    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; current integrated source is 9898964da604ba4a4d6d4d70036e26b09d8d87bc."
+    "K00-A": "Accepted and integrated from 8b88dda782e56b0e7f0a6abffb8295518de87bbf with receipt/wiring metadata 64ef2c491bce48bffa60c456d47435ddf6af34b1; aggregate wiring is at bd39020125eed2180ba59043f1e1088be11ad73a.",
+    "B-W2A": "Accepted at integrated source bd39020125eed2180ba59043f1e1088be11ad73a; predecessor P03 regression and K00-01/K00-02/K00-03 passed with topology unchanged; no runtime claim.",
+    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; current integrated source is bd39020125eed2180ba59043f1e1088be11ad73a."
   },
   "accepted_states": {
-    "workers": {"P00-A": "accepted", "P01A-A": "accepted", "P02-A": "accepted", "P08A-A": "accepted", "P03-A": "integrated", "P04-A": "accepted", "P05-A": "accepted", "P05-B": "accepted", "P06-A": "accepted", "P06-B": "accepted", "P06-C": "accepted", "P02S-A": "accepted", "P07-A": "accepted", "P07-B": "accepted", "P07-C": "accepted", "P08-A": "accepted", "INT-W1": "integrated"},
-    "barriers": {"B-W1A": "accepted", "B-W1B": "accepted", "B-W1C": "accepted", "B-W1D": "accepted"},
+    "workers": {"P00-A": "accepted", "P01A-A": "accepted", "P02-A": "accepted", "P08A-A": "accepted", "P03-A": "integrated", "P04-A": "accepted", "P05-A": "accepted", "P05-B": "accepted", "P06-A": "accepted", "P06-B": "accepted", "P06-C": "accepted", "P02S-A": "accepted", "P07-A": "accepted", "P07-B": "accepted", "P07-C": "accepted", "P08-A": "accepted", "K00-A": "integrated", "INT-W1": "integrated", "INT-W2": "integrated"},
+    "barriers": {"B-W1A": "accepted", "B-W1B": "accepted", "B-W1C": "accepted", "B-W1D": "accepted", "B-W2A": "accepted"},
     "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "completed_at_B-W1C", "P06-C": "completed_at_B-W1C", "P02S-A": "completed_at_B-W1D", "P07-A": "completed_at_B-W1D", "P07-B": "completed_at_B-W1D", "P07-C": "completed_at_B-W1D", "P08-A": "completed_at_B-W1D"},
-    "integrated_sha": "9898964da604ba4a4d6d4d70036e26b09d8d87bc",
-    "receipt": "artifacts/server1/INT-W1/B-W1D.json",
-    "push": true
+    "integrated_sha": "bd39020125eed2180ba59043f1e1088be11ad73a",
+    "receipt": "artifacts/server1/INT-W2/B-W2A.json",
+    "push": false
   }
 }
