@@ -1,0 +1,79 @@
+name: server1-p02-reference
+
+on:
+  push:
+    branches:
+      - feature/colosseum-server-1.0-preflight
+    paths:
+      - tools/server_lab/adapters/stremio.py
+      - tools/server_lab/tests/test_reference_identity.py
+      - tools/server_lab/cases/P02.json
+      - docs/server1/REFERENCE-RUNTIME.json
+      - .github/workflows/server1-p02-reference.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  official-linux-reference:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      STREMIO_SERVICE_VERSION: v0.1.22
+      STREMIO_DEB_SHA256: fcbab342fcd8990312b400698ae85f9c87aed0326a0da0168c1ddba18c39a415
+      SERVER_ORACLE_SHA256: 405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download and authenticate official Stremio Service package
+        shell: bash
+        run: |
+          set -euo pipefail
+          deb="$RUNNER_TEMP/stremio-service_amd64.deb"
+          curl --fail --location --retry 3 \
+            "https://github.com/Stremio/stremio-service/releases/download/${STREMIO_SERVICE_VERSION}/stremio-service_amd64.deb" \
+            --output "$deb"
+          echo "${STREMIO_DEB_SHA256}  ${deb}" | sha256sum -c -
+      - name: Qualify official runtime in outbound-isolated container
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/p02-evidence"
+          docker run --rm --network none \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner" \
+            -w /workspace \
+            -e SERVER1_P02_REQUIRE_RUNTIME=1 \
+            -e SERVER_ORACLE_SHA256="$SERVER_ORACLE_SHA256" \
+            python:3.12-bookworm bash -lc '
+              set -euo pipefail
+              rm -rf /runner/stremio-root
+              mkdir -p /runner/stremio-root /runner/p02-evidence
+              dpkg-deb -x /runner/stremio-service_amd64.deb /runner/stremio-root
+              bundle=/runner/stremio-root/usr/share/stremio-service
+              test -x "$bundle/stremio-runtime"
+              test -x "$bundle/ffmpeg"
+              test -x "$bundle/ffprobe"
+              test -f "$bundle/server.js"
+              echo "$SERVER_ORACLE_SHA256  $bundle/server.js" | sha256sum -c -
+              export SERVER1_STREMIO_RUNTIME="$bundle/stremio-runtime"
+              export SERVER1_STREMIO_SERVER="$bundle/server.js"
+              export SERVER1_STREMIO_FFMPEG="$bundle/ffmpeg"
+              export SERVER1_STREMIO_FFPROBE="$bundle/ffprobe"
+              python -m unittest tools.server_lab.tests.test_reference_identity
+              python tools/server_lab/adapters/stremio.py --runtime "$bundle/stremio-runtime" --server "$bundle/server.js" --ffmpeg "$bundle/ffmpeg" --ffprobe "$bundle/ffprobe" --case identity --out /runner/p02-evidence/identity
+              python tools/server_lab/adapters/stremio.py --runtime "$bundle/stremio-runtime" --server "$bundle/server.js" --ffmpeg "$bundle/ffmpeg" --ffprobe "$bundle/ffprobe" --case P02-01 --out /runner/p02-evidence/P02-01
+              python tools/server_lab/adapters/stremio.py --runtime "$bundle/stremio-runtime" --server "$bundle/server.js" --ffmpeg "$bundle/ffmpeg" --ffprobe "$bundle/ffprobe" --case P02-02 --out /runner/p02-evidence/P02-02
+              python tools/server_lab/adapters/stremio.py --runtime "$bundle/stremio-runtime" --server "$bundle/server.js" --ffmpeg "$bundle/ffmpeg" --ffprobe "$bundle/ffprobe" --case P02-03-media --out /runner/p02-evidence/P02-03-media
+              sha256sum "$bundle/stremio-runtime" "$bundle/server.js" "$bundle/ffmpeg" "$bundle/ffprobe" > /runner/p02-evidence/bundle-sha256.txt
+              "$bundle/stremio-runtime" --version > /runner/p02-evidence/runtime-version.txt
+              printf "network=none\nloopback-only=true\n" > /runner/p02-evidence/network-isolation.txt
+            '
+      - name: Upload reference evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server1-p02-reference-linux
+          path: ${{ runner.temp }}/p02-evidence
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "packet": "P02",
+  "state": "test-authored",
+  "accepted": false,
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "oracle": {
+    "selector": "v4.21.1",
+    "embedded_server_version": "4.21.0",
+    "server_js_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "official_service_package": {
+    "repository": "Stremio/stremio-service",
+    "release": "v0.1.22",
+    "linux_asset": "stremio-service_amd64.deb",
+    "linux_asset_sha256": "fcbab342fcd8990312b400698ae85f9c87aed0326a0da0168c1ddba18c39a415",
+    "installed_bundle_root": "/usr/share/stremio-service",
+    "launcher_contract": "stremio-runtime server.js with FFMPEG_BIN and FFPROBE_BIN pointing at sibling packaged binaries"
+  },
+  "qualification_environment": {
+    "workflow": ".github/workflows/server1-p02-reference.yml",
+    "network": "container --network none; loopback remains available",
+    "status": "not yet accepted"
+  },
+  "blockers": [
+    "official-package CI evidence has not yet been reviewed",
+    "certificate/native-module boundaries not yet promoted beyond observed exercised paths"
+  ]
+}

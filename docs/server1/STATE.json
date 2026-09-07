@@ -12,6 +12,7 @@
   "current_overrides": {
     "P00": "accepted",
     "P01A": "accepted",
+    "P02": "test-authored",
     "P08A": "test-authored"
   },
   "accepted_gates": [
@@ -26,6 +27,7 @@
     "Existing feature/colosseum-server-1.0 is a separate implementation and is not a dependency.",
     "No Server 1.0 production source has been copied from Server 0.1.",
     "P01A accepted from GitHub Actions run 34146280578 after exact lane-specific toolchain, package, compile-time, linked-runtime, binary, and missing-dependency evidence was inspected.",
-    "P08A disposable wire-level feasibility probe is test-authored; G-NATIVE-FEASIBILITY remains closed until Windows and Linux CI wire evidence passes the adversarial control plus P08A-01/02/03."
+    "P02 official Stremio Service v0.1.22 reference-runtime qualification is test-authored and isolated from outbound networking; acceptance awaits CI evidence review.",
+    "P08A disposable wire-level feasibility probe is test-authored; Linux passed all raw-wire cases in run 34152668099, but G-NATIVE-FEASIBILITY remains closed until the Windows lane also passes and its artifact is inspected."
   ]
 }

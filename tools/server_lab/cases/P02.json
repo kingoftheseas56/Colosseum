@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet": "P02",
+  "cases": [
+    {
+      "id": "P02-01",
+      "requirement": "Run the authenticated v4.21.1 server.js with the official Stremio Service v0.1.22 packaged runtime/media binaries in an outbound-isolated environment; require /heartbeat and /settings and record exact binary hashes/runtime version."
+    },
+    {
+      "id": "P02-02",
+      "requirement": "Occupy 11470 through 11474 on loopback, capture the source port fallback/error ladder, and preserve whether the process remains alive after HTTP-port exhaustion."
+    },
+    {
+      "id": "P02-03-media",
+      "requirement": "Run the exact runtime/server pair with ffmpeg and ffprobe deliberately absent in a container that has no system media binaries; attribute the missing executables rather than silently substituting them."
+    }
+  ]
+}
