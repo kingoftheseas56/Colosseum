@@ -1,0 +1,64 @@
+test_fingerprint_preserves_bundle_identity_and_runtime_metadata (test_reference_identity.ReferenceIdentityTests.test_fingerprint_preserves_bundle_identity_and_runtime_metadata) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_missing_companions_are_recorded_without_silent_repair (test_reference_identity.ReferenceIdentityTests.test_missing_companions_are_recorded_without_silent_repair) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_reference_reports_port_exhaustion_without_trying_port_11475 (test_reference_identity.ReferenceIdentityTests.test_reference_reports_port_exhaustion_without_trying_port_11475) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_reference_serves_heartbeat_and_settings_in_disposable_paths (test_reference_identity.ReferenceIdentityTests.test_reference_serves_heartbeat_and_settings_in_disposable_paths) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_source_trace_matches_all_six_p02_authorities_from_worker_plan (test_reference_identity.SourceAuthorityTraceTests.test_source_trace_matches_all_six_p02_authorities_from_worker_plan) ... ok
+test_portable_node_is_official_verified_and_disposable (test_reference_identity.WslReferenceQualificationTests.test_portable_node_is_official_verified_and_disposable) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_all_five_occupied_ports_are_exhausted_without_11475 (test_reference_identity.WslReferenceQualificationTests.test_wsl_all_five_occupied_ports_are_exhausted_without_11475) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing (test_reference_identity.WslReferenceQualificationTests.test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_reference_serves_heartbeat_and_settings (test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings) ... skipped 'oracle and WSL Ubuntu are required'
+test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) ... ok
+test_cleanup_cli_is_usable_without_subject_arguments (test_runner.P04RunnerTests.test_cleanup_cli_is_usable_without_subject_arguments) ... ok
+test_cleanup_failure_cannot_pass (test_runner.P04RunnerTests.test_cleanup_failure_cannot_pass) ... ok
+test_committed_p04_sample_is_real_schema_valid_and_replayable (test_runner.P04RunnerTests.test_committed_p04_sample_is_real_schema_valid_and_replayable) ... ok
+test_event_is_written_after_final_result_and_matches_receipt (test_runner.P04RunnerTests.test_event_is_written_after_final_result_and_matches_receipt) ... ok
+test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... FAIL
+test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... ERROR
+test_p04_02_statuses_remain_distinct_and_never_pass (test_runner.P04RunnerTests.test_p04_02_statuses_remain_distinct_and_never_pass) ... ok
+test_raw_protocol_divergence_cannot_be_normalized_into_pass (test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass) ... ok
+test_receipt_has_nullable_server_fields_and_observation_arrays (test_runner.P04RunnerTests.test_receipt_has_nullable_server_fields_and_observation_arrays) ... ok
+test_replay_is_full_lab_command_and_uses_committed_fixture (test_runner.P04RunnerTests.test_replay_is_full_lab_command_and_uses_committed_fixture) ... ok
+test_schema_round_trip_and_raw_normalized_lanes_are_separate (test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate) ... ok
+
+======================================================================
+ERROR: test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 632, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p04-runner-test-650dj186\\data\\run-a\\stderr.txt'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P06-A\tools\server_lab\tests\test_runner.py", line 70, in tearDown
+    self.temp.cleanup()
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 947, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 929, in _rmtree
+    _shutil.rmtree(name, onerror=onerror)
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 787, in rmtree
+    return _rmtree_unsafe(path, onerror)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
+    _rmtree_unsafe(fullname, onerror)
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
+    _rmtree_unsafe(fullname, onerror)
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 634, in _rmtree_unsafe
+    onerror(os.unlink, fullname, sys.exc_info())
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 893, in onerror
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p04-runner-test-650dj186\\data\\run-a\\stderr.txt'
+
+======================================================================
+FAIL: test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P06-A\tools\server_lab\tests\test_runner.py", line 160, in test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans
+    self.assertTrue(lease.exists())
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 20 tests in 54.301s
+
+FAILED (failures=1, errors=1, skipped=8)

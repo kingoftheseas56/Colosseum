@@ -84,6 +84,8 @@ class ScriptedPeerServer:
                 for action in self.actions:
                     if action.delay_seconds:
                         time.sleep(action.delay_seconds)
+                    if action.kind not in {"deliver", "corrupt"}:
+                        self._record(action)
                     if action.kind == "delay":
                         continue
                     if action.kind == "handshake":
@@ -97,7 +99,6 @@ class ScriptedPeerServer:
                     elif action.kind in {"deliver", "corrupt"}:
                         self._deliver(client, action)
                     elif action.kind == "disconnect":
-                        self._record(action)
                         return
                     else:
                         raise ValueError(f"unsupported peer action: {action.kind}")
