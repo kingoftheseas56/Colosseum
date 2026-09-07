@@ -155,7 +155,7 @@ if (fs.existsSync(pagePath)) {
 const harnessPath = 'tests/one_piece_east_blue_native_atlas_harness.qml';
 eq(fs.existsSync(harnessPath), true, 'native atlas harness exists');
 if (fs.existsSync(harnessPath)) {
-    const source = fs.readFileSync(harnessPath, 'utf8');
+    const source = fs.readFileSync(harnessPath, 'utf8').replace(/\r\n/g, '\n');
     contains(source, 'standaloneRun', 'harness detects direct qml invocation');
     contains(source, 'Qt.exit(0)', 'harness exits cleanly on direct invocation');
     contains(source, 'HARNESS FAIL: timed out', 'harness has a direct-run timeout guard');
