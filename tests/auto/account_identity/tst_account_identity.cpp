@@ -8,6 +8,7 @@
 #include "AccountFixtureTransport.h"
 #include "MemoryAccountCredentialStore.h"
 #include "MemoryAccountOneTimeSecretSink.h"
+#include "account/WindowsAccountCredentialStore.h"
 
 #include <QDateTime>
 #include <QDirIterator>
@@ -317,6 +318,7 @@ private slots:
     void initTestCase();
 
     void fixtureTransportRefusesUntaggedUse();
+    void credentialTargetNamesAreIsolatedByAppDataTag();
     void httpTransportRejectsUnsafeBaseUrls();
     void httpTransportDoesNotFollowRedirects();
     void httpTransportTimesOutStalledReply();
@@ -383,6 +385,31 @@ void tst_account_identity::fixtureTransportRefusesUntaggedUse() {
 
     QVERIFY(!AccountFixtureTransport::testModeAllowed());
     QVERIFY(AccountFixtureTransport::create() == nullptr);
+}
+
+void tst_account_identity::credentialTargetNamesAreIsolatedByAppDataTag() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    qunsetenv("COLOSSEUM_APPDATA_TAG");
+
+    const QString productionActive = WindowsAccountCredentialStore::activeTargetName();
+    const QString productionPending = WindowsAccountCredentialStore::pendingTargetPrefix();
+    QCOMPARE(productionActive, QStringLiteral("Brotherhood.Colosseum.Account.Active.v1"));
+    QCOMPARE(productionPending, QStringLiteral("Brotherhood.Colosseum.Account.PendingRevoke.v1."));
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("lanista-isolation-a"));
+    const QString taggedActiveA = WindowsAccountCredentialStore::activeTargetName();
+    const QString taggedPendingA = WindowsAccountCredentialStore::pendingTargetPrefix();
+    QVERIFY(taggedActiveA != productionActive);
+    QVERIFY(taggedPendingA != productionPending);
+    QVERIFY(taggedActiveA.startsWith(productionActive + QStringLiteral(".Tagged.")));
+    QVERIFY(taggedPendingA.startsWith(productionPending + QStringLiteral("Tagged.")));
+
+    QCOMPARE(WindowsAccountCredentialStore::activeTargetName(), taggedActiveA);
+    QCOMPARE(WindowsAccountCredentialStore::pendingTargetPrefix(), taggedPendingA);
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("lanista-isolation-b"));
+    QVERIFY(WindowsAccountCredentialStore::activeTargetName() != taggedActiveA);
+    QVERIFY(WindowsAccountCredentialStore::pendingTargetPrefix() != taggedPendingA);
 }
 
 void tst_account_identity::httpTransportRejectsUnsafeBaseUrls() {

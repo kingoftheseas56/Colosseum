@@ -17,6 +17,23 @@
 namespace {
 constexpr auto kActiveTarget = "Brotherhood.Colosseum.Account.Active.v1";
 constexpr auto kPendingPrefix = "Brotherhood.Colosseum.Account.PendingRevoke.v1.";
+
+// Isolated Lanista/test instances re-root every AppData store under
+// COLOSSEUM_APPDATA_TAG (main.cpp, ProgressStore/CollectionStore/
+// SearchHistoryStore all do the same). The Windows credential vault is process-
+// global, not path-scoped, so without this suffix a tagged test session would
+// read and overwrite the real daily account's stored session. When the tag is
+// unset (the real app) the credential keeps its plain, untagged target name.
+QString taggedTargetKey() {
+    const QString tag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").trimmed();
+    if (tag.isEmpty())
+        return QString();
+
+    return QString::fromLatin1(
+        QCryptographicHash::hash(
+            tag.toUtf8(),
+            QCryptographicHash::Sha256).toHex());
+}
 }
 
 bool WindowsAccountCredentialStore::isAvailable() const {
@@ -80,11 +97,22 @@ bool WindowsAccountCredentialStore::removePendingRevocation(const QByteArray &re
 }
 
 QString WindowsAccountCredentialStore::activeTargetName() {
-    return QString::fromLatin1(kActiveTarget);
+    const QString taggedKey = taggedTargetKey();
+    if (taggedKey.isEmpty())
+        return QString::fromLatin1(kActiveTarget);
+    return QString::fromLatin1(kActiveTarget)
+        + QStringLiteral(".Tagged.")
+        + taggedKey;
 }
 
 QString WindowsAccountCredentialStore::pendingTargetPrefix() {
-    return QString::fromLatin1(kPendingPrefix);
+    const QString taggedKey = taggedTargetKey();
+    if (taggedKey.isEmpty())
+        return QString::fromLatin1(kPendingPrefix);
+    return QString::fromLatin1(kPendingPrefix)
+        + QStringLiteral("Tagged.")
+        + taggedKey
+        + QLatin1Char('.');
 }
 
 QByteArray WindowsAccountCredentialStore::encodeCredential(
