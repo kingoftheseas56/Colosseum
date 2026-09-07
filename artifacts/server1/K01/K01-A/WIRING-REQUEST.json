@@ -1,0 +1,51 @@
+{
+  "packet": "K01",
+  "worker_id": "K01-A",
+  "request_type": "shared-wiring",
+  "implementation_commit": "778a3ddc0e5a6c1a1f1f3626cb19b8cb9379102c",
+  "destination_branch": "feature/colosseum-server-1.0",
+  "destination_marker": "B-W2B",
+  "requested_owner": "B-W2B",
+  "integration_owner": "INT-W2",
+  "pushed": false,
+  "worker_scope_guard": {
+    "shared_files_modified": false,
+    "forbidden_to_worker": [
+      "native/CMakeLists.txt",
+      "tests/CMakeLists.txt",
+      "native/main.cpp",
+      "native/player/streamserver.cpp",
+      "native/player/streamserver.h",
+      "native/torrent/engine/TorrentEngine.cpp",
+      "native/torrent/engine/TorrentEngine.h",
+      "native/colosseum_server_v1/CMakeLists.txt",
+      "native/colosseum_server_v1/CMakePresets.json",
+      "native/colosseum_server_v1/tests/CMakeLists.txt"
+    ]
+  },
+  "include_requests": [
+    {
+      "shared_file": "native/colosseum_server_v1/CMakeLists.txt",
+      "action": "include native/colosseum_server_v1/cmake/packets/K01.cmake and invoke server1_register_k01_packet()"
+    },
+    {
+      "shared_file": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "action": "include native/colosseum_server_v1/tests/cmake/K01.cmake and invoke server1_register_k01_tests()"
+    }
+  ],
+  "targets": {
+    "library": "server1_k01_metadata",
+    "executable": "server1_k01_metadata_geometry",
+    "tests": [
+      "K01-01-metadata-geometry",
+      "K01-02-metadata-geometry",
+      "K01-03-metadata-geometry"
+    ]
+  },
+  "acceptance_evidence": [
+    "artifacts/server1/K01/K01-A/PACKET-RECEIPT.json",
+    "artifacts/server1/K01/K01-A/GREEN-EVIDENCE.json",
+    "artifacts/server1/K01/K01-A/DIFFERENTIAL-EVIDENCE.json",
+    "artifacts/server1/K01/K01-A/HASHES.json"
+  ]
+}

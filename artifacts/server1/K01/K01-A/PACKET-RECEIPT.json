@@ -1,0 +1,71 @@
+{
+  "packet": "K01",
+  "worker_id": "K01-A",
+  "status": "READY_FOR_B-W2B",
+  "branch": "codex/server1-k01-a",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "implementation_commit": "778a3ddc0e5a6c1a1f1f3626cb19b8cb9379102c",
+  "merge_endpoint": {
+    "destination_branch": "feature/colosseum-server-1.0",
+    "destination_marker": "B-W2B",
+    "condition": "merge only after parent acceptance; otherwise retire this branch",
+    "pushed": false
+  },
+  "dependencies": {
+    "B-W2A": "accepted and pushed",
+    "B-W1C": "accepted"
+  },
+  "source_authority": {
+    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "range_hashes": [
+      {"module": "M303", "lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
+      {"module": "M814", "lines": "72439-72764", "sha256": "05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e"},
+      {"module": "M815", "lines": "72764-72784", "sha256": "1712371c69dd5878a58aa46eb7d8f712ad3803f4cc365039350ec074d0ff8583"},
+      {"module": "M842", "lines": "74455-74473", "sha256": "5c8e4cf281005ff8de0dc50d8c76680e46b4053956ff6426d72f96543ffb62b5"}
+    ]
+  },
+  "scope": {
+    "owned_files": [
+      "native/colosseum_server_v1/include/server1/policy/TorrentMetadata.h",
+      "native/colosseum_server_v1/src/policy/TorrentMetadata.cpp",
+      "native/colosseum_server_v1/src/policy/VirtualPieceMap.cpp",
+      "native/colosseum_server_v1/tests/test_metadata_geometry.cpp",
+      "native/colosseum_server_v1/cmake/packets/K01.cmake",
+      "native/colosseum_server_v1/tests/cmake/K01.cmake"
+    ],
+    "shared_files_modified": [],
+    "build_outputs_committed": false
+  },
+  "evidence_state": {
+    "source_traced": true,
+    "red_test": "recorded",
+    "implementation": "authored",
+    "compiled": "verified",
+    "focused_tests": "K01-01, K01-02, K01-03 and all: exit 0",
+    "generated_geometry_corpus": "119 deterministic vectors pass bounds and round-trip properties",
+    "oracle_differential": "68 lines, 0 differences",
+    "full_server_runtime": "not claimed; aggregate wiring belongs to B-W2B"
+  },
+  "cases": {
+    "K01-01": "GREEN and differential-qualified",
+    "K01-02": "GREEN and differential-qualified",
+    "K01-03": "GREEN and differential-qualified; info.private absent/0/1 preserves presence and coerces at the boundary"
+  },
+  "artifacts": [
+    "artifacts/server1/K01/K01-A/GREEN-EVIDENCE.json",
+    "artifacts/server1/K01/K01-A/DIFFERENTIAL-EVIDENCE.json",
+    "artifacts/server1/K01/K01-A/HASHES.json",
+    "artifacts/server1/K01/K01-A/SOURCE-TRACE.md",
+    "artifacts/server1/K01/K01-A/cases/K01-01-GOLDEN.json",
+    "artifacts/server1/K01/K01-A/cases/K01-02-GOLDEN.json",
+    "artifacts/server1/K01/K01-A/cases/K01-03-GOLDEN.json",
+    "artifacts/server1/K01/K01-A/comparison/RAW-COMPARISON.txt",
+    "artifacts/server1/K01/K01-A/comparison/oracle_k01_probe.mjs",
+    "artifacts/server1/K01/K01-A/red/RED-TEST-EVIDENCE.json",
+    "artifacts/server1/K01/K01-A/green/GREEN-TEST-COMMAND.txt",
+    "artifacts/server1/K01/K01-A/green/GREEN-TEST-OUTPUT.txt",
+    "artifacts/server1/K01/K01-A/WIRING-REQUEST.json"
+  ],
+  "blocked_evidence": []
+}

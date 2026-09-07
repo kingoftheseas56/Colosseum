@@ -36,6 +36,14 @@ const infoForDifferential = () => bdict([
 ]);
 const windowsPath = (...parts) => path.win32.join(...parts).replaceAll("\\", "/");
 const lastLength = (total, real) => total % real || real;
+// M303 line 27769 exactly: void 0 !== torrent.info.private
+// && (result.private = !!torrent.info.private).
+const oraclePrivate = info => {
+  const result = {};
+  if (void 0 !== info.private)
+    result.private = !!info.private;
+  return result;
+};
 
 function emitGeometry(label, total, real) {
   const virtualized = real > 524288 && real % 524288 === 0;
@@ -85,12 +93,15 @@ emitGeometry("K01-02 fourMiB", 5 * 1024 * 1024, 4 * 1024 * 1024);
 emitGeometry("K01-02 768KiB", 1536 * 1024, 768 * 1024);
 
 const info = infoForDifferential();
+const absentPrivate = oraclePrivate(info);
+const zeroPrivate = oraclePrivate({ private: 0 });
+const onePrivate = oraclePrivate({ private: 1 });
 console.log("K01-03 name=日本");
 console.log("K01-03 path=日本/clip%20one.mkv");
 console.log("K01-03 announce=https://tracker.example/a|https://tracker.example/a|https://tracker.example/b");
 console.log("K01-03 url-list=https://seed.example/file|https://seed.example/file");
-console.log("K01-03 private.absent=absent,isPrivate:false");
-console.log("K01-03 private.zero=present,false,isPrivate:false");
-console.log("K01-03 private.one=present,true,isPrivate:true");
+console.log("K01-03 private.absent=" + (Object.prototype.hasOwnProperty.call(absentPrivate, "private") ? "present" : "absent") + ",isPrivate:false");
+console.log("K01-03 private.zero=" + (Object.prototype.hasOwnProperty.call(zeroPrivate, "private") ? "present," + zeroPrivate.private : "absent") + ",isPrivate:false");
+console.log("K01-03 private.one=" + (Object.prototype.hasOwnProperty.call(onePrivate, "private") ? "present," + onePrivate.private : "absent") + ",isPrivate:true");
 console.log("K01-03 info-hash=" + crypto.createHash("sha1").update(info).digest("hex"));
 console.log("K01-03 info-buffer-hex=" + info.toString("hex"));
