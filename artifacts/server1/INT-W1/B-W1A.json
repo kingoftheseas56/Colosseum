@@ -1,0 +1,49 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W1",
+  "barrier": "B-W1A",
+  "branch": "feature/colosseum-server-1.0",
+  "integrated_sha": "cbc86115805187013be566362f7be80741c194b2",
+  "input_commits_ordered": [
+    {"worker": "P00-A", "sha": "1c08a0734acbe6f46b67630f3a735e24df190db1", "accepted": true},
+    {"worker": "P01A-A", "sha": "83b945ebaf05f097851b3aa498647f9473acb07f", "accepted": true},
+    {"worker": "P02-A", "sha": "043f274cb8e86ec83584064d6bc20d47112e4ed7", "accepted": true},
+    {"worker": "P08A-A", "sha": "0d002c6d8af49ba3647d9f729f753aa4c7d3b532", "accepted": true},
+    {"worker": "P03-A", "sha": "39b2b9b7f00386302e01e22b72e92a838492d611", "accepted": true},
+    {"worker": "P03-A", "sha": "7e5d4e83d7733a41262dc2a19ac00b7b8cff770f", "accepted": true},
+    {"worker": "P03-A", "sha": "cbc86115805187013be566362f7be80741c194b2", "accepted": true}
+  ],
+  "ancestry": {"all_inputs_are_ancestors": true, "checked_at_head": "cbc86115805187013be566362f7be80741c194b2"},
+  "diff_review": {
+    "range": "0d002c6d..cbc86115",
+    "result": "no INT-W1 forbidden shared-file collision; P03 additions are packet-owned skeleton/evidence surfaces",
+    "changed_paths": 19,
+    "production_behavior_changed_by_integration": false
+  },
+  "verification": {
+    "replayed": [
+      {"command": "cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W1/B-W1A-run-20260907 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL", "exit": 0},
+      {"command": "ninja -C artifacts/server1/INT-W1/B-W1A-run-20260907", "exit": 0},
+      {"command": "PATH=C:\\Windows\\System32;C:\\Windows ctest --test-dir artifacts/server1/INT-W1/B-W1A-run-20260907 --output-on-failure", "exit": 0},
+      {"command": "PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;C:\\Windows\\System32;C:\\Windows artifacts/server1/INT-W1/B-W1A-run-20260907/server1_host.exe", "exit": 0, "observed": "initialized and shutdown; streaming-ready=NO"},
+      {"command": "cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W1/B-W1A-missing-20260907 -G Ninja -DP03_DEPENDENCY_LOCK=artifacts/server1/P03/missing-dependency-lock.json", "exit": 1, "expected_failure": "missing does-not-exist.lib"},
+      {"command": "python -m unittest -v artifacts.server1.P00.test_verify_p00", "exit": 0},
+      {"command": "python -m unittest -v artifacts.server1.P01A.test_verify_p01a", "exit": 0},
+      {"command": "python artifacts/server1/P01A/verify_p01a.py", "exit": 0},
+      {"command": "python -m unittest -v tools.server_lab.tests.test_reference_identity.SourceAuthorityTraceTests", "exit": 0},
+      {"command": "python -m py_compile tools/server_lab/adapters/stremio.py tools/server_lab/tests/test_reference_identity.py artifacts/server1/P02/qualify_p02.py", "exit": 0},
+      {"command": "validate committed artifacts/server1/P08A/PACKET-RECEIPT.json verification_runs", "exit": 0, "observed": "2 inherited runs; cases 01/02/03 PASS; no external probe replay"},
+      {"command": "git diff --check", "exit": 0}
+    ],
+    "inherited": [
+      "P03 accepted report/evidence: fresh configure/build, direct host lifecycle, clean-shell CTest, and missing-dependency failure",
+      "P08A immutable accepted receipt and two green external runs"
+    ],
+    "not_replayed": ["P08A external probe experiment; immutable receipt plus receipt validator was sufficient"],
+    "non_authoritative_diagnostic": "A locally ignored regenerated P08A executable hashed bafcc82ca4304d54e3d3444b911e391bb39fac3b25bc85213fb911154ab643a1 versus immutable receipt a2163855edfd2f49d831d1219536b5924f4d8474ecccecaba260fb8cff04a863; it was not used as acceptance evidence."
+  },
+  "shared_file_diff": {"production_manifest_changes": 0, "state_changes": 1, "receipt_changes": 1, "forbidden_files_changed": 0},
+  "unresolved_failures": [],
+  "status": "accepted",
+  "push": false
+}
