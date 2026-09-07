@@ -54,6 +54,6 @@ Existing Stremio and Server 0.1 adapters were inspected and probed only through 
 
 ## Interfaces, risks, and integration
 
-Implementation commit: `c236d58385b07d026243a11c1d6fdb92b88ba0e3` (`test(server1): converge P06-C fixture corpus`). The follow-up receipt-only commit records this implementation SHA. `WIRING-REQUEST.json` requests no shared-file wiring. Open risks are limited to differential consumption remaining unsupported through the existing adapters and parent/integration acceptance remaining pending at `B-W1C`; the packet does not claim Stremio/0.1 parity or integrated state.
+Implementation commit: `c236d58385b07d026243a11c1d6fdb92b88ba0e3` (`test(server1): converge P06-C fixture corpus`). Prior evidence commit: `a561dca0` (receipt/evidence update). The final metadata commit is reported externally as `SELF (see git log -1)`. `WIRING-REQUEST.json` requests no shared-file wiring. Open risks are limited to differential consumption remaining unsupported through the existing adapters and parent/integration acceptance remaining pending at `B-W1C`; the packet does not claim Stremio/0.1 parity or integrated state.
 
 Push: `NO`.
