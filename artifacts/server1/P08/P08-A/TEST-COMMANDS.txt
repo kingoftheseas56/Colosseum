@@ -1,9 +1,11 @@
 Base verification: git rev-parse HEAD -> ca0520af8410231bbdfbe4ced973c69904dbd1d5; git status initially clean.
 RED: pwsh -NoProfile -File artifacts/server1/P08/P08-A/test_transport_probe.ps1 -Phase red -> exit 1, expected missing executable.
-Compile: MSVC 19.44.35227.0, C++17, /MD, exact C:/tools/libtorrent-2.0-msvc headers/archive -> exit 0.
-Capability run: transport_contract_probe.exe --capabilities docs/server1/NATIVE-CAPABILITY-MATRIX.json -> exit 0.
-P08A predecessor regression through P08 wrapper: artifacts/server1/P08A/test_probe.ps1 -Phase green -ProbeExe transport_contract_probe.exe -> exit 0.
-P08 local GREEN harness: test_transport_probe.ps1 -Phase green -> exit 0.
+Compile: MSVC 19.44.35227.0, C++17, /MD, pinned C:/tools/libtorrent-2.0-msvc headers/archive -> exit 0.
+Focused stabilization: pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_packet.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -PeerScript artifacts/server1/P08/P08-A/tiny_peer.py -Cases P08-02 P08-04 -> exit 0; P08-02 PASS; P08-04 PASS.
+Full packet run 1: pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_packet.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -PeerScript artifacts/server1/P08/P08-A/tiny_peer.py -> exit 0; run packet-run-20260907-151758218; P08-01/P08-02/P08-03/P08-04/CONTROLS PASS.
+Full packet run 2: same command -> exit 0; run packet-run-20260907-151849694; P08-01/P08-02/P08-03/P08-04/CONTROLS PASS.
+P08A predecessor regression: pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_predecessor_regression.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -> exit 0; predecessor cases 01/02/03 PASS.
+JSON validation: every changed JSON parsed with ConvertFrom-Json -> exit 0.
 Diff check: git diff --check -> exit 0.
-Binary SHA-256: ec1b3cecb608c0dd02496359eb4b196dadb32339cd7c1abf1f403dd32ce550c4.
+Binary SHA-256: b7c376c25c8de10bee80be25b7a3367fb0bab9376d0a998405b4668c8a245bcf.
 No push performed.

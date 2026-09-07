@@ -1,18 +1,43 @@
 {
   "schema": "colosseum-server1-p08-case-results/v1",
   "worker_id": "P08-A",
-  "dependency": {"version": "2.0.11.0", "revision": "6e1587799", "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"},
+  "dependency": {
+    "version": "2.0.11.0",
+    "revision": "6e1587799",
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+  },
+  "runs": [
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+  ],
   "cases": {
-    "P08-01": {"state": "BLOCKED", "evidence": "No isolated large-real-piece/512KiB virtual-segment fixture; capability matrix records partial delivery as unproven."},
-    "P08-02": {"state": "PASS", "evidence": "P08A predecessor real-wire regression rerun through P08 wrapper: selected B exact request 1/1, A exact 0, suppressed picker attempts 3, unowned wire requests 0."},
-    "P08-03": {"state": "BLOCKED", "evidence": "cancel_request/add_request API compiles, but no P08-owned real-wire reservation reclaim/re-request/late-duplicate/destroy-recreate receipt exists."},
-    "P08-04": {"state": "PASS", "evidence": "P08A predecessor wire ledger matched commanded peer/piece/offset/length; priority/deadline was not used as proof."}
+    "P08-01": {
+      "state": "PASS",
+      "evidence": "A 1 MiB real piece exposed its first 512 KiB virtual segment before the full piece hash passed; all 64 local wire requests and final hash were observed."
+    },
+    "P08-02": {
+      "state": "PASS",
+      "evidence": "Selected peer B received the three commanded piece-2 blocks, including the 7232-byte tail. Ordinary request_a_block work on peer A was suppressed, no unowned request reached the peer, and all three B-owned requests remained outstanding."
+    },
+    "P08-03": {
+      "state": "PASS",
+      "evidence": "The slow reservation was reclaimed and re-requested from peer B; late and duplicate old responses were observed; destroy/recreate at the same endpoint completed with no replay or generation misattribution."
+    },
+    "P08-04": {
+      "state": "PASS",
+      "evidence": "The commanded peer/piece/offset/length ledger matched the three actual local wire requests exactly; priorities and deadlines were not used as substitutes for wire evidence."
+    }
   },
   "mandatory_controls": {
-    "metadata_discovery": "API_COMPILED_ONLY",
-    "honest_peer_stats": "BLOCKED_NO_WIRE_RECEIPT",
-    "per_engine_vs_session_global": "API_COMPILED_ONLY",
-    "choke_interest": "BLOCKED_NO_ISOLATED_WIRE_RECEIPT"
+    "metadata_discovery": "PASS_REAL_WIRE",
+    "honest_peer_stats": "PASS_REAL_WIRE_16384_BYTES",
+    "per_engine_vs_session_global": "PASS_RUNTIME_AND_WIRE",
+    "choke_interest": "PASS_HOOK_AND_WIRE_CORRELATION"
   },
-  "gate": {"G-NATIVE": "BLOCKED", "reason": "Mandatory controls are not all real-wire proven; no TorrentTransportSeamDesign is promoted."}
+  "compile_only_booleans_promoted": false,
+  "dependency_patch_required": false,
+  "gate": {
+    "G-NATIVE": "PASS",
+    "reason": "Every mandatory control passed in two complete local real-wire packet runs on pinned libtorrent 2.0.11."
+  }
 }

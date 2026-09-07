@@ -1,1 +1,11 @@
-GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=1; controlled_suppressed=3; controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_plugin_peer=1/1; lifecycle_pre/post=0/1; lifecycle_replayed=0
+safe_packet_local_predecessor_regression=true
+probe_exit=0
+tiny_peer_drain_exit=0
+case_01=PASS
+case_02=PASS
+case_03=PASS
+raw_run=C:\b\Colosseum-Server-1.0-workers\P08-A\artifacts\server1\P08\P08-A\raw\predecessor-regression-20260907-132936336
+full_packet_run_1=packet-run-20260907-151758218
+full_packet_run_2=packet-run-20260907-151849694
+full_packet_cases=P08-01:PASS,P08-02:PASS,P08-03:PASS,P08-04:PASS,CONTROLS:PASS
+unowned_docs_mutated=false

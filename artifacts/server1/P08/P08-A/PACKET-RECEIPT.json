@@ -14,15 +14,40 @@
     "M846": "74730-74772 / fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727",
     "M851": "74856-74884 / 2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041"
   },
-  "header_citations": {
-    "peer_connection": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/peer_connection.hpp:633-646,732",
-    "torrent_handle": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/torrent_handle.hpp:336-337,425-426",
-    "session_handle": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/session_handle.hpp:856-857",
-    "peer_stats": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/peer_connection.hpp:465,479"
+  "libtorrent_authority": {
+    "version": "2.0.11.0",
+    "revision": "6e1587799",
+    "review_checkout": "C:/b/libtorrent-2.0.11-review",
+    "review_checkout_head": "9d7443f467147d1784fb7516d2a882db1abb5a8b",
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
   },
-  "binary": {"path": "artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe", "sha256": "ec1b3cecb608c0dd02496359eb4b196dadb32339cd7c1abf1f403dd32ce550c4"},
+  "source_citations": {
+    "selected_peer_add_request": "C:/b/libtorrent-2.0.11-review/src/peer_connection.cpp:3581",
+    "cancel_request": "C:/b/libtorrent-2.0.11-review/src/peer_connection.cpp:3741",
+    "send_block_requests": "C:/b/libtorrent-2.0.11-review/src/peer_connection.cpp:4015",
+    "ordinary_picker": "C:/b/libtorrent-2.0.11-review/include/libtorrent/request_blocks.hpp:47",
+    "associated_torrent": "C:/b/libtorrent-2.0.11-review/include/libtorrent/peer_connection.hpp:471",
+    "piece_priority": "C:/b/libtorrent-2.0.11-review/include/libtorrent/torrent.hpp:626; C:/b/libtorrent-2.0.11-review/src/torrent.cpp:5359",
+    "partial_piece_callback": "C:/b/libtorrent-2.0.11-review/src/peer_connection.cpp:2786,2820",
+    "choke_interest_hooks": "C:/b/libtorrent-2.0.11-review/include/libtorrent/extensions.hpp:430-448"
+  },
+  "binary": {
+    "path": "artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe",
+    "sha256": "b7c376c25c8de10bee80be25b7a3367fb0bab9376d0a998405b4668c8a245bcf"
+  },
+  "implementation_hashes": {
+    "transport_contract_probe.cpp": "6c99748e9b259e45daf7d59d5cd5731cfb67b45a1106d30cc22c25cea3f7837b",
+    "tiny_peer.py": "523ff4200f0f6511c0c0bfe5973f0bad0ea8bd9bbb0d090b1e2b60fbf1f68652",
+    "run_packet.ps1": "4920dd301d4424df437504ffbb31a86358b3e561350e14ee79508c367a48014a"
+  },
+  "evidence_runs": [
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+  ],
   "case_results": "artifacts/server1/P08/P08-A/CASE-RESULTS.json",
   "capability_matrix": "docs/server1/NATIVE-CAPABILITY-MATRIX.json",
   "wiring_request": "artifacts/server1/P08/P08-A/WIRING-REQUEST.json",
-  "status": "implementation-authored; compiled; partial test-executed; G-NATIVE blocked"
+  "compile_only_booleans_promoted": false,
+  "dependency_patch_required": false,
+  "status": "implementation-authored; compiled; test-executed twice; real-wire verified; G-NATIVE ready for integration review"
 }

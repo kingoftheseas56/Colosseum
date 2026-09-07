@@ -4,18 +4,51 @@
   "dependency": {
     "version": "2.0.11.0",
     "revision": "6e1587799",
+    "review_checkout_head": "9d7443f467147d1784fb7516d2a882db1abb5a8b",
     "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
   },
   "seam": {
     "selected_peer_exact_block": "peer_connection::add_request(piece_block) followed by send_block_requests()",
-    "picker_suppression": "peer_plugin::write_request returns suppression for unowned picker work",
-    "hotswap": "peer_connection::cancel_request followed by add_request; cancellation is observed but not used as reservation proof"
+    "picker_suppression": "request_a_block(torrent, peer_connection) selects ordinary picker work; peer_plugin::write_request suppresses unowned output",
+    "hotswap": "peer_connection::cancel_request followed by selected-peer add_request; cancellation is observed but is not used as reservation proof"
   },
   "cases": [
-    {"id": "P08-01", "name": "large-piece-virtual-piece-timing", "requires": ["partial_delivery_before_piece_verification"]},
-    {"id": "P08-02", "name": "owned-request-picker-suppression", "requires": ["selected_peer_exact_block", "picker_suppression"]},
-    {"id": "P08-03", "name": "reservation-hotswap-late-response-recreate", "requires": ["reservation_hotswap", "late_response_generation_safety"]},
-    {"id": "P08-04", "name": "commanded-trace-versus-wire", "requires": ["wire_request_ledger"]}
+    {
+      "id": "P08-01",
+      "name": "large-piece-virtual-piece-timing",
+      "state": "PASS",
+      "requires": ["partial_delivery_before_piece_verification"]
+    },
+    {
+      "id": "P08-02",
+      "name": "owned-request-picker-suppression",
+      "state": "PASS",
+      "requires": ["selected_peer_exact_block", "picker_suppression", "owned_request_preservation"]
+    },
+    {
+      "id": "P08-03",
+      "name": "reservation-hotswap-late-response-recreate",
+      "state": "PASS",
+      "requires": ["reservation_hotswap", "late_response_generation_safety"]
+    },
+    {
+      "id": "P08-04",
+      "name": "commanded-trace-versus-wire",
+      "state": "PASS",
+      "requires": ["wire_request_ledger"]
+    },
+    {
+      "id": "CONTROLS",
+      "name": "metadata-stats-settings-choke-interest",
+      "state": "PASS",
+      "requires": ["metadata_discovery", "honest_peer_stats", "per_engine_settings", "session_global_settings", "choke_interest_wire"]
+    }
   ],
-  "grading": "priority/deadline settings are not evidence; each required control needs a real peer wire receipt."
+  "evidence_runs": [
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+  ],
+  "grading": "All required controls have repeated real local-peer receipts; priority/deadline settings alone are not evidence.",
+  "dependency_patch_required": false,
+  "gate": "G-NATIVE ready for integration review"
 }

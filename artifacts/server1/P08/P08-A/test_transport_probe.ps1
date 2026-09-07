@@ -26,4 +26,9 @@ if (-not (Test-Path -LiteralPath $PeerScript)) {
 }
 
 Write-Output "GREEN harness precondition satisfied: $ProbeExe"
-exit 0
+$runner = Join-Path $PSScriptRoot 'run_packet.ps1'
+if (-not (Test-Path -LiteralPath $runner)) {
+    throw "GREEN harness runner is missing: $runner"
+}
+& pwsh -NoProfile -File $runner -ProbeExe $ProbeExe -PeerScript $PeerScript
+exit $LASTEXITCODE

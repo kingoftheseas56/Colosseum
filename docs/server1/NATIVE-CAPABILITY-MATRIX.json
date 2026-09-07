@@ -1,18 +1,34 @@
 {
   "schema": "colosseum-server1-native-capability-matrix/v1",
   "worker_id": "P08-A",
-  "dependency": {"version": "2.0.11.0", "revision": "6e1587799"},
-  "seam": {"classification": "version-specific internal header access", "exact_block": "peer_connection::add_request(piece_block) + send_block_requests()", "hotswap": "peer_connection::cancel_request(piece_block) + add_request(piece_block)"},
+  "dependency": {
+    "version": "2.0.11.0",
+    "revision": "6e1587799",
+    "review_checkout_head": "9d7443f467147d1784fb7516d2a882db1abb5a8b",
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+  },
+  "seam": {
+    "classification": "version-specific internal header access",
+    "exact_block": "peer_connection::add_request(piece_block) + send_block_requests()",
+    "picker_suppression": "request_a_block(torrent, peer_connection) routed through peer_plugin::write_request suppression",
+    "hotswap": "peer_connection::cancel_request(piece_block, true) + add_request(piece_block)"
+  },
   "controls": {
     "selected_peer_exact_block_wire": true,
     "picker_suppression_wire": true,
-    "reservation_hotswap_wire": false,
-    "partial_delivery_before_piece_verification": false,
+    "reservation_hotswap_wire": true,
+    "partial_delivery_before_piece_verification": true,
     "metadata_discovery_control": true,
-    "honest_peer_stats": false,
+    "honest_peer_stats": true,
     "per_engine_settings": true,
     "session_global_settings": true,
-    "choke_interest_wire": false
+    "choke_interest_wire": true
   },
-  "interface_statement": "No production interface changed; G-NATIVE is blocked until every mandatory control has an isolated real-wire receipt."
+  "evidence_runs": [
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+  ],
+  "evidence_basis": "Every mandatory control passed twice against local TCP peers. Priority/deadline configuration alone was not promoted as wire evidence.",
+  "dependency_patch_required": false,
+  "interface_statement": "The required policy-control seam exists in pinned libtorrent 2.0.11 through a narrow version-specific internal adapter. No production interface changed in P08-A."
 }
