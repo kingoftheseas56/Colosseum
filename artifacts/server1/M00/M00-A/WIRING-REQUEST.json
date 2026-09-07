@@ -36,8 +36,8 @@
     },
     {
       "path": "native/colosseum_server_v1/src/ServerComposition.cpp",
-      "owner": "INT-W2",
-      "change": "Wire ProcessDriver at the server composition seam and preserve caller-selected local/remote HLSV2 mode."
+      "owner": "C00-C",
+      "change": "Defer composition wiring to C00-C at barrier B-W8; later composition must preserve caller-selected local/remote HLSV2 mode."
     }
   ],
   "contract_consumption": [
