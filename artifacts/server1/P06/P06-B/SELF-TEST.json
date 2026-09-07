@@ -31,8 +31,8 @@
     "token": "p06-red-token"
   },
   "ports": {
-    "tracker": 10358,
-    "http": 10361
+    "tracker": 9001,
+    "http": 9002
   },
   "replay_command": [
     "python",
