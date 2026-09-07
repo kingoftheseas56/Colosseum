@@ -13,14 +13,14 @@
     "P00": "accepted",
     "P01A": "accepted",
     "P02": "accepted",
-    "P08A": "test-authored"
+    "P08A": "accepted"
   },
   "accepted_gates": [
     "G-EVIDENCE",
-    "G-SUBSTRATE"
+    "G-SUBSTRATE",
+    "G-NATIVE-FEASIBILITY"
   ],
   "next_blocking_path": [
-    "P08A",
     "P03"
   ],
   "notes": [
@@ -28,7 +28,6 @@
     "No Server 1.0 production source has been copied from Server 0.1.",
     "P01A accepted from GitHub Actions run 34146280578 after exact lane-specific toolchain, package, compile-time, linked-runtime, binary, and missing-dependency evidence was inspected.",
     "P02 accepted from GitHub Actions run 34154100449 using the official Stremio Service v0.1.22 bundle in a no-outbound-network container; runtime is v18.12.1 and server.js exactly matches the locked oracle hash.",
-    "P02 preserves source quirks: exhausting 11470-11474 leaves the process alive, and missing media reports ffmpeg null / ffprobe undefined before the hardware probe raises ERR_INVALID_ARG_TYPE while heartbeat remains available.",
-    "P08A disposable wire-level feasibility probe is test-authored; Linux passed all raw-wire cases in run 34152668099, but G-NATIVE-FEASIBILITY remains closed until the Windows lane also passes and its artifact is inspected."
+    "P08A accepted from GitHub Actions run 34152668099 after raw Linux and Windows wire artifacts proved ordinary picker viability, one exact B/0/0/16384 owned request, zero A/unowned requests in controlled mode, and clean teardown with no replay."
   ]
 }

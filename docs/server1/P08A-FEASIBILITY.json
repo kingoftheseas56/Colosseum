@@ -1,43 +1,59 @@
 {
-  "accepted": false,
+  "schema_version": 1,
+  "packet": "P08A",
+  "state": "accepted",
+  "accepted": true,
+  "gate": "G-NATIVE-FEASIBILITY",
   "base_gate": "G-SUBSTRATE",
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "qualified_head_sha": "42ad719d9aff82427954836498dbd9e9909127fa",
   "behavioral_oracle": {
     "block_size": 16384,
     "cdn_selector": "v4.21.1",
-    "modules": [
-      "M814",
-      "M851"
-    ],
+    "modules": ["M814", "M851"],
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
-  "blockers": [
-    "wire evidence not yet executed"
-  ],
-  "branch": "feature/colosseum-server-1.0-preflight",
-  "cases": {
-    "P08A-01": "one exact 16 KiB request to B, none to A",
-    "P08A-02": "owned request succeeds while zero unowned requests occur despite eligible work",
-    "P08A-03": "teardown with outstanding owned request exits cleanly with no replay/orphan",
-    "P08A-CONTROL": "same two-peer/two-block fixture must exhibit ordinary picker work with suppression disabled"
+  "accepted_mechanism": {
+    "selected_peer_request": "peer_connection_handle::send_buffer() from peer_plugin callback",
+    "picker_suppression": "exact-version native_handle()->no_download(true)",
+    "owned_response": "peer_plugin::on_piece()",
+    "seam_classification": "public plugin API plus narrow exact-version internal-header state access",
+    "dependency_patch_required": false,
+    "extra_export_required": false,
+    "scope": "feasibility only; production adapter and complete native behavior remain subject to P08 and later differential gates"
   },
   "ci": {
-    "status": "not yet executed for this probe revision",
-    "workflow": ".github/workflows/server1-p08a-feasibility.yml"
+    "workflow": ".github/workflows/server1-p08a-feasibility.yml",
+    "run_id": 34152668099,
+    "conclusion": "success",
+    "linux_artifact": {
+      "id": 10029919527,
+      "digest": "sha256:05a82eb56a7a34d30b3e7460fabcc6aca995bb4deeaca3170226929663b4461d",
+      "probe_sha256": "1ede3e599201d488c5619eea35d2022de69ea52c88ef594ee4da1a3c844d3afc",
+      "libtorrent": "2.0.10.0 revision dacf64c50 ABI 1 shared",
+      "export_extra": false
+    },
+    "windows_artifact": {
+      "id": 10030512462,
+      "digest": "sha256:8a8d1fab84964c8b3088caedf9c8a3e681ddd9680bb49f0d67085dab12a35a59",
+      "probe_sha256": "b5947a5806fbf758b17494f01506a641917878562cb88b1b2fca7c905043f000",
+      "libtorrent": "2.0.11.0 revision 6e1587799 ABI 3 shared",
+      "export_extra": false
+    }
   },
-  "gate": "G-NATIVE-FEASIBILITY",
-  "hypothesis": {
-    "dependency_patch_required": false,
-    "owned_response": "peer_plugin::on_piece()",
-    "picker_suppression": "exact-version native_handle()->no_download(true)",
-    "production_code": false,
-    "seam_classification": "public plugin API plus narrow exact-version internal-header state access",
-    "selected_peer_request": "peer_connection_handle::send_buffer() from peer_plugin callback"
+  "wire_results": {
+    "linux": {
+      "P08A-CONTROL": {"passed": true, "ordinary_request_count": 3},
+      "P08A-01": {"passed": true, "requests": ["B/0/0/16384"], "requests_on_a": 0, "unowned_requests": 0},
+      "P08A-02": {"passed": true, "requests": ["B/0/0/16384"], "requests_on_a": 0, "unowned_requests": 0, "response_received": true},
+      "P08A-03": {"passed": true, "requests": ["B/0/0/16384"], "requests_on_a": 0, "unowned_requests": 0, "response_held": true, "both_sockets_closed": true, "hidden_replay": false}
+    },
+    "windows": {
+      "P08A-CONTROL": {"passed": true, "ordinary_request_count": 3},
+      "P08A-01": {"passed": true, "requests": ["B/0/0/16384"], "requests_on_a": 0, "unowned_requests": 0},
+      "P08A-02": {"passed": true, "requests": ["B/0/0/16384"], "requests_on_a": 0, "unowned_requests": 0, "response_received": true},
+      "P08A-03": {"passed": true, "requests": ["B/0/0/16384"], "requests_on_a": 0, "unowned_requests": 0, "response_held": true, "both_sockets_closed": true, "hidden_replay": false}
+    }
   },
-  "packet": "P08A",
-  "required_lanes": {
-    "linux": "P01A Linux lane",
-    "windows": "P01A Windows lane"
-  },
-  "schema_version": 1,
-  "state": "test-authored"
+  "blockers": []
 }

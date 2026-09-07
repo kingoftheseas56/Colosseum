@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "packet": "P08A",
+  "title": "Prove exact selected-peer block control before production native work",
+  "status": "accepted",
+  "gate": "G-NATIVE-FEASIBILITY",
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "qualified_head_sha": "42ad719d9aff82427954836498dbd9e9909127fa",
+  "workflow": ".github/workflows/server1-p08a-feasibility.yml",
+  "run_id": 34152668099,
+  "run_conclusion": "success",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "source_modules": ["M814", "M851"],
+  "mechanism": {
+    "selected_peer_request": "peer_connection_handle::send_buffer()",
+    "picker_suppression": "native_handle()->no_download(true)",
+    "owned_response": "peer_plugin::on_piece()",
+    "dependency_patch": false,
+    "TORRENT_EXPORT_EXTRA": false
+  },
+  "linux": {
+    "artifact_id": 10029919527,
+    "artifact_digest": "sha256:05a82eb56a7a34d30b3e7460fabcc6aca995bb4deeaca3170226929663b4461d",
+    "probe_sha256": "1ede3e599201d488c5619eea35d2022de69ea52c88ef594ee4da1a3c844d3afc",
+    "libtorrent": "2.0.10.0 revision dacf64c50 ABI 1 shared",
+    "control_request_count": 3,
+    "owned_case_request_signature": "B/0/0/16384",
+    "P08A-01": "pass",
+    "P08A-02": "pass",
+    "P08A-03": "pass"
+  },
+  "windows": {
+    "artifact_id": 10030512462,
+    "artifact_digest": "sha256:8a8d1fab84964c8b3088caedf9c8a3e681ddd9680bb49f0d67085dab12a35a59",
+    "probe_sha256": "b5947a5806fbf758b17494f01506a641917878562cb88b1b2fca7c905043f000",
+    "libtorrent": "2.0.11.0 revision 6e1587799 ABI 3 shared",
+    "control_request_count": 3,
+    "owned_case_request_signature": "B/0/0/16384",
+    "P08A-01": "pass",
+    "P08A-02": "pass",
+    "P08A-03": "pass"
+  },
+  "acceptance_claim": "Both frozen libtorrent 2.0 lanes can suppress ordinary picker requests and emit one exact 16 KiB BitTorrent request to a selected peer without a dependency patch; teardown with that owned request outstanding is clean in the fixture.",
+  "non_claims": [
+    "P08A does not prove the complete Stremio torrent engine.",
+    "P08A does not approve copying the disposable probe into production.",
+    "The production adapter and full native behavior still require P08 and later differential qualification."
+  ],
+  "existing_server_1_0_branch_used": false,
+  "server_0_1_used": false,
+  "blockers": []
+}
