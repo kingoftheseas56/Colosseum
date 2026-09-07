@@ -17,6 +17,7 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -249,6 +250,45 @@ class P04RunnerTests(unittest.TestCase):
             if unrelated.poll() is None:
                 unrelated.kill()
                 unrelated.wait(timeout=3)
+
+    def test_lease_is_published_before_slow_windows_identity_lookup(self) -> None:
+        from tools.server_lab import lab
+
+        identity_calls = 0
+
+        def slow_identity(pid: int):
+            nonlocal identity_calls
+            identity_calls += 1
+            time.sleep(1.5)
+            return {"command": "toy", "creation": str(identity_calls)} if identity_calls <= 2 else None
+
+        data_root = self.root / "slow-data"
+        evidence = self.root / "slow-evidence"
+        with patch("tools.server_lab.lab._process_identity", side_effect=slow_identity) as lookup:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(lab.LabRunner().run, subject=self.subject, mode="hold", data_root=data_root, evidence_dir=evidence, run_id="slow-run")
+                lease = data_root / "slow-run" / "ownership.json"
+                deadline = time.time() + 3.0
+                while time.time() < deadline and not lease.exists():
+                    time.sleep(0.01)
+                self.assertTrue(lease.exists())
+                self.assertFalse(json.loads(lease.read_text(encoding="utf-8"))["identity"]["pending"])
+                future.result(timeout=8)
+                self.assertEqual(lookup.call_count, 0)
+
+    def test_termination_error_cannot_pass(self) -> None:
+        from tools.server_lab import lab
+
+        with patch("tools.server_lab.lab._wait_for_release", return_value=["output handles still held: stderr.txt"]):
+            receipt = lab.LabRunner().run(
+                subject=self.subject,
+                mode="crash",
+                data_root=self.root / "termination-data",
+                evidence_dir=self.root / "termination-evidence",
+                run_id="termination-error",
+            )
+        self.assertEqual(receipt["result"], "ERROR")
+        self.assertTrue(any("output handles still held" in error for error in receipt["errors"]))
 
     def test_schema_round_trip_and_raw_normalized_lanes_are_separate(self) -> None:
         exit_code, receipt, evidence = self.run_cli("byte", "run-roundtrip")

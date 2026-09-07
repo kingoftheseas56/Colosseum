@@ -12,13 +12,15 @@ Authorities are recorded in `tools/server_lab/cases/P04.json`: the P04 brief SHA
 
 ## Chronology
 
-The initial implementation did not preserve the required RED evidence. Review-driven repair tests were then added; before repair, that test run exposed 1 failure and 1 error. The repaired packet now preserves the exact green run and replayable sample evidence. This report does not claim RED predated the initial implementation.
+The exact interleaved test was reproduced 10/10 before repair (`repeat-red/summary.json`): every run exited 1 with the readiness assertion and the WinError 32 cleanup error. Boundary capture recorded a live toy-subject/LabRunner tree and a held `stderr.txt` after taskkill. Root cause was synchronous Windows CIM identity lookup before publishing `ownership.json`, combined with treating taskkill return/process wait as proof that descendants and inherited output handles were gone.
+
+The repair publishes the lease using the known command and cheap process-creation timestamp, preserves controller/PID protection by creation timestamp, and conditionally polls owned PIDs plus exclusive output-file access after termination. The slow-identity and termination-error regressions pass. The exact interleaved test remains red on this host: the toy subject's loopback readiness/cleanup path does not complete before the test deadline, so the packet is not claimed green.
 
 ## Exact verification
 
 Command: `python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v`
 
-Exit: `0`. Result: `20 tests, 8 skips, 0 failures, 0 errors`.
+Pre-repair: `10/10` exact-target failures, `0` passes. Post-change stress: `10/10` failures. Targeted Sol regressions: `2/2` pass. Full P04/P02 command: `22 tests, 1 failure, 1 error, 8 skips`; not green.
 
 The full raw output, exact command, and exit are in `TEST-RUN.txt`. The committed replay fixture is `fixtures/replay_subject.py`, SHA256 `52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4`. Packet-local `.gitattributes` enforces LF for the replay fixture and configuration so checkout materialization preserves this identity. The committed replay configuration is `fixtures/replay-config.json`. The regenerated sample is `SAMPLE-RUN.json`, SHA256 `e5e66c259d728931ce5bb70884a4c38298934a17aad59b7e5b735b27e193e23e`, also recorded in `MUTATION-EVIDENCE.json`.
 
