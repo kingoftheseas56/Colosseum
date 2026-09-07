@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P02S-A",
+  "parent_packet": "P02S",
+  "integration_destination": "B-W1D on feature/colosseum-server-1.0",
+  "review_gate": "G-SURFACE",
+  "request": "Cherry-pick the P02S-A commit after Sol review at B-W1D. Preserve the matrix as dispatch/fixture qualification input only; do not use profile inactivity to remove source-required routes or services.",
+  "owned_interfaces": ["RuntimeSurfaceMatrix"],
+  "shared_file_changes": [],
+  "packet_local_artifacts": [
+    "docs/server1/RUNTIME-SURFACE-MATRIX.json",
+    "tools/server_lab/scenarios/reference_profiles.json",
+    "tools/server_lab/cases/P02S-A.json",
+    "tools/server_lab/tests/test_surface_matrix.py",
+    "artifacts/server1/P02S/P02S-A/"
+  ],
+  "push_status": "not_pushed_by_instruction"
+}

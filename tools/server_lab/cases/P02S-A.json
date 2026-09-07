@@ -1,0 +1,13 @@
+{
+  "schema": "colosseum-server1-p02s-a-cases/v1",
+  "worker_id": "P02S-A",
+  "parent_packet": "P02S",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "source_module": {"id": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"},
+  "cases": [
+    {"id": "P02S-01", "purpose": "Profile toggles alter only source-composition-gated surfaces; conditional routes remain accounted for."},
+    {"id": "P02S-02", "purpose": "Dependency reachability remains distinct from initialization and mounting."},
+    {"id": "P02S-03", "purpose": "Removing an observed surface fails completeness even when inactive in the default profile."}
+  ],
+  "required_profiles": ["desktop-default", "desktop-tv-env", "desktop-unity-env", "desktop-ios-env", "android-default"]
+}

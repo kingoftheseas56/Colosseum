@@ -1,0 +1,9 @@
+test_case_packet_and_evidence_contract (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract) ... ok
+test_p02s_01_profiles_change_only_source_composition (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_01_profiles_change_only_source_composition) ... ok
+test_p02s_02_dependency_only_is_not_a_mount (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_02_dependency_only_is_not_a_mount) ... ok
+test_p02s_03_completeness_rejects_deleted_observed_surface (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_03_completeness_rejects_deleted_observed_surface) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.010s
+
+OK

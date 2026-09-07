@@ -1,0 +1,38 @@
+{
+  "schema": "colosseum-server1-reference-profiles/v1",
+  "worker_id": "P02S-A",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "source_entrypoint": "server.js:46581-46585",
+  "profiles": {
+    "desktop-default": {
+      "platform": "desktop",
+      "env": {"APP_PATH": "<run>/app", "SETTINGS_PATH": "<run>/settings", "FFMPEG_BIN": "/usr/bin/ffmpeg", "FFPROBE_BIN": "/usr/bin/ffprobe", "NO_HTTPS_SERVER": "1", "NO_NETWORK_INTERFACES": "1"},
+      "source_composition_overrides": {},
+      "required_for": ["default desktop entrypoint"]
+    },
+    "desktop-tv-env": {
+      "platform": "desktop",
+      "env": {"TV_ENV": "1"},
+      "source_composition_overrides": {"casting": "disabled", "caching": "disabled", "cors": "disabled", "hls_v2": "disabled"},
+      "required_for": ["TV_ENV entrypoint rewrite"]
+    },
+    "desktop-unity-env": {
+      "platform": "desktop",
+      "env": {"UNITY_ENV": "1"},
+      "source_composition_overrides": {"casting": "disabled", "caching": "disabled", "cors": "disabled", "hls_v2": "disabled", "network_interfaces": "disabled"},
+      "required_for": ["UNITY_ENV entrypoint rewrite"]
+    },
+    "desktop-ios-env": {
+      "platform": "desktop",
+      "env": {"IOS_APP": "1"},
+      "source_composition_overrides": {"casting": "disabled", "hls_v2": "disabled", "https": "disabled"},
+      "required_for": ["IOS_APP entrypoint rewrite and lifecycle handlers"]
+    },
+    "android-default": {
+      "platform": "android",
+      "env": {},
+      "source_composition_overrides": {"casting": "disabled", "local_addon_indexing": "disabled"},
+      "required_for": ["platform guards at M564:46702 and M564:46820"]
+    }
+  }
+}

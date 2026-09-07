@@ -1,0 +1,29 @@
+{
+  "schema": "colosseum-server1-p02s-a-source-trace/v1",
+  "worker_id": "P02S-A",
+  "parent_packet": "P02S",
+  "oracle": {
+    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "bytes": 6676503
+  },
+  "modules": [
+    {"id":"M564","lines":"46578-46979","sha256":"d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569","role":"entrypoint, profile gates, routes, listeners, teardown, archive mounts"},
+    {"id":"M194","lines":"19675-19682","sha256":"b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843","role":"APP_PATH"},
+    {"id":"M195","lines":"19682-19707","sha256":"7756e8b85a0ed5bcee2c3770d30dbd8649e943709e2b7b347e9d5977019e0b87","role":"bridge and IOS lifecycle dependency"},
+    {"id":"M433","lines":"37687-37693","sha256":"fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602","role":"ffprobe companion"},
+    {"id":"M436","lines":"37824-37826","sha256":"5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0","role":"ffmpeg/ffprobe search paths"}
+  ],
+  "source_composition_facts": [
+    "TV_ENV sets CASTING_DISABLED, DISABLE_CACHING, NO_CORS, HLS_V2_DISABLED.",
+    "UNITY_ENV sets NO_NETWORK_INTERFACES in addition to the TV-style gates.",
+    "IOS_APP sets CASTING_DISABLED, HLS_V2_DISABLED, NO_HTTPS_SERVER and installs bridge lifecycle handlers.",
+    "HLS v2 is mounted only when HLS_V2_DISABLED is unset.",
+    "Casting is mounted only when CASTING_DISABLED is unset and process.platform is not android.",
+    "Local-addon indexing is conditional on localAddonEnabled and non-android platform; its router is always mounted.",
+    "HTTPS listener is conditional on NO_HTTPS_SERVER; HTTP listener probes ports 11470 through 11474.",
+    "Archive routers and IPC downloader mount after the listener; IPC downloader additionally requires SERVER_IPC_KEY."
+  ],
+  "source_read_command": "python -c range-read server.js lines 46578-46979",
+  "source_read_exit": 0
+}

@@ -1,0 +1,81 @@
+test_case_packet_and_evidence_contract (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract) ... ERROR
+test_p02s_01_profiles_change_only_source_composition (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_01_profiles_change_only_source_composition) ... ERROR
+test_p02s_02_dependency_only_is_not_a_mount (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_02_dependency_only_is_not_a_mount) ... ERROR
+test_p02s_03_completeness_rejects_deleted_observed_surface (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_03_completeness_rejects_deleted_observed_surface) ... ERROR
+
+======================================================================
+ERROR: test_case_packet_and_evidence_contract (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 102, in test_case_packet_and_evidence_contract
+    case = load_json(CASE_PATH)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 27, in load_json
+    return json.loads(path.read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1058, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\tools\\server_lab\\cases\\P02S-A.json'
+
+======================================================================
+ERROR: test_p02s_01_profiles_change_only_source_composition (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_01_profiles_change_only_source_composition)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 55, in test_p02s_01_profiles_change_only_source_composition
+    matrix = load_json(MATRIX_PATH)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 27, in load_json
+    return json.loads(path.read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1058, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\docs\\server1\\RUNTIME-SURFACE-MATRIX.json'
+
+======================================================================
+ERROR: test_p02s_02_dependency_only_is_not_a_mount (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_02_dependency_only_is_not_a_mount)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 78, in test_p02s_02_dependency_only_is_not_a_mount
+    matrix = load_json(MATRIX_PATH)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 27, in load_json
+    return json.loads(path.read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1058, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\docs\\server1\\RUNTIME-SURFACE-MATRIX.json'
+
+======================================================================
+ERROR: test_p02s_03_completeness_rejects_deleted_observed_surface (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_03_completeness_rejects_deleted_observed_surface)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 87, in test_p02s_03_completeness_rejects_deleted_observed_surface
+    matrix = load_json(MATRIX_PATH)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P02S-A\tools\server_lab\tests\test_surface_matrix.py", line 27, in load_json
+    return json.loads(path.read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1058, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\docs\\server1\\RUNTIME-SURFACE-MATRIX.json'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.063s
+
+FAILED (errors=4)

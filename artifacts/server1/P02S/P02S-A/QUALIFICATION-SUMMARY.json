@@ -1,0 +1,23 @@
+{
+  "schema": "colosseum-server1-p02s-a-qualification/v1",
+  "worker_id": "P02S-A",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "profiles": {
+    "desktop-default": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Windows host Node is v24.14.0, accepted qualification runtime is portable Node v22.16.0; ffmpeg/ffprobe unavailable; /heartbeat, /settings, /network-info timed out after source startup."},
+    "desktop-tv-env": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Source startup observed with TV_ENV composition; controlled probes blocked by missing accepted companion/runtime."},
+    "desktop-unity-env": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Source startup observed with UNITY_ENV composition; controlled probes blocked by missing accepted companion/runtime."},
+    "desktop-ios-env": {"state":"blocked-env", "evidence":"profile-runs.json", "reason":"Unmodified source requires native apple_bridge binding under IOS_APP; binding is unavailable on desktop host."},
+    "android-default": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Process.platform remains win32 on this host; android-only branch is source-traced, not simulated or promoted."}
+  },
+  "accepted_differential_lane": {
+    "state":"PASS_WITH_PROVENANCE",
+    "source":"artifacts/server1/P02/CASE-RESULTS.json",
+    "profile":"WSL2 Ubuntu controlled HTTP lane",
+    "reason":"Accepted P02 execution used official portable Node v22.16.0, exact oracle SHA, /heartbeat and /settings, port fallback, teardown, and missing companion provenance. Reused as full-server evidence; no Windows PASS claim made."
+  },
+  "cases": {
+    "P02S-01":"differentially-qualified-with-blocked-desktop-runtime",
+    "P02S-02":"source-traced-and-test-executed",
+    "P02S-03":"test-executed-with-deletion-mutation-RED"
+  }
+}
