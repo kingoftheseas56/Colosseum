@@ -193,12 +193,13 @@ class TraceComparator:
             for index, event in enumerate(actual)
             if event.get("kind") == "stream.terminal"
         ]
-        seen_terminal: dict[str, int] = {}
+        seen_terminal: dict[tuple[str, int], int] = {}
         for index, event in terminal_events:
             identity = event["identity"]
-            if identity in seen_terminal:
+            terminal_key = (identity, event["generation"])
+            if terminal_key in seen_terminal:
                 return rejection(identity, f"trace[{index}]", "terminal-event-cardinality-one")
-            seen_terminal[identity] = index
+            seen_terminal[terminal_key] = index
 
         expected_callbacks = {
             event["identity"]: index
@@ -370,6 +371,56 @@ class TraceComparatorMutationTests(unittest.TestCase):
             trace_context=self.definition["trace_context"],
         )
         self.assertEqual(result, rejection("actual", "trace", "trace-is-list"))
+
+    def test_same_terminal_identity_across_generations_remains_valid_during_unrelated_mismatch(self) -> None:
+        expected = [
+            {
+                "seq": 1,
+                "generation": 1,
+                "kind": "request.accepted",
+                "identity": "request:multi-generation",
+                "payload": {"module": 564},
+            },
+            {
+                "seq": 2,
+                "generation": 1,
+                "kind": "stream.terminal",
+                "identity": "stream:shared",
+                "payload": {"reason": "eof"},
+            },
+            {
+                "seq": 3,
+                "generation": 2,
+                "kind": "request.accepted",
+                "identity": "request:multi-generation",
+                "payload": {"module": 564},
+            },
+            {
+                "seq": 4,
+                "generation": 2,
+                "kind": "stream.terminal",
+                "identity": "stream:shared",
+                "payload": {"reason": "eof"},
+            },
+        ]
+        valid = TraceComparator().compare(
+            expected,
+            expected,
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(valid, {"accepted": True, "rejection": None})
+
+        actual = deepcopy(expected)
+        actual[0]["kind"] = "request.started"
+        result = TraceComparator().compare(
+            expected,
+            actual,
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(
+            result,
+            rejection("request:multi-generation", "trace[0]", "raw-event-equality"),
+        )
 
 
 class QualifiedNodeOrderingTests(unittest.TestCase):

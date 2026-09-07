@@ -1,0 +1,8 @@
+command: python -m unittest -v tools.server_lab.tests.test_comparator
+qualified_node: C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe
+qualified_node_version: v22.16.0
+exit: 0
+result: 14 tests passed, 0 failed
+focused regression:
+- two stream.terminal events with identity=stream:shared and generations 1/2 -> PASS
+- unrelated kind mismatch -> identity=request:multi-generation, path=trace[0], rule=raw-event-equality

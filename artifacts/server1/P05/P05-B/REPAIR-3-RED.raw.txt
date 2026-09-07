@@ -1,0 +1,9 @@
+command: python -m unittest -v tools.server_lab.tests.test_comparator
+base_commit: 4a166cb1a26fd111bdb4df23f35fd67294a0adb8
+qualified_node: v22.16.0
+exit: 1
+result: 14 tests ran; 1 failure
+failure:
+- same terminal identity across generations was reported as terminal-event-cardinality-one at trace[3]
+  instead of the unrelated raw-event-equality at trace[0]
+root_cause: later seen_terminal scan keyed by identity only

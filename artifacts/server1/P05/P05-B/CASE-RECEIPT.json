@@ -24,6 +24,14 @@
     "malformed_expected_rule": "oracle-contract-invalid",
     "malformed_actual_rules": ["trace-is-list", "required-field-present", "seq-is-integer", "seq-is-contiguous", "terminal-event-cardinality-one"]
   },
+  "terminal_generation_repair": {
+    "base_commit": "4a166cb1a26fd111bdb4df23f35fd67294a0adb8",
+    "finding": "later terminal mismatch scan keyed by identity instead of identity plus generation",
+    "state": "PASS",
+    "evidence": ["REPAIR-3-RED.raw.txt", "REPAIR-3-GREEN.raw.txt", "REPAIR-3-P05-A-REGRESSION.raw.txt", "REPAIR-3-VALIDATION.raw.txt"],
+    "terminal_key": ["identity", "generation"],
+    "focused_rule": "raw-event-equality"
+  },
   "scope": {
     "owned_files": [
       "tools/server_lab/tests/test_comparator.py",
