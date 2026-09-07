@@ -1,0 +1,39 @@
+{
+  "schema": "colosseum-server1-p07-b-case/v1",
+  "packet": "P07-B",
+  "parent_packet": "P07",
+  "case": "P07-02",
+  "base": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+  "owned_source": "tools/server_lab/probes/player.py",
+  "required_visible_inputs": {
+    "warm_cache": true,
+    "player_buffer": "changed",
+    "file_index": 2,
+    "peer_script": "disabled",
+    "resource_counter": null
+  },
+  "source_authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "M172": {"lines": "18110-18500", "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"},
+    "M846": {"lines": "74730-74772", "sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"}
+  },
+  "interfaces_consumed": ["LabRunner", "EvidenceSchema", "QualifiedFixtureCorpus", "QualifiedReferenceRuntime"],
+  "interface_produced": "PlayerProbe",
+  "observation_contract": [
+    "process_start",
+    "http_readiness",
+    "valid_media_decode",
+    "first_presented_frame",
+    "seek_completion",
+    "stall",
+    "timeout",
+    "cancellation",
+    "unavailable_telemetry"
+  ],
+  "honesty_rule": "Missing player or resource telemetry is recorded as UNAVAILABLE and never inferred as success.",
+  "red_green": {
+    "red": "Importing tools.server_lab.probes.player failed before the owned PlayerProbe existed.",
+    "green": "Two packet-local tests pass; lifecycle states, pinned version/configuration, case inputs, and unavailable telemetry are written to run.json."
+  },
+  "test_command": "python -m unittest discover -s artifacts/server1/P07/P07-B -p test_player_probe.py -v"
+}

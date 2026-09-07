@@ -1,0 +1,243 @@
+{
+  "byte_counts": [],
+  "configuration": {
+    "command": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+      "http://127.0.0.1:9/media.mp4",
+      "--start",
+      "12.5"
+    ],
+    "config": {
+      "path": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\P07-B.json",
+      "reason": "config path is not a file",
+      "state": "UNAVAILABLE"
+    },
+    "media_url": "http://127.0.0.1:9/media.mp4",
+    "player_executable": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+    "player_sha256": "ab6b1a5e70c190949b80230fae2a11cb55905eeb5a30387c816de37aa3ca8850",
+    "player_version": {
+      "available": true,
+      "command": [
+        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "fake-player 7.2.1\n",
+      "text": "fake-player 7.2.1"
+    },
+    "reference_runtime": {
+      "state": "UNAVAILABLE"
+    },
+    "seek_seconds": 12.5,
+    "timeout_seconds": 5.0
+  },
+  "engine": {
+    "name": "pinned-player-probe",
+    "version": "1"
+  },
+  "environment": {
+    "platform": "win32",
+    "python": "3.11.9"
+  },
+  "errors": [
+    "player exited with 1"
+  ],
+  "fixture_identifiers": {
+    "case_inputs": {
+      "file_index": 2,
+      "peer_script": "disabled",
+      "player_buffer": "changed",
+      "resource_counter": null,
+      "warm_cache": true
+    }
+  },
+  "infohash": null,
+  "normalized_lane": {
+    "observations": {
+      "cancellation": {
+        "name": "cancellation",
+        "state": "NOT_RUN"
+      },
+      "first_presented_frame": {
+        "name": "first_presented_frame",
+        "reason": "no player telemetry yet",
+        "state": "UNAVAILABLE"
+      },
+      "http_readiness": {
+        "name": "http_readiness",
+        "reason": "readiness check not configured",
+        "state": "UNAVAILABLE"
+      },
+      "process_start": {
+        "name": "process_start",
+        "state": "PASS"
+      },
+      "seek_completion": {
+        "name": "seek_completion",
+        "reason": "no player telemetry yet",
+        "state": "UNAVAILABLE"
+      },
+      "stall": {
+        "name": "stall",
+        "reason": "no player telemetry yet",
+        "state": "UNAVAILABLE"
+      },
+      "timeout": {
+        "name": "timeout",
+        "state": "NOT_RUN"
+      },
+      "unavailable_telemetry": {
+        "fields": [
+          "http_readiness",
+          "valid_media_decode",
+          "first_presented_frame",
+          "seek_completion",
+          "stall",
+          "unavailable_telemetry"
+        ],
+        "name": "unavailable_telemetry",
+        "state": "UNAVAILABLE"
+      },
+      "valid_media_decode": {
+        "name": "valid_media_decode",
+        "reason": "no player telemetry yet",
+        "state": "UNAVAILABLE"
+      }
+    }
+  },
+  "observations": [
+    {
+      "name": "process_start",
+      "state": "PASS"
+    },
+    {
+      "name": "http_readiness",
+      "reason": "readiness check not configured",
+      "state": "UNAVAILABLE"
+    },
+    {
+      "name": "valid_media_decode",
+      "reason": "no player telemetry yet",
+      "state": "UNAVAILABLE"
+    },
+    {
+      "name": "first_presented_frame",
+      "reason": "no player telemetry yet",
+      "state": "UNAVAILABLE"
+    },
+    {
+      "name": "seek_completion",
+      "reason": "no player telemetry yet",
+      "state": "UNAVAILABLE"
+    },
+    {
+      "name": "stall",
+      "reason": "no player telemetry yet",
+      "state": "UNAVAILABLE"
+    },
+    {
+      "name": "timeout",
+      "state": "NOT_RUN"
+    },
+    {
+      "name": "cancellation",
+      "state": "NOT_RUN"
+    },
+    {
+      "fields": [
+        "http_readiness",
+        "valid_media_decode",
+        "first_presented_frame",
+        "seek_completion",
+        "stall",
+        "unavailable_telemetry"
+      ],
+      "name": "unavailable_telemetry",
+      "state": "UNAVAILABLE"
+    }
+  ],
+  "paths": {
+    "config": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\P07-B.json",
+    "event_file": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\player-events.jsonl",
+    "run_root": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green",
+    "stderr": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\stderr.txt",
+    "stdout": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\stdout.txt"
+  },
+  "peer_observations": [
+    {
+      "name": "peer_script",
+      "state": "DECLARED",
+      "value": "disabled"
+    }
+  ],
+  "raw_lane": {
+    "events": [],
+    "exit_code": 1,
+    "launch_error": null,
+    "stderr": "Traceback (most recent call last):\n  File \"C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py\", line 19, in <module>\n    event_file.write_text(\"\".join(json.dumps(event) + \"\\n\" for event in events), encoding=\"utf-8\")\n  File \"C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pathlib.py\", line 1078, in write_text\n    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pathlib.py\", line 1044, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'artifacts\\\\server1\\\\P07\\\\P07-B\\\\data\\\\p07-02-green\\\\player-events.jsonl'\n",
+    "stdout": ""
+  },
+  "replay": {
+    "event_file": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\player-events.jsonl",
+    "exact_command": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+      "http://127.0.0.1:9/media.mp4",
+      "--start",
+      "12.5"
+    ],
+    "required_substitutions": [
+      "executable",
+      "media_url",
+      "data_root",
+      "evidence_dir",
+      "run_id"
+    ]
+  },
+  "request_sequence": [
+    {
+      "argv": [
+        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+        "--version"
+      ],
+      "operation": "version"
+    },
+    {
+      "argv": [
+        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+        "http://127.0.0.1:9/media.mp4",
+        "--start",
+        "12.5"
+      ],
+      "operation": "launch"
+    }
+  ],
+  "resource_observations": [
+    {
+      "name": "resource_counter",
+      "state": "UNAVAILABLE",
+      "value": null
+    }
+  ],
+  "responses": [],
+  "result": "ERROR",
+  "run_id": "p07-02-green",
+  "scenario": "P07-02",
+  "schema": "colosseum-server1-lab-run/v1",
+  "selected_file": null,
+  "source": {
+    "authority": "P07-B",
+    "identity": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
+    "sha256": "ab6b1a5e70c190949b80230fae2a11cb55905eeb5a30387c816de37aa3ca8850"
+  },
+  "timestamps": {
+    "finished": "2026-09-07T06:21:34.580606+00:00",
+    "started": "2026-09-07T06:21:33.785048+00:00"
+  },
+  "torrent": null
+}

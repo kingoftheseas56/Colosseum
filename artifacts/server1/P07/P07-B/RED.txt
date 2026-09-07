@@ -1,0 +1,5 @@
+P07-B RED evidence
+command: python -c "import tools.server_lab.probes.player"
+exit: 1
+failure: ModuleNotFoundError: No module named 'tools.server_lab.probes'
+meaning: the owned PlayerProbe implementation was absent before implementation.

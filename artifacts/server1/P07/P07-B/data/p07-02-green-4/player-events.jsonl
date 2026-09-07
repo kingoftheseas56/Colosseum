@@ -1,0 +1,4 @@
+{"event": "valid_media_decode", "at_ms": 20}
+{"event": "presented_frame", "at_ms": 30}
+{"event": "seek_complete", "at_ms": 60, "target_seconds": 12.5}
+{"event": "stall", "at_ms": 80, "duration_ms": 40}

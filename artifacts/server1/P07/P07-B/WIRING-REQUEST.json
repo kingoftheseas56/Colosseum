@@ -1,0 +1,12 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P07-B",
+  "parent_packet": "P07",
+  "status": "packet-local",
+  "owned_file": "tools/server_lab/probes/player.py",
+  "requested_integration": "Expose PlayerProbe to P07-C and B-W1D through the packet-local probe module; do not edit shared registries.",
+  "integration_destination": "B-W1D on feature/colosseum-server-1.0 after Sol acceptance",
+  "shared_file_changes": [],
+  "dependencies": ["B-W1B", "B-W1C", "P02-A"],
+  "commit_policy": "commit without push"
+}

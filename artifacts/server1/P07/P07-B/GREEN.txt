@@ -1,0 +1,5 @@
+P07-B GREEN evidence
+command: python -m unittest discover -s artifacts/server1/P07/P07-B -p test_player_probe.py -v
+exit: 0
+result: Ran 2 tests in 3.068s; OK
+coverage: pinned executable/version/config, process lifecycle distinctions, P07-02 contamination inputs, unavailable HTTP/resource/player telemetry.

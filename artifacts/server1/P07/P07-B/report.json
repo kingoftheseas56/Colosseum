@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-p07-b-report/v1",
+  "worker_id": "P07-B",
+  "parent_packet": "P07",
+  "status": "implementation-authored",
+  "implementation_sha256": "f4cdea9d946805e9b077e9b7f49c7b71105b6ea6c9cb14321c87619d780c35c0",
+  "case_sha256": "16bd2496388ad132d0a7193a8f7db1d72bc003417fb5ead3930bc594bf1d883f",
+  "source_authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "M172": "18110-18500 bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486",
+    "M846": "74730-74772 fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"
+  },
+  "case_states": {"P07-02": "test-executed"},
+  "receipt": "artifacts/server1/P07/P07-B/evidence-final-2/run.json",
+  "runtime_claim": "No qualified native player runtime was available in this worker; absent telemetry remains UNAVAILABLE.",
+  "shared_interface_changes": [],
+  "open_risks": ["Native mpv/qualified-reference integration remains for P07-C/B-W1D."]
+}
