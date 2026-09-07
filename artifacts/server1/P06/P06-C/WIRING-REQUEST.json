@@ -1,0 +1,11 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P06-C",
+  "parent_packet": "P06",
+  "wiring_needed": false,
+  "shared_files_requested": [],
+  "interfaces_changed": [],
+  "interface_no_change_statement": "P06-C consumes existing LabRunner, EvidenceSchema, P06-A fixture builders/peer, TrackerFixturePort, and HttpOriginFixturePort through test-local names only; no shared/native/CMake/state/CI interface changes are requested.",
+  "integration_destination": "B-W1C on feature/colosseum-server-1.0",
+  "reason": "The qualified fixture corpus is packet-local. INT-W1 may run the owned test and consume the receipt without wiring shared files."
+}

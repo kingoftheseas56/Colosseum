@@ -1,0 +1,9 @@
+COMMAND: python -m unittest -v tools.server_lab.tests.test_fixtures
+EXIT: 1
+
+test_corpus_declares_every_required_fault_profile (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_corpus_declares_every_required_fault_profile) ... FAIL
+
+AssertionError: Tuples differ: () != ('payload', 'discovery', 'corruption', 'choke', 'delay', 'disconnect', 'cancellation', 'unauthorized_delivery')
+
+Ran 1 test in 0.003s
+FAILED (failures=1)

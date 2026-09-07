@@ -1,0 +1,34 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "worker_id": "P06-C",
+  "parent_packet": "P06",
+  "integration_base": "0166565e4e9cc860d70c09ad6476d611d9d4299c",
+  "integration_destination": "B-W1C on feature/colosseum-server-1.0",
+  "implementation_commit_sha": "TO_BE_RECORDED_AFTER_COMMIT",
+  "source_authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "M303": {"lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
+    "M843": {"lines": "74473-74529", "sha256": "520011da2b4a68a3c71f967416cda41badb047ade587672ef031b1edce9efa30"},
+    "M851": {"lines": "74856-74884", "sha256": "2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041"}
+  },
+  "changed_files": [
+    "tools/server_lab/tests/test_fixtures.py",
+    "tools/server_lab/cases/P06-C.json",
+    "artifacts/server1/P06/P06-C/P06-C-REPORT.md",
+    "artifacts/server1/P06/P06-C/P06-C-RED.raw.txt",
+    "artifacts/server1/P06/P06-C/P06-C-GREEN.raw.txt",
+    "artifacts/server1/P06/P06-C/P06-A-REGRESSION.raw.txt",
+    "artifacts/server1/P06/P06-C/P06-B-REGRESSION.raw.txt",
+    "artifacts/server1/P06/P06-C/PYCOMPILE.raw.txt",
+    "artifacts/server1/P06/P06-C/REFERENCE-ADAPTER.raw.txt",
+    "artifacts/server1/P06/P06-C/SOURCE-HASHES.raw.txt",
+    "artifacts/server1/P06/P06-C/CANDIDATE-HASHES.raw.txt",
+    "artifacts/server1/P06/P06-C/DIFF-CHECK.raw.txt",
+    "artifacts/server1/P06/P06-C/SELF-TEST.json",
+    "artifacts/server1/P06/P06-C/PACKET-RECEIPT.json",
+    "artifacts/server1/P06/P06-C/WIRING-REQUEST.json"
+  ],
+  "case_results": {"P06-03": "PASS"},
+  "interface_changes": "none",
+  "push_status": "not pushed; Sol acceptance required"
+}

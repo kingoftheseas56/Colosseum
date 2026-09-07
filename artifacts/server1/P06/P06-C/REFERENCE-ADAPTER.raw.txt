@@ -1,0 +1,12 @@
+COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_identity
+EXIT: 0
+
+Ran 9 tests in 0.145s
+OK (skipped=8)
+Source authority identity test: PASS.
+Stremio runtime/WSL consumption tests: SKIPPED because the test environment did not provide the required oracle environment variables/oracle-and-WSL qualification inputs.
+
+CONTROLLED-CORPUS-ADAPTER-PROBE:
+StremioReference oracle identity: PASS; WSL present: true; controlled corpus injection API: UNSUPPORTED.
+colosseum01 toolchain complete: true; controlled corpus injection API: UNSUPPORTED.
+Final controlled-corpus results: Stremio UNSUPPORTED; Server 0.1 UNSUPPORTED.

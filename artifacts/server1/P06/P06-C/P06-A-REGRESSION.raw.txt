@@ -1,0 +1,16 @@
+COMMAND: python -m unittest discover -s artifacts/server1/P06/P06-A -p test_*.py -v
+EXIT: 0
+test_bitfield_masks_unused_trailing_bits (test_p06_a.P06AFixtureTests.test_bitfield_masks_unused_trailing_bits) ... ok
+test_cancelled_request_is_not_delivered_as_success (test_p06_a.P06AFixtureTests.test_cancelled_request_is_not_delivered_as_success) ... ok
+test_final_short_block_requires_exact_wire_request (test_p06_a.P06AFixtureTests.test_final_short_block_requires_exact_wire_request) ... ok
+test_fixture_goldens_match_packet_case (test_p06_a.P06AFixtureTests.test_fixture_goldens_match_packet_case) ... ok
+test_multi_file_geometry_carries_piece_across_file_offsets (test_p06_a.P06AFixtureTests.test_multi_file_geometry_carries_piece_across_file_offsets) ... ok
+test_scripted_peer_records_handshake_states_and_authorized_blocks (test_p06_a.P06AFixtureTests.test_scripted_peer_records_handshake_states_and_authorized_blocks) ... ok
+test_single_file_is_canonical_and_independently_verifiable (test_p06_a.P06AFixtureTests.test_single_file_is_canonical_and_independently_verifiable) ... ok
+test_unrequested_delivery_records_unauthorized_without_wire_success (test_p06_a.P06AFixtureTests.test_unrequested_delivery_records_unauthorized_without_wire_success) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.501s
+
+OK
+P06A_EXIT=0

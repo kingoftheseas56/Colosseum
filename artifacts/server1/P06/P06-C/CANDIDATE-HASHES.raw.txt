@@ -1,0 +1,6 @@
+COMMAND: Python SHA-256 and byte-count inventory of candidate files
+EXIT: 0
+
+tools/server_lab/tests/test_fixtures.py bytes=15650 sha256=052f065b31375b8a00156f80c76656f7f725110d7d41122fca6a4527602f52a7
+tools/server_lab/cases/P06-C.json bytes=3558 sha256=0841ff5d1d3c548898a6190f2e671ac44e62710edcd86b8690b5cc261dfe5413
+Consumed unchanged P06-A/P06-B and LabRunner/EvidenceSchema source hashes are recorded in the packet report.

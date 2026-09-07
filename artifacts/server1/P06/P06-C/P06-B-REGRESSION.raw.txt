@@ -1,0 +1,3 @@
+COMMAND: python artifacts/server1/P06/P06-B/self_test.py
+EXIT: 0
+STDOUT: (empty)

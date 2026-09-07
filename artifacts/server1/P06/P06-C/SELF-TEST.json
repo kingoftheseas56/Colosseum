@@ -1,0 +1,50 @@
+{
+  "schema": "colosseum-server1-p06-c-self-test/v1",
+  "worker_id": "P06-C",
+  "parent_packet": "P06",
+  "case": "P06-03",
+  "status": "PASS",
+  "fixture_seed": "P06-C-literal-corpus-v1",
+  "profiles": {
+    "payload": "PASS",
+    "discovery": "PASS",
+    "corruption": "PASS",
+    "choke": "PASS",
+    "delay": "PASS",
+    "disconnect": "PASS",
+    "cancellation": "PASS",
+    "unauthorized_delivery": "PASS"
+  },
+  "fixture_identities": {
+    "single_infohash_sha1": "938822d490b34f7fd0e2bfdd67cf55440725e9ae",
+    "multi_infohash_sha1": "162dae3eff2d775bae50d0c8b410d3048af998ff",
+    "single_metainfo_sha256": "cd0b58f0f611b13a6b2f3f6dae8bd7c42602e4aa48f99ff7060f337aa6b25221",
+    "multi_metainfo_sha256": "ccf92b5f879c3d0a24d8258c6c4f53435407930826850218e3d85f5c7605a64c"
+  },
+  "request_order": {
+    "cancellation": ["handshake", "unchoke", "interested", "request", "cancel", "deliver", "disconnect"],
+    "unauthorized_delivery": ["handshake", "interested", "request", "deliver", "disconnect"]
+  },
+  "unauthorized_delivery_rejection": {
+    "ledger_authorized": false,
+    "piece_wire_bytes_emitted": false,
+    "rejection_observed_beyond_ledger": true
+  },
+  "states": {
+    "source_traced": "PASS",
+    "test_authored": "PASS",
+    "compiled": "PASS",
+    "test_executed": "PASS",
+    "differentially_qualified": "UNSUPPORTED",
+    "integrated": "NOT_RUN"
+  },
+  "controlled_corpus_consumption": {
+    "stremio": "UNSUPPORTED",
+    "server_0_1": "UNSUPPORTED"
+  },
+  "replay": {
+    "command": "python -m unittest -v tools.server_lab.tests.test_fixtures",
+    "exit": 0,
+    "cwd": "repository root"
+  }
+}

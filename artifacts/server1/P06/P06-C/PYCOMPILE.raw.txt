@@ -1,0 +1,4 @@
+COMMAND: python -m py_compile tools/server_lab/tests/test_fixtures.py tools/server_lab/fixtures/torrents.py tools/server_lab/fixtures/peer_server.py tools/server_lab/fixtures/tracker_server.py tools/server_lab/fixtures/http_server.py tools/server_lab/lab.py tools/server_lab/evidence.py
+EXIT: 0
+STDOUT: empty
+STDERR: empty
