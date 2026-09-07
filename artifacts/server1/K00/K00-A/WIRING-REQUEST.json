@@ -1,0 +1,43 @@
+{
+  "packet": "K00",
+  "worker_id": "K00-A",
+  "request_type": "shared-wiring",
+  "implementation_commit": "8b88dda782e56b0e7f0a6abffb8295518de87bbf",
+  "destination_branch": "feature/colosseum-server-1.0",
+  "destination_marker": "B-W2A",
+  "requested_owner": "B-W2A",
+  "pushed": false,
+  "worker_scope_guard": {
+    "shared_files_modified": false,
+    "forbidden_to_worker": [
+      "native/CMakeLists.txt",
+      "native/colosseum_server_v1/CMakeLists.txt",
+      "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "native/main.cpp"
+    ]
+  },
+  "include_requests": [
+    {
+      "shared_file": "native/colosseum_server_v1/CMakeLists.txt",
+      "action": "include native/colosseum_server_v1/cmake/packets/K00.cmake and invoke server1_register_k00_packet()"
+    },
+    {
+      "shared_file": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "action": "include native/colosseum_server_v1/tests/cmake/K00.cmake and invoke server1_register_k00_tests()"
+    }
+  ],
+  "targets": {
+    "library": "server1_k00_policy",
+    "executable": "server1_k00_js_semantics",
+    "tests": [
+      "K00-01-js-semantics",
+      "K00-02-js-semantics",
+      "K00-03-js-semantics"
+    ]
+  },
+  "acceptance_evidence": [
+    "artifacts/server1/K00/K00-A/PACKET-RECEIPT.json",
+    "artifacts/server1/K00/K00-A/GREEN-EVIDENCE.json",
+    "artifacts/server1/K00/K00-A/DIFFERENTIAL-EVIDENCE.json"
+  ]
+}
