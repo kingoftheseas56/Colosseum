@@ -1,14 +1,18 @@
 test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (tools.server_lab.tests.test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) ... ok
 test_cleanup_cli_is_usable_without_subject_arguments (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_cli_is_usable_without_subject_arguments) ... ok
 test_cleanup_failure_cannot_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_failure_cannot_pass) ... ok
+test_cleanup_preserves_creation_or_image_mismatch (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_preserves_creation_or_image_mismatch) ... ok
+test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable) ... ok
 test_committed_p04_sample_is_real_schema_valid_and_replayable (tools.server_lab.tests.test_runner.P04RunnerTests.test_committed_p04_sample_is_real_schema_valid_and_replayable) ... ok
 test_event_is_written_after_final_result_and_matches_receipt (tools.server_lab.tests.test_runner.P04RunnerTests.test_event_is_written_after_final_result_and_matches_receipt) ... ok
 test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (tools.server_lab.tests.test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... ok
+test_lease_is_published_before_slow_windows_identity_lookup (tools.server_lab.tests.test_runner.P04RunnerTests.test_lease_is_published_before_slow_windows_identity_lookup) ... ok
 test_p04_02_statuses_remain_distinct_and_never_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_p04_02_statuses_remain_distinct_and_never_pass) ... ok
 test_raw_protocol_divergence_cannot_be_normalized_into_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass) ... ok
 test_receipt_has_nullable_server_fields_and_observation_arrays (tools.server_lab.tests.test_runner.P04RunnerTests.test_receipt_has_nullable_server_fields_and_observation_arrays) ... ok
 test_replay_is_full_lab_command_and_uses_committed_fixture (tools.server_lab.tests.test_runner.P04RunnerTests.test_replay_is_full_lab_command_and_uses_committed_fixture) ... ok
 test_schema_round_trip_and_raw_normalized_lanes_are_separate (tools.server_lab.tests.test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate) ... ok
+test_termination_error_cannot_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_termination_error_cannot_pass) ... ok
 test_fingerprint_preserves_bundle_identity_and_runtime_metadata (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_fingerprint_preserves_bundle_identity_and_runtime_metadata) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
 test_missing_companions_are_recorded_without_silent_repair (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_missing_companions_are_recorded_without_silent_repair) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
 test_reference_reports_port_exhaustion_without_trying_port_11475 (tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests.test_reference_reports_port_exhaustion_without_trying_port_11475) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
@@ -20,7 +24,7 @@ test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing (tools.server
 test_wsl_reference_serves_heartbeat_and_settings (tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings) ... skipped 'oracle and WSL Ubuntu are required'
 
 ----------------------------------------------------------------------
-Ran 20 tests in 44.441s
+Ran 24 tests in 34.692s
 
 OK (skipped=8)
 EXIT=0
