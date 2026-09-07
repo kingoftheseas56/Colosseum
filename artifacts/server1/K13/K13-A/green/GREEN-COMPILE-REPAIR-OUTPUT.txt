@@ -1,0 +1,30 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+Value.cpp
+JsConversions.cpp
+SettingsStore.cpp
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(459): error C2039: 'cerr': is not a member of 'std'
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\sstream(19): note: see declaration of 'std'
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(459): error C2065: 'cerr': undeclared identifier
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(468): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(481): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(483): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(486): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(488): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(503): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(505): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(513): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(516): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(519): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(526): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(528): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(529): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(531): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(533): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(535): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(563): warning C4834: discarding return value of function with [[nodiscard]] attribute
+settings_store_probe.cpp
+artifacts/server1/K13/K13-A/probe-src/settings_store_probe.cpp(149): warning C4834: discarding return value of function with [[nodiscard]] attribute
+Generating Code...

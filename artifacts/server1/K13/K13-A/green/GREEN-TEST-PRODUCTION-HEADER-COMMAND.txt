@@ -1,0 +1,1 @@
+& "$env:TEMP/server1-k13-a-production-header-20260907.exe" "$env:TEMP/server1-k13-a-production-header-run-all-20260907" all

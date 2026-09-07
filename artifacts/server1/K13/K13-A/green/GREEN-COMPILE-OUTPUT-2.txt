@@ -1,0 +1,11 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+Value.cpp
+JsConversions.cpp
+SettingsStore.cpp
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(536): warning C4834: discarding return value of function with [[nodiscard]] attribute
+native/colosseum_server_v1/src/settings/SettingsStore.cpp(564): warning C4834: discarding return value of function with [[nodiscard]] attribute
+settings_store_probe.cpp
+Generating Code...

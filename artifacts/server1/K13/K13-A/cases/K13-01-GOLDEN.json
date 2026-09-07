@@ -1,0 +1,38 @@
+{
+  "case": "K13-01",
+  "scope": "effective settings defaults, readonly version, and disable-caching override",
+  "source_trace": [
+    "M106:12792-12833",
+    "M194:19675-19682",
+    "M400:34767-34775"
+  ],
+  "expected_observations": {
+    "serverVersion": "4.21.1",
+    "appPath": "resolved caller app path",
+    "cacheRoot": "appPath when absent",
+    "cacheSize": 2147483648,
+    "cacheSize_disableCaching": 0,
+    "btMaxConnections": 55,
+    "btHandshakeTimeout": 20000,
+    "btRequestTimeout": 4000,
+    "btDownloadSpeedSoftLimit": 2621440,
+    "btDownloadSpeedHardLimit": 3670016,
+    "btMinPeersForStable": 5,
+    "remoteHttps": "",
+    "localAddonEnabled": false,
+    "transcodeHorsepower": 0.75,
+    "transcodeMaxBitRate": 0,
+    "transcodeConcurrency": 1,
+    "transcodeTrackConcurrency": 1,
+    "transcodeHardwareAccel": true,
+    "transcodeProfile": null,
+    "allTranscodeProfiles": [],
+    "transcodeMaxWidth": 1920,
+    "proxyStreamsEnabled": false,
+    "serverVersion_write": "ignored"
+  },
+  "command": "& \"$env:TEMP/server1-k13-a-production-header-20260907.exe\" \"$env:TEMP/server1-k13-a-production-header-run-k13-01-20260907\" K13-01",
+  "exit_code": 0,
+  "raw_output": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+  "status": "GREEN; settings-store slice verified; cache-policy behavior remains K13-B-owned"
+}

@@ -1,0 +1,15 @@
+{
+  "worker_id": "K13-A",
+  "packet": "K13",
+  "phase": "RED",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "cases": ["K13-01", "K13-03"],
+  "test_source": "artifacts/server1/K13/K13-A/probe-src/settings_store_probe.cpp",
+  "contract_header": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+  "command_file": "artifacts/server1/K13/K13-A/red/RED-TEST-COMMAND.txt",
+  "raw_output": "artifacts/server1/K13/K13-A/red/RED-TEST-OUTPUT.txt",
+  "exit_code": 2,
+  "failure": "MSVC C1083: the owned production translation unit native/colosseum_server_v1/src/settings/SettingsStore.cpp is absent at the base commit.",
+  "expected": true,
+  "interpretation": "RED is the pre-implementation baseline: the owned production translation unit and its required declaration surface were absent. The packet-local declaration was only a temporary source-trace aid; the authorized ownership correction moved that declaration to the production header path before green compilation."
+}

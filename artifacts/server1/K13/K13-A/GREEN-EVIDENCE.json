@@ -1,0 +1,31 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-A",
+  "phase": "GREEN",
+  "production_header_compile": {
+    "command_file": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-COMMAND.txt",
+    "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-OUTPUT.txt",
+    "exit_code": 0,
+    "include_path": "native/colosseum_server_v1/include",
+    "probe_header": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h"
+  },
+  "tests": {
+    "all_assigned_probe_cases": {
+      "command_file": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    },
+    "K13-01": {
+      "command_file": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    },
+    "K13-03": {
+      "command_file": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    }
+  },
+  "runtime": "not run; no full-server runtime claim",
+  "integration": "not integrated; waiting for K13-B convergence and B-W2B"
+}

@@ -1,0 +1,22 @@
+{
+  "case": "K13-03",
+  "scope": "settings load/merge, unknown fields, override path, readonly version, persistence, corrupt input",
+  "source_trace": [
+    "M106:12792-12833",
+    "M414:35959-36170",
+    "M564:46578-46979"
+  ],
+  "expected_observations": {
+    "settings_path": "(SETTINGS_PATH || appPath)/server-settings.json",
+    "loaded_values": "shallow-merged after defaults",
+    "unknown_fields": "retained and persisted",
+    "serverVersion_loaded_override": "ignored; package version remains effective",
+    "successful_load": "saves normalized settings",
+    "missing_or_corrupt_input": "logs and leaves existing settings/file unchanged",
+    "nonfinite_numbers": "JSON null on persistence"
+  },
+  "command": "& \"$env:TEMP/server1-k13-a-production-header-20260907.exe\" \"$env:TEMP/server1-k13-a-production-header-run-k13-03-20260907\" K13-03",
+  "exit_code": 0,
+  "raw_output": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+  "status": "GREEN for settings-owned sub-slice; cache-directory enumeration, equal-atime eviction, disk-space adjustment, delayed cleaning, and fallback cache directory remain K13-B-owned"
+}

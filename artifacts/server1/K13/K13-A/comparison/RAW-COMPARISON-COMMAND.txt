@@ -1,0 +1,1 @@
+Compare-Object (Get-Content artifacts/server1/K13/K13-A/comparison/source.raw.txt | Select-Object -SkipLast 1) (Get-Content artifacts/server1/K13/K13-A/comparison/candidate.raw.txt | Select-Object -SkipLast 1)
