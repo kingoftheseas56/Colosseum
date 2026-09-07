@@ -1,0 +1,4 @@
+RED command: python artifacts/server1/P06/P06-B/self_test.py
+RED exit: 1
+RED reason: expected owned fixture modules do not exist at test-authored time.
+RED raw output: captured in the worker turn before implementation; rerun is required for final receipt.

@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P06-B\artifacts\server1\P06\P06-B\self_test.py", line 15, in <module>
+    from tools.server_lab.fixtures.http_server import HttpOriginFixturePort
+ModuleNotFoundError: No module named 'tools.server_lab.fixtures'

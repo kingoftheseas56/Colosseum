@@ -1,0 +1,3 @@
+GREEN command: python artifacts/server1/P06/P06-B/self_test.py
+GREEN exit: 0
+GREEN receipt: SELF-TEST.json reports case P06-02 status PASS

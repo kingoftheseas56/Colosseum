@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-p06-b-case/v1",
+  "packet": "P06-B",
+  "case": "P06-02",
+  "base": "ce9961ea0666bea2d2c3563117ddcceb516f7a08",
+  "owned": [
+    "tools/server_lab/fixtures/tracker_server.py",
+    "tools/server_lab/fixtures/http_server.py"
+  ],
+  "faults": [
+    "delayed_metadata", "no_peers", "duplicate_peers", "peer_becomes_fast",
+    "block_failure", "http_failure", "connection_reset", "request_after_cancellation"
+  ],
+  "self_test": "artifacts/server1/P06/P06-B/self_test.py",
+  "parent_acceptance": "NOT_RUN",
+  "cross_engine_consumption": "NOT_RUN"
+}

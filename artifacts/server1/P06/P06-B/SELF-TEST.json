@@ -1,0 +1,61 @@
+{
+  "case": "P06-02",
+  "status": "PASS",
+  "request_order": [
+    "ready",
+    "request",
+    "response",
+    "ready",
+    "request",
+    "response",
+    "cancel",
+    "request",
+    "response",
+    "request_after_cancellation"
+  ],
+  "cancellation": {
+    "generation": 7,
+    "token": "p06-red-token"
+  },
+  "ports": {
+    "tracker": 14973,
+    "http": 14975
+  },
+  "replay_command": [
+    "python",
+    "self_test.py"
+  ],
+  "configuration": {
+    "tracker": {
+      "peers": [
+        [
+          "127.0.0.1",
+          49001
+        ]
+      ],
+      "interval": 30,
+      "delay_ms": 0,
+      "no_peers": false,
+      "duplicate_peers": false,
+      "peer_becomes_fast": false,
+      "fast_after_requests": 1,
+      "cancellation": {
+        "generation": 7,
+        "token": "p06-red-token"
+      },
+      "event_file": null
+    },
+    "http": {
+      "metadata": {
+        "bytes_hex": "6d65746164617461"
+      },
+      "block": {
+        "bytes_hex": "626c6f636b"
+      },
+      "cancellation": {
+        "generation": 7,
+        "token": "p06-red-token"
+      }
+    }
+  }
+}
