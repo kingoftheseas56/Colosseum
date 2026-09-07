@@ -1,0 +1,9 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[1/2] Building CXX object CMakeFiles\m00_red_process_test.dir\C_\b\Colosseum-Server-1.0-workers\M00-A\native\colosseum_server_v1\tests\test_process_driver.cpp.obj
+FAILED: CMakeFiles/m00_red_process_test.dir/C_/b/Colosseum-Server-1.0-workers/M00-A/native/colosseum_server_v1/tests/test_process_driver.cpp.obj 
+C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe  /nologo /TP -DQT_CORE_LIB -DQT_NO_DEBUG -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 -IC:\b\Colosseum-Server-1.0-workers\M00-A\native\colosseum_server_v1\include -external:IC:\Qt\6.11.1\msvc2022_64\include\QtCore -external:IC:\Qt\6.11.1\msvc2022_64\include -external:IC:\Qt\6.11.1\msvc2022_64\mkspecs\win32-msvc -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\m00_red_process_test.dir\C_\b\Colosseum-Server-1.0-workers\M00-A\native\colosseum_server_v1\tests\test_process_driver.cpp.obj /FdCMakeFiles\m00_red_process_test.dir\ /FS -c C:\b\Colosseum-Server-1.0-workers\M00-A\native\colosseum_server_v1\tests\test_process_driver.cpp
+C:\b\Colosseum-Server-1.0-workers\M00-A\native\colosseum_server_v1\tests\test_process_driver.cpp(1): fatal error C1083: Cannot open include file: 'server1/ports/ProcessPort.h': No such file or directory
+ninja: build stopped: subcommand failed.

@@ -1,0 +1,19 @@
+{
+  "schema": "colosseum-server1-worker-self-review/v1",
+  "worker_id": "M00-A",
+  "reviewer_mode": "same-substrate self-review; no independent reviewer tool was available",
+  "checks": [
+    {"requirement": "Exact worker contract read before implementation", "status": "MET", "evidence": "PARALLEL-WORK-ITEMS.json:M00-A lines 4828-4942"},
+    {"requirement": "Oracle identity and assigned source ranges recorded", "status": "MET", "evidence": "source/SOURCE-TRACE.json"},
+    {"requirement": "RED before implementation", "status": "MET", "evidence": "red/TDD-RED.json; compile exit 1 on missing ProcessPort.h"},
+    {"requirement": "Executable precedence and refusal", "status": "MET", "evidence": "M00-01 raw exit 0 and differential record"},
+    {"requirement": "Binary argv/environment/stdout/stderr/exit behavior", "status": "MET", "evidence": "M00-02 scripted fixture raw exit 0"},
+    {"requirement": "Owned process-tree teardown without external kill", "status": "MET", "evidence": "M00-02 includes grandchild probe and external QProcess boundary"},
+    {"requirement": "Local versus remote HLSV2 path preserved", "status": "MET", "evidence": "M00-03 remote fixture raw exit 0 and source differential"},
+    {"requirement": "Packet-local compile and all assigned tests", "status": "MET", "evidence": "evidence/BUILD.raw.txt exit 0; evidence/CTEST.raw.txt exit 0"},
+    {"requirement": "No forbidden shared-file edits", "status": "MET", "evidence": "PACKET-RECEIPT.json forbidden_surface_check"},
+    {"requirement": "Aggregate integration and production runtime", "status": "NOT-MET BY DESIGN", "evidence": "WIRING-REQUEST.json; owned worker must stop at B-W2B handoff"}
+  ],
+  "decision": "APPROVE FOR INTEGRATION REVIEW",
+  "remaining_boundary": "INT-W2 must wire the packet manifest and composition, then perform aggregate/runtime verification."
+}

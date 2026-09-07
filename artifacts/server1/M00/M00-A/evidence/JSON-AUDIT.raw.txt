@@ -1,0 +1,7 @@
+VALID artifacts/server1/M00/M00-A/source/SOURCE-TRACE.json
+VALID artifacts/server1/M00/M00-A/red/TDD-RED.json
+VALID artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.json
+VALID artifacts/server1/M00/M00-A/PACKET-RECEIPT.json
+VALID artifacts/server1/M00/M00-A/WIRING-REQUEST.json
+VALID artifacts/server1/M00/M00-A/SELF-REVIEW.json
+JSON_AUDIT_EXIT=0

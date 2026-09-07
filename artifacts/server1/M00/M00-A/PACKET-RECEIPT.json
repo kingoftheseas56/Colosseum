@@ -1,0 +1,126 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "worker_id": "M00-A",
+  "parent_packet": "M00",
+  "branch": "codex/server1-m00-a",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "oracle": {
+    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "source_authorities": {
+    "M433:37687-37693": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602",
+    "M434:37693-37756": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd",
+    "M436:37824-37826": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0",
+    "M564:46578-46979": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+    "M667:62092-62112": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6",
+    "M855:75051-75119": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79",
+    "M861:76486-76522": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e0"
+  },
+  "owned_files": [
+    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h",
+    "native/colosseum_server_v1/src/media/ExecutableLocator.cpp",
+    "native/colosseum_server_v1/src/media/ProcessDriver.cpp",
+    "native/colosseum_server_v1/tests/test_process_driver.cpp",
+    "native/colosseum_server_v1/cmake/packets/M00.cmake",
+    "native/colosseum_server_v1/tests/cmake/M00.cmake"
+  ],
+  "owned_file_sha256": {
+    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B4DE0413C139AB96851581A3B4B74601C084F0FE40EF7D67AA0582C6BE6190E9",
+    "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "C66E6979F5D00051B30171616B908B753FB6C9F707CAB0861F08A80D77516405",
+    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "C1C06211D1C4BACF4816A06CD0A9F44C8E9FD2509FBC8B20749CB97D2BABC019",
+    "native/colosseum_server_v1/tests/test_process_driver.cpp": "2DDFAD1CF8E14E6AEA6E73F6B5520A3C239074A4D3BD0BCC9BE666B28E220883",
+    "native/colosseum_server_v1/cmake/packets/M00.cmake": "940FA54D5537DF59B795075C91E2D4C8BDAAE5072FC629AF5119B38BA659E818",
+    "native/colosseum_server_v1/tests/cmake/M00.cmake": "39DE4A05DD8808A88EEBDD88D3B8347DDA30294EBD0D8AFE96A64F9F32D66AC1"
+  },
+  "cases": {
+    "M00-01": {
+      "state": "differentially-qualified",
+      "requirements": "Override path present/missing, PATH lookup, spaces/non-ASCII paths and executable launch refusal.",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt",
+      "sha256": "D5D93DD61185A8AC006B49314933730D7A8CD0BDCE82BE75C1F0F921CEE9DD5B",
+      "exit": 0
+    },
+    "M00-02": {
+      "state": "differentially-qualified",
+      "requirements": "Binary stdout/stderr, environment, unsuccessful exit, graceful-stop escalation, cancellation race, owned process tree and external-process boundary.",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt",
+      "sha256": "5315CA9BAC65BB4152C7CAE546022096EAA97C9B76A525A2DDF994EBC98FDCFC",
+      "exit": 0
+    },
+    "M00-03": {
+      "state": "differentially-qualified",
+      "requirements": "Remote port selection, completion polling and disconnect without a public service.",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt",
+      "sha256": "EA8F3564FC87019D670E07AA19A9BFB1611259F8E9F495AABF5B4FFED272EF1D",
+      "exit": 0
+    }
+  },
+  "evidence_states": [
+    "source-traced",
+    "test-authored",
+    "implementation-authored",
+    "compiled",
+    "test-executed",
+    "differentially-qualified"
+  ],
+  "red": {
+    "manifest": "artifacts/server1/M00/M00-A/red/TDD-RED.json",
+    "configure_exit": 0,
+    "configure_raw": "artifacts/server1/M00/M00-A/red/RED-CONFIGURE-4.raw.txt",
+    "compile_exit": 1,
+    "compile_raw": "artifacts/server1/M00/M00-A/red/RED-COMPILE-4.raw.txt",
+    "failure": "fatal error C1083: Cannot open include file: 'server1/ports/ProcessPort.h': No such file or directory"
+  },
+  "green": {
+    "configure": {
+      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" -S \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\" -B \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\\cmake\" -G Ninja -DCMAKE_MAKE_PROGRAM=\"C:\\Qt\\Tools\\Ninja\\ninja.exe\" -DCMAKE_PREFIX_PATH=\"C:\\Qt\\6.11.1\\msvc2022_64\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+      "exit": 0,
+      "raw": "artifacts/server1/M00/M00-A/evidence/CONFIGURE.raw.txt",
+      "sha256": "B28137FBB453B678F0050CCB1B17E58B40E19D18B3A309F30B17738ABD1420D8"
+    },
+    "build": {
+      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" --build \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\\cmake\" --clean-first --parallel 2",
+      "exit": 0,
+      "raw": "artifacts/server1/M00/M00-A/evidence/BUILD.raw.txt",
+      "sha256": "CD0B384BF4B368566A35960643E2E9834B8FBF49E28CDAC5756B54AAC8CE445B",
+      "candidate_sha256": "9B709C018EE20AA53D4A413F20DA7E109C8216E096DA116B3A4BEBECB73B20D4",
+      "candidate_path": "artifacts/server1/M00/M00-A/build/cmake/server1_m00_process_tests.exe"
+    },
+    "ctest": {
+      "command": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe --test-dir artifacts/server1/M00/M00-A/build/cmake --output-on-failure",
+      "exit": 0,
+      "raw": "artifacts/server1/M00/M00-A/evidence/CTEST.raw.txt",
+      "sha256": "E447F29A5DE6A42759EBDFE6F4D348709AEF078F46741C629C1666D79A22ADA1"
+    }
+  },
+  "hash_audit": {
+    "command": "PowerShell Get-FileHash SHA256 audit for oracle, candidate executable and all owned files",
+    "exit": 0,
+    "raw": "artifacts/server1/M00/M00-A/evidence/HASH-AUDIT.raw.txt",
+    "sha256": "1E6305C789FE6F7E96BDAA52AC868EF2EE9C22F9F9883A3275AB8AA3D9FEDC69"
+  },
+  "json_audit": {
+    "command": "PowerShell ConvertFrom-Json validation for all packet JSON evidence",
+    "exit": 0,
+    "raw": "artifacts/server1/M00/M00-A/evidence/JSON-AUDIT.raw.txt",
+    "sha256": "7E4E423433E51F136515D9B19B7580FB4278F5F971D3123CFF447640A6B4D447"
+  },
+  "differential": {
+    "raw": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.raw.txt",
+    "json": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.json",
+    "status": "differentially-qualified"
+  },
+  "interface": {
+    "produced": "ProcessPortContract",
+    "changes": "Added packet-owned ProcessPort, ExecutableLocator and ProcessDriver contracts; no existing shared interface was edited.",
+    "integration": "Not integrated; aggregate CMake/runtime composition is deferred to INT-W2/B-W2B."
+  },
+  "forbidden_surface_check": {
+    "status": "clean",
+    "shared_files_edited": [],
+    "binaries_or_build_directories_staged": false
+  },
+  "push": false,
+  "merge_endpoint": "Accepted commit -> feature/colosseum-server-1.0 at B-W2B; otherwise retire."
+}

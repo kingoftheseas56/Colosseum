@@ -1,0 +1,7 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/b/Colosseum-Server-1.0-workers/M00-A/artifacts/server1/M00/M00-A/build-red

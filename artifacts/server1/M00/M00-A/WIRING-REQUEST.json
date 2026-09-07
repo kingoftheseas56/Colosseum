@@ -1,0 +1,63 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "M00-A",
+  "parent_packet": "M00",
+  "status": "requested",
+  "source_branch": "codex/server1-m00-a",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "destination": {
+    "integration_owner": "INT-W2",
+    "branch": "feature/colosseum-server-1.0",
+    "wave_gate": "B-W2B"
+  },
+  "commit_policy": {
+    "push": false,
+    "accept_or_retire": true,
+    "worker_commit_pathspecs": [
+      "native/colosseum_server_v1/include/server1/ports/ProcessPort.h",
+      "native/colosseum_server_v1/src/media/ExecutableLocator.cpp",
+      "native/colosseum_server_v1/src/media/ProcessDriver.cpp",
+      "native/colosseum_server_v1/tests/test_process_driver.cpp",
+      "native/colosseum_server_v1/cmake/packets/M00.cmake",
+      "native/colosseum_server_v1/tests/cmake/M00.cmake",
+      "artifacts/server1/M00/M00-A"
+    ]
+  },
+  "requested_shared_wiring": [
+    {
+      "path": "native/colosseum_server_v1/CMakeLists.txt",
+      "owner": "INT-W2",
+      "change": "Include the packet M00 manifest in the aggregate server1 target after reviewing the ProcessPortContract."
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "owner": "INT-W2",
+      "change": "Register the packet M00 tests in the aggregate test surface."
+    },
+    {
+      "path": "native/colosseum_server_v1/src/ServerComposition.cpp",
+      "owner": "INT-W2",
+      "change": "Wire ProcessDriver at the server composition seam and preserve caller-selected local/remote HLSV2 mode."
+    }
+  ],
+  "contract_consumption": [
+    "RuntimeSkeleton",
+    "PacketLocalBuildManifestContract",
+    "CompatibilityValueContract",
+    "TraceComparator",
+    "RuntimeSurfaceMatrix"
+  ],
+  "integration_notes": [
+    "ProcessPort owns only QProcess children launched through ProcessPort::start.",
+    "Remote ProcessDriver state uses the supplied bridge transport and is not inserted into ProcessPort ownership.",
+    "The packet-local wrapper under artifacts is build evidence only and must not be merged as a production build directory.",
+    "No genuine media tool was required for this worker; the scripted Python child fixture is the executable proof."
+  ],
+  "evidence": {
+    "receipt": "artifacts/server1/M00/M00-A/PACKET-RECEIPT.json",
+    "source_trace": "artifacts/server1/M00/M00-A/source/SOURCE-TRACE.json",
+    "differential": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.json",
+    "red": "artifacts/server1/M00/M00-A/red/TDD-RED.json",
+    "aggregate_runtime": "not claimed by this worker"
+  }
+}

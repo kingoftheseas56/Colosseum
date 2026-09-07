@@ -1,0 +1,20 @@
+{
+  "schema": "colosseum-server1-tdd-red/v1",
+  "worker_id": "M00-A",
+  "parent_packet": "M00",
+  "state": "test-authored",
+  "test_file": "native/colosseum_server_v1/tests/test_process_driver.cpp",
+  "cases": ["M00-01", "M00-02", "M00-03"],
+  "configure": {
+    "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" -S \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\red\" -B \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build-red\" -G Ninja -DCMAKE_MAKE_PROGRAM=\"C:\\Qt\\Tools\\Ninja\\ninja.exe\" -DCMAKE_PREFIX_PATH=\"C:\\Qt\\6.11.1\\msvc2022_64\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+    "exit": 0,
+    "raw": "artifacts/server1/M00/M00-A/red/RED-CONFIGURE-4.raw.txt"
+  },
+  "build": {
+    "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" --build \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build-red\" --parallel 2",
+    "exit": 1,
+    "raw": "artifacts/server1/M00/M00-A/red/RED-COMPILE-4.raw.txt",
+    "expected_failure": "fatal error C1083: Cannot open include file: 'server1/ports/ProcessPort.h': No such file or directory"
+  },
+  "interpretation": "The authored owned tests compile against the missing ProcessPort contract and fail before implementation, establishing the required RED boundary."
+}

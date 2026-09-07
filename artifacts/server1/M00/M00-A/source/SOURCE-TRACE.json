@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-source-trace/v1",
+  "worker_id": "M00-A",
+  "parent_packet": "M00",
+  "oracle": {
+    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "authorities": [
+    {"module": "M433", "lines": "37687-37693", "sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602", "behavior": "exports ffmpeg and ffprobe process helpers"},
+    {"module": "M434", "lines": "37693-37756", "sha256": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd", "behavior": "kills a process tree only for the supplied process id; Windows uses taskkill /T /F"},
+    {"module": "M436", "lines": "37824-37826", "sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0", "behavior": "selects remote when HLSV2_REMOTE is truthy, otherwise local"},
+    {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569", "behavior": "builds executable search arrays, locates all HLS executables, preserves HLSV2 route registration and local/remote mode"},
+    {"module": "M667", "lines": "62092-62112", "sha256": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6", "behavior": "preferred search paths precede PATH candidates and missing candidates fall through"},
+    {"module": "M855", "lines": "75051-75119", "sha256": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79", "behavior": "local ffmpeg uses argv array, inherited environment, binary stdout, separate stderr, exit capture and forceful destroy; remote appends -listen 1 URL, polls and cancels bridge"},
+    {"module": "M861", "lines": "76486-76522", "sha256": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3", "behavior": "local ffprobe uses a fixed argv array, inherited environment, binary stdout and close(code, signal); remote dispatches and returns streamed data"}
+  ],
+  "cases": {
+    "M00-01": "override precedence, missing override fallthrough, PATH lookup, unusual paths, refusal to launch a non-executable",
+    "M00-02": "binary stdout/stderr, environment, unsuccessful exit, graceful-stop escalation, cancellation race and ownership boundary",
+    "M00-03": "remote port selection, completion polling, binary response and disconnect cancellation"
+  },
+  "implementation_boundary": "ProcessPort owns only QProcess children started through its own start method. ProcessDriver delegates local children to that owner and keeps remote bridge cancellation/poll state separate."
+}
