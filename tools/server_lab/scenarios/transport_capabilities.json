@@ -46,7 +46,8 @@
   ],
   "evidence_runs": [
     "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
-    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-155543751"
   ],
   "grading": "All required controls have repeated real local-peer receipts; priority/deadline settings alone are not evidence.",
   "dependency_patch_required": false,

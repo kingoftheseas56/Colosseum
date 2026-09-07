@@ -4,6 +4,8 @@ Compile: MSVC 19.44.35227.0, C++17, /MD, pinned C:/tools/libtorrent-2.0-msvc hea
 Focused stabilization: pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_packet.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -PeerScript artifacts/server1/P08/P08-A/tiny_peer.py -Cases P08-02 P08-04 -> exit 0; P08-02 PASS; P08-04 PASS.
 Full packet run 1: pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_packet.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -PeerScript artifacts/server1/P08/P08-A/tiny_peer.py -> exit 0; run packet-run-20260907-151758218; P08-01/P08-02/P08-03/P08-04/CONTROLS PASS.
 Full packet run 2: same command -> exit 0; run packet-run-20260907-151849694; P08-01/P08-02/P08-03/P08-04/CONTROLS PASS.
+Integration-worktree compile: same pinned MSVC/libtorrent command after creating the ignored bin directory -> exit 0.
+Integration-worktree full packet run: same full packet command -> exit 0; run packet-run-20260907-155543751; P08-01/P08-02/P08-03/P08-04/CONTROLS PASS.
 P08A predecessor regression: pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_predecessor_regression.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -> exit 0; predecessor cases 01/02/03 PASS.
 JSON validation: every changed JSON parsed with ConvertFrom-Json -> exit 0.
 Diff check: git diff --check -> exit 0.

@@ -1,0 +1,1 @@
+C:\b\Colosseum-Server-1.0\artifacts\server1\P08\P08-A\bin\transport_contract_probe.exe "--p08-prepare" "C:\b\Colosseum-Server-1.0\artifacts\server1\P08\P08-A\raw\packet-run-20260907-155543751\P08-02" "--file-size" "171072" "--piece-size" "65536"

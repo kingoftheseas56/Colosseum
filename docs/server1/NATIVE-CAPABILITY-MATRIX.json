@@ -26,7 +26,8 @@
   },
   "evidence_runs": [
     "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
-    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-155543751"
   ],
   "evidence_basis": "Every mandatory control passed twice against local TCP peers. Priority/deadline configuration alone was not promoted as wire evidence.",
   "dependency_patch_required": false,

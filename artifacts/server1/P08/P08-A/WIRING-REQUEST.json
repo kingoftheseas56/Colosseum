@@ -10,7 +10,7 @@
   ],
   "interface_changes": "No production interface changed; TorrentTransport.h, Runtime, TorrentEngine, composition, routes, and aggregate registries remain untouched.",
   "native_seam": "Pinned libtorrent 2.0.11 supports the required exact-block, picker-suppression, hotswap, partial-delivery, metadata, stats, settings, and choke/interest controls through a narrow version-specific internal adapter.",
-  "evidence": "Two complete real-wire packet runs passed all four cases and mandatory controls.",
+  "evidence": "Two worker runs and one fresh integration-worktree real-wire packet run passed all four cases and mandatory controls.",
   "dependency_patch_required": false,
   "gate": "G-NATIVE ready for Sol/Astra integration review at B-W1D.",
   "merge_endpoint": "B-W1D into feature/colosseum-server-1.0 after Sol and milestone review",

@@ -1,0 +1,1 @@
+C:\b\Colosseum-Server-1.0\artifacts\server1\P08\P08-A\bin\transport_contract_probe.exe "--p08-case" "P08-04" "C:\b\Colosseum-Server-1.0\artifacts\server1\P08\P08-A\raw\packet-run-20260907-155543751\P08-04" "49306" "49307"

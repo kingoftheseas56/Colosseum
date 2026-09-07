@@ -42,12 +42,13 @@
   },
   "evidence_runs": [
     "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
-    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-155543751"
   ],
   "case_results": "artifacts/server1/P08/P08-A/CASE-RESULTS.json",
   "capability_matrix": "docs/server1/NATIVE-CAPABILITY-MATRIX.json",
   "wiring_request": "artifacts/server1/P08/P08-A/WIRING-REQUEST.json",
   "compile_only_booleans_promoted": false,
   "dependency_patch_required": false,
-  "status": "implementation-authored; compiled; test-executed twice; real-wire verified; G-NATIVE ready for integration review"
+  "status": "implementation-authored; compiled; worker-tested twice; integration-tested; real-wire verified; G-NATIVE accepted for B-W1D review"
 }

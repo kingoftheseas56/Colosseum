@@ -8,7 +8,8 @@
   },
   "runs": [
     "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151758218",
-    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694"
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-151849694",
+    "artifacts/server1/P08/P08-A/raw/packet-run-20260907-155543751"
   ],
   "cases": {
     "P08-01": {
@@ -38,6 +39,6 @@
   "dependency_patch_required": false,
   "gate": {
     "G-NATIVE": "PASS",
-    "reason": "Every mandatory control passed in two complete local real-wire packet runs on pinned libtorrent 2.0.11."
+    "reason": "Every mandatory control passed in two worker runs and a fresh integration-worktree real-wire run on pinned libtorrent 2.0.11."
   }
 }

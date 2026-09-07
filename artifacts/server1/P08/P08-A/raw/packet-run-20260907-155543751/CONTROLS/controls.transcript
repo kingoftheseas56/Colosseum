@@ -1,0 +1,13 @@
+PER_ENGINE_DEADLINE piece=0 deadline_ms=0
+SESSION_GLOBAL_SETTINGS dht=0 lsd=0 upnp=0 natpmp=0 multiple_ip=1
+HANDSHAKE peer=control
+HOOK sent_interested
+HOOK on_choke
+HOOK on_interested
+HOOK on_unchoke
+WIRE_REQUEST piece=0 start=0 length=16384
+HOOK on_not_interested
+ON_PIECE length=16384 internal_payload_download=16384
+PIECE_PASS piece=0
+HOOK sent_not_interested
+STATS total_download=16384 torrent_payload=16384 internal_payload=16384

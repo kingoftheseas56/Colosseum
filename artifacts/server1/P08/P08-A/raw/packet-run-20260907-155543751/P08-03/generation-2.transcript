@@ -1,0 +1,9 @@
+generation=2 RECREATE_SAME_ENDPOINT peer=B port=49305
+generation=2 HANDSHAKE peer=B
+generation=2 ADVERTISE peer=B
+generation=2 RECREATE_COMMAND peer=B queued=1
+generation=2 ALLOW_FAST peer=B piece=0 start=0 length=16384
+generation=2 WIRE peer=B piece=0 start=0 length=16384
+generation=2 PIECE peer=B piece=0 start=0 length=16384
+generation=2 PIECE_PASS piece=0
+generation=2 GENERATION_2_RESULT pass=1 wire=1

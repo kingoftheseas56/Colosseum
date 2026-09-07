@@ -1,0 +1,13 @@
+LISTEN label=P08-04-A port=49306 mode=regular
+CONFIG hold_all=0 hold_after_offset=-1 release_file= duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:13302 info_hash=968e24b0969058a10eaea64359fa1cfaa422d457 expected=968e24b0969058a10eaea64359fa1cfaa422d457 info_hash_match=1
+BITFIELD_SENT pieces=3 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+MESSAGE connection=1 id=1 bytes=0
+CANCEL connection=1 piece=0 start=16384 length=16384
+NOT_INTERESTED connection=1
+INTERESTED connection=1
+MESSAGE connection=1 id=4 bytes=4
+CLIENT_DISCONNECTED connection=1 error=ConnectionResetError
