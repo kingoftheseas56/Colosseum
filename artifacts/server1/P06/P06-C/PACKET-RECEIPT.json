@@ -4,7 +4,7 @@
   "parent_packet": "P06",
   "integration_base": "0166565e4e9cc860d70c09ad6476d611d9d4299c",
   "integration_destination": "B-W1C on feature/colosseum-server-1.0",
-  "implementation_commit_sha": "TO_BE_RECORDED_AFTER_COMMIT",
+  "implementation_commit_sha": "c236d583",
   "source_authority": {
     "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "M303": {"lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
