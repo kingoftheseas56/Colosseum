@@ -1,3 +1,5 @@
+"""Deterministic replay subject; this file is materialized as LF by P04."""
+
 import json
 import os
 from pathlib import Path

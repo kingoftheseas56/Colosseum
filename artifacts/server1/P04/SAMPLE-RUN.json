@@ -8,7 +8,7 @@
     "owned_children_after": []
   },
   "configuration": {
-    "endpoint": "127.0.0.1:3744",
+    "endpoint": "127.0.0.1:12985",
     "timeout_seconds": 1.0
   },
   "engine": {
@@ -41,18 +41,18 @@
   },
   "observations": [
     {
-      "endpoint": "127.0.0.1:3744",
+      "endpoint": "127.0.0.1:12985",
       "listener_owned": false
     }
   ],
   "paths": {
-    "cache": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable2\\sample-p04-pass\\cache",
-    "endpoint": "127.0.0.1:3744",
-    "event_file": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable2\\sample-p04-pass\\events.jsonl",
-    "port": 3744,
-    "run_root": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable2\\sample-p04-pass",
-    "stderr": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable2\\sample-p04-pass\\stderr.txt",
-    "stdout": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable2\\sample-p04-pass\\stdout.txt"
+    "cache": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable4\\sample-p04-pass\\cache",
+    "endpoint": "127.0.0.1:12985",
+    "event_file": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable4\\sample-p04-pass\\events.jsonl",
+    "port": 12985,
+    "run_root": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable4\\sample-p04-pass",
+    "stderr": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable4\\sample-p04-pass\\stderr.txt",
+    "stdout": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable4\\sample-p04-pass\\stdout.txt"
   },
   "peer_observations": [],
   "raw_lane": {
@@ -85,7 +85,7 @@
       "{run_id}"
     ],
     "configuration": {
-      "endpoint": "127.0.0.1:3744",
+      "endpoint": "127.0.0.1:12985",
       "mode": "pass"
     },
     "exact_command": [
@@ -99,9 +99,9 @@
       "--mode",
       "pass",
       "--data-root",
-      "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable2",
+      "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-data-run-portable4",
       "--evidence-dir",
-      "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-evidence-run-portable2",
+      "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\sample-evidence-run-portable4",
       "--run-id",
       "sample-p04-pass"
     ],
@@ -120,7 +120,7 @@
         "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
         "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\fixtures\\replay_subject.py",
         "pass",
-        "55b56bfecc6a4fe080e4399e12729c42"
+        "8f8b36a045e74cb687911fe0ebd61e15"
       ],
       "operation": "launch"
     }
@@ -142,7 +142,7 @@
   "selected_file": null,
   "source": {
     "identity": "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\fixtures\\replay_subject.py",
-    "sha256": "cfb98419878244faf700bd114e4ca5af5fa82fc5f65c04107cd3120f9fb7932a"
+    "sha256": "52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4"
   },
   "startup_cleanup": {
     "active_leases": [],
@@ -153,8 +153,8 @@
     "verified_pids": []
   },
   "timestamps": {
-    "finished": "2026-09-07T01:14:15.225174+00:00",
-    "started": "2026-09-07T01:14:13.914411+00:00"
+    "finished": "2026-09-07T01:23:05.140521+00:00",
+    "started": "2026-09-07T01:23:03.017746+00:00"
   },
   "torrent": null
 }

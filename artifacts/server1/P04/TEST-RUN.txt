@@ -20,7 +20,7 @@ test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing (tools.server
 test_wsl_reference_serves_heartbeat_and_settings (tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings) ... skipped 'oracle and WSL Ubuntu are required'
 
 ----------------------------------------------------------------------
-Ran 20 tests in 44.420s
+Ran 20 tests in 44.441s
 
 OK (skipped=8)
 EXIT=0

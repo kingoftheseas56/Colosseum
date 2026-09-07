@@ -1,8 +1,8 @@
 {
   "schema": "colosseum-server1-p04-mutation-evidence/v1",
   "case_definition": "tools/server_lab/cases/P04.json",
-  "fixture_sha256": "cfb98419878244faf700bd114e4ca5af5fa82fc5f65c04107cd3120f9fb7932a",
-  "sample_sha256": "091dfb4304bf65f03bb9483161cc20ed7f3482d1d2590c247b8d29bea2aefcd9",
+  "fixture_sha256": "52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4",
+  "sample_sha256": "e5e66c259d728931ce5bb70884a4c38298934a17aad59b7e5b735b27e193e23e",
   "mutations": [
     {"name": "event-mismatch", "input": "post-classification cleanup downgrade", "expected": "event result equals final receipt ERROR", "verified_by": "test_event_is_written_after_final_result_and_matches_receipt"},
     {"name": "active-run-reaping", "input": "second runner starts while first lease/controller is live", "expected": "first run remains alive", "verified_by": "test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans"},

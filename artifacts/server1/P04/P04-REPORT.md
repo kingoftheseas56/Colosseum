@@ -20,7 +20,7 @@ Command: `python -m unittest tools.server_lab.tests.test_runner tools.server_lab
 
 Exit: `0`. Result: `20 tests, 8 skips, 0 failures, 0 errors`.
 
-The full raw output, exact command, and exit are in `TEST-RUN.txt`. The committed replay fixture is `fixtures/replay_subject.py`, SHA256 `cfb98419878244faf700bd114e4ca5af5fa82fc5f65c04107cd3120f9fb7932a`. The committed replay configuration is `fixtures/replay-config.json`. The generated sample is `SAMPLE-RUN.json`; its SHA256 is recorded in `MUTATION-EVIDENCE.json`.
+The full raw output, exact command, and exit are in `TEST-RUN.txt`. The committed replay fixture is `fixtures/replay_subject.py`, SHA256 `52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4`. Packet-local `.gitattributes` enforces LF for the replay fixture and configuration so checkout materialization preserves this identity. The committed replay configuration is `fixtures/replay-config.json`. The regenerated sample is `SAMPLE-RUN.json`, SHA256 `e5e66c259d728931ce5bb70884a4c38298934a17aad59b7e5b735b27e193e23e`, also recorded in `MUTATION-EVIDENCE.json`.
 
 ## Evidence and scope
 
