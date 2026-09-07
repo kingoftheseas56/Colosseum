@@ -1,1 +1,95 @@
-{"schema_version":1,"packet":"P01A","state":"in_progress","branch":"feature/colosseum-server-1.0-preflight","base_sha":"1548f6998e9dd852cda25a4c8950b55194a3ab7c","dependency_authority":{"target":"colosseum_libtorrent","definition":"native/CMakeLists.txt","cxx_standard":17,"missing_dependency_behavior":"fatal"},"windows_ci":{"workflow":".github/workflows/desktop-ci.yml","runner":"windows-2025","qt":"6.11.1","vcpkg_tag":"2026.07.29","triplet":"x64-windows","crt_linkage":"dynamic","library_linkage":"dynamic","libtorrent":{"version":"2.0.11","source_ref":"arvidn/libtorrent v2.0.11","source_sha512":"375fb12754ce73b34b215c1ca077b0ec58a8c91f6a6e4a48e2ae55251be38f647405d135ebeae38f8b0dfb478bcea8d5f0d6509e97f1baddbc2cd2e788948f2a","vcpkg_default_features":["iconv"]},"boost":"1.91.0","openssl":"3.6.3","compiler":"pending CI log capture","linked_runtime_identity":"pending CI log capture"},"windows_local_fallback":{"path_alias":"C:/tools/libtorrent-2.0-msvc","boost_path_alias":"C:/tools/boost-1.84.0","openssl_path_alias":"C:/tools/openssl-msvc","status":"not accepted as identity lock; CI package path is the reproducible authority"},"linux_ci":{"workflow":".github/workflows/desktop-ci.yml","runner":"ubuntu-24.04","dependency_install":["libtorrent-rasterbar-dev","libboost-all-dev","libssl-dev"],"exact_versions":"pending CI log capture","compiler":"pending CI log capture","qt":"pending CI log capture"},"gate_blockers":["capture CI-observed compiler/runtime package identities on Windows","capture CI-observed libtorrent/Boost/OpenSSL/Qt/compiler identities on Linux","confirm compile-time and linked runtime libtorrent versions agree"],"server_0_1_requirement":null}
+{
+  "schema_version": 1,
+  "packet": "P01A",
+  "state": "accepted",
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "base_sha": "1548f6998e9dd852cda25a4c8950b55194a3ab7c",
+  "acceptance": {
+    "workflow": ".github/workflows/server1-p01a-substrate.yml",
+    "run_id": 34146280578,
+    "qualified_head_sha": "4dff1a7230fd12566323e530c1215d1202f321fc",
+    "gate": "G-SUBSTRATE"
+  },
+  "dependency_authority": {
+    "target": "colosseum_libtorrent",
+    "definition": "native/CMakeLists.txt",
+    "definition_blob_sha": "1492d1363d250c10441d2b01b10bef0cf3c9e14c",
+    "probe_blob_sha": "8a81523436cad6cdb590b88ad62eab458a61726e",
+    "probe_generator_blob_sha": "5eaf40eb42dad1a13bc2109e4daaa5d5ed69c1c5",
+    "cxx_standard": 17,
+    "missing_dependency_behavior": "fatal"
+  },
+  "windows_ci": {
+    "job_id": 101818907319,
+    "artifact_id": 10028245582,
+    "artifact_name": "server1-p01a-windows",
+    "artifact_zip_sha256": "cc71920ee8d79fe91108ea4715ab89c2d7304cea91ac466b55ed78a60949191c",
+    "probe_binary_sha256": "37cbf6049d68901aac3106d9d54f9a7f77f69b60371503ac02d48671e66e13cd",
+    "runner": "windows-2025",
+    "runner_image": "windows-2025-vs2026",
+    "runner_image_version": "20260824.214.3",
+    "provisioner_version": "20260819.586",
+    "provisioner_commit": "3cc4a88dfa507ef76119ad1bb3eccc6378bb2b76",
+    "qt": "6.11.1",
+    "cmake": "4.4.2",
+    "ninja": "1.13.2",
+    "vcpkg_tag": "2026.07.29",
+    "vcpkg_tag_object": "c76c06644034521fb761a39f8f52d8e87d1103d5",
+    "vcpkg_commit": "9e593bb18ea69cc5095e012465dcd675a822ed0d",
+    "triplet": "x64-windows",
+    "crt_linkage": "dynamic",
+    "library_linkage": "dynamic",
+    "compiler": {
+      "family": "msvc",
+      "version": "19.51.36256",
+      "vctools": "14.51.36231",
+      "ucrt": "10.0.26100.0",
+      "windows_sdk": "10.0.26100.0"
+    },
+    "libtorrent": {
+      "package_version": "2.0.11",
+      "compile_version": "2.0.11.0",
+      "runtime_version": "2.0.11.0",
+      "revision": "6e1587799",
+      "version_num": 20011,
+      "abi": 3,
+      "shared": true,
+      "package_abi": "753d9d64da22808f9c075a94efe04289f2095a2b465bda5df54043bcacd42fcf"
+    },
+    "boost": "1.91.0",
+    "openssl": "3.6.3",
+    "identity_match": true
+  },
+  "linux_ci": {
+    "job_id": 101818907469,
+    "artifact_id": 10027782481,
+    "artifact_name": "server1-p01a-linux",
+    "artifact_zip_sha256": "9e7696d5c4a9ba77db0252394ac05ff0b48ba6cb86490cb6b5623164cec94016",
+    "probe_binary_sha256": "c127a6dc74637a8b7ca89f325fbe158c45d182c60d099486e8fd318933f4f25d",
+    "runner": "ubuntu-24.04",
+    "runner_image_version": "20260831.293.1",
+    "qt": "6.11.1",
+    "cmake": "3.31.6",
+    "ninja": "1.13.2",
+    "compiler": {
+      "family": "gcc",
+      "version": "13.3.0"
+    },
+    "libtorrent": {
+      "package": "libtorrent-rasterbar-dev=2.0.10-1.1build2",
+      "compile_version": "2.0.10.0",
+      "runtime_version": "2.0.10.0",
+      "revision": "dacf64c50",
+      "version_num": 20010,
+      "abi": 1,
+      "shared": true
+    },
+    "boost": "1.83.0",
+    "openssl": "3.0.13-0ubuntu3.15",
+    "negative_missing_dependency_exit": 1,
+    "identity_match": true
+  },
+  "lane_lock_policy": "P01A locks the exact consumed substrate independently per supported CI lane. Patch-level or ABI drift in either lane requires explicit requalification; one lane must never silently substitute the other's dependency identity.",
+  "gate_blockers": [],
+  "server_0_1_requirement": null
+}

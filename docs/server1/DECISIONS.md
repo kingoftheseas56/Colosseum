@@ -19,3 +19,7 @@ Server 1.0 remains C++17 and libtorrent 2.0. No libtorrent 2.1, WebTorrent, sync
 ## D005: Production implementation is gated
 
 P00 closes evidence only. P01A must close the reproducible native substrate and P08A must demonstrate selected-peer exact-block control plus ordinary-picker suppression on actual wire traffic before the production Server 1.0 skeleton or bulk policy port begins.
+
+## D006: Substrate locks are lane-specific
+
+P01A accepts the exact dependency graph actually consumed by each supported CI lane: Windows currently consumes libtorrent 2.0.11 / ABI 3 from the pinned vcpkg commit, while Linux consumes distro libtorrent 2.0.10 / ABI 1. Both remain within the frozen libtorrent 2.0 baseline and both proved compile-time/runtime identity agreement. Any future lane drift must be surfaced and requalified rather than silently normalized or substituted across platforms.

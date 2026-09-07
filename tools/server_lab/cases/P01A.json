@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "packet": "P01A",
+  "cases": [
+    {
+      "id": "P01A-01",
+      "requirement": "A minimal consumer of Colosseum's selected libtorrent target must configure, compile, link, and run on Windows and the selected Linux qualification lane.",
+      "accepted_run_id": 34146280578
+    },
+    {
+      "id": "P01A-02",
+      "requirement": "Removing the required libtorrent dependency must fail configuration visibly rather than falling back to a success-shaped build.",
+      "accepted_observation": "Linux negative configure exited 1 when LibtorrentRasterbar was disabled."
+    },
+    {
+      "id": "P01A-03",
+      "requirement": "Compile-time header identity, runtime library identity, and binary dependency inspection must agree while Boost, OpenSSL, Qt, compiler, CRT/linkage assumptions are recorded.",
+      "accepted_run_id": 34146280578
+    }
+  ]
+}

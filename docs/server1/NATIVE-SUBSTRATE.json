@@ -1,1 +1,64 @@
-{"schema_version":1,"packet":"P01A","state":"in_progress","selected_authority":"colosseum_libtorrent","base_sha":"1548f6998e9dd852cda25a4c8950b55194a3ab7c","observed_live_source":{"cmake_standard":"C++17","find_order":["LibtorrentRasterbar CONFIG","Boost CONFIG system filesystem","OpenSSL","Windows C:/tools fallback"],"windows_compile_definitions":["HAS_LIBTORRENT=1","TORRENT_USE_OPENSSL","BOOST_ALL_NO_LIB","_WIN32_WINNT=0x0A00"],"linux_compile_definitions":["HAS_LIBTORRENT=1","TORRENT_USE_OPENSSL"],"windows_system_libraries":["ws2_32","mswsock","crypt32","iphlpapi","bcrypt"]},"reproducible_windows_ci":{"qt":"6.11.1","vcpkg_tag":"2026.07.29","libtorrent":"2.0.11","boost":"1.91.0","openssl":"3.6.3","triplet":"x64-windows","crt":"dynamic","libraries":"dynamic"},"unresolved_before_acceptance":["exact compiler version and runtime-observed library identities from CI","exact Linux package/toolchain versions from CI"]}
+{
+  "schema_version": 1,
+  "packet": "P01A",
+  "state": "accepted",
+  "selected_authority": "colosseum_libtorrent",
+  "base_sha": "1548f6998e9dd852cda25a4c8950b55194a3ab7c",
+  "qualified_head_sha": "4dff1a7230fd12566323e530c1215d1202f321fc",
+  "acceptance_run_id": 34146280578,
+  "accepted_gate": "G-SUBSTRATE",
+  "observed_live_source": {
+    "cmake_standard": "C++17",
+    "definition_blob_sha": "1492d1363d250c10441d2b01b10bef0cf3c9e14c",
+    "find_order": [
+      "LibtorrentRasterbar CONFIG",
+      "Boost CONFIG system filesystem",
+      "OpenSSL",
+      "Windows C:/tools fallback"
+    ],
+    "windows_compile_definitions": [
+      "HAS_LIBTORRENT=1",
+      "TORRENT_USE_OPENSSL",
+      "BOOST_ALL_NO_LIB",
+      "_WIN32_WINNT=0x0A00"
+    ],
+    "linux_compile_definitions": [
+      "HAS_LIBTORRENT=1",
+      "TORRENT_USE_OPENSSL"
+    ],
+    "windows_system_libraries": [
+      "ws2_32",
+      "mswsock",
+      "crypt32",
+      "iphlpapi",
+      "bcrypt"
+    ]
+  },
+  "qualified_lanes": {
+    "windows": {
+      "runner_image": "windows-2025-vs2026@20260824.214.3",
+      "compiler": "MSVC 19.51.36256",
+      "qt": "6.11.1",
+      "vcpkg_commit": "9e593bb18ea69cc5095e012465dcd675a822ed0d",
+      "libtorrent": "2.0.11.0 revision 6e1587799 ABI 3 shared",
+      "boost": "1.91.0",
+      "openssl": "3.6.3",
+      "crt": "dynamic",
+      "probe_binary_sha256": "37cbf6049d68901aac3106d9d54f9a7f77f69b60371503ac02d48671e66e13cd",
+      "compile_runtime_identity_match": true
+    },
+    "linux": {
+      "runner_image": "ubuntu-24.04@20260831.293.1",
+      "compiler": "GCC 13.3.0",
+      "qt": "6.11.1",
+      "libtorrent": "2.0.10.0 revision dacf64c50 ABI 1 shared",
+      "libtorrent_package": "2.0.10-1.1build2",
+      "boost": "1.83.0",
+      "openssl": "3.0.13-0ubuntu3.15",
+      "probe_binary_sha256": "c127a6dc74637a8b7ca89f325fbe158c45d182c60d099486e8fd318933f4f25d",
+      "missing_dependency_configure_exit": 1,
+      "compile_runtime_identity_match": true
+    }
+  },
+  "unresolved_before_acceptance": []
+}
