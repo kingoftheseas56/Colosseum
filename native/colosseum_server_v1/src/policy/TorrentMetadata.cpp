@@ -24,10 +24,9 @@ public:
     {
         if (input_.empty())
             throw std::runtime_error("empty bencode input");
-        Value result = readValue();
-        if (position_ != input_.size())
-            throw std::runtime_error("trailing bytes after bencode value");
-        return result;
+        // M181 returns the first decoded value and does not require the input
+        // cursor to reach the end of the buffer.
+        return readValue();
     }
 
 private:
@@ -66,17 +65,14 @@ private:
             throw std::runtime_error("unterminated bencode integer");
 
         const bool negative = input_[position_] == '-';
-        if (negative)
+        const bool signedPrefix = negative || input_[position_] == '+';
+        if (signedPrefix)
             ++position_;
         const std::size_t firstDigit = position_;
         while (!atEnd() && input_[position_] >= '0' && input_[position_] <= '9')
             ++position_;
-        if (firstDigit == position_ || atEnd() || input_[position_] != 'e')
+        if ((!signedPrefix && firstDigit == position_) || atEnd() || input_[position_] != 'e')
             throw std::runtime_error("invalid bencode integer");
-        if (position_ - firstDigit > 1 && input_[firstDigit] == '0')
-            throw std::runtime_error("bencode integer has a leading zero");
-        if (negative && position_ - firstDigit == 1 && input_[firstDigit] == '0')
-            throw std::runtime_error("negative zero is not valid bencode");
 
         long double result = 0.0L;
         for (std::size_t index = firstDigit; index < position_; ++index) {
@@ -91,22 +87,33 @@ private:
 
     ByteBuffer readBytes()
     {
+        const bool negative = input_[position_] == '-';
+        const bool signedPrefix = negative || input_[position_] == '+';
+        if (signedPrefix)
+            ++position_;
         const std::size_t firstDigit = position_;
         while (!atEnd() && input_[position_] >= '0' && input_[position_] <= '9')
             ++position_;
-        if (firstDigit == position_ || atEnd() || input_[position_] != ':')
+        if ((!signedPrefix && firstDigit == position_) || atEnd() || input_[position_] != ':')
             throw std::runtime_error("invalid bencode byte-string length");
-        if (position_ - firstDigit > 1 && input_[firstDigit] == '0')
-            throw std::runtime_error("bencode byte-string length has a leading zero");
 
-        std::size_t length = 0;
+        std::uint64_t magnitude = 0;
         for (std::size_t index = firstDigit; index < position_; ++index) {
             const std::size_t digit = input_[index] - '0';
-            if (length > (std::numeric_limits<std::size_t>::max() - digit) / 10)
+            if (magnitude > (std::numeric_limits<std::uint64_t>::max() - digit) / 10)
                 throw std::runtime_error("bencode byte-string is too large");
-            length = length * 10 + digit;
+            magnitude = magnitude * 10 + digit;
         }
+        if (magnitude > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+            throw std::runtime_error("bencode byte-string is too large");
         ++position_; // colon
+        const std::size_t start = position_;
+        if (negative) {
+            const std::size_t distance = static_cast<std::size_t>(magnitude);
+            position_ = distance > start ? 0 : start - distance;
+            return {};
+        }
+        const std::size_t length = static_cast<std::size_t>(magnitude);
         if (length > input_.size() - position_)
             throw std::runtime_error("bencode byte-string exceeds input");
         ByteBuffer result(input_.begin() + static_cast<std::ptrdiff_t>(position_),
@@ -295,6 +302,48 @@ std::uint64_t unsignedInteger(const Value &value, std::string_view label, bool r
     return static_cast<std::uint64_t>(value.asNumber());
 }
 
+std::int64_t signedInteger(const Value &value, std::string_view label)
+{
+    if (value.kind() != Value::Kind::Number || !std::isfinite(value.asNumber())
+        || std::trunc(value.asNumber()) != value.asNumber()) {
+        throw std::runtime_error("Torrent field is not a valid integer: " + std::string(label));
+    }
+    const long double converted = static_cast<long double>(value.asNumber());
+    if (converted < static_cast<long double>(std::numeric_limits<std::int64_t>::min())
+        || converted > static_cast<long double>(std::numeric_limits<std::int64_t>::max()))
+        throw std::runtime_error("Torrent field exceeds native range: " + std::string(label));
+    return static_cast<std::int64_t>(value.asNumber());
+}
+
+std::int64_t addSigned(std::int64_t left, std::int64_t right, std::string_view label)
+{
+    if ((right > 0 && left > std::numeric_limits<std::int64_t>::max() - right)
+        || (right < 0 && left < std::numeric_limits<std::int64_t>::min() - right))
+        throw std::overflow_error("Torrent field overflows native range: " + std::string(label));
+    return left + right;
+}
+
+std::optional<VirtualPieceMap> nativeGeometry(std::int64_t totalLength,
+                                              std::int64_t pieceLength,
+                                              std::string &error)
+{
+    if (totalLength < 0) {
+        error = "native geometry rejects a negative total length";
+        return std::nullopt;
+    }
+    if (pieceLength <= 0) {
+        error = "native geometry requires a positive verification piece length";
+        return std::nullopt;
+    }
+    try {
+        return VirtualPieceMap::create(static_cast<std::uint64_t>(totalLength),
+                                       static_cast<std::uint64_t>(pieceLength));
+    } catch (const std::exception &exception) {
+        error = "native geometry validation failed: " + std::string(exception.what());
+        return std::nullopt;
+    }
+}
+
 std::string joinPath(const std::vector<std::string> &parts)
 {
 #ifdef _WIN32
@@ -456,6 +505,12 @@ std::vector<std::string> pieceHashes(const ByteBuffer &pieces)
     return result;
 }
 
+void appendUnique(std::vector<std::string> &values, std::string value)
+{
+    if (std::find(values.begin(), values.end(), value) == values.end())
+        values.push_back(std::move(value));
+}
+
 } // namespace
 
 TorrentMetadata::TorrentMetadata(Value info,
@@ -467,14 +522,15 @@ TorrentMetadata::TorrentMetadata(Value info,
                                  std::vector<std::string> pieces,
                                  std::vector<std::string> announce,
                                  std::vector<std::string> urlList,
-                                 std::uint64_t length,
-                                 std::uint64_t pieceLength,
-                                 std::uint64_t lastPieceLength,
+                                 std::int64_t length,
+                                 std::int64_t pieceLength,
+                                 std::int64_t lastPieceLength,
                                  std::optional<bool> privateValue,
                                  std::optional<std::int64_t> creationDate,
                                  std::optional<std::string> createdBy,
                                  std::optional<std::string> comment,
-                                 VirtualPieceMap geometry)
+                                 std::optional<VirtualPieceMap> geometry,
+                                 std::string geometryError)
     : info_(std::move(info))
     , infoBuffer_(std::move(infoBuffer))
     , infoHashBytes_(std::move(infoHashBytes))
@@ -492,6 +548,7 @@ TorrentMetadata::TorrentMetadata(Value info,
     , createdBy_(std::move(createdBy))
     , comment_(std::move(comment))
     , geometry_(std::move(geometry))
+    , geometryError_(std::move(geometryError))
 {
 }
 
@@ -516,7 +573,9 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
         const std::string name = valueText(*nameValue);
 
         const Value &pieceLengthValue = requiredProperty(info, "piece length", "info['piece length']");
-        const std::uint64_t pieceLength = unsignedInteger(pieceLengthValue, "info['piece length']", true);
+        const std::int64_t pieceLength = signedInteger(pieceLengthValue, "info['piece length']");
+        if (pieceLength == 0)
+            throw std::runtime_error("Torrent is missing required field: info['piece length']");
         const Value &piecesValue = requiredProperty(info, "pieces", "info.pieces");
         if (piecesValue.kind() != Value::Kind::Bytes)
             throw std::runtime_error("Torrent field is not a byte string: info.pieces");
@@ -533,7 +592,7 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
                     throw std::runtime_error("Torrent file entry is not a dictionary");
                 const std::string label = "info.files[" + std::to_string(index) + "]";
                 const Value &lengthValue = presentProperty(file, "length", label + ".length");
-                const std::uint64_t length = unsignedInteger(lengthValue, label + ".length", false);
+                const std::int64_t length = signedInteger(lengthValue, label + ".length");
                 const Value *utf8Path = file.find("path.utf-8");
                 const Value *plainPath = file.find("path");
                 const Value *selectedPath = utf8Path && jsTruthy(*utf8Path) ? utf8Path : plainPath;
@@ -545,22 +604,22 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
                 output.path = path;
                 output.name = parts.back();
                 output.length = length;
-                output.offset = files.empty() ? 0 : files.back().offset + files.back().length;
-                if (output.offset < (files.empty() ? 0 : files.back().offset))
-                    throw std::overflow_error("torrent file offsets overflow native range");
+                output.offset = files.empty()
+                                    ? 0
+                                    : addSigned(files.back().offset,
+                                                files.back().length,
+                                                label + ".offset");
                 files.push_back(std::move(output));
             }
         } else {
             const Value &lengthValue = presentProperty(info, "length", "info.length");
-            const std::uint64_t length = unsignedInteger(lengthValue, "info.length", false);
+            const std::int64_t length = signedInteger(lengthValue, "info.length");
             files.push_back({name, name, length, 0});
         }
 
-        std::uint64_t totalLength = 0;
+        std::int64_t totalLength = 0;
         for (const auto &file : files) {
-            if (file.length > std::numeric_limits<std::uint64_t>::max() - totalLength)
-                throw std::overflow_error("torrent length overflows native range");
-            totalLength += file.length;
+            totalLength = addSigned(totalLength, file.length, "torrent length");
         }
 
         std::vector<std::string> announce;
@@ -571,21 +630,21 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
                 if (tier.kind() != Value::Kind::Array)
                     throw std::runtime_error("Torrent field is not an announce tier list");
                 for (const auto &url : tier.asArray())
-                    announce.push_back(valueText(url));
+                    appendUnique(announce, valueText(url));
             }
         } else if (const Value *announceValue = root.find("announce")) {
             if (jsTruthy(*announceValue))
-                announce.push_back(valueText(*announceValue));
+                appendUnique(announce, valueText(*announceValue));
         }
 
         std::vector<std::string> urlList;
         if (const Value *urlListValue = root.find("url-list")) {
             if (urlListValue->kind() == Value::Kind::Bytes) {
                 if (!urlListValue->asBytes().empty())
-                    urlList.push_back(valueText(*urlListValue));
+                    appendUnique(urlList, valueText(*urlListValue));
             } else if (urlListValue->kind() == Value::Kind::Array) {
                 for (const auto &url : urlListValue->asArray())
-                    urlList.push_back(valueText(url));
+                    appendUnique(urlList, valueText(url));
             } else {
                 throw std::runtime_error("Torrent field is not a URL list");
             }
@@ -618,10 +677,10 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
         ByteBuffer infoBuffer = encodeBencode(info);
         ByteBuffer infoHashBytes = sha1(infoBuffer);
         const std::string infoHash = hex(infoHashBytes);
-        const auto geometry = VirtualPieceMap::create(totalLength, pieceLength);
-        const std::uint64_t lastPieceLength = totalLength % pieceLength == 0
-                                                  ? pieceLength
-                                                  : totalLength % pieceLength;
+        std::string geometryError;
+        const auto geometry = nativeGeometry(totalLength, pieceLength, geometryError);
+        const std::int64_t remainder = totalLength % pieceLength;
+        const std::int64_t lastPieceLength = remainder == 0 ? pieceLength : remainder;
 
         return TorrentMetadata(info,
                                std::move(infoBuffer),
@@ -639,7 +698,8 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
                                std::move(creationDate),
                                std::move(createdBy),
                                std::move(comment),
-                               geometry);
+                               geometry,
+                               std::move(geometryError));
     } catch (const std::exception &exception) {
         if (error)
             *error = exception.what();
@@ -692,17 +752,17 @@ const std::vector<std::string> &TorrentMetadata::urlList() const noexcept
     return urlList_;
 }
 
-std::uint64_t TorrentMetadata::length() const noexcept
+std::int64_t TorrentMetadata::length() const noexcept
 {
     return length_;
 }
 
-std::uint64_t TorrentMetadata::pieceLength() const noexcept
+std::int64_t TorrentMetadata::pieceLength() const noexcept
 {
     return pieceLength_;
 }
 
-std::uint64_t TorrentMetadata::lastPieceLength() const noexcept
+std::int64_t TorrentMetadata::lastPieceLength() const noexcept
 {
     return lastPieceLength_;
 }
@@ -732,9 +792,12 @@ const std::optional<std::string> &TorrentMetadata::comment() const noexcept
     return comment_;
 }
 
-const VirtualPieceMap &TorrentMetadata::geometry() const noexcept
+const VirtualPieceMap &TorrentMetadata::geometry() const
 {
-    return geometry_;
+    if (!geometry_)
+        throw std::logic_error(geometryError_.empty() ? "native geometry is unavailable"
+                                                      : geometryError_);
+    return *geometry_;
 }
 
 } // namespace server1::policy

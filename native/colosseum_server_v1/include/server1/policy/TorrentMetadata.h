@@ -15,8 +15,8 @@ using ByteBuffer = std::vector<std::uint8_t>;
 struct TorrentFile final {
     std::string path;
     std::string name;
-    std::uint64_t length = 0;
-    std::uint64_t offset = 0;
+    std::int64_t length = 0;
+    std::int64_t offset = 0;
 };
 
 struct VerificationPieceIndex final {
@@ -107,15 +107,15 @@ public:
     [[nodiscard]] const std::vector<std::string> &pieces() const noexcept;
     [[nodiscard]] const std::vector<std::string> &announce() const noexcept;
     [[nodiscard]] const std::vector<std::string> &urlList() const noexcept;
-    [[nodiscard]] std::uint64_t length() const noexcept;
-    [[nodiscard]] std::uint64_t pieceLength() const noexcept;
-    [[nodiscard]] std::uint64_t lastPieceLength() const noexcept;
+    [[nodiscard]] std::int64_t length() const noexcept;
+    [[nodiscard]] std::int64_t pieceLength() const noexcept;
+    [[nodiscard]] std::int64_t lastPieceLength() const noexcept;
     [[nodiscard]] bool isPrivate() const noexcept;
     [[nodiscard]] const std::optional<bool> &privateValue() const noexcept;
     [[nodiscard]] const std::optional<std::int64_t> &creationDate() const noexcept;
     [[nodiscard]] const std::optional<std::string> &createdBy() const noexcept;
     [[nodiscard]] const std::optional<std::string> &comment() const noexcept;
-    [[nodiscard]] const VirtualPieceMap &geometry() const noexcept;
+    [[nodiscard]] const VirtualPieceMap &geometry() const;
 
 private:
     TorrentMetadata(Value info,
@@ -127,14 +127,15 @@ private:
                     std::vector<std::string> pieces,
                     std::vector<std::string> announce,
                     std::vector<std::string> urlList,
-                    std::uint64_t length,
-                    std::uint64_t pieceLength,
-                    std::uint64_t lastPieceLength,
+                    std::int64_t length,
+                    std::int64_t pieceLength,
+                    std::int64_t lastPieceLength,
                     std::optional<bool> privateValue,
                     std::optional<std::int64_t> creationDate,
                     std::optional<std::string> createdBy,
                     std::optional<std::string> comment,
-                    VirtualPieceMap geometry);
+                    std::optional<VirtualPieceMap> geometry,
+                    std::string geometryError);
 
     Value info_;
     ByteBuffer infoBuffer_;
@@ -145,14 +146,15 @@ private:
     std::vector<std::string> pieces_;
     std::vector<std::string> announce_;
     std::vector<std::string> urlList_;
-    std::uint64_t length_;
-    std::uint64_t pieceLength_;
-    std::uint64_t lastPieceLength_;
+    std::int64_t length_;
+    std::int64_t pieceLength_;
+    std::int64_t lastPieceLength_;
     std::optional<bool> private_;
     std::optional<std::int64_t> creationDate_;
     std::optional<std::string> createdBy_;
     std::optional<std::string> comment_;
-    VirtualPieceMap geometry_;
+    std::optional<VirtualPieceMap> geometry_;
+    std::string geometryError_;
 };
 
 } // namespace server1::policy

@@ -1,21 +1,10 @@
-**********************************************************************
-** Visual Studio 2022 Developer Command Prompt v17.14.33
-** Copyright (c) 2025 Microsoft Corporation
-**********************************************************************
-Value.cpp
-JsConversions.cpp
-TorrentMetadata.cpp
-VirtualPieceMap.cpp
-test_metadata_geometry.cpp
-Generating Code...
-EXIT_COMPILE=0
 K01-01 PASS
-K01-02 PASS
-K01-03 PASS
-K01-01 PASS
-K01-02 PASS
-K01-03 PASS
 EXIT_K01_01=0
+K01-02 PASS
 EXIT_K01_02=0
+K01-03 PASS
 EXIT_K01_03=0
-EXIT_ALL=0
+K01-01 PASS
+K01-02 PASS
+K01-03 PASS
+EXIT_K01_ALL=0

@@ -1,6 +1,7 @@
 {
   "case_id": "K01-03",
   "oracle": [
+    {"module": "M181", "lines": "58379-58433"},
     {"module": "M303", "lines": "27748-27805", "private_line": "27769"},
     {"module": "M815", "lines": "72764-72784"},
     {"module": "M842", "lines": "74455-74473"}
@@ -10,11 +11,9 @@
     "path": "日本/clip%20one.mkv",
     "announce": [
       "https://tracker.example/a",
-      "https://tracker.example/a",
       "https://tracker.example/b"
     ],
     "url_list": [
-      "https://seed.example/file",
       "https://seed.example/file"
     ],
     "info_hash": "5e569fc6271ca36489701b1da88b6916200fbdb1",
@@ -24,6 +23,11 @@
     {"fixture": "info.private absent; root.private=1", "presence": "absent", "isPrivate": false},
     {"fixture": "info.private=0", "presence": "present", "value": false, "isPrivate": false},
     {"fixture": "info.private=1", "presence": "present", "value": true, "isPrivate": true}
+  ],
+  "parser_counterexamples": [
+    {"fixture": "info.length=i-1e", "source": "accepted", "native_length": -1, "native_geometry": "rejected explicitly"},
+    {"fixture": "info['piece length']=i016384e", "source": "accepted", "native_piece_length": 16384},
+    {"fixture": "valid torrent followed by x", "source": "accepted", "native_length": 3}
   ],
   "invalid_vectors": [
     "missing info rejected",

@@ -59,10 +59,14 @@ K01-02 768KiB.wire-count=96
 K01-02 768KiB.wire-last=1,770048,16384
 K01-03 name=日本
 K01-03 path=日本/clip%20one.mkv
-K01-03 announce=https://tracker.example/a|https://tracker.example/a|https://tracker.example/b
-K01-03 url-list=https://seed.example/file|https://seed.example/file
+K01-03 announce=https://tracker.example/a|https://tracker.example/b
+K01-03 url-list=https://seed.example/file
 K01-03 private.absent=absent,isPrivate:false
 K01-03 private.zero=present,false,isPrivate:false
 K01-03 private.one=present,true,isPrivate:true
 K01-03 info-hash=5e569fc6271ca36489701b1da88b6916200fbdb1
 K01-03 info-buffer-hex=64353a66696c65736c64363a6c656e677468693365343a706174686c31343a636c69702532306f6e652e6d6b76656565343a6e616d65383a66616c6c6261636b31303a6e616d652e7574662d38363ae697a5e69cac31323a7069656365206c656e6774686935323432383865363a70696563657332303a333333333333333333333333333333333333333365
+K01-03 counterexample.negative-length=accepted,length=-1
+K01-03 counterexample.leading-zero=accepted,pieceLength=16384
+K01-03 counterexample.trailing-bytes=accepted,length=3
+K01-03 invalid.missing-info=rejected,Torrent is missing required field: info

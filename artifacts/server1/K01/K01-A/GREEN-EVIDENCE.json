@@ -1,11 +1,11 @@
 {
   "worker_id": "K01-A",
   "packet": "K01",
-  "branch": "codex/server1-k01-a",
-  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "branch": "detached K01-A-repair worktree",
+  "base": "939c25e39227440960e74bd1d19158c132a1deff",
   "authored": true,
   "compiled": {
-    "compiler": "MSVC 19.44 /std:c++17",
+    "compiler": "MSVC 19.44 /std:c++20",
     "exit_code": 0,
     "command_file": "artifacts/server1/K01/K01-A/green/GREEN-TEST-COMMAND.txt"
   },
@@ -32,8 +32,8 @@
   },
   "differential": {
     "status": "qualified",
-    "source_lines": 68,
-    "candidate_lines": 68,
+    "source_lines": 72,
+    "candidate_lines": 72,
     "differences": 0,
     "evidence": "artifacts/server1/K01/K01-A/DIFFERENTIAL-EVIDENCE.json"
   },
@@ -42,8 +42,8 @@
     "lanista": "not applicable to this bounded native metadata packet"
   },
   "cases": {
-    "K01-01": "GREEN and differential-qualified",
-    "K01-02": "GREEN and differential-qualified",
-    "K01-03": "GREEN and differential-qualified; M303 27769 info.private absent/0/1 vectors pass"
+    "K01-01": "implemented; focused test and executable source replay exit 0",
+    "K01-02": "implemented; focused test and executable source replay exit 0",
+    "K01-03": "implemented; M181/M303 counterexamples, native geometry boundary, focused test, and executable source replay exit 0"
   }
 }

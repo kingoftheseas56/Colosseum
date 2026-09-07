@@ -1,11 +1,1 @@
-command: node artifacts/server1/K01/K01-A/comparison/oracle_k01_probe.mjs
-source_exit_code: 0
-source_lines: 68
-source_raw: artifacts/server1/K01/K01-A/comparison/source.raw.txt
-command: & (Join-Path (Join-Path $env:TEMP 'server1-k01-a') 'server1_k01_metadata_geometry.exe') --trace
-candidate_exit_code: 0
-candidate_lines: 68
-candidate_raw: artifacts/server1/K01/K01-A/comparison/candidate.raw.txt
-comparison_command: $source = Get-Content -LiteralPath artifacts/server1/K01/K01-A/comparison/source.raw.txt; $candidate = Get-Content -LiteralPath artifacts/server1/K01/K01-A/comparison/candidate.raw.txt; $diff = Compare-Object -ReferenceObject $source -DifferenceObject $candidate; if ($null -eq $diff) { 'COMPARE-OBJECT: no differences'; exit 0 }; $diff | Format-Table -AutoSize | Out-String; exit 1
-comparison_exit_code: 0
-comparison_output: COMPARE-OBJECT: no differences
+COMPARE-OBJECT: no differences

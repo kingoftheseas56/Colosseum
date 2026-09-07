@@ -63,6 +63,14 @@ Bytes bint(std::int64_t value)
     return output;
 }
 
+Bytes bintText(std::string_view value)
+{
+    Bytes output { 'i' };
+    append(output, value);
+    output.push_back('e');
+    return output;
+}
+
 Bytes blist(std::initializer_list<Bytes> values)
 {
     Bytes output { 'l' };
@@ -165,6 +173,20 @@ Bytes differentialTorrent()
         {"url-list", blist({bstring("https://seed.example/file"), bstring("https://seed.example/file")})},
         {"info", info},
     });
+}
+
+Bytes parserCounterexampleTorrent(std::string_view length, std::string_view pieceLength,
+                                  std::string_view suffix = {})
+{
+    const Bytes info = bdict({
+        {"length", bintText(length)},
+        {"name", bstring("single")},
+        {"piece length", bintText(pieceLength)},
+        {"pieces", bbytes(repeatedBytes(20, 0x33))},
+    });
+    Bytes torrent = bdict({{"info", info}});
+    append(torrent, suffix);
+    return torrent;
 }
 
 std::string slashPath(std::string value)
@@ -271,6 +293,28 @@ void traceCases()
               << ",isPrivate:" << (privateOne->isPrivate() ? "true" : "false") << '\n';
     std::cout << "K01-03 info-hash=" << parsed->infoHash() << '\n';
     std::cout << "K01-03 info-buffer-hex=" << hexBytes(parsed->infoBuffer()) << '\n';
+
+    const auto negativeLength = TorrentMetadata::parse(
+        parserCounterexampleTorrent("-1", "16384"), &error);
+    const auto leadingZeroInteger = TorrentMetadata::parse(
+        parserCounterexampleTorrent("3", "016384"), &error);
+    const auto trailingBytes = TorrentMetadata::parse(
+        parserCounterexampleTorrent("3", "16384", "x"), &error);
+    require(negativeLength.has_value() && leadingZeroInteger.has_value()
+                && trailingBytes.has_value(),
+            "trace counterexample fixture rejected");
+    std::cout << "K01-03 counterexample.negative-length=accepted,length="
+              << negativeLength->length() << '\n';
+    std::cout << "K01-03 counterexample.leading-zero=accepted,pieceLength="
+              << leadingZeroInteger->pieceLength() << '\n';
+    std::cout << "K01-03 counterexample.trailing-bytes=accepted,length="
+              << trailingBytes->length() << '\n';
+
+    std::string missingInfoError;
+    const auto missingInfo = TorrentMetadata::parse(bdict({}), &missingInfoError);
+    std::cout << "K01-03 invalid.missing-info="
+              << (missingInfo.has_value() ? "accepted" : "rejected," + missingInfoError)
+              << '\n';
 }
 
 void requireGeometryProperties(const VirtualPieceMap &geometry)
@@ -428,13 +472,13 @@ void caseK01_03()
     require(parsed->name() == "日本", "name.utf-8 wins over name");
     require(parsed->files()[0].path == nativePath({"日本", "clip%20one.mkv"}),
             "path remains percent-encoded because the oracle does not decode it");
-    require(parsed->announce().size() == 3, "announce-list is flattened");
+    require(parsed->announce().size() == 2, "announce-list is flattened and uniqued");
     require(parsed->announce()[0] == "https://tracker.example/a"
-                && parsed->announce()[1] == "https://tracker.example/a"
-                && parsed->announce()[2] == "https://tracker.example/b",
-            "duplicate tracker entries retain parser order");
-    require(parsed->urlList().size() == 2 && parsed->urlList()[0] == parsed->urlList()[1],
-            "duplicate url-list entries retain parser order");
+                && parsed->announce()[1] == "https://tracker.example/b",
+            "duplicate tracker entries are removed in parser order");
+    require(parsed->urlList().size() == 1
+                && parsed->urlList()[0] == "https://seed.example/file",
+            "duplicate url-list entries are removed in parser order");
     // M303 27769: void 0 !== torrent.info.private && (result.private = !!torrent.info.private).
     require(!parsed->privateValue().has_value(), "absent info.private remains absent");
     require(!parsed->isPrivate(), "root private is ignored when info.private is absent");
@@ -497,6 +541,38 @@ void caseK01_03()
             "malformed numeric file length is rejected");
     require(error.find("length") != std::string::npos,
             "malformed-length error names the field");
+
+    error.clear();
+    const auto negativeLength = TorrentMetadata::parse(
+        parserCounterexampleTorrent("-1", "16384"), &error);
+    require(negativeLength.has_value(),
+            error.empty() ? "oracle accepts negative metadata length" : error);
+    require(negativeLength->files().size() == 1 && negativeLength->files()[0].length == -1,
+            "negative metadata length is preserved as a parsed number");
+    bool rejectedGeometry = false;
+    try {
+        (void)negativeLength->geometry();
+    } catch (const std::exception &geometryError) {
+        rejectedGeometry = std::string(geometryError.what()).find("native geometry")
+                           != std::string::npos;
+    }
+    require(rejectedGeometry, "negative metadata length is rejected at the native geometry boundary");
+
+    error.clear();
+    const auto leadingZeroInteger = TorrentMetadata::parse(
+        parserCounterexampleTorrent("3", "016384"), &error);
+    require(leadingZeroInteger.has_value(),
+            error.empty() ? "oracle accepts leading-zero integer" : error);
+    require(leadingZeroInteger->pieceLength() == 16384,
+            "leading-zero integer keeps its numeric value");
+
+    error.clear();
+    const auto trailingBytes = TorrentMetadata::parse(
+        parserCounterexampleTorrent("3", "16384", "x"), &error);
+    require(trailingBytes.has_value(),
+            error.empty() ? "oracle ignores trailing bytes" : error);
+    require(trailingBytes->length() == 3,
+            "trailing bytes do not change the first decoded torrent");
 
     std::cout << "K01-03 PASS\n";
 }
