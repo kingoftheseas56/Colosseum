@@ -1,0 +1,33 @@
+{
+  "case_id": "K01-03",
+  "oracle": [
+    {"module": "M303", "lines": "27748-27805", "private_line": "27769"},
+    {"module": "M815", "lines": "72764-72784"},
+    {"module": "M842", "lines": "74455-74473"}
+  ],
+  "metadata": {
+    "name": "日本",
+    "path": "日本/clip%20one.mkv",
+    "announce": [
+      "https://tracker.example/a",
+      "https://tracker.example/a",
+      "https://tracker.example/b"
+    ],
+    "url_list": [
+      "https://seed.example/file",
+      "https://seed.example/file"
+    ],
+    "info_hash": "5e569fc6271ca36489701b1da88b6916200fbdb1",
+    "root_private_ignored": true
+  },
+  "private_vectors": [
+    {"fixture": "info.private absent; root.private=1", "presence": "absent", "isPrivate": false},
+    {"fixture": "info.private=0", "presence": "present", "value": false, "isPrivate": false},
+    {"fixture": "info.private=1", "presence": "present", "value": true, "isPrivate": true}
+  ],
+  "invalid_vectors": [
+    "missing info rejected",
+    "missing name rejected",
+    "malformed numeric file length rejected"
+  ]
+}

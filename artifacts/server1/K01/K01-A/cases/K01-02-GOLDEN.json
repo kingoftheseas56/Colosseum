@@ -1,0 +1,22 @@
+{
+  "case_id": "K01-02",
+  "oracle": {
+    "module": "M814",
+    "lines": "72439-72764",
+    "rule": "real piece length > 524288 and divisible by 524288 selects 524288 virtual pieces"
+  },
+  "vectors": [
+    {"real_piece_length": 1048576, "virtualized": true, "virtual_piece_length": 524288, "verification_count": 4, "virtual_count": 8},
+    {"real_piece_length": 4194304, "virtualized": true, "virtual_piece_length": 524288, "verification_count": 2, "virtual_count": 10},
+    {"real_piece_length": 786432, "virtualized": false, "virtual_piece_length": 786432, "verification_count": 2, "virtual_count": 2}
+  ],
+  "coordinate_domains": [
+    "VerificationPieceCoordinate",
+    "VirtualPieceCoordinate",
+    "WireBlockCoordinate"
+  ],
+  "expected": [
+    "verification-to-virtual mapping preserves the real verification index and intra-verification offset",
+    "wire blocks remain separately indexed within virtual pieces"
+  ]
+}

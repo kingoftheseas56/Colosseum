@@ -1,0 +1,16 @@
+{
+  "worker_id": "K01-A",
+  "parent_packet": "K01",
+  "case_ids": ["K01-01", "K01-02", "K01-03"],
+  "phase": "RED",
+  "branch": "codex/server1-k01-a",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "test_source": "native/colosseum_server_v1/tests/test_metadata_geometry.cpp",
+  "command_file": "artifacts/server1/K01/K01-A/red/RED-TEST-COMMAND.txt",
+  "raw_output_file": "artifacts/server1/K01/K01-A/red/RED-TEST-OUTPUT.txt",
+  "exit_code": 2,
+  "classification": "RED_EXPECTED_MISSING_IMPLEMENTATION",
+  "failure": "The first owned test compile cannot find the not-yet-created TorrentMetadata.h production header.",
+  "production_files_present_at_red": false,
+  "scope": "Only the owned test source and packet-local source trace/evidence were authored before this RED run."
+}

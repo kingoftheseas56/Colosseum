@@ -1,0 +1,7 @@
+working_directory: C:\b\Colosseum-Server-1.0-workers\K01-A
+compile_command:
+$root='C:\b\Colosseum-Server-1.0-workers\K01-A'; $temp='C:\Users\Suprabha\AppData\Local\Temp\server1-k01-a'; $cmd='call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cd /d "'+$temp+'" && cl.exe /nologo /std:c++17 /EHsc /I "'+$root+'\native\colosseum_server_v1\include" "'+$root+'\native\colosseum_server_v1\src\policy\Value.cpp" "'+$root+'\native\colosseum_server_v1\src\policy\JsConversions.cpp" "'+$root+'\native\colosseum_server_v1\src\policy\TorrentMetadata.cpp" "'+$root+'\native\colosseum_server_v1\src\policy\VirtualPieceMap.cpp" "'+$root+'\native\colosseum_server_v1\tests\test_metadata_geometry.cpp" /Fe:server1_k01_metadata_geometry.exe'; & cmd.exe /d /s /c $cmd
+case_command:
+$exe='C:\Users\Suprabha\AppData\Local\Temp\server1-k01-a\server1_k01_metadata_geometry.exe'; & $exe K01-01; $e1=$LASTEXITCODE; & $exe K01-02; $e2=$LASTEXITCODE; & $exe K01-03; $e3=$LASTEXITCODE; & $exe; $ea=$LASTEXITCODE; Write-Output ("EXIT_K01_01="+$e1); Write-Output ("EXIT_K01_02="+$e2); Write-Output ("EXIT_K01_03="+$e3); Write-Output ("EXIT_ALL="+$ea)
+exit_code: 0
+raw_output: artifacts/server1/K01/K01-A/green/GREEN-TEST-OUTPUT.txt

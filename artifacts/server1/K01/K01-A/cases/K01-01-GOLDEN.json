@@ -1,0 +1,38 @@
+{
+  "case_id": "K01-01",
+  "oracle": [
+    {"module": "M303", "lines": "27748-27805"},
+    {"module": "M814", "lines": "72439-72764"}
+  ],
+  "vectors": {
+    "single_file": {
+      "length": 700000,
+      "real_piece_length": 262144,
+      "last_verification_piece_length": 175712,
+      "file_path": "single",
+      "file_offset": 0
+    },
+    "multi_file": {
+      "files": [
+        {"path": "album/empty.txt", "length": 0, "offset": 0},
+        {"path": "album/disc/track.mkv", "length": 600000, "offset": 0},
+        {"path": "album/日本.mkv", "length": 900000, "offset": 600000}
+      ],
+      "total_length": 1500000,
+      "real_piece_length": 1048576,
+      "virtual_piece_length": 524288,
+      "virtual_pieces": [
+        {"index": 0, "verification_index": 0, "offset": 0, "verification_offset": 0, "length": 524288},
+        {"index": 1, "verification_index": 0, "offset": 524288, "verification_offset": 524288, "length": 524288},
+        {"index": 2, "verification_index": 1, "offset": 1048576, "verification_offset": 0, "length": 451424}
+      ],
+      "last_wire_block_length": 9056
+    }
+  },
+  "expected": [
+    "UTF-8 path alternate wins",
+    "zero-length file remains ordered at offset zero",
+    "offsets are cumulative in source file order",
+    "final verification, virtual, and wire lengths remain short"
+  ]
+}

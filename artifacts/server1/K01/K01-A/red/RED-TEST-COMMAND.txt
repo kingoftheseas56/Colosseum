@@ -1,0 +1,2 @@
+cmd.exe /d /s /c call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cl.exe /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include native\colosseum_server_v1\tests\test_metadata_geometry.cpp /Fe:artifacts\server1\K01\K01-A\red\red.exe
+exit_code=2

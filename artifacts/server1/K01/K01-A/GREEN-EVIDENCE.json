@@ -1,0 +1,49 @@
+{
+  "worker_id": "K01-A",
+  "packet": "K01",
+  "branch": "codex/server1-k01-a",
+  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "authored": true,
+  "compiled": {
+    "compiler": "MSVC 19.44 /std:c++17",
+    "exit_code": 0,
+    "command_file": "artifacts/server1/K01/K01-A/green/GREEN-TEST-COMMAND.txt"
+  },
+  "tested": {
+    "harness": "server1_k01_metadata_geometry",
+    "exit_codes": {
+      "K01-01": 0,
+      "K01-02": 0,
+      "K01-03": 0,
+      "all": 0
+    },
+    "raw_output_file": "artifacts/server1/K01/K01-A/green/GREEN-TEST-OUTPUT.txt"
+  },
+  "generated_geometry_corpus": {
+    "total_length_vectors": 17,
+    "real_piece_length_vectors": 7,
+    "cartesian_vectors": 119,
+    "properties": [
+      "verification pieces cover total length exactly",
+      "virtual-to-verification offsets round-trip",
+      "virtual pieces cover total length exactly",
+      "wire blocks stay within and cover each virtual piece exactly"
+    ]
+  },
+  "differential": {
+    "status": "qualified",
+    "source_lines": 68,
+    "candidate_lines": 68,
+    "differences": 0,
+    "evidence": "artifacts/server1/K01/K01-A/DIFFERENTIAL-EVIDENCE.json"
+  },
+  "runtime": {
+    "full_server_runtime": "not claimed; shared aggregate wiring belongs to B-W2B",
+    "lanista": "not applicable to this bounded native metadata packet"
+  },
+  "cases": {
+    "K01-01": "GREEN and differential-qualified",
+    "K01-02": "GREEN and differential-qualified",
+    "K01-03": "GREEN and differential-qualified; M303 27769 info.private absent/0/1 vectors pass"
+  }
+}
