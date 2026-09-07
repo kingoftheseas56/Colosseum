@@ -1,0 +1,322 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W2",
+  "barrier": "B-W2B",
+  "branch": "codex/server1-int-w2b-luna",
+  "integration_base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "integration_parent_after_replay": "77e3b4d88418507016649b736326cf2c7517b3b6",
+  "integration_sha": "f351b482a50a575d33b6ccab4add364b20bbf02d",
+  "predecessor_barrier": "B-W2A",
+  "predecessor_integrated_sha": "bd39020125eed2180ba59043f1e1088be11ad73a",
+  "accepted_inputs": {
+    "K01-A": {
+      "source_range": "e5660e27a320845ab993201918443e609e1a34d5..7b1558fcfe065002a7e0545623a84451d3ddfa8c",
+      "source_commits": [
+        "778a3ddc0e5a6c1a1f1f3626cb19b8cb9379102c",
+        "939c25e39227440960e74bd1d19158c132a1deff",
+        "2d9d94dad3101dbacba0b4757e59b7ef7e1d5688",
+        "1c7448286e06c4c760f274dbd0cc59afb83660c7",
+        "7b1558fcfe065002a7e0545623a84451d3ddfa8c"
+      ],
+      "local_replayed_commits": [
+        "dbe5330b9fab6bf94be594474b3689b56a46e3e9",
+        "1165457027cc06e804d07c27373467d71474841e",
+        "125f8f13f32aa685c5829f00033a5e44002238d6",
+        "7afcfd8ef69b30fd5e755b5507bbaf4d0956bd84",
+        "f609c5452bbb77e1cb2d3e990a5c9f7cb65b57ba"
+      ],
+      "replay": "git rev-list --reverse e5660e27a320845ab993201918443e609e1a34d5..7b1558fcfe065002a7e0545623a84451d3ddfa8c | git cherry-pick --stdin"
+    },
+    "K13-A": {
+      "source_range": "e5660e27a320845ab993201918443e609e1a34d5..9f68c56dcfe9f60be9accd9bb78bebbbb6330358",
+      "source_commits": [
+        "659341e6545accced51e4a8c9d1adb33ddac8827",
+        "9f68c56dcfe9f60be9accd9bb78bebbbb6330358"
+      ],
+      "local_replayed_commits": [
+        "7660d985a7543523b3427e7bfdc5f3e283221e3f",
+        "cff57d6a86d779bc6631c88b5837262c5e27009e"
+      ],
+      "replay": "git rev-list --reverse e5660e27a320845ab993201918443e609e1a34d5..9f68c56dcfe9f60be9accd9bb78bebbbb6330358 | git cherry-pick --stdin"
+    },
+    "K13-B": {
+      "source_range": "9f68c56dcfe9f60be9accd9bb78bebbbb6330358..f74e56ee704fd5a3bf71dc07f3d59e0e6824415e",
+      "source_commits": [
+        "f7a626ff9660a0684be03a5736e329709dfb9029",
+        "dc6670ace5f18ebce5d89f10a59b5158a064106f",
+        "b752390ff8e6882f4411dd484bfbbf69c274503b",
+        "f74e56ee704fd5a3bf71dc07f3d59e0e6824415e"
+      ],
+      "local_replayed_commits": [
+        "8e81d02249c56df7af46629e2da5619404e030c9",
+        "5f125d9da50e14e255d64f2f4745e4c035b41e49",
+        "af4e428f0bfb039aee3def495074d34eda0336a5",
+        "08026abbfdb7275a866004cc30f4e55cbaee5cc6"
+      ],
+      "replay": "git rev-list --reverse 9f68c56dcfe9f60be9accd9bb78bebbbb6330358..f74e56ee704fd5a3bf71dc07f3d59e0e6824415e | git cherry-pick --stdin"
+    },
+    "H00-A": {
+      "source_range": "e5660e27a320845ab993201918443e609e1a34d5..60a52740844436289fa33924da258494b5966ff0",
+      "source_commits": [
+        "409eade0c60bce3fef3b54819dc60a84fca98b13",
+        "c5ce5d119d150f56cd5d88ac42925442ac743839",
+        "f42a394f26c80ab73b4525e7db2f9301455b05a4",
+        "03868c0d9671d057cb0fa7ac6a5a1b6cce8fb2b1",
+        "60a52740844436289fa33924da258494b5966ff0"
+      ],
+      "local_replayed_commits": [
+        "a191a6319c533d52d9f2b72b7a47848c93dbdc2d",
+        "21aacc3cfee8109b7a26dcdbbe862d83163eb3e2",
+        "06ba13d0d9f214b02b02c5e7827e4bc39c2221e0",
+        "4774aed452eb88f6d72561db07c70cd952718990",
+        "20e525b1baaf23ead2915e602fde35d1cf7b1a63"
+      ],
+      "replay": "git rev-list --reverse e5660e27a320845ab993201918443e609e1a34d5..60a52740844436289fa33924da258494b5966ff0 | git cherry-pick --stdin"
+    },
+    "M00-A": {
+      "source_range": "e5660e27a320845ab993201918443e609e1a34d5..7f46291c6e4b7bb4fb37e9c408648e7071ef1882",
+      "source_commits": [
+        "35b8eb041cdcb9afcc4f8e6b8c58338982875eda",
+        "a97bd1aa64f573b0730118a2abe253ebcf596483",
+        "7f46291c6e4b7bb4fb37e9c408648e7071ef1882"
+      ],
+      "local_replayed_commits": [
+        "5530b856f83eebfd5bf4a693dadbe3346ef2f86c",
+        "abd3524470357d472cd3255fb63fd85849008b11",
+        "79a466c42e8b34b867b84e85bf3feaaca5151038"
+      ],
+      "replay": "git rev-list --reverse e5660e27a320845ab993201918443e609e1a34d5..7f46291c6e4b7bb4fb37e9c408648e7071ef1882 | git cherry-pick --stdin"
+    }
+  },
+  "repair": {
+    "source_commit": "cd19265b92e3020c33d7741c7f0016d829778a1c",
+    "local_replayed_commit": "77e3b4d88418507016649b736326cf2c7517b3b6",
+    "path": "artifacts/server1/M00/M00-A/WIRING-REQUEST.json",
+    "result": "JSON-valid metadata-only correction; ServerComposition.cpp is assigned to C00-C at B-W8, not INT-W2.",
+    "protected_m00_paths_unchanged": [
+      "native/colosseum_server_v1/include/server1/ports/ProcessPort.h",
+      "native/colosseum_server_v1/src/media/ExecutableLocator.cpp",
+      "native/colosseum_server_v1/src/media/ProcessDriver.cpp",
+      "native/colosseum_server_v1/tests/test_process_driver.cpp",
+      "native/colosseum_server_v1/cmake/packets/M00.cmake",
+      "native/colosseum_server_v1/tests/cmake/M00.cmake"
+    ]
+  },
+  "oracle": {
+    "path": "../oracle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "source_ranges": {
+      "K01": [
+        {"module": "M303", "lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
+        {"module": "M814", "lines": "72439-72764", "sha256": "05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e"},
+        {"module": "M815", "lines": "72764-72784", "sha256": "1712371c69dd5878a58aa46eb7d8f712ad3803f4cc365039350ec074d0ff8583"},
+        {"module": "M842", "lines": "74455-74473", "sha256": "5c8e4cf281005ff8de0dc50d8c76680e46b4053956ff6426d72f96543ffb62b5"}
+      ],
+      "K13": [
+        {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
+        {"module": "M194", "lines": "19675-19682", "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"},
+        {"module": "M400", "lines": "34767-34775", "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"},
+        {"module": "M414", "lines": "35959-36170", "sha256": "16b1c32e135ce079b4d718a627c0a6405f34bb0878a6804f1dbecd51a5b5770d"},
+        {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"}
+      ],
+      "H00": [
+        {"module": "M50", "lines": "8724-8779", "sha256": "f85a2efc4731f25db25dd240f1501ce26b673533b3643c41c1dde8bf44874a68"},
+        {"module": "M100", "lines": "11691-11866", "sha256": "f8b0b1ae8bd44fb66d27bb0572420c8e60f3454e849346404c5bf27df4cd7806"},
+        {"module": "M109", "lines": "12895-13072", "sha256": "61e8f4d896bd5b5900aa29455d9047da05cd2068978bb1553d47f51400970cb5"},
+        {"module": "M172", "lines": "18110-18500", "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"},
+        {"module": "M176", "lines": "18515-18561", "sha256": "a3ed64605676439d83e057a19518c0575a68b13b517257cd627b060c092ac4a6"},
+        {"module": "M178", "lines": "18569-18607", "sha256": "6a0403b7f11786f02ce89f6d1735bc0838805b4a87d3b925a27ec5ec57b9c4fc"},
+        {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"},
+        {"module": "M586", "lines": "48443-48511", "sha256": "367f6963cd5b262b7301e8de4ea3e6c43c4965e0c981d278173a616a4ea7c76b"}
+      ],
+      "M00": [
+        {"module": "M433", "lines": "37687-37693", "sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602"},
+        {"module": "M434", "lines": "37693-37756", "sha256": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd"},
+        {"module": "M436", "lines": "37824-37826", "sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0"},
+        {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"},
+        {"module": "M667", "lines": "62092-62112", "sha256": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6"},
+        {"module": "M855", "lines": "75051-75119", "sha256": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79"},
+        {"module": "M861", "lines": "76486-76522", "sha256": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3"}
+      ]
+    }
+  },
+  "wiring": {
+    "aggregate_server1_cmake": [
+      "include cmake/packets/K01.cmake; call server1_register_k01_packet()",
+      "include cmake/packets/K13.cmake; call server1_register_k13_packet()",
+      "include cmake/packets/H00.cmake; call server1_register_h00_packet()",
+      "include cmake/packets/M00.cmake; call server1_register_m00_packet()"
+    ],
+    "aggregate_test_cmake": [
+      "include cmake/K01.cmake; call server1_register_k01_tests()",
+      "include cmake/K13.cmake; call server1_register_k13_tests()",
+      "include cmake/H00.cmake; call server1_register_h00_tests()",
+      "include cmake/M00.cmake; call server1_register_m00_tests()"
+    ],
+    "retained_public_headers": [
+      "native/colosseum_server_v1/include/server1/policy/TorrentMetadata.h",
+      "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+      "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "native/colosseum_server_v1/include/server1/platform/DiskSpace.h",
+      "native/colosseum_server_v1/include/server1/http/HttpContract.h",
+      "native/colosseum_server_v1/include/server1/ports/ProcessPort.h"
+    ],
+    "deferred_request": "M00 ProcessDriver composition remains C00-C-owned at B-W8; no ServerComposition.cpp edit executed."
+  },
+  "verification": {
+    "environment": {
+      "generator": "Ninja 1.12.1",
+      "cmake": "3.30.5",
+      "compiler": "MSVC 19.44.35227.0 x64",
+      "language_standard": "C++17",
+      "runtime_library": "MultiThreadedDLL",
+      "qt": "6.11.1 msvc2022_64",
+      "dependency_lock": "docs/server1/DEPENDENCY-LOCK.json",
+      "dependency_lock_sha256": "3b282d0d5de8d98bdf8c1498145b9f932c6448a5c0a432943496c0ea7e17be42",
+      "libtorrent": "2.0.11.0"
+    },
+    "build_dir": "builds/INT-W2-luna-20260908",
+    "configure": {
+      "command": "cmd.exe /d /s /c call VsDevCmd.bat -arch=x64 -host_arch=x64 && cmake.exe -S native/colosseum_server_v1 -B builds/INT-W2-luna-20260908 -G Ninja -DCMAKE_MAKE_PROGRAM=Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+      "exit": 0,
+      "result": "Configuring done; Generating done."
+    },
+    "build": {
+      "command": "cmd.exe /d /s /c call VsDevCmd.bat -arch=x64 -host_arch=x64 && cmake.exe --build builds/INT-W2-luna-20260908 --clean-first --parallel 2",
+      "exit": 0,
+      "result": "Ninja completed 29/29 build steps and linked all aggregate targets."
+    },
+    "ctest_inventory": {
+      "command": "ctest.exe --test-dir builds/INT-W2-luna-20260908 -N",
+      "exit": 0,
+      "total": 16,
+      "tests": [
+        "P03-02-server1-host",
+        "K00-01-js-semantics",
+        "K00-02-js-semantics",
+        "K00-03-js-semantics",
+        "K01-01-metadata-geometry",
+        "K01-02-metadata-geometry",
+        "K01-03-metadata-geometry",
+        "K13-01-settings-cache-defaults",
+        "K13-02-cache-policy",
+        "K13-03-cache-convergence",
+        "H00-01-http-contract",
+        "H00-02-http-contract",
+        "H00-03-http-contract",
+        "M00-01-process-discovery",
+        "M00-02-process-lifecycle",
+        "M00-03-remote-driver"
+      ]
+    },
+    "ctest_stability": {
+      "command": "ctest.exe --test-dir builds/INT-W2-luna-20260908 -j1 --output-on-failure --repeat until-fail:3",
+      "exit": 0,
+      "repetitions": 3,
+      "passed_per_repetition": 16,
+      "failed_per_repetition": 0,
+      "result": "100% tests passed, 0 tests failed out of 16."
+    },
+    "combined_header_link_smoke": {
+      "source": "builds/INT-W2-luna-20260908/header-smoke/combined_headers.cpp",
+      "headers": [
+        "server1/policy/Value.h",
+        "server1/policy/TorrentMetadata.h",
+        "server1/settings/SettingsStore.h",
+        "server1/settings/CachePolicy.h",
+        "server1/platform/DiskSpace.h",
+        "server1/http/HttpContract.h",
+        "server1/ports/ProcessPort.h"
+      ],
+      "linked_libraries": [
+        "server1_k00_policy",
+        "server1_k01_metadata",
+        "server1_k13_settings_cache",
+        "server1_h00_http",
+        "server1_m00_process"
+      ],
+      "configure_exit": 0,
+      "build_exit": 0,
+      "run_command": "builds/INT-W2-luna-20260908/header-smoke/build/server1_combined_header_smoke.exe",
+      "run_exit": 0
+    },
+    "differentials": {
+      "K01": {
+        "source_command": "node artifacts/server1/K01/K01-A/comparison/oracle_k01_probe.mjs ../oracle/server.js",
+        "candidate_command": "builds/INT-W2-luna-20260908/server1_k01_metadata_geometry.exe --trace",
+        "source_exit": 0,
+        "candidate_exit": 0,
+        "source_lines": 72,
+        "candidate_lines": 72,
+        "differences": 0
+      },
+      "K13": {
+        "source_command": "K13_B_ORACLE_PATH=../oracle/server.js node artifacts/server1/K13/K13-B/scenarios/oracle_k13_b_probe.mjs",
+        "candidate_command": "builds/INT-W2-luna-20260908/p03-tests/server1_k13_settings_cache_test.exe builds/INT-W2-luna-20260908/differentials/K13-trace --trace",
+        "source_exit": 0,
+        "candidate_exit": 0,
+        "source_lines": 9,
+        "candidate_lines": 9,
+        "differences": 0
+      },
+      "H00": {
+        "case_commands": [
+          "builds/INT-W2-luna-20260908/p03-tests/server1_h00_http_contract.exe H00-01",
+          "builds/INT-W2-luna-20260908/p03-tests/server1_h00_http_contract.exe H00-02",
+          "builds/INT-W2-luna-20260908/p03-tests/server1_h00_http_contract.exe H00-03"
+        ],
+        "case_exits": {"H00-01": 0, "H00-02": 0, "H00-03": 0},
+        "raw_wire": "H00-01 byte-for-byte loopback wire comparison passed.",
+        "loopback": "H00-03 real listener, bounded queue, drain, disconnect and streaming case passed."
+      },
+      "M00": {
+        "source_command": "node artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs",
+        "candidate_command": "builds/INT-W2-luna-20260908/server1_m00_process_tests.exe --trace",
+        "source_exit": 0,
+        "candidate_exit": 0,
+        "source_lines": 11,
+        "candidate_lines": 11,
+        "differences": 0
+      }
+    },
+    "shared_surface": {
+      "integration_commit_delta": [
+        "native/colosseum_server_v1/CMakeLists.txt",
+        "native/colosseum_server_v1/tests/CMakeLists.txt"
+      ],
+      "final_evidence_delta": [
+        "artifacts/server1/INT-W2/B-W2B.json",
+        "docs/server1/STATE.json"
+      ],
+      "forbidden_paths_authored_by_int_w2": [],
+      "protected_packet_headers_rewritten": [],
+      "topology_changed": false,
+      "server_composition_request_executed": false
+    }
+  },
+  "cases": {
+    "P03-02-server1-host": "PASS",
+    "K00-01": "PASS",
+    "K00-02": "PASS",
+    "K00-03": "PASS",
+    "K01-01": "PASS and differential-qualified",
+    "K01-02": "PASS and differential-qualified",
+    "K01-03": "PASS and differential-qualified",
+    "K13-01": "PASS and differential-qualified",
+    "K13-02": "PASS and differential-qualified",
+    "K13-03": "PASS and differential-qualified",
+    "H00-01": "PASS raw-wire",
+    "H00-02": "PASS production route ordering",
+    "H00-03": "PASS loopback/backpressure/disconnect",
+    "M00-01": "PASS and differential-qualified",
+    "M00-02": "PASS and differential-qualified",
+    "M00-03": "PASS and differential-qualified"
+  },
+  "unresolved_failures": [
+    "No verification failures.",
+    "B-W2B remains closed pending the named external integration reviewer; no Lanista action is required for this foundation barrier."
+  ],
+  "status": "ready_for_external_review",
+  "push": false,
+  "pushed_head": null
+}
