@@ -3,12 +3,12 @@
 // Static atlas geometry and Index payloads. Story/provider metadata remains in
 // OnePieceEastBlueData.js; these records only bind the fitted plate to native UI.
 var canonMarkers = [
-    { id: "romance", x: 0.88869, y: 0.35208, badge: "../assets/universes/one-piece/east-blue-markers/romance.png", poster: "../assets/universes/one-piece/east-blue-markers/romance.png" },
-    { id: "orange", x: 0.56726, y: 0.31667, badge: "../assets/universes/one-piece/east-blue-markers/orange.png", poster: "../assets/universes/one-piece/east-blue-markers/orange.png" },
-    { id: "syrup", x: 0.41250, y: 0.38646, badge: "../assets/universes/one-piece/east-blue-markers/syrup.png", poster: "../assets/universes/one-piece/east-blue-markers/syrup.png" },
-    { id: "baratie", x: 0.63988, y: 0.62917, badge: "../assets/universes/one-piece/east-blue-markers/baratie.png", poster: "../assets/universes/one-piece/east-blue-markers/baratie.png" },
-    { id: "arlong", x: 0.33095, y: 0.34271, badge: "../assets/universes/one-piece/east-blue-markers/arlong.png", poster: "../assets/universes/one-piece/east-blue-markers/arlong.png" },
-    { id: "loguetown", x: 0.23750, y: 0.69167, badge: "../assets/universes/one-piece/east-blue-markers/loguetown.png", poster: "../assets/universes/one-piece/east-blue-markers/loguetown.png" }
+    { id: "romance", x: 0.88869, y: 0.35208, badge: "../assets/universes/one-piece/east-blue-markers/romance.png", poster: "../assets/universes/one-piece/east-blue/canon/romance-dawn.png" },
+    { id: "orange", x: 0.56726, y: 0.31667, badge: "../assets/universes/one-piece/east-blue-markers/orange.png", poster: "../assets/universes/one-piece/east-blue/canon/orange-town.png" },
+    { id: "syrup", x: 0.41250, y: 0.38646, badge: "../assets/universes/one-piece/east-blue-markers/syrup.png", poster: "../assets/universes/one-piece/east-blue/canon/syrup-village.png" },
+    { id: "baratie", x: 0.63988, y: 0.62917, badge: "../assets/universes/one-piece/east-blue-markers/baratie.png", poster: "../assets/universes/one-piece/east-blue/canon/baratie.png" },
+    { id: "arlong", x: 0.33095, y: 0.34271, badge: "../assets/universes/one-piece/east-blue-markers/arlong.png", poster: "../assets/universes/one-piece/east-blue/canon/arlong-park.png" },
+    { id: "loguetown", x: 0.23750, y: 0.69167, badge: "../assets/universes/one-piece/east-blue-markers/loguetown.png", poster: "../assets/universes/one-piece/east-blue/canon/loguetown.png" }
 ];
 
 var nonCanonEntries = [

@@ -218,6 +218,22 @@ TestCase {
         mouseMove(testWindow.contentItem, p.x, p.y)
     }
 
+    function rectInAtlas(item) {
+        var topLeft = item.mapToItem(atlas, 0, 0)
+        return { x: topLeft.x, y: topLeft.y, width: item.width, height: item.height }
+    }
+
+    function intersects(a, b) {
+        return a.x < b.x + b.width && a.x + a.width > b.x
+                && a.y < b.y + b.height && a.y + a.height > b.y
+    }
+
+    function edgeGap(a, b) {
+        var dx = Math.max(a.x - (b.x + b.width), b.x - (a.x + a.width), 0)
+        var dy = Math.max(a.y - (b.y + b.height), b.y - (a.y + a.height), 0)
+        return Math.sqrt(dx * dx + dy * dy)
+    }
+
     function waitForPlate() {
         var plate = findDescendant(atlas, function(item) { return item.objectName === "eastBlueAtlasPlate" })
         verify(plate !== null, "atlas plate must have a stable objectName")
@@ -240,6 +256,128 @@ TestCase {
         verify(atlas.previewVisible, "marker-to-banner handoff must keep preview open")
         waitForPlate()
         saveRenderEvidence(Qt.resolvedUrl("../output/east-blue-atlas-hover-preview.png"))
+    }
+
+    function test_canon_posters_load_as_distinct_wiki_art() {
+        var ids = ["romance", "orange", "syrup", "baratie", "arlong", "loguetown"]
+        var poster = null
+        for (var i = 0; i < ids.length; ++i) {
+            var marker = atlas.markerForTest(ids[i])
+            verify(marker !== null, ids[i] + " marker exists")
+            verify(marker.modelData.poster !== marker.modelData.badge,
+                   ids[i] + " poster path must differ from its circular badge path")
+            atlas.openPreview(ids[i])
+            wait(40)
+            poster = findDescendant(atlas, function(item) {
+                return item.objectName === "eastBlueArcPreviewPoster"
+            })
+            verify(poster !== null, ids[i] + " preview poster exists")
+            tryVerify(function() { return poster.status === Image.Ready }, 3000)
+            compare(poster.status, Image.Ready)
+            compare(poster.posterFallback, false)
+            verify(String(poster.source).indexOf("east-blue/canon/") >= 0,
+                   ids[i] + " preview uses local canon artwork")
+        }
+        atlas.closePreview()
+    }
+
+    function test_index_is_parchment_in_all_button_states() {
+        var index = findDescendant(atlas, function(item) { return item.objectName === "eastBlueIndexButton" })
+        verify(index !== null)
+        verify(index.background !== null, "Index must expose an explicit background")
+        function parchment(color) {
+            return color.r > 0.55 && color.g > 0.42 && color.b > 0.25
+        }
+        function colorKey(color) {
+            return [color.r, color.g, color.b, color.a].join("/")
+        }
+        var normal = colorKey(index.background.color)
+        verify(parchment(index.background.color), "normal Index background must be parchment")
+
+        moveToCenter(index)
+        wait(20)
+        var hover = colorKey(index.background.color)
+        verify(parchment(index.background.color), "hover Index background must remain parchment")
+
+        index.forceActiveFocus()
+        wait(20)
+        var focus = colorKey(index.background.color)
+        verify(parchment(index.background.color), "focus Index background must remain parchment")
+
+        var center = index.mapToItem(testWindow.contentItem, index.width / 2, index.height / 2)
+        mousePress(testWindow.contentItem, center.x, center.y, Qt.LeftButton)
+        wait(20)
+        var pressed = colorKey(index.background.color)
+        verify(parchment(index.background.color), "pressed Index background must remain parchment")
+        mouseRelease(testWindow.contentItem, center.x, center.y, Qt.LeftButton)
+        verify(normal !== hover && hover !== focus && focus !== pressed,
+               "Index background must provide distinct normal, hover, focus, and pressed feedback")
+    }
+
+    function test_preview_placement_is_near_selected_badge_and_clear_of_controls() {
+        var ids = ["romance", "orange", "syrup", "baratie", "arlong", "loguetown"]
+        var targets = [[1680, 960], [1280, 720], [900, 600]]
+        for (var t = 0; t < targets.length; ++t) {
+            atlas.width = targets[t][0]
+            atlas.height = targets[t][1]
+            for (var i = 0; i < ids.length; ++i) {
+                atlas.openPreview(ids[i])
+                wait(20)
+                var marker = atlas.markerForTest(ids[i])
+                var preview = findDescendant(atlas, function(item) {
+                    return item.objectName === "eastBlueArcPreview"
+                })
+                verify(marker !== null && preview !== null, ids[i] + " placement items exist")
+                var markerRect = rectInAtlas(marker)
+                var previewRect = rectInAtlas(preview)
+                verify(previewRect.x >= -1 && previewRect.y >= -1
+                       && previewRect.x + previewRect.width <= atlas.width + 1
+                       && previewRect.y + previewRect.height <= atlas.height + 1,
+                       ids[i] + " preview stays fully on-screen at " + targets[t][0] + "x" + targets[t][1])
+                verify(!intersects(previewRect, markerRect), ids[i] + " preview does not cover selected badge")
+                verify(edgeGap(previewRect, markerRect) <= 34,
+                       ids[i] + " preview remains beside selected badge")
+
+                var controls = ["eastBlueIndexButton", "eastBlueZoomTools", "eastBlueToParadise"]
+                for (var c = 0; c < controls.length; ++c) {
+                    var control = findDescendant(atlas, function(item) {
+                        return item.objectName === controls[c]
+                    })
+                    verify(control !== null, controls[c] + " control exists")
+                    verify(!intersects(previewRect, rectInAtlas(control)),
+                           ids[i] + " preview clears " + controls[c])
+                }
+                atlas.closePreview()
+            }
+        }
+    }
+
+    function test_marker_to_preview_gap_is_within_hover_grace() {
+        atlas.width = 1280
+        atlas.height = 720
+        var marker = atlas.markerForTest("baratie")
+        verify(marker !== null)
+        atlas.openPreview("baratie")
+        wait(20)
+        moveToCenter(marker)
+        tryVerify(function() { return atlas.previewVisible }, 1000)
+        var preview = findDescendant(atlas, function(item) {
+            return item.objectName === "eastBlueArcPreview"
+        })
+        verify(preview !== null)
+        var markerRect = rectInAtlas(marker)
+        var previewRect = rectInAtlas(preview)
+        var markerCenter = marker.mapToItem(testWindow.contentItem, marker.width / 2, marker.height / 2)
+        var previewCenter = preview.mapToItem(testWindow.contentItem, preview.width / 2, preview.height / 2)
+        mouseMove(testWindow.contentItem,
+                   (markerCenter.x + previewCenter.x) / 2,
+                   (markerCenter.y + previewCenter.y) / 2)
+        wait(80)
+        verify(atlas.previewVisible, "crossing the small marker-to-banner gap stays inside hover grace")
+        mouseMove(testWindow.contentItem, previewCenter.x, previewCenter.y)
+        wait(20)
+        verify(atlas.previewVisible, "banner hover holds preview open after marker leave")
+        compare(edgeGap(rectInAtlas(preview), markerRect) <= 34, true)
     }
 
     function test_mouse_click_badge_is_noop_and_open_arc_emits_once() {
@@ -271,6 +409,7 @@ TestCase {
         moveToCenter(testWindow.contentItem)
         badge.forceActiveFocus()
         tryVerify(function() { return atlas.previewVisible && atlas.selectedArc.id === "syrup" }, 1000)
+        mouseMove(testWindow.contentItem, testWindow.width - 1, testWindow.height - 1)
         outside.forceActiveFocus()
         wait(220)
         verify(!atlas.previewVisible, "focus loss must close preview after grace")
@@ -363,6 +502,15 @@ TestCase {
         verify(saved, "atlas render evidence must save")
     }
 
+    function waitForPreviewPoster() {
+        var poster = findDescendant(atlas, function(item) {
+            return item.objectName === "eastBlueArcPreviewPoster"
+        })
+        verify(poster !== null, "preview poster must exist before capture")
+        tryVerify(function() { return poster.status === Image.Ready }, 5000)
+        compare(poster.status, Image.Ready)
+    }
+
     function test_render_evidence_normal_and_constrained() {
         waitForPlate()
         saveRenderEvidence(Qt.resolvedUrl("../output/east-blue-atlas-base-900x360.png"))
@@ -384,6 +532,28 @@ TestCase {
             waitForPlate()
             saveRenderEvidence(Qt.resolvedUrl("../output/" + targets[i][2]))
         }
+    }
+
+    function test_render_selected_preview_and_index_evidence() {
+        atlas.width = 1680
+        atlas.height = 960
+        waitForPlate()
+        atlas.openPreview("baratie")
+        waitForPreviewPoster()
+        saveRenderEvidence(Qt.resolvedUrl("../output/east-blue-atlas-preview-baratie-1680x960.png"))
+
+        atlas.width = 1280
+        atlas.height = 720
+        atlas.openPreview("romance")
+        waitForPreviewPoster()
+        saveRenderEvidence(Qt.resolvedUrl("../output/east-blue-atlas-preview-romance-1280x720.png"))
+
+        atlas.closePreview()
+        atlas.indexVisible = false
+        saveRenderEvidence(Qt.resolvedUrl("../output/east-blue-atlas-index-closed-1280x720.png"))
+        atlas.indexVisible = true
+        saveRenderEvidence(Qt.resolvedUrl("../output/east-blue-atlas-index-open-1280x720.png"))
+        atlas.indexVisible = false
     }
 
     function test_to_paradise_is_native_fail_closed_signal_seam() {

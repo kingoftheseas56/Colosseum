@@ -16,6 +16,8 @@ FocusScope {
     property bool indexVisible: false
     property bool nonCanonMode: false
     property real shellChromeInset: 172
+    property real previewX: 18
+    property real previewY: 88
     readonly property real shellChromeReservedLeft: root.width - 54 - (22 * 3 + 20 * 2)
     readonly property real shellChromeReservedRight: root.width - 54
     readonly property bool transientOpen: root.previewVisible || root.indexVisible
@@ -54,7 +56,9 @@ FocusScope {
         root.previewVisible = true
         root.previewMarkerHovered = false
         root.previewMarkerFocused = false
+        root.previewPointerInside = false
         closeGrace.stop()
+        root.schedulePreviewGeometry()
     }
 
     function closePreviewSoon() {
@@ -68,6 +72,7 @@ FocusScope {
         root.selectedArc = null
         root.previewMarkerHovered = false
         root.previewMarkerFocused = false
+        root.previewPointerInside = false
     }
 
     function requestEscape() {
@@ -107,9 +112,104 @@ FocusScope {
         }
     }
 
-    // Deterministic inspection seams used by the Qt Test harness; production
-    // interaction still travels through the native controls themselves.
-    function markerForTest(id) {
+    function atlasRect(item) {
+        if (!item) return null
+        var center = item.mapToItem(root, item.width / 2, item.height / 2)
+        return { x: center.x - item.width / 2, y: center.y - item.height / 2,
+            width: item.width, height: item.height }
+    }
+
+    function rectanglesOverlap(a, b) {
+        return a && b && a.x < b.x + b.width && a.x + a.width > b.x
+                && a.y < b.y + b.height && a.y + a.height > b.y
+    }
+
+    function candidateOverlaps(candidate, obstacles) {
+        for (var i = 0; i < obstacles.length; ++i) {
+            if (rectanglesOverlap(candidate, obstacles[i])) return true
+        }
+        return false
+    }
+
+    function updatePreviewGeometry() {
+        if (!root.previewVisible || !root.selectedMarkerId || !preview)
+            return
+        var marker = root.markerForId(root.selectedMarkerId)
+        if (!marker) return
+
+        var markerCenter = marker.mapToItem(root, marker.width / 2, marker.height / 2)
+        var markerRect = {
+            x: markerCenter.x - marker.width / 2,
+            y: markerCenter.y - marker.height / 2,
+            width: marker.width,
+            height: marker.height
+        }
+        if (!markerRect) return
+        var gap = 16
+        var safeLeft = 18
+        var safeTop = 88
+        var safeRight = Math.max(safeLeft, root.width - 18)
+        var safeBottom = Math.max(safeTop, root.height - 18)
+        var controls = [indexButton, zoomTools, paradiseButton]
+        if (indexPanel.visible) controls.push(indexPanel)
+        var obstacles = [markerRect]
+        for (var i = 0; i < controls.length; ++i) {
+            var rect = root.atlasRect(controls[i])
+            if (rect && controls[i].visible) obstacles.push(rect)
+        }
+
+        var candidates = [
+            { x: markerRect.x + (markerRect.width - preview.width) / 2,
+              y: markerRect.y - preview.height - gap },
+            { x: markerRect.x + (markerRect.width - preview.width) / 2,
+              y: markerRect.y + markerRect.height + gap },
+            { x: markerRect.x + markerRect.width + gap,
+              y: markerRect.y + (markerRect.height - preview.height) / 2 },
+            { x: markerRect.x - preview.width - gap,
+              y: markerRect.y + (markerRect.height - preview.height) / 2 }
+        ]
+        var maxX = Math.max(safeLeft, safeRight - preview.width)
+        var maxY = Math.max(safeTop, safeBottom - preview.height)
+        for (var c = 0; c < candidates.length; ++c) {
+            var candidate = {
+                x: candidates[c].x,
+                y: candidates[c].y,
+                width: preview.width,
+                height: preview.height
+            }
+            if (candidate.x >= safeLeft && candidate.y >= safeTop
+                    && candidate.x <= maxX && candidate.y <= maxY
+                    && !root.candidateOverlaps(candidate, obstacles)) {
+                root.previewX = candidate.x
+                root.previewY = candidate.y
+                return
+            }
+        }
+
+        // At a constrained edge, clamp the nearest candidate into the safe
+        // viewport. The normal target sizes above always have a collision-free
+        // candidate; this fallback keeps keyboard/focus previews usable when a
+        // caller intentionally shrinks the atlas below its normal stage.
+        var nearest = candidates[0]
+        var nearestDistance = Number.MAX_VALUE
+        for (var n = 0; n < candidates.length; ++n) {
+            var dx = candidates[n].x - markerRect.x
+            var dy = candidates[n].y - markerRect.y
+            var distance = dx * dx + dy * dy
+            if (distance < nearestDistance) {
+                nearestDistance = distance
+                nearest = candidates[n]
+            }
+        }
+        root.previewX = Math.max(safeLeft, Math.min(maxX, nearest.x))
+        root.previewY = Math.max(safeTop, Math.min(maxY, nearest.y))
+    }
+
+    function schedulePreviewGeometry() {
+        if (root.previewVisible) previewGeometryRefresh.restart()
+    }
+
+    function markerForId(id) {
         var target = String(id).indexOf("eastBlueBadge-") === 0 ? String(id) : "eastBlueBadge-" + id
         for (var i = 0; i < markerRepeater.count; ++i) {
             var marker = markerRepeater.itemAt(i)
@@ -117,6 +217,12 @@ FocusScope {
                 return marker
         }
         return null
+    }
+
+    // Deterministic inspection seam used by the Qt Test harness; production
+    // interaction still travels through the native controls themselves.
+    function markerForTest(id) {
+        return root.markerForId(id)
     }
 
     function nonCanonActionForTest(id) {
@@ -137,13 +243,31 @@ FocusScope {
         interval: 160
         repeat: false
         onTriggered: {
-            if (!bannerHover.hovered && !root.previewMarkerHovered && !root.previewMarkerFocused && !preview.activeFocus)
+            if (!root.previewPointerInside && !root.previewMarkerHovered
+                    && !root.previewMarkerFocused && !preview.activeFocus)
                 root.closePreview()
         }
     }
 
+    Timer {
+        id: previewGeometryRefresh
+        interval: 0
+        repeat: false
+        onTriggered: root.updatePreviewGeometry()
+    }
+
     property bool previewMarkerHovered: false
     property bool previewMarkerFocused: false
+    property bool previewPointerInside: false
+
+    onWidthChanged: root.schedulePreviewGeometry()
+    onHeightChanged: root.schedulePreviewGeometry()
+    onZoomChanged: root.schedulePreviewGeometry()
+    onSelectedMarkerIdChanged: root.schedulePreviewGeometry()
+    onSelectedArcChanged: {
+        if (previewPoster) previewPoster.posterFallback = false
+        root.schedulePreviewGeometry()
+    }
 
     Rectangle { anchors.fill: parent; color: "#101816" }
 
@@ -158,6 +282,8 @@ FocusScope {
         contentWidth: Math.max(mapStage.width, width)
         contentHeight: Math.max(mapStage.height, height)
         interactive: root.zoom > 1.0
+        onContentXChanged: root.schedulePreviewGeometry()
+        onContentYChanged: root.schedulePreviewGeometry()
 
         Item {
             id: mapStage
@@ -320,6 +446,7 @@ FocusScope {
 
     Row {
         id: zoomTools
+        objectName: "eastBlueZoomTools"
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.leftMargin: 34
@@ -328,6 +455,7 @@ FocusScope {
         z: 20
         Button {
             id: zoomOutButton
+            objectName: "eastBlueZoomOut"
             text: "−"; width: 44; height: 44
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
@@ -335,6 +463,7 @@ FocusScope {
         }
         Button {
             id: zoomResetButton
+            objectName: "eastBlueZoomReset"
             text: "100%"; width: 58; height: 44
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
@@ -342,6 +471,7 @@ FocusScope {
         }
         Button {
             id: zoomInButton
+            objectName: "eastBlueZoomIn"
             text: "+"; width: 44; height: 44
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
@@ -363,6 +493,17 @@ FocusScope {
         font.family: atlasBodyFont.name
         activeFocusOnTab: true
         focusPolicy: Qt.StrongFocus
+        hoverEnabled: true
+        background: Rectangle {
+            id: indexBackground
+            objectName: "eastBlueIndexBackground"
+            radius: 3
+            color: indexButton.pressed ? "#d8ba7c"
+                   : indexButton.activeFocus ? "#f6e5bb"
+                   : indexButton.hovered ? "#f0d9a4" : "#ead2a0"
+            border.width: 1
+            border.color: indexButton.activeFocus ? "#5f4322" : "#795a35"
+        }
         contentItem: Row {
             anchors.centerIn: parent
             spacing: 8
@@ -596,20 +737,24 @@ FocusScope {
         id: preview
         visible: root.previewVisible && root.selectedArc !== null
         objectName: "eastBlueArcPreview"
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: 34
-        anchors.bottomMargin: 72
+        x: root.previewX
+        y: root.previewY
         width: Math.min(500, Math.max(360, root.width * 0.38))
-        height: 230
+        height: Math.min(230, Math.max(180, root.height - 48))
         color: "#efe1bd"
         border.color: "#8a6b41"
         border.width: 1
         z: 40
 
+        onVisibleChanged: if (visible) root.schedulePreviewGeometry()
+
         HoverHandler {
             id: bannerHover
-            onHoveredChanged: if (!hovered) root.closePreviewSoon()
+            enabled: root.previewVisible && !root.previewMarkerFocused
+            onHoveredChanged: {
+                root.previewPointerInside = hovered
+                if (!hovered) root.closePreviewSoon()
+            }
         }
         activeFocusOnTab: true
 
@@ -618,13 +763,26 @@ FocusScope {
             anchors.margins: 12
             spacing: 14
             Item {
-                width: 135; height: 204
+                width: Math.min(135, preview.width * 0.34)
+                height: Math.max(130, preview.height - 24)
                 Image {
                     id: previewPoster
                     anchors.fill: parent
-                    source: root.selectedArc ? "../assets/universes/one-piece/east-blue-markers/" + root.selectedArc.id + ".png" : ""
-                    fillMode: Image.PreserveAspectFit
+                    objectName: "eastBlueArcPreviewPoster"
+                    property bool posterFallback: false
+                    source: {
+                        var marker = root.selectedArc ? AtlasData.canonMarker(root.selectedArc.id) : null
+                        return marker ? (posterFallback ? marker.badge : marker.poster) : ""
+                    }
+                    fillMode: Image.PreserveAspectCrop
                     asynchronous: true
+                    smooth: true
+                    mipmap: true
+                    sourceSize: Qt.size(540, 816)
+                    onStatusChanged: {
+                        if (status === Image.Error && !posterFallback)
+                            posterFallback = true
+                    }
                 }
                 Rectangle {
                     anchors.fill: parent

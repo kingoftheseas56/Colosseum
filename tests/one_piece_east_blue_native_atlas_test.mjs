@@ -24,6 +24,12 @@ if (fs.existsSync(dataPath)) {
        'non-canon entry order');
     eq(module.canonMarkers.every(marker => marker.id && marker.badge && marker.poster && marker.x >= 0 && marker.x <= 1 && marker.y >= 0 && marker.y <= 1), true,
        'canon markers have normalized positions and assets');
+    for (const marker of module.canonMarkers) {
+        eq(marker.poster !== marker.badge, true,
+           `${marker.id} canon poster is distinct from its circular badge`);
+        eq(fs.existsSync(marker.poster.replace(/^\.\.\//, '')), true,
+           `${marker.id} canon poster is bundled locally`);
+    }
     eq(module.canonMarkers.map(marker => [marker.x, marker.y]),
        [[0.88869, 0.35208], [0.56726, 0.31667], [0.4125, 0.38646], [0.63988, 0.62917], [0.33095, 0.34271], [0.2375, 0.69167]],
        'canon markers follow approved SVG transforms');
@@ -85,6 +91,21 @@ if (fs.existsSync(atlasPath)) {
         'BACK TO INDEX',
         'paradiseRequested()'
     ]) contains(source, needle, `atlas contains ${needle}`);
+    for (const needle of [
+        'function updatePreviewGeometry()',
+        'marker.mapToItem(root',
+        'previewX',
+        'previewY',
+        'onContentXChanged',
+        'onContentYChanged',
+        'posterFallback',
+        'AtlasData.canonMarker',
+        'Image.PreserveAspectCrop',
+        'background: Rectangle',
+        'indexButton.pressed',
+        'indexButton.hovered',
+        'eastBlueArcPreviewPoster'
+    ]) contains(source, needle, `atlas implements ${needle}`);
     for (const buttonFont of [
         'paradiseButton', 'zoomOutButton', 'zoomResetButton', 'zoomInButton',
         'canonRowButton', 'nonCanonToggleButton', 'nonCanonActionButton',
@@ -119,6 +140,14 @@ if (fs.existsSync(atlasPath)) {
     eq(/y:\s*Math\.min\(0\.8938\s*\*\s*mapStage\.height[\s\S]*?mapViewport\.height\s*-\s*mapStage\.y\s*-\s*height/.test(source), true,
        'TO PARADISE clamps to the visible viewport at short heights');
     eq(source.includes('captureReady'), true, 'capture waits for bundled fonts and plate readiness');
+    const normalizedSource = source.replace(/\r\n/g, '\n');
+    const previewStart = normalizedSource.indexOf('id: preview\n');
+    const previewEnd = normalizedSource.indexOf('\n        Keys.onEscapePressed: root.requestEscape()', previewStart);
+    const previewBlock = normalizedSource.slice(previewStart, previewEnd < 0 ? normalizedSource.length : previewEnd);
+    eq(previewBlock.includes('anchors.left'), false,
+       'preview is not hard-anchored to the bottom-left');
+    eq(previewBlock.includes('anchors.bottom'), false,
+       'preview does not use fixed bottom anchoring');
 }
 
 const atlasAsset = 'assets/universes/one-piece/east-blue/east-blue-atlas.svg';
