@@ -1,0 +1,180 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "P02S",
+  "worker": "P02S-A",
+  "base": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+  "branch": "codex/server1-p02s-a",
+  "worker_series_under_review": [
+    {
+      "sha": "99acf09aeb6e56b392065b04fefd55fe85ed8311",
+      "parent": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+      "subject": "feat(server1): classify reference runtime surface",
+      "role": "initial bounded P02S-A implementation and evidence"
+    },
+    {
+      "sha": "c5938b3233308ddbf26634ec7ce6a2ea4f55cb0b",
+      "parent": "99acf09aeb6e56b392065b04fefd55fe85ed8311",
+      "subject": "repair P02S-A runtime evidence qualification",
+      "role": "bounded runtime and evidence repair; code/runtime behavior passed Sol checks; packet acceptance pending this receipt review"
+    }
+  ],
+  "source_identity": {
+    "oracle": {
+      "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+      "bytes": 6676503,
+      "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+      "modified": false
+    },
+    "entrypoint_module": {
+      "id": "M564",
+      "lines": "46578-46979",
+      "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"
+    },
+    "supporting_modules": [
+      {"id": "M194", "lines": "19675-19682", "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"},
+      {"id": "M195", "lines": "19682-19707", "sha256": "7756e8b85a0ed5bcee2c3770d30dbd8649e943709e2b7b347e9d5977019e0b87"},
+      {"id": "M433", "lines": "37687-37693", "sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602"},
+      {"id": "M436", "lines": "37824-37826", "sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0"}
+    ],
+    "source_trace": "artifacts/server1/P02S/P02S-A/SOURCE-TRACE.json"
+  },
+  "qualified_runtime": {
+    "environment": "P05_QUALIFIED_NODE",
+    "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+    "version": "v22.16.0",
+    "sha256": "c5ff4c736112dd483c750fd4149d30c8a116db1a49b8b3ec88be4b65e6c86c19",
+    "qualification": "P05-02 PASS"
+  },
+  "owned_diff": {
+    "range": "ca0520af8410231bbdfbe4ced973c69904dbd1d5..c5938b3233308ddbf26634ec7ce6a2ea4f55cb0b",
+    "files": [
+      "artifacts/server1/P02S/P02S-A/QUALIFICATION-SUMMARY.json",
+      "artifacts/server1/P02S/P02S-A/SOURCE-TRACE.json",
+      "artifacts/server1/P02S/P02S-A/TDD-GREEN.txt",
+      "artifacts/server1/P02S/P02S-A/TDD-RED.txt",
+      "artifacts/server1/P02S/P02S-A/WIRING-REQUEST.json",
+      "artifacts/server1/P02S/P02S-A/profile-runs.json",
+      "artifacts/server1/P02S/P02S-A/profile-runs.stdout.json",
+      "artifacts/server1/P02S/P02S-A/run_reference_profiles.py",
+      "docs/server1/RUNTIME-SURFACE-MATRIX.json",
+      "tools/server_lab/cases/P02S-A.json",
+      "tools/server_lab/scenarios/reference_profiles.json",
+      "tools/server_lab/tests/test_surface_matrix.py"
+    ],
+    "production_files_changed": 0,
+    "forbidden_shared_files_changed": [],
+    "evidence_followup_files": [
+      "artifacts/server1/P02S/P02S-A/PACKET-RECEIPT.json",
+      "artifacts/server1/P02S/P02S-A/TDD-GREEN.txt",
+      "artifacts/server1/P02S/P02S-A/WIRING-REQUEST.json"
+    ]
+  },
+  "cases": {
+    "P02S-01": {
+      "state": "test-executed-and-desktop-profiles-runtime-observed; iOS/Android-source-only",
+      "evidence": ["tools/server_lab/tests/test_surface_matrix.py", "artifacts/server1/P02S/P02S-A/profile-runs.json"]
+    },
+    "P02S-02": {
+      "state": "source-traced-and-test-executed",
+      "evidence": ["artifacts/server1/P02S/P02S-A/SOURCE-TRACE.json", "docs/server1/RUNTIME-SURFACE-MATRIX.json"]
+    },
+    "P02S-03": {
+      "state": "test-executed-with-deletion-mutation-RED; all-required-surfaces-accounted",
+      "evidence": ["artifacts/server1/P02S/P02S-A/TDD-RED.txt", "tools/server_lab/tests/test_surface_matrix.py"]
+    }
+  },
+  "runtime_profiles": {
+    "desktop-default": {"classification": "RUNTIME_OBSERVED", "result": "PASS", "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"]},
+    "desktop-tv-env": {"classification": "RUNTIME_OBSERVED", "result": "PASS", "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"]},
+    "desktop-unity-env": {"classification": "RUNTIME_OBSERVED", "result": "PASS", "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"]},
+    "desktop-ios-env": {"classification": "SOURCE_TRACED_ONLY", "result": "NOT_RUN", "observed_surfaces": []},
+    "android-default": {"classification": "SOURCE_TRACED_ONLY", "result": "NOT_RUN", "observed_surfaces": []}
+  },
+  "commands": [
+    {
+      "name": "reference-profile-runner",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; python artifacts/server1/P02S/P02S-A/run_reference_profiles.py",
+      "exit": 0,
+      "result": "three desktop profiles runtime-observed; iOS and Android source-traced-only",
+      "raw_evidence": "artifacts/server1/P02S/P02S-A/profile-runs.stdout.json"
+    },
+    {
+      "name": "owned-packet-tests",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; python -m unittest tools.server_lab.tests.test_surface_matrix -v",
+      "exit": 0,
+      "result": "8 tests; 0 failures; 0 errors"
+    },
+    {
+      "name": "aggregate-server-lab",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset; python -m unittest discover -s tools/server_lab/tests -p \"test_*.py\" -v",
+      "exit": 0,
+      "result": "56 tests; 0 failures; 0 errors; 8 expected skips"
+    },
+    {
+      "name": "exact-p04-reference-suite",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v",
+      "exit": 0,
+      "result": "24 tests; 0 failures; 0 errors; 8 expected skips"
+    },
+    {
+      "name": "exact-p04-reference-suite-immediate-repeat",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v",
+      "exit": 1,
+      "result": "24 tests; 2 failures; 1 error; 8 expected skips",
+      "classification": "non-green repeated Windows harness validation; not used as green evidence and not attributed to the P02S-A evidence-only diff",
+      "observed": "missing-evidence classified ERROR instead of INDETERMINATE; interleaved-run listener marker was absent; teardown reported WinError 32 because stderr.txt remained open; no matching process remained after the run"
+    },
+    {
+      "name": "owned-regression-subset",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset; python -m unittest tools.server_lab.tests.test_surface_matrix tools.server_lab.tests.test_runner tools.server_lab.tests.test_comparator -v",
+      "exit": 0,
+      "result": "37 tests; 0 failures; 0 errors"
+    },
+    {
+      "name": "P05-A-qualified-node",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; & $env:P05_QUALIFIED_NODE --test artifacts/server1/P05/P05-A/test_p05_a.mjs",
+      "exit": 0,
+      "result": "5 tests; 5 passed; 0 failed"
+    },
+    {
+      "name": "explicit-oracle-diagnostic",
+      "command": "P05_QUALIFIED_NODE=<qualified-node>; STREMIO_RUNTIME=<qualified-node>; STREMIO_SERVER_JS=<oracle>; python -m unittest tools.server_lab.tests.test_reference_identity -v",
+      "exit": 1,
+      "result": "9 tests; 7 passed; 2 failed; 0 errors",
+      "classification": "companion-dependent environment diagnostic; not green and not a P02S-A code regression",
+      "cause": "exact Windows ffmpeg and ffprobe are missing, so the unmodified oracle exits during its hardware-acceleration probe"
+    }
+  ],
+  "artifacts": [
+    "artifacts/server1/P02S/P02S-A/PACKET-RECEIPT.json",
+    "artifacts/server1/P02S/P02S-A/QUALIFICATION-SUMMARY.json",
+    "artifacts/server1/P02S/P02S-A/SOURCE-TRACE.json",
+    "artifacts/server1/P02S/P02S-A/TDD-RED.txt",
+    "artifacts/server1/P02S/P02S-A/TDD-GREEN.txt",
+    "artifacts/server1/P02S/P02S-A/WIRING-REQUEST.json",
+    "artifacts/server1/P02S/P02S-A/profile-runs.json",
+    "artifacts/server1/P02S/P02S-A/profile-runs.stdout.json",
+    "artifacts/server1/P02S/P02S-A/run_reference_profiles.py",
+    "docs/server1/RUNTIME-SURFACE-MATRIX.json",
+    "tools/server_lab/cases/P02S-A.json",
+    "tools/server_lab/scenarios/reference_profiles.json",
+    "tools/server_lab/tests/test_surface_matrix.py"
+  ],
+  "interfaces": {
+    "consumed": ["QualifiedReferenceRuntime", "LabRunner", "EvidenceSchema", "TraceComparator"],
+    "produced": ["RuntimeSurfaceMatrix"],
+    "change": "none"
+  },
+  "open_limits": [
+    "Windows ffmpeg and ffprobe are missing; transcoder capability is not qualified.",
+    "desktop-ios-env is SOURCE_TRACED_ONLY/NOT_RUN because a genuine apple_bridge binding is unavailable on this Windows host.",
+    "android-default is SOURCE_TRACED_ONLY/NOT_RUN because process.platform cannot be Android on this desktop host.",
+    "The explicit-oracle P04 diagnostic has two companion-dependent Windows failures; it is not recorded as green and does not alter the accepted P02S-A runtime observations."
+  ],
+  "merge_endpoint": {
+    "barrier": "B-W1D",
+    "branch": "feature/colosseum-server-1.0",
+    "condition": "Sol accepts the two-commit worker series and this bounded evidence-only follow-up"
+  },
+  "push_status": "not_pushed_by_instruction"
+}

@@ -1,14 +1,66 @@
-command: python -m unittest tools.server_lab.tests.test_surface_matrix -v
-qualified_node: C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe
+P02S-A verification record
+
+qualified_node: C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe
 qualified_node_version: v22.16.0
+qualified_node_sha256: c5ff4c736112dd483c750fd4149d30c8a116db1a49b8b3ec88be4b65e6c86c19
+oracle: C:\b\Colosseum-Server-1.0-Planning-Pack\oracle\stremio-service-v4.21.1-server-bundle\server.js
+oracle_sha256: 405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f
+
+[reference-profile-runner]
+environment: P05_QUALIFIED_NODE=<qualified_node>
+command: python artifacts/server1/P02S/P02S-A/run_reference_profiles.py
 exit: 0
-result:
-test_case_packet_and_evidence_contract ... ok
-test_matrix_separates_source_accounting_from_runtime_observation ... ok
-test_p02s_01_profiles_change_only_source_composition ... ok
-test_p02s_02_dependency_only_is_not_a_mount ... ok
-test_p02s_03_completeness_rejects_deleted_observed_surface ... ok
-test_profile_contract_does_not_inject_invalid_companion_paths ... ok
-test_profile_receipts_separate_failed_runs_from_observation ... ok
-test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection ... ok
+result: desktop-default, desktop-tv-env, and desktop-unity-env observed the EngineFS listener plus HTTP 200 for /heartbeat, /settings, and /network-info; desktop-ios-env and android-default were NOT_RUN/SOURCE_TRACED_ONLY
+receipts: artifacts/server1/P02S/P02S-A/profile-runs.json; artifacts/server1/P02S/P02S-A/profile-runs.stdout.json
+
+[owned-packet-tests]
+environment: P05_QUALIFIED_NODE=<qualified_node>
+command: python -m unittest tools.server_lab.tests.test_surface_matrix -v
+exit: 0
 summary: 8 tests, 0 failures, 0 errors
+
+[aggregate-server-lab]
+environment: P05_QUALIFIED_NODE=<qualified_node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset
+command: python -m unittest discover -s tools/server_lab/tests -p "test_*.py" -v
+exit: 0
+summary: 56 tests, 0 failures, 0 errors, 8 expected skips
+skip_reason: STREMIO_SERVER_JS was intentionally unset, so four explicit-oracle and four WSL-oracle tests did not execute in this aggregate lane
+
+[exact-p04-reference-suite]
+environment: P05_QUALIFIED_NODE=<qualified_node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset
+command: python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v
+exit: 0
+summary: 24 tests, 0 failures, 0 errors, 8 expected skips
+skip_reason: STREMIO_SERVER_JS was intentionally unset, so companion-dependent explicit-oracle execution remained outside this green regression lane
+
+[exact-p04-reference-suite-immediate-repeat-not-green]
+environment: P05_QUALIFIED_NODE=<qualified_node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset
+command: python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v
+exit: 1
+summary: 24 tests, 2 failures, 1 error, 8 expected skips
+observed: missing-evidence classified ERROR instead of INDETERMINATE; interleaved-run listener marker was absent; teardown reported WinError 32 because stderr.txt remained open
+classification: non-green repeated Windows harness validation; not used as green evidence and not attributed to the P02S-A evidence-only diff
+post_run_process_check: no matching server_lab Python or Node process remained
+
+[owned-regression-subset]
+environment: P05_QUALIFIED_NODE=<qualified_node>; STREMIO_SERVER_JS unset; STREMIO_RUNTIME unset
+command: python -m unittest tools.server_lab.tests.test_surface_matrix tools.server_lab.tests.test_runner tools.server_lab.tests.test_comparator -v
+exit: 0
+summary: 37 tests, 0 failures, 0 errors
+
+[p05-a-qualified-node]
+environment: P05_QUALIFIED_NODE=<qualified_node>
+command: & $env:P05_QUALIFIED_NODE --test artifacts/server1/P05/P05-A/test_p05_a.mjs
+exit: 0
+summary: 5 tests, 5 passed, 0 failed
+
+[explicit-oracle-diagnostic-not-green]
+environment: P05_QUALIFIED_NODE=<qualified_node>; STREMIO_RUNTIME=<qualified_node>; STREMIO_SERVER_JS=<oracle>
+command: python -m unittest tools.server_lab.tests.test_reference_identity -v
+exit: 1
+summary: 9 tests, 7 passed, 2 failed, 0 errors
+passed: source authority test, two non-launch Windows identity/companion tests, and all four WSL qualification tests
+failed: ReferenceIdentityTests.test_reference_reports_port_exhaustion_without_trying_port_11475; ReferenceIdentityTests.test_reference_serves_heartbeat_and_settings_in_disposable_paths
+classification: environment diagnostic failure, not a green result and not a P02S-A code regression
+cause: exact Windows ffmpeg and ffprobe are unavailable; the unmodified oracle exits during its hardware-acceleration probe and the shared P04 adapter reports startup-failed
+claim_boundary: no Windows transcoder capability, iOS runtime capability, or Android runtime capability is claimed

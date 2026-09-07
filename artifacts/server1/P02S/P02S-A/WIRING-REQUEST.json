@@ -4,7 +4,18 @@
   "parent_packet": "P02S",
   "integration_destination": "B-W1D on feature/colosseum-server-1.0",
   "review_gate": "G-SURFACE",
-  "request": "Cherry-pick the P02S-A commit after Sol review at B-W1D. Preserve the matrix as dispatch/fixture qualification input only; do not use profile inactivity to remove source-required routes or services.",
+  "accepted_worker_series": [
+    {
+      "sha": "99acf09aeb6e56b392065b04fefd55fe85ed8311",
+      "subject": "feat(server1): classify reference runtime surface"
+    },
+    {
+      "sha": "c5938b3233308ddbf26634ec7ce6a2ea4f55cb0b",
+      "subject": "repair P02S-A runtime evidence qualification"
+    }
+  ],
+  "series_order": "99acf09aeb6e56b392065b04fefd55fe85ed8311 then c5938b3233308ddbf26634ec7ce6a2ea4f55cb0b, followed by the bounded evidence-only follow-up carrying PACKET-RECEIPT.json and this request",
+  "request": "At B-W1D, integrate the accepted P02S-A two-commit worker series in order, followed by its bounded evidence-only follow-up after Sol evidence review. Preserve the matrix as dispatch/fixture qualification input only; do not use profile inactivity to remove source-required routes or services.",
   "owned_interfaces": ["RuntimeSurfaceMatrix"],
   "shared_file_changes": [],
   "packet_local_artifacts": [
