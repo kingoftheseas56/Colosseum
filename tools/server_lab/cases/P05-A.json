@@ -1,0 +1,22 @@
+{
+  "schema": "colosseum-server1-p05-a-case/v1",
+  "packet": "P05-A",
+  "integration_base": "ce9961ea0666bea2d2c3563117ddcceb516f7a08",
+  "authorities": {
+    "oracle": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "work_items": "C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/44-native-stream-server/plans/server1-v2.1-parallel/PARALLEL-WORK-ITEMS.json",
+    "implementation_plan": "C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/44-native-stream-server/plans/server1-v2.1-parallel/PARALLEL-EXECUTION-PLAN.md",
+    "spec": "C:/b/Colosseum-Server-1.0-Planning-Pack/SPEC.md"
+  },
+  "assigned_modules": [
+    { "id": 564, "line_range": "46578-46979", "authority_slice_sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569", "extracted_sha256": "02c4ccd2ce56543271b541484b376ab7fd11a04fecef0bdd656808fe96fac4cf" },
+    { "id": 730, "line_range": "67869-68057", "authority_slice_sha256": "fa8e623de0a6f3552cf712cca7434c7f24df62c6e9727d318e04b3afa8ba9c90", "extracted_sha256": "337242535632cf933991eb152f2686a8384ab458c4db9b5d3e8d7df50d173146" },
+    { "id": 874, "line_range": "77415-77483", "authority_slice_sha256": "397e6a2bd0140fe23a26df69bf77836acee795f8712cb658ae581c13b3e3021a", "extracted_sha256": "13051e26dfc0998d2abab73f11e015580f009798c262927a5b29246394979df8" }
+  ],
+  "cases": [
+    { "id": "P05-01", "status": "DEFERRED_TO_P05-B", "reason": "TRACE-CONTRACT comparator is explicitly outside P05-A." },
+    { "id": "P05-03", "status": "PASS", "test": "extracts the authenticated oracle without re-minifying assigned modules" }
+  ],
+  "test_command": "node --test artifacts/server1/P05/P05-A/test_p05_a.mjs"
+}
