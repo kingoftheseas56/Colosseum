@@ -6,19 +6,37 @@
   "cases": {
     "P07-01": {
       "status": "PASS",
-      "test": "headers without a valid byte/frame do not win startup",
+      "test": "headers and unvalidated junk without an explicit frame do not win startup",
       "red_exit": 1,
       "green_exit": 0,
+      "green_tests": 8,
       "evidence": "RAW-TEST-OUTPUT.txt"
     }
   },
   "commands": [
-    {"command": "python -m unittest -v artifacts.server1.P07.P07-A.test_p07_a", "exit": 0},
-    {"command": "python -m py_compile tools/server_lab/probes/http_bytes.py tools/server_lab/probes/resources.py", "exit": 0},
-    {"command": "python -c json.loads(P07-A.json)", "exit": 0},
-    {"command": "python -m unittest discover -s tools/server_lab/tests -v", "exit": 1, "note": "45 pass, 8 skip, 3 unrelated predecessor/environment failures"}
+    {"phase": "RED", "command": "python -m unittest -v artifacts.server1.P07.P07-A.test_p07_a", "exit": 1},
+    {"phase": "GREEN", "command": "python -m unittest -v artifacts.server1.P07.P07-A.test_p07_a", "exit": 0, "note": "8 tests"},
+    {"command": "python -m py_compile tools/server_lab/probes/http_bytes.py tools/server_lab/probes/resources.py artifacts/server1/P07/P07-A/test_p07_a.py", "exit": 0},
+    {"command": "python -m json.tool tools/server_lab/cases/P07-A.json", "exit": 0},
+    {"command": "python -m json.tool artifacts/server1/P07/P07-A/CASE-RESULTS.json", "exit": 0},
+    {"command": "python -m json.tool artifacts/server1/P07/P07-A/PACKET-RECEIPT.json", "exit": 0},
+    {"command": "python -m json.tool artifacts/server1/P07/P07-A/WIRING-REQUEST.json", "exit": 0},
+    {"command": "git diff --check", "exit": 0},
+    {"command": "$env:P05_QUALIFIED_NODE='C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe'; python -m unittest discover -s tools/server_lab/tests -v", "exit": 0, "note": "qualified Node v22.16.0; 48 tests; 8 skipped"},
+    {"command": "$env:P05_QUALIFIED_NODE='C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe'; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v", "exit": 0, "note": "exact P04/reference; 24 tests; 8 skipped"}
   ],
   "thresholds_frozen_before_1_0": true,
   "baseline_0_1": "BASELINE_UNAVAILABLE_OPTIONAL",
-  "artifacts": ["RAW-TEST-OUTPUT.txt", "P07-A.json", "PACKET-RECEIPT.json", "WIRING-REQUEST.json"]
+  "artifacts": ["RAW-TEST-OUTPUT.txt", "P07-A.json", "PACKET-RECEIPT.json", "WIRING-REQUEST.json"],
+  "owned_paths": [
+    "artifacts/server1/P07/P07-A/CASE-RESULTS.json",
+    "artifacts/server1/P07/P07-A/PACKET-RECEIPT.json",
+    "artifacts/server1/P07/P07-A/RAW-TEST-OUTPUT.txt",
+    "artifacts/server1/P07/P07-A/WIRING-REQUEST.json",
+    "artifacts/server1/P07/P07-A/test_p07_a.py",
+    "tools/server_lab/cases/P07-A.json",
+    "tools/server_lab/probes/http_bytes.py",
+    "tools/server_lab/probes/resources.py"
+  ],
+  "merge_endpoint": "B-W1D after Sol acceptance; otherwise retire"
 }

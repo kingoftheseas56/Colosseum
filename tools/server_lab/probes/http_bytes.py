@@ -58,13 +58,13 @@ class ByteObservation:
 
 
 def default_frame_validator(body: bytes) -> bool:
-    """Accept any non-empty body byte as a generic first frame.
+    """Require an explicit media-aware validator before claiming a frame.
 
-    Format-specific probes can provide a stricter validator.  Empty bodies,
-    whitespace-only bodies, and HTTP headers are never valid frames.
+    Format-specific probes must provide the frame predicate.  A generic byte
+    observation is intentionally insufficient to establish a media frame.
     """
 
-    return bool(body and body.strip())
+    return False
 
 
 class ByteProbe:
@@ -80,7 +80,7 @@ class ByteProbe:
     ) -> None:
         self.policy = policy or ObservationPolicy()
         self.byte_validator = byte_validator or (lambda body: bool(body and body.strip()))
-        self.frame_validator = frame_validator or default_frame_validator
+        self.frame_validator = frame_validator if frame_validator is not None else default_frame_validator
         self.clock = clock
 
     def observe(
@@ -101,8 +101,7 @@ class ByteProbe:
             for raw_event in events:
                 event = {"data": raw_event} if isinstance(raw_event, bytes) else dict(raw_event)
                 at = float(event.get("at", self.clock() - started))
-                if end_at is not None and at >= end_at and not result.first_valid_frame:
-                    result.timeout = True
+                if end_at is not None and at >= end_at and result.first_valid_frame is None:
                     break
                 kind = str(event.get("kind", "body"))
                 if kind == "cancel":
@@ -112,6 +111,19 @@ class ByteProbe:
                         result.events.append({"at": at, "kind": "cancel", "reason": event.get("reason", "cancelled")})
                         break
                     continue
+                if result.first_valid_frame is None:
+                    if not result.header_observed and at >= self.policy.header_deadline:
+                        result.timeout = True
+                        result.events.append({"at": at, "kind": "timeout", "reason": "header_deadline"})
+                        break
+                    if result.first_valid_byte is None and at >= self.policy.first_byte_deadline:
+                        result.timeout = True
+                        result.events.append({"at": at, "kind": "timeout", "reason": "first_byte_deadline"})
+                        break
+                    if at >= self.policy.first_frame_deadline:
+                        result.timeout = True
+                        result.events.append({"at": at, "kind": "timeout", "reason": "first_frame_deadline"})
+                        break
                 data = event.get("data", b"")
                 if isinstance(data, str):
                     data = data.encode("latin-1")
@@ -138,18 +150,21 @@ class ByteProbe:
                         result.first_valid_frame = at
                         result.valid_bytes = len(body)
                 result.events.append({"at": at, "kind": kind, "bytes": len(data)})
-                if result.first_valid_frame is None:
-                    if not result.header_observed and at >= self.policy.header_deadline:
-                        result.timeout = True
-                        break
-                    if result.first_valid_byte is None and at >= self.policy.first_byte_deadline:
-                        result.timeout = True
-                        break
-                    if at >= self.policy.first_frame_deadline:
-                        result.timeout = True
-                        break
         except Exception as error:  # Preserve probe failures for the receipt.
             result.errors.append(f"{type(error).__name__}: {error}")
+
+        if end_at is not None and result.first_valid_frame is None and not result.cancelled and not result.errors:
+            if not result.header_observed and end_at >= self.policy.header_deadline:
+                end_reason = "header_deadline"
+            elif result.first_valid_byte is None and end_at >= self.policy.first_byte_deadline:
+                end_reason = "first_byte_deadline"
+            elif end_at >= self.policy.first_frame_deadline:
+                end_reason = "first_frame_deadline"
+            else:
+                end_reason = "stream_ended_without_frame"
+            result.events.append({"at": end_at, "kind": "end", "reason": end_reason})
+            if end_reason.endswith("_deadline"):
+                result.timeout = True
 
         if result.errors:
             result.status = "ERROR"

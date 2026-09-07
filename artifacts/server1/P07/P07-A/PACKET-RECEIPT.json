@@ -3,6 +3,7 @@
   "worker_id": "P07-A",
   "parent_packet": "P07",
   "integration_base": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+  "repair_base_commit": "ea69e1e8b74d1647b57aaed4f9c25164bd30d702",
   "source_authority": {
     "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "m172_lines": "18110-18500",
@@ -11,14 +12,31 @@
     "m846_slice_sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"
   },
   "candidate_files": {
-    "tools/server_lab/probes/http_bytes.py": "6425e908c0b6d0fb7a335c5208b2d8e387a1df4b69122906453e466e2aa83a1",
+    "tools/server_lab/probes/http_bytes.py": "df9c9ac51e2280e6f8f8cb3837cbf2c2f0ac954171eabb7aa258d4d5a653a386",
     "tools/server_lab/probes/resources.py": "3cd5a7599100847315cf32c9db81cc12868f2265a492e54620e5d2c50e25a6bb",
-    "tools/server_lab/cases/P07-A.json": "07a1c053c294b915182bfa1469402476889166feb1e5661bead3f2d7610d53c7"
+    "tools/server_lab/cases/P07-A.json": "1924ec0bbd266f065464c36dbe38c3d9a491907aad17850742ff5f6e927a3116",
+    "artifacts/server1/P07/P07-A/test_p07_a.py": "6201fa2c87540bd4a447ea202abca1dc3a08b06448cbaeabcfdd3a3108c5df96"
   },
+  "repair_paths": [
+    "artifacts/server1/P07/P07-A/test_p07_a.py",
+    "tools/server_lab/cases/P07-A.json",
+    "tools/server_lab/probes/http_bytes.py"
+  ],
+  "owned_paths": [
+    "artifacts/server1/P07/P07-A/CASE-RESULTS.json",
+    "artifacts/server1/P07/P07-A/PACKET-RECEIPT.json",
+    "artifacts/server1/P07/P07-A/RAW-TEST-OUTPUT.txt",
+    "artifacts/server1/P07/P07-A/WIRING-REQUEST.json",
+    "artifacts/server1/P07/P07-A/test_p07_a.py",
+    "tools/server_lab/cases/P07-A.json",
+    "tools/server_lab/probes/http_bytes.py",
+    "tools/server_lab/probes/resources.py"
+  ],
   "interfaces_produced": ["ByteProbe", "ResourceProbe"],
   "interface_changes": "new packet-local Python probe interfaces; no shared interface or production wiring changed",
   "case_status": {"P07-01": "PASS"},
-  "evidence_state": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed"],
+  "evidence_state": ["source-traced", "red-regression", "implementation-authored", "green-verified", "compiled", "test-executed", "qualified-predecessor-verified", "exact-p04-reference-verified", "scope-validated"],
   "review_status": "pending Sol acceptance",
+  "merge_endpoint": "B-W1D after Sol acceptance; otherwise retire",
   "push_status": "not pushed"
 }

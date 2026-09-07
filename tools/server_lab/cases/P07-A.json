@@ -13,7 +13,7 @@
   "observation_definitions": {
     "header_observed": "HTTP status line and header terminator are received; this never establishes startup success.",
     "first_valid_byte": "The first byte after the HTTP header terminator that is accepted by the byte-validity predicate.",
-    "first_valid_frame": "The earliest body prefix accepted by the frame-validity predicate; default accepts any non-empty body byte.",
+    "first_valid_frame": "The earliest body prefix accepted by an explicit frame-validity predicate; the conservative default accepts no body as a frame.",
     "startup_success": "true only when first_valid_frame is observed before first_frame_deadline and without timeout, cancellation, or read error.",
     "resource_sample": "A timestamped process/resource snapshot with raw values; deltas are computed only between samples from the same run.",
     "clock": "Monotonic elapsed seconds are authoritative for deadlines; wall-clock timestamps are reporting-only.",
@@ -34,8 +34,8 @@
     "reason": "HTTP headers without a valid byte/frame must not win startup."
   },
   "red_green": {
-    "red": "The test harness imports ByteProbe and ResourceProbe before their implementation exists.",
-    "green": "P07-01 rejects headers-only startup and records definitions, boundaries, cancellation, errors, and resource samples."
+    "red": "Against the permissive default, headers plus non-frame junk incorrectly reports PASS and first_valid_frame; the regression requires FAIL with first_valid_frame unset.",
+    "green": "P07-01 keeps first_valid_byte distinct from first_valid_frame, requires an explicit frame validator, records declared-end boundaries, and preserves cancellation, errors, and resource samples."
   },
   "interfaces_consumed": ["LabRunner", "EvidenceSchema", "QualifiedFixtureCorpus", "QualifiedReferenceRuntime"],
   "interfaces_produced": ["ByteProbe", "ResourceProbe"],
