@@ -118,11 +118,17 @@ if (fs.existsSync(atlasPath)) {
        'native visible labels bind content text to the ready body font');
     eq(source.includes('anchors.rightMargin: root.shellChromeInset'), true, 'Index reserves the shell-control column');
     eq(source.includes('contentItem: Row'), true, 'Index uses a native drawn list icon content item');
+    eq(source.includes('Accessible.name: "INDEX"'), true, 'Index exposes an explicit accessible name');
     eq(/objectName: "eastBlueIndexButton"[\s\S]*?height:\s*4[4-9]/.test(source), true, 'Index hit target is at least 44 px high');
     eq(/objectName: "eastBlueToParadise"[\s\S]*?height:\s*4[4-9]/.test(source), true, 'TO PARADISE hit target is at least 44 px high');
     eq(/Button \{[\s\S]*?text:\s*"−";\s*width:\s*4[4-9];\s*height:\s*4[4-9]/.test(source), true, 'zoom-out hit target is at least 44 px');
     eq(/Button \{[\s\S]*?text:\s*"100%";\s*width:\s*5[0-9];\s*height:\s*4[4-9]/.test(source), true, 'zoom reset hit target is at least 44 px');
     eq(/Button \{[\s\S]*?text:\s*"\+";\s*width:\s*4[4-9];\s*height:\s*4[4-9]/.test(source), true, 'zoom-in hit target is at least 44 px');
+    eq(/id: openArcButton[\s\S]*?height:\s*44/.test(source), true, 'OPEN ARC hit target is at least 44 px high');
+    eq(/id: closePreviewButton[\s\S]*?height:\s*44/.test(source), true, 'CLOSE hit target is at least 44 px high');
+    eq(/id: nonCanonActionButton[\s\S]*?height:\s*44/.test(source), true, 'non-canon action hit target is at least 44 px high');
+    eq(/id: backToIndexRowButton[\s\S]*?height:\s*44/.test(source), true, 'non-canon row back hit target is at least 44 px high');
+    eq(/id: backToIndexButton[\s\S]*?height:\s*44/.test(source), true, 'non-canon panel back hit target is at least 44 px high');
     eq(source.includes('text: "☷  INDEX"'), false, 'Index does not use a Unicode glyph');
     eq(source.includes('context: Qt.WindowShortcut'), false, 'atlas has no parallel Window Escape shortcut');
     eq(source.includes('return true'), true, 'atlas Escape seam reports handled transient');
@@ -181,8 +187,9 @@ if (fs.existsSync(pagePath)) {
     eq(source.includes('root.mediaRequested(entry)'), true, 'universe page forwards media unchanged');
 }
 
-const harnessPath = 'tests/one_piece_east_blue_native_atlas_harness.qml';
-eq(fs.existsSync(harnessPath), true, 'native atlas harness exists');
+const harnessPath = 'tests/qml/tst_one_piece_east_blue_native_atlas.qml';
+eq(fs.existsSync(harnessPath), true,
+   'native atlas harness exists under the repo Quick Test discovery directory');
 if (fs.existsSync(harnessPath)) {
     const source = fs.readFileSync(harnessPath, 'utf8').replace(/\r\n/g, '\n');
     contains(source, 'standaloneRun', 'harness detects direct qml invocation');
@@ -191,6 +198,8 @@ if (fs.existsSync(harnessPath)) {
     contains(source, 'EAST_BLUE_ATLAS_HARNESS_PASS', 'harness writes an externally observable pass marker');
     contains(source, 'EAST_BLUE_ATLAS_HARNESS_FAIL', 'harness writes an externally observable failure marker');
     contains(source, 'captureReady', 'harness waits for native atlas capture readiness');
+    contains(source, 'east-blue-atlas-preview-arlong-900x600.png',
+             'fresh 900x600 evidence keeps a preview open');
     eq(source.includes('result.saveToFile(standaloneFailEvidencePath)'), false,
        'incomplete direct runs never create failure evidence');
     eq(source.includes('standaloneFinished = true\n        standaloneTimeout.stop()\n        atlas.grabToImage'), true,

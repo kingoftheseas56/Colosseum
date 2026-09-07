@@ -494,6 +494,9 @@ FocusScope {
         activeFocusOnTab: true
         focusPolicy: Qt.StrongFocus
         hoverEnabled: true
+        Accessible.role: Accessible.Button
+        Accessible.name: "INDEX"
+        Accessible.description: "Open the East Blue arc index"
         background: Rectangle {
             id: indexBackground
             objectName: "eastBlueIndexBackground"
@@ -665,7 +668,7 @@ FocusScope {
                             Button {
                                 id: nonCanonActionButton
                                 objectName: "eastBlueNonCanonAction-" + nonCanonRow.modelData.id
-                                width: 76; height: 28
+                                width: 76; height: 44
                                 text: nonCanonRow.modelData.entry ? "OPEN" : "UNAVAILABLE"
                                 enabled: !!nonCanonRow.modelData.entry
                                 contentItem: Text {
@@ -691,7 +694,7 @@ FocusScope {
                         objectName: "eastBlueBackToIndexRow"
                         visible: root.nonCanonMode
                         width: indexContent.width
-                        height: 38
+                        height: 44
                         text: "BACK TO INDEX"
                         font.family: atlasBodyFont.name
                         contentItem: Text {
@@ -713,7 +716,7 @@ FocusScope {
                 objectName: "eastBlueBackToIndex"
                 visible: root.nonCanonMode
                 width: parent.width
-                height: 38
+                height: 44
                 z: 2
                 text: "BACK TO INDEX"
                 contentItem: Text {
@@ -805,6 +808,8 @@ FocusScope {
                         id: openArcButton
                         objectName: "eastBlueOpenArc"
                         text: "OPEN ARC"
+                        width: 104
+                        height: 44
                     contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: root.openSelectedArc()
                     }
@@ -812,6 +817,8 @@ FocusScope {
                         id: closePreviewButton
                         objectName: "eastBlueClosePreview"
                         text: "CLOSE"
+                        width: 80
+                        height: 44
                     contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: root.closePreview()
                     }
