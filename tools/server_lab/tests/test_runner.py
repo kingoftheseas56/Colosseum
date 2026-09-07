@@ -335,9 +335,9 @@ class P04RunnerTests(unittest.TestCase):
         receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
         self.assertEqual(receipt["replay"]["exact_command"][:4], [sys.executable, "-m", "tools.server_lab.lab", "--config"])
         self.assertIn(str(fixture), receipt["replay"]["exact_command"])
-        self.assertEqual(receipt["replay"]["required_substitutions"], ["data_root", "evidence_dir", "run_id"])
+        self.assertEqual(receipt["replay"]["required_substitutions"], ["python", "config", "subject", "data_root", "evidence_dir", "run_id"])
         replay_evidence = self.root / "evidence" / "replay-copy"
-        substitutions = {"data_root": str(self.root / "data"), "evidence_dir": str(replay_evidence), "run_id": "replay-copy"}
+        substitutions = {"python": sys.executable, "config": str(config), "subject": str(fixture), "data_root": str(self.root / "data"), "evidence_dir": str(replay_evidence), "run_id": "replay-copy"}
         replay_command = [arg.format(**substitutions) for arg in receipt["replay"]["command_template"]]
         replayed = subprocess.run(replay_command, cwd=ROOT, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(ROOT)})
         self.assertEqual(replayed.returncode, completed.returncode)
@@ -361,6 +361,9 @@ class P04RunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="p04-sample-replay-") as temp:
             temp_root = Path(temp)
             substitutions = {
+                "python": sys.executable,
+                "config": str(packet / "fixtures" / "replay-config.json"),
+                "subject": str(fixture),
                 "data_root": str(temp_root / "data"),
                 "evidence_dir": str(temp_root / "evidence"),
                 "run_id": "fresh-p04-sample",

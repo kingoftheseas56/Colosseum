@@ -106,11 +106,15 @@ class LabRunner:
         if config_path:
             replay_command += ["--config", str(config_path)]
         replay_command += ["--subject", str(subject), "--mode", mode, "--data-root", str(data_root), "--evidence-dir", str(evidence_dir), "--run-id", run_id]
-        replay_template = [sys.executable, "-m", "tools.server_lab.lab"]
+        replay_template = ["{python}", "-m", "tools.server_lab.lab"]
         if config_path:
-            replay_template += ["--config", str(config_path)]
-        replay_template += ["--subject", str(subject), "--mode", mode, "--data-root", "{data_root}", "--evidence-dir", "{evidence_dir}", "--run-id", "{run_id}"]
-        receipt = EvidenceSchema.receipt(result=result, run_id=run_id, engine={"name": "python-subprocess-lab", "version": sys.version.split()[0]}, source={"identity": str(subject), "sha256": _sha256(subject)}, scenario=mode, environment={"platform": sys.platform}, configuration={"timeout_seconds": timeout_seconds, "endpoint": endpoint}, fixture_identifiers={"subject_mode": mode}, request_sequence=[{"operation": "launch", "argv": command}], timestamps={"started": started, "finished": datetime.now(timezone.utc).isoformat()}, raw_lane=raw, normalized_lane=normalized, responses=[response] if response is not None else [], byte_counts=[len(protocol_bytes)], peer_observations=[], resource_observations=[], observations=[{"listener_owned": (run_root / "listener-connected").is_file(), "endpoint": endpoint}], errors=errors, replay={"exact_command": replay_command, "command_template": replay_template, "required_substitutions": ["data_root", "evidence_dir", "run_id"], "configuration": {"mode": mode, "endpoint": endpoint}}, paths={"run_root": str(run_root), "cache": str(cache), "event_file": str(event_file), "endpoint": endpoint, "port": port, "stdout": str(stdout_path), "stderr": str(stderr_path)}, cleanup={"owned_children_after": owned_children_after, "errors": cleanup_errors, "orphan_detected": bool(lease_path.exists())}, startup_cleanup=startup_cleanup)
+            replay_template += ["--config", "{config}"]
+        replay_template += ["--subject", "{subject}", "--mode", mode, "--data-root", "{data_root}", "--evidence-dir", "{evidence_dir}", "--run-id", "{run_id}"]
+        required_substitutions = ["python"]
+        if config_path:
+            required_substitutions.append("config")
+        required_substitutions += ["subject", "data_root", "evidence_dir", "run_id"]
+        receipt = EvidenceSchema.receipt(result=result, run_id=run_id, engine={"name": "python-subprocess-lab", "version": sys.version.split()[0]}, source={"identity": str(subject), "sha256": _sha256(subject)}, scenario=mode, environment={"platform": sys.platform}, configuration={"timeout_seconds": timeout_seconds, "endpoint": endpoint}, fixture_identifiers={"subject_mode": mode}, request_sequence=[{"operation": "launch", "argv": command}], timestamps={"started": started, "finished": datetime.now(timezone.utc).isoformat()}, raw_lane=raw, normalized_lane=normalized, responses=[response] if response is not None else [], byte_counts=[len(protocol_bytes)], peer_observations=[], resource_observations=[], observations=[{"listener_owned": (run_root / "listener-connected").is_file(), "endpoint": endpoint}], errors=errors, replay={"exact_command": replay_command, "command_template": replay_template, "required_substitutions": required_substitutions, "configuration": {"mode": mode, "endpoint": endpoint}}, paths={"run_root": str(run_root), "cache": str(cache), "event_file": str(event_file), "endpoint": endpoint, "port": port, "stdout": str(stdout_path), "stderr": str(stderr_path)}, cleanup={"owned_children_after": owned_children_after, "errors": cleanup_errors, "orphan_detected": bool(lease_path.exists())}, startup_cleanup=startup_cleanup)
         EvidenceSchema.write(evidence_dir / "run.json", receipt)
         return receipt
 
