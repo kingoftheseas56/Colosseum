@@ -1,4 +1,18 @@
 Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P06-B\artifacts\server1\P06\P06-B\self_test.py", line 183, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P06-B\artifacts\server1\P06\P06-B\self_test.py", line 78, in main
+    _assert_record_ledger_is_atomic(TrackerFixturePort())
+  File "C:\b\Colosseum-Server-1.0-workers\P06-B\artifacts\server1\P06\P06-B\self_test.py", line 72, in _assert_record_ledger_is_atomic
+    assert sequences == list(range(32))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+--- preserved original RED raw evidence ---
+COMMAND: python artifacts/server1/P06/P06-B/self_test.py
+EXIT: 1
+Traceback (most recent call last):
   File "C:\b\Colosseum-Server-1.0-workers\P06-B\artifacts\server1\P06\P06-B\self_test.py", line 15, in <module>
     from tools.server_lab.fixtures.http_server import HttpOriginFixturePort
 ModuleNotFoundError: No module named 'tools.server_lab.fixtures'

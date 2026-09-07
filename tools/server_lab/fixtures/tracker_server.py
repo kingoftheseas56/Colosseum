@@ -98,16 +98,22 @@ class TrackerFixturePort:
     def stop(self) -> None:
         if not self._server:
             return
+        server = self._server
+        thread = self._thread
         self._record("shutdown", endpoint=self.endpoint)
-        self._server.shutdown()
-        self._server.server_close()
-        if self._thread:
-            self._thread.join(timeout=3)
+        server.shutdown()
+        server.server_close()
+        if thread:
+            thread.join(timeout=3)
+            if thread.is_alive():
+                self._record("shutdown_timeout", endpoint=self.endpoint)
+                raise RuntimeError("tracker fixture server thread did not terminate")
         self._server = None
         self._thread = None
 
     def cancel(self, generation: int, token: str) -> None:
-        self._cancelled = {"generation": generation, "token": token}
+        with self._lock:
+            self._cancelled = {"generation": generation, "token": token}
         self._record("cancel", generation=generation, token=token)
 
     def _handle(self, request: BaseHTTPRequestHandler) -> None:
@@ -115,9 +121,12 @@ class TrackerFixturePort:
         query = parse_qs(parsed.query, keep_blank_values=True)
         generation = int(query.get("generation", [0])[0] or 0)
         token = query.get("token", [""])[0]
-        self._requests += 1
+        with self._lock:
+            self._requests += 1
+            request_number = self._requests
+            cancelled = dict(self._cancelled) if self._cancelled else None
         self._record("request", method="GET", path=parsed.path, query=parsed.query, generation=generation, token=token)
-        if self._cancelled and (generation, token) == (self._cancelled.get("generation"), self._cancelled.get("token")):
+        if cancelled and (generation, token) == (cancelled.get("generation"), cancelled.get("token")):
             self._respond(request, 499, b"cancelled", {"Content-Type": "text/plain"})
             self._record("request_after_cancellation", generation=generation, token=token)
             return
@@ -125,7 +134,7 @@ class TrackerFixturePort:
             self._record("delay", delay_ms=self.config.delay_ms)
             time.sleep(self.config.delay_ms / 1000)
         peers = [] if self.config.no_peers else list(self.config.peers)
-        if self.config.peer_becomes_fast and self._requests <= self.config.fast_after_requests:
+        if self.config.peer_becomes_fast and request_number <= self.config.fast_after_requests:
             peers = []
         if self.config.duplicate_peers:
             peers = peers + peers
@@ -142,8 +151,8 @@ class TrackerFixturePort:
         self._record("response", status=status, response_bytes=body.hex(), headers=headers)
 
     def _record(self, operation: str, **fields: Any) -> None:
-        event = {"sequence": len(self.events), "operation": operation, **fields}
         with self._lock:
+            event = {"sequence": len(self.events), "operation": operation, **fields}
             self.events.append(event)
             if self.config.event_file:
                 path = Path(self.config.event_file)

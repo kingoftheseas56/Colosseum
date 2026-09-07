@@ -1,0 +1,10 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "packet": "P06-B",
+  "worker_id": "P06-B",
+  "decision": "NO_PRODUCTION_WIRING",
+  "reason": "P06-B is packet-local deterministic tracker and HTTP-origin fixture work. It does not modify production routing, native code, shared state, or cross-engine integration.",
+  "requested_paths": [],
+  "interface_change": false,
+  "next_gate": "Parent P06 acceptance and cross-engine review; both remain NOT_RUN"
+}

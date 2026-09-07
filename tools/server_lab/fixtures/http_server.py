@@ -55,16 +55,22 @@ class HttpOriginFixturePort:
     def stop(self) -> None:
         if not self._server:
             return
+        server = self._server
+        thread = self._thread
         self._record("shutdown", endpoint=self.endpoint)
-        self._server.shutdown()
-        self._server.server_close()
-        if self._thread:
-            self._thread.join(timeout=3)
+        server.shutdown()
+        server.server_close()
+        if thread:
+            thread.join(timeout=3)
+            if thread.is_alive():
+                self._record("shutdown_timeout", endpoint=self.endpoint)
+                raise RuntimeError("HTTP origin fixture server thread did not terminate")
         self._server = None
         self._thread = None
 
     def cancel(self, generation: int, token: str) -> None:
-        self._cancelled = {"generation": generation, "token": token}
+        with self._lock:
+            self._cancelled = {"generation": generation, "token": token}
         self._record("cancel", generation=generation, token=token)
 
     def _handle(self, request: BaseHTTPRequestHandler) -> None:
@@ -72,8 +78,10 @@ class HttpOriginFixturePort:
         query = parse_qs(parsed.query, keep_blank_values=True)
         generation = int(query.get("generation", [0])[0] or 0)
         token = query.get("token", [""])[0]
+        with self._lock:
+            cancelled = dict(self._cancelled) if self._cancelled else None
         self._record("request", method="GET", path=parsed.path, query=parsed.query, generation=generation, token=token)
-        if self._cancelled and (generation, token) == (self._cancelled.get("generation"), self._cancelled.get("token")):
+        if cancelled and (generation, token) == (cancelled.get("generation"), cancelled.get("token")):
             self._respond(request, 499, b"cancelled", {"Content-Type": "text/plain"})
             self._record("request_after_cancellation", generation=generation, token=token)
             return
@@ -107,8 +115,8 @@ class HttpOriginFixturePort:
         self._record("response", status=status, response_bytes=body.hex(), headers=headers)
 
     def _record(self, operation: str, **fields: Any) -> None:
-        event = {"sequence": len(self.events), "operation": operation, **fields}
         with self._lock:
+            event = {"sequence": len(self.events), "operation": operation, **fields}
             self.events.append(event)
             event_file = self.config.get("event_file")
             if event_file:

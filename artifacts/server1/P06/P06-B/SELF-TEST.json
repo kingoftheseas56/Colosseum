@@ -1,6 +1,19 @@
 {
+  "schema": "colosseum-server1-p06-b-self-test/v2",
   "case": "P06-02",
   "status": "PASS",
+  "states": {
+    "authored": "PASS",
+    "tested": "PASS",
+    "executed": "PASS",
+    "integrated": "NOT_RUN"
+  },
+  "checks": {
+    "duplicate_compact_peers": "PASS",
+    "http_delayed_metadata_ms": "PASS",
+    "concurrent_ledger_sequence": "PASS",
+    "clean_shutdown_no_listener": "PASS"
+  },
   "request_order": [
     "ready",
     "request",
@@ -18,13 +31,14 @@
     "token": "p06-red-token"
   },
   "ports": {
-    "tracker": 14973,
-    "http": 14975
+    "tracker": 10358,
+    "http": 10361
   },
   "replay_command": [
     "python",
-    "self_test.py"
+    "artifacts/server1/P06/P06-B/self_test.py"
   ],
+  "replay_cwd": "repository root",
   "configuration": {
     "tracker": {
       "peers": [

@@ -12,6 +12,18 @@
     "block_failure", "http_failure", "connection_reset", "request_after_cancellation"
   ],
   "self_test": "artifacts/server1/P06/P06-B/self_test.py",
+  "replay": {
+    "cwd": "repository root",
+    "command": "python artifacts/server1/P06/P06-B/self_test.py",
+    "expected_exit": 0,
+    "configuration": "fixture configurations are constructed in self_test.py and recorded in SELF-TEST.json"
+  },
+  "states": {
+    "authored": "PASS",
+    "tested": "PASS",
+    "executed": "PASS",
+    "integrated": "NOT_RUN"
+  },
   "parent_acceptance": "NOT_RUN",
   "cross_engine_consumption": "NOT_RUN"
 }
