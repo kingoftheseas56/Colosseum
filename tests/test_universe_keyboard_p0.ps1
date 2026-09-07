@@ -76,6 +76,16 @@ Need 'qml\LocgPublisherPage.qml' 'KeyNavigation.left' 'small stable sort row nee
 Need 'qml\LocgPublisherPage.qml' 'orientation: "grid"' 'publisher poster wall needs true grid movement.'
 Need 'qml\LocgPublisherPage.qml' 'grid.currentIndex = tile.index' 'pointer selection must synchronize the keyboard current item.'
 
+# One Piece was rewritten after Arc 41. Keep its bespoke atlas/catalogue pages inside the same
+# keyboard law: deterministic page focus plus semantic minimize/fullscreen/close chrome.
+foreach ($rel in @(
+    'qml\OnePieceUniversePage.qml','qml\OnePieceArcPage.qml'
+)) {
+    NeedCount $rel 'UniverseChromeAction {' 3 'One Piece system chrome must be keyboard reachable.'
+    Need $rel 'focus: true' 'One Piece page entry must establish a keyboard origin.'
+    Need $rel 'activeFocusOnTab: true' 'One Piece page origin must participate in Tab traversal.'
+}
+
 # Every page-level system row is now implemented through the semantic chrome wrapper, and
 # every page claims entry focus so Esc/PageUp/PageDown work before the first Tab.
 foreach ($rel in @(

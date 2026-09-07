@@ -2,9 +2,9 @@
 
 This report is generated from the current production QML tree. Pointer handlers are candidates; ownership is resolved by a nearby keyboard owner or an explicit residual rationale.
 
-- QML files scanned: 278
-- Candidate rows: 770
-- Classifications: COVERED=549, DELEGATED=128, EXCEPTION=93
+- QML files scanned: 283
+- Candidate rows: 783
+- Classifications: COVERED=563, DELEGATED=126, EXCEPTION=94
 - Explicit residual rows: 65
 
 ## Residual classifications
