@@ -1,9 +1,11 @@
-Preset CMake variables:
+command:
+cmd.exe /d /c "call \"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat\" >nul && \"C:\Qt\Tools\CMake_64\bin\cmake.exe\" -S \"C:\b\Colosseum-Server-1.0\native\colosseum_server_v1\" -B \"C:\b\Colosseum-Server-1.0\artifacts\server1\P03\repair-build-20260907\" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
+exit=0
+raw output (literal):
 
   CMAKE_BUILD_TYPE="Release"
   CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreadedDLL"
 
 -- Configuring done (1.1s)
 -- Generating done (0.3s)
--- Build files have been written to: C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build
-exit=0
+-- Build files have been written to: C:/b/Colosseum-Server-1.0/artifacts/server1/P03/repair-build-20260907

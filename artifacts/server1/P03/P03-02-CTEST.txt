@@ -1,9 +1,14 @@
-Internal ctest changing into directory: C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build
-Test project C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build
+command (post-fix regression; PATH contains no Qt directory):
+$savedPath=$env:PATH; $env:PATH='C:\Windows\System32;C:\Windows'; & 'C:\Qt\Tools\CMake_64\bin\ctest.exe' --test-dir 'C:\b\Colosseum-Server-1.0\artifacts\server1\P03\repair-build-20260907' --output-on-failure; $ctestExit=$LASTEXITCODE; $env:PATH=$savedPath
+exit=0
+raw output:
+Internal ctest changing into directory: C:/b/Colosseum-Server-1.0/artifacts/server1/P03/repair-build-20260907
+Test project C:/b/Colosseum-Server-1.0/artifacts/server1/P03/repair-build-20260907
     Start 1: P03-02-server1-host
 1/1 Test #1: P03-02-server1-host ..............   Passed    0.04 sec
 
 100% tests passed, 0 tests failed out of 1
 
-Total Test time (real) =   0.04 sec
-exit=0
+Total Test time (real) =   0.03 sec
+--- prior Sol pre-fix clean-shell result (separate historical evidence) ---
+sol-review-build-20260907-0525: exit code 0xc0000135, CTest exit=8 because Qt6Core.dll was not discoverable.

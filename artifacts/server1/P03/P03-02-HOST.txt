@@ -1,3 +1,7 @@
+command:
+$lock=Get-Content -Raw 'C:\b\Colosseum-Server-1.0\docs\server1\DEPENDENCY-LOCK.json' | ConvertFrom-Json; $qtHeader=($lock.external_files | Where-Object { $_.path -like '*/QtCore/qglobal.h' }).path; $qtRoot=Split-Path (Split-Path (Split-Path $qtHeader -Parent) -Parent) -Parent; $qtBin=Join-Path $qtRoot 'bin'; $savedPath=$env:PATH; $env:PATH="$qtBin;C:\Windows\System32;C:\Windows"; & 'C:\b\Colosseum-Server-1.0\artifacts\server1\P03\repair-build-20260907\server1_host.exe'; $hostExit=$LASTEXITCODE; $env:PATH=$savedPath; Write-Output "qt_runtime_bin=$qtBin"
+exit=0
+raw output:
 server1 skeleton initialized; streaming-ready=NO
 server1 skeleton shutdown; streaming-ready=NO
-exit=0
+qt_runtime_bin=C:\Qt\6.11.1\msvc2022_64\bin

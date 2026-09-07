@@ -31,6 +31,14 @@ worktree C:/b/Colosseum-Server-1.0
 HEAD 0d002c6d8af49ba3647d9f729f753aa4c7d3b532
 branch refs/heads/feature/colosseum-server-1.0
 
+post-repair pre-commit snapshot (2026-09-07):
+branch=feature/colosseum-server-1.0
+HEAD=39b2b9b7f00386302e01e22b72e92a838492d611
+repair_source=native/colosseum_server_v1/tests/CMakeLists.txt
+repair_evidence=artifacts/server1/P03/P03-01-CONFIGURE.txt; artifacts/server1/P03/P03-01-BUILD.txt; artifacts/server1/P03/P03-01-MISSING-DEPENDENCY.txt; artifacts/server1/P03/P03-02-HOST.txt; artifacts/server1/P03/P03-02-CTEST.txt; artifacts/server1/P03/P03-01-RED-GREEN.txt; artifacts/server1/P03/RED-CONTRACT.txt; .superpowers/sdd/PARALLEL-EXECUTION-PLAN/P03-A-report.md
+temporary_builds_removed_before_commit=true
+post_commit_clean_status=verified by final worker command; this file intentionally records the pre-commit snapshot and does not claim that snapshot was taken after the new commit.
+
 worktree C:/b/Colosseum-Server-1.0-workers/P01A-A
 HEAD 16b4beaa1fdf5939145176f0bd80273c1aefab55
 branch refs/heads/codex/server1-p01a-a

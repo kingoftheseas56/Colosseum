@@ -1,2 +1,9 @@
+GREEN command:
+& 'C:\Qt\Tools\CMake_64\bin\cmake.exe' -DP03_SOURCE_DIR='C:\b\Colosseum-Server-1.0' -P 'C:\b\Colosseum-Server-1.0\native\colosseum_server_v1\tests\cmake\p03_red_contract.cmake'
+GREEN exit=0
+GREEN raw output:
 -- P03 RED: standalone skeleton paths exist
-exit=0
+
+Historical pre-implementation RED command (run before the skeleton commit; raw failure preserved in RED-CONTRACT.txt):
+& 'C:\Qt\Tools\CMake_64\bin\cmake.exe' -DP03_SOURCE_DIR='C:\b\Colosseum-Server-1.0' -P 'C:\b\Colosseum-Server-1.0\native\colosseum_server_v1\tests\cmake\p03_red_contract.cmake'
+Historical RED exit=1; see RED-CONTRACT.txt for the raw missing-path failure.

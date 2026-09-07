@@ -1,3 +1,17 @@
+command:
+$cmd='call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" -S "C:\b\Colosseum-Server-1.0\native\colosseum_server_v1" -B "C:\b\Colosseum-Server-1.0\artifacts\server1\P03\missing-build-repair" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DP03_DEPENDENCY_LOCK="C:\b\Colosseum-Server-1.0\artifacts\server1\P03\missing-dependency-lock.json"'; & cmd.exe /d /c $cmd
+exit=1
+raw output (literal):
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Error at CMakeLists.txt:35 (message):
+  P03 locked dependency unavailable:
+  C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib
+
 -- Configuring incomplete, errors occurred!
 CMake Error at CMakeLists.txt:35 (message):
   P03 locked dependency unavailable:

@@ -1,3 +1,11 @@
+command:
+cmd.exe /d /c "call \"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat\" >nul && \"C:\Qt\Tools\Ninja\ninja.exe\" -C \"C:\b\Colosseum-Server-1.0\artifacts\server1\P03\repair-build-20260907\""
+exit=0
+raw output:
+ninja: Entering directory `C:\b\Colosseum-Server-1.0\artifacts\server1\P03\repair-build-20260907'
+[1/2] Building CXX object CMakeFiles\server1_host.dir\host\main.cpp.obj
+[2/2] Linking CXX executable server1_host.exe
+--- prior accepted build output ---
 ninja: Entering directory `C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build'
 ninja: no work to do.
 exit=0
