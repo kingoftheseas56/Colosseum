@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-native-capability-matrix/v1",
+  "worker_id": "P08-A",
+  "dependency": {"version": "2.0.11.0", "revision": "6e1587799"},
+  "seam": {"classification": "version-specific internal header access", "exact_block": "peer_connection::add_request(piece_block) + send_block_requests()", "hotswap": "peer_connection::cancel_request(piece_block) + add_request(piece_block)"},
+  "controls": {
+    "selected_peer_exact_block_wire": true,
+    "picker_suppression_wire": true,
+    "reservation_hotswap_wire": false,
+    "partial_delivery_before_piece_verification": false,
+    "metadata_discovery_control": true,
+    "honest_peer_stats": false,
+    "per_engine_settings": true,
+    "session_global_settings": true,
+    "choke_interest_wire": false
+  },
+  "interface_statement": "No production interface changed; G-NATIVE is blocked until every mandatory control has an isolated real-wire receipt."
+}

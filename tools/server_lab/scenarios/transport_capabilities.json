@@ -1,0 +1,21 @@
+{
+  "schema": "colosseum-server1-transport-capabilities/v1",
+  "worker_id": "P08-A",
+  "dependency": {
+    "version": "2.0.11.0",
+    "revision": "6e1587799",
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+  },
+  "seam": {
+    "selected_peer_exact_block": "peer_connection::add_request(piece_block) followed by send_block_requests()",
+    "picker_suppression": "peer_plugin::write_request returns suppression for unowned picker work",
+    "hotswap": "peer_connection::cancel_request followed by add_request; cancellation is observed but not used as reservation proof"
+  },
+  "cases": [
+    {"id": "P08-01", "name": "large-piece-virtual-piece-timing", "requires": ["partial_delivery_before_piece_verification"]},
+    {"id": "P08-02", "name": "owned-request-picker-suppression", "requires": ["selected_peer_exact_block", "picker_suppression"]},
+    {"id": "P08-03", "name": "reservation-hotswap-late-response-recreate", "requires": ["reservation_hotswap", "late_response_generation_safety"]},
+    {"id": "P08-04", "name": "commanded-trace-versus-wire", "requires": ["wire_request_ledger"]}
+  ],
+  "grading": "priority/deadline settings are not evidence; each required control needs a real peer wire receipt."
+}

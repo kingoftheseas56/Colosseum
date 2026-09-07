@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-p08-case-results/v1",
+  "worker_id": "P08-A",
+  "dependency": {"version": "2.0.11.0", "revision": "6e1587799", "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"},
+  "cases": {
+    "P08-01": {"state": "BLOCKED", "evidence": "No isolated large-real-piece/512KiB virtual-segment fixture; capability matrix records partial delivery as unproven."},
+    "P08-02": {"state": "PASS", "evidence": "P08A predecessor real-wire regression rerun through P08 wrapper: selected B exact request 1/1, A exact 0, suppressed picker attempts 3, unowned wire requests 0."},
+    "P08-03": {"state": "BLOCKED", "evidence": "cancel_request/add_request API compiles, but no P08-owned real-wire reservation reclaim/re-request/late-duplicate/destroy-recreate receipt exists."},
+    "P08-04": {"state": "PASS", "evidence": "P08A predecessor wire ledger matched commanded peer/piece/offset/length; priority/deadline was not used as proof."}
+  },
+  "mandatory_controls": {
+    "metadata_discovery": "API_COMPILED_ONLY",
+    "honest_peer_stats": "BLOCKED_NO_WIRE_RECEIPT",
+    "per_engine_vs_session_global": "API_COMPILED_ONLY",
+    "choke_interest": "BLOCKED_NO_ISOLATED_WIRE_RECEIPT"
+  },
+  "gate": {"G-NATIVE": "BLOCKED", "reason": "Mandatory controls are not all real-wire proven; no TorrentTransportSeamDesign is promoted."}
+}

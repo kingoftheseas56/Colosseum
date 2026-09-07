@@ -1,0 +1,15 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "P08-A",
+  "parent_packet": "P08",
+  "base": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+  "request": "No shared production wiring requested.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/P08.cmake",
+    "native/colosseum_server_v1/tests/cmake/P08.cmake"
+  ],
+  "interface_changes": "No production interface changed; TorrentTransport.h, Runtime, TorrentEngine, composition, routes, and registries are untouched.",
+  "gate": "Do not integrate as G-NATIVE until blocked controls receive isolated real-wire evidence and Sol/Astra review.",
+  "merge_endpoint": "B-W1D into feature/colosseum-server-1.0 after Sol and milestone review",
+  "push": "not pushed"
+}

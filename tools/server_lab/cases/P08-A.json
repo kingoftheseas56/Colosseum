@@ -1,0 +1,12 @@
+{
+  "schema": "colosseum-server1-server-lab-case/v1",
+  "worker_id": "P08-A",
+  "parent_packet": "P08",
+  "cases": [
+    {"id": "P08-01", "fixture": "large-real-piece-512KiB-virtual-segments", "grade": "first-segment-observed-before-whole-piece-hash"},
+    {"id": "P08-02", "fixture": "two-peers-owned-request", "grade": "zero-unowned-wire-requests-and-owned-request-preserved"},
+    {"id": "P08-03", "fixture": "slow-peer-to-fast-peer-reservation-hotswap", "grade": "reassign-late-duplicate-and-destroy-recreate-generation-safety"},
+    {"id": "P08-04", "fixture": "wire-ledger", "grade": "commanded-peer-piece-offset-length-equals-observed-wire"}
+  ],
+  "source_of_truth": "artifacts/server1/P08/P08-A/raw/* wire logs and probe transcripts"
+}

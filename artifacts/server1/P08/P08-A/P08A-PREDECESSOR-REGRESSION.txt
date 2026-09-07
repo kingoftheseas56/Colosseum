@@ -1,0 +1,1 @@
+GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=1; controlled_suppressed=3; controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_plugin_peer=1/1; lifecycle_pre/post=0/1; lifecycle_replayed=0
