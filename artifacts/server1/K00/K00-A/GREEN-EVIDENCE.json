@@ -1,0 +1,22 @@
+{
+  "worker_id": "K00-A",
+  "phase": "GREEN",
+  "branch": "codex/server1-k00-a",
+  "base": "0202977c0477efaee12b01a8701ad6b3bd1c6b23",
+  "build": {
+    "generator": "Ninja",
+    "compiler": "MSVC 19.44.35227.0",
+    "target": "server1_k00_js_semantics",
+    "exit_code": 0,
+    "command": "cmake --build artifacts/server1/K00/K00-A/cmake-smoke/build --target server1_k00_js_semantics"
+  },
+  "ctest": {
+    "tests": ["K00-01-js-semantics", "K00-02-js-semantics", "K00-03-js-semantics"],
+    "passed": 3,
+    "failed": 0,
+    "exit_code": 0,
+    "command": "ctest --test-dir artifacts/server1/K00/K00-A/cmake-smoke/build -R K00-0[1-3]-js-semantics --output-on-failure"
+  },
+  "red_evidence": "artifacts/server1/K00/K00-A/red/RED-TEST-EVIDENCE.json",
+  "shared_files_modified": false
+}

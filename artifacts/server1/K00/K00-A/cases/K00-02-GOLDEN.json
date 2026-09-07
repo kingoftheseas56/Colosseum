@@ -1,0 +1,17 @@
+{
+  "case_id": "K00-02",
+  "title": "shallow extension, ordered keys, and readonly serverVersion",
+  "source_refs": [
+    {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"}
+  ],
+  "base": {"serverVersion": "4.21.0", "known": 1},
+  "extension": {"unknown": "retained", "known": 2, "serverVersion": "9.9.9"},
+  "expected": {
+    "unknown": "retained",
+    "known": 2,
+    "serverVersion": "4.21.0",
+    "serverVersion_setter_result": false,
+    "ordered_json": "{\"serverVersion\":\"4.21.0\",\"known\":2,\"unknown\":\"retained\"}"
+  },
+  "compatibility_note": "Plain shallow extension may replace a plain object property; the settings wrapper preserves the source getter/setter behavior."
+}

@@ -1,0 +1,30 @@
+{
+  "oracle": {
+    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "bytes": 6676503,
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "oracle_ranges": [
+    {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
+    {"module": "M172", "lines": "18110-18500", "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"},
+    {"module": "M176", "lines": "18515-18561", "sha256": "a3ed64605676439d83e057a19518c0575a68b13b517257cd627b060c092ac4a6"},
+    {"module": "M303", "lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
+    {"module": "M400", "lines": "34767-34775", "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"},
+    {"module": "M814", "lines": "72439-72764", "sha256": "05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e"},
+    {"module": "M846", "lines": "74730-74772", "sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"}
+  ],
+  "candidate_files": {
+    "native/colosseum_server_v1/include/server1/policy/Value.h": "d84db1035f3670e484caa757737be429ee43abfc89c84127f313121b124e6d35",
+    "native/colosseum_server_v1/src/policy/Value.cpp": "d6cec575fe74c78de1f3d6e4f4017d832ed51396aa046c75d7638685bfebd7af",
+    "native/colosseum_server_v1/src/policy/JsConversions.cpp": "2743b0dd4ba04d4eae0f422fcb1496a8071c3ba1a14ad594059e09e789e53682",
+    "native/colosseum_server_v1/tests/test_js_semantics.cpp": "b27b7b28e8577277f187202648e3f7b49c87c018ed12554e0426c64242101c08",
+    "native/colosseum_server_v1/cmake/packets/K00.cmake": "ec32f667846399a8add4daca65884016ade866fa5d34fc0b4dec78bdf46aff9d",
+    "native/colosseum_server_v1/tests/cmake/K00.cmake": "571649c325a660b55a99da1692c5ef6340cfc7d4c8b25dee5d9d78e01e5cef9e"
+  },
+  "comparison_files": {
+    "artifacts/server1/K00/K00-A/comparison/source.raw.txt": "f5082893af4704123a6c0ea56926d754780d5007a53cb37ec8973e3644d3844b",
+    "artifacts/server1/K00/K00-A/comparison/candidate.raw.txt": "f5082893af4704123a6c0ea56926d754780d5007a53cb37ec8973e3644d3844b",
+    "artifacts/server1/K00/K00-A/comparison/RAW-COMPARISON.txt": "fd660888000135654830280d58e024ab87cf3676ad8558728963e0f4b7a390d2"
+  },
+  "hash_method_note": "Oracle range hashes are the authenticated values supplied by the K00-A contract; whole-file identity was independently verified against the oracle path."
+}

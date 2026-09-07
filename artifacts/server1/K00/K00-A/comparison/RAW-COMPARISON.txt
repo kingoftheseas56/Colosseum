@@ -1,0 +1,9 @@
+source_command: node artifacts/server1/K00/K00-A/scenarios/oracle_k00_probe.mjs
+source_exit: 0
+candidate_command: artifacts/server1/K00/K00-A/cmake-smoke/build/server1_k00_js_semantics.exe --trace
+candidate_exit: 0
+source_lines: 25
+candidate_lines: 25
+comparison: Compare-Object source.raw.txt candidate.raw.txt
+comparison_exit: 0
+comparison_result: 0 differences

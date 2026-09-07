@@ -1,0 +1,16 @@
+{
+  "worker_id": "K00-A",
+  "parent_packet": "K00",
+  "case_ids": ["K00-01", "K00-02", "K00-03"],
+  "phase": "RED",
+  "branch": "codex/server1-k00-a",
+  "base": "0202977c0477efaee12b01a8701ad6b3bd1c6b23",
+  "test_source": "native/colosseum_server_v1/tests/test_js_semantics.cpp",
+  "command_file": "artifacts/server1/K00/K00-A/red/RED-TEST-COMMAND.txt",
+  "raw_output_file": "artifacts/server1/K00/K00-A/red/RED-TEST-OUTPUT.txt",
+  "exit_code": 1,
+  "classification": "RED_EXPECTED_MISSING_IMPLEMENTATION",
+  "failure": "The first owned test compile cannot find the not-yet-created Value.h production header.",
+  "production_files_present_at_red": false,
+  "scope": "No production implementation or shared file was changed before this RED run."
+}

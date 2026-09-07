@@ -1,0 +1,29 @@
+{
+  "case_id": "K00-03",
+  "title": "finite handling, bitwise coercion, byte/string conversion, and checked sizes",
+  "source_refs": [
+    {"module": "M176", "lines": "18515-18561", "sha256": "a3ed64605676439d83e057a19518c0575a68b13b517257cd627b060c092ac4a6"},
+    {"module": "M303", "lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
+    {"module": "M400", "lines": "34767-34775", "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"},
+    {"module": "M814", "lines": "72439-72764", "sha256": "05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e"},
+    {"module": "M846", "lines": "74730-74772", "sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"}
+  ],
+  "vectors": {
+    "Number(1e309)": "Infinity",
+    "bitwise(4294967297|0)": 1,
+    "bitwise(-1.9|0)": -1,
+    "bitwise(undefined|0)": 0,
+    "bitwise(-1>>>0)": 4294967295,
+    "utf8": "hé",
+    "utf8_hex": "68c3a9",
+    "size(16)": 16,
+    "size(negative)": "rejected",
+    "size(NaN)": "rejected",
+    "size(Infinity)": "rejected",
+    "size(huge)": "rejected",
+    "isPositiveInteger(55)": true,
+    "isPositiveInteger(\"55\")": false,
+    "isSafePositiveInteger(9007199254740992)": false
+  },
+  "safety_rule": "Boundary conversion rejects non-finite, negative, fractional, and over-maximum values before native size construction."
+}

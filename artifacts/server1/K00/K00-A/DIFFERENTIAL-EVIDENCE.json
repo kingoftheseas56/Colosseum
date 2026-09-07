@@ -1,0 +1,17 @@
+{
+  "worker_id": "K00-A",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "source_probe": "artifacts/server1/K00/K00-A/scenarios/oracle_k00_probe.mjs",
+  "source_command": "node artifacts/server1/K00/K00-A/scenarios/oracle_k00_probe.mjs",
+  "source_exit_code": 0,
+  "candidate_command": "artifacts/server1/K00/K00-A/cmake-smoke/build/server1_k00_js_semantics.exe --trace",
+  "candidate_exit_code": 0,
+  "source_lines": 25,
+  "candidate_lines": 25,
+  "comparison": "Compare-Object -ReferenceObject source.raw.txt -DifferenceObject candidate.raw.txt",
+  "comparison_exit_code": 0,
+  "differences": 0,
+  "source_raw": "artifacts/server1/K00/K00-A/comparison/source.raw.txt",
+  "candidate_raw": "artifacts/server1/K00/K00-A/comparison/candidate.raw.txt",
+  "raw_comparison": "artifacts/server1/K00/K00-A/comparison/RAW-COMPARISON.txt"
+}

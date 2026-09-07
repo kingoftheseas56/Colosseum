@@ -1,0 +1,2 @@
+cmd.exe /d /s /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cl /nologo /std:c++17 /EHsc /I"C:\b\Colosseum-Server-1.0-workers\K00-A\native\colosseum_server_v1\include" /c "C:\b\Colosseum-Server-1.0-workers\K00-A\native\colosseum_server_v1\tests\test_js_semantics.cpp" /Fo"C:\b\Colosseum-Server-1.0-workers\K00-A\artifacts\server1\K00\K00-A\red\test_js_semantics.obj"'
+EXIT=1

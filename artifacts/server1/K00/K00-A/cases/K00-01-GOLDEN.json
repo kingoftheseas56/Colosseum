@@ -1,0 +1,26 @@
+{
+  "case_id": "K00-01",
+  "title": "missing, null, falsy, parseInt, priority, and JSON omission",
+  "source_refs": [
+    {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
+    {"module": "M172", "lines": "18110-18500", "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"},
+    {"module": "M846", "lines": "74730-74772", "sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"}
+  ],
+  "vectors": {
+    "Number(missing)": "NaN",
+    "Number(null)": 0,
+    "Number(false)": 0,
+    "Number(0)": 0,
+    "Number(empty-string)": 0,
+    "Number(number-string)": 42.5,
+    "Number(NaN-like)": "NaN",
+    "parseInt(12trailing)": 12,
+    "priority(0)||1": 1,
+    "priority(2)||1": 2,
+    "priority(false)||1": 1,
+    "option-priority-false-present": true,
+    "option-priority-absent": false
+  },
+  "json_stringify": "{\"null\":null,\"false\":false,\"zero\":0,\"empty\":\"\",\"nan\":null,\"array\":[null,null]}",
+  "omission_rule": "Missing object properties are omitted; missing array elements become null; non-finite numbers become null."
+}
