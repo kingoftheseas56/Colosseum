@@ -1,0 +1,25 @@
+{
+  "schema": "colosseum-server1-p05-wiring-request/v1",
+  "packet": "P05-A",
+  "status": "REQUESTED",
+  "production_wiring": false,
+  "producer": {
+    "worker": "P05-A",
+    "interfaces": [
+      "OracleModuleTraceRunner",
+      "tools/server_lab/cases/P05-A.json::mutation_fixtures"
+    ]
+  },
+  "consumer": {
+    "worker": "P05-B",
+    "interface": "TraceComparator",
+    "request": "Consume all five mutation_fixtures with OracleModuleTraceRunner and preserve each expected_rejection identity."
+  },
+  "authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "module_ids": [564, 730, 874]
+  },
+  "case_ids": ["P05-01"],
+  "forbidden": ["production source wiring", "shared test registry edits", "docs/server1/TRACE-CONTRACT.json edits"],
+  "execution_state": "fixture-authored; comparator execution pending P05-B"
+}

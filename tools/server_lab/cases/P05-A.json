@@ -14,9 +14,97 @@
     { "id": 730, "line_range": "67869-68057", "authority_slice_sha256": "fa8e623de0a6f3552cf712cca7434c7f24df62c6e9727d318e04b3afa8ba9c90", "extracted_sha256": "337242535632cf933991eb152f2686a8384ab458c4db9b5d3e8d7df50d173146" },
     { "id": 874, "line_range": "77415-77483", "authority_slice_sha256": "397e6a2bd0140fe23a26df69bf77836acee795f8712cb658ae581c13b3e3021a", "extracted_sha256": "13051e26dfc0998d2abab73f11e015580f009798c262927a5b29246394979df8" }
   ],
+  "trace_context": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "module_ids": [564, 730, 874],
+    "injected_inputs": {
+      "clock_ms": 1700000000000,
+      "random_values": [0.25, 0.75],
+      "request_id": "p05-fixture-request-001"
+    },
+    "observation_level": "policy-trace",
+    "event_schema": ["seq", "generation", "kind", "identity", "payload"]
+  },
+  "mutation_fixtures": [
+    {
+      "id": "P05-01-callback-removal",
+      "case_id": "P05-01",
+      "mutation": { "kind": "callback-removal", "description": "remove the required completion callback" },
+      "baseline_trace": [
+        { "seq": 1, "generation": 4, "kind": "request.accepted", "identity": "request:p05-fixture-request-001", "payload": { "module": 564 } },
+        { "seq": 2, "generation": 4, "kind": "callback.registered", "identity": "callback:completion:4", "payload": { "terminal": true } },
+        { "seq": 3, "generation": 4, "kind": "callback.completed", "identity": "callback:completion:4", "payload": { "status": "ok" } }
+      ],
+      "mutated_trace": [
+        { "seq": 1, "generation": 4, "kind": "request.accepted", "identity": "request:p05-fixture-request-001", "payload": { "module": 564 } },
+        { "seq": 2, "generation": 4, "kind": "callback.registered", "identity": "callback:completion:4", "payload": { "terminal": true } }
+      ],
+      "expected_rejection": { "identity": "callback:completion:4", "path": "trace[2]", "rule": "required-terminal-callback-present" }
+    },
+    {
+      "id": "P05-01-duplicate-terminal-event",
+      "case_id": "P05-01",
+      "mutation": { "kind": "duplicate-terminal-event", "description": "repeat the terminal event for one generation" },
+      "baseline_trace": [
+        { "seq": 1, "generation": 4, "kind": "request.accepted", "identity": "request:p05-fixture-request-001", "payload": { "module": 564 } },
+        { "seq": 2, "generation": 4, "kind": "stream.terminal", "identity": "stream:p05-fixture-request-001", "payload": { "reason": "eof" } }
+      ],
+      "mutated_trace": [
+        { "seq": 1, "generation": 4, "kind": "request.accepted", "identity": "request:p05-fixture-request-001", "payload": { "module": 564 } },
+        { "seq": 2, "generation": 4, "kind": "stream.terminal", "identity": "stream:p05-fixture-request-001", "payload": { "reason": "eof" } },
+        { "seq": 3, "generation": 4, "kind": "stream.terminal", "identity": "stream:p05-fixture-request-001", "payload": { "reason": "eof" } }
+      ],
+      "expected_rejection": { "identity": "stream:p05-fixture-request-001", "path": "trace[2]", "rule": "terminal-event-cardinality-one" }
+    },
+    {
+      "id": "P05-01-priority-reorder",
+      "case_id": "P05-01",
+      "mutation": { "kind": "priority-reorder", "description": "reverse two same-generation priority decisions" },
+      "baseline_trace": [
+        { "seq": 1, "generation": 4, "kind": "selection.priority", "identity": "track:video-main", "payload": { "priority": 10 } },
+        { "seq": 2, "generation": 4, "kind": "selection.priority", "identity": "track:audio-main", "payload": { "priority": 20 } },
+        { "seq": 3, "generation": 4, "kind": "selection.committed", "identity": "track:video-main", "payload": { "module": 730 } }
+      ],
+      "mutated_trace": [
+        { "seq": 1, "generation": 4, "kind": "selection.priority", "identity": "track:audio-main", "payload": { "priority": 20 } },
+        { "seq": 2, "generation": 4, "kind": "selection.priority", "identity": "track:video-main", "payload": { "priority": 10 } },
+        { "seq": 3, "generation": 4, "kind": "selection.committed", "identity": "track:video-main", "payload": { "module": 730 } }
+      ],
+      "expected_rejection": { "identity": "track:video-main", "path": "trace[0].identity", "rule": "priority-decision-order" }
+    },
+    {
+      "id": "P05-01-null-replaces-omitted-key",
+      "case_id": "P05-01",
+      "mutation": { "kind": "null-replaces-omitted-key", "description": "materialize an omitted optional key as null" },
+      "baseline_trace": [
+        { "seq": 1, "generation": 4, "kind": "response.headers", "identity": "response:p05-fixture-request-001", "payload": { "contentType": "video/mp4" } },
+        { "seq": 2, "generation": 4, "kind": "response.body", "identity": "response:p05-fixture-request-001", "payload": { "bytes": 16 } }
+      ],
+      "mutated_trace": [
+        { "seq": 1, "generation": 4, "kind": "response.headers", "identity": "response:p05-fixture-request-001", "payload": { "contentType": "video/mp4", "contentLength": null } },
+        { "seq": 2, "generation": 4, "kind": "response.body", "identity": "response:p05-fixture-request-001", "payload": { "bytes": 16 } }
+      ],
+      "expected_rejection": { "identity": "response:p05-fixture-request-001", "path": "trace[0].payload.contentLength", "rule": "omitted-key-is-not-null" }
+    },
+    {
+      "id": "P05-01-wrong-cancellation-generation",
+      "case_id": "P05-01",
+      "mutation": { "kind": "wrong-cancellation-generation", "description": "deliver cancellation to the superseded generation" },
+      "baseline_trace": [
+        { "seq": 1, "generation": 7, "kind": "request.started", "identity": "request:p05-fixture-request-001", "payload": { "module": 874 } },
+        { "seq": 2, "generation": 7, "kind": "request.cancelled", "identity": "request:p05-fixture-request-001", "payload": { "target_generation": 7 } }
+      ],
+      "mutated_trace": [
+        { "seq": 1, "generation": 7, "kind": "request.started", "identity": "request:p05-fixture-request-001", "payload": { "module": 874 } },
+        { "seq": 2, "generation": 6, "kind": "request.cancelled", "identity": "request:p05-fixture-request-001", "payload": { "target_generation": 6 } }
+      ],
+      "expected_rejection": { "identity": "request:p05-fixture-request-001", "path": "trace[1].generation", "rule": "cancellation-targets-active-generation" }
+    }
+  ],
   "cases": [
-    { "id": "P05-01", "status": "DEFERRED_TO_P05-B", "reason": "TRACE-CONTRACT comparator is explicitly outside P05-A." },
+    { "id": "P05-01", "status": "TEST_AUTHORED_FIXTURE_READY_EXECUTION_PENDING_P05-B", "test": "five deterministic mutation fixtures are distinct, well-formed, and consumable by TraceComparator" },
     { "id": "P05-03", "status": "PASS", "test": "extracts the authenticated oracle without re-minifying assigned modules" }
   ],
+  "fixture_consumer": { "worker": "P05-B", "interface": "TraceComparator", "runner": "OracleModuleTraceRunner", "execution_owner": "P05-B" },
   "test_command": "node --test artifacts/server1/P05/P05-A/test_p05_a.mjs"
 }

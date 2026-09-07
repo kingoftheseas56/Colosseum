@@ -1,0 +1,13 @@
+✔ extracts webpack modules with byte-exact source spans and hashes (62.7681ms)
+✔ executes modules with deterministic Date.now and Math.random injection (15.2735ms)
+✔ verifies every extracted module against an index and rejects edited source (23.4262ms)
+✔ publishes five distinct deterministic mutation fixtures for P05-B TraceComparator (7.3231ms)
+✔ extracts the authenticated oracle without re-minifying assigned modules (54093.6591ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 55116.4626

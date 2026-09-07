@@ -39,6 +39,49 @@ test('verifies every extracted module against an index and rejects edited source
   assert.throws(() => verifyModuleIndex(path, indexPath), /module index mismatch/i);
 });
 
+test('publishes five distinct deterministic mutation fixtures for P05-B TraceComparator', async () => {
+  const casePath = new URL('../../../../tools/server_lab/cases/P05-A.json', import.meta.url);
+  const definition = JSON.parse(await readFile(casePath, 'utf8'));
+  const fixtures = definition.mutation_fixtures;
+  assert.equal(fixtures.length, 5);
+  assert.deepEqual(fixtures.map(({ mutation }) => mutation.kind), [
+    'callback-removal',
+    'duplicate-terminal-event',
+    'priority-reorder',
+    'null-replaces-omitted-key',
+    'wrong-cancellation-generation',
+  ]);
+  assert.equal(new Set(fixtures.map(({ id }) => id)).size, fixtures.length);
+  assert.equal(new Set(fixtures.map((fixture) => JSON.stringify(fixture))).size, fixtures.length);
+  for (const fixture of fixtures) {
+    assert.equal(fixture.case_id, 'P05-01');
+    assert.ok(Array.isArray(fixture.baseline_trace) && fixture.baseline_trace.length > 0);
+    assert.ok(Array.isArray(fixture.mutated_trace) && fixture.mutated_trace.length > 0);
+    assert.notDeepEqual(fixture.baseline_trace, fixture.mutated_trace);
+    assert.match(fixture.expected_rejection.identity, /\S/);
+    assert.match(fixture.expected_rejection.path, /^trace\[/);
+    assert.match(fixture.expected_rejection.rule, /\S/);
+  }
+  const byKind = new Map(fixtures.map((fixture) => [fixture.mutation.kind, fixture]));
+  assert.equal(byKind.get('callback-removal').baseline_trace.length, byKind.get('callback-removal').mutated_trace.length + 1);
+  assert.equal(byKind.get('callback-removal').baseline_trace[2].kind, 'callback.completed');
+  assert.equal(byKind.get('duplicate-terminal-event').mutated_trace.length, byKind.get('duplicate-terminal-event').baseline_trace.length + 1);
+  assert.equal(byKind.get('duplicate-terminal-event').mutated_trace[1].identity, byKind.get('duplicate-terminal-event').mutated_trace[2].identity);
+  assert.deepEqual(byKind.get('priority-reorder').mutated_trace.slice(0, 2).map(({ identity }) => identity), ['track:audio-main', 'track:video-main']);
+  assert.equal(Object.prototype.hasOwnProperty.call(byKind.get('null-replaces-omitted-key').baseline_trace[0].payload, 'contentLength'), false);
+  assert.equal(byKind.get('null-replaces-omitted-key').mutated_trace[0].payload.contentLength, null);
+  assert.notEqual(byKind.get('wrong-cancellation-generation').baseline_trace[1].generation, byKind.get('wrong-cancellation-generation').mutated_trace[1].generation);
+  assert.equal(byKind.get('wrong-cancellation-generation').mutated_trace[1].payload.target_generation, 6);
+  assert.deepEqual(definition.fixture_consumer, {
+    worker: 'P05-B',
+    interface: 'TraceComparator',
+    runner: 'OracleModuleTraceRunner',
+    execution_owner: 'P05-B',
+  });
+  assert.deepEqual(definition.trace_context.module_ids, [564, 730, 874]);
+  assert.equal(definition.trace_context.oracle_sha256, '405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f');
+});
+
 test('extracts the authenticated oracle without re-minifying assigned modules', async () => {
   const oracle = 'C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js';
   const result = extractModules(oracle);
