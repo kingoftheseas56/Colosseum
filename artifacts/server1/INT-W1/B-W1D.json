@@ -1,0 +1,102 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W1",
+  "barrier": "B-W1D",
+  "branch": "feature/colosseum-server-1.0",
+  "integrated_sha": "9898964da604ba4a4d6d4d70036e26b09d8d87bc",
+  "predecessor_barrier": "B-W1C",
+  "predecessor_integrated_sha": "730ec57335c14929b6c937e7a0d53546473231ca",
+  "accepted_inputs": {
+    "P02S-A": ["14b3338229ef06addbe3ba885c0f3518c56d5bdb", "d91a3fdc5650113859b2155abdb30403f8c0a32e", "751a683c3b142df4d25bd50b0b4e5fe1dee72399"],
+    "P07-A": ["717dd70cb342ac161bc1fabdb426dc48e94f4ade", "6b7b7b9462822db2988b5081da491e2b99b0ec11"],
+    "P07-B": ["f5fa2e6015cedb60561517c1aa168fd78161df19", "4a3afab32334ae06759f778ac560a17343256ba1"],
+    "P07-C": ["9bb4f58466d9cdb34bfa90caa0cae8811fa647d5"],
+    "P08-A": ["97d359f8315a28a2f884b99f538b90fb4eb2962f", "205425d1f81fd39d0892f4a5fe1b94a354b79681", "6f7d8aeea6ed7cc06339a002c4a80d7220c3f1a6", "9898964da604ba4a4d6d4d70036e26b09d8d87bc"]
+  },
+  "gates": {
+    "G-LAB": {
+      "state": "PASS",
+      "basis": "P07 byte/resource/player/baseline probes are accepted. The complete Python lab suite passed 66 tests with 8 explicit oracle-environment skips when run with the pinned P05 Node executable."
+    },
+    "G-SURFACE": {
+      "state": "PASS",
+      "basis": "P02S source-composition profiles, route/dependency-only distinctions, and runtime-surface matrix are accepted and included in the aggregate suite."
+    },
+    "G-NATIVE": {
+      "state": "PASS",
+      "basis": "Pinned libtorrent 2.0.11 passed P08-01/P08-02/P08-03/P08-04/CONTROLS twice in the worker and once after integration. No dependency patch is required."
+    }
+  },
+  "verification": {
+    "p08_integration": [
+      {
+        "command": "MSVC 19.44 compile/link transport_contract_probe.cpp against pinned libtorrent 2.0.11",
+        "exit": 1,
+        "classification": "environment_precondition",
+        "detail": "Ignored output directory did not exist in the fresh integration worktree."
+      },
+      {
+        "command": "Create packet-local ignored bin directory, then repeat the pinned MSVC compile/link",
+        "exit": 0
+      },
+      {
+        "command": "pwsh -NoProfile -File artifacts/server1/P08/P08-A/run_packet.ps1 -ProbeExe artifacts/server1/P08/P08-A/bin/transport_contract_probe.exe -PeerScript artifacts/server1/P08/P08-A/tiny_peer.py",
+        "exit": 0,
+        "run": "artifacts/server1/P08/P08-A/raw/packet-run-20260907-155543751",
+        "result": "P08-01=PASS; P08-02=PASS; P08-03=PASS; P08-04=PASS; CONTROLS=PASS"
+      }
+    ],
+    "lab_aggregate": [
+      {
+        "command": "python -m unittest discover -s tools/server_lab/tests -p test_*.py -v with P05_QUALIFIED_NODE unset",
+        "exit": 1,
+        "result": "65 passed; 1 qualified-Node precondition failure; 8 expected oracle-environment skips"
+      },
+      {
+        "command": "P05_QUALIFIED_NODE=C:/Users/Suprabha/AppData/Local/Temp/p05-b-node-v22.16.0/node-v22.16.0-win-x64/node.exe; python -m unittest discover -s tools/server_lab/tests -p test_*.py -v",
+        "exit": 0,
+        "result": "66 tests passed; 8 expected oracle-environment skips"
+      }
+    ],
+    "skeleton_build": [
+      {
+        "command": "CMake configure without Visual Studio environment",
+        "exit": 1,
+        "classification": "environment_precondition",
+        "detail": "No CXX compiler was available on PATH."
+      },
+      {
+        "command": "vcvars64 + CMake configure -G Ninja",
+        "exit": 0,
+        "build_dir": "artifacts/server1/INT-W1/B-W1D-run-vs-20260907"
+      },
+      {
+        "command": "CMake --build artifacts/server1/INT-W1/B-W1D-run-vs-20260907",
+        "exit": 0
+      },
+      {
+        "command": "CTest --test-dir artifacts/server1/INT-W1/B-W1D-run-vs-20260907 --output-on-failure",
+        "exit": 0,
+        "result": "1/1 P03 host skeleton test passed"
+      }
+    ],
+    "json_receipts": "PASS",
+    "range_diff_check": "PASS",
+    "changed_path_count_since_B_W1C": 278,
+    "forbidden_shared_paths_changed": []
+  },
+  "ownership_review": {
+    "high_contention_collisions": [],
+    "production_behavior_changed_by_integration_worker": false,
+    "topology_changed": false
+  },
+  "state_distinctions": {
+    "P07-C": "baseline-only; no Server 1.0 parity or performance verdict",
+    "P08-A": "native-control feasibility proven; production TorrentTransport translation has not started",
+    "Server_1_0": "foundation/lab wave integrated; product implementation incomplete"
+  },
+  "orchestration_note": "The INT-W1 Luna Max context stalled without modifying files. Sol performed the authorized integration/barrier review; no feature implementation was performed by Sol.",
+  "unresolved_failures": [],
+  "status": "accepted",
+  "push": false
+}
