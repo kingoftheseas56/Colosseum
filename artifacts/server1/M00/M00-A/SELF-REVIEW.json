@@ -10,7 +10,8 @@
     {"requirement": "Binary argv/environment/stdout/stderr/exit behavior", "status": "MET", "evidence": "M00-02 scripted fixture raw exit 0"},
     {"requirement": "Owned process-tree teardown without external kill", "status": "MET", "evidence": "M00-02 includes grandchild probe and external QProcess boundary"},
     {"requirement": "Local versus remote HLSV2 path preserved", "status": "MET", "evidence": "M00-03 remote fixture raw exit 0 and source differential"},
-    {"requirement": "Packet-local compile and all assigned tests", "status": "MET", "evidence": "evidence/BUILD.raw.txt exit 0; evidence/CTEST.raw.txt exit 0"},
+    {"requirement": "ProcessDriver destruction is lifetime-safe for every local and external remote callback", "status": "MET", "evidence": "red/LIFETIME-RED.json; M00-02-LIFETIME-GREEN.raw.txt; M00-03-LIFETIME-GREEN.raw.txt; CTEST-LIFETIME-GREEN.raw.txt"},
+    {"requirement": "Packet-local compile and all assigned tests", "status": "MET", "evidence": "evidence/BUILD-LIFETIME-GREEN.raw.txt exit 0; evidence/CTEST-LIFETIME-GREEN.raw.txt exit 0"},
     {"requirement": "No forbidden shared-file edits", "status": "MET", "evidence": "PACKET-RECEIPT.json forbidden_surface_check"},
     {"requirement": "Aggregate integration and production runtime", "status": "NOT-MET BY DESIGN", "evidence": "WIRING-REQUEST.json; owned worker must stop at B-W2B handoff"}
   ],

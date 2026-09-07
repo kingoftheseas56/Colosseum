@@ -1,7 +1,8 @@
-VALID artifacts/server1/M00/M00-A/source/SOURCE-TRACE.json
-VALID artifacts/server1/M00/M00-A/red/TDD-RED.json
-VALID artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.json
-VALID artifacts/server1/M00/M00-A/PACKET-RECEIPT.json
-VALID artifacts/server1/M00/M00-A/WIRING-REQUEST.json
-VALID artifacts/server1/M00/M00-A/SELF-REVIEW.json
-JSON_AUDIT_EXIT=0
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\differential\SOURCE-VS-CANDIDATE.json
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\PACKET-RECEIPT.json
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\red\LIFETIME-RED.json
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\red\TDD-RED.json
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\SELF-REVIEW.json
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\source\SOURCE-TRACE.json
+VALID C:\b\Colosseum-Server-1.0-workers\M00-A\artifacts\server1\M00\M00-A\WIRING-REQUEST.json
+EXIT=0

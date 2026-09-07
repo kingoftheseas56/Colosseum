@@ -4,19 +4,25 @@ oracle_sha256=405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f
 M00-01
 source=M667 62094-62104: preferred candidates are tested before PATH candidates; each candidate must be executable; missing preferred candidates fall through.
 candidate=ExecutableLocator::locate tests overrideCandidate before PATH, missing override before pathCandidate, directory rejection, and .txt launch refusal with QProcess::FailedToStart.
-observed=artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt -> M00-01 PASS; exit=0.
+observed=artifacts/server1/M00/M00-A/evidence/M00-01-LIFETIME-GREEN.raw.txt -> M00-01 PASS; exit=0.
 comparison=MATCH
 
 M00-02
 source=M855 75098-75106 and M861 76508-76515: local spawn receives argv array and environment, stdout is binary, stderr is separate, exit/close result is surfaced; M434 37711-37745: forceful teardown targets only the supplied owned process tree.
 candidate=ProcessPort uses QProcess argument arrays and QProcessEnvironment, collects QByteArray stdout/stderr losslessly, preserves exitCode and NormalExit, escalates SIGTERM-resistant children to SIGKILL, kills the owned tree, and leaves an external QProcess running.
-observed=artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt -> M00-02 PASS; exit=0.
+observed=artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-GREEN.raw.txt -> M00-02 PASS; exit=0.
 comparison=MATCH
 
 M00-03
 source=M436 37824-37826: retain local/remote HLSV2 choice; M855 75063-75095: remote appends -listen 1 URL, dispatches and polls; M855 75109-75115: remote destroy cancels polling/bridge.
 candidate=ProcessDriver::start preserves HlsV2Mode::Remote, reserves a port from the 11920 range, appends the three listen arguments without string flattening, polls the bridge, forwards binary data, and disconnect stops future polls with one cancel.
-observed=artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt -> M00-03 PASS; exit=0.
+observed=artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-GREEN.raw.txt -> M00-03 PASS; exit=0.
+comparison=MATCH
+
+M00-LIFETIME
+source=ProcessDriver destruction must not invoke local or external remote callbacks after its state is dead; owned children must drain and remote cancellation must occur once.
+candidate=ProcessDriver uses shared Impl lifetime state and weak/alive gates for local started/stdout/stderr/finished and remote completion/poll callbacks; destruction marks dead before local cancel and remote cancel.
+observed=artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-GREEN.raw.txt and artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-GREEN.raw.txt -> PASS; exit=0.
 comparison=MATCH
 
 overall=DIFFERENTIALLY-QUALIFIED

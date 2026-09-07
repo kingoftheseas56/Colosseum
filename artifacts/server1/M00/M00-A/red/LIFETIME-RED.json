@@ -1,0 +1,25 @@
+{
+  "schema": "colosseum-server1-lifetime-red/v1",
+  "worker_id": "M00-A",
+  "parent_packet": "M00",
+  "state": "test-authored",
+  "regression": "ProcessDriver callback lifetime after driver destruction",
+  "tests": [
+    {
+      "case": "M00-02",
+      "command": "server1_m00_process_tests.exe M00-02",
+      "exit": 1,
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-RED.raw.txt",
+      "failure": "Late local started/stdout/stderr/finished callback paths were observable after ProcessDriver destruction."
+    },
+    {
+      "case": "M00-03",
+      "command": "server1_m00_process_tests.exe M00-03",
+      "exit": 1,
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-RED.raw.txt",
+      "failure": "late remote callbacks incremented callbacks after driver destruction."
+    }
+  ],
+  "implementation_before_fix": "ProcessDriver callbacks captured raw this/Impl and ProcessDriver destructor only canceled asynchronously.",
+  "required_fix": "Weak shared lifetime state must guard local started/stdout/stderr/finished callbacks and every external remote completion/poll callback."
+}

@@ -1,0 +1,2 @@
+M00 FAIL: late local callbacks must not call a destroyed ProcessDriver
+EXIT=1

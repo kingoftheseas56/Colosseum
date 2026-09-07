@@ -12,6 +12,7 @@
 
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -87,6 +88,13 @@ elif mode == "ignore-term":
         time.sleep(0.05)
 elif mode == "sleep":
     time.sleep(10)
+elif mode == "pending-output":
+    sys.stdout.buffer.write(b"pending-out")
+    sys.stdout.buffer.flush()
+    sys.stderr.buffer.write(b"pending-err")
+    sys.stderr.buffer.flush()
+    while True:
+        time.sleep(0.05)
 elif mode == "spawn-grandchild":
     child = subprocess.Popen([sys.executable, __file__, "sleep"])
     sys.stdout.buffer.write(str(child.pid).encode("ascii"))
@@ -330,6 +338,57 @@ void caseM00_02()
     require(probe.waitForFinished(5000), "grandchild probe did not finish");
     require(probe.exitCode() == 0, "owned process teardown must not orphan a grandchild");
 
+    ProcessPort destroyedDriverPort;
+    ProcessSpec pendingOutput = fixtureSpec(python, fixture, QStringLiteral("pending-output"));
+    int destroyedDriverStarted = 0;
+    int destroyedDriverStdout = 0;
+    int destroyedDriverStderr = 0;
+    int destroyedDriverFinished = 0;
+    bool destroyedDriver = false;
+    int lateStarted = 0;
+    int lateStdout = 0;
+    int lateStderr = 0;
+    int lateFinished = 0;
+    {
+        auto driver = std::make_unique<ProcessDriver>(destroyedDriverPort);
+        DriverSpec localSpec;
+        localSpec.process = pendingOutput;
+        localSpec.mode = HlsV2Mode::Local;
+        const quint64 driverId = driver->start(localSpec, ProcessCallbacks {
+            [&] {
+                ++destroyedDriverStarted;
+                if (destroyedDriver)
+                    ++lateStarted;
+            },
+            [&](const QByteArray &) {
+                ++destroyedDriverStdout;
+                if (destroyedDriver)
+                    ++lateStdout;
+            },
+            [&](const QByteArray &) {
+                ++destroyedDriverStderr;
+                if (destroyedDriver)
+                    ++lateStderr;
+            },
+            [&](const ProcessResult &) {
+                ++destroyedDriverFinished;
+                if (destroyedDriver)
+                    ++lateFinished;
+            },
+            {}
+        });
+        waitUntil([&] { return driver->running(driverId) || destroyedDriverPort.activeCount() == 1; },
+                  3000,
+                  "local driver child was not registered before destruction");
+        destroyedDriver = true;
+        driver.reset();
+    }
+    waitUntil([&] { return destroyedDriverPort.activeCount() == 0; }, 5000,
+              "destroyed local driver left an owned child");
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
+    require(lateStarted == 0 && lateStdout == 0 && lateStderr == 0 && lateFinished == 0,
+            "late local callbacks must not call a destroyed ProcessDriver");
+
     std::cout << "M00-02 PASS\n";
 }
 
@@ -445,6 +504,60 @@ void caseM00_03()
     require(completedBytes == QByteArray("remote-binary"),
             "remote completion callback must receive polled binary output");
     require(!completedDriver.running(completedId), "completed remote process must be inactive");
+
+    ProcessPort delayedPort;
+    RemoteProcessTransport delayedTransport;
+    std::function<void(const RemoteCompletion &)> delayedCompletion;
+    std::function<void(const RemotePollResult &)> delayedPoll;
+    int delayedCancelCount = 0;
+    int delayedFinished = 0;
+    int delayedReady = 0;
+    int delayedOutput = 0;
+    delayedTransport.reservePort = [](quint16) {
+        return std::optional<quint16> {40124};
+    };
+    delayedTransport.dispatch = [&](const QString &, const QString &, const QStringList &,
+                                    const QProcessEnvironment &environment,
+                                    std::function<void(const RemoteCompletion &)> complete) {
+        Q_UNUSED(environment);
+        delayedCompletion = std::move(complete);
+    };
+    delayedTransport.poll = [&](const QString &,
+                                std::function<void(const RemotePollResult &)> complete) {
+        delayedPoll = std::move(complete);
+    };
+    delayedTransport.cancel = [&](const QString &) { ++delayedCancelCount; };
+
+    {
+        auto delayedDriver = std::make_unique<ProcessDriver>(delayedPort, delayedTransport);
+        DriverSpec delayedSpec = spec;
+        delayedSpec.remotePollIntervalMs = 1;
+        (void)delayedDriver->start(delayedSpec, ProcessCallbacks {
+            {},
+            [&](const QByteArray &) { ++delayedOutput; },
+            {},
+            [&](const ProcessResult &) { ++delayedFinished; },
+            [&](quint16, const QString &) { ++delayedReady; }
+        });
+        waitUntil([&] { return static_cast<bool>(delayedPoll); }, 3000,
+                  "delayed remote poll callback was not captured");
+        delayedDriver.reset();
+    }
+    require(delayedCancelCount == 1, "destroyed remote driver must cancel exactly once");
+    require(delayedCompletion && delayedPoll,
+            "destroyed remote driver must leave deterministic delayed callbacks");
+    delayedCompletion(RemoteCompletion {});
+    RemotePollResult delayedResult;
+    delayedResult.ready = true;
+    delayedResult.data = QByteArray("late-remote-data");
+    delayedPoll(delayedResult);
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
+    require(delayedCancelCount == 1,
+            "late remote callbacks must not issue a second cancellation");
+    require(delayedFinished == 0 && delayedReady == 0 && delayedOutput == 0,
+            "late remote callbacks must not call destroyed driver state");
+    require(delayedPort.activeCount() == 0,
+            "remote driver destruction must not leave owned local children");
 
     std::cout << "M00-03 PASS\n";
 }

@@ -1,0 +1,7 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[1/2] Building CXX object CMakeFiles\server1_m00_process_tests.dir\C_\b\Colosseum-Server-1.0-workers\M00-A\native\colosseum_server_v1\tests\test_process_driver.cpp.obj
+[2/2] Linking CXX executable server1_m00_process_tests.exe
+EXIT=0

@@ -8,12 +8,12 @@
   },
   "candidate": {
     "executable": "artifacts/server1/M00/M00-A/build/cmake/server1_m00_process_tests.exe",
-    "sha256": "9B709C018EE20AA53D4A413F20DA7E109C8216E096DA116B3A4BEBECB73B20D4",
+    "sha256": "F08A763178CA17DBC529DCB109BFCBABFCD1424A46BD3EFAF14CCF2F4BECCAE9",
     "source_hashes": {
-      "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B4DE0413C139AB96851581A3B4B74601C084F0FE40EF7D67AA0582C6BE6190E9",
+      "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B755C00B522A5DA56DB2BFDE1583FDDFF491B6E1790532D2774395B838F70625",
       "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "C66E6979F5D00051B30171616B908B753FB6C9F707CAB0861F08A80D77516405",
-      "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "C1C06211D1C4BACF4816A06CD0A9F44C8E9FD2509FBC8B20749CB97D2BABC019",
-      "native/colosseum_server_v1/tests/test_process_driver.cpp": "2DDFAD1CF8E14E6AEA6E73F6B5520A3C239074A4D3BD0BCC9BE666B28E220883",
+      "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "1B0BB82542A18E4094538E488DCBED556C55C38AAFA360CC2803652CEEB28177",
+      "native/colosseum_server_v1/tests/test_process_driver.cpp": "7F8D43540DB55429F814AD011E3A3436F0389E1B6060AD17D077F071ECB47359",
       "native/colosseum_server_v1/cmake/packets/M00.cmake": "940FA54D5537DF59B795075C91E2D4C8BDAAE5072FC629AF5119B38BA659E818",
       "native/colosseum_server_v1/tests/cmake/M00.cmake": "39DE4A05DD8808A88EEBDD88D3B8347DDA30294EBD0D8AFE96A64F9F32D66AC1"
     }
@@ -28,8 +28,8 @@
       ],
       "command": "server1_m00_process_tests.exe M00-01",
       "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt",
-      "raw_sha256": "D5D93DD61185A8AC006B49314933730D7A8CD0BDCE82BE75C1F0F921CEE9DD5B",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01-LIFETIME-GREEN.raw.txt",
+      "raw_sha256": "A021ABFFE381B93DC0990B1ECF309F3D45022A0F847D44B2F2774A9B45AFE777",
       "status": "MATCH"
     },
     "M00-02": {
@@ -38,12 +38,13 @@
         "argv arrays and QProcessEnvironment are passed unchanged",
         "stdout and stderr are collected as binary QByteArray streams",
         "exit code, cancellation, graceful-stop escalation and SIGKILL are surfaced",
-        "only the launched process tree is force-killed"
+        "only the launched process tree is force-killed",
+        "ProcessDriver destruction weak-gates local callbacks and external remote completion/poll callbacks"
       ],
       "command": "server1_m00_process_tests.exe M00-02",
       "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt",
-      "raw_sha256": "5315CA9BAC65BB4152C7CAE546022096EAA97C9B76A525A2DDF994EBC98FDCFC",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-GREEN.raw.txt",
+      "raw_sha256": "3990E95A1EB9843BBD2529FEB971E25EC09419AAFC3662D5214E71BE4A8199A7",
       "status": "MATCH"
     },
     "M00-03": {
@@ -55,8 +56,8 @@
       ],
       "command": "server1_m00_process_tests.exe M00-03",
       "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt",
-      "raw_sha256": "EA8F3564FC87019D670E07AA19A9BFB1611259F8E9F495AABF5B4FFED272EF1D",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-GREEN.raw.txt",
+      "raw_sha256": "0A3462A782E1E6E0B060FC113A1938DD6EA8807FA172A1C79AD9F8A01DAC9AB8",
       "status": "MATCH"
     }
   },

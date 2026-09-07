@@ -26,10 +26,10 @@
     "native/colosseum_server_v1/tests/cmake/M00.cmake"
   ],
   "owned_file_sha256": {
-    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B4DE0413C139AB96851581A3B4B74601C084F0FE40EF7D67AA0582C6BE6190E9",
+    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B755C00B522A5DA56DB2BFDE1583FDDFF491B6E1790532D2774395B838F70625",
     "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "C66E6979F5D00051B30171616B908B753FB6C9F707CAB0861F08A80D77516405",
-    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "C1C06211D1C4BACF4816A06CD0A9F44C8E9FD2509FBC8B20749CB97D2BABC019",
-    "native/colosseum_server_v1/tests/test_process_driver.cpp": "2DDFAD1CF8E14E6AEA6E73F6B5520A3C239074A4D3BD0BCC9BE666B28E220883",
+    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "1B0BB82542A18E4094538E488DCBED556C55C38AAFA360CC2803652CEEB28177",
+    "native/colosseum_server_v1/tests/test_process_driver.cpp": "7F8D43540DB55429F814AD011E3A3436F0389E1B6060AD17D077F071ECB47359",
     "native/colosseum_server_v1/cmake/packets/M00.cmake": "940FA54D5537DF59B795075C91E2D4C8BDAAE5072FC629AF5119B38BA659E818",
     "native/colosseum_server_v1/tests/cmake/M00.cmake": "39DE4A05DD8808A88EEBDD88D3B8347DDA30294EBD0D8AFE96A64F9F32D66AC1"
   },
@@ -37,22 +37,22 @@
     "M00-01": {
       "state": "differentially-qualified",
       "requirements": "Override path present/missing, PATH lookup, spaces/non-ASCII paths and executable launch refusal.",
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt",
-      "sha256": "D5D93DD61185A8AC006B49314933730D7A8CD0BDCE82BE75C1F0F921CEE9DD5B",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01-LIFETIME-GREEN.raw.txt",
+      "sha256": "A021ABFFE381B93DC0990B1ECF309F3D45022A0F847D44B2F2774A9B45AFE777",
       "exit": 0
     },
     "M00-02": {
       "state": "differentially-qualified",
       "requirements": "Binary stdout/stderr, environment, unsuccessful exit, graceful-stop escalation, cancellation race, owned process tree and external-process boundary.",
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt",
-      "sha256": "5315CA9BAC65BB4152C7CAE546022096EAA97C9B76A525A2DDF994EBC98FDCFC",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-GREEN.raw.txt",
+      "sha256": "3990E95A1EB9843BBD2529FEB971E25EC09419AAFC3662D5214E71BE4A8199A7",
       "exit": 0
     },
     "M00-03": {
       "state": "differentially-qualified",
       "requirements": "Remote port selection, completion polling and disconnect without a public service.",
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt",
-      "sha256": "EA8F3564FC87019D670E07AA19A9BFB1611259F8E9F495AABF5B4FFED272EF1D",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-GREEN.raw.txt",
+      "sha256": "0A3462A782E1E6E0B060FC113A1938DD6EA8807FA172A1C79AD9F8A01DAC9AB8",
       "exit": 0
     }
   },
@@ -72,6 +72,22 @@
     "compile_raw": "artifacts/server1/M00/M00-A/red/RED-COMPILE-4.raw.txt",
     "failure": "fatal error C1083: Cannot open include file: 'server1/ports/ProcessPort.h': No such file or directory"
   },
+  "lifetime_regression": {
+    "red_manifest": "artifacts/server1/M00/M00-A/red/LIFETIME-RED.json",
+    "local_red": {
+      "command": "set PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;%PATH% && server1_m00_process_tests.exe M00-02",
+      "exit": 1,
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-RED.raw.txt",
+      "sha256": "43A23E0D045116200560243E2B523FD84D9F0BD6BD1A796129DAE729FF4963F2"
+    },
+    "remote_red": {
+      "command": "set PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;%PATH% && server1_m00_process_tests.exe M00-03",
+      "exit": 1,
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-RED.raw.txt",
+      "sha256": "174DB71915CDF5B4AF12A86538383E4097D507380953FE2FE2C04ABE56FD1A5E"
+    },
+    "green_assertions": "ProcessDriver destruction marks shared state dead before cancel; local and remote late callbacks are ignored; owned children drain and remote cancellation occurs once."
+  },
   "green": {
     "configure": {
       "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" -S \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\" -B \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\\cmake\" -G Ninja -DCMAKE_MAKE_PROGRAM=\"C:\\Qt\\Tools\\Ninja\\ninja.exe\" -DCMAKE_PREFIX_PATH=\"C:\\Qt\\6.11.1\\msvc2022_64\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
@@ -82,29 +98,29 @@
     "build": {
       "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" --build \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\\cmake\" --clean-first --parallel 2",
       "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/BUILD.raw.txt",
-      "sha256": "CD0B384BF4B368566A35960643E2E9834B8FBF49E28CDAC5756B54AAC8CE445B",
-      "candidate_sha256": "9B709C018EE20AA53D4A413F20DA7E109C8216E096DA116B3A4BEBECB73B20D4",
+      "raw": "artifacts/server1/M00/M00-A/evidence/BUILD-LIFETIME-GREEN.raw.txt",
+      "sha256": "28396B646C17B9CEFD3DFBC748608474DAF15C0E7789472C2DC4083BDBB50D28",
+      "candidate_sha256": "F08A763178CA17DBC529DCB109BFCBABFCD1424A46BD3EFAF14CCF2F4BECCAE9",
       "candidate_path": "artifacts/server1/M00/M00-A/build/cmake/server1_m00_process_tests.exe"
     },
     "ctest": {
-      "command": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe --test-dir artifacts/server1/M00/M00-A/build/cmake --output-on-failure",
+      "command": "set PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;%PATH% && C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe --test-dir artifacts/server1/M00/M00-A/build/cmake --output-on-failure",
       "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/CTEST.raw.txt",
-      "sha256": "E447F29A5DE6A42759EBDFE6F4D348709AEF078F46741C629C1666D79A22ADA1"
+      "raw": "artifacts/server1/M00/M00-A/evidence/CTEST-LIFETIME-GREEN.raw.txt",
+      "sha256": "B51B8F3904D73FC4F07AC75D72F36902AC22D5FDD9F080F1C4C844F7018D0FBB"
     }
   },
   "hash_audit": {
     "command": "PowerShell Get-FileHash SHA256 audit for oracle, candidate executable and all owned files",
     "exit": 0,
     "raw": "artifacts/server1/M00/M00-A/evidence/HASH-AUDIT.raw.txt",
-    "sha256": "1E6305C789FE6F7E96BDAA52AC868EF2EE9C22F9F9883A3275AB8AA3D9FEDC69"
+    "sha256": "7B7470AEAD8743B0A7A9F4A440D8CA93873F9F8E853022349514B5B5539786C3"
   },
   "json_audit": {
     "command": "PowerShell ConvertFrom-Json validation for all packet JSON evidence",
     "exit": 0,
     "raw": "artifacts/server1/M00/M00-A/evidence/JSON-AUDIT.raw.txt",
-    "sha256": "7E4E423433E51F136515D9B19B7580FB4278F5F971D3123CFF447640A6B4D447"
+    "sha256": "97EEC5AC42E516A47AA8E2A07EC4D933B9483F0A6ADEA78D98F876E0563AA3A5"
   },
   "differential": {
     "raw": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.raw.txt",

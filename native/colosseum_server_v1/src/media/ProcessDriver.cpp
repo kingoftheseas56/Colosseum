@@ -6,6 +6,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <atomic>
 #include <map>
 #include <utility>
 #include <vector>
@@ -306,18 +307,17 @@ qsizetype ProcessPort::activeCount() const noexcept
     return static_cast<qsizetype>(impl_->children.size());
 }
 
-struct ProcessDriver::Impl final {
+struct ProcessDriver::Impl final : std::enable_shared_from_this<ProcessDriver::Impl> {
     ProcessPort *port = nullptr;
     RemoteProcessTransport transport;
     quint64 nextId = 1;
     std::map<quint64, std::unique_ptr<RemoteChild>> remotes;
     std::map<quint64, quint64> localProcessIds;
-    ProcessDriver *owner = nullptr;
+    std::atomic_bool alive = true;
 
-    Impl(ProcessDriver *ownerIn, ProcessPort *portIn, RemoteProcessTransport transportIn)
+    Impl(ProcessPort *portIn, RemoteProcessTransport transportIn)
         : port(portIn)
         , transport(std::move(transportIn))
-        , owner(ownerIn)
     {
     }
 
@@ -344,13 +344,19 @@ struct ProcessDriver::Impl final {
 
     void pollRemote(quint64 id)
     {
+        if (!alive.load())
+            return;
         RemoteChild *current = remote(id);
         if (!current || !current->active || current->ready || !transport.poll)
             return;
 
         const QString bridgeId = current->bridgeId;
-        transport.poll(current->url, [this, id, bridgeId](const RemotePollResult &pollResult) {
-            RemoteChild *remoteChild = remote(id);
+        const std::weak_ptr<Impl> weak = shared_from_this();
+        transport.poll(current->url, [weak, id, bridgeId](const RemotePollResult &pollResult) {
+            const auto impl = weak.lock();
+            if (!impl || !impl->alive.load())
+                return;
+            RemoteChild *remoteChild = impl->remote(id);
             if (!remoteChild || !remoteChild->active || remoteChild->bridgeId != bridgeId)
                 return;
             if (!pollResult.stderrData.isEmpty()) {
@@ -374,61 +380,107 @@ struct ProcessDriver::Impl final {
                     result.signal = remoteChild->completion.signal;
                     result.errorString = remoteChild->completion.errorString;
                     result.error = remoteChild->completion.failed ? QProcess::Crashed : QProcess::UnknownError;
-                    finishRemote(id, result);
+                    impl->finishRemote(id, result);
                 }
                 return;
             }
-            QTimer::singleShot(std::max(0, remoteChild->spec.remotePollIntervalMs), owner,
-                               [this, id] { pollRemote(id); });
+            const std::weak_ptr<Impl> nextWeak = impl;
+            QTimer::singleShot(std::max(0, remoteChild->spec.remotePollIntervalMs),
+                               [nextWeak, id] {
+                                   const auto next = nextWeak.lock();
+                                   if (next && next->alive.load())
+                                       next->pollRemote(id);
+                               });
         });
     }
 };
 
 ProcessDriver::ProcessDriver(ProcessPort &port, RemoteProcessTransport transport, QObject *parent)
     : QObject(parent)
-    , impl_(std::make_unique<Impl>(this, &port, std::move(transport)))
+    , impl_(std::make_shared<Impl>(&port, std::move(transport)))
 {
 }
 
 ProcessDriver::~ProcessDriver()
 {
+    const auto impl = std::move(impl_);
+    impl->alive.store(false);
+
     const std::vector<quint64> remoteIds = [&] {
         std::vector<quint64> ids;
-        ids.reserve(impl_->remotes.size());
-        for (const auto &[id, remote] : impl_->remotes) {
+        ids.reserve(impl->remotes.size());
+        for (const auto &[id, remote] : impl->remotes) {
             Q_UNUSED(remote);
             ids.push_back(id);
         }
         return ids;
     }();
-    for (const quint64 id : remoteIds)
-        (void)disconnect(id);
+    for (const quint64 id : remoteIds) {
+        if (RemoteChild *remote = impl->remote(id); remote && remote->active) {
+            if (impl->transport.cancel)
+                impl->transport.cancel(remote->bridgeId);
+            remote->active = false;
+            impl->remotes.erase(id);
+        }
+    }
 
     std::vector<quint64> localProcessIds;
-    localProcessIds.reserve(impl_->localProcessIds.size());
-    for (const auto &[driverId, processId] : impl_->localProcessIds) {
+    localProcessIds.reserve(impl->localProcessIds.size());
+    for (const auto &[driverId, processId] : impl->localProcessIds) {
         Q_UNUSED(driverId);
         localProcessIds.push_back(processId);
     }
     for (const quint64 processId : localProcessIds)
-        (void)impl_->port->cancel(processId);
+        (void)impl->port->cancel(processId);
+    impl->localProcessIds.clear();
 }
 
 quint64 ProcessDriver::start(const DriverSpec &spec, ProcessCallbacks callbacks)
 {
     const quint64 driverId = impl_->nextId++;
     if (spec.mode == HlsV2Mode::Local) {
+        const std::weak_ptr<Impl> weak = impl_;
         ProcessCallbacks localCallbacks;
-        localCallbacks.onStarted = callbacks.onStarted;
-        localCallbacks.onStdout = callbacks.onStdout;
-        localCallbacks.onStderr = callbacks.onStderr;
-        localCallbacks.onRemoteReady = callbacks.onRemoteReady;
-        localCallbacks.onFinished = [this, driverId,
+        localCallbacks.onStarted = [weak, started = std::move(callbacks.onStarted)]() mutable {
+            const auto impl = weak.lock();
+            if (!impl || !impl->alive.load())
+                return;
+            if (started)
+                started();
+        };
+        localCallbacks.onStdout = [weak, stdoutCallback = std::move(callbacks.onStdout)](
+                                       const QByteArray &bytes) mutable {
+            const auto impl = weak.lock();
+            if (!impl || !impl->alive.load())
+                return;
+            if (stdoutCallback)
+                stdoutCallback(bytes);
+        };
+        localCallbacks.onStderr = [weak, stderrCallback = std::move(callbacks.onStderr)](
+                                       const QByteArray &bytes) mutable {
+            const auto impl = weak.lock();
+            if (!impl || !impl->alive.load())
+                return;
+            if (stderrCallback)
+                stderrCallback(bytes);
+        };
+        localCallbacks.onRemoteReady = [weak, ready = std::move(callbacks.onRemoteReady)](
+                                           quint16 port, const QString &url) mutable {
+            const auto impl = weak.lock();
+            if (!impl || !impl->alive.load())
+                return;
+            if (ready)
+                ready(port, url);
+        };
+        localCallbacks.onFinished = [weak, driverId,
                                      finished = std::move(callbacks.onFinished)](
                                         const ProcessResult &result) mutable {
+            const auto impl = weak.lock();
+            if (!impl || !impl->alive.load())
+                return;
             ProcessResult mapped = result;
             mapped.id = driverId;
-            impl_->localProcessIds.erase(driverId);
+            impl->localProcessIds.erase(driverId);
             if (finished)
                 finished(mapped);
         };
@@ -471,16 +523,20 @@ quint64 ProcessDriver::start(const DriverSpec &spec, ProcessCallbacks callbacks)
         current->callbacks.onStarted();
     if (!impl_->remote(driverId))
         return driverId;
+    const std::weak_ptr<Impl> weak = impl_;
     impl_->transport.dispatch(bridgeId, program, arguments, environment,
-                              [this, driverId, bridgeId](const RemoteCompletion &completion) {
-                                  RemoteChild *current = impl_->remote(driverId);
+                              [weak, driverId, bridgeId](const RemoteCompletion &completion) {
+                                  const auto impl = weak.lock();
+                                  if (!impl || !impl->alive.load())
+                                      return;
+                                  RemoteChild *current = impl->remote(driverId);
                                   if (!current || !current->active || current->bridgeId != bridgeId)
                                       return;
                                   current->completionReceived = true;
                                   current->completion = completion;
                                   if (completion.failed || current->ready) {
-                                      if (completion.failed && impl_->transport.cancel)
-                                          impl_->transport.cancel(current->bridgeId);
+                                      if (completion.failed && impl->transport.cancel)
+                                          impl->transport.cancel(current->bridgeId);
                                       ProcessResult result;
                                       result.started = true;
                                       result.exitCode = completion.exitCode;
@@ -488,11 +544,15 @@ quint64 ProcessDriver::start(const DriverSpec &spec, ProcessCallbacks callbacks)
                                       result.error = completion.failed ? QProcess::Crashed
                                                                        : QProcess::UnknownError;
                                       result.errorString = completion.errorString;
-                                      impl_->finishRemote(driverId, result);
+                                       impl->finishRemote(driverId, result);
                                   }
                               });
-    QTimer::singleShot(std::max(0, spec.remotePollIntervalMs), this,
-                       [this, driverId] { impl_->pollRemote(driverId); });
+    QTimer::singleShot(std::max(0, spec.remotePollIntervalMs),
+                       [weak, driverId] {
+                           const auto impl = weak.lock();
+                           if (impl && impl->alive.load())
+                               impl->pollRemote(driverId);
+                       });
     return driverId;
 }
 
