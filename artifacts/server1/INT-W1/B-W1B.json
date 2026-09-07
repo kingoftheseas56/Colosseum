@@ -1,0 +1,80 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W1",
+  "barrier": "B-W1B",
+  "branch": "feature/colosseum-server-1.0",
+  "integrated_sha": "a9ec34b0e70fc212664d4592dec627d78f837eb0",
+  "predecessor_barrier": "B-W1A",
+  "input_commits": {
+    "B-W1A_HEAD": "2f196378a41e209d30598f72a7e388123015f2ea",
+    "P04_worker": ["51d990bf866c2b603235da61bcc84a81079b1903", "1dbe086323ca63a3d2a278f7fca9eff2f1f88937"],
+    "integration": [
+      "7d814ffac29772b209e6122d04609698c9fc9c3b",
+      "06ee0e0acb63702d525e1ae883c6eeeca2a475fa",
+      "24bc9f33150a278ae8ca42b906d717b034723821",
+      "67594c0e894a3803dfa3b28219b94df705902ea3",
+      "a9ec34b0e70fc212664d4592dec627d78f837eb0"
+    ]
+  },
+  "diff_review": {
+    "range": "2f196378..a9ec34b0",
+    "changed_paths": 16,
+    "topology": "unchanged; P04 packet-local lab runner, schema, cases, fixtures and evidence only",
+    "required_case_definition_present": true,
+    "forbidden_paths_changed": [],
+    "git_diff_check_exit": 0,
+    "production_behavior_changed_by_integration": false
+  },
+  "cases": {
+    "P04-01": {"state": "PASS", "coverage": ["byte", "status", "header", "timeout", "crash", "missing-evidence"], "test": "test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures"},
+    "P04-02": {"state": "PASS", "coverage": ["FAIL", "ERROR", "UNSUPPORTED", "INDETERMINATE", "NOT_RUN"], "test": "test_p04_02_statuses_remain_distinct_and_never_pass"},
+    "P04-03": {"state": "PASS", "coverage": ["interleaved-runs", "active-run-reaping", "raw-concealment", "forged-pid"], "tests": ["test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans", "test_raw_protocol_divergence_cannot_be_normalized_into_pass", "test_committed_p04_sample_is_real_schema_valid_and_replayable"]}
+  },
+  "evidence_properties": {
+    "raw_vs_normalized_separate": true,
+    "status_vocabulary_honest": true,
+    "not_run_not_pass": true,
+    "event_matches_final_result": true,
+    "process_listener_cache_event_isolation": true,
+    "controlled_orphan_cleanup": true,
+    "unrelated_pid_protection": true,
+    "sample_replay_current_checkout": {"exit": 0, "result": "PASS", "fixture_sha256": "52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4"}
+  },
+  "repair_history": {
+    "rejected_head": "67594c0e894a3803dfa3b28219b94df705902ea3",
+    "failure": "test_committed_p04_sample_is_real_schema_valid_and_replayable",
+    "worker_fixture_sha256": "cfb98419878244faf700bd114e4ca5af5fa82fc5f65c04107cd3120f9fb7932a",
+    "integration_fixture_sha256": "57dffb",
+    "cause": "Windows line-ending conversion changed fixture bytes",
+    "repair_integrated": "a9ec34b0e70fc212664d4592dec627d78f837eb0",
+    "repaired_fixture_sha256": "52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4"
+  },
+  "verification": {
+    "commands": [
+      {"command": "python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v", "exit": 0, "result": "20 tests; 8 explicit P02 environment skips; 0 failures"},
+      {"command": "python -m tools.server_lab.lab --config C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\P04\\fixtures\\replay-config.json --subject C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\P04\\fixtures\\replay_subject.py --mode pass --data-root C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\INT-W1\\B-W1B-replay-20260907\\data --evidence-dir C:\\b\\Colosseum-Server-1.0\\artifacts\\server1\\INT-W1\\B-W1B-replay-20260907\\evidence --run-id integration-p04-pass", "exit": 0, "result": "PASS; source hash matched current checkout"},
+      {"command": "cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W1/B-W1B-p03-20260907 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL", "exit": 0},
+      {"command": "ninja -C artifacts/server1/INT-W1/B-W1B-p03-20260907", "exit": 0},
+      {"command": "PATH=C:\\Windows\\System32;C:\\Windows ctest --test-dir artifacts/server1/INT-W1/B-W1B-p03-20260907 --output-on-failure", "exit": 0},
+      {"command": "PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;C:\\Windows\\System32;C:\\Windows artifacts/server1/INT-W1/B-W1B-p03-20260907/server1_host.exe", "exit": 0, "result": "initialized and shutdown; streaming-ready=NO"},
+      {"command": "cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W1/B-W1B-p03-20260907-missing -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DP03_DEPENDENCY_LOCK=artifacts/server1/P03/missing-dependency-lock.json", "exit": 1, "result": "expected missing does-not-exist.lib failure"},
+      {"command": "git diff --check 2f196378..a9ec34b0", "exit": 0}
+    ],
+    "skips": [
+      "P02 Windows reference-runtime tests skipped because STREMIO_SERVER_JS was not supplied",
+      "P02 WSL qualification tests skipped because oracle and WSL Ubuntu were not supplied"
+    ],
+    "inherited": ["B-W1A receipt and accepted P03 evidence remain valid; fresh P03 aggregate replayed here"],
+    "not_replayed": ["No external P04 experiment beyond the bounded committed fixture replay; no destructive or long-lived experiment"],
+    "unresolved_failures": []
+  },
+  "releases": {
+    "P05-A": "released",
+    "P06-A": "released",
+    "P06-B": "released",
+    "P05-B": "held until P05-A",
+    "P06-C": "held until P06-A and P06-B"
+  },
+  "status": "accepted",
+  "push": false
+}

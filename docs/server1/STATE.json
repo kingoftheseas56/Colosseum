@@ -19,13 +19,15 @@
     "P00-A": "P00 evidence work may execute while the project ledger remains planned.",
     "P01B-A": "Blocked by P00-A; nonblocking to Server 1.0 correctness and release gates.",
     "P03-A": "Accepted and integrated at cbc86115805187013be566362f7be80741c194b2; B-W1A accepted by INT-W1.",
-    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; current integrated source is cbc86115805187013be566362f7be80741c194b2."
+    "P04-A": "Accepted and integrated at a9ec34b0e70fc212664d4592dec627d78f837eb0; B-W1B accepted by INT-W1 after fixture byte-stability repair.",
+    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; current integrated source is a9ec34b0e70fc212664d4592dec627d78f837eb0."
   },
   "accepted_states": {
-    "workers": {"P00-A": "accepted", "P01A-A": "accepted", "P02-A": "accepted", "P08A-A": "accepted", "P03-A": "integrated", "INT-W1": "integrated"},
-    "barriers": {"B-W1A": "accepted"},
-    "integrated_sha": "cbc86115805187013be566362f7be80741c194b2",
-    "receipt": "artifacts/server1/INT-W1/B-W1A.json",
+    "workers": {"P00-A": "accepted", "P01A-A": "accepted", "P02-A": "accepted", "P08A-A": "accepted", "P03-A": "integrated", "P04-A": "accepted", "INT-W1": "integrated"},
+    "barriers": {"B-W1A": "accepted", "B-W1B": "accepted"},
+    "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "held_until_P05-A", "P06-C": "held_until_P06-A_and_P06-B"},
+    "integrated_sha": "a9ec34b0e70fc212664d4592dec627d78f837eb0",
+    "receipt": "artifacts/server1/INT-W1/B-W1B.json",
     "push": false
   }
 }
