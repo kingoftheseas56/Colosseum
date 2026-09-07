@@ -7,7 +7,7 @@
   "predecessor_barrier": "B-W1A",
   "input_commits": {
     "B-W1A_HEAD": "2f196378a41e209d30598f72a7e388123015f2ea",
-    "P04_worker": ["51d990bf866c2b603235da61bcc84a81079b1903", "1dbe086323ca63a3d2a278f7fca9eff2f1f88937"],
+    "P04_worker": ["51d990bf866c2b603235da61bcc84a81079b1903", "1dbe086323ca63a3d2a278f7fca9eff2f1f88937", "73ec03a678da4b779fde63099b742fc3d0fe338f", "4649f56e2113e7433c4afd889c58dde51b61a5e4", "ca7decd8f1e430ca24fda304e9ad7e5a9cae3ad4"],
     "integration": [
       "7d814ffac29772b209e6122d04609698c9fc9c3b",
       "06ee0e0acb63702d525e1ae883c6eeeca2a475fa",
@@ -44,7 +44,7 @@
     "rejected_head": "67594c0e894a3803dfa3b28219b94df705902ea3",
     "failure": "test_committed_p04_sample_is_real_schema_valid_and_replayable",
     "worker_fixture_sha256": "cfb98419878244faf700bd114e4ca5af5fa82fc5f65c04107cd3120f9fb7932a",
-    "integration_fixture_sha256": "57dffb",
+    "integration_fixture_sha256": "57dffbd0ecdc692f773ff576415487f8761b6fd834390cb5b0a00c3828da800c",
     "cause": "Windows line-ending conversion changed fixture bytes",
     "repair_integrated": "a9ec34b0e70fc212664d4592dec627d78f837eb0",
     "repaired_fixture_sha256": "52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4"
