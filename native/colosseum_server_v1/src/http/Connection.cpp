@@ -1,4 +1,5 @@
 #include <QtCore/QByteArray>
+#include <QtCore/QMetaObject>
 #include <QtCore/QObject>
 #include <QtNetwork/QHostAddress>
 #include <QtNetwork/QTcpServer>
@@ -7,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <deque>
+#include <limits>
 #include <string>
 
 extern "C" {
@@ -41,6 +43,7 @@ namespace {
 
 constexpr std::size_t kDefaultMaxBodyBytes = 3U * 1024U * 1024U;
 constexpr std::size_t kDefaultMaxQueuedBytes = 1U * 1024U * 1024U;
+constexpr qint64 kMaxWriteChunkBytes = 16U * 1024U;
 
 const char *reasonPhrase(int status)
 {
@@ -112,6 +115,7 @@ public:
     [[nodiscard]] unsigned short port() const;
     [[nodiscard]] const std::string &error() const;
     [[nodiscard]] std::size_t queuedBytes() const;
+    [[nodiscard]] std::size_t pendingBytes() const;
     [[nodiscard]] std::size_t maxQueuedBytes() const;
     [[nodiscard]] std::size_t activeConnections() const;
     [[nodiscard]] void *router() const;
@@ -144,16 +148,16 @@ public:
         socket_->setReadBufferSize(static_cast<qint64>(kDefaultMaxBodyBytes + 64U * 1024U));
         QObject::connect(socket_, &QTcpSocket::readyRead, this, [this] { readAvailable(); });
         QObject::connect(socket_, &QTcpSocket::bytesWritten, this,
-                         [this](qint64) { drain(); });
+                         [this](qint64 bytes) { acknowledgeWritten(bytes); });
         QObject::connect(socket_, &QTcpSocket::disconnected, this,
-                         [this] { releaseConnection(); });
+                         [this] { handleDisconnected(); });
+        QObject::connect(socket_, &QAbstractSocket::errorOccurred, this,
+                         [this](QAbstractSocket::SocketError) { handleSocketError(); });
     }
 
     ~HttpConnection() override
     {
         releaseConnection();
-        if (parser_ != nullptr)
-            server1_http_parser_destroy(parser_);
     }
 
     void setDrainPaused(bool paused)
@@ -164,12 +168,23 @@ public:
     }
 
     [[nodiscard]] bool closed() const { return closed_; }
-    [[nodiscard]] std::size_t queuedBytes() const { return queuedBytes_; }
+    [[nodiscard]] std::size_t queuedBytes() const { return pendingBytes(); }
+    [[nodiscard]] std::size_t pendingBytes() const
+    {
+        const std::size_t socketBytes = socket_ == nullptr || socket_->bytesToWrite() <= 0
+            ? 0
+            : static_cast<std::size_t>(socket_->bytesToWrite());
+        return applicationQueuedBytes_ > std::numeric_limits<std::size_t>::max() - socketBytes
+            ? std::numeric_limits<std::size_t>::max()
+            : applicationQueuedBytes_ + socketBytes;
+    }
+    [[nodiscard]] bool released() const { return released_; }
 
     void closeFromServer()
     {
-        if (closed_)
+        if (released_)
             return;
+        failureHandled_ = true;
         closed_ = true;
         clearQueue();
         if (socket_ != nullptr)
@@ -180,7 +195,8 @@ public:
 private:
     struct PendingWrite final {
         QByteArray data;
-        qsizetype offset = 0;
+        qsizetype accepted = 0;
+        qsizetype delivered = 0;
         bool closeAfter = false;
     };
 
@@ -246,17 +262,15 @@ private:
     {
         if (closed_)
             return;
-        if (static_cast<std::size_t>(data.size()) > server_->maxQueuedBytes()
-            || queuedBytes_ > server_->maxQueuedBytes() - static_cast<std::size_t>(data.size())) {
-            closed_ = true;
-            clearQueue();
-            if (socket_ != nullptr)
-                socket_->abort();
-            releaseConnection();
+        const std::size_t responseBytes = static_cast<std::size_t>(data.size());
+        const std::size_t pendingBytes = server_->pendingBytes();
+        if (responseBytes > server_->maxQueuedBytes()
+            || pendingBytes > server_->maxQueuedBytes() - responseBytes) {
+            handleSocketError();
             return;
         }
-        queue_.push_back(PendingWrite{data, 0, closeAfter});
-        queuedBytes_ += static_cast<std::size_t>(data.size());
+        queue_.push_back(PendingWrite{data, 0, 0, closeAfter});
+        applicationQueuedBytes_ += responseBytes;
         drain();
     }
 
@@ -264,53 +278,136 @@ private:
     {
         if (closed_ || drainPaused_ || socket_ == nullptr)
             return;
-        while (!queue_.empty()) {
-            PendingWrite &pending = queue_.front();
-            const qint64 remaining = pending.data.size() - pending.offset;
-            if (remaining <= 0) {
-                const bool closeAfter = pending.closeAfter;
-                queue_.pop_front();
-                if (closeAfter) {
-                    closed_ = true;
-                    clearQueue();
-                    socket_->disconnectFromHost();
-                    releaseConnection();
-                    return;
-                }
-                continue;
-            }
-            const qint64 written = socket_->write(pending.data.constData() + pending.offset, remaining);
-            if (written <= 0) {
-                closed_ = true;
-                clearQueue();
-                socket_->abort();
-                releaseConnection();
-                return;
-            }
-            pending.offset += static_cast<qsizetype>(written);
-            queuedBytes_ -= static_cast<std::size_t>(written);
-            if (pending.offset < pending.data.size())
-                return;
-        }
-        if (!responsePending_)
+        if (queue_.empty()) {
+            resumeInput();
             return;
+        }
+
+        PendingWrite &pending = queue_.front();
+        if (pending.accepted < pending.data.size()) {
+            const qint64 remaining = pending.data.size() - pending.accepted;
+            const qint64 chunk = std::min(remaining, kMaxWriteChunkBytes);
+            const qint64 written = socket_->write(pending.data.constData() + pending.accepted, chunk);
+            if (written <= 0) {
+                handleSocketError();
+                return;
+            }
+            pending.accepted += static_cast<qsizetype>(written);
+            applicationQueuedBytes_ -= static_cast<std::size_t>(written);
+            if (socket_->bytesToWrite() == 0) {
+                markSocketDrained();
+                if (pending.accepted < pending.data.size())
+                    scheduleDrain();
+                else
+                    completeFrontIfDrained();
+            }
+            return;
+        }
+
+        completeFrontIfDrained();
+    }
+
+    void acknowledgeWritten(qint64 bytes)
+    {
+        if (closed_ || released_ || bytes <= 0)
+            return;
+        qint64 remaining = bytes;
+        for (PendingWrite &pending : queue_) {
+            const qint64 awaiting = pending.accepted - pending.delivered;
+            if (awaiting <= 0)
+                continue;
+            const qint64 acknowledged = std::min(awaiting, remaining);
+            pending.delivered += static_cast<qsizetype>(acknowledged);
+            remaining -= acknowledged;
+            if (remaining == 0)
+                break;
+        }
+        drain();
+    }
+
+    void markSocketDrained()
+    {
+        for (PendingWrite &pending : queue_)
+            pending.delivered = pending.accepted;
+    }
+
+    void scheduleDrain()
+    {
+        if (closed_ || released_)
+            return;
+        QMetaObject::invokeMethod(this, [this] { drain(); }, Qt::QueuedConnection);
+    }
+
+    void completeFrontIfDrained()
+    {
+        if (queue_.empty()) {
+            resumeInput();
+            return;
+        }
+        PendingWrite &pending = queue_.front();
+        if (pending.accepted != pending.data.size() || pending.delivered != pending.data.size()
+            || socket_ == nullptr || socket_->bytesToWrite() != 0)
+            return;
+
+        const bool closeAfter = pending.closeAfter;
+        queue_.pop_front();
+        if (closeAfter) {
+            responsePending_ = false;
+            closed_ = true;
+            pendingInput_.clear();
+            deferredInput_.clear();
+            socket_->disconnectFromHost();
+            if (socket_->state() == QAbstractSocket::UnconnectedState)
+                handleDisconnected();
+            return;
+        }
         responsePending_ = false;
-        if (queue_.empty() && !pendingInput_.empty()) {
+        resumeInput();
+    }
+
+    void resumeInput()
+    {
+        if (closed_ || responsePending_)
+            return;
+        if (!pendingInput_.empty()) {
             const std::string input = std::move(pendingInput_);
             pendingInput_.clear();
             feed(input.data(), input.size());
+            if (closed_ || responsePending_)
+                return;
         }
-        if (!responsePending_ && !deferredInput_.isEmpty()) {
+        if (!deferredInput_.isEmpty()) {
             const QByteArray input = std::move(deferredInput_);
             deferredInput_.clear();
             feed(input.constData(), static_cast<std::size_t>(input.size()));
         }
     }
 
+    void handleDisconnected()
+    {
+        if (released_)
+            return;
+        closed_ = true;
+        clearQueue();
+        releaseConnection();
+    }
+
+    void handleSocketError()
+    {
+        if (released_ || failureHandled_)
+            return;
+        failureHandled_ = true;
+        closed_ = true;
+        clearQueue();
+        if (socket_ != nullptr)
+            socket_->abort();
+        releaseConnection();
+    }
+
     void clearQueue()
     {
         queue_.clear();
-        queuedBytes_ = 0;
+        applicationQueuedBytes_ = 0;
         pendingInput_.clear();
         deferredInput_.clear();
         responsePending_ = false;
@@ -321,6 +418,7 @@ private:
         if (released_)
             return;
         released_ = true;
+        clearQueue();
         if (parser_ != nullptr) {
             server1_http_parser_destroy(parser_);
             parser_ = nullptr;
@@ -335,13 +433,14 @@ private:
     QTcpSocket *socket_ = nullptr;
     void *parser_ = nullptr;
     std::deque<PendingWrite> queue_;
-    std::size_t queuedBytes_ = 0;
+    std::size_t applicationQueuedBytes_ = 0;
     std::string pendingInput_;
     QByteArray deferredInput_;
     bool responsePending_ = false;
     bool drainPaused_ = false;
     bool closed_ = false;
     bool released_ = false;
+    bool failureHandled_ = false;
 };
 
 HttpServer::HttpServer(void *router, std::size_t maxQueuedBytes)
@@ -404,10 +503,19 @@ const std::string &HttpServer::error() const
 
 std::size_t HttpServer::queuedBytes() const
 {
+    return pendingBytes();
+}
+
+std::size_t HttpServer::pendingBytes() const
+{
     std::size_t total = 0;
     for (const HttpConnection *connection : connections_) {
-        if (connection != nullptr)
-            total += connection->queuedBytes();
+        if (connection == nullptr)
+            continue;
+        const std::size_t pending = connection->pendingBytes();
+        if (pending > std::numeric_limits<std::size_t>::max() - total)
+            return std::numeric_limits<std::size_t>::max();
+        total += pending;
     }
     return total;
 }
@@ -421,7 +529,7 @@ std::size_t HttpServer::activeConnections() const
 {
     std::size_t total = 0;
     for (const HttpConnection *connection : connections_) {
-        if (connection != nullptr && !connection->closed())
+        if (connection != nullptr && !connection->released())
             ++total;
     }
     return total;

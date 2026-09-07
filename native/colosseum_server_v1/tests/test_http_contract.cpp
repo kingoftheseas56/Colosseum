@@ -1,4 +1,5 @@
 #include <QtCore/QCoreApplication>
+#include <QtCore/QByteArray>
 #include <QtCore/QElapsedTimer>
 #include <QtCore/QEventLoop>
 #include <QtNetwork/QTcpSocket>
@@ -173,6 +174,92 @@ void caseH00_01()
             "body limit reports Payload Too Large");
     server1_http_parser_destroy(parser);
 
+    const auto expectUnsupportedTransferEncoding = [](const std::string &encoding) {
+        void *transferParser = server1_http_parser_create(3U * 1024U * 1024U);
+        const std::string transferRequest =
+            "POST /transfer HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: " + encoding
+            + "\r\n\r\n0\r\n\r\n";
+        require(server1_http_parser_feed(transferParser, transferRequest.data(),
+                                          transferRequest.size())
+                    == kParseError,
+                "unsupported transfer coding combination is rejected");
+        require(server1_http_parser_error_status(transferParser) == 400,
+                "unsupported transfer coding combination reports Bad Request");
+        server1_http_parser_destroy(transferParser);
+    };
+    expectUnsupportedTransferEncoding("gzip, chunked");
+    expectUnsupportedTransferEncoding("chunked, gzip");
+    expectUnsupportedTransferEncoding("chunked, chunked");
+
+    parser = server1_http_parser_create(3U * 1024U * 1024U);
+    const std::string duplicateTransferEncoding =
+        "POST /transfer HTTP/1.1\r\nHost: localhost\r\n"
+        "Transfer-Encoding: chunked\r\nTransfer-Encoding: chunked\r\n\r\n"
+        "0\r\n\r\n";
+    require(server1_http_parser_feed(parser, duplicateTransferEncoding.data(),
+                                      duplicateTransferEncoding.size())
+                == kParseError,
+            "repeated transfer-encoding headers are rejected");
+    require(server1_http_parser_error_status(parser) == 400,
+            "repeated transfer-encoding headers report Bad Request");
+    server1_http_parser_destroy(parser);
+
+    parser = server1_http_parser_create(3U * 1024U * 1024U);
+    const std::string oversizedHeader =
+        "GET /headers HTTP/1.1\r\nHost: localhost\r\nX-Pad: "
+        + std::string(64U * 1024U, 'h') + "\r\n\r\n";
+    require(server1_http_parser_feed(parser, oversizedHeader.data(), oversizedHeader.size())
+                == kParseError,
+            "a complete header block above 64 KiB is rejected");
+    require(server1_http_parser_error_status(parser) == 431,
+            "completed oversized header reports Request Header Fields Too Large");
+    server1_http_parser_destroy(parser);
+
+    parser = server1_http_parser_create(4);
+    const std::string oversizedChunked =
+        "POST /chunked HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n"
+        "5\r\nhello\r\n0\r\n\r\n";
+    require(server1_http_parser_feed(parser, oversizedChunked.data(), oversizedChunked.size())
+                == kParseError,
+            "chunked body above the limit is rejected");
+    require(server1_http_parser_error_status(parser) == 413,
+            "oversized chunked body reports Payload Too Large");
+    server1_http_parser_destroy(parser);
+
+    parser = server1_http_parser_create(4);
+    const std::string maximalChunked =
+        "POST /chunked HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n"
+        "FFFFFFFFFFFFFFFF\r\n";
+    require(server1_http_parser_feed(parser, maximalChunked.data(), maximalChunked.size())
+                == kParseError,
+            "maximal chunk size is rejected without length arithmetic overflow");
+    require(server1_http_parser_error_status(parser) == 413,
+            "maximal chunk size above the body limit reports Payload Too Large");
+    server1_http_parser_destroy(parser);
+
+    parser = server1_http_parser_create(4);
+    const std::string overflowingChunked =
+        "POST /chunked HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n"
+        "10000000000000000\r\n";
+    require(server1_http_parser_feed(parser, overflowingChunked.data(), overflowingChunked.size())
+                == kParseError,
+            "chunk-size numeric overflow is rejected without wrapping");
+    require(server1_http_parser_error_status(parser) == 400,
+            "chunk-size numeric overflow reports Bad Request");
+    server1_http_parser_destroy(parser);
+
+    parser = server1_http_parser_create(3U * 1024U * 1024U);
+    const std::string oversizedTrailer =
+        "POST /chunked HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n"
+        "0\r\nX-Trailer: "
+        + std::string(64U * 1024U, 't') + "\r\n\r\n";
+    require(server1_http_parser_feed(parser, oversizedTrailer.data(), oversizedTrailer.size())
+                == kParseError,
+            "chunked trailers above the header budget are rejected");
+    require(server1_http_parser_error_status(parser) == 431,
+            "oversized chunked trailers report Request Header Fields Too Large");
+    server1_http_parser_destroy(parser);
+
     std::cout << "H00-01 PASS\n";
 }
 
@@ -250,9 +337,41 @@ void caseH00_02()
 
 void caseH00_03()
 {
+    auto collectUntilDisconnected = [](QTcpSocket &client) {
+        QByteArray received;
+        QElapsedTimer timer;
+        timer.start();
+        while (client.state() != QAbstractSocket::UnconnectedState && timer.elapsed() < 3000) {
+            if (client.bytesAvailable() != 0)
+                received += client.readAll();
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+        }
+        received += client.readAll();
+        require(client.state() == QAbstractSocket::UnconnectedState,
+                "closeAfter connection eventually reaches disconnected state");
+        return received;
+    };
+
+    auto requireFullResponse = [](const QByteArray &wire, const QByteArray &expectedBody) {
+        const qsizetype headerEnd = wire.indexOf("\r\n\r\n");
+        require(headerEnd >= 0, "real wire response has complete headers");
+        const QByteArray headers = wire.left(headerEnd);
+        require(headers.startsWith("HTTP/1.1 200 OK\r\n"), "real wire response has status 200");
+        const QByteArray contentLength =
+            QByteArray("Content-Length: ") + QByteArray::number(expectedBody.size());
+        require(headers.contains(contentLength), "real wire response has expected content length");
+        const QByteArray body = wire.mid(headerEnd + 4);
+        require(body.size() == expectedBody.size(), "close occurs only after the full body arrives");
+        require(body == expectedBody, "real wire body is not truncated or reordered");
+    };
+
+    const QByteArray payload(512U * 1024U, 'x');
+    const std::string payloadString(payload.constData(), static_cast<std::size_t>(payload.size()));
     void *router = server1_http_router_create();
-    const std::string payload(512U * 1024U, 'x');
-    require(server1_http_router_add_static(router, 0, 0, "GET", "/large", 200, payload.c_str()) == 1,
+    require(router != nullptr, "slow-consumer route router was created");
+    require(server1_http_router_add_static(router, 0, 0, "GET", "/large", 200,
+                                           payloadString.c_str())
+                == 1,
             "slow-consumer route is registered");
 
     constexpr std::size_t maxQueuedBytes = 1024U * 1024U;
@@ -263,6 +382,7 @@ void caseH00_03()
     server1_http_server_set_drain_paused(server, 1);
 
     QTcpSocket client;
+    client.setReadBufferSize(1);
     client.connectToHost(QStringLiteral("127.0.0.1"), server1_http_server_port(server));
     require(client.waitForConnected(1000), "test client connected to real listener");
     const std::string request =
@@ -274,17 +394,90 @@ void caseH00_03()
 
     pumpUntil([&] { return server1_http_server_queued_bytes(server) != 0; },
               "response bytes were queued behind the paused consumer");
+    require(client.bytesAvailable() == 0, "paused consumer has not received response bytes");
     require(server1_http_server_queued_bytes(server) <= maxQueuedBytes,
-            "response queue stays within the explicit backpressure bound");
+            "paused response stays within the total pending-byte bound");
 
-    client.abort();
+    server1_http_server_set_drain_paused(server, 0);
+    std::size_t peakAfterResume = server1_http_server_queued_bytes(server);
+    QElapsedTimer slowConsumerTimer;
+    slowConsumerTimer.start();
+    while (slowConsumerTimer.elapsed() < 500) {
+        peakAfterResume = std::max(peakAfterResume, server1_http_server_queued_bytes(server));
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+    }
+    require(peakAfterResume <= maxQueuedBytes,
+            "socket-pending plus application-pending response stays within the cap after resume");
+    client.setReadBufferSize(0);
+    const QByteArray received = collectUntilDisconnected(client);
+    requireFullResponse(received, payload);
     pumpUntil([&] {
         return server1_http_server_active_connections(server) == 0
             && server1_http_server_queued_bytes(server) == 0;
-    }, "disconnect releases queued response bytes and connection ownership");
+    }, "full response drain releases the connection after socket bytes drain");
     server1_http_server_stop(server);
     server1_http_server_destroy(server);
     server1_http_router_destroy(router);
+
+    constexpr std::size_t capProbeBytes = 512U * 1024U;
+    const QByteArray capPayload(300U * 1024U, 'y');
+    const std::string capPayloadString(capPayload.constData(),
+                                       static_cast<std::size_t>(capPayload.size()));
+    void *capRouter = server1_http_router_create();
+    require(capRouter != nullptr, "cap-probe router was created");
+    require(server1_http_router_add_static(capRouter, 0, 0, "GET", "/large", 200,
+                                           capPayloadString.c_str())
+                == 1,
+            "cap-probe route is registered");
+    void *capServer = server1_http_server_create(capRouter, capProbeBytes);
+    require(capServer != nullptr, "cap-probe listener was created");
+    require(server1_http_server_listen(capServer, 0) == 1, "cap-probe listener started");
+    server1_http_server_set_drain_paused(capServer, 1);
+
+    QTcpSocket firstPending;
+    QTcpSocket secondPending;
+    firstPending.connectToHost(QStringLiteral("127.0.0.1"), server1_http_server_port(capServer));
+    secondPending.connectToHost(QStringLiteral("127.0.0.1"), server1_http_server_port(capServer));
+    require(firstPending.waitForConnected(1000) && secondPending.waitForConnected(1000),
+            "two real clients connected for the total-cap probe");
+    const std::string pendingRequest =
+        "GET /large HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+    require(firstPending.write(pendingRequest.data(), static_cast<qint64>(pendingRequest.size()))
+                == static_cast<qint64>(pendingRequest.size()),
+            "first pending client wrote request");
+    require(secondPending.write(pendingRequest.data(), static_cast<qint64>(pendingRequest.size()))
+                == static_cast<qint64>(pendingRequest.size()),
+            "second pending client wrote request");
+    require(firstPending.flush() && secondPending.flush(), "pending clients flushed requests");
+
+    std::size_t peakPending = 0;
+    pumpUntil([&] {
+        peakPending = std::max(peakPending, server1_http_server_queued_bytes(capServer));
+        return peakPending != 0;
+    }, "at least one large response entered the pending queue");
+    QElapsedTimer capTimer;
+    capTimer.start();
+    while (capTimer.elapsed() < 500) {
+        peakPending = std::max(peakPending, server1_http_server_queued_bytes(capServer));
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+    }
+    require(peakPending <= capProbeBytes,
+            "multiple large responses never exceed the configured total pending-byte cap");
+
+    firstPending.abort();
+    secondPending.abort();
+    pumpUntil([&] {
+        return server1_http_server_active_connections(capServer) == 0
+            && server1_http_server_queued_bytes(capServer) == 0;
+    }, "disconnect during pending output releases ownership and queued bytes");
+    for (int index = 0; index < 4; ++index)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+    require(server1_http_server_active_connections(capServer) == 0
+                && server1_http_server_queued_bytes(capServer) == 0,
+            "no deferred write callback targets a released connection");
+    server1_http_server_stop(capServer);
+    server1_http_server_destroy(capServer);
+    server1_http_router_destroy(capRouter);
 
     std::cout << "H00-03 PASS\n";
 }

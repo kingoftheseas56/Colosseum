@@ -275,17 +275,22 @@ bool parseChunkSize(std::string_view value, std::size_t &result)
     for (const char character : sizeText) {
         if (!isHex(character))
             return false;
-        if (result > (std::numeric_limits<std::size_t>::max() >> 4U))
+        const std::size_t digit = hexValue(character);
+        if (result > (std::numeric_limits<std::size_t>::max() - digit) / 16U)
             return false;
-        result = (result << 4U) | hexValue(character);
+        result = (result << 4U) | digit;
     }
     return true;
 }
 
 bool parseChunkedBody(std::string_view buffer, std::size_t bodyStart, std::size_t maxBody,
-                      std::string &body, std::size_t &consumed, bool &needMore)
+                      std::string &body, std::size_t &consumed, bool &needMore, bool &tooLarge,
+                      bool &trailersTooLarge)
 {
     body.clear();
+    needMore = false;
+    tooLarge = false;
+    trailersTooLarge = false;
     std::size_t cursor = bodyStart;
     while (true) {
         const std::size_t lineEnd = buffer.find("\r\n", cursor);
@@ -296,24 +301,39 @@ bool parseChunkedBody(std::string_view buffer, std::size_t bodyStart, std::size_
         std::size_t chunkSize = 0;
         if (!parseChunkSize(buffer.substr(cursor, lineEnd - cursor), chunkSize))
             return false;
+        if (lineEnd > std::numeric_limits<std::size_t>::max() - 2U)
+            return false;
         cursor = lineEnd + 2;
-        if (chunkSize > maxBody - std::min(maxBody, body.size()))
+        if (body.size() > maxBody || chunkSize > maxBody - body.size()) {
+            tooLarge = true;
             return false;
-        if (buffer.size() < cursor + chunkSize + 2) {
-            needMore = true;
-            return true;
         }
-        body.append(buffer.substr(cursor, chunkSize));
-        if (buffer[cursor + chunkSize] != '\r' || buffer[cursor + chunkSize + 1] != '\n')
-            return false;
-        cursor += chunkSize + 2;
         if (chunkSize == 0) {
+            std::size_t trailerBytes = 0;
             while (true) {
-                const std::size_t trailerEnd = buffer.find("\r\n", cursor);
-                if (trailerEnd == std::string_view::npos) {
+                if (cursor > buffer.size()) {
                     needMore = true;
                     return true;
                 }
+                const std::size_t available = buffer.size() - cursor;
+                const std::size_t trailerEnd = buffer.find("\r\n", cursor);
+                if (trailerEnd == std::string_view::npos) {
+                    if (available > kMaxHeaderBytes) {
+                        trailersTooLarge = true;
+                        return false;
+                    }
+                    needMore = true;
+                    return true;
+                }
+                if (trailerEnd < cursor || trailerEnd > std::numeric_limits<std::size_t>::max() - 2U)
+                    return false;
+                const std::size_t lineBytes = trailerEnd - cursor;
+                if (trailerBytes > kMaxHeaderBytes - 2U
+                    || lineBytes > kMaxHeaderBytes - trailerBytes - 2U) {
+                    trailersTooLarge = true;
+                    return false;
+                }
+                trailerBytes += lineBytes + 2U;
                 if (trailerEnd == cursor) {
                     consumed = cursor + 2;
                     needMore = false;
@@ -322,7 +342,40 @@ bool parseChunkedBody(std::string_view buffer, std::size_t bodyStart, std::size_
                 cursor = trailerEnd + 2;
             }
         }
+        if (cursor > buffer.size()) {
+            needMore = true;
+            return true;
+        }
+        const std::size_t available = buffer.size() - cursor;
+        if (available < 2 || chunkSize > available - 2) {
+            needMore = true;
+            return true;
+        }
+        body.append(buffer.substr(cursor, chunkSize));
+        if (buffer[cursor + chunkSize] != '\r' || buffer[cursor + chunkSize + 1] != '\n')
+            return false;
+        cursor += chunkSize + 2;
     }
+}
+
+bool isSupportedTransferEncoding(const std::vector<std::string> &values)
+{
+    std::size_t codingCount = 0;
+    for (const std::string &value : values) {
+        std::size_t begin = 0;
+        while (begin <= value.size()) {
+            const std::size_t end = value.find(',', begin);
+            const std::size_t codingEnd = end == std::string::npos ? value.size() : end;
+            const std::string coding = lower(trimOWS(
+                std::string_view(value).substr(begin, codingEnd - begin)));
+            if (coding != "chunked" || ++codingCount != 1)
+                return false;
+            if (end == std::string::npos)
+                break;
+            begin = end + 1;
+        }
+    }
+    return codingCount == 1;
 }
 
 void fail(Parser &parser, int status, std::string message)
@@ -341,6 +394,10 @@ ParseState tryParse(Parser &parser)
     if (headerEnd == std::string::npos) {
         if (parser.buffer.size() > kMaxHeaderBytes)
             fail(parser, 431, "request headers too large");
+        return parser.state;
+    }
+    if (headerEnd > kMaxHeaderBytes - 4U) {
+        fail(parser, 431, "request headers too large");
         return parser.state;
     }
 
@@ -411,13 +468,12 @@ ParseState tryParse(Parser &parser)
     std::size_t bodyBytes = 0;
     const std::size_t bodyStart = headerEnd + 4;
     bool chunked = false;
-    for (const std::string &encoding : transferEncodings) {
-        if (hasToken({encoding}, "chunked"))
-            chunked = true;
-        else {
+    if (!transferEncodings.empty()) {
+        if (!isSupportedTransferEncoding(transferEncodings)) {
             fail(parser, 400, "unsupported transfer encoding");
             return parser.state;
         }
+        chunked = true;
     }
     if (chunked && !contentLengths.empty()) {
         fail(parser, 400, "content-length with chunked transfer encoding");
@@ -427,11 +483,15 @@ ParseState tryParse(Parser &parser)
     std::string body;
     if (chunked) {
         bool needMore = false;
+        bool tooLarge = false;
+        bool trailersTooLarge = false;
         std::size_t chunkedConsumed = 0;
         if (!parseChunkedBody(parser.buffer, bodyStart, parser.maxBodyBytes, body, chunkedConsumed,
-                              needMore)) {
-            fail(parser, body.size() > parser.maxBodyBytes ? 413 : 400,
-                 body.size() > parser.maxBodyBytes ? "request body too large" : "malformed chunked body");
+                              needMore, tooLarge, trailersTooLarge)) {
+            fail(parser, trailersTooLarge ? 431 : (tooLarge ? 413 : 400),
+                 trailersTooLarge
+                     ? "request trailers too large"
+                     : (tooLarge ? "request body too large" : "malformed chunked body"));
             return parser.state;
         }
         if (needMore)
