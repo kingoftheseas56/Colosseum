@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "packet": "P03",
+  "state": "test-authored",
+  "accepted": false,
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "recorded_base_sha": "1548f6998e9dd852cda25a4c8950b55194a3ab7c",
+  "predecessors": {
+    "P00": "accepted",
+    "P01A": "accepted",
+    "P08A": "accepted"
+  },
+  "candidate": "absent at RED-test authoring time",
+  "acceptance_blockers": [
+    "P03 contract test has not yet observed the absent candidate failure",
+    "candidate has not been authored, configured, compiled, or executed",
+    "Laptop 1 isolated-worktree non-mutation proof requires DevSpace and is not yet available in this conversation"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet": "P03",
+  "cases": [
+    {
+      "id": "P03-01",
+      "requirement": "The isolated Server 1.0 C++17 target configures and builds through the same Colosseum libtorrent dependency authority; disabling LibtorrentRasterbar must fail configuration visibly."
+    },
+    {
+      "id": "P03-02",
+      "requirement": "The QCoreApplication host links the production Server 1.0 library, initializes and shuts down its empty ownership shell, and reports zero capabilities / streaming readiness false."
+    },
+    {
+      "id": "P03-03",
+      "requirement": "The implementation branch is rooted at the recorded immutable master base and contains no copied Server 0.1 or pre-existing Server 1.0 subtree; Laptop 1 worktree non-mutation proof remains a separate DevSpace-only acceptance item."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+name: server1-p03-skeleton
+
+on:
+  push:
+    branches:
+      - feature/colosseum-server-1.0-preflight
+    paths:
+      - tools/server_lab/cases/P03.json
+      - tools/server_lab/tests/test_p03_skeleton.py
+      - docs/server1/P03-SKELETON.json
+      - native/colosseum_server_v1/**
+      - native/cmake/ColosseumLibtorrent.cmake
+      - native/CMakeLists.txt
+      - .github/workflows/server1-p03-skeleton.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: P03 skeleton contract
+        run: python -m unittest tools.server_lab.tests.test_p03_skeleton
