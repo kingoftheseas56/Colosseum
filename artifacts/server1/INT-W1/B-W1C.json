@@ -1,0 +1,165 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W1",
+  "barrier": "B-W1C",
+  "branch": "feature/colosseum-server-1.0",
+  "integrated_sha": "730ec57335c14929b6c937e7a0d53546473231ca",
+  "predecessor_barrier": "B-W1B",
+  "predecessor_integrated_sha": "a9ec34b0e70fc212664d4592dec627d78f837eb0",
+  "accepted_inputs": {
+    "B-W1B": [
+      "fc04e2a1446c94e7614c969749d988f3d6f84717",
+      "ce9961ea0666bea2d2c3563117ddcceb516f7a08",
+      "a9ec34b0e70fc212664d4592dec627d78f837eb0"
+    ],
+    "P05-A": [
+      "c9163a8ff1792bf46ec0fbf5107af1453c5b05c7",
+      "44991721e48ef21bcd207bdf42698720ac0e181a"
+    ],
+    "P05-B": [
+      "18775c7fadeb50968734a83fd35b27a014c2f811",
+      "4a166cb1a26fd111bdb4df23f35fd67294a0adb8",
+      "a4f4cc8d24fb264262c7b630524f0e1a7c590496"
+    ],
+    "P06-A": [
+      "5c4c061332a09514a10ec6e5d709fe12b0f9059e",
+      "ce068a11695dcec6cb63f2cd6c94b477ad8cee0a",
+      "6a532a6dda42c272d0ec37cdfc3ea7cbbcaf3756",
+      "0166565e4e9cc860d70c09ad6476d611d9d4299c"
+    ],
+    "P06-B": [
+      "bc0d046fc85307f80f960e036de2d4c38280c5a7",
+      "55da81e920b479e8e1e926487ebcbbff6bdf7e31",
+      "52eef757c79649ba8bc508dd1b8e527f6fe0d5f9",
+      "c297946adb26692e976d31682c01a375c376069e",
+      "e039dba6ad2bbf2364e5a4e820bfce0bd8fd4ad8"
+    ],
+    "P06-C": [
+      "9e07cc6d2802b6eaf025c8f031cd0d1608da1fb2",
+      "30fffac9a5815dbe7f3e874382e3fc4470f93502",
+      "d94996700baa063b65f4066e9bf02be6592f130c",
+      "db0224a7cbec2cef59c69f7ae5e9e62f8c267149"
+    ]
+  },
+  "cherry_pick_map": {
+    "P05-A": {
+      "worker_inputs": [
+        "c9163a8ff1792bf46ec0fbf5107af1453c5b05c7",
+        "44991721e48ef21bcd207bdf42698720ac0e181a"
+      ],
+      "accepted_commits": [
+        "c9163a8ff1792bf46ec0fbf5107af1453c5b05c7",
+        "44991721e48ef21bcd207bdf42698720ac0e181a"
+      ]
+    },
+    "P05-B": {
+      "worker_inputs": [
+        "18775c7fadeb50968734a83fd35b27a014c2f811",
+        "4a166cb1a26fd111bdb4df23f35fd67294a0adb8",
+        "a4f4cc8d24fb264262c7b630524f0e1a7c590496"
+      ],
+      "accepted_commits": [
+        "ec07faaca781529436712aed53062478721d6e6d",
+        "18df1575b1e2cd024ba23f182c0a9e36e346c6ac",
+        "730ec57335c14929b6c937e7a0d53546473231ca"
+      ],
+      "repair_included": "730ec57335c14929b6c937e7a0d53546473231ca"
+    },
+    "P06-A": {
+      "worker_inputs": [
+        "56d65deceb1f7cc52d154c7e17813d0638996a7c",
+        "eaed2a07213a81851d748d50f2d71720f6228587",
+        "27de2de6fe092a467604848dbe43c6939665a223",
+        "a5853daf434a6cb209d24439f5a0cfb4d263fb28"
+      ],
+      "accepted_commits": [
+        "5c4c061332a09514a10ec6e5d709fe12b0f9059e",
+        "ce068a11695dcec6cb63f2cd6c94b477ad8cee0a",
+        "6a532a6dda42c272d0ec37cdfc3ea7cbbcaf3756",
+        "0166565e4e9cc860d70c09ad6476d611d9d4299c"
+      ]
+    },
+    "P06-B": {
+      "worker_inputs": [
+        "23339fed5c0356eeb3cee372dac44c8e4a766d46",
+        "301e96eb890857a39c009c3a85e5dacb786c164b",
+        "9202ddfaa8c8d31b52b87dc8859e181269b9cfe6"
+      ],
+      "accepted_commits": [
+        "bc0d046fc85307f80f960e036de2d4c38280c5a7",
+        "55da81e920b479e8e1e926487ebcbbff6bdf7e31",
+        "52eef757c79649ba8bc508dd1b8e527f6fe0d5f9",
+        "c297946adb26692e976d31682c01a375c376069e",
+        "e039dba6ad2bbf2364e5a4e820bfce0bd8fd4ad8"
+      ]
+    },
+    "P06-C": {
+      "worker_inputs": [
+        "c236d58385b07d026243a11c1d6fdb92b88ba0e3",
+        "a561dca0fb4b505f08c25aeb3b59c875c88c16d1",
+        "04ce89d281ab2bd034c405cce777fd0f997f0df2",
+        "b284033bde1e33fbcfd3f6fe6fd569f37c488c47"
+      ],
+      "accepted_commits": [
+        "9e07cc6d2802b6eaf025c8f031cd0d1608da1fb2",
+        "30fffac9a5815dbe7f3e874382e3fc4470f93502",
+        "d94996700baa063b65f4066e9bf02be6592f130c",
+        "db0224a7cbec2cef59c69f7ae5e9e62f8c267149"
+      ]
+    }
+  },
+  "acceptance": {
+    "state": "accepted",
+    "basis": [
+      "P05 trace comparator accepted with all five P05-01 mutation fixtures and P05-02 ordering classes",
+      "P06 deterministic fixture corpus accepted with aggregate packet/self-test evidence"
+    ],
+    "cross_engine_parity_claimed": false
+  },
+  "cases": {
+    "P05-A": {"state": "accepted", "qualified_node": "v22.16.0", "tests": 5, "exit": 0},
+    "P05-B": {"state": "accepted", "trace_comparator_tests": 14, "exit": 0, "repair": "terminal uniqueness keyed by identity plus generation"},
+    "P06-A": {"state": "accepted", "tests": 8, "exit": 0},
+    "P06-B": {"state": "accepted", "self_test_exit": 0},
+    "P06-C": {"state": "accepted", "tests": 10, "exit": 0}
+  },
+  "p06_parent_differential": {
+    "state": "PARTIAL",
+    "stremio": "UNSUPPORTED",
+    "server_0_1": "UNSUPPORTED",
+    "cross_engine_parity": "NOT_CLAIMED"
+  },
+  "verification": {
+    "int_w1_aggregate": [
+      {"command": "python -m unittest -v tools.server_lab.tests.test_comparator", "exit": 0, "result": "14 tests passed"},
+      {"command": "qualified Node v22.16.0 --test artifacts/server1/P05/P05-A/test_p05_a.mjs", "exit": 0, "result": "5 tests passed"},
+      {"command": "python -m unittest -v tools.server_lab.tests.test_fixtures", "exit": 0, "result": "10 tests passed"},
+      {"command": "python -m unittest -v artifacts/server1/P06/P06-A/test_p06_a.py", "exit": 0, "result": "8 tests passed"},
+      {"command": "python artifacts/server1/P06/P06-B/self_test.py", "exit": 0},
+      {"command": "python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v", "exit": 0, "result": "24 tests; 8 expected skips; 0 failures"},
+      {"command": "py_compile all touched Python", "exit": 0},
+      {"command": "parse P05/P06 case and receipt JSON", "exit": 0},
+      {"command": "git diff --check d8cceab618265a23fbb18db78db7c4f75cba3b07..730ec57335c14929b6c937e7a0d53546473231ca", "exit": 0}
+    ],
+    "sol_independent_aggregate": {
+      "p05_b": {"tests": 14, "exit": 0},
+      "p05_a": {"tests": 5, "qualified_node": "v22.16.0", "exit": 0},
+      "p06_c": {"tests": 10, "exit": 0},
+      "p06_a": {"tests": 8, "exit": 0},
+      "p06_b_self_test": {"exit": 0},
+      "p04_reference": {"tests": 24, "expected_skips": 8, "failures": 0, "exit": 0},
+      "diff_check": {"exit": 0}
+    },
+    "forbidden_paths_changed": [],
+    "ownership_scope": [
+      "artifacts/server1/INT-W1/B-W1C.json",
+      "docs/server1/STATE.json"
+    ]
+  },
+  "releases": {
+    "released_only": ["P02S-A", "P07-A", "P07-B", "P08-A"],
+    "other_state_distinctions_preserved": true
+  },
+  "status": "accepted",
+  "push": "not_pushed"
+}

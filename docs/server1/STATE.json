@@ -20,14 +20,15 @@
     "P01B-A": "Blocked by P00-A; nonblocking to Server 1.0 correctness and release gates.",
     "P03-A": "Accepted and integrated at cbc86115805187013be566362f7be80741c194b2; B-W1A accepted by INT-W1.",
     "P04-A": "Accepted and integrated at a9ec34b0e70fc212664d4592dec627d78f837eb0; B-W1B accepted by INT-W1 after fixture byte-stability repair.",
-    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; current integrated source is a9ec34b0e70fc212664d4592dec627d78f837eb0."
+    "B-W1C": "Accepted at 730ec57335c14929b6c937e7a0d53546473231ca; P05 trace comparator and P06 deterministic fixture corpus accepted, with P06 parent differential remaining PARTIAL/UNSUPPORTED for Stremio and Server 0.1.",
+    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; current integrated source is 730ec57335c14929b6c937e7a0d53546473231ca."
   },
   "accepted_states": {
-    "workers": {"P00-A": "accepted", "P01A-A": "accepted", "P02-A": "accepted", "P08A-A": "accepted", "P03-A": "integrated", "P04-A": "accepted", "INT-W1": "integrated"},
-    "barriers": {"B-W1A": "accepted", "B-W1B": "accepted"},
-    "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "held_until_P05-A", "P06-C": "held_until_P06-A_and_P06-B"},
-    "integrated_sha": "a9ec34b0e70fc212664d4592dec627d78f837eb0",
-    "receipt": "artifacts/server1/INT-W1/B-W1B.json",
-    "push": false
+    "workers": {"P00-A": "accepted", "P01A-A": "accepted", "P02-A": "accepted", "P08A-A": "accepted", "P03-A": "integrated", "P04-A": "accepted", "P05-A": "accepted", "P05-B": "accepted", "P06-A": "accepted", "P06-B": "accepted", "P06-C": "accepted", "INT-W1": "integrated"},
+    "barriers": {"B-W1A": "accepted", "B-W1B": "accepted", "B-W1C": "accepted"},
+    "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "completed_at_B-W1C", "P06-C": "completed_at_B-W1C", "P02S-A": "released", "P07-A": "released", "P07-B": "released", "P08-A": "released"},
+    "integrated_sha": "730ec57335c14929b6c937e7a0d53546473231ca",
+    "receipt": "artifacts/server1/INT-W1/B-W1C.json",
+    "push": "not_pushed"
   }
 }
