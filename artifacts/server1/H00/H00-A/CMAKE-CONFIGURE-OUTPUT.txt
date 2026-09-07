@@ -1,0 +1,5 @@
+command=call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -S "C:\b\Colosseum-Server-1.0-workers\H00-A\native\colosseum_server_v1" -B "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_PREFIX_PATH="C:\Qt\6.11.1\msvc2022_64;C:\tools\libtorrent-2.0-msvc" -DCMAKE_PROJECT_INCLUDE="C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\CMAKE-PROJECT-INCLUDE.cmake"
+exit=0
+-- Configuring done (2.0s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/b/Colosseum-Server-1.0-workers/H00-A/artifacts/server1/H00/H00-A/cmake-build

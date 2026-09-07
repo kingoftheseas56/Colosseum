@@ -1,0 +1,5 @@
+command=call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" --target server1_h00_http_contract --parallel 2
+exit=0
+[1/3] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\Router.cpp.obj
+[2/3] Linking CXX static library server1_h00_http.lib
+[3/3] Linking CXX executable server1_h00_http_contract.exe

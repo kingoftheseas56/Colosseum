@@ -1,0 +1,38 @@
+{
+  "schema": "colosseum-server1-candidate-hashes/v1",
+  "worker_id": "H00-A",
+  "base_sha": "e5660e27a320845ab993201918443e609e1a34d5",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "files": [
+    {
+      "path": "native/colosseum_server_v1/src/http/Connection.cpp",
+      "sha256": "b95f688b2ecf1122f4c336b5f3f28f89539e80c5467ea28a0d9e241f5b8e8e98",
+      "lines": 534
+    },
+    {
+      "path": "native/colosseum_server_v1/src/http/Router.cpp",
+      "sha256": "d0a997b66d7a6905cfd4ef803d7a729f7a4909a6874964a019c114e38c624912",
+      "lines": 557
+    },
+    {
+      "path": "native/colosseum_server_v1/src/http/RequestParsing.cpp",
+      "sha256": "6294664bd8ecc13f095617b2d58ce77a7d498ede9ada4f87cb296019803aa0d0",
+      "lines": 670
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_http_contract.cpp",
+      "sha256": "317e0c7be36813773ad83f82f876b5551765eff9728962fae939f312cce222d9",
+      "lines": 361
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/H00.cmake",
+      "sha256": "bf5f75c310b18cd7a2f5d0320d0f074ef89a8cab2e482a900953df1a8de2c4ef",
+      "lines": 16
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/H00.cmake",
+      "sha256": "808e2a5aa2e888475dac72491523c75e8ced2a0ecf26f93981c31b4b6fa68c1e",
+      "lines": 18
+    }
+  ]
+}

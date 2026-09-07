@@ -1,0 +1,29 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "H00-A",
+  "parent_packet": "H00",
+  "integration_owner": "INT-W2",
+  "destination": "B-W2B on feature/colosseum-server-1.0",
+  "implementation_commit_sha": "409eade0c60bce3fef3b54819dc60a84fca98b13",
+  "requested_wiring": [
+    {
+      "surface": "native/colosseum_server_v1/CMakeLists.txt",
+      "action": "include native/colosseum_server_v1/cmake/packets/H00.cmake and call server1_register_h00_packet()",
+      "reason": "register server1_h00_http with Qt6::Network"
+    },
+    {
+      "surface": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "action": "include native/colosseum_server_v1/tests/cmake/H00.cmake and call server1_register_h00_tests()",
+      "reason": "register H00-01, H00-02 and H00-03 CTest entries"
+    }
+  ],
+  "produced_symbols": [
+    "server1_http_parser_*",
+    "server1_http_router_*",
+    "server1_http_response_*",
+    "server1_http_server_*"
+  ],
+  "shared_files_edited_by_worker": [],
+  "forbidden_shared_files_touched": [],
+  "integration_note": "The implementation uses packet-local C ABI declarations because the worker-owned file list contains no shared HTTP header. INT-W2 should expose or retain the equivalent HttpConnectionContract and RouterContract declarations at the shared integration seam without changing route order or parser limits."
+}

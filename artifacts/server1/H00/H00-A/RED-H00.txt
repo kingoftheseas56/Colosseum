@@ -1,0 +1,9 @@
+worker_id=H00-A
+parent_packet=H00
+state=test-authored
+command=call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && cl /nologo /EHsc /std:c++17 /Zc:__cplusplus /permissive- /I"C:\Qt\6.11.1\msvc2022_64\include" /I"C:\Qt\6.11.1\msvc2022_64\include\QtCore" /I"C:\Qt\6.11.1\msvc2022_64\include\QtNetwork" "C:\b\Colosseum-Server-1.0-workers\H00-A\native\colosseum_server_v1\tests\test_http_contract.cpp" /Fe:"C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\red\h00-red.exe" /link /LIBPATH:"C:\Qt\6.11.1\msvc2022_64\lib" Qt6Core.lib Qt6Network.lib ws2_32.lib
+exit=2
+raw_output=link-only RED on test-authored contract before H00 production symbols existed
+C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\red\h00-red.exe : fatal error LNK1120: 31 unresolved externals
+representative_unresolved_symbols=server1_http_parser_create, server1_http_router_create, server1_http_router_dispatch, server1_http_server_create
+interpretation=expected RED caused by absent H00 implementation symbols; Qt test translation unit compiled successfully

@@ -1,0 +1,67 @@
+{
+  "schema": "colosseum-server1-source-trace/v1",
+  "worker_id": "H00-A",
+  "parent_packet": "H00",
+  "oracle": {
+    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "verified_command": "Get-FileHash -Algorithm SHA256 -LiteralPath C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "verified_exit": 0
+  },
+  "authorities": [
+    {
+      "module": "M50",
+      "lines": "8724-8779",
+      "sha256": "f85a2efc4731f25db25dd240f1501ce26b673533b3643c41c1dde8bf44874a68",
+      "observed": "body-parser exposes json, raw, text and urlencoded parser factories"
+    },
+    {
+      "module": "M100",
+      "lines": "11691-11866",
+      "sha256": "f8b0b1ae8bd44fb66d27bb0572420c8e60f3454e849346404c5bf27df4cd7806",
+      "observed": "connect/express router stack order, method matching, HEAD fallback, automatic OPTIONS and params"
+    },
+    {
+      "module": "M109",
+      "lines": "12895-13072",
+      "sha256": "61e8f4d896bd5b5900aa29455d9047da05cd2068978bb1553d47f51400970cb5",
+      "observed": "used router variant preserves prefix boundary checks and deferred dispatch"
+    },
+    {
+      "module": "M172",
+      "lines": "18110-18500",
+      "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486",
+      "observed": "createApp parses url, applies json limit 3mb and urlencoded extended parsing, then externalRouter before root router"
+    },
+    {
+      "module": "M176",
+      "lines": "18515-18561",
+      "sha256": "a3ed64605676439d83e057a19518c0575a68b13b517257cd627b060c092ac4a6",
+      "observed": "range parser is source-adjacent transport behavior"
+    },
+    {
+      "module": "M178",
+      "lines": "18569-18607",
+      "sha256": "6a0403b7f11786f02ce89f6d1735bc0838805b4a87d3b925a27ec5ec57b9c4fc",
+      "observed": "path-to-regexp parameter, optional and wildcard matching with case-insensitive default"
+    },
+    {
+      "module": "M564",
+      "lines": "46578-46979",
+      "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+      "observed": "production external routes include hlsv2, yt, proxy and local-addon; HTTP listener is created and listens asynchronously"
+    },
+    {
+      "module": "M586",
+      "lines": "48443-48511",
+      "sha256": "367f6963cd5b262b7301e8de4ea3e6c43c4965e0c981d278173a616a4ea7c76b",
+      "observed": "connect dispatcher uses case-insensitive prefix matching with slash/dot boundary and deferred final handling"
+    }
+  ],
+  "case_mapping": {
+    "H00-01": "raw HTTP parsing and body/query/header semantics",
+    "H00-02": "production external-before-root router composition and route validation boundary",
+    "H00-03": "real asynchronous listener ownership, bounded response queue and disconnect cleanup"
+  },
+  "evidence_state": "source-traced; test-authored"
+}
