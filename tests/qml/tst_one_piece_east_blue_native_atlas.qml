@@ -314,6 +314,96 @@ TestCase {
                "Index background must provide distinct normal, hover, focus, and pressed feedback")
     }
 
+    function test_index_canon_rows_are_contrast_safe_in_all_button_states() {
+        atlas.indexVisible = true
+        wait(0)
+
+        var panel = findDescendant(atlas, function(item) { return item.objectName === "eastBlueIndexPanel" })
+        verify(panel !== null && panel.visible, "Index panel must be visible before inspecting canon rows")
+
+        function relativeLuminance(color) {
+            function linear(channel) {
+                return channel <= 0.03928 ? channel / 12.92
+                        : Math.pow((channel + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b)
+        }
+
+        function contrastRatio(foreground, background) {
+            var first = relativeLuminance(foreground)
+            var second = relativeLuminance(background)
+            var lighter = Math.max(first, second)
+            var darker = Math.min(first, second)
+            return (lighter + 0.05) / (darker + 0.05)
+        }
+
+        function compositedBackground(color) {
+            var alpha = color.a
+            return Qt.rgba(color.r * alpha + panel.color.r * (1 - alpha),
+                           color.g * alpha + panel.color.g * (1 - alpha),
+                           color.b * alpha + panel.color.b * (1 - alpha), 1)
+        }
+
+        function inspectRow(id) {
+            var row = findDescendant(panel, function(item) {
+                return item.objectName === "eastBlueCanonRow-" + id
+            })
+            verify(row !== null, id + " canon row exists")
+            verify(row.background !== null, id + " canon row has an explicit background")
+            verify(row.height >= 44, id + " canon row keeps the minimum hit target")
+            verify(row.contentItem !== null, id + " canon row has visible text")
+            verify(contrastRatio(row.contentItem.color, compositedBackground(row.background.color)) >= 4.5,
+                   id + " canon row normal text/background contrast is usable")
+            return row
+        }
+
+        var rows = ["romance", "orange", "syrup", "baratie", "arlong", "loguetown"]
+        for (var i = 0; i < rows.length; ++i)
+            inspectRow(rows[i])
+
+        var row = inspectRow("romance")
+        function colorKey(color) {
+            return [color.r, color.g, color.b, color.a].join("/")
+        }
+        function stateColor(label) {
+            var color = row.background.color
+            verify(contrastRatio(row.contentItem.color, compositedBackground(color)) >= 4.5,
+                   label + " canon row text/background contrast is usable")
+            return colorKey(color)
+        }
+
+        var normal = stateColor("normal")
+        moveToCenter(row)
+        wait(20)
+        var hover = stateColor("hover")
+
+        row.forceActiveFocus()
+        wait(20)
+        var focus = stateColor("focus")
+
+        var center = row.mapToItem(testWindow.contentItem, row.width / 2, row.height / 2)
+        mousePress(testWindow.contentItem, center.x, center.y, Qt.LeftButton)
+        wait(20)
+        var pressed = stateColor("pressed")
+        mouseRelease(testWindow.contentItem, center.x, center.y, Qt.LeftButton)
+
+        verify(normal !== hover && hover !== focus && focus !== pressed,
+               "canon row background must provide distinct normal, hover, focus, and pressed feedback")
+        atlas.indexVisible = false
+    }
+
+    function test_zoom_glyph_buttons_have_explicit_accessible_names() {
+        var zoomOut = findDescendant(atlas, function(item) { return item.objectName === "eastBlueZoomOut" })
+        var zoomIn = findDescendant(atlas, function(item) { return item.objectName === "eastBlueZoomIn" })
+        verify(zoomOut !== null && zoomIn !== null, "zoom minus and plus controls exist")
+        compare(zoomOut.Accessible.name, "Zoom out")
+        compare(zoomIn.Accessible.name, "Zoom in")
+        compare(zoomOut.width >= 44, true)
+        compare(zoomOut.height >= 44, true)
+        compare(zoomIn.width >= 44, true)
+        compare(zoomIn.height >= 44, true)
+    }
+
     function test_preview_placement_is_near_selected_badge_and_clear_of_controls() {
         var ids = ["romance", "orange", "syrup", "baratie", "arlong", "loguetown"]
         var targets = [[1680, 960], [1280, 720], [900, 600]]

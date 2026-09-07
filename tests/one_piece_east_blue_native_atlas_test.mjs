@@ -119,6 +119,12 @@ if (fs.existsSync(atlasPath)) {
     eq(source.includes('anchors.rightMargin: root.shellChromeInset'), true, 'Index reserves the shell-control column');
     eq(source.includes('contentItem: Row'), true, 'Index uses a native drawn list icon content item');
     eq(source.includes('Accessible.name: "INDEX"'), true, 'Index exposes an explicit accessible name');
+    eq(source.includes('Accessible.name: "Zoom out"'), true, 'zoom-out glyph exposes an explicit accessible name');
+    eq(source.includes('Accessible.name: "Zoom in"'), true, 'zoom-in glyph exposes an explicit accessible name');
+    eq(/id: canonRowButton[\s\S]*?background:\s*Rectangle/.test(source), true,
+       'canon Index rows replace the default Qt background with an explicit surface');
+    eq(/canonRowButton\.pressed[\s\S]*?canonRowButton\.activeFocus[\s\S]*?canonRowButton\.hovered/.test(source), true,
+       'canon Index rows expose pressed, focus, and hover feedback');
     eq(/objectName: "eastBlueIndexButton"[\s\S]*?height:\s*4[4-9]/.test(source), true, 'Index hit target is at least 44 px high');
     eq(/objectName: "eastBlueToParadise"[\s\S]*?height:\s*4[4-9]/.test(source), true, 'TO PARADISE hit target is at least 44 px high');
     eq(/Button \{[\s\S]*?text:\s*"−";\s*width:\s*4[4-9];\s*height:\s*4[4-9]/.test(source), true, 'zoom-out hit target is at least 44 px');

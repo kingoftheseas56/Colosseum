@@ -457,6 +457,7 @@ FocusScope {
             id: zoomOutButton
             objectName: "eastBlueZoomOut"
             text: "−"; width: 44; height: 44
+            Accessible.name: "Zoom out"
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = Math.max(1.0, root.zoom - 0.25)
@@ -473,6 +474,7 @@ FocusScope {
             id: zoomInButton
             objectName: "eastBlueZoomIn"
             text: "+"; width: 44; height: 44
+            Accessible.name: "Zoom in"
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = Math.min(2.0, root.zoom + 0.25)
@@ -592,6 +594,18 @@ FocusScope {
                             font.family: atlasBodyFont.name
                             font.pixelSize: 14
                             palette.buttonText: "#523a25"
+                            activeFocusOnTab: true
+                            focusPolicy: Qt.StrongFocus
+                            hoverEnabled: true
+                            background: Rectangle {
+                                objectName: "eastBlueCanonRowBackground-" + AtlasData.canonMarkers[canonRowButton.index].id
+                                radius: 2
+                                color: canonRowButton.pressed ? "#d8ba7c"
+                                       : canonRowButton.activeFocus ? "#f6e5bb"
+                                       : canonRowButton.hovered ? "#f0d9a4" : "transparent"
+                                border.width: 1
+                                border.color: canonRowButton.activeFocus ? "#5f4322" : "#b89a68"
+                            }
                             contentItem: Text {
                                 text: canonRowButton.text
                                 font.family: atlasBodyFont.name
