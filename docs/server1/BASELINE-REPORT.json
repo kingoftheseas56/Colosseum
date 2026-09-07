@@ -1,0 +1,1940 @@
+{
+  "candidate": {
+    "server1": {
+      "reason": "P07-C freezes the baseline before Server 1.0 evaluation.",
+      "source_sha256": null,
+      "state": "NOT_RUN"
+    },
+    "server_0_1": {
+      "source_sha256": null,
+      "state": "BASELINE_UNAVAILABLE"
+    }
+  },
+  "candidate_hashes": [
+    {
+      "path": "tools/server_lab/probes/http_bytes.py",
+      "sha256": "bed3c23bddb81827a17dc6e293fcd9d7d53047422680d1f3e3374aa703168154"
+    },
+    {
+      "path": "tools/server_lab/probes/resources.py",
+      "sha256": "229d026c63cb6fe23faf26a78e82b4c24921d38df7b5728c479414e0acf50463"
+    },
+    {
+      "path": "tools/server_lab/probes/player.py",
+      "sha256": "94ce407af503f506dcdac39a6d5bdf84532da38c78b9aab5b54fbdbb2a26a55f"
+    },
+    {
+      "path": "tools/server_lab/tests/test_probes.py",
+      "sha256": "3769ff917d64d88c3d97726c46106cef277d0c4e4ad159f86230f8babf5723cb"
+    }
+  ],
+  "case": "P07-03",
+  "controlled_corpus": {
+    "goldens": {
+      "/heartbeat": {
+        "json": {
+          "success": true
+        },
+        "status": 200
+      },
+      "/settings": {
+        "server_version": "4.21.0",
+        "status": 200
+      }
+    },
+    "id": "P02-reference-control-routes-v1",
+    "inputs": {
+      "caching": "disabled",
+      "https": "disabled",
+      "network_interfaces": "disabled",
+      "routes": [
+        "/heartbeat",
+        "/settings"
+      ],
+      "settings_file": "{}\\n"
+    },
+    "p06_torrent_fixture_consumption": {
+      "reason": "The existing Stremio adapter exposes no controlled P06 torrent-fixture injection interface; no fabricated torrent parity result is recorded.",
+      "state": "UNSUPPORTED"
+    }
+  },
+  "differential_qualification": {
+    "parity_and_performance_are_separate": true,
+    "reason": "No Server 1.0 candidate is evaluated in this packet.",
+    "state": "NOT_RUN"
+  },
+  "evaluation_target": "stremio_baseline_only",
+  "evidence": {
+    "measured_samples": [
+      "artifacts/server1/P07/P07-C/raw-samples/measured-01.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-02.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-03.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-04.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-05.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-06.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-07.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-08.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-09.json",
+      "artifacts/server1/P07/P07-C/raw-samples/measured-10.json"
+    ],
+    "measurement_run": "artifacts/server1/P07/P07-C/measurement-run.json",
+    "source_trace": "artifacts/server1/P07/P07-C/SOURCE-TRACE.json",
+    "warmup_samples": [
+      "artifacts/server1/P07/P07-C/raw-samples/warmup-01.json",
+      "artifacts/server1/P07/P07-C/raw-samples/warmup-02.json"
+    ]
+  },
+  "evidence_planes": {
+    "controlled_runtime": {
+      "lane": "WSL2 Ubuntu",
+      "oracle_processes": 12,
+      "server1_candidate": "NOT_RUN",
+      "state": "MEASURED"
+    },
+    "js_module_policy_traces": {
+      "candidate_evaluation": "NOT_RUN",
+      "source_trace": "artifacts/server1/P07/P07-C/SOURCE-TRACE.json",
+      "state": "SOURCE_TRACED"
+    },
+    "performance": {
+      "parity_scoreboard": "SEPARATE_NOT_RUN",
+      "profiles": [
+        "cold_process_control_routes"
+      ],
+      "state": "MEASURED"
+    },
+    "raw_protocol": {
+      "protocol_is_preserved": true,
+      "raw_samples": "artifacts/server1/P07/P07-C/raw-samples/",
+      "state": "MEASURED"
+    }
+  },
+  "evidence_states": [
+    "source-traced",
+    "test-authored",
+    "implementation-authored",
+    "compiled",
+    "test-executed",
+    "measured",
+    "not-integrated"
+  ],
+  "interfaces_consumed": {
+    "ByteProbe": {
+      "path": "tools/server_lab/probes/http_bytes.py",
+      "state": "PRESENT"
+    },
+    "EvidenceSchema": {
+      "path": "tools/server_lab/evidence.py",
+      "state": "PRESENT"
+    },
+    "LabRunner": {
+      "path": "tools/server_lab/lab.py",
+      "state": "PRESENT"
+    },
+    "PlayerProbe": {
+      "path": "tools/server_lab/probes/player.py",
+      "state": "PRESENT_NOT_RUN_FOR_BASELINE"
+    },
+    "QualifiedFixtureCorpus": {
+      "path": "tools/server_lab/cases/P06-C.json",
+      "state": "PRESENT_NOT_CONSUMED_BY_STREMIO_ADAPTER"
+    },
+    "QualifiedReferenceRuntime": {
+      "path": "artifacts/server1/P02/WSL-QUALIFICATION.json",
+      "state": "QUALIFIED_WSL"
+    },
+    "ResourceProbe": {
+      "path": "tools/server_lab/probes/resources.py",
+      "state": "PRESENT"
+    }
+  },
+  "limitations": [
+    "Windows live oracle launch is BLOCKED_ENV by the excluded TCP range; accepted WSL qualification is the measured lane.",
+    "Windows does not have qualified ffmpeg/ffprobe; WSL companions are recorded with provenance and are not called Windows capability.",
+    "The P06 controlled torrent fixture corpus is not consumable through the existing Stremio adapter and remains UNSUPPORTED for this baseline report.",
+    "This report freezes thresholds and observations; it does not evaluate or approve Server 1.0."
+  ],
+  "measurement_contract": {
+    "confidence": 0.95,
+    "declared_before_measurement": true,
+    "measured_count": 10,
+    "observation_definitions": {
+      "heartbeat_request_seconds": "Monotonic duration of a post-readiness GET /heartbeat request.",
+      "oracle_identity": "SHA-256 is checked before and after every trial; a changed oracle is a failed trial.",
+      "settings_request_seconds": "Monotonic duration of a post-readiness GET /settings request.",
+      "startup_seconds": "Monotonic elapsed time from fresh Node process spawn to the first 200 /heartbeat response.",
+      "teardown_seconds": "Monotonic elapsed time from termination request until the reference process exits.",
+      "uncertainty": "Sample standard deviation with a two-sided Student-t 95% confidence interval over every measured sample; no best-run selection."
+    },
+    "profiles": [
+      {
+        "description": "Fresh disposable Stremio reference process serving the controlled heartbeat/settings route corpus.",
+        "id": "cold_process_control_routes",
+        "measured_count": 10,
+        "metric_names": [
+          "startup_seconds",
+          "heartbeat_request_seconds",
+          "settings_request_seconds",
+          "teardown_seconds"
+        ],
+        "metric_summaries": {
+          "heartbeat_request_seconds": {
+            "ci95_confidence": 0.95,
+            "ci95_half_width": 0.001303854818522296,
+            "ci95_high": 0.014446551118521854,
+            "ci95_low": 0.01183884148147726,
+            "ci95_t_critical": 2.2621571627,
+            "max": 0.01629459499999797,
+            "mean": 0.013142696299999557,
+            "min": 0.010597496999999123,
+            "n": 10,
+            "sample_stddev": 0.0018226633554473126
+          },
+          "settings_request_seconds": {
+            "ci95_confidence": 0.95,
+            "ci95_half_width": 0.0010555091734670917,
+            "ci95_high": 0.008713277073466703,
+            "ci95_low": 0.0066022587265325205,
+            "ci95_t_critical": 2.2621571627,
+            "max": 0.010441796999998587,
+            "mean": 0.007657767899999612,
+            "min": 0.00583099800000042,
+            "n": 10,
+            "sample_stddev": 0.0014755000821313072
+          },
+          "startup_seconds": {
+            "ci95_confidence": 0.95,
+            "ci95_half_width": 0.09866061937166501,
+            "ci95_high": 1.103056403171664,
+            "ci95_low": 0.905735164428334,
+            "ci95_t_critical": 2.2621571627,
+            "max": 1.2507919219999977,
+            "mean": 1.004395783799999,
+            "min": 0.84808314,
+            "n": 10,
+            "sample_stddev": 0.13791803581189435
+          },
+          "teardown_seconds": {
+            "ci95_confidence": 0.95,
+            "ci95_half_width": 0.0024988216045496755,
+            "ci95_high": 0.011756478704548115,
+            "ci95_low": 0.006758835495448763,
+            "ci95_t_critical": 2.2621571627,
+            "max": 0.016031094999995332,
+            "mean": 0.009257657099998439,
+            "min": 0.00745129799999944,
+            "n": 10,
+            "sample_stddev": 0.003493111737374667
+          }
+        },
+        "primary_metric": "startup_seconds",
+        "result": "PASS",
+        "routes": [
+          "/heartbeat",
+          "/settings"
+        ],
+        "runtime_lane": "WSL2 Ubuntu qualified reference lane",
+        "samples": [
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:48.798003+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.010597496999999123,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:48 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.08173217299999891,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:48 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.010597496999999123,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-01.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.007298898000001941,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:48 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.007298898000001941,
+            "started_at_utc": "2026-09-07T07:59:47.750098+00:00",
+            "startup_seconds": 0.947161788999999,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.007477996999998737,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.007477996999998737,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-01-zio8vo7z/app\n(node:512) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:512) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:512) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 1
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:49.853431+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.011491995999996618,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:49 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.07550047499999835,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:49 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.011491995999996618,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-02.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.00583099800000042,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:49 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.00583099800000042,
+            "started_at_utc": "2026-09-07T07:59:48.880541+00:00",
+            "startup_seconds": 0.8690162159999986,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.00745129799999944,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.00745129799999944,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-02-cpwdvsps/app\n(node:523) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:523) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:523) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 2
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-03-7csi5htr/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-03-7csi5htr/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:50.904468+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.01188629600000013,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:50 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.0778218769999981,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:50 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.01188629600000013,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-03.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-03-7csi5htr/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-03-7csi5htr/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.007555398000000935,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:50 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-03-7csi5htr/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-03-7csi5htr/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.007555398000000935,
+            "started_at_utc": "2026-09-07T07:59:49.940824+00:00",
+            "startup_seconds": 0.84808314,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.016031094999995332,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.016031094999995332,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-03-7csi5htr/app\n(node:534) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:534) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:534) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 3
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:52.093676+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.011876897000000497,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:51 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.10635116800000333,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:51 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.011876897000000497,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-04.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.006448197999993965,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:51 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.006448197999993965,
+            "started_at_utc": "2026-09-07T07:59:50.987390+00:00",
+            "startup_seconds": 0.9938210999999981,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.007525696999998388,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.007525696999998388,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-04-1q_yj6cg/app\n(node:545) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:545) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:545) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 4
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:53.210453+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.013419196000000966,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:53 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.0949604720000039,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:53 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.013419196000000966,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-05.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.008972196999998516,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:53 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.008972196999998516,
+            "started_at_utc": "2026-09-07T07:59:52.181284+00:00",
+            "startup_seconds": 0.9115839249999951,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.007537297999995474,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.007537297999995474,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-05-oarm1_v7/app\n(node:556) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:556) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:556) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 5
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:54.675989+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.013980295999999726,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:54 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.11856206399999536,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:54 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.013980295999999726,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-06.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.007096398000001614,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:54 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.007096398000001614,
+            "started_at_utc": "2026-09-07T07:59:53.311698+00:00",
+            "startup_seconds": 1.2507919219999977,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.007763898000000324,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.007763898000000324,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-06-r44l3zo1/app\n(node:567) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:567) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:567) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 6
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:55.983274+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.013989095999995982,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:55 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.10938506699999806,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:55 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.013989095999995982,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-07.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.010441796999998587,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:55 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.010441796999998587,
+            "started_at_utc": "2026-09-07T07:59:54.765584+00:00",
+            "startup_seconds": 1.0909031710000008,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.00760839699999849,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.00760839699999849,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-07-6_jagp7l/app\n(node:581) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:581) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:581) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 7
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:57.446254+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.01629459499999797,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:57 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.13358655900000116,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:57 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.01629459499999797,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-08.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.008127498000000344,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:57 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.008127498000000344,
+            "started_at_utc": "2026-09-07T07:59:56.103695+00:00",
+            "startup_seconds": 1.2070256359999973,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.015730494999999678,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.015730494999999678,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-08-kvzus1gk/app\n(node:592) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:592) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:592) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 8
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:58.653258+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.012396797000000959,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:58 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.09310268000000121,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:58 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.012396797000000959,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-09.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.005901399000002527,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:58 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.005901399000002527,
+            "started_at_utc": "2026-09-07T07:59:57.546191+00:00",
+            "startup_seconds": 1.005874433999999,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.007754298000001825,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.007754298000001825,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-09-kxguoy8e/app\n(node:603) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:603) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:603) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 9
+          },
+          {
+            "command": [
+              "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+              "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+            ],
+            "environment": {
+              "APP_PATH": "/tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/app",
+              "CASTING_DISABLED": "1",
+              "DISABLE_CACHING": "1",
+              "FFMPEG_BIN": "/usr/bin/ffmpeg",
+              "FFPROBE_BIN": "/usr/bin/ffprobe",
+              "HLS_V2_DISABLED": "1",
+              "NO_HTTPS_SERVER": "1",
+              "NO_NETWORK_INTERFACES": "1",
+              "SETTINGS_PATH": "/tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/settings"
+            },
+            "failure": null,
+            "finished_at_utc": "2026-09-07T07:59:59.786846+00:00",
+            "heartbeat": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.015494297000003598,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:59 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_ready": {
+              "body": "{\"success\":true}",
+              "elapsed_seconds": 0.10268387800000056,
+              "headers": {
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:59 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "success": true
+              },
+              "route": "/heartbeat",
+              "status": 200
+            },
+            "heartbeat_request_seconds": 0.015494297000003598,
+            "oracle_before_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+            "paths_removed": true,
+            "phase": "measured",
+            "process_exit": -15,
+            "raw_output": "artifacts/server1/P07/P07-C/raw-samples/measured-10.json",
+            "result": "PASS",
+            "settings": {
+              "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+              "elapsed_seconds": 0.008904897999997274,
+              "headers": {
+                "Cache-Control": "no-store",
+                "Connection": "close",
+                "Date": "Mon, 07 Sep 2026 07:59:59 GMT",
+                "Transfer-Encoding": "chunked",
+                "content-type": "application/json"
+              },
+              "json": {
+                "baseUrl": "http://10.255.255.254:11470",
+                "options": [
+                  {
+                    "id": "localAddonEnabled",
+                    "label": "ENABLE_LOCAL_FILES_ADDON",
+                    "type": "checkbox"
+                  },
+                  {
+                    "class": "https",
+                    "icon": true,
+                    "id": "remoteHttps",
+                    "label": "ENABLE_REMOTE_HTTPS_CONN",
+                    "selections": [
+                      {
+                        "name": "Disabled",
+                        "val": ""
+                      }
+                    ],
+                    "type": "select"
+                  },
+                  {
+                    "class": "caching",
+                    "icon": true,
+                    "id": "cacheSize",
+                    "label": "CACHING",
+                    "selections": [
+                      {
+                        "name": "no caching",
+                        "val": 0
+                      },
+                      {
+                        "name": "2GB",
+                        "val": 2147483648
+                      },
+                      {
+                        "name": "5GB",
+                        "val": 5368709120
+                      },
+                      {
+                        "name": "10GB",
+                        "val": 10737418240
+                      },
+                      {
+                        "name": "\u221e",
+                        "val": null
+                      }
+                    ],
+                    "type": "select"
+                  }
+                ],
+                "values": {
+                  "allTranscodeProfiles": [],
+                  "appPath": "/tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/app",
+                  "btDownloadSpeedHardLimit": 3670016,
+                  "btDownloadSpeedSoftLimit": 2621440,
+                  "btHandshakeTimeout": 20000,
+                  "btMaxConnections": 55,
+                  "btMinPeersForStable": 5,
+                  "btRequestTimeout": 4000,
+                  "cacheRoot": "/tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/app",
+                  "cacheSize": 0,
+                  "localAddonEnabled": false,
+                  "proxyStreamsEnabled": false,
+                  "remoteHttps": "",
+                  "serverVersion": "4.21.0",
+                  "transcodeConcurrency": 1,
+                  "transcodeHardwareAccel": true,
+                  "transcodeHorsepower": 0.75,
+                  "transcodeMaxBitRate": 0,
+                  "transcodeMaxWidth": 1920,
+                  "transcodeProfile": null,
+                  "transcodeTrackConcurrency": 1
+                }
+              },
+              "route": "/settings",
+              "status": 200
+            },
+            "settings_request_seconds": 0.008904897999997274,
+            "started_at_utc": "2026-09-07T07:59:58.744753+00:00",
+            "startup_seconds": 0.9196965050000045,
+            "teardown": {
+              "alive_after": false,
+              "elapsed_seconds": 0.007696097999996709,
+              "exit": -15,
+              "method": "SIGTERM-process-group"
+            },
+            "teardown_alive_after": false,
+            "teardown_seconds": 0.007696097999996709,
+            "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p07-c-measured-10-tmwbqspg/app\n(node:614) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:614) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:614) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: qsv-linux\nhls-converter - Some tests failed for hw accel profile: qsv-linux\nhls-converter - Testing video hw accel for profile: nvenc-linux\n-> GET /settings \n",
+            "trial": 10
+          }
+        ],
+        "summary": {
+          "ci95_confidence": 0.95,
+          "ci95_half_width": 0.09866061937166501,
+          "ci95_high": 1.103056403171664,
+          "ci95_low": 0.905735164428334,
+          "ci95_t_critical": 2.2621571627,
+          "max": 1.2507919219999977,
+          "mean": 1.004395783799999,
+          "min": 0.84808314,
+          "n": 10,
+          "sample_stddev": 0.13791803581189435
+        },
+        "warmup_count": 2
+      }
+    ],
+    "thresholds": {
+      "heartbeat_status": 200,
+      "oracle_identity_match": true,
+      "settings_server_version": "4.21.0",
+      "settings_status": 200,
+      "startup_deadline_seconds": 6.0,
+      "teardown_alive_after": false
+    },
+    "thresholds_sha256": "d12d9e73e0beebb427ffcf434b7b7f733bb11ecb96aeb77e955a49914c637691",
+    "timeout_seconds": 6.0,
+    "uncertainty_method": "student_t_95_ci",
+    "warmup_count": 2
+  },
+  "parent_packet": "P07",
+  "parity_verdict": "NOT_RUN",
+  "performance_verdict": "BASELINE_ONLY",
+  "player_lane": {
+    "libmpv": {
+      "client_api": "2.5",
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "state": "QUALIFIED_INPUT_NOT_USED_FOR_STREMIO_BASELINE"
+    },
+    "reason": "P07-C publishes the Stremio baseline; no fake player telemetry is accepted and P07-B packet-local libmpv evidence is not runtime playback qualification.",
+    "state": "NOT_RUN",
+    "telemetry": "NOT_RUN",
+    "telemetry_samples": []
+  },
+  "runtime_identity": {
+    "ffmpeg": {
+      "path": "/usr/bin/ffmpeg",
+      "provenance": "WSL qualification",
+      "state": "PRESENT"
+    },
+    "ffprobe": {
+      "path": "/usr/bin/ffprobe",
+      "provenance": "WSL qualification",
+      "state": "PRESENT"
+    },
+    "intended_stremio_runtime": {
+      "repair": "none",
+      "state": "MISSING"
+    },
+    "lane": "WSL2 Ubuntu",
+    "node": {
+      "archive_reused": false,
+      "archive_sha256": "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e",
+      "archive_url": "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz",
+      "kind": "portable-node",
+      "official_checksum_match": true,
+      "path": "/tmp/colosseum-server1-p07-c-node-v22.16.0/node-v22.16.0-linux-x64/bin/node",
+      "sha256": "8142d37c6f2f372ef040419e7a111a6baf17df89f8078d02447d6c639ae20c1d",
+      "version": "v22.16.0"
+    }
+  },
+  "schema": "colosseum-server1-baseline-report/v1",
+  "server1_evaluation": "NOT_RUN",
+  "server_0_1_comparison": {
+    "blocking": false,
+    "reason": "P01B runtime_mpv_playback_test exited 8 because mpv did not load the native torrent URL; optional comparison evidence is not promoted.",
+    "source": "artifacts/server1/P01B/CASE-RESULTS.json",
+    "state": "BASELINE_UNAVAILABLE"
+  },
+  "source_authority": {
+    "modules": [
+      {
+        "lines": "18110-18500",
+        "module": "M172",
+        "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"
+      },
+      {
+        "lines": "74730-74772",
+        "module": "M846",
+        "sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"
+      }
+    ],
+    "oracle": {
+      "bytes": 6676503,
+      "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+      "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+    },
+    "parallel_work_items": {
+      "path": "C:\\Users\\Suprabha\\Desktop\\Preflight-Architect\\arcs\\44-native-stream-server\\plans\\server1-v2.1-parallel\\PARALLEL-WORK-ITEMS.json",
+      "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7"
+    },
+    "source_trace": "artifacts/server1/P07/P07-C/SOURCE-TRACE.json"
+  },
+  "status": "BASELINE_PUBLISHED",
+  "windows_limitation": {
+    "evidence": "artifacts/server1/P02/WINDOWS-BLOCKED.json",
+    "excluded_tcp_range": [
+      11464,
+      11563
+    ],
+    "ffmpeg": "MISSING",
+    "ffprobe": "MISSING",
+    "required_oracle_ports": [
+      11470,
+      11471,
+      11472,
+      11473,
+      11474
+    ],
+    "state": "BLOCKED_ENV"
+  },
+  "worker_id": "P07-C"
+}

@@ -1,0 +1,177 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "worker_id": "P07-C",
+  "parent_packet": "P07",
+  "wave": "W1",
+  "integration_owner": "INT-W1",
+  "gate": "G-LAB",
+  "reviewer": "Sol",
+  "branch": "codex/server1-p07-c",
+  "base_sha": "4a3afab32334ae06759f778ac560a17343256ba1",
+  "commit_state": "COMMITTED",
+  "push_status": "not pushed",
+  "case_status": {
+    "P07-03": "BASELINE_PUBLISHED",
+    "server1_evaluation": "NOT_RUN",
+    "server_0_1_comparison": "BASELINE_UNAVAILABLE_NONBLOCKING"
+  },
+  "evidence_state": {
+    "authored": true,
+    "test_executed": true,
+    "measured": true,
+    "differentially_qualified": false,
+    "differential_status": "NOT_RUN_BY_SCOPE",
+    "integrated": false,
+    "review_status": "pending Sol acceptance"
+  },
+  "interfaces_consumed": [
+    "LabRunner",
+    "EvidenceSchema",
+    "QualifiedFixtureCorpus",
+    "QualifiedReferenceRuntime",
+    "ByteProbe",
+    "ResourceProbe",
+    "PlayerProbe"
+  ],
+  "interfaces_produced": ["BaselineReport"],
+  "interface_changes": "none; the BaselineReport is a committed report artifact and no shared runtime, route, registry, or CI wiring changed",
+  "source_authority": {
+    "oracle_path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "oracle_bytes": 6676503,
+    "parallel_work_items_path": "C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/44-native-stream-server/plans/server1-v2.1-parallel/PARALLEL-WORK-ITEMS.json",
+    "parallel_work_items_sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+    "authorities": [
+      {
+        "module": "M172",
+        "lines": "18110-18500",
+        "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"
+      },
+      {
+        "module": "M846",
+        "lines": "74730-74772",
+        "sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"
+      }
+    ],
+    "pinned_libmpv": {
+      "path": "C:/tools/mpvqt-feasibility/libmpv-prefix/bin/libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "client_api": "2.5"
+    }
+  },
+  "candidate_files": {
+    "tools/server_lab/probes/http_bytes.py": "bed3c23bddb81827a17dc6e293fcd9d7d53047422680d1f3e3374aa703168154",
+    "tools/server_lab/probes/resources.py": "229d026c63cb6fe23faf26a78e82b4c24921d38df7b5728c479414e0acf50463",
+    "tools/server_lab/probes/player.py": "94ce407af503f506dcdac39a6d5bdf84532da38c78b9aab5b54fbdbb2a26a55f",
+    "tools/server_lab/tests/test_probes.py": "3769ff917d64d88c3d97726c46106cef277d0c4e4ad159f86230f8babf5723cb",
+    "docs/server1/BASELINE-REPORT.json": "765f1e2b9c7463c135929b1d0e87a4ba967bf1a82349184b027f783af023abee"
+  },
+  "owned_paths": [
+    "tools/server_lab/tests/test_probes.py",
+    "docs/server1/BASELINE-REPORT.json",
+    "artifacts/server1/P07/P07-C/"
+  ],
+  "case_evidence": {
+    "report": "docs/server1/BASELINE-REPORT.json",
+    "source_trace": "artifacts/server1/P07/P07-C/SOURCE-TRACE.json",
+    "tdd_red": "artifacts/server1/P07/P07-C/TDD-RED.txt",
+    "tdd_green": "artifacts/server1/P07/P07-C/TDD-GREEN.txt",
+    "measurement_run": "artifacts/server1/P07/P07-C/measurement-run.json",
+    "raw_samples": "artifacts/server1/P07/P07-C/raw-samples/",
+    "profile": "cold_process_control_routes",
+    "warmup_count": 2,
+    "measured_count": 10,
+    "uncertainty": "sample standard deviation plus two-sided Student-t 95% CI over every measured sample",
+    "thresholds_frozen_before_measurement": true
+  },
+  "commands": [
+    {
+      "command": "python -m unittest -v tools.server_lab.tests.test_probes",
+      "exit": 1,
+      "result": "RED recorded before report publication: 10 tests, 9 errors because docs/server1/BASELINE-REPORT.json was absent"
+    },
+    {
+      "command": "python -m py_compile artifacts/server1/P07/P07-C/measure_stremio_wsl.py artifacts/server1/P07/P07-C/build_baseline_report.py tools/server_lab/tests/test_probes.py",
+      "exit": 0,
+      "result": "syntax compilation passed"
+    },
+    {
+      "command": "wsl.exe -d Ubuntu -- python3 artifacts/server1/P07/P07-C/measure_stremio_wsl.py --oracle <oracle> --output-dir artifacts/server1/P07/P07-C/raw-samples --result artifacts/server1/P07/P07-C/measurement-run.json --raw-prefix artifacts/server1/P07/P07-C/raw-samples --warmup-count 2 --measured-count 10 --timeout-seconds 6.0",
+      "exit": 0,
+      "result": "real oracle run PASS: 2 warmups and 10 measured samples; official Node v22.16.0 checksum matched"
+    },
+    {
+      "command": "python artifacts/server1/P07/P07-C/build_baseline_report.py",
+      "exit": 0,
+      "result": "BASELINE-REPORT.json generated from measurement-run.json"
+    },
+    {
+      "command": "python -m unittest -v tools.server_lab.tests.test_probes",
+      "exit": 0,
+      "result": "10 tests passed"
+    },
+    {
+      "command": "python -m unittest -v artifacts.server1.P07.P07-A.test_p07_a",
+      "exit": 0,
+      "result": "8 tests passed"
+    },
+    {
+      "command": "python -m unittest -v artifacts.server1.P07.P07-B.test_player_probe",
+      "exit": 0,
+      "result": "5 tests passed with pinned libmpv identity"
+    },
+    {
+      "command": "qualified Node v22.16.0 --version, SHA-256, and node --check <oracle>",
+      "exit": 0,
+      "result": "v22.16.0; executable SHA-256 c5ff4c736112dd483c750fd4149d30c8a116db1a49b8b3ec88be4b65e6c86c19; oracle syntax accepted"
+    },
+    {
+      "command": "python -m unittest -v tools.server_lab.tests.test_comparator",
+      "exit": 0,
+      "result": "14 tests passed"
+    },
+    {
+      "command": "python -m unittest discover -s tools/server_lab/tests -v",
+      "exit": 0,
+      "result": "58 tests passed; 8 expected reference-identity skips"
+    },
+    {
+      "command": "python -m unittest -v tools.server_lab.tests.test_reference_identity.ReferenceIdentityTests (qualified Windows Node follow-up)",
+      "exit": 1,
+      "result": "environment limitation observed: oracle reached its listener, then exited during HLS self-test with missing ffmpeg/ffprobe; this is not a baseline measurement or Server 1.0 evaluation"
+    }
+  ],
+  "final_verification": {
+    "json_validation": {
+      "command": "python -m json.tool PACKET-RECEIPT.json WIRING-REQUEST.json BASELINE-REPORT.json",
+      "exit": 0
+    },
+    "focused_test_probes": {
+      "command": "python -m unittest -v tools.server_lab.tests.test_probes",
+      "exit": 0,
+      "result": "10 tests passed"
+    },
+    "aggregate_server_lab": {
+      "command": "P05_QUALIFIED_NODE=<qualified Node v22.16.0> python -m unittest discover -s tools/server_lab/tests -v",
+      "exit": 0,
+      "result": "58 tests passed in 28.308s; 8 expected skips"
+    },
+    "scope_check": {
+      "command": "git diff --cached --name-only allowlist check",
+      "exit": 0,
+      "result": "22 staged files; all are owned files or packet-local P07-C evidence"
+    },
+    "git_diff_check": {
+      "command": "git diff --cached --check",
+      "exit": 0
+    }
+  },
+  "limitations": [
+    "The measured baseline is the qualified WSL2 Ubuntu reference lane; Windows has no qualified ffmpeg/ffprobe and P02 records the required port range as BLOCKED_ENV.",
+    "P06 torrent-fixture consumption remains UNSUPPORTED by the existing Stremio adapter; no fabricated torrent parity is reported.",
+    "P01B Server 0.1 comparison remains BASELINE_UNAVAILABLE and nonblocking.",
+    "Server 1.0 parity and performance evaluation were not run; this packet freezes the baseline contract only."
+  ],
+  "merge_endpoint": "B-W1D after Sol acceptance; otherwise retire",
+  "no_push": true
+}

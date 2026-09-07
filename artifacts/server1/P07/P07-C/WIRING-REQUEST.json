@@ -1,0 +1,19 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P07-C",
+  "parent_packet": "P07",
+  "wave": "W1",
+  "integration_owner": "INT-W1",
+  "gate": "G-LAB",
+  "reviewer": "Sol",
+  "wiring_needed": false,
+  "shared_files_requested": [],
+  "interfaces_changed": [],
+  "interfaces_produced": ["BaselineReport"],
+  "artifact": "docs/server1/BASELINE-REPORT.json",
+  "evidence_root": "artifacts/server1/P07/P07-C/",
+  "consumption_request": "INT-W1/B-W1D may consume the baseline report after Sol acceptance; do not treat it as Server 1.0 evaluation.",
+  "integration_condition": "Sol accepts the packet and cherry-picks the worker commit into the declared W1 integration endpoint.",
+  "push_status": "not pushed",
+  "reason": "P07-C changes only its owned self-tests, baseline report, and packet-local evidence. No registry, build, route, runtime, transport, native, or CI wiring is requested."
+}

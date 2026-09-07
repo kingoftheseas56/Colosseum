@@ -1,0 +1,14 @@
+P07-C TDD RED
+
+Command:
+python -m unittest -v tools.server_lab.tests.test_probes
+
+Exit: 1
+
+Observed result before BASELINE-REPORT.json existed:
+- Ran 10 tests.
+- 9 tests errored at load_report() because the owned report was absent:
+  docs/server1/BASELINE-REPORT.json
+- 1 source-authentication test passed.
+- The missing report was the expected pre-implementation failure; no baseline
+  result was promoted from an absent artifact.

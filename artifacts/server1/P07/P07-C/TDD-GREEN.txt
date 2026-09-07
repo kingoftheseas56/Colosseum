@@ -1,0 +1,19 @@
+P07-C TDD GREEN
+
+Measurement command:
+wsl.exe -d Ubuntu -- python3 /mnt/c/b/Colosseum-Server-1.0-workers/P07-C/artifacts/server1/P07/P07-C/measure_stremio_wsl.py --oracle /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js --output-dir /mnt/c/b/Colosseum-Server-1.0-workers/P07-C/artifacts/server1/P07/P07-C/raw-samples --result /mnt/c/b/Colosseum-Server-1.0-workers/P07-C/artifacts/server1/P07/P07-C/measurement-run.json --raw-prefix artifacts/server1/P07/P07-C/raw-samples --warmup-count 2 --measured-count 10 --timeout-seconds 6.0
+Exit: 0
+Result: 2 warmups and 10 measured trials; all 12 real oracle launches passed; Node v22.16.0 archive checksum matched.
+
+Report generation command:
+python artifacts/server1/P07/P07-C/build_baseline_report.py
+Exit: 0
+Result: BASELINE-REPORT.json generated from measurement-run.json; Server 1.0 evaluation remains NOT_RUN.
+
+Focused self-test command:
+python -m unittest -v tools.server_lab.tests.test_probes
+Exit: 0
+Result: 10 tests passed, including full-report validation, uncertainty coverage,
+threshold-drift rejection, missing/partial/best-only rejection, under-10
+rejection, fake-player telemetry rejection, raw sample preservation, and
+non-blocking Server 0.1 BASELINE_UNAVAILABLE handling.
