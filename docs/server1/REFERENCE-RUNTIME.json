@@ -1,9 +1,11 @@
 {
   "schema_version": 1,
   "packet": "P02",
-  "state": "test-authored",
-  "accepted": false,
+  "state": "accepted",
+  "accepted": true,
   "branch": "feature/colosseum-server-1.0-preflight",
+  "accepted_run_id": 34154100449,
+  "qualified_head_sha": "0f8c6cb79f9a73d139e1579b8387209378002073",
   "oracle": {
     "selector": "v4.21.1",
     "embedded_server_version": "4.21.0",
@@ -17,13 +19,49 @@
     "installed_bundle_root": "/usr/share/stremio-service",
     "launcher_contract": "stremio-runtime server.js with FFMPEG_BIN and FFPROBE_BIN pointing at sibling packaged binaries"
   },
+  "qualified_bundle": {
+    "runtime_version": "v18.12.1",
+    "runtime_sha256": "a2e203a57671d2914ac6311dfed01ebda3bc7f93c24fcae9d804ab611da1d10b",
+    "server_js_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "ffmpeg_sha256": "3ea58083710f63bf920b16c7d5d24ae081e7d731f57a656fed11af0410d4eb48",
+    "ffprobe_sha256": "71cfc596ce2e88a67f0b5c8ecfc858e42c458dbf5bf23dfd400fa0bc15685a88"
+  },
   "qualification_environment": {
     "workflow": ".github/workflows/server1-p02-reference.yml",
-    "network": "container --network none; loopback remains available",
-    "status": "not yet accepted"
+    "run_id": 34154100449,
+    "artifact_id": 10030357434,
+    "artifact_digest": "sha256:458134d5c8e73d36a88b7dc329b0b96aa1ea2ded5d9c2ceaeb075304ac077246",
+    "runner": "ubuntu-24.04",
+    "container": "python:3.12-bookworm",
+    "network": "container --network none; loopback available",
+    "app_path": "disposable per-case root",
+    "settings_path": "disposable per-case root"
   },
-  "blockers": [
-    "official-package CI evidence has not yet been reviewed",
-    "certificate/native-module boundaries not yet promoted beyond observed exercised paths"
-  ]
+  "observed_contract": {
+    "P02-01": {
+      "status": "pass",
+      "http_port": 11470,
+      "heartbeat": {"success": true},
+      "server_version": "4.21.0",
+      "teardown_signal_exit": -15
+    },
+    "P02-02": {
+      "status": "pass",
+      "collision_ports": [11470, 11471, 11472, 11473, 11474],
+      "process_alive_after_http_port_exhaustion": true
+    },
+    "P02-03-media": {
+      "status": "pass",
+      "heartbeat_remains_available": true,
+      "ffmpeg_marker": "null",
+      "ffprobe_marker": "undefined",
+      "hardware_probe_error": "ERR_INVALID_ARG_TYPE: file argument received undefined"
+    }
+  },
+  "acceptance_boundary": "P02 qualifies the official unmodified Linux Stremio Service reference specimen and its exercised paths. It does not claim every optional certificate/native-module/platform branch was exercised.",
+  "deferred_provenance_items": [
+    "retrieve and record the missing companion notice before release",
+    "qualify platform-specific optional certificate/native-module branches when a downstream packet exercises them"
+  ],
+  "blockers": []
 }

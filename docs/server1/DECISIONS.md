@@ -23,3 +23,7 @@ P00 closes evidence only. P01A must close the reproducible native substrate and 
 ## D006: Substrate locks are lane-specific
 
 P01A accepts the exact dependency graph actually consumed by each supported CI lane: Windows currently consumes libtorrent 2.0.11 / ABI 3 from the pinned vcpkg commit, while Linux consumes distro libtorrent 2.0.10 / ABI 1. Both remain within the frozen libtorrent 2.0 baseline and both proved compile-time/runtime identity agreement. Any future lane drift must be surfaced and requalified rather than silently normalized or substituted across platforms.
+
+## D007: Reference means the packaged Stremio runtime, not arbitrary Node
+
+P02 accepts the official Stremio Service v0.1.22 Linux package as the runnable reference specimen for the exercised source paths. Its bundled `stremio-runtime` reports `v18.12.1`; the sibling server.js exactly matches the locked v4.21.1 oracle hash. Reference qualification runs with outbound networking disabled and disposable APP_PATH/SETTINGS_PATH roots. Source-visible quirks are evidence, not cleanup opportunities: exhausting HTTP ports 11470 through 11474 leaves the process alive, and removing media binaries yields `ffmpeg: null`, `ffprobe: undefined`, then an `ERR_INVALID_ARG_TYPE` from the automatic hardware probe while `/heartbeat` remains available.

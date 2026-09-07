@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "packet": "P02",
+  "title": "Qualify the unmodified Stremio reference runtime",
+  "status": "accepted",
+  "branch": "feature/colosseum-server-1.0-preflight",
+  "qualified_head_sha": "0f8c6cb79f9a73d139e1579b8387209378002073",
+  "workflow": ".github/workflows/server1-p02-reference.yml",
+  "run_id": 34154100449,
+  "artifact": {
+    "id": 10030357434,
+    "name": "server1-p02-reference-linux",
+    "digest": "sha256:458134d5c8e73d36a88b7dc329b0b96aa1ea2ded5d9c2ceaeb075304ac077246"
+  },
+  "official_package": {
+    "release": "Stremio Service v0.1.22",
+    "asset": "stremio-service_amd64.deb",
+    "sha256": "fcbab342fcd8990312b400698ae85f9c87aed0326a0da0168c1ddba18c39a415"
+  },
+  "bundle_hashes": {
+    "stremio_runtime": "a2e203a57671d2914ac6311dfed01ebda3bc7f93c24fcae9d804ab611da1d10b",
+    "server_js": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "ffmpeg": "3ea58083710f63bf920b16c7d5d24ae081e7d731f57a656fed11af0410d4eb48",
+    "ffprobe": "71cfc596ce2e88a67f0b5c8ecfc858e42c458dbf5bf23dfd400fa0bc15685a88"
+  },
+  "runtime_version": "v18.12.1",
+  "environment": {
+    "outbound_network": "disabled",
+    "loopback": "available",
+    "APP_PATH": "disposable per-case root",
+    "SETTINGS_PATH": "disposable per-case root"
+  },
+  "cases": {
+    "P02-01": {
+      "status": "pass",
+      "heartbeat": true,
+      "settings_serverVersion": "4.21.0",
+      "port": 11470
+    },
+    "P02-02": {
+      "status": "pass",
+      "collision_ports": [11470, 11471, 11472, 11473, 11474],
+      "process_alive_after_exhaustion": true
+    },
+    "P02-03-media": {
+      "status": "pass",
+      "ffmpeg_missing": "null",
+      "ffprobe_missing": "undefined",
+      "hardware_probe_error_attributed": true,
+      "heartbeat_still_true": true
+    }
+  },
+  "raw_evidence_reviewed": [
+    "identity/result.json",
+    "P02-01/result.json and startup/stderr transcripts",
+    "P02-02/result.json and EADDRINUSE transcript",
+    "P02-03-media/result.json and startup/stderr transcripts",
+    "bundle-sha256.txt",
+    "runtime-version.txt",
+    "network-isolation.txt"
+  ],
+  "existing_server_1_0_branch_used": false,
+  "server_0_1_used": false,
+  "blockers": [],
+  "deferred_release_items": [
+    "missing companion notice retrieval",
+    "unexercised optional certificate/native-module/platform branches remain explicitly unqualified until needed"
+  ]
+}
