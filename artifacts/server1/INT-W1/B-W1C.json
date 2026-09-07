@@ -161,5 +161,5 @@
     "other_state_distinctions_preserved": true
   },
   "status": "accepted",
-  "push": "not_pushed"
+  "push": true
 }

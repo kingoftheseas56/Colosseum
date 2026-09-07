@@ -29,6 +29,6 @@
     "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "completed_at_B-W1C", "P06-C": "completed_at_B-W1C", "P02S-A": "released", "P07-A": "released", "P07-B": "released", "P08-A": "released"},
     "integrated_sha": "730ec57335c14929b6c937e7a0d53546473231ca",
     "receipt": "artifacts/server1/INT-W1/B-W1C.json",
-    "push": "not_pushed"
+    "push": true
   }
 }
