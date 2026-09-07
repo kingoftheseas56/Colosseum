@@ -2,7 +2,7 @@
   "packet": "K01",
   "worker_id": "K01-A",
   "request_type": "shared-wiring",
-  "implementation_commit": "778a3ddc0e5a6c1a1f1f3626cb19b8cb9379102c",
+  "implementation_commit": "1b861ddc",
   "destination_branch": "feature/colosseum-server-1.0",
   "destination_marker": "B-W2B",
   "requested_owner": "B-W2B",

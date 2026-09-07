@@ -3,6 +3,7 @@
   "packet": "K01",
   "branch": "detached K01-A-repair worktree",
   "base": "939c25e39227440960e74bd1d19158c132a1deff",
+  "implementation_commit": "1b861ddc",
   "authored": true,
   "compiled": {
     "compiler": "MSVC 19.44 /std:c++20",

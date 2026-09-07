@@ -2,9 +2,9 @@
   "packet": "K01",
   "worker_id": "K01-A",
   "status": "READY_FOR_B-W2B",
-  "branch": "codex/server1-k01-a",
-  "base": "e5660e27a320845ab993201918443e609e1a34d5",
-  "implementation_commit": "778a3ddc0e5a6c1a1f1f3626cb19b8cb9379102c",
+  "branch": "detached K01-A-repair worktree",
+  "base": "939c25e39227440960e74bd1d19158c132a1deff",
+  "implementation_commit": "1b861ddc",
   "merge_endpoint": {
     "destination_branch": "feature/colosseum-server-1.0",
     "destination_marker": "B-W2B",
@@ -16,7 +16,7 @@
     "B-W1C": "accepted"
   },
   "source_authority": {
-    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "path": "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "range_hashes": [
       {"module": "M303", "lines": "27748-27805", "sha256": "eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026"},
@@ -40,17 +40,17 @@
   "evidence_state": {
     "source_traced": true,
     "red_test": "recorded",
-    "implementation": "authored",
+    "implementation": "authored; repair commit 1b861ddc",
     "compiled": "verified",
     "focused_tests": "K01-01, K01-02, K01-03 and all: exit 0",
     "generated_geometry_corpus": "119 deterministic vectors pass bounds and round-trip properties",
-    "oracle_differential": "68 lines, 0 differences",
+    "oracle_differential": "72 executable M181/M303 lines, 0 differences",
     "full_server_runtime": "not claimed; aggregate wiring belongs to B-W2B"
   },
   "cases": {
-    "K01-01": "GREEN and differential-qualified",
-    "K01-02": "GREEN and differential-qualified",
-    "K01-03": "GREEN and differential-qualified; info.private absent/0/1 preserves presence and coerces at the boundary"
+    "K01-01": "implemented; focused test and executable source replay exit 0",
+    "K01-02": "implemented; focused test and executable source replay exit 0",
+    "K01-03": "implemented; M181/M303 counterexamples, native geometry boundary, focused test, and executable source replay exit 0"
   },
   "artifacts": [
     "artifacts/server1/K01/K01-A/GREEN-EVIDENCE.json",
