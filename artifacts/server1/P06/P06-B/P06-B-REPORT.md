@@ -11,7 +11,21 @@ The owned implementation is limited to the two packet-local fixtures, their pack
 | `tools/server_lab/fixtures/tracker_server.py` | lines 1-183 | `9A54ECA68CCAD7D1865F31A38BA01A5385DA4C034A712DBD096F4CA05BA1C565` |
 | `tools/server_lab/fixtures/http_server.py` | lines 1-148 | `6FB096B478C165142FC9E21F32373B5C2B6BA93913166FC9B6DA81B7A5EF7A91` |
 | `artifacts/server1/P06/P06-B/self_test.py` | lines 1-196 | `DD6E1EF5F2BA37C9A9B0049A53940CFB93281FE48670B68344EFEBDD650655C6` |
-| `tools/server_lab/cases/P06-B.json` | lines 1-29 | `A541493CAA347A97769CB401BB999092DD32715FDC51479167F6A14833980709` |
+| `tools/server_lab/cases/P06-B.json` | lines 1-31 | `2D62E8A771704573F2494C8AF46CD17F843108C2E2FE06C74814942862CDEEC3` |
+
+## Authenticated source authority inspected
+
+The authenticated evidence mirror actually inspected was `C:\b\Colosseum-Server-1.0-Planning-Pack\oracle\stremio-service-v4.21.1-server-bundle\server.js`. Its measured size is 6,676,503 bytes and its measured SHA-256 is `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f`.
+
+The module hashes were recomputed from the exact module-function byte slices inside the stated inclusive source-line windows, rather than copied from the work-item text:
+
+| Authority | Source lines | Exact byte slice `[start,end)` | Verified SHA-256 | State |
+|---|---:|---:|---|---|
+| M303 | 27748-27805 | 1590216-1594283 | `eb8b00c36b67354e28185cc83098831121a3510c31f9d01700d2991f353d6026` | PASS |
+| M843 | 74473-74529 | 4227467-4230650 | `520011da2b4a68a3c71f967416cda41badb047ade587672ef031b1edce9efa30` | PASS |
+| M851 | 74856-74884 | 4249770-4251508 | `2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041` | PASS |
+
+P06-02 source-traced: `PASS`. Differential qualification: `NOT_RUN`. Parent P06 acceptance: `NOT_RUN`. Integration: `NOT_RUN`.
 
 The changed-file list is: `tools/server_lab/fixtures/tracker_server.py`, `tools/server_lab/fixtures/http_server.py`, `artifacts/server1/P06/P06-B/self_test.py`, `artifacts/server1/P06/P06-B/SELF-TEST.json`, `artifacts/server1/P06/P06-B/RED.raw.txt`, `artifacts/server1/P06/P06-B/GREEN.raw.txt`, `artifacts/server1/P06/P06-B/P06-B-REPORT.md`, `artifacts/server1/P06/P06-B/WIRING-REQUEST.json`, and `tools/server_lab/cases/P06-B.json`. The pre-existing uncommitted `.superpowers/sdd/PARALLEL-EXECUTION-PLAN/P06-B-brief.md` was preserved and is not owned by this packet.
 
@@ -57,4 +71,4 @@ The combined predecessor command began with P04 `test_broken_subjects_have_nonze
 
 ## State boundary
 
-Authored: PASS. Compiled: PASS via `py_compile`. Tested: PASS via the packet self-test and predecessor regressions. Executed: PASS for the concrete replay command. Runtime-verified: packet-local loopback fixture scope only. Integrated: NOT_RUN. Committed: pending this repair commit. Pushed: NOT_RUN by instruction.
+Source-traced: PASS against the authenticated oracle mirror and exact M303/M843/M851 byte slices. Authored: PASS. Compiled: PASS via `py_compile`. Tested: PASS via the packet self-test; the separate P02 regression passed while P04 did not pass as recorded above. Executed: PASS for the concrete replay command. Runtime-verified: packet-local loopback fixture scope only. Differentially-qualified: NOT_RUN. Parent P06 acceptance: NOT_RUN. Integrated: NOT_RUN. Functional repair committed as `301e96eb890857a39c009c3a85e5dacb786c164b`; this bounded evidence follow-up was pending commit when this report was written. Pushed: NOT_RUN by instruction.

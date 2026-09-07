@@ -19,9 +19,11 @@
     "configuration": "fixture configurations are constructed in self_test.py and recorded in SELF-TEST.json"
   },
   "states": {
+    "source_traced": "PASS",
     "authored": "PASS",
     "tested": "PASS",
     "executed": "PASS",
+    "differentially_qualified": "NOT_RUN",
     "integrated": "NOT_RUN"
   },
   "parent_acceptance": "NOT_RUN",
