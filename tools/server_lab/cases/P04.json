@@ -1,0 +1,50 @@
+{
+  "schema": "colosseum-server1-p04-case/v1",
+  "packet": "P04-A",
+  "integration_base": "2f196378a41e209d30598f72a7e388123015f2ea",
+  "implementation_commits": [
+    "51d990bf866c2b603235da61bcc84a81079b1903",
+    "1dbe0863"
+  ],
+  "authorities": [
+    {
+      "name": "P04 execution brief",
+      "path": ".superpowers/sdd/PARALLEL-EXECUTION-PLAN/P04-A-brief.md",
+      "sha256": "CA350B16412B78E44D407DADBDC8D63A12D3656D039413A4720F56EC300719AD",
+      "range": "lines 1-32"
+    },
+    {
+      "name": "Server 1 evidence specification",
+      "path": "evidence-pack/SPEC.md",
+      "sha256": "63171D227C639D6D9E23B5F1AFAD45D66140595BE7950B32FD73C24207FD84FB",
+      "range": "section 8, line 110"
+    }
+  ],
+  "cases": [
+    {
+      "id": "P04-01",
+      "expected_status": "PASS",
+      "inputs": ["byte", "status", "header", "timeout", "crash", "missing-evidence"],
+      "test_names": ["test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures"]
+    },
+    {
+      "id": "P04-02",
+      "expected_status": "PASS",
+      "inputs": ["FAIL", "ERROR", "UNSUPPORTED", "INDETERMINATE", "NOT_RUN"],
+      "test_names": ["test_p04_02_statuses_remain_distinct_and_never_pass"]
+    },
+    {
+      "id": "P04-03",
+      "expected_status": "PASS",
+      "inputs": ["interleaved-runs", "active-run-reaping", "raw-concealment", "forged-pid"],
+      "fixtures": ["artifacts/server1/P04/fixtures/replay_subject.py", "artifacts/server1/P04/fixtures/replay-config.json"],
+      "goldens": ["artifacts/server1/P04/SAMPLE-RUN.json"],
+      "test_names": [
+        "test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans",
+        "test_raw_protocol_divergence_cannot_be_normalized_into_pass",
+        "test_committed_p04_sample_is_real_schema_valid_and_replayable"
+      ]
+    }
+  ],
+  "test_command": "python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v"
+}

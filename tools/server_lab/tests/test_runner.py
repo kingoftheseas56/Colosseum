@@ -7,6 +7,7 @@ interfaces and deliberately use disposable toy subjects.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -341,6 +342,34 @@ class P04RunnerTests(unittest.TestCase):
         replayed = subprocess.run(replay_command, cwd=ROOT, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(ROOT)})
         self.assertEqual(replayed.returncode, completed.returncode)
         self.assertEqual(json.loads((replay_evidence / "run.json").read_text(encoding="utf-8"))["result"], receipt["result"])
+
+    def test_committed_p04_sample_is_real_schema_valid_and_replayable(self) -> None:
+        packet = ROOT / "artifacts" / "server1" / "P04"
+        sample_path = packet / "SAMPLE-RUN.json"
+        sample = json.loads(sample_path.read_text(encoding="utf-8"))
+        schema = json.loads((ROOT / "tools/server_lab/schemas/run.schema.json").read_text(encoding="utf-8"))
+        from tools.server_lab.evidence import EvidenceSchema
+        EvidenceSchema.validate(sample, schema)
+
+        fixture = packet / "fixtures" / "replay_subject.py"
+        digest = hashlib.sha256(fixture.read_bytes()).hexdigest()
+        self.assertEqual(sample["source"]["sha256"], digest)
+        serialized = json.dumps(sample)
+        for placeholder in ("placeholder", "recorded-by-run", "<recorded", "OS_ASSIGNED"):
+            self.assertNotIn(placeholder.lower(), serialized.lower())
+
+        with tempfile.TemporaryDirectory(prefix="p04-sample-replay-") as temp:
+            temp_root = Path(temp)
+            substitutions = {
+                "data_root": str(temp_root / "data"),
+                "evidence_dir": str(temp_root / "evidence"),
+                "run_id": "fresh-p04-sample",
+            }
+            command = [arg.format(**substitutions) for arg in sample["replay"]["command_template"]]
+            completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(ROOT)})
+            replayed = json.loads((temp_root / "evidence" / "run.json").read_text(encoding="utf-8"))
+            self.assertEqual(completed.returncode, 0)
+            self.assertEqual(replayed["result"], sample["result"])
 
     def test_receipt_has_nullable_server_fields_and_observation_arrays(self) -> None:
         _, receipt, _ = self.run_cli("byte", "run-fields")
