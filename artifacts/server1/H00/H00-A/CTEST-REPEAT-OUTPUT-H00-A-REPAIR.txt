@@ -1,0 +1,3 @@
+command=& 'C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe' --test-dir 'C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused-build' -R 'H00-0[123]-http-contract' --repeat until-fail:3 --output-on-failure
+exit=0
+raw_output=three consecutive repetitions passed for H00-01, H00-02, and H00-03; 100% tests passed, 0 tests failed out of 3; Total Test time 6.91 sec

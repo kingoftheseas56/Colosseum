@@ -1,0 +1,8 @@
+worker_id=H00-A
+case=H00-01
+state=compiled; test-executed
+source_contract=the handler response sets status 200, Content-Type text/plain, body ok, and the connection appends Content-Length and close semantics
+request=GET /raw HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n
+reference_wire=HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok
+comparison=the loopback QTcpSocket wire is compared byte-for-byte with reference_wire
+observed=H00-01 PASS; exact raw-wire comparison returned equal

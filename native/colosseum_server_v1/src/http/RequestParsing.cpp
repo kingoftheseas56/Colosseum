@@ -2,6 +2,8 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonParseError>
 
+#include "server1/http/HttpContract.h"
+
 #include <algorithm>
 #include <charconv>
 #include <cctype>

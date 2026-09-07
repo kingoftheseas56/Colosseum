@@ -4,60 +4,18 @@
 #include <QtCore/QEventLoop>
 #include <QtNetwork/QTcpSocket>
 
+#include "server1/http/HttpContract.h"
+
+#include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-
-extern "C" {
-
-void *server1_http_parser_create(std::size_t maxBodyBytes);
-void server1_http_parser_destroy(void *parser);
-int server1_http_parser_feed(void *parser, const char *data, std::size_t size);
-int server1_http_parser_error_status(void *parser);
-const char *server1_http_parser_error(void *parser);
-std::size_t server1_http_parser_consumed(void *parser);
-const char *server1_http_parser_method(void *parser);
-const char *server1_http_parser_target(void *parser);
-const char *server1_http_parser_path(void *parser);
-const char *server1_http_parser_body(void *parser);
-int server1_http_parser_body_kind(void *parser);
-bool server1_http_parser_keep_alive(void *parser);
-std::size_t server1_http_parser_header_count(void *parser, const char *name);
-const char *server1_http_parser_header_value_at(void *parser, const char *name, std::size_t index);
-std::size_t server1_http_parser_query_entry_count(void *parser);
-const char *server1_http_parser_query_key_at(void *parser, std::size_t index);
-const char *server1_http_parser_query_value_at(void *parser, std::size_t index);
-std::size_t server1_http_parser_form_entry_count(void *parser);
-const char *server1_http_parser_form_key_at(void *parser, std::size_t index);
-const char *server1_http_parser_form_value_at(void *parser, std::size_t index);
-
-void *server1_http_router_create();
-void server1_http_router_destroy(void *router);
-int server1_http_router_add_static(void *router, int external, int prefix, const char *method,
-                                   const char *pattern, int status, const char *body);
-const char *server1_http_router_error(void *router);
-void *server1_http_router_dispatch(void *router, const char *method, const char *target,
-                                   const char *body);
-void server1_http_response_destroy(void *response);
-int server1_http_response_status(void *response);
-const char *server1_http_response_body(void *response);
-const char *server1_http_response_header(void *response, const char *name);
-
-void *server1_http_server_create(void *router, std::size_t maxQueuedBytes);
-void server1_http_server_destroy(void *server);
-int server1_http_server_listen(void *server, unsigned short port);
-void server1_http_server_stop(void *server);
-unsigned short server1_http_server_port(void *server);
-const char *server1_http_server_error(void *server);
-void server1_http_server_set_drain_paused(void *server, int paused);
-std::size_t server1_http_server_queued_bytes(void *server);
-std::size_t server1_http_server_max_queued_bytes(void *server);
-std::size_t server1_http_server_active_connections(void *server);
-
-}
+#include <vector>
 
 namespace {
 
@@ -79,6 +37,127 @@ void pumpUntil(const std::function<bool()> &condition, std::string_view timeoutM
     while (!condition() && timer.elapsed() < 2000)
         QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
     require(condition(), timeoutMessage);
+}
+
+QByteArray collectUntilDisconnected(QTcpSocket &client)
+{
+    QByteArray received;
+    QElapsedTimer timer;
+    timer.start();
+    while (client.state() != QAbstractSocket::UnconnectedState && timer.elapsed() < 5000) {
+        if (client.bytesAvailable() != 0)
+            received += client.readAll();
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+    }
+    received += client.readAll();
+    require(client.state() == QAbstractSocket::UnconnectedState,
+            "closeAfter connection eventually reaches disconnected state");
+    return received;
+}
+
+struct RouteReply final {
+    const char *body = "";
+    const char *contentType = "text/plain";
+};
+
+int replyFromContext(const void *, void *response, server1_http_next_fn, void *, void *context)
+{
+    const auto *reply = static_cast<const RouteReply *>(context);
+    require(reply != nullptr, "handler context is available");
+    require(server1_http_response_set_status(response, 200) == 1,
+            "handler sets response status");
+    require(server1_http_response_set_header(response, "Content-Type", reply->contentType) == 1,
+            "handler sets response content type");
+    require(server1_http_response_set_body(response, reply->body, std::strlen(reply->body)) == 1,
+            "handler sets response body");
+    return 1;
+}
+
+int replyWithParameter(const void *request, void *response, server1_http_next_fn, void *, void *)
+{
+    const std::string body = std::string("yt:")
+        + server1_http_request_param(request, "id");
+    require(server1_http_response_set_status(response, 200) == 1,
+            "parameter handler sets response status");
+    require(server1_http_response_set_header(response, "Content-Type", "text/plain") == 1,
+            "parameter handler sets response content type");
+    require(server1_http_response_set_body(response, body.data(), body.size()) == 1,
+            "parameter handler sets response body");
+    return 1;
+}
+
+int replyWithNameParameter(const void *request, void *response, server1_http_next_fn, void *, void *)
+{
+    const std::string body = std::string("name:")
+        + server1_http_request_param(request, "name");
+    require(server1_http_response_set_status(response, 200) == 1,
+            "name parameter handler sets response status");
+    require(server1_http_response_set_header(response, "Content-Type", "text/plain") == 1,
+            "name parameter handler sets response content type");
+    require(server1_http_response_set_body(response, body.data(), body.size()) == 1,
+            "name parameter handler sets response body");
+    return 1;
+}
+
+int replyWithTorrentParameters(const void *request, void *response, server1_http_next_fn, void *,
+                               void *)
+{
+    const std::string body = std::string("root:")
+        + server1_http_request_param(request, "infoHash") + ":"
+        + server1_http_request_param(request, "idx");
+    require(server1_http_response_set_status(response, 200) == 1,
+            "torrent handler sets response status");
+    require(server1_http_response_set_header(response, "Content-Type", "text/plain") == 1,
+            "torrent handler sets response content type");
+    require(server1_http_response_set_body(response, body.data(), body.size()) == 1,
+            "torrent handler sets response body");
+    return 1;
+}
+
+int continueThroughProxy(const void *, void *response, server1_http_next_fn next,
+                         void *nextContext, void *)
+{
+    require(server1_http_response_set_header(response, "X-Middleware", "seen") == 1,
+            "middleware can mutate the response before continuation");
+    require(next != nullptr, "middleware receives a continuation");
+    return next(nextContext);
+}
+
+struct BinaryStream final {
+    QByteArray payload;
+    qsizetype offset = 0;
+};
+
+std::ptrdiff_t readBinaryStream(void *context, void *buffer, std::size_t capacity)
+{
+    auto *stream = static_cast<BinaryStream *>(context);
+    if (stream == nullptr || buffer == nullptr)
+        return -1;
+    if (stream->offset >= stream->payload.size())
+        return 0;
+    const qsizetype available = stream->payload.size() - stream->offset;
+    const qsizetype count = std::min<qsizetype>(available, static_cast<qsizetype>(capacity));
+    std::memcpy(buffer, stream->payload.constData() + stream->offset,
+                static_cast<std::size_t>(count));
+    stream->offset += count;
+    return static_cast<std::ptrdiff_t>(count);
+}
+
+int binaryStreamHandler(const void *, void *response, server1_http_next_fn, void *, void *context)
+{
+    auto *stream = static_cast<BinaryStream *>(context);
+    require(stream != nullptr, "binary stream handler context is available");
+    require(server1_http_response_set_status(response, 200) == 1,
+            "binary stream handler sets response status");
+    require(server1_http_response_set_header(response, "Content-Type", "application/octet-stream")
+                == 1,
+            "binary stream handler sets binary content type");
+    require(server1_http_response_set_stream(
+                response, readBinaryStream, nullptr, stream,
+                static_cast<std::size_t>(stream->payload.size()))
+                == 1,
+            "binary stream handler transfers the stream contract");
+    return 1;
 }
 
 void caseH00_01()
@@ -260,6 +339,39 @@ void caseH00_01()
             "oversized chunked trailers report Request Header Fields Too Large");
     server1_http_parser_destroy(parser);
 
+    RouteReply rawReply{"ok", "text/plain"};
+    void *rawRouter = server1_http_router_create();
+    require(rawRouter != nullptr, "raw-wire router was created");
+    require(server1_http_router_add_handler(rawRouter, 0, 0, "GET", "/raw", replyFromContext,
+                                            &rawReply, nullptr)
+                == 1,
+            "raw-wire service handler is registered");
+    void *rawServer = server1_http_server_create(rawRouter, 64U * 1024U);
+    require(rawServer != nullptr && server1_http_server_listen(rawServer, 0) == 1,
+            "raw-wire listener started");
+    QTcpSocket rawClient;
+    rawClient.connectToHost(QStringLiteral("127.0.0.1"), server1_http_server_port(rawServer));
+    require(rawClient.waitForConnected(1000), "raw-wire client connected");
+    const std::string rawRequest =
+        "GET /raw HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+    require(rawClient.write(rawRequest.data(), static_cast<qint64>(rawRequest.size()))
+                == static_cast<qint64>(rawRequest.size()),
+            "raw-wire client wrote request");
+    require(rawClient.flush(), "raw-wire client flushed request");
+    const QByteArray rawWire = collectUntilDisconnected(rawClient);
+    const QByteArray referenceRawWire =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/plain\r\n"
+        "Content-Length: 2\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+        "ok";
+    require(rawWire == referenceRawWire,
+            "raw HTTP wire matches the pinned reference transport profile");
+    server1_http_server_stop(rawServer);
+    server1_http_server_destroy(rawServer);
+    server1_http_router_destroy(rawRouter);
+
     std::cout << "H00-01 PASS\n";
 }
 
@@ -267,29 +379,50 @@ void caseH00_02()
 {
     void *router = server1_http_router_create();
     require(router != nullptr, "H00-02 production router was created");
-    require(server1_http_router_add_static(router, 1, 0, "GET", "/hlsv2/status", 200,
-                                           "external-hls")
+    RouteReply hlsReply{"external-hls"};
+    RouteReply proxyReply{"external-proxy"};
+    RouteReply addonReply{"external-addon"};
+    RouteReply headReply{"head"};
+    RouteReply explicitOptionsReply{"explicit-options"};
+    require(server1_http_router_add_handler(router, 1, 0, "GET", "/hlsv2/status",
+                                            replyFromContext, &hlsReply, nullptr)
                 == 1,
-            "external hls route is registered");
-    require(server1_http_router_add_static(router, 1, 0, "GET", "/yt/:id", 200, "yt:{id}") == 1,
-            "external YouTube route is registered");
-    require(server1_http_router_add_static(router, 1, 1, "USE", "/proxy", 200, "external-proxy")
+            "external hls service handler is registered");
+    require(server1_http_router_add_handler(router, 1, 0, "GET", "/yt/:id",
+                                            replyWithParameter, nullptr, nullptr)
                 == 1,
-            "external proxy prefix route is registered");
-    require(server1_http_router_add_static(router, 1, 0, "GET", "/local-addon/manifest.json", 200,
-                                           "external-addon")
+            "external YouTube service handler is registered");
+    require(server1_http_router_add_middleware(router, 1, "/proxy", continueThroughProxy,
+                                               nullptr, nullptr)
                 == 1,
-            "external addon route is registered");
-    require(server1_http_router_add_static(router, 0, 0, "GET", "/:infoHash/:idx", 200,
-                                           "root:{infoHash}:{idx}")
+            "external proxy middleware is registered");
+    require(server1_http_router_add_handler(router, 1, 0, "GET", "/proxy/:tail",
+                                            replyFromContext, &proxyReply, nullptr)
                 == 1,
-            "root torrent route is registered");
-    require(server1_http_router_add_static(router, 0, 0, "GET", "/head", 200, "head") == 1,
-            "root GET route is registered");
-    require(server1_http_router_add_static(router, 1, 0, "GET", "/file/:name", 200, "name:{name}")
+            "external proxy service handler is registered");
+    require(server1_http_router_add_handler(router, 1, 0, "GET", "/local-addon/manifest.json",
+                                            replyFromContext, &addonReply, nullptr)
                 == 1,
-            "encoded parameter route is registered");
-    require(server1_http_router_add_static(router, 0, 0, "GET", "/:/", 200, "bad") == 0,
+            "external addon service handler is registered");
+    require(server1_http_router_add_handler(router, 0, 0, "GET", "/:infoHash/:idx",
+                                            replyWithTorrentParameters, nullptr, nullptr)
+                == 1,
+            "root torrent service handler is registered");
+    require(server1_http_router_add_handler(router, 0, 0, "GET", "/head", replyFromContext,
+                                            &headReply, nullptr)
+                == 1,
+            "root GET service handler is registered");
+    require(server1_http_router_add_handler(router, 0, 0, "OPTIONS", "/head",
+                                            replyFromContext, &explicitOptionsReply, nullptr)
+                == 1,
+            "explicit OPTIONS service handler is registered");
+    require(server1_http_router_add_handler(router, 1, 0, "GET", "/file/:name",
+                                            replyWithNameParameter, nullptr, nullptr)
+                == 1,
+            "encoded parameter service handler is registered");
+    require(server1_http_router_add_handler(router, 0, 0, "GET", "/:/", replyFromContext,
+                                            nullptr, nullptr)
+                == 0,
             "route syntax validation is separate from HTTP parsing");
 
     auto expectBody = [&](const char *method, const char *target, const char *expected) {
@@ -311,6 +444,11 @@ void caseH00_02()
     expectBody("GET", "/0123456789abcdef0123456789abcdef01234567/2", "root:0123456789abcdef0123456789abcdef01234567:2");
     expectBody("GET", "/file/a%2Fb", "name:a/b");
 
+    void *proxyResponse = server1_http_router_dispatch(router, "GET", "/proxy/anything", "");
+    require(std::string(server1_http_response_header(proxyResponse, "X-Middleware")) == "seen",
+            "middleware continuation preserves middleware response mutations");
+    server1_http_response_destroy(proxyResponse);
+
     void *prefixBoundary = server1_http_router_dispatch(router, "GET", "/proxyx/anything/more", "");
     require(server1_http_response_status(prefixBoundary) == 404,
             "connect prefix routes require a slash or dot boundary");
@@ -321,10 +459,21 @@ void caseH00_02()
     server1_http_response_destroy(head);
 
     void *options = server1_http_router_dispatch(router, "OPTIONS", "/head", "");
-    require(server1_http_response_status(options) == 200, "OPTIONS gets automatic route response");
-    require(std::string(server1_http_response_header(options, "Allow")).find("GET") != std::string::npos,
-            "OPTIONS exposes the route methods");
+    require(server1_http_response_status(options) == 200,
+            "explicit OPTIONS handler returns its response");
+    require(std::string(server1_http_response_body(options)) == "explicit-options",
+            "explicit OPTIONS handler is not bypassed by automatic OPTIONS");
+    require(std::string(server1_http_response_header(options, "Allow")).empty(),
+            "explicit OPTIONS response does not receive automatic Allow text");
     server1_http_response_destroy(options);
+
+    void *automaticOptions = server1_http_router_dispatch(router, "OPTIONS", "/file/a%2Fb", "");
+    require(server1_http_response_status(automaticOptions) == 200,
+            "OPTIONS gets automatic response when no explicit handler exists");
+    require(std::string(server1_http_response_header(automaticOptions, "Allow")).find("GET")
+                != std::string::npos,
+            "automatic OPTIONS exposes the route methods");
+    server1_http_response_destroy(automaticOptions);
 
     void *badTarget = server1_http_router_dispatch(router, "GET", "not-a-target", "");
     require(server1_http_response_status(badTarget) == 400,
@@ -337,21 +486,6 @@ void caseH00_02()
 
 void caseH00_03()
 {
-    auto collectUntilDisconnected = [](QTcpSocket &client) {
-        QByteArray received;
-        QElapsedTimer timer;
-        timer.start();
-        while (client.state() != QAbstractSocket::UnconnectedState && timer.elapsed() < 3000) {
-            if (client.bytesAvailable() != 0)
-                received += client.readAll();
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
-        }
-        received += client.readAll();
-        require(client.state() == QAbstractSocket::UnconnectedState,
-                "closeAfter connection eventually reaches disconnected state");
-        return received;
-    };
-
     auto requireFullResponse = [](const QByteArray &wire, const QByteArray &expectedBody) {
         const qsizetype headerEnd = wire.indexOf("\r\n\r\n");
         require(headerEnd >= 0, "real wire response has complete headers");
@@ -478,6 +612,78 @@ void caseH00_03()
     server1_http_server_stop(capServer);
     server1_http_server_destroy(capServer);
     server1_http_router_destroy(capRouter);
+
+    const std::size_t streamCapBytes = 32U * 1024U;
+    BinaryStream stream;
+    stream.payload.resize(512U * 1024U);
+    for (qsizetype index = 0; index < stream.payload.size(); ++index)
+        stream.payload[index] = static_cast<char>((index * 37) & 0xff);
+    stream.payload[0] = '\0';
+    stream.payload[1] = '\x01';
+    stream.payload[2] = '\xff';
+    void *streamRouter = server1_http_router_create();
+    require(streamRouter != nullptr, "binary stream router was created");
+    require(server1_http_router_add_handler(streamRouter, 0, 0, "GET", "/binary",
+                                            binaryStreamHandler, &stream, nullptr)
+                == 1,
+            "binary stream handler is registered");
+    void *streamServer = server1_http_server_create(streamRouter, streamCapBytes);
+    require(streamServer != nullptr, "binary stream listener was created");
+    require(server1_http_server_listen(streamServer, 0) == 1,
+            "binary stream listener started");
+    server1_http_server_set_drain_paused(streamServer, 1);
+
+    QTcpSocket streamClient;
+    streamClient.setReadBufferSize(1);
+    streamClient.connectToHost(QStringLiteral("127.0.0.1"),
+                               server1_http_server_port(streamServer));
+    require(streamClient.waitForConnected(1000), "binary stream client connected");
+    const std::string streamRequest =
+        "GET /binary HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+    require(streamClient.write(streamRequest.data(), static_cast<qint64>(streamRequest.size()))
+                == static_cast<qint64>(streamRequest.size()),
+            "binary stream client wrote request");
+    require(streamClient.flush(), "binary stream client flushed request");
+    pumpUntil([&] { return server1_http_server_queued_bytes(streamServer) != 0; },
+              "binary stream headers were queued behind the paused consumer");
+    require(server1_http_server_queued_bytes(streamServer) <= streamCapBytes,
+            "binary stream stays within the total pending-byte bound while paused");
+    require(stream.offset == 0, "paused binary stream has not been read into a full response");
+
+    server1_http_server_set_drain_paused(streamServer, 0);
+    std::size_t peakStreamPending = server1_http_server_queued_bytes(streamServer);
+    QElapsedTimer streamTimer;
+    streamTimer.start();
+    while (streamTimer.elapsed() < 500) {
+        peakStreamPending = std::max(peakStreamPending,
+                                     server1_http_server_queued_bytes(streamServer));
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+    }
+    require(peakStreamPending <= streamCapBytes,
+            "binary streaming never exceeds the configured pending-byte cap");
+    streamClient.setReadBufferSize(0);
+    const QByteArray streamWire = collectUntilDisconnected(streamClient);
+    const qsizetype streamHeaderEnd = streamWire.indexOf("\r\n\r\n");
+    require(streamHeaderEnd >= 0, "binary stream response has complete headers");
+    const QByteArray streamHeaders = streamWire.left(streamHeaderEnd);
+    require(streamHeaders.startsWith("HTTP/1.1 200 OK\r\n"),
+            "binary stream response has status 200");
+    require(streamHeaders.contains("Content-Type: application/octet-stream\r\n"),
+            "binary stream response preserves the content type");
+    require(streamHeaders.contains(QByteArray("Content-Length: ")
+                                   + QByteArray::number(stream.payload.size())),
+            "binary stream response exposes the known content length");
+    require(streamWire.mid(streamHeaderEnd + 4) == stream.payload,
+            "binary stream response preserves every byte beyond the queue cap");
+    require(stream.offset == stream.payload.size(),
+            "binary stream callback is consumed exactly once through EOF");
+    pumpUntil([&] {
+        return server1_http_server_active_connections(streamServer) == 0
+            && server1_http_server_queued_bytes(streamServer) == 0;
+    }, "binary stream drain releases the connection and queued bytes");
+    server1_http_server_stop(streamServer);
+    server1_http_server_destroy(streamServer);
+    server1_http_router_destroy(streamRouter);
 
     std::cout << "H00-03 PASS\n";
 }

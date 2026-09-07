@@ -2,6 +2,7 @@ function(server1_register_h00_packet)
   find_package(Qt6 CONFIG REQUIRED COMPONENTS Network)
 
   add_library(server1_h00_http STATIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/server1/http/HttpContract.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/http/Connection.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/http/Router.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/http/RequestParsing.cpp")

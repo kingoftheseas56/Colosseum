@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "server1/http/HttpContract.h"
+
 namespace server1::http::router_detail {
 
 struct QueryEntry {
@@ -31,6 +33,66 @@ struct Response final {
     std::string body;
     std::vector<std::pair<std::string, std::string>> headers;
     bool close = false;
+
+    server1_http_stream_read_fn streamRead = nullptr;
+    server1_http_stream_destroy_fn streamDestroy = nullptr;
+    void *streamContext = nullptr;
+    std::size_t streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
+
+    ~Response()
+    {
+        clearStream();
+    }
+
+    Response() = default;
+    Response(const Response &) = delete;
+    Response &operator=(const Response &) = delete;
+
+    Response(Response &&other) noexcept
+        : status(other.status)
+        , body(std::move(other.body))
+        , headers(std::move(other.headers))
+        , close(other.close)
+        , streamRead(other.streamRead)
+        , streamDestroy(other.streamDestroy)
+        , streamContext(other.streamContext)
+        , streamContentLength(other.streamContentLength)
+    {
+        other.streamRead = nullptr;
+        other.streamDestroy = nullptr;
+        other.streamContext = nullptr;
+        other.streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
+    }
+
+    Response &operator=(Response &&other) noexcept
+    {
+        if (this == &other)
+            return *this;
+        clearStream();
+        status = other.status;
+        body = std::move(other.body);
+        headers = std::move(other.headers);
+        close = other.close;
+        streamRead = other.streamRead;
+        streamDestroy = other.streamDestroy;
+        streamContext = other.streamContext;
+        streamContentLength = other.streamContentLength;
+        other.streamRead = nullptr;
+        other.streamDestroy = nullptr;
+        other.streamContext = nullptr;
+        other.streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
+        return *this;
+    }
+
+    void clearStream()
+    {
+        if (streamDestroy != nullptr && streamContext != nullptr)
+            streamDestroy(streamContext);
+        streamRead = nullptr;
+        streamDestroy = nullptr;
+        streamContext = nullptr;
+        streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
+    }
 };
 
 namespace {
@@ -279,6 +341,56 @@ struct Route final {
     int status = 200;
     bool prefix = false;
     CompiledPattern compiled;
+    server1_http_route_handler handler = nullptr;
+    void *context = nullptr;
+    server1_http_context_destroy_fn destroyContext = nullptr;
+
+    ~Route()
+    {
+        if (destroyContext != nullptr && context != nullptr)
+            destroyContext(context);
+    }
+
+    Route() = default;
+    Route(const Route &) = delete;
+    Route &operator=(const Route &) = delete;
+
+    Route(Route &&other) noexcept
+        : method(std::move(other.method))
+        , pattern(std::move(other.pattern))
+        , body(std::move(other.body))
+        , status(other.status)
+        , prefix(other.prefix)
+        , compiled(std::move(other.compiled))
+        , handler(other.handler)
+        , context(other.context)
+        , destroyContext(other.destroyContext)
+    {
+        other.handler = nullptr;
+        other.context = nullptr;
+        other.destroyContext = nullptr;
+    }
+
+    Route &operator=(Route &&other) noexcept
+    {
+        if (this == &other)
+            return *this;
+        if (destroyContext != nullptr && context != nullptr)
+            destroyContext(context);
+        method = std::move(other.method);
+        pattern = std::move(other.pattern);
+        body = std::move(other.body);
+        status = other.status;
+        prefix = other.prefix;
+        compiled = std::move(other.compiled);
+        handler = other.handler;
+        context = other.context;
+        destroyContext = other.destroyContext;
+        other.handler = nullptr;
+        other.context = nullptr;
+        other.destroyContext = nullptr;
+        return *this;
+    }
 };
 
 struct Router final {
@@ -387,6 +499,92 @@ Response makeResponse(const Route &route, const Request &request, const Match &m
     return response;
 }
 
+Response makeErrorResponse(int status, std::string body, bool close)
+{
+    Response response;
+    response.status = status;
+    response.body = std::move(body);
+    response.close = close;
+    return response;
+}
+
+struct Continuation final {
+    Router *router = nullptr;
+    Request *request = nullptr;
+    Response *response = nullptr;
+    std::set<std::string> *allowed = nullptr;
+    std::size_t group = 0;
+    std::size_t index = 0;
+    bool called = false;
+    bool result = false;
+};
+
+bool dispatchFrom(Router &router, Request &request, Response &response,
+                  std::set<std::string> &allowed, std::size_t group, std::size_t index);
+
+int continueDispatch(void *opaqueContinuation)
+{
+    auto *continuation = static_cast<Continuation *>(opaqueContinuation);
+    if (continuation == nullptr)
+        return 0;
+    if (!continuation->called) {
+        continuation->called = true;
+        continuation->result = dispatchFrom(*continuation->router, *continuation->request,
+                                            *continuation->response, *continuation->allowed,
+                                            continuation->group, continuation->index);
+    }
+    return continuation->result ? 1 : 0;
+}
+
+bool invokeRoute(Router &router, Request &request, Response &response,
+                 std::set<std::string> &allowed, const Route &route, const Match &matched,
+                 std::size_t group, std::size_t index)
+{
+    if (route.handler == nullptr) {
+        response = makeResponse(route, request, matched);
+        return true;
+    }
+
+    request.params = matched.params;
+    Continuation continuation{&router, &request, &response, &allowed, group, index + 1};
+    const int handled = route.handler(&request, &response, continueDispatch, &continuation,
+                                      route.context);
+    if (continuation.called)
+        return continuation.result || handled != 0;
+    return handled != 0;
+}
+
+bool dispatchFrom(Router &router, Request &request, Response &response,
+                  std::set<std::string> &allowed, std::size_t group, std::size_t index)
+{
+    if (group >= 2)
+        return false;
+
+    const auto &routes = group == 0 ? router.externalRoutes : router.rootRoutes;
+    for (std::size_t routeIndex = index; routeIndex < routes.size(); ++routeIndex) {
+        const Route &route = routes[routeIndex];
+        const Match matched = match(route, request.path);
+        if (matched.invalidEncoding) {
+            response = makeErrorResponse(400, "Bad Request", true);
+            return true;
+        }
+        if (matched.route == nullptr)
+            continue;
+
+        if (request.method == "OPTIONS" && route.method != "OPTIONS"
+            && route.method != "ALL" && route.method != "USE") {
+            allowed.insert(route.method);
+            continue;
+        }
+        if (!methodMatches(route, request.method))
+            continue;
+        if (invokeRoute(router, request, response, allowed, route, matched, group, routeIndex))
+            return true;
+    }
+
+    return dispatchFrom(router, request, response, allowed, group + 1, 0);
+}
+
 Response dispatch(Router &router, std::string_view method, std::string_view target,
                   std::string_view body)
 {
@@ -395,32 +593,14 @@ Response dispatch(Router &router, std::string_view method, std::string_view targ
     request.target = target;
     request.body = body;
     if (!parseTarget(target, request.path, request.query))
-        return Response{400, "Bad Request", {}, true};
+        return makeErrorResponse(400, "Bad Request", true);
 
     std::set<std::string> allowed;
-    const auto inspect = [&](const std::vector<Route> &routes) -> std::unique_ptr<Response> {
-        for (const Route &route : routes) {
-            const Match matched = match(route, request.path);
-            if (matched.invalidEncoding)
-                return std::make_unique<Response>(Response{400, "Bad Request", {}, true});
-            if (matched.route == nullptr)
-                continue;
-            if (request.method == "OPTIONS") {
-                if (route.method != "USE" && route.method != "ALL")
-                    allowed.insert(route.method);
-                continue;
-            }
-            if (!methodMatches(route, request.method))
-                continue;
-            return std::make_unique<Response>(makeResponse(route, request, matched));
-        }
-        return nullptr;
-    };
-
-    if (const auto response = inspect(router.externalRoutes))
-        return *response;
-    if (const auto response = inspect(router.rootRoutes))
-        return *response;
+    Response response;
+    response.status = 404;
+    response.body = "Not Found";
+    if (dispatchFrom(router, request, response, allowed, 0, 0))
+        return response;
     if (request.method == "OPTIONS" && !allowed.empty()) {
         std::string allow;
         for (const std::string &verb : allowed) {
@@ -428,7 +608,7 @@ Response dispatch(Router &router, std::string_view method, std::string_view targ
                 allow += ", ";
             allow += verb;
         }
-        Response response;
+        response.clearStream();
         response.status = 200;
         response.body = allow;
         addHeader(response, "Allow", allow);
@@ -436,7 +616,32 @@ Response dispatch(Router &router, std::string_view method, std::string_view targ
         addHeader(response, "X-Content-Type-Options", "nosniff");
         return response;
     }
-    return Response{404, "Not Found", {}, false};
+    return response;
+}
+
+int addHandler(Router &router, int external, int prefix, const char *method, const char *pattern,
+               server1_http_route_handler handler, void *context,
+               server1_http_context_destroy_fn destroyContext)
+{
+    if (method == nullptr || pattern == nullptr || handler == nullptr || *method == '\0') {
+        router.error = "handler route requires a method, pattern, and callback";
+        if (destroyContext != nullptr && context != nullptr)
+            destroyContext(context);
+        return 0;
+    }
+
+    Route route;
+    route.method = upper(method);
+    route.pattern = pattern;
+    route.prefix = prefix != 0;
+    route.handler = handler;
+    route.context = context;
+    route.destroyContext = destroyContext;
+    if (!compilePattern(route.pattern, route.prefix, route.compiled, router.error))
+        return 0;
+    (external != 0 ? router.externalRoutes : router.rootRoutes).push_back(std::move(route));
+    router.error.clear();
+    return 1;
 }
 
 } // namespace
@@ -476,6 +681,25 @@ int server1_http_router_add_static(void *opaqueRouter, int external, int prefix,
     return 1;
 }
 
+int server1_http_router_add_handler(void *opaqueRouter, int external, int prefix, const char *method,
+                                    const char *pattern, server1_http_route_handler handler,
+                                    void *context, server1_http_context_destroy_fn destroyContext)
+{
+    if (opaqueRouter == nullptr)
+        return 0;
+    return server1::http::router_detail::addHandler(
+        *static_cast<server1::http::router_detail::Router *>(opaqueRouter), external, prefix, method,
+        pattern, handler, context, destroyContext);
+}
+
+int server1_http_router_add_middleware(void *opaqueRouter, int external, const char *pattern,
+                                       server1_http_route_handler handler, void *context,
+                                       server1_http_context_destroy_fn destroyContext)
+{
+    return server1_http_router_add_handler(opaqueRouter, external, 1, "USE", pattern, handler,
+                                           context, destroyContext);
+}
+
 const char *server1_http_router_error(void *opaqueRouter)
 {
     return opaqueRouter == nullptr
@@ -487,10 +711,60 @@ void *server1_http_router_dispatch(void *opaqueRouter, const char *method, const
                                    const char *body)
 {
     if (opaqueRouter == nullptr || method == nullptr || target == nullptr || body == nullptr)
-        return new server1::http::router_detail::Response{500, "Router unavailable", {}, true};
-    const auto result = server1::http::router_detail::dispatch(
+        return new server1::http::router_detail::Response(
+            server1::http::router_detail::makeErrorResponse(500, "Router unavailable", true));
+    auto result = server1::http::router_detail::dispatch(
         *static_cast<server1::http::router_detail::Router *>(opaqueRouter), method, target, body);
-    return new server1::http::router_detail::Response(result);
+    return new server1::http::router_detail::Response(std::move(result));
+}
+
+const char *server1_http_request_method(const void *opaqueRequest)
+{
+    return opaqueRequest == nullptr
+        ? server1::http::router_detail::kEmpty
+        : static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->method.c_str();
+}
+
+const char *server1_http_request_target(const void *opaqueRequest)
+{
+    return opaqueRequest == nullptr
+        ? server1::http::router_detail::kEmpty
+        : static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->target.c_str();
+}
+
+const char *server1_http_request_path(const void *opaqueRequest)
+{
+    return opaqueRequest == nullptr
+        ? server1::http::router_detail::kEmpty
+        : static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->path.c_str();
+}
+
+const char *server1_http_request_body(const void *opaqueRequest)
+{
+    return opaqueRequest == nullptr
+        ? server1::http::router_detail::kEmpty
+        : static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->body.c_str();
+}
+
+const char *server1_http_request_param(const void *opaqueRequest, const char *name)
+{
+    if (opaqueRequest == nullptr || name == nullptr)
+        return server1::http::router_detail::kEmpty;
+    const auto &request = *static_cast<const server1::http::router_detail::Request *>(opaqueRequest);
+    const auto parameter = request.params.find(name);
+    return parameter == request.params.end() ? server1::http::router_detail::kEmpty
+                                             : parameter->second.c_str();
+}
+
+const char *server1_http_request_query_value(const void *opaqueRequest, const char *name)
+{
+    if (opaqueRequest == nullptr || name == nullptr)
+        return server1::http::router_detail::kEmpty;
+    const auto &request = *static_cast<const server1::http::router_detail::Request *>(opaqueRequest);
+    const std::string value = server1::http::router_detail::queryValue(request, name);
+    static thread_local std::string result;
+    result = value;
+    return result.c_str();
 }
 
 void server1_http_response_destroy(void *opaqueResponse)
@@ -512,6 +786,13 @@ const char *server1_http_response_body(void *opaqueResponse)
         : static_cast<server1::http::router_detail::Response *>(opaqueResponse)->body.c_str();
 }
 
+std::size_t server1_http_response_body_size(void *opaqueResponse)
+{
+    return opaqueResponse == nullptr
+        ? 0
+        : static_cast<server1::http::router_detail::Response *>(opaqueResponse)->body.size();
+}
+
 const char *server1_http_response_header(void *opaqueResponse, const char *name)
 {
     if (opaqueResponse == nullptr || name == nullptr)
@@ -529,6 +810,89 @@ int server1_http_response_close(void *opaqueResponse)
 {
     return opaqueResponse != nullptr
         && static_cast<server1::http::router_detail::Response *>(opaqueResponse)->close;
+}
+
+int server1_http_response_set_status(void *opaqueResponse, int status)
+{
+    if (opaqueResponse == nullptr || status < 100 || status > 599)
+        return 0;
+    static_cast<server1::http::router_detail::Response *>(opaqueResponse)->status = status;
+    return 1;
+}
+
+int server1_http_response_set_body(void *opaqueResponse, const void *data, std::size_t size)
+{
+    if (opaqueResponse == nullptr || (size != 0 && data == nullptr))
+        return 0;
+    auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
+    response.clearStream();
+    response.body.assign(static_cast<const char *>(data), size);
+    return 1;
+}
+
+int server1_http_response_set_header(void *opaqueResponse, const char *name, const char *value)
+{
+    if (opaqueResponse == nullptr || name == nullptr || value == nullptr || *name == '\0')
+        return 0;
+    auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
+    const std::string wanted = server1::http::router_detail::lower(name);
+    for (auto &header : response.headers) {
+        if (server1::http::router_detail::lower(header.first) == wanted) {
+            header.second = value;
+            return 1;
+        }
+    }
+    response.headers.emplace_back(name, value);
+    return 1;
+}
+
+int server1_http_response_set_close(void *opaqueResponse, int closeAfter)
+{
+    if (opaqueResponse == nullptr)
+        return 0;
+    static_cast<server1::http::router_detail::Response *>(opaqueResponse)->close = closeAfter != 0;
+    return 1;
+}
+
+int server1_http_response_set_stream(void *opaqueResponse, server1_http_stream_read_fn read,
+                                     server1_http_stream_destroy_fn destroy, void *context,
+                                     std::size_t contentLength)
+{
+    if (opaqueResponse == nullptr || read == nullptr)
+        return 0;
+    auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
+    response.clearStream();
+    response.body.clear();
+    response.streamRead = read;
+    response.streamDestroy = destroy;
+    response.streamContext = context;
+    response.streamContentLength = contentLength;
+    return 1;
+}
+
+int server1_http_response_has_stream(void *opaqueResponse)
+{
+    return opaqueResponse != nullptr
+        && static_cast<server1::http::router_detail::Response *>(opaqueResponse)->streamRead != nullptr;
+}
+
+std::size_t server1_http_response_stream_content_length(void *opaqueResponse)
+{
+    return opaqueResponse == nullptr
+        ? SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH
+        : static_cast<server1::http::router_detail::Response *>(opaqueResponse)
+              ->streamContentLength;
+}
+
+std::ptrdiff_t server1_http_response_stream_read(void *opaqueResponse, void *buffer,
+                                                 std::size_t capacity)
+{
+    if (opaqueResponse == nullptr)
+        return -1;
+    auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
+    if (response.streamRead == nullptr)
+        return -1;
+    return response.streamRead(response.streamContext, buffer, capacity);
 }
 
 std::size_t server1_http_response_header_count(void *opaqueResponse)

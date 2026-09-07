@@ -59,14 +59,15 @@
     }
   ],
   "case_mapping": {
-    "H00-01": "raw HTTP parsing and body/query/header semantics; completed-header 431, chunked 413, bounded trailers, and exact transfer-coding validation",
-    "H00-02": "production external-before-root router composition and route validation boundary",
-    "H00-03": "real asynchronous listener ownership, bounded application-plus-socket pending bytes, full wire drain before close, and disconnect cleanup"
+    "H00-01": "raw HTTP parsing and body/query/header semantics; completed-header 431, chunked 413, bounded trailers, exact transfer-coding validation, and byte-for-byte raw-wire comparison",
+    "H00-02": "production external-before-root handler composition, middleware continuation, explicit-before-automatic OPTIONS dispatch, and route validation boundary",
+    "H00-03": "real asynchronous listener ownership, bounded application-plus-socket pending bytes, callback-driven binary streaming beyond the cap, full wire drain before close, and disconnect cleanup"
   },
   "repair_vectors": [
-    "Connection.cpp drain advances accepted versus delivered bytes separately, writes bounded chunks, and releases closeAfter only after actual drain/disconnect",
+    "Connection.cpp drain advances accepted versus delivered bytes separately, writes bounded chunks, streams response callbacks under the aggregate cap, and releases closeAfter only after actual drain/disconnect",
     "RequestParsing.cpp maps oversized chunked payloads to 413, validates complete Transfer-Encoding coding lists, bounds chunked trailers by kMaxHeaderBytes, and rejects completed headers above the limit with 431",
-    "H00-03 records full response bytes, close-after-full-body behavior, post-resume total pending peaks, multi-connection cap enforcement, and disconnect cleanup"
+    "Router.cpp exposes the packet-owned handler, continuation, request accessor, response setter, and stream callback contract; H00-02 exercises service callbacks instead of static placeholders",
+    "H00-03 records full response bytes, close-after-full-body behavior, post-resume total pending peaks, multi-connection cap enforcement, binary bytes beyond the cap, and disconnect cleanup"
   ],
   "evidence_state": "source-traced; test-authored; repair-red-confirmed; implementation-authored; compiled; test-executed"
 }

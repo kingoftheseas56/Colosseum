@@ -5,37 +5,13 @@
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
 
+#include "server1/http/HttpContract.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <deque>
 #include <limits>
 #include <string>
-
-extern "C" {
-
-void *server1_http_parser_create(std::size_t maxBodyBytes);
-void server1_http_parser_destroy(void *parser);
-int server1_http_parser_feed(void *parser, const char *data, std::size_t size);
-int server1_http_parser_error_status(void *parser);
-const char *server1_http_parser_error(void *parser);
-const char *server1_http_parser_remaining(void *parser);
-std::size_t server1_http_parser_remaining_size(void *parser);
-const char *server1_http_parser_method(void *parser);
-const char *server1_http_parser_target(void *parser);
-const char *server1_http_parser_body(void *parser);
-bool server1_http_parser_keep_alive(void *parser);
-
-void *server1_http_router_dispatch(void *router, const char *method, const char *target,
-                                   const char *body);
-void server1_http_response_destroy(void *response);
-int server1_http_response_status(void *response);
-const char *server1_http_response_body(void *response);
-int server1_http_response_close(void *response);
-std::size_t server1_http_response_header_count(void *response);
-const char *server1_http_response_header_name_at(void *response, std::size_t index);
-const char *server1_http_response_header_value_at(void *response, std::size_t index);
-
-}
 
 namespace server1::http::connection_detail {
 
@@ -73,8 +49,8 @@ const char *reasonPhrase(int status)
     }
 }
 
-QByteArray makeResponse(int status, const std::string &body, const std::string &method,
-                        bool keepAlive, bool closeAfter, void *response)
+QByteArray makeResponseHeaders(int status, bool keepAlive, bool closeAfter, void *response,
+                               std::size_t contentLength, bool chunked)
 {
     QByteArray wire;
     wire += "HTTP/1.1 ";
@@ -90,11 +66,24 @@ QByteArray makeResponse(int status, const std::string &body, const std::string &
             wire += "\r\n";
         }
     }
-    wire += "Content-Length: ";
-    wire += QByteArray::number(static_cast<qint64>(body.size()));
-    wire += "\r\nConnection: ";
+    if (chunked) {
+        wire += "Transfer-Encoding: chunked\r\n";
+    } else {
+        wire += "Content-Length: ";
+        wire += QByteArray::number(static_cast<qint64>(contentLength));
+        wire += "\r\n";
+    }
+    wire += "Connection: ";
     wire += (!keepAlive || closeAfter) ? "close\r\n" : "keep-alive\r\n";
     wire += "\r\n";
+    return wire;
+}
+
+QByteArray makeResponse(int status, const std::string &body, const std::string &method,
+                        bool keepAlive, bool closeAfter, void *response)
+{
+    QByteArray wire = makeResponseHeaders(status, keepAlive, closeAfter, response, body.size(),
+                                          false);
     if (method != "HEAD")
         wire += QByteArray::fromStdString(body);
     return wire;
@@ -198,6 +187,11 @@ private:
         qsizetype accepted = 0;
         qsizetype delivered = 0;
         bool closeAfter = false;
+        void *response = nullptr;
+        bool streaming = false;
+        bool chunked = false;
+        bool streamFinished = false;
+        std::size_t streamBytes = 0;
     };
 
     void readAvailable()
@@ -245,17 +239,31 @@ private:
         void *response = server1_http_router_dispatch(server_->router(), method.c_str(), target.c_str(),
                                                        body.c_str());
         const int status = server1_http_response_status(response);
-        const std::string responseBody = server1_http_response_body(response);
         const bool responseClose = server1_http_response_close(response) != 0;
-        const QByteArray wire = makeResponse(status, responseBody, method, keepAlive, responseClose,
-                                             response);
-        server1_http_response_destroy(response);
+        const bool streaming = server1_http_response_has_stream(response) != 0;
+        QByteArray wire;
+        bool chunked = false;
+        if (streaming) {
+            const std::size_t contentLength =
+                server1_http_response_stream_content_length(response);
+            chunked = contentLength == SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
+            wire = makeResponseHeaders(status, keepAlive, responseClose, response, contentLength,
+                                       chunked);
+        } else {
+            const std::string responseBody = server1_http_response_body(response);
+            wire = makeResponse(status, responseBody, method, keepAlive, responseClose, response);
+            server1_http_response_destroy(response);
+            response = nullptr;
+        }
 
         server1_http_parser_destroy(parser_);
         parser_ = server1_http_parser_create(kDefaultMaxBodyBytes);
         pendingInput_ = remaining;
         responsePending_ = true;
-        enqueue(wire, !keepAlive || responseClose);
+        if (streaming)
+            enqueueStream(wire, !keepAlive || responseClose, response, chunked, method == "HEAD");
+        else
+            enqueue(wire, !keepAlive || responseClose);
     }
 
     void enqueue(const QByteArray &data, bool closeAfter)
@@ -272,6 +280,120 @@ private:
         queue_.push_back(PendingWrite{data, 0, 0, closeAfter});
         applicationQueuedBytes_ += responseBytes;
         drain();
+    }
+
+    void enqueueStream(const QByteArray &headers, bool closeAfter, void *response, bool chunked,
+                       bool suppressBody)
+    {
+        if (closed_)
+            return;
+        const std::size_t responseBytes = static_cast<std::size_t>(headers.size());
+        const std::size_t pendingBytes = server_->pendingBytes();
+        if (response == nullptr || responseBytes > server_->maxQueuedBytes()
+            || pendingBytes > server_->maxQueuedBytes() - responseBytes) {
+            if (response != nullptr)
+                server1_http_response_destroy(response);
+            handleSocketError();
+            return;
+        }
+        PendingWrite pending;
+        pending.data = headers;
+        pending.closeAfter = closeAfter;
+        pending.response = response;
+        pending.streaming = true;
+        pending.chunked = chunked;
+        pending.streamFinished = suppressBody;
+        queue_.push_back(std::move(pending));
+        applicationQueuedBytes_ += responseBytes;
+        drain();
+    }
+
+    bool fillStream(PendingWrite &pending)
+    {
+        if (!pending.streaming || pending.streamFinished)
+            return true;
+        if (pending.response == nullptr) {
+            handleSocketError();
+            return false;
+        }
+
+        const std::size_t pendingBytes = server_->pendingBytes();
+        if (pendingBytes >= server_->maxQueuedBytes())
+            return false;
+        const std::size_t available = server_->maxQueuedBytes() - pendingBytes;
+        std::size_t capacity = std::min<std::size_t>(
+            static_cast<std::size_t>(kMaxWriteChunkBytes), available);
+        if (pending.chunked) {
+            constexpr std::size_t kChunkOverhead = 24;
+            if (available <= kChunkOverhead)
+                return false;
+            capacity = std::min(capacity, available - kChunkOverhead);
+        }
+        if (capacity == 0)
+            return false;
+
+        QByteArray buffer(static_cast<qsizetype>(capacity), '\0');
+        const std::ptrdiff_t read = server1_http_response_stream_read(
+            pending.response, buffer.data(), capacity);
+        if (read < 0 || static_cast<std::size_t>(read) > capacity) {
+            server1_http_response_destroy(pending.response);
+            pending.response = nullptr;
+            handleSocketError();
+            return false;
+        }
+
+        pending.data.clear();
+        pending.accepted = 0;
+        pending.delivered = 0;
+        if (pending.chunked) {
+            if (read == 0) {
+                pending.data = "0\r\n\r\n";
+                pending.streamFinished = true;
+            } else {
+                const QByteArray length = QByteArray::number(read, 16);
+                pending.data.reserve(length.size() + static_cast<qsizetype>(read) + 4);
+                pending.data += length;
+                pending.data += "\r\n";
+                pending.data.append(buffer.constData(), static_cast<qsizetype>(read));
+                pending.data += "\r\n";
+            }
+        } else {
+            const std::size_t contentLength =
+                server1_http_response_stream_content_length(pending.response);
+            if (read == 0) {
+                if (pending.streamBytes != contentLength) {
+                    server1_http_response_destroy(pending.response);
+                    pending.response = nullptr;
+                    handleSocketError();
+                    return false;
+                }
+                pending.streamFinished = true;
+            } else {
+                const std::size_t readBytes = static_cast<std::size_t>(read);
+                if (readBytes > contentLength
+                    || pending.streamBytes > contentLength - readBytes) {
+                    server1_http_response_destroy(pending.response);
+                    pending.response = nullptr;
+                    handleSocketError();
+                    return false;
+                }
+                pending.streamBytes += readBytes;
+                pending.data = buffer.left(static_cast<qsizetype>(read));
+                if (pending.streamBytes == contentLength)
+                    pending.streamFinished = true;
+            }
+        }
+
+        applicationQueuedBytes_ += static_cast<std::size_t>(pending.data.size());
+        return true;
+    }
+
+    static void destroyPendingResponse(PendingWrite &pending)
+    {
+        if (pending.response != nullptr) {
+            server1_http_response_destroy(pending.response);
+            pending.response = nullptr;
+        }
     }
 
     void drain()
@@ -349,7 +471,20 @@ private:
             || socket_ == nullptr || socket_->bytesToWrite() != 0)
             return;
 
+        if (pending.streaming && !pending.streamFinished) {
+            if (!fillStream(pending)) {
+                if (!closed_)
+                    scheduleDrain();
+                return;
+            }
+            if (!pending.data.isEmpty()) {
+                drain();
+                return;
+            }
+        }
+
         const bool closeAfter = pending.closeAfter;
+        destroyPendingResponse(pending);
         queue_.pop_front();
         if (closeAfter) {
             responsePending_ = false;
@@ -406,6 +541,8 @@ private:
 
     void clearQueue()
     {
+        for (PendingWrite &pending : queue_)
+            destroyPendingResponse(pending);
         queue_.clear();
         applicationQueuedBytes_ = 0;
         pendingInput_.clear();

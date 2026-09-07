@@ -1,0 +1,3 @@
+command=cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -S "C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused" -B "C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_PREFIX_PATH="C:\Qt\6.11.1\msvc2022_64"'
+exit=0
+raw_output=Configuring done (1.3s); Generating done (0.5s); build files written to the focused H00-A repair directory

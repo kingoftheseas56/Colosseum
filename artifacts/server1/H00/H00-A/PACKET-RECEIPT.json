@@ -5,8 +5,9 @@
   "branch": "codex/server1-h00-a",
   "base_sha": "e5660e27a320845ab993201918443e609e1a34d5",
   "initial_implementation_commit_sha": "409eade0c60bce3fef3b54819dc60a84fca98b13",
-  "implementation_commit_sha": "f42a394f26c80ab73b4525e7db2f9301455b05a4",
-  "repair_commit_sha": "f42a394f26c80ab73b4525e7db2f9301455b05a4",
+  "implementation_commit_sha": null,
+  "repair_commit_sha": null,
+  "repair_commit_sha_note": "returned in the worker completion message; omitted here to avoid a self-referential commit hash",
   "oracle": {
     "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
@@ -17,32 +18,33 @@
     "native/colosseum_server_v1/src/http/RequestParsing.cpp",
     "native/colosseum_server_v1/tests/test_http_contract.cpp",
     "native/colosseum_server_v1/cmake/packets/H00.cmake",
-    "native/colosseum_server_v1/tests/cmake/H00.cmake"
+    "native/colosseum_server_v1/include/server1/http/HttpContract.h"
   ],
   "forbidden_shared_files_touched": [],
   "interface_summary": {
     "parser": "incremental HTTP/1.x request parser with fragmented headers/body, duplicate headers, repeated query/form entries, JSON/urlencoded body parsing, malformed-target validation, 3 MiB JSON limit, bounded chunked trailers, exact single-chunked transfer coding validation, overflow-safe chunk sizing, and 431 completed-header enforcement",
-    "router": "source-ordered external-before-root matching with connect prefix boundary, params/query/body interpolation, GET-to-HEAD fallback, automatic OPTIONS, and separate route/HTTP validation",
-    "connection": "Qt asynchronous listener and socket facade with parent-owned connection lifecycle, aggregate application-plus-QTcpSocket pending-byte bound, bounded writes, bytesWritten/actual-drain accounting, pause/resume backpressure, full-wire close-after delivery, keep-alive/pipelining, and disconnect cleanup",
-    "integration_boundary": "No root composition edit; shared CMake registration is requested through WIRING-REQUEST.json"
+    "router": "source-ordered external-before-root matching with connect prefix boundary, service handler callbacks, middleware continuation, params/query/body accessors, GET-to-HEAD fallback, explicit-before-automatic OPTIONS, and separate route/HTTP validation",
+    "connection": "Qt asynchronous listener and socket facade with parent-owned connection lifecycle, aggregate application-plus-QTcpSocket pending-byte bound, bounded static writes, callback-driven known-length or chunked streaming, bytesWritten/actual-drain accounting, pause/resume backpressure, full-wire close-after delivery, keep-alive/pipelining, and disconnect cleanup",
+    "public_contract": "Packet-owned HttpContract.h declares the handler, continuation, response setter, and stream callback ABI pending INT-W2 shared-header wiring",
+    "integration_boundary": "No root composition edit; shared CMake registration and public-header ownership are requested through WIRING-REQUEST.json"
   },
   "case_receipts": {
     "H00-01": {
       "state": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed", "differentially-qualified"],
       "result": "PASS",
-      "scope": "fragmented HTTP parsing, repeated query/form values, duplicate headers, JSON body, HEAD/close, encoded slash capture, malformed target, 3 MiB JSON rejection, complete oversized headers, oversized chunked body, maximal/overflowing chunk sizes, mixed/repeated transfer codings, and oversized chunked trailers",
+      "scope": "fragmented HTTP parsing, repeated query/form values, duplicate headers, JSON body, HEAD/close, encoded slash capture, malformed target, 3 MiB JSON rejection, complete oversized headers, oversized chunked body, maximal/overflowing chunk sizes, mixed/repeated transfer codings, oversized chunked trailers, and exact loopback raw-wire comparison",
       "runtime_claim": "native contract harness only; no application runtime parity claimed"
     },
     "H00-02": {
       "state": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed", "differentially-qualified"],
       "result": "PASS",
-      "scope": "production router facade exercises external /hlsv2/status, /yt/:id, /proxy prefix, /local-addon/manifest.json before root two-segment route, plus params, HEAD, OPTIONS, route validation, malformed target, and prefix boundary",
+      "scope": "production router facade exercises service handlers for external /hlsv2/status, /yt/:id, /proxy middleware continuation, /local-addon/manifest.json before the root two-segment handler, plus params, HEAD, explicit and automatic OPTIONS, route validation, malformed target, and prefix boundary",
       "runtime_claim": "packet production-router behavior exercised through owned C API; no shared-root application composition edit or oracle runtime parity claimed"
     },
     "H00-03": {
       "state": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed"],
       "result": "PASS",
-      "scope": "real loopback QTcpServer/QTcpSocket listener, paused slow consumer then resume, complete wire body before close, post-resume aggregate pending cap, multi-client large-response cap, client disconnect during pending output, and connection/queue cleanup",
+      "scope": "real loopback QTcpServer/QTcpSocket listener, paused slow consumer then resume, complete wire body before close, post-resume aggregate pending cap, multi-client large-response cap, client disconnect during pending output, callback-driven binary streaming beyond the queue cap, and connection/queue cleanup",
       "runtime_claim": "native listener contract harness only; no deployed application runtime verification claimed"
     }
   },
@@ -52,27 +54,32 @@
       "exit": 2,
       "meaning": "original test-authored contract linked before implementation and failed on expected missing H00 symbols"
     },
+    "contract_red": {
+      "artifact": "artifacts/server1/H00/H00-A/RED-H00-A-REPAIR.txt",
+      "exit": 1,
+      "meaning": "handler, continuation, response-setter, and stream symbols were absent before the repair implementation"
+    },
     "repair_red": {
       "artifact": "artifacts/server1/H00/H00-A/RED-H00-REPAIR.txt",
       "exit": 1,
       "meaning": "old implementation failed the H00-03 total-cap assertion, completed-header 431 assertion, and transfer-coding validation assertion before repair"
     },
     "configure": {
-      "artifact": "artifacts/server1/H00/H00-A/CMAKE-CONFIGURE-OUTPUT.txt",
+      "artifact": "artifacts/server1/H00/H00-A/CMAKE-CONFIGURE-OUTPUT-H00-A-REPAIR.txt",
       "exit": 0,
       "method": "packet-local CMake project include; shared CMake files were not edited"
     },
     "build": {
-      "artifact": "artifacts/server1/H00/H00-A/CMAKE-BUILD-OUTPUT.txt",
+      "artifact": "artifacts/server1/H00/H00-A/CMAKE-BUILD-OUTPUT-H00-A-REPAIR.txt",
       "exit": 0,
       "target": "server1_h00_http_contract",
       "clean_first": true
     },
     "tests": {
-      "artifact": "artifacts/server1/H00/H00-A/CTEST-OUTPUT.txt",
+      "artifact": "artifacts/server1/H00/H00-A/CTEST-OUTPUT-H00-A-REPAIR.txt",
       "exit": 0,
       "cases": ["H00-01-http-contract", "H00-02-http-contract", "H00-03-http-contract"],
-      "repeat_artifact": "artifacts/server1/H00/H00-A/CTEST-REPEAT-OUTPUT.txt"
+      "repeat_artifact": "artifacts/server1/H00/H00-A/CTEST-REPEAT-OUTPUT-H00-A-REPAIR.txt"
     },
     "differential": {
       "artifact": "artifacts/server1/H00/H00-A/DIFFERENTIAL-TRACE.txt",
@@ -81,12 +88,18 @@
   },
   "evidence_files": [
     "artifacts/server1/H00/H00-A/SOURCE-TRACE.json",
+    "artifacts/server1/H00/H00-A/RED-H00-A-REPAIR.txt",
     "artifacts/server1/H00/H00-A/RED-H00.txt",
     "artifacts/server1/H00/H00-A/RED-H00-REPAIR.txt",
+    "artifacts/server1/H00/H00-A/CMAKE-CONFIGURE-OUTPUT-H00-A-REPAIR.txt",
     "artifacts/server1/H00/H00-A/CMAKE-CONFIGURE-OUTPUT.txt",
+    "artifacts/server1/H00/H00-A/CMAKE-BUILD-OUTPUT-H00-A-REPAIR.txt",
     "artifacts/server1/H00/H00-A/CMAKE-BUILD-OUTPUT.txt",
+    "artifacts/server1/H00/H00-A/CTEST-OUTPUT-H00-A-REPAIR.txt",
     "artifacts/server1/H00/H00-A/CTEST-OUTPUT.txt",
+    "artifacts/server1/H00/H00-A/CTEST-REPEAT-OUTPUT-H00-A-REPAIR.txt",
     "artifacts/server1/H00/H00-A/CTEST-REPEAT-OUTPUT.txt",
+    "artifacts/server1/H00/H00-A/RAW-WIRE-COMPARISON.txt",
     "artifacts/server1/H00/H00-A/DIFFERENTIAL-TRACE.txt",
     "artifacts/server1/H00/H00-A/CANDIDATE-HASHES.json",
     "artifacts/server1/H00/H00-A/WIRING-REQUEST.json",

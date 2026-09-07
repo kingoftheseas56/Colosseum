@@ -4,7 +4,8 @@
   "parent_packet": "H00",
   "integration_owner": "INT-W2",
   "destination": "B-W2B on feature/colosseum-server-1.0",
-  "implementation_commit_sha": "f42a394f26c80ab73b4525e7db2f9301455b05a4",
+  "implementation_commit_sha": null,
+  "implementation_commit_sha_note": "returned in the worker completion message; omitted here to avoid a self-referential commit hash",
   "requested_wiring": [
     {
       "surface": "native/colosseum_server_v1/CMakeLists.txt",
@@ -15,15 +16,23 @@
       "surface": "native/colosseum_server_v1/tests/CMakeLists.txt",
       "action": "include native/colosseum_server_v1/tests/cmake/H00.cmake and call server1_register_h00_tests()",
       "reason": "register H00-01, H00-02 and H00-03 CTest entries"
+    },
+    {
+      "surface": "native/colosseum_server_v1/include/server1/http/HttpContract.h",
+      "action": "retain this packet-owned public contract at the shared integration seam, or replace it with an equivalent shared header without changing signatures",
+      "reason": "H00 handler callbacks, continuation dispatch, response setters, and streaming ownership must be visible to Runtime/ServerComposition consumers"
     }
   ],
   "produced_symbols": [
     "server1_http_parser_*",
     "server1_http_router_*",
+    "server1_http_router_add_handler",
+    "server1_http_router_add_middleware",
+    "server1_http_request_*",
     "server1_http_response_*",
     "server1_http_server_*"
   ],
   "shared_files_edited_by_worker": [],
   "forbidden_shared_files_touched": [],
-  "integration_note": "The implementation uses packet-local C ABI declarations because the worker-owned file list contains no shared HTTP header. INT-W2 should expose or retain the equivalent HttpConnectionContract and RouterContract declarations at the shared integration seam without changing route order, parser limits, total pending-byte accounting, or close-after-drain semantics. server1_http_server_queued_bytes now reports aggregate application-plus-QTcpSocket pending bytes."
+  "integration_note": "The worker added the packet-owned native/colosseum_server_v1/include/server1/http/HttpContract.h seam. INT-W2 should retain or promote an equivalent shared header and wire the packet manifests into aggregate CMake without changing route order, parser limits, handler continuation semantics, stream callback ownership, total pending-byte accounting, or close-after-drain behavior. server1_http_server_queued_bytes reports aggregate application-plus-QTcpSocket pending bytes."
 }
