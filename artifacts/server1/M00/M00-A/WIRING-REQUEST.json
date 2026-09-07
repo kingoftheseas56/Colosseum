@@ -3,8 +3,8 @@
   "worker_id": "M00-A",
   "parent_packet": "M00",
   "status": "requested",
-  "source_branch": "codex/server1-m00-a",
-  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "source_branch": "M00-A-repair (detached checkout)",
+  "base": "a97bd1aa64f573b0730118a2abe253ebcf596483",
   "destination": {
     "integration_owner": "INT-W2",
     "branch": "feature/colosseum-server-1.0",

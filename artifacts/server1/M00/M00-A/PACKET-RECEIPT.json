@@ -1,11 +1,11 @@
 {
-  "schema": "colosseum-server1-packet-receipt/v1",
+  "schema": "colosseum-server1-packet-receipt/v2",
   "worker_id": "M00-A",
   "parent_packet": "M00",
-  "branch": "codex/server1-m00-a",
-  "base": "e5660e27a320845ab993201918443e609e1a34d5",
+  "checkout": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/M00-A-repair",
+  "base": "a97bd1aa64f573b0730118a2abe253ebcf596483",
   "oracle": {
-    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "path": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/oracle/server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
   "source_authorities": {
@@ -15,7 +15,7 @@
     "M564:46578-46979": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
     "M667:62092-62112": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6",
     "M855:75051-75119": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79",
-    "M861:76486-76522": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e0"
+    "M861:76486-76522": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3"
   },
   "owned_files": [
     "native/colosseum_server_v1/include/server1/ports/ProcessPort.h",
@@ -26,117 +26,72 @@
     "native/colosseum_server_v1/tests/cmake/M00.cmake"
   ],
   "owned_file_sha256": {
-    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B755C00B522A5DA56DB2BFDE1583FDDFF491B6E1790532D2774395B838F70625",
-    "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "C66E6979F5D00051B30171616B908B753FB6C9F707CAB0861F08A80D77516405",
-    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "1B0BB82542A18E4094538E488DCBED556C55C38AAFA360CC2803652CEEB28177",
-    "native/colosseum_server_v1/tests/test_process_driver.cpp": "7F8D43540DB55429F814AD011E3A3436F0389E1B6060AD17D077F071ECB47359",
-    "native/colosseum_server_v1/cmake/packets/M00.cmake": "940FA54D5537DF59B795075C91E2D4C8BDAAE5072FC629AF5119B38BA659E818",
-    "native/colosseum_server_v1/tests/cmake/M00.cmake": "39DE4A05DD8808A88EEBDD88D3B8347DDA30294EBD0D8AFE96A64F9F32D66AC1"
+    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "56259B367E00145C8F9D09435E0348FA8C50F17054AA671D886F4153A8FDE602",
+    "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "A61AFD049B0109BCB7CD5147B4ED03E73303E663F045FA2539384BDD9CEAEA0A",
+    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "ED225F12B2EFE371F33EC7F7D74FC7639CE0D566EC565D8D237200C8FEB68775",
+    "native/colosseum_server_v1/tests/test_process_driver.cpp": "C9BEAEED0CAE76B63B0D7AEF4C7FB22A6A3E2A0853F00128A66D0D90ADDEAABE",
+    "native/colosseum_server_v1/cmake/packets/M00.cmake": "C3BEB37B29C1F396DE2804ADD17C9E95B0BE64D9D5811B5EF876BEED99D18D0B",
+    "native/colosseum_server_v1/tests/cmake/M00.cmake": "50EE99C8CFF7765AF19D318E660A2959533891D02EC4558FFF85A619C9764800"
+  },
+  "fixtures": {
+    "source": "artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs",
+    "source_sha256": "F95F00B149AE2CE9FE41D8C0532982ADA7F235F8C6708872E9F71E4147D0807D",
+    "candidate_trace": "native/colosseum_server_v1/tests/test_process_driver.cpp --trace",
+    "candidate_executable_sha256": "54C7E3CD5D4ED6B59923C63B2944C75DF27B169D662126300314B2FCD09F3EAF",
+    "source_raw_sha256": "7256C7EDF082339D047A2631DB045E0BE51A0C65A76403F769F6FC95E4BB13AC",
+    "candidate_raw_sha256": "31AD394326BFB86A3AEEDBA486231AA05E3FE4444EB227E72C57B660E651BEC1",
+    "raw_comparison_sha256": "79079CCA28784D3C2C879F53A6A07CF34DA39A7C255588B1FBE3172D7D78420D",
+    "raw_comparison": "artifacts/server1/M00/M00-A/comparison/RAW-COMPARISON.txt",
+    "differences": 0
   },
   "cases": {
     "M00-01": {
-      "state": "differentially-qualified",
-      "requirements": "Override path present/missing, PATH lookup, spaces/non-ASCII paths and executable launch refusal.",
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01-LIFETIME-GREEN.raw.txt",
-      "sha256": "A021ABFFE381B93DC0990B1ECF309F3D45022A0F847D44B2F2774A9B45AFE777",
+      "state": "test-executed",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt",
+      "sha256": "D5D93DD61185A8AC006B49314933730D7A8CD0BDCE82BE75C1F0F921CEE9DD5B",
       "exit": 0
     },
     "M00-02": {
-      "state": "differentially-qualified",
-      "requirements": "Binary stdout/stderr, environment, unsuccessful exit, graceful-stop escalation, cancellation race, owned process tree and external-process boundary.",
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-GREEN.raw.txt",
-      "sha256": "3990E95A1EB9843BBD2529FEB971E25EC09419AAFC3662D5214E71BE4A8199A7",
+      "state": "test-executed",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt",
+      "sha256": "5315CA9BAC65BB4152C7CAE546022096EAA97C9B76A525A2DDF994EBC98FDCFC",
       "exit": 0
     },
     "M00-03": {
-      "state": "differentially-qualified",
-      "requirements": "Remote port selection, completion polling and disconnect without a public service.",
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-GREEN.raw.txt",
-      "sha256": "0A3462A782E1E6E0B060FC113A1938DD6EA8807FA172A1C79AD9F8A01DAC9AB8",
+      "state": "test-executed",
+      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt",
+      "sha256": "EA8F3564FC87019D670E07AA19A9BFB1611259F8E9F495AABF5B4FFED272EF1D",
       "exit": 0
     }
   },
-  "evidence_states": [
-    "source-traced",
-    "test-authored",
-    "implementation-authored",
-    "compiled",
-    "test-executed",
-    "differentially-qualified"
-  ],
-  "red": {
-    "manifest": "artifacts/server1/M00/M00-A/red/TDD-RED.json",
-    "configure_exit": 0,
-    "configure_raw": "artifacts/server1/M00/M00-A/red/RED-CONFIGURE-4.raw.txt",
-    "compile_exit": 1,
-    "compile_raw": "artifacts/server1/M00/M00-A/red/RED-COMPILE-4.raw.txt",
-    "failure": "fatal error C1083: Cannot open include file: 'server1/ports/ProcessPort.h': No such file or directory"
-  },
-  "lifetime_regression": {
-    "red_manifest": "artifacts/server1/M00/M00-A/red/LIFETIME-RED.json",
-    "local_red": {
-      "command": "set PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;%PATH% && server1_m00_process_tests.exe M00-02",
-      "exit": 1,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-RED.raw.txt",
-      "sha256": "43A23E0D045116200560243E2B523FD84D9F0BD6BD1A796129DAE729FF4963F2"
-    },
-    "remote_red": {
-      "command": "set PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;%PATH% && server1_m00_process_tests.exe M00-03",
-      "exit": 1,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-RED.raw.txt",
-      "sha256": "174DB71915CDF5B4AF12A86538383E4097D507380953FE2FE2C04ABE56FD1A5E"
-    },
-    "green_assertions": "ProcessDriver destruction marks shared state dead before cancel; local and remote late callbacks are ignored; owned children drain and remote cancellation occurs once."
-  },
-  "green": {
-    "configure": {
-      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" -S \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\" -B \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\\cmake\" -G Ninja -DCMAKE_MAKE_PROGRAM=\"C:\\Qt\\Tools\\Ninja\\ninja.exe\" -DCMAKE_PREFIX_PATH=\"C:\\Qt\\6.11.1\\msvc2022_64\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-      "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/CONFIGURE.raw.txt",
-      "sha256": "B28137FBB453B678F0050CCB1B17E58B40E19D18B3A309F30B17738ABD1420D8"
-    },
-    "build": {
-      "command": "cmd.exe /d /s /c call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && \"C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe\" --build \"C:\\b\\Colosseum-Server-1.0-workers\\M00-A\\artifacts\\server1\\M00\\M00-A\\build\\cmake\" --clean-first --parallel 2",
-      "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/BUILD-LIFETIME-GREEN.raw.txt",
-      "sha256": "28396B646C17B9CEFD3DFBC748608474DAF15C0E7789472C2DC4083BDBB50D28",
-      "candidate_sha256": "F08A763178CA17DBC529DCB109BFCBABFCD1424A46BD3EFAF14CCF2F4BECCAE9",
-      "candidate_path": "artifacts/server1/M00/M00-A/build/cmake/server1_m00_process_tests.exe"
-    },
-    "ctest": {
-      "command": "set PATH=C:\\Qt\\6.11.1\\msvc2022_64\\bin;%PATH% && C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe --test-dir artifacts/server1/M00/M00-A/build/cmake --output-on-failure",
-      "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/CTEST-LIFETIME-GREEN.raw.txt",
-      "sha256": "B51B8F3904D73FC4F07AC75D72F36902AC22D5FDD9F080F1C4C844F7018D0FBB"
-    }
-  },
-  "hash_audit": {
-    "command": "PowerShell Get-FileHash SHA256 audit for oracle, candidate executable and all owned files",
+  "aggregate_ctest": {
+    "command": "ctest --test-dir artifacts/server1/M00/M00-A/build/cmake --output-on-failure",
     "exit": 0,
-    "raw": "artifacts/server1/M00/M00-A/evidence/HASH-AUDIT.raw.txt",
-    "sha256": "7B7470AEAD8743B0A7A9F4A440D8CA93873F9F8E853022349514B5B5539786C3"
+    "raw": "artifacts/server1/M00/M00-A/evidence/CTEST.raw.txt",
+    "sha256": "3346BD6EC9DF5A017ECD91BD8B2B3D2C0D1DCDBC5D8D31A562352E55216D9507"
   },
-  "json_audit": {
-    "command": "PowerShell ConvertFrom-Json validation for all packet JSON evidence",
+  "build": {
+    "command": "cmake --build artifacts/server1/M00/M00-A/build/cmake --clean-first --parallel 4",
     "exit": 0,
-    "raw": "artifacts/server1/M00/M00-A/evidence/JSON-AUDIT.raw.txt",
-    "sha256": "97EEC5AC42E516A47AA8E2A07EC4D933B9483F0A6ADEA78D98F876E0563AA3A5"
+    "raw": "artifacts/server1/M00/M00-A/evidence/BUILD.raw.txt",
+    "sha256": "BB055DB26B56203A19E5DC46B4C54C9962270DD23C141BB9633995674AB6228C"
   },
-  "differential": {
-    "raw": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.raw.txt",
-    "json": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.json",
-    "status": "differentially-qualified"
+  "stability": {
+    "command": "server1_m00_process_tests.exe all",
+    "runs": 3,
+    "exit": 0,
+    "raw": "artifacts/server1/M00/M00-A/evidence/ALL-STABILITY.raw.txt",
+    "sha256": "017303BA3641895547CDD6B8BFFAF9C45B090E7F2058217D911217BCED954D5D"
+  },
+  "evidence_states": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed"],
+  "shared_file_check": {
+    "status": "clean",
+    "forbidden_shared_files_edited": []
   },
   "interface": {
     "produced": "ProcessPortContract",
-    "changes": "Added packet-owned ProcessPort, ExecutableLocator and ProcessDriver contracts; no existing shared interface was edited.",
-    "integration": "Not integrated; aggregate CMake/runtime composition is deferred to INT-W2/B-W2B."
+    "changes": "ProcessPort behavior repaired within M00 ownership; no shared interface signature changed.",
+    "integration": "Deferred to INT-W2/B-W2B."
   },
-  "forbidden_surface_check": {
-    "status": "clean",
-    "shared_files_edited": [],
-    "binaries_or_build_directories_staged": false
-  },
-  "push": false,
-  "merge_endpoint": "Accepted commit -> feature/colosseum-server-1.0 at B-W2B; otherwise retire."
+  "push": false
 }

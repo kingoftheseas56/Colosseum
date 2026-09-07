@@ -25,6 +25,9 @@ namespace server1::media {
 
 namespace {
 
+constexpr qsizetype kMaxRetainedOutputBytes = 64 * 1024;
+std::atomic<quint64> nextDriverInstanceId = 1;
+
 struct Child final {
     quint64 id = 0;
     QProcess process;
@@ -47,6 +50,16 @@ struct RemoteChild final {
     QByteArray stdoutData;
     QByteArray stderrData;
 };
+
+void appendRetained(QByteArray &retained, const QByteArray &bytes)
+{
+    if (retained.size() >= kMaxRetainedOutputBytes || bytes.isEmpty())
+        return;
+
+    const qsizetype remaining = kMaxRetainedOutputBytes - retained.size();
+    const qsizetype count = std::min(remaining, static_cast<qsizetype>(bytes.size()));
+    retained.append(bytes.constData(), count);
+}
 
 quint16 nextRemoteStart()
 {
@@ -133,7 +146,7 @@ struct ProcessPort::Impl final {
         const QByteArray bytes = child.process.readAllStandardOutput();
         if (bytes.isEmpty())
             return;
-        child.result.stdoutData.append(bytes);
+        appendRetained(child.result.stdoutData, bytes);
         if (child.callbacks.onStdout)
             child.callbacks.onStdout(bytes);
     }
@@ -143,7 +156,7 @@ struct ProcessPort::Impl final {
         const QByteArray bytes = child.process.readAllStandardError();
         if (bytes.isEmpty())
             return;
-        child.result.stderrData.append(bytes);
+        appendRetained(child.result.stderrData, bytes);
         if (child.callbacks.onStderr)
             child.callbacks.onStderr(bytes);
     }
@@ -310,6 +323,7 @@ qsizetype ProcessPort::activeCount() const noexcept
 struct ProcessDriver::Impl final : std::enable_shared_from_this<ProcessDriver::Impl> {
     ProcessPort *port = nullptr;
     RemoteProcessTransport transport;
+    quint64 instanceId = 0;
     quint64 nextId = 1;
     std::map<quint64, std::unique_ptr<RemoteChild>> remotes;
     std::map<quint64, quint64> localProcessIds;
@@ -318,6 +332,7 @@ struct ProcessDriver::Impl final : std::enable_shared_from_this<ProcessDriver::I
     Impl(ProcessPort *portIn, RemoteProcessTransport transportIn)
         : port(portIn)
         , transport(std::move(transportIn))
+        , instanceId(nextDriverInstanceId.fetch_add(1, std::memory_order_relaxed))
     {
     }
 
@@ -360,19 +375,31 @@ struct ProcessDriver::Impl final : std::enable_shared_from_this<ProcessDriver::I
             if (!remoteChild || !remoteChild->active || remoteChild->bridgeId != bridgeId)
                 return;
             if (!pollResult.stderrData.isEmpty()) {
-                remoteChild->stderrData.append(pollResult.stderrData);
-                if (remoteChild->callbacks.onStderr)
-                    remoteChild->callbacks.onStderr(pollResult.stderrData);
+                appendRetained(remoteChild->stderrData, pollResult.stderrData);
+                const auto onStderr = remoteChild->callbacks.onStderr;
+                if (onStderr)
+                    onStderr(pollResult.stderrData);
+                remoteChild = impl->remote(id);
+                if (!remoteChild || !remoteChild->active || remoteChild->bridgeId != bridgeId)
+                    return;
             }
             if (!pollResult.data.isEmpty()) {
-                remoteChild->stdoutData.append(pollResult.data);
-                if (remoteChild->callbacks.onStdout)
-                    remoteChild->callbacks.onStdout(pollResult.data);
+                appendRetained(remoteChild->stdoutData, pollResult.data);
+                const auto onStdout = remoteChild->callbacks.onStdout;
+                if (onStdout)
+                    onStdout(pollResult.data);
+                remoteChild = impl->remote(id);
+                if (!remoteChild || !remoteChild->active || remoteChild->bridgeId != bridgeId)
+                    return;
             }
             if (pollResult.ready) {
                 remoteChild->ready = true;
-                if (remoteChild->callbacks.onRemoteReady)
-                    remoteChild->callbacks.onRemoteReady(remoteChild->port, remoteChild->url);
+                const auto onRemoteReady = remoteChild->callbacks.onRemoteReady;
+                if (onRemoteReady)
+                    onRemoteReady(remoteChild->port, remoteChild->url);
+                remoteChild = impl->remote(id);
+                if (!remoteChild || !remoteChild->active || remoteChild->bridgeId != bridgeId)
+                    return;
                 if (remoteChild->completionReceived) {
                     ProcessResult result;
                     result.started = true;
@@ -493,23 +520,26 @@ quint64 ProcessDriver::start(const DriverSpec &spec, ProcessCallbacks callbacks)
     remoteChild->id = driverId;
     remoteChild->spec = spec;
     remoteChild->callbacks = std::move(callbacks);
-    remoteChild->bridgeId = QString::number(driverId);
+    remoteChild->bridgeId = QStringLiteral("process-driver-%1-%2")
+                                .arg(impl_->instanceId)
+                                .arg(driverId);
     const quint16 requestedStart = nextRemoteStart();
     const auto selected = impl_->transport.reservePort
         ? impl_->transport.reservePort(requestedStart)
         : findAvailablePort(requestedStart);
-    if (!selected || !impl_->transport.dispatch || !impl_->transport.poll) {
+    if (!impl_->transport.dispatch || !impl_->transport.poll) {
         ProcessResult result;
         result.id = driverId;
         result.error = QProcess::FailedToStart;
-        result.errorString = !selected ? QStringLiteral("no remote port available")
-                                       : QStringLiteral("remote transport is incomplete");
+        result.errorString = QStringLiteral("remote transport is incomplete");
         if (remoteChild->callbacks.onFinished)
             remoteChild->callbacks.onFinished(result);
         return driverId;
     }
 
-    remoteChild->port = *selected;
+    // The source keeps the requested port when portfinder cannot reserve one,
+    // then dispatches the bridge with that deterministic fallback.
+    remoteChild->port = selected.value_or(requestedStart);
     remoteChild->url = QStringLiteral("http://127.0.0.1:%1/%2.mp4")
                            .arg(remoteChild->port)
                            .arg(QDateTime::currentMSecsSinceEpoch());

@@ -1,70 +1,61 @@
 {
-  "schema": "colosseum-server1-source-vs-candidate/v1",
+  "schema": "colosseum-server1-source-vs-candidate/v2",
   "worker_id": "M00-A",
   "parent_packet": "M00",
   "oracle": {
-    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "path": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/oracle/server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
-  "candidate": {
-    "executable": "artifacts/server1/M00/M00-A/build/cmake/server1_m00_process_tests.exe",
-    "sha256": "F08A763178CA17DBC529DCB109BFCBABFCD1424A46BD3EFAF14CCF2F4BECCAE9",
-    "source_hashes": {
-      "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "B755C00B522A5DA56DB2BFDE1583FDDFF491B6E1790532D2774395B838F70625",
-      "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "C66E6979F5D00051B30171616B908B753FB6C9F707CAB0861F08A80D77516405",
-      "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "1B0BB82542A18E4094538E488DCBED556C55C38AAFA360CC2803652CEEB28177",
-      "native/colosseum_server_v1/tests/test_process_driver.cpp": "7F8D43540DB55429F814AD011E3A3436F0389E1B6060AD17D077F071ECB47359",
-      "native/colosseum_server_v1/cmake/packets/M00.cmake": "940FA54D5537DF59B795075C91E2D4C8BDAAE5072FC629AF5119B38BA659E818",
-      "native/colosseum_server_v1/tests/cmake/M00.cmake": "39DE4A05DD8808A88EEBDD88D3B8347DDA30294EBD0D8AFE96A64F9F32D66AC1"
-    }
+  "source_fixture": "artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs",
+  "candidate_fixture": "native/colosseum_server_v1/tests/test_process_driver.cpp --trace",
+  "source_command": "node artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs",
+  "candidate_command": "server1_m00_process_tests.exe --trace",
+  "source_exit": 0,
+  "candidate_exit": 0,
+  "source_raw": "artifacts/server1/M00/M00-A/comparison/source.raw.txt",
+  "candidate_raw": "artifacts/server1/M00/M00-A/comparison/candidate.raw.txt",
+  "raw_comparison": "artifacts/server1/M00/M00-A/comparison/RAW-COMPARISON.txt",
+  "comparison": {
+    "tool": "PowerShell Compare-Object",
+    "source_lines": 11,
+    "candidate_lines": 11,
+    "differences": 0
   },
   "cases": {
     "M00-01": {
       "oracle_ranges": ["M667:62094-62104", "M564:46585-46589"],
-      "candidate_behavior": [
-        "preferred executable wins over PATH",
-        "missing preferred executable falls through to PATH",
-        "directories and non-executable files are rejected"
+      "trace": [
+        "locator.override=preferred",
+        "locator.directory=accepted",
+        "locator.missing-fallback=path"
       ],
-      "command": "server1_m00_process_tests.exe M00-01",
-      "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-01-LIFETIME-GREEN.raw.txt",
-      "raw_sha256": "A021ABFFE381B93DC0990B1ECF309F3D45022A0F847D44B2F2774A9B45AFE777",
-      "status": "MATCH"
+      "candidate_case_raw": "artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt",
+      "status": "test-executed"
     },
     "M00-02": {
       "oracle_ranges": ["M434:37693-37756", "M855:75098-75115", "M861:76508-76518"],
-      "candidate_behavior": [
-        "argv arrays and QProcessEnvironment are passed unchanged",
-        "stdout and stderr are collected as binary QByteArray streams",
-        "exit code, cancellation, graceful-stop escalation and SIGKILL are surfaced",
-        "only the launched process tree is force-killed",
-        "ProcessDriver destruction weak-gates local callbacks and external remote completion/poll callbacks"
+      "trace": [
+        "process=argv-environment-preserved",
+        "output=callbacks-complete",
+        "exit=23"
       ],
-      "command": "server1_m00_process_tests.exe M00-02",
-      "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-02-LIFETIME-GREEN.raw.txt",
-      "raw_sha256": "3990E95A1EB9843BBD2529FEB971E25EC09419AAFC3662D5214E71BE4A8199A7",
-      "status": "MATCH"
+      "candidate_case_raw": "artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt",
+      "retention_assertion": "native ProcessResult stdout/stderr each <= 65536 bytes while callbacks receive 71680 bytes",
+      "status": "test-executed"
     },
     "M00-03": {
       "oracle_ranges": ["M436:37824-37826", "M855:75063-75095", "M855:75109-75115"],
-      "candidate_behavior": [
-        "local/remote mode is preserved",
-        "remote argv appends -listen, 1 and a loopback URL",
-        "remote polling forwards binary data and disconnect cancels once"
+      "trace": [
+        "mode=local-remote-preserved",
+        "port-search=dispatch-requested-port",
+        "bridge.concurrent=unique",
+        "bridge.remaining=one",
+        "callback-cancel=one"
       ],
-      "command": "server1_m00_process_tests.exe M00-03",
-      "exit": 0,
-      "raw": "artifacts/server1/M00/M00-A/evidence/M00-03-LIFETIME-GREEN.raw.txt",
-      "raw_sha256": "0A3462A782E1E6E0B060FC113A1938DD6EA8807FA172A1C79AD9F8A01DAC9AB8",
-      "status": "MATCH"
+      "candidate_case_raw": "artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt",
+      "status": "test-executed"
     }
   },
-  "comparison_raw": "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.raw.txt",
-  "status": "differentially-qualified",
-  "limitations": [
-    "No genuine ffmpeg or ffprobe invocation was used; the assigned scripted child fixture is the executable proof boundary.",
-    "The aggregate production CMake and runtime composition are shared integration surfaces owned by INT-W2."
-  ]
+  "status": "test-executed",
+  "qualification_boundary": "Paired source/candidate fixture traces and packet-local tests only; aggregate integration remains with INT-W2."
 }

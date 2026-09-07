@@ -12,7 +12,16 @@ namespace {
 bool isExecutableCandidate(const QString &path)
 {
     const QFileInfo info(path);
-    return info.exists() && info.isFile() && info.isExecutable();
+    if (!info.exists())
+        return false;
+
+#ifdef Q_OS_WIN
+    // Node's fs.accessSync(path, X_OK) treats X_OK as an existence/access check
+    // on Windows, including accessible directories.
+    return true;
+#else
+    return info.isExecutable();
+#endif
 }
 
 QStringList pathCandidates(const QString &name, const QProcessEnvironment &environment)

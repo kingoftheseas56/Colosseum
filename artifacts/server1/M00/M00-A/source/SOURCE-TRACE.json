@@ -3,7 +3,7 @@
   "worker_id": "M00-A",
   "parent_packet": "M00",
   "oracle": {
-    "path": "C:/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "path": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/oracle/server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
   "authorities": [

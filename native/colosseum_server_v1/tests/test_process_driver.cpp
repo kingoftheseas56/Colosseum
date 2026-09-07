@@ -21,6 +21,8 @@ namespace {
 
 using namespace server1::media;
 
+constexpr qsizetype sourceVisibleOutputRetentionLimit = 64 * 1024;
+
 void require(bool condition, const char *message)
 {
     if (!condition)
@@ -77,6 +79,12 @@ if mode == "binary":
     sys.stderr.buffer.write(b"\x00ERR\xfe")
     sys.stderr.buffer.flush()
     sys.exit(23)
+elif mode == "large-output":
+    sys.stdout.buffer.write(b"O" * (70 * 1024))
+    sys.stdout.buffer.flush()
+    sys.stderr.buffer.write(b"E" * (70 * 1024))
+    sys.stderr.buffer.flush()
+    sys.exit(0)
 elif mode == "environment":
     sys.stdout.buffer.write(os.environ.get("M00_CHILD_ENV", "missing").encode("utf-8"))
     sys.stdout.buffer.flush()
@@ -178,8 +186,9 @@ void caseM00_01()
     QProcessEnvironment noPath = environment;
     noPath.insert(QStringLiteral("PATH"), QString());
     ExecutableLocator noPathLocator(noPath);
-    require(!noPathLocator.locate(QStringLiteral("not-launchable"), {directoryCandidate}),
-            "directories must not be reported as executable candidates");
+    const auto directoryLocated = noPathLocator.locate(QStringLiteral("not-launchable"), {directoryCandidate});
+    require(directoryLocated && *directoryLocated == directoryCandidate,
+            "accessible directories must remain executable candidates like the source locator");
 
     const QString textCandidate = QDir(unusualDirectory).filePath(QStringLiteral("refuses.txt"));
     QFile textFile(textCandidate);
@@ -241,6 +250,29 @@ void caseM00_02()
     require(binaryResult->exitCode == 23, "unsuccessful exit code must be preserved");
     require(binaryResult->exitStatus == QProcess::NormalExit, "normal unsuccessful exit must stay normal");
     require(!binaryResult->canceled, "ordinary exit must not be marked canceled");
+
+    ProcessPort boundedPort;
+    ProcessSpec largeOutput = fixtureSpec(python, fixture, QStringLiteral("large-output"));
+    std::optional<ProcessResult> boundedResult;
+    qsizetype callbackStdoutBytes = 0;
+    qsizetype callbackStderrBytes = 0;
+    (void)boundedPort.start(largeOutput, ProcessCallbacks {
+        {},
+        [&](const QByteArray &bytes) { callbackStdoutBytes += bytes.size(); },
+        [&](const QByteArray &bytes) { callbackStderrBytes += bytes.size(); },
+        [&](const ProcessResult &finished) { boundedResult = finished; },
+        {}
+    });
+    waitUntil([&] { return boundedResult.has_value(); }, 5000,
+              "large-output fixture did not complete");
+    require(callbackStdoutBytes == 70 * 1024,
+            "stdout callback must receive the complete source stream");
+    require(callbackStderrBytes == 70 * 1024,
+            "stderr callback must receive the complete source stream");
+    require(boundedResult->stdoutData.size() <= sourceVisibleOutputRetentionLimit,
+            "retained stdout must have a bounded size");
+    require(boundedResult->stderrData.size() <= sourceVisibleOutputRetentionLimit,
+            "retained stderr must have a bounded size");
 
     ProcessPort environmentPort;
     ProcessSpec environment = fixtureSpec(python, fixture, QStringLiteral("environment"));
@@ -404,6 +436,9 @@ void caseM00_03()
     QString capturedId;
     QString capturedUrl;
     QStringList capturedArguments;
+    QStringList dispatchedIds;
+    QStringList canceledIds;
+    std::function<void(const RemoteCompletion &)> firstCompletion;
 
     transport.reservePort = [&](quint16 start) {
         requestedStart = start;
@@ -414,8 +449,13 @@ void caseM00_03()
                              std::function<void(const RemoteCompletion &)> complete) {
         ++dispatchCount;
         capturedId = id;
+        dispatchedIds.append(id);
         capturedPort = 40123;
         capturedArguments = arguments;
+        if (dispatchCount == 1) {
+            firstCompletion = std::move(complete);
+            return;
+        }
         QTimer::singleShot(25, [complete] {
             RemoteCompletion completion;
             completion.exitCode = 0;
@@ -435,6 +475,7 @@ void caseM00_03()
     };
     transport.cancel = [&](const QString &id) {
         ++cancelCount;
+        canceledIds.append(id);
         require(id == capturedId, "remote disconnect must cancel its own bridge id");
     };
 
@@ -483,6 +524,60 @@ void caseM00_03()
     QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
     require(pollCount == pollsAfterDisconnect, "disconnect must stop completion polling");
     require(!driver.running(id), "disconnected remote process must not remain active");
+    require(static_cast<bool>(firstCompletion),
+            "remote fixture must retain a completion callback for the cancellation race");
+    firstCompletion(RemoteCompletion {});
+
+    ProcessPort fallbackPort;
+    RemoteProcessTransport fallbackTransport;
+    quint16 fallbackRequestedStart = 0;
+    int fallbackDispatchCount = 0;
+    QStringList fallbackArguments;
+    bool fallbackReady = false;
+    std::optional<ProcessResult> fallbackResult;
+    fallbackTransport.reservePort = [&](quint16 start) {
+        fallbackRequestedStart = start;
+        return std::optional<quint16> {};
+    };
+    fallbackTransport.dispatch = [&](const QString &, const QString &, const QStringList &arguments,
+                                     const QProcessEnvironment &,
+                                     std::function<void(const RemoteCompletion &)> complete) {
+        ++fallbackDispatchCount;
+        fallbackArguments = arguments;
+        complete(RemoteCompletion {});
+    };
+    fallbackTransport.poll = [&](const QString &,
+                                 std::function<void(const RemotePollResult &)> complete) {
+        RemotePollResult pollResult;
+        pollResult.ready = true;
+        complete(pollResult);
+    };
+    fallbackTransport.cancel = [](const QString &) {};
+
+    ProcessDriver fallbackDriver(fallbackPort, fallbackTransport);
+    DriverSpec fallbackSpec = spec;
+    fallbackSpec.remotePollIntervalMs = 0;
+    const quint64 fallbackId = fallbackDriver.start(fallbackSpec, ProcessCallbacks {
+        {},
+        {},
+        {},
+        [&](const ProcessResult &finished) { fallbackResult = finished; },
+        [&](quint16, const QString &) { fallbackReady = true; }
+    });
+    waitUntil([&] { return fallbackReady && fallbackResult.has_value(); }, 3000,
+              "port-search fallback did not complete through the remote bridge");
+    require(fallbackRequestedStart >= 11920,
+            "port-search fallback must preserve the source starting range");
+    require(fallbackDispatchCount == 1,
+            "port-search failure must still dispatch the source remote conversion");
+    require(fallbackArguments.size() == 5
+                && fallbackArguments[4].startsWith(
+                    QStringLiteral("http://127.0.0.1:%1/").arg(fallbackRequestedStart)),
+            "port-search failure must use the requested source port in the bridge URL");
+    require(fallbackResult->started && fallbackResult->error == QProcess::UnknownError,
+            "source port-search fallback must complete as a started remote process");
+    require(!fallbackDriver.running(fallbackId),
+            "completed source port-search fallback must be inactive");
 
     ProcessDriver completedDriver(port, transport);
     std::optional<ProcessResult> completedResult;
@@ -504,6 +599,89 @@ void caseM00_03()
     require(completedBytes == QByteArray("remote-binary"),
             "remote completion callback must receive polled binary output");
     require(!completedDriver.running(completedId), "completed remote process must be inactive");
+
+    ProcessPort concurrentPort;
+    RemoteProcessTransport concurrentTransport;
+    quint16 concurrentPortNumber = 40201;
+    QStringList concurrentDispatchedIds;
+    QStringList concurrentCanceledIds;
+    concurrentTransport.reservePort = [&](quint16) {
+        return std::optional<quint16> {concurrentPortNumber++};
+    };
+    concurrentTransport.dispatch = [&](const QString &bridgeId, const QString &,
+                                       const QStringList &, const QProcessEnvironment &,
+                                       std::function<void(const RemoteCompletion &)>) {
+        concurrentDispatchedIds.append(bridgeId);
+    };
+    concurrentTransport.poll = [](const QString &,
+                                  std::function<void(const RemotePollResult &)>) {};
+    concurrentTransport.cancel = [&](const QString &bridgeId) {
+        concurrentCanceledIds.append(bridgeId);
+    };
+    ProcessDriver concurrentDriverA(concurrentPort, concurrentTransport);
+    ProcessDriver concurrentDriverB(concurrentPort, concurrentTransport);
+    const quint64 concurrentIdA = concurrentDriverA.start(spec);
+    const quint64 concurrentIdB = concurrentDriverB.start(spec);
+    require(concurrentDispatchedIds.size() == 2,
+            "two concurrent drivers must each dispatch a remote bridge");
+    require(concurrentDispatchedIds[0] != concurrentDispatchedIds[1],
+            "remote bridge identities must be unique across driver instances");
+    require(concurrentDriverA.disconnect(concurrentIdA),
+            "first concurrent driver must disconnect independently");
+    require(concurrentCanceledIds.size() == 1
+                && concurrentCanceledIds[0] == concurrentDispatchedIds[0],
+            "first concurrent driver cancellation must target only its bridge identity");
+    require(concurrentDriverB.running(concurrentIdB),
+            "first concurrent driver cancellation must not deactivate the second driver");
+
+    ProcessPort callbackPort;
+    RemoteProcessTransport callbackTransport;
+    std::function<void(const RemotePollResult &)> callbackPoll;
+    int callbackCancelCount = 0;
+    int callbackOutputCount = 0;
+    int callbackReadyCount = 0;
+    int callbackFinishedCount = 0;
+    bool callbackDisconnected = false;
+    callbackTransport.reservePort = [](quint16) {
+        return std::optional<quint16> {40211};
+    };
+    callbackTransport.dispatch = [](const QString &, const QString &, const QStringList &,
+                                    const QProcessEnvironment &,
+                                    std::function<void(const RemoteCompletion &)>) {};
+    callbackTransport.poll = [&](const QString &,
+                                 std::function<void(const RemotePollResult &)> complete) {
+        callbackPoll = std::move(complete);
+    };
+    callbackTransport.cancel = [&](const QString &) { ++callbackCancelCount; };
+    auto callbackDriver = std::make_unique<ProcessDriver>(callbackPort, callbackTransport);
+    quint64 callbackId = 0;
+    callbackId = callbackDriver->start(spec, ProcessCallbacks {
+        {},
+        [&](const QByteArray &) {
+            ++callbackOutputCount;
+            callbackDisconnected = callbackDriver->disconnect(callbackId);
+        },
+        {},
+        [&](const ProcessResult &finished) {
+            ++callbackFinishedCount;
+            require(finished.canceled, "callback cancellation must surface a canceled result");
+        },
+        [&](quint16, const QString &) { ++callbackReadyCount; }
+    });
+    waitUntil([&] { return static_cast<bool>(callbackPoll); }, 3000,
+              "callback-cancellation poll callback was not captured");
+    RemotePollResult callbackPollResult;
+    callbackPollResult.ready = true;
+    callbackPollResult.data = QByteArray("callback-output");
+    callbackPoll(callbackPollResult);
+    require(callbackOutputCount == 1, "remote output callback must run before cancellation");
+    require(callbackDisconnected, "remote output callback must be able to cancel its driver");
+    require(callbackCancelCount == 1, "callback cancellation must issue one bridge cancel");
+    require(callbackFinishedCount == 1, "callback cancellation must finish the remote child once");
+    require(callbackReadyCount == 0,
+            "remote-ready callback must not run after output callback cancellation");
+    require(!callbackDriver->running(callbackId),
+            "callback cancellation must remove the remote child before poll returns");
 
     ProcessPort delayedPort;
     RemoteProcessTransport delayedTransport;
@@ -562,6 +740,200 @@ void caseM00_03()
     std::cout << "M00-03 PASS\n";
 }
 
+void emitTrace()
+{
+    QTemporaryDir directory;
+    require(directory.isValid(), "trace temporary directory unavailable");
+
+    const QString executable = QCoreApplication::applicationFilePath();
+    const QString unusualDirectory = QDir(directory.path()).filePath(QStringLiteral("space Δ"));
+    require(QDir().mkpath(unusualDirectory), "cannot create trace executable directory");
+    const QString pathCandidate = QDir(unusualDirectory).filePath(QStringLiteral("trace tool.exe"));
+    require(QFile::copy(executable, pathCandidate), "cannot create trace PATH candidate");
+    const QString overrideCandidate = QDir(unusualDirectory).filePath(QStringLiteral("override tool.exe"));
+    require(QFile::copy(executable, overrideCandidate), "cannot create trace override candidate");
+
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(QStringLiteral("PATH"), unusualDirectory);
+    ExecutableLocator locator(environment);
+    const QString missing = QDir(unusualDirectory).filePath(QStringLiteral("missing.exe"));
+    const QString directoryCandidate = QDir(unusualDirectory).filePath(QStringLiteral("trace-directory"));
+    require(QDir().mkpath(directoryCandidate), "cannot create trace directory candidate");
+    const auto overridden = locator.locate(QStringLiteral("trace tool.exe"), {overrideCandidate});
+    const auto directoryLocated = locator.locate(QStringLiteral("trace-directory"), {directoryCandidate});
+    const auto pathLocated = locator.locate(QStringLiteral("trace tool.exe"), {missing});
+    std::cout << "M00-01 locator.override="
+              << (overridden && *overridden == overrideCandidate ? "preferred" : "mismatch") << '\n';
+    std::cout << "M00-01 locator.directory="
+              << (directoryLocated && *directoryLocated == directoryCandidate ? "accepted" : "rejected")
+              << '\n';
+    std::cout << "M00-01 locator.missing-fallback="
+              << (pathLocated && *pathLocated == pathCandidate ? "path" : "missing") << '\n';
+
+    const ScriptCommand python = pythonCommand();
+    const QString fixture = writeFixture(directory);
+    ProcessPort localPort;
+    ProcessSpec binary = fixtureSpec(python, fixture, QStringLiteral("binary"));
+    std::optional<ProcessResult> localResult;
+    qsizetype stdoutCallbackBytes = 0;
+    qsizetype stderrCallbackBytes = 0;
+    (void)localPort.start(binary, ProcessCallbacks {
+        {},
+        [&](const QByteArray &bytes) { stdoutCallbackBytes += bytes.size(); },
+        [&](const QByteArray &bytes) { stderrCallbackBytes += bytes.size(); },
+        [&](const ProcessResult &finished) { localResult = finished; },
+        {}
+    });
+    waitUntil([&] { return localResult.has_value(); }, 5000,
+              "trace binary fixture did not complete");
+
+    ProcessPort environmentPort;
+    ProcessSpec environmentSpec = fixtureSpec(python, fixture, QStringLiteral("environment"));
+    environmentSpec.environment.insert(QStringLiteral("M00_CHILD_ENV"),
+                                       QStringLiteral("trace-environment"));
+    std::optional<ProcessResult> environmentResult;
+    (void)environmentPort.start(environmentSpec, ProcessCallbacks {
+        {},
+        {},
+        {},
+        [&](const ProcessResult &finished) { environmentResult = finished; },
+        {}
+    });
+    waitUntil([&] { return environmentResult.has_value(); }, 5000,
+              "trace environment fixture did not complete");
+    std::cout << "M00-02 process="
+              << (environmentResult->stdoutData == QByteArray("trace-environment")
+                      && localResult->started ? "argv-environment-preserved" : "mismatch")
+              << '\n';
+    std::cout << "M00-02 output="
+              << (stdoutCallbackBytes == 8 && stderrCallbackBytes == 5 ? "callbacks-complete" : "mismatch")
+              << '\n';
+    std::cout << "M00-02 exit=" << localResult->exitCode << '\n';
+
+    ProcessPort remotePort;
+    RemoteProcessTransport fallbackTransport;
+    quint16 fallbackRequestedStart = 0;
+    bool fallbackDispatched = false;
+    bool fallbackReady = false;
+    QString fallbackUrl;
+    fallbackTransport.reservePort = [&](quint16 start) {
+        fallbackRequestedStart = start;
+        return std::optional<quint16> {};
+    };
+    fallbackTransport.dispatch = [&](const QString &, const QString &, const QStringList &arguments,
+                                     const QProcessEnvironment &,
+                                     std::function<void(const RemoteCompletion &)> complete) {
+        fallbackDispatched = true;
+        fallbackUrl = arguments.isEmpty() ? QString() : arguments.constLast();
+        complete(RemoteCompletion {});
+    };
+    fallbackTransport.poll = [&](const QString &,
+                                 std::function<void(const RemotePollResult &)> complete) {
+        RemotePollResult result;
+        result.ready = true;
+        complete(result);
+    };
+    fallbackTransport.cancel = [](const QString &) {};
+    ProcessDriver remoteDriver(remotePort, fallbackTransport);
+    DriverSpec remoteSpec;
+    remoteSpec.process.program = QStringLiteral("ffmpeg");
+    remoteSpec.process.arguments = {QStringLiteral("-i"), QStringLiteral("trace media.mp4")};
+    remoteSpec.process.environment = QProcessEnvironment::systemEnvironment();
+    remoteSpec.mode = HlsV2Mode::Remote;
+    remoteSpec.remotePollIntervalMs = 0;
+    std::optional<ProcessResult> remoteResult;
+    (void)remoteDriver.start(remoteSpec, ProcessCallbacks {
+        {},
+        {},
+        {},
+        [&](const ProcessResult &finished) { remoteResult = finished; },
+        [&](quint16, const QString &) { fallbackReady = true; }
+    });
+    waitUntil([&] { return fallbackReady && remoteResult.has_value(); }, 3000,
+              "trace remote fixture did not complete");
+    const QString expectedFallbackPrefix =
+        QStringLiteral("http://127.0.0.1:%1/").arg(fallbackRequestedStart);
+    std::cout << "M00-03 mode="
+              << (remoteResult->started ? "local-remote-preserved" : "mismatch") << '\n';
+    std::cout << "M00-03 port-search="
+              << (fallbackDispatched && fallbackUrl.startsWith(expectedFallbackPrefix)
+                      ? "dispatch-requested-port"
+                      : "failed")
+              << '\n';
+
+    ProcessPort concurrentPort;
+    RemoteProcessTransport concurrentTransport;
+    quint16 concurrentPortNumber = 40301;
+    QStringList concurrentDispatchedIds;
+    QStringList concurrentCanceledIds;
+    concurrentTransport.reservePort = [&](quint16) {
+        return std::optional<quint16> {concurrentPortNumber++};
+    };
+    concurrentTransport.dispatch = [&](const QString &bridgeId, const QString &, const QStringList &,
+                                       const QProcessEnvironment &,
+                                       std::function<void(const RemoteCompletion &)>) {
+        concurrentDispatchedIds.append(bridgeId);
+    };
+    concurrentTransport.poll = [](const QString &,
+                                  std::function<void(const RemotePollResult &)>) {};
+    concurrentTransport.cancel = [&](const QString &bridgeId) {
+        concurrentCanceledIds.append(bridgeId);
+    };
+    ProcessDriver concurrentDriverA(concurrentPort, concurrentTransport);
+    ProcessDriver concurrentDriverB(concurrentPort, concurrentTransport);
+    DriverSpec concurrentSpec = remoteSpec;
+    const quint64 concurrentIdA = concurrentDriverA.start(concurrentSpec);
+    const quint64 concurrentIdB = concurrentDriverB.start(concurrentSpec);
+    const bool uniqueBridges = concurrentDispatchedIds.size() == 2
+        && concurrentDispatchedIds[0] != concurrentDispatchedIds[1];
+    const bool firstDisconnect = concurrentDriverA.disconnect(concurrentIdA);
+    const bool secondStillRunning = concurrentDriverB.running(concurrentIdB);
+    std::cout << "M00-03 bridge.concurrent="
+              << (uniqueBridges && firstDisconnect ? "unique" : "collision") << '\n';
+    std::cout << "M00-03 bridge.remaining="
+              << (secondStillRunning ? "one" : "zero") << '\n';
+
+    ProcessPort callbackPort;
+    RemoteProcessTransport callbackTransport;
+    std::function<void(const RemotePollResult &)> callbackPoll;
+    int callbackCancelCount = 0;
+    int callbackFinishedCount = 0;
+    int callbackReadyCount = 0;
+    bool callbackDisconnected = false;
+    callbackTransport.reservePort = [](quint16) {
+        return std::optional<quint16> {40311};
+    };
+    callbackTransport.dispatch = [](const QString &, const QString &, const QStringList &,
+                                    const QProcessEnvironment &,
+                                    std::function<void(const RemoteCompletion &)>) {};
+    callbackTransport.poll = [&](const QString &,
+                                 std::function<void(const RemotePollResult &)> complete) {
+        callbackPoll = std::move(complete);
+    };
+    callbackTransport.cancel = [&](const QString &) { ++callbackCancelCount; };
+    auto callbackDriver = std::make_unique<ProcessDriver>(callbackPort, callbackTransport);
+    quint64 callbackId = 0;
+    callbackId = callbackDriver->start(remoteSpec, ProcessCallbacks {
+        {},
+        [&](const QByteArray &) { callbackDisconnected = callbackDriver->disconnect(callbackId); },
+        {},
+        [&](const ProcessResult &) { ++callbackFinishedCount; },
+        [&](quint16, const QString &) { ++callbackReadyCount; }
+    });
+    waitUntil([&] { return static_cast<bool>(callbackPoll); }, 3000,
+              "trace callback poll fixture was not captured");
+    RemotePollResult callbackPollResult;
+    callbackPollResult.ready = true;
+    callbackPollResult.data = QByteArray("trace-callback");
+    callbackPoll(callbackPollResult);
+    std::cout << "M00-03 callback-cancel="
+              << (callbackDisconnected && callbackCancelCount == 1 && callbackFinishedCount == 1
+                          && callbackReadyCount == 0
+                      ? "one"
+                      : "failed")
+              << '\n';
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -569,6 +941,10 @@ int main(int argc, char **argv)
     QCoreApplication application(argc, argv);
     try {
         const QString requested = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("all");
+        if (requested == QStringLiteral("--trace")) {
+            emitTrace();
+            return 0;
+        }
         if (requested == QStringLiteral("all") || requested == QStringLiteral("M00-01"))
             caseM00_01();
         if (requested == QStringLiteral("all") || requested == QStringLiteral("M00-02"))
