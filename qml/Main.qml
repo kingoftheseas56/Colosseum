@@ -508,6 +508,8 @@ Window {
             var devUniverse = String(DevOpenUniverse).toLowerCase()
             if (devUniverse === "starwars" || devUniverse === "star-wars")
                 win.openUniverse("com.colosseum.universe.starwars", "Star Wars")
+            else if (devUniverse === "cosmere")
+                win.openUniverse("com.colosseum.universe.cosmere", "Cosmere")
         }
         // bakeoff harness (COLOSSEUM_BAKEOFF_STRIP=<dir>): page-only production
         // MangaReader over the canonical fixture (long-strip bakeoff spec §10)
@@ -3728,7 +3730,9 @@ Window {
                    ? "GalaxyUniversePage.qml"
                    : (extensionId === "com.colosseum.universe.onepiece"
                       ? "OnePieceUniversePage.qml"
-                      : "UniverseExtensionPage.qml"))
+                      : (extensionId === "com.colosseum.universe.cosmere"
+                         ? "CosmereUniversePage.qml"
+                         : "UniverseExtensionPage.qml")))
         onLoaded: {
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
@@ -3756,6 +3760,10 @@ Window {
             if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
                 item.arcRequested.connect(win.openOnePieceArc)
                 item.mediaRequested.connect(win.openTheatreSeries)
+            } else if (universeLayer.extensionId === "com.colosseum.universe.cosmere") {
+                // The Cognitive Atlas self-sources from CosmereApi; its only content signal
+                // is a resolved Biblio book opening into the reader.
+                item.bookRequested.connect(win.openBook)
             } else {
                 item.watchRequested.connect(win.openTheatreSeries)
                 if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
