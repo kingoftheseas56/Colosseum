@@ -6,3 +6,11 @@ set_tests_properties(P03-02-server1-host PROPERTIES
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K00.cmake")
 server1_register_k00_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K01.cmake")
+server1_register_k01_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K13.cmake")
+server1_register_k13_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/H00.cmake")
+server1_register_h00_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/M00.cmake")
+server1_register_m00_tests()
