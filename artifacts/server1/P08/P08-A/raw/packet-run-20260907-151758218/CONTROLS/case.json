@@ -1,0 +1,11 @@
+{
+  "schema": "colosseum-server1-p08-controls/v1",
+  "state": "PASS",
+  "metadata_discovery": {"magnet_only": true, "metadata_received": true, "wire_request_response": true, "direct_connect_peer": true},
+  "honest_peer_stats": {"public_peer_total_download": 16384, "torrent_total_payload_download": 16384, "internal_peer_payload_download": 16384, "wire_payload_expected": 16384, "positive_and_consistent": true},
+  "per_engine_settings": {"api": "torrent_handle::set_piece_deadline", "wire_request_observed": true},
+  "session_global_settings": {"apply_settings_effective": true, "tcp_wire_active": true},
+  "choke_interest": {"hooks_and_wire_correlated": true},
+  "compile_only_booleans_promoted": false,
+  "dependency_patch_required": false
+}

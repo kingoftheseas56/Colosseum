@@ -1,0 +1,48 @@
+case=P08-02 PRIORITIES_BEFORE_CONNECT piece0=default piece1=0 piece2=0 verified=1
+case=P08-02 CONNECT_REQUEST peer=A port=49302
+case=P08-02 CONNECT_REQUEST peer=B port=49303
+case=P08-02 CONNECT peer=A endpoint=127.0.0.1:49302
+case=P08-02 CONNECT peer=B endpoint=127.0.0.1:49303
+case=P08-02 CONNECT peer=A endpoint=127.0.0.1:49302
+case=P08-02 CONNECT peer=B endpoint=127.0.0.1:49303
+case=P08-02 HANDSHAKE peer=A
+case=P08-02 ADVERTISE peer=A
+case=P08-02 HANDSHAKE peer=B
+case=P08-02 SUPPRESS peer=A piece=0 start=0 length=16384 phase=pre-owned
+case=P08-02 SUPPRESS peer=A piece=0 start=16384 length=16384 phase=pre-owned
+case=P08-02 SUPPRESS peer=A piece=0 start=32768 length=16384 phase=pre-owned
+case=P08-02 SUPPRESS peer=A piece=0 start=49152 length=16384 phase=pre-owned
+case=P08-02 ADVERTISE peer=B
+case=P08-02 SUPPRESS peer=B piece=0 start=49152 length=16384 phase=pre-owned
+case=P08-02 COMMAND_BEGIN target=B selected_tick=1 after_both_advertised=1 associated_torrent=1
+case=P08-02 CANCEL_SENT peer=A piece=0 start=0 length=16384
+case=P08-02 CANCEL_SENT peer=A piece=0 start=16384 length=16384
+case=P08-02 CANCEL_SENT peer=A piece=0 start=32768 length=16384
+case=P08-02 CANCEL_SENT peer=A piece=0 start=49152 length=16384
+case=P08-02 CANCEL_SENT peer=B piece=0 start=49152 length=16384
+case=P08-02 PRE_OWNED_CLEANUP a_before=4 b_before=1 a_priority_transition=4 b_priority_transition=1 wire_cancels=5
+case=P08-02 INTERNAL_SET_PIECE_PRIORITY piece=2 priority=default network_thread=1
+case=P08-02 COMMAND target=B piece=2 start=0 length=16384 queued=1
+case=P08-02 COMMAND target=B piece=2 start=16384 length=16384 queued=1
+case=P08-02 COMMAND target=B piece=2 start=32768 length=7232 queued=1
+case=P08-02 COMMAND_FLUSH target=B owned_wire=0
+case=P08-02 ALLOW_OWNED peer=B piece=2 start=0 length=16384
+case=P08-02 WIRE peer=B piece=2 start=0 length=16384 ownership=command
+case=P08-02 SUPPRESS peer=B piece=2 start=0 length=16384 phase=pre-owned
+case=P08-02 ALLOW_OWNED peer=B piece=2 start=16384 length=16384
+case=P08-02 WIRE peer=B piece=2 start=16384 length=16384 ownership=command
+case=P08-02 ALLOW_OWNED peer=B piece=2 start=32768 length=7232
+case=P08-02 WIRE peer=B piece=2 start=32768 length=7232 ownership=command
+case=P08-02 OWNED_WIRE_OBSERVED_HELD owned_wire=3 enable_disjoint_piece=1
+case=P08-02 PICKER_ENABLE target=A piece=1 priority=default after_a_cleanup=1 a_before=0 a_after=0
+case=P08-02 PICKER_DIAGNOSTIC tick=0 disconnecting=0 priority0=0 priority1=4 priority2=4 request_queue=0 download_queue=4
+case=P08-02 ORDINARY_PICKER target=A piece1_enabled=1 picked=1 disconnecting=0 request_queue=1 download_queue=0
+case=P08-02 OWNED_PRESERVED_AT_POST_SUPPRESSION count=3
+case=P08-02 SUPPRESS peer=A piece=1 start=0 length=16384 phase=post-owned
+case=P08-02 SUPPRESS peer=A piece=1 start=16384 length=16384 phase=post-owned
+case=P08-02 PICKER_SUPPRESSION_OBSERVED release_owned=1
+case=P08-02 PIECE peer=B piece=2 start=0 length=16384
+case=P08-02 PIECE peer=B piece=2 start=16384 length=16384
+case=P08-02 PIECE peer=B piece=2 start=32768 length=7232
+case=P08-02 PIECE_PASS piece=2
+case=P08-02 CASE_RESULT pass=1 command_queued=1 owned_wire=3 suppressed=8 post_owned_suppressed=2 owned_outstanding=3 owned_piece_cancels=0

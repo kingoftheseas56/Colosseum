@@ -1,0 +1,136 @@
+CONNECT_REQUEST peer=B port=49301
+HANDSHAKE peer=B
+ADVERTISE piece0=1
+WIRE piece=0 start=0 length=16384
+WIRE piece=0 start=16384 length=16384
+WIRE piece=0 start=32768 length=16384
+WIRE piece=0 start=49152 length=16384
+ON_PIECE start=0 length=16384
+WIRE piece=0 start=65536 length=16384
+WIRE piece=0 start=81920 length=16384
+ON_PIECE start=16384 length=16384
+WIRE piece=0 start=98304 length=16384
+WIRE piece=0 start=114688 length=16384
+ON_PIECE start=32768 length=16384
+WIRE piece=0 start=131072 length=16384
+WIRE piece=0 start=147456 length=16384
+ON_PIECE start=49152 length=16384
+WIRE piece=0 start=163840 length=16384
+WIRE piece=0 start=180224 length=16384
+ON_PIECE start=65536 length=16384
+WIRE piece=0 start=196608 length=16384
+WIRE piece=0 start=212992 length=16384
+ON_PIECE start=81920 length=16384
+WIRE piece=0 start=229376 length=16384
+WIRE piece=0 start=245760 length=16384
+ON_PIECE start=98304 length=16384
+WIRE piece=0 start=262144 length=16384
+WIRE piece=0 start=278528 length=16384
+ON_PIECE start=114688 length=16384
+WIRE piece=0 start=294912 length=16384
+WIRE piece=0 start=311296 length=16384
+ON_PIECE start=131072 length=16384
+WIRE piece=0 start=327680 length=16384
+WIRE piece=0 start=344064 length=16384
+ON_PIECE start=147456 length=16384
+WIRE piece=0 start=360448 length=16384
+WIRE piece=0 start=376832 length=16384
+ON_PIECE start=163840 length=16384
+WIRE piece=0 start=393216 length=16384
+WIRE piece=0 start=409600 length=16384
+ON_PIECE start=180224 length=16384
+WIRE piece=0 start=425984 length=16384
+WIRE piece=0 start=442368 length=16384
+ON_PIECE start=196608 length=16384
+WIRE piece=0 start=458752 length=16384
+WIRE piece=0 start=475136 length=16384
+ON_PIECE start=212992 length=16384
+WIRE piece=0 start=491520 length=16384
+WIRE piece=0 start=507904 length=16384
+ON_PIECE start=229376 length=16384
+WIRE piece=0 start=524288 length=16384
+WIRE piece=0 start=540672 length=16384
+ON_PIECE start=245760 length=16384
+WIRE piece=0 start=557056 length=16384
+WIRE piece=0 start=573440 length=16384
+ON_PIECE start=262144 length=16384
+WIRE piece=0 start=589824 length=16384
+WIRE piece=0 start=606208 length=16384
+ON_PIECE start=278528 length=16384
+WIRE piece=0 start=622592 length=16384
+WIRE piece=0 start=638976 length=16384
+ON_PIECE start=294912 length=16384
+WIRE piece=0 start=655360 length=16384
+WIRE piece=0 start=671744 length=16384
+ON_PIECE start=311296 length=16384
+WIRE piece=0 start=688128 length=16384
+WIRE piece=0 start=704512 length=16384
+ON_PIECE start=327680 length=16384
+WIRE piece=0 start=720896 length=16384
+WIRE piece=0 start=737280 length=16384
+ON_PIECE start=344064 length=16384
+WIRE piece=0 start=753664 length=16384
+WIRE piece=0 start=770048 length=16384
+ON_PIECE start=360448 length=16384
+WIRE piece=0 start=786432 length=16384
+WIRE piece=0 start=802816 length=16384
+ON_PIECE start=376832 length=16384
+WIRE piece=0 start=819200 length=16384
+WIRE piece=0 start=835584 length=16384
+ON_PIECE start=393216 length=16384
+WIRE piece=0 start=851968 length=16384
+WIRE piece=0 start=868352 length=16384
+ON_PIECE start=409600 length=16384
+WIRE piece=0 start=884736 length=16384
+WIRE piece=0 start=901120 length=16384
+ON_PIECE start=425984 length=16384
+WIRE piece=0 start=917504 length=16384
+WIRE piece=0 start=933888 length=16384
+ON_PIECE start=442368 length=16384
+WIRE piece=0 start=950272 length=16384
+WIRE piece=0 start=966656 length=16384
+ON_PIECE start=458752 length=16384
+WIRE piece=0 start=983040 length=16384
+WIRE piece=0 start=999424 length=16384
+ON_PIECE start=475136 length=16384
+WIRE piece=0 start=1015808 length=16384
+WIRE piece=0 start=1032192 length=16384
+ON_PIECE start=491520 length=16384
+FIRST_VIRTUAL_SEGMENT_OBSERVED bytes=524288 piece_hash_verified=0
+ON_PIECE start=507904 length=16384
+FIRST_SEGMENT_CHECK observed=1 status_piece_hash_verified=0 held_later_blocks=1
+ON_PIECE start=524288 length=16384
+ON_PIECE start=540672 length=16384
+ON_PIECE start=557056 length=16384
+ON_PIECE start=573440 length=16384
+ON_PIECE start=589824 length=16384
+ON_PIECE start=606208 length=16384
+ON_PIECE start=622592 length=16384
+ON_PIECE start=638976 length=16384
+ON_PIECE start=655360 length=16384
+ON_PIECE start=671744 length=16384
+ON_PIECE start=688128 length=16384
+ON_PIECE start=704512 length=16384
+ON_PIECE start=720896 length=16384
+ON_PIECE start=737280 length=16384
+ON_PIECE start=753664 length=16384
+ON_PIECE start=770048 length=16384
+ON_PIECE start=786432 length=16384
+ON_PIECE start=802816 length=16384
+ON_PIECE start=819200 length=16384
+ON_PIECE start=835584 length=16384
+ON_PIECE start=851968 length=16384
+ON_PIECE start=868352 length=16384
+ON_PIECE start=884736 length=16384
+ON_PIECE start=901120 length=16384
+ON_PIECE start=917504 length=16384
+ON_PIECE start=933888 length=16384
+ON_PIECE start=950272 length=16384
+ON_PIECE start=966656 length=16384
+ON_PIECE start=983040 length=16384
+ON_PIECE start=999424 length=16384
+ON_PIECE start=1015808 length=16384
+ON_PIECE start=1032192 length=16384
+FULL_PIECE_HASH_VERIFIED piece=0
+FULL_PIECE_HASH_VERIFIED_STATUS piece=0
+CASE_RESULT pass=1 first_bytes=524288 all_bytes=1048576

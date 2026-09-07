@@ -1,0 +1,20 @@
+{
+  "schema": "colosseum-server1-p08-case/v1",
+  "case": "P08-03",
+  "state": "PASS",
+  "slow_peer_reserved": true,
+  "cancel_request_force_true_invoked": true,
+  "wire_cancel_observed": true,
+  "required_behavior_graded_independent_of_wire_cancel": true,
+  "fast_selected_peer_re_request": true,
+  "late_old_response_observed": true,
+  "duplicate_old_response_observed": true,
+  "late_or_duplicate_old_response_observed": true,
+  "destroy_recreate_same_endpoint": true,
+  "generation1_slow_requests": 1,
+  "all_generations_fast_requests": 2,
+  "generation1_fast_requests": 1,
+  "generation2_fast_requests": 1,
+  "no_hidden_replay_or_misattribution": true,
+  "process_exit_clean": true
+}

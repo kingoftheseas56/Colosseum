@@ -1,0 +1,15 @@
+{
+  "schema": "colosseum-server1-p08-case/v1",
+  "case": "P08-01",
+  "state": "PASS",
+  "real_piece_bytes": 1048576,
+  "virtual_segment_bytes": 524288,
+  "first_segment_observed": true,
+  "first_segment_before_full_piece_hash": true,
+  "full_piece_hash_verified": true,
+  "first_segment_bytes": 524288,
+  "all_piece_bytes": 1048576,
+  "first_segment_pattern_valid": true,
+  "wire_requests_observed_internally": 64,
+  "later_blocks_held_until_marker": true
+}

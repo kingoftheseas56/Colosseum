@@ -1,0 +1,33 @@
+{
+  "schema": "colosseum-server1-p08-packet-run/v1",
+  "state": "PASS",
+  "executable": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\bin\\transport_contract_probe.exe",
+  "run": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\raw\\packet-run-20260907-151849694",
+  "cases": {
+    "P08-01": {
+      "state": "PASS",
+      "raw": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\raw\\packet-run-20260907-151849694\\P08-01",
+      "exit": 0
+    },
+    "P08-02": {
+      "state": "PASS",
+      "raw": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\raw\\packet-run-20260907-151849694\\P08-02",
+      "exit": 0
+    },
+    "P08-03": {
+      "state": "PASS",
+      "raw": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\raw\\packet-run-20260907-151849694\\P08-03",
+      "exit": 0
+    },
+    "P08-04": {
+      "state": "PASS",
+      "raw": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\raw\\packet-run-20260907-151849694\\P08-04",
+      "exit": 0
+    },
+    "CONTROLS": {
+      "state": "PASS",
+      "raw": "C:\\b\\Colosseum-Server-1.0-workers\\P08-A\\artifacts\\server1\\P08\\P08-A\\raw\\packet-run-20260907-151849694\\CONTROLS",
+      "exit": 0
+    }
+  }
+}

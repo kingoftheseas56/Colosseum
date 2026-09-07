@@ -1,0 +1,170 @@
+LISTEN label=P08-01-B port=49301 mode=regular
+CONFIG hold_all=0 hold_after_offset=524288 release_file=C:\b\Colosseum-Server-1.0-workers\P08-A\artifacts\server1\P08\P08-A\raw\packet-run-20260907-151849694\P08-01\release-tail.marker duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:4049 info_hash=30ea50e831fd805ebeae175eb555155371580436 expected=30ea50e831fd805ebeae175eb555155371580436 info_hash_match=1
+BITFIELD_SENT pieces=1 advertised=0
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+REQUEST connection=1 piece=0 start=0 length=16384
+REQUEST connection=1 piece=0 start=16384 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=32768 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=49152 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+MESSAGE connection=1 id=1 bytes=0
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=65536 length=16384
+REQUEST connection=1 piece=0 start=81920 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=98304 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=114688 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=131072 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=147456 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=163840 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=180224 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=196608 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=212992 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=229376 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=245760 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=262144 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=278528 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=294912 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=311296 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=327680 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=344064 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=360448 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=376832 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=393216 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=409600 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=425984 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=442368 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=458752 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=475136 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=491520 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=507904 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=524288 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=540672 length=16384
+RELEASE_OBSERVED
+REQUEST connection=1 piece=0 start=557056 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=573440 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=589824 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=606208 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=622592 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=638976 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=655360 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=671744 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=688128 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=704512 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=720896 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=737280 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=753664 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=770048 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=786432 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=802816 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=819200 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=835584 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=851968 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+RELEASE_OBSERVED
+REQUEST connection=1 piece=0 start=868352 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=884736 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=901120 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=917504 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=933888 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=950272 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=966656 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=983040 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=999424 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+REQUEST connection=1 piece=0 start=1015808 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+RELEASE_OBSERVED
+REQUEST connection=1 piece=0 start=1032192 length=16384
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+MESSAGE connection=1 id=4 bytes=4
+CLIENT_DISCONNECTED connection=1 error=ConnectionResetError

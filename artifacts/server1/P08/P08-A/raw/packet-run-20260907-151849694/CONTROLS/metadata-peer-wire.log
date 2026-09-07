@@ -1,0 +1,7 @@
+LISTEN label=metadata port=49308 mode=metadata
+CONFIG hold_all=0 hold_after_offset=-1 release_file= duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:4904 info_hash=dc94c5ed2e0ca7f54c3c00c598ca304644c7f0d6 expected=dc94c5ed2e0ca7f54c3c00c598ca304644c7f0d6 info_hash_match=1
+EXT_HANDSHAKE_SENT ut_metadata=1
+METADATA_REQUEST connection=1 piece=0
+METADATA_RESPONSE connection=1 bytes=205
+CLIENT_DISCONNECTED connection=1 error=ConnectionResetError

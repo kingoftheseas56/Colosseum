@@ -1,0 +1,20 @@
+generation=1 CONNECT_REQUEST peer=A port=49304
+generation=1 HANDSHAKE peer=A
+generation=1 ADVERTISE peer=A
+generation=1 WIRE peer=A piece=0 start=0 length=16384
+generation=1 SLOW_RESERVATION_OBSERVED peer=A
+generation=1 SLOW_REQUEST_WAIT pass=1
+generation=1 CONNECT_REQUEST peer=B port=49305
+generation=1 HANDSHAKE peer=B
+generation=1 ADVERTISE peer=B
+generation=1 HOTSWAP_CANCEL_REQUEST peer=A piece=0 start=0 length=16384 force=1
+generation=1 CANCEL_SENT peer=A
+generation=1 RELEASE_SLOW_MARKER_CREATED
+generation=1 HOTSWAP_REQUEUE peer=B queued=1
+generation=1 ALLOW_FAST peer=B piece=0 start=0 length=16384
+generation=1 WIRE peer=B piece=0 start=0 length=16384
+generation=1 SUPPRESS peer=A piece=0 start=0 length=16384
+generation=1 PIECE peer=A piece=0 start=0 length=16384
+generation=1 PIECE peer=A piece=0 start=0 length=16384
+generation=1 PIECE_PASS piece=0
+generation=1 GENERATION_1_RESULT first_pass=1 late_response=1 duplicate_response=1

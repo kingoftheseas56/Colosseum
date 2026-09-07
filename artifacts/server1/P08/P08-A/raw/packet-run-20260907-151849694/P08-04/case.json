@@ -1,0 +1,27 @@
+{
+  "schema": "colosseum-server1-p08-case/v1",
+  "case": "P08-04",
+  "state": "PASS",
+  "selected_peer": "B",
+  "commanded": [
+    {"peer":"B","piece":2,"start":0,"length":16384},
+    {"peer":"B","piece":2,"start":16384,"length":16384},
+    {"peer":"B","piece":2,"start":32768,"length":7232}
+  ],
+  "internal_wire_requests": 3,
+  "owned_wire_requests": 3,
+  "suppressed_picker_requests": 10,
+  "post_owned_suppressed_picker_requests": 2,
+  "unowned_internal_wire_requests": 0,
+  "pre_owned_cleanup_cancels": 5,
+  "owned_piece_cancels_before_release": 0,
+  "owned_outstanding_at_post_suppression": 3,
+  "unrelated_owned_requests_deleted": false,
+  "initial_piece_priorities_piece0_default_piece1_2_dont_download": true,
+  "internal_priority_enabled_on_network_thread": true,
+  "owned_add_request_accepted_after_internal_priority_enable": true,
+  "picker_enabled_after_owned_commands": true,
+  "tail_length_checked": 7232,
+  "piece_hash_passed": true,
+  "wire_cancel_sent_by_libtorrent": true
+}

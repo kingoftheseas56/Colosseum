@@ -1,0 +1,15 @@
+LISTEN label=payload port=49309 mode=regular
+CONFIG hold_all=0 hold_after_offset=-1 release_file=C:\b\Colosseum-Server-1.0-workers\P08-A\artifacts\server1\P08\P08-A\raw\packet-run-20260907-151758218\CONTROLS\release-choke.marker duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:7686 info_hash=dc94c5ed2e0ca7f54c3c00c598ca304644c7f0d6 expected=dc94c5ed2e0ca7f54c3c00c598ca304644c7f0d6 info_hash_match=1
+BITFIELD_SENT pieces=1 advertised=0
+CHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+UNCHOKE_SENT connection=1
+NOT_INTERESTED_SENT connection=1
+INTERESTED connection=1
+MESSAGE connection=1 id=1 bytes=0
+REQUEST connection=1 piece=0 start=0 length=16384
+MESSAGE connection=1 id=0 bytes=0
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+MESSAGE connection=1 id=4 bytes=4
+CLIENT_DISCONNECTED connection=1 error=ConnectionResetError
