@@ -1,0 +1,9 @@
+{
+  "schema": "colosseum-server1-p04-mutation-evidence/v1",
+  "mutations": [
+    {"name": "event-mismatch", "input": "post-classification cleanup downgrade", "expected": "event result equals final receipt ERROR", "verified_by": "test_event_is_written_after_final_result_and_matches_receipt"},
+    {"name": "active-run-reaping", "input": "second runner starts while first lease/controller is live", "expected": "first run remains alive", "verified_by": "test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans"},
+    {"name": "raw-concealment", "input": "normalized response appears valid while raw protocol diverges", "expected": "FAIL, never PASS", "verified_by": "test_raw_protocol_divergence_cannot_be_normalized_into_pass"},
+    {"name": "forged-pid", "input": "unrelated PID with mismatched ownership identity", "expected": "skip mismatch and preserve unrelated process", "verified_by": "test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans"}
+  ]
+}

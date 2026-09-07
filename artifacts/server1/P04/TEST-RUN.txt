@@ -19,3 +19,7 @@ Ran 15 tests in 31.400s
 
 OK (skipped=8)
 EXIT=0
+
+REPAIR-RUN: python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v
+REPAIR-RESULT: Ran 19 tests in 36.938s; OK (skipped=8); EXIT=0
+REPAIR-CONTRACTS: event/receipt ERROR agreement after cleanup downgrade; template replay with required substitutions; nullable server fields; cleanup cannot PASS.

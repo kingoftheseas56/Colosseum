@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "colosseum-server1-lab-run/v1",
   "type": "object",
-  "required": ["schema", "run_id", "engine", "source", "scenario", "environment", "configuration", "fixture_identifiers", "request_sequence", "timestamps", "raw_lane", "normalized_lane", "observations", "errors", "result", "replay"],
+  "required": ["schema", "run_id", "engine", "source", "scenario", "environment", "configuration", "fixture_identifiers", "request_sequence", "timestamps", "raw_lane", "normalized_lane", "observations", "errors", "result", "replay", "torrent", "infohash", "selected_file", "responses", "byte_counts", "peer_observations", "resource_observations"],
   "properties": {
     "schema": {"const": "colosseum-server1-lab-run/v1"},
     "run_id": {"type": "string", "minLength": 1},
@@ -20,6 +20,13 @@
     "errors": {"type": "array"},
     "result": {"enum": ["PASS", "FAIL", "ERROR", "UNSUPPORTED", "INDETERMINATE", "NOT_RUN"]},
     "replay": {"type": "object"}
+    ,"torrent": {"type": ["object", "null"]}
+    ,"infohash": {"type": ["string", "null"]}
+    ,"selected_file": {"type": ["string", "null"]}
+    ,"responses": {"type": "array"}
+    ,"byte_counts": {"type": "array"}
+    ,"peer_observations": {"type": "array"}
+    ,"resource_observations": {"type": "array"}
   },
   "additionalProperties": true
 }

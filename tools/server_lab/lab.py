@@ -19,7 +19,7 @@ from .scenarios import classify, expected_response
 
 
 class LabRunner:
-    def run(self, *, subject: Path, mode: str, data_root: Path, evidence_dir: Path, run_id: str) -> dict[str, Any]:
+    def run(self, *, subject: Path, mode: str, data_root: Path, evidence_dir: Path, run_id: str, config_path: Path | None = None) -> dict[str, Any]:
         data_root.mkdir(parents=True, exist_ok=True)
         startup_cleanup = cleanup_orphans(data_root)
         run_root = data_root / run_id
@@ -96,13 +96,21 @@ class LabRunner:
         if response is not None and (protocol_status != response.get("status") or protocol_headers.get("Content-Type") != response.get("headers", {}).get("Content-Type") or raw_body != response.get("body")):
             result = "FAIL"
             errors.append("raw protocol divergence")
-        event_file.write_text(json.dumps({"run_id": run_id, "result": result}) + "\n", encoding="utf-8")
         errors.extend(cleanup_errors)
         if owned_children_after or cleanup_errors:
             result = "ERROR"
             errors.append("owned process cleanup unresolved")
+        event_file.write_text(json.dumps({"run_id": run_id, "result": result}) + "\n", encoding="utf-8")
         timeout_seconds = 30.0 if mode == "orphan" else (3.0 if mode == "hold" else 1.0)
-        receipt = EvidenceSchema.receipt(result=result, run_id=run_id, engine={"name": "python-subprocess-lab", "version": sys.version.split()[0]}, source={"identity": str(subject), "sha256": _sha256(subject)}, scenario=mode, environment={"platform": sys.platform}, configuration={"timeout_seconds": timeout_seconds, "endpoint": endpoint}, fixture_identifiers={"subject_mode": mode}, request_sequence=[{"operation": "launch", "argv": command}], timestamps={"started": started, "finished": datetime.now(timezone.utc).isoformat()}, raw_lane=raw, normalized_lane=normalized, observations=[{"listener_owned": (run_root / "listener-connected").is_file(), "endpoint": endpoint}], errors=errors, replay={"command": command, "configuration": {"mode": mode, "endpoint": endpoint}}, paths={"run_root": str(run_root), "cache": str(cache), "event_file": str(event_file), "endpoint": endpoint, "port": port, "stdout": str(stdout_path), "stderr": str(stderr_path)}, cleanup={"owned_children_after": owned_children_after, "errors": cleanup_errors, "orphan_detected": bool(lease_path.exists())}, startup_cleanup=startup_cleanup)
+        replay_command = [sys.executable, "-m", "tools.server_lab.lab"]
+        if config_path:
+            replay_command += ["--config", str(config_path)]
+        replay_command += ["--subject", str(subject), "--mode", mode, "--data-root", str(data_root), "--evidence-dir", str(evidence_dir), "--run-id", run_id]
+        replay_template = [sys.executable, "-m", "tools.server_lab.lab"]
+        if config_path:
+            replay_template += ["--config", str(config_path)]
+        replay_template += ["--subject", str(subject), "--mode", mode, "--data-root", "{data_root}", "--evidence-dir", "{evidence_dir}", "--run-id", "{run_id}"]
+        receipt = EvidenceSchema.receipt(result=result, run_id=run_id, engine={"name": "python-subprocess-lab", "version": sys.version.split()[0]}, source={"identity": str(subject), "sha256": _sha256(subject)}, scenario=mode, environment={"platform": sys.platform}, configuration={"timeout_seconds": timeout_seconds, "endpoint": endpoint}, fixture_identifiers={"subject_mode": mode}, request_sequence=[{"operation": "launch", "argv": command}], timestamps={"started": started, "finished": datetime.now(timezone.utc).isoformat()}, raw_lane=raw, normalized_lane=normalized, responses=[response] if response is not None else [], byte_counts=[len(protocol_bytes)], peer_observations=[], resource_observations=[], observations=[{"listener_owned": (run_root / "listener-connected").is_file(), "endpoint": endpoint}], errors=errors, replay={"exact_command": replay_command, "command_template": replay_template, "required_substitutions": ["data_root", "evidence_dir", "run_id"], "configuration": {"mode": mode, "endpoint": endpoint}}, paths={"run_root": str(run_root), "cache": str(cache), "event_file": str(event_file), "endpoint": endpoint, "port": port, "stdout": str(stdout_path), "stderr": str(stderr_path)}, cleanup={"owned_children_after": owned_children_after, "errors": cleanup_errors, "orphan_detected": bool(lease_path.exists())}, startup_cleanup=startup_cleanup)
         EvidenceSchema.write(evidence_dir / "run.json", receipt)
         return receipt
 
@@ -203,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--subject", type=Path)
     parser.add_argument("--mode")
+    parser.add_argument("--config", type=Path)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--run-id", default=f"run-{uuid.uuid4().hex[:12]}")
@@ -211,9 +220,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.cleanup:
         print(json.dumps(cleanup_orphans(args.data_root.resolve()), sort_keys=True))
         return 0
-    if not args.subject or not args.mode or not args.evidence_dir:
+    config = json.loads(args.config.read_text(encoding="utf-8")) if args.config else {}
+    mode = args.mode or config.get("mode")
+    if not args.subject or not mode or not args.evidence_dir:
         parser.error("--subject, --mode, and --evidence-dir are required unless --cleanup is used")
-    receipt = LabRunner().run(subject=args.subject.resolve(), mode=args.mode, data_root=args.data_root.resolve(), evidence_dir=args.evidence_dir.resolve(), run_id=args.run_id)
+    receipt = LabRunner().run(subject=args.subject.resolve(), mode=mode, data_root=args.data_root.resolve(), evidence_dir=args.evidence_dir.resolve(), run_id=args.run_id, config_path=args.config.resolve() if args.config else None)
     return 0 if receipt["result"] == "PASS" else 1
 
 

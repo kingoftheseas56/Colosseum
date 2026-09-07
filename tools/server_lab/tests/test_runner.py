@@ -302,6 +302,73 @@ class P04RunnerTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0)
 
+    def test_event_is_written_after_final_result_and_matches_receipt(self) -> None:
+        from unittest.mock import patch
+        from tools.server_lab.lab import LabRunner
+        subject = self.root / "event-order.py"
+        subject.write_text(textwrap.dedent("""
+            import json, os
+            from pathlib import Path
+            root = Path(os.environ['LAB_RUN_ROOT'])
+            response = {'status': 200, 'headers': {'Content-Type': 'application/json'}, 'body': 'expected'}
+            (root / 'subject-response.json').write_text(json.dumps(response), encoding='utf-8')
+            (root / 'protocol-response.txt').write_text('HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\nexpected', encoding='latin-1')
+            (root / 'descendant.pid').write_text('4242', encoding='ascii')
+        """), encoding="utf-8")
+        with patch("tools.server_lab.lab._process_identity", side_effect=lambda pid: {"command": "owned", "creation": "same"} if pid == 4242 else None):
+            receipt = LabRunner().run(subject=subject, mode="pass", data_root=self.root / "data", evidence_dir=self.root / "evidence" / "event-order", run_id="run-event-order")
+        self.assertEqual(receipt["result"], "ERROR")
+        events = [json.loads(line) for line in Path(receipt["paths"]["event_file"]).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(events[-1]["run_id"], receipt["run_id"])
+        self.assertEqual(events[-1]["result"], "ERROR")
+        self.assertEqual(events[-1]["result"], receipt["result"])
+
+    def test_replay_is_full_lab_command_and_uses_committed_fixture(self) -> None:
+        fixture = ROOT / "artifacts" / "server1" / "P04" / "fixtures" / "replay_subject.py"
+        config = ROOT / "artifacts" / "server1" / "P04" / "fixtures" / "replay-config.json"
+        evidence = self.root / "evidence" / "replay-source"
+        completed = subprocess.run(
+            [sys.executable, "-m", "tools.server_lab.lab", "--config", str(config), "--subject", str(fixture), "--data-root", str(self.root / "data"), "--evidence-dir", str(evidence), "--run-id", "replay-source"],
+            cwd=ROOT, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(ROOT)},
+        )
+        receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+        self.assertEqual(receipt["replay"]["exact_command"][:4], [sys.executable, "-m", "tools.server_lab.lab", "--config"])
+        self.assertIn(str(fixture), receipt["replay"]["exact_command"])
+        self.assertEqual(receipt["replay"]["required_substitutions"], ["data_root", "evidence_dir", "run_id"])
+        replay_evidence = self.root / "evidence" / "replay-copy"
+        substitutions = {"data_root": str(self.root / "data"), "evidence_dir": str(replay_evidence), "run_id": "replay-copy"}
+        replay_command = [arg.format(**substitutions) for arg in receipt["replay"]["command_template"]]
+        replayed = subprocess.run(replay_command, cwd=ROOT, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(ROOT)})
+        self.assertEqual(replayed.returncode, completed.returncode)
+        self.assertEqual(json.loads((replay_evidence / "run.json").read_text(encoding="utf-8"))["result"], receipt["result"])
+
+    def test_receipt_has_nullable_server_fields_and_observation_arrays(self) -> None:
+        _, receipt, _ = self.run_cli("byte", "run-fields")
+        for field in ("torrent", "infohash", "selected_file"):
+            self.assertIn(field, receipt)
+            self.assertIsNone(receipt[field])
+        for field in ("responses", "byte_counts", "peer_observations", "resource_observations"):
+            self.assertIn(field, receipt)
+            self.assertIsInstance(receipt[field], list)
+
+    def test_cleanup_failure_cannot_pass(self) -> None:
+        from unittest.mock import patch
+        from tools.server_lab.lab import LabRunner
+        with patch("tools.server_lab.lab._process_identity", side_effect=lambda pid: {"command": "owned", "creation": "same"} if pid == 4242 else None):
+            subject = self.root / "cleanup-failure.py"
+            subject.write_text(textwrap.dedent("""
+                import json, os
+                from pathlib import Path
+                root = Path(os.environ['LAB_RUN_ROOT'])
+                response = {'status': 200, 'headers': {'Content-Type': 'application/json'}, 'body': 'expected'}
+                (root / 'subject-response.json').write_text(json.dumps(response), encoding='utf-8')
+                (root / 'protocol-response.txt').write_text('HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\nexpected', encoding='latin-1')
+                (root / 'descendant.pid').write_text('4242', encoding='ascii')
+            """), encoding="utf-8")
+            receipt = LabRunner().run(subject=subject, mode="pass", data_root=self.root / "data", evidence_dir=self.root / "evidence" / "cleanup-failure", run_id="cleanup-failure")
+        self.assertNotEqual(receipt["result"], "PASS")
+        self.assertIn("cleanup", " ".join(receipt["errors"]).lower())
+
 
 def _pid_alive(pid: int) -> bool:
     completed = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True, check=False)

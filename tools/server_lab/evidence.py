@@ -22,6 +22,13 @@ class EvidenceSchema:
         missing = required.difference(fields)
         if missing:
             raise ValueError(f"missing receipt fields: {sorted(missing)}")
+        fields.setdefault("torrent", None)
+        fields.setdefault("infohash", None)
+        fields.setdefault("selected_file", None)
+        fields.setdefault("responses", [])
+        fields.setdefault("byte_counts", [])
+        fields.setdefault("peer_observations", [])
+        fields.setdefault("resource_observations", [])
         return {"schema": "colosseum-server1-lab-run/v1", **fields, "result": result}
 
     @staticmethod
@@ -29,9 +36,11 @@ class EvidenceSchema:
         missing = [field for field in schema["required"] if field not in receipt]
         if missing:
             raise ValueError(f"schema required fields missing: {missing}")
-        expected_types = {"object": dict, "array": list, "string": str}
+        expected_types = {"object": dict, "array": list, "string": str, "null": type(None)}
         for field, declaration in schema["properties"].items():
-            if field in receipt and "type" in declaration and not isinstance(receipt[field], expected_types[declaration["type"]]):
+            declared = declaration.get("type")
+            allowed = declared if isinstance(declared, list) else [declared] if declared else []
+            if field in receipt and allowed and not any(isinstance(receipt[field], expected_types[item]) for item in allowed):
                 raise ValueError(f"schema type mismatch for {field}")
         if receipt["schema"] != schema["properties"]["schema"]["const"]:
             raise ValueError("schema identifier mismatch")

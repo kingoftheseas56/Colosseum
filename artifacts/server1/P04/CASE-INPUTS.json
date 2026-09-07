@@ -1,0 +1,12 @@
+{
+  "schema": "colosseum-server1-p04-case-inputs/v1",
+  "base_commit": "51d990bf866c2b603235da61bcc84a81079b1903",
+  "cases": {
+    "P04-01": ["byte", "status", "header", "timeout", "crash", "missing-evidence"],
+    "P04-02": ["FAIL", "ERROR", "UNSUPPORTED", "INDETERMINATE", "NOT_RUN"],
+    "P04-03": ["interleaved-runs", "active-run-reaping", "raw-concealment", "forged-pid"]
+  },
+  "fixture": "fixtures/replay_subject.py",
+  "configuration": "fixtures/replay-config.json",
+  "replay_contract": "full lab CLI command with committed fixture and configuration"
+}
