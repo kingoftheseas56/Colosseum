@@ -8,7 +8,14 @@ import { fileURLToPath } from "node:url";
 
 const scenarioDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scenarioDirectory, "../../../../..");
-const oraclePath = path.resolve(repositoryRoot, "..", "oracle", "server.js");
+// Set K13_B_ORACLE_PATH to the exact oracle mirror when this worktree has no
+// adjacent ../oracle directory. The adjacent path remains a convenience for
+// the review mirror and is still checked by the same SHA-256 guard below.
+const configuredOraclePath = process.env.K13_B_ORACLE_PATH?.trim();
+const adjacentOraclePath = path.resolve(repositoryRoot, "..", "oracle", "server.js");
+const oraclePath = configuredOraclePath
+  ? path.resolve(configuredOraclePath)
+  : adjacentOraclePath;
 const expectedOracleSha256 =
   "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f";
 

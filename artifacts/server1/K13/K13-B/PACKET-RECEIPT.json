@@ -20,6 +20,8 @@
   "source_authority": {
     "path": "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "path_input": "K13_B_ORACLE_PATH; adjacent ../oracle/server.js retained as fallback",
+    "invocation": "K13_B_ORACLE_PATH='C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js'; node artifacts/server1/K13/K13-B/scenarios/oracle_k13_b_probe.mjs",
     "range_hashes": [
       {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
       {"module": "M194", "lines": "19675-19682", "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"},
@@ -95,7 +97,7 @@
     "implementation_authored": "complete",
     "compiled": "verified with production headers; configure/build exit 0",
     "test_executed": "K13-01, K13-02, K13-03 focused CTest 3/3 passed; direct cases exit 0",
-    "differentially_qualified": "complete; executable local-oracle and candidate traces each emitted nine raw lines, zero differences, with the oracle mirror SHA-256 verified",
+    "differentially_qualified": "complete; executable K13_B_ORACLE_PATH-selected local-oracle and candidate traces each emitted nine raw lines, zero differences, with the oracle mirror SHA-256 verified",
     "integrated": "not integrated; waiting for B-W2B",
     "runtime": "not claimed; no full-server runtime execution"
   },

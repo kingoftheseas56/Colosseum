@@ -3,14 +3,16 @@
   "worker_id": "K13-B",
   "oracle": {
     "path": "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
-    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "path_input": "K13_B_ORACLE_PATH",
+    "invocation": "K13_B_ORACLE_PATH='C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js'; node artifacts/server1/K13/K13-B/scenarios/oracle_k13_b_probe.mjs"
   },
   "hash_convention": {
     "oracle": "SHA-256 over the exact raw mirror bytes; no newline normalization",
     "artifacts": "SHA-256 over each captured artifact file's raw bytes",
     "comparison": "Compare-Object over the captured source and candidate stdout line sequences; no normalization"
   },
-  "source_trace_execution": "The probe executes oracle modules 106 and 414 and the module-564 getDefaults/getCachePath function bodies with controlled adapters; it does not print hardcoded behavioral results.",
+  "source_trace_execution": "The probe executes oracle modules 106 and 414 and the module-564 getDefaults/getCachePath function bodies with controlled adapters; it selects K13_B_ORACLE_PATH when set, retains the adjacent mirror fallback when unset, validates the same SHA-256, and does not print hardcoded behavioral results.",
   "source_command": "artifacts/server1/K13/K13-B/comparison/SOURCE-COMMAND.txt",
   "candidate_command": "artifacts/server1/K13/K13-B/comparison/CANDIDATE-COMMAND.txt",
   "comparison_command": "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON-COMMAND.txt",
