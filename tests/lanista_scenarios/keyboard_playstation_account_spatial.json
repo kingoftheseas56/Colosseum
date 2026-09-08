@@ -1,0 +1,40 @@
+{
+  "name": "keyboard-playstation-account-spatial",
+  "comment": "PlayStation-style account acceptance: onboarding choices use Up/Down as the primary spatial route, Enter activates the focused choice, and editable sign-in fields keep arrow-key text-editing precedence.",
+  "steps": [
+    { "cmd": "ping", "label": "isolated drive session answers",
+      "expect": [ { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "boot splash leaves",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "Continue without account is the intentional entry focus",
+      "payload": { "object": "accountWelcomeContinueLocal", "props": ["activeFocus"] },
+      "expect": [ { "path": "props.activeFocus", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-keypress", "label": "Down follows the visible choice stack", "payload": { "key": "Down" } },
+    { "cmd": "qml-get", "label": "Sign in choice owns focus",
+      "payload": { "object": "accountWelcomeSignIn", "props": ["activeFocus"] },
+      "expect": [ { "path": "props.activeFocus", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-keypress", "label": "Up returns to the previous visible choice", "payload": { "key": "Up" } },
+    { "cmd": "qml-get", "label": "Continue choice owns focus again",
+      "payload": { "object": "accountWelcomeContinueLocal", "props": ["activeFocus"] },
+      "expect": [ { "path": "props.activeFocus", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-keypress", "label": "Down returns to Sign in", "payload": { "key": "Down" } },
+    { "cmd": "ui-keypress", "label": "Enter activates the focused Sign in choice", "payload": { "key": "Enter" } },
+
+    { "cmd": "ui-wait-for", "label": "Sign in route opens",
+      "payload": { "object": "accountSignIn", "prop": "visible", "value": true, "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "username field receives route-entry focus",
+      "payload": { "object": "accountSignInUsername", "props": ["activeFocus"] },
+      "expect": [ { "path": "props.activeFocus", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-text-input", "label": "type into username field",
+      "payload": { "target": "accountSignInUsername", "text": "KeyboardProbe" } },
+    { "cmd": "ui-keypress", "label": "Left remains owned by the editable field", "payload": { "key": "Left" } },
+    { "cmd": "ui-keypress", "label": "Right remains owned by the editable field", "payload": { "key": "Right" } },
+    { "cmd": "qml-get", "label": "editable field keeps focus and text after arrows",
+      "payload": { "object": "accountSignInUsername", "props": ["activeFocus", "text"] },
+      "expect": [ { "path": "props.activeFocus", "op": "==", "value": "true" },
+                  { "path": "props.text", "op": "==", "value": "KeyboardProbe" } ] }
+  ]
+}

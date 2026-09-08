@@ -9,6 +9,11 @@ Item {
     objectName: "colosseumTaskbar"
     anchors.fill: parent
 
+    // The expanded dock/fan is visual chrome, so arrows follow its geometry instead
+    // of the incidental QML child order. Boundary keys remain available to the host.
+    KeyboardSpatialNavigator { id: spatialNav; root: bar }
+    Keys.onPressed: function(event) { spatialNav.handle(event) }
+
     Theme { id: theme }
 
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []

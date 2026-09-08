@@ -26,6 +26,15 @@ Item {
 
     visible: accountFlowVisible
 
+    // The onboarding cover is a temporary focus universe. Arrow keys are the primary
+    // console-style navigation route between its visible choices; editable fields keep
+    // their own cursor/navigation semantics because KeyboardSpatialNavigator refuses to
+    // move an editable focus owner. Tab remains the secondary conventional form route.
+    KeyboardSpatialNavigator {
+        id: spatialNav
+        root: root
+    }
+
     function focusFirstInside() {
         Qt.callLater(function() {
             if (root.visible)
@@ -59,6 +68,8 @@ Item {
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: function(event) {
+        if (spatialNav.handle(event))
+            return
         if (event.key === Qt.Key_Tab) {
             const forward = !(event.modifiers & Qt.ShiftModifier)
             if (SystemFocusContainment.move(root.Window.window, root, forward))
