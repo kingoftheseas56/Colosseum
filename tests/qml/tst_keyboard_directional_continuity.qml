@@ -456,6 +456,85 @@ TestCase {
         fixture.destroy()
     }
 
+    function test_real_continue_and_featured_nested_actions_keep_selection_and_enter_identity() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { id: shell; width: 900; height: 650; focus: true;'
+            + 'property string detailId: ""; property string featuredId: "";'
+            + 'Flickable { id: board; anchors.fill: parent; contentWidth: width; contentHeight: 620; clip: true;'
+            + 'Item { id: content; width: 900; height: 620;'
+            + 'C.ContinueRow { id: continueRow; objectName: "continueRow"; x: 20; y: 20; width: 820; showSeeAll: false; items: [ { id:"C0", kind:"book", title:"C0", cover:"x" }, { id:"C1", kind:"book", title:"C1", cover:"x" } ]; forgetHandler: function() {}; onDetailRequested: function(item) { shell.detailId = item.id } }'
+            + 'C.FeaturedCarousel { id: featured; objectName: "featuredCarousel"; x: 20; y: 360; width: 820; height: 250; slides: [ { id:"F0", title:"F0" }, { id:"F1", title:"F1" }, { id:"F2", title:"F2" } ]; onPrimaryClicked: function(index) { shell.featuredId = slides[index].id } }'
+            + '} } C.KeyboardSpatialNavigator { id: nav; root: shell } Keys.onPressed: function(e) { if (nav.handle(e)) e.accepted = true }'
+            + 'property var findOwner: function(node, wanted) { var q = [node]; while (q.length) { var n=q.shift(); if (n.keyboardReturnOwner === true && n.keyboardItemAtIndex) { for (var p=n.parent; p; p=p.parent) if (p.objectName === wanted) return n } var c=n.children||[]; for (var i=0;i<c.length;++i) q.push(c[i]) } return null }'
+            + 'property var findAction: function(node) { var c=node.children||[]; for (var i=0;i<c.length;++i) { var n=c[i]; if (n.activate && n.focusEnabled !== undefined) return n; var r=findAction(n); if (r) return r } return null }'
+            + 'property alias navigator: nav; property alias boardView: board }', testWindow.contentItem)
+        var continueOwner = fixture.findOwner(fixture, "continueRow")
+        var featuredView = fixture.findOwner(fixture, "featuredCarousel")
+        verify(continueOwner)
+        verify(featuredView)
+        var featuredRail = null
+        var queue = [featuredView]
+        while (queue.length) {
+            var node = queue.shift()
+            if (node.keyboardReturnOwner === true && node.keyboardItemAtIndex) {
+                featuredRail = node
+                break
+            }
+            var children = node.children || []
+            for (var i = 0; i < children.length; ++i)
+                queue.push(children[i])
+        }
+        verify(featuredRail)
+        featuredRail.keyboardRevealIndex(1)
+        var featuredTarget = featuredRail.keyboardItemAtIndex(1)
+        var featuredAction = fixture.findAction(featuredTarget)
+        verify(featuredAction)
+        featuredRail.currentIndex = 0
+        verify(fixture.navigator._land(featuredAction, Qt.Key_Right, Qt.TabFocusReason, 72))
+        compare(featuredRail.currentIndex, 1)
+        verify(featuredRail.activeFocus)
+        featuredAction.activate(Qt.OtherFocusReason)
+        compare(fixture.featuredId, "F1")
+        featuredRail.currentIndex = 0
+        var continueTarget = continueOwner.keyboardItemAtIndex(1)
+        var continueAction = fixture.findAction(continueTarget)
+        verify(continueAction)
+        continueOwner.currentIndex = 0
+        verify(fixture.navigator._land(continueAction, Qt.Key_Right, Qt.TabFocusReason, 72))
+        compare(continueOwner.currentIndex, 1)
+        verify(continueOwner.activeFocus)
+        continueAction.activate(Qt.OtherFocusReason)
+        compare(fixture.detailId, "C1")
+        continueOwner.currentIndex = 1
+        continueOwner.forceActiveFocus(Qt.OtherFocusReason)
+        verify(continueOwner.activeFocus)
+        keyClick(Qt.Key_Down)
+        compare(featuredRail.currentIndex, 0)
+        verify(featuredRail.activeFocus)
+        keyClick(Qt.Key_Right)
+        compare(featuredRail.currentIndex, 1)
+        keyClick(Qt.Key_Return)
+        compare(fixture.featuredId, "F1")
+        keyClick(Qt.Key_Up)
+        compare(continueOwner.currentIndex, 1)
+        verify(continueOwner.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_editable_child_keeps_arrow_precedence_inside_collection_owner() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { id: shell; width: 500; height: 220; focus: true;'
+            + 'Flickable { id: rail; objectName: "editableRail"; width: 500; height: 180; contentWidth: 500; contentHeight: 180; clip: true; focusPolicy: Qt.TabFocus; property bool keyboardReturnOwner: true; property int currentIndex: 0; property var keyboardItems: [ {id:"E0"} ]; property var keyboardItemAtIndex: function(i) { return tile }; property var keyboardIdentityForIndex: function(i) { return i === 0 ? "E0" : "" }; property var keyboardIndexForIdentity: function(id) { return id === "E0" ? 0 : -1 }; Item { id: tile; width: 480; height: 150; property int index: 0; TextInput { id: editor; x: 20; y: 20; width: 300; height: 40; text: "editable"; cursorPosition: 2; focus: true } } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: shell } property alias navigator: nav; property alias editor: editor; property alias rail: rail }', testWindow.contentItem)
+        fixture.editor.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.editor.activeFocus)
+        var before = fixture.rail.contentX
+        verify(!fixture.navigator.move(Qt.Key_Right))
+        compare(fixture.rail.contentX, before)
+        verify(fixture.editor.activeFocus)
+        fixture.destroy()
+    }
+
     function test_reorder_returns_same_id_and_removal_uses_nearest_peer() {
         keyClick(Qt.Key_Down)
         collection.entries = [

@@ -173,6 +173,11 @@ Item {
 
     function activeItem() {
         var focused = nav.root ? nav._activeItem(nav.root) : null
+        // Native/editable controls keep first claim even when nested inside a
+        // collection-managed delegate. Semantic projection is only for the
+        // owner after the actual focused control has declined the key.
+        if (nav._isEditable(focused))
+            return focused
         var owner = nav._collectionOwner(focused)
         if (owner && owner.currentIndex !== undefined) {
             var selected = owner.keyboardItemAtIndex
@@ -295,22 +300,67 @@ Item {
     }
 
     function _collectionIndex(owner, item) {
-        if (!owner || !item)
+        var delegate = nav._collectionDelegate(owner, item)
+        if (!delegate)
             return -1
-        if (item.index !== undefined && isFinite(Number(item.index)))
-            return Number(item.index)
-        var identity = item.stableId !== undefined ? item.stableId
-            : (item.objectName !== undefined ? item.objectName : "")
+        if (delegate.index !== undefined && isFinite(Number(delegate.index)))
+            return Number(delegate.index)
+        var identity = nav._collectionIdentity(delegate)
         return owner.keyboardIndexForIdentity && identity
             ? Number(owner.keyboardIndexForIdentity(identity)) : -1
+    }
+
+    function _collectionIdentity(item) {
+        if (!item)
+            return ""
+        if (item.stableId !== undefined && item.stableId !== null && item.stableId !== "")
+            return String(item.stableId)
+        if (item.entry && item.entry.id !== undefined)
+            return String(item.entry.id)
+        if (item.slide) {
+            if (item.slide.raw && item.slide.raw.id !== undefined)
+                return String(item.slide.raw.id)
+            if (item.slide.id !== undefined)
+                return String(item.slide.id)
+            if (item.slide.title !== undefined)
+                return String(item.slide.title)
+        }
+        if (item.objectName !== undefined && item.objectName !== "")
+            return String(item.objectName)
+        return ""
+    }
+
+    // A spatial candidate is often a nested KeyboardAction, while collection
+    // identity belongs to its delegate root. Walk the existing owner hierarchy
+    // and use the delegate's index or identity seam; never scan the model.
+    function _collectionDelegate(owner, item) {
+        if (!owner || !item)
+            return null
+        for (var node = item; node && node !== owner; node = node.parent) {
+            if (node.index !== undefined && isFinite(Number(node.index)))
+                return node
+            var identity = nav._collectionIdentity(node)
+            if (identity && owner.keyboardIndexForIdentity
+                    && Number(owner.keyboardIndexForIdentity(identity)) >= 0)
+                return node
+        }
+        return null
+    }
+
+    function _collectionFocusOwner(item) {
+        var owner = nav._collectionOwner(item)
+        if (!owner || owner.keyboardReturnOwner !== true)
+            return null
+        return nav._collectionDelegate(owner, item) ? owner : null
     }
 
     function _selectCollectionItem(owner, item) {
         var index = nav._collectionIndex(owner, item)
         if (index < 0)
-            return
+            return false
         if (owner.currentIndex !== undefined)
             owner.currentIndex = index
+        return owner.currentIndex === undefined || Number(owner.currentIndex) === index
     }
 
     function _rememberSectionTransition(fromItem, target) {
@@ -383,9 +433,8 @@ Item {
                 : (owner.itemAtIndex ? owner.itemAtIndex(index) : target)
         if (!target || !nav._centerVisibleThroughClips(target))
             return false
-        var targetOwner = nav._collectionOwner(target)
-        if (targetOwner && target.focusEnabled === false) {
-            nav._selectCollectionItem(targetOwner, target)
+        var targetOwner = nav._collectionFocusOwner(target)
+        if (targetOwner && nav._selectCollectionItem(targetOwner, target)) {
             targetOwner.forceActiveFocus(reason)
             if (targetOwner.activeFocus === true)
                 coordinator.clear()
@@ -667,9 +716,8 @@ Item {
         // Collection-managed rails keep focus on their Flickable owner while delegates
         // remain semantic selection faces. Land the owner after the visible target has
         // passed policy/geometry checks; do not ask a non-focusable delegate to own focus.
-        var collectionOwner = nav._collectionOwner(target)
-        if (collectionOwner && target.focusEnabled === false) {
-            nav._selectCollectionItem(collectionOwner, target)
+        var collectionOwner = nav._collectionFocusOwner(target)
+        if (collectionOwner && nav._selectCollectionItem(collectionOwner, target)) {
             collectionOwner.forceActiveFocus(reason)
             return collectionOwner.activeFocus === true
         }
