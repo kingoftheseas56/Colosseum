@@ -1,6 +1,7 @@
 ﻿// KeyboardScrollController â€” keyboard face for an existing Flickable/ScrollGlide pair.
 // It adds no wheel physics. Unhandled collection keys may bubble here for page scrolling.
 import QtQuick
+import "KeyboardViewport.js" as Viewport
 
 Item {
     id: nav
@@ -14,8 +15,17 @@ Item {
 
     visible: false
 
+    Component.onCompleted: Viewport.registerController(nav.flick, nav)
+    Component.onDestruction: Viewport.unregisterController(nav.flick, nav)
+
+    KeyboardSpatialNavigator {
+        id: spatial
+        root: nav.flick
+        scrollStep: nav.lineStep
+    }
+
     function maxY() {
-        return nav.flick ? Math.max(0, nav.flick.contentHeight - nav.flick.height) : 0
+        return nav.flick ? Viewport.maximum(nav.flick, false) : 0
     }
 
     function scrollBy(px) {
@@ -25,13 +35,13 @@ Item {
         if (nav.glide && nav.glide.smoothScrollBy)
             nav.glide.smoothScrollBy(px)
         else
-            nav.flick.contentY = Math.max(0, Math.min(nav.maxY(), before + px))
-        return px < 0 ? before > 0 : before < nav.maxY()
+            Viewport.setPosition(nav.flick, false, before + px)
+        return px < 0 ? before > Viewport.minimum(nav.flick, false) : before < nav.maxY()
     }
     function scrollTo(y) {
         if (!nav.flick)
             return false
-        const target = Math.max(0, Math.min(nav.maxY(), y))
+        const target = Viewport.bounded(nav.flick, false, y)
         if (Math.abs(target - nav.flick.contentY) < 0.5)
             return false
         if (nav.glide && nav.glide._animateTo)
@@ -47,6 +57,9 @@ Item {
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             return false
 
+        if (nav.arrowScrolling && (event.key === Qt.Key_Up || event.key === Qt.Key_Down))
+            return spatial.handle(event)
+
         let handled = false
         if (event.key === Qt.Key_PageUp) {
             if (nav.glide && nav.glide.pageUp) {
@@ -58,11 +71,7 @@ Item {
                 handled = nav.flick.contentY < nav.maxY()
                 nav.glide.pageDown()
             } else handled = nav.scrollBy(nav.flick.height * nav.pageFraction)
-        } else if (nav.arrowScrolling && event.key === Qt.Key_Up)
-            handled = nav.scrollBy(-nav.lineStep)
-        else if (nav.arrowScrolling && event.key === Qt.Key_Down)
-            handled = nav.scrollBy(nav.lineStep)
-        else if (nav.homeEndEnabled && event.key === Qt.Key_Home) {
+        } else if (nav.homeEndEnabled && event.key === Qt.Key_Home) {
             handled = nav.flick.contentY > 0
             if (handled && nav.glide && nav.glide.toTop) nav.glide.toTop()
             else if (handled) nav.scrollTo(0)

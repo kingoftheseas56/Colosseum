@@ -7,6 +7,7 @@
 // distance. No candidate means "boundary": the key stays unaccepted for an outer
 // owner to handle.
 import QtQuick
+import "KeyboardViewport.js" as Viewport
 
 Item {
     id: nav
@@ -14,12 +15,37 @@ Item {
     required property Item root
     property real minimumPrimaryDistance: 6
     property bool preserveEditableArrows: true
+    property real scrollStep: 72
+    // Platform key repeat is the only repeat source.  A realization callback may
+    // retain one pending landing, but it must belong to the current input
+    // generation before it can focus anything.
+    property int navigationGeneration: 0
+    property int activeNavigationKey: -1
+    property bool navigationActive: false
+    property var pendingNavigation: null
 
     signal boundaryRequested(int key, Item fromItem)
+    signal navigationCancelled(string reason)
 
     visible: false
     width: 0
     height: 0
+
+    Connections {
+        target: nav.root
+        function onActiveFocusChanged() {
+            if (!nav.root || !nav.root.activeFocus)
+                nav.cancelNavigation("focus")
+        }
+        function onVisibleChanged() {
+            if (!nav.root || !nav.root.visible)
+                nav.cancelNavigation("route")
+        }
+        function onEnabledChanged() {
+            if (!nav.root || !nav.root.enabled)
+                nav.cancelNavigation("route")
+        }
+    }
 
     function isDirectionalKey(key) {
         return key === Qt.Key_Up || key === Qt.Key_Down
@@ -42,7 +68,7 @@ Item {
             && (item.readOnly === undefined || item.readOnly === false)
     }
 
-    function _centerVisibleThroughClips(item) {
+    function _eligible(item) {
         if (!item || !nav.root || !nav._isDescendant(item))
             return false
 
@@ -60,6 +86,13 @@ Item {
             return false
 
         if (Number(item.width) <= 0 || Number(item.height) <= 0)
+            return false
+
+        return true
+    }
+
+    function _centerVisibleThroughClips(item) {
+        if (!nav._eligible(item))
             return false
 
         var center = item.mapToItem(nav.root, Number(item.width) / 2, Number(item.height) / 2)
@@ -80,27 +113,28 @@ Item {
         return true
     }
 
-    function _isFocusable(item) {
-        if (!item || item === nav || item === nav.root || !nav._centerVisibleThroughClips(item))
+    function _isFocusable(item, includeOffscreen) {
+        if (!item || item === nav || item === nav.root
+                || !(includeOffscreen ? nav._eligible(item) : nav._centerVisibleThroughClips(item)))
             return false
         if (item.focusPolicy !== undefined)
             return item.focusPolicy !== Qt.NoFocus
         return item.activeFocusOnTab === true
     }
 
-    function _appendFocusable(node, result) {
+    function _appendFocusable(node, result, includeOffscreen) {
         if (!node || node === nav || node.visible === false || node.enabled === false)
             return 0
 
         var before = result.length
         var children = node.children || []
         for (var i = 0; i < children.length; i++)
-            nav._appendFocusable(children[i], result)
+            nav._appendFocusable(children[i], result, includeOffscreen)
 
         // Hand-built controls sometimes leave a legacy focusable wrapper around a
         // KeyboardAction. Prefer the deepest focusable face so one visual control is
         // one D-pad stop rather than two stacked stops at identical geometry.
-        if (node !== nav.root && result.length === before && nav._isFocusable(node))
+        if (node !== nav.root && result.length === before && nav._isFocusable(node, includeOffscreen))
             result.push(node)
         return result.length - before
     }
@@ -139,6 +173,87 @@ Item {
 
     function activeItem() {
         return nav.root ? nav._activeItem(nav.root) : null
+    }
+
+    function beginNavigation(key) {
+        if (!nav.isDirectionalKey(key))
+            return nav.navigationGeneration
+        if (nav.navigationActive && nav.activeNavigationKey !== key)
+            nav.cancelNavigation("direction")
+        nav.navigationActive = true
+        nav.activeNavigationKey = key
+        return nav.navigationGeneration
+    }
+
+    function isNavigationGenerationCurrent(generation, key) {
+        if (!nav.navigationActive || Number(generation) !== nav.navigationGeneration)
+            return false
+        return key === undefined || key === null || nav.activeNavigationKey === key
+    }
+
+    function cancelNavigation(reason) {
+        nav.navigationGeneration += 1
+        nav.pendingNavigation = null
+        nav.navigationActive = false
+        nav.activeNavigationKey = -1
+        nav.navigationCancelled(reason || "cancelled")
+    }
+
+    // Keep a single deferred landing slot.  This is intentionally not a queue:
+    // every newer key replaces the prior intent, and release/focus/route loss
+    // invalidates the generation before a realization callback can land.
+    function deferLanding(target, key, reason, generation) {
+        var token = generation === undefined ? nav.beginNavigation(key) : Number(generation)
+        if (!nav.isNavigationGenerationCurrent(token, key) || !target)
+            return false
+        nav.pendingNavigation = { target: target, key: key,
+                                  reason: reason === undefined ? Qt.OtherFocusReason : reason,
+                                  generation: token }
+        return true
+    }
+
+    function settlePendingLanding() {
+        var pending = nav.pendingNavigation
+        nav.pendingNavigation = null
+        if (!pending || !nav.isNavigationGenerationCurrent(pending.generation, pending.key))
+            return false
+        return nav._land(pending.target, pending.key, pending.reason)
+    }
+
+    function handleRelease(event) {
+        if (!event || !nav.isDirectionalKey(event.key))
+            return false
+        if (nav.navigationActive && nav.activeNavigationKey === event.key)
+            nav.cancelNavigation("release")
+        return true
+    }
+
+    function _scrollControllerFor(flick) {
+        if (!nav.root || !flick)
+            return null
+        var registered = Viewport.controllerFor(flick)
+        if (registered)
+            return registered
+        var pending = [nav.root]
+        while (pending.length > 0) {
+            var node = pending.shift()
+            if (node !== nav && node.flick !== undefined && node.flick === flick
+                    && node.lineStep !== undefined && node.arrowScrolling !== undefined)
+                return node
+            var children = node.children || []
+            for (var i = 0; i < children.length; ++i)
+                pending.push(children[i])
+        }
+        return null
+    }
+
+    function _directionalStep(flick, horizontal, controller) {
+        var extent = horizontal ? Number(flick.width) : Number(flick.height)
+        var configured = controller && controller.lineStep !== undefined
+            ? Number(controller.lineStep) : Number(nav.scrollStep)
+        if (!isFinite(extent) || !isFinite(configured) || extent <= 0 || configured <= 0)
+            return 0
+        return Math.min(configured, extent * 0.25)
     }
 
     function _rect(item) {
@@ -207,16 +322,28 @@ Item {
         return a.stableIndex < b.stableIndex
     }
 
-    function targetFrom(fromItem, key) {
+    function targetFrom(fromItem, key, scope, includeOffscreen) {
         if (!fromItem || !nav.root || !nav.isDirectionalKey(key))
             return null
-        var items = nav.focusableItems()
+        var items = []
+        nav._appendFocusable(scope || nav.root, items, includeOffscreen === true)
         var fromRect = nav._rect(fromItem)
+        // A viewport holding pure-scroll focus enters from the opposite edge,
+        // rather than selecting relative to its large centre rectangle.
+        if (Viewport.isFlickable(fromItem)) {
+            if (key === Qt.Key_Down) fromRect.cy = fromRect.top
+            if (key === Qt.Key_Up) fromRect.cy = fromRect.bottom
+            if (key === Qt.Key_Right) fromRect.cx = fromRect.left
+            if (key === Qt.Key_Left) fromRect.cx = fromRect.right
+        }
         var bestItem = null
         var bestMetric = null
         for (var i = 0; i < items.length; i++) {
             var candidate = items[i]
             if (candidate === fromItem)
+                continue
+            if (includeOffscreen && Viewport.revealPlan(candidate, nav.root,
+                    key === Qt.Key_Left || key === Qt.Key_Right) === null)
                 continue
             var metric = nav._metric(fromRect, nav._rect(candidate), key, i)
             if (metric && nav._metricBefore(metric, bestMetric)) {
@@ -230,13 +357,56 @@ Item {
     function moveFrom(fromItem, key) {
         if (!nav.isDirectionalKey(key) || !fromItem || nav._isEditable(fromItem))
             return false
+        var horizontal = key === Qt.Key_Left || key === Qt.Key_Right
+        var reason = (key === Qt.Key_Up || key === Qt.Key_Left)
+            ? Qt.BacktabFocusReason : Qt.TabFocusReason
+        // Exhaust each owning viewport before exporting into unrelated chrome.
+        // Indexed collections still consume their arrows before this handler.
+        for (var owner = fromItem; owner; owner = owner.parent) {
+            if (Viewport.isFlickable(owner) && Viewport.contains(nav.root, owner)) {
+                var controller = nav._scrollControllerFor(owner)
+                if (controller && controller.arrowScrolling === false)
+                    continue
+                var step = nav._directionalStep(owner, horizontal, controller)
+                var local = nav.targetFrom(fromItem, key, owner.contentItem, false)
+                if (!local)
+                    local = nav.targetFrom(fromItem, key, owner.contentItem, true)
+                if (local && nav._land(local, key, reason, step))
+                    return true
+                if (step > 0 && Viewport.setPosition(owner, horizontal,
+                        Viewport.position(owner, horizontal)
+                        + ((key === Qt.Key_Up || key === Qt.Key_Left) ? -step : step))) {
+                    // Realized static targets can be selected in this same key transition.
+                    local = nav.targetFrom(fromItem, key, owner.contentItem, false)
+                    if (local && nav._land(local, key, reason, step))
+                        return true
+                    if (!nav._centerVisibleThroughClips(fromItem))
+                        owner.forceActiveFocus(reason)
+                    return true
+                }
+            }
+            if (owner === nav.root)
+                break
+        }
         var target = nav.targetFrom(fromItem, key)
+        if (!target)
+            target = nav.targetFrom(fromItem, key, nav.root, true)
         if (!target) {
             nav.boundaryRequested(key, fromItem)
             return false
         }
-        var reason = (key === Qt.Key_Up || key === Qt.Key_Left)
-            ? Qt.BacktabFocusReason : Qt.TabFocusReason
+        return nav._land(target, key, reason)
+    }
+
+    function _land(target, key, reason, maxDistance) {
+        var horizontal = key === Qt.Key_Left || key === Qt.Key_Right
+        var plan = Viewport.revealPlan(target, nav.root, horizontal)
+        if (plan === null)
+            return false
+        if (!Viewport.applyPlan(plan, horizontal, maxDistance))
+            return false
+        if (!nav._centerVisibleThroughClips(target))
+            return false
         target.forceActiveFocus(reason)
         return target.activeFocus === true
     }
@@ -248,6 +418,9 @@ Item {
     function handle(event) {
         if (!event || !nav.isDirectionalKey(event.key))
             return false
+        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+            return false
+        nav.beginNavigation(event.key)
         if (!nav.move(event.key))
             return false
         event.accepted = true

@@ -23,10 +23,25 @@ Item {
     property bool keyboardRecentlyMoved: false
     property int keyboardQuietMs: 220
     property int positionMode: GridView.Contain
+    // Optional collection geometry/identity seams. Native views may supply these
+    // without requiring delegate realization or a scan of instantiated children.
+    property var rowLengths: null
+    property var rowForIndex: null
+    property var identityForIndex: null
+    property var indexForIdentity: null
+    property int modelRevision: 0
+    property var _laneReturnId: null
+    property int _laneReturnColumn: -1
+    property int _laneReturnRow: -1
+    property int _laneRevision: -1
 
     signal activated(int index)
     signal contextRequested(int index)
     signal reorderRequested(int fromIndex, int toIndex)
+
+    onModelRevisionChanged: nav.invalidateLane()
+    onViewChanged: nav.invalidateLane()
+    onCountChanged: nav.invalidateLane()
 
     visible: false
 
@@ -45,6 +60,91 @@ Item {
         if (nav.view && nav.view.currentIndex !== undefined)
             return nav.view.currentIndex
         return nav.currentIndex
+    }
+
+    function invalidateLane() {
+        nav._laneReturnId = null
+        nav._laneReturnColumn = -1
+        nav._laneReturnRow = -1
+        nav._laneRevision = nav.modelRevision
+    }
+
+    function _syncLaneRevision() {
+        if (nav._laneRevision !== nav.modelRevision)
+            nav.invalidateLane()
+    }
+
+    function _rowFor(index) {
+        if (nav.rowForIndex)
+            return Math.max(0, Number(nav.rowForIndex(index)))
+        if (nav.rowLengths && nav.rowLengths.length) {
+            var start = 0
+            for (var row = 0; row < nav.rowLengths.length; ++row) {
+                var length = Math.max(0, Number(nav.rowLengths[row]))
+                if (index < start + length)
+                    return row
+                start += length
+            }
+            return Math.max(0, nav.rowLengths.length - 1)
+        }
+        return Math.floor(Math.max(0, index) / Math.max(1, nav.columns))
+    }
+
+    function _rowLength(row) {
+        if (row < 0)
+            return 0
+        if (nav.rowLengths && nav.rowLengths.length)
+            return Math.max(0, Number(nav.rowLengths[row] || 0))
+        var start = row * Math.max(1, nav.columns)
+        return Math.max(0, Math.min(Math.max(1, nav.columns), nav.count - start))
+    }
+
+    function _columnFor(index) {
+        if (nav.rowLengths && nav.rowLengths.length) {
+            var start = 0
+            for (var row = 0; row < nav.rowLengths.length; ++row) {
+                var length = Math.max(0, Number(nav.rowLengths[row]))
+                if (index < start + length)
+                    return index - start
+                start += length
+            }
+        }
+        return Math.max(0, index) % Math.max(1, nav.columns)
+    }
+
+    function _indexForRowColumn(row, column) {
+        if (row < 0 || row >= (nav.rowLengths && nav.rowLengths.length
+                ? nav.rowLengths.length : Math.ceil(nav.count / Math.max(1, nav.columns))))
+            return -1
+        var length = nav._rowLength(row)
+        if (length <= 0)
+            return -1
+        var targetColumn = Math.max(0, Math.min(length - 1, column))
+        if (nav.rowLengths && nav.rowLengths.length) {
+            var start = 0
+            for (var i = 0; i < row; ++i)
+                start += Math.max(0, Number(nav.rowLengths[i]))
+            return start + targetColumn
+        }
+        return row * Math.max(1, nav.columns) + targetColumn
+    }
+
+    function _identityAt(index) {
+        if (nav.identityForIndex)
+            return nav.identityForIndex(index)
+        if (nav.view && nav.view.identityForIndex)
+            return nav.view.identityForIndex(index)
+        return null
+    }
+
+    function _indexForIdentity(identity) {
+        if (identity === null || identity === undefined || identity === "")
+            return -1
+        var result = nav.indexForIdentity
+            ? nav.indexForIdentity(identity)
+            : (nav.view && nav.view.indexForIdentity
+                ? nav.view.indexForIdentity(identity) : -1)
+        return isFinite(Number(result)) ? Number(result) : -1
     }
     function moveTo(index, focusReason) {
         const n = Math.max(0, nav.count)
@@ -105,24 +205,21 @@ Item {
         const next = index + step
         if (next < 0 || next >= nav.count)
             return false
-        if (nav.orientation === "grid" && Math.abs(step) === 1) {
-            const cols = Math.max(1, nav.columns)
-            return Math.floor(index / cols) === Math.floor(next / cols)
-        }
+        if (nav.orientation === "grid" && Math.abs(step) === 1)
+            return nav._rowFor(index) === nav._rowFor(next)
         return true
     }
 
     function directionalTarget(index, key) {
+        nav._syncLaneRevision()
         if (nav.orientation !== "grid") {
             const step = nav.stepForKey(key)
             return nav.stepAllowed(index, step) ? index + step : -1
         }
 
-        const cols = Math.max(1, nav.columns)
-        const row = Math.floor(index / cols)
-        const column = index % cols
-        const rowStart = row * cols
-        const rowLength = Math.min(cols, Math.max(0, nav.count - rowStart))
+        const row = nav._rowFor(index)
+        const column = nav._columnFor(index)
+        const rowLength = nav._rowLength(row)
 
         if (key === Qt.Key_Left)
             return column > 0 ? index - 1 : -1
@@ -133,11 +230,17 @@ Item {
             : (key === Qt.Key_Down ? row + 1 : -1)
         if (targetRow < 0)
             return -1
-        const targetStart = targetRow * cols
-        if (targetStart >= nav.count)
+        if (targetRow < 0 || nav._rowLength(targetRow) <= 0)
             return -1
-        const targetLength = Math.min(cols, nav.count - targetStart)
-        return targetStart + Math.min(column, targetLength - 1)
+        var intendedColumn = column
+        if (key === Qt.Key_Up && nav._laneReturnId !== null) {
+            var returned = nav._indexForIdentity(nav._laneReturnId)
+            if (returned >= 0 && nav._rowFor(returned) === targetRow)
+                return returned
+            if (nav._laneReturnColumn >= 0)
+                intendedColumn = nav._laneReturnColumn
+        }
+        return nav._indexForRowColumn(targetRow, intendedColumn)
     }
 
     function reorderDeltaFor(event) {
@@ -181,9 +284,21 @@ Item {
 
         const directional = nav.directionalTarget(index, event.key)
         if (directional >= 0 && directional !== index) {
+            const vertical = nav.orientation === "grid"
+                && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)
+            if (vertical && event.key === Qt.Key_Down) {
+                nav._laneReturnId = nav._identityAt(index)
+                nav._laneReturnColumn = nav._columnFor(index)
+                nav._laneReturnRow = nav._rowFor(index)
+                nav._laneRevision = nav.modelRevision
+            } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                nav.invalidateLane()
+            }
             const backward = event.key === Qt.Key_Up || event.key === Qt.Key_Left
             const reason = backward ? Qt.BacktabFocusReason : Qt.TabFocusReason
             if (nav.moveTo(directional, reason)) {
+                if (vertical && event.key === Qt.Key_Up)
+                    nav.invalidateLane()
                 event.accepted = true
                 return true
             }

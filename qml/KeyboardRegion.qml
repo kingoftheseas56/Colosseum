@@ -15,6 +15,8 @@ FocusScope {
     property Item tabPrevious: null
     property Item returnFocusItem: null
     property bool trapTab: false
+    property var returnSnapshot: null
+    property alias spatialNavigator: spatialNav
 
     signal escapeRequested()
     signal boundaryTabRequested(bool forward)
@@ -22,6 +24,11 @@ FocusScope {
     KeyboardSpatialNavigator {
         id: spatialNav
         root: region
+    }
+
+    onActiveFocusChanged: {
+        if (!region.activeFocus)
+            spatialNav.cancelNavigation("focus")
     }
 
     function _isVisibleEnabled(item) {
@@ -84,6 +91,54 @@ FocusScope {
         return _isFocusable(item, true)
     }
 
+    function _stableIdentity(item) {
+        if (!item)
+            return ""
+        if (item.stableId !== undefined && item.stableId !== null)
+            return String(item.stableId)
+        return item.objectName || ""
+    }
+
+    function _scrollSnapshot(item) {
+        var result = []
+        for (var node = item; node; node = node.parent) {
+            if (node.contentX !== undefined && node.contentY !== undefined)
+                result.push({ flick: node, x: Number(node.contentX), y: Number(node.contentY) })
+            if (node === region)
+                break
+        }
+        return result
+    }
+
+    function _snapshotTarget(snapshot) {
+        if (!snapshot)
+            return null
+        if (_validInternal(snapshot.item))
+            return snapshot.item
+        if (!snapshot.identity)
+            return null
+        var items = region.focusableItems()
+        for (var i = 0; i < items.length; ++i) {
+            if (_stableIdentity(items[i]) === snapshot.identity)
+                return items[i]
+        }
+        return null
+    }
+
+    function _restoreScrollSnapshot(snapshot) {
+        if (!snapshot || !snapshot.scrolls)
+            return
+        for (var i = 0; i < snapshot.scrolls.length; ++i) {
+            var saved = snapshot.scrolls[i]
+            if (!saved.flick || saved.flick.visible === false || saved.flick.enabled === false)
+                continue
+            if (saved.flick.contentX !== undefined)
+                saved.flick.contentX = saved.x
+            if (saved.flick.contentY !== undefined)
+                saved.flick.contentY = saved.y
+        }
+    }
+
     function _focus(item, reason) {
         if (!_isFocusable(item, false))
             return false
@@ -110,12 +165,25 @@ FocusScope {
         if (!_validInternal(item))
             return false
         region.lastFocusItem = item
+        region.returnSnapshot = {
+            item: item,
+            identity: _stableIdentity(item),
+            scrolls: _scrollSnapshot(item)
+        }
         return true
     }
 
     function restoreFocus() {
         if (_isFocusable(region.returnFocusItem, false))
             return _focus(region.returnFocusItem, Qt.PopupFocusReason)
+        var snapshotTarget = _snapshotTarget(region.returnSnapshot)
+        if (snapshotTarget) {
+            _restoreScrollSnapshot(region.returnSnapshot)
+            return _focus(snapshotTarget, Qt.PopupFocusReason)
+        }
+        // A removed invoker must not keep stale identity or scroll state alive
+        // for a later, unrelated route return.
+        region.returnSnapshot = null
         return region.focusEntry()
     }
 
@@ -146,6 +214,7 @@ FocusScope {
     function handleKey(key, modifiers, event) {
         var mods = modifiers === undefined ? Qt.NoModifier : modifiers
         if (key === Qt.Key_Escape) {
+            spatialNav.cancelNavigation("escape")
             region.escapeRequested()
             if (event)
                 event.accepted = true
@@ -178,5 +247,9 @@ FocusScope {
 
     Keys.onPressed: function(event) {
         region.handleKey(event.key, event.modifiers, event)
+    }
+
+    Keys.onReleased: function(event) {
+        spatialNav.handleRelease(event)
     }
 }

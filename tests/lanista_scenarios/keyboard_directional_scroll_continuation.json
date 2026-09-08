@@ -1,0 +1,33 @@
+{
+  "name": "arc41-keyboard-directional-scroll-continuation",
+  "comment": "Packet 5 bounded continuation probe. One fresh tagged session covers Home viewport crossing and stops after supported reads; route-return is tested in a separate invocation to keep the Escape/read boundary isolated.",
+  "steps": [
+    { "cmd": "ping", "label": "isolated session",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "boot splash leaves",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "continue local",
+      "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "shell appears",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "Home viewport baseline",
+      "payload": { "object": "homePageFlickable", "props": [ "visible", "activeFocus", "contentY", "contentHeight", "height" ] },
+      "expect": [ { "path": "props.visible", "op": "==", "value": "true" },
+                  { "path": "props.contentHeight", "op": ">", "value": "0" } ] },
+    { "cmd": "ui-keypress", "label": "Down crosses Home viewport",
+      "payload": { "key": "Down" } },
+    { "cmd": "qml-get", "label": "Home viewport after first Down",
+      "payload": { "object": "homePageFlickable", "props": [ "visible", "activeFocus", "contentY" ] },
+      "expect": [ { "path": "props.visible", "op": "==", "value": "true" },
+                  { "path": "props.contentY", "op": "exists" } ] },
+    { "cmd": "ui-keypress", "label": "second Down continues Home crossing",
+      "payload": { "key": "Down" } },
+    { "cmd": "qml-get", "label": "Home viewport after second Down",
+      "payload": { "object": "homePageFlickable", "props": [ "visible", "activeFocus", "contentY" ] },
+      "expect": [ { "path": "props.visible", "op": "==", "value": "true" },
+                  { "path": "props.contentY", "op": "exists" } ] }
+  ]
+}

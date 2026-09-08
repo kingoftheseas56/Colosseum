@@ -3051,3 +3051,27 @@ set_tests_properties(colosseum.player1_error_contract PROPERTIES
     LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Arc 41 Packet 4: preserve the distinction between a repeated key press and
+# the final release. Qt Quick keyClick() exercises taps, so this small native
+# seam keeps held-key evidence explicit without introducing a second repeat
+# implementation.
+add_executable(tst_keyboard_key_events
+    auto/keyboard/tst_keyboard_key_events.cpp)
+target_link_libraries(tst_keyboard_key_events PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+set_target_properties(tst_keyboard_key_events PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET tst_keyboard_key_events POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_keyboard_key_events>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.keyboard_key_events
+         COMMAND tst_keyboard_key_events)
+set_tests_properties(colosseum.qttest.keyboard_key_events PROPERTIES
+    LABELS "unit;qttest;keyboard"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
