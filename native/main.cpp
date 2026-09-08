@@ -587,6 +587,28 @@ int main(int argc, char *argv[]) {
               qUtf8Printable(appDataMigration.logPath));
     }
 
+    QString startupManifestPathOverride;
+#if defined(Q_OS_ANDROID)
+    // Android packages the filtered source-shaped runtime under assets:/. Materialize
+    // it once per content hash into app-private storage before any owner resolves
+    // checkout-relative qml/assets/resources paths.
+    QString runtimeBundleError;
+    const QString runtimeCacheRoot = QDir(instanceAppData).filePath(QStringLiteral("runtime"));
+    const auto runtimeRoot = materializeRuntimeBundle(
+        QStringLiteral("assets:/colosseum-runtime"), runtimeCacheRoot, &runtimeBundleError);
+    if (!runtimeRoot) {
+        qCritical("[boot] Android runtime bundle rejected: %s",
+                  qUtf8Printable(runtimeBundleError));
+        return -1;
+    }
+    if (!QDir::setCurrent(*runtimeRoot)) {
+        qCritical("[boot] Android runtime root unavailable: %s", qUtf8Printable(*runtimeRoot));
+        return -1;
+    }
+    startupManifestPathOverride =
+        QDir(*runtimeRoot).filePath(QStringLiteral("qml-build.manifest"));
+#endif
+
     // Shared QML binds to PlayerItem; each host supplies its native playback engine.
 #if defined(Q_OS_ANDROID)
     qmlRegisterType<AndroidMedia3Item>("Colosseum.Player", 1, 0, "PlayerItem");
@@ -836,7 +858,8 @@ int main(int argc, char *argv[]) {
 #endif
     QString startupLayoutError;
     const auto startupLayout = resolveStartupLayout(
-        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(), &startupLayoutError);
+        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(),
+        &startupLayoutError, startupManifestPathOverride);
     if (!startupLayout) {
         qCritical("[boot] startup layout rejected: %s", qUtf8Printable(startupLayoutError));
         return -1;

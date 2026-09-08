@@ -675,11 +675,30 @@ if(ANDROID)
         player/powerstore.cpp
         player/powerstore.h
     )
-    # Android deploys/scans a filtered QML tree. Keep desktop-only QML in source,
-    # but never expose it to androiddeployqt/qmlimportscanner.
+    # Android needs the same source-shaped runtime tree as desktop, but APKs cannot
+    # read a checkout beside the native library. Build a generated package overlay
+    # whose assets/colosseum-runtime tree is filtered for Android and can be copied
+    # into the app-private filesystem before any source-relative owner is constructed.
     set(COLOSSEUM_QML_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../qml")
-    set(COLOSSEUM_ANDROID_QML_ROOT "${CMAKE_CURRENT_BINARY_DIR}/android-qml")
-    file(REMOVE_RECURSE "${COLOSSEUM_ANDROID_QML_ROOT}")
+    set(COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform/android")
+    set(COLOSSEUM_ANDROID_PACKAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/android-package")
+    set(COLOSSEUM_ANDROID_RUNTIME_ROOT
+        "${COLOSSEUM_ANDROID_PACKAGE_DIR}/assets/colosseum-runtime")
+    set(COLOSSEUM_ANDROID_QML_ROOT "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/qml")
+    file(REMOVE_RECURSE "${COLOSSEUM_ANDROID_PACKAGE_DIR}")
+    file(MAKE_DIRECTORY "${COLOSSEUM_ANDROID_QML_ROOT}")
+
+    file(GLOB_RECURSE COLOSSEUM_ANDROID_PACKAGE_FILES CONFIGURE_DEPENDS
+        LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}"
+        "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/*")
+    foreach(_package_rel IN LISTS COLOSSEUM_ANDROID_PACKAGE_FILES)
+        get_filename_component(_package_out_dir
+            "${COLOSSEUM_ANDROID_PACKAGE_DIR}/${_package_rel}" DIRECTORY)
+        file(MAKE_DIRECTORY "${_package_out_dir}")
+        configure_file("${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/${_package_rel}"
+                       "${COLOSSEUM_ANDROID_PACKAGE_DIR}/${_package_rel}" COPYONLY)
+    endforeach()
+
     file(GLOB_RECURSE COLOSSEUM_ANDROID_QML_FILES CONFIGURE_DEPENDS
         LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_QML_SOURCE_ROOT}"
         "${COLOSSEUM_QML_SOURCE_ROOT}/*")
@@ -692,6 +711,25 @@ if(ANDROID)
         configure_file("${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_rel}"
                        "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" COPYONLY)
     endforeach()
+
+    # Preserve the sibling paths used by QML and native catalogue/extension owners.
+    foreach(_runtime_dir IN ITEMS assets resources)
+        set(_runtime_source_root "${CMAKE_CURRENT_SOURCE_DIR}/../${_runtime_dir}")
+        file(GLOB_RECURSE _runtime_files CONFIGURE_DEPENDS
+            LIST_DIRECTORIES false RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/.."
+            "${_runtime_source_root}/*")
+        # Android's AssetManager does not expose dotfiles even when they are present
+        # in the source tree. They are development metadata here, never runtime data.
+        list(FILTER _runtime_files EXCLUDE REGEX "(^|/)[.][^/]+")
+        foreach(_runtime_rel IN LISTS _runtime_files)
+            get_filename_component(_runtime_out_dir
+                "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/${_runtime_rel}" DIRECTORY)
+            file(MAKE_DIRECTORY "${_runtime_out_dir}")
+            configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../${_runtime_rel}"
+                           "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/${_runtime_rel}" COPYONLY)
+        endforeach()
+    endforeach()
+
     # The staged qmldir must not advertise the desktop Paper type after its file is excluded.
     set(_android_reader_qmldir "${COLOSSEUM_ANDROID_QML_ROOT}/reader2/qmldir")
     if(EXISTS "${_android_reader_qmldir}")
@@ -700,10 +738,29 @@ if(ANDROID)
         string(REPLACE "Paper Paper.qml\n" "" _android_reader_qmldir_text "${_android_reader_qmldir_text}")
         file(WRITE "${_android_reader_qmldir}" "${_android_reader_qmldir_text}")
     endif()
+
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+                "-DQML_ROOT=${COLOSSEUM_ANDROID_QML_ROOT}"
+                "-DOUTPUT_FILE=${COLOSSEUM_ANDROID_RUNTIME_ROOT}/qml-build.manifest"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/bootstrap/write_qml_build_manifest.cmake"
+        RESULT_VARIABLE _android_qml_manifest_result)
+    if(NOT _android_qml_manifest_result EQUAL 0)
+        message(FATAL_ERROR "Failed to create Android qml-build.manifest")
+    endif()
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+                "-DRUNTIME_ROOT=${COLOSSEUM_ANDROID_RUNTIME_ROOT}"
+                "-DOUTPUT_FILE=${COLOSSEUM_ANDROID_RUNTIME_ROOT}/runtime-files.manifest"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/bootstrap/write_runtime_bundle_manifest.cmake"
+        RESULT_VARIABLE _android_runtime_manifest_result)
+    if(NOT _android_runtime_manifest_result EQUAL 0)
+        message(FATAL_ERROR "Failed to create Android runtime-files.manifest")
+    endif()
+
     set_property(TARGET colosseum PROPERTY QT_QML_ROOT_PATH "${COLOSSEUM_ANDROID_QML_ROOT}")
-    # Overlay Colosseum Android Java/Kotlin/resources on Qt's default package template.
     set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-        "${CMAKE_CURRENT_SOURCE_DIR}/platform/android")
+        "${COLOSSEUM_ANDROID_PACKAGE_DIR}")
     # First-APK contract: one supported ABI on Qt 6.11's Android 9/API 28 floor,
     # compiled and targeted against the installed API 36 platform.
     set_target_properties(colosseum PROPERTIES

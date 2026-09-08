@@ -1,5 +1,6 @@
 #include "bootstrap/StartupLayout.h"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QDirIterator>
@@ -38,6 +39,22 @@ bool validFingerprint(const QString& value)
     }
     return true;
 }
+
+bool validRuntimeRelativePath(const QString& relative)
+{
+    if (relative.isEmpty() || QFileInfo(relative).isAbsolute())
+        return false;
+    const QString normalized = QString(relative).replace('\\', '/');
+    const QString clean = QDir::cleanPath(normalized).replace('\\', '/');
+    return clean == normalized
+           && clean != QStringLiteral("..")
+           && !clean.startsWith(QStringLiteral("../"));
+}
+
+struct RuntimeBundleFile {
+    QString relative;
+    QByteArray sha256;
+};
 
 } // namespace
 
@@ -84,9 +101,130 @@ QString qmlTreeFingerprint(const QString& qmlRoot, QString* error)
         QCryptographicHash::hash(material, QCryptographicHash::Sha256).toHex());
 }
 
+std::optional<QString> materializeRuntimeBundle(const QString& sourceRoot,
+                                                const QString& cacheRoot,
+                                                QString* error)
+{
+    if (error)
+        error->clear();
+
+    const QDir source(sourceRoot);
+    QFile manifest(source.filePath(QStringLiteral("runtime-files.manifest")));
+    if (!manifest.open(QIODevice::ReadOnly)) {
+        setError(error, QStringLiteral("runtime_bundle_manifest_missing: ") + manifest.fileName());
+        return std::nullopt;
+    }
+    const QByteArray manifestBytes = manifest.readAll();
+    if (manifestValue(manifestBytes, QByteArrayLiteral("schema")) != QLatin1String("1")) {
+        setError(error, QStringLiteral("runtime_bundle_manifest_schema_invalid: ") + manifest.fileName());
+        return std::nullopt;
+    }
+    const QString bundleHash = manifestValue(manifestBytes, QByteArrayLiteral("bundleSha256")).toLower();
+    if (!validFingerprint(bundleHash)) {
+        setError(error, QStringLiteral("runtime_bundle_manifest_fingerprint_invalid: ") + manifest.fileName());
+        return std::nullopt;
+    }
+
+    QList<RuntimeBundleFile> files;
+    for (const QByteArray& line : manifestBytes.split('\n')) {
+        if (!line.startsWith("file="))
+            continue;
+        const QByteArray payload = line.mid(5);
+        const qsizetype tab = payload.indexOf('\t');
+        if (tab <= 0) {
+            setError(error, QStringLiteral("runtime_bundle_manifest_entry_invalid: ") + QString::fromUtf8(line));
+            return std::nullopt;
+        }
+        RuntimeBundleFile entry;
+        entry.relative = QString::fromUtf8(payload.left(tab));
+        entry.sha256 = payload.mid(tab + 1).trimmed().toLower();
+        if (!validRuntimeRelativePath(entry.relative)
+            || !validFingerprint(QString::fromLatin1(entry.sha256))) {
+            setError(error, QStringLiteral("runtime_bundle_manifest_entry_invalid: ") + QString::fromUtf8(line));
+            return std::nullopt;
+        }
+        files.push_back(entry);
+    }
+    if (files.isEmpty()) {
+        setError(error, QStringLiteral("runtime_bundle_manifest_empty: ") + manifest.fileName());
+        return std::nullopt;
+    }
+
+    QDir().mkpath(cacheRoot);
+    const QString bundleRoot = QDir(cacheRoot).filePath(bundleHash);
+    const QString markerPath = QDir(bundleRoot).filePath(QStringLiteral(".runtime-files.manifest"));
+    QFile marker(markerPath);
+    if (QFileInfo(QDir(bundleRoot).filePath(QStringLiteral("qml/Main.qml"))).isFile()
+        && QFileInfo(QDir(bundleRoot).filePath(QStringLiteral("qml-build.manifest"))).isFile()
+        && marker.open(QIODevice::ReadOnly)
+        && marker.readAll() == manifestBytes) {
+        return QFileInfo(bundleRoot).absoluteFilePath();
+    }
+
+    const QString tempRoot = bundleRoot + QStringLiteral(".tmp-")
+                             + QString::number(QCoreApplication::applicationPid());
+    QDir(tempRoot).removeRecursively();
+    if (!QDir().mkpath(tempRoot)) {
+        setError(error, QStringLiteral("runtime_bundle_cache_create_failed: ") + tempRoot);
+        return std::nullopt;
+    }
+
+    for (const RuntimeBundleFile& entry : files) {
+        QFile input(source.filePath(entry.relative));
+        if (!input.open(QIODevice::ReadOnly)) {
+            setError(error, QStringLiteral("runtime_bundle_source_unreadable: ") + input.fileName());
+            QDir(tempRoot).removeRecursively();
+            return std::nullopt;
+        }
+        const QByteArray bytes = input.readAll();
+        const QByteArray actual = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
+        if (actual.compare(entry.sha256, Qt::CaseInsensitive) != 0) {
+            setError(error, QStringLiteral("runtime_bundle_source_mismatch: ") + entry.relative);
+            QDir(tempRoot).removeRecursively();
+            return std::nullopt;
+        }
+
+        const QString outputPath = QDir(tempRoot).filePath(entry.relative);
+        if (!QDir().mkpath(QFileInfo(outputPath).absolutePath())) {
+            setError(error, QStringLiteral("runtime_bundle_cache_create_failed: ") + outputPath);
+            QDir(tempRoot).removeRecursively();
+            return std::nullopt;
+        }
+        QFile output(outputPath);
+        if (!output.open(QIODevice::WriteOnly | QIODevice::Truncate)
+            || output.write(bytes) != bytes.size()) {
+            setError(error, QStringLiteral("runtime_bundle_cache_write_failed: ") + outputPath);
+            QDir(tempRoot).removeRecursively();
+            return std::nullopt;
+        }
+    }
+
+    QFile tempMarker(QDir(tempRoot).filePath(QStringLiteral(".runtime-files.manifest")));
+    if (!tempMarker.open(QIODevice::WriteOnly | QIODevice::Truncate)
+        || tempMarker.write(manifestBytes) != manifestBytes.size()) {
+        setError(error, QStringLiteral("runtime_bundle_cache_write_failed: ") + tempMarker.fileName());
+        QDir(tempRoot).removeRecursively();
+        return std::nullopt;
+    }
+    tempMarker.close();
+
+    if (QFileInfo::exists(bundleRoot) && !QDir(bundleRoot).removeRecursively()) {
+        setError(error, QStringLiteral("runtime_bundle_cache_replace_failed: ") + bundleRoot);
+        QDir(tempRoot).removeRecursively();
+        return std::nullopt;
+    }
+    if (!QDir().rename(tempRoot, bundleRoot)) {
+        setError(error, QStringLiteral("runtime_bundle_cache_publish_failed: ") + bundleRoot);
+        QDir(tempRoot).removeRecursively();
+        return std::nullopt;
+    }
+    return QFileInfo(bundleRoot).absoluteFilePath();
+}
+
 std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
                                                   const QString& applicationDirPath,
-                                                  QString* error)
+                                                  QString* error,
+                                                  const QString& manifestPathOverride)
 {
     if (error)
         error->clear();
@@ -141,8 +279,9 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
 
     const QString qmlRoot = resourceRoot.filePath(QStringLiteral("qml"));
 
-    const QString manifestPath =
-        QDir(applicationDirPath).filePath(QStringLiteral("qml-build.manifest"));
+    const QString manifestPath = manifestPathOverride.isEmpty()
+        ? QDir(applicationDirPath).filePath(QStringLiteral("qml-build.manifest"))
+        : manifestPathOverride;
     QFile manifest(manifestPath);
     if (!manifest.open(QIODevice::ReadOnly)) {
         setError(error, QStringLiteral("qml_build_manifest_missing: ") + manifestPath);
