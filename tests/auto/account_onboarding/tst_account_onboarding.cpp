@@ -6,7 +6,6 @@
 #include "account/AccountDeviceIdentity.h"
 #include "account/AccountProfileCoordinator.h"
 #include "account/AccountRecoveryKeyPresenter.h"
-#include "account/AccountServiceEndpoint.h"
 #include "AccountFixtureTransport.h"
 #include "MemoryAccountCredentialStore.h"
 #include "MemoryAccountOneTimeSecretSink.h"
@@ -19,7 +18,6 @@
 #include <QMetaProperty>
 #include <QSignalSpy>
 #include <QTemporaryDir>
-#include <QUrl>
 #include <QtTest>
 
 #include <memory>
@@ -281,8 +279,6 @@ private slots:
     void presenterReportsClipboardFailure();
     void presenterClearsOnlyUnchangedClipboard();
     void presenterPreservesNewerClipboardContent();
-
-    void serviceEndpointHasNoInventedProductionDefault();
 };
 
 void tst_account_onboarding::initTestCase() {
@@ -1033,25 +1029,6 @@ presenterPreservesNewerClipboardContent() {
     QCOMPARE(
         clipboard.currentText(),
         QStringLiteral("newer user clipboard content"));
-}
-
-void tst_account_onboarding::
-serviceEndpointHasNoInventedProductionDefault() {
-    ScopedEnvironmentVariable restore(
-        "COLOSSEUM_ACCOUNT_SERVICE_URL");
-
-    qunsetenv("COLOSSEUM_ACCOUNT_SERVICE_URL");
-#ifndef COLOSSEUM_ACCOUNT_SERVICE_URL
-    QVERIFY(AccountServiceEndpoint::configuredUrl().isEmpty());
-#endif
-
-    qputenv(
-        "COLOSSEUM_ACCOUNT_SERVICE_URL",
-        QByteArrayLiteral("http://127.0.0.1:8099"));
-
-    QCOMPARE(
-        AccountServiceEndpoint::configuredUrl(),
-        QUrl(QStringLiteral("http://127.0.0.1:8099")));
 }
 
 QTEST_MAIN(tst_account_onboarding)

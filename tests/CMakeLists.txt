@@ -1963,9 +1963,7 @@ add_executable(tst_account_onboarding
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h")
 target_include_directories(tst_account_onboarding PRIVATE
     "${COLOSSEUM_NATIVE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
@@ -1987,6 +1985,30 @@ set_tests_properties(colosseum.qttest.account_onboarding PROPERTIES
     LABELS "unit;qttest;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Account endpoint resolution is isolated from the larger onboarding fixture so
+# a normal-launch persistence regression has one precise registered gate.
+add_executable(tst_account_service_endpoint
+    auto/account_service_endpoint/tst_account_service_endpoint.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h")
+target_include_directories(tst_account_service_endpoint PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_service_endpoint PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_account_service_endpoint PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_service_endpoint POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_service_endpoint
+         COMMAND tst_account_service_endpoint)
+set_tests_properties(colosseum.qttest.account_service_endpoint PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
 
 
 # ── First-account local-state adoption (Bundle 4B, Slice 11A) ─────────

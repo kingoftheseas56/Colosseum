@@ -6,6 +6,11 @@
 #include <QString>
 #include <QtGlobal>
 
+namespace {
+constexpr auto kProductionAccountServiceUrl =
+    "https://colosseum-account-service.onrender.com";
+}
+
 QUrl AccountServiceEndpoint::configuredUrl() {
     QString configured = QString::fromUtf8(
         qgetenv(environmentVariableName().constData()))
@@ -20,7 +25,7 @@ QUrl AccountServiceEndpoint::configuredUrl() {
 #endif
 
     if (configured.isEmpty())
-        return QUrl();
+        configured = QString::fromLatin1(kProductionAccountServiceUrl);
 
     return QUrl(configured);
 }

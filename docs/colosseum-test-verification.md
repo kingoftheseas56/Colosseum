@@ -10,6 +10,21 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Account restart persistence — app-owned endpoint fallback (2026-09-08)
+
+`colosseum.qttest.account_service_endpoint` is the registered deterministic
+endpoint-resolution contract. With
+`COLOSSEUM_ACCOUNT_SERVICE_URL` absent, `AccountServiceEndpoint` returns the production
+Render endpoint; an explicit environment value still wins for local and fixture services.
+The pre-fix implementation was used as the negative control and failed on the empty URL.
+
+The rebuilt `native/build-msvc/colosseum.exe` was then launched directly twice with the
+process environment variable deliberately removed and the existing Windows credential
+left untouched. On both launches Lanista matched `accountCenter.onlineAccount == true`,
+`accountCenter.accountPresent == true`, and `accountHost.visible == false`. This is
+runtime proof for normal restart restoration on this machine, not a cross-device sync
+qualification.
+
 ### Reader 2 Function 0007 gating update (2026-08-30)
 
 - `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.

@@ -12,12 +12,12 @@ option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
 
-# Empty by default: the public source carries no invented production endpoint.
-# AccountServiceEndpoint reads the environment variable first and only falls
-# back to this define, so a dev/test run can still point a baked release build
-# at a local service without reconfiguring it.
+# Optional build-time override. AccountServiceEndpoint reads the environment
+# first, then this define, then the app-owned production endpoint. This keeps
+# local/test routing explicit without making ordinary launches depend on an
+# inherited process environment.
 set(COLOSSEUM_ACCOUNT_SERVICE_URL "" CACHE STRING
-    "Account service base URL compiled into this build; empty leaves COLOSSEUM_ACCOUNT_SERVICE_URL in the environment as the only source")
+    "Optional account service base URL compiled into this build; empty uses the app-owned production endpoint")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
