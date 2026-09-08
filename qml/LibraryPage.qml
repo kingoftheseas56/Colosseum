@@ -36,6 +36,12 @@ Item {
                                     airingFilter: airingFilter, query: query }),
         sortMode)
 
+    onSortModeChanged: if (wallKeys) wallKeys.invalidateLane()
+    onTypeFilterChanged: if (wallKeys) wallKeys.invalidateLane()
+    onAiringFilterChanged: if (wallKeys) wallKeys.invalidateLane()
+    onStateFilterChanged: if (wallKeys) wallKeys.invalidateLane()
+    onQueryChanged: if (wallKeys) wallKeys.invalidateLane()
+
     // ── the floating ⋮ menu (rendered at root level; the wall GridView clips) ──
     property var menuRow: null
     property string menuRowId: ""

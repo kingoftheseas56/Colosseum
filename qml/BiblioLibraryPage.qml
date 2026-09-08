@@ -37,6 +37,10 @@ Item {
         sortMode)
     property int visibleCount: visibleRows.length
 
+    onSortModeChanged: if (wallKeys) wallKeys.invalidateLane()
+    onStateFilterChanged: if (wallKeys) wallKeys.invalidateLane()
+    onQueryChanged: if (wallKeys) wallKeys.invalidateLane()
+
     // ── the floating ⋮ menu (rendered at root level; the wall GridView clips) ──
     property var menuRow: null
     property string menuRowId: ""
@@ -57,6 +61,21 @@ Item {
         var entries = Collection.items("biblio")
         var plist = Progress.recent("book", 200)
         return Api.buildBiblioRows(entries, plist)
+    }
+
+    function keyboardIdentityAt(index) {
+        var row = root.visibleRows[index]
+        return row && row.entry && row.entry.id !== undefined
+            ? String(row.entry.id) : ""
+    }
+
+    function keyboardIndexForIdentity(identity) {
+        var wanted = String(identity || "")
+        for (var i = 0; i < root.visibleRows.length; ++i) {
+            if (root.keyboardIdentityAt(i) === wanted)
+                return i
+        }
+        return -1
     }
 
     function toggleStateFilter(key) {
@@ -184,6 +203,9 @@ Item {
         anchors.topMargin: 22; anchors.bottomMargin: 18
         clip: true; boundsBehavior: Flickable.StopAtBounds
         model: root.visibleRows
+        property bool keyboardReturnOwner: true
+        property var keyboardIdentityForIndex: root.keyboardIdentityAt
+        property var keyboardIndexForIdentity: root.keyboardIndexForIdentity
         // fixed gallery poster size (148×222) matches ContinueTile / discover shelves — the
         // deliberate, consistent card size that reads as one family with the rest of the app.
         readonly property int posterW: 148

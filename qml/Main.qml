@@ -44,6 +44,7 @@ Window {
     // return snapshot so closing it restores the live page item and bounded
     // offsets without introducing a global focus history service.
     property var bookReturnSnapshot: null
+    property int bookRouteGeneration: 0
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
 
@@ -1915,9 +1916,69 @@ Window {
         return item.objectName ? String(item.objectName) : ""
     }
 
+    function _keyboardCollectionOwner(item) {
+        for (var node = item; node; node = node.parent) {
+            if (node.keyboardReturnOwner === true && node.currentIndex !== undefined)
+                return node
+            if (node === win)
+                break
+        }
+        return null
+    }
+
+    function _keyboardCollectionIdentity(owner, index) {
+        if (!owner || index < 0)
+            return ""
+        if (owner.keyboardIdentityForIndex)
+            return String(owner.keyboardIdentityForIndex(index) || "")
+        var items = owner.keyboardItems !== undefined ? owner.keyboardItems : owner.model
+        var value = items && items[index]
+        if (value && value.entry && value.entry.id !== undefined)
+            return String(value.entry.id)
+        if (value && value.id !== undefined)
+            return String(value.id)
+        return ""
+    }
+
+    function _keyboardCollectionIndex(owner, identity) {
+        if (!owner || !identity)
+            return -1
+        if (owner.keyboardIndexForIdentity)
+            return Number(owner.keyboardIndexForIdentity(identity))
+        var items = owner.keyboardItems !== undefined ? owner.keyboardItems : owner.model
+        var count = items && items.length !== undefined ? items.length : Number(owner.count || 0)
+        for (var i = 0; i < count; ++i) {
+            if (win._keyboardCollectionIdentity(owner, i) === String(identity))
+                return i
+        }
+        return -1
+    }
+
+    function _keyboardCollectionCount(owner) {
+        if (!owner)
+            return 0
+        var items = owner.keyboardItems !== undefined ? owner.keyboardItems : owner.model
+        if (items && items.length !== undefined)
+            return Number(items.length)
+        return Number(owner.count || 0)
+    }
+
+    function _keyboardCollectionTarget(owner, index) {
+        if (!owner)
+            return null
+        if (owner.itemAtIndex)
+            return owner.itemAtIndex(index)
+        if (owner.currentItem && owner.currentIndex === index)
+            return owner.currentItem
+        return owner
+    }
+
     function _captureBookReturn() {
         var item = win.activeFocusItem
-        var identity = win._stableKeyboardIdentity(item)
+        var owner = win._keyboardCollectionOwner(item)
+        var index = owner ? Number(owner.currentIndex) : -1
+        var identity = owner ? win._keyboardCollectionIdentity(owner, index)
+                             : win._stableKeyboardIdentity(item)
         if (!item || !identity)
             return null
         var scrolls = []
@@ -1928,12 +1989,37 @@ Window {
             if (node === win)
                 break
         }
-        return { item: item, identity: identity, scrolls: scrolls }
+        return {
+            item: item,
+            identity: identity,
+            owner: owner,
+            index: index,
+            scrolls: scrolls
+        }
     }
 
-    function _restoreBookReturn(snapshot) {
-        if (!snapshot || !snapshot.item
-                || win._stableKeyboardIdentity(snapshot.item) !== snapshot.identity)
+    function _restoreBookReturn(snapshot, generation) {
+        if (!snapshot || (generation !== undefined && generation !== win.bookRouteGeneration))
+            return false
+        var target = null
+        if (snapshot.owner && snapshot.owner.visible !== false && snapshot.owner.enabled !== false) {
+            var index = win._keyboardCollectionIndex(snapshot.owner, snapshot.identity)
+            var count = win._keyboardCollectionCount(snapshot.owner)
+            if (index < 0 && count > 0)
+                index = Math.max(0, Math.min(count - 1, snapshot.index))
+            if (index >= 0 && count > 0) {
+                snapshot.owner.currentIndex = index
+                if (snapshot.owner.positionViewAtIndex)
+                    snapshot.owner.positionViewAtIndex(index, GridView.Contain)
+                target = win._keyboardCollectionTarget(snapshot.owner, index)
+            }
+            if (!target)
+                target = snapshot.owner
+        } else if (snapshot.item
+                   && win._stableKeyboardIdentity(snapshot.item) === snapshot.identity) {
+            target = snapshot.item
+        }
+        if (!target || target.visible === false || target.enabled === false)
             return false
         for (var i = 0; i < snapshot.scrolls.length; ++i) {
             var saved = snapshot.scrolls[i]
@@ -1953,22 +2039,28 @@ Window {
                 flick.contentY = Math.max(minY, Math.min(maxY, saved.y))
             }
         }
-        snapshot.item.forceActiveFocus(Qt.PopupFocusReason)
-        return snapshot.item.activeFocus === true
+        if (target.forceActiveFocus)
+            target.forceActiveFocus(Qt.PopupFocusReason)
+        return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
     function openBook(b) {
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
+        win.bookRouteGeneration += 1
         bookLayer.book = b
         bookLayer.active = true
     }
     function closeBook() {
+        var generation = ++win.bookRouteGeneration
         bookLayer.active = false
         var snapshot = win.bookReturnSnapshot
         win.bookReturnSnapshot = null
         if (snapshot)
-            Qt.callLater(function() { win._restoreBookReturn(snapshot) })
+            Qt.callLater(function() {
+                if (generation === win.bookRouteGeneration)
+                    win._restoreBookReturn(snapshot, generation)
+            })
     }
 
     // ---- the reader: the FRESH reader (reader2 — native QML chrome over the vendored Anx

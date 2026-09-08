@@ -21,6 +21,23 @@ Item {
 
     SwipeView {
         id: view
+        property bool keyboardReturnOwner: true
+        property var keyboardItems: car.slides
+        property var keyboardIdentityForIndex: function(index) {
+            var slide = car.slides[index]
+            var raw = slide && slide.raw
+            return raw && raw.id !== undefined ? String(raw.id)
+                : (slide && slide.id !== undefined ? String(slide.id)
+                   : (slide && slide.title !== undefined ? String(slide.title) : ""))
+        }
+        property var keyboardIndexForIdentity: function(identity) {
+            var wanted = String(identity || "")
+            for (var i = 0; i < car.slides.length; ++i) {
+                if (view.keyboardIdentityForIndex(i) === wanted)
+                    return i
+            }
+            return -1
+        }
         anchors.fill: parent
         clip: true
         focusPolicy: car.slides.length > 0 ? Qt.TabFocus : Qt.NoFocus

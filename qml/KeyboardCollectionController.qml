@@ -84,7 +84,14 @@ Item {
     }
 
     function _syncLaneRevision() {
-        if (nav._laneRevision !== nav.modelRevision)
+        if (nav._laneRevision === nav.modelRevision)
+            return
+        // A live pending lane is an incremental mutation contract: resolve its
+        // surviving identity against the new model before falling back to its
+        // remembered column. Replacement callers explicitly invalidateLane().
+        if (nav._lanePending)
+            nav._laneRevision = nav.modelRevision
+        else
             nav.invalidateLane()
     }
 
@@ -246,7 +253,8 @@ Item {
             return -1
         if (targetRow < 0 || nav._rowLength(targetRow) <= 0)
             return -1
-        var intendedColumn = column
+        var intendedColumn = nav._lanePending && nav._laneColumn >= 0
+            ? nav._laneColumn : column
         if (key === Qt.Key_Up && nav._lanePending) {
             var returned = nav._indexForIdentity(nav._laneReturnId)
             if (returned >= 0 && nav._rowFor(returned) === targetRow)
@@ -322,17 +330,22 @@ Item {
                 return true
             }
         }
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+            nav.invalidateLane()
         if (event.key === Qt.Key_Home) {
+            nav.invalidateLane()
             if (nav.moveTo(0, Qt.BacktabFocusReason)) {
                 event.accepted = true
                 return true
             }
         } else if (event.key === Qt.Key_End) {
+            nav.invalidateLane()
             if (nav.moveTo(nav.count - 1, Qt.TabFocusReason)) {
                 event.accepted = true
                 return true
             }
         } else if (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown) {
+            nav.invalidateLane()
             const page = nav.pageStep > 0 ? nav.pageStep : nav.defaultPageStep()
             const delta = event.key === Qt.Key_PageUp ? -page : page
             const reason = delta < 0 ? Qt.BacktabFocusReason : Qt.TabFocusReason

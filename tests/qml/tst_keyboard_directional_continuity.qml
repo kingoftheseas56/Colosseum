@@ -269,8 +269,44 @@ TestCase {
         verify(collectionNav.handle(down))
         compare(collection.selectedId, "B2")
         verify(collectionNav.handle(down))
-        compare(collection.selectedId, "C2")
+        compare(collection.selectedId, "C3")
         verify(collectionNav.handle(up))
+        verify(collectionNav.handle(up))
+        compare(collection.selectedId, "A3")
+    }
+
+    function test_lane_forward_retains_intended_column() {
+        collection.entries = [
+            { id: "A0" }, { id: "A1" }, { id: "A2" }, { id: "A3" },
+            { id: "B0" }, { id: "B1" }, { id: "B2" },
+            { id: "C0" }, { id: "C1" }, { id: "C2" }, { id: "C3" }
+        ]
+        collection.rowLengths = [4, 3, 4]
+        collection.modelRevision = 11
+        collection.currentIndex = 3
+        var down = { key: Qt.Key_Down, modifiers: Qt.NoModifier, accepted: false }
+        verify(collectionNav.handle(down))
+        compare(collection.selectedId, "B2")
+        verify(collectionNav.handle(down))
+        compare(collection.selectedId, "C3")
+    }
+
+    function test_revision_keeps_surviving_identity() {
+        collection.entries = [
+            { id: "A0" }, { id: "A1" }, { id: "A2" }, { id: "A3" },
+            { id: "B0" }, { id: "B1" }, { id: "B2" }
+        ]
+        collection.rowLengths = [4, 3]
+        collection.modelRevision = 21
+        collection.currentIndex = 3
+        var down = { key: Qt.Key_Down, modifiers: Qt.NoModifier, accepted: false }
+        var up = { key: Qt.Key_Up, modifiers: Qt.NoModifier, accepted: false }
+        verify(collectionNav.handle(down))
+        collection.entries = [
+            { id: "A0" }, { id: "A3" }, { id: "A1" }, { id: "A2" },
+            { id: "B0" }, { id: "B1" }, { id: "B2" }
+        ]
+        collection.modelRevision = 22
         verify(collectionNav.handle(up))
         compare(collection.selectedId, "A3")
     }

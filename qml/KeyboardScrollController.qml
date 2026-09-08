@@ -102,5 +102,9 @@ Item {
             event.accepted = true
         return handled
     }
+
+    function handleRelease(event) {
+        return spatial.handleRelease(event)
+    }
 }
 

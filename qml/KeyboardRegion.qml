@@ -113,7 +113,8 @@ FocusScope {
     function _snapshotTarget(snapshot) {
         if (!snapshot)
             return null
-        if (_validInternal(snapshot.item))
+        if (_validInternal(snapshot.item)
+                && (!snapshot.identity || _stableIdentity(snapshot.item) === snapshot.identity))
             return snapshot.item
         if (!snapshot.identity)
             return null
@@ -132,10 +133,18 @@ FocusScope {
             var saved = snapshot.scrolls[i]
             if (!saved.flick || saved.flick.visible === false || saved.flick.enabled === false)
                 continue
-            if (saved.flick.contentX !== undefined)
-                saved.flick.contentX = saved.x
-            if (saved.flick.contentY !== undefined)
-                saved.flick.contentY = saved.y
+            if (saved.flick.contentX !== undefined) {
+                var minX = saved.flick.originX - saved.flick.leftMargin
+                var maxX = Math.max(minX, saved.flick.originX + saved.flick.contentWidth
+                        - saved.flick.width + saved.flick.rightMargin)
+                saved.flick.contentX = Math.max(minX, Math.min(maxX, saved.x))
+            }
+            if (saved.flick.contentY !== undefined) {
+                var minY = saved.flick.originY - saved.flick.topMargin
+                var maxY = Math.max(minY, saved.flick.originY + saved.flick.contentHeight
+                        - saved.flick.height + saved.flick.bottomMargin)
+                saved.flick.contentY = Math.max(minY, Math.min(maxY, saved.y))
+            }
         }
     }
 

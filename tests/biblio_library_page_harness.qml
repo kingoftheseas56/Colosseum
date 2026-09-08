@@ -26,6 +26,23 @@ Item {
             // ── objectNames present (Lanista + harness address the page by name) ──
             ok(p.objectName === "biblioLibraryPage", "page objectName set");
 
+            // The retained Biblio wall exposes the route owner's semantic book
+            // identity. This is the return contract used when a detail layer
+            // closes after the selected row has moved or been removed.
+            p.visibleRows = [
+                { entry: { id: "book-a", title: "A" } },
+                { entry: { id: "book-b", title: "B" } },
+                { entry: { id: "book-c", title: "C" } }
+            ];
+            ok(p.keyboardIdentityAt(1) === "book-b", "Biblio wall identity resolves from the selected model row");
+            ok(p.keyboardIndexForIdentity("book-c") === 2, "Biblio wall resolves a surviving book identity");
+            p.visibleRows = [
+                { entry: { id: "book-a", title: "A" } },
+                { entry: { id: "book-c", title: "C" } }
+            ];
+            ok(p.keyboardIndexForIdentity("book-b") === -1,
+               "Biblio wall reports a removed selected identity for nearest-peer fallback");
+
             // ── detailRequested signal contract: forwards the exact entry ──
             var gotDetail = null;
             p.detailRequested.connect(function (entry) { gotDetail = entry; });

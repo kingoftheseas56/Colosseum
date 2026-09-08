@@ -230,6 +230,10 @@ Item {
     function handleRelease(event) {
         if (!event || !nav.isDirectionalKey(event.key))
             return false
+        // Platform auto-repeat releases are not the terminal release. Native
+        // owners may surface them while a held key is still active.
+        if (event.isAutoRepeat === true)
+            return true
         if (nav.navigationActive && nav.activeNavigationKey === event.key)
             nav.cancelNavigation("release")
         return true
@@ -264,13 +268,70 @@ Item {
         return null
     }
 
+    function _rootDistanceForLocalDelta(flick, horizontal, localDelta) {
+        if (!flick || !nav.root)
+            return Math.abs(Number(localDelta))
+        var before = flick.mapToItem(nav.root, 0, 0)
+        var after = flick.mapToItem(nav.root,
+            horizontal ? Number(localDelta) : 0,
+            horizontal ? 0 : Number(localDelta))
+        return horizontal ? Math.abs(after.x - before.x) : Math.abs(after.y - before.y)
+    }
+
+    function _localDistanceForRootBudget(flick, horizontal, rootDistance) {
+        var unit = nav._rootDistanceForLocalDelta(flick, horizontal, 1)
+        return unit > 0.000001 ? Number(rootDistance) / unit : Number(rootDistance)
+    }
+
+    function _hasUnsupportedTransform(item) {
+        for (var node = item; node; node = node.parent) {
+            if (Math.abs(Number(node.rotation || 0)) > 0.000001)
+                return true
+            var transforms = node.transform
+            if (transforms && transforms.length !== undefined) {
+                for (var i = 0; i < transforms.length; ++i) {
+                    var transform = transforms[i]
+                    if (transform && (Math.abs(Number(transform.angle || 0)) > 0.000001
+                            || Math.abs(Number(transform.rotation || 0)) > 0.000001))
+                        return true
+                }
+            }
+            if (node === nav.root)
+                break
+        }
+        return false
+    }
+
+    function _blockedNestedPath(fromItem, owner, target) {
+        for (var node = fromItem; node && node !== owner; node = node.parent) {
+            if (!Viewport.isFlickable(node))
+                continue
+            var controller = nav._scrollControllerFor(node)
+            if (controller && controller.arrowScrolling === false
+                    && (!target || Viewport.contains(node.contentItem, target)))
+                return true
+        }
+        return false
+    }
+
+    function _planAuthorized(plan) {
+        for (var i = 0; i < plan.length; ++i) {
+            var owner = plan[i].flick
+            var controller = nav._scrollControllerFor(owner)
+            if (controller && controller.arrowScrolling === false)
+                return false
+        }
+        return true
+    }
+
     function _directionalStep(flick, horizontal, controller) {
         var extent = horizontal ? Number(flick.width) : Number(flick.height)
         var configured = controller && controller.lineStep !== undefined
             ? Number(controller.lineStep) : Number(nav.scrollStep)
         if (!isFinite(extent) || !isFinite(configured) || extent <= 0 || configured <= 0)
             return 0
-        return Math.min(configured, extent * 0.25)
+        var localStep = Math.min(configured, extent * 0.25)
+        return nav._rootDistanceForLocalDelta(flick, horizontal, localStep)
     }
 
     function _rect(item) {
@@ -374,6 +435,8 @@ Item {
     function moveFrom(fromItem, key) {
         if (!nav.isDirectionalKey(key) || !fromItem || nav._isEditable(fromItem))
             return false
+        if (nav._hasUnsupportedTransform(fromItem))
+            return false
         var horizontal = key === Qt.Key_Left || key === Qt.Key_Right
         var forward = key === Qt.Key_Down || key === Qt.Key_Right
         var reason = (key === Qt.Key_Up || key === Qt.Key_Left)
@@ -396,9 +459,12 @@ Item {
                     local = nav.targetFrom(fromItem, key, owner.contentItem, true)
                 if (local && nav._land(local, key, reason, step))
                     return true
+                if (nav._blockedNestedPath(fromItem, owner, local))
+                    continue
                 if (step > 0 && Viewport.setPosition(owner, horizontal,
                         Viewport.position(owner, horizontal)
-                        + ((key === Qt.Key_Up || key === Qt.Key_Left) ? -step : step))) {
+                        + ((key === Qt.Key_Up || key === Qt.Key_Left) ? -1 : 1)
+                        * nav._localDistanceForRootBudget(owner, horizontal, step))) {
                     // The step is the complete budget for this event. A target that
                     // becomes visible after the write lands on the next key, avoiding
                     // a second reveal in the same transition.
@@ -428,7 +494,8 @@ Item {
             if (!nav._land(target, key, reason, targetStep)) {
                 if (targetStep > 0 && Viewport.setPosition(targetOwner, horizontal,
                         Viewport.position(targetOwner, horizontal)
-                        + (forward ? targetStep : -targetStep))) {
+                        + (forward ? 1 : -1)
+                        * nav._localDistanceForRootBudget(targetOwner, horizontal, targetStep))) {
                     targetOwner.forceActiveFocus(reason)
                     return true
                 }
@@ -448,8 +515,12 @@ Item {
         var horizontal = key === Qt.Key_Left || key === Qt.Key_Right
         if (maxDistance === undefined || !isFinite(Number(maxDistance)))
             maxDistance = nav.scrollStep
+        if (nav._hasUnsupportedTransform(target))
+            return false
         var plan = Viewport.revealPlan(target, nav.root, horizontal)
         if (plan === null)
+            return false
+        if (!nav._planAuthorized(plan))
             return false
         if (!Viewport.applyPlan(plan, horizontal, maxDistance))
             return false

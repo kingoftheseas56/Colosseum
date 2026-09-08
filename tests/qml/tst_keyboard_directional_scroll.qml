@@ -565,4 +565,79 @@ TestCase {
         verify(!unrelatedChrome.activeFocus)
         compare(mainFlick.contentY, before)
     }
+
+    function test_nested_optout_cannot_be_revealed_by_outer_owner() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Flickable {'
+            + 'id: outer; width: 300; height: 300; contentWidth: 300; contentHeight: 700; clip: true;'
+            + 'property alias innerFlick: inner; property alias source: source;'
+            + 'Flickable { id: inner; width: 250; height: 200; contentWidth: 250; contentHeight: 500; clip: true;'
+            + 'C.KeyboardAction { id: source; y: 20; width: 100; height: 30; pointerEnabled: false }'
+            + 'C.KeyboardAction { y: 220; width: 100; height: 30; pointerEnabled: false } }'
+            + 'C.KeyboardScrollController { flick: inner; arrowScrolling: false }'
+            + 'C.KeyboardScrollController { flick: outer }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: outer } property alias navigator: nav }', testWindow.contentItem)
+        testWindow.requestActivate()
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        wait(10)
+        verify(fixture.source.activeFocus)
+        fixture.navigator.moveFrom(fixture.source, Qt.Key_Down)
+        compare(fixture.innerFlick.contentY, 0)
+        fixture.destroy()
+    }
+
+    function test_nested_optout_allows_outer_only_continuation() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Flickable {'
+            + 'id: outer; width: 300; height: 200; contentWidth: 300; contentHeight: 600; clip: true;'
+            + 'property alias innerFlick: inner; property alias source: source; property alias outerTarget: outerTarget;'
+            + 'Flickable { id: inner; width: 250; height: 120; contentWidth: 250; contentHeight: 500; clip: true;'
+            + 'C.KeyboardAction { id: source; y: 20; width: 100; height: 30; pointerEnabled: false } }'
+            + 'C.KeyboardAction { id: outerTarget; y: 340; width: 100; height: 30; pointerEnabled: false }'
+            + 'C.KeyboardScrollController { flick: inner; arrowScrolling: false }'
+            + 'C.KeyboardScrollController { flick: outer; lineStep: 50 }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: outer } property alias navigator: nav }', testWindow.contentItem)
+        testWindow.requestActivate()
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        wait(10)
+        verify(fixture.source.activeFocus)
+        verify(fixture.navigator.moveFrom(fixture.source, Qt.Key_Down))
+        verify(fixture.innerFlick.contentY === 0)
+        verify(fixture.contentY > 0)
+        fixture.destroy()
+    }
+
+    function test_scale_uses_same_units_as_owner_budget() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 600; height: 450;'
+            + 'Flickable { id: fl; x: 80; y: 20; width: 300; height: 300; scale: 0.5; contentWidth: 300; contentHeight: 700; clip: true;'
+            + 'C.KeyboardAction { id: source; x: 20; y: 20; width: 100; height: 40; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: target; x: 20; y: 350; width: 100; height: 40; pointerEnabled: false } }'
+            + 'C.KeyboardScrollController { flick: fl; lineStep: 72 }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } property alias source: source; property alias flick: fl; property alias navigator: nav }', testWindow.contentItem)
+        testWindow.requestActivate()
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        wait(10)
+        verify(fixture.source.activeFocus)
+        fixture.navigator.moveFrom(fixture.source, Qt.Key_Down)
+        verify(fixture.flick.contentY <= 72)
+        fixture.destroy()
+    }
+
+    function test_rotated_owner_rejection_is_without_writes() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 600; height: 450;'
+            + 'Flickable { id: fl; x: 80; y: 20; width: 300; height: 300; rotation: 10; contentWidth: 300; contentHeight: 700; clip: true;'
+            + 'C.KeyboardAction { id: source; x: 20; y: 20; width: 100; height: 40; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: target; x: 20; y: 350; width: 100; height: 40; pointerEnabled: false } }'
+            + 'C.KeyboardScrollController { flick: fl; lineStep: 72 }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } property alias source: source; property alias flick: fl; property alias navigator: nav }', testWindow.contentItem)
+        testWindow.requestActivate()
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        wait(10)
+        verify(fixture.source.activeFocus)
+        fixture.navigator.moveFrom(fixture.source, Qt.Key_Down)
+        compare(fixture.flick.contentY, 0)
+        fixture.destroy()
+    }
 }

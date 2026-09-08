@@ -45,6 +45,21 @@ Column {
 
     Flickable {
         id: continueFlick
+        property bool keyboardReturnOwner: true
+        property var keyboardItems: cont.ordered
+        property var keyboardIdentityForIndex: function(index) {
+            var item = cont.ordered[index]
+            return item && item.id !== undefined ? String(item.id) : ""
+        }
+        property var keyboardIndexForIdentity: function(identity) {
+            var wanted = String(identity || "")
+            for (var i = 0; i < cont.ordered.length; ++i) {
+                var item = cont.ordered[i]
+                if (item && String(item.id) === wanted)
+                    return i
+            }
+            return -1
+        }
         property int currentIndex: cont.ordered.length > 0 ? 0 : -1
         width: parent.width; height: cont.tileHeight
         contentWidth: row.width; contentHeight: height
