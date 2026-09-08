@@ -44,7 +44,16 @@ Item {
     function _maxY() {
         if (!glide.flick)
             return 0
-        return Math.max(0, glide.flick.contentHeight - glide.flick.height)
+        var minimum = glide.flick.originY - glide.flick.topMargin
+        var end = glide.flick.originY + glide.flick.contentHeight
+                - glide.flick.height + glide.flick.bottomMargin
+        return Math.max(minimum, end)
+    }
+
+    function _minY() {
+        if (!glide.flick)
+            return 0
+        return glide.flick.originY - glide.flick.topMargin
     }
 
     function cancelGlide() {
@@ -92,7 +101,7 @@ Item {
 
         if (Math.abs(glide._pendingPx) < glide.settleEpsilonPx) {
             var settledY = Math.max(
-                0,
+                glide._minY(),
                 Math.min(glide._maxY(), glide._smoothY + glide._pendingPx)
             )
             glide._smoothY = settledY
@@ -134,8 +143,8 @@ Item {
         var maxY = glide._maxY()
         var y = glide._smoothY + take
 
-        if (y <= 0 || y >= maxY) {
-            y = Math.max(0, Math.min(maxY, y))
+        if (y <= glide._minY() || y >= maxY) {
+            y = Math.max(glide._minY(), Math.min(maxY, y))
 
             // Never carry hidden momentum beyond a hard boundary.
             glide._pendingPx = 0
@@ -220,13 +229,13 @@ Item {
         if (!glide.flick)
             return
         var maxY = glide._maxY()
-        var target = Math.max(0, Math.min(maxY, absoluteY))
+        var target = Math.max(glide._minY(), Math.min(maxY, absoluteY))
         // Absolute commands replace any wheel target already in flight.
         glide.cancelGlide()
         glide.smoothScrollBy(target - glide.flick.contentY)
     }
     function pageUp() { if (glide.flick) glide._animateTo(glide.flick.contentY - glide.flick.height * 0.85) }
     function pageDown() { if (glide.flick) glide._animateTo(glide.flick.contentY + glide.flick.height * 0.85) }
-    function toTop() { glide._animateTo(0) }
+    function toTop() { glide._animateTo(glide._minY()) }
     function toBottom() { glide._animateTo(glide._maxY()) }
 }

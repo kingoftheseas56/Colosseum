@@ -29,10 +29,12 @@ class tst_keyboard_key_events final : public QObject
     Q_OBJECT
 
 private slots:
-    void autoRepeatAndReleaseAreDistinctInputEvents();
+    // Metadata-only probe: this intentionally does not claim navigation-owner
+    // settlement. Qt Quick owner coverage belongs to the QML suites.
+    void autoRepeatAndReleaseMetadataProbe();
 };
 
-void tst_keyboard_key_events::autoRepeatAndReleaseAreDistinctInputEvents()
+void tst_keyboard_key_events::autoRepeatAndReleaseMetadataProbe()
 {
     KeyEventProbe probe;
     QKeyEvent initialPress(QEvent::KeyPress, Qt::Key_Down, Qt::NoModifier,

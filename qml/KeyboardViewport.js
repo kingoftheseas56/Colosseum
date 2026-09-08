@@ -81,6 +81,11 @@ function revealPlan(item, root, horizontal) {
     var plan = []
     for (var ancestor = item.parent; ancestor; ancestor = ancestor.parent) {
         if (ancestor.clip || ancestor === root) {
+            // Rotation changes the directional meaning of a local scroll delta;
+            // reject it before any owner is mutated. Scale/translation remain
+            // supported by recording movement in the root coordinate space.
+            if (Number(ancestor.rotation || 0) !== 0)
+                return null
             var p = item.mapToItem(ancestor, 0, 0)
             var q = item.mapToItem(ancestor, item.width, item.height)
             for (var i = 0; i < plan.length; ++i) {
@@ -108,8 +113,16 @@ function revealPlan(item, root, horizontal) {
                 delta = target - before
                 if ((start + end) / 2 - delta < 0 || (start + end) / 2 - delta > extent)
                     return null
-                if (Math.abs(delta) >= 0.5)
-                    plan.push({ flick: ancestor, target: target, delta: delta })
+                if (Math.abs(delta) >= 0.5) {
+                    var beforePoint = ancestor.mapToItem(root, 0, 0)
+                    var afterPoint = ancestor.mapToItem(root,
+                        horizontal ? delta : 0, horizontal ? 0 : delta)
+                    var unitDistance = horizontal
+                        ? Math.abs(afterPoint.x - beforePoint.x)
+                        : Math.abs(afterPoint.y - beforePoint.y)
+                    plan.push({ flick: ancestor, target: target, delta: delta,
+                                distance: unitDistance })
+                }
             } else if ((start + end) / 2 < 0 || (start + end) / 2 > extent) {
                 return null
             }
@@ -123,7 +136,8 @@ function revealPlan(item, root, horizontal) {
 function applyPlan(plan, horizontal, maxDistance) {
     var distance = 0
     for (var i = 0; i < plan.length; ++i)
-        distance += Math.abs(plan[i].delta)
+        distance += plan[i].distance === undefined
+            ? Math.abs(plan[i].delta) : plan[i].distance
     if (maxDistance !== undefined && distance > maxDistance + 0.000001)
         return false
     for (var j = 0; j < plan.length; ++j)

@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtTest 1.3
 import "../../qml" as Colosseum
+import "../../qml/KeyboardViewport.js" as Viewport
 
 TestCase {
     id: testCase
@@ -235,6 +236,69 @@ TestCase {
         collection.currentIndex = 3
         keyClick(Qt.Key_Right)
         compare(collection.currentIndex, 3)
+    }
+
+    function test_default_grid_preserves_geometric_lane_without_identity_callbacks() {
+        var view = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { property int currentIndex: 3; property int count: 7;'
+            + 'function forceActiveFocus(r) {} function positionViewAtIndex(i,m) {} }', testWindow.contentItem)
+        var controller = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; C.KeyboardCollectionController {'
+            + 'view: parent; orientation: "grid"; columns: 4 }', view)
+        var down = { key: Qt.Key_Down, modifiers: Qt.NoModifier, accepted: false }
+        var up = { key: Qt.Key_Up, modifiers: Qt.NoModifier, accepted: false }
+        verify(controller.handle(down))
+        compare(view.currentIndex, 6)
+        verify(controller.handle(up))
+        compare(view.currentIndex, 3)
+        controller.destroy()
+        view.destroy()
+    }
+
+    function test_lane_intent_survives_multiple_short_sections() {
+        collection.entries = [
+            { id: "A0" }, { id: "A1" }, { id: "A2" }, { id: "A3" },
+            { id: "B0" }, { id: "B1" }, { id: "B2" },
+            { id: "C0" }, { id: "C1" }, { id: "C2" }, { id: "C3" }
+        ]
+        collection.rowLengths = [4, 3, 4]
+        collection.modelRevision = 7
+        collection.currentIndex = 3
+        var down = { key: Qt.Key_Down, modifiers: Qt.NoModifier, accepted: false }
+        var up = { key: Qt.Key_Up, modifiers: Qt.NoModifier, accepted: false }
+        verify(collectionNav.handle(down))
+        compare(collection.selectedId, "B2")
+        verify(collectionNav.handle(down))
+        compare(collection.selectedId, "C2")
+        verify(collectionNav.handle(up))
+        verify(collectionNav.handle(up))
+        compare(collection.selectedId, "A3")
+    }
+
+    function test_region_modifier_policy_reaches_navigator_with_event_context() {
+        var region = createReturnRegion()
+        region.sourceAction.forceActiveFocus(Qt.OtherFocusReason)
+        verify(!region.handleKey(Qt.Key_Right, Qt.ControlModifier))
+        verify(region.sourceAction.activeFocus)
+        verify(!region.overlayAction.activeFocus)
+    }
+
+    function test_scroll_controller_registry_tracks_rebind_and_destruction() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item {'
+            + 'Flickable { id: first; width: 80; height: 80; contentWidth: 80; contentHeight: 160 }'
+            + 'Flickable { id: second; width: 80; height: 80; contentWidth: 80; contentHeight: 160; y: 90 }'
+            + 'C.KeyboardScrollController { id: controller; flick: first }'
+            + 'property alias firstFlick: first; property alias secondFlick: second; property alias controllerItem: controller }',
+            testWindow.contentItem)
+        compare(Viewport.controllerFor(fixture.firstFlick), fixture.controllerItem)
+        fixture.controllerItem.flick = fixture.secondFlick
+        compare(Viewport.controllerFor(fixture.firstFlick), null)
+        compare(Viewport.controllerFor(fixture.secondFlick), fixture.controllerItem)
+        var second = fixture.secondFlick
+        fixture.destroy()
+        wait(10)
+        compare(Viewport.controllerFor(second), null)
     }
 
     function test_reorder_returns_same_id_and_removal_uses_nearest_peer() {

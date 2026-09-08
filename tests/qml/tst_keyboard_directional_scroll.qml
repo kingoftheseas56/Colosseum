@@ -364,6 +364,13 @@ TestCase {
             var beforeDown = mainFlick.contentY
             keyClick(Qt.Key_Down)
             wait(5)
+            if (!row(i).activeFocus) {
+                // An over-budget target consumes this key as a bounded reveal;
+                // the next key may land once the target is visible.
+                verify(row(i - 1).activeFocus || mainFlick.activeFocus)
+                keyClick(Qt.Key_Down)
+                wait(5)
+            }
             verify(row(i).activeFocus)
             if (i >= 3)
                 verify(mainFlick.contentY >= beforeDown)
@@ -372,6 +379,11 @@ TestCase {
             var beforeUp = mainFlick.contentY
             keyClick(Qt.Key_Up)
             wait(5)
+            if (!row(j).activeFocus) {
+                verify(row(j + 1).activeFocus || mainFlick.activeFocus)
+                keyClick(Qt.Key_Up)
+                wait(5)
+            }
             verify(row(j).activeFocus)
             if (j <= 6)
                 verify(mainFlick.contentY <= beforeUp)
@@ -491,5 +503,66 @@ TestCase {
         verify(virtualizedGrid.activeFocus)
         verify(virtualizedGrid.itemAtIndex(3) !== null)
         verify(virtualizedGrid.itemAtIndex(3).objectName === "virtualCell3")
+    }
+
+    // Astra repair regressions. These keep the review-characterized defects
+    // executable while the implementation is repaired.
+    function test_external_entry_has_one_step_reveal_budget() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item {'
+            + 'width: 300; height: 300; Item { id: outside; width: 20; height: 20 }'
+            + 'Flickable { id: fl; width: 300; height: 300; contentWidth: 300; contentHeight: 2200; clip: true;'
+            + 'Item { width: 300; height: 2200; C.KeyboardAction { id: target; y: 1800; width: 100; height: 40; pointerEnabled: false } } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: fl } property alias outside: outside;'
+            + 'property alias target: target; property alias flick: fl; property alias navItem: nav }', scrollRegion)
+        fixture.outside.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navItem.moveFrom(fixture.outside, Qt.Key_Down))
+        verify(!fixture.target.activeFocus)
+        verify(fixture.flick.contentY >= 0 && fixture.flick.contentY <= 72)
+        fixture.destroy()
+    }
+
+    function test_two_stage_reveal_never_spends_two_directional_budgets() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item {'
+            + 'width: 300; height: 300; Flickable { id: fl; width: 300; height: 300; contentWidth: 300; contentHeight: 500; clip: true;'
+            + 'Item { width: 300; height: 500; C.KeyboardAction { id: src; y: 20; width: 100; height: 40; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: target; y: 350; width: 100; height: 40; pointerEnabled: false } } }'
+            + 'C.KeyboardScrollController { id: scroll; flick: fl; lineStep: 72 }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: fl } property alias src: src; property alias target: target;'
+            + 'property alias flick: fl; property alias navItem: nav }', scrollRegion)
+        fixture.src.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navItem.moveFrom(fixture.src, Qt.Key_Down))
+        compare(fixture.flick.contentY, 72)
+        verify(!fixture.target.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_arrow_scrolling_false_blocks_fallback_reveal_and_focus() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item {'
+            + 'width: 300; height: 300; Flickable { id: fl; width: 300; height: 300; contentWidth: 300; contentHeight: 500; clip: true;'
+            + 'Item { width: 300; height: 500; C.KeyboardAction { id: src; y: 20; width: 100; height: 40; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: target; y: 350; width: 100; height: 40; pointerEnabled: false } } }'
+            + 'C.KeyboardScrollController { id: scroll; flick: fl; arrowScrolling: false }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: fl } property alias src: src; property alias target: target;'
+            + 'property alias flick: fl; property alias navItem: nav }', scrollRegion)
+        fixture.src.forceActiveFocus(Qt.OtherFocusReason)
+        verify(!fixture.navItem.moveFrom(fixture.src, Qt.Key_Down))
+        compare(fixture.flick.contentY, 0)
+        verify(!fixture.target.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_bottom_content_does_not_export_down_to_visible_chrome() {
+        mainFlick.contentY = mainFlick.contentHeight - mainFlick.height
+        row(11).forceActiveFocus(Qt.OtherFocusReason)
+        wait(20)
+        verify(row(11).activeFocus)
+        var before = mainFlick.contentY
+        keyClick(Qt.Key_Down)
+        verify(row(11).activeFocus)
+        verify(!unrelatedChrome.activeFocus)
+        compare(mainFlick.contentY, before)
     }
 }

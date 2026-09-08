@@ -26,6 +26,7 @@ Item {
     // nearest visible focus region in that direction (including the pinned TopBar).
     KeyboardSpatialNavigator { id: spatialNav; root: world }
     Keys.onPressed: function(event) { spatialNav.handle(event) }
+    Keys.onReleased: function(event) { spatialNav.handleRelease(event) }
 
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
     property string medium: ""               // which library pill reads as selected

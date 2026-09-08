@@ -34,14 +34,26 @@ Item {
     property int _laneReturnColumn: -1
     property int _laneReturnRow: -1
     property int _laneRevision: -1
+    property int _laneColumn: -1
+    property bool _lanePending: false
 
     signal activated(int index)
     signal contextRequested(int index)
     signal reorderRequested(int fromIndex, int toIndex)
 
-    onModelRevisionChanged: nav.invalidateLane()
+    // A revision/count change can be an incremental reorder or removal. Keep
+    // the pending semantic lane alive so index resolution can recover the
+    // surviving identity; route owners can call invalidateLane() explicitly
+    // when replacing the surface.
+    onModelRevisionChanged: {
+        if (!nav._lanePending)
+            nav.invalidateLane()
+    }
     onViewChanged: nav.invalidateLane()
-    onCountChanged: nav.invalidateLane()
+    onCountChanged: {
+        if (!nav._lanePending)
+            nav.invalidateLane()
+    }
 
     visible: false
 
@@ -66,6 +78,8 @@ Item {
         nav._laneReturnId = null
         nav._laneReturnColumn = -1
         nav._laneReturnRow = -1
+        nav._laneColumn = -1
+        nav._lanePending = false
         nav._laneRevision = nav.modelRevision
     }
 
@@ -233,12 +247,14 @@ Item {
         if (targetRow < 0 || nav._rowLength(targetRow) <= 0)
             return -1
         var intendedColumn = column
-        if (key === Qt.Key_Up && nav._laneReturnId !== null) {
+        if (key === Qt.Key_Up && nav._lanePending) {
             var returned = nav._indexForIdentity(nav._laneReturnId)
             if (returned >= 0 && nav._rowFor(returned) === targetRow)
                 return returned
             if (nav._laneReturnColumn >= 0)
                 intendedColumn = nav._laneReturnColumn
+            else if (nav._laneColumn >= 0)
+                intendedColumn = nav._laneColumn
         }
         return nav._indexForRowColumn(targetRow, intendedColumn)
     }
@@ -286,10 +302,12 @@ Item {
         if (directional >= 0 && directional !== index) {
             const vertical = nav.orientation === "grid"
                 && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)
-            if (vertical && event.key === Qt.Key_Down) {
+            if (vertical && event.key === Qt.Key_Down && !nav._lanePending) {
                 nav._laneReturnId = nav._identityAt(index)
                 nav._laneReturnColumn = nav._columnFor(index)
                 nav._laneReturnRow = nav._rowFor(index)
+                nav._laneColumn = nav._columnFor(index)
+                nav._lanePending = true
                 nav._laneRevision = nav.modelRevision
             } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
                 nav.invalidateLane()
@@ -297,8 +315,9 @@ Item {
             const backward = event.key === Qt.Key_Up || event.key === Qt.Key_Left
             const reason = backward ? Qt.BacktabFocusReason : Qt.TabFocusReason
             if (nav.moveTo(directional, reason)) {
-                if (vertical && event.key === Qt.Key_Up)
-                    nav.invalidateLane()
+                if (vertical && event.key === Qt.Key_Up) {
+                    nav._lanePending = nav._rowFor(directional) > 0
+                }
                 event.accepted = true
                 return true
             }

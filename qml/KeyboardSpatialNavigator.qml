@@ -217,7 +217,14 @@ Item {
         nav.pendingNavigation = null
         if (!pending || !nav.isNavigationGenerationCurrent(pending.generation, pending.key))
             return false
-        return nav._land(pending.target, pending.key, pending.reason)
+        var owner = nav._flickableOwner(pending.target)
+        var controller = owner ? nav._scrollControllerFor(owner) : null
+        var horizontal = pending.key === Qt.Key_Left || pending.key === Qt.Key_Right
+        var budget = owner ? nav._directionalStep(owner, horizontal, controller)
+                           : nav.scrollStep
+        if (controller && controller.arrowScrolling === false)
+            return false
+        return nav._land(pending.target, pending.key, pending.reason, budget)
     }
 
     function handleRelease(event) {
@@ -243,6 +250,16 @@ Item {
             var children = node.children || []
             for (var i = 0; i < children.length; ++i)
                 pending.push(children[i])
+        }
+        return null
+    }
+
+    function _flickableOwner(item) {
+        for (var node = item; node; node = node.parent) {
+            if (Viewport.isFlickable(node))
+                return node
+            if (node === nav.root)
+                break
         }
         return null
     }
@@ -358,15 +375,21 @@ Item {
         if (!nav.isDirectionalKey(key) || !fromItem || nav._isEditable(fromItem))
             return false
         var horizontal = key === Qt.Key_Left || key === Qt.Key_Right
+        var forward = key === Qt.Key_Down || key === Qt.Key_Right
         var reason = (key === Qt.Key_Up || key === Qt.Key_Left)
             ? Qt.BacktabFocusReason : Qt.TabFocusReason
+        var ownedViewport = false
+        var blockedViewport = false
         // Exhaust each owning viewport before exporting into unrelated chrome.
         // Indexed collections still consume their arrows before this handler.
         for (var owner = fromItem; owner; owner = owner.parent) {
             if (Viewport.isFlickable(owner) && Viewport.contains(nav.root, owner)) {
+                ownedViewport = true
                 var controller = nav._scrollControllerFor(owner)
-                if (controller && controller.arrowScrolling === false)
+                if (controller && controller.arrowScrolling === false) {
+                    blockedViewport = true
                     continue
+                }
                 var step = nav._directionalStep(owner, horizontal, controller)
                 var local = nav.targetFrom(fromItem, key, owner.contentItem, false)
                 if (!local)
@@ -376,10 +399,9 @@ Item {
                 if (step > 0 && Viewport.setPosition(owner, horizontal,
                         Viewport.position(owner, horizontal)
                         + ((key === Qt.Key_Up || key === Qt.Key_Left) ? -step : step))) {
-                    // Realized static targets can be selected in this same key transition.
-                    local = nav.targetFrom(fromItem, key, owner.contentItem, false)
-                    if (local && nav._land(local, key, reason, step))
-                        return true
+                    // The step is the complete budget for this event. A target that
+                    // becomes visible after the write lands on the next key, avoiding
+                    // a second reveal in the same transition.
                     if (!nav._centerVisibleThroughClips(fromItem))
                         owner.forceActiveFocus(reason)
                     return true
@@ -388,6 +410,8 @@ Item {
             if (owner === nav.root)
                 break
         }
+        if (blockedViewport)
+            return false
         var target = nav.targetFrom(fromItem, key)
         if (!target)
             target = nav.targetFrom(fromItem, key, nav.root, true)
@@ -395,11 +419,35 @@ Item {
             nav.boundaryRequested(key, fromItem)
             return false
         }
-        return nav._land(target, key, reason)
+        var targetOwner = nav._flickableOwner(target)
+        if (targetOwner && Viewport.contains(nav.root, targetOwner)) {
+            var targetController = nav._scrollControllerFor(targetOwner)
+            if (targetController && targetController.arrowScrolling === false)
+                return false
+            var targetStep = nav._directionalStep(targetOwner, horizontal, targetController)
+            if (!nav._land(target, key, reason, targetStep)) {
+                if (targetStep > 0 && Viewport.setPosition(targetOwner, horizontal,
+                        Viewport.position(targetOwner, horizontal)
+                        + (forward ? targetStep : -targetStep))) {
+                    targetOwner.forceActiveFocus(reason)
+                    return true
+                }
+                return false
+            }
+            return true
+        }
+        // A content viewport owns an exhausted directional boundary. Only an
+        // explicit owner transition may export into unrelated chrome; the
+        // default surface has no such transition.
+        if (ownedViewport && forward)
+            return false
+        return nav._land(target, key, reason, nav.scrollStep)
     }
 
     function _land(target, key, reason, maxDistance) {
         var horizontal = key === Qt.Key_Left || key === Qt.Key_Right
+        if (maxDistance === undefined || !isFinite(Number(maxDistance)))
+            maxDistance = nav.scrollStep
         var plan = Viewport.revealPlan(target, nav.root, horizontal)
         if (plan === null)
             return false

@@ -83,6 +83,21 @@ Column {
             orientation: "horizontal"
             count: cont.ordered.length
             contextEnabled: true
+            identityForIndex: function(index) {
+                var item = cont.ordered[index]
+                return item && item.id !== undefined ? String(item.id) : ""
+            }
+            indexForIdentity: function(identity) {
+                var wanted = String(identity || "")
+                for (var i = 0; i < cont.ordered.length; ++i) {
+                    var item = cont.ordered[i]
+                    if (item && String(item.id) === wanted)
+                        return i
+                }
+                return -1
+            }
+            modelRevision: (typeof Progress !== "undefined" && Progress)
+                           ? Progress.revision : cont.items.length
             positionIndexFn: function(index) {
                 const tileItem = tileRepeater.itemAt(index)
                 if (!tileItem) return

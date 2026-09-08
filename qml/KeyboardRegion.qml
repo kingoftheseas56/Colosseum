@@ -222,7 +222,9 @@ FocusScope {
         }
 
         if (spatialNav.isDirectionalKey(key)) {
-            var moved = spatialNav.move(key)
+            if (mods & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+                return false
+            var moved = spatialNav.handle({ key: key, modifiers: mods, accepted: false })
             if (moved && event)
                 event.accepted = true
             return moved

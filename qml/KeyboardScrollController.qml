@@ -15,8 +15,25 @@ Item {
 
     visible: false
 
-    Component.onCompleted: Viewport.registerController(nav.flick, nav)
-    Component.onDestruction: Viewport.unregisterController(nav.flick, nav)
+    property var registeredFlick: null
+
+    function rebindController() {
+        if (nav.registeredFlick === nav.flick)
+            return
+        if (nav.registeredFlick)
+            Viewport.unregisterController(nav.registeredFlick, nav)
+        nav.registeredFlick = nav.flick
+        if (nav.registeredFlick)
+            Viewport.registerController(nav.registeredFlick, nav)
+    }
+
+    onFlickChanged: rebindController()
+    Component.onCompleted: rebindController()
+    Component.onDestruction: {
+        if (nav.registeredFlick)
+            Viewport.unregisterController(nav.registeredFlick, nav)
+        nav.registeredFlick = null
+    }
 
     KeyboardSpatialNavigator {
         id: spatial
@@ -63,18 +80,18 @@ Item {
         let handled = false
         if (event.key === Qt.Key_PageUp) {
             if (nav.glide && nav.glide.pageUp) {
-                handled = nav.flick.contentY > 0
+                handled = nav.flick.contentY > Viewport.minimum(nav.flick, false)
                 nav.glide.pageUp()
             } else handled = nav.scrollBy(-nav.flick.height * nav.pageFraction)
         } else if (event.key === Qt.Key_PageDown) {
             if (nav.glide && nav.glide.pageDown) {
-                handled = nav.flick.contentY < nav.maxY()
+                handled = nav.flick.contentY < Viewport.maximum(nav.flick, false)
                 nav.glide.pageDown()
             } else handled = nav.scrollBy(nav.flick.height * nav.pageFraction)
         } else if (nav.homeEndEnabled && event.key === Qt.Key_Home) {
-            handled = nav.flick.contentY > 0
+            handled = nav.flick.contentY > Viewport.minimum(nav.flick, false)
             if (handled && nav.glide && nav.glide.toTop) nav.glide.toTop()
-            else if (handled) nav.scrollTo(0)
+            else if (handled) nav.scrollTo(Viewport.minimum(nav.flick, false))
         } else if (nav.homeEndEnabled && event.key === Qt.Key_End) {
             handled = nav.flick.contentY < nav.maxY()
             if (handled && nav.glide && nav.glide.toBottom) nav.glide.toBottom()

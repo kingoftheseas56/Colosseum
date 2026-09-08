@@ -78,6 +78,8 @@ TestCase {
         collectionNav.columns = 3
         collection.currentIndex = 0
         scroller.contentY = 0
+        scroller.topMargin = 0
+        scroller.bottomMargin = 0
         wait(10)
     }
 
@@ -113,7 +115,7 @@ TestCase {
         keyClick(Qt.Key_Down)
         compare(collection.currentIndex, 6)
         keyClick(Qt.Key_Up)
-        compare(collection.currentIndex, 2)
+        compare(collection.currentIndex, 3)
     }
 
     function test_collection_activation_and_context() {
@@ -143,5 +145,20 @@ TestCase {
         compare(scroller.contentY, 295)
         keyClick(Qt.Key_Home)
         compare(scroller.contentY, 0)
+    }
+
+    function test_scroll_navigation_respects_nonzero_margins() {
+        scroller.topMargin = 20
+        scroller.bottomMargin = 12
+        scroller.contentY = 0
+        scroller.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Home)
+        compare(scroller.contentY, -20)
+        keyClick(Qt.Key_End)
+        compare(scroller.contentY, 412)
+        keyClick(Qt.Key_PageUp)
+        verify(scroller.contentY < 412)
+        keyClick(Qt.Key_PageDown)
+        verify(scroller.contentY <= 412)
     }
 }

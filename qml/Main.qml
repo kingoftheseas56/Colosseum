@@ -40,6 +40,10 @@ Window {
     property string currentSurface: "Home"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
+    // The Biblio detail layer is owned by this shell. Keep one route-local
+    // return snapshot so closing it restores the live page item and bounded
+    // offsets without introducing a global focus history service.
+    property var bookReturnSnapshot: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
 
@@ -1903,11 +1907,69 @@ Window {
     }
 
     // ---- book detail: Biblio's own dust-jacket page, a layer over the world ----
+    function _stableKeyboardIdentity(item) {
+        if (!item)
+            return ""
+        if (item.stableId !== undefined && item.stableId !== null)
+            return String(item.stableId)
+        return item.objectName ? String(item.objectName) : ""
+    }
+
+    function _captureBookReturn() {
+        var item = win.activeFocusItem
+        var identity = win._stableKeyboardIdentity(item)
+        if (!item || !identity)
+            return null
+        var scrolls = []
+        for (var node = item; node; node = node.parent) {
+            if (node.contentX !== undefined && node.contentY !== undefined) {
+                scrolls.push({ flick: node, x: Number(node.contentX), y: Number(node.contentY) })
+            }
+            if (node === win)
+                break
+        }
+        return { item: item, identity: identity, scrolls: scrolls }
+    }
+
+    function _restoreBookReturn(snapshot) {
+        if (!snapshot || !snapshot.item
+                || win._stableKeyboardIdentity(snapshot.item) !== snapshot.identity)
+            return false
+        for (var i = 0; i < snapshot.scrolls.length; ++i) {
+            var saved = snapshot.scrolls[i]
+            var flick = saved.flick
+            if (!flick || flick.visible === false || flick.enabled === false)
+                continue
+            if (flick.contentX !== undefined) {
+                var minX = flick.originX - flick.leftMargin
+                var maxX = Math.max(minX, flick.originX + flick.contentWidth
+                        - flick.width + flick.rightMargin)
+                flick.contentX = Math.max(minX, Math.min(maxX, saved.x))
+            }
+            if (flick.contentY !== undefined) {
+                var minY = flick.originY - flick.topMargin
+                var maxY = Math.max(minY, flick.originY + flick.contentHeight
+                        - flick.height + flick.bottomMargin)
+                flick.contentY = Math.max(minY, Math.min(maxY, saved.y))
+            }
+        }
+        snapshot.item.forceActiveFocus(Qt.PopupFocusReason)
+        return snapshot.item.activeFocus === true
+    }
+
     function openBook(b) {
+        if (!bookLayer.active)
+            win.bookReturnSnapshot = win._captureBookReturn()
         bookLayer.book = b
         bookLayer.active = true
     }
-    function closeBook() { bookLayer.active = false }
+    function closeBook() {
+        bookLayer.active = false
+        var snapshot = win.bookReturnSnapshot
+        win.bookReturnSnapshot = null
+        if (snapshot)
+            Qt.callLater(function() { win._restoreBookReturn(snapshot) })
+    }
 
     // ---- the reader: the FRESH reader (reader2 — native QML chrome over the vendored Anx
     //      foliate paper) over everything (download-fed, never a stream). bookMeta stays on
@@ -2702,6 +2764,7 @@ Window {
             }
         }
         Keys.onPressed: function(event) { homePageSpatialNav.handle(event) }
+        Keys.onReleased: function(event) { homePageSpatialNav.handleRelease(event) }
         // the HOME page never had the eased wheel — the one surface scrolled most was the
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
         ScrollGlide { flick: page }

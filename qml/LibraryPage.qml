@@ -80,6 +80,21 @@ Item {
         return out
     }
 
+    function wallIdentityAt(index) {
+        var row = root.visibleRows[index]
+        return row && row.entry && row.entry.id !== undefined
+            ? String(row.entry.id) : ""
+    }
+
+    function wallIndexForIdentity(identity) {
+        var wanted = String(identity || "")
+        for (var i = 0; i < root.visibleRows.length; ++i) {
+            if (root.wallIdentityAt(i) === wanted)
+                return i
+        }
+        return -1
+    }
+
     function toggleStateFilter(key) {
         stateFilter = (key === "" || stateFilter === key) ? "" : key
     }
@@ -291,6 +306,9 @@ Item {
         KeyboardCollectionController {
             id: wallKeys; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
             count: root.visibleRows.length; contextEnabled: true
+            modelRevision: root.collRev * 100000 + root.progRev
+            identityForIndex: root.wallIdentityAt
+            indexForIdentity: root.wallIndexForIdentity
             onActivated: (index) => root.detailRequested(root.visibleRows[index].entry)
             onContextRequested: (index) => {
                 const card = wall.currentItem
