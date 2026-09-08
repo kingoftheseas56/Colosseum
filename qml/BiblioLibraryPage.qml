@@ -36,6 +36,8 @@ Item {
         Api.applyBiblioFilters(allRows, { stateFilter: stateFilter, query: query }),
         sortMode)
     property int visibleCount: visibleRows.length
+    readonly property Item _keyboardWallForTest: wall
+    readonly property Item _keyboardControllerForTest: wallKeys
 
     onSortModeChanged: if (wallKeys) wallKeys.invalidateLane()
     onStateFilterChanged: if (wallKeys) wallKeys.invalidateLane()
@@ -206,6 +208,12 @@ Item {
         property bool keyboardReturnOwner: true
         property var keyboardIdentityForIndex: root.keyboardIdentityAt
         property var keyboardIndexForIdentity: root.keyboardIndexForIdentity
+        property var keyboardRevealIndex: function(index) {
+            if (index < 0 || index >= root.visibleRows.length)
+                return false
+            wall.positionViewAtIndex(index, GridView.Contain)
+            return true
+        }
         // fixed gallery poster size (148×222) matches ContinueTile / discover shelves — the
         // deliberate, consistent card size that reads as one family with the rest of the app.
         readonly property int posterW: 148
@@ -219,8 +227,11 @@ Item {
         focusPolicy: root.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => wallKeys.handle(event)
         KeyboardCollectionController {
-            id: wallKeys; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
+            id: wallKeys; objectName: "biblioLibraryKeyboard"; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
             count: root.visibleRows.length; contextEnabled: true
+            identityForIndex: root.keyboardIdentityAt
+            indexForIdentity: root.keyboardIndexForIdentity
+            modelRevision: root.collRev * 100000 + root.progRev
             onActivated: (index) => root.handleCardAction(root.visibleRows[index], root.visibleRows[index].canResume ? "resume" : "detail")
             onContextRequested: (index) => {
                 const card = wall.currentItem

@@ -60,6 +60,21 @@ Column {
             }
             return -1
         }
+        property var keyboardRevealIndex: function(index) {
+            var tileItem = tileRepeater.itemAt(index)
+            currentIndex = index
+            if (!tileItem)
+                return false
+            var left = tileItem.x
+            var right = tileItem.x + tileItem.width
+            if (left < continueFlick.contentX)
+                continueFlick.contentX = left
+            else if (right > continueFlick.contentX + continueFlick.width)
+                continueFlick.contentX = Math.min(
+                    Math.max(0, continueFlick.contentWidth - continueFlick.width),
+                    right - continueFlick.width)
+            return true
+        }
         property int currentIndex: cont.ordered.length > 0 ? 0 : -1
         width: parent.width; height: cont.tileHeight
         contentWidth: row.width; contentHeight: height
@@ -114,13 +129,7 @@ Column {
             modelRevision: (typeof Progress !== "undefined" && Progress)
                            ? Progress.revision : cont.items.length
             positionIndexFn: function(index) {
-                const tileItem = tileRepeater.itemAt(index)
-                if (!tileItem) return
-                const left = tileItem.x
-                const right = tileItem.x + tileItem.width
-                if (left < continueFlick.contentX) continueFlick.contentX = left
-                else if (right > continueFlick.contentX + continueFlick.width)
-                    continueFlick.contentX = Math.min(Math.max(0, continueFlick.contentWidth - continueFlick.width), right - continueFlick.width)
+                continueFlick.keyboardRevealIndex(index)
             }
             onActivated: (index) => {
                 const tileItem = tileRepeater.itemAt(index)

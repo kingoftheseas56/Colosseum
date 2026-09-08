@@ -70,6 +70,7 @@ Item {
     Theme { id: theme }
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) biblioBookScrollKeys.handle(event) }
+    Keys.onReleased: (event) => biblioBookScrollKeys.handleRelease(event)
     MouseArea { anchors.fill: parent }                 // swallow clicks to the world beneath
     // SOLID page (doctrine: books = page solid, frame OS) — a calm dark reading ground so the busy
     // world page never bleeds through and the long-form text stays legible.

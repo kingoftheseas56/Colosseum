@@ -34,6 +34,7 @@ Item {
     Theme { id: theme }
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) pageScrollKeys.handle(event) }
+    Keys.onReleased: (event) => pageScrollKeys.handleRelease(event)
 
     property var genreData: ({ count: 0, desc: "", cards: [], montage: [] })
     property bool loading: true

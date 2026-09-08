@@ -88,6 +88,7 @@ Item {
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) exploreScrollKeys.handle(event) }
+    Keys.onReleased: (event) => exploreScrollKeys.handleRelease(event)
     BiblioExplorePreferences { id: _internalPrefs }
     readonly property var _prefs: page.preferences ? page.preferences : _internalPrefs
 

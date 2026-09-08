@@ -337,6 +337,39 @@ TestCase {
         compare(Viewport.controllerFor(second), null)
     }
 
+    function test_independent_grid_rails_keep_lane_state_and_reset_at_home() {
+        collection.entries = [
+            { id: "A0" }, { id: "A1" }, { id: "A2" }, { id: "A3" },
+            { id: "B0" }, { id: "B1" }, { id: "B2" },
+            { id: "C0" }, { id: "C1" }, { id: "C2" }, { id: "C3" }
+        ]
+        collection.rowLengths = [4, 3, 4]
+        collection.modelRevision = 31
+        collection.currentIndex = 3
+        var view2 = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { property int currentIndex: 3; property int count: 11;'
+            + 'property var rowLengths: [4,3,4]; function positionViewAtIndex(i,m) {} }', testWindow.contentItem)
+        var controller2 = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; C.KeyboardCollectionController {'
+            + 'view: parent; orientation: "grid"; columns: 4; rowLengths: parent.rowLengths }', view2)
+        var down = { key: Qt.Key_Down, modifiers: Qt.NoModifier, accepted: false }
+        var home = { key: Qt.Key_Home, modifiers: Qt.NoModifier, accepted: false }
+        verify(collectionNav.handle(down))
+        verify(controller2.handle(down))
+        compare(collection.currentIndex, 6)
+        compare(view2.currentIndex, 6)
+        verify(collectionNav.handle(down))
+        verify(controller2.handle(down))
+        compare(collection.currentIndex, 10)
+        compare(view2.currentIndex, 10)
+        verify(collectionNav.handle(home))
+        collection.currentIndex = 3
+        verify(collectionNav.handle(down))
+        compare(collection.currentIndex, 6)
+        controller2.destroy()
+        view2.destroy()
+    }
+
     function test_reorder_returns_same_id_and_removal_uses_nearest_peer() {
         keyClick(Qt.Key_Down)
         collection.entries = [

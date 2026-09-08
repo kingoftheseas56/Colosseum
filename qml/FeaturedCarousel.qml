@@ -38,6 +38,12 @@ Item {
             }
             return -1
         }
+        property var keyboardRevealIndex: function(index) {
+            if (index < 0 || index >= car.slides.length)
+                return false
+            view.currentIndex = index
+            return true
+        }
         anchors.fill: parent
         clip: true
         focusPolicy: car.slides.length > 0 ? Qt.TabFocus : Qt.NoFocus

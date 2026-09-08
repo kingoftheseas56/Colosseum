@@ -640,4 +640,21 @@ TestCase {
         compare(fixture.flick.contentY, 0)
         fixture.destroy()
     }
+
+    function test_external_entry_rejects_rotated_destination_without_writes() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 600; height: 450;'
+            + 'C.KeyboardAction { id: source; x: 20; y: 20; width: 100; height: 40; pointerEnabled: false }'
+            + 'Flickable { id: fl; x: 20; y: 100; width: 300; height: 200; rotation: 10; contentWidth: 300; contentHeight: 700; clip: true;'
+            + 'Item { width: 300; height: 700; C.KeyboardAction { id: target; y: 80; width: 100; height: 40; pointerEnabled: false } } }'
+            + 'C.KeyboardScrollController { flick: fl; lineStep: 72 }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } property alias source: source; property alias flick: fl; property alias navigator: nav }', testWindow.contentItem)
+        testWindow.requestActivate()
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        wait(10)
+        verify(fixture.source.activeFocus)
+        fixture.navigator.moveFrom(fixture.source, Qt.Key_Down)
+        compare(fixture.flick.contentY, 0)
+        fixture.destroy()
+    }
 }

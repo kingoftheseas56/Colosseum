@@ -29,6 +29,7 @@ Item {
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) pageScrollKeys.handle(event) }
+    Keys.onReleased: (event) => pageScrollKeys.handleRelease(event)
 
     property var groups: []
     property bool loading: true

@@ -485,6 +485,10 @@ Item {
             nav.boundaryRequested(key, fromItem)
             return false
         }
+        // A rejected transform is a disallowed operation, not an over-budget
+        // reveal. Never fall through to the raw destination-owner write.
+        if (nav._hasUnsupportedTransform(target))
+            return false
         var targetOwner = nav._flickableOwner(target)
         if (targetOwner && Viewport.contains(nav.root, targetOwner)) {
             var targetController = nav._scrollControllerFor(targetOwner)

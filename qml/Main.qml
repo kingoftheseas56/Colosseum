@@ -1600,6 +1600,7 @@ Window {
     // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
         settingsLayer.active = false
@@ -1618,6 +1619,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
@@ -1721,6 +1723,7 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
+        win.bookRouteGeneration += 1
         downloadsLayer.active = false
         settingsLayer.active = false
         keyboardGuideLayer.active = false
@@ -1736,6 +1739,7 @@ Window {
 
     // ---- Settings page: the global preferences gear, entered from the taskbar ----
     function openSettingsPage() {
+        win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
         keyboardGuideLayer.active = false
@@ -1750,6 +1754,7 @@ Window {
 
     // ---- Keyboard Guide: essential controls, entered from the taskbar beside Settings. ----
     function openKeyboardGuide() {
+        win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
@@ -1765,6 +1770,7 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
+        win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
@@ -1973,6 +1979,34 @@ Window {
         return owner
     }
 
+    function _bookReturnCovered() {
+        return (win.bookLayer && win.bookLayer.active)
+            || (win.bookReaderLayer && win.bookReaderLayer.active)
+            || (win.playerLayer && win.playerLayer.active)
+            || (win.settingsLayer && win.settingsLayer.active)
+            || (win.searchLayer && win.searchLayer.active)
+            || (win.vaultLayer && win.vaultLayer.active)
+    }
+
+    function _bookReturnTargetVisible(item) {
+        if (!item || item.visible === false || item.enabled === false)
+            return false
+        for (var node = item; node; node = node.parent) {
+            if (node.visible === false || node.enabled === false)
+                return false
+            if (node.clip === true) {
+                var point = item.mapToItem(node, Number(item.width) / 2,
+                    Number(item.height) / 2)
+                if (point.x < 0 || point.y < 0
+                        || point.x > Number(node.width) || point.y > Number(node.height))
+                    return false
+            }
+            if (node === win)
+                break
+        }
+        return true
+    }
+
     function _captureBookReturn() {
         var item = win.activeFocusItem
         var owner = win._keyboardCollectionOwner(item)
@@ -1999,15 +2033,18 @@ Window {
     }
 
     function _restoreBookReturn(snapshot, generation) {
-        if (!snapshot || (generation !== undefined && generation !== win.bookRouteGeneration))
+        if (!snapshot || (generation !== undefined && generation !== win.bookRouteGeneration)
+                || win._bookReturnCovered())
             return false
         var target = null
+        var resolvedOwnerIndex = -1
         if (snapshot.owner && snapshot.owner.visible !== false && snapshot.owner.enabled !== false) {
             var index = win._keyboardCollectionIndex(snapshot.owner, snapshot.identity)
             var count = win._keyboardCollectionCount(snapshot.owner)
             if (index < 0 && count > 0)
                 index = Math.max(0, Math.min(count - 1, snapshot.index))
             if (index >= 0 && count > 0) {
+                resolvedOwnerIndex = index
                 snapshot.owner.currentIndex = index
                 if (snapshot.owner.positionViewAtIndex)
                     snapshot.owner.positionViewAtIndex(index, GridView.Contain)
@@ -2026,6 +2063,10 @@ Window {
             var flick = saved.flick
             if (!flick || flick.visible === false || flick.enabled === false)
                 continue
+            // The collection owner will perform the final identity reveal below.
+            // Restoring its old offset first would undo that reveal after a reorder.
+            if (resolvedOwnerIndex >= 0 && flick === snapshot.owner)
+                continue
             if (flick.contentX !== undefined) {
                 var minX = flick.originX - flick.leftMargin
                 var maxX = Math.max(minX, flick.originX + flick.contentWidth
@@ -2039,6 +2080,15 @@ Window {
                 flick.contentY = Math.max(minY, Math.min(maxY, saved.y))
             }
         }
+        if (snapshot.owner && resolvedOwnerIndex >= 0) {
+            if (snapshot.owner.keyboardRevealIndex)
+                snapshot.owner.keyboardRevealIndex(resolvedOwnerIndex)
+            else if (snapshot.owner.positionViewAtIndex)
+                snapshot.owner.positionViewAtIndex(resolvedOwnerIndex, GridView.Contain)
+            target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex) || snapshot.owner
+        }
+        if (!win._bookReturnTargetVisible(target))
+            return false
         if (target.forceActiveFocus)
             target.forceActiveFocus(Qt.PopupFocusReason)
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
@@ -2085,6 +2135,7 @@ Window {
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
     function openSearch() {
+        win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current
         if (w === "Biblio") { searchLayer.active = true; return }

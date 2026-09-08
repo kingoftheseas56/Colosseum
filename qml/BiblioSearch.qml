@@ -55,6 +55,7 @@ Item {
     Theme { id: theme }
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) searchScrollKeys.handle(event) }
+    Keys.onReleased: (event) => searchScrollKeys.handleRelease(event)
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
         search.loadRecent()

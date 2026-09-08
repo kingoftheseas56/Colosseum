@@ -26,6 +26,16 @@ Item {
             // ── objectNames present (Lanista + harness address the page by name) ──
             ok(p.objectName === "biblioLibraryPage", "page objectName set");
 
+            var wall = p._keyboardWallForTest;
+            var wallKeys = p._keyboardControllerForTest;
+            ok(wall !== null && wallKeys !== null, "Biblio wall and its keyboard owner are addressable");
+            if (wall && wallKeys) {
+                ok(wallKeys.identityForIndex !== null && wallKeys.indexForIdentity !== null,
+                   "Biblio keyboard owner receives stable identity seams");
+                ok(wallKeys.modelRevision !== undefined, "Biblio keyboard owner receives a model revision");
+                ok(wall.keyboardRevealIndex !== undefined, "Biblio wall exposes its existing reveal seam for return");
+            }
+
             // The retained Biblio wall exposes the route owner's semantic book
             // identity. This is the return contract used when a detail layer
             // closes after the selected row has moved or been removed.
@@ -42,6 +52,33 @@ Item {
             ];
             ok(p.keyboardIndexForIdentity("book-b") === -1,
                "Biblio wall reports a removed selected identity for nearest-peer fallback");
+
+            // Exercise the owned GridView reveal seam with enough cards to require a
+            // scroll, then reorder the selected identity to the first row. The final
+            // reveal must win over the historical offset so the surviving card is visible.
+            var roundTripRows = [];
+            for (var cardIndex = 0; cardIndex < 16; ++cardIndex)
+                roundTripRows.push({ entry: { id: "round-trip-" + cardIndex, title: "Round " + cardIndex } });
+            p.visibleRows = roundTripRows;
+            wall.currentIndex = 15;
+            wall.contentY = 0;
+            ok(wall.keyboardRevealIndex(15) === true,
+               "Biblio wall reveal seam accepts a surviving offscreen identity");
+            ok(wall.contentY > 0,
+               "Biblio wall reveal moves the owner for a lower-row identity");
+            var historicalOffset = wall.contentY;
+            var reorderedRows = [roundTripRows[15]];
+            for (var reorderIndex = 0; reorderIndex < roundTripRows.length - 1; ++reorderIndex)
+                reorderedRows.push(roundTripRows[reorderIndex]);
+            p.visibleRows = reorderedRows;
+            ok(p.keyboardIndexForIdentity("round-trip-15") === 0,
+               "Biblio wall resolves a surviving identity after reorder");
+            wall.contentY = historicalOffset;
+            var resolvedRoundTripIndex = p.keyboardIndexForIdentity("round-trip-15");
+            ok(wall.keyboardRevealIndex(resolvedRoundTripIndex) === true,
+               "Biblio wall reapplies the final reveal after reorder");
+            ok(wall.currentIndex === 0 && wall.contentY <= historicalOffset,
+               "Biblio wall leaves the reordered identity visible instead of restoring stale offset");
 
             // ── detailRequested signal contract: forwards the exact entry ──
             var gotDetail = null;
