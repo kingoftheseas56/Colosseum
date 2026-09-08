@@ -81,4 +81,21 @@ TestCase {
         compare(fixture.revealCalls, 0)
         fixture.destroy()
     }
+
+    function test_unrealized_owner_requests_reveal_before_focus() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; Flickable { width: 220; height: 120; contentWidth: 500; contentHeight: 120; clip: true;'
+            + 'property var rows: [ {id:"book-1"} ]; property var keyboardItems: rows; property int currentIndex: 0; property int revealCalls: 0; property bool realized: false;'
+            + 'function keyboardIdentityForIndex(i) { return i >= 0 && i < rows.length ? rows[i].id : "" }'
+            + 'function keyboardIndexForIdentity(id) { return id === "book-1" ? 0 : -1 }'
+            + 'function keyboardItemAtIndex(i) { return realized ? target : null }'
+            + 'function keyboardRevealIndex(i) { revealCalls += 1; realized = true; return true }'
+            + 'Item { id: target; objectName: "virtualizedReturnTarget"; x: 60; y: 20; width: 60; height: 60; focus: false } }', shell.contentItem)
+        var snapshot = { item: fixture, identity: "book-1", owner: fixture,
+                         index: 0, scrolls: [ { flick: fixture, x: 0, y: 0 } ] }
+        verify(shell._restoreBookReturn(snapshot, shell.bookRouteGeneration))
+        compare(fixture.revealCalls, 1)
+        verify(fixture.keyboardItemAtIndex(0).activeFocus)
+        fixture.destroy()
+    }
 }

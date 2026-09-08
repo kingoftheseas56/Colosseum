@@ -383,7 +383,9 @@ TestCase {
             + 'C.KeyboardCollectionController { id: keysB; view: railB; orientation: "horizontal"; count: railB.bItems.length; identityForIndex: railB.keyboardIdentityForIndex; indexForIdentity: railB.keyboardIndexForIdentity; positionIndexFn: railB.keyboardRevealIndex }'
             + 'C.KeyboardSpatialNavigator { id: nav; root: parent } Keys.onPressed: function(event) { nav.handle(event) }'
             + 'property alias navigator: nav; property alias a: railA; property alias b: railB }', testWindow.contentItem)
+        fixture.a.focus = true
         fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.a.activeFocus)
         fixture.a.currentIndex = 3
         verify(fixture.navigator.moveFrom(fixture.a.sourceItem(), Qt.Key_Down))
         compare(fixture.b.currentIndex, 2)
@@ -395,11 +397,60 @@ TestCase {
         compare(fixture.a.keyboardIdentityForIndex(fixture.a.currentIndex), "A3")
         fixture.a.aItems = [ {id: "A0"}, {id: "A1"}, {id: "A3"}, {id: "A2"} ]
         fixture.a.currentIndex = 2
+        fixture.a.focus = true
         fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.a.activeFocus)
         verify(fixture.navigator.moveFrom(fixture.a.sourceItem(), Qt.Key_Down))
         fixture.b.forceActiveFocus(Qt.OtherFocusReason)
         fixture.a.aItems = [ {id: "A0"}, {id: "A1"}, {id: "A2"} ]
         verify(fixture.navigator.moveFrom(fixture.b.sourceItem(), Qt.Key_Up))
+        compare(fixture.a.currentIndex, 2)
+        compare(fixture.a.keyboardIdentityForIndex(fixture.a.currentIndex), "A2")
+        fixture.destroy()
+    }
+
+    function test_worldpage_rail_crossing_records_return_and_lateral_resets_it() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { id: world; width: 640; height: 360; focus: true;'
+            + 'QtObject { id: sections; property var sourceOwner: null; property string sourceIdentity: ""; property int sourceIndex: -1; property real sourceOffset: 0;'
+            + 'function remember(owner,index,identity,offset) { sourceOwner=owner; sourceIndex=index; sourceIdentity=identity; sourceOffset=offset }'
+            + 'function returnRecord(owner) { return sourceOwner && sourceOwner !== owner ? ({ owner: sourceOwner, index: sourceIndex, identity: sourceIdentity, offset: sourceOffset }) : null }'
+            + 'function clear() { sourceOwner=null; sourceIdentity=""; sourceIndex=-1; sourceOffset=0 } }'
+            + 'Flickable { id: board; objectName: "worldPageScroll"; width: 640; height: 300; contentWidth: 640; contentHeight: 500; clip: true;'
+            + 'Item { id: boardContent; width: 640; height: 500;'
+            + 'Flickable { id: railA; objectName: "continueRail"; x: 20; y: 20; width: 320; height: 50; contentWidth: 560; contentHeight: 50; clip: true; flickableDirection: Flickable.HorizontalFlick; focusPolicy: Qt.TabFocus; property bool keyboardReturnOwner: true; property var keyboardSectionCoordinator: sections; property var keyboardItems: aItems; property var aItems: [ {id:"A0"},{id:"A1"},{id:"A2"},{id:"A3"},{id:"A4"} ]; property int currentIndex: 1; property int keyCalls: 0; property var keyboardIdentityForIndex: function(i) { return i >= 0 && i < aItems.length ? aItems[i].id : "" }; property var keyboardIndexForIdentity: function(id) { for (var i=0;i<aItems.length;++i) if (aItems[i].id === id) return i; return -1 }; property var keyboardRevealIndex: function(i) { currentIndex=i; contentX=Math.max(0, Math.min(contentWidth-width, i*110)); return true }; property var keyboardItemAtIndex: function(i) { return repA.itemAt(i) }; function sourceItem() { return repA.itemAt(currentIndex) } Keys.onPressed: function(e) { keyCalls++; if (keysA.handle(e)) e.accepted=true } Row { Repeater { id: repA; model: railA.aItems; delegate: C.KeyboardAction { required property var modelData; required property int index; objectName: modelData.id; x: index * 110; width: 100; height: 45; focusEnabled: false; pointerEnabled: false } } } }'
+            + 'Flickable { id: railB; objectName: "featuredRail"; x: 20; y: 85; width: 320; height: 50; contentWidth: 340; contentHeight: 50; clip: true; flickableDirection: Flickable.HorizontalFlick; focusPolicy: Qt.TabFocus; property bool keyboardReturnOwner: true; property var keyboardSectionCoordinator: sections; property var keyboardItems: bItems; property var bItems: [ {id:"B0"},{id:"B1"},{id:"B2"} ]; property int currentIndex: 0; property int keyCalls: 0; property var keyboardIdentityForIndex: function(i) { return i >= 0 && i < bItems.length ? bItems[i].id : "" }; property var keyboardIndexForIdentity: function(id) { for (var i=0;i<bItems.length;++i) if (bItems[i].id === id) return i; return -1 }; property var keyboardRevealIndex: function(i) { currentIndex=i; contentX=Math.max(0, Math.min(contentWidth-width, i*110)); return true }; property var keyboardItemAtIndex: function(i) { return repB.itemAt(i) }; function sourceItem() { return repB.itemAt(currentIndex) } Keys.onPressed: function(e) { keyCalls++; if (keysB.handle(e)) e.accepted=true } Row { Repeater { id: repB; model: railB.bItems; delegate: C.KeyboardAction { required property var modelData; required property int index; objectName: modelData.id; x: index * 110; width: 100; height: 45; focusEnabled: false; pointerEnabled: false } } } }'
+            + 'C.KeyboardCollectionController { id: keysA; view: railA; orientation: "horizontal"; count: railA.aItems.length; identityForIndex: railA.keyboardIdentityForIndex; indexForIdentity: railA.keyboardIndexForIdentity; positionIndexFn: railA.keyboardRevealIndex; keyboardSectionCoordinator: sections }'
+            + 'C.KeyboardCollectionController { id: keysB; view: railB; orientation: "horizontal"; count: railB.bItems.length; identityForIndex: railB.keyboardIdentityForIndex; indexForIdentity: railB.keyboardIndexForIdentity; positionIndexFn: railB.keyboardRevealIndex; keyboardSectionCoordinator: sections }'
+            + '} } property int worldKeyCalls: 0; C.KeyboardSpatialNavigator { id: nav; root: world } Keys.onPressed: function(e) { worldKeyCalls++; if (nav.handle(e)) e.accepted=true }'
+            + 'property alias navigator: nav; property alias a: railA; property alias b: railB; property alias boardView: board; property alias coordinator: sections }', testWindow.contentItem)
+        fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.a.currentIndex = 1
+        verify(fixture.a.activeFocus)
+        keyClick(Qt.Key_Down)
+        compare(fixture.b.currentIndex, 1)
+        compare(fixture.b.keyboardIdentityForIndex(fixture.b.currentIndex), "B1")
+        verify(fixture.b.activeFocus || fixture.b.children.length > 0)
+        keyClick(Qt.Key_Up)
+        compare(fixture.a.currentIndex, 1)
+        compare(fixture.a.keyboardIdentityForIndex(fixture.a.currentIndex), "A1")
+        fixture.coordinator.remember(fixture.a, 1, "A1", fixture.a.contentX)
+        var beforeHiddenIndex = fixture.a.currentIndex
+        var beforeHiddenOffset = fixture.a.contentX
+        fixture.a.visible = false
+        verify(!fixture.navigator._restoreSectionReturn(fixture.b.sourceItem(), Qt.Key_Up, Qt.BacktabFocusReason))
+        compare(fixture.a.currentIndex, beforeHiddenIndex)
+        compare(fixture.a.contentX, beforeHiddenOffset)
+        fixture.a.visible = true
+
+        fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.a.currentIndex = 0
+        verify(fixture.a.activeFocus)
+        keyClick(Qt.Key_Down)
+        compare(fixture.b.currentIndex, 0)
+        keyClick(Qt.Key_Right)
+        compare(fixture.b.currentIndex, 1)
+        keyClick(Qt.Key_Up)
         compare(fixture.a.currentIndex, 2)
         compare(fixture.a.keyboardIdentityForIndex(fixture.a.currentIndex), "A2")
         fixture.destroy()

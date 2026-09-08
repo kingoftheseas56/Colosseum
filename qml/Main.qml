@@ -1986,7 +1986,21 @@ Window {
             return owner.itemAtIndex(index)
         if (owner.currentItem && owner.currentIndex === index)
             return owner.currentItem
+        if (owner.keyboardItems !== undefined || owner.model !== undefined
+                || owner.count !== undefined)
+            return null
         return owner
+    }
+
+    function _realizeKeyboardCollectionTarget(owner, index) {
+        var target = win._keyboardCollectionTarget(owner, index)
+        if (target)
+            return target
+        if (owner && owner.keyboardRevealIndex)
+            owner.keyboardRevealIndex(index)
+        else if (owner && owner.positionViewAtIndex)
+            owner.positionViewAtIndex(index, GridView.Contain)
+        return win._keyboardCollectionTarget(owner, index)
     }
 
     function _layerCoversReturn(layer) {
@@ -2064,10 +2078,8 @@ Window {
             if (index >= 0 && count > 0) {
                 resolvedOwnerIndex = index
                 snapshot.owner.currentIndex = index
-                target = win._keyboardCollectionTarget(snapshot.owner, index)
+                target = win._realizeKeyboardCollectionTarget(snapshot.owner, index)
             }
-            if (!target)
-                target = snapshot.owner
         } else if (snapshot.item
                    && win._stableKeyboardIdentity(snapshot.item) === snapshot.identity) {
             target = snapshot.item
@@ -2095,13 +2107,17 @@ Window {
         if (snapshot.owner && resolvedOwnerIndex >= 0) {
             // Restore a valid historical owner offset first. A minimal owner reveal is only
             // needed when the resolved identity is clipped after reorder/removal/shrink.
-            target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex) || snapshot.owner
+            target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
+            if (!target)
+                target = win._realizeKeyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
             if (!win._bookReturnTargetVisible(target)) {
                 if (snapshot.owner.keyboardRevealIndex)
                     snapshot.owner.keyboardRevealIndex(resolvedOwnerIndex)
                 else if (snapshot.owner.positionViewAtIndex)
                     snapshot.owner.positionViewAtIndex(resolvedOwnerIndex, GridView.Contain)
-                target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex) || snapshot.owner
+                target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
+                if (!target)
+                    target = win._realizeKeyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
             }
         }
         if (!win._bookReturnTargetVisible(target))

@@ -314,6 +314,11 @@ Item {
             return true
         }
 
+        const lateral = event.key === Qt.Key_Left || event.key === Qt.Key_Right
+        if (lateral) {
+            nav.invalidateLane()
+            nav._resetSectionIntent()
+        }
         const directional = nav.directionalTarget(index, event.key)
         if (directional >= 0 && directional !== index) {
             const vertical = nav.orientation === "grid"
@@ -325,8 +330,6 @@ Item {
                 nav._laneColumn = nav._columnFor(index)
                 nav._lanePending = true
                 nav._laneRevision = nav.modelRevision
-            } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
-                nav.invalidateLane()
             }
             const backward = event.key === Qt.Key_Up || event.key === Qt.Key_Left
             const reason = backward ? Qt.BacktabFocusReason : Qt.TabFocusReason
@@ -337,10 +340,6 @@ Item {
                 event.accepted = true
                 return true
             }
-        }
-        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
-            nav.invalidateLane()
-            nav._resetSectionIntent()
         }
         if (event.key === Qt.Key_Home) {
             nav.invalidateLane()

@@ -31,6 +31,9 @@ Item {
 
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
     readonly property var keyboardSectionCoordinator: keyboardSections
+    onLifecycleActiveChanged: if (!lifecycleActive) keyboardSections.clear()
+    onVisibleChanged: if (!visible) keyboardSections.clear()
+    onEnabledChanged: if (!enabled) keyboardSections.clear()
     property string medium: ""               // which library pill reads as selected
     // Main binds this to the current world. Bare page harnesses keep the default true, while
     // retained hidden worlds can stop timers, paging and refresh work without being destroyed.

@@ -172,7 +172,16 @@ Item {
     }
 
     function activeItem() {
-        return nav.root ? nav._activeItem(nav.root) : null
+        var focused = nav.root ? nav._activeItem(nav.root) : null
+        var owner = nav._collectionOwner(focused)
+        if (owner && owner.currentIndex !== undefined) {
+            var selected = owner.keyboardItemAtIndex
+                ? owner.keyboardItemAtIndex(Number(owner.currentIndex))
+                : (owner.itemAtIndex ? owner.itemAtIndex(Number(owner.currentIndex)) : null)
+            if (selected)
+                return selected
+        }
+        return focused
     }
 
     function beginNavigation(key) {
@@ -333,6 +342,19 @@ Item {
         if (!record || !record.owner)
             return false
         var owner = record.owner
+        if (!nav.root || nav.root.visible === false || nav.root.enabled === false
+                || owner.visible === false || owner.enabled === false
+                || (owner.opacity !== undefined && Number(owner.opacity) <= 0.01)
+                || !Viewport.contains(nav.root, owner)
+                || nav._hasUnsupportedTransform(owner)) {
+            coordinator.clear()
+            return false
+        }
+        var ownerController = nav._scrollControllerFor(owner)
+        if (ownerController && ownerController.arrowScrolling === false) {
+            coordinator.clear()
+            return false
+        }
         var count = owner.keyboardItems && owner.keyboardItems.length !== undefined
                 ? Number(owner.keyboardItems.length) : Number(owner.count || 0)
         var index = owner.keyboardIndexForIdentity
@@ -341,14 +363,18 @@ Item {
             index = Math.max(0, Math.min(count - 1, Number(record.index)))
         if (index < 0 || count <= 0)
             return false
+        var target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
+                : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
+        if (!target || !nav._eligible(target) || nav._hasUnsupportedTransform(target)) {
+            coordinator.clear()
+            return false
+        }
         if (owner.currentIndex !== undefined)
             owner.currentIndex = index
         if (owner.contentX !== undefined && isFinite(Number(record.offset))) {
             var maxX = Math.max(0, Number(owner.contentWidth) - Number(owner.width))
             owner.contentX = Math.max(0, Math.min(maxX, Number(record.offset)))
         }
-        var target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
-                : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
         if (owner.keyboardRevealIndex)
             owner.keyboardRevealIndex(index)
         else if (owner.positionViewAtIndex)
@@ -357,6 +383,14 @@ Item {
                 : (owner.itemAtIndex ? owner.itemAtIndex(index) : target)
         if (!target || !nav._centerVisibleThroughClips(target))
             return false
+        var targetOwner = nav._collectionOwner(target)
+        if (targetOwner && target.focusEnabled === false) {
+            nav._selectCollectionItem(targetOwner, target)
+            targetOwner.forceActiveFocus(reason)
+            if (targetOwner.activeFocus === true)
+                coordinator.clear()
+            return targetOwner.activeFocus === true
+        }
         target.forceActiveFocus(reason)
         if (target.activeFocus === true)
             coordinator.clear()
@@ -554,8 +588,10 @@ Item {
                 var local = nav.targetFrom(fromItem, key, owner.contentItem, false)
                 if (!local)
                     local = nav.targetFrom(fromItem, key, owner.contentItem, true)
-                if (local && nav._land(local, key, reason, step))
+                if (local && nav._land(local, key, reason, step)) {
+                    nav._rememberSectionTransition(fromItem, local)
                     return true
+                }
                 if (nav._blockedNestedPath(fromItem, owner, local))
                     continue
                 if (step > 0 && Viewport.setPosition(owner, horizontal,
@@ -591,7 +627,6 @@ Item {
             var targetController = nav._scrollControllerFor(targetOwner)
             if (targetController && targetController.arrowScrolling === false)
                 return false
-            nav._rememberSectionTransition(fromItem, target)
             var targetStep = nav._directionalStep(targetOwner, horizontal, targetController)
             if (!nav._land(target, key, reason, targetStep)) {
                 if (targetStep > 0 && Viewport.setPosition(targetOwner, horizontal,
@@ -603,6 +638,7 @@ Item {
                 }
                 return false
             }
+            nav._rememberSectionTransition(fromItem, target)
             return true
         }
         // A content viewport owns an exhausted directional boundary. Only an
@@ -628,6 +664,15 @@ Item {
             return false
         if (!nav._centerVisibleThroughClips(target))
             return false
+        // Collection-managed rails keep focus on their Flickable owner while delegates
+        // remain semantic selection faces. Land the owner after the visible target has
+        // passed policy/geometry checks; do not ask a non-focusable delegate to own focus.
+        var collectionOwner = nav._collectionOwner(target)
+        if (collectionOwner && target.focusEnabled === false) {
+            nav._selectCollectionItem(collectionOwner, target)
+            collectionOwner.forceActiveFocus(reason)
+            return collectionOwner.activeFocus === true
+        }
         target.forceActiveFocus(reason)
         return target.activeFocus === true
     }
