@@ -15,7 +15,9 @@ Item {
     property int pageStep: 0
     // Optional seam for Flickable/Row collections without positionViewAtIndex().
     property var positionIndexFn: null
-    property bool spaceActivates: true
+    // Enter is the collection's universal primary action. Space is explicit opt-in
+    // (player/toggle/native semantics), not an automatic second Enter.
+    property bool spaceActivates: false
     property bool contextEnabled: false
     property bool reorderEnabled: false
     property bool keyboardRecentlyMoved: false
@@ -110,6 +112,34 @@ Item {
         return true
     }
 
+    function directionalTarget(index, key) {
+        if (nav.orientation !== "grid") {
+            const step = nav.stepForKey(key)
+            return nav.stepAllowed(index, step) ? index + step : -1
+        }
+
+        const cols = Math.max(1, nav.columns)
+        const row = Math.floor(index / cols)
+        const column = index % cols
+        const rowStart = row * cols
+        const rowLength = Math.min(cols, Math.max(0, nav.count - rowStart))
+
+        if (key === Qt.Key_Left)
+            return column > 0 ? index - 1 : -1
+        if (key === Qt.Key_Right)
+            return column + 1 < rowLength ? index + 1 : -1
+
+        const targetRow = key === Qt.Key_Up ? row - 1
+            : (key === Qt.Key_Down ? row + 1 : -1)
+        if (targetRow < 0)
+            return -1
+        const targetStart = targetRow * cols
+        if (targetStart >= nav.count)
+            return -1
+        const targetLength = Math.min(cols, nav.count - targetStart)
+        return targetStart + Math.min(column, targetLength - 1)
+    }
+
     function reorderDeltaFor(event) {
         if (!nav.reorderEnabled
                 || !(event.modifiers & Qt.ControlModifier)
@@ -149,10 +179,11 @@ Item {
             return true
         }
 
-        const step = nav.stepForKey(event.key)
-        if (step !== 0 && nav.stepAllowed(index, step)) {
-            const reason = step < 0 ? Qt.BacktabFocusReason : Qt.TabFocusReason
-            if (nav.moveTo(index + step, reason)) {
+        const directional = nav.directionalTarget(index, event.key)
+        if (directional >= 0 && directional !== index) {
+            const backward = event.key === Qt.Key_Up || event.key === Qt.Key_Left
+            const reason = backward ? Qt.BacktabFocusReason : Qt.TabFocusReason
+            if (nav.moveTo(directional, reason)) {
                 event.accepted = true
                 return true
             }

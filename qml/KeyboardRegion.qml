@@ -19,6 +19,11 @@ FocusScope {
     signal escapeRequested()
     signal boundaryTabRequested(bool forward)
 
+    KeyboardSpatialNavigator {
+        id: spatialNav
+        root: region
+    }
+
     function _isVisibleEnabled(item) {
         return item && item.visible === true && item.enabled === true
     }
@@ -145,6 +150,13 @@ FocusScope {
             if (event)
                 event.accepted = true
             return true
+        }
+
+        if (spatialNav.isDirectionalKey(key)) {
+            var moved = spatialNav.move(key)
+            if (moved && event)
+                event.accepted = true
+            return moved
         }
 
         var backward = key === Qt.Key_Backtab

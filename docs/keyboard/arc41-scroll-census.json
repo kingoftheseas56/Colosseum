@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedFrom": "qml",
-  "filesScanned": 283,
+  "filesScanned": 284,
   "surfaceTypes": [
     "Flickable",
     "ListView",
@@ -11,8 +11,8 @@
     "PathView"
   ],
   "stats": {
-    "COVERED": 97,
-    "DELEGATED": 8,
+    "COVERED": 99,
+    "DELEGATED": 6,
     "EXCEPTION": 30
   },
   "rows": [
@@ -507,7 +507,7 @@
     },
     {
       "file": "qml/Main.qml",
-      "line": 2630,
+      "line": 2653,
       "surface_type": "Flickable",
       "owner": "pointer scroll surface has no independent semantic action",
       "classification": "EXCEPTION",
@@ -517,22 +517,22 @@
     },
     {
       "file": "qml/Main.qml",
-      "line": 2659,
+      "line": 2682,
       "surface_type": "Flickable",
-      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
-      "classification": "DELEGATED",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
       "evidence": [
-        "ScrollGlide"
+        "block:Keys."
       ]
     },
     {
       "file": "qml/Main.qml",
-      "line": 2697,
+      "line": 2729,
       "surface_type": "SwipeView",
-      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
-      "classification": "DELEGATED",
+      "owner": "nearby Keys. owns the scroll surface",
+      "classification": "COVERED",
       "evidence": [
-        "ScrollGlide"
+        "nearby:Keys."
       ]
     },
     {
@@ -727,7 +727,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4433,
+      "line": 4443,
       "surface_type": "ListView",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
@@ -738,7 +738,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4566,
+      "line": 4576,
       "surface_type": "ListView",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
@@ -749,7 +749,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6085,
+      "line": 6095,
       "surface_type": "ListView",
       "owner": "pointer scroll surface has no independent semantic action",
       "classification": "EXCEPTION",
@@ -1218,7 +1218,7 @@
     },
     {
       "file": "qml/WorldPage.qml",
-      "line": 85,
+      "line": 91,
       "surface_type": "Flickable",
       "owner": "ScrollGlide pointer mechanics delegated to the owning page",
       "classification": "DELEGATED",

@@ -74,6 +74,8 @@ TestCase {
         actionContextSpy.clear()
         activatedSpy.clear()
         collectionContextSpy.clear()
+        collection.model = 12
+        collectionNav.columns = 3
         collection.currentIndex = 0
         scroller.contentY = 0
         wait(10)
@@ -84,7 +86,7 @@ TestCase {
         keyClick(Qt.Key_Return)
         keyClick(Qt.Key_Enter)
         keyClick(Qt.Key_Space)
-        compare(actionSpy.count, 3)
+        compare(actionSpy.count, 2)
         keyClick(Qt.Key_Menu)
         keyClick(Qt.Key_F10, Qt.ShiftModifier)
         compare(actionContextSpy.count, 2)
@@ -102,13 +104,25 @@ TestCase {
         keyClick(Qt.Key_PageDown); compare(collection.currentIndex, 11)
     }
 
+    function test_collection_ragged_last_row_clamps_to_nearest_item() {
+        collection.model = 7
+        collectionNav.columns = 4
+        wait(10)
+        collection.forceActiveFocus(Qt.OtherFocusReason)
+        collection.currentIndex = 3
+        keyClick(Qt.Key_Down)
+        compare(collection.currentIndex, 6)
+        keyClick(Qt.Key_Up)
+        compare(collection.currentIndex, 2)
+    }
+
     function test_collection_activation_and_context() {
         collection.forceActiveFocus(Qt.OtherFocusReason)
         collection.currentIndex = 5
         keyClick(Qt.Key_Return)
         keyClick(Qt.Key_Enter)
         keyClick(Qt.Key_Space)
-        compare(activatedSpy.count, 3)
+        compare(activatedSpy.count, 2)
         compare(activatedSpy.signalArguments[0][0], 5)
         keyClick(Qt.Key_Menu)
         keyClick(Qt.Key_F10, Qt.ShiftModifier)

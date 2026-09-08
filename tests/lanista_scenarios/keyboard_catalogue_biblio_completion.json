@@ -228,6 +228,23 @@
       ]
     },
     {
+      "cmd": "qml-get",
+      "label": "Popular drag handle keeps focus after row reorder",
+      "payload": {
+        "object": "biblioExploreDrag_popular",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
       "cmd": "ui-keypress",
       "label": "Ctrl Shift Up restores Popular",
       "payload": {
@@ -248,6 +265,23 @@
           "path": "props.rowOrderSignature",
           "op": "contains",
           "value": "popular,top-rated"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Popular drag handle still owns focus after restoring order",
+      "payload": {
+        "object": "biblioExploreDrag_popular",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
         }
       ]
     }

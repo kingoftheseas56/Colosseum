@@ -104,6 +104,15 @@ TestCase {
         compare(escapeSpy.count, 0)
     }
 
+    function test_real_arrow_events_follow_visible_vertical_geometry() {
+        region.firstAction.forceActiveFocus(Qt.OtherFocusReason)
+        wait(5)
+        keyClick(Qt.Key_Down)
+        verify(region.secondAction.activeFocus)
+        keyClick(Qt.Key_Up)
+        verify(region.firstAction.activeFocus)
+    }
+
     function test_escape_emits_one_region_request() {
         verify(region.focusEntry())
         verify(region.handleKey(Qt.Key_Escape, Qt.NoModifier))

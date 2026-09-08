@@ -755,6 +755,17 @@ Window {
     Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
     Shortcut { sequences: quitCommand.sequences; onActivated: quitCommand.invoke("shortcut") }
 
+    // Home has an intentional console-style focus origin: the current Universe hero's
+    // primary action. A fresh shell therefore begins in visible content rather than in Qt's
+    // incidental Tab order. If no Universe hero exists, fall back to the first enabled mode.
+    function focusHomePrimary() {
+        if (!page.visible || worldStack.current !== "" || win.immersiveSurfaceOpen)
+            return false
+        if (homePageSpatialNav.focusNamed("homeHeroExplore", Qt.TabFocusReason))
+            return true
+        return homeTopSpatialNav.focusNamed("modePillFocus_Tankoban", Qt.TabFocusReason)
+    }
+
     // ── Keyboard ignition (Arc 41 repair) ──────────────────────────────────────────
     // Qt Quick starts a Tab traversal only from an item that BOTH holds focus and has
     // activeFocusOnTab. On a cold launch nothing in the shell claims focus, so the
@@ -781,25 +792,28 @@ Window {
             Qt.Key_Left, Qt.Key_Right, Qt.Key_Home, Qt.Key_End
         ]
 
-        // Hand focus to the chain's first (or last, going backwards) reachable control.
-        // contentItem is the chain's anchor, so this stays surface-agnostic — whatever the
-        // shell is showing, the first control of the current tree is what lights up.
-        function ignite(forward) {
+        // Directional ignition follows the page's explicit focus origin. Tab/Backtab keeps
+        // the conventional focus chain as a secondary accessibility route.
+        function ignite(key, modifiers) {
+            var directional = key === Qt.Key_Up || key === Qt.Key_Down
+                || key === Qt.Key_Left || key === Qt.Key_Right
+            if (directional && win.focusHomePrimary())
+                return true
             if (!win.contentItem)
                 return false
-            var first = win.contentItem.nextItemInFocusChain(forward)
+            var backward = key === Qt.Key_Backtab
+                || (key === Qt.Key_Tab && (modifiers & Qt.ShiftModifier) !== 0)
+            var first = win.contentItem.nextItemInFocusChain(!backward)
             if (!first || first === keyboardIgnition || first === win.contentItem)
                 return false
-            first.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+            first.forceActiveFocus(backward ? Qt.BacktabFocusReason : Qt.TabFocusReason)
             return true
         }
 
         Keys.onPressed: (event) => {
             if (keyboardIgnition.navigationKeys.indexOf(event.key) < 0)
                 return
-            var backward = event.key === Qt.Key_Backtab
-                || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier) !== 0)
-            if (keyboardIgnition.ignite(!backward))
+            if (keyboardIgnition.ignite(event.key, event.modifiers))
                 event.accepted = true
         }
     }
@@ -2591,6 +2605,15 @@ Window {
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
         onUpdateClicked: !updateLayer.active ? win.openUpdatePage() : win.closeUpdatePage()
+        onBoundaryArrowRequested: (key, fromItem) => {
+            if (key === Qt.Key_Down && page.visible)
+                homePageSpatialNav.moveFrom(fromItem, key)
+        }
+    }
+
+    KeyboardSpatialNavigator {
+        id: homeTopSpatialNav
+        root: topbar
     }
 
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
@@ -2670,6 +2693,15 @@ Window {
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }   // gold sliver, same as every page
+        KeyboardSpatialNavigator {
+            id: homePageSpatialNav
+            root: page
+            onBoundaryRequested: (key, fromItem) => {
+                if (key === Qt.Key_Up && topbar.visible)
+                    homeTopSpatialNav.moveFrom(fromItem, key)
+            }
+        }
+        Keys.onPressed: function(event) { homePageSpatialNav.handle(event) }
         // the HOME page never had the eased wheel — the one surface scrolled most was the
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
         ScrollGlide { flick: page }
@@ -2743,11 +2775,11 @@ Window {
                                     Rectangle {
                                         radius: 12; height: 46; width: exploreRow.implicitWidth + 44
                                         gradient: Gradient {
-                                            GradientStop { position: 0; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                                            GradientStop { position: 1; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                                            GradientStop { position: 0; color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                                            GradientStop { position: 1; color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
                                         }
                                         border.width: 1
-                                        border.color: exMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                                        border.color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
                                         Behavior on border.color { ColorAnimation { duration: 160 } }
                                         Row {
                                             id: exploreRow; anchors.centerIn: parent; spacing: 10
@@ -2756,7 +2788,20 @@ Window {
                                                 anchors.verticalCenter: parent.verticalCenter }
                                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                transform: Translate { x: exMa.containsMouse ? 3 : 0 } }
+                                                transform: Translate { x: (exMa.containsMouse || exKey.interactionActive) ? 3 : 0 } }
+                                        }
+                                        KeyboardAction {
+                                            id: exKey
+                                            // Only the current SwipeView delegate owns the stable semantic
+                                            // identity. Inactive carousel clones otherwise make runtime focus
+                                            // assertions ambiguous even though only one is a legal target.
+                                            objectName: slide.SwipeView.isCurrentItem ? "homeHeroExplore" : ""
+                                            anchors.fill: parent
+                                            accessibleName: "Explore the universe"
+                                            pointerEnabled: false
+                                            focusRadius: 12
+                                            onTriggered: win.openUniverse(slide.modelData.extensionId,
+                                                                          slide.modelData.name)
                                         }
                                         MouseArea {
                                             id: exMa; anchors.fill: parent
@@ -2792,13 +2837,22 @@ Window {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         spacing: 7
                         Text { text: win.installedUniverses.length + " worlds"
-                               color: hallMa.containsMouse ? theme.gold : theme.inkDim
+                               color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
                                font.family: theme.display; font.pixelSize: 16
                                Behavior on color { ColorAnimation { duration: 120 } } }
                         Text { text: "›"
-                               color: hallMa.containsMouse ? theme.gold : theme.inkDimmer
+                               color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDimmer
                                font.family: theme.display; font.pixelSize: 19
                                anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    KeyboardAction {
+                        id: hallKey
+                        objectName: "homeUniverseHall"
+                        anchors.fill: parent
+                        accessibleName: "Hall of Worlds"
+                        pointerEnabled: false
+                        focusRadius: 8
+                        onTriggered: win.openUniverseHall()
                     }
                     MouseArea {
                         id: hallMa; anchors.fill: parent
@@ -3808,6 +3862,7 @@ Window {
 
     Loader {
         id: universeHallLayer
+        objectName: "universeHallLayer"
         anchors.fill: parent
         z: 51
         active: false

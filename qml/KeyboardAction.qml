@@ -10,7 +10,9 @@ Item {
     property string accessibleDescription: ""
     property bool focusEnabled: visible && enabled
     property bool pointerEnabled: true
-    property bool spaceActivates: true
+    // PlayStation-style map: Enter is the universal primary action. Space remains
+    // opt-in for controls whose native/scoped convention actually owns it.
+    property bool spaceActivates: false
     property bool contextEnabled: false
     property QtObject command: null
     property bool showFocusFrame: true

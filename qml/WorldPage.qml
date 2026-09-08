@@ -21,6 +21,12 @@ import QtQuick.Controls
 Item {
     id: world
 
+    // Shared world-shell D-pad router. Child rails/grids keep first claim on arrows;
+    // when they hit a boundary, the unaccepted key bubbles here and moves to the
+    // nearest visible focus region in that direction (including the pinned TopBar).
+    KeyboardSpatialNavigator { id: spatialNav; root: world }
+    Keys.onPressed: function(event) { spatialNav.handle(event) }
+
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
     property string medium: ""               // which library pill reads as selected
     // Main binds this to the current world. Bare page harnesses keep the default true, while

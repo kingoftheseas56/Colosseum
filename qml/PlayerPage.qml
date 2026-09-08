@@ -4032,6 +4032,11 @@ Item {
             id: resumeChoicePanel
             visible: root.resumeChoiceOpen
             focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            KeyboardSpatialNavigator {
+                id: resumeChoiceSpatial
+                root: resumeChoicePanel
+            }
+            Keys.onPressed: function(event) { resumeChoiceSpatial.handle(event) }
             Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, resumeChoicePanel, true) }
             Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, resumeChoicePanel, false) }
             z: 30
@@ -4091,6 +4096,11 @@ Item {
             id: closeConfirmPanel
             visible: root.closeConfirmOpen
             focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            KeyboardSpatialNavigator {
+                id: closeConfirmSpatial
+                root: closeConfirmPanel
+            }
+            Keys.onPressed: function(event) { closeConfirmSpatial.handle(event) }
             Keys.onEscapePressed: { root.closeConfirmOpen = false; event.accepted = true }
             Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, closeConfirmPanel, true) }
             Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, closeConfirmPanel, false) }

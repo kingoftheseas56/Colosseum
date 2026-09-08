@@ -10,6 +10,15 @@ import QtQuick
 Item {
     id: bar
 
+    // Arrow keys behave like a D-pad inside the visible chrome. At a directional
+    // boundary the event stays unaccepted so the owning page can move into content.
+    KeyboardSpatialNavigator {
+        id: spatialNav
+        root: bar
+        onBoundaryRequested: (key, fromItem) => bar.boundaryArrowRequested(key, fromItem)
+    }
+    Keys.onPressed: function(event) { spatialNav.handle(event) }
+
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
@@ -36,6 +45,7 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
     signal updateClicked()
+    signal boundaryArrowRequested(int key, Item fromItem)
 
     // Update availability flags (home only): drive the silver badge on the home
     // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
@@ -144,6 +154,7 @@ Item {
         }
         KeyboardAction {
             id: pillInput
+            objectName: "modePillFocus_" + pill.label
             anchors.fill: parent
             enabled: !pill.comingSoon
             accessibleName: pill.label
