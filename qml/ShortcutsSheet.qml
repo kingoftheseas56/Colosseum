@@ -107,6 +107,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             focusPolicy: sheet.open ? Qt.TabFocus : Qt.NoFocus
             Keys.onPressed: function(event) { shortcutScroll.handle(event) }
+            Keys.onReleased: (event) => shortcutScroll.handleRelease(event)
             ScrollBar.vertical: HouseScrollBar { flick: flick }
 
             Column {

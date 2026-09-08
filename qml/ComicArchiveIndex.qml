@@ -28,6 +28,7 @@ Item {
     signal westernPicked(var data)         // a series card → host opens its ComicSeries shelf
     signal allReleasesRequested(var data)  // "All N releases ›" → host opens the box's raw shelf
     Keys.onPressed: archiveIndexKeys.handle(event)
+    Keys.onReleased: archiveIndexKeys.handleRelease(event)
 
     // --- resolved series: [{title, tag, tagId, count, freq, cover}] ---
     property var series: []

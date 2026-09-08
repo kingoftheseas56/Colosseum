@@ -55,6 +55,7 @@ Item {
     signal readerBackRequested()
 
     Keys.onPressed: comicSeriesKeys.handle(event)
+    Keys.onReleased: (event) => comicSeriesKeys.handleRelease(event)
 
     // --- resolved state ---
     property var releases: []              // [{id,url,name,cover,year,sizeMB,synopsis,collection}]

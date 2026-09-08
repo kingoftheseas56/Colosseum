@@ -448,6 +448,7 @@ Item {
         Accessible.role: Accessible.Pane
         Accessible.name: "Downloads content"
         Keys.onPressed: (event) => pageKeys.handle(event)
+        Keys.onReleased: (event) => pageKeys.handleRelease(event)
         ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {

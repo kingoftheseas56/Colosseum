@@ -268,6 +268,101 @@ Item {
         return null
     }
 
+    function _collectionOwner(item) {
+        for (var node = item; node; node = node.parent) {
+            if (node.keyboardReturnOwner === true
+                    && node.keyboardIdentityForIndex !== undefined
+                    && node.keyboardIndexForIdentity !== undefined)
+                return node
+            if (node === nav.root)
+                break
+        }
+        return null
+    }
+
+    function _sectionCoordinator(owner) {
+        return owner && owner.keyboardSectionCoordinator
+                ? owner.keyboardSectionCoordinator : null
+    }
+
+    function _collectionIndex(owner, item) {
+        if (!owner || !item)
+            return -1
+        if (item.index !== undefined && isFinite(Number(item.index)))
+            return Number(item.index)
+        var identity = item.stableId !== undefined ? item.stableId
+            : (item.objectName !== undefined ? item.objectName : "")
+        return owner.keyboardIndexForIdentity && identity
+            ? Number(owner.keyboardIndexForIdentity(identity)) : -1
+    }
+
+    function _selectCollectionItem(owner, item) {
+        var index = nav._collectionIndex(owner, item)
+        if (index < 0)
+            return
+        if (owner.currentIndex !== undefined)
+            owner.currentIndex = index
+    }
+
+    function _rememberSectionTransition(fromItem, target) {
+        var sourceOwner = nav._collectionOwner(fromItem)
+        var targetOwner = nav._collectionOwner(target)
+        if (!sourceOwner || !targetOwner || sourceOwner === targetOwner)
+            return
+        var coordinator = nav._sectionCoordinator(sourceOwner)
+        if (!coordinator)
+            coordinator = nav._sectionCoordinator(targetOwner)
+        if (!coordinator || !coordinator.remember)
+            return
+        var sourceIndex = sourceOwner.currentIndex !== undefined
+                ? Number(sourceOwner.currentIndex) : nav._collectionIndex(sourceOwner, fromItem)
+        var identity = sourceOwner.keyboardIdentityForIndex(sourceIndex)
+        var offset = sourceOwner.contentX !== undefined ? Number(sourceOwner.contentX) : 0
+        coordinator.remember(sourceOwner, sourceIndex, identity, offset)
+        nav._selectCollectionItem(targetOwner, target)
+    }
+
+    function _restoreSectionReturn(fromItem, key, reason) {
+        if (key !== Qt.Key_Up)
+            return false
+        var currentOwner = nav._collectionOwner(fromItem)
+        var coordinator = nav._sectionCoordinator(currentOwner)
+        if (!currentOwner || !coordinator || !coordinator.returnRecord)
+            return false
+        var record = coordinator.returnRecord(currentOwner)
+        if (!record || !record.owner)
+            return false
+        var owner = record.owner
+        var count = owner.keyboardItems && owner.keyboardItems.length !== undefined
+                ? Number(owner.keyboardItems.length) : Number(owner.count || 0)
+        var index = owner.keyboardIndexForIdentity
+                ? Number(owner.keyboardIndexForIdentity(record.identity)) : -1
+        if (index < 0 && count > 0)
+            index = Math.max(0, Math.min(count - 1, Number(record.index)))
+        if (index < 0 || count <= 0)
+            return false
+        if (owner.currentIndex !== undefined)
+            owner.currentIndex = index
+        if (owner.contentX !== undefined && isFinite(Number(record.offset))) {
+            var maxX = Math.max(0, Number(owner.contentWidth) - Number(owner.width))
+            owner.contentX = Math.max(0, Math.min(maxX, Number(record.offset)))
+        }
+        var target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
+                : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
+        if (owner.keyboardRevealIndex)
+            owner.keyboardRevealIndex(index)
+        else if (owner.positionViewAtIndex)
+            owner.positionViewAtIndex(index, owner.positionMode)
+        target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
+                : (owner.itemAtIndex ? owner.itemAtIndex(index) : target)
+        if (!target || !nav._centerVisibleThroughClips(target))
+            return false
+        target.forceActiveFocus(reason)
+        if (target.activeFocus === true)
+            coordinator.clear()
+        return target.activeFocus === true
+    }
+
     function _rootDistanceForLocalDelta(flick, horizontal, localDelta) {
         if (!flick || !nav.root)
             return Math.abs(Number(localDelta))
@@ -441,6 +536,8 @@ Item {
         var forward = key === Qt.Key_Down || key === Qt.Key_Right
         var reason = (key === Qt.Key_Up || key === Qt.Key_Left)
             ? Qt.BacktabFocusReason : Qt.TabFocusReason
+        if (nav._restoreSectionReturn(fromItem, key, reason))
+            return true
         var ownedViewport = false
         var blockedViewport = false
         // Exhaust each owning viewport before exporting into unrelated chrome.
@@ -494,6 +591,7 @@ Item {
             var targetController = nav._scrollControllerFor(targetOwner)
             if (targetController && targetController.arrowScrolling === false)
                 return false
+            nav._rememberSectionTransition(fromItem, target)
             var targetStep = nav._directionalStep(targetOwner, horizontal, targetController)
             if (!nav._land(target, key, reason, targetStep)) {
                 if (targetStep > 0 && Viewport.setPosition(targetOwner, horizontal,

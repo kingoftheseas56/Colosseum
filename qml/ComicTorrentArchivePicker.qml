@@ -10,6 +10,7 @@ Item {
     focus: true
     activeFocusOnTab: true
     Keys.onPressed: archivePickerKeys.handle(event)
+    Keys.onReleased: archivePickerKeys.handleRelease(event)
 
     // Renders TWO candidate shapes: the legacy single-archive manifest
     // {index, name, extension, sizeBytes, sizeText, exactTitle, tokenCoverage}

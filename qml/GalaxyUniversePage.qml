@@ -35,6 +35,7 @@ Item {
         if (root.selectedDestinationId.length && !event.accepted)
             destinationKeyboardScroll.handle(event)
     }
+    Keys.onReleased: (event) => destinationKeyboardScroll.handleRelease(event)
 
     property bool reducedMotion: false
     readonly property var destinations: [

@@ -456,6 +456,7 @@ Item {
                 }
                 bodyKeyboardScroll.handle(event)
             }
+            Keys.onReleased: (event) => bodyKeyboardScroll.handleRelease(event)
 
             MouseArea {
                 anchors.fill: parent
@@ -959,6 +960,7 @@ Item {
                                 Keys.onPressed: function(event) {
                                     chatKeyboardScroll.handle(event)
                                 }
+                                Keys.onReleased: (event) => chatKeyboardScroll.handleRelease(event)
 
                                 Flickable {
                                     id: chatFlick

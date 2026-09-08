@@ -47,6 +47,7 @@ Item {
 
     signal closed()
     Keys.onPressed: torrentSourcesKeys.handle(event)
+    Keys.onReleased: torrentSourcesKeys.handleRelease(event)
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0

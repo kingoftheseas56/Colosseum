@@ -27,8 +27,10 @@ Item {
     KeyboardSpatialNavigator { id: spatialNav; root: world }
     Keys.onPressed: function(event) { spatialNav.handle(event) }
     Keys.onReleased: function(event) { spatialNav.handleRelease(event) }
+    KeyboardSectionCoordinator { id: keyboardSections }
 
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
+    readonly property var keyboardSectionCoordinator: keyboardSections
     property string medium: ""               // which library pill reads as selected
     // Main binds this to the current world. Bare page harnesses keep the default true, while
     // retained hidden worlds can stop timers, paging and refresh work without being destroyed.

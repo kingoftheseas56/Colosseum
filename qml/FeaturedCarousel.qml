@@ -13,6 +13,14 @@ Item {
     property string secondaryLabel: "Details"
     signal primaryClicked(int index)
     signal secondaryClicked(int index)
+    function _findKeyboardSectionCoordinator() {
+        for (var node = car.parent; node; node = node.parent) {
+            if (node.keyboardSectionCoordinator !== undefined && node.keyboardSectionCoordinator)
+                return node.keyboardSectionCoordinator
+        }
+        return null
+    }
+    property var keyboardSectionCoordinator: _findKeyboardSectionCoordinator()
 
     property alias index: view.currentIndex
     implicitHeight: 330
@@ -22,6 +30,8 @@ Item {
     SwipeView {
         id: view
         property bool keyboardReturnOwner: true
+        property var keyboardSectionCoordinator: car.keyboardSectionCoordinator
+        property var keyboardItemAtIndex: function(index) { return view.itemAt(index) }
         property var keyboardItems: car.slides
         property var keyboardIdentityForIndex: function(index) {
             var slide = car.slides[index]
@@ -68,6 +78,7 @@ Item {
         view: view
         orientation: "horizontal"
         count: car.slides.length
+        keyboardSectionCoordinator: car.keyboardSectionCoordinator
         onActivated: (index) => car.primaryClicked(index)
     }
 

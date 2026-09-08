@@ -19,6 +19,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     Keys.onPressed: archiveBoardKeys.handle(event)
+    Keys.onReleased: archiveBoardKeys.handleRelease(event)
 
     property var boxes: []
     property bool loading: true

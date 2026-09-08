@@ -24,6 +24,16 @@ Column {
 
     // Rows without a see-all destination (Your Collection) hide the header chevron.
     property bool showSeeAll: true
+    // The containing WorldPage supplies a per-world owner coordinator. Rows outside a
+    // WorldPage may inject one directly; no global history is consulted.
+    function _findKeyboardSectionCoordinator() {
+        for (var node = cont.parent; node; node = node.parent) {
+            if (node.keyboardSectionCoordinator !== undefined && node.keyboardSectionCoordinator)
+                return node.keyboardSectionCoordinator
+        }
+        return null
+    }
+    property var keyboardSectionCoordinator: _findKeyboardSectionCoordinator()
 
     // unfinished first (both halves keep their recency order), watched sink to the back
     readonly property var ordered: items.filter(function(e) { return e.watched !== true })
@@ -46,6 +56,8 @@ Column {
     Flickable {
         id: continueFlick
         property bool keyboardReturnOwner: true
+        property var keyboardSectionCoordinator: cont.keyboardSectionCoordinator
+        property var keyboardItemAtIndex: function(index) { return tileRepeater.itemAt(index) }
         property var keyboardItems: cont.ordered
         property var keyboardIdentityForIndex: function(index) {
             var item = cont.ordered[index]
@@ -128,6 +140,7 @@ Column {
             }
             modelRevision: (typeof Progress !== "undefined" && Progress)
                            ? Progress.revision : cont.items.length
+            keyboardSectionCoordinator: cont.keyboardSectionCoordinator
             positionIndexFn: function(index) {
                 continueFlick.keyboardRevealIndex(index)
             }

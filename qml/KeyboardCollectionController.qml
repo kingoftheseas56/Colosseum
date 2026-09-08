@@ -29,6 +29,9 @@ Item {
     property var rowForIndex: null
     property var identityForIndex: null
     property var indexForIdentity: null
+    // Optional per-surface section owner. A WorldPage supplies this to adjacent rails;
+    // the controller only clears that local return intent at explicit reset anchors.
+    property var keyboardSectionCoordinator: null
     property int modelRevision: 0
     property var _laneReturnId: null
     property int _laneReturnColumn: -1
@@ -81,6 +84,11 @@ Item {
         nav._laneColumn = -1
         nav._lanePending = false
         nav._laneRevision = nav.modelRevision
+    }
+
+    function _resetSectionIntent() {
+        if (nav.keyboardSectionCoordinator && nav.keyboardSectionCoordinator.clear)
+            nav.keyboardSectionCoordinator.clear()
     }
 
     function _syncLaneRevision() {
@@ -330,22 +338,27 @@ Item {
                 return true
             }
         }
-        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
             nav.invalidateLane()
+            nav._resetSectionIntent()
+        }
         if (event.key === Qt.Key_Home) {
             nav.invalidateLane()
+            nav._resetSectionIntent()
             if (nav.moveTo(0, Qt.BacktabFocusReason)) {
                 event.accepted = true
                 return true
             }
         } else if (event.key === Qt.Key_End) {
             nav.invalidateLane()
+            nav._resetSectionIntent()
             if (nav.moveTo(nav.count - 1, Qt.TabFocusReason)) {
                 event.accepted = true
                 return true
             }
         } else if (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown) {
             nav.invalidateLane()
+            nav._resetSectionIntent()
             const page = nav.pageStep > 0 ? nav.pageStep : nav.defaultPageStep()
             const delta = event.key === Qt.Key_PageUp ? -page : page
             const reason = delta < 0 ? Qt.BacktabFocusReason : Qt.TabFocusReason

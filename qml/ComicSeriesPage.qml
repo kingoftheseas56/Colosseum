@@ -41,6 +41,7 @@ Item {
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
     Keys.onPressed: comicSeriesPageKeys.handle(event)
+    Keys.onReleased: comicSeriesPageKeys.handleRelease(event)
 
     // --- resolved state ---
     property bool loading: true

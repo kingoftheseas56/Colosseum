@@ -132,6 +132,7 @@ Item {
             anchors.margins: 30
             activeFocusOnTab: true
             Keys.onPressed: (event) => flickKeys.handle(event)
+            Keys.onReleased: (event) => flickKeys.handleRelease(event)
             contentWidth: width
             contentHeight: bodyCol.implicitHeight
             clip: true

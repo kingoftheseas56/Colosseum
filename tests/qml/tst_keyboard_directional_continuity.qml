@@ -370,6 +370,41 @@ TestCase {
         view2.destroy()
     }
 
+    function test_real_separate_rails_return_identity_after_mutation() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 440; height: 280;'
+            + 'QtObject { id: sections; property var sourceOwner: null; property string sourceIdentity: ""; property int sourceIndex: -1;'
+            + 'function remember(owner,index,identity) { sourceOwner=owner; sourceIndex=index; sourceIdentity=identity }'
+            + 'function returnRecord(owner) { return sourceOwner && sourceOwner !== owner ? ({ owner: sourceOwner, index: sourceIndex, identity: sourceIdentity }) : null }'
+            + 'function clear() { sourceOwner=null; sourceIdentity=""; sourceIndex=-1 } }'
+            + 'Flickable { id: railA; objectName: "railA"; y: 20; width: 220; height: 70; contentWidth: 440; contentHeight: 70; clip: true; property var keyboardItems: aItems; property var keyboardSectionCoordinator: sections; property bool keyboardReturnOwner: true; property var aItems: [ {id:"A0"},{id:"A1"},{id:"A2"},{id:"A3"} ]; property int currentIndex: 3; function keyboardIdentityForIndex(i) { return i >= 0 && i < aItems.length ? aItems[i].id : "" } function keyboardIndexForIdentity(id) { for (var i=0;i<aItems.length;++i) if (aItems[i].id === id) return i; return -1 } function keyboardRevealIndex(i) { currentIndex=i; contentX=Math.max(0, Math.min(contentWidth-width, i*100)); return true } function keyboardItemAtIndex(i) { return repA.itemAt(i) } function sourceItem() { return repA.itemAt(currentIndex) } Row { Repeater { id: repA; model: railA.aItems; delegate: C.KeyboardAction { required property var modelData; required property int index; objectName: modelData.id; x: index * 100; width: 100; height: 60; pointerEnabled: false } } } }'
+            + 'Flickable { id: railB; objectName: "railB"; y: 150; width: 300; height: 70; contentWidth: 300; contentHeight: 70; clip: true; property var keyboardItems: bItems; property var keyboardSectionCoordinator: sections; property bool keyboardReturnOwner: true; property var bItems: [ {id:"B0"},{id:"B1"},{id:"B2"} ]; property int currentIndex: 0; function keyboardIdentityForIndex(i) { return i >= 0 && i < bItems.length ? bItems[i].id : "" } function keyboardIndexForIdentity(id) { for (var i=0;i<bItems.length;++i) if (bItems[i].id === id) return i; return -1 } function keyboardRevealIndex(i) { currentIndex=i; contentX=Math.max(0, Math.min(contentWidth-width, i*100)); return true } function keyboardItemAtIndex(i) { return repB.itemAt(i) } function sourceItem() { return repB.itemAt(currentIndex) } Row { Repeater { id: repB; model: railB.bItems; delegate: C.KeyboardAction { required property var modelData; required property int index; objectName: modelData.id; x: index * 100; width: 100; height: 60; pointerEnabled: false } } } }'
+            + 'C.KeyboardCollectionController { id: keysA; view: railA; orientation: "horizontal"; count: railA.aItems.length; identityForIndex: railA.keyboardIdentityForIndex; indexForIdentity: railA.keyboardIndexForIdentity; positionIndexFn: railA.keyboardRevealIndex }'
+            + 'C.KeyboardCollectionController { id: keysB; view: railB; orientation: "horizontal"; count: railB.bItems.length; identityForIndex: railB.keyboardIdentityForIndex; indexForIdentity: railB.keyboardIndexForIdentity; positionIndexFn: railB.keyboardRevealIndex }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } Keys.onPressed: function(event) { nav.handle(event) }'
+            + 'property alias navigator: nav; property alias a: railA; property alias b: railB }', testWindow.contentItem)
+        fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.a.currentIndex = 3
+        verify(fixture.navigator.moveFrom(fixture.a.sourceItem(), Qt.Key_Down))
+        compare(fixture.b.currentIndex, 2)
+        fixture.a.aItems = [ {id: "A3"}, {id: "A0"}, {id: "A1"}, {id: "A2"} ]
+        fixture.a.contentX = 100
+        fixture.b.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator.moveFrom(fixture.b.sourceItem(), Qt.Key_Up))
+        compare(fixture.a.currentIndex, 0)
+        compare(fixture.a.keyboardIdentityForIndex(fixture.a.currentIndex), "A3")
+        fixture.a.aItems = [ {id: "A0"}, {id: "A1"}, {id: "A3"}, {id: "A2"} ]
+        fixture.a.currentIndex = 2
+        fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator.moveFrom(fixture.a.sourceItem(), Qt.Key_Down))
+        fixture.b.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.a.aItems = [ {id: "A0"}, {id: "A1"}, {id: "A2"} ]
+        verify(fixture.navigator.moveFrom(fixture.b.sourceItem(), Qt.Key_Up))
+        compare(fixture.a.currentIndex, 2)
+        compare(fixture.a.keyboardIdentityForIndex(fixture.a.currentIndex), "A2")
+        fixture.destroy()
+    }
+
     function test_reorder_returns_same_id_and_removal_uses_nearest_peer() {
         keyClick(Qt.Key_Down)
         collection.entries = [

@@ -52,6 +52,7 @@ Item {
         if (!event.accepted)
             pageKeyboardScroll.handle(event)
     }
+    Keys.onReleased: (event) => pageKeyboardScroll.handleRelease(event)
 
     property var payload: null
     // No `Component.onCompleted: reload()`. Setting `extensionId` at construction — the only

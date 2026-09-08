@@ -45,6 +45,14 @@ Window {
     // offsets without introducing a global focus history service.
     property var bookReturnSnapshot: null
     property int bookRouteGeneration: 0
+    // Explicit layer references keep route coverage tests and helpers on the actual Loader
+    // owners; the component ids themselves are not Window properties.
+    readonly property var bookLayerRef: bookLayer
+    readonly property var bookReaderLayerRef: bookReaderLayer
+    readonly property var playerLayerRef: playerLayer
+    readonly property var settingsLayerRef: settingsLayer
+    readonly property var searchLayerRef: searchLayer
+    readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
 
@@ -1972,6 +1980,8 @@ Window {
     function _keyboardCollectionTarget(owner, index) {
         if (!owner)
             return null
+        if (owner.keyboardItemAtIndex)
+            return owner.keyboardItemAtIndex(index)
         if (owner.itemAtIndex)
             return owner.itemAtIndex(index)
         if (owner.currentItem && owner.currentIndex === index)
@@ -1979,13 +1989,21 @@ Window {
         return owner
     }
 
+    function _layerCoversReturn(layer) {
+        if (!layer || layer.active !== true || layer.visible === false
+                || Number(layer.opacity) <= 0.01)
+            return false
+        var item = layer.item
+        return !item || (item.visible !== false && Number(item.opacity) > 0.01)
+    }
+
     function _bookReturnCovered() {
-        return (win.bookLayer && win.bookLayer.active)
-            || (win.bookReaderLayer && win.bookReaderLayer.active)
-            || (win.playerLayer && win.playerLayer.active)
-            || (win.settingsLayer && win.settingsLayer.active)
-            || (win.searchLayer && win.searchLayer.active)
-            || (win.vaultLayer && win.vaultLayer.active)
+        return win._layerCoversReturn(win.bookLayerRef)
+            || win._layerCoversReturn(win.bookReaderLayerRef)
+            || win._layerCoversReturn(win.playerLayerRef)
+            || win._layerCoversReturn(win.settingsLayerRef)
+            || win._layerCoversReturn(win.searchLayerRef)
+            || win._layerCoversReturn(win.vaultLayerRef)
     }
 
     function _bookReturnTargetVisible(item) {
@@ -2046,8 +2064,6 @@ Window {
             if (index >= 0 && count > 0) {
                 resolvedOwnerIndex = index
                 snapshot.owner.currentIndex = index
-                if (snapshot.owner.positionViewAtIndex)
-                    snapshot.owner.positionViewAtIndex(index, GridView.Contain)
                 target = win._keyboardCollectionTarget(snapshot.owner, index)
             }
             if (!target)
@@ -2063,10 +2079,6 @@ Window {
             var flick = saved.flick
             if (!flick || flick.visible === false || flick.enabled === false)
                 continue
-            // The collection owner will perform the final identity reveal below.
-            // Restoring its old offset first would undo that reveal after a reorder.
-            if (resolvedOwnerIndex >= 0 && flick === snapshot.owner)
-                continue
             if (flick.contentX !== undefined) {
                 var minX = flick.originX - flick.leftMargin
                 var maxX = Math.max(minX, flick.originX + flick.contentWidth
@@ -2081,11 +2093,16 @@ Window {
             }
         }
         if (snapshot.owner && resolvedOwnerIndex >= 0) {
-            if (snapshot.owner.keyboardRevealIndex)
-                snapshot.owner.keyboardRevealIndex(resolvedOwnerIndex)
-            else if (snapshot.owner.positionViewAtIndex)
-                snapshot.owner.positionViewAtIndex(resolvedOwnerIndex, GridView.Contain)
+            // Restore a valid historical owner offset first. A minimal owner reveal is only
+            // needed when the resolved identity is clipped after reorder/removal/shrink.
             target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex) || snapshot.owner
+            if (!win._bookReturnTargetVisible(target)) {
+                if (snapshot.owner.keyboardRevealIndex)
+                    snapshot.owner.keyboardRevealIndex(resolvedOwnerIndex)
+                else if (snapshot.owner.positionViewAtIndex)
+                    snapshot.owner.positionViewAtIndex(resolvedOwnerIndex, GridView.Contain)
+                target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex) || snapshot.owner
+            }
         }
         if (!win._bookReturnTargetVisible(target))
             return false

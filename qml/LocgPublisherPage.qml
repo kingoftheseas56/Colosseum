@@ -64,6 +64,7 @@ Item {
         if (!event.accepted)
             pageKeyboardScroll.handle(event)
     }
+    Keys.onReleased: (event) => pageKeyboardScroll.handleRelease(event)
 
     Component.onCompleted: { fetchMore(); page.forceActiveFocus(Qt.TabFocusReason) }
     onBoxChanged: { items = []; nextPage = 1; hasMore = true; lastFirstId = ""; loading = true; cooldownMs = 0; fetchMore() }

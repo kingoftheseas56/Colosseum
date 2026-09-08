@@ -46,6 +46,7 @@ Item {
         if (!event.accepted)
             pageKeyboardScroll.handle(event)
     }
+    Keys.onReleased: (event) => pageKeyboardScroll.handleRelease(event)
     property var uni: ({ name: "", blurb: "", banner: "", kicker: "THE ERAS", metaline: "",
                          eras: [], rails: [], books: [], novelsTitle: "The Novels",
                          comics: null, firstWatch: null, firstWatchLabel: "" })

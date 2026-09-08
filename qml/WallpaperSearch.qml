@@ -323,6 +323,7 @@ Item {
                 clip: true
                 activeFocusOnTab: true
                 Keys.onPressed: (event) => bodyKeys.handle(event)
+                Keys.onReleased: (event) => bodyKeys.handleRelease(event)
                 contentWidth: width
                 contentHeight: bodyCol.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds

@@ -785,6 +785,7 @@ Item {
     Theme { id: theme }
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) theatreSeriesScrollKeys.handle(event) }
+    Keys.onReleased: (event) => theatreSeriesScrollKeys.handleRelease(event)
 
     onItemDataChanged: resolve()
     onEpisodesChanged: {

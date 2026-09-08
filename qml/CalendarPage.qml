@@ -114,6 +114,7 @@ Item {
         anchors.fill: parent
         activeFocusOnTab: true
         Keys.onPressed: (event) => pageKeys.handle(event)
+        Keys.onReleased: (event) => pageKeys.handleRelease(event)
         contentWidth: width
         contentHeight: col.implicitHeight + 60
         clip: true
