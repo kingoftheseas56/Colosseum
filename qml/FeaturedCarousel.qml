@@ -29,6 +29,7 @@ Item {
 
     SwipeView {
         id: view
+        objectName: "featuredCarouselView"
         property bool keyboardReturnOwner: true
         property var keyboardSectionCoordinator: car.keyboardSectionCoordinator
         property var keyboardItemAtIndex: function(index) { return view.itemAt(index) }
