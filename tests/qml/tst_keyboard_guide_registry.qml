@@ -81,4 +81,14 @@ TestCase {
         compare(page.shortcutRows[0].semanticId, "test.save")
         compare(page.shortcutRows[0].chord, "Ctrl+S")
     }
+
+    function test_essentials_communicates_directional_continuation() {
+        compare(page.featureRows[1].action, "Move focus / continue scrolling")
+        compare(page.featureRows[6].action, "First / last item")
+        compare(page.featureRows[7].action, "Move one screen")
+
+        var featuresHeader = findChild(page, "keyboardGuideFeaturesHeader")
+        verify(featuresHeader !== null)
+        compare(featuresHeader.note, "Move focus, scroll, open, search, go back")
+    }
 }

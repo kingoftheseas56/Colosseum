@@ -25,13 +25,13 @@ Item {
 
     readonly property var featureRows: [
         { icon: "keyboard.svg", tokens: ["Tab", "/", "Shift", "+", "Tab"], action: "Next / previous region" },
-        { icon: "navigation.svg", tokens: ["←", "↑", "↓", "→"], action: "Navigate" },
+        { icon: "navigation.svg", tokens: ["←", "↑", "↓", "→"], action: "Move focus / continue scrolling" },
         { icon: "enter.svg", tokens: ["Enter", "/", "Space"], action: "Open / activate" },
         { icon: "back.svg", tokens: ["Esc"], action: "Back / close" },
         { icon: "search.svg", tokens: ["Ctrl", "+", "F"], action: "Search" },
         { icon: "more.svg", tokens: ["Shift", "+", "F10"], action: "More options" },
-        { icon: "navigation.svg", tokens: ["Home", "/", "End"], action: "First / last" },
-        { icon: "navigation.svg", tokens: ["PageUp", "/", "PageDown"], action: "Move one page" }
+        { icon: "navigation.svg", tokens: ["Home", "/", "End"], action: "First / last item" },
+        { icon: "navigation.svg", tokens: ["PageUp", "/", "PageDown"], action: "Move one screen" }
     ]
 
     readonly property var comicRows: [
@@ -457,7 +457,7 @@ Item {
                         KeyNavigation.tab: readingHeader
                         KeyNavigation.backtab: shortcutsHeader
                         title: "Features"
-                        note: "Move, open, search, go back"
+                        note: "Move focus, scroll, open, search, go back"
                         iconSource: "navigation.svg"
                         expanded: root.featuresOpen
                         onToggleRequested: root.featuresOpen = !root.featuresOpen
