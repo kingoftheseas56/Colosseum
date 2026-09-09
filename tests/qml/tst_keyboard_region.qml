@@ -147,4 +147,47 @@ TestCase {
         compare(commandSpy.count, 1)
         compare(commandSpy.signalArguments[0][0], commandAction.actionObject)
     }
+
+    function test_restore_rejects_zero_opacity_ancestor_even_when_child_flags_stay_true() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as Colosseum; Item { width: 180; height: 120; visible: true; opacity: 0;'
+            + 'property alias target: target; Colosseum.KeyboardAction { id: target; width: 100; height: 40; visible: true; enabled: true; focusEnabled: true; pointerEnabled: false; property string stableId: "hidden-parent" } }',
+            region)
+        region.returnFocusItem = null
+        region.returnSnapshot = { item: fixture.target, identity: "hidden-parent", scrolls: [] }
+        fixture.opacity = 0
+        compare(fixture.target.visible, true)
+        compare(fixture.target.enabled, true)
+        verify(!region._validInternal(fixture.target))
+        region.restoreFocus()
+        verify(!fixture.target.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_restore_rejects_mostly_clipped_center_inside_target() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as Colosseum; Item { width: 180; height: 120; clip: true;'
+            + 'property alias target: target; Colosseum.KeyboardAction { id: target; x: 10; y: 70; width: 100; height: 80; visible: true; enabled: true; focusEnabled: true; pointerEnabled: false; property string stableId: "clipped-parent" } }',
+            region)
+        region.returnFocusItem = null
+        region.returnSnapshot = { item: fixture.target, identity: "clipped-parent", scrolls: [] }
+        verify(!region._validInternal(fixture.target))
+        region.restoreFocus()
+        verify(!fixture.target.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_restore_rejects_target_covered_by_closing_overlay() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as Colosseum; Item { width: 180; height: 120;'
+            + 'property alias target: target; Colosseum.KeyboardAction { id: target; x: 20; y: 20; width: 100; height: 40; visible: true; enabled: true; focusEnabled: true; pointerEnabled: false; property string stableId: "covered-parent" }'
+            + 'Rectangle { objectName: "closingOverlay"; anchors.fill: parent; color: "black"; z: 10; visible: true; opacity: 1 } }',
+            region)
+        region.returnFocusItem = null
+        region.returnSnapshot = { item: fixture.target, identity: "covered-parent", scrolls: [] }
+        verify(!region._validInternal(fixture.target))
+        region.restoreFocus()
+        verify(!fixture.target.activeFocus)
+        fixture.destroy()
+    }
 }

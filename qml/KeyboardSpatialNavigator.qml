@@ -91,31 +91,87 @@ Item {
         return true
     }
 
+    function _rectIn(item, ancestor) {
+        var p0 = item.mapToItem(ancestor, 0, 0)
+        var p1 = item.mapToItem(ancestor, Number(item.width), Number(item.height))
+        return {
+            left: Math.min(p0.x, p1.x), right: Math.max(p0.x, p1.x),
+            top: Math.min(p0.y, p1.y), bottom: Math.max(p0.y, p1.y)
+        }
+    }
+
+    function _rectIntersectsPoint(item, point, root) {
+        if (!item || item.visible === false || item.enabled === false
+                || (item.opacity !== undefined && Number(item.opacity) <= 0.01))
+            return false
+        var rect = nav._rectIn(item, root)
+        return point.x >= rect.left && point.x <= rect.right
+            && point.y >= rect.top && point.y <= rect.bottom
+    }
+
+    function _coveredByHigherSibling(item) {
+        if (!item || !nav.root)
+            return false
+        var center = item.mapToItem(nav.root, Number(item.width) / 2,
+                                    Number(item.height) / 2)
+        var branch = item
+        while (branch && branch.parent) {
+            var parent = branch.parent
+            var siblings = parent.children || []
+            var branchZ = Number(branch.z || 0)
+            for (var i = 0; i < siblings.length; ++i) {
+                var sibling = siblings[i]
+                if (sibling !== branch && Number(sibling.z || 0) > branchZ
+                        && nav._rectIntersectsPoint(sibling, center, nav.root))
+                    return true
+            }
+            if (parent === nav.root)
+                break
+            branch = parent
+        }
+        return false
+    }
+
     function _centerVisibleThroughClips(item) {
         if (!nav._eligible(item))
             return false
 
-        var center = item.mapToItem(nav.root, Number(item.width) / 2, Number(item.height) / 2)
-        if (center.x < 0 || center.y < 0
-                || center.x > Number(nav.root.width) || center.y > Number(nav.root.height))
-            return false
-
-        for (var ancestor = item.parent; ancestor && ancestor !== nav.root; ancestor = ancestor.parent) {
-            if (ancestor.clip === true) {
-                var clippedCenter = item.mapToItem(
-                    ancestor, Number(item.width) / 2, Number(item.height) / 2)
-                if (clippedCenter.x < 0 || clippedCenter.y < 0
-                        || clippedCenter.x > Number(ancestor.width)
-                        || clippedCenter.y > Number(ancestor.height))
+        for (var ancestor = item.parent; ancestor; ancestor = ancestor.parent) {
+            if (ancestor.clip === true || ancestor === nav.root) {
+                var rect = nav._rectIn(item, ancestor)
+                var viewportWidth = Number(ancestor.width)
+                var viewportHeight = Number(ancestor.height)
+                var targetWidth = rect.right - rect.left
+                var targetHeight = rect.bottom - rect.top
+                var oversized = targetWidth > viewportWidth + 0.000001
+                    || targetHeight > viewportHeight + 0.000001
+                if (oversized) {
+                    var overlapWidth = Math.min(rect.right, viewportWidth)
+                        - Math.max(rect.left, 0)
+                    var overlapHeight = Math.min(rect.bottom, viewportHeight)
+                        - Math.max(rect.top, 0)
+                    if (overlapWidth <= 0.000001 || overlapHeight <= 0.000001)
+                        return false
+                } else if (rect.left < -0.000001 || rect.top < -0.000001
+                           || rect.right > viewportWidth + 0.000001
+                           || rect.bottom > viewportHeight + 0.000001) {
                     return false
+                }
             }
+            if (ancestor === nav.root)
+                break
         }
         return true
     }
 
+    function _landingEligible(item) {
+        return nav._centerVisibleThroughClips(item)
+            && !nav._coveredByHigherSibling(item)
+    }
+
     function _isFocusable(item, includeOffscreen) {
         if (!item || item === nav || item === nav.root
-                || !(includeOffscreen ? nav._eligible(item) : nav._centerVisibleThroughClips(item)))
+                || !(includeOffscreen ? nav._eligible(item) : nav._landingEligible(item)))
             return false
         if (item.focusPolicy !== undefined)
             return item.focusPolicy !== Qt.NoFocus
@@ -431,6 +487,15 @@ Item {
             owner.positionViewAtIndex(index, owner.positionMode)
         target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
                 : (owner.itemAtIndex ? owner.itemAtIndex(index) : target)
+        if (target && !_centerVisibleThroughClips(target)) {
+            var targetRect = nav._rectIn(target, owner)
+            if (targetRect.left < 0 && owner.contentX !== undefined)
+                owner.contentX += targetRect.left
+            else if (targetRect.right > Number(owner.width) && owner.contentX !== undefined)
+                owner.contentX += targetRect.right - Number(owner.width)
+        }
+        target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
+                : (owner.itemAtIndex ? owner.itemAtIndex(index) : target)
         if (!target || !nav._centerVisibleThroughClips(target))
             return false
         var targetOwner = nav._collectionFocusOwner(target)
@@ -598,6 +663,8 @@ Item {
             var candidate = items[i]
             if (candidate === fromItem)
                 continue
+            if (!nav._candidateAllowed(candidate, includeOffscreen === true))
+                continue
             if (includeOffscreen && Viewport.revealPlan(candidate, nav.root,
                     key === Qt.Key_Left || key === Qt.Key_Right) === null)
                 continue
@@ -608,6 +675,16 @@ Item {
             }
         }
         return bestItem
+    }
+
+    function _candidateAllowed(candidate, includeOffscreen) {
+        if (!candidate || nav._hasUnsupportedTransform(candidate))
+            return false
+        var owner = nav._flickableOwner(candidate)
+        var controller = owner ? nav._scrollControllerFor(owner) : null
+        if (controller && controller.arrowScrolling === false)
+            return false
+        return includeOffscreen ? nav._eligible(candidate) : nav._landingEligible(candidate)
     }
 
     function moveFrom(fromItem, key) {
@@ -704,6 +781,8 @@ Item {
             maxDistance = nav.scrollStep
         if (nav._hasUnsupportedTransform(target))
             return false
+        if (nav._coveredByHigherSibling(target))
+            return false
         var plan = Viewport.revealPlan(target, nav.root, horizontal)
         if (plan === null)
             return false
@@ -711,7 +790,7 @@ Item {
             return false
         if (!Viewport.applyPlan(plan, horizontal, maxDistance))
             return false
-        if (!nav._centerVisibleThroughClips(target))
+        if (!nav._landingEligible(target))
             return false
         // Collection-managed rails keep focus on their Flickable owner while delegates
         // remain semantic selection faces. Land the owner after the visible target has

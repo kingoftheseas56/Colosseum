@@ -2026,13 +2026,45 @@ Window {
         for (var node = item; node; node = node.parent) {
             if (node.visible === false || node.enabled === false)
                 return false
+            if (node.opacity !== undefined && Number(node.opacity) <= 0.01)
+                return false
             if (node.clip === true) {
-                var point = item.mapToItem(node, Number(item.width) / 2,
-                    Number(item.height) / 2)
-                if (point.x < 0 || point.y < 0
-                        || point.x > Number(node.width) || point.y > Number(node.height))
+                var p0 = item.mapToItem(node, 0, 0)
+                var p1 = item.mapToItem(node, Number(item.width), Number(item.height))
+                var left = Math.min(p0.x, p1.x)
+                var right = Math.max(p0.x, p1.x)
+                var top = Math.min(p0.y, p1.y)
+                var bottom = Math.max(p0.y, p1.y)
+                var targetWidth = right - left
+                var targetHeight = bottom - top
+                var oversized = targetWidth > Number(node.width) + 0.000001
+                    || targetHeight > Number(node.height) + 0.000001
+                if (oversized) {
+                    var overlapWidth = Math.min(right, Number(node.width))
+                        - Math.max(left, 0)
+                    var overlapHeight = Math.min(bottom, Number(node.height))
+                        - Math.max(top, 0)
+                    if (overlapWidth <= 0.000001 || overlapHeight <= 0.000001)
+                        return false
+                } else if (left < -0.000001 || top < -0.000001
+                           || right > Number(node.width) + 0.000001
+                           || bottom > Number(node.height) + 0.000001) {
                     return false
+                }
             }
+            if (node === win)
+                break
+        }
+        return true
+    }
+
+    function _bookReturnTargetUsable(item) {
+        if (!item || item.visible === false || item.enabled === false)
+            return false
+        for (var node = item; node; node = node.parent) {
+            if (node.visible === false || node.enabled === false
+                    || (node.opacity !== undefined && Number(node.opacity) <= 0.01))
+                return false
             if (node === win)
                 break
         }
@@ -2070,7 +2102,7 @@ Window {
             return false
         var target = null
         var resolvedOwnerIndex = -1
-        if (snapshot.owner && snapshot.owner.visible !== false && snapshot.owner.enabled !== false) {
+        if (snapshot.owner && win._bookReturnTargetUsable(snapshot.owner)) {
             var index = win._keyboardCollectionIndex(snapshot.owner, snapshot.identity)
             var count = win._keyboardCollectionCount(snapshot.owner)
             if (index < 0 && count > 0)
@@ -2084,7 +2116,7 @@ Window {
                    && win._stableKeyboardIdentity(snapshot.item) === snapshot.identity) {
             target = snapshot.item
         }
-        if (!target || target.visible === false || target.enabled === false)
+        if (!win._bookReturnTargetUsable(target))
             return false
         for (var i = 0; i < snapshot.scrolls.length; ++i) {
             var saved = snapshot.scrolls[i]

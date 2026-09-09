@@ -88,7 +88,7 @@ FocusScope {
     }
 
     function _validInternal(item) {
-        return _isFocusable(item, true)
+        return _isFocusable(item, true) && spatialNav._landingEligible(item)
     }
 
     function _stableIdentity(item) {
@@ -149,7 +149,8 @@ FocusScope {
     }
 
     function _focus(item, reason) {
-        if (!_isFocusable(item, false))
+        var valid = _isInternal(item) ? _validInternal(item) : _isFocusable(item, false)
+        if (!valid)
             return false
         item.forceActiveFocus(reason === undefined ? Qt.OtherFocusReason : reason)
         if (item.activeFocus)
@@ -171,7 +172,7 @@ FocusScope {
     }
 
     function rememberFocus(item) {
-        if (!_validInternal(item))
+        if (!_isFocusable(item, true))
             return false
         region.lastFocusItem = item
         region.returnSnapshot = {

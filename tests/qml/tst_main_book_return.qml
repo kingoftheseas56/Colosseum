@@ -98,4 +98,23 @@ TestCase {
         verify(fixture.keyboardItemAtIndex(0).activeFocus)
         fixture.destroy()
     }
+
+    function test_return_target_rejects_zero_opacity_ancestry() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { width: 220; height: 120; opacity: 0;'
+            + 'property alias target: target; Item { id: target; width: 80; height: 40; visible: true; enabled: true; focus: false } }',
+            shell.contentItem)
+        verify(!shell._bookReturnTargetVisible(fixture.target))
+        fixture.destroy()
+    }
+
+    function test_return_target_rejects_mostly_clipped_center_inside() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { width: 220; height: 160;'
+            + 'Item { id: clipHost; x: 10; y: 10; width: 180; height: 100; clip: true;'
+            + 'property alias target: target; Item { id: target; x: 20; y: 60; width: 120; height: 80; visible: true; enabled: true; focus: false } } }',
+            shell.contentItem)
+        verify(!shell._bookReturnTargetVisible(fixture.children[0].target))
+        fixture.destroy()
+    }
 }
