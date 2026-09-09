@@ -58,6 +58,11 @@ Item {
         }
         anchors.fill: parent
         clip: true
+        onCurrentIndexChanged: {
+            if (activeFocus && car.keyboardSectionCoordinator
+                    && car.keyboardSectionCoordinator.clear)
+                car.keyboardSectionCoordinator.clear()
+        }
         focusPolicy: car.slides.length > 0 ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => featuredKeys.handle(event)
         Repeater {
