@@ -55,6 +55,7 @@ Column {
 
     Flickable {
         id: continueFlick
+        objectName: "continueRail"
         property bool keyboardReturnOwner: true
         property var keyboardSectionCoordinator: cont.keyboardSectionCoordinator
         property var keyboardItemAtIndex: function(index) { return tileRepeater.itemAt(index) }
