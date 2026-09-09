@@ -7,6 +7,8 @@ Branch: `codex/arc41-directional-scroll`
 
 This report records the final Luna implementation and qualification pass for the six assembled directional-navigation families. The work stayed in `C:\b\colosseum-arc41-scroll` and used local shell commands and Lanista sessions with unique tagged app-data roots.
 
+Implementation commit: `38162ba888080f1ee1524e6e340a36bdc6adcac8`.
+
 ## Source and cleanup
 
 - Removed only accidental root probe artifacts and four abandoned runner `*.stdout.tmp` / `*.stderr.tmp` files.
