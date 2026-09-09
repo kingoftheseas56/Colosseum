@@ -35,6 +35,20 @@ TestCase {
         }
     }
     property var subject: null
+    property var focusHost: null
+
+    Component {
+        id: focusHostComp
+        Item {
+            width: 1280
+            height: 720
+            property int downCount: 0
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Down)
+                    downCount += 1
+            }
+        }
+    }
 
     function byName(root, name) {
         if (!root) return null
@@ -51,6 +65,8 @@ TestCase {
     function cleanup() {
         if (subject) subject.destroy()
         subject = null
+        if (focusHost) focusHost.destroy()
+        focusHost = null
     }
 
     function test_local_flyout_escape_and_focus_restore_path() {
@@ -63,6 +79,24 @@ TestCase {
         tryCompare(sessionAction, "activeFocus", true)
         keyClick(Qt.Key_Escape)
         tryCompare(subject, "visible", false)
+    }
+
+    function test_local_flyout_contains_unhandled_down_at_overlay_boundary() {
+        focusHost = focusHostComp.createObject(testWindow.contentItem)
+        verify(focusHost !== null)
+        subject = flyoutComp.createObject(focusHost)
+        verify(subject !== null)
+        subject.open()
+        tryCompare(subject, "visible", true)
+        var sessionAction = byName(subject, "accountFlyoutSessionAction")
+        verify(sessionAction !== null)
+        tryCompare(sessionAction, "activeFocus", true)
+
+        keyClick(Qt.Key_Down)
+
+        compare(focusHost.downCount, 0,
+                "bare Down must be contained by AccountFlyout, not delivered to its parent")
+        tryCompare(sessionAction, "activeFocus", true)
     }
     function test_update_chrome_keyboard_activation() {
         subject = updateComp.createObject(testWindow.contentItem)

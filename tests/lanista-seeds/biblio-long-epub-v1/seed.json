@@ -1,0 +1,10 @@
+{
+  "name": "biblio-long-epub-v1",
+  "version": 1,
+  "provenance": {"purpose": "Arc 41 assembled Reader long directional scroll acceptance; deterministic local EPUB with enough prose to require repeated ordinary PageDown input."},
+  "placement": [
+    {"content": "books", "destination": "roaming", "relPath": "books"},
+    {"content": "collection-store.ini", "destination": "roaming", "relPath": "collection-store.ini"}
+  ],
+  "expectedOnBoot": [{"surface": "bootSplash", "property": "visible", "value": false}]
+}

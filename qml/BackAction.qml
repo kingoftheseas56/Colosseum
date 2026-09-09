@@ -35,6 +35,7 @@ Item {
 
     readonly property color _c: input.interactionActive ? hoverColor : idleColor
     readonly property int _chev: variant === "plain" ? 20 : (variant === "capsule" ? 18 : 24)
+    readonly property bool automationActiveFocus: input.activeFocus
 
     implicitWidth: variant === "capsule" ? 42
                  : variant === "immersive" ? 34

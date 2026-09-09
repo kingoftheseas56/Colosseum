@@ -21,6 +21,10 @@ import "../Reader2ActivityHelpers.js" as AH   // Your Colosseum reading activity
 FocusScope {
     id: shell
     objectName: "bookReaderShell"   // test-only seam: Lanista qml-get reads bookPath/bookReady
+    readonly property string automationFocusedObject: paper.automationFocused ? paper.objectName : ""
+    readonly property bool automationFocusedObjectFullyVisible:
+        paper.automationFocused && paper.visible && paper.enabled
+        && paper.width > 0 && paper.height > 0
     property string bookPath: ""
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed

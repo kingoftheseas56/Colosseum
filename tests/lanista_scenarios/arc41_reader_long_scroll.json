@@ -1,0 +1,530 @@
+{
+  "name": "arc41-reader-long-scroll",
+  "comment": "Arc 41 family 2 assembled Reader acceptance: donor Biblio route, deterministic long EPUB, ordinary Down input, readable page and focused paper containment.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "the session answers on its own pipe, drive gated on",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "one visible window, isolated tagged data root",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the boot splash has left the screen",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss account onboarding (fresh tag gates world content)",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding dismisses",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter the Biblio world",
+      "payload": {
+        "target": "modePill_Biblio"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Biblio's tab bar appears",
+      "payload": {
+        "object": "biblioTabBar",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the retained Discover catalog load settles (no deferred work races the Library assertion)",
+      "payload": {
+        "object": "biblioDiscoverPage",
+        "prop": "loading",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the real Library tab action materializes",
+      "payload": {
+        "object": "biblioTab_library",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "switch to the Library tab",
+      "payload": {
+        "target": "biblioTab_library"
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the Library tab activation settle",
+      "presentation_wait_ms": 500,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "retry the idempotent Library tab activation",
+      "payload": {
+        "target": "biblioTab_library"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the Library page is on screen",
+      "payload": {
+        "object": "biblioLibraryPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the seeded book's Collection card renders (durable Collection entry from the seed)",
+      "payload": {
+        "object": "biblioLibraryCard_arc 19 book|test author",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "the seed contributed exactly one Library card",
+      "payload": {
+        "object": "biblioLibraryPage",
+        "props": [
+          "rowCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.rowCount",
+          "op": "==",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll #1 (target the stable tab bar, not a delegate - clears the featured-carousel dead zone above the wall)",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -500
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll #2",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -800
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll #3",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -800
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the scroll glide settle",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the book's detail page",
+      "payload": {
+        "target": "biblioLibraryCard_arc 19 book|test author"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the BiblioBook detail page is on screen",
+      "payload": {
+        "object": "biblioBookDetail",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "durable-fallback proof: the primary Read status becomes \"Ready on this device\" (localPath recovered from Books.downloadedBooks() while live sources are irrelevant \u00e2\u20ac\u201d the exact-value wait that fails when the downloadedBooks fallback is removed)",
+      "payload": {
+        "object": "biblioPrimaryReadStatus",
+        "prop": "text",
+        "value": "Ready on this device",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "authoritative detail state: localPath points at the seeded copy in the tagged books dir, no error, no pending acquisition",
+      "payload": {
+        "object": "biblioBookDetail",
+        "props": [
+          "localPath",
+          "readError",
+          "pendingReadTransport"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.localPath",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "props.localPath",
+          "op": "contains",
+          "value": "/books/"
+        },
+        {
+          "path": "props.localPath",
+          "op": "matches",
+          "value": "long-book\\.epub$"
+        },
+        {
+          "path": "props.readError",
+          "op": "==",
+          "value": ""
+        },
+        {
+          "path": "props.pendingReadTransport",
+          "op": "==",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "detail-page Read opens the production ebook reader (no replacement acquisition)",
+      "payload": {
+        "target": "biblioPrimaryRead"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the production reader reaches ready on the seeded EPUB",
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "bookReady",
+        "value": true,
+        "timeout_ms": 40000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "detail-route reader identity: same seeded local path (tagged books dir + long-book.epub)",
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.bookPath",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "contains",
+          "value": "/books/"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "matches",
+          "value": "long-book\\.epub$"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the reader relocation settle",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "long reader baseline is ready readable prose",
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookReady",
+          "bookPath",
+          "pageInChapter",
+          "pagesInChapter",
+          "percent",
+          "currentPageIsText",
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.bookPath",
+          "op": "matches",
+          "value": "long-book\\.epub$"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": ">",
+          "value": 1
+        },
+        {
+          "path": "props.currentPageIsText",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "reader2Paper"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down advances the readable paper",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down advances again",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down advances through the long paper",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let ordinary reader key events settle",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "reader viewport moved to a later readable page",
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookReady",
+          "pageInChapter",
+          "pagesInChapter",
+          "percent",
+          "currentPageIsText",
+          "bookPath",
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": ">",
+          "value": 1
+        },
+        {
+          "path": "props.percent",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "path": "props.currentPageIsText",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "reader2Paper"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

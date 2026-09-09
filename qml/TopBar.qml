@@ -325,7 +325,9 @@ Item {
             }
             KeyboardAction {
                 id: accountInput
+                objectName: "colosseumTopbarAccountInput"
                 anchors.fill: parent
+                focusOnPointer: false
                 accessibleName: bar.localDevice
                     ? qsTr("Device")
                     : (bar.accountPresent

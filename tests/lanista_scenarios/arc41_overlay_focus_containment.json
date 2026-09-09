@@ -1,0 +1,613 @@
+{
+  "name": "arc41-overlay-focus-containment",
+  "comment": "Arc41 family6 acceptance uses the real local AccountFlyout over a focused, virtualized Biblio Library. Setup reaches the underlying GridView through ordinary keyboard input; the top bar click is the documented overlay entry point. The acceptance proves bare Down remains contained, the focused flyout action is fully visible, the underlying identity/index/viewport stay unchanged, Escape closes, and focus returns to the top bar invoker.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated session answers with drive enabled",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "fresh tagged window is visible",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash leaves",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss account onboarding",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "account host closes",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter Biblio",
+      "payload": {
+        "target": "modePill_Biblio"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Biblio tab bar appears",
+      "payload": {
+        "object": "biblioTabBar",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "retained Discover catalog settles before Library navigation",
+      "payload": {
+        "object": "biblioDiscoverPage",
+        "prop": "loading",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library tab action materializes",
+      "payload": {
+        "object": "biblioTab_library",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "switch to Library",
+      "payload": {
+        "target": "biblioTab_library"
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the Library tab activation settle",
+      "presentation_wait_ms": 500,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "retry the idempotent Library tab activation",
+      "payload": {
+        "target": "biblioTab_library"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library page is visible",
+      "payload": {
+        "object": "biblioLibraryPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the seeded GridView realize its initial delegates",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "first seeded Collection card realizes",
+      "payload": {
+        "object": "biblioLibraryCard_arc41-virtual-000|author-000",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll clears the retained featured board above the real GridView",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -500
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll continues to the Library viewport",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -800
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll settles the production Library surface",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -800
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the world viewport and realized card settle",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down enters the production GridView from the visible WorldTabBar",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "production Biblio GridView owns focus",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Home establishes the index-zero baseline",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the production selection settle at index zero",
+      "presentation_wait_ms": 500,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "baseline model and live delegates",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "props": [
+          "activeFocus",
+          "count",
+          "currentIndex",
+          "contentY",
+          "automationLiveDelegateCount",
+          "automationCurrentIdentity",
+          "automationCurrentItemObjectName",
+          "automationCurrentItemFullyVisible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.count",
+          "op": ">",
+          "value": 100
+        },
+        {
+          "path": "props.automationLiveDelegateCount",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "path": "props.automationLiveDelegateCount",
+          "op": "<",
+          "value": 160
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.automationCurrentIdentity",
+          "op": "==",
+          "value": "arc41-virtual-000|author-000"
+        },
+        {
+          "path": "props.automationCurrentItemObjectName",
+          "op": "==",
+          "value": "biblioLibraryCard_arc41-virtual-000|author-000"
+        },
+        {
+          "path": "props.automationCurrentItemFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "baseline first delegate is selected and fully visible",
+      "payload": {
+        "object": "biblioLibraryCard_arc41-virtual-000|author-000",
+        "props": [
+          "keyboardSelected",
+          "index",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.keyboardSelected",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.index",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open AccountFlyout from the production top bar control",
+      "payload": {
+        "target": "colosseumTopbarAccountButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "AccountFlyout becomes visible",
+      "payload": {
+        "object": "accountFlyout",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "underlying Library snapshot stays at the invoker index",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "props": [
+          "activeFocus",
+          "currentIndex",
+          "contentY",
+          "automationCurrentIdentity"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.contentY",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.automationCurrentIdentity",
+          "op": "==",
+          "value": "arc41-virtual-000|author-000"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "local AccountFlyout session action owns focus",
+      "payload": {
+        "object": "accountFlyoutSessionAction",
+        "props": [
+          "activeFocus",
+          "visible",
+          "width",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "focused flyout action is fully visible and unclipped",
+      "payload": {
+        "object": "accountFlyoutSessionAction"
+      },
+      "expect": [
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down stays inside the AccountFlyout",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "bare Down keeps focus inside the flyout action",
+      "payload": {
+        "object": "accountFlyoutSessionAction",
+        "props": [
+          "activeFocus",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "bare Down cannot move the underlying Library selection",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "props": [
+          "currentIndex",
+          "contentY",
+          "automationCurrentIdentity"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.contentY",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.automationCurrentIdentity",
+          "op": "==",
+          "value": "arc41-virtual-000|author-000"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape closes the AccountFlyout",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "AccountFlyout closes from ordinary Escape",
+      "payload": {
+        "object": "accountFlyout",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Escape restores focus to the underlying Library invoker",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "props": [
+          "activeFocus",
+          "currentIndex",
+          "contentY",
+          "automationCurrentIdentity"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.contentY",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.automationCurrentIdentity",
+          "op": "==",
+          "value": "arc41-virtual-000|author-000"
+        }
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "session remains live after overlay containment",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.read",
+          "op": "==",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

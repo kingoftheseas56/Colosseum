@@ -128,7 +128,10 @@ Item {
             || (nav.spaceActivates && event.key === Qt.Key_Space)
     }
     function handle(event) {
-        if (!event || nav.count <= 0)
+        if (!event)
+            return false
+        event.accepted = false
+        if (nav.count <= 0)
             return false
         const index = Math.max(0, nav.indexNow())
         const reorderDelta = nav.reorderDeltaFor(event)

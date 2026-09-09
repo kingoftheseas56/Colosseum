@@ -42,7 +42,10 @@ Item {
     }
 
     function handle(event) {
-        if (!event || !nav.flick)
+        if (!event)
+            return false
+        event.accepted = false
+        if (!nav.flick)
             return false
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             return false

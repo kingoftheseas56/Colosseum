@@ -7,6 +7,7 @@ import QtQuick.Effects
 Item {
     id: slideRoot
     property var slide: ({})                 // { title, blurb, ghost, c1, c2, art?, artKind? }
+    property int slideIndex: -1
     property string kicker: "Featured"
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
@@ -124,6 +125,7 @@ Item {
                         onClicked: slideRoot.primaryClicked() }
                     KeyboardAction {
                         id: primaryKeyboard
+                        objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: slideRoot.primaryLabel
@@ -140,6 +142,7 @@ Item {
                         onClicked: slideRoot.secondaryClicked() }
                     KeyboardAction {
                         id: secondaryKeyboard
+                        objectName: slideRoot.slideIndex >= 0 ? "featuredSecondaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
                         pointerEnabled: false
                         focusEnabled: slideRoot.secondaryLabel.length > 0

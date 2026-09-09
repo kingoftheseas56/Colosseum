@@ -61,6 +61,35 @@ TestCase {
             lineStep: 40
             pageFraction: 0.8
         }
+
+        Item {
+            id: boundaryParent
+            x: 340; y: 260; width: 280; height: 100
+            property int boundaryCount: 0
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Down) {
+                    boundaryParent.boundaryCount += 1
+                    event.accepted = true
+                }
+            }
+
+            Flickable {
+                id: boundaryChild
+                objectName: "boundaryChild"
+                width: parent.width; height: parent.height
+                contentWidth: width; contentHeight: height
+                focusPolicy: Qt.TabFocus
+                Keys.onPressed: (event) => boundaryCollection.handle(event)
+            }
+
+            Colosseum.KeyboardCollectionController {
+                id: boundaryCollection
+                view: boundaryChild
+                orientation: "vertical"
+                count: 1
+                currentIndex: 0
+            }
+        }
     }
 
     SignalSpy { id: actionSpy; target: action; signalName: "triggered" }
@@ -160,5 +189,43 @@ TestCase {
         verify(scroller.contentY < 412)
         keyClick(Qt.Key_PageDown)
         verify(scroller.contentY <= 412)
+    }
+
+    function test_collection_boundary_key_reaches_parent_keys_handler() {
+        boundaryParent.boundaryCount = 0
+        boundaryChild.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Down)
+        compare(boundaryParent.boundaryCount, 1)
+    }
+
+    function test_real_featured_swipe_boundary_reaches_parent_keys_handler() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 640; height: 360;'
+            + 'property int parentKeyCount: 0; property alias carousel: carousel;'
+            + 'Keys.onPressed: function(event) { if (event.key === Qt.Key_Down) { parentKeyCount += 1; event.accepted = true } }'
+            + 'C.FeaturedCarousel { id: carousel; automationId: "fixtureSwipe"; width: 600; height: 300; slides: [{title:"A"},{title:"B"}] } }', testWindow.contentItem)
+        wait(20)
+        function findByName(node, name) {
+            if (!node)
+                return null
+            if (node.objectName === name)
+                return node
+            var children = node.children || []
+            for (var i = 0; i < children.length; ++i) {
+                var found = findByName(children[i], name)
+                if (found)
+                    return found
+            }
+            return null
+        }
+        var owner = findByName(fixture, "fixtureSwipe")
+        verify(owner)
+        owner.currentIndex = 1
+        owner.forceActiveFocus(Qt.OtherFocusReason)
+        verify(owner.activeFocus)
+        keyClick(Qt.Key_Down)
+        compare(fixture.parentKeyCount, 1)
+        compare(owner.currentIndex, 1)
+        fixture.destroy()
     }
 }

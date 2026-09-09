@@ -580,6 +580,7 @@ const handleKeydown = e => {
       e.preventDefault()
       break
     case 'ArrowRight':
+    case 'ArrowDown':
     case 'PageDown':
     case ' ':                     // Space
       currentView?.renderer?.next()
@@ -587,6 +588,10 @@ const handleKeydown = e => {
       break
     case 'Escape':
       emit('escape', {})
+      e.preventDefault()
+      break
+    case 'ArrowUp':
+      currentView?.renderer?.prev()
       e.preventDefault()
       break
     default:

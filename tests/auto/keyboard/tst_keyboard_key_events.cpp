@@ -81,6 +81,9 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
     QVERIFY(accountActionA);
     auto *accountActionB = window->findChild<QQuickItem *>(QStringLiteral("accountActionB"));
     QVERIFY(accountActionB);
+    QTRY_VERIFY_WITH_TIMEOUT(accountScroll->property("contentHeight").toReal()
+                                 > accountScroll->property("height").toReal(),
+                             2000);
     accountActionA->forceActiveFocus(Qt::OtherFocusReason);
     QVERIFY(accountActionA->hasActiveFocus());
     QCOMPARE(window->activeFocusItem(), accountActionA);

@@ -10,6 +10,7 @@ Item {
     property string accessibleDescription: ""
     property bool focusEnabled: visible && enabled
     property bool pointerEnabled: true
+    property bool focusOnPointer: true
     // PlayStation-style map: Enter is the universal primary action. Space remains
     // opt-in for controls whose native/scoped convention actually owns it.
     property bool spaceActivates: false
@@ -37,7 +38,8 @@ Item {
     function activate(focusReason) {
         if (!action.enabled || !action.visible)
             return false
-        if (action.focusEnabled && focusReason !== undefined)
+        if (action.focusEnabled && focusReason !== undefined
+                && (focusReason !== Qt.MouseFocusReason || action.focusOnPointer))
             action.forceActiveFocus(focusReason)
         if (action.command && action.command.invoke)
             return action.command.invoke(action)

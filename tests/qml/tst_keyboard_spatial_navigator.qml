@@ -120,6 +120,76 @@ TestCase {
         verify(!spatial.focusNamed("doesNotExist", Qt.TabFocusReason))
     }
 
+    function test_named_collection_owner_with_focusable_descendant_is_focusable() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 320; height: 180;'
+            + 'property alias navigator: nav; property alias owner: owner; property alias descendant: descendant;'
+            + 'Flickable { id: owner; objectName: "namedCollectionOwner"; x: 20; y: 20; width: 180; height: 80;'
+            + 'contentWidth: 360; contentHeight: height; clip: true; focusPolicy: Qt.TabFocus;'
+            + 'C.KeyboardAction { id: descendant; objectName: "namedCollectionDescendant"; x: 16; y: 18; width: 120; height: 44; pointerEnabled: false } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        verify(fixture.navigator.focusNamed("namedCollectionOwner", Qt.TabFocusReason))
+        verify(fixture.owner.activeFocus)
+        verify(!fixture.descendant.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_collection_selected_delegate_skips_same_owner_nested_face() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 640; height: 420;'
+            + 'property alias navigator: nav; property alias ownerA: ownerA; property alias ownerB: ownerB; property alias selected: delegateA;'
+            + 'Flickable { id: ownerA; objectName: "selectedOwner"; x: 20; y: 20; width: 360; height: 110; contentWidth: width; contentHeight: height; clip: true; focusPolicy: Qt.TabFocus; property bool keyboardReturnOwner: true; property int currentIndex: 0; property var keyboardItems: [delegateA]; property var keyboardIdentityForIndex: function(i) { return i === 0 ? "A0" : "" }; property var keyboardIndexForIdentity: function(id) { return id === "A0" ? 0 : -1 }; property var keyboardItemAtIndex: function(i) { return i === 0 ? delegateA : null }; Item { id: delegateA; property int index: 0; width: 360; height: 110; C.KeyboardAction { objectName: "sameOwnerNestedFace"; x: 30; y: 68; width: 120; height: 28; pointerEnabled: false } } }'
+            + 'Flickable { id: ownerB; objectName: "nextOwner"; x: 20; y: 190; width: 360; height: 110; contentWidth: width; contentHeight: height; clip: true; focusPolicy: Qt.TabFocus; property bool keyboardReturnOwner: true; property int currentIndex: 0; property var keyboardItems: [delegateB]; property var keyboardIdentityForIndex: function(i) { return i === 0 ? "B0" : "" }; property var keyboardIndexForIdentity: function(id) { return id === "B0" ? 0 : -1 }; property var keyboardItemAtIndex: function(i) { return i === 0 ? delegateB : null }; Item { id: delegateB; property int index: 0; width: 360; height: 110; C.KeyboardAction { objectName: "nextOwnerFace"; x: 30; y: 32; width: 120; height: 28; pointerEnabled: false } } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.ownerA.forceActiveFocus(Qt.OtherFocusReason)
+        wait(5)
+        verify(fixture.navigator.activeItem() === fixture.selected)
+        verify(fixture.navigator.move(Qt.Key_Down))
+        verify(fixture.ownerB.activeFocus)
+        verify(!fixture.ownerA.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_collection_nested_face_reveals_semantic_delegate_before_landing() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 640; height: 420;'
+            + 'property alias navigator: nav; property alias owner: owner; property alias source: source;'
+            + 'C.KeyboardAction { id: source; objectName: "nestedRevealSource"; x: 20; y: 20; width: 160; height: 44; pointerEnabled: false }'
+            + 'Flickable { id: owner; objectName: "nestedRevealOwner"; x: 20; y: 120; width: 260; height: 100; contentWidth: width; contentHeight: 240; clip: true; focusPolicy: Qt.TabFocus; property bool keyboardReturnOwner: true; property int currentIndex: 0; property var keyboardItems: [delegate]; property var keyboardIdentityForIndex: function(i) { return i === 0 ? "delegate0" : "" }; property var keyboardIndexForIdentity: function(id) { return id === "delegate0" ? 0 : -1 }; property var keyboardItemAtIndex: function(i) { return i === 0 ? delegate : null };'
+            + 'Item { id: content; width: 260; height: 240; Item { id: delegate; property int index: 0; width: 260; height: 180; y: 30; C.KeyboardAction { objectName: "nestedRevealFace"; x: 20; y: 5; width: 160; height: 40; pointerEnabled: false } } } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator.move(Qt.Key_Down))
+        verify(fixture.owner.activeFocus)
+        verify(fixture.owner.contentY > 0)
+        verify(fixture.navigator._centerVisibleThroughClips(fixture.owner.keyboardItemAtIndex(0)))
+        fixture.destroy()
+    }
+
+    function test_automation_visibility_projects_selected_collection_delegate() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 420; height: 260;'
+            + 'property alias navigator: nav; property alias owner: owner; property alias delegate: delegate;'
+            + 'Flickable { id: owner; objectName: "visibilityOwner"; x: 20; y: 20; width: 360; height: 100;'
+            + 'contentWidth: width; contentHeight: 260; clip: true; focusPolicy: Qt.TabFocus;'
+            + 'property bool keyboardReturnOwner: true; property int currentIndex: 0;'
+            + 'property var keyboardIdentityForIndex: function(i) { return i === 0 ? "deep0" : "" };'
+            + 'property var keyboardIndexForIdentity: function(id) { return id === "deep0" ? 0 : -1 };'
+            + 'property var keyboardItemAtIndex: function(i) { return i === 0 ? delegate : null };'
+            + 'Item { id: content; width: 360; height: 260; Item { id: delegate; property int index: 0; y: 150; width: 360; height: 70;'
+            + 'C.KeyboardAction { objectName: "deepVisibilityFace"; x: 20; y: 12; width: 140; height: 42; pointerEnabled: false } } } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.owner.forceActiveFocus(Qt.OtherFocusReason)
+        wait(5)
+        verify(!fixture.navigator.automationActiveFocusFullyVisible,
+               "focused collection owner must report its clipped selected delegate")
+        fixture.owner.contentY = 130
+        wait(5)
+        verify(fixture.navigator.automationActiveFocusFullyVisible,
+               "revealed selected delegate must report fully visible")
+        fixture.destroy()
+    }
+
     function test_partially_clipped_center_inside_target_is_not_landed() {
         var fixture = Qt.createQmlObject(
             'import QtQuick 2.15; import "../../qml" as C; Item { width: 240; height: 220;'

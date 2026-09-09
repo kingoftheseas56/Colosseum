@@ -275,6 +275,8 @@ Item {
     }
     KeyboardAction {
         id: detailKeyboardAction
+        objectName: tile.entry && tile.entry.id !== undefined
+                     ? "continueDetail_" + String(tile.entry.id) : ""
         anchors.fill: parent
         pointerEnabled: false
         focusEnabled: !tile.collectionManaged
@@ -329,6 +331,8 @@ Item {
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.resumeRequested() }
         KeyboardAction {
             id: resumeKeyboardAction
+            objectName: tile.entry && tile.entry.id !== undefined
+                        ? "continueResume_" + String(tile.entry.id) : ""
             anchors.fill: parent
             pointerEnabled: false
             focusEnabled: !tile.collectionManaged
@@ -353,6 +357,8 @@ Item {
                     cursorShape: Qt.PointingHandCursor; onClicked: tile.removeRequested() }
         KeyboardAction {
             id: removeKeyboardAction
+            objectName: tile.entry && tile.entry.id !== undefined
+                        ? "continueRemove_" + String(tile.entry.id) : ""
             anchors.fill: parent
             pointerEnabled: false
             focusEnabled: !tile.collectionManaged

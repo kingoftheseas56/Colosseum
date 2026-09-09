@@ -11,6 +11,7 @@ Item {
     property string kicker: "Featured"
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
+    property string automationId: ""
     signal primaryClicked(int index)
     signal secondaryClicked(int index)
     function _findKeyboardSectionCoordinator() {
@@ -29,7 +30,7 @@ Item {
 
     SwipeView {
         id: view
-        objectName: "featuredCarouselView"
+        objectName: car.automationId.length > 0 ? car.automationId : "featuredCarouselView"
         property bool keyboardReturnOwner: true
         property var keyboardSectionCoordinator: car.keyboardSectionCoordinator
         property var keyboardItemAtIndex: function(index) { return view.itemAt(index) }
@@ -58,19 +59,24 @@ Item {
         }
         anchors.fill: parent
         clip: true
+        Keys.priority: Keys.AfterItem
         onCurrentIndexChanged: {
             if (activeFocus && car.keyboardSectionCoordinator
                     && car.keyboardSectionCoordinator.clear)
                 car.keyboardSectionCoordinator.clear()
         }
         focusPolicy: car.slides.length > 0 ? Qt.TabFocus : Qt.NoFocus
-        Keys.onPressed: (event) => featuredKeys.handle(event)
+        Keys.onPressed: function(event) {
+            if (!featuredKeys.handle(event))
+                event.accepted = false
+        }
         Repeater {
             model: car.slides
             CarouselSlide {
                 required property var modelData
                 required property int index
                 slide: modelData
+                slideIndex: index
                 kicker: car.kicker
                 primaryLabel: modelData.cta !== undefined ? modelData.cta : car.primaryLabel
                 secondaryLabel: modelData.secondaryLabel !== undefined ? modelData.secondaryLabel : car.secondaryLabel

@@ -25,19 +25,59 @@ Item {
     // when they hit a boundary, the unaccepted key bubbles here and moves to the
     // nearest visible focus region in that direction (including the pinned TopBar).
     KeyboardSpatialNavigator { id: spatialNav; root: world }
-    Keys.onPressed: function(event) { spatialNav.handle(event) }
+    Keys.onPressed: function(event) {
+        // A routed world can receive its first arrow while the world root owns
+        // focus. Use that ordinary key to land the declared entry region; the
+        // next arrow then follows the region's own collection/scroll contract.
+        if (spatialNav.isDirectionalKey(event.key)
+                && spatialNav.activeItem() === world
+                && world.initialFocusName.length > 0
+                && spatialNav.focusNamed(world.initialFocusName)) {
+            event.accepted = true
+            return
+        }
+        event.accepted = spatialNav.handle(event)
+    }
     Keys.onReleased: function(event) { spatialNav.handleRelease(event) }
     KeyboardSectionCoordinator { id: keyboardSections }
 
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
     readonly property var keyboardSectionCoordinator: keyboardSections
-    onLifecycleActiveChanged: if (!lifecycleActive) keyboardSections.clear()
-    onVisibleChanged: if (!visible) keyboardSections.clear()
+    readonly property string automationFocusedObject: spatialNav.automationActiveFocusIdentity
+    readonly property bool automationFocusedObjectFullyVisible: spatialNav.automationActiveFocusFullyVisible
+    onLifecycleActiveChanged: {
+        if (!lifecycleActive)
+            keyboardSections.clear()
+        else if (visible)
+            Qt.callLater(function() { if (world.visible && world.lifecycleActive) world.forceActiveFocus(Qt.TabFocusReason) })
+    }
+    onVisibleChanged: {
+        if (!visible)
+            keyboardSections.clear()
+        else if (lifecycleActive)
+            Qt.callLater(function() { if (world.visible && world.lifecycleActive) world.forceActiveFocus(Qt.TabFocusReason) })
+    }
     onEnabledChanged: if (!enabled) keyboardSections.clear()
     property string medium: ""               // which library pill reads as selected
+    property string initialFocusName: ""
     // Main binds this to the current world. Bare page harnesses keep the default true, while
     // retained hidden worlds can stop timers, paging and refresh work without being destroyed.
     property bool lifecycleActive: true
+    // A world is an ordinary keyboard entry point after the TopBar route opens it.
+    // Claim focus on the next event-loop turn so the first D-pad key reaches the
+    // world spatial router instead of dying on Main's hidden ignition item.
+    focus: visible && lifecycleActive
+
+    Timer {
+        id: initialFocusTimer
+        interval: 50
+        repeat: true
+        running: world.visible && world.lifecycleActive && world.initialFocusName.length > 0
+        onTriggered: {
+            if (spatialNav.focusNamed(world.initialFocusName))
+                stop()
+        }
+    }
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
     // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
     // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
@@ -120,5 +160,9 @@ Item {
         }
     }
 
-    ScrollGlide { flick: page }
+    ScrollGlide { id: pageGlide; flick: page }
+    // The world shell is the only vertical viewport for its board. Register
+    // its keyboard face so nested collection boundaries can spend their
+    // directional budget on this viewport before exporting to another route.
+    KeyboardScrollController { id: pageKeys; flick: page; glide: pageGlide }
 }

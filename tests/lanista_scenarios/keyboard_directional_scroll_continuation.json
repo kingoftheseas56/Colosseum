@@ -1,33 +1,502 @@
 {
-  "name": "arc41-keyboard-directional-scroll-continuation",
-  "comment": "Packet 5 bounded continuation probe. One fresh tagged session covers Home viewport crossing and stops after supported reads; route-return is tested in a separate invocation to keep the Escape/read boundary isolated.",
+  "name": "arc41-world-featured-continue",
   "steps": [
-    { "cmd": "ping", "label": "isolated session",
-      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
-                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
-    { "cmd": "ui-wait-for", "label": "boot splash leaves",
-      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "ui-click", "label": "continue local",
-      "payload": { "target": "accountWelcomeContinueLocal" } },
-    { "cmd": "ui-wait-for", "label": "shell appears",
-      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "qml-get", "label": "Home viewport baseline",
-      "payload": { "object": "homePageFlickable", "props": [ "visible", "activeFocus", "contentY", "contentHeight", "height" ] },
-      "expect": [ { "path": "props.visible", "op": "==", "value": "true" },
-                  { "path": "props.contentHeight", "op": ">", "value": "0" } ] },
-    { "cmd": "ui-keypress", "label": "Down crosses Home viewport",
-      "payload": { "key": "Down" } },
-    { "cmd": "qml-get", "label": "Home viewport after first Down",
-      "payload": { "object": "homePageFlickable", "props": [ "visible", "activeFocus", "contentY" ] },
-      "expect": [ { "path": "props.visible", "op": "==", "value": "true" },
-                  { "path": "props.contentY", "op": "exists" } ] },
-    { "cmd": "ui-keypress", "label": "second Down continues Home crossing",
-      "payload": { "key": "Down" } },
-    { "cmd": "qml-get", "label": "Home viewport after second Down",
-      "payload": { "object": "homePageFlickable", "props": [ "visible", "activeFocus", "contentY" ] },
-      "expect": [ { "path": "props.visible", "op": "==", "value": "true" },
-                  { "path": "props.contentY", "op": "exists" } ] }
-  ]
+    {
+      "cmd": "ping",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open tankoban",
+      "payload": {
+        "target": "modePill_Tankoban"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "tankobanWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "world content settles",
+      "payload": {
+        "object": "tankobanFeaturedCarousel",
+        "prop": "height",
+        "value": 330,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "real Continue row settles",
+      "payload": {
+        "object": "tankobanContinueReadingRail",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "carousel focus settles",
+      "payload": {
+        "object": "tankobanFeaturedCarousel",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "world roots",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "visible",
+          "activeFocus",
+          "width",
+          "height",
+          "initialFocusName"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "world scroll",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "visible",
+          "viewportContentY",
+          "viewportHeight",
+          "height",
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "carousel",
+      "payload": {
+        "object": "tankobanFeaturedCarousel",
+        "props": [
+          "visible",
+          "currentIndex",
+          "count",
+          "activeFocus",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "carousel focusability",
+      "payload": {
+        "object": "tankobanFeaturedCarousel",
+        "props": [
+          "focus",
+          "activeFocusOnTab",
+          "focusPolicy"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.focusPolicy",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "continue",
+      "payload": {
+        "object": "tankobanContinueReadingRail",
+        "props": [
+          "visible",
+          "currentIndex",
+          "contentX",
+          "contentWidth",
+          "width",
+          "height",
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "settled initial focus identity",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "automationFocusedObject"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "tankobanFeaturedCarousel"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "first down crosses the real featured entry toward Continue",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "header candidate after first crossing",
+      "payload": {
+        "object": "tankobanContinueReadingRailHeader",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "featured primary candidate after first crossing",
+      "payload": {
+        "object": "featuredPrimaryAction_3",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "featured secondary candidate after first crossing",
+      "payload": {
+        "object": "featuredSecondaryAction_3",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "focused intermediate identity and containment",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible",
+          "viewportContentY",
+          "viewportHeight"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "tankobanContinueReadingRail"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "first Continue detail focus candidate",
+      "payload": {
+        "object": "continueDetail_arc41-one",
+        "props": [
+          "activeFocus",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "first Continue resume focus candidate",
+      "payload": {
+        "object": "continueResume_arc41-one",
+        "props": [
+          "activeFocus",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "second Continue detail focus candidate",
+      "payload": {
+        "object": "continueDetail_arc41-two",
+        "props": [
+          "activeFocus",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "second Continue resume focus candidate",
+      "payload": {
+        "object": "continueResume_arc41-two",
+        "props": [
+          "activeFocus",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "second down enters the real Continue rail",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Continue crossing moves the world viewport",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "viewportContentY",
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.viewportContentY",
+          "op": ">",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Continue owns the crossing",
+      "payload": {
+        "object": "tankobanContinueReadingRail",
+        "props": [
+          "currentIndex",
+          "activeFocus",
+          "contentX"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "focused Continue identity and containment",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible",
+          "viewportContentY",
+          "viewportHeight"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "tankobanContinueReadingRail"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "dump-ui",
+      "label": "world tree",
+      "payload": {
+        "root": "tankobanWorld",
+        "maxDepth": 10,
+        "maxItems": 500
+      },
+      "expect": [
+        {
+          "path": "count",
+          "op": ">",
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "comment": "Arc41 family1 assembled World acceptance: real Tankoban FeaturedCarousel to ContinueReadingRail crossing through ordinary Down input. The journey records stable focus identity, requested-direction viewport movement, selected rail index, semantic focus visibility, and the assembled world tree."
 }

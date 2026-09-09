@@ -19,6 +19,7 @@ WorldPage {
     id: tanko
     objectName: "tankobanWorld"
     medium: "Tankoban"
+    initialFocusName: "tankobanFeaturedCarousel"
 
     // Bubbles a tap on a Your Collection tile (from either tab) up to Main's openCollectionEntry door.
     signal collectionOpenRequested(var entry)
@@ -168,6 +169,7 @@ WorldPage {
     property string activeTab: "discover"
 
     FeaturedCarousel {
+        automationId: "tankobanFeaturedCarousel"
         kicker: "Featured in Tankoban"
         primaryLabel: "Read"; secondaryLabel: "Details"
         slides: Catalog.featured
@@ -177,6 +179,7 @@ WorldPage {
     // A card exists only when the series' LATEST read is finished; a half-read
     // chapter keeps the series in Continue instead (the shared rule, NextUp.js).
     ContinueRow {
+        automationId: "tankobanNextUpRail"
         title: "Next Up"
         // A retained hidden world must not walk Progress/Downloads while its Loader is warming.
         // Re-evaluating this binding on lifecycle activation preserves the existing row and doors.
@@ -194,6 +197,7 @@ WorldPage {
     }
 
     ContinueRow {
+        automationId: "tankobanContinueReadingRail"
         title: "Continue Reading"
         // Real resume data — manga + tankoban + comics BLENDED by true recency and capped like
         // every other row. A retained hidden world must not walk Progress while its Loader is

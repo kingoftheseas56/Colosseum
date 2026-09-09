@@ -24,6 +24,10 @@ Column {
 
     // Rows without a see-all destination (Your Collection) hide the header chevron.
     property bool showSeeAll: true
+    // Optional stable identity for assembled-app automation. The default keeps the
+    // historical continueRail name for existing callers; world owners with multiple
+    // rows provide an explicit id so runtime evidence cannot resolve the wrong rail.
+    property string automationId: ""
     // The containing WorldPage supplies a per-world owner coordinator. Rows outside a
     // WorldPage may inject one directly; no global history is consulted.
     function _findKeyboardSectionCoordinator() {
@@ -48,6 +52,7 @@ Column {
     // the '›' is honest now — it opens the scoped see-all page (audit debt paid 2026-07-11)
     WidgetHeader {
         width: parent.width; title: cont.title
+        automationId: cont.automationId.length > 0 ? cont.automationId + "Header" : ""
         moreLabel: "See all"
         navigable: cont.showSeeAll
         onMoreClicked: cont.seeAllRequested()
@@ -55,7 +60,7 @@ Column {
 
     Flickable {
         id: continueFlick
-        objectName: "continueRail"
+        objectName: cont.automationId.length > 0 ? cont.automationId : "continueRail"
         property bool keyboardReturnOwner: true
         property var keyboardSectionCoordinator: cont.keyboardSectionCoordinator
         property var keyboardItemAtIndex: function(index) { return tileRepeater.itemAt(index) }

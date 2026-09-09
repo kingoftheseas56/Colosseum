@@ -39,6 +39,79 @@ Item {
     readonly property Item _keyboardWallForTest: wall
     readonly property Item _keyboardControllerForTest: wallKeys
 
+    // The retained Library page is reached below the shared Biblio chrome. Once its real
+    // Collection rows exist, make the wall the keyboard owner so ordinary Tab/arrows enter the
+    // same focus surface that Main.qml snapshots and restores across a book detail route.
+    function _isFocusDescendant(item) {
+        var cursor = item
+        while (cursor) {
+            if (cursor === root)
+                return true
+            cursor = cursor.parent
+        }
+        return false
+    }
+    function _hasActiveFocusDescendant(item) {
+        if (!item)
+            return false
+        if (item.activeFocus)
+            return true
+        var children = item.children || []
+        for (var i = 0; i < children.length; ++i) {
+            if (_hasActiveFocusDescendant(children[i]))
+                return true
+        }
+        return false
+    }
+    function _isFullyVisibleInClipChain(item) {
+        if (!item)
+            return false
+        var windowItem = root.Window.window
+        var sceneTarget = windowItem ? windowItem.contentItem : null
+        if (!sceneTarget)
+            return false
+        var sceneTopLeft = item.mapToItem(sceneTarget, 0, 0)
+        var sceneBottomRight = item.mapToItem(sceneTarget, item.width, item.height)
+        if (windowItem && (sceneTopLeft.x < -0.5 || sceneTopLeft.y < -0.5
+                || sceneBottomRight.x > windowItem.width + 0.5
+                || sceneBottomRight.y > windowItem.height + 0.5))
+            return false
+        for (var ancestor = item.parent; ancestor; ancestor = ancestor.parent) {
+            if (!ancestor.clip)
+                continue
+            var topLeft = item.mapToItem(ancestor, 0, 0)
+            var bottomRight = item.mapToItem(ancestor, item.width, item.height)
+            if (topLeft.x < -0.5 || topLeft.y < -0.5
+                    || bottomRight.x > ancestor.width + 0.5
+                    || bottomRight.y > ancestor.height + 0.5)
+                return false
+        }
+        return true
+    }
+    function _automationGeometryRevision(item) {
+        var revision = 0
+        for (var cursor = item; cursor; cursor = cursor.parent) {
+            revision += Number(cursor.x || 0) + Number(cursor.y || 0)
+            revision += Number(cursor.width || 0) + Number(cursor.height || 0)
+            if (cursor.contentX !== undefined)
+                revision += Number(cursor.contentX || 0)
+            if (cursor.contentY !== undefined)
+                revision += Number(cursor.contentY || 0)
+        }
+        return revision
+    }
+    function focusKeyboardWall() {
+        if (!root.visible || root.visibleRows.length === 0 || wall.activeFocus)
+            return
+        if (!_isFullyVisibleInClipChain(wall))
+            return
+        if (_hasActiveFocusDescendant(root))
+            return
+        var windowItem = root.Window.window
+        if (windowItem && _isFocusDescendant(windowItem.activeFocusItem))
+            return
+        wall.forceActiveFocus(Qt.TabFocusReason)
+    }
     onSortModeChanged: if (wallKeys) wallKeys.invalidateLane()
     onStateFilterChanged: if (wallKeys) wallKeys.invalidateLane()
     onQueryChanged: if (wallKeys) wallKeys.invalidateLane()
@@ -208,6 +281,36 @@ Item {
         property bool keyboardReturnOwner: true
         property var keyboardIdentityForIndex: root.keyboardIdentityAt
         property var keyboardIndexForIdentity: root.keyboardIndexForIdentity
+        // Read-only Lanista observables for the real GridView. These deliberately derive
+        // from the production model/currentItem/contentItem so runtime acceptance can prove
+        // virtualization and semantic focus without introducing a test-only collection.
+        readonly property int automationModelCount: root.visibleRows.length
+        readonly property int automationLiveDelegateCount: {
+            var children = contentItem && contentItem.children ? contentItem.children : []
+            var realized = 0
+            for (var i = 0; i < children.length; ++i) {
+                var child = children[i]
+                if (child && String(child.objectName || "").indexOf("biblioLibraryCard_") === 0)
+                    ++realized
+            }
+            return realized
+        }
+        readonly property string automationCurrentIdentity: root.keyboardIdentityAt(currentIndex)
+        readonly property string automationCurrentItemObjectName:
+            currentItem ? String(currentItem.objectName || "") : ""
+        readonly property bool automationCurrentItemFullyVisible: {
+            var item = currentItem
+            if (!item || !item.visible || Number(item.opacity) <= 0)
+                return false
+            var geometryRevision = root._automationGeometryRevision(item)
+            if (!isFinite(geometryRevision))
+                return false
+            var topLeft = item.mapToItem(wall, 0, 0)
+            var bottomRight = item.mapToItem(wall, item.width, item.height)
+            return topLeft.x >= -0.5 && topLeft.y >= -0.5
+                && bottomRight.x <= wall.width + 0.5
+                && bottomRight.y <= wall.height + 0.5
+        }
         property var keyboardRevealIndex: function(index) {
             if (index < 0 || index >= root.visibleRows.length)
                 return false

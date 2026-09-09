@@ -3871,6 +3871,7 @@ Window {
     // ---- book detail layer: Biblio's OWN dust-jacket page over the world (above series) ----
     Loader {
         id: bookLayer
+        objectName: "biblioBookRouteState"
         anchors.fill: parent
         z: 53
         active: false

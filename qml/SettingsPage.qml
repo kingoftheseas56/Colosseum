@@ -49,6 +49,7 @@ Item {
         objectName: "settingsPageScroll"
         anchors.fill: parent
         activeFocusOnTab: true
+        readonly property bool automationHasVerticalOverflow: contentHeight > height
         Keys.onPressed: (event) => pageKeyboard.handle(event)
         Keys.onReleased: (event) => pageKeyboard.handleRelease(event)
         contentWidth: width
@@ -149,6 +150,7 @@ Item {
                             onClicked: root.preferences.showExplicit = !sw.checked
                         }
                         KeyboardAction {
+                            objectName: "settingsExplicitToggle"
                             anchors.fill: parent
                             pointerEnabled: false
                             enabled: root.preferences !== null

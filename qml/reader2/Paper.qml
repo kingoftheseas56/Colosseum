@@ -16,8 +16,10 @@ import QtWebChannel
 
 Item {
     id: paper
+    objectName: "reader2Paper"
     signal paperEvent(string name, var payload)
     property bool glueUp: false
+    readonly property bool automationFocused: web.activeFocus
     // Forward the paper page's console messages to the Qt log ONLY when debugging (Part C5):
     // default false so a shipped embedding never spams; the standalone harness flips it on.
     property bool readerDebug: false

@@ -667,6 +667,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 22
             BackAction {
+                objectName: "biblioBookBack"
                 // Biblio world rule: quieter size, white (ink) hover — never gold
                 labelSize: 14
                 idleColor: theme.inkDim

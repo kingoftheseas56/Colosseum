@@ -1,0 +1,632 @@
+{
+  "name": "arc41-virtualized-collection",
+  "comment": "Arc41 family5 acceptance derived from the production BiblioLibraryPage GridView. A metadata-only seed supplies 160 real Collection rows. Ordinary Down keys cross the initially realized range; the acceptance proves total model count, bounded live delegates, stable deep identity/index, viewport movement, selected realized delegate, and unclipped geometry.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated session answers with drive enabled",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "fresh tagged window is visible",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash leaves",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss account onboarding",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "account host closes",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter Biblio",
+      "payload": {
+        "target": "modePill_Biblio"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Biblio tab bar appears",
+      "payload": {
+        "object": "biblioTabBar",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "retained Discover catalog settles before Library navigation",
+      "payload": {
+        "object": "biblioDiscoverPage",
+        "prop": "loading",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library tab action materializes",
+      "payload": {
+        "object": "biblioTab_library",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "switch to Library",
+      "payload": {
+        "target": "biblioTab_library"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library page is visible",
+      "payload": {
+        "object": "biblioLibraryPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the seeded GridView realize its initial delegates",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "first seeded Collection card realizes",
+      "payload": {
+        "object": "biblioLibraryCard_arc41-virtual-000|author-000",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll clears the retained featured board above the real GridView",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -500
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll continues to the Library viewport",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -800
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "page-level scroll settles the production Library surface",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -800
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the world viewport and realized card settle",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down enters the production GridView from the visible WorldTabBar",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "production Biblio GridView owns focus",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Home establishes the index-zero baseline",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let the production selection settle at index zero",
+      "presentation_wait_ms": 500,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "baseline model and live delegates",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "props": [
+          "activeFocus",
+          "count",
+          "currentIndex",
+          "contentY",
+          "automationLiveDelegateCount",
+          "automationCurrentIdentity",
+          "automationCurrentItemObjectName",
+          "automationCurrentItemFullyVisible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.count",
+          "op": ">",
+          "value": 100
+        },
+        {
+          "path": "props.automationLiveDelegateCount",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "path": "props.automationLiveDelegateCount",
+          "op": "<",
+          "value": 160
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.automationCurrentIdentity",
+          "op": "==",
+          "value": "arc41-virtual-000|author-000"
+        },
+        {
+          "path": "props.automationCurrentItemObjectName",
+          "op": "==",
+          "value": "biblioLibraryCard_arc41-virtual-000|author-000"
+        },
+        {
+          "path": "props.automationCurrentItemFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "baseline first delegate is selected and fully visible",
+      "payload": {
+        "object": "biblioLibraryCard_arc41-virtual-000|author-000",
+        "props": [
+          "keyboardSelected",
+          "index",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.keyboardSelected",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.index",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "ordinary Down crosses one virtualized GridView row",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let GridView realization and reveal settle",
+      "presentation_wait_ms": 700,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "deep ordinary-key landing changes identity and advances viewport",
+      "payload": {
+        "object": "biblioLibraryGrid",
+        "props": [
+          "activeFocus",
+          "count",
+          "currentIndex",
+          "contentY",
+          "automationLiveDelegateCount",
+          "automationCurrentIdentity",
+          "automationCurrentItemObjectName",
+          "automationCurrentItemFullyVisible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.currentIndex",
+          "op": ">",
+          "value": 100
+        },
+        {
+          "path": "props.contentY",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "path": "props.automationLiveDelegateCount",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "path": "props.automationLiveDelegateCount",
+          "op": "<",
+          "value": 160
+        },
+        {
+          "path": "props.automationCurrentIdentity",
+          "op": "==",
+          "value": "arc41-virtual-120|author-120"
+        },
+        {
+          "path": "props.automationCurrentItemObjectName",
+          "op": "==",
+          "value": "biblioLibraryCard_arc41-virtual-120|author-120"
+        },
+        {
+          "path": "props.automationCurrentItemFullyVisible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "deep selected delegate is realized and selected",
+      "payload": {
+        "object": "biblioLibraryCard_arc41-virtual-120|author-120",
+        "props": [
+          "keyboardSelected",
+          "index",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.keyboardSelected",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.index",
+          "op": "==",
+          "value": 120
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "deep selected delegate is visible and unclipped",
+      "payload": {
+        "object": "biblioLibraryCard_arc41-virtual-120|author-120"
+      },
+      "expect": [
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "session remains live after virtualized navigation",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.read",
+          "op": "==",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

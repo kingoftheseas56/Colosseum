@@ -28,6 +28,11 @@ Item {
     property bool navigationActive: false
     property var pendingNavigation: null
     property var pendingSectionReturn: null
+    // Read-only runtime seam for assembled-app evidence. It reports the focused
+    // semantic face by objectName, falling back to its accessible name when a
+    // legacy control has no explicit automation id.
+    readonly property string automationActiveFocusIdentity: _automationFocusIdentity(nav.root)
+    readonly property bool automationActiveFocusFullyVisible: _automationFocusFullyVisible(nav.root)
 
     signal boundaryRequested(int key, Item fromItem)
     signal navigationCancelled(string reason)
@@ -143,6 +148,13 @@ Item {
 
         for (var ancestor = item.parent; ancestor; ancestor = ancestor.parent) {
             if (ancestor.clip === true || ancestor === nav.root) {
+                // mapToItem() does not expose Flickable content offsets as QML
+                // binding dependencies. Read them explicitly so the assembled
+                // visibility seam reevaluates when a viewport scrolls.
+                var contentX = ancestor.contentX !== undefined ? Number(ancestor.contentX) : 0
+                var contentY = ancestor.contentY !== undefined ? Number(ancestor.contentY) : 0
+                if (!isFinite(contentX) || !isFinite(contentY))
+                    return false
                 var rect = nav._rectIn(item, ancestor)
                 var viewportWidth = Number(ancestor.width)
                 var viewportHeight = Number(ancestor.height)
@@ -214,16 +226,33 @@ Item {
     }
 
     function focusNamed(name, reason) {
-        if (!name)
+        if (!name || !nav.root)
             return false
-        var items = nav.focusableItems()
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].objectName !== name)
-                continue
-            items[i].forceActiveFocus(reason === undefined ? Qt.TabFocusReason : reason)
-            return items[i].activeFocus === true
+
+        // focusableItems() deliberately projects collection owners to their
+        // deepest realized faces. An explicit named entry point is different:
+        // callers name the owner itself, so walk the object tree and require
+        // the same visible, unclipped landing eligibility before focusing it.
+        var target = null
+        function visit(node) {
+            if (!node || target)
+                return
+            if (node.objectName === name
+                    && nav._isFocusable(node, false)) {
+                target = node
+                return
+            }
+            var children = node.children || []
+            for (var i = 0; i < children.length; ++i)
+                visit(children[i])
         }
-        return false
+        visit(nav.root)
+        if (!target)
+            return false
+        if (target.focus !== undefined)
+            target.focus = true
+        target.forceActiveFocus(reason === undefined ? Qt.TabFocusReason : reason)
+        return target.activeFocus === true
     }
 
     function _activeItem(node) {
@@ -238,8 +267,7 @@ Item {
         return node.activeFocus === true ? node : null
     }
 
-    function activeItem() {
-        var focused = nav.root ? nav._activeItem(nav.root) : null
+    function _semanticActiveItem(focused) {
         // Native/editable controls keep first claim even when nested inside a
         // collection-managed delegate. Semantic projection is only for the
         // owner after the actual focused control has declined the key.
@@ -254,6 +282,51 @@ Item {
                 return selected
         }
         return focused
+    }
+
+    function activeItem() {
+        var focused = nav.root ? nav._activeItem(nav.root) : null
+        return nav._semanticActiveItem(focused)
+    }
+
+    function _automationFocusIdentity(node) {
+        if (!node)
+            return ""
+        var children = node.children || []
+        for (var i = 0; i < children.length; ++i) {
+            var childIdentity = nav._automationFocusIdentity(children[i])
+            if (childIdentity.length > 0)
+                return childIdentity
+        }
+        if (node.activeFocus !== true)
+            return ""
+        if (node.objectName !== undefined && String(node.objectName).length > 0)
+            return String(node.objectName)
+        if (node.accessibleName !== undefined && String(node.accessibleName).length > 0)
+            return String(node.accessibleName)
+        return ""
+    }
+
+    function _automationFocusedNode(node) {
+        if (!node)
+            return null
+        var children = node.children || []
+        for (var i = 0; i < children.length; ++i) {
+            var child = nav._automationFocusedNode(children[i])
+            if (child)
+                return child
+        }
+        return node.activeFocus === true ? node : null
+    }
+
+    function _automationFocusFullyVisible(node) {
+        var focused = nav._automationFocusedNode(node)
+        if (!focused)
+            return false
+        // Runtime evidence follows the same semantic projection as activeItem:
+        // a focused collection owner is represented by its selected delegate.
+        var semantic = nav._semanticActiveItem(focused)
+        return nav._centerVisibleThroughClips(semantic || focused)
     }
 
     function beginNavigation(key) {
@@ -497,6 +570,19 @@ Item {
         if (!owner || owner.keyboardReturnOwner !== true)
             return null
         return nav._collectionDelegate(owner, item) ? owner : null
+    }
+
+    function _collectionSemanticTarget(item) {
+        var owner = nav._collectionFocusOwner(item)
+        if (!owner)
+            return item
+        var index = nav._collectionIndex(owner, item)
+        if (index < 0)
+            return item
+        var delegate = owner.keyboardItemAtIndex
+            ? owner.keyboardItemAtIndex(index)
+            : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
+        return delegate || item
     }
 
     function _selectCollectionItem(owner, item) {
@@ -759,11 +845,22 @@ Item {
             if (key === Qt.Key_Right) fromRect.cx = fromRect.left
             if (key === Qt.Key_Left) fromRect.cx = fromRect.right
         }
+        var sourceOwner = nav._collectionOwner(fromItem)
+        var sourceIndex = sourceOwner ? nav._collectionIndex(sourceOwner, fromItem) : -1
         var bestItem = null
         var bestMetric = null
         for (var i = 0; i < items.length; i++) {
             var candidate = items[i]
             if (candidate === fromItem)
+                continue
+            // A selected collection delegate is the semantic stop. Its nested
+            // buttons are visual faces of that same stop; landing one of them
+            // would report success while leaving the owner/index unchanged and
+            // swallow the directional boundary. Preserve lateral/vertical
+            // movement to another collection index, but skip same-owner faces.
+            var candidateOwner = sourceOwner ? nav._collectionOwner(candidate) : null
+            if (sourceOwner && candidateOwner === sourceOwner && sourceIndex >= 0
+                    && nav._collectionIndex(candidateOwner, candidate) === sourceIndex)
                 continue
             if (!nav._candidateAllowed(candidate, includeOffscreen === true))
                 continue
@@ -885,14 +982,18 @@ Item {
             return false
         if (nav._coveredByHigherSibling(target))
             return false
-        var plan = Viewport.revealPlan(target, nav.root, horizontal)
+        // A nested face can fit inside the viewport while its selected
+        // collection delegate remains clipped. Reveal and validate the
+        // semantic delegate first, then project focus back to the owner.
+        var semanticTarget = nav._collectionSemanticTarget(target)
+        var plan = Viewport.revealPlan(semanticTarget, nav.root, horizontal)
         if (plan === null)
             return false
         if (!nav._planAuthorized(plan))
             return false
         if (!Viewport.applyPlan(plan, horizontal, maxDistance))
             return false
-        if (!nav._landingEligible(target))
+        if (!nav._landingEligible(semanticTarget))
             return false
         // Collection-managed rails keep focus on their Flickable owner while delegates
         // remain semantic selection faces. Land the owner after the visible target has
@@ -913,6 +1014,7 @@ Item {
     function handle(event) {
         if (!event || !nav.isDirectionalKey(event.key))
             return false
+        event.accepted = false
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             return false
         nav.beginNavigation(event.key)

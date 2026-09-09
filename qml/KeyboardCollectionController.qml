@@ -293,7 +293,13 @@ Item {
             || (nav.spaceActivates && event.key === Qt.Key_Space)
     }
     function handle(event) {
-        if (!event || nav.count <= 0)
+        if (!event)
+            return false
+        // Keys handlers do not use a JavaScript return value to control Qt's
+        // accepted flag. Clear it before trying the collection so an
+        // exhausted boundary can bubble to the owning spatial/page handler.
+        event.accepted = false
+        if (nav.count <= 0)
             return false
         const index = Math.max(0, nav.indexNow())
         const reorderDelta = nav.reorderDeltaFor(event)

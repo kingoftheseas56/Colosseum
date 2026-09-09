@@ -10,6 +10,7 @@ Item {
     property string sub: ""
     property string moreLabel: ""        // optional verb before the chevron (e.g. "Explore")
     property bool navigable: true        // show the right-aligned nav-in chevron
+    property string automationId: ""
     signal moreClicked()
 
     implicitHeight: 30
@@ -64,6 +65,7 @@ Item {
         }
         KeyboardAction {
             id: input
+            objectName: head.automationId.length > 0 ? head.automationId : ""
             anchors.fill: parent
             anchors.margins: -8
             accessibleName: head.moreLabel !== "" ? head.moreLabel + " " + head.title : "Open " + head.title

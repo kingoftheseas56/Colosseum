@@ -113,9 +113,49 @@ Item {
     }
 
     Keys.priority: Keys.AfterItem
+    function moveDirectional(key) {
+        const active = root.Window.window ? root.Window.window.activeFocusItem : null
+        if (!active || !SystemFocusContainment.isWithin(active, root))
+            return false
+
+        if (active === sessionAction) {
+            if (key === Qt.Key_Up && root.accountPresent && navRepeater.count > 0) {
+                const last = navRepeater.itemAt(navRepeater.count - 1)
+                if (last) {
+                    last.forceActiveFocus()
+                    return true
+                }
+            }
+            return false
+        }
+
+        for (let i = 0; i < navRepeater.count; ++i) {
+            const item = navRepeater.itemAt(i)
+            if (item !== active)
+                continue
+            const nextIndex = i + (key === Qt.Key_Down ? 1 : -1)
+            if (nextIndex >= 0 && nextIndex < navRepeater.count) {
+                const next = navRepeater.itemAt(nextIndex)
+                if (next) {
+                    next.forceActiveFocus()
+                    return true
+                }
+            } else if (key === Qt.Key_Down) {
+                sessionAction.forceActiveFocus()
+                return true
+            }
+            return false
+        }
+        return false
+    }
+
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Escape) {
             root.close()
+            event.accepted = true
+        } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down)
+                   && event.modifiers === Qt.NoModifier) {
+            root.moveDirectional(event.key)
             event.accepted = true
         } else if (event.key === Qt.Key_Tab) {
             const forward = !(event.modifiers & Qt.ShiftModifier)
