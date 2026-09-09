@@ -138,6 +138,39 @@ TestCase {
         fixture.destroy()
     }
 
+    function test_oversized_target_keeps_normal_axis_fully_contained() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 320; height: 180;'
+            + 'property alias navigator: nav; property alias target: target;'
+            + 'Item { id: viewport; width: 100; height: 100; clip: true;'
+            + 'C.KeyboardAction { id: target; x: 90; y: 20; width: 40; height: 160; pointerEnabled: false } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        verify(!fixture.navigator._centerVisibleThroughClips(fixture.target))
+        fixture.destroy()
+    }
+
+    function test_oversized_target_rejects_one_pixel_identifiable_overlap() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 320; height: 180;'
+            + 'property alias navigator: nav; property alias target: target;'
+            + 'Item { id: viewport; width: 100; height: 100; clip: true;'
+            + 'C.KeyboardAction { id: target; x: 99; y: 20; width: 200; height: 40; pointerEnabled: false } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        verify(!fixture.navigator._centerVisibleThroughClips(fixture.target))
+        fixture.destroy()
+    }
+
+    function test_oversized_target_accepts_twenty_five_percent_identifiable_portion() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 320; height: 180;'
+            + 'property alias navigator: nav; property alias target: target;'
+            + 'Item { id: viewport; width: 100; height: 100; clip: true;'
+            + 'C.KeyboardAction { id: target; x: 0; y: 20; width: 200; height: 40; pointerEnabled: false } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        verify(fixture.navigator._centerVisibleThroughClips(fixture.target))
+        fixture.destroy()
+    }
+
     function test_candidate_ranking_skips_scroll_opt_out_target() {
         var fixture = Qt.createQmlObject(
             'import QtQuick 2.15; import "../../qml" as C; Item { width: 300; height: 460;'

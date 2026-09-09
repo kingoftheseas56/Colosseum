@@ -16,6 +16,9 @@ Item {
     property real minimumPrimaryDistance: 6
     property bool preserveEditableArrows: true
     property real scrollStep: 72
+    // A target larger than a clip remains identifiable only when at least one
+    // quarter of the viewport is visible on each oversized axis.
+    property real identifiablePortionRatio: 0.25
     // Platform key repeat is the only repeat source.  A realization callback may
     // retain one pending landing, but it must belong to the current input
     // generation before it can focus anything.
@@ -143,17 +146,23 @@ Item {
                 var viewportHeight = Number(ancestor.height)
                 var targetWidth = rect.right - rect.left
                 var targetHeight = rect.bottom - rect.top
-                var oversized = targetWidth > viewportWidth + 0.000001
-                    || targetHeight > viewportHeight + 0.000001
-                if (oversized) {
+                var oversizedWidth = targetWidth > viewportWidth + 0.000001
+                var oversizedHeight = targetHeight > viewportHeight + 0.000001
+                if (oversizedWidth) {
                     var overlapWidth = Math.min(rect.right, viewportWidth)
                         - Math.max(rect.left, 0)
+                    if (overlapWidth < viewportWidth * nav.identifiablePortionRatio)
+                        return false
+                } else if (rect.left < -0.000001
+                           || rect.right > viewportWidth + 0.000001) {
+                    return false
+                }
+                if (oversizedHeight) {
                     var overlapHeight = Math.min(rect.bottom, viewportHeight)
                         - Math.max(rect.top, 0)
-                    if (overlapWidth <= 0.000001 || overlapHeight <= 0.000001)
+                    if (overlapHeight < viewportHeight * nav.identifiablePortionRatio)
                         return false
-                } else if (rect.left < -0.000001 || rect.top < -0.000001
-                           || rect.right > viewportWidth + 0.000001
+                } else if (rect.top < -0.000001
                            || rect.bottom > viewportHeight + 0.000001) {
                     return false
                 }

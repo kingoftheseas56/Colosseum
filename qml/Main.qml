@@ -45,6 +45,8 @@ Window {
     // offsets without introducing a global focus history service.
     property var bookReturnSnapshot: null
     property int bookRouteGeneration: 0
+    // Keep the same 25% identifiable-portion threshold as spatial landing.
+    readonly property real bookReturnIdentifiablePortionRatio: 0.25
     // Explicit layer references keep route coverage tests and helpers on the actual Loader
     // owners; the component ids themselves are not Window properties.
     readonly property var bookLayerRef: bookLayer
@@ -2037,17 +2039,23 @@ Window {
                 var bottom = Math.max(p0.y, p1.y)
                 var targetWidth = right - left
                 var targetHeight = bottom - top
-                var oversized = targetWidth > Number(node.width) + 0.000001
-                    || targetHeight > Number(node.height) + 0.000001
-                if (oversized) {
+                var oversizedWidth = targetWidth > Number(node.width) + 0.000001
+                var oversizedHeight = targetHeight > Number(node.height) + 0.000001
+                if (oversizedWidth) {
                     var overlapWidth = Math.min(right, Number(node.width))
                         - Math.max(left, 0)
+                    if (overlapWidth < Number(node.width) * win.bookReturnIdentifiablePortionRatio)
+                        return false
+                } else if (left < -0.000001
+                           || right > Number(node.width) + 0.000001) {
+                    return false
+                }
+                if (oversizedHeight) {
                     var overlapHeight = Math.min(bottom, Number(node.height))
                         - Math.max(top, 0)
-                    if (overlapWidth <= 0.000001 || overlapHeight <= 0.000001)
+                    if (overlapHeight < Number(node.height) * win.bookReturnIdentifiablePortionRatio)
                         return false
-                } else if (left < -0.000001 || top < -0.000001
-                           || right > Number(node.width) + 0.000001
+                } else if (top < -0.000001
                            || bottom > Number(node.height) + 0.000001) {
                     return false
                 }

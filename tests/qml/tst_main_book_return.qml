@@ -117,4 +117,34 @@ TestCase {
         verify(!shell._bookReturnTargetVisible(fixture.children[0].target))
         fixture.destroy()
     }
+
+    function test_return_oversized_target_keeps_normal_axis_fully_contained() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { width: 220; height: 180;'
+            + 'Item { id: clipHost; width: 100; height: 100; clip: true;'
+            + 'property alias target: target; Item { id: target; x: 90; y: 20; width: 40; height: 160; visible: true; enabled: true; focus: false } } }',
+            shell.contentItem)
+        verify(!shell._bookReturnTargetVisible(fixture.children[0].target))
+        fixture.destroy()
+    }
+
+    function test_return_oversized_target_rejects_one_pixel_identifiable_overlap() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { width: 220; height: 180;'
+            + 'Item { id: clipHost; width: 100; height: 100; clip: true;'
+            + 'property alias target: target; Item { id: target; x: 99; y: 20; width: 200; height: 40; visible: true; enabled: true; focus: false } } }',
+            shell.contentItem)
+        verify(!shell._bookReturnTargetVisible(fixture.children[0].target))
+        fixture.destroy()
+    }
+
+    function test_return_oversized_target_accepts_twenty_five_percent_identifiable_portion() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; Item { width: 220; height: 180;'
+            + 'Item { id: clipHost; width: 100; height: 100; clip: true;'
+            + 'property alias target: target; Item { id: target; x: 0; y: 20; width: 200; height: 40; visible: true; enabled: true; focus: false } } }',
+            shell.contentItem)
+        verify(shell._bookReturnTargetVisible(fixture.children[0].target))
+        fixture.destroy()
+    }
 }
