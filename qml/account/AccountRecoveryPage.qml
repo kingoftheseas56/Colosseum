@@ -39,6 +39,9 @@ Item {
         }
         keyboardScroll.handle(event)
     }
+    Keys.onReleased: function(event) {
+        keyboardScroll.handleRelease(event)
+    }
 
     function clearPassword() {
         currentPasswordField.clear()
@@ -176,6 +179,7 @@ Item {
 
     Flickable {
         id: scroller
+        objectName: "accountRecoveryScrollRegion"
         anchors.fill: parent
         clip: true
         contentWidth: width

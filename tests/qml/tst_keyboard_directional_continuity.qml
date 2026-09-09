@@ -642,13 +642,14 @@ TestCase {
         var navigator = region.spatialNavigator
         region.sourceAction.forceActiveFocus(Qt.OtherFocusReason)
         var generation = navigator.beginNavigation(Qt.Key_Down)
-        compare(navigator.beginNavigation(Qt.Key_Down), generation)
+        var repeatGeneration = navigator.beginNavigation(Qt.Key_Down)
+        verify(repeatGeneration > generation)
         verify(navigator.deferLanding(region.overlayAction, Qt.Key_Down,
-                                      Qt.TabFocusReason, generation))
+                                      Qt.TabFocusReason, repeatGeneration))
         navigator.handleRelease({ key: Qt.Key_Down })
         verify(!navigator.settlePendingLanding())
         verify(!region.overlayAction.activeFocus)
-        verify(navigator.navigationGeneration > generation)
+        verify(navigator.navigationGeneration > repeatGeneration)
     }
 
     function test_opposite_direction_replaces_pending_input_generation() {

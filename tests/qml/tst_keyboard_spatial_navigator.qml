@@ -199,4 +199,66 @@ TestCase {
         verify(candidate === fixture.legal)
         fixture.destroy()
     }
+
+    function test_vertical_content_boundary_does_not_block_right_chrome_transition() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 520; height: 360;'
+            + 'property alias navigator: nav; property alias vertical: vertical; property alias source: source; property alias rightRegion: rightRegion; property alias chrome: chrome;'
+            + 'Flickable { id: vertical; x: 20; y: 20; width: 180; height: 120; contentWidth: width; contentHeight: 360; clip: true;'
+            + 'Item { width: 180; height: 360; C.KeyboardAction { id: source; x: 20; y: 250; width: 80; height: 40; pointerEnabled: false } } }'
+            + 'C.KeyboardAction { id: rightRegion; x: 260; y: 270; width: 100; height: 44; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: chrome; x: 20; y: 300; width: 100; height: 44; pointerEnabled: false }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.vertical.contentY = 240
+        verify(fixture.navigator.move(Qt.Key_Right))
+        verify(fixture.rightRegion.activeFocus)
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        verify(!fixture.navigator.move(Qt.Key_Down))
+        verify(!fixture.chrome.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_nested_horizontal_owner_keeps_right_axis_local_at_vertical_boundary() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 520; height: 360;'
+            + 'property alias navigator: nav; property alias vertical: vertical; property alias source: source; property alias nestedRight: nestedRight; property alias chrome: chrome;'
+            + 'Flickable { id: vertical; x: 20; y: 20; width: 220; height: 140; contentWidth: width; contentHeight: 360; clip: true;'
+            + 'Item { width: 220; height: 360; Flickable { id: horizontal; x: 10; y: 230; width: 180; height: 60; contentWidth: 360; contentHeight: height; clip: true;'
+            + 'Item { width: 360; height: 60; C.KeyboardAction { id: source; x: 20; y: 10; width: 70; height: 40; pointerEnabled: false } C.KeyboardAction { id: nestedRight; x: 120; y: 10; width: 70; height: 40; pointerEnabled: false } } } } }'
+            + 'C.KeyboardAction { id: chrome; x: 20; y: 300; width: 100; height: 44; pointerEnabled: false }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.vertical.contentY = 220
+        verify(fixture.navigator.move(Qt.Key_Right))
+        verify(fixture.nestedRight.activeFocus)
+        fixture.source.forceActiveFocus(Qt.OtherFocusReason)
+        verify(!fixture.navigator.move(Qt.Key_Down))
+        verify(!fixture.chrome.activeFocus)
+        fixture.destroy()
+    }
+
+    function test_same_direction_intent_replaces_deferred_landing_token() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 320; height: 220;'
+            + 'property alias navigator: nav; property alias a: sourceA; property alias b: targetB;'
+            + 'C.KeyboardAction { id: sourceA; x: 20; y: 20; width: 90; height: 44; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: targetB; x: 20; y: 100; width: 90; height: 44; pointerEnabled: false }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        var first = fixture.navigator.beginNavigation(Qt.Key_Down)
+        verify(fixture.navigator.deferLanding(fixture.a, Qt.Key_Down,
+                                              Qt.TabFocusReason, first))
+        var second = fixture.navigator.beginNavigation(Qt.Key_Down)
+        verify(second > first)
+        verify(fixture.navigator.deferLanding(fixture.b, Qt.Key_Down,
+                                              Qt.TabFocusReason, second))
+        verify(!fixture.navigator.isNavigationGenerationCurrent(first, Qt.Key_Down))
+        verify(fixture.navigator.settlePendingLanding())
+        verify(fixture.b.activeFocus)
+        verify(!fixture.a.activeFocus)
+        fixture.navigator.handleRelease({ key: Qt.Key_Down })
+        verify(fixture.navigator.navigationGeneration > second)
+        fixture.destroy()
+    }
 }

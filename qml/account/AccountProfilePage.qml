@@ -41,6 +41,9 @@ Item {
     Keys.onPressed: function(event) {
         keyboardScroll.handle(event)
     }
+    Keys.onReleased: function(event) {
+        keyboardScroll.handleRelease(event)
+    }
 
     function normalizedAvatarId(value) {
         switch (value) {
@@ -253,6 +256,7 @@ Item {
 
     Flickable {
         id: scroller
+        objectName: "accountProfileScrollRegion"
         anchors.fill: parent
         clip: true
         contentWidth: width

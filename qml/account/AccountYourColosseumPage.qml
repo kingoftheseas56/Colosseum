@@ -47,6 +47,9 @@ Item {
     Keys.onPressed: function(event) {
         keyboardScroll.handle(event)
     }
+    Keys.onReleased: function(event) {
+        keyboardScroll.handleRelease(event)
+    }
 
     function modelLength(model) {
         if (!model)
@@ -79,6 +82,7 @@ Item {
 
     Flickable {
         id: scroller
+        objectName: "accountYourColosseumScrollRegion"
         anchors.fill: parent
         clip: true
         contentWidth: width

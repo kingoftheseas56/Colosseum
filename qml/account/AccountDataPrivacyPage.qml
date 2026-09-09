@@ -73,6 +73,9 @@ Item {
         }
         keyboardScroll.handle(event)
     }
+    Keys.onReleased: function(event) {
+        keyboardScroll.handleRelease(event)
+    }
 
     readonly property color edgeSoft: Qt.rgba(1, 1, 1, 0.09)
     readonly property color danger: "#d86b66"
@@ -148,6 +151,7 @@ Item {
 
     Flickable {
         id: scroller
+        objectName: "accountDataPrivacyScrollRegion"
         anchors.fill: parent
         clip: true
         contentWidth: width

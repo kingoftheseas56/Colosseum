@@ -24,6 +24,7 @@ Item {
     // generation before it can focus anything.
     property int navigationGeneration: 0
     property int activeNavigationKey: -1
+    property int heldNavigationKey: -1
     property bool navigationActive: false
     property var pendingNavigation: null
     property var pendingSectionReturn: null
@@ -260,8 +261,13 @@ Item {
             return nav.navigationGeneration
         if (nav.navigationActive && nav.activeNavigationKey !== key)
             nav.cancelNavigation("direction")
+        // Every logical press, including platform autorepeat for the same key,
+        // receives a fresh intent generation. Held-key identity is tracked
+        // separately so only its terminal release cancels the active intent.
+        nav.navigationGeneration += 1
         nav.navigationActive = true
         nav.activeNavigationKey = key
+        nav.heldNavigationKey = key
         return nav.navigationGeneration
     }
 
@@ -277,6 +283,7 @@ Item {
         nav.pendingSectionReturn = null
         nav.navigationActive = false
         nav.activeNavigationKey = -1
+        nav.heldNavigationKey = -1
         nav.navigationCancelled(reason || "cancelled")
     }
 
@@ -386,7 +393,7 @@ Item {
         // owners may surface them while a held key is still active.
         if (event.isAutoRepeat === true)
             return true
-        if (nav.navigationActive && nav.activeNavigationKey === event.key)
+        if (nav.navigationActive && nav.heldNavigationKey === event.key)
             nav.cancelNavigation("release")
         return true
     }
@@ -865,7 +872,7 @@ Item {
         // A content viewport owns an exhausted directional boundary. Only an
         // explicit owner transition may export into unrelated chrome; the
         // default surface has no such transition.
-        if (ownedViewport && forward)
+        if (ownedViewport && key === Qt.Key_Down)
             return false
         return nav._land(target, key, reason, nav.scrollStep)
     }

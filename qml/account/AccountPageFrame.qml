@@ -35,6 +35,9 @@ Item {
     Keys.onPressed: function(event) {
         keyboardScroll.handle(event)
     }
+    Keys.onReleased: function(event) {
+        keyboardScroll.handleRelease(event)
+    }
 
     Item {
         id: wallpaper
@@ -64,6 +67,7 @@ Item {
 
     Flickable {
         id: scroller
+        objectName: "accountPageFrameScrollRegion"
         anchors.fill: parent
         clip: true
         boundsBehavior: Flickable.StopAtBounds

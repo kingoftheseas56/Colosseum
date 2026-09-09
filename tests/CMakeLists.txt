@@ -3058,7 +3058,10 @@ set_tests_properties(colosseum.player1_error_contract PROPERTIES
 # implementation.
 add_executable(tst_keyboard_key_events
     auto/keyboard/tst_keyboard_key_events.cpp)
-target_link_libraries(tst_keyboard_key_events PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+target_link_libraries(tst_keyboard_key_events PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Test)
+target_compile_definitions(tst_keyboard_key_events PRIVATE
+    COLOSSEUM_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(tst_keyboard_key_events PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 if(WIN32)

@@ -372,6 +372,9 @@ Item {
             }
             devicesScrollKeys.handle(event)
         }
+        Keys.onReleased: function(event) {
+            devicesScrollKeys.handleRelease(event)
+        }
 
         ScrollBar.vertical: ScrollBar {
             policy: scroller.contentHeight > scroller.height
