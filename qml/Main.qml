@@ -45,6 +45,7 @@ Window {
     // offsets without introducing a global focus history service.
     property var bookReturnSnapshot: null
     property int bookRouteGeneration: 0
+    property var pendingBookReturn: null
     // Keep the same 25% identifiable-portion threshold as spatial landing.
     readonly property real bookReturnIdentifiablePortionRatio: 0.25
     // Explicit layer references keep route coverage tests and helpers on the actual Loader
@@ -1979,6 +1980,16 @@ Window {
         return Number(owner.count || 0)
     }
 
+    function _keyboardCollectionModelRevision(owner) {
+        if (!owner)
+            return undefined
+        if (owner.keyboardModelRevision !== undefined)
+            return Number(owner.keyboardModelRevision)
+        if (owner.modelRevision !== undefined)
+            return Number(owner.modelRevision)
+        return undefined
+    }
+
     function _keyboardCollectionTarget(owner, index) {
         if (!owner)
             return null
@@ -2003,6 +2014,38 @@ Window {
         else if (owner && owner.positionViewAtIndex)
             owner.positionViewAtIndex(index, GridView.Contain)
         return win._keyboardCollectionTarget(owner, index)
+    }
+
+    function _scheduleBookReturnLanding(snapshot, generation, owner, index, revision) {
+        var pending = { snapshot: snapshot, generation: generation, owner: owner,
+                        index: index, revision: revision }
+        win.pendingBookReturn = pending
+        Qt.callLater(function() {
+            if (win.pendingBookReturn !== pending)
+                return
+            win.pendingBookReturn = null
+            if (generation !== win.bookRouteGeneration || !owner
+                    || !win._bookReturnTargetUsable(owner)
+                    || (revision !== undefined
+                        && win._keyboardCollectionModelRevision(owner) !== revision))
+                return
+            var resolvedIndex = win._keyboardCollectionIndex(owner, snapshot.identity)
+            var count = win._keyboardCollectionCount(owner)
+            if (resolvedIndex < 0 && count > 0)
+                resolvedIndex = Math.max(0, Math.min(count - 1, Number(snapshot.index)))
+            if (resolvedIndex < 0 || count <= 0)
+                return
+            var target = win._keyboardCollectionTarget(owner, resolvedIndex)
+            if (!target || !win._bookReturnTargetUsable(target)
+                    || !win._bookReturnTargetVisible(target)
+                    || (snapshot.identity
+                        && win._keyboardCollectionIdentity(owner, resolvedIndex)
+                            !== String(snapshot.identity)))
+                return
+            owner.currentIndex = resolvedIndex
+            if (target.forceActiveFocus)
+                target.forceActiveFocus(Qt.PopupFocusReason)
+        })
     }
 
     function _layerCoversReturn(layer) {
@@ -2104,13 +2147,16 @@ Window {
         }
     }
 
-    function _restoreBookReturn(snapshot, generation) {
+    function _restoreBookReturn(snapshot, generation, deferred) {
         if (!snapshot || (generation !== undefined && generation !== win.bookRouteGeneration)
                 || win._bookReturnCovered())
             return false
         var target = null
         var resolvedOwnerIndex = -1
+        var resolvedOwnerRevision = undefined
+        var targetRealizationRequested = false
         if (snapshot.owner && win._bookReturnTargetUsable(snapshot.owner)) {
+            resolvedOwnerRevision = win._keyboardCollectionModelRevision(snapshot.owner)
             var index = win._keyboardCollectionIndex(snapshot.owner, snapshot.identity)
             var count = win._keyboardCollectionCount(snapshot.owner)
             if (index < 0 && count > 0)
@@ -2119,12 +2165,14 @@ Window {
                 resolvedOwnerIndex = index
                 snapshot.owner.currentIndex = index
                 target = win._realizeKeyboardCollectionTarget(snapshot.owner, index)
+                targetRealizationRequested = true
             }
         } else if (snapshot.item
                    && win._stableKeyboardIdentity(snapshot.item) === snapshot.identity) {
             target = snapshot.item
         }
-        if (!win._bookReturnTargetUsable(target))
+        if (!win._bookReturnTargetUsable(target)
+                && (!snapshot.owner || resolvedOwnerIndex < 0))
             return false
         for (var i = 0; i < snapshot.scrolls.length; ++i) {
             var saved = snapshot.scrolls[i]
@@ -2148,26 +2196,36 @@ Window {
             // Restore a valid historical owner offset first. A minimal owner reveal is only
             // needed when the resolved identity is clipped after reorder/removal/shrink.
             target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
-            if (!target)
+            if (!target && !targetRealizationRequested)
                 target = win._realizeKeyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
             if (!win._bookReturnTargetVisible(target)) {
-                if (snapshot.owner.keyboardRevealIndex)
-                    snapshot.owner.keyboardRevealIndex(resolvedOwnerIndex)
-                else if (snapshot.owner.positionViewAtIndex)
-                    snapshot.owner.positionViewAtIndex(resolvedOwnerIndex, GridView.Contain)
+                if (target || !targetRealizationRequested) {
+                    if (snapshot.owner.keyboardRevealIndex)
+                        snapshot.owner.keyboardRevealIndex(resolvedOwnerIndex)
+                    else if (snapshot.owner.positionViewAtIndex)
+                        snapshot.owner.positionViewAtIndex(resolvedOwnerIndex, GridView.Contain)
+                }
                 target = win._keyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
-                if (!target)
+                if (!target && !targetRealizationRequested)
                     target = win._realizeKeyboardCollectionTarget(snapshot.owner, resolvedOwnerIndex)
             }
         }
-        if (!win._bookReturnTargetVisible(target))
+        if (!win._bookReturnTargetVisible(target)) {
+            if (!deferred && snapshot.owner && resolvedOwnerIndex >= 0) {
+                snapshot.owner.forceActiveFocus(Qt.PopupFocusReason)
+                win._scheduleBookReturnLanding(snapshot, generation, snapshot.owner,
+                                               resolvedOwnerIndex, resolvedOwnerRevision)
+                return true
+            }
             return false
+        }
         if (target.forceActiveFocus)
             target.forceActiveFocus(Qt.PopupFocusReason)
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
     function openBook(b) {
+        win.pendingBookReturn = null
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
         win.bookRouteGeneration += 1
@@ -2176,6 +2234,7 @@ Window {
     }
     function closeBook() {
         var generation = ++win.bookRouteGeneration
+        win.pendingBookReturn = null
         bookLayer.active = false
         var snapshot = win.bookReturnSnapshot
         win.bookReturnSnapshot = null

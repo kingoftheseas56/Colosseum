@@ -444,6 +444,8 @@ Item {
     // gradient is neutral house-token white-alpha, never a per-slide colour.
     readonly property var carouselSlides: root.carouselArrivalRows.map(function (r) {
         return {
+            id: r.id !== undefined && r.id !== null ? String(r.id)
+                : (r.key !== undefined && r.key !== null ? String(r.key) : ""),
             title: r.displayTitle || "",
             blurb: r.physicalFact || "",
             ghost: r.nodeType === "film" ? "FILM" : (r.nodeType === "show" || r.nodeType === "season") ? "TV" : "",

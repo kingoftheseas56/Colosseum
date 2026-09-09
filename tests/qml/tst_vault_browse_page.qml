@@ -340,6 +340,61 @@ TestCase {
         verify(findText(carousel, "Season 2 · 1080p") !== null)
     }
 
+    function test_carousel_return_tracks_stable_id_through_duplicate_title_reorder() {
+        testCase.carouselSlidesSeed = [
+            { id: "arrival-a", title: "Twin", blurb: "A" },
+            { id: "arrival-b", title: "Twin", blurb: "B" }
+        ]
+        wait(50)
+        var owner = null
+        var queue = [carousel]
+        while (queue.length) {
+            var node = queue.shift()
+            if (node.keyboardReturnOwner === true && node.keyboardItemAtIndex) {
+                owner = node
+                break
+            }
+            var children = node.children || []
+            for (var i = 0; i < children.length; ++i) queue.push(children[i])
+        }
+        verify(owner)
+        compare(owner.keyboardIdentityForIndex(0), "arrival-a")
+        compare(owner.keyboardIdentityForIndex(1), "arrival-b")
+        owner.currentIndex = 1
+        testCase.carouselSlidesSeed = [
+            { id: "arrival-b", title: "Twin", blurb: "B" },
+            { id: "arrival-a", title: "Twin", blurb: "A" }
+        ]
+        wait(50)
+        compare(owner.keyboardIndexForIdentity("arrival-b"), 0)
+        compare(owner.keyboardIndexForIdentity("Twin"), -1)
+        owner.keyboardRevealIndex(owner.keyboardIndexForIdentity("arrival-b"))
+        compare(owner.currentIndex, 0)
+    }
+
+    function test_carousel_missing_stable_id_invalidates_bookmark() {
+        testCase.carouselSlidesSeed = [
+            { title: "Twin", blurb: "No key" },
+            { id: "arrival-b", title: "Twin", blurb: "B" }
+        ]
+        wait(50)
+        var owner = null
+        var queue = [carousel]
+        while (queue.length) {
+            var node = queue.shift()
+            if (node.keyboardReturnOwner === true && node.keyboardItemAtIndex) {
+                owner = node
+                break
+            }
+            var children = node.children || []
+            for (var i = 0; i < children.length; ++i) queue.push(children[i])
+        }
+        verify(owner)
+        compare(owner.keyboardIdentityForIndex(0), "")
+        compare(owner.keyboardIndexForIdentity("Twin"), -1)
+        compare(owner.keyboardIndexForIdentity(""), -1)
+    }
+
     // ── 6. breadcrumb middle-collapse (design §4.5): first and last always visible ─────────
     function test_crumb_middle_segments_collapse_when_far_too_many() {
         testCase.crumbStack = [

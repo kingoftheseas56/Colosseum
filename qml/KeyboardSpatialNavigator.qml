@@ -26,6 +26,7 @@ Item {
     property int activeNavigationKey: -1
     property bool navigationActive: false
     property var pendingNavigation: null
+    property var pendingSectionReturn: null
 
     signal boundaryRequested(int key, Item fromItem)
     signal navigationCancelled(string reason)
@@ -273,6 +274,7 @@ Item {
     function cancelNavigation(reason) {
         nav.navigationGeneration += 1
         nav.pendingNavigation = null
+        nav.pendingSectionReturn = null
         nav.navigationActive = false
         nav.activeNavigationKey = -1
         nav.navigationCancelled(reason || "cancelled")
@@ -296,6 +298,53 @@ Item {
         nav.pendingNavigation = null
         if (!pending || !nav.isNavigationGenerationCurrent(pending.generation, pending.key))
             return false
+        if (pending.sectionOwner) {
+            var owner = pending.sectionOwner
+            var coordinator = pending.sectionCoordinator
+            if (!owner || !nav.root || nav.root.visible === false || nav.root.enabled === false
+                    || owner.visible === false || owner.enabled === false
+                    || (owner.opacity !== undefined && Number(owner.opacity) <= 0.01)
+                    || !Viewport.contains(nav.root, owner)
+                    || nav._hasUnsupportedTransform(owner)) {
+                if (coordinator && coordinator.clear)
+                    coordinator.clear()
+                nav.pendingSectionReturn = null
+                return false
+            }
+            if (pending.revision !== undefined
+                    && nav._collectionModelRevision(owner) !== pending.revision) {
+                if (coordinator && coordinator.clear)
+                    coordinator.clear()
+                nav.pendingSectionReturn = null
+                return false
+            }
+            var index = pending.index
+            if (owner.keyboardIndexForIdentity && pending.identity) {
+                var resolved = Number(owner.keyboardIndexForIdentity(pending.identity))
+                if (resolved >= 0)
+                    index = resolved
+            }
+            var target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
+                    : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
+            if (!target || !nav._eligible(target)
+                    || (pending.identity && nav._collectionIdentity(target) !== pending.identity)) {
+                if (coordinator && coordinator.clear)
+                    coordinator.clear()
+                nav.pendingSectionReturn = null
+                return false
+            }
+            nav.pendingSectionReturn = null
+            var controller = nav._scrollControllerFor(owner)
+            if (controller && controller.arrowScrolling === false)
+                return false
+            var ok = nav._land(target, pending.key, pending.reason,
+                               nav._directionalStep(owner,
+                                   pending.key === Qt.Key_Left || pending.key === Qt.Key_Right,
+                                   controller))
+            if (ok && coordinator && coordinator.clear)
+                coordinator.clear()
+            return ok
+        }
         var owner = nav._flickableOwner(pending.target)
         var controller = owner ? nav._scrollControllerFor(owner) : null
         var horizontal = pending.key === Qt.Key_Left || pending.key === Qt.Key_Right
@@ -304,6 +353,30 @@ Item {
         if (controller && controller.arrowScrolling === false)
             return false
         return nav._land(pending.target, pending.key, pending.reason, budget)
+    }
+
+    function _collectionModelRevision(owner) {
+        if (!owner)
+            return undefined
+        if (owner.keyboardModelRevision !== undefined)
+            return Number(owner.keyboardModelRevision)
+        if (owner.modelRevision !== undefined)
+            return Number(owner.modelRevision)
+        return undefined
+    }
+
+    function _scheduleSectionReturn(owner, index, identity, coordinator, key, reason) {
+        var generation = nav.beginNavigation(key)
+        nav.pendingSectionReturn = { owner: owner, index: index, identity: identity,
+                                     coordinator: coordinator,
+                                     revision: nav._collectionModelRevision(owner),
+                                     key: key, reason: reason, generation: generation }
+        nav.pendingNavigation = { sectionOwner: owner, index: index, identity: identity,
+                                  sectionCoordinator: coordinator,
+                                  revision: nav._collectionModelRevision(owner),
+                                  key: key, reason: reason, generation: generation }
+        Qt.callLater(nav.settlePendingLanding)
+        return true
     }
 
     function handleRelease(event) {
@@ -478,17 +551,30 @@ Item {
             index = Math.max(0, Math.min(count - 1, Number(record.index)))
         if (index < 0 || count <= 0)
             return false
+        if (owner.currentIndex !== undefined)
+            owner.currentIndex = index
+        if (owner.contentX !== undefined && isFinite(Number(record.offset))
+                && Viewport.isFlickable(owner))
+            Viewport.setPosition(owner, true, Number(record.offset))
         var target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
                 : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
+        if (!target) {
+            if (owner.keyboardRevealIndex)
+                owner.keyboardRevealIndex(index)
+            else if (owner.positionViewAtIndex)
+                owner.positionViewAtIndex(index, owner.positionMode)
+            target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
+                    : (owner.itemAtIndex ? owner.itemAtIndex(index) : owner.currentItem)
+        }
+        if (!target) {
+            owner.forceActiveFocus(reason)
+            if (nav._scheduleSectionReturn(owner, index, String(record.identity || ""),
+                                           coordinator, key, reason))
+                return true
+        }
         if (!target || !nav._eligible(target) || nav._hasUnsupportedTransform(target)) {
             coordinator.clear()
             return false
-        }
-        if (owner.currentIndex !== undefined)
-            owner.currentIndex = index
-        if (owner.contentX !== undefined && isFinite(Number(record.offset))) {
-            var maxX = Math.max(0, Number(owner.contentWidth) - Number(owner.width))
-            owner.contentX = Math.max(0, Math.min(maxX, Number(record.offset)))
         }
         if (owner.keyboardRevealIndex)
             owner.keyboardRevealIndex(index)

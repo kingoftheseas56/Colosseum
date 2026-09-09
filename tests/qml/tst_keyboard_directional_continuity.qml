@@ -409,6 +409,54 @@ TestCase {
         fixture.destroy()
     }
 
+    function test_virtualized_grid_section_return_defers_null_delegate_landing() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 180; height: 250;'
+            + 'QtObject { id: sections; property var sourceOwner: null; property string sourceIdentity: ""; property int sourceIndex: -1; property real sourceOffset: 0;'
+            + 'function remember(owner,index,identity,offset) { sourceOwner=owner; sourceIndex=index; sourceIdentity=identity; sourceOffset=offset }'
+            + 'function returnRecord(owner) { return sourceOwner && sourceOwner !== owner ? ({ owner: sourceOwner, index: sourceIndex, identity: sourceIdentity, offset: sourceOffset }) : null }'
+            + 'function clear() { sourceOwner=null; sourceIdentity=""; sourceIndex=-1; sourceOffset=0 } }'
+            + 'GridView { id: railA; objectName: "virtualRailA"; x: 10; y: 10; width: 100; height: 70; cellWidth: 100; cellHeight: 60; contentWidth: 400; contentHeight: 70; clip: true; model: aRows; property var aRows: [ {id:"A0"},{id:"A1"},{id:"A2"},{id:"A3"} ]; property bool delegateReady: true; property bool keyboardReturnOwner: true; property var keyboardSectionCoordinator: sections; currentIndex: 3; cacheBuffer: 0; function keyboardIdentityForIndex(i) { return i >= 0 && i < aRows.length ? aRows[i].id : "" } function keyboardIndexForIdentity(id) { for (var i=0;i<aRows.length;++i) if (aRows[i].id === id) return i; return -1 } function keyboardItemAtIndex(i) { return delegateReady ? itemAtIndex(i) : null } function keyboardRevealIndex(i) { currentIndex=i; positionViewAtIndex(i, GridView.Contain); if (!delegateReady) Qt.callLater(function() { delegateReady=true }); return true } delegate: C.KeyboardAction { required property var modelData; required property int index; property string stableId: modelData.id; width: 100; height: 50; pointerEnabled: false } }'
+            + 'GridView { id: railB; objectName: "virtualRailB"; x: 10; y: 140; width: 100; height: 70; cellWidth: 100; cellHeight: 60; contentWidth: 300; contentHeight: 70; clip: true; model: bRows; property var bRows: [ {id:"B0"},{id:"B1"},{id:"B2"} ]; property bool keyboardReturnOwner: true; property var keyboardSectionCoordinator: sections; currentIndex: 2; cacheBuffer: 0; function keyboardIdentityForIndex(i) { return i >= 0 && i < bRows.length ? bRows[i].id : "" } function keyboardIndexForIdentity(id) { for (var i=0;i<bRows.length;++i) if (bRows[i].id === id) return i; return -1 } function keyboardItemAtIndex(i) { return itemAtIndex(i) } delegate: C.KeyboardAction { required property var modelData; required property int index; property string stableId: modelData.id; width: 100; height: 50; pointerEnabled: false } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } property alias navigator: nav; property alias a: railA; property alias b: railB; property alias coordinator: sections }', testWindow.contentItem)
+        wait(30)
+        fixture.a.positionViewAtIndex(3, GridView.Contain)
+        fixture.b.positionViewAtIndex(2, GridView.Contain)
+        wait(30)
+        fixture.a.itemAtIndex(3).forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.a.itemAtIndex(3).activeFocus)
+        verify(fixture.navigator.moveFrom(fixture.a.itemAtIndex(3), Qt.Key_Down))
+        verify(fixture.b.activeFocus)
+        fixture.a.delegateReady = false
+        verify(fixture.navigator.moveFrom(fixture.b.itemAtIndex(2), Qt.Key_Up))
+        wait(60)
+        compare(fixture.a.currentIndex, 3)
+        verify(fixture.a.itemAtIndex(3).activeFocus)
+        verify(fixture.a.contentX >= 0)
+        fixture.destroy()
+    }
+
+    function test_section_return_uses_native_origin_and_margin_bounds() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 500; height: 180;'
+            + 'QtObject { id: sections; property var sourceOwner: null; property string sourceIdentity: ""; property int sourceIndex: -1; property real sourceOffset: 0; function remember(owner,index,identity,offset) { sourceOwner=owner; sourceIndex=index; sourceIdentity=identity; sourceOffset=offset } function returnRecord(owner) { return sourceOwner && sourceOwner !== owner ? ({ owner: sourceOwner, index: sourceIndex, identity: sourceIdentity, offset: sourceOffset }) : null } function clear() { sourceOwner=null } }'
+            + 'Item { id: railA; x: 10; y: 10; width: 220; height: 60; property var contentItem: railA; property real contentX: 0; property real contentY: 0; property real contentWidth: 420; property real contentHeight: 60; property real originX: -30; property real originY: 0; property real leftMargin: 10; property real rightMargin: 20; function cancelFlick() {} clip: true; property bool keyboardReturnOwner: true; property var keyboardSectionCoordinator: sections; property var keyboardItems: [ {id:"A0"} ]; property int currentIndex: 0; function keyboardIdentityForIndex(i) { return i === 0 ? "A0" : "" } function keyboardIndexForIdentity(id) { return id === "A0" ? 0 : -1 } function keyboardItemAtIndex(i) { return targetA } function keyboardRevealIndex(i) { currentIndex=i; return true } Item { id: targetA; x: 80; y: 10; width: 80; height: 40; activeFocusOnTab: true; property string stableId: "A0" } }'
+            + 'Item { id: railB; x: 10; y: 100; width: 220; height: 60; property var contentItem: railB; property real contentX: 0; property real contentY: 0; property real contentWidth: 220; property real contentHeight: 60; property real originX: 0; property real originY: 0; property real leftMargin: 0; property real rightMargin: 0; function cancelFlick() {} clip: true; property bool keyboardReturnOwner: true; property var keyboardSectionCoordinator: sections; property var keyboardItems: [ {id:"B0"} ]; property int currentIndex: 0; function keyboardIdentityForIndex(i) { return i === 0 ? "B0" : "" } function keyboardIndexForIdentity(id) { return id === "B0" ? 0 : -1 } function keyboardItemAtIndex(i) { return targetB } Item { id: targetB; x: 80; y: 10; width: 80; height: 40; activeFocusOnTab: true } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } property alias navigator: nav; property alias a: railA; property alias b: railB; property alias coordinator: sections }', testWindow.contentItem)
+        fixture.a.forceActiveFocus(Qt.OtherFocusReason)
+        fixture.a.contentX = -25
+        fixture.coordinator.remember(fixture.a, 0, "A0", -25)
+        fixture.b.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator._restoreSectionReturn(fixture.b.keyboardItemAtIndex(0), Qt.Key_Up, Qt.BacktabFocusReason))
+        compare(fixture.a.contentX, -25)
+        fixture.coordinator.remember(fixture.a, 0, "A0", -25)
+        fixture.coordinator.sourceOffset = 999
+        fixture.b.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator._restoreSectionReturn(fixture.b.keyboardItemAtIndex(0), Qt.Key_Up, Qt.BacktabFocusReason))
+        compare(fixture.a.contentX, 190)
+        fixture.destroy()
+    }
+
     function test_worldpage_rail_crossing_records_return_and_lateral_resets_it() {
         var fixture = Qt.createQmlObject(
             'import QtQuick 2.15; import "../../qml" as C; Item { id: world; width: 640; height: 360; focus: true;'

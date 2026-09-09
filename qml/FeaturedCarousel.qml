@@ -37,11 +37,12 @@ Item {
             var slide = car.slides[index]
             var raw = slide && slide.raw
             return raw && raw.id !== undefined ? String(raw.id)
-                : (slide && slide.id !== undefined ? String(slide.id)
-                   : (slide && slide.title !== undefined ? String(slide.title) : ""))
+                : (slide && slide.id !== undefined ? String(slide.id) : "")
         }
         property var keyboardIndexForIdentity: function(identity) {
             var wanted = String(identity || "")
+            if (!wanted)
+                return -1
             for (var i = 0; i < car.slides.length; ++i) {
                 if (view.keyboardIdentityForIndex(i) === wanted)
                     return i

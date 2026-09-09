@@ -13,6 +13,111 @@ TestCase {
         height: 640
         visible: true
         Colosseum.Main { id: shell; visible: false }
+
+        Component {
+            id: bookRouteFixture
+            Item {
+                property var backdrop: null
+                property var book: ({})
+                signal backRequested()
+                signal minimizeRequested()
+                signal fullscreenRequested()
+                signal closeRequested()
+                signal readRequested(var path, var book)
+            }
+        }
+    }
+
+    function createVirtualizedReturnOwner() {
+        return Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; GridView { id: owner; width: 100; height: 70;'
+            + 'property var rows: [ {id:"A0"}, {id:"A1"}, {id:"A2"}, {id:"A3"} ];'
+            + 'property int keyboardModelRevision: 1; property bool delegateReady: true; property bool replaceOnReady: false;'
+            + 'property int focusLandingCalls: 0; property string lastFocusId: ""; property bool keyboardReturnOwner: true; currentIndex: 3;'
+            + 'cellWidth: 100; cellHeight: 60; cacheBuffer: 0; model: rows; clip: true; focus: true;'
+            + 'function keyboardIdentityForIndex(i) { return i >= 0 && i < rows.length ? rows[i].id : "" }'
+            + 'function keyboardIndexForIdentity(id) { for (var i=0;i<rows.length;++i) if (rows[i].id === id) return i; return -1 }'
+            + 'function keyboardItemAtIndex(i) { return delegateReady ? itemAtIndex(i) : null }'
+            + 'function keyboardRevealIndex(i) { currentIndex=i; positionViewAtIndex(i, GridView.Contain); if (!delegateReady) Qt.callLater(function() { if (replaceOnReady) { focus=false; rows=[{id:"replacement"}]; keyboardModelRevision += 1 } else delegateReady=true }); return true }'
+            + 'delegate: C.KeyboardAction { required property var modelData; required property int index; property string stableId: modelData.id; width: 100; height: 60; pointerEnabled: false; onActiveFocusChanged: if (activeFocus) { owner.focusLandingCalls += 1; owner.lastFocusId = stableId } } }', shell.contentItem)
+    }
+
+    function test_actual_book_route_defers_real_grid_delegate_restore() {
+        var owner = createVirtualizedReturnOwner()
+        owner.positionViewAtIndex(3, GridView.Contain)
+        wait(20)
+        owner.itemAtIndex(3).forceActiveFocus(Qt.OtherFocusReason)
+        verify(owner.itemAtIndex(3).activeFocus)
+        owner.focusLandingCalls = 0
+        shell.bookLayerRef.sourceComponent = bookRouteFixture
+        shell.openBook({ id: "book-route" })
+        verify(shell.bookLayerRef.active)
+        shell.bookLayerRef.item.forceActiveFocus(Qt.PopupFocusReason)
+        owner.delegateReady = false
+        shell.closeBook()
+        wait(80)
+        verify(owner.itemAtIndex(3) !== null)
+        verify(owner.itemAtIndex(3).activeFocus)
+        compare(owner.currentIndex, 3)
+        compare(owner.focusLandingCalls, 1)
+        owner.destroy()
+        shell.bookLayerRef.sourceComponent = null
+    }
+
+    function test_actual_book_route_deferred_restore_is_cancelled_by_replacement() {
+        var owner = createVirtualizedReturnOwner()
+        owner.positionViewAtIndex(3, GridView.Contain)
+        wait(20)
+        owner.itemAtIndex(3).forceActiveFocus(Qt.OtherFocusReason)
+        owner.focusLandingCalls = 0
+        shell.bookLayerRef.sourceComponent = bookRouteFixture
+        shell.openBook({ id: "book-route" })
+        shell.bookLayerRef.item.forceActiveFocus(Qt.PopupFocusReason)
+        owner.delegateReady = false
+        shell.closeBook()
+        shell.openBook({ id: "replacement-route" })
+        wait(80)
+        compare(owner.focusLandingCalls, 0)
+        owner.destroy()
+        shell.closeBook()
+        shell.bookLayerRef.sourceComponent = null
+    }
+
+    function test_actual_book_route_deferred_restore_ignores_model_revision_and_owner_destruction() {
+        var owner = createVirtualizedReturnOwner()
+        owner.positionViewAtIndex(3, GridView.Contain)
+        wait(20)
+        owner.itemAtIndex(3).forceActiveFocus(Qt.OtherFocusReason)
+        owner.focusLandingCalls = 0
+        owner.lastFocusId = ""
+        owner.replaceOnReady = true
+        shell.bookLayerRef.sourceComponent = bookRouteFixture
+        shell.openBook({ id: "book-route" })
+        shell.bookLayerRef.item.forceActiveFocus(Qt.PopupFocusReason)
+        owner.delegateReady = false
+        shell.closeBook()
+        wait(80)
+        compare(owner.rows.length, 1)
+        verify(!owner.itemAtIndex(0).activeFocus)
+        verify(owner.lastFocusId !== "replacement")
+        owner.destroy()
+        shell.bookLayerRef.sourceComponent = null
+    }
+
+    function test_actual_book_route_deferred_restore_noops_after_owner_destruction() {
+        var owner = createVirtualizedReturnOwner()
+        owner.positionViewAtIndex(3, GridView.Contain)
+        wait(20)
+        owner.itemAtIndex(3).forceActiveFocus(Qt.OtherFocusReason)
+        shell.bookLayerRef.sourceComponent = bookRouteFixture
+        shell.openBook({ id: "book-route" })
+        shell.bookLayerRef.item.forceActiveFocus(Qt.PopupFocusReason)
+        owner.delegateReady = false
+        shell.closeBook()
+        owner.destroy()
+        wait(80)
+        verify(!shell.bookLayerRef.active)
+        shell.bookLayerRef.sourceComponent = null
     }
 
     function test_real_layer_aliases_block_background_restore() {
