@@ -262,7 +262,7 @@ Item {
             return
         }
         if (!force && page.chaptersModel.length && page.chapterSourceSeriesId.length) return
-        if (!page.mangaEngineRef || !page.mangaEngineRef.chapterCatalogueForLanguage) {
+        if (!page.mangaEngineRef || !page.mangaEngineRef.chapterCatalogueForProfile) {
             page.chaptersError = "Chapter source is unavailable."
             page.chaptersLoading = false
             return
@@ -273,8 +273,13 @@ Item {
         page.chapterSourceSeriesId = ""
         page.chaptersError = ""
         page.chaptersLoading = true
-        var title = page.sourceSearchTitle.length ? page.sourceSearchTitle : page.seriesTitle
-        page.mangaEngineRef.chapterCatalogueForLanguage(page._chapterRequestId, title, page.selectedChapterLanguage)
+        var profile = {
+            title: page.seriesTitle,
+            discoveryTitle: page.sourceSearchTitle,
+            aliases: page.sourceSearchAliases,
+            requiredTitleMarkers: page.sourceRequiredMarkers
+        }
+        page.mangaEngineRef.chapterCatalogueForProfile(page._chapterRequestId, profile, page.selectedChapterLanguage)
     }
 
     function _handleTankoyomiEnabledChanged() {

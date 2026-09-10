@@ -39,9 +39,10 @@ const sandbox = { module: { exports: {} }, exports: {}, globalThis: {} };
 vm.runInNewContext(routerSrc, sandbox, { filename: 'tankoyomi.js' });
 const router = Object.keys(sandbox.module.exports).length
   ? sandbox.module.exports : sandbox.globalThis.Tankoyomi;
-check(router.normalizeLanguage('pt-BR') === 'pt', 'regional language normalizes to its base language');
+check(router.normalizeLanguage('pt-BR') === 'pt-br', 'normalization preserves the complete regional tag');
 check(router.resolveLanguage(manifest, '') === 'en', 'empty language uses the configured default');
-check(router.resolveLanguage(manifest, 'de') === 'de',
+check(router.resolveLanguage(manifest, 'pt-BR') === 'pt', 'pt-BR resolves to the stable installed pt code');
+check(router.resolveLanguage(manifest, 'de') === null,
   'an explicit unsupported language is not silently replaced by English');
 check(router.providersForLanguage(manifest, 'de').length === 0,
   'unsupported explicit language has no cross-language provider fallback');

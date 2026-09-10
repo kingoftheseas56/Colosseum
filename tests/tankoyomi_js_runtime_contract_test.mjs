@@ -23,7 +23,10 @@ check(!cpp.includes('new Promise'), 'runtime avoids QJSEngine Promise scheduling
 check(cpp.includes('__tankoyomiCallbacks'), 'runtime owns per-call success/error callbacks');
 check(cpp.includes('fetchText') && cpp.includes('fetchJson'), 'runtime exposes scoped fetchText/fetchJson');
 check(h.includes('QStringList allowedHosts'), 'runtime receives a manifest origin allowlist');
-check(cpp.includes('allowedHosts.contains'), 'runtime rejects undeclared network hosts');
+check(cpp.includes('TankoyomiNetworkPolicy::metadataHostAllowed'), 'runtime rejects undeclared network hosts through the shared policy');
+check(cpp.includes('ManualRedirectPolicy') && cpp.includes('TankoyomiNetworkPolicy::redirectAllowed'), 'each metadata redirect re-enters the capability policy');
+check(service.includes('descriptor.allowedHosts, nam, resolverLookup, this'),
+  'service injects its network manager and resolver seam into provider transport');
 check(cpp.includes('setTransferTimeout'), 'provider metadata requests have a finite timeout');
 for (const path of providerPaths) {
   const src = fs.readFileSync(path, 'utf8');
@@ -48,5 +51,11 @@ check(identity.includes('Base64UrlEncoding'),
 check(registry.includes('same-language-only'),
   'native registry enforces the no-cross-language fallback policy');
 
+const manifest = JSON.parse(fs.readFileSync('extensions/tankoyomi/manifest.json', 'utf8'));
+for (const language of manifest.languages) {
+  for (const provider of language.providers) {
+    check(provider.pageAccessPolicy === 'public-https', `${provider.id} declares the public HTTPS page boundary`);
+  }
+}
 if (failures) process.exit(1);
 console.log('\nPASS — Tankoyomi provider runtime is manifest-driven and capability-scoped');

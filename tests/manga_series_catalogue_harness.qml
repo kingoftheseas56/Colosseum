@@ -88,6 +88,7 @@ Item {
     component FakeMangaEngine: QtObject {
         property int catalogueCalls: 0
         property string lastLanguage: ""
+        property var lastProfile: null
         // Match MangaEngine's Q_PROPERTY shape. The production bridge exposes
         // chapterDefaultLanguage as a QString property (and invokable getter).
         property string chapterDefaultLanguage: "en"
@@ -107,6 +108,10 @@ Item {
         function setChapterDefaultLanguage(language) {
             chapterDefaultLanguage = String(language || "")
             chapterConfigurationChanged()
+        }
+        function chapterCatalogueForProfile(requestId, profile, language) {
+            lastProfile = profile
+            chapterCatalogueForLanguage(requestId, profile.discoveryTitle || profile.title, language)
         }
         function chapterCatalogueForLanguage(requestId, title, language) {
             catalogueCalls += 1
@@ -228,6 +233,19 @@ Item {
                && pc.sourceSearchAliases[0] === "One Piece Digital Colored Comics",
                "case2c: colored discovery alias retained")
             ck(pc.sourceRequiredMarkers.length === 3, "case2c: colored marker gate retained")
+            pc.extensionsRef = fakeExtensions
+            pc.mangaEngineRef = fakeMangaEngine
+            fakeExtensions.setTankoyomiEnabled(true)
+            pc._enterChapterMode()
+            ck(fakeMangaEngine.lastProfile && fakeMangaEngine.lastProfile.title === "One Piece (Color)",
+               "case2c: Chapter Mode must forward the canonical title in the complete profile")
+            ck(fakeMangaEngine.lastProfile.discoveryTitle === "One Piece Colored"
+               && fakeMangaEngine.lastProfile.aliases[0] === "One Piece Digital Colored Comics"
+               && fakeMangaEngine.lastProfile.requiredTitleMarkers.length === 3,
+               "case2c: Chapter Mode must forward discovery aliases and edition markers")
+            pc._enterTankobanMode()
+            fakeExtensions.setTankoyomiEnabled(false)
+
 
             // ── Case 3: ambiguous / unmatched title -> the honest shelf-less page ──
             malCatalog.titleMap = ({ "Ambiguous Title": [1, 2] })

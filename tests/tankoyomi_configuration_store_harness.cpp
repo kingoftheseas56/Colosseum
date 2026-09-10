@@ -19,12 +19,12 @@ static QByteArray validManifest()
       "fallbackPolicy":"same-language-only",
       "languages":[
         {"code":"en","label":"English","countryCode":"GB","providers":[
-          {"id":"first","name":"First","entry":"languages/en/first.js","priority":1,"enabled":true,"allowedHosts":["first.example"]},
-          {"id":"second","name":"Second","entry":"languages/en/second.js","priority":2,"enabled":true,"allowedHosts":["second.example"]},
-          {"id":"manifest-off","name":"Manifest Off","entry":"languages/en/off.js","priority":3,"enabled":false,"allowedHosts":["off.example"]}
+          {"id":"first","name":"First","entry":"languages/en/first.js","priority":1,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["first.example"]},
+          {"id":"second","name":"Second","entry":"languages/en/second.js","priority":2,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["second.example"]},
+          {"id":"manifest-off","name":"Manifest Off","entry":"languages/en/off.js","priority":3,"enabled":false,"pageAccessPolicy":"public-https","allowedHosts":["off.example"]}
         ]},
         {"code":"pt","label":"Português","countryCode":"BR","providers":[
-          {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"allowedHosts":["pt.example"]}
+          {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["pt.example"]}
         ]}
       ]
     })JSON";

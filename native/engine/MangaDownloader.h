@@ -45,6 +45,7 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QUrl>
 
 #include <functional>
 #include <memory>
@@ -192,10 +193,12 @@ private:
     void onPagesReady(Job* job, const QList<PageInfo>& pages);
     void startResumeScan(Job* job);
     void pumpImages(Job* job);
-    void fetchImage(Job* job, int pageIndex, int attempt);
+    void fetchImage(Job* job, int pageIndex, int attempt,
+                    QUrl requestUrl = {}, int redirectDepth = 0);
     void saveImageAsync(Job* job, int pageIndex, int attempt,
                         const QString& fileName, const QByteArray& data);
-    void queueImageForHost(Job* job, int pageIndex, int attempt, const QString& host);
+    void queueImageForHost(Job* job, int pageIndex, int attempt, const QString& host,
+                           QUrl requestUrl = {}, int redirectDepth = 0);
     void removePendingImageRequests(Job* job);
     void onImageSaved(Job* job, int pageIndex, const QString& fileName, qint64 size);
     void failJob(Job* job, const QString& reason);
@@ -225,6 +228,8 @@ private:
         Job* job = nullptr;
         int pageIndex = 0;
         int attempt = 0;
+        QUrl requestUrl;
+        int redirectDepth = 0;
     };
     QHash<QString, QList<PendingImageRequest>> m_pendingPinRequests;
     QSet<QString> m_pinLookupInFlight;
@@ -244,7 +249,7 @@ private:
     void pumpThumbs();
     void fetchThumbImage(const QString& chapterId, const PageInfo& page,
                          std::function<void(const QString&, bool)> settle,
-                         int attempt = 0);
+                         int attempt = 0, QUrl requestUrl = {}, int redirectDepth = 0);
 
     static constexpr int MAX_CONCURRENT_CHAPTERS = 2;
     static constexpr int THUMB_CONCURRENCY       = 3;

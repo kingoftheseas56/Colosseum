@@ -4,6 +4,7 @@
 #include "WeebCentralScraper.h"
 #include "TankoyomiChapterService.h"
 #include "TankoyomiIdentity.h"
+#include "TankoyomiNetworkPolicy.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -529,10 +530,25 @@ void MangaDownloader::pumpThumbs()
 
 void MangaDownloader::fetchThumbImage(
     const QString& chapterId, const PageInfo& page,
-    std::function<void(const QString&, bool)> settle, int attempt)
+    std::function<void(const QString&, bool)> settle, int attempt,
+    QUrl requestUrl, int redirectDepth)
 {
     if (!m_thumbInflight.contains(chapterId)) return;
     if (!m_nam) {
+        settle(QString(), false);
+        return;
+    }
+    const bool qualified = TankoyomiIdentity::isQualifiedChapter(chapterId);
+    const QString policy = qualified && m_tankoyomi
+        ? m_tankoyomi->pageAccessPolicyForChapter(chapterId) : QString();
+    if (requestUrl.isEmpty()) requestUrl = QUrl(page.imageUrl);
+    if (qualified && !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(requestUrl, policy)) {
+        settle(QString(), false);
+        return;
+    }
+    if (!requestUrl.isValid()
+        || (requestUrl.scheme() != QLatin1String("http")
+            && requestUrl.scheme() != QLatin1String("https"))) {
         settle(QString(), false);
         return;
     }
@@ -552,49 +568,60 @@ void MangaDownloader::fetchThumbImage(
         }
     }
 
-    QNetworkRequest request = MangaPageTransport::requestForPage(page, chapterId);
-    QUrl requestUrl = request.url();
-    if (!requestUrl.isValid()
-        || (requestUrl.scheme() != QLatin1String("http")
-            && requestUrl.scheme() != QLatin1String("https"))) {
-        settle(QString(), false);
-        return;
-    }
-
     const QString host = requestUrl.host().toLower();
     if (!host.isEmpty() && !m_pins.contains(host)
         && (!m_pinTried.contains(host) || m_hostResolver.hasInFlight(host))) {
         m_pinTried.insert(host);
         m_hostResolver.resolve(
             host,
-            [this, host, chapterId, page, settle = std::move(settle), attempt](
-                const QString& ipv4) mutable {
+            [this, host, chapterId, page, settle = std::move(settle), attempt,
+             requestUrl, redirectDepth](const QString& ipv4) mutable {
                 if (!m_thumbInflight.contains(chapterId)) return;
+                m_pinTried.insert(host);
                 if (!ipv4.isEmpty()) m_pins.insert(host, ipv4);
-                fetchThumbImage(chapterId, page, std::move(settle), attempt);
+                fetchThumbImage(chapterId, page, std::move(settle), attempt, requestUrl, redirectDepth);
             });
         return;
     }
 
     const QString ipv4 = m_pins.value(host);
+    if (qualified && !TankoyomiNetworkPolicy::resolvedAddressAllowed(QHostAddress(ipv4), policy)) {
+        settle(QString(), false);
+        return;
+    }
+    QNetworkRequest request = MangaPageTransport::requestForPage(page, chapterId);
+    QUrl wireUrl = requestUrl;
     if (!ipv4.isEmpty()) {
         request.setRawHeader("Host", host.toUtf8());
         request.setPeerVerifyName(host);
         request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
-        requestUrl.setHost(ipv4);
-        request.setUrl(requestUrl);
+        wireUrl.setHost(ipv4);
     }
+    request.setUrl(wireUrl);
 
     QNetworkReply* reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this,
             [this, reply, chapterId, page, settle = std::move(settle),
-             attempt, prefix]() mutable {
+             attempt, prefix, qualified, policy, requestUrl, redirectDepth]() mutable {
+        reply->deleteLater();
+        if (!m_thumbInflight.contains(chapterId)) return;
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (qualified && status >= 300 && status < 400) {
+            const QUrl location = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
+            const QUrl next = requestUrl.resolved(location);
+            if (redirectDepth >= 5 || location.isEmpty() || !location.isValid()
+                || !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(next, policy)) {
+                settle(QString(), false);
+                return;
+            }
+            // Keep the original PageInfo/cache identity. Every redirected host
+            // re-enters the same URL and resolved-address gate before its GET.
+            fetchThumbImage(chapterId, page, std::move(settle), attempt, next, redirectDepth + 1);
+            return;
+        }
         const QNetworkReply::NetworkError error = reply->error();
         const QByteArray data = reply->readAll();
-        const QString contentType =
-            reply->header(QNetworkRequest::ContentTypeHeader).toString();
-        reply->deleteLater();
-
+        const QString contentType = reply->header(QNetworkRequest::ContentTypeHeader).toString();
         if (classifyPageReply(error, data, contentType) == PageVerdict::Accept) {
             const QString extension = extForContentType(contentType, page.imageUrl);
             const QString outputPath = thumbCacheDir() + QLatin1Char('/')
@@ -626,7 +653,6 @@ void MangaDownloader::fetchThumbImage(
             }));
             return;
         }
-
         if (attempt + 1 < MAX_IMAGE_RETRIES) {
             QTimer::singleShot(2000 << attempt, this,
                 [this, chapterId, page, settle = std::move(settle), attempt]() mutable {
@@ -865,7 +891,10 @@ void MangaDownloader::pumpImages(Job* job)
         const int i = job->nextDispatch++;
         if (!job->files[i].isEmpty()) continue;   // resumed page — already on disk
         job->inFlight++;
+        const auto lifetime = job->lifetime;
         fetchImage(job, i, 0);
+        // A synchronous policy/DNS rejection can settle and destroy this job.
+        if (!lifetime || lifetime->job != job || job->failedFlag || job->cancelled) return;
     }
 }
 
@@ -909,13 +938,22 @@ MangaDownloader::PageVerdict MangaDownloader::classifyPageReply(QNetworkReply::N
     return PageVerdict::Error;
 }
 
-void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
+void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
+                                  QUrl requestUrl, int redirectDepth)
 {
     if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
 
-    const QString url = job->pages[pageIndex].imageUrl;
-    QUrl u(url);
-    const QString host = u.host().toLower();
+    const bool qualified = TankoyomiIdentity::isQualifiedChapter(job->chapterId);
+    const QString policy = qualified && m_tankoyomi
+        ? m_tankoyomi->pageAccessPolicyForChapter(job->chapterId) : QString();
+    if (requestUrl.isEmpty()) requestUrl = QUrl(job->pages[pageIndex].imageUrl);
+    if (qualified && !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(requestUrl, policy)) {
+        job->failedFlag = true;
+        --job->inFlight;
+        pumpImages(job);
+        return;
+    }
+    const QString host = requestUrl.host().toLower();
 
     // CDN hosts are intentionally resolved lazily: a blocking DNS helper here would
     // stop the application's event loop on the first image request. Keep the
@@ -923,13 +961,13 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     // and retry attempt from its callback.
     if (!host.isEmpty() && !m_pins.contains(host)
         && (!m_pinTried.contains(host) || m_pinLookupInFlight.contains(host))) {
-        queueImageForHost(job, pageIndex, attempt, host);
+        queueImageForHost(job, pageIndex, attempt, host, requestUrl, redirectDepth);
         return;
     }
 
     QNetworkRequest req = MangaPageTransport::requestForPage(
         job->pages[pageIndex], job->chapterId);
-    u = req.url();
+    QUrl wireUrl = requestUrl;
 
     // IPv4 pin (dead-IPv6 machine): rewrite host → IP, keep the real hostname for TLS
     // (peerVerifyName) and the Host header, HTTP/2 off — same recipe as CachingNam.
@@ -939,20 +977,41 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     // "Failed"). Resolve + cache their real IPv4 on first use so every page fetch takes the
     // working IPv4 route — the same fix every other host in the app already has.
     const QString ipv4 = m_pins.value(host);
+    if (qualified && !TankoyomiNetworkPolicy::resolvedAddressAllowed(QHostAddress(ipv4), policy)) {
+        job->failedFlag = true;
+        --job->inFlight;
+        pumpImages(job);
+        return;
+    }
     if (!ipv4.isEmpty()) {
         req.setRawHeader("Host", host.toUtf8());
         req.setPeerVerifyName(host);
         req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
-        u.setHost(ipv4);
-        req.setUrl(u);
+        wireUrl.setHost(ipv4);
     }
+    req.setUrl(wireUrl);
 
     QNetworkReply* reply = m_nam->get(req);
     job->replies.append(reply);
-    connect(reply, &QNetworkReply::finished, this, [this, job, pageIndex, attempt, reply]() {
+    connect(reply, &QNetworkReply::finished, this,
+            [this, job, pageIndex, attempt, reply, qualified, policy, requestUrl, redirectDepth]() {
         reply->deleteLater();
         job->replies.removeOne(reply);
         if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (qualified && status >= 300 && status < 400) {
+            const QUrl location = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
+            const QUrl next = requestUrl.resolved(location);
+            if (redirectDepth >= 5 || location.isEmpty() || !location.isValid()
+                || !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(next, policy)) {
+                job->failedFlag = true;
+                --job->inFlight;
+                pumpImages(job);
+                return;
+            }
+            fetchImage(job, pageIndex, attempt, next, redirectDepth + 1);
+            return;
+        }
         // readAll() carries the body even on an error status (some sources serve real image
         // bytes on an HTTP 404), so we read it BEFORE branching on error() — the magic bytes,
         // not the status, decide.
@@ -1040,9 +1099,9 @@ void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
 }
 
 void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,
-                                         const QString& host)
+                                         const QString& host, QUrl requestUrl, int redirectDepth)
 {
-    m_pendingPinRequests[host].append(PendingImageRequest{job, pageIndex, attempt});
+    m_pendingPinRequests[host].append(PendingImageRequest{job, pageIndex, attempt, requestUrl, redirectDepth});
     if (m_pinLookupInFlight.contains(host)) return;
 
     m_pinTried.insert(host);
@@ -1056,7 +1115,7 @@ void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,
             qInfo("[downloads] pinned CDN host %s -> %s (dead-IPv6 guard)",
                   qUtf8Printable(host), qUtf8Printable(ipv4));
         } else {
-            qWarning("[downloads] no IPv4 for CDN host %s; using hostname request",
+            qWarning("[downloads] no IPv4 for CDN host %s; qualified pages fail closed",
                      qUtf8Printable(host));
         }
 
@@ -1067,7 +1126,8 @@ void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,
             // Keep this active-map check as a second lifetime fence.
             if (!request.job || m_active.value(request.job->chapterId, nullptr) != request.job)
                 continue;
-            fetchImage(request.job, request.pageIndex, request.attempt);
+            fetchImage(request.job, request.pageIndex, request.attempt,
+                       request.requestUrl, request.redirectDepth);
         }
     });
     // A test Lookup is allowed to complete synchronously. In that case the
