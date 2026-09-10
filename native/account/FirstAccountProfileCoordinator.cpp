@@ -678,6 +678,148 @@ currentMigrationSource(
     return std::nullopt;
 }
 
+std::optional<FirstAccountProfileCoordinator::ResolvedAdoptionSource>
+FirstAccountProfileCoordinator::
+resolveAdoptionSource(
+    const ProfileAdoption &adoption,
+    QString *error) const {
+    const ProfileAdoption::Snapshot snapshot = adoption.snapshot();
+    if (snapshot.sourceKindRecorded) {
+        if (snapshot.sourceKind == ProfilePaths::Kind::LegacyLocal) {
+            return ResolvedAdoptionSource{
+                m_profileRuntime->legacyStorage(),
+                ProfilePaths::Kind::LegacyLocal};
+        }
+
+        const ProfilePaths localPaths =
+            ProfilePaths::localOnly(m_appDataRoot);
+        QString localError;
+        const auto localStorage =
+            LegacyPersonalStateStorage::forProfile(
+                localPaths,
+                &localError);
+        if (!localStorage.has_value()) {
+            setError(
+                error,
+                adoptionFailure(
+                    QStringLiteral(
+                        "Could not resolve the explicit-local adoption source."),
+                    localError));
+            return std::nullopt;
+        }
+
+        return ResolvedAdoptionSource{
+            *localStorage,
+            ProfilePaths::Kind::LocalOnly};
+    }
+
+    // v1 journals did not persist the source kind.  Recover only when the
+    // recorded semantic identity identifies exactly one source.  A matching
+    // activity digest is part of the identity when the journal has one; this
+    // keeps activity-only legacy/local sources distinguishable as well.
+    QString legacyError;
+    const auto legacy =
+        m_profileRuntime->legacyStorage().capture(&legacyError);
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(m_appDataRoot);
+    QString localError;
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(
+            localPaths,
+            &localError);
+    std::optional<PersonalStateSnapshot> local;
+    if (localStorage.has_value())
+        local = localStorage->capture(&localError);
+
+    // An old journal does not identify which source was adopted.  An
+    // unreadable candidate cannot be treated as an empty candidate: doing so
+    // could make a healthy store appear to be the unique source and cause a
+    // retry to adopt the wrong data.  Keep this compatibility path fail
+    // closed until both candidates have been inspected successfully.
+    if (!legacy.has_value()
+        || !localStorage.has_value()
+        || !local.has_value()) {
+        QString detail;
+        if (!legacy.has_value())
+            detail = legacyError;
+        if (!localStorage.has_value() || !local.has_value()) {
+            if (!detail.isEmpty())
+                detail += QStringLiteral(" ");
+            detail += localError;
+        }
+        setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not inspect both local adoption sources safely."),
+                detail));
+        return std::nullopt;
+    }
+
+    const auto activityMatches =
+        [&](const LegacyPersonalStateStorage &storage) {
+            const QString expected = snapshot.activitySourceDigest;
+            return expected.isEmpty()
+                || ActivityStore::fileDigestSha256(
+                       storage.activityDbPath())
+                    == expected;
+        };
+
+    const bool legacyMatches =
+        legacy->matchesSemanticDigest(
+               snapshot.sourceSemanticDigest)
+        && activityMatches(m_profileRuntime->legacyStorage());
+    const bool localMatches =
+        local->matchesSemanticDigest(
+               snapshot.sourceSemanticDigest)
+        && activityMatches(*localStorage);
+
+    if (legacyMatches && !localMatches) {
+        return ResolvedAdoptionSource{
+            m_profileRuntime->legacyStorage(),
+            ProfilePaths::Kind::LegacyLocal};
+    }
+    if (localMatches && !legacyMatches) {
+        return ResolvedAdoptionSource{
+            *localStorage,
+            ProfilePaths::Kind::LocalOnly};
+    }
+
+    if (legacyMatches && localMatches) {
+        // An empty v1 source has no private state whose ownership could be
+        // confused.  Keep the legacy default for that safe compatibility
+        // case; populated matches in both stores remain ambiguous.
+        if (snapshot.activitySourceDigest.isEmpty()
+            && legacy->isEmpty()
+            && local->isEmpty()) {
+            return ResolvedAdoptionSource{
+                m_profileRuntime->legacyStorage(),
+                ProfilePaths::Kind::LegacyLocal};
+        }
+        setError(
+            error,
+            QStringLiteral(
+                "The interrupted adoption source is ambiguous; both local stores match."));
+        return std::nullopt;
+    }
+
+    QString detail;
+    if (!legacy.has_value() && !legacyError.isEmpty())
+        detail = legacyError;
+    if (!localStorage.has_value() && !localError.isEmpty()) {
+        if (!detail.isEmpty())
+            detail += QStringLiteral(" ");
+        detail += localError;
+    }
+    setError(
+        error,
+        adoptionFailure(
+            QStringLiteral(
+                "Could not identify the source of the interrupted adoption."),
+            detail));
+    return std::nullopt;
+}
+
 bool FirstAccountProfileCoordinator::
 clearMigrationSource(
     const LegacyPersonalStateStorage &sourceStorage,
@@ -732,6 +874,7 @@ runLocalOnlyAdoption(
         ProfileAdoption::begin(
             paths,
             source->semanticDigest(),
+            ProfilePaths::Kind::LocalOnly,
             error);
     if (!adoption.has_value())
         return false;
@@ -797,10 +940,12 @@ runLocalOnlyAdoption(
             sourceStorage,
             true,
             error)) {
-        sourceStorage.restorePersonalState(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            ProfilePaths::Kind::LocalOnly,
             *source,
             nullptr);
-        m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return false;
     }
 
@@ -810,12 +955,17 @@ runLocalOnlyAdoption(
         || !adoption->markLegacyQuarantined(
             source->semanticDigest(),
             error)) {
-        sourceStorage.restorePersonalState(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            ProfilePaths::Kind::LocalOnly,
             *source,
             nullptr);
-        m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return false;
     }
+
+    if (!adoption->commit(error))
+        return false;
 
     m_quarantinedThisProcess.insert(paths.profileId());
     return activate(paths, error);
@@ -961,6 +1111,7 @@ runFreshAdoption(
         ProfileAdoption::begin(
             paths,
             source->semanticDigest(),
+            ProfilePaths::Kind::LegacyLocal,
             error);
     if (!adoption.has_value())
         return false;
@@ -1021,6 +1172,8 @@ runFreshAdoption(
     return finishPromotedAdoption(
         paths,
         *adoption,
+        m_profileRuntime->legacyStorage(),
+        ProfilePaths::Kind::LegacyLocal,
         *source,
         activitySourceDigest,
         error);
@@ -1034,9 +1187,14 @@ resumeAdoption(
     switch (adoption.state()) {
     case ProfileAdoption::State::Preparing:
     case ProfileAdoption::State::TargetVerified: {
+        const auto resolved =
+            resolveAdoptionSource(adoption, error);
+        if (!resolved.has_value())
+            return false;
+
         QString captureError;
         const auto source =
-            m_profileRuntime->legacyStorage()
+            resolved->storage
                 .capture(&captureError);
         if (!source.has_value()) {
             return setError(
@@ -1062,15 +1220,23 @@ resumeAdoption(
             return false;
         }
 
-        return runFreshAdoption(
-            paths,
-            error);
+        if (resolved->kind == ProfilePaths::Kind::LocalOnly)
+            return runLocalOnlyAdoption(
+                paths,
+                resolved->storage,
+                error);
+        return runFreshAdoption(paths, error);
     }
 
     case ProfileAdoption::State::Promoted: {
+        const auto resolved =
+            resolveAdoptionSource(adoption, error);
+        if (!resolved.has_value())
+            return false;
+
         QString captureError;
         const auto source =
-            m_profileRuntime->legacyStorage()
+            resolved->storage
                 .capture(&captureError);
         if (!source.has_value()) {
             return setError(
@@ -1100,9 +1266,12 @@ resumeAdoption(
                 return false;
             }
 
-            return runFreshAdoption(
-                paths,
-                error);
+            if (resolved->kind == ProfilePaths::Kind::LocalOnly)
+                return runLocalOnlyAdoption(
+                    paths,
+                    resolved->storage,
+                    error);
+            return runFreshAdoption(paths, error);
         }
 
         // The activity digest is trusted from the journal here rather than
@@ -1116,6 +1285,8 @@ resumeAdoption(
         return finishPromotedAdoption(
             paths,
             adoption,
+            resolved->storage,
+            resolved->kind,
             *source,
             adoption.snapshot().activitySourceDigest,
             error);
@@ -1155,9 +1326,87 @@ resumeAdoption(
             error);
 
     case ProfileAdoption::State::RetryPending: {
+        auto resolved =
+            resolveAdoptionSource(adoption, nullptr);
+        if (!resolved.has_value()
+            && !adoption.snapshot().sourceKindRecorded) {
+            // Compatibility for the old retry journal: its legacy-only
+            // writer could not identify a source after a history projection
+            // changed the semantic digest.  Permit that existing recovery
+            // path only when one materialized source is present; two sources
+            // remain ambiguous and fail closed.
+            QString legacyError;
+            const auto legacy =
+                m_profileRuntime->legacyStorage().capture(&legacyError);
+            const ProfilePaths localPaths =
+                ProfilePaths::localOnly(m_appDataRoot);
+            QString localError;
+            const auto localStorage =
+                LegacyPersonalStateStorage::forProfile(
+                    localPaths,
+                    &localError);
+            std::optional<PersonalStateSnapshot> local;
+            if (localStorage.has_value())
+                local = localStorage->capture(&localError);
+
+            // The fallback may only recover the old projection-based retry
+            // when both possible sources were readable.  A failed capture is
+            // evidence, not absence, and selecting the other store would
+            // misattribute the retry.
+            if (!legacy.has_value()
+                || !localStorage.has_value()
+                || !local.has_value()) {
+                QString detail;
+                if (!legacy.has_value())
+                    detail = legacyError;
+                if (!localStorage.has_value() || !local.has_value()) {
+                    if (!detail.isEmpty())
+                        detail += QStringLiteral(" ");
+                    detail += localError;
+                }
+                return setError(
+                    error,
+                    adoptionFailure(
+                        QStringLiteral(
+                            "Could not inspect both local adoption sources safely for retry."),
+                        detail));
+            }
+
+            const auto hasMaterializedState =
+                [&](const std::optional<PersonalStateSnapshot> &state,
+                    const LegacyPersonalStateStorage &storage) {
+                    return state.has_value()
+                        && (!state->isEmpty()
+                            || (!adoption.snapshot().activitySourceDigest.isEmpty()
+                                && QFileInfo::exists(
+                                    storage.activityDbPath())));
+                };
+            const bool legacyPresent =
+                hasMaterializedState(
+                    legacy,
+                    m_profileRuntime->legacyStorage());
+            const bool localPresent =
+                hasMaterializedState(local, *localStorage);
+            if (legacyPresent && !localPresent) {
+                resolved = ResolvedAdoptionSource{
+                    m_profileRuntime->legacyStorage(),
+                    ProfilePaths::Kind::LegacyLocal};
+            } else if (localPresent && !legacyPresent) {
+                resolved = ResolvedAdoptionSource{
+                    *localStorage,
+                    ProfilePaths::Kind::LocalOnly};
+            }
+        }
+        if (!resolved.has_value()) {
+            return setError(
+                error,
+                QStringLiteral(
+                    "Could not identify the source of the adoption retry."));
+        }
+
         QString captureError;
         const auto source =
-            m_profileRuntime->legacyStorage()
+            resolved->storage
                 .capture(&captureError);
         if (!source.has_value()) {
             return setError(
@@ -1175,8 +1424,7 @@ resumeAdoption(
             const auto backup = readBackup(paths, nullptr);
             if (backup.has_value()) {
                 ActivityStore activity(
-                    m_profileRuntime->legacyStorage()
-                        .activityDbPath());
+                    resolved->storage.activityDbPath());
                 if (activity.healthy()) {
                     onlyActivityProjection =
                         matchesWithActivityProjection(
@@ -1188,6 +1436,11 @@ resumeAdoption(
             if (onlyActivityProjection) {
                 if (!adoption.rollbackBeforeLegacyQuarantine(error))
                     return false;
+                if (resolved->kind == ProfilePaths::Kind::LocalOnly)
+                    return runLocalOnlyAdoption(
+                        paths,
+                        resolved->storage,
+                        error);
                 return runFreshAdoption(paths, error);
             }
 
@@ -1203,9 +1456,12 @@ resumeAdoption(
             return false;
         }
 
-        return runFreshAdoption(
-            paths,
-            error);
+        if (resolved->kind == ProfilePaths::Kind::LocalOnly)
+            return runLocalOnlyAdoption(
+                paths,
+                resolved->storage,
+                error);
+        return runFreshAdoption(paths, error);
     }
 
     case ProfileAdoption::State::Committed:
@@ -1264,6 +1520,8 @@ bool FirstAccountProfileCoordinator::
 finishPromotedAdoption(
     const ProfilePaths &paths,
     ProfileAdoption adoption,
+    const LegacyPersonalStateStorage &sourceStorage,
+    ProfilePaths::Kind sourceKind,
     const PersonalStateSnapshot &source,
     const QString &activitySourceDigest,
     QString *error) {
@@ -1318,6 +1576,7 @@ finishPromotedAdoption(
     QString activityBackupDigest;
     if (!backupActivityLedger(
             paths,
+            sourceStorage,
             activitySourceDigest,
             &activityBackupDigest,
             error)) {
@@ -1328,44 +1587,50 @@ finishPromotedAdoption(
         ->suspendPersonalStoresForMigration();
 
     // NOTE: restoreLegacyActivityFromBackup() always runs BEFORE
-    // restoreLegacyForRetry() in every failure branch below —
-    // restoreLegacyForRetry()'s reloadLegacyProfile() call reopens a live
-    // ActivityStore connection at the legacy path, so the file on disk must
-    // already be back in its pre-quarantine state before that connection
-    // opens (reopening first would create/lock a fresh empty file that a
-    // later restore would then have to fight for the handle on).
+    // restoreSourceForRetry() in every failure branch below — reopening the
+    // selected source profile creates a live ActivityStore connection at its
+    // path, so the file on disk must already be back in its pre-quarantine
+    // state before that connection opens.
 
-    if (!quarantineLegacyActivityLedger(error)) {
+    if (!quarantineLegacyActivityLedger(sourceStorage, error)) {
         restoreLegacyActivityFromBackup(
             paths,
+            sourceStorage,
             nullptr);
-        restoreLegacyForRetry(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            sourceKind,
             source,
             nullptr);
         return false;
     }
 
-    if (!m_profileRuntime
-             ->legacyStorage()
-             .clearPersonalState(error)) {
+    if (!sourceStorage.clearPersonalState(error)) {
         restoreLegacyActivityFromBackup(
             paths,
+            sourceStorage,
             nullptr);
-        restoreLegacyForRetry(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            sourceKind,
             source,
             nullptr);
         return false;
     }
 
     const auto cleared =
-        m_profileRuntime
-            ->legacyStorage()
-            .capture(error);
+        sourceStorage.capture(error);
     if (!cleared.has_value()) {
         restoreLegacyActivityFromBackup(
             paths,
+            sourceStorage,
             nullptr);
-        restoreLegacyForRetry(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            sourceKind,
             source,
             nullptr);
         return false;
@@ -1374,8 +1639,12 @@ finishPromotedAdoption(
     if (!cleared->isEmpty()) {
         restoreLegacyActivityFromBackup(
             paths,
+            sourceStorage,
             nullptr);
-        restoreLegacyForRetry(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            sourceKind,
             source,
             nullptr);
         return setError(
@@ -1393,8 +1662,12 @@ finishPromotedAdoption(
             error)) {
         restoreLegacyActivityFromBackup(
             paths,
+            sourceStorage,
             nullptr);
-        restoreLegacyForRetry(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            sourceKind,
             source,
             nullptr);
         return false;
@@ -1405,25 +1678,26 @@ finishPromotedAdoption(
             error)) {
         restoreLegacyActivityFromBackup(
             paths,
+            sourceStorage,
             nullptr);
-        restoreLegacyForRetry(
+        restoreSourceForRetry(
+            paths,
+            sourceStorage,
+            sourceKind,
             source,
             nullptr);
         return false;
     }
 
+    // Once source state is quarantined, the journal is the durable ownership
+    // record.  Commit before activation so an activation failure cannot
+    // restore private pre-account state over the account that was promoted.
+    if (!adoption.commit(error))
+        return false;
+
     m_quarantinedThisProcess.insert(
         paths.profileId());
-
-    if (!activate(paths, error)) {
-        return restoreLegacyAndRollback(
-            paths,
-            &adoption,
-            source,
-            error);
-    }
-
-    return true;
+    return activate(paths, error);
 }
 
 bool FirstAccountProfileCoordinator::
@@ -1447,9 +1721,29 @@ verifyRestartAndCommit(
                 "The rollback backup failed restart verification."));
     }
 
+    // A post-quarantine journal has already cleared its source.  Use the
+    // recorded source kind when present so an explicit-local adoption never
+    // treats unrelated legacy settings as the source of truth.  v1 journals
+    // had no source field; their compatibility default remains legacy-local,
+    // the only source the old writer could record, and any non-empty legacy
+    // state fails closed below.
+    LegacyPersonalStateStorage sourceStorage =
+        m_profileRuntime->legacyStorage();
+    if (adoption.snapshot().sourceKindRecorded
+        && adoption.snapshot().sourceKind == ProfilePaths::Kind::LocalOnly) {
+        const ProfilePaths localPaths =
+            ProfilePaths::localOnly(m_appDataRoot);
+        const auto localStorage =
+            LegacyPersonalStateStorage::forProfile(
+                localPaths,
+                error);
+        if (!localStorage.has_value())
+            return false;
+        sourceStorage = *localStorage;
+    }
+
     const auto legacy =
-        m_profileRuntime->legacyStorage()
-            .capture(error);
+        sourceStorage.capture(error);
     if (!legacy.has_value())
         return false;
 
@@ -1457,31 +1751,17 @@ verifyRestartAndCommit(
         return setError(
             error,
             QStringLiteral(
-                "Legacy personal state reappeared before adoption commit."));
+                "Adoption source state reappeared before adoption commit."));
     }
 
     if (!migratedProfileFilesPresent(
             paths,
             *backup,
             adoption.snapshot().activitySourceDigest)) {
-        QString restoreError;
-        if (!restoreLegacyAndRollback(
-                paths,
-                &adoption,
-                *backup,
-                &restoreError)) {
-            return setError(
-                error,
-                adoptionFailure(
-                    QStringLiteral(
-                        "A promoted profile file disappeared and rollback could not complete."),
-                    restoreError));
-        }
-
         return setError(
             error,
             QStringLiteral(
-                "A promoted profile file disappeared; local personal state was restored."));
+                "A promoted profile file disappeared; the account adoption evidence was preserved."));
     }
 
     const auto storage =
@@ -1494,26 +1774,8 @@ verifyRestartAndCommit(
 
     const auto current =
         storage->capture(error);
-    if (!current.has_value()) {
-        QString restoreError;
-        if (!restoreLegacyAndRollback(
-                paths,
-                &adoption,
-                *backup,
-                &restoreError)) {
-            return setError(
-                error,
-                adoptionFailure(
-                    QStringLiteral(
-                        "Restart verification failed and rollback could not complete."),
-                    restoreError));
-        }
-
-        return setError(
-            error,
-            QStringLiteral(
-                "Restart verification failed; local personal state was restored."));
-    }
+    if (!current.has_value())
+        return false;
 
     QString currentDigest;
     if (!verifyProfile(
@@ -1521,70 +1783,32 @@ verifyRestartAndCommit(
             paths.profileRoot(),
             *current,
             &currentDigest,
-            error)) {
-        QString restoreError;
-        if (!restoreLegacyAndRollback(
-                paths,
-                &adoption,
-                *backup,
-                &restoreError)) {
-            return setError(
-                error,
-                adoptionFailure(
-                    QStringLiteral(
-                        "Restart verification failed and rollback could not complete."),
-                    restoreError));
-        }
-
-        return setError(
-            error,
-            QStringLiteral(
-                "Restart verification failed; local personal state was restored."));
-    }
-
-    QString currentActivityDigest;
-    if (!verifyActivityDigest(
-            paths,
-            paths.profileRoot(),
-            adoption.snapshot().activityTargetDigest,
-            &currentActivityDigest,
-            error)) {
-        QString restoreError;
-        if (!restoreLegacyAndRollback(
-                paths,
-                &adoption,
-                *backup,
-                &restoreError)) {
-            return setError(
-                error,
-                adoptionFailure(
-                    QStringLiteral(
-                        "Restart verification failed and rollback could not complete."),
-                    restoreError));
-        }
-
-        return setError(
-            error,
-            QStringLiteral(
-                "Restart verification failed; local personal state was restored."));
-    }
-
-    if (!adoption.commit(error)) {
-        QString restoreError;
-        if (!restoreLegacyAndRollback(
-                paths,
-                &adoption,
-                *backup,
-                &restoreError)) {
-            return setError(
-                error,
-                adoptionFailure(
-                    QStringLiteral(
-                        "Adoption commit failed and rollback could not complete."),
-                    restoreError));
-        }
+            error))
         return false;
+
+    // Activity is mutable account data after promotion.  Restart recovery
+    // checks that the current ledger remains readable, but never compares its
+    // bytes with the pre-activation digest or rolls the account back because
+    // new events were recorded.
+    if (QFileInfo::exists(paths.activityDbPath())) {
+        ActivityStore activity(paths.activityDbPath());
+        QString activityError;
+        if (!activity.healthy(&activityError)) {
+            return setError(
+                error,
+                adoptionFailure(
+                    QStringLiteral(
+                        "The promoted account activity ledger is unhealthy; adoption evidence was preserved."),
+                    activityError));
+        }
     }
+
+    // The journal remains LegacyQuarantined until this durable commit.  Any
+    // failure above or here leaves the account profile and rollback backup in
+    // place so a later repair can inspect them without resurrecting private
+    // pre-account state in legacy storage.
+    if (!adoption.commit(error))
+        return false;
 
     return activate(paths, error);
 }
@@ -2073,6 +2297,69 @@ restoreLegacyForRetry(
 }
 
 bool FirstAccountProfileCoordinator::
+restoreSourceForRetry(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    ProfilePaths::Kind sourceKind,
+    const PersonalStateSnapshot &snapshot,
+    QString *error) {
+    QString restoreError;
+    if (!restoreLegacyActivityFromBackup(
+            paths,
+            sourceStorage,
+            &restoreError)) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not restore the interrupted adoption activity ledger."),
+                restoreError));
+    }
+
+    if (!sourceStorage.restorePersonalState(
+            snapshot,
+            &restoreError)) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not restore the interrupted adoption source."),
+                restoreError));
+    }
+
+    const auto restored =
+        sourceStorage.capture(&restoreError);
+    if (!restored.has_value()
+        || !restored->matchesSemanticDigest(
+               snapshot.semanticDigest())) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not verify the restored interrupted adoption source."),
+                restoreError));
+    }
+
+    bool reopened = false;
+    if (sourceKind == ProfilePaths::Kind::LocalOnly) {
+        reopened = m_profileRuntime->activateLocalOnlyProfile(
+            &restoreError);
+    } else if (sourceKind == ProfilePaths::Kind::LegacyLocal) {
+        reopened = m_profileRuntime->reloadLegacyProfile(
+            &restoreError);
+    }
+    if (!reopened) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "The interrupted adoption source was restored on disk but could not be reopened."),
+                restoreError));
+    }
+    return true;
+}
+
+bool FirstAccountProfileCoordinator::
 restoreLegacyAndRollback(
     const ProfilePaths &paths,
     ProfileAdoption *adoption,
@@ -2410,6 +2697,17 @@ bool FirstAccountProfileCoordinator::
 restoreLegacyActivityFromBackup(
     const ProfilePaths &paths,
     QString *error) const {
+    return restoreLegacyActivityFromBackup(
+        paths,
+        m_profileRuntime->legacyStorage(),
+        error);
+}
+
+bool FirstAccountProfileCoordinator::
+restoreLegacyActivityFromBackup(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    QString *error) const {
     const QString backupPath =
         activityBackupFilePath(paths);
     if (!QFileInfo::exists(backupPath)) {
@@ -2421,8 +2719,7 @@ restoreLegacyActivityFromBackup(
     }
 
     const QString legacyPath =
-        m_profileRuntime->legacyStorage()
-            .activityDbPath();
+        sourceStorage.activityDbPath();
     if (legacyPath.isEmpty())
         return true;
 
@@ -2452,15 +2749,26 @@ restoreLegacyActivityFromBackup(
                 "Could not restore the legacy activity ledger from backup."));
     }
 
+    QFile::remove(legacyPath + QStringLiteral("-wal"));
+    QFile::remove(legacyPath + QStringLiteral("-shm"));
+
     return true;
 }
 
 bool FirstAccountProfileCoordinator::
 quarantineLegacyActivityLedger(
     QString *error) const {
+    return quarantineLegacyActivityLedger(
+        m_profileRuntime->legacyStorage(),
+        error);
+}
+
+bool FirstAccountProfileCoordinator::
+quarantineLegacyActivityLedger(
+    const LegacyPersonalStateStorage &sourceStorage,
+    QString *error) const {
     const QString legacyPath =
-        m_profileRuntime->legacyStorage()
-            .activityDbPath();
+        sourceStorage.activityDbPath();
     if (legacyPath.isEmpty()
         || !QFileInfo::exists(legacyPath)) {
         return true; // nothing to quarantine

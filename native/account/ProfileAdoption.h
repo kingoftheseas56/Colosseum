@@ -40,10 +40,21 @@ public:
         QString activitySourceDigest;
         QString activityTargetDigest;
         QString activityLegacyBackupDigest;
+
+        // The source location is part of the durable recovery contract.  A
+        // missing value means this is a v1 journal; recovery may infer the
+        // only source whose semantic digest matches, but must fail closed on
+        // ambiguity.  New journals always record the source kind explicitly.
+        ProfilePaths::Kind sourceKind = ProfilePaths::Kind::LegacyLocal;
+        bool sourceKindRecorded = false;
     };
 
     static std::optional<ProfileAdoption> begin(const ProfilePaths &paths,
                                                 const QString &sourceSemanticDigest,
+                                                QString *error = nullptr);
+    static std::optional<ProfileAdoption> begin(const ProfilePaths &paths,
+                                                const QString &sourceSemanticDigest,
+                                                ProfilePaths::Kind sourceKind,
                                                 QString *error = nullptr);
     static std::optional<ProfileAdoption> open(const ProfilePaths &paths,
                                                QString *error = nullptr);
@@ -86,6 +97,13 @@ public:
 
 private:
     ProfileAdoption(const ProfilePaths &paths, const Snapshot &snapshot);
+
+    static std::optional<ProfileAdoption> beginInternal(
+        const ProfilePaths &paths,
+        const QString &sourceSemanticDigest,
+        ProfilePaths::Kind sourceKind,
+        bool recordSourceKind,
+        QString *error);
 
     static std::optional<Snapshot> readSnapshot(const ProfilePaths &paths,
                                                 QString *error);

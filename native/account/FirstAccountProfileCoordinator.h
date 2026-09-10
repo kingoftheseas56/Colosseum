@@ -35,6 +35,11 @@ public:
         QString *error = nullptr);
 
 private:
+    struct ResolvedAdoptionSource {
+        LegacyPersonalStateStorage storage;
+        ProfilePaths::Kind kind = ProfilePaths::Kind::LegacyLocal;
+    };
+
     bool runFreshAdoption(
         const ProfilePaths &paths,
         QString *error);
@@ -70,9 +75,15 @@ private:
     bool finishPromotedAdoption(
         const ProfilePaths &paths,
         ProfileAdoption adoption,
+        const LegacyPersonalStateStorage &sourceStorage,
+        ProfilePaths::Kind sourceKind,
         const PersonalStateSnapshot &source,
         const QString &activitySourceDigest,
         QString *error);
+
+    std::optional<ResolvedAdoptionSource> resolveAdoptionSource(
+        const ProfileAdoption &adoption,
+        QString *error) const;
 
     // Activity-ledger adoption (CPP-PORT-CONTRACT §17) — the ledger rides
     // inside the same staging/promote/backup machinery as personal state
@@ -122,7 +133,16 @@ private:
         const ProfilePaths &paths,
         QString *error) const;
 
+    bool restoreLegacyActivityFromBackup(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        QString *error) const;
+
     bool quarantineLegacyActivityLedger(
+        QString *error) const;
+
+    bool quarantineLegacyActivityLedger(
+        const LegacyPersonalStateStorage &sourceStorage,
         QString *error) const;
 
     static QString activityBackupFilePath(
@@ -154,6 +174,13 @@ private:
         QString *error) const;
 
     bool restoreLegacyForRetry(
+        const PersonalStateSnapshot &snapshot,
+        QString *error);
+
+    bool restoreSourceForRetry(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        ProfilePaths::Kind sourceKind,
         const PersonalStateSnapshot &snapshot,
         QString *error);
 

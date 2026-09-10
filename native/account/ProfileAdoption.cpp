@@ -31,13 +31,67 @@ std::optional<ProfileAdoption::State> stateFromName(const QString &name) {
         return ProfileAdoption::State::Committed;
     return std::nullopt;
 }
+
+QString sourceKindName(ProfilePaths::Kind kind) {
+    switch (kind) {
+    case ProfilePaths::Kind::LegacyLocal:
+        return QStringLiteral("legacy_local");
+    case ProfilePaths::Kind::LocalOnly:
+        return QStringLiteral("local_only");
+    case ProfilePaths::Kind::Sealed:
+    case ProfilePaths::Kind::Account:
+        return QString();
+    }
+    return QString();
+}
+
+std::optional<ProfilePaths::Kind> sourceKindFromName(const QString &name) {
+    if (name == QLatin1String("legacy_local"))
+        return ProfilePaths::Kind::LegacyLocal;
+    if (name == QLatin1String("local_only"))
+        return ProfilePaths::Kind::LocalOnly;
+    return std::nullopt;
+}
 }
 
 std::optional<ProfileAdoption> ProfileAdoption::begin(const ProfilePaths &paths,
                                                       const QString &sourceSemanticDigest,
                                                       QString *error) {
+    return beginInternal(
+        paths,
+        sourceSemanticDigest,
+        ProfilePaths::Kind::LegacyLocal,
+        false,
+        error);
+}
+
+std::optional<ProfileAdoption> ProfileAdoption::begin(
+    const ProfilePaths &paths,
+    const QString &sourceSemanticDigest,
+    ProfilePaths::Kind sourceKind,
+    QString *error) {
+    return beginInternal(
+        paths,
+        sourceSemanticDigest,
+        sourceKind,
+        true,
+        error);
+}
+
+std::optional<ProfileAdoption> ProfileAdoption::beginInternal(
+    const ProfilePaths &paths,
+    const QString &sourceSemanticDigest,
+    ProfilePaths::Kind sourceKind,
+    bool recordSourceKind,
+    QString *error) {
     if (paths.kind() != ProfilePaths::Kind::Account) {
         setError(error, QStringLiteral("Profile adoption requires an account profile."));
+        return std::nullopt;
+    }
+
+    if (sourceKind != ProfilePaths::Kind::LegacyLocal
+        && sourceKind != ProfilePaths::Kind::LocalOnly) {
+        setError(error, QStringLiteral("Profile adoption requires a local source profile."));
         return std::nullopt;
     }
 
@@ -92,6 +146,8 @@ std::optional<ProfileAdoption> ProfileAdoption::begin(const ProfilePaths &paths,
     snapshot.stagingRoot = stagingRoot;
     snapshot.finalRoot = finalRoot;
     snapshot.legacyBackupRoot = paths.adoptionBackupRoot();
+    snapshot.sourceKind = sourceKind;
+    snapshot.sourceKindRecorded = recordSourceKind;
 
     ProfileAdoption adoption(paths, snapshot);
     if (!adoption.writeSnapshot(error)) {
@@ -403,6 +459,17 @@ std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const Pro
     snapshot.activityTargetDigest = object.value(QStringLiteral("activity_target_digest")).toString();
     snapshot.activityLegacyBackupDigest = object.value(QStringLiteral("activity_legacy_backup_digest")).toString();
 
+    if (object.contains(QStringLiteral("source_kind"))) {
+        const auto parsedSourceKind = sourceKindFromName(
+            object.value(QStringLiteral("source_kind")).toString());
+        if (!parsedSourceKind.has_value()) {
+            setError(error, QStringLiteral("The profile adoption journal source kind is invalid."));
+            return std::nullopt;
+        }
+        snapshot.sourceKind = *parsedSourceKind;
+        snapshot.sourceKindRecorded = true;
+    }
+
     if (snapshot.accountId != paths.profileId()
         || snapshot.stagingRoot != paths.accountStagingRoot()
         || snapshot.finalRoot != paths.profileRoot()
@@ -426,6 +493,8 @@ bool ProfileAdoption::writeSnapshot(QString *error) const {
     object.insert(QStringLiteral("legacy_backup_root"), m_snapshot.legacyBackupRoot);
     object.insert(QStringLiteral("staging_root"), m_snapshot.stagingRoot);
     object.insert(QStringLiteral("final_root"), m_snapshot.finalRoot);
+    if (m_snapshot.sourceKindRecorded)
+        object.insert(QStringLiteral("source_kind"), sourceKindName(m_snapshot.sourceKind));
     object.insert(QStringLiteral("activity_source_digest"), m_snapshot.activitySourceDigest);
     object.insert(QStringLiteral("activity_target_digest"), m_snapshot.activityTargetDigest);
     object.insert(QStringLiteral("activity_legacy_backup_digest"), m_snapshot.activityLegacyBackupDigest);

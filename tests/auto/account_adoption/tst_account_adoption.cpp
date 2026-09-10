@@ -7,11 +7,15 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfileStoreRuntime.h"
 
+#include "ProgressStore.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -245,14 +249,69 @@ void verifyMachineSentinels(
             .toByteArray(),
         QByteArrayLiteral("keep-window-state"));
 }
+
+bool activityContainsItem(
+    const ActivityStore &activity,
+    const QString &itemKey) {
+    for (const QVariantMap &fact : activity.historyProjectionFacts()) {
+        if (fact.value(QStringLiteral("itemKey")).toString() == itemKey)
+            return true;
+    }
+    return false;
+}
+
+bool rewriteAdoptionState(
+    const ProfilePaths &paths,
+    const QString &state,
+    bool removeSourceKind,
+    QString *error = nullptr) {
+    QFile input(paths.adoptionJournalPath());
+    if (!input.open(QIODevice::ReadOnly)) {
+        if (error)
+            *error = QStringLiteral("Could not read the adoption journal fixture.");
+        return false;
+    }
+
+    QJsonParseError parseError;
+    QJsonDocument document =
+        QJsonDocument::fromJson(input.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError
+        || !document.isObject()) {
+        if (error)
+            *error = QStringLiteral("The adoption journal fixture is malformed.");
+        return false;
+    }
+
+    QJsonObject object = document.object();
+    object.insert(QStringLiteral("state"), state);
+    if (removeSourceKind)
+        object.remove(QStringLiteral("source_kind"));
+    input.close();
+
+    QSaveFile output(paths.adoptionJournalPath());
+    if (!output.open(QIODevice::WriteOnly)) {
+        if (error)
+            *error = QStringLiteral("Could not write the adoption journal fixture.");
+        return false;
+    }
+    const QByteArray payload =
+        QJsonDocument(object).toJson(QJsonDocument::Compact);
+    if (output.write(payload) != payload.size()
+        || !output.commit()) {
+        if (error)
+            *error = QStringLiteral("Could not commit the adoption journal fixture.");
+        return false;
+    }
+    return true;
+}
 }
 
 class tst_account_adoption : public QObject {
     Q_OBJECT
 
 private slots:
-    void populatedFirstAccountQuarantinesOnlyAfterSemanticVerification();
-    void cleanRestartCommitsQuarantinedAdoption();
+    void populatedFirstAccountCommitsBeforeActivation();
+    void cleanRestartKeepsCommittedAdoption();
     void committedAccountSessionMergesResidualLocalOnlyState();
     void ordinarySignInAdoptsLegacyLocalState();
     void ordinarySignInMergesExistingAccountWithLocalOnlyState();
@@ -260,7 +319,8 @@ private slots:
     void rememberedAccountSessionMergesLaterLocalOnlyState();
     void continueLocalBeforeAdoptionKeepsLegacyAuthority();
     void continueLocalAfterAdoptionUsesDedicatedLocalProfile();
-    void corruptRestartRestoresLegacyAndLeavesRetryIntent();
+    void corruptRestartPreservesAccountAndEvidence();
+    void missingFinalStorePreservesAccountEvidence();
     void retryIntentReAdoptsOnLaterSignIn();
     void legacySnapshotV1RemainsReadableWithoutHistory();
     void directAccountSwitchRequiresSealing();
@@ -268,7 +328,12 @@ private slots:
     void existingAccountMergeAcceptsCompletedActivity();
     void activityOnlyLocalStateIsMergedIntoExistingAccount();
     void firstAccountAdoptionMigratesActivityLedger();
-    void interruptedAdoptionRestoresLegacyActivityLedger();
+    void interruptedAdoptionPreservesAccountActivityEvidence();
+    void postAdoptionWritesSurviveCleanRestart();
+    void legacyQuarantinedRestartPreservesAccountWrites();
+    void explicitLocalQuarantineIgnoresUnrelatedLegacyState();
+    void explicitLocalPreparingAdoptionResumesFromLocalSource();
+    void retryFailsClosedWhenCompetingSourceUnreadable();
 };
 
 void tst_account_adoption::
@@ -312,7 +377,7 @@ legacySnapshotV1RemainsReadableWithoutHistory() {
 }
 
 void tst_account_adoption::
-populatedFirstAccountQuarantinesOnlyAfterSemanticVerification() {
+populatedFirstAccountCommitsBeforeActivation() {
     AdoptionFixture fixture;
     const PersonalStateSnapshot source =
         populatedSnapshot();
@@ -395,7 +460,11 @@ populatedFirstAccountQuarantinesOnlyAfterSemanticVerification() {
         qPrintable(error));
     QCOMPARE(
         adoption->state(),
-        ProfileAdoption::State::LegacyQuarantined);
+        ProfileAdoption::State::Committed);
+    QVERIFY(adoption->snapshot().sourceKindRecorded);
+    QCOMPARE(
+        adoption->snapshot().sourceKind,
+        ProfilePaths::Kind::LegacyLocal);
 
     QVERIFY(
         QFileInfo::exists(
@@ -414,7 +483,7 @@ populatedFirstAccountQuarantinesOnlyAfterSemanticVerification() {
 }
 
 void tst_account_adoption::
-cleanRestartCommitsQuarantinedAdoption() {
+cleanRestartKeepsCommittedAdoption() {
     AdoptionFixture fixture;
     const PersonalStateSnapshot source =
         populatedSnapshot();
@@ -449,7 +518,7 @@ cleanRestartCommitsQuarantinedAdoption() {
             qPrintable(error));
         QCOMPARE(
             adoption->state(),
-            ProfileAdoption::State::LegacyQuarantined);
+            ProfileAdoption::State::Committed);
     }
 
     {
@@ -942,7 +1011,7 @@ continueLocalAfterAdoptionUsesDedicatedLocalProfile() {
 }
 
 void tst_account_adoption::
-corruptRestartRestoresLegacyAndLeavesRetryIntent() {
+corruptRestartPreservesAccountAndEvidence() {
     AdoptionFixture fixture;
     const PersonalStateSnapshot source =
         populatedSnapshot();
@@ -969,6 +1038,19 @@ corruptRestartRestoresLegacyAndLeavesRetryIntent() {
             qPrintable(error));
     }
 
+    // Force the old post-quarantine verification boundary so this fixture
+    // exercises restart validation against a damaged active profile.  The
+    // committed production path no longer routes through this state after a
+    // successful activation.
+    QString error;
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("legacy_quarantined"),
+            false,
+            &error),
+        qPrintable(error));
+
     QSettings corrupted(
         paths.collectionIniPath(),
         QSettings::IniFormat);
@@ -987,7 +1069,6 @@ corruptRestartRestoresLegacyAndLeavesRetryIntent() {
         &runtime,
         fixture.appDataRoot);
 
-    QString error;
     QVERIFY(
         !coordinator.prepareAccountSession(
             QString::fromLatin1(kAccountA),
@@ -999,13 +1080,19 @@ corruptRestartRestoresLegacyAndLeavesRetryIntent() {
     QVERIFY2(
         restored.has_value(),
         qPrintable(error));
-    QCOMPARE(
-        restored->semanticDigest(),
-        source.semanticDigest());
+    QVERIFY(restored->isEmpty());
 
     QVERIFY(
-        !QFileInfo::exists(
-            paths.profileRoot()));
+        QFileInfo::exists(paths.profileRoot()));
+    QCOMPARE(
+        corrupted.value(
+            QStringLiteral("collection/entries"))
+            .toByteArray(),
+        QByteArrayLiteral("not-json"));
+    QVERIFY(
+        QFileInfo::exists(
+            QDir(paths.adoptionBackupRoot())
+                .filePath(QStringLiteral("personal-state.json"))));
 
     const auto adoption =
         ProfileAdoption::open(
@@ -1016,11 +1103,67 @@ corruptRestartRestoresLegacyAndLeavesRetryIntent() {
         qPrintable(error));
     QCOMPARE(
         adoption->state(),
-        ProfileAdoption::State::RetryPending);
+        ProfileAdoption::State::LegacyQuarantined);
 
     QCOMPARE(
         runtime.activeProfile().kind(),
-        ProfilePaths::Kind::LegacyLocal);
+        ProfilePaths::Kind::Sealed);
+}
+
+void tst_account_adoption::
+missingFinalStorePreservesAccountEvidence() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    QVERIFY(fixture.legacy.restorePersonalState(source));
+    const ProfilePaths paths = fixture.accountPaths();
+
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+        QString error;
+        QVERIFY2(
+            coordinator.prepareCreatedAccount(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+    }
+
+    QString error;
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("legacy_quarantined"),
+            false,
+            &error),
+        qPrintable(error));
+    QVERIFY(QFile::remove(paths.collectionIniPath()));
+
+    ProfileStoreRuntime restartedRuntime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator restartedCoordinator(
+        &restartedRuntime,
+        fixture.appDataRoot);
+    QVERIFY(
+        !restartedCoordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(QFileInfo::exists(paths.profileRoot()));
+    QVERIFY(!QFileInfo::exists(paths.collectionIniPath()));
+    QVERIFY(QFileInfo::exists(
+        QDir(paths.adoptionBackupRoot())
+            .filePath(QStringLiteral("personal-state.json"))));
+    const auto legacy = fixture.legacy.capture(&error);
+    QVERIFY2(legacy.has_value(), qPrintable(error));
+    QVERIFY(legacy->isEmpty());
+    const auto adoption = ProfileAdoption::open(paths, &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QCOMPARE(adoption->state(), ProfileAdoption::State::LegacyQuarantined);
 }
 
 void tst_account_adoption::
@@ -1051,16 +1194,19 @@ retryIntentReAdoptsOnLaterSignIn() {
             qPrintable(error));
     }
 
-    QSettings corrupted(
-        paths.progressIniPath(),
-        QSettings::IniFormat);
-    corrupted.setValue(
-        QStringLiteral("continue/entries"),
-        QByteArrayLiteral("not-json"));
-    corrupted.sync();
-    QCOMPARE(
-        corrupted.status(),
-        QSettings::NoError);
+    QString error;
+    QVERIFY2(
+        fixture.legacy.restorePersonalState(
+            source,
+            &error),
+        qPrintable(error));
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("retry_pending"),
+            false,
+            &error),
+        qPrintable(error));
 
     {
         ProfileStoreRuntime runtime(
@@ -1070,22 +1216,6 @@ retryIntentReAdoptsOnLaterSignIn() {
             &runtime,
             fixture.appDataRoot);
 
-        QString error;
-        QVERIFY(
-            !coordinator.prepareAccountSession(
-                QString::fromLatin1(kAccountA),
-                &error));
-    }
-
-    {
-        ProfileStoreRuntime runtime(
-            fixture.legacy,
-            fixture.appDataRoot);
-        FirstAccountProfileCoordinator coordinator(
-            &runtime,
-            fixture.appDataRoot);
-
-        QString error;
         QVERIFY2(
             coordinator.prepareAccountSession(
                 QString::fromLatin1(kAccountA),
@@ -1101,7 +1231,7 @@ retryIntentReAdoptsOnLaterSignIn() {
             qPrintable(error));
         QCOMPARE(
             adoption->state(),
-            ProfileAdoption::State::LegacyQuarantined);
+            ProfileAdoption::State::Committed);
     }
 }
 
@@ -1292,7 +1422,7 @@ firstAccountAdoptionMigratesActivityLedger() {
 }
 
 void tst_account_adoption::
-interruptedAdoptionRestoresLegacyActivityLedger() {
+interruptedAdoptionPreservesAccountActivityEvidence() {
     AdoptionFixture fixture;
     const PersonalStateSnapshot source =
         populatedSnapshot();
@@ -1334,22 +1464,25 @@ interruptedAdoptionRestoresLegacyActivityLedger() {
             qPrintable(error));
     }
 
-    // Same restart-verification trip wire
-    // corruptRestartRestoresLegacyAndLeavesRetryIntent() already uses: a
-    // promoted personal-state file corrupted between sessions fails the
-    // second session's readback and forces a full rollback — this proves
-    // the activity ledger is restored through that same rollback, not just
-    // personal state.
-    QSettings corrupted(
-        paths.collectionIniPath(),
-        QSettings::IniFormat);
-    corrupted.setValue(
-        QStringLiteral("collection/entries"),
-        QByteArrayLiteral("not-json"));
-    corrupted.sync();
+    QString error;
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("legacy_quarantined"),
+            false,
+            &error),
+        qPrintable(error));
+
+    // Damage the active account ledger after promotion.  Restart validation
+    // must fail closed while keeping the account file and rollback backup;
+    // restoring the pre-account ledger would overwrite private account
+    // history and is no longer an allowed recovery action.
+    QFile corrupted(paths.activityDbPath());
+    QVERIFY(corrupted.open(QIODevice::WriteOnly | QIODevice::Truncate));
     QCOMPARE(
-        corrupted.status(),
-        QSettings::NoError);
+        corrupted.write(QByteArrayLiteral("not-a-sqlite-database")),
+        qint64(21));
+    corrupted.close();
 
     {
         ProfileStoreRuntime runtime(
@@ -1359,7 +1492,6 @@ interruptedAdoptionRestoresLegacyActivityLedger() {
             &runtime,
             fixture.appDataRoot);
 
-        QString error;
         QVERIFY(
             !coordinator.prepareAccountSession(
                 QString::fromLatin1(kAccountA),
@@ -1367,35 +1499,16 @@ interruptedAdoptionRestoresLegacyActivityLedger() {
         QVERIFY(!error.isEmpty());
     }
 
-    // The legacy activity ledger is restored, and the journal is left
-    // RetryPending — no silent history drop (CPP-PORT-CONTRACT §17).
-    //
-    // Verified SEMANTICALLY (open the restored file and re-project it), not
-    // by raw file-byte digest: the rollback path's own
-    // reloadLegacyProfile() legitimately reopens a live ActivityStore on the
-    // restored path afterward, and — exactly like
-    // tst_activity_store.cpp's own restartPersistsAndProjectsDeterministically
-    // proves — an independent open/close cycle over unchanged SQLite content
-    // is not guaranteed byte-identical (page/WAL layout can differ) even
-    // though the persisted ledger is. The earlier digest checks in
-    // firstAccountAdoptionMigratesActivityLedger already cover the adoption
-    // path's own single-session digest chain (legacy -> staged -> promoted
-    // -> backup), where no such intervening reopen occurs.
-    {
-        ActivityStore restoredLegacyActivity(
-            fixture.legacy.activityDbPath());
-        QVERIFY(restoredLegacyActivity.healthy());
-        const QString monthKey =
-            restoredLegacyActivity.earliestActivityMonth();
-        QVERIFY(!monthKey.isEmpty());
-        const QVariantMap projection =
-            restoredLegacyActivity.projectMonth(monthKey);
-        QCOMPARE(
-            projection.value(
-                QStringLiteral("watchSeconds"))
-                .toLongLong(),
-            qint64(30));
-    }
+    // The unrelated legacy ledger was not recreated, and both active account
+    // evidence and the rollback backup remain available for repair.
+    QVERIFY(!QFileInfo::exists(fixture.legacy.activityDbPath()));
+    QVERIFY(QFileInfo::exists(paths.profileRoot()));
+    QCOMPARE(
+        QFileInfo(paths.activityDbPath()).size(),
+        qint64(21));
+    QVERIFY(QFileInfo::exists(
+        QDir(paths.adoptionBackupRoot())
+            .filePath(QStringLiteral("activity.sqlite"))));
 
     QString adoptError;
     const auto adoption =
@@ -1407,9 +1520,27 @@ interruptedAdoptionRestoresLegacyActivityLedger() {
         qPrintable(adoptError));
     QCOMPARE(
         adoption->state(),
-        ProfileAdoption::State::RetryPending);
+        ProfileAdoption::State::LegacyQuarantined);
+}
 
-    // A later retry re-adopts cleanly, re-migrating the restored ledger.
+void tst_account_adoption::
+postAdoptionWritesSurviveCleanRestart() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    QVERIFY(fixture.legacy.restorePersonalState(source));
+    {
+        ActivityStore activity(fixture.legacy.activityDbPath());
+        QVERIFY(activity.recordPlaybackDelta(fixtureMovieFact()));
+        QVERIFY(activity.checkpointForSafeCopy());
+    }
+
+    const ProfilePaths paths = fixture.accountPaths();
+    const QVariantMap postAdoptionProgress{
+        {QStringLiteral("id"), QStringLiteral("post-adoption-movie")},
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("progress"), 0.35},
+        {QStringLiteral("caption"), QStringLiteral("Post adoption")}};
+
     {
         ProfileStoreRuntime runtime(
             fixture.legacy,
@@ -1420,30 +1551,373 @@ interruptedAdoptionRestoresLegacyActivityLedger() {
 
         QString error;
         QVERIFY2(
+            coordinator.prepareCreatedAccount(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+        QVERIFY(runtime.progressStore());
+        runtime.progressStore()->record(postAdoptionProgress);
+        QVERIFY(runtime.activityStore());
+        QVERIFY(runtime.activityStore()->recordCompletion(
+            fixtureMovieCompletionFact()));
+        runtime.flushPersonalStores();
+    }
+
+    ProfileStoreRuntime restartedRuntime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator restartedCoordinator(
+        &restartedRuntime,
+        fixture.appDataRoot);
+    QString error;
+    QVERIFY2(
+        restartedCoordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+    QCOMPARE(
+        restartedRuntime.activeProfile().kind(),
+        ProfilePaths::Kind::Account);
+
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths, &error);
+    QVERIFY2(accountStorage.has_value(), qPrintable(error));
+    const auto accountState = accountStorage->capture(&error);
+    QVERIFY2(accountState.has_value(), qPrintable(error));
+    QVERIFY(accountState->progressEntries.contains(
+        QStringLiteral("video\x1fpost-adoption-movie")));
+
+    ActivityStore activity(paths.activityDbPath());
+    QVERIFY(activity.healthy());
+    QVERIFY(activityContainsItem(
+        activity,
+        QStringLiteral("adoption-fixture-movie")));
+    bool completionFound = false;
+    for (const QVariantMap &fact : activity.historyProjectionFacts()) {
+        if (fact.value(QStringLiteral("eventId")).toString()
+            == QString::fromLatin1(
+                "cccccccc-cccc-4ccc-8ccc-cccccccccccc")) {
+            completionFound = true;
+            break;
+        }
+    }
+    QVERIFY(completionFound);
+
+    const auto adoption = ProfileAdoption::open(paths, &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QCOMPARE(adoption->state(), ProfileAdoption::State::Committed);
+    QVERIFY(adoption->snapshot().sourceKindRecorded);
+    QCOMPARE(
+        adoption->snapshot().sourceKind,
+        ProfilePaths::Kind::LegacyLocal);
+}
+
+void tst_account_adoption::
+legacyQuarantinedRestartPreservesAccountWrites() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    QVERIFY(fixture.legacy.restorePersonalState(source));
+    {
+        ActivityStore activity(fixture.legacy.activityDbPath());
+        QVERIFY(activity.recordPlaybackDelta(fixtureMovieFact()));
+        QVERIFY(activity.checkpointForSafeCopy());
+    }
+
+    const ProfilePaths paths = fixture.accountPaths();
+    const QVariantMap postAdoptionProgress{
+        {QStringLiteral("id"), QStringLiteral("legacy-journal-movie")},
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("progress"), 0.25}};
+
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+
+        QString error;
+        QVERIFY2(
+            coordinator.prepareCreatedAccount(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+        runtime.progressStore()->record(postAdoptionProgress);
+        QVERIFY(runtime.activityStore()->recordCompletion(
+            fixtureMovieCompletionFact()));
+        runtime.flushPersonalStores();
+    }
+
+    QString error;
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("legacy_quarantined"),
+            true,
+            &error),
+        qPrintable(error));
+
+    ProfileStoreRuntime restartedRuntime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator restartedCoordinator(
+        &restartedRuntime,
+        fixture.appDataRoot);
+    QVERIFY2(
+        restartedCoordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths, &error);
+    QVERIFY2(accountStorage.has_value(), qPrintable(error));
+    const auto accountState = accountStorage->capture(&error);
+    QVERIFY2(accountState.has_value(), qPrintable(error));
+    QVERIFY(accountState->progressEntries.contains(
+        QStringLiteral("video\x1flegacy-journal-movie")));
+
+    ActivityStore activity(paths.activityDbPath());
+    QVERIFY(activity.healthy());
+    QVERIFY(activityContainsItem(
+        activity,
+        QStringLiteral("adoption-fixture-movie")));
+    bool completionFound = false;
+    for (const QVariantMap &fact : activity.historyProjectionFacts()) {
+        if (fact.value(QStringLiteral("eventId")).toString()
+            == QString::fromLatin1(
+                "cccccccc-cccc-4ccc-8ccc-cccccccccccc")) {
+            completionFound = true;
+            break;
+        }
+    }
+    QVERIFY(completionFound);
+    QVERIFY(!QFileInfo::exists(fixture.legacy.activityDbPath()));
+
+    const auto adoption = ProfileAdoption::open(paths, &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QCOMPARE(adoption->state(), ProfileAdoption::State::Committed);
+    // This fixture deliberately rewrites the journal without source_kind to
+    // exercise the v1 compatibility path.  Recovery preserves that older
+    // journal shape while still committing the account safely.
+    QVERIFY(!adoption->snapshot().sourceKindRecorded);
+}
+
+void tst_account_adoption::
+explicitLocalQuarantineIgnoresUnrelatedLegacyState() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(fixture.appDataRoot);
+    const ProfilePaths paths = fixture.accountPaths();
+    QString error;
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(
+            localPaths,
+            &error);
+    QVERIFY2(localStorage.has_value(), qPrintable(error));
+    QVERIFY2(
+        localStorage->restorePersonalState(source, &error),
+        qPrintable(error));
+
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        QVERIFY2(
+            runtime.activateLocalOnlyProfile(&error),
+            qPrintable(error));
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+        QVERIFY2(
             coordinator.prepareAccountSession(
                 QString::fromLatin1(kAccountA),
                 &error),
             qPrintable(error));
     }
 
-    QVERIFY(
-        !QFileInfo::exists(
-            fixture.legacy.activityDbPath()));
+    // Simulate an unrelated legacy profile being written while the explicit
+    // local source is already quarantined.  Recovery must consult the source
+    // kind in the journal and leave this legacy state untouched.
+    const auto localBefore = localStorage->capture(&error);
+    QVERIFY2(localBefore.has_value(), qPrintable(error));
+    QVERIFY(localBefore->isEmpty());
+    QVERIFY2(
+        fixture.legacy.restorePersonalState(source, &error),
+        qPrintable(error));
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("legacy_quarantined"),
+            false,
+            &error),
+        qPrintable(error));
 
-    ActivityStore reAdoptedActivity(
-        paths.activityDbPath());
-    QVERIFY(reAdoptedActivity.healthy());
-    const QString reAdoptedMonthKey =
-        reAdoptedActivity.earliestActivityMonth();
-    QVERIFY(!reAdoptedMonthKey.isEmpty());
-    const QVariantMap reAdoptedProjection =
-        reAdoptedActivity.projectMonth(
-            reAdoptedMonthKey);
+    ProfileStoreRuntime restartedRuntime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator restartedCoordinator(
+        &restartedRuntime,
+        fixture.appDataRoot);
+    QVERIFY2(
+        restartedCoordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
     QCOMPARE(
-        reAdoptedProjection.value(
-            QStringLiteral("watchSeconds"))
-            .toLongLong(),
-        qint64(30));
+        restartedRuntime.activeProfile().kind(),
+        ProfilePaths::Kind::Account);
+
+    const auto localAfter = localStorage->capture(&error);
+    QVERIFY2(localAfter.has_value(), qPrintable(error));
+    QVERIFY(localAfter->isEmpty());
+    const auto legacyAfter = fixture.legacy.capture(&error);
+    QVERIFY2(legacyAfter.has_value(), qPrintable(error));
+    QCOMPARE(legacyAfter->semanticDigest(), source.semanticDigest());
+
+    const auto adoption = ProfileAdoption::open(paths, &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QCOMPARE(adoption->state(), ProfileAdoption::State::Committed);
+    QVERIFY(adoption->snapshot().sourceKindRecorded);
+    QCOMPARE(
+        adoption->snapshot().sourceKind,
+        ProfilePaths::Kind::LocalOnly);
+}
+
+void tst_account_adoption::
+explicitLocalPreparingAdoptionResumesFromLocalSource() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    const ProfilePaths paths = fixture.accountPaths();
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(fixture.appDataRoot);
+    QString error;
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(localPaths, &error);
+    QVERIFY2(localStorage.has_value(), qPrintable(error));
+    QVERIFY2(
+        localStorage->restorePersonalState(source, &error),
+        qPrintable(error));
+
+    // This fixture intentionally leaves a v1-style journal without source_kind:
+    // recovery must identify the sole matching explicit-local source rather than
+    // reading the unrelated legacyStorage() location.
+    auto adoption =
+        ProfileAdoption::begin(paths, source.semanticDigest(), &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+
+    ProfileStoreRuntime runtime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    QVERIFY2(
+        runtime.activateLocalOnlyProfile(&error),
+        qPrintable(error));
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot);
+    QVERIFY2(
+        coordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+
+    QCOMPARE(
+        runtime.activeProfile().kind(),
+        ProfilePaths::Kind::Account);
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths, &error);
+    QVERIFY2(accountStorage.has_value(), qPrintable(error));
+    const auto accountState = accountStorage->capture(&error);
+    QVERIFY2(accountState.has_value(), qPrintable(error));
+    QCOMPARE(accountState->semanticDigest(), source.semanticDigest());
+
+    const auto localAfter = localStorage->capture(&error);
+    QVERIFY2(localAfter.has_value(), qPrintable(error));
+    QVERIFY(localAfter->isEmpty());
+    const auto legacyAfter = fixture.legacy.capture(&error);
+    QVERIFY2(legacyAfter.has_value(), qPrintable(error));
+    QVERIFY(legacyAfter->isEmpty());
+}
+
+void tst_account_adoption::
+retryFailsClosedWhenCompetingSourceUnreadable() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    const ProfilePaths paths = fixture.accountPaths();
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(fixture.appDataRoot);
+    QString error;
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(localPaths, &error);
+    QVERIFY2(localStorage.has_value(), qPrintable(error));
+    QVERIFY2(
+        localStorage->restorePersonalState(source, &error),
+        qPrintable(error));
+
+    // Create an old retry journal without source_kind.  Recovery must inspect
+    // both possible sources before selecting the one to retry.
+    const auto adoption =
+        ProfileAdoption::begin(paths, source.semanticDigest(), &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QVERIFY2(
+        rewriteAdoptionState(
+            paths,
+            QStringLiteral("retry_pending"),
+            true,
+            &error),
+        qPrintable(error));
+    const auto retryJournal = ProfileAdoption::open(paths, &error);
+    QVERIFY2(retryJournal.has_value(), qPrintable(error));
+    QCOMPARE(
+        retryJournal->state(),
+        ProfileAdoption::State::RetryPending);
+
+    ProfileStoreRuntime runtime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    QVERIFY2(
+        runtime.activateLocalOnlyProfile(&error),
+        qPrintable(error));
+
+    // A malformed legacy value is unreadable evidence, not an empty legacy
+    // profile.  Write it after the runtime leaves the legacy stores so its
+    // flush cannot repair or replace the fixture before recovery inspects it.
+    QSettings malformedLegacy(
+        fixture.legacy.progressIniPath(),
+        QSettings::IniFormat);
+    malformedLegacy.setValue(
+        QStringLiteral("continue/entries"),
+        QByteArrayLiteral("{malformed"));
+    malformedLegacy.sync();
+    QString malformedError;
+    const auto malformedSnapshot =
+        fixture.legacy.capture(&malformedError);
+    QVERIFY(!malformedSnapshot.has_value());
+
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot);
+
+    QVERIFY(
+        !coordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error));
+    QVERIFY(error.contains(QStringLiteral("inspect both")));
+    QCOMPARE(
+        runtime.activeProfile().kind(),
+        ProfilePaths::Kind::LocalOnly);
+
+    QString localError;
+    const auto localAfter = localStorage->capture(&localError);
+    QVERIFY2(localAfter.has_value(), qPrintable(localError));
+    QCOMPARE(localAfter->semanticDigest(), source.semanticDigest());
+
+    const auto retry = ProfileAdoption::open(paths, &error);
+    QVERIFY2(retry.has_value(), qPrintable(error));
+    QCOMPARE(retry->state(), ProfileAdoption::State::RetryPending);
+    QVERIFY(!retry->snapshot().sourceKindRecorded);
 }
 
 QTEST_MAIN(tst_account_adoption)
