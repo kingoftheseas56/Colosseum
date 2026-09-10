@@ -838,6 +838,14 @@ add_executable(tankoyomi_provider_live_harness
     engine/TankoyomiScriptProvider.h
     engine/MangaImageHostResolver.cpp
     engine/MangaImageHostResolver.h
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
 )
 target_include_directories(tankoyomi_provider_live_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_provider_live_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
