@@ -48,5 +48,11 @@ check(identity.includes('Base64UrlEncoding'),
 check(registry.includes('same-language-only'),
   'native registry enforces the no-cross-language fallback policy');
 
+const manifest = JSON.parse(fs.readFileSync('extensions/tankoyomi/manifest.json', 'utf8'));
+for (const language of manifest.languages) {
+  for (const provider of language.providers) {
+    check(provider.pageAccessPolicy === 'public-https', `${provider.id} declares the public HTTPS page boundary`);
+  }
+}
 if (failures) process.exit(1);
 console.log('\nPASS — Tankoyomi provider runtime is manifest-driven and capability-scoped');

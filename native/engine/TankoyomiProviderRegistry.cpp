@@ -115,6 +115,12 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
                 return;
             }
             providerIds.insert(provider.id);
+            provider.pageAccessPolicy = providerObject.value(QStringLiteral("pageAccessPolicy")).toString();
+            if (provider.pageAccessPolicy != QLatin1String("public-https")) {
+                m_error = QStringLiteral("Tankoyomi provider '%1' has an invalid page access policy")
+                              .arg(provider.id);
+                return;
+            }
 
             const QJsonArray hosts = providerObject.value(QStringLiteral("allowedHosts")).toArray();
             for (const QJsonValue &hostValue : hosts) {

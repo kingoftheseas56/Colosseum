@@ -17,12 +17,12 @@ static QByteArray validManifest()
       "fallbackPolicy":"same-language-only",
       "languages":[
         {"code":"en","label":"English","countryCode":"GB","providers":[
-          {"id":"second","name":"Second","entry":"languages/en/second.js","priority":2,"enabled":true,"allowedHosts":["second.example"]},
-          {"id":"first","name":"First","entry":"languages/en/first.js","priority":1,"enabled":true,"allowedHosts":["first.example","api.first.example"]},
-          {"id":"disabled","name":"Disabled by manifest","entry":"languages/en/disabled.js","priority":3,"enabled":false,"allowedHosts":["disabled.example"]}
+          {"id":"second","name":"Second","entry":"languages/en/second.js","priority":2,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["second.example"]},
+          {"id":"first","name":"First","entry":"languages/en/first.js","priority":1,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["first.example","api.first.example"]},
+          {"id":"disabled","name":"Disabled by manifest","entry":"languages/en/disabled.js","priority":3,"enabled":false,"pageAccessPolicy":"public-https","allowedHosts":["disabled.example"]}
         ]},
         {"code":"pt","label":"Português (Brasil)","countryCode":"BR","providers":[
-          {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"allowedHosts":["pt.example"]}
+          {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["pt.example"]}
         ]}
       ]
     })JSON";
@@ -36,7 +36,7 @@ static QByteArray emptyDefaultLanguageManifest()
       "languages":[
         {"code":"en","label":"English","providers":[]},
         {"code":"pt","label":"Português (Brasil)","countryCode":"BR","providers":[
-          {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"allowedHosts":["pt.example"]}
+          {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"pageAccessPolicy":"public-https","allowedHosts":["pt.example"]}
         ]}
       ]
     })JSON";
@@ -90,6 +90,13 @@ int main()
     duplicate.replace("\"id\":\"second\"", "\"id\":\"first\"");
     TankoyomiProviderRegistry duplicateRegistry(duplicate);
     check(!duplicateRegistry.isValid(), "duplicate provider id inside a language fails closed");
+
+    QByteArray missingPolicy = validManifest();
+    missingPolicy.replace("\"pageAccessPolicy\":\"public-https\",", "");
+    check(!TankoyomiProviderRegistry(missingPolicy).isValid(), "missing page policy fails closed");
+    QByteArray unknownPolicy = validManifest();
+    unknownPolicy.replace("public-https", "unrestricted");
+    check(!TankoyomiProviderRegistry(unknownPolicy).isValid(), "unknown page policy fails closed");
 
     const QVariantList languages = registry.languages();
     check(languages.size() == 2

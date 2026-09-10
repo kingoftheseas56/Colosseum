@@ -40,7 +40,8 @@
           "enabled": true,
           "allowedHosts": [
             "weebcentral.com"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         }
       ]
     },
@@ -57,7 +58,8 @@
           "enabled": true,
           "allowedHosts": [
             "zonatmo.org"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         },
         {
           "id": "niadd",
@@ -67,7 +69,8 @@
           "enabled": true,
           "allowedHosts": [
             "es.niadd.com"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         }
       ]
     },
@@ -85,7 +88,8 @@
           "allowedHosts": [
             "taiyo.moe",
             "meilisearch.taiyo.moe"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         },
         {
           "id": "manga-online",
@@ -95,7 +99,8 @@
           "enabled": true,
           "allowedHosts": [
             "mangaonline.green"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         },
         {
           "id": "manga-night",
@@ -106,7 +111,8 @@
           "allowedHosts": [
             "www.manganight.com.br",
             "api.mangadex.org"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         }
       ]
     },
@@ -123,7 +129,8 @@
           "enabled": true,
           "allowedHosts": [
             "sushiscan.fr"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         },
         {
           "id": "lelscan-vf",
@@ -133,7 +140,8 @@
           "enabled": true,
           "allowedHosts": [
             "lelscanfr.com"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         },
         {
           "id": "lelmanga",
@@ -143,7 +151,8 @@
           "enabled": true,
           "allowedHosts": [
             "lelmanga.com"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         },
         {
           "id": "mangamoins",
@@ -153,7 +162,8 @@
           "enabled": true,
           "allowedHosts": [
             "mangamoins.com"
-          ]
+          ],
+          "pageAccessPolicy": "public-https"
         }
       ]
     }

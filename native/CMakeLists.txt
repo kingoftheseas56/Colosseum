@@ -160,6 +160,8 @@ else()
 endif()
 
 add_executable(colosseum
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     main.cpp
     bootstrap/InstanceLock.cpp
     bootstrap/InstanceLock.h
@@ -688,6 +690,13 @@ if(WIN32)
     set_target_properties(colosseum PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
+
+add_executable(tankoyomi_network_policy_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    ../tests/tankoyomi_network_policy_harness.cpp)
+target_include_directories(tankoyomi_network_policy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_network_policy_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(tankoyomi_provider_registry_harness
     ../tests/tankoyomi_provider_registry_harness.cpp

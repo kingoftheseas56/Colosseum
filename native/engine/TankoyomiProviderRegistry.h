@@ -16,6 +16,7 @@ struct TankoyomiProviderDescriptor
     QString entry;
     QString resourcePath;
     QStringList allowedHosts;
+    QString pageAccessPolicy;
     int priority = 999;
     // Inventory/default authority from manifest.json. Runtime enablement is an
     // overlay owned by TankoyomiConfigurationStore.
