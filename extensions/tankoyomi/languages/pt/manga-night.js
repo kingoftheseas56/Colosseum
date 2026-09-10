@@ -7,6 +7,9 @@
 
   const BASE = 'https://www.manganight.com.br';
   const MDEX = 'https://api.mangadex.org';
+  // At-home CDN nodes reject Referer-less requests and some reject third-party
+  // origins; the MangaDex origin is the one every observed node accepts.
+  const MDEX_ORIGIN = 'https://mangadex.org/';
   const need = (ctx, name) => {
     if (!ctx || typeof ctx[name] !== 'function') throw new Error(`Tankoyomi runtime missing ${name}()`);
     return ctx[name].bind(ctx);
@@ -94,9 +97,9 @@
             const full = home.chapter.data || [];
             const saver = home.chapter.dataSaver || [];
             if (full.indexOf(ref.filename) >= 0)
-              return { index, url: `${home.baseUrl}/data/${home.chapter.hash}/${ref.filename}` };
+              return { index, url: `${home.baseUrl}/data/${home.chapter.hash}/${ref.filename}`, referer: MDEX_ORIGIN };
             if (saver.indexOf(ref.filename) >= 0)
-              return { index, url: `${home.baseUrl}/data-saver/${home.chapter.hash}/${ref.filename}` };
+              return { index, url: `${home.baseUrl}/data-saver/${home.chapter.hash}/${ref.filename}`, referer: MDEX_ORIGIN };
           }
           return { index, url: `${BASE}${ref.path}`, referer: chapterUrl };
         });
