@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -77,6 +78,23 @@ func (s *Service) RevokeDevice(ctx context.Context,
 		return fmt.Errorf("begin device revoke: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := loadAuthAccountByIDTx(ctx, tx, auth.Account.ID); err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return ErrSessionInvalid
+		}
+		return fmt.Errorf("lock device-revoke account: %w", err)
+	}
+	now = s.clock.Now()
+	if _, err := loadDeviceByIDTx(ctx, tx, auth.Account.ID, deviceID); err != nil {
+		if errors.Is(err, ErrDeviceNotFound) {
+			return ErrDeviceNotFound
+		}
+		return fmt.Errorf("lock device for revoke: %w", err)
+	}
+	if err := validateAuthenticatedSessionTx(ctx, tx, auth, s.clock.Now); err != nil {
+		return err
+	}
+	now = s.clock.Now()
 
 	command, err := tx.Exec(ctx, `
         UPDATE devices

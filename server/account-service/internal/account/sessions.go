@@ -93,7 +93,6 @@ func (s *Service) RefreshSession(ctx context.Context, refreshToken string) (Refr
 		return RefreshResult{}, ErrSessionInvalid
 	}
 	hash := TokenHash(refreshToken)
-	now := s.clock.Now()
 
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -101,91 +100,90 @@ func (s *Service) RefreshSession(ctx context.Context, refreshToken string) (Refr
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	row := tx.QueryRow(ctx, `
-        SELECT
-            s.id::text,
-            s.account_id::text,
-            s.device_id::text,
-            s.refresh_token_hash,
-            s.previous_refresh_token_hash,
-            s.previous_refresh_expires_at,
-            s.refresh_retry_ciphertext,
-            s.revoked_at,
-            a.canonical_username,
-            a.display_username,
-            a.protect_new_device_signins,
-            COALESCE(a.builtin_avatar_id, ''),
-            COALESCE(a.uploaded_avatar_object_key, ''),
-            a.username_changed_at,
-            a.created_at,
-            a.updated_at,
-            d.install_id::text,
-            d.label,
-            d.platform,
-            d.trusted,
-            d.revoked_at,
-            d.created_at,
-            d.last_seen_at
-        FROM sessions s
-        JOIN accounts a ON a.id = s.account_id
-        JOIN devices d ON d.id = s.device_id
-        WHERE s.refresh_token_hash = $1
-           OR s.previous_refresh_token_hash = $1
-        ORDER BY s.last_refreshed_at DESC
+	var accountID string
+	err = tx.QueryRow(ctx, `
+        SELECT account_id::text
+        FROM sessions
+        WHERE refresh_token_hash = $1
+           OR previous_refresh_token_hash = $1
+        ORDER BY last_refreshed_at DESC
         LIMIT 1
-        FOR UPDATE OF s
-    `, hash)
+    `, hash).Scan(&accountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return RefreshResult{}, ErrSessionInvalid
+	}
+	if err != nil {
+		return RefreshResult{}, fmt.Errorf("identify refresh account: %w", err)
+	}
+
+	accountRecord, err := loadAuthAccountByIDTx(ctx, tx, accountID)
+	if errors.Is(err, ErrInvalidCredentials) {
+		return RefreshResult{}, ErrSessionInvalid
+	}
+	if err != nil {
+		return RefreshResult{}, fmt.Errorf("lock refresh account: %w", err)
+	}
 
 	var sessionID string
-	var account Account
-	var device Device
+	var deviceID string
+	err = tx.QueryRow(ctx, `
+        SELECT id::text, device_id::text
+        FROM sessions
+        WHERE account_id = $1::uuid
+          AND (refresh_token_hash = $2 OR previous_refresh_token_hash = $2)
+        ORDER BY last_refreshed_at DESC
+        LIMIT 1
+    `, accountID, hash).Scan(&sessionID, &deviceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return RefreshResult{}, ErrSessionInvalid
+	}
+	if err != nil {
+		return RefreshResult{}, fmt.Errorf("load refresh session identity: %w", err)
+	}
+
+	device, err := loadDeviceByIDTx(ctx, tx, accountID, deviceID)
+	if errors.Is(err, ErrDeviceNotFound) {
+		return RefreshResult{}, ErrSessionInvalid
+	}
+	if err != nil {
+		return RefreshResult{}, fmt.Errorf("lock refresh device: %w", err)
+	}
+
 	var currentHash []byte
 	var previousHash []byte
 	var previousExpires sql.NullTime
 	var retryCiphertext []byte
 	var sessionRevoked sql.NullTime
-	var usernameChanged sql.NullTime
-	var deviceRevoked sql.NullTime
-
-	err = row.Scan(
-		&sessionID,
-		&account.ID,
-		&device.ID,
+	var lockedDeviceID string
+	err = tx.QueryRow(ctx, `
+        SELECT
+            device_id::text,
+            refresh_token_hash,
+            previous_refresh_token_hash,
+            previous_refresh_expires_at,
+            refresh_retry_ciphertext,
+            revoked_at
+        FROM sessions
+        WHERE id = $1::uuid
+          AND account_id = $2::uuid
+        FOR UPDATE
+    `, sessionID, accountID).Scan(
+		&lockedDeviceID,
 		&currentHash,
 		&previousHash,
 		&previousExpires,
 		&retryCiphertext,
-		&sessionRevoked,
-		&account.CanonicalUsername,
-		&account.DisplayUsername,
-		&account.ProtectNewDeviceSignins,
-		&account.BuiltinAvatarID,
-		&account.UploadedAvatarObjectKey,
-		&usernameChanged,
-		&account.CreatedAt,
-		&account.UpdatedAt,
-		&device.InstallID,
-		&device.Label,
-		&device.Platform,
-		&device.Trusted,
-		&deviceRevoked,
-		&device.CreatedAt,
-		&device.LastSeenAt)
+		&sessionRevoked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return RefreshResult{}, ErrSessionInvalid
 	}
 	if err != nil {
 		return RefreshResult{}, fmt.Errorf("load refresh session: %w", err)
 	}
-	device.AccountID = account.ID
-	if usernameChanged.Valid {
-		changed := usernameChanged.Time.UTC()
-		account.UsernameChangedAt = &changed
+	if lockedDeviceID != device.ID {
+		return RefreshResult{}, ErrSessionInvalid
 	}
-	if deviceRevoked.Valid {
-		revoked := deviceRevoked.Time.UTC()
-		device.RevokedAt = &revoked
-	}
+	device.AccountID = accountRecord.ID
 	if sessionRevoked.Valid || device.RevokedAt != nil {
 		return RefreshResult{}, ErrSessionRevoked
 	}
@@ -197,6 +195,7 @@ func (s *Service) RefreshSession(ctx context.Context, refreshToken string) (Refr
 	if !matchesCurrent && !matchesPrevious {
 		return RefreshResult{}, ErrSessionInvalid
 	}
+	now := s.clock.Now()
 
 	var accessToken string
 	var accessExpiresAt time.Time
@@ -292,7 +291,7 @@ func (s *Service) RefreshSession(ctx context.Context, refreshToken string) (Refr
 
 	return RefreshResult{
 		Session: IssuedSession{
-			Account:         account,
+			Account:         accountRecord.Account,
 			Device:          device,
 			AccessToken:     accessToken,
 			AccessExpiresAt: accessExpiresAt,
@@ -306,40 +305,92 @@ func (s *Service) RevokeRefreshToken(ctx context.Context, refreshToken string) e
 		return nil
 	}
 	hash := TokenHash(refreshToken)
-	now := s.clock.Now()
-	_, err := s.pool.Exec(ctx, `
-        UPDATE sessions
-        SET revoked_at = COALESCE(revoked_at, $2)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin refresh-token revocation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var accountID string
+	err = tx.QueryRow(ctx, `
+        SELECT account_id::text
+        FROM sessions
         WHERE refresh_token_hash = $1
            OR previous_refresh_token_hash = $1
-    `, hash, now)
+        ORDER BY last_refreshed_at DESC
+        LIMIT 1
+    `, hash).Scan(&accountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
 	if err != nil {
+		return fmt.Errorf("identify refresh-token account: %w", err)
+	}
+	if _, err := loadAuthAccountByIDTx(ctx, tx, accountID); err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return nil
+		}
+		return fmt.Errorf("lock refresh-token account: %w", err)
+	}
+	now := s.clock.Now()
+	if _, err := tx.Exec(ctx, `
+        UPDATE sessions
+        SET revoked_at = COALESCE(revoked_at, $2)
+        WHERE account_id = $3::uuid
+          AND (refresh_token_hash = $1 OR previous_refresh_token_hash = $1)
+    `, hash, now, accountID); err != nil {
 		return fmt.Errorf("revoke refresh token: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit refresh-token revocation: %w", err)
 	}
 	return nil
 }
 
 func (s *Service) LogoutCurrent(ctx context.Context, auth AuthenticatedSession) error {
-	now := s.clock.Now()
-	_, err := s.pool.Exec(ctx, `
-        UPDATE sessions
-        SET revoked_at = $2
-        WHERE id = $1::uuid
-          AND revoked_at IS NULL
-    `, auth.SessionID, now)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
+		return fmt.Errorf("begin current-session logout: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := loadAuthAccountByIDTx(ctx, tx, auth.Account.ID); err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return ErrSessionInvalid
+		}
+		return fmt.Errorf("lock current-session account: %w", err)
+	}
+	now := s.clock.Now()
+	if _, err := tx.Exec(ctx, `
+        UPDATE sessions
+        SET revoked_at = $3
+        WHERE id = $1::uuid
+          AND account_id = $2::uuid
+          AND revoked_at IS NULL
+    `, auth.SessionID, auth.Account.ID, now); err != nil {
 		return fmt.Errorf("logout current session: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit current-session logout: %w", err)
 	}
 	return nil
 }
 
 func (s *Service) LogoutEverywhere(ctx context.Context, auth AuthenticatedSession) error {
-	now := s.clock.Now()
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin logout everywhere: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := loadAuthAccountByIDTx(ctx, tx, auth.Account.ID); err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return ErrSessionInvalid
+		}
+		return fmt.Errorf("lock logout-everywhere account: %w", err)
+	}
+	if err := validateAuthenticatedSessionTx(ctx, tx, auth, s.clock.Now); err != nil {
+		return err
+	}
+	now := s.clock.Now()
 
 	if _, err := tx.Exec(ctx, `
         UPDATE sessions

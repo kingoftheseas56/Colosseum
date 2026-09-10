@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,32 +10,27 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Service) createDeviceSignInChallenge(ctx context.Context,
+func (s *Service) createDeviceSignInChallengeTx(ctx context.Context,
+	tx pgx.Tx,
 	account Account,
-	input SignInInput) (SignInResult, error) {
+	input SignInInput,
+	now time.Time) (string, time.Time, error) {
 	token, err := GenerateToken()
 	if err != nil {
-		return SignInResult{}, err
+		return "", time.Time{}, err
 	}
-	now := s.clock.Now()
-	expiresAt := now.Add(deviceChallengeLifetime)
-
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return SignInResult{}, fmt.Errorf("begin device challenge: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
 	if _, err := tx.Exec(ctx, `
         UPDATE device_signin_challenges
         SET state = 'denied',
             decided_at = $3
         WHERE account_id = $1::uuid
           AND target_install_id = $2::uuid
-          AND state IN ('pending', 'approved')
+		AND state IN ('pending', 'approved')
     `, account.ID, input.DeviceInstallID, now); err != nil {
-		return SignInResult{}, fmt.Errorf("supersede device challenge: %w", err)
+		return "", time.Time{}, fmt.Errorf("supersede device challenge: %w", err)
 	}
+	now = s.clock.Now()
+	expiresAt := now.Add(deviceChallengeLifetime)
 
 	if _, err := tx.Exec(ctx, `
         INSERT INTO device_signin_challenges(
@@ -58,7 +52,7 @@ func (s *Service) createDeviceSignInChallenge(ctx context.Context,
 		TokenHash(token),
 		expiresAt,
 		now); err != nil {
-		return SignInResult{}, fmt.Errorf("create device challenge: %w", err)
+		return "", time.Time{}, fmt.Errorf("create device challenge: %w", err)
 	}
 
 	if err := recordSecurityEventTx(
@@ -69,17 +63,9 @@ func (s *Service) createDeviceSignInChallenge(ctx context.Context,
 		"",
 		now,
 		map[string]any{"target_install_id": input.DeviceInstallID}); err != nil {
-		return SignInResult{}, err
+		return "", time.Time{}, err
 	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return SignInResult{}, fmt.Errorf("commit device challenge: %w", err)
-	}
-	return SignInResult{
-		Status:             "approval_required",
-		ChallengeToken:     token,
-		ChallengeExpiresAt: expiresAt,
-	}, nil
+	return token, expiresAt, nil
 }
 
 func (s *Service) PollDeviceSignInChallenge(ctx context.Context,
@@ -94,17 +80,36 @@ func (s *Service) PollDeviceSignInChallenge(ctx context.Context,
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var challengeID string
 	var accountID string
+	err = tx.QueryRow(ctx, `
+        SELECT account_id::text
+        FROM device_signin_challenges
+        WHERE challenge_token_hash = $1
+    `, TokenHash(challengeToken)).Scan(&accountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return SignInResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return SignInResult{}, fmt.Errorf("identify device challenge account: %w", err)
+	}
+
+	accountRecord, err := loadAuthAccountByIDTx(ctx, tx, accountID)
+	if errors.Is(err, ErrInvalidCredentials) {
+		return SignInResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return SignInResult{}, fmt.Errorf("lock account for device challenge: %w", err)
+	}
+
+	var challengeID string
 	var installID string
 	var label string
 	var platform string
 	var state string
 	var expiresAt time.Time
 	err = tx.QueryRow(ctx, `
-        SELECT
+		SELECT
             id::text,
-            account_id::text,
             target_install_id::text,
             target_label,
             target_platform,
@@ -113,9 +118,8 @@ func (s *Service) PollDeviceSignInChallenge(ctx context.Context,
         FROM device_signin_challenges
         WHERE challenge_token_hash = $1
         FOR UPDATE
-    `, TokenHash(challengeToken)).Scan(
+	`, TokenHash(challengeToken)).Scan(
 		&challengeID,
-		&accountID,
 		&installID,
 		&label,
 		&platform,
@@ -127,6 +131,7 @@ func (s *Service) PollDeviceSignInChallenge(ctx context.Context,
 	if err != nil {
 		return SignInResult{}, fmt.Errorf("load device challenge: %w", err)
 	}
+	now = s.clock.Now()
 
 	if now.After(expiresAt) && state != "consumed" {
 		if _, err := tx.Exec(ctx, `
@@ -158,10 +163,20 @@ func (s *Service) PollDeviceSignInChallenge(ctx context.Context,
 		return SignInResult{}, ErrChallengeInvalid
 	}
 
-	accountRecord, err := s.loadAuthAccountByID(ctx, accountID)
+	command, err := tx.Exec(ctx, `
+        UPDATE device_signin_challenges
+        SET state = 'consumed',
+            consumed_at = $2
+        WHERE id = $1::uuid
+          AND state = 'approved'
+    `, challengeID, now)
 	if err != nil {
-		return SignInResult{}, err
+		return SignInResult{}, fmt.Errorf("consume device challenge: %w", err)
 	}
+	if command.RowsAffected() != 1 {
+		return SignInResult{}, ErrChallengeInvalid
+	}
+
 	device, err := upsertTrustedDeviceTx(
 		ctx,
 		tx,
@@ -181,20 +196,6 @@ func (s *Service) PollDeviceSignInChallenge(ctx context.Context,
 		now)
 	if err != nil {
 		return SignInResult{}, err
-	}
-
-	command, err := tx.Exec(ctx, `
-        UPDATE device_signin_challenges
-        SET state = 'consumed',
-            consumed_at = $2
-        WHERE id = $1::uuid
-          AND state = 'approved'
-    `, challengeID, now)
-	if err != nil {
-		return SignInResult{}, fmt.Errorf("consume device challenge: %w", err)
-	}
-	if command.RowsAffected() != 1 {
-		return SignInResult{}, ErrChallengeInvalid
 	}
 
 	if err := recordSecurityEventTx(
@@ -292,7 +293,41 @@ func (s *Service) DecideApproval(ctx context.Context,
 		state = "approved"
 		event = kind + "_approved"
 	}
+
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin approval decision: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := loadAuthAccountByIDTx(ctx, tx, auth.Account.ID); err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return ErrChallengeInvalid
+		}
+		return fmt.Errorf("lock account for approval decision: %w", err)
+	}
+
+	var targetInstallID string
+	var challengeState string
+	var challengeExpiresAt time.Time
+	if err := tx.QueryRow(ctx, fmt.Sprintf(`
+        SELECT target_install_id::text, state, expires_at
+        FROM %s
+        WHERE id = $1::uuid
+          AND account_id = $2::uuid
+        FOR UPDATE
+    `, table), challengeID, auth.Account.ID).Scan(
+		&targetInstallID,
+		&challengeState,
+		&challengeExpiresAt); errors.Is(err, pgx.ErrNoRows) {
+		return ErrChallengeInvalid
+	} else if err != nil {
+		return fmt.Errorf("lock approval challenge: %w", err)
+	}
 	now := s.clock.Now()
+	if challengeState != "pending" || targetInstallID == auth.Device.InstallID || !challengeExpiresAt.After(now) {
+		return ErrChallengeInvalid
+	}
 
 	query := fmt.Sprintf(`
         UPDATE %s
@@ -301,16 +336,8 @@ func (s *Service) DecideApproval(ctx context.Context,
             decided_by_device_id = $2::uuid
         WHERE id = $1::uuid
           AND account_id = $3::uuid
-          AND target_install_id <> $6::uuid
           AND state = 'pending'
-          AND expires_at > $5
     `, table)
-
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin approval decision: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
 
 	command, err := tx.Exec(
 		ctx,
@@ -319,13 +346,15 @@ func (s *Service) DecideApproval(ctx context.Context,
 		auth.Device.ID,
 		auth.Account.ID,
 		state,
-		now,
-		auth.Device.InstallID)
+		now)
 	if err != nil {
 		return fmt.Errorf("decide approval: %w", err)
 	}
 	if command.RowsAffected() != 1 {
 		return ErrChallengeInvalid
+	}
+	if err := validateAuthenticatedSessionTx(ctx, tx, auth, s.clock.Now); err != nil {
+		return err
 	}
 	if kind == "trusted_recovery" && !approve {
 		if _, err := tx.Exec(ctx, `
@@ -354,6 +383,27 @@ func (s *Service) RecoverDeviceSignInWithKey(ctx context.Context,
 	if input.ChallengeToken == "" {
 		return ChallengeRecoveryResult{}, ErrChallengeInvalid
 	}
+	var challengeAccountID string
+	err := s.pool.QueryRow(ctx, `
+        SELECT account_id::text
+        FROM device_signin_challenges
+        WHERE challenge_token_hash = $1
+    `, TokenHash(input.ChallengeToken)).Scan(&challengeAccountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ChallengeRecoveryResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return ChallengeRecoveryResult{}, fmt.Errorf("identify challenge recovery account: %w", err)
+	}
+	if err := s.rateLimiter.Allow(
+		ctx,
+		"device_recovery_key",
+		[]string{normalizedSourceKey(input.SourceKey), challengeAccountID},
+		recoveryWindow,
+		recoveryLimit); err != nil {
+		return ChallengeRecoveryResult{}, err
+	}
+
 	now := s.clock.Now()
 
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
@@ -362,17 +412,35 @@ func (s *Service) RecoverDeviceSignInWithKey(ctx context.Context,
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var challengeID string
 	var accountID string
+	err = tx.QueryRow(ctx, `
+        SELECT account_id::text
+        FROM device_signin_challenges
+        WHERE challenge_token_hash = $1
+    `, TokenHash(input.ChallengeToken)).Scan(&accountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ChallengeRecoveryResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return ChallengeRecoveryResult{}, fmt.Errorf("load challenge recovery account: %w", err)
+	}
+	accountRecord, err := loadAuthAccountByIDTx(ctx, tx, accountID)
+	if errors.Is(err, ErrInvalidCredentials) {
+		return ChallengeRecoveryResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return ChallengeRecoveryResult{}, fmt.Errorf("lock account for challenge recovery: %w", err)
+	}
+
+	var challengeID string
 	var installID string
 	var label string
 	var platform string
 	var state string
 	var expiresAt time.Time
 	err = tx.QueryRow(ctx, `
-        SELECT
+		SELECT
             id::text,
-            account_id::text,
             target_install_id::text,
             target_label,
             target_platform,
@@ -381,9 +449,8 @@ func (s *Service) RecoverDeviceSignInWithKey(ctx context.Context,
         FROM device_signin_challenges
         WHERE challenge_token_hash = $1
         FOR UPDATE
-    `, TokenHash(input.ChallengeToken)).Scan(
+	`, TokenHash(input.ChallengeToken)).Scan(
 		&challengeID,
-		&accountID,
 		&installID,
 		&label,
 		&platform,
@@ -395,46 +462,12 @@ func (s *Service) RecoverDeviceSignInWithKey(ctx context.Context,
 	if err != nil {
 		return ChallengeRecoveryResult{}, fmt.Errorf("load challenge recovery: %w", err)
 	}
+	now = s.clock.Now()
 	if state == "consumed" || state == "denied" {
 		return ChallengeRecoveryResult{}, ErrChallengeInvalid
 	}
 	if now.After(expiresAt) {
 		return ChallengeRecoveryResult{}, ErrChallengeExpired
-	}
-
-	if err := s.rateLimiter.Allow(
-		ctx,
-		"device_recovery_key",
-		[]string{normalizedSourceKey(input.SourceKey), accountID},
-		recoveryWindow,
-		recoveryLimit); err != nil {
-		return ChallengeRecoveryResult{}, err
-	}
-
-	var accountRecord authAccount
-	var changedAt sql.NullTime
-	err = tx.QueryRow(ctx, accountSelect+`
-        WHERE id = $1::uuid
-        FOR UPDATE
-    `, accountID).Scan(
-		&accountRecord.ID,
-		&accountRecord.CanonicalUsername,
-		&accountRecord.DisplayUsername,
-		&accountRecord.PasswordHash,
-		&accountRecord.RecoveryVerifier,
-		&accountRecord.RecoveryVersion,
-		&accountRecord.ProtectNewDeviceSignins,
-		&accountRecord.BuiltinAvatarID,
-		&accountRecord.UploadedAvatarObjectKey,
-		&changedAt,
-		&accountRecord.CreatedAt,
-		&accountRecord.UpdatedAt)
-	if err != nil {
-		return ChallengeRecoveryResult{}, fmt.Errorf("lock account for challenge recovery: %w", err)
-	}
-	if changedAt.Valid {
-		changed := changedAt.Time.UTC()
-		accountRecord.UsernameChangedAt = &changed
 	}
 
 	if !s.recoveryVerifier.Verify(input.RecoveryKey, accountRecord.RecoveryVerifier) {
@@ -457,6 +490,15 @@ func (s *Service) RecoverDeviceSignInWithKey(ctx context.Context,
         WHERE id = $1::uuid
     `, accountID, newVerifier, now); err != nil {
 		return ChallengeRecoveryResult{}, fmt.Errorf("replace recovery key after device approval fallback: %w", err)
+	}
+	if err := invalidateAuthChallengesTx(
+		ctx,
+		tx,
+		accountID,
+		now,
+		challengeID,
+		""); err != nil {
+		return ChallengeRecoveryResult{}, fmt.Errorf("invalidate sibling auth challenges after device recovery: %w", err)
 	}
 
 	device, err := upsertTrustedDeviceTx(

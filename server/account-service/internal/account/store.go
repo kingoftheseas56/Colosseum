@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -28,6 +29,24 @@ func (s *Service) loadAuthAccountByCanonical(ctx context.Context, canonical stri
 func (s *Service) loadAuthAccountByID(ctx context.Context, accountID string) (authAccount, error) {
 	return scanAuthAccount(s.pool.QueryRow(ctx, accountSelect+`
         WHERE id = $1::uuid
+    `, accountID))
+}
+
+func loadAuthAccountByCanonicalTx(ctx context.Context,
+	tx pgx.Tx,
+	canonical string) (authAccount, error) {
+	return scanAuthAccount(tx.QueryRow(ctx, accountSelect+`
+        WHERE canonical_username = $1
+        FOR UPDATE
+    `, canonical))
+}
+
+func loadAuthAccountByIDTx(ctx context.Context,
+	tx pgx.Tx,
+	accountID string) (authAccount, error) {
+	return scanAuthAccount(tx.QueryRow(ctx, accountSelect+`
+        WHERE id = $1::uuid
+        FOR UPDATE
     `, accountID))
 }
 
@@ -80,7 +99,54 @@ func scanAuthAccount(row pgx.Row) (authAccount, error) {
 func (s *Service) loadDeviceByInstall(ctx context.Context,
 	accountID,
 	installID string) (Device, bool, error) {
-	row := s.pool.QueryRow(ctx, `
+	return loadDeviceByInstallFrom(ctx, s.pool, accountID, installID)
+}
+
+func loadDeviceByInstallTx(ctx context.Context,
+	tx pgx.Tx,
+	accountID,
+	installID string) (Device, bool, error) {
+	return loadDeviceByInstallFrom(ctx, tx, accountID, installID)
+}
+
+func loadDeviceByIDTx(ctx context.Context,
+	tx pgx.Tx,
+	accountID,
+	deviceID string) (Device, error) {
+	device, err := scanDevice(tx.QueryRow(ctx, `
+        SELECT
+            id::text,
+            account_id::text,
+            install_id::text,
+            label,
+            platform,
+            trusted,
+            revoked_at,
+            created_at,
+            last_seen_at
+        FROM devices
+        WHERE id = $1::uuid
+          AND account_id = $2::uuid
+        FOR UPDATE
+    `, deviceID, accountID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Device{}, ErrDeviceNotFound
+	}
+	if err != nil {
+		return Device{}, fmt.Errorf("load device: %w", err)
+	}
+	return device, nil
+}
+
+type pgxQueryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func loadDeviceByInstallFrom(ctx context.Context,
+	queryer pgxQueryRower,
+	accountID,
+	installID string) (Device, bool, error) {
+	row := queryer.QueryRow(ctx, `
         SELECT
             id::text,
             account_id::text,
@@ -104,6 +170,120 @@ func (s *Service) loadDeviceByInstall(ctx context.Context,
 		return Device{}, false, err
 	}
 	return device, true, nil
+}
+
+func sameEncodedPasswordHash(first, second string) bool {
+	return subtle.ConstantTimeCompare([]byte(first), []byte(second)) == 1
+}
+
+func validateAuthenticatedSessionTx(ctx context.Context,
+	tx pgx.Tx,
+	auth AuthenticatedSession,
+	now func() time.Time) error {
+	var (
+		accessExpiresAt time.Time
+		sessionRevoked  sql.NullTime
+		trusted         bool
+		deviceRevoked   sql.NullTime
+	)
+	err := tx.QueryRow(ctx, `
+        SELECT
+            s.access_expires_at,
+            s.revoked_at,
+            d.trusted,
+            d.revoked_at
+        FROM sessions s
+        JOIN devices d ON d.id = s.device_id
+        WHERE s.id = $1::uuid
+          AND s.account_id = $2::uuid
+          AND s.device_id = $3::uuid
+          AND d.account_id = s.account_id
+        FOR UPDATE OF s
+    `, auth.SessionID, auth.Account.ID, auth.Device.ID).Scan(
+		&accessExpiresAt,
+		&sessionRevoked,
+		&trusted,
+		&deviceRevoked)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrSessionInvalid
+	}
+	if err != nil {
+		return fmt.Errorf("validate authenticated session: %w", err)
+	}
+	if sessionRevoked.Valid || !trusted || deviceRevoked.Valid || !accessExpiresAt.After(now()) {
+		return ErrSessionInvalid
+	}
+	return nil
+}
+
+func invalidateDeviceSignInChallengesTx(ctx context.Context,
+	tx pgx.Tx,
+	accountID string,
+	now time.Time,
+	excludeChallengeID string) error {
+	query := `
+        UPDATE device_signin_challenges
+        SET state = 'denied',
+            decided_at = $2
+        WHERE account_id = $1::uuid
+          AND state IN ('pending', 'approved')
+    `
+	args := []any{accountID, now}
+	if excludeChallengeID != "" {
+		query += `
+          AND id <> $3::uuid
+        `
+		args = append(args, excludeChallengeID)
+	}
+	if _, err := tx.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("invalidate device sign-in challenges: %w", err)
+	}
+	return nil
+}
+
+func invalidateTrustedRecoveryChallengesTx(ctx context.Context,
+	tx pgx.Tx,
+	accountID string,
+	now time.Time,
+	excludeChallengeID string) error {
+	query := `
+        UPDATE trusted_recovery_challenges
+        SET state = 'denied',
+            decided_at = $2,
+            new_password_hash = '',
+            recovery_retry_ciphertext = NULL,
+            recovery_retry_expires_at = NULL
+        WHERE account_id = $1::uuid
+          AND state IN ('pending', 'approved')
+    `
+	args := []any{accountID, now}
+	if excludeChallengeID != "" {
+		query += `
+          AND id <> $3::uuid
+        `
+		args = append(args, excludeChallengeID)
+	}
+	if _, err := tx.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("invalidate trusted recovery challenges: %w", err)
+	}
+	return nil
+}
+
+func invalidateAuthChallengesTx(ctx context.Context,
+	tx pgx.Tx,
+	accountID string,
+	now time.Time,
+	excludeDeviceChallengeID,
+	excludeRecoveryChallengeID string) error {
+	if err := invalidateDeviceSignInChallengesTx(
+		ctx, tx, accountID, now, excludeDeviceChallengeID); err != nil {
+		return err
+	}
+	if err := invalidateTrustedRecoveryChallengesTx(
+		ctx, tx, accountID, now, excludeRecoveryChallengeID); err != nil {
+		return err
+	}
+	return nil
 }
 
 func scanDevice(row pgx.Row) (Device, error) {

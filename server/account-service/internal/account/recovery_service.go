@@ -85,10 +85,11 @@ func (s *Service) RecoverPassword(ctx context.Context,
 	if !s.recoveryVerifier.Verify(input.RecoveryKey, currentVerifier) {
 		return RecoveryResult{}, ErrInvalidCredentials
 	}
+	now = s.clock.Now()
 
 	if _, err := tx.Exec(ctx, `
-        UPDATE accounts
-        SET password_hash = $2,
+		UPDATE accounts
+		SET password_hash = $2,
             recovery_key_verifier = $3,
             recovery_key_version = recovery_key_version + 1,
             updated_at = $4
@@ -101,33 +102,23 @@ func (s *Service) RecoverPassword(ctx context.Context,
 		return RecoveryResult{}, fmt.Errorf("recover account credentials: %w", err)
 	}
 
-	if _, err := tx.Exec(ctx, `
-        UPDATE sessions
-        SET revoked_at = $2
-        WHERE account_id = $1::uuid
-          AND revoked_at IS NULL
-    `, accountRecord.ID, now); err != nil {
-		return RecoveryResult{}, fmt.Errorf("revoke sessions after recovery: %w", err)
+	if err := invalidateAuthChallengesTx(
+		ctx,
+		tx,
+		accountRecord.ID,
+		now,
+		"",
+		""); err != nil {
+		return RecoveryResult{}, fmt.Errorf("invalidate auth challenges after recovery: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `
-        UPDATE device_signin_challenges
-        SET state = 'denied',
-            decided_at = $2
-        WHERE account_id = $1::uuid
-          AND state IN ('pending', 'approved')
-    `, accountRecord.ID, now); err != nil {
-		return RecoveryResult{}, fmt.Errorf("cancel device challenges after recovery: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-        UPDATE trusted_recovery_challenges
-        SET state = 'denied',
-            decided_at = $2,
-            new_password_hash = ''
-        WHERE account_id = $1::uuid
-          AND state IN ('pending', 'approved')
-    `, accountRecord.ID, now); err != nil {
-		return RecoveryResult{}, fmt.Errorf("cancel recovery challenges after recovery: %w", err)
+		UPDATE sessions
+		SET revoked_at = $2
+		WHERE account_id = $1::uuid
+		  AND revoked_at IS NULL
+	`, accountRecord.ID, now); err != nil {
+		return RecoveryResult{}, fmt.Errorf("revoke sessions after recovery: %w", err)
 	}
 
 	if err := recordSecurityEventTx(
@@ -197,13 +188,23 @@ func (s *Service) ReplaceRecoveryKey(ctx context.Context,
     `, auth.Account.ID).Scan(&lockedPasswordHash); err != nil {
 		return RecoveryResult{}, fmt.Errorf("lock account for recovery-key replacement: %w", err)
 	}
-	valid, err = s.passwordHasher.Verify(lockedPasswordHash, currentPassword)
-	if err != nil {
-		return RecoveryResult{}, fmt.Errorf("verify locked password for recovery-key replacement: %w", err)
-	}
-	if !valid {
+	if !sameEncodedPasswordHash(lockedPasswordHash, accountRecord.PasswordHash) {
 		return RecoveryResult{}, ErrInvalidCredentials
 	}
+	now = s.clock.Now()
+	if err := invalidateAuthChallengesTx(
+		ctx,
+		tx,
+		auth.Account.ID,
+		now,
+		"",
+		""); err != nil {
+		return RecoveryResult{}, fmt.Errorf("invalidate auth challenges after recovery-key replacement: %w", err)
+	}
+	if err := validateAuthenticatedSessionTx(ctx, tx, auth, s.clock.Now); err != nil {
+		return RecoveryResult{}, err
+	}
+	now = s.clock.Now()
 
 	if _, err := tx.Exec(ctx, `
         UPDATE accounts
@@ -278,8 +279,26 @@ func (s *Service) StartTrustedRecovery(ctx context.Context,
 		return TrustedRecoveryResult{}, fmt.Errorf("hash trusted recovery password: %w", err)
 	}
 
+	token, err := GenerateToken()
+	if err != nil {
+		return TrustedRecoveryResult{}, err
+	}
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return TrustedRecoveryResult{}, fmt.Errorf("begin trusted recovery challenge: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	lockedAccount, err := loadAuthAccountByIDTx(ctx, tx, accountRecord.ID)
+	if errors.Is(err, ErrInvalidCredentials) {
+		return TrustedRecoveryResult{}, ErrTrustedRecoveryNeeded
+	}
+	if err != nil {
+		return TrustedRecoveryResult{}, fmt.Errorf("lock account for trusted recovery challenge: %w", err)
+	}
+
 	var trustedSessionExists bool
-	if err := s.pool.QueryRow(ctx, `
+	if err := tx.QueryRow(ctx, `
         SELECT EXISTS(
             SELECT 1
             FROM sessions s
@@ -289,25 +308,13 @@ func (s *Service) StartTrustedRecovery(ctx context.Context,
               AND d.trusted = true
               AND d.revoked_at IS NULL
         )
-    `, accountRecord.ID).Scan(&trustedSessionExists); err != nil {
+    `, lockedAccount.ID).Scan(&trustedSessionExists); err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("check trusted recovery availability: %w", err)
 	}
 	if !trustedSessionExists {
 		return TrustedRecoveryResult{}, ErrTrustedRecoveryNeeded
 	}
-
-	token, err := GenerateToken()
-	if err != nil {
-		return TrustedRecoveryResult{}, err
-	}
 	now := s.clock.Now()
-	expiresAt := now.Add(trustedRecoveryLifetime)
-
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return TrustedRecoveryResult{}, fmt.Errorf("begin trusted recovery challenge: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx, `
         UPDATE trusted_recovery_challenges
@@ -317,9 +324,11 @@ func (s *Service) StartTrustedRecovery(ctx context.Context,
         WHERE account_id = $1::uuid
           AND target_install_id = $2::uuid
           AND state IN ('pending', 'approved')
-    `, accountRecord.ID, input.DeviceInstallID, now); err != nil {
+	`, lockedAccount.ID, input.DeviceInstallID, now); err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("supersede trusted recovery challenge: %w", err)
 	}
+	now = s.clock.Now()
+	expiresAt := now.Add(trustedRecoveryLifetime)
 
 	if _, err := tx.Exec(ctx, `
         INSERT INTO trusted_recovery_challenges(
@@ -335,7 +344,7 @@ func (s *Service) StartTrustedRecovery(ctx context.Context,
         )
         VALUES($1::uuid, $2::uuid, $3, $4, $5, $6, 'pending', $7, $8)
     `,
-		accountRecord.ID,
+		lockedAccount.ID,
 		input.DeviceInstallID,
 		input.DeviceLabel,
 		input.Platform,
@@ -348,7 +357,7 @@ func (s *Service) StartTrustedRecovery(ctx context.Context,
 	if err := recordSecurityEventTx(
 		ctx,
 		tx,
-		accountRecord.ID,
+		lockedAccount.ID,
 		"trusted_recovery_challenge_created",
 		"",
 		now,
@@ -377,8 +386,27 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var challengeID string
 	var accountID string
+	err = tx.QueryRow(ctx, `
+        SELECT account_id::text
+        FROM trusted_recovery_challenges
+        WHERE challenge_token_hash = $1
+    `, TokenHash(challengeToken)).Scan(&accountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return TrustedRecoveryResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return TrustedRecoveryResult{}, fmt.Errorf("identify trusted recovery account: %w", err)
+	}
+	accountRecord, err := loadAuthAccountByIDTx(ctx, tx, accountID)
+	if errors.Is(err, ErrInvalidCredentials) {
+		return TrustedRecoveryResult{}, ErrChallengeInvalid
+	}
+	if err != nil {
+		return TrustedRecoveryResult{}, fmt.Errorf("lock account for trusted recovery: %w", err)
+	}
+
+	var challengeID string
 	var state string
 	var newPasswordHash string
 	var expiresAt time.Time
@@ -387,7 +415,6 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	err = tx.QueryRow(ctx, `
         SELECT
             id::text,
-            account_id::text,
             state,
             new_password_hash,
             expires_at,
@@ -396,9 +423,8 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
         FROM trusted_recovery_challenges
         WHERE challenge_token_hash = $1
         FOR UPDATE
-    `, TokenHash(challengeToken)).Scan(
+	`, TokenHash(challengeToken)).Scan(
 		&challengeID,
-		&accountID,
 		&state,
 		&newPasswordHash,
 		&expiresAt,
@@ -410,6 +436,7 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	if err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("load trusted recovery challenge: %w", err)
 	}
+	now = s.clock.Now()
 
 	if now.After(expiresAt) && state != "consumed" {
 		if _, err := tx.Exec(ctx, `
@@ -443,15 +470,7 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 		if err != nil {
 			return TrustedRecoveryResult{}, fmt.Errorf("open trusted recovery retry key: %w", err)
 		}
-		var currentVerifier []byte
-		if err := tx.QueryRow(ctx, `
-            SELECT recovery_key_verifier
-            FROM accounts
-            WHERE id = $1::uuid
-        `, accountID).Scan(&currentVerifier); err != nil {
-			return TrustedRecoveryResult{}, fmt.Errorf("verify trusted recovery retry key: %w", err)
-		}
-		if !s.recoveryVerifier.Verify(recoveryKey, currentVerifier) {
+		if !s.recoveryVerifier.Verify(recoveryKey, accountRecord.RecoveryVerifier) {
 			return TrustedRecoveryResult{}, ErrChallengeInvalid
 		}
 		return TrustedRecoveryResult{Status: "recovered", RecoveryKey: recoveryKey}, nil
@@ -459,19 +478,6 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	default:
 		return TrustedRecoveryResult{}, ErrChallengeInvalid
 	}
-
-	var currentVerifier []byte
-	var recoveryVersion int
-	if err := tx.QueryRow(ctx, `
-        SELECT recovery_key_verifier, recovery_key_version
-        FROM accounts
-        WHERE id = $1::uuid
-        FOR UPDATE
-    `, accountID).Scan(&currentVerifier, &recoveryVersion); err != nil {
-		return TrustedRecoveryResult{}, fmt.Errorf("lock account for trusted recovery: %w", err)
-	}
-	_ = currentVerifier
-	_ = recoveryVersion
 
 	newRecoveryKey, err := GenerateRecoveryKey()
 	if err != nil {
@@ -497,6 +503,15 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
     `, accountID, newPasswordHash, newRecoveryVerifier, now); err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("apply trusted recovery: %w", err)
 	}
+	if err := invalidateAuthChallengesTx(
+		ctx,
+		tx,
+		accountID,
+		now,
+		"",
+		challengeID); err != nil {
+		return TrustedRecoveryResult{}, fmt.Errorf("invalidate sibling auth challenges after trusted recovery: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `
         UPDATE sessions
         SET revoked_at = $2
@@ -505,7 +520,7 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
     `, accountID, now); err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("revoke sessions after trusted recovery: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `
+	command, err := tx.Exec(ctx, `
         UPDATE trusted_recovery_challenges
         SET state = 'consumed',
             consumed_at = $2,
@@ -513,18 +528,13 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
             recovery_retry_ciphertext = $3,
             recovery_retry_expires_at = $4
         WHERE id = $1::uuid
-          AND state = 'approved'
-    `, challengeID, now, retryCiphertext, retryExpires); err != nil {
+		  AND state = 'approved'
+	`, challengeID, now, retryCiphertext, retryExpires)
+	if err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("consume trusted recovery challenge: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `
-        UPDATE device_signin_challenges
-        SET state = 'denied',
-            decided_at = $2
-        WHERE account_id = $1::uuid
-          AND state IN ('pending', 'approved')
-    `, accountID, now); err != nil {
-		return TrustedRecoveryResult{}, fmt.Errorf("cancel device challenges after trusted recovery: %w", err)
+	if command.RowsAffected() != 1 {
+		return TrustedRecoveryResult{}, ErrChallengeInvalid
 	}
 	if err := recordSecurityEventTx(
 		ctx,

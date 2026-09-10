@@ -261,19 +261,6 @@ func (s *Service) SignIn(ctx context.Context, input SignInInput) (SignInResult, 
 		return SignInResult{}, ErrInvalidCredentials
 	}
 
-	existingDevice, exists, err := s.loadDeviceByInstall(
-		ctx,
-		account.ID,
-		input.DeviceInstallID)
-	if err != nil {
-		return SignInResult{}, fmt.Errorf("load sign-in device: %w", err)
-	}
-
-	if account.ProtectNewDeviceSignins &&
-		(!exists || !existingDevice.Trusted || existingDevice.RevokedAt != nil) {
-		return s.createDeviceSignInChallenge(ctx, account.Account, input)
-	}
-
 	now := s.clock.Now()
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -281,10 +268,52 @@ func (s *Service) SignIn(ctx context.Context, input SignInInput) (SignInResult, 
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	lockedAccount, err := loadAuthAccountByCanonicalTx(ctx, tx, canonicalUsername)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return SignInResult{}, ErrInvalidCredentials
+		}
+		return SignInResult{}, fmt.Errorf("lock account for sign in: %w", err)
+	}
+	if !sameEncodedPasswordHash(lockedAccount.PasswordHash, account.PasswordHash) {
+		return SignInResult{}, ErrInvalidCredentials
+	}
+	now = s.clock.Now()
+
+	existingDevice, exists, err := loadDeviceByInstallTx(
+		ctx,
+		tx,
+		lockedAccount.ID,
+		input.DeviceInstallID)
+	if err != nil {
+		return SignInResult{}, fmt.Errorf("load sign-in device: %w", err)
+	}
+
+	if lockedAccount.ProtectNewDeviceSignins &&
+		(!exists || !existingDevice.Trusted || existingDevice.RevokedAt != nil) {
+		challengeToken, challengeExpiresAt, err := s.createDeviceSignInChallengeTx(
+			ctx,
+			tx,
+			lockedAccount.Account,
+			input,
+			now)
+		if err != nil {
+			return SignInResult{}, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return SignInResult{}, fmt.Errorf("commit device challenge: %w", err)
+		}
+		return SignInResult{
+			Status:             "approval_required",
+			ChallengeToken:     challengeToken,
+			ChallengeExpiresAt: challengeExpiresAt,
+		}, nil
+	}
+
 	device, err := upsertTrustedDeviceTx(
 		ctx,
 		tx,
-		account.ID,
+		lockedAccount.ID,
 		input.DeviceInstallID,
 		strings.TrimSpace(input.DeviceLabel),
 		strings.TrimSpace(input.Platform),
@@ -293,14 +322,14 @@ func (s *Service) SignIn(ctx context.Context, input SignInInput) (SignInResult, 
 		return SignInResult{}, err
 	}
 
-	session, err := s.issueSessionTx(ctx, tx, account.Account, device, now)
+	session, err := s.issueSessionTx(ctx, tx, lockedAccount.Account, device, now)
 	if err != nil {
 		return SignInResult{}, err
 	}
 	if err := recordSecurityEventTx(
 		ctx,
 		tx,
-		account.ID,
+		lockedAccount.ID,
 		"signin",
 		device.ID,
 		now,
@@ -370,13 +399,23 @@ func (s *Service) ChangePassword(ctx context.Context,
     `, auth.Account.ID).Scan(&currentHash); err != nil {
 		return fmt.Errorf("lock account for password change: %w", err)
 	}
-	valid, err = s.passwordHasher.Verify(currentHash, current)
-	if err != nil {
-		return fmt.Errorf("verify locked password: %w", err)
-	}
-	if !valid {
+	if !sameEncodedPasswordHash(currentHash, account.PasswordHash) {
 		return ErrInvalidCredentials
 	}
+	now = s.clock.Now()
+	if err := invalidateAuthChallengesTx(
+		ctx,
+		tx,
+		auth.Account.ID,
+		now,
+		"",
+		""); err != nil {
+		return fmt.Errorf("invalidate auth challenges after password change: %w", err)
+	}
+	if err := validateAuthenticatedSessionTx(ctx, tx, auth, s.clock.Now); err != nil {
+		return err
+	}
+	now = s.clock.Now()
 
 	if _, err := tx.Exec(ctx, `
         UPDATE accounts
@@ -396,7 +435,6 @@ func (s *Service) ChangePassword(ctx context.Context,
     `, auth.Account.ID, auth.SessionID, now); err != nil {
 		return fmt.Errorf("revoke other sessions after password change: %w", err)
 	}
-
 	if err := recordSecurityEventTx(
 		ctx,
 		tx,
