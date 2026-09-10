@@ -11,8 +11,6 @@ BookDownloader::~BookDownloader() = default;
 ComicDownloader::~ComicDownloader() = default;
 MangaTankobanService::~MangaTankobanService() = default;
 
-QVariantList DownloadIntentStore::records() const { return {}; }
-
 void MangaNyaaSearchAdapter::search(const MangaTankoban::SeriesSnapshot&, const QString&) {}
 void MangaNyaaSearchAdapter::searchSeries(const MangaTankoban::SeriesSnapshot&) {}
 void MangaTorrentMetainfoFetcher::fetch(const QString&, const QString&) {}

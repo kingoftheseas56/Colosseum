@@ -259,6 +259,46 @@ func TestExportHighWaterIncludesCommittedTombstone(t *testing.T) {
 	}
 }
 
+func TestExportOmitsHistoryClearedByActivityReset(t *testing.T) {
+	fixture := newServiceFixture(t)
+	created := createFixtureAccount(t, fixture, "LifecycleExportActivityReset")
+	auth := authenticateFixtureSession(t, fixture, created.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	history := historySemanticMutation(
+		"f1000000-0000-4000-8000-000000000001",
+		auth.Device.ID,
+		now,
+		0,
+		`{"kind":"episode","id":"show-1/e1","firstActivityAt":1000,"lastActivityAt":2000}`)
+	if result := pushOneSyncMutation(t, fixture, auth, history); !result.Accepted || !result.Won {
+		t.Fatalf("History push = %+v", result)
+	}
+	reset := activityResetSemanticMutation(
+		"f1000000-0000-4000-8000-000000000002",
+		auth.Device.ID,
+		1,
+		now,
+		now+1,
+		0)
+	if result := pushOneActivity(t, fixture, auth, reset); !result.Accepted || !result.Won {
+		t.Fatalf("Activity reset push = %+v", result)
+	}
+
+	page, err := fixture.service.ExportAccount(
+		context.Background(),
+		auth,
+		ExportAccountInput{Limit: 100})
+	if err != nil {
+		t.Fatalf("ExportAccount after Activity reset = %v", err)
+	}
+	for _, item := range page.Items {
+		if item.Category == "full_history" {
+			t.Fatalf("cleared History leaked into canonical export: %+v", item)
+		}
+	}
+}
+
 func TestExportSnapshotKeepsMetadataStableDuringConcurrentProfileChange(t *testing.T) {
 	fixture := newServiceFixture(t)
 	created := createFixtureAccount(t, fixture, "LifecycleExportProfile")

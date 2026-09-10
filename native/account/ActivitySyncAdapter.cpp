@@ -24,6 +24,16 @@ ActivitySyncAdapter::ActivitySyncAdapter(
         &ActivityStore::factCommitted,
         this,
         &ActivitySyncAdapter::handleFactCommitted);
+    connect(
+        store,
+        &ActivityStore::resetCommitted,
+        this,
+        [this](quint64, qint64) {
+            if (m_applyingRemote)
+                return;
+            ++m_revision;
+            emit localMutationAvailable(m_revision);
+        });
 }
 
 QString ActivitySyncAdapter::categoryId() const {
@@ -64,7 +74,16 @@ bool ActivitySyncAdapter::exportSnapshot(
 
     snapshot->revision = revision();
     snapshot->records.clear();
-    snapshot->records.reserve(facts.size());
+    snapshot->tombstones.clear();
+    snapshot->records.reserve(facts.size() + 1);
+
+    const QVariantMap reset = m_store->portableSyncReset();
+    if (!reset.isEmpty()) {
+        snapshot->records.append(SyncAdapterRecord{
+            QStringLiteral("activity/reset"),
+            QJsonObject::fromVariantMap(reset),
+            -1});
+    }
 
     for (const QVariantMap &fact : facts) {
         const QString eventId =
@@ -116,6 +135,26 @@ bool ActivitySyncAdapter::applyRemote(
         return fail(
             error,
             QStringLiteral("The Activity sync schema is unsupported."));
+    }
+
+    if (recordKey == QLatin1String("activity/reset")) {
+        if (operation != SyncWireOperation::Put || !payload.isObject())
+            return fail(error, QStringLiteral("An Activity reset requires a PUT object payload."));
+        const QJsonObject reset = payload.toObject();
+        const qint64 generation = reset.value(QStringLiteral("resetGeneration")).toInteger();
+        const qint64 resetAtMs = reset.value(QStringLiteral("resetAtMs")).toInteger();
+        if (reset.size() != 2 || generation <= 0 || resetAtMs <= 0)
+            return fail(error, QStringLiteral("The Activity reset payload is malformed."));
+        QString ownerError;
+        m_applyingRemote = true;
+        const bool applied = m_store->applySyncedReset(
+            static_cast<quint64>(generation), resetAtMs, &ownerError);
+        m_applyingRemote = false;
+        if (!applied)
+            return fail(error, ownerError.isEmpty()
+                ? QStringLiteral("The Activity owner rejected the reset barrier.")
+                : ownerError);
+        return true;
     }
     if (operation != SyncWireOperation::Put) {
         return fail(

@@ -75,6 +75,7 @@ const (
 	checkPayloadPresent         = "(octet_length(payload_ciphertext) > 0)"
 	checkCapabilityHashLength   = "(octet_length(capability_hash) = 32)"
 	checkCompletedAfterCreation = "(completed_at >= created_at)"
+	checkMaterializedHLC        = "(((materialized_hlc_physical_ms IS NULL) AND (materialized_hlc_counter IS NULL) AND (materialized_device_id IS NULL)) OR ((materialized_hlc_physical_ms IS NOT NULL) AND (materialized_hlc_counter IS NOT NULL) AND (materialized_device_id IS NOT NULL) AND (materialized_hlc_physical_ms >= 0) AND (materialized_hlc_counter >= 0)))"
 )
 
 func schemaContract() []schemaTableContract {
@@ -277,6 +278,10 @@ func schemaContract() []schemaTableContract {
 				"hlc_counter", "bigint", true,
 				"operation", "text", true,
 				"payload_ciphertext", "bytea", false,
+				"materialized_payload_ciphertext", "bytea", false,
+				"materialized_hlc_physical_ms", "bigint", false,
+				"materialized_hlc_counter", "bigint", false,
+				"materialized_device_id", "uuid", false,
 				"won", "boolean", true,
 				"received_at", "timestamp with time zone", true),
 			primaryKey: []string{"server_seq"},
@@ -289,12 +294,14 @@ func schemaContract() []schemaTableContract {
 				"account_sync_journal_payload_ck",
 				"account_sync_journal_schema_ck",
 				"account_sync_journal_counter_ck",
+				"account_sync_journal_materialized_hlc_ck",
 			},
 			checkExpressions: map[string]string{
-				"account_sync_journal_operation_ck": checkOperation,
-				"account_sync_journal_payload_ck":   checkPayload,
-				"account_sync_journal_schema_ck":    checkPositiveSchemaVersion,
-				"account_sync_journal_counter_ck":   checkNonNegativeHLC,
+				"account_sync_journal_operation_ck":        checkOperation,
+				"account_sync_journal_payload_ck":          checkPayload,
+				"account_sync_journal_schema_ck":           checkPositiveSchemaVersion,
+				"account_sync_journal_counter_ck":          checkNonNegativeHLC,
+				"account_sync_journal_materialized_hlc_ck": checkMaterializedHLC,
 			},
 		},
 		{
@@ -360,6 +367,7 @@ func schemaContract() []schemaTableContract {
 				"hlc_physical_ms", "bigint", true,
 				"hlc_counter", "bigint", true,
 				"server_seq", "bigint", true,
+				"suppressed", "boolean", true,
 				"received_at", "timestamp with time zone", true),
 			primaryKey: []string{"account_id", "event_id"},
 			uniqueKeys: [][]string{{"account_id", "mutation_id"}, {"server_seq"}},
@@ -376,6 +384,58 @@ func schemaContract() []schemaTableContract {
 				"account_activity_facts_schema_ck":       checkPositiveSchemaVersion,
 				"account_activity_facts_hlc_physical_ck": checkNonNegativePhysicalHLC,
 				"account_activity_facts_hlc_counter_ck":  checkNonNegativeHLC,
+			},
+		},
+		{
+			name: "account_activity_reset_state",
+			columns: schemaColumns(
+				"account_id", "uuid", true,
+				"reset_generation", "bigint", true,
+				"reset_at_ms", "bigint", true,
+				"hlc_physical_ms", "bigint", true,
+				"hlc_counter", "bigint", true,
+				"device_id", "uuid", true),
+			primaryKey: []string{"account_id"},
+			foreignKeys: []schemaForeignKeyContract{
+				{columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"}},
+			},
+			checks: []string{
+				"account_activity_reset_generation_ck",
+				"account_activity_reset_at_ck",
+				"account_activity_reset_hlc_physical_ck",
+				"account_activity_reset_hlc_counter_ck",
+			},
+			checkExpressions: map[string]string{
+				"account_activity_reset_generation_ck":   "reset_generation > 0",
+				"account_activity_reset_at_ck":           "reset_at_ms > 0",
+				"account_activity_reset_hlc_physical_ck": "hlc_physical_ms >= 0",
+				"account_activity_reset_hlc_counter_ck":  "hlc_counter >= 0",
+			},
+		},
+		{
+			name: "account_history_reset_state",
+			columns: schemaColumns(
+				"account_id", "uuid", true,
+				"reset_generation", "bigint", true,
+				"reset_at_ms", "bigint", true,
+				"hlc_physical_ms", "bigint", true,
+				"hlc_counter", "bigint", true,
+				"device_id", "uuid", true),
+			primaryKey: []string{"account_id"},
+			foreignKeys: []schemaForeignKeyContract{
+				{columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"}},
+			},
+			checks: []string{
+				"account_history_reset_generation_ck",
+				"account_history_reset_at_ck",
+				"account_history_reset_hlc_physical_ck",
+				"account_history_reset_hlc_counter_ck",
+			},
+			checkExpressions: map[string]string{
+				"account_history_reset_generation_ck":   "reset_generation > 0",
+				"account_history_reset_at_ck":           "reset_at_ms > 0",
+				"account_history_reset_hlc_physical_ck": "hlc_physical_ms >= 0",
+				"account_history_reset_hlc_counter_ck":  "hlc_counter >= 0",
 			},
 		},
 		{

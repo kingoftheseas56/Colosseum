@@ -153,6 +153,30 @@ inline bool core(
         decode = &CoreStateSyncProjection::decodeProgressKey;
     else if (category == QLatin1String("full_history"))
         decode = &CoreStateSyncProjection::decodeHistoryKey;
+
+    if (category == QLatin1String("full_history")
+        && recordKey == QLatin1String("history/reset")) {
+        if (operation != SyncWireOperation::Put || !payload.isObject()) {
+            return fail(
+                error,
+                QStringLiteral("payload_invalid"),
+                QStringLiteral("A History reset requires a PUT object payload."));
+        }
+        const QJsonObject reset = payload.toObject();
+        if (reset.size() != 2) {
+            return fail(
+                error,
+                QStringLiteral("payload_invalid"),
+                QStringLiteral("The History reset payload is malformed."));
+        }
+        qint64 generation = 0;
+        qint64 resetAt = 0;
+        if (!integer(reset, QStringLiteral("resetGeneration"), &generation, true, error)
+            || !integer(reset, QStringLiteral("resetAtMs"), &resetAt, true, error))
+            return false;
+        return true;
+    }
+
     if (!decode
         || !decode(recordKey, &left, &right)) {
         return fail(
@@ -222,6 +246,23 @@ inline bool activity(
     if (schemaVersion != 1)
         return fail(error, QStringLiteral("unsupported_schema_version"),
                     QStringLiteral("The Activity sync schema is unsupported."));
+    if (recordKey == QLatin1String("activity/reset")) {
+        if (operation != SyncWireOperation::Put || !payload.isObject())
+            return fail(error, QStringLiteral("payload_invalid"),
+                        QStringLiteral("An Activity reset requires a PUT object payload."));
+        const QJsonObject reset = payload.toObject();
+        if (reset.size() != 2
+            || !reset.value(QStringLiteral("resetGeneration")).isDouble()
+            || !reset.value(QStringLiteral("resetAtMs")).isDouble())
+            return fail(error, QStringLiteral("payload_invalid"),
+                        QStringLiteral("The Activity reset payload is malformed."));
+        qint64 generation = 0;
+        qint64 resetAt = 0;
+        if (!integer(reset, QStringLiteral("resetGeneration"), &generation, true, error)
+            || !integer(reset, QStringLiteral("resetAtMs"), &resetAt, true, error))
+            return false;
+        return true;
+    }
     QString eventId;
     if (!decodeActivityKey(recordKey, &eventId, error))
         return false;

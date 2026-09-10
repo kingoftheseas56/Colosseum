@@ -80,6 +80,14 @@ public:
     void setRetentionEnabled(bool enabled) { m_retentionEnabled = enabled; }
     bool retentionEnabled() const { return m_retentionEnabled; }
 
+    // Durable privacy barrier. A reset generation is exported as a control
+    // record so an offline device cannot replay facts from before a clear.
+    quint64 resetGeneration() const { return m_resetGeneration; }
+    qint64 resetAtMs() const { return m_resetAtMs; }
+    QVariantMap portableSyncReset() const;
+    bool applySyncedReset(quint64 generation, qint64 resetAtMs,
+                          QString *error = nullptr);
+
     // Projects the FULL persisted ledger onto `monthKey` via
     // ActivityProjector::projectMonth(). Returns an empty QVariantMap and
     // emits integrityError() when the database is unhealthy or the month
@@ -140,9 +148,12 @@ signals:
     void changed();
     void integrityError(const QString &code, const QString &detail);
     void factCommitted(const QVariantMap &event);
+    void resetCommitted(quint64 generation, qint64 resetAtMs);
+    void resetApplied(quint64 generation, qint64 resetAtMs);
 
 private:
     bool ensureSchema();
+    bool loadSyncMetadata();
     bool insertFact(const QString &type, const QVariantMap &fact);
     bool insertEventRow(const QJsonObject &event, const QString &canonicalJson,
                          const QByteArray &canonicalHash);
@@ -152,4 +163,6 @@ private:
     QString m_openError;
     quint64 m_revision = 0;
     bool m_retentionEnabled = true;
+    quint64 m_resetGeneration = 0;
+    qint64 m_resetAtMs = 0;
 };

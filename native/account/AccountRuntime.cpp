@@ -248,6 +248,10 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::make_unique<
             ProgressSyncAdapter>(
                 progress);
+    auto watchStateAdapter =
+        std::make_unique<
+            WatchStateSyncAdapter>(
+                progress);
     auto historyAdapter =
         std::make_unique<
             HistorySyncAdapter>(
@@ -308,8 +312,23 @@ bool AccountRuntime::installCoreSyncAdapters(
     }
 
     if (!m_syncRegistry.registerAdapter(
+            watchStateAdapter.get(),
+            &registryError)) {
+        m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        if (error) {
+            *error = registryError.detail.isEmpty()
+                ? registryError.code
+                : registryError.detail;
+        }
+        return false;
+    }
+
+    if (!m_syncRegistry.registerAdapter(
             activityAdapter.get(),
             &registryError)) {
+        m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
@@ -326,6 +345,7 @@ bool AccountRuntime::installCoreSyncAdapters(
             &registryError)) {
         m_syncRegistry.unregisterAdapter(
             QStringLiteral("activity_fact"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
         m_syncRegistry.unregisterAdapter(
             QStringLiteral(
                 "full_history"));
@@ -351,6 +371,7 @@ bool AccountRuntime::installCoreSyncAdapters(
             downloadIntentAdapter.get(),
             &registryError)) {
         m_syncRegistry.unregisterAdapter(QStringLiteral("explicit_content_preference"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
@@ -365,6 +386,8 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::move(collectionAdapter);
     m_progressSyncAdapter =
         std::move(progressAdapter);
+    m_watchStateSyncAdapter =
+        std::move(watchStateAdapter);
     m_historySyncAdapter =
         std::move(historyAdapter);
     m_activitySyncAdapter =
@@ -374,21 +397,39 @@ bool AccountRuntime::installCoreSyncAdapters(
     m_downloadIntentSyncAdapter =
         std::move(downloadIntentAdapter);
 
-    const bool syncActivityHistory =
-        preferences->syncActivityHistory();
+    const auto activityHistorySyncEnabled = [preferences]() {
+        return preferences->syncActivityHistory()
+            && preferences->keepActivityHistory();
+    };
+    const bool syncActivityHistory = activityHistorySyncEnabled();
     m_syncEngine.setCategoryNetworkEnabled(
         QStringLiteral("full_history"),
         syncActivityHistory);
     m_syncEngine.setCategoryNetworkEnabled(
         QStringLiteral("activity_fact"),
         syncActivityHistory);
+    m_syncEngine.setCategoryNetworkEnabled(
+        QStringLiteral("watch_state"),
+        true);
     connect(
         preferences,
         &ProfilePreferencesStore::syncActivityHistoryChanged,
         this,
-        [this, preferences]() {
-            const bool enabled =
-                preferences->syncActivityHistory();
+        [this, preferences, activityHistorySyncEnabled]() {
+            const bool enabled = activityHistorySyncEnabled();
+            m_syncEngine.setCategoryNetworkEnabled(
+                QStringLiteral("full_history"),
+                enabled);
+            m_syncEngine.setCategoryNetworkEnabled(
+                QStringLiteral("activity_fact"),
+                enabled);
+        });
+    connect(
+        preferences,
+        &ProfilePreferencesStore::keepActivityHistoryChanged,
+        this,
+        [this, activityHistorySyncEnabled]() {
+            const bool enabled = activityHistorySyncEnabled();
             m_syncEngine.setCategoryNetworkEnabled(
                 QStringLiteral("full_history"),
                 enabled);
@@ -411,15 +452,19 @@ void AccountRuntime::clearCoreSyncAdapters() {
     m_syncRegistry.unregisterAdapter(
         QStringLiteral("activity_fact"));
     m_syncRegistry.unregisterAdapter(
+        QStringLiteral("watch_state"));
+    m_syncRegistry.unregisterAdapter(
         QStringLiteral(
             "explicit_content_preference"));
     m_syncRegistry.unregisterAdapter(
         QStringLiteral("desired_download_intent"));
+    m_downloadIntentStore.deactivate();
 
     m_preferencesSyncAdapter.reset();
     m_activitySyncAdapter.reset();
     m_historySyncAdapter.reset();
     m_progressSyncAdapter.reset();
+    m_watchStateSyncAdapter.reset();
     m_collectionSyncAdapter.reset();
     m_downloadIntentSyncAdapter.reset();
 }

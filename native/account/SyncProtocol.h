@@ -29,6 +29,9 @@ struct SyncWireMutation {
     QString recordKey;
     int schemaVersion = 0;
     SyncWireHlc hlc;
+    // Pull entries may carry canonical materialization ordering separately
+    // from the original request HLC/device identity.
+    std::optional<SyncWireHlc> materializedHlc;
     SyncWireOperation operation = SyncWireOperation::Put;
     QJsonValue payload;
 };

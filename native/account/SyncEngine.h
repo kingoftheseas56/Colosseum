@@ -275,6 +275,7 @@ private:
     QSet<QString> m_disabledCategories;
     QSet<QString> m_requestedDisabledCategories;
     QString m_categoryReplayInProgress;
+    QStringList m_categoryReplayQueue;
 
     State m_state = State::Inactive;
     QString m_lastErrorCode;

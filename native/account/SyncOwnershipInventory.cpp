@@ -36,6 +36,21 @@ const QList<SyncOwnershipEntry> &entries() {
             QStringLiteral("Preserve recordSilent() performance contract; whole-store polling is not an acceptable substitute for a narrow dirty/export seam.")
         },
         SyncOwnershipEntry{
+            QStringLiteral("watch_state"),
+            SyncDisposition::Syncable,
+            SyncOwnerStatus::Confirmed,
+            true,
+            QStringList{QStringLiteral("watched_mark"), QStringLiteral("last_season")},
+            QStringLiteral("native/ProgressStore.h"),
+            QStringLiteral("ProfileStoreRuntime -> ProgressStore -> WatchStateSyncAdapter"),
+            QStringLiteral("syncWatchedMarks() / syncLastSeasons()"),
+            QStringLiteral("applySyncedWatchedMark() / applySyncedLastSeason()"),
+            QStringLiteral("watchStateChanged()"),
+            41,
+            QStringLiteral(""),
+            QStringLiteral("Portable watched overrides and last-season choices use logical media identities; Continue/progress remains a separate owner." )
+        },
+        SyncOwnershipEntry{
             QStringLiteral("full_history"),
             SyncDisposition::Syncable,
             SyncOwnerStatus::Confirmed,

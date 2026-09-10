@@ -62,6 +62,154 @@ type parsedActivityFact struct {
 	Canonical []byte
 }
 
+type parsedActivityReset struct {
+	Generation uint64
+	ResetAtMS  int64
+	Canonical  []byte
+}
+
+func activityFactAt(canonical []byte) (int64, bool) {
+	object, err := decodeActivityPayloadObject(canonical)
+	if err != nil {
+		return 0, false
+	}
+	field := "atMs"
+	if object["type"] == "playback_delta" {
+		field = "startAtMs"
+	}
+	return activityInteger(object[field])
+}
+
+func parseActivityReset(parsed parsedSyncMutation) (parsedActivityReset, string, string) {
+	if parsed.RecordKey != "activity/reset" || parsed.Operation != "put" {
+		return parsedActivityReset{}, "invalid_operation", "Activity reset barriers accept PUT only."
+	}
+	object, err := decodeActivityPayloadObject(parsed.Payload)
+	if err != nil || validateActivityResetPayload(object) != nil {
+		return parsedActivityReset{}, "payload_invalid", "The Activity reset payload is invalid."
+	}
+	generation, ok := syncIntegerNumber(object["resetGeneration"])
+	resetAt, resetAtOK := syncIntegerNumber(object["resetAtMs"])
+	if !ok || !resetAtOK || generation <= 0 || resetAt <= 0 {
+		return parsedActivityReset{}, "payload_invalid", "The Activity reset payload is invalid."
+	}
+	canonical, err := canonicalActivityJSON(object)
+	if err != nil {
+		return parsedActivityReset{}, "payload_invalid", "The Activity reset payload could not be canonicalized."
+	}
+	return parsedActivityReset{Generation: uint64(generation), ResetAtMS: resetAt, Canonical: canonical}, "", ""
+}
+
+func (s *Service) pushOneActivityReset(
+	ctx context.Context,
+	auth AuthenticatedSession,
+	parsed parsedSyncMutation,
+	now time.Time,
+) (SyncPushResult, error) {
+	return s.pushOneSyncMutation(ctx, auth, parsed, now)
+}
+
+func (s *Service) storeActivityResetStateTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	accountID string,
+	resolution syncResolution,
+) error {
+	reset, err := decodeActivityResetPayload(resolution.Payload)
+	if err != nil {
+		return fmt.Errorf("decode materialized Activity reset: %w", err)
+	}
+	var currentGeneration, currentAt int64
+	var currentPhysical, currentCounter int64
+	var currentDevice string
+	err = tx.QueryRow(ctx, `
+        SELECT reset_generation, reset_at_ms, hlc_physical_ms,
+               hlc_counter, COALESCE(device_id::text, '')
+        FROM account_activity_reset_state
+        WHERE account_id = $1::uuid
+        FOR UPDATE
+    `, accountID).Scan(
+		&currentGeneration,
+		&currentAt,
+		&currentPhysical,
+		&currentCounter,
+		&currentDevice)
+	if err != nil && err != pgx.ErrNoRows {
+		return fmt.Errorf("load Activity reset state: %w", err)
+	}
+	effectiveGeneration := reset.generation
+	effectiveAt := reset.resetAt
+	effectivePhysical := resolution.WinnerHLCPhysicalMS
+	effectiveCounter := resolution.WinnerHLCCounter
+	effectiveDevice := resolution.WinnerDeviceID
+	if err == nil {
+		if currentGeneration > effectiveGeneration {
+			effectiveGeneration = currentGeneration
+		}
+		if currentAt > effectiveAt {
+			effectiveAt = currentAt
+		}
+		if currentGeneration == effectiveGeneration &&
+			compareServerHLC(
+				effectivePhysical,
+				effectiveCounter,
+				effectiveDevice,
+				currentPhysical,
+				uint64(currentCounter),
+				currentDevice) < 0 {
+			effectivePhysical = currentPhysical
+			effectiveCounter = uint64(currentCounter)
+			effectiveDevice = currentDevice
+		}
+	}
+	if effectiveGeneration <= 0 || effectiveAt <= 0 ||
+		!IsUUID(effectiveDevice) {
+		return fmt.Errorf("materialized Activity reset state is invalid")
+	}
+	if _, err := tx.Exec(ctx, `
+        INSERT INTO account_activity_reset_state(
+            account_id, reset_generation, reset_at_ms,
+            hlc_physical_ms, hlc_counter, device_id)
+        VALUES($1::uuid, $2, $3, $4, $5, $6::uuid)
+        ON CONFLICT(account_id) DO UPDATE SET
+            reset_generation = EXCLUDED.reset_generation,
+            reset_at_ms = EXCLUDED.reset_at_ms,
+            hlc_physical_ms = EXCLUDED.hlc_physical_ms,
+            hlc_counter = EXCLUDED.hlc_counter,
+            device_id = EXCLUDED.device_id
+    `,
+		accountID,
+		effectiveGeneration,
+		effectiveAt,
+		effectivePhysical,
+		int64(effectiveCounter),
+		effectiveDevice); err != nil {
+		return fmt.Errorf("store Activity reset state: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+        UPDATE account_activity_facts
+        SET suppressed = true
+        WHERE account_id = $1::uuid
+    `, accountID); err != nil {
+		return fmt.Errorf("suppress pre-reset Activity facts: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+        DELETE FROM account_sync_current
+        WHERE account_id = $1::uuid
+          AND category = 'full_history'
+    `, accountID); err != nil {
+		return fmt.Errorf("clear History current records at Activity reset: %w", err)
+	}
+	return nil
+}
+
+func nullableString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
 func parseActivityFact(
 	parsed parsedSyncMutation,
 ) (parsedActivityFact, string, string) {
@@ -456,6 +604,27 @@ func (s *Service) pushOneActivityFact(
 		return result, fmt.Errorf("encrypt activity payload: %w", err)
 	}
 
+	var resetAt, resetPhysical, resetCounter int64
+	var resetDevice string
+	resetErr := tx.QueryRow(ctx, `
+        SELECT reset_at_ms, hlc_physical_ms, hlc_counter, COALESCE(device_id::text, '')
+        FROM account_activity_reset_state
+        WHERE account_id = $1::uuid
+    `, auth.Account.ID).Scan(&resetAt, &resetPhysical, &resetCounter, &resetDevice)
+	if resetErr != nil && resetErr != pgx.ErrNoRows {
+		return result, fmt.Errorf("load Activity reset barrier: %w", resetErr)
+	}
+	suppressed := false
+	if resetErr == nil {
+		if factAt, ok := activityFactAt(fact.Canonical); ok && factAt <= resetAt {
+			suppressed = true
+		}
+		if !suppressed && compareServerHLC(parsed.HLCPhysicalMS, parsed.HLCCounter,
+			parsed.DeviceID, resetPhysical, uint64(resetCounter), resetDevice) <= 0 {
+			suppressed = true
+		}
+	}
+
 	var serverSeq int64
 	err = tx.QueryRow(ctx, `
         INSERT INTO account_activity_facts(
@@ -468,11 +637,12 @@ func (s *Service) pushOneActivityFact(
             payload_ciphertext,
             hlc_physical_ms,
             hlc_counter,
+            suppressed,
             received_at
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4::uuid,
-            $5, $6, $7, $8, $9, $10
+            $5, $6, $7, $8, $9, $10, $11
         )
         RETURNING server_seq
     `,
@@ -485,6 +655,7 @@ func (s *Service) pushOneActivityFact(
 		ciphertext,
 		parsed.HLCPhysicalMS,
 		int64(parsed.HLCCounter),
+		suppressed,
 		now).Scan(&serverSeq)
 
 	if err != nil {

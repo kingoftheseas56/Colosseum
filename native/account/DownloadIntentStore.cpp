@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
+#include <QDateTime>
 
 namespace {
 const QStringList &portableFields() {
@@ -49,12 +50,27 @@ bool DownloadIntentStore::activate(
     m_path = QDir(profile.profileRoot()).filePath(
         QStringLiteral("download-intents.json"));
     m_records.clear();
+    m_tombstones.clear();
+    m_tombstoneAbsentObserved.clear();
     m_active = true;
     if (!load(error)) {
         m_active = false;
         return false;
     }
     return refreshFromLocal(error);
+}
+
+void DownloadIntentStore::deactivate() {
+    if (!m_active && m_path.isEmpty())
+        return;
+    m_profile = ProfilePaths::sealed();
+    m_path.clear();
+    m_records.clear();
+    m_tombstones.clear();
+    m_tombstoneAbsentObserved.clear();
+    m_active = false;
+    ++m_revision;
+    emit changed();
 }
 
 void DownloadIntentStore::setLocalRecordProvider(
@@ -66,28 +82,139 @@ bool DownloadIntentStore::refreshFromLocal(QString *error) {
     if (!m_active)
         return setError(error, QStringLiteral("Download intents are not active."));
 
-    bool modified = false;
+    const QHash<QString, QVariantMap> previousRecords = m_records;
+    const QHash<QString, qint64> previousTombstones = m_tombstones;
+    const QSet<QString> previousAbsent = m_tombstoneAbsentObserved;
+    bool durableModified = false;
     if (m_localRecordProvider) {
         const QVariantList local = m_localRecordProvider();
+        QSet<QString> localKeys;
         for (const QVariant &value : local) {
             const QVariantMap record = portableRecord(value.toMap());
             if (!validPortableRecord(record, error)) {
                 if (record.isEmpty())
                     continue;
+                m_records = previousRecords;
+                m_tombstones = previousTombstones;
+                m_tombstoneAbsentObserved = previousAbsent;
                 return false;
             }
             const QString key = recordKey(record);
+            localKeys.insert(key);
+            if (m_tombstones.contains(key)
+                && !m_tombstoneAbsentObserved.contains(key))
+                continue;
+            if (m_tombstones.remove(key)) {
+                m_tombstoneAbsentObserved.remove(key);
+                durableModified = true;
+            }
             if (m_records.value(key) == record)
                 continue;
             m_records.insert(key, record);
-            modified = true;
+            durableModified = true;
+        }
+
+        const QStringList tombstoneKeys = m_tombstones.keys();
+        for (const QString &key : tombstoneKeys) {
+            if (localKeys.contains(key))
+                continue;
+            if (!m_tombstoneAbsentObserved.contains(key)) {
+                m_tombstoneAbsentObserved.insert(key);
+            }
         }
     }
 
+    if (!durableModified)
+        return true;
+    if (!save(error)) {
+        m_records = previousRecords;
+        m_tombstones = previousTombstones;
+        m_tombstoneAbsentObserved = previousAbsent;
+        return false;
+    }
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
+bool DownloadIntentStore::remember(
+    const QVariantMap &input,
+    QString *error) {
+    if (!m_active)
+        return setError(error, QStringLiteral("Download intents are not active."));
+    const QVariantMap record = portableRecord(input);
+    if (!validPortableRecord(record, error))
+        return false;
+    const QString key = recordKey(record);
+    const auto old = m_records.constFind(key);
+    const QVariantMap previous = old == m_records.constEnd() ? QVariantMap() : old.value();
+    const auto oldTombstone = m_tombstones.constFind(key);
+    const bool hadTombstone = oldTombstone != m_tombstones.constEnd();
+    const qint64 previousTombstone = hadTombstone ? oldTombstone.value() : 0;
+    const bool hadAbsentObservation = m_tombstoneAbsentObserved.contains(key);
+    const bool modified = old == m_records.constEnd() || previous != record || hadTombstone;
     if (!modified)
         return true;
-    if (!save(error))
+    m_records.insert(key, record);
+    m_tombstones.remove(key);
+    m_tombstoneAbsentObserved.remove(key);
+    if (!save(error)) {
+        if (previous.isEmpty())
+            m_records.remove(key);
+        else
+            m_records.insert(key, previous);
+        if (!hadTombstone)
+            m_tombstones.remove(key);
+        else
+            m_tombstones.insert(key, previousTombstone);
+        if (hadAbsentObservation)
+            m_tombstoneAbsentObserved.insert(key);
+        else
+            m_tombstoneAbsentObserved.remove(key);
         return false;
+    }
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
+bool DownloadIntentStore::cancel(
+    const QString &inputKey,
+    QString *error) {
+    if (!m_active)
+        return setError(error, QStringLiteral("Download intents are not active."));
+    const QString key = inputKey.trimmed();
+    if (!validRecordKey(key, error))
+        return false;
+    const auto oldRecord = m_records.constFind(key);
+    const QVariantMap previous = oldRecord == m_records.constEnd() ? QVariantMap() : oldRecord.value();
+    const auto oldTombstone = m_tombstones.constFind(key);
+    const bool hadRecord = oldRecord != m_records.constEnd();
+    const bool hadTombstone = oldTombstone != m_tombstones.constEnd();
+    const qint64 previousTombstone = hadTombstone ? oldTombstone.value() : 0;
+    const bool hadAbsentObservation = m_tombstoneAbsentObserved.contains(key);
+    // A repeated cancellation after the provider was observed absent is a
+    // newer durable delete. Disarm that observation so a stale provider row
+    // cannot rearm the intent after this cancellation.
+    if (!hadRecord && hadTombstone && !hadAbsentObservation)
+        return true;
+    const qint64 cancelledAt = QDateTime::currentMSecsSinceEpoch();
+    m_records.remove(key);
+    m_tombstones.insert(key, qMax(cancelledAt, previousTombstone));
+    m_tombstoneAbsentObserved.remove(key);
+    if (!save(error)) {
+        if (!previous.isEmpty())
+            m_records.insert(key, previous);
+        if (!hadTombstone)
+            m_tombstones.remove(key);
+        else
+            m_tombstones.insert(key, previousTombstone);
+        if (hadAbsentObservation)
+            m_tombstoneAbsentObserved.insert(key);
+        else
+            m_tombstoneAbsentObserved.remove(key);
+        return false;
+    }
     ++m_revision;
     emit changed();
     return true;
@@ -112,6 +239,8 @@ bool DownloadIntentStore::exportSnapshot(
 
     snapshot->revision = m_revision;
     snapshot->records.clear();
+    snapshot->tombstones = m_tombstones.keys();
+    snapshot->tombstones.sort();
     const QVariantList current = records();
     for (const QVariant &value : current) {
         const QVariantMap record = value.toMap();
@@ -137,12 +266,34 @@ bool DownloadIntentStore::applyRemote(
         return setError(error, QStringLiteral("The download intent sync schema is unsupported."));
 
     if (operation == SyncWireOperation::Delete) {
-        if (!m_records.contains(key))
-            return true;
-        const QVariantMap previous = m_records.take(key);
-        if (!save(error)) {
-            m_records.insert(key, previous);
+        if (!validRecordKey(key, error))
             return false;
+        const bool hadTombstone = m_tombstones.contains(key);
+        const bool hadRecord = m_records.contains(key);
+        const bool hadAbsentObservation = m_tombstoneAbsentObserved.contains(key);
+        // A repeated remote DELETE supersedes a prior absence observation.
+        // Keep the durable tombstone and disarm the local reappearance gate.
+        if (!hadRecord && hadTombstone && !hadAbsentObservation)
+            return true;
+        const QVariantMap previous = m_records.value(key);
+        const qint64 cancelledAt = QDateTime::currentMSecsSinceEpoch();
+        const qint64 oldTombstone = m_tombstones.value(key, 0);
+        m_tombstones.insert(key, qMax(cancelledAt, oldTombstone));
+        m_records.remove(key);
+        m_tombstoneAbsentObserved.remove(key);
+        if (!save(error)) {
+            if (hadRecord) {
+                m_records.insert(key, previous);
+            }
+            if (hadTombstone)
+                m_tombstones.insert(key, oldTombstone);
+            else
+                m_tombstones.remove(key);
+            if (hadAbsentObservation)
+                m_tombstoneAbsentObserved.insert(key);
+            else
+                m_tombstoneAbsentObserved.remove(key);
+            return setError(error, QStringLiteral("The download intent cancellation could not be committed."));
         }
         ++m_revision;
         emit changed();
@@ -165,18 +316,30 @@ bool DownloadIntentStore::applyRemote(
         return false;
     if (recordKey(record) != key)
         return setError(error, QStringLiteral("The download intent identity does not match its record key."));
-    if (m_records.value(key) == record)
+    if (m_records.value(key) == record && !m_tombstones.contains(key))
         return true;
 
     const auto previous = m_records.constFind(key);
     const QVariantMap old = previous == m_records.constEnd()
         ? QVariantMap() : previous.value();
+    const auto oldTombstone = m_tombstones.constFind(key);
+    const bool hadTombstone = oldTombstone != m_tombstones.constEnd();
+    const qint64 previousTombstone = hadTombstone ? oldTombstone.value() : 0;
+    const bool hadAbsentObservation = m_tombstoneAbsentObserved.contains(key);
     m_records.insert(key, record);
+    m_tombstones.remove(key);
+    m_tombstoneAbsentObserved.remove(key);
     if (!save(error)) {
         if (old.isEmpty())
             m_records.remove(key);
         else
             m_records.insert(key, old);
+        if (hadTombstone)
+            m_tombstones.insert(key, previousTombstone);
+        if (hadAbsentObservation)
+            m_tombstoneAbsentObserved.insert(key);
+        else
+            m_tombstoneAbsentObserved.remove(key);
         return false;
     }
     ++m_revision;
@@ -188,6 +351,18 @@ QString DownloadIntentStore::recordKey(const QVariantMap &record) {
     return record.value(QStringLiteral("world")).toString()
         + QLatin1Char('/')
         + record.value(QStringLiteral("id")).toString();
+}
+
+bool DownloadIntentStore::validRecordKey(
+    const QString &inputKey,
+    QString *error) {
+    const QString key = inputKey.trimmed();
+    const QStringList parts = key.split(QLatin1Char('/'));
+    if (parts.size() != 2 || parts.at(0).isEmpty() || parts.at(1).isEmpty()
+        || parts.at(0).contains(QLatin1Char('\\'))
+        || parts.at(1).contains(QLatin1Char('\\')))
+        return setError(error, QStringLiteral("The download intent key is invalid."));
+    return true;
 }
 
 QVariantMap DownloadIntentStore::portableRecord(const QVariantMap &record) {
@@ -236,6 +411,7 @@ QVariantMap DownloadIntentStore::portableRecord(
 }
 
 bool DownloadIntentStore::load(QString *error) {
+    m_tombstoneAbsentObserved.clear();
     if (!QFileInfo::exists(m_path))
         return true;
     QFile file(m_path);
@@ -254,6 +430,23 @@ bool DownloadIntentStore::load(QString *error) {
             return false;
         m_records.insert(recordKey(record), record);
     }
+    const QJsonValue tombstoneValue = document.object().value(QStringLiteral("tombstones"));
+    if (!tombstoneValue.isUndefined()) {
+        if (!tombstoneValue.isArray())
+            return setError(error, QStringLiteral("The download intent tombstones are malformed."));
+        for (const QJsonValue &value : tombstoneValue.toArray()) {
+            if (!value.isObject())
+                return setError(error, QStringLiteral("A download intent tombstone is malformed."));
+            const QJsonObject object = value.toObject();
+            const QString key = object.value(QStringLiteral("record_key")).toString();
+            bool ok = false;
+            const qint64 at = object.value(QStringLiteral("cancelled_at_ms")).toString().toLongLong(&ok);
+            if (!validRecordKey(key, error) || !ok || at <= 0 || m_tombstones.contains(key))
+                return setError(error, QStringLiteral("A download intent tombstone is invalid or duplicated."));
+            m_tombstones.insert(key, at);
+            m_records.remove(key);
+        }
+    }
     return true;
 }
 
@@ -264,12 +457,20 @@ bool DownloadIntentStore::save(QString *error) const {
     const QVariantList current = records();
     for (const QVariant &value : current)
         array.append(QJsonObject::fromVariantMap(value.toMap()));
+    QJsonArray tombstones;
+    QStringList tombstoneKeys = m_tombstones.keys();
+    tombstoneKeys.sort();
+    for (const QString &key : tombstoneKeys)
+        tombstones.append(QJsonObject{
+            {QStringLiteral("record_key"), key},
+            {QStringLiteral("cancelled_at_ms"), QString::number(m_tombstones.value(key))}});
     QSaveFile file(m_path);
     if (!file.open(QIODevice::WriteOnly))
         return setError(error, QStringLiteral("The download intent store could not be written."));
     file.write(QJsonDocument(QJsonObject{
         {QStringLiteral("version"), 1},
-        {QStringLiteral("records"), array}}).toJson(QJsonDocument::Indented));
+        {QStringLiteral("records"), array},
+        {QStringLiteral("tombstones"), tombstones}}).toJson(QJsonDocument::Indented));
     if (!file.commit())
         return setError(error, QStringLiteral("The download intent store could not be committed."));
     return true;

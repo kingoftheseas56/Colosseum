@@ -227,6 +227,14 @@ public:
         return m_loadError.isEmpty() ? m_persistenceError : m_loadError;
     }
 
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+    // Test-only failure injection for the infrequent QSettings-owned
+    // watched/last-season path. Continue writes remain on the normal writer.
+    void forceWatchStatePersistenceFailureForTesting(bool enabled) {
+        m_forceWatchStatePersistenceFailure = enabled;
+    }
+#endif
+
     // Native sync seam: complete raw Continue/progress state. Unlike recent(),
     // this does NOT group/dedupe series episodes, because sync identity is one
     // logical progress record per kind/id.
@@ -377,13 +385,25 @@ public:
         }
         if (doomed.isEmpty())
             return;
+        const QString watchedKey = QStringLiteral("video/watchedMark/")
+            + seriesRootId(id);
+        const bool hadWatchedMark = m_settings->contains(watchedKey);
+        bool watchedMarkRemoved = true;
+        if (hadWatchedMark) {
+            watchedMarkRemoved = syncWatchSetting(
+                watchedKey,
+                QVariant(),
+                true);
+            if (!watchedMarkRemoved)
+                return;
+        }
         for (const QString &key : doomed)
             m_map.remove(key);
-        m_settings->remove(QStringLiteral("video/watchedMark/")
-                          + seriesRootId(id));
         scheduleSave();
         emit syncDirty();
         bump();
+        if (hadWatchedMark && watchedMarkRemoved)
+            emit watchStateChanged();
         emit localMutationChanged();
     }
 
@@ -430,9 +450,10 @@ public:
         const QString key = QStringLiteral("video/lastSeason/") + seriesId;
         if (m_settings->value(key, -1).toInt() == season)
             return;
-        m_settings->setValue(key, season);
-        m_settings->sync();
-        bump();
+        if (syncWatchSetting(key, season, false)) {
+            bump();
+            emit watchStateChanged();
+        }
     }
 
     // ---- manual watched override (Library stage 2, spec §4.3) ----
@@ -446,16 +467,26 @@ public:
     }
     Q_INVOKABLE void setWatchedMark(const QString &id, bool watched) {
         if (id.isEmpty() || !healthy()) return;
-        m_settings->setValue(QStringLiteral("video/watchedMark/") + seriesRootId(id),
-                            watched ? 1 : -1);
-        m_settings->sync();
-        bump();
+        const QString key =
+            QStringLiteral("video/watchedMark/") + seriesRootId(id);
+        const int mark = watched ? 1 : -1;
+        if (m_settings->value(key, 0).toInt() == mark)
+            return;
+        if (syncWatchSetting(key, mark, false)) {
+            bump();
+            emit watchStateChanged();
+        }
     }
     Q_INVOKABLE void clearWatchedMark(const QString &id) {
         if (id.isEmpty() || !healthy()) return;
-        m_settings->remove(QStringLiteral("video/watchedMark/") + seriesRootId(id));
-        m_settings->sync();
-        bump();
+        const QString key =
+            QStringLiteral("video/watchedMark/") + seriesRootId(id);
+        if (!m_settings->contains(key))
+            return;
+        if (syncWatchSetting(key, QVariant(), true)) {
+            bump();
+            emit watchStateChanged();
+        }
     }
 
     bool applySyncedWatchedMark(
@@ -477,8 +508,8 @@ public:
         if (ok && current == mark)
             return true;
 
-        m_settings->setValue(key, mark);
-        m_settings->sync();
+        if (!syncWatchSetting(key, mark, false))
+            return false;
         bump();
         return true;
     }
@@ -497,8 +528,8 @@ public:
         bool ok = false;
         const int current =
             m_settings->value(key).toInt(&ok);
-        m_settings->remove(key);
-        m_settings->sync();
+        if (!syncWatchSetting(key, QVariant(), true))
+            return false;
 
         if (ok && (current == -1 || current == 1))
             bump();
@@ -521,8 +552,8 @@ public:
         if (ok && current == season)
             return true;
 
-        m_settings->setValue(key, season);
-        m_settings->sync();
+        if (!syncWatchSetting(key, season, false))
+            return false;
         bump();
         return true;
     }
@@ -541,8 +572,8 @@ public:
         bool ok = false;
         const int current =
             m_settings->value(key).toInt(&ok);
-        m_settings->remove(key);
-        m_settings->sync();
+        if (!syncWatchSetting(key, QVariant(), true))
+            return false;
 
         if (ok && current > 0)
             bump();
@@ -692,6 +723,10 @@ signals:
     // Fires for local mutations that refresh the visible Continue row. Remote
     // owner imports intentionally emit no local signal.
     void localMutationChanged();
+    // Narrow local signal for the portable watched/last-season owner. The
+    // generic changed() signal also covers Continue progress and would make a
+    // watch-state adapter export on every playback tick.
+    void watchStateChanged();
 
 private:
     struct PendingRemote {
@@ -709,6 +744,41 @@ private:
 
     static QString mapKey(const QString &kind, const QString &id) {
         return kind + QStringLiteral("\x1f") + id;   // unit-separator: safe joiner
+    }
+
+    bool syncWatchSetting(const QString &key, const QVariant &value,
+                          bool remove) {
+        if (!m_settings)
+            return false;
+
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+        if (m_forceWatchStatePersistenceFailure) {
+            handleWriterFailure(
+                QStringLiteral("The watched/last-season owner could not be committed."));
+            return false;
+        }
+#endif
+
+        const bool hadPrevious = m_settings->contains(key);
+        const QVariant previous = m_settings->value(key);
+        if (remove)
+            m_settings->remove(key);
+        else
+            m_settings->setValue(key, value);
+        m_settings->sync();
+        if (m_settings->status() == QSettings::NoError)
+            return true;
+
+        // A remote owner apply must never publish an in-memory value when
+        // the backing QSettings write failed. Restore the pre-apply value so
+        // a retry or a reopened store sees the same owner state.
+        if (hadPrevious)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
+        handleWriterFailure(
+            QStringLiteral("The watched/last-season owner could not be committed."));
+        return false;
     }
     static QString seriesRootId(const QString &id) {
         if (id.count(QLatin1Char(':')) < 2)
@@ -983,4 +1053,7 @@ private:
     QHash<quint64, PendingRemote> m_pendingRemote;
     ProgressDiskWriter *m_writer = nullptr;
     QThread m_writerThread;
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+    bool m_forceWatchStatePersistenceFailure = false;
+#endif
 };

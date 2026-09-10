@@ -2,11 +2,64 @@ package database
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/testsupport/testdb"
 )
+
+func TestDomainSyncMigrationPreservesResetDeviceIdentity(t *testing.T) {
+	migrations, err := embeddedMigrations()
+	if err != nil {
+		t.Fatalf("embeddedMigrations() error = %v", err)
+	}
+
+	var resetMigration migration
+	found := false
+	for _, current := range migrations {
+		if current.name == "0008_domain_sync_semantics.sql" {
+			resetMigration = current
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("domain sync migration is not embedded")
+	}
+	if count := strings.Count(resetMigration.sql, "device_id uuid NOT NULL"); count != 2 {
+		t.Fatalf("reset-state device_id NOT NULL declarations = %d, want 2", count)
+	}
+	if strings.Contains(resetMigration.sql, "REFERENCES devices") {
+		t.Fatal("reset-state migration ties the historical barrier to the devices table")
+	}
+
+	contracts := schemaContract()
+	for _, tableName := range []string{
+		"account_activity_reset_state",
+		"account_history_reset_state",
+	} {
+		var contract *schemaTableContract
+		for index := range contracts {
+			if contracts[index].name == tableName {
+				contract = &contracts[index]
+				break
+			}
+		}
+		if contract == nil {
+			t.Fatalf("schema contract is missing %s", tableName)
+		}
+		device, ok := contract.columns["device_id"]
+		if !ok || !device.notNull {
+			t.Fatalf("%s device_id contract is not NOT NULL", tableName)
+		}
+		for _, foreignKey := range contract.foreignKeys {
+			if len(foreignKey.columns) == 1 && foreignKey.columns[0] == "device_id" {
+				t.Fatalf("%s device_id unexpectedly has a foreign key", tableName)
+			}
+		}
+	}
+}
 
 func TestRunMigrationsFromEmptyDatabase(t *testing.T) {
 	pool := testdb.Open(t)

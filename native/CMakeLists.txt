@@ -196,6 +196,7 @@ add_executable(colosseum
     account/ProfileStoreRuntime.cpp
     account/ConsumptionHistoryBridge.cpp
     account/ProgressSyncAdapter.cpp
+    account/WatchStateSyncAdapter.cpp
     account/SharedPcProfileCoordinator.cpp
     account/SyncAdapterRegistry.cpp
     account/SyncEngine.cpp
@@ -242,6 +243,7 @@ add_executable(colosseum
     account/ProfileStoreRuntime.h
     account/ConsumptionHistoryBridge.h
     account/ProgressSyncAdapter.h
+    account/WatchStateSyncAdapter.h
     account/SharedPcProfileCoordinator.h
     account/SyncAdapter.h
     account/SyncAdapterRegistry.h

@@ -113,11 +113,15 @@ func TestSyncFullHistoryCategoryRoundTrips(t *testing.T) {
 	if pull.Entries[0].Mutation.Category != "full_history" {
 		t.Fatalf("history pull category = %q", pull.Entries[0].Mutation.Category)
 	}
-	if string(pull.Entries[0].Mutation.Payload) != string(mutation.Payload) {
+	wantPayload, err := canonicalSyncJSON(mutation.Payload)
+	if err != nil {
+		t.Fatalf("canonicalize expected History payload: %v", err)
+	}
+	if string(pull.Entries[0].Mutation.Payload) != string(wantPayload) {
 		t.Fatalf(
 			"history pull payload = %s, want %s",
 			pull.Entries[0].Mutation.Payload,
-			mutation.Payload)
+			wantPayload)
 	}
 }
 

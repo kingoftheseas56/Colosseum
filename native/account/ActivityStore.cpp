@@ -3,6 +3,7 @@
 #include "ActivityProjector.h"
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -270,6 +271,32 @@ bool ActivityStore::ensureSchema() {
         index.finish();
     }
 
+    QSqlQuery metadata(m_db);
+    if (!metadata.exec(QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS activity_sync_state ("
+            " state_id INTEGER PRIMARY KEY CHECK(state_id = 1),"
+            " reset_generation INTEGER NOT NULL DEFAULT 0,"
+            " reset_at_ms INTEGER NOT NULL DEFAULT 0,"
+            " CONSTRAINT activity_sync_state_reset_generation_nonnegative "
+            "CHECK(reset_generation >= 0),"
+            " CONSTRAINT activity_sync_state_reset_at_nonnegative "
+            "CHECK(reset_at_ms >= 0),"
+            " CONSTRAINT activity_sync_state_reset_barrier_pair "
+            "CHECK((reset_generation = 0 AND reset_at_ms = 0) "
+            "OR (reset_generation > 0 AND reset_at_ms > 0)))"))) {
+        m_openError = metadata.lastError().text();
+        m_db.rollback();
+        return false;
+    }
+    metadata.finish();
+    if (!metadata.exec(QStringLiteral(
+            "INSERT OR IGNORE INTO activity_sync_state(state_id) VALUES(1)"))) {
+        m_openError = metadata.lastError().text();
+        m_db.rollback();
+        return false;
+    }
+    metadata.finish();
+
     if (!m_db.commit()) {
         m_openError = m_db.lastError().text();
         return false;
@@ -280,6 +307,44 @@ bool ActivityStore::ensureSchema() {
         m_openError = stamp.lastError().text();
         return false;
     }
+    if (!loadSyncMetadata())
+        return false;
+    return true;
+}
+
+bool ActivityStore::loadSyncMetadata() {
+    QSqlQuery query(m_db);
+    if (!query.exec(QStringLiteral(
+            "SELECT reset_generation, reset_at_ms FROM activity_sync_state WHERE state_id = 1"))) {
+        m_openError = query.lastError().text();
+        return false;
+    }
+    if (!query.next()) {
+        query.finish();
+        m_openError = QStringLiteral("activity sync metadata row is missing");
+        return false;
+    }
+
+    bool generationOk = false;
+    bool resetAtOk = false;
+    const qint64 generation = query.value(0).toLongLong(&generationOk);
+    const qint64 resetAtMs = query.value(1).toLongLong(&resetAtOk);
+    const bool coherent = (generation == 0 && resetAtMs == 0)
+        || (generation > 0 && resetAtMs > 0);
+    if (!generationOk || !resetAtOk
+        || generation < 0 || resetAtMs < 0 || !coherent) {
+        query.finish();
+        m_openError = QStringLiteral("activity sync metadata is malformed");
+        return false;
+    }
+    if (query.next()) {
+        query.finish();
+        m_openError = QStringLiteral("activity sync metadata is duplicated");
+        return false;
+    }
+    query.finish();
+    m_resetGeneration = static_cast<quint64>(generation);
+    m_resetAtMs = resetAtMs;
     return true;
 }
 
@@ -409,6 +474,8 @@ QList<QVariantMap> ActivityStore::portableSyncFacts(QString *error) const {
             *error = QStringLiteral("db_unhealthy");
         return facts;
     }
+    if (!m_retentionEnabled)
+        return facts;
 
     QSqlQuery query(m_db);
     if (!query.exec(QStringLiteral(
@@ -463,6 +530,8 @@ bool ActivityStore::applySyncedPortableFact(const QVariantMap &fact, QString *er
     clearStaticError(error);
     if (!healthy())
         return setStaticError(error, QStringLiteral("db_unhealthy"));
+    if (!m_retentionEnabled)
+        return setStaticError(error, QStringLiteral("retention_disabled"));
 
     const QJsonObject incoming = QJsonObject::fromVariantMap(fact);
     QJsonObject portable;
@@ -474,6 +543,16 @@ bool ActivityStore::applySyncedPortableFact(const QVariantMap &fact, QString *er
     } catch (const ActivityProjector::ValidationError &) {
         return setStaticError(error, QStringLiteral("invalid_event"));
     }
+
+    // A reset barrier is a durable privacy decision. A stale offline device
+    // may still upload a valid fact after it learns about the clear; accept
+    // the request idempotently while keeping the erased ledger empty.
+    const QString type = portable.value(QStringLiteral("type")).toString();
+    const qint64 factAt = type == QLatin1String("playback_delta")
+        ? portable.value(QStringLiteral("startAtMs")).toInteger()
+        : portable.value(QStringLiteral("atMs")).toInteger();
+    if (m_resetAtMs > 0 && factAt <= m_resetAtMs)
+        return true;
 
     const QString eventId = portable.value(QStringLiteral("eventId")).toString();
     const QString incomingCanonical = ActivityProjector::canonicalEventJson(portable);
@@ -506,7 +585,6 @@ bool ActivityStore::applySyncedPortableFact(const QVariantMap &fact, QString *er
     }
     existing.finish();
 
-    const QString type = portable.value(QStringLiteral("type")).toString();
     if (!insertFact(type, portable.toVariantMap()))
         return setStaticError(error, QStringLiteral("activity_event_import_failed"));
     return true;
@@ -585,6 +663,57 @@ bool ActivityStore::insertEventRow(const QJsonObject &event, const QString &cano
     query.bindValue(QStringLiteral(":canonical_hash"), canonicalHash);
 
     return query.exec();
+}
+
+QVariantMap ActivityStore::portableSyncReset() const {
+    QVariantMap reset;
+    if (m_resetGeneration == 0)
+        return reset;
+    reset.insert(QStringLiteral("resetGeneration"),
+                 static_cast<qulonglong>(m_resetGeneration));
+    reset.insert(QStringLiteral("resetAtMs"), m_resetAtMs);
+    return reset;
+}
+
+bool ActivityStore::applySyncedReset(quint64 generation, qint64 resetAtMs,
+                                     QString *error) {
+    clearStaticError(error);
+    if (!healthy())
+        return setStaticError(error, QStringLiteral("db_unhealthy"));
+    if (generation == 0 || resetAtMs <= 0)
+        return setStaticError(error, QStringLiteral("invalid_reset"));
+    if (generation < m_resetGeneration
+        || (generation == m_resetGeneration && resetAtMs <= m_resetAtMs))
+        return true;
+    const qint64 effectiveResetAt = qMax(m_resetAtMs, resetAtMs);
+    if (!m_db.transaction())
+        return setStaticError(error, QStringLiteral("db_error"));
+    QSqlQuery clear(m_db);
+    if (!clear.exec(QStringLiteral("DELETE FROM events"))) {
+        const QString detail = clear.lastError().text();
+        m_db.rollback();
+        return setStaticError(error, detail);
+    }
+    clear.finish();
+    QSqlQuery update(m_db);
+    update.prepare(QStringLiteral(
+        "UPDATE activity_sync_state SET reset_generation = ?, reset_at_ms = ? WHERE state_id = 1"));
+    update.addBindValue(static_cast<qulonglong>(generation));
+    update.addBindValue(effectiveResetAt);
+    if (!update.exec()) {
+        const QString detail = update.lastError().text();
+        m_db.rollback();
+        return setStaticError(error, detail);
+    }
+    update.finish();
+    if (!m_db.commit())
+        return setStaticError(error, m_db.lastError().text());
+    m_resetGeneration = generation;
+    m_resetAtMs = effectiveResetAt;
+    ++m_revision;
+    emit changed();
+    emit resetApplied(generation, effectiveResetAt);
+    return true;
 }
 
 bool ActivityStore::recordPlaybackDelta(const QVariantMap &fact) {
@@ -736,6 +865,23 @@ bool ActivityStore::clearAll() {
     }
     query.finish(); // release the statement before committing (see ensureSchema() note)
 
+    const quint64 nextGeneration = m_resetGeneration + 1;
+    const qint64 resetAtMs = qMax(
+        m_resetAtMs,
+        QDateTime::currentMSecsSinceEpoch());
+    QSqlQuery metadata(m_db);
+    metadata.prepare(QStringLiteral(
+        "UPDATE activity_sync_state SET reset_generation = ?, reset_at_ms = ? WHERE state_id = 1"));
+    metadata.addBindValue(static_cast<qulonglong>(nextGeneration));
+    metadata.addBindValue(resetAtMs);
+    if (!metadata.exec()) {
+        const QString error = metadata.lastError().text();
+        m_db.rollback();
+        emit integrityError(QStringLiteral("db_error"), error);
+        return false;
+    }
+    metadata.finish();
+
     if (!m_db.commit()) {
         const QString error = m_db.lastError().text();
         m_db.rollback();
@@ -744,6 +890,9 @@ bool ActivityStore::clearAll() {
     }
 
     ++m_revision;
+    m_resetGeneration = nextGeneration;
+    m_resetAtMs = resetAtMs;
     emit changed();
+    emit resetCommitted(m_resetGeneration, m_resetAtMs);
     return true;
 }

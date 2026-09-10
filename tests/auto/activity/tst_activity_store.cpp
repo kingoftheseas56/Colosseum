@@ -29,6 +29,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QSignalSpy>
 #include <QStringList>
 #include <QTemporaryDir>
@@ -229,6 +231,7 @@ private slots:
     void applySyncedPortableFactIdempotentAgainstRicherLocalPresentation();
     void applySyncedPortableFactConflictDoesNotMutate();
     void applySyncedPortableFactRejectsMalformedBeforeMutation();
+    void syncMetadataSchemaAndCorruptionFailClosed();
     void unhealthyDatabasePath_data();
     void unhealthyDatabasePath();
 };
@@ -681,6 +684,74 @@ void tst_activity_store::applySyncedPortableFactRejectsMalformedBeforeMutation()
     QVERIFY2(exportError.isEmpty(), qPrintable(exportError));
     const QVariantMap projection = store.projectMonth(QStringLiteral("2026-08"));
     QCOMPARE(projection.value(QStringLiteral("watchSeconds")).toInt(), 0);
+}
+
+void tst_activity_store::syncMetadataSchemaAndCorruptionFailClosed() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = temp.filePath(QStringLiteral("activity.sqlite"));
+
+    {
+        ActivityStore store(path);
+        QVERIFY(store.healthy());
+    }
+
+    const QString schemaConnection = QStringLiteral("activity_schema_contract");
+    {
+        QSqlDatabase database = QSqlDatabase::addDatabase(
+            QStringLiteral("QSQLITE"), schemaConnection);
+        database.setDatabaseName(path);
+        QVERIFY(database.open());
+        QSqlQuery query(database);
+        QVERIFY(query.exec(QStringLiteral(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'activity_sync_state'")));
+        QVERIFY(query.next());
+        const QString schema = query.value(0).toString();
+        QVERIFY(schema.contains(
+            QStringLiteral("activity_sync_state_reset_generation_nonnegative")));
+        QVERIFY(schema.contains(
+            QStringLiteral("activity_sync_state_reset_at_nonnegative")));
+        QVERIFY(schema.contains(
+            QStringLiteral("activity_sync_state_reset_barrier_pair")));
+        query.finish();
+        database.close();
+        database = QSqlDatabase();
+    }
+    QSqlDatabase::removeDatabase(schemaConnection);
+
+    // Simulate an older schema without the new CHECK constraints so the
+    // load-time validator is exercised independently of SQLite enforcement.
+    const QString corruptConnection = QStringLiteral("activity_corrupt_metadata");
+    {
+        QSqlDatabase database = QSqlDatabase::addDatabase(
+            QStringLiteral("QSQLITE"), corruptConnection);
+        database.setDatabaseName(path);
+        QVERIFY(database.open());
+        QSqlQuery query(database);
+        QVERIFY(query.exec(QStringLiteral("DROP TABLE activity_sync_state")));
+        QVERIFY(query.exec(QStringLiteral(
+            "CREATE TABLE activity_sync_state ("
+            "state_id INTEGER PRIMARY KEY,"
+            "reset_generation INTEGER,"
+            "reset_at_ms INTEGER)")));
+        QVERIFY(query.exec(QStringLiteral(
+            "INSERT INTO activity_sync_state "
+            "(state_id, reset_generation, reset_at_ms) VALUES (1, -1, 1234)")));
+        query.finish();
+        database.close();
+        database = QSqlDatabase();
+    }
+    QSqlDatabase::removeDatabase(corruptConnection);
+
+    ActivityStore corrupt(path);
+    QString error;
+    QVERIFY(!corrupt.healthy(&error));
+    QVERIFY(!error.isEmpty());
+    QCOMPARE(corrupt.resetGeneration(), quint64(0));
+    QCOMPARE(corrupt.resetAtMs(), qint64(0));
+    QVERIFY(corrupt.portableSyncFacts().isEmpty());
+    QVERIFY(!corrupt.clearAll());
 }
 
 void tst_activity_store::unhealthyDatabasePath_data() {

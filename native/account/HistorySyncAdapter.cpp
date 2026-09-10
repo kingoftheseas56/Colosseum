@@ -6,6 +6,7 @@
 #include "HistoryStore.h"
 #include "SyncAdapterValidation.h"
 
+#include <QJsonObject>
 #include <QtGlobal>
 
 HistorySyncAdapter::HistorySyncAdapter(
@@ -75,6 +76,20 @@ bool HistorySyncAdapter::exportSnapshot(
     snapshot->revision =
         revision();
     snapshot->records.clear();
+
+    const qint64 resetGeneration =
+        m_store->syncResetGeneration();
+    const qint64 resetBarrierAtMs =
+        m_store->syncResetBarrierAtMs();
+    if (resetGeneration > 0 && resetBarrierAtMs > 0) {
+        snapshot->records.append(
+            SyncAdapterRecord{
+                QStringLiteral("history/reset"),
+                QJsonObject{
+                    {QStringLiteral("resetGeneration"), resetGeneration},
+                    {QStringLiteral("resetAtMs"), resetBarrierAtMs}},
+                resetBarrierAtMs});
+    }
 
     const QVariantList entries =
         m_store->syncEntries();
@@ -164,6 +179,42 @@ bool HistorySyncAdapter::applyRemote(
             error,
             QStringLiteral(
                 "The History sync schema is unsupported."));
+    }
+
+    if (recordKey == QLatin1String("history/reset")) {
+        if (operation != SyncWireOperation::Put || !payload.isObject())
+            return fail(
+                error,
+                QStringLiteral(
+                    "A History reset requires a PUT object payload."));
+        const QJsonObject reset = payload.toObject();
+        qint64 generation = 0;
+        qint64 resetAtMs = 0;
+        SyncAdapterValidationError validation;
+        if (!SyncAdapterValidation::integer(
+                reset,
+                QStringLiteral("resetGeneration"),
+                &generation,
+                true,
+                &validation)
+            || !SyncAdapterValidation::integer(
+                   reset,
+                   QStringLiteral("resetAtMs"),
+                   &resetAtMs,
+                   true,
+                   &validation)
+            || reset.size() != 2) {
+            return fail(
+                error,
+                QStringLiteral(
+                    "The History reset payload is invalid."));
+        }
+        return m_store->applySyncedReset(generation, resetAtMs)
+            ? true
+            : fail(
+                  error,
+                  QStringLiteral(
+                      "The History owner rejected the remote reset."));
     }
 
     QString kind;

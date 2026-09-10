@@ -9,6 +9,7 @@
 #include "../account/DownloadIntentStore.h"
 
 #include <QMetaObject>
+#include <QDebug>
 #include <QRegularExpression>
 #include <QSet>
 #include <QTimer>
@@ -250,7 +251,25 @@ QVariantMap LocalDownloads::redownload(const QVariantMap &item) {
         return {{QStringLiteral("success"), false},
                 {QStringLiteral("message"), QStringLiteral("This download has no usable identity.")}};
 
+    const auto rememberIntent = [this, &item]() -> QVariantMap {
+        if (!m_downloadIntents || !m_downloadIntents->active())
+            return {};
+        QString error;
+        if (m_downloadIntents->remember(item, &error))
+            return {};
+        return {
+            {QStringLiteral("success"), false},
+            {QStringLiteral("message"),
+             error.isEmpty()
+                 ? QStringLiteral("The download intent could not be saved.")
+                 : error}
+        };
+    };
+
     if (world == QStringLiteral("theatre") && m_videos) {
+        const QVariantMap intentError = rememberIntent();
+        if (!intentError.isEmpty())
+            return intentError;
         for (const QVariant &value : m_videos->downloadedVideos()) {
             const QVariantMap row = value.toMap();
             if (row.value(QStringLiteral("id")).toString() == id
@@ -271,6 +290,9 @@ QVariantMap LocalDownloads::redownload(const QVariantMap &item) {
     }
 
     if (world == QStringLiteral("biblio") && m_books) {
+        const QVariantMap intentError = rememberIntent();
+        if (!intentError.isEmpty())
+            return intentError;
         m_books->downloadBook(
             id,
             QString(),
@@ -284,6 +306,9 @@ QVariantMap LocalDownloads::redownload(const QVariantMap &item) {
     if (world == QStringLiteral("tankoban")
         && LocalDownloadsProjection::itemKind(item) == QStringLiteral("chapter")
         && m_manga) {
+        const QVariantMap intentError = rememberIntent();
+        if (!intentError.isEmpty())
+            return intentError;
         m_manga->downloadChapter(
             id,
             item.value(QStringLiteral("seriesId")).toString(),
@@ -726,6 +751,21 @@ QVariantMap LocalDownloads::totals() const {
 }
 
 void LocalDownloads::cancel(const QString &world, const QString &id) {
+    const bool portableWorld = world == QStringLiteral("tankoban")
+        || world == QStringLiteral("biblio")
+        || world == QStringLiteral("theatre");
+    if (portableWorld && !id.trimmed().isEmpty()
+        && m_downloadIntents && m_downloadIntents->active()) {
+        QString error;
+        if (!m_downloadIntents->cancel(
+                world.trimmed() + QLatin1Char('/') + id.trimmed(),
+                &error)) {
+            qWarning() << "Download cancellation intent was not persisted"
+                       << world << id << error;
+            return;
+        }
+    }
+
     if (world == QStringLiteral("tankoban")) {
         // Volume-mode ids own the "tankoban:" namespace (VolumeRecord.id).
         if (m_volumes && id.startsWith(QStringLiteral("tankoban:"))) {

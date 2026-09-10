@@ -6,6 +6,7 @@
 #include "ProgressSyncAdapter.h"
 #include "ActivitySyncAdapter.h"
 #include "HistorySyncAdapter.h"
+#include "WatchStateSyncAdapter.h"
 #include "ProfilePreferencesSyncAdapter.h"
 #include "CollectionSyncAdapter.h"
 #include "DownloadIntentStore.h"
@@ -71,6 +72,8 @@ private:
         m_collectionSyncAdapter;
     std::unique_ptr<ProgressSyncAdapter>
         m_progressSyncAdapter;
+    std::unique_ptr<WatchStateSyncAdapter>
+        m_watchStateSyncAdapter;
     std::unique_ptr<HistorySyncAdapter>
         m_historySyncAdapter;
     std::unique_ptr<ActivitySyncAdapter>

@@ -22,6 +22,10 @@ struct SyncWinner {
     int schemaVersion = 0;
     SyncWireOperation operation =
         SyncWireOperation::Put;
+    // Zero denotes a local winner or legacy state. Remote winners retain the
+    // journal sequence so a later canonical payload at the same HLC can be
+    // applied without changing the original request identity.
+    quint64 serverSeq = 0;
 };
 
 struct SyncPausedOverlayRecord {
@@ -34,6 +38,9 @@ struct SyncPausedOverlayRecord {
 struct SyncPausedCategoryState {
     QHash<QString, SyncMirrorRecord> localBaseline;
     QHash<QString, SyncPausedOverlayRecord> localOverlay;
+    // Mutations already authored before the category was paused. They remain
+    // durable while paused and are restored after the replay barrier.
+    QList<SyncWireMutation> pendingMutations;
     bool replaying = false;
 };
 

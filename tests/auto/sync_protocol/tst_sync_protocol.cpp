@@ -33,6 +33,8 @@ class tst_sync_protocol : public QObject {
 private slots:
     void hlcOrdersPhysicalCounterThenDevice();
     void putMutationRoundTrips();
+    void materializedHlcRoundTripsAndMustNotRegressRequest();
+    void materializedHlcRequiresAllFields();
     void deleteMutationRoundTripsWithoutPayload();
     void deleteMutationRejectsOrdinaryPayload();
     void invalidRecordKeysAreRejected();
@@ -121,6 +123,68 @@ putMutationRoundTrips() {
         decoded->operation,
         SyncWireOperation::Put);
     QCOMPARE(decoded->payload, source.payload);
+}
+
+void tst_sync_protocol::
+materializedHlcRoundTripsAndMustNotRegressRequest() {
+    SyncWireMutation source;
+    source.mutationId =
+        QStringLiteral(
+            "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    source.deviceId =
+        QStringLiteral(
+            "11111111-1111-4111-8111-111111111111");
+    source.category = QStringLiteral("full_history");
+    source.recordKey = QStringLiteral("history/episode/item-1");
+    source.schemaVersion = 1;
+    source.hlc = SyncWireHlc{2000, 3, source.deviceId};
+    source.materializedHlc = SyncWireHlc{
+        2000,
+        4,
+        QStringLiteral(
+            "22222222-2222-4222-8222-222222222222")};
+    source.operation = SyncWireOperation::Put;
+    source.payload = QJsonObject{
+        {QStringLiteral("kind"), QStringLiteral("episode")},
+        {QStringLiteral("id"), QStringLiteral("item-1")},
+        {QStringLiteral("firstActivityAt"), 1000},
+        {QStringLiteral("lastActivityAt"), 2000}};
+
+    const auto decoded = syncWireMutationFromJson(
+        syncWireMutationToJson(source));
+    QVERIFY(decoded.has_value());
+    QVERIFY(decoded->materializedHlc.has_value());
+    QCOMPARE(decoded->materializedHlc->physicalMs, qint64(2000));
+    QCOMPARE(decoded->materializedHlc->counter, quint64(4));
+    QCOMPARE(decoded->materializedHlc->deviceId,
+             QStringLiteral(
+                 "22222222-2222-4222-8222-222222222222"));
+
+    QJsonObject regressed = syncWireMutationToJson(source);
+    regressed.insert(QStringLiteral("materialized_hlc_physical_ms"),
+                     QStringLiteral("1999"));
+    QVERIFY(!syncWireMutationFromJson(regressed).has_value());
+}
+
+void tst_sync_protocol::
+materializedHlcRequiresAllFields() {
+    SyncWireMutation source;
+    source.mutationId =
+        QStringLiteral(
+            "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    source.deviceId =
+        QStringLiteral(
+            "11111111-1111-4111-8111-111111111111");
+    source.category = QStringLiteral("full_history");
+    source.recordKey = QStringLiteral("history/episode/item-2");
+    source.schemaVersion = 1;
+    source.hlc = SyncWireHlc{3000, 0, source.deviceId};
+    source.operation = SyncWireOperation::Delete;
+
+    QJsonObject partial = syncWireMutationToJson(source);
+    partial.insert(QStringLiteral("materialized_hlc_physical_ms"),
+                   QStringLiteral("3000"));
+    QVERIFY(!syncWireMutationFromJson(partial).has_value());
 }
 
 void tst_sync_protocol::

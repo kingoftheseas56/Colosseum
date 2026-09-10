@@ -72,6 +72,31 @@ signedJsonInteger(
     return std::nullopt;
 }
 
+const SyncWireHlc &syncMutationOrderingHlc(
+    const SyncWireMutation &mutation) {
+    return mutation.materializedHlc.has_value()
+        ? *mutation.materializedHlc
+        : mutation.hlc;
+}
+
+bool syncEntryIsCoveredByWinner(
+    const SyncWinner &winner,
+    const SyncWirePullEntry &entry) {
+    const int ordering =
+        compareSyncWireHlc(
+            winner.hlc,
+            syncMutationOrderingHlc(entry.mutation));
+    if (ordering > 0)
+        return true;
+    if (ordering < 0)
+        return false;
+
+    // A semantic merge can append a later journal row while retaining the
+    // existing winner HLC. The server sequence makes that canonical payload
+    // advancement observable without changing the original request identity.
+    return entry.serverSeq <= winner.serverSeq;
+}
+
 QString syncMutationFingerprint(
     const SyncWireMutation &mutation) {
     const QByteArray bytes =
@@ -294,12 +319,20 @@ bool SyncEngine::start(
 
     m_disabledCategories = m_requestedDisabledCategories;
     m_categoryReplayInProgress.clear();
-    for (auto it = m_persistent.pausedCategories.constBegin();
-         it != m_persistent.pausedCategories.constEnd(); ++it) {
-        if (it->replaying && !m_disabledCategories.contains(it.key())) {
-            m_disabledCategories.insert(it.key());
-            m_categoryReplayInProgress = it.key();
-        }
+    m_categoryReplayQueue.clear();
+    QStringList replayCategories = m_persistent.pausedCategories.keys();
+    replayCategories.sort();
+    for (const QString &category : replayCategories) {
+        const auto pausedIt = m_persistent.pausedCategories.constFind(category);
+        if (pausedIt == m_persistent.pausedCategories.constEnd()
+            || !pausedIt->replaying
+            || m_disabledCategories.contains(category))
+            continue;
+        m_disabledCategories.insert(category);
+        if (m_categoryReplayInProgress.isEmpty())
+            m_categoryReplayInProgress = category;
+        else
+            m_categoryReplayQueue.append(category);
     }
 
     if (!validateLoadedState(
@@ -332,7 +365,12 @@ bool SyncEngine::start(
         }
 
         SyncPausedCategoryState paused;
+        QSet<QString> tombstones;
+        for (const QString &recordKey : snapshot.tombstones)
+            tombstones.insert(recordKey);
         for (const SyncAdapterRecord &record : snapshot.records) {
+            if (tombstones.contains(record.recordKey))
+                continue;
             paused.localBaseline.insert(
                 record.recordKey,
                 SyncMirrorRecord{snapshot.schemaVersion, record.payload});
@@ -686,14 +724,24 @@ void SyncEngine::setCategoryNetworkEnabled(
             return;
         }
         SyncPausedCategoryState paused;
-        for (const SyncAdapterRecord &record : snapshot.records)
+        QSet<QString> tombstones;
+        for (const QString &recordKey : snapshot.tombstones)
+            tombstones.insert(recordKey);
+        for (const SyncAdapterRecord &record : snapshot.records) {
+            if (tombstones.contains(record.recordKey))
+                continue;
             paused.localBaseline.insert(record.recordKey,
                 SyncMirrorRecord{snapshot.schemaVersion, record.payload});
-        m_persistent.pausedCategories.insert(category, paused);
+        }
         m_disabledCategories.insert(category);
-        for (int index = m_persistent.outbox.size() - 1; index >= 0; --index)
-            if (m_persistent.outbox.at(index).category == category)
+        for (int index = m_persistent.outbox.size() - 1; index >= 0; --index) {
+            if (m_persistent.outbox.at(index).category == category) {
+                paused.pendingMutations.append(m_persistent.outbox.at(index));
                 m_persistent.outbox.removeAt(index);
+            }
+        }
+        std::reverse(paused.pendingMutations.begin(), paused.pendingMutations.end());
+        m_persistent.pausedCategories.insert(category, paused);
         emit observationChanged(m_state, pendingOutboxCount());
         persistState();
         return;
@@ -713,9 +761,15 @@ void SyncEngine::setCategoryNetworkEnabled(
     }
     SyncPausedCategoryState replay = pausedIt.value();
     replay.localOverlay.clear();
+    QSet<QString> tombstones;
+    for (const QString &recordKey : snapshot.tombstones)
+        tombstones.insert(recordKey);
     QHash<QString, SyncAdapterRecord> current;
-    for (const SyncAdapterRecord &record : snapshot.records)
+    for (const SyncAdapterRecord &record : snapshot.records) {
+        if (tombstones.contains(record.recordKey))
+            continue;
         current.insert(record.recordKey, record);
+    }
     for (auto it = current.constBegin(); it != current.constEnd(); ++it) {
         const auto old = replay.localBaseline.constFind(it.key());
         if (old == replay.localBaseline.constEnd()
@@ -734,17 +788,27 @@ void SyncEngine::setCategoryNetworkEnabled(
             }
         }
     }
+    for (const QString &recordKey : tombstones) {
+        replay.localOverlay.insert(recordKey, SyncPausedOverlayRecord{
+            SyncWireOperation::Delete, snapshot.schemaVersion, QJsonValue(), -1});
+    }
     replay.replaying = true;
     m_persistent.pausedCategories.insert(category, replay);
     m_disabledCategories.insert(category);
-    m_categoryReplayInProgress = category;
-    m_persistent.winners.remove(category);
-    m_persistent.mirrors.remove(category);
-    m_persistent.cursor = 0;
-    m_initialPullPending = true;
-    m_pullHasMore = false;
+    const bool startReplay = m_categoryReplayInProgress.isEmpty();
+    if (startReplay) {
+        m_categoryReplayInProgress = category;
+        m_persistent.winners.remove(category);
+        m_persistent.mirrors.remove(category);
+        m_persistent.cursor = 0;
+        m_initialPullPending = true;
+        m_pullHasMore = false;
+    } else if (!m_categoryReplayQueue.contains(category)) {
+        m_categoryReplayQueue.append(category);
+    }
     persistState();
-    requestImmediateSync();
+    if (startReplay)
+        requestImmediateSync();
 }
 
 bool SyncEngine::categoryNetworkEnabled(const QString &categoryId) const {
@@ -1063,7 +1127,6 @@ bool SyncEngine::validateLoadedState(
             return false;
         }
     }
-
     QSet<quint64> ownerRedoSequences;
     for (const SyncOwnerRedo &redo : m_persistent.ownerRedos) {
         if (redo.serverSeq == 0
@@ -1300,9 +1363,14 @@ bool SyncEngine::reconcileCategory(
         current;
     QHash<QString, qint64>
         localOrderHints;
+    QSet<QString> tombstones;
+    for (const QString &recordKey : snapshot.tombstones)
+        tombstones.insert(recordKey);
 
     for (const SyncAdapterRecord &record :
          snapshot.records) {
+        if (tombstones.contains(record.recordKey))
+            continue;
         current.insert(
             record.recordKey,
             SyncMirrorRecord{
@@ -1389,6 +1457,40 @@ bool SyncEngine::reconcileCategory(
             changed.localOrderMs);
     }
 
+    QStringList tombstoneKeys = tombstones.values();
+    tombstoneKeys.sort();
+    for (const QString &recordKey : tombstoneKeys) {
+        bool pendingDelete = false;
+        for (const SyncWireMutation &pending : std::as_const(m_persistent.outbox)) {
+            if (pending.category != categoryId || pending.recordKey != recordKey)
+                continue;
+            if (pending.operation == SyncWireOperation::Delete)
+                pendingDelete = true;
+        }
+        if (pendingDelete)
+            continue;
+
+        // A durable winner with DELETE already acknowledges this owner
+        // tombstone. Keep the marker for old-device replay, but do not author
+        // a fresh mutation on every reconciliation/restart. Rejected DELETEs
+        // remain eligible for explicit repair, so their marker must not be
+        // mistaken for an acknowledgement.
+        const auto winnerCategory = m_persistent.winners.constFind(categoryId);
+        const auto winnerIt = winnerCategory == m_persistent.winners.constEnd()
+            ? QHash<QString, SyncWinner>::const_iterator()
+            : winnerCategory->constFind(recordKey);
+        if (winnerCategory != m_persistent.winners.constEnd()
+            && winnerIt != winnerCategory->constEnd()
+            && winnerIt->operation == SyncWireOperation::Delete)
+            continue;
+        enqueueMutation(
+            categoryId,
+            recordKey,
+            snapshot.schemaVersion,
+            SyncWireOperation::Delete,
+            QJsonValue());
+    }
+
     QStringList previousKeys =
         previous.keys();
     previousKeys.sort();
@@ -1401,6 +1503,8 @@ bool SyncEngine::reconcileCategory(
     for (const QString &recordKey :
          previousKeys) {
         if (current.contains(recordKey))
+            continue;
+        if (tombstones.contains(recordKey))
             continue;
 
         enqueueMutation(
@@ -1813,7 +1917,9 @@ bool SyncEngine::continuePullProcessing(
             if (batchContext.replayingHistorical
                 && candidate.serverSeq > batchContext.historicalLimit)
                 break;
-            if (candidate.mutation.hlc.physicalMs
+            const SyncWireHlc &candidateOrderingHlc =
+                syncMutationOrderingHlc(candidate.mutation);
+            if (candidateOrderingHlc.physicalMs
                     > nowMs() + kMaximumRemoteClockFutureMs) {
                 if (errorCode)
                     *errorCode = QStringLiteral("sync_protocol_error");
@@ -1832,9 +1938,9 @@ bool SyncEngine::continuePullProcessing(
                 const auto winnerIt =
                     categoryIt->constFind(candidate.mutation.recordKey);
                 if (winnerIt != categoryIt->constEnd()
-                    && compareSyncWireHlc(
-                           winnerIt->hlc,
-                           candidate.mutation.hlc) >= 0) {
+                    && syncEntryIsCoveredByWinner(
+                           *winnerIt,
+                           candidate)) {
                     continue;
                 }
             }
@@ -1904,7 +2010,9 @@ bool SyncEngine::continuePullProcessing(
             break;
         }
 
-        if (entry.mutation.hlc.physicalMs
+        const SyncWireHlc &entryOrderingHlc =
+            syncMutationOrderingHlc(entry.mutation);
+        if (entryOrderingHlc.physicalMs
                 > nowMs() + kMaximumRemoteClockFutureMs) {
             if (errorCode)
                 *errorCode = QStringLiteral("sync_protocol_error");
@@ -1916,6 +2024,8 @@ bool SyncEngine::continuePullProcessing(
         }
 
         m_clock.observe(entry.mutation.hlc, nowMs());
+        if (entry.mutation.materializedHlc.has_value())
+            m_clock.observe(entryOrderingHlc, nowMs());
 
         const auto categoryIt = m_persistent.winners.constFind(entry.mutation.category);
         const auto winnerIt = categoryIt == m_persistent.winners.constEnd()
@@ -1923,7 +2033,7 @@ bool SyncEngine::continuePullProcessing(
             : categoryIt->constFind(entry.mutation.recordKey);
         const bool alreadyWon = categoryIt != m_persistent.winners.constEnd()
             && winnerIt != categoryIt->constEnd()
-            && compareSyncWireHlc(winnerIt->hlc, entry.mutation.hlc) >= 0;
+            && syncEntryIsCoveredByWinner(*winnerIt, entry);
 
         if (!entry.won || alreadyWon) {
             // The page checkpoint may have predeclared a redo for a later
@@ -2223,9 +2333,10 @@ void SyncEngine::recordWinningState(
     const SyncWirePullEntry &entry) {
     const SyncWireMutation &mutation = entry.mutation;
     SyncWinner winner;
-    winner.hlc = mutation.hlc;
+    winner.hlc = syncMutationOrderingHlc(mutation);
     winner.schemaVersion = mutation.schemaVersion;
     winner.operation = mutation.operation;
+    winner.serverSeq = entry.serverSeq;
     m_persistent.winners[mutation.category].insert(mutation.recordKey, winner);
 
     if (mutation.operation == SyncWireOperation::Put) {
@@ -2372,6 +2483,33 @@ bool SyncEngine::processPushReply(
                 mutationId);
             m_persistent.rejectedMutations.remove(
                 mutationId);
+
+            // The local winner already represents this request. Retain its
+            // acknowledged journal sequence so the later pull echo remains
+            // idempotent; a distinct same-HLC merge row can still advance by
+            // sequence through syncEntryIsCoveredByWinner().
+            const auto pendingIt = std::find_if(
+                m_persistent.outbox.constBegin(),
+                m_persistent.outbox.constEnd(),
+                [mutationId](const SyncWireMutation &mutation) {
+                    return mutation.mutationId == mutationId;
+                });
+            if (pendingIt != m_persistent.outbox.constEnd()) {
+                const auto categoryIt =
+                    m_persistent.winners.find(pendingIt->category);
+                if (categoryIt != m_persistent.winners.end()) {
+                    const auto winnerIt =
+                        categoryIt->find(pendingIt->recordKey);
+                    if (winnerIt != categoryIt->end()
+                        && compareSyncWireHlc(
+                               winnerIt->hlc,
+                               pendingIt->hlc)
+                            == 0
+                        && winnerIt->operation == pendingIt->operation) {
+                        winnerIt->serverSeq = it->serverSeq;
+                    }
+                }
+            }
             continue;
         }
 
@@ -2484,10 +2622,9 @@ bool SyncEngine::applyWinningPullEntry(
 
         if (winnerIt
                 != categoryIt->constEnd()
-            && compareSyncWireHlc(
-                   winnerIt->hlc,
-                   mutation.hlc)
-                >= 0) {
+            && syncEntryIsCoveredByWinner(
+                   *winnerIt,
+                   entry)) {
             return true;
         }
     }
@@ -2519,11 +2656,13 @@ bool SyncEngine::applyWinningPullEntry(
 
     SyncWinner winner;
     winner.hlc =
-        mutation.hlc;
+        syncMutationOrderingHlc(mutation);
     winner.schemaVersion =
         mutation.schemaVersion;
     winner.operation =
         mutation.operation;
+    winner.serverSeq =
+        entry.serverSeq;
 
     m_persistent.winners[
         mutation.category]
@@ -2648,11 +2787,29 @@ bool SyncEngine::finishCategoryReplay(
         if (errorMessage) *errorMessage = registryError.detail;
         return false;
     }
+    QSet<QString> tombstones;
+    for (const QString &recordKey : snapshot.tombstones)
+        tombstones.insert(recordKey);
     QHash<QString, SyncAdapterRecord> current;
-    for (const SyncAdapterRecord &record : snapshot.records)
+    for (const SyncAdapterRecord &record : snapshot.records) {
+        if (tombstones.contains(record.recordKey))
+            continue;
         current.insert(record.recordKey, record);
+    }
     const auto remote = m_persistent.mirrors.value(categoryId);
     const SyncPausedCategoryState replay = pausedIt.value();
+
+    for (const SyncWireMutation &pending : replay.pendingMutations) {
+        bool present = false;
+        for (const SyncWireMutation &existing : std::as_const(m_persistent.outbox)) {
+            if (existing.mutationId == pending.mutationId) {
+                present = true;
+                break;
+            }
+        }
+        if (!present)
+            m_persistent.outbox.append(pending);
+    }
 
     for (auto it = current.constBegin(); it != current.constEnd(); ++it) {
         const auto remoteIt = remote.constFind(it.key());
@@ -2662,6 +2819,8 @@ bool SyncEngine::finishCategoryReplay(
             continue;
         if (!remote.contains(it.key())) {
             if (snapshot.missingRecordsAreDeletes) {
+                if (replay.localOverlay.contains(it.key()))
+                    continue;
                 if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, it.key(),
                         snapshot.schemaVersion, SyncWireOperation::Delete, QJsonValue()}, &registryError)) {
                     if (errorCode) *errorCode = registryError.code;
@@ -2700,10 +2859,26 @@ bool SyncEngine::finishCategoryReplay(
         enqueueMutation(categoryId, key, overlay.schemaVersion, overlay.operation,
                         overlay.payload, overlay.localOrderMs);
     }
-
     m_persistent.pausedCategories.remove(categoryId);
     m_disabledCategories.remove(categoryId);
     m_categoryReplayInProgress.clear();
+    while (!m_categoryReplayQueue.isEmpty()) {
+        const QString next = m_categoryReplayQueue.takeFirst();
+        const auto nextIt = m_persistent.pausedCategories.constFind(next);
+        if (nextIt == m_persistent.pausedCategories.constEnd()
+            || !nextIt->replaying
+            || !m_disabledCategories.contains(next)) {
+            continue;
+        }
+        m_categoryReplayInProgress = next;
+        m_persistent.winners.remove(next);
+        m_persistent.mirrors.remove(next);
+        m_persistent.cursor = 0;
+        m_initialPullPending = true;
+        m_pullHasMore = false;
+        break;
+    }
+    persistState();
     return true;
 }
 

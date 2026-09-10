@@ -13,6 +13,7 @@
 #include "account/SyncAdapterRegistry.h"
 #include "account/SyncEngine.h"
 #include "account/SyncProtocol.h"
+#include "account/WatchStateSyncAdapter.h"
 
 #include <QDeadlineTimer>
 #include <QDateTime>
@@ -355,6 +356,7 @@ struct CoreReplica {
     SyncAdapterRegistry registry;
     CollectionSyncAdapter collectionAdapter;
     ProgressSyncAdapter progressAdapter;
+    WatchStateSyncAdapter watchStateAdapter;
     SyncEngine engine;
 
     CoreReplica(
@@ -374,6 +376,8 @@ struct CoreReplica {
               &progress,
               nullptr,
               1),
+          watchStateAdapter(
+              &progress),
           engine(
               &client,
               &registry) {
@@ -394,6 +398,12 @@ struct CoreReplica {
                 &progressAdapter)) {
             qFatal(
                 "progress adapter registration failed");
+        }
+
+        if (!registry.registerAdapter(
+                &watchStateAdapter)) {
+            qFatal(
+                "watch-state adapter registration failed");
         }
 
         engine.setAutomaticSchedulingEnabled(
@@ -529,8 +539,12 @@ private slots:
     void corruptProgressStorageFailsClosed();
     void corruptCollectionStorageFailsClosed();
     void progressPersistenceFailureDoesNotAdvanceCursor();
+    void watchStatePersistenceFailureDoesNotAdvanceCursor();
     void collectionPersistenceFailureDoesNotAdvanceCursor();
     void progressForgetDoesNotEraseHistory();
+    void progressForgetWatchRemovalFailureDoesNotPublishDelete();
+    void watchStateAdapterRoundTripsPortableState();
+    void watchStateAdapterSkipsFilesystemIdentity();
     void twoReplicaCollectionConverges();
     void twoReplicaProgressConvergesAfterSilentOfflineTick();
 };
@@ -932,6 +946,121 @@ progressSnapshotKeepsRawSiblingRecords() {
     QCOMPARE(
         snapshot.records.size(),
         2);
+}
+
+void tst_core_sync_adapters::
+watchStateAdapterRoundTripsPortableState() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore source(
+        QDir(temp.path()).filePath(
+            QStringLiteral("watch-source.ini")));
+    ProgressStore target(
+        QDir(temp.path()).filePath(
+            QStringLiteral("watch-target.ini")));
+    source.setWatchedMark(
+        QStringLiteral("tt900:s1:e4"),
+        true);
+    source.rememberLastSeason(
+        QStringLiteral("tt900"),
+        3);
+
+    WatchStateSyncAdapter sourceAdapter(&source);
+    WatchStateSyncAdapter targetAdapter(&target);
+    SyncAdapterExport snapshot;
+    QString error;
+    QVERIFY2(
+        sourceAdapter.exportSnapshot(&snapshot, &error),
+        qPrintable(error));
+    QCOMPARE(snapshot.records.size(), 2);
+    for (const SyncAdapterRecord &record : snapshot.records) {
+        SyncAdapterValidationError validation;
+        QVERIFY2(
+            targetAdapter.validateRemote(
+                record.recordKey,
+                SyncWireOperation::Put,
+                record.payload,
+                1,
+                &validation),
+            qPrintable(validation.detail));
+        QVERIFY2(
+            targetAdapter.applyRemote(
+                record.recordKey,
+                SyncWireOperation::Put,
+                record.payload,
+                1,
+                &error),
+            qPrintable(error));
+    }
+
+    QCOMPARE(
+        target.watchedMark(QStringLiteral("tt900:s1:e4")),
+        1);
+    QCOMPARE(
+        target.lastSeason(QStringLiteral("tt900")),
+        3);
+
+    const QString markKey =
+        CoreStateSyncProjection::watchedMarkKey(
+            QStringLiteral("tt900"));
+    const QString seasonKey =
+        CoreStateSyncProjection::lastSeasonKey(
+            QStringLiteral("tt900"));
+    QVERIFY(targetAdapter.applyRemote(
+        markKey,
+        SyncWireOperation::Delete,
+        QJsonValue(),
+        1,
+        &error));
+    QVERIFY(targetAdapter.applyRemote(
+        seasonKey,
+        SyncWireOperation::Delete,
+        QJsonValue(),
+        1,
+        &error));
+    QCOMPARE(
+        target.watchedMark(QStringLiteral("tt900:s1:e4")),
+        0);
+    QCOMPARE(
+        target.lastSeason(QStringLiteral("tt900")),
+        -1);
+}
+
+void tst_core_sync_adapters::
+watchStateAdapterSkipsFilesystemIdentity() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore source(
+        QDir(temp.path()).filePath(
+            QStringLiteral("watch-path.ini")));
+    const QString localPath =
+        QStringLiteral("C:/private/library/episode-1");
+    source.setWatchedMark(localPath, true);
+    source.rememberLastSeason(localPath, 2);
+
+    WatchStateSyncAdapter adapter(&source);
+    SyncAdapterExport snapshot;
+    QString error;
+    QVERIFY2(
+        adapter.exportSnapshot(&snapshot, &error),
+        qPrintable(error));
+    QCOMPARE(snapshot.records.size(), 0);
+    QVERIFY(
+        CoreStateSyncProjection::watchedMarkKey(localPath).isEmpty());
+    QVERIFY(
+        CoreStateSyncProjection::lastSeasonKey(localPath).isEmpty());
+
+    SyncAdapterValidationError validation;
+    QVERIFY(!adapter.validateRemote(
+        QStringLiteral("watch/mark/QzovcHJpdmF0ZS9saWJyYXJ5L2VwaXNvZGUtMQ"),
+        SyncWireOperation::Put,
+        QJsonObject{{QStringLiteral("id"), localPath},
+                    {QStringLiteral("mark"), 1}},
+        1,
+        &validation));
+    QCOMPARE(validation.code, QStringLiteral("invalid_record_key"));
 }
 
 void tst_core_sync_adapters::
@@ -1819,6 +1948,65 @@ progressPersistenceFailureDoesNotAdvanceCursor() {
 }
 
 void tst_core_sync_adapters::
+watchStatePersistenceFailureDoesNotAdvanceCursor() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const ProfilePaths profile = makeProfile(&temp);
+
+    CoreFixtureService service;
+    const QString seriesId = QStringLiteral("tt-watch-disk-failure");
+    const QString recordKey =
+        CoreStateSyncProjection::watchedMarkKey(seriesId);
+
+    SyncWireMutation mutation;
+    mutation.mutationId = QStringLiteral(
+        "cccccccc-cccc-4ccc-8ccc-cccccccccccd");
+    mutation.deviceId = QString::fromLatin1(kDeviceB);
+    mutation.category = QStringLiteral("watch_state");
+    mutation.recordKey = recordKey;
+    mutation.schemaVersion = 1;
+    mutation.hlc = SyncWireHlc{
+        service.serverTimeMs,
+        0,
+        mutation.deviceId};
+    mutation.operation = SyncWireOperation::Put;
+    mutation.payload = QJsonObject{
+        {QStringLiteral("id"), seriesId},
+        {QStringLiteral("mark"), 1}};
+    const AccountTransportReply seeded =
+        service.push(QJsonArray{syncWireMutationToJson(mutation)});
+    QCOMPARE(seeded.statusCode, 200);
+
+    CoreReplica replica(
+        &service,
+        profile,
+        QString::fromLatin1(kDeviceA));
+
+    // The owner loaded as a valid empty store, but its backing INI path is
+    // now a directory. A remote watch-state apply must reject the write and
+    // leave the sync cursor behind the durable owner receipt.
+    QFile::remove(profile.progressIniPath());
+    QVERIFY(QDir().mkpath(profile.progressIniPath()));
+
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Blocked);
+    QCOMPARE(replica.engine.cursor(), quint64(0));
+    QCOMPARE(
+        replica.progress.watchedMark(seriesId),
+        0);
+
+    SyncStateStore stateStore;
+    QString error;
+    const auto state =
+        stateStore.load(profile.syncStatePath(), &error);
+    QVERIFY2(state.has_value(), qPrintable(error));
+    QCOMPARE(state->cursor, quint64(0));
+    QCOMPARE(state->ownerRedos.size(), 1);
+}
+
+void tst_core_sync_adapters::
 collectionPersistenceFailureDoesNotAdvanceCursor() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
@@ -1908,6 +2096,45 @@ progressForgetDoesNotEraseHistory() {
                  QStringLiteral("manga"),
                  QStringLiteral("manga-1"))
              .isEmpty());
+}
+
+void tst_core_sync_adapters::
+progressForgetWatchRemovalFailureDoesNotPublishDelete() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path =
+        QDir(temp.path()).filePath(QStringLiteral("progress.ini"));
+
+    ProgressStore progress(path);
+    const QString seriesId = QStringLiteral("tt-forget-watch-failure");
+    const QString episodeId = seriesId + QStringLiteral(":s1:e1");
+    progress.record(progressEntry(episodeId, 0.75));
+    progress.setWatchedMark(episodeId, true);
+    progress.flush();
+    QCOMPARE(progress.watchedMark(episodeId), 1);
+
+    QSignalSpy watchStateSpy(
+        &progress,
+        &ProgressStore::watchStateChanged);
+
+    progress.forceWatchStatePersistenceFailureForTesting(true);
+
+    progress.forget(QStringLiteral("manga"), episodeId);
+
+    // The combined action must abort before mutating Continue when the
+    // watched-mark owner cannot durably commit either half of the request.
+    QCOMPARE(
+        progress
+            .get(
+                QStringLiteral("manga"),
+                episodeId)
+            .value(QStringLiteral("id"))
+            .toString(),
+        episodeId);
+    QCOMPARE(progress.watchedMark(episodeId), 1);
+    QCOMPARE(watchStateSpy.count(), 0);
+    QVERIFY(!progress.healthy());
+    QVERIFY(!progress.persistenceError().isEmpty());
 }
 
 QTEST_MAIN(tst_core_sync_adapters)

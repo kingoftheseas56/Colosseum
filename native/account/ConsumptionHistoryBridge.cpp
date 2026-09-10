@@ -18,6 +18,14 @@ ConsumptionHistoryBridge::ConsumptionHistoryBridge(ActivityStore *activity,
                         return;
                     emit projectionError(QStringLiteral("Activity fact could not be projected"));
                 }, Qt::DirectConnection);
+        connect(m_activity, &ActivityStore::resetApplied, this,
+                [this](quint64, qint64 resetAtMs) {
+                    if (m_clearInProgress)
+                        return;
+                    if (!m_history || m_history->clearSyncedAll(resetAtMs))
+                        return;
+                    emit projectionError(QStringLiteral("Activity reset could not clear History"));
+                }, Qt::DirectConnection);
     }
     if (m_progress) {
         connect(m_progress, &ProgressStore::completionCrossed, this,
@@ -50,6 +58,8 @@ bool ConsumptionHistoryBridge::projectActivityFact(const QVariantMap &event) {
 
 bool ConsumptionHistoryBridge::projectProgressCompletion(const QString &kind, const QString &id,
                                                           qint64 completedAtMs) {
+    if (m_activity && !m_activity->retentionEnabled())
+        return true;
     return m_history && m_history->markCompleted(kind, id, completedAtMs);
 }
 

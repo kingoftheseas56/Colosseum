@@ -14,6 +14,80 @@ import (
 
 const syncPullPageSize = 200
 
+const syncJournalInsertQuery = `
+        INSERT INTO account_sync_journal(
+            account_id,
+            mutation_id,
+            device_id,
+            category,
+            record_key,
+            schema_version,
+            hlc_physical_ms,
+            hlc_counter,
+            operation,
+            payload_ciphertext,
+            materialized_payload_ciphertext,
+            materialized_hlc_physical_ms,
+            materialized_hlc_counter,
+            materialized_device_id,
+            won,
+            received_at
+        )
+        VALUES(
+            $1::uuid, $2::uuid, $3::uuid, $4, $5, $6,
+            $7, $8, $9, $10, NULL, NULL, NULL, NULL, false, $11
+        )
+        ON CONFLICT(account_id, mutation_id) DO NOTHING
+        RETURNING server_seq
+    `
+
+const syncJournalPullQuery = `
+        SELECT
+            server_seq,
+            mutation_id::text,
+            device_id::text,
+            category,
+            record_key,
+            schema_version,
+            hlc_physical_ms,
+            hlc_counter,
+            operation,
+            payload_ciphertext,
+            materialized_payload_ciphertext,
+            COALESCE(materialized_hlc_physical_ms, hlc_physical_ms),
+            COALESCE(materialized_hlc_counter, hlc_counter),
+            COALESCE(materialized_device_id::text, device_id::text),
+            won,
+            received_at
+        FROM account_sync_journal
+        WHERE account_id = $1::uuid
+          AND server_seq > $2
+        UNION ALL
+        SELECT
+            server_seq,
+            mutation_id::text,
+            origin_device_id::text,
+            'activity_fact',
+            'activity/' || event_id::text,
+            schema_version,
+            hlc_physical_ms,
+            hlc_counter,
+            'put',
+            payload_ciphertext,
+            NULL::bytea,
+            hlc_physical_ms,
+            hlc_counter,
+            origin_device_id::text,
+            true,
+            received_at
+        FROM account_activity_facts
+        WHERE account_id = $1::uuid
+          AND suppressed = false
+          AND server_seq > $2
+        ORDER BY server_seq ASC
+        LIMIT $3
+    `
+
 type parsedSyncMutation struct {
 	MutationID       string
 	DeviceID         string
@@ -71,6 +145,24 @@ func (s *Service) PushSync(
 		}
 
 		if parsed.Category == "activity_fact" {
+			if parsed.RecordKey == "activity/reset" {
+				_, resetCode, resetMessage := parseActivityReset(parsed)
+				if resetCode != "" {
+					response.Results = append(response.Results, SyncPushResult{
+						MutationID: parsed.MutationID,
+						Accepted:   false,
+						Code:       resetCode,
+						Message:    resetMessage,
+					})
+					continue
+				}
+				result, err := s.pushOneActivityReset(ctx, auth, parsed, now)
+				if err != nil {
+					return response, err
+				}
+				response.Results = append(response.Results, result)
+				continue
+			}
 			fact, activityCode, activityMessage := parseActivityFact(parsed)
 			if activityCode != "" {
 				response.Results = append(response.Results, SyncPushResult{
@@ -173,28 +265,7 @@ func (s *Service) pushOneSyncMutation(
 	}
 
 	var serverSeq int64
-	err = tx.QueryRow(ctx, `
-        INSERT INTO account_sync_journal(
-            account_id,
-            mutation_id,
-            device_id,
-            category,
-            record_key,
-            schema_version,
-            hlc_physical_ms,
-            hlc_counter,
-            operation,
-            payload_ciphertext,
-            won,
-            received_at
-        )
-        VALUES(
-            $1::uuid, $2::uuid, $3::uuid, $4, $5, $6,
-            $7, $8, $9, $10, false, $11
-        )
-        ON CONFLICT(account_id, mutation_id) DO NOTHING
-        RETURNING server_seq
-    `,
+	err = tx.QueryRow(ctx, syncJournalInsertQuery,
 		auth.Account.ID,
 		parsed.MutationID,
 		parsed.DeviceID,
@@ -263,13 +334,78 @@ func (s *Service) pushOneSyncMutation(
 		return SyncPushResult{}, err
 	}
 
-	won := !found || compareServerHLC(
-		parsed.HLCPhysicalMS,
-		parsed.HLCCounter,
-		parsed.DeviceID,
-		current.HLCPhysicalMS,
-		current.HLCCounter,
-		current.DeviceID) > 0
+	mergeCurrent := syncMergeCurrent{}
+	if found {
+		mergeCurrent = syncMergeCurrent{
+			MutationID:    current.MutationID,
+			DeviceID:      current.DeviceID,
+			SchemaVersion: current.SchemaVersion,
+			HLCPhysicalMS: current.HLCPhysicalMS,
+			HLCCounter:    current.HLCCounter,
+			Operation:     current.Operation,
+		}
+		if current.Operation == "put" {
+			plain, openErr := s.syncCipher.Open(
+				auth.Account.ID,
+				current.Category,
+				current.RecordKey,
+				current.PayloadCipher)
+			if openErr != nil {
+				return SyncPushResult{}, fmt.Errorf("decrypt current sync payload: %w", openErr)
+			}
+			mergeCurrent.Payload = json.RawMessage(plain)
+		}
+	}
+	blockedByHistoryReset, err := historyMutationBlockedByResetTx(
+		ctx,
+		tx,
+		auth.Account.ID,
+		parsed)
+	if err != nil {
+		return SyncPushResult{}, err
+	}
+	var resolution syncResolution
+	if blockedByHistoryReset {
+		if found {
+			resolution = syncResolutionFromCurrent(
+				mergeCurrent,
+				cloneSyncMergePayload(mergeCurrent.Payload),
+				false)
+		} else {
+			resolution = syncResolution{
+				Changed:             false,
+				Operation:           parsed.Operation,
+				Payload:             cloneSyncMergePayload(parsed.CanonicalPayload),
+				WinnerMutationID:    parsed.MutationID,
+				WinnerDeviceID:      parsed.DeviceID,
+				WinnerSchemaVersion: parsed.SchemaVersion,
+				WinnerHLCPhysicalMS: parsed.HLCPhysicalMS,
+				WinnerHLCCounter:    parsed.HLCCounter,
+			}
+		}
+	} else {
+		resolution, err = resolveMutableSync(mergeCurrent, found, parsed)
+	}
+	if err != nil {
+		return SyncPushResult{}, fmt.Errorf("resolve sync mutation: %w", err)
+	}
+	won := resolution.Changed
+	materializedCipher := []byte(nil)
+	if resolution.Operation == "put" {
+		if parsed.Category == "full_history" ||
+			(parsed.Category == "activity_fact" && parsed.RecordKey == "activity/reset") {
+			materializedCipher, err = s.syncCipher.Seal(
+				auth.Account.ID,
+				parsed.Category,
+				parsed.RecordKey,
+				resolution.Payload)
+			if err != nil {
+				return SyncPushResult{}, fmt.Errorf("encrypt materialized History payload: %w", err)
+			}
+		} else {
+			materializedCipher = ciphertext
+		}
+	}
 
 	if won {
 		if found {
@@ -283,9 +419,9 @@ func (s *Service) pushOneSyncMutation(
                 )
                 VALUES(
                     $1::uuid, $2, $3,
-                    $4::uuid, $5::uuid, $6,
-                    $7, $8, $9, $10, $11,
-                    $12, $13::uuid
+				$4::uuid, $5::uuid, $6,
+				$7, $8, $9, $10, $11,
+				$12, $13::uuid
                 )
             `,
 				auth.Account.ID,
@@ -332,17 +468,60 @@ func (s *Service) pushOneSyncMutation(
 			auth.Account.ID,
 			parsed.Category,
 			parsed.RecordKey,
-			parsed.MutationID,
-			parsed.DeviceID,
-			parsed.SchemaVersion,
-			parsed.HLCPhysicalMS,
-			int64(parsed.HLCCounter),
-			parsed.Operation,
-			ciphertext,
+			resolution.WinnerMutationID,
+			resolution.WinnerDeviceID,
+			resolution.WinnerSchemaVersion,
+			resolution.WinnerHLCPhysicalMS,
+			int64(resolution.WinnerHLCCounter),
+			resolution.Operation,
+			materializedCipher,
 			serverSeq,
 			now); err != nil {
 			return SyncPushResult{}, fmt.Errorf("store sync winner: %w", err)
 		}
+
+		if parsed.Category == "full_history" &&
+			parsed.RecordKey == "history/reset" {
+			if err := s.storeHistoryResetStateTx(
+				ctx,
+				tx,
+				auth.Account.ID,
+				resolution); err != nil {
+				return SyncPushResult{}, err
+			}
+			if _, err := tx.Exec(ctx, `
+                DELETE FROM account_sync_current
+                WHERE account_id = $1::uuid
+                  AND category = 'full_history'
+                  AND record_key <> 'history/reset'
+            `, auth.Account.ID); err != nil {
+				return SyncPushResult{}, fmt.Errorf("clear History current records at reset: %w", err)
+			}
+		}
+		if parsed.Category == "activity_fact" &&
+			parsed.RecordKey == "activity/reset" {
+			if err := s.storeActivityResetStateTx(
+				ctx,
+				tx,
+				auth.Account.ID,
+				resolution); err != nil {
+				return SyncPushResult{}, err
+			}
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+        UPDATE account_sync_journal
+        SET materialized_payload_ciphertext = $2,
+            materialized_hlc_physical_ms = $3,
+            materialized_hlc_counter = $4,
+            materialized_device_id = $5::uuid
+        WHERE server_seq = $1
+	`, serverSeq, materializedCipher,
+		resolution.WinnerHLCPhysicalMS,
+		int64(resolution.WinnerHLCCounter),
+		resolution.WinnerDeviceID); err != nil {
+		return SyncPushResult{}, fmt.Errorf("store materialized sync payload: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -365,6 +544,151 @@ func (s *Service) pushOneSyncMutation(
 	}, nil
 }
 
+func historyMutationBlockedByResetTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	accountID string,
+	parsed parsedSyncMutation,
+) (bool, error) {
+	if parsed.Category != "full_history" ||
+		parsed.RecordKey == "history/reset" ||
+		parsed.Operation != "put" {
+		return false, nil
+	}
+
+	history, err := decodeSyncHistoryPayload(parsed.Payload)
+	if err != nil {
+		return false, fmt.Errorf("decode History reset candidate: %w", err)
+	}
+
+	loadBarrier := func(table string) (int64, int64, uint64, string, bool, error) {
+		row := tx.QueryRow(ctx, `
+            SELECT reset_at_ms, hlc_physical_ms, hlc_counter,
+                   COALESCE(device_id::text, '')
+            FROM `+table+`
+            WHERE account_id = $1::uuid
+        `, accountID)
+		var resetAt, physical, counter int64
+		var device string
+		if err := row.Scan(&resetAt, &physical, &counter, &device); err != nil {
+			if err == pgx.ErrNoRows {
+				return 0, 0, 0, "", false, nil
+			}
+			return 0, 0, 0, "", false, err
+		}
+		if resetAt <= 0 || physical < 0 || counter < 0 || !IsUUID(device) {
+			return 0, 0, 0, "", false, fmt.Errorf("invalid %s reset barrier", table)
+		}
+		return resetAt, physical, uint64(counter), device, true, nil
+	}
+
+	historyResetAt, historyPhysical, historyCounter, historyDevice, historyFound, err :=
+		loadBarrier("account_history_reset_state")
+	if err != nil {
+		return false, fmt.Errorf("load History reset barrier: %w", err)
+	}
+	activityResetAt, activityPhysical, activityCounter, activityDevice, activityFound, err :=
+		loadBarrier("account_activity_reset_state")
+	if err != nil {
+		return false, fmt.Errorf("load Activity reset barrier for History: %w", err)
+	}
+	if !historyFound && !activityFound {
+		return false, nil
+	}
+	if historyFound && (history.lastActivityAt <= historyResetAt ||
+		compareServerHLC(parsed.HLCPhysicalMS, parsed.HLCCounter, parsed.DeviceID,
+			historyPhysical, historyCounter, historyDevice) <= 0) {
+		return true, nil
+	}
+	if activityFound && (history.lastActivityAt <= activityResetAt ||
+		compareServerHLC(parsed.HLCPhysicalMS, parsed.HLCCounter, parsed.DeviceID,
+			activityPhysical, activityCounter, activityDevice) <= 0) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *Service) storeHistoryResetStateTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	accountID string,
+	resolution syncResolution,
+) error {
+	reset, err := decodeActivityResetPayload(resolution.Payload)
+	if err != nil {
+		return fmt.Errorf("decode materialized History reset: %w", err)
+	}
+	var currentGeneration, currentAt int64
+	var currentPhysical, currentCounter int64
+	var currentDevice string
+	err = tx.QueryRow(ctx, `
+        SELECT reset_generation, reset_at_ms, hlc_physical_ms,
+               hlc_counter, COALESCE(device_id::text, '')
+        FROM account_history_reset_state
+        WHERE account_id = $1::uuid
+        FOR UPDATE
+    `, accountID).Scan(
+		&currentGeneration,
+		&currentAt,
+		&currentPhysical,
+		&currentCounter,
+		&currentDevice)
+	if err != nil && err != pgx.ErrNoRows {
+		return fmt.Errorf("load History reset state: %w", err)
+	}
+	effectiveGeneration := reset.generation
+	effectiveAt := reset.resetAt
+	effectivePhysical := resolution.WinnerHLCPhysicalMS
+	effectiveCounter := resolution.WinnerHLCCounter
+	effectiveDevice := resolution.WinnerDeviceID
+	if err == nil {
+		if currentGeneration > effectiveGeneration {
+			effectiveGeneration = currentGeneration
+		}
+		if currentAt > effectiveAt {
+			effectiveAt = currentAt
+		}
+		if currentGeneration == effectiveGeneration &&
+			compareServerHLC(
+				effectivePhysical,
+				effectiveCounter,
+				effectiveDevice,
+				currentPhysical,
+				uint64(currentCounter),
+				currentDevice) < 0 {
+			effectivePhysical = currentPhysical
+			effectiveCounter = uint64(currentCounter)
+			effectiveDevice = currentDevice
+		}
+	}
+	if effectiveGeneration <= 0 || effectiveAt <= 0 ||
+		!IsUUID(effectiveDevice) {
+		return fmt.Errorf("materialized History reset state is invalid")
+	}
+	_, err = tx.Exec(ctx, `
+        INSERT INTO account_history_reset_state(
+            account_id, reset_generation, reset_at_ms,
+            hlc_physical_ms, hlc_counter, device_id)
+        VALUES($1::uuid, $2, $3, $4, $5, $6::uuid)
+        ON CONFLICT(account_id) DO UPDATE SET
+            reset_generation = EXCLUDED.reset_generation,
+            reset_at_ms = EXCLUDED.reset_at_ms,
+            hlc_physical_ms = EXCLUDED.hlc_physical_ms,
+            hlc_counter = EXCLUDED.hlc_counter,
+            device_id = EXCLUDED.device_id
+    `,
+		accountID,
+		effectiveGeneration,
+		effectiveAt,
+		effectivePhysical,
+		int64(effectiveCounter),
+		effectiveDevice)
+	if err != nil {
+		return fmt.Errorf("store History reset state: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) PullSync(
 	ctx context.Context,
 	auth AuthenticatedSession,
@@ -380,43 +704,12 @@ func (s *Service) PullSync(
 		return response, fmt.Errorf("sync cursor is too large")
 	}
 
-	rows, err := s.pool.Query(ctx, `
-        SELECT
-            server_seq,
-            mutation_id::text,
-            device_id::text,
-            category,
-            record_key,
-            schema_version,
-            hlc_physical_ms,
-            hlc_counter,
-            operation,
-            payload_ciphertext,
-            won,
-            received_at
-        FROM account_sync_journal
-        WHERE account_id = $1::uuid
-          AND server_seq > $2
-        UNION ALL
-        SELECT
-            server_seq,
-            mutation_id::text,
-            origin_device_id::text,
-            'activity_fact',
-            'activity/' || event_id::text,
-            schema_version,
-            hlc_physical_ms,
-            hlc_counter,
-            'put',
-            payload_ciphertext,
-            true,
-            received_at
-        FROM account_activity_facts
-        WHERE account_id = $1::uuid
-          AND server_seq > $2
-        ORDER BY server_seq ASC
-        LIMIT $3
-    `, auth.Account.ID, int64(after), syncPullPageSize+1)
+	rows, err := s.pool.Query(
+		ctx,
+		syncJournalPullQuery,
+		auth.Account.ID,
+		int64(after),
+		syncPullPageSize+1)
 	if err != nil {
 		return response, fmt.Errorf("query sync journal: %w", err)
 	}
@@ -426,6 +719,7 @@ func (s *Service) PullSync(
 		var stored syncStoredMutation
 		var serverSeq int64
 		var counter int64
+		var materializedCounter int64
 		if err := rows.Scan(
 			&serverSeq,
 			&stored.MutationID,
@@ -437,15 +731,32 @@ func (s *Service) PullSync(
 			&counter,
 			&stored.Operation,
 			&stored.PayloadCipher,
+			&stored.MaterializedPayloadCipher,
+			&stored.MaterializedHLCPhysicalMS,
+			&materializedCounter,
+			&stored.MaterializedDeviceID,
 			&stored.Won,
 			&stored.ReceivedAt); err != nil {
 			return response, fmt.Errorf("scan sync journal: %w", err)
 		}
-		if serverSeq <= 0 || counter < 0 {
+		if serverSeq <= 0 || counter < 0 || materializedCounter < 0 ||
+			stored.MaterializedHLCPhysicalMS < 0 ||
+			!IsUUID(stored.MaterializedDeviceID) {
 			return response, fmt.Errorf("sync journal contains invalid numeric state")
+		}
+		if compareServerHLC(
+			stored.MaterializedHLCPhysicalMS,
+			uint64(materializedCounter),
+			stored.MaterializedDeviceID,
+			stored.HLCPhysicalMS,
+			uint64(counter),
+			stored.DeviceID) < 0 {
+			return response, fmt.Errorf("sync journal materialized HLC precedes request HLC")
 		}
 		stored.ServerSeq = uint64(serverSeq)
 		stored.HLCCounter = uint64(counter)
+		stored.MaterializedHLCCounter = uint64(materializedCounter)
+		stored.MaterializedHLCValid = true
 
 		if len(response.Entries) == syncPullPageSize {
 			response.HasMore = true
@@ -730,11 +1041,15 @@ func (s *Service) decodeStoredMutation(
 ) (SyncMutationView, error) {
 	var payload json.RawMessage
 	if stored.Operation == "put" {
+		ciphertext := stored.PayloadCipher
+		if len(stored.MaterializedPayloadCipher) > 0 {
+			ciphertext = stored.MaterializedPayloadCipher
+		}
 		plain, err := s.syncCipher.Open(
 			accountID,
 			stored.Category,
 			stored.RecordKey,
-			stored.PayloadCipher)
+			ciphertext)
 		if err != nil {
 			return SyncMutationView{}, fmt.Errorf("decrypt sync payload: %w", err)
 		}
@@ -744,7 +1059,7 @@ func (s *Service) decodeStoredMutation(
 		payload = json.RawMessage(plain)
 	}
 
-	return SyncMutationView{
+	view := SyncMutationView{
 		MutationID:    stored.MutationID,
 		DeviceID:      stored.DeviceID,
 		Category:      stored.Category,
@@ -754,5 +1069,15 @@ func (s *Service) decodeStoredMutation(
 		HLCCounter:    strconv.FormatUint(stored.HLCCounter, 10),
 		Operation:     stored.Operation,
 		Payload:       payload,
-	}, nil
+	}
+	if stored.MaterializedHLCValid {
+		view.MaterializedHLCPhysicalMS = strconv.FormatInt(
+			stored.MaterializedHLCPhysicalMS,
+			10)
+		view.MaterializedHLCCounter = strconv.FormatUint(
+			stored.MaterializedHLCCounter,
+			10)
+		view.MaterializedDeviceID = stored.MaterializedDeviceID
+	}
+	return view, nil
 }

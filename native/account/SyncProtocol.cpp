@@ -227,6 +227,19 @@ QJsonObject syncWireMutationToJson(
         QStringLiteral("hlc_counter"),
         QString::number(
             mutation.hlc.counter));
+    if (mutation.materializedHlc.has_value()) {
+        object.insert(
+            QStringLiteral("materialized_hlc_physical_ms"),
+            QString::number(
+                mutation.materializedHlc->physicalMs));
+        object.insert(
+            QStringLiteral("materialized_hlc_counter"),
+            QString::number(
+                mutation.materializedHlc->counter));
+        object.insert(
+            QStringLiteral("materialized_device_id"),
+            mutation.materializedHlc->deviceId);
+    }
     object.insert(
         QStringLiteral("operation"),
         syncWireOperationName(
@@ -281,6 +294,44 @@ syncWireMutationFromJson(
                 "hlc_counter"),
             QStringLiteral(
                 "device_id"));
+    const QString materializedPhysicalField =
+        QStringLiteral("materialized_hlc_physical_ms");
+    const QString materializedCounterField =
+        QStringLiteral("materialized_hlc_counter");
+    const QString materializedDeviceField =
+        QStringLiteral("materialized_device_id");
+    const bool hasMaterializedPhysical =
+        object.contains(materializedPhysicalField);
+    const bool hasMaterializedCounter =
+        object.contains(materializedCounterField);
+    const bool hasMaterializedDevice =
+        object.contains(materializedDeviceField);
+    const bool hasMaterializedHlc =
+        hasMaterializedPhysical
+        || hasMaterializedCounter
+        || hasMaterializedDevice;
+    std::optional<SyncWireHlc> materializedHlc;
+    if (hasMaterializedHlc) {
+        if (!hasMaterializedPhysical
+            || !hasMaterializedCounter
+            || !hasMaterializedDevice) {
+            return std::nullopt;
+        }
+        materializedHlc =
+            hlcFromFields(
+                object,
+                materializedPhysicalField,
+                materializedCounterField,
+                materializedDeviceField);
+        if (!materializedHlc.has_value()
+            || !hlc.has_value()
+            || compareSyncWireHlc(
+                   *materializedHlc,
+                   *hlc)
+                < 0) {
+            return std::nullopt;
+        }
+    }
 
     if (mutationId.isEmpty()
         || deviceId.isEmpty()
@@ -309,6 +360,8 @@ syncWireMutationFromJson(
         schemaVersion;
     mutation.hlc =
         *hlc;
+    mutation.materializedHlc =
+        materializedHlc;
     mutation.operation =
         *operation;
 

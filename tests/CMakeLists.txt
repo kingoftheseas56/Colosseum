@@ -349,7 +349,16 @@ add_executable(tst_local_downloads_failure
     "${COLOSSEUM_NATIVE_DIR}/engine/BookDownloader.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/ComicDownloader.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/MangaTankobanService.h"
-    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h")
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h")
 target_include_directories(tst_local_downloads_failure PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_local_downloads_failure PRIVATE
     Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui Qt6::Sql Qt6::Test)
@@ -2244,6 +2253,7 @@ set_tests_properties(colosseum.qttest.sync_inventory PROPERTIES
 # ── Portable download intent (device-local bytes, cross-device re-download) ──
 add_executable(tst_download_intent
     auto/download_intent/tst_download_intent.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
@@ -2256,7 +2266,17 @@ add_executable(tst_download_intent
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
 target_include_directories(tst_download_intent PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_download_intent PRIVATE
@@ -2464,9 +2484,13 @@ add_executable(tst_core_sync_adapters
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h")
 target_include_directories(tst_core_sync_adapters PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_core_sync_adapters PRIVATE
+    COLOSSEUM_PROGRESS_STORE_TESTING=1)
 target_link_libraries(tst_core_sync_adapters PRIVATE
     Qt6::Core
     Qt6::Test)
@@ -2559,12 +2583,19 @@ add_executable(tst_sync_category_policy
     "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.h")
 target_include_directories(tst_sync_category_policy PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_sync_category_policy PRIVATE
     Qt6::Core
+    Qt6::Sql
     Qt6::Test)
 set_target_properties(tst_sync_category_policy PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")

@@ -107,11 +107,36 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			payload:  `{"kind":"episode","id":"show-1/e1","firstActivityAt":1000,"lastActivityAt":2000,"completedAt":2000}`,
 		},
 		{
+			name:     "history reset accepts generation barrier",
+			category: "full_history",
+			key:      "history/reset",
+			payload:  `{"resetGeneration":2,"resetAtMs":1700000000000}`,
+		},
+		{
 			name:     "history rejects incomplete owner record",
 			category: "full_history",
 			key:      "history/ZXBpc29kZQ/c2hvdy0xL2Ux",
 			payload:  `{"kind":"episode","id":"show-1/e1"}`,
 			wantErr:  "payload_invalid",
+		},
+		{
+			name:     "watched mark accepts portable identity",
+			category: "watch_state",
+			key:      "watch/mark/dHQ5MDA",
+			payload:  `{"id":"tt900","mark":1}`,
+		},
+		{
+			name:     "last season accepts portable identity",
+			category: "watch_state",
+			key:      "watch/season/c2VyaWVzLTE",
+			payload:  `{"seriesId":"series-1","season":3}`,
+		},
+		{
+			name:     "watch state rejects path identity",
+			category: "watch_state",
+			key:      "watch/mark/QzovcHJpdmF0ZS9saWJyYXJ5L2VwaXNvZGUtMQ",
+			payload:  `{"id":"C:/private/library/episode-1","mark":1}`,
+			wantErr:  "filesystem_path_value",
 		},
 		{
 			name:     "explicit preference rejects extra field",
@@ -147,6 +172,28 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 				t.Fatalf("validateSyncRecordShape() error = %v, want %s", err, test.wantErr)
 			}
 		})
+	}
+}
+
+func TestSyncPolicyAcceptsActivityResetBarrier(t *testing.T) {
+	if err := validateSyncRecordShape(
+		"activity_fact",
+		1,
+		"activity/reset",
+		"put",
+		json.RawMessage(`{"resetGeneration":4,"resetAtMs":1700000000000}`)); err != nil {
+		t.Fatalf("valid Activity reset rejected: %v", err)
+	}
+
+	for _, payload := range []string{
+		`{"resetGeneration":0,"resetAtMs":1700000000000}`,
+		`{"resetGeneration":4,"resetAtMs":0}`,
+		`{"resetGeneration":4,"resetAtMs":1700000000000,"extra":true}`,
+	} {
+		if err := validateSyncRecordShape(
+			"activity_fact", 1, "activity/reset", "put", json.RawMessage(payload)); err == nil {
+			t.Fatalf("invalid Activity reset %s was accepted", payload)
+		}
 	}
 }
 

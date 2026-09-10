@@ -25,6 +25,11 @@ struct SyncAdapterRecord {
 struct SyncAdapterExport {
     quint64 revision = 0;
     QList<SyncAdapterRecord> records;
+
+    // Durable owner tombstones are exported separately from materialized
+    // records so a cancellation can produce a wire DELETE even when the
+    // record was added and cancelled before the first mirror checkpoint.
+    QList<QString> tombstones;
 };
 
 // A validation failure is compatibility evidence only when it comes from a

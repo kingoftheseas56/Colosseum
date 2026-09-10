@@ -1,7 +1,15 @@
 #include <QtTest>
 
 #include "engine/LocalDownloads.h"
+#include "account/DownloadIntentStore.h"
+#include "account/ProfilePaths.h"
+#include "player/downloadstore.h"
 
+#include <QDir>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTemporaryDir>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -51,6 +59,10 @@ class tst_local_downloads_failure final : public QObject
 private slots:
     void failedVolumeUsesHumanTitleFromFailedActiveJob();
     void emptyVolumeTitleNeverLeaksRoutingId();
+    void cancelPersistsIntentBeforeVolumeEarlyReturn();
+    void cancelPersistenceFailureLeavesIntentOwned();
+    void redownloadClearsCancellationBeforeEnqueue();
+    void deactivatedIntentStoreCannotBeMutatedByLocalCancel();
 };
 
 void tst_local_downloads_failure::failedVolumeUsesHumanTitleFromFailedActiveJob()
@@ -95,6 +107,153 @@ void tst_local_downloads_failure::emptyVolumeTitleNeverLeaksRoutingId()
     QCOMPARE(row.value(QStringLiteral("title")).toString(), QStringLiteral("Vol. 1"));
     QVERIFY(!row.value(QStringLiteral("title")).toString().contains(QStringLiteral("tankoban:")));
     QVERIFY(!row.value(QStringLiteral("title")).toString().contains(QStringLiteral(":volume:")));
+}
+
+void tst_local_downloads_failure::cancelPersistsIntentBeforeVolumeEarlyReturn()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const auto profile = ProfilePaths::account(
+        QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        QDir(temp.path()).filePath(QStringLiteral("appdata")));
+    QVERIFY(profile.has_value());
+    QVERIFY(QDir().mkpath(profile->profileRoot()));
+
+    DownloadIntentStore intents;
+    QString error;
+    QVERIFY2(intents.activate(*profile, &error), qPrintable(error));
+
+    // The volume route has no local backend in this seam. A user cancellation
+    // still owns a durable logical DELETE before the volume early return.
+    LocalDownloads downloads(nullptr, nullptr, nullptr, nullptr);
+    downloads.setDownloadIntentStore(&intents);
+    downloads.cancel(QStringLiteral("tankoban"),
+                     QStringLiteral("tankoban:series:volume:2"));
+
+    SyncAdapterExport snapshot;
+    QVERIFY2(intents.exportSnapshot(&snapshot, &error), qPrintable(error));
+    QCOMPARE(snapshot.tombstones,
+             QList<QString>{QStringLiteral("tankoban/tankoban:series:volume:2")});
+    QVERIFY(snapshot.records.isEmpty());
+}
+
+void tst_local_downloads_failure::cancelPersistenceFailureLeavesIntentOwned()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const auto profile = ProfilePaths::account(
+        QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        QDir(temp.path()).filePath(QStringLiteral("appdata")));
+    QVERIFY(profile.has_value());
+    QVERIFY(QDir().mkpath(profile->profileRoot()));
+
+    const QVariantMap row{
+        {QStringLiteral("id"), QStringLiteral("movie-42")},
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("kind"), QStringLiteral("movie")},
+        {QStringLiteral("title"), QStringLiteral("Fixture Movie")}};
+    DownloadIntentStore intents;
+    QString error;
+    QVERIFY2(intents.activate(*profile, &error), qPrintable(error));
+    QVERIFY2(intents.remember(row, &error), qPrintable(error));
+
+    const QString path = QDir(profile->profileRoot()).filePath(
+        QStringLiteral("download-intents.json"));
+    QVERIFY(QFile::remove(path));
+    QVERIFY(QDir().mkpath(path));
+
+    LocalDownloads downloads(nullptr, nullptr, nullptr, nullptr);
+    downloads.setDownloadIntentStore(&intents);
+    downloads.cancel(QStringLiteral("theatre"), QStringLiteral("movie-42"));
+
+    QCOMPARE(intents.records().size(), 1);
+    QCOMPARE(intents.records().first().toMap(), row);
+
+    QVERIFY(QDir().rmdir(path));
+    SyncAdapterExport recovered;
+    QVERIFY2(intents.exportSnapshot(&recovered, &error), qPrintable(error));
+    QCOMPARE(recovered.records.size(), 1);
+    QCOMPARE(recovered.tombstones.size(), 0);
+}
+
+void tst_local_downloads_failure::redownloadClearsCancellationBeforeEnqueue()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const auto profile = ProfilePaths::account(
+        QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        QDir(temp.path()).filePath(QStringLiteral("appdata")));
+    QVERIFY(profile.has_value());
+    QVERIFY(QDir().mkpath(profile->profileRoot()));
+
+    const QVariantMap row{
+        {QStringLiteral("id"), QStringLiteral("movie-42")},
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("kind"), QStringLiteral("movie")},
+        {QStringLiteral("title"), QStringLiteral("Fixture Movie")}};
+    DownloadIntentStore intents;
+    QString error;
+    QVERIFY2(intents.activate(*profile, &error), qPrintable(error));
+    QVERIFY2(intents.cancel(QStringLiteral("theatre/movie-42"), &error),
+             qPrintable(error));
+
+    DownloadStore videos;
+    LocalDownloads downloads(nullptr, nullptr, nullptr, &videos);
+    downloads.setDownloadIntentStore(&intents);
+    const QVariantMap result = downloads.redownload(row);
+    QVERIFY2(result.value(QStringLiteral("success")).toBool(),
+             qPrintable(result.value(QStringLiteral("message")).toString()));
+
+    SyncAdapterExport snapshot;
+    QVERIFY2(intents.exportSnapshot(&snapshot, &error), qPrintable(error));
+    QCOMPARE(snapshot.tombstones.size(), 0);
+    QCOMPARE(snapshot.records.size(), 1);
+    QCOMPARE(snapshot.records.first().recordKey,
+             QStringLiteral("theatre/movie-42"));
+    QCOMPARE(snapshot.records.first().payload.toObject(),
+             QJsonObject::fromVariantMap(row));
+}
+
+void tst_local_downloads_failure::deactivatedIntentStoreCannotBeMutatedByLocalCancel()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const auto profile = ProfilePaths::account(
+        QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        QDir(temp.path()).filePath(QStringLiteral("appdata")));
+    QVERIFY(profile.has_value());
+    QVERIFY(QDir().mkpath(profile->profileRoot()));
+
+    const QVariantMap row{
+        {QStringLiteral("id"), QStringLiteral("movie-42")},
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("kind"), QStringLiteral("movie")},
+        {QStringLiteral("title"), QStringLiteral("Fixture Movie")}};
+    DownloadIntentStore intents;
+    QString error;
+    QVERIFY2(intents.activate(*profile, &error), qPrintable(error));
+    QVERIFY2(intents.remember(row, &error), qPrintable(error));
+    const QString path = QDir(profile->profileRoot()).filePath(
+        QStringLiteral("download-intents.json"));
+    QFile persisted(path);
+    QVERIFY(persisted.open(QIODevice::ReadOnly));
+    const QByteArray before = persisted.readAll();
+    persisted.close();
+
+    LocalDownloads downloads(nullptr, nullptr, nullptr, nullptr);
+    downloads.setDownloadIntentStore(&intents);
+    intents.deactivate();
+    QVERIFY(!intents.active());
+    downloads.cancel(QStringLiteral("theatre"), QStringLiteral("movie-42"));
+
+    QVERIFY(persisted.open(QIODevice::ReadOnly));
+    QCOMPARE(persisted.readAll(), before);
+    persisted.close();
+
+    DownloadIntentStore reopened;
+    QVERIFY2(reopened.activate(*profile, &error), qPrintable(error));
+    QCOMPARE(reopened.records().size(), 1);
+    QCOMPARE(reopened.records().first().toMap(), row);
 }
 
 QTEST_GUILESS_MAIN(tst_local_downloads_failure)

@@ -7,6 +7,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QHash>
 
 #include <memory>
 
@@ -63,14 +64,28 @@ public:
 
     Q_INVOKABLE bool clearAll();
 
+    // Remote Activity privacy reset clears the derived History projection
+    // without manufacturing a second local cloud mutation.
+    bool clearSyncedAll(qint64 barrierAtMs = 0);
+
     // Native sync/export seam.
     QVariantList syncEntries() const;
+
+    qint64 syncResetGeneration() const { return m_resetGeneration; }
+    qint64 syncResetBarrierAtMs() const { return m_resetBarrierAtMs; }
 
     // Exact remote winner application. These deliberately do not emit
     // syncDirty(); SyncAdapterRegistry suppresses synchronous owner echo and
     // the owner itself never manufactures a local mutation for remote state.
     bool applySyncedRecord(
         const QVariantMap &record);
+
+    // Applies a durable category reset without emitting a new local cloud
+    // mutation. Generation is the ordering authority; the timestamp only
+    // prevents an already accepted barrier from moving backwards.
+    bool applySyncedReset(
+        qint64 generation,
+        qint64 resetAtMs);
 
     bool removeSyncedRecord(
         const QString &kind,
@@ -81,6 +96,13 @@ signals:
     void syncDirty();
 
 private:
+    struct OwnerState {
+        QVariantMap records;
+        QHash<QString, qint64> tombstones;
+        qint64 resetGeneration = 0;
+        qint64 resetBarrierAtMs = 0;
+    };
+
     static QString recordKey(
         const QString &kind,
         const QString &id);
@@ -97,13 +119,38 @@ private:
 
     bool commit(
         const QVariantMap &next,
-        bool localMutation);
+        bool localMutation,
+        const OwnerState &previous);
+
+    OwnerState ownerState() const;
+    void restoreOwnerState(const OwnerState &state);
 
     bool saveRecords(
         const QVariantMap &records) const;
 
+    static qint64 recordFirst(
+        const QVariantMap &record);
+    static qint64 recordLast(
+        const QVariantMap &record);
+    static qint64 recordCompletion(
+        const QVariantMap &record);
+    static QVariantMap mergeRecords(
+        const QVariantMap &left,
+        const QVariantMap &right);
+
+    bool blockedByTombstone(
+        const QVariantMap &record) const;
+    void clearTombstone(
+        const QString &key);
+    void rememberTombstone(
+        const QString &key,
+        qint64 atMs);
+
     std::unique_ptr<QSettings> m_settings;
     QVariantMap m_records;
+    QHash<QString, qint64> m_tombstones;
+    qint64 m_resetGeneration = 0;
+    qint64 m_resetBarrierAtMs = 0;
     QString m_loadError;
     int m_revision = 0;
 };

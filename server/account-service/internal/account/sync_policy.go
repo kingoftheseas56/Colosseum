@@ -18,6 +18,7 @@ var syncAllowedCategories = map[string]int{
 	"collection":                  1,
 	"continue_progress":           1,
 	"full_history":                1,
+	"watch_state":                 1,
 	"activity_fact":               1,
 	"explicit_content_preference": 1,
 	"desired_download_intent":     1,
@@ -248,6 +249,21 @@ func validateFullHistory(
 	return nil
 }
 
+func validateActivityResetPayload(object map[string]any) error {
+	if len(object) != 2 {
+		return fmt.Errorf("payload_field_not_allowed")
+	}
+	generation, ok := syncIntegerNumber(object["resetGeneration"])
+	if !ok || generation <= 0 {
+		return fmt.Errorf("payload_invalid")
+	}
+	resetAt, ok := syncIntegerNumber(object["resetAtMs"])
+	if !ok || resetAt <= 0 {
+		return fmt.Errorf("payload_invalid")
+	}
+	return nil
+}
+
 func validateExplicitContentPreference(
 	key string,
 	object map[string]any,
@@ -292,6 +308,9 @@ func validateSyncRecordShape(
 	}
 	operation = strings.ToLower(strings.TrimSpace(operation))
 	if operation == "delete" {
+		if category == "full_history" && recordKey == "history/reset" {
+			return fmt.Errorf("invalid_operation")
+		}
 		return validateCategoryRecordKey(category, recordKey)
 	}
 	if operation != "put" {
@@ -306,6 +325,9 @@ func validateSyncRecordShape(
 		if err != nil {
 			return err
 		}
+		if recordKey == "activity/reset" {
+			return validateActivityResetPayload(object)
+		}
 		return validateActivityPayloadObject(object)
 	}
 
@@ -315,6 +337,9 @@ func validateSyncRecordShape(
 	}
 	switch category {
 	case "collection", "continue_progress", "full_history":
+		if category == "full_history" && recordKey == "history/reset" {
+			return validateActivityResetPayload(object)
+		}
 		left, right, err := validateCanonicalSyncKey(category, recordKey)
 		if err != nil {
 			return err
@@ -333,6 +358,34 @@ func validateSyncRecordShape(
 			return validateFullHistory(object, left, right)
 		}
 		return nil
+	case "watch_state":
+		parts := strings.Split(recordKey, "/")
+		if len(parts) != 3 || parts[0] != "watch" ||
+			(parts[1] != "mark" && parts[1] != "season") {
+			return fmt.Errorf("invalid_record_key")
+		}
+		value, err := decodeCanonicalSyncComponent(parts[2])
+		if err != nil || strings.TrimSpace(value) == "" || isSyncFilesystemPath(value) {
+			return fmt.Errorf("invalid_record_key")
+		}
+		if parts[1] == "mark" {
+			if err := requiredSyncIdentity(object, "id", value); err != nil {
+				return err
+			}
+			mark, ok := syncIntegerNumber(object["mark"])
+			if !ok || (mark != -1 && mark != 1) || len(object) != 2 {
+				return fmt.Errorf("payload_invalid")
+			}
+		} else {
+			if err := requiredSyncIdentity(object, "seriesId", value); err != nil {
+				return err
+			}
+			season, ok := syncIntegerNumber(object["season"])
+			if !ok || season <= 0 || len(object) != 2 {
+				return fmt.Errorf("payload_invalid")
+			}
+		}
+		return nil
 	case "desired_download_intent":
 		return validateDesiredDownloadIntent(recordKey, object)
 	case "explicit_content_preference":
@@ -345,6 +398,9 @@ func validateSyncRecordShape(
 func validateCategoryRecordKey(category, recordKey string) error {
 	switch category {
 	case "collection", "continue_progress", "full_history":
+		if category == "full_history" && recordKey == "history/reset" {
+			return nil
+		}
 		_, _, err := validateCanonicalSyncKey(category, recordKey)
 		return err
 	case "desired_download_intent":
@@ -358,8 +414,22 @@ func validateCategoryRecordKey(category, recordKey string) error {
 		return validateExplicitContentPreferenceKey(recordKey)
 	case "activity_fact":
 		parts := strings.Split(recordKey, "/")
+		if recordKey == "activity/reset" {
+			return nil
+		}
 		if len(parts) != 2 || parts[0] != "activity" || !IsUUID(parts[1]) ||
 			parts[1] != strings.ToLower(parts[1]) {
+			return fmt.Errorf("invalid_record_key")
+		}
+		return nil
+	case "watch_state":
+		parts := strings.Split(recordKey, "/")
+		if len(parts) != 3 || parts[0] != "watch" ||
+			(parts[1] != "mark" && parts[1] != "season") {
+			return fmt.Errorf("invalid_record_key")
+		}
+		value, err := decodeCanonicalSyncComponent(parts[2])
+		if err != nil || strings.TrimSpace(value) == "" || isSyncFilesystemPath(value) {
 			return fmt.Errorf("invalid_record_key")
 		}
 		return nil

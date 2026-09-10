@@ -20,7 +20,7 @@
 #include <algorithm>
 
 namespace {
-constexpr int kStateSchemaVersion = 4;
+constexpr int kStateSchemaVersion = 5;
 
 bool parseUnsigned(
     const QJsonValue &value,
@@ -448,6 +448,10 @@ QJsonObject SyncStateStore::encode(
                 QStringLiteral("operation"),
                 syncWireOperationName(
                     winner.operation));
+            object.insert(
+                QStringLiteral("server_seq"),
+                QString::number(
+                    winner.serverSeq));
             winners.append(object);
         }
     }
@@ -491,6 +495,11 @@ QJsonObject SyncStateStore::encode(
             overlay.append(entry);
         }
         object.insert(QStringLiteral("local_overlay"), overlay);
+
+        QJsonArray pending;
+        for (const SyncWireMutation &mutation : paused.pendingMutations)
+            pending.append(syncWireMutationToJson(mutation));
+        object.insert(QStringLiteral("pending_mutations"), pending);
         pausedCategories.append(object);
     }
     root.insert(QStringLiteral("paused_categories"), pausedCategories);
@@ -785,6 +794,10 @@ SyncStateStore::decode(
                     QStringLiteral(
                         "operation"))
                     .toString());
+        quint64 serverSeq = 0;
+        const bool hasServerSeq =
+            record.contains(
+                QStringLiteral("server_seq"));
 
         if (!validCategory(category)
             || !isValidSyncWireRecordKey(
@@ -803,6 +816,11 @@ SyncStateStore::decode(
                 &counter)
             || deviceId.isEmpty()
             || !operation.has_value()
+            || (hasServerSeq
+                && !parseUnsigned(
+                    record.value(
+                        QStringLiteral("server_seq")),
+                    &serverSeq))
             || state.winners
                    .value(category)
                    .contains(recordKey)) {
@@ -822,6 +840,8 @@ SyncStateStore::decode(
             schemaVersion;
         winner.operation =
             *operation;
+        winner.serverSeq =
+            serverSeq;
 
         state.winners[category].insert(
             recordKey,
@@ -848,7 +868,9 @@ SyncStateStore::decode(
         const QString category = objectValue.value(QStringLiteral("category")).toString();
         const QJsonValue baselineValue = objectValue.value(QStringLiteral("local_baseline"));
         const QJsonValue overlayValue = objectValue.value(QStringLiteral("local_overlay"));
+        const QJsonValue pendingValue = objectValue.value(QStringLiteral("pending_mutations"));
         if (!validCategory(category) || !baselineValue.isArray() || !overlayValue.isArray()
+            || (schemaVersion >= 5 && !pendingValue.isArray())
             || state.pausedCategories.contains(category)) {
             if (error)
                 *error = QStringLiteral("A paused sync category is invalid or duplicated.");
@@ -895,6 +917,23 @@ SyncStateStore::decode(
             }
             paused.localOverlay.insert(key, SyncPausedOverlayRecord{*operation, version,
                 record.value(QStringLiteral("payload")), localOrderMs});
+        }
+        if (schemaVersion >= 5) {
+            QSet<QString> pendingIds;
+            for (const QJsonValue &mutationValue : pendingValue.toArray()) {
+                const auto mutation = mutationValue.isObject()
+                    ? syncWireMutationFromJson(mutationValue.toObject())
+                    : std::nullopt;
+                if (!mutation.has_value()
+                    || mutation->category != category
+                    || pendingIds.contains(mutation->mutationId)) {
+                    if (error)
+                        *error = QStringLiteral("A paused pending mutation is invalid or duplicated.");
+                    return std::nullopt;
+                }
+                pendingIds.insert(mutation->mutationId);
+                paused.pendingMutations.append(*mutation);
+            }
         }
         state.pausedCategories.insert(category, paused);
     }

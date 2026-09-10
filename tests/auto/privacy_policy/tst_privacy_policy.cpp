@@ -48,6 +48,7 @@ private slots:
     void searchRetentionOffSuppressesFutureRecordsOnly();
     void activityRetentionOffSuppressesFutureFactsOnly();
     void retentionReenableRecordsAgain();
+    void completionProjectionHonorsActivityRetention();
     void clearActivityHistoryClearsActivityAndHistoryButNotProgress();
     void profileSwitchRebindsRetentionPolicy();
 };
@@ -123,6 +124,35 @@ void tst_privacy_policy::retentionReenableRecordsAgain()
     activity.setRetentionEnabled(true);
     QVERIFY(activity.recordPlaybackDelta(playbackFact(QStringLiteral("accepted"))));
     QCOMPARE(activity.historyProjectionFacts().size(), 1);
+}
+
+void tst_privacy_policy::completionProjectionHonorsActivityRetention()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    ActivityStore activity;
+    HistoryStore history(dir.filePath(QStringLiteral("history.ini")));
+    ProgressStore progress(dir.filePath(QStringLiteral("progress.ini")));
+    ConsumptionHistoryBridge bridge(&activity, &progress, &history);
+
+    const QString id = QStringLiteral("movie:retention");
+    const auto resume = [id](double value) {
+        return QVariantMap{
+            {QStringLiteral("kind"), QStringLiteral("video")},
+            {QStringLiteral("id"), id},
+            {QStringLiteral("progress"), value},
+            {QStringLiteral("caption"), QStringLiteral("Retention Movie")}};
+    };
+
+    progress.record(resume(0.50));
+    activity.setRetentionEnabled(false);
+    progress.record(resume(0.95));
+    QVERIFY(history.records().isEmpty());
+
+    activity.setRetentionEnabled(true);
+    progress.record(resume(0.50));
+    progress.record(resume(0.95));
+    QVERIFY(!history.records().isEmpty());
 }
 
 void tst_privacy_policy::clearActivityHistoryClearsActivityAndHistoryButNotProgress()

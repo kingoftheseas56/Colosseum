@@ -3,6 +3,8 @@
 
 #include "account/AccountClient.h"
 #include "account/AccountTransport.h"
+#include "account/ActivityStore.h"
+#include "account/ActivitySyncAdapter.h"
 #include "account/HistoryStore.h"
 #include "account/HistorySyncAdapter.h"
 #include "account/ProfilePaths.h"
@@ -48,6 +50,26 @@ QString historyKey(const QString &kind, const QString &id) {
             QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
     };
     return QStringLiteral("history/") + encode(kind) + QLatin1Char('/') + encode(id);
+}
+
+QVariantMap activityPlaybackFact(const QString &eventId, qint64 startAtMs) {
+    return {
+        {QStringLiteral("eventId"), eventId},
+        {QStringLiteral("sessionId"), QStringLiteral("session-sync-policy")},
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("kind"), QStringLiteral("movie")},
+        {QStringLiteral("titleKey"), QStringLiteral("movie:sync-policy")},
+        {QStringLiteral("itemKey"), QStringLiteral("movie:sync-policy")},
+        {QStringLiteral("title"), QStringLiteral("Sync Policy Movie")},
+        {QStringLiteral("itemLabel"), QString()},
+        {QStringLiteral("cover"), QString()},
+        {QStringLiteral("utcOffsetMinutes"), 0},
+        {QStringLiteral("syncable"), true},
+        {QStringLiteral("source"), QStringLiteral("test")},
+        {QStringLiteral("startAtMs"), startAtMs},
+        {QStringLiteral("endAtMs"), startAtMs + 5000},
+        {QStringLiteral("activeMs"), qint64(5000)},
+        {QStringLiteral("rateMilli"), qint64(1000)}};
 }
 
 struct JournalEntry {
@@ -280,6 +302,8 @@ SyncWireMutation remoteMutation(const QString &id, const QString &category,
 struct Replica {
     FixtureTransport transport;
     AccountClient client;
+    ActivityStore activity;
+    ActivitySyncAdapter activityAdapter;
     HistoryStore history;
     HistorySyncAdapter historyAdapter;
     CategoryAdapter other;
@@ -290,11 +314,13 @@ struct Replica {
 
     Replica(FixtureService *service, const ProfilePaths &profileValue,
             const QString &device, qint64 *now, bool startNow = true)
-        : transport(service), client(&transport), history(profileValue.profileRoot() + "/history.ini"),
-          historyAdapter(&history), other(QStringLiteral("collection")),
+        : transport(service), client(&transport), activity(), activityAdapter(&activity),
+          history(profileValue.profileRoot() + "/history.ini"), historyAdapter(&history),
+          other(QStringLiteral("collection")),
           engine(&client, &registry, [now]() { return *now; }), profile(profileValue) {
         client.setAccessToken("fixture-access");
-        if (!registry.registerAdapter(&historyAdapter)
+        if (!registry.registerAdapter(&activityAdapter)
+            || !registry.registerAdapter(&historyAdapter)
             || !registry.registerAdapter(&other))
             qFatal("fixture adapter registration failed");
         QObject::connect(&client, &AccountClient::completed,
@@ -397,6 +423,7 @@ private slots:
     void reenablePreservesLocalDeleteMadeWhilePaused();
     void reenableConvergesConflictWithLocalChangeWinningOnlyChangedKey();
     void reenableReplayDoesNotReapplyOlderWinnersForOtherCategories();
+    void reenableQueuesHistoryAndActivityReplayTogether();
     void disableDropsPendingHistoryOutbox();
 };
 
@@ -603,6 +630,41 @@ void tst_sync_category_policy::reenableReplayDoesNotReapplyOlderWinnersForOtherC
     QCOMPARE(replica.other.remoteApplyCount(), appliesBefore);
     const QJsonObject old{{"value", "old"}};
     QCOMPARE(replica.other.value("item"), QJsonValue(old));
+}
+
+void tst_sync_category_policy::reenableQueuesHistoryAndActivityReplayTogether() {
+    QTemporaryDir temp;
+    FixtureService service;
+    qint64 now = service.serverTimeMs;
+    Replica replica(&service, profileFor(&temp), kDeviceA, &now);
+
+    // Build one unsynced local mutation in each category before pausing both
+    // preferences. Both pending intents must survive the pause and restart
+    // through the replay queue.
+    replica.transport.setOnline(false);
+    QVERIFY(replica.history.recordActivity("book", "queued-history", now));
+    QVERIFY(replica.activity.recordPlaybackDelta(
+        activityPlaybackFact(
+            "99999999-9999-4999-8999-999999999999", now)));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 2);
+
+    replica.engine.setCategoryNetworkEnabled("full_history", false);
+    replica.engine.setCategoryNetworkEnabled("activity_fact", false);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+
+    replica.engine.setCategoryNetworkEnabled("full_history", true);
+    replica.engine.setCategoryNetworkEnabled("activity_fact", true);
+    QVERIFY(!replica.engine.categoryNetworkEnabled("full_history"));
+    QVERIFY(!replica.engine.categoryNetworkEnabled("activity_fact"));
+
+    replica.transport.setOnline(true);
+    replica.engine.setNetworkEnabled(true);
+    waitIdle(replica);
+
+    QVERIFY(replica.engine.categoryNetworkEnabled("full_history"));
+    QVERIFY(replica.engine.categoryNetworkEnabled("activity_fact"));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(service.acceptedMutationCount(), 2);
 }
 
 void tst_sync_category_policy::disableDropsPendingHistoryOutbox() {

@@ -19,6 +19,7 @@ struct SyncAdapterSnapshot {
     quint64 revision = 0;
     bool missingRecordsAreDeletes = true;
     QList<SyncAdapterRecord> records;
+    QList<QString> tombstones;
 };
 
 struct SyncAdapterMutation {

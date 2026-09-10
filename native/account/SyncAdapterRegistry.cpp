@@ -235,6 +235,23 @@ bool SyncAdapterRegistry::exportSnapshot(
         }
     }
 
+    QSet<QString> tombstones;
+    for (const QString &recordKey : exported.tombstones) {
+        if (!isValidSyncWireRecordKey(recordKey)) {
+            return fail(
+                error,
+                QStringLiteral("invalid_record_key"),
+                QStringLiteral("The adapter exported an invalid logical tombstone key."));
+        }
+        if (keys.contains(recordKey) || tombstones.contains(recordKey)) {
+            return fail(
+                error,
+                QStringLiteral("duplicate_record_key"),
+                QStringLiteral("The adapter exported a logical record and tombstone for the same key."));
+        }
+        tombstones.insert(recordKey);
+    }
+
     snapshot->categoryId =
         entry->categoryId;
     snapshot->schemaVersion =
@@ -245,6 +262,8 @@ bool SyncAdapterRegistry::exportSnapshot(
         adapter->missingRecordsAreDeletes();
     snapshot->records =
         exported.records;
+    snapshot->tombstones =
+        exported.tombstones;
     return true;
 }
 

@@ -2,9 +2,11 @@
 #include "account/ActivitySyncAdapter.h"
 
 #include <QFile>
+#include <QDir>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QVariantList>
 #include <QtTest>
 
@@ -100,6 +102,8 @@ private slots:
     void preflightKeepsIntegerBoundariesExact();
     void sharedFixtureMatchesQtProjection();
     void twoDevicesUnionFactsIntoIdenticalProjections();
+    void retentionDisabledRemoteFactWaitsForReenableAndRestart();
+    void resetBarrierSurvivesRestartAndBlocksStaleOfflineFacts();
 };
 
 void tst_activity_sync::identityAndImmutablePolicy() {
@@ -128,8 +132,8 @@ void tst_activity_sync::localSignalsOnlyForSyncableAppends() {
     QCOMPARE(adapter.revision(), quint64(1));
 
     QVERIFY(store.clearAll());
-    QCOMPARE(spy.count(), 1);
-    QCOMPARE(adapter.revision(), quint64(1));
+    QCOMPARE(spy.count(), 2);
+    QCOMPARE(adapter.revision(), quint64(2));
 }
 
 void tst_activity_sync::exportUsesLowercaseEventKeyAndPortablePayload() {
@@ -489,6 +493,112 @@ void tst_activity_sync::twoDevicesUnionFactsIntoIdenticalProjections() {
              qint64(1));
     QCOMPARE(projectionA.value(QStringLiteral("activeDays")).toLongLong(),
              qint64(1));
+}
+
+void tst_activity_sync::retentionDisabledRemoteFactWaitsForReenableAndRestart() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString databasePath = QDir(temp.path()).filePath(QStringLiteral("activity.sqlite"));
+    const QString eventId = QStringLiteral("45454545-4545-4545-8454-454545454545");
+
+    ActivityStore source;
+    ActivitySyncAdapter sourceAdapter(&source);
+    QVERIFY(source.recordPlaybackDelta(playbackFact(eventId)));
+    const SyncAdapterRecord remote = exportOnlyRecord(sourceAdapter);
+
+    ActivityStore target(databasePath);
+    target.setRetentionEnabled(false);
+    ActivitySyncAdapter targetAdapter(&target);
+    QString error;
+    QVERIFY(!targetAdapter.applyRemote(
+        remote.recordKey, SyncWireOperation::Put, remote.payload, 1, &error));
+    QCOMPARE(error, QStringLiteral("retention_disabled"));
+    QCOMPARE(target.portableSyncFacts().size(), 0);
+
+    // Re-enabling retention lets the paused category replay the same durable
+    // server entry; the resulting owner state survives a new process.
+    target.setRetentionEnabled(true);
+    QVERIFY2(targetAdapter.applyRemote(
+                 remote.recordKey, SyncWireOperation::Put,
+                 remote.payload, 1, &error), qPrintable(error));
+    QCOMPARE(target.portableSyncFacts().size(), 1);
+    target.checkpointForSafeCopy(nullptr);
+
+    ActivityStore restarted(databasePath);
+    QCOMPARE(restarted.portableSyncFacts().size(), 1);
+}
+
+void tst_activity_sync::resetBarrierSurvivesRestartAndBlocksStaleOfflineFacts() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString sourcePath = QDir(temp.path()).filePath(QStringLiteral("source.sqlite"));
+    const QString targetPath = QDir(temp.path()).filePath(QStringLiteral("target.sqlite"));
+    const QString eventId = QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+    SyncAdapterRecord oldRecord;
+    SyncAdapterRecord resetRecord;
+    {
+        ActivityStore source(sourcePath);
+        ActivitySyncAdapter sourceAdapter(&source);
+        QVERIFY(source.recordPlaybackDelta(playbackFact(eventId)));
+        {
+            SyncAdapterExport beforeClear;
+            QString error;
+            QVERIFY2(sourceAdapter.exportSnapshot(&beforeClear, &error), qPrintable(error));
+            QCOMPARE(beforeClear.records.size(), 1);
+            oldRecord = beforeClear.records.constFirst();
+        }
+        QVERIFY(source.clearAll());
+        QCOMPARE(source.portableSyncFacts().size(), 0);
+        SyncAdapterExport snapshot;
+        QString error;
+        QVERIFY2(sourceAdapter.exportSnapshot(&snapshot, &error), qPrintable(error));
+        QCOMPARE(snapshot.records.size(), 1);
+        resetRecord = snapshot.records.constFirst();
+        QCOMPARE(resetRecord.recordKey, QStringLiteral("activity/reset"));
+        QVERIFY(resetRecord.payload.isObject());
+        QVERIFY(resetRecord.payload.toObject().value(QStringLiteral("resetGeneration")).toInteger() > 0);
+        QVERIFY(resetRecord.payload.toObject().value(QStringLiteral("resetAtMs")).toInteger() > 0);
+    }
+
+    {
+        // The target is a clean replica. Seed it with the old server fact,
+        // then apply the reset so this exercises the actual remote reset and
+        // deletion path instead of reopening the source owner that already
+        // committed the barrier locally.
+        ActivityStore target(targetPath);
+        ActivitySyncAdapter targetAdapter(&target);
+        QString error;
+        QVERIFY2(targetAdapter.applyRemote(
+                     oldRecord.recordKey, SyncWireOperation::Put,
+                     oldRecord.payload, 1, &error), qPrintable(error));
+        QCOMPARE(target.portableSyncFacts().size(), 1);
+        QVERIFY2(targetAdapter.applyRemote(
+                     resetRecord.recordKey, SyncWireOperation::Put,
+                     resetRecord.payload, 1, &error), qPrintable(error));
+        QCOMPARE(target.portableSyncReset(), resetRecord.payload.toObject().toVariantMap());
+        QVERIFY2(targetAdapter.applyRemote(
+                     QStringLiteral("activity/") + eventId,
+                     SyncWireOperation::Put,
+                     oldRecord.payload,
+                     1, &error), qPrintable(error));
+        QCOMPARE(target.portableSyncFacts().size(), 0);
+    }
+
+    // Reopening the same owner keeps the privacy barrier and still refuses
+    // the old device's late fact.
+    ActivityStore restarted(targetPath);
+    ActivitySyncAdapter restartedAdapter(&restarted);
+    QCOMPARE(restarted.resetGeneration(), resetRecord.payload.toObject()
+                 .value(QStringLiteral("resetGeneration")).toInteger());
+    QCOMPARE(restarted.portableSyncFacts().size(), 0);
+    QString error;
+    QVERIFY2(restartedAdapter.applyRemote(
+                 QStringLiteral("activity/") + eventId,
+                 SyncWireOperation::Put,
+                 oldRecord.payload,
+                 1, &error), qPrintable(error));
+    QCOMPARE(restarted.portableSyncFacts().size(), 0);
 }
 
 QTEST_MAIN(tst_activity_sync)

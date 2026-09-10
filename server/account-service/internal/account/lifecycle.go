@@ -541,6 +541,7 @@ func (s *Service) materializeExportActivityItemsTx(
             SELECT event_id::text, payload_ciphertext
             FROM account_activity_facts
             WHERE account_id = $1::uuid
+              AND suppressed = false
         `
 		args := []any{accountID}
 		if hasLast {

@@ -135,6 +135,7 @@ func loadJournalByMutationIDTx(
             hlc_counter,
             operation,
             payload_ciphertext,
+            materialized_payload_ciphertext,
             won,
             received_at
         FROM account_sync_journal
@@ -155,6 +156,7 @@ func loadJournalByMutationIDTx(
 		&counter,
 		&stored.Operation,
 		&stored.PayloadCipher,
+		&stored.MaterializedPayloadCipher,
 		&stored.Won,
 		&stored.ReceivedAt); err != nil {
 		if err == pgx.ErrNoRows {

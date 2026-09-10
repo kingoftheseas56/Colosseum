@@ -6,14 +6,23 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QDateTime>
 #include <QSettings>
 #include <QtGlobal>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace {
 constexpr auto kHistoryRecordsKey =
     "history/records";
+constexpr auto kHistoryTombstonesKey =
+    "history/tombstones";
+constexpr auto kHistoryResetGenerationKey =
+    "history/resetGeneration";
+constexpr auto kHistoryResetBarrierKey =
+    "history/resetBarrierAtMs";
 
 QVariantMap canonicalRecord(
     const QString &kind,
@@ -42,6 +51,76 @@ QVariantMap canonicalRecord(
     }
 
     return record;
+}
+
+bool strictPositiveIntegerVariant(
+    const QVariant &value,
+    qint64 *result,
+    bool allowZero = false) {
+    if (!value.isValid())
+        return false;
+
+    const int type = value.metaType().id();
+    if (type == QMetaType::Double
+        || type == QMetaType::Float) {
+        const double number = value.toDouble();
+        if (!std::isfinite(number)
+            || (allowZero ? number < 0 : number <= 0)
+            || std::floor(number) != number
+            || number > static_cast<double>(std::numeric_limits<qint64>::max())) {
+            return false;
+        }
+        const qint64 integer = value.toLongLong();
+        if (allowZero ? integer < 0 : integer <= 0)
+            return false;
+        if (result)
+            *result = integer;
+        return true;
+    }
+
+    if (type == QMetaType::QString) {
+        const QString text = value.toString();
+        if (text.isEmpty()
+            || (text.size() > 1 && text.startsWith(QLatin1Char('0')))) {
+            return false;
+        }
+        for (const QChar character : text) {
+            if (!character.isDigit())
+                return false;
+        }
+        bool ok = false;
+        const qint64 integer = text.toLongLong(&ok);
+        if (!ok || (allowZero ? integer < 0 : integer <= 0))
+            return false;
+        if (result)
+            *result = integer;
+        return true;
+    }
+
+    if (type != QMetaType::Int
+        && type != QMetaType::UInt
+        && type != QMetaType::LongLong
+        && type != QMetaType::ULongLong
+        && type != QMetaType::Short
+        && type != QMetaType::UShort) {
+        return false;
+    }
+
+    bool ok = false;
+    const qint64 integer = value.toLongLong(&ok);
+    if (!ok || (allowZero ? integer < 0 : integer <= 0))
+        return false;
+    if (result)
+        *result = integer;
+    return true;
+}
+
+bool strictPositiveJsonInteger(
+    const QJsonValue &value,
+    qint64 *result) {
+    if (!value.isDouble())
+        return false;
+    return strictPositiveIntegerVariant(value.toVariant(), result);
 }
 }
 
@@ -155,7 +234,14 @@ bool HistoryStore::recordActivityRange(const QString &kind, const QString &id,
     if (!validIdentity(normalizedKind, normalizedId) || firstActivityAtMs <= 0
         || lastActivityAtMs < firstActivityAtMs)
         return false;
+    const OwnerState previous = ownerState();
     const QString key = recordKey(normalizedKind, normalizedId);
+    bool tombstoneCleared = false;
+    const auto tombstone = m_tombstones.constFind(key);
+    if (tombstone != m_tombstones.constEnd() && lastActivityAtMs > tombstone.value()) {
+        clearTombstone(key);
+        tombstoneCleared = true;
+    }
     const QVariantMap current = m_records.value(key).toMap();
     const qint64 existingFirst = current.value(QStringLiteral("firstActivityAt")).toLongLong();
     const qint64 existingLast = current.value(QStringLiteral("lastActivityAt")).toLongLong();
@@ -164,17 +250,32 @@ bool HistoryStore::recordActivityRange(const QString &kind, const QString &id,
         existingFirst > 0 ? qMin(existingFirst, firstActivityAtMs) : firstActivityAtMs,
         qMax(existingLast, lastActivityAtMs),
         current.value(QStringLiteral("completedAt")).toLongLong());
-    if (current == normalized)
+    if (current == normalized && !tombstoneCleared)
         return true;
     QVariantMap next = m_records;
     next.insert(key, normalized);
-    return commit(next, true);
+    return commit(next, true, previous);
 }
 
 bool HistoryStore::clearAll() {
-    if (m_records.isEmpty())
-        return true;
-    return commit(QVariantMap(), true);
+    const qint64 barrier = QDateTime::currentMSecsSinceEpoch();
+    const OwnerState previous = ownerState();
+    for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
+        rememberTombstone(it.key(), barrier);
+    ++m_resetGeneration;
+    m_resetBarrierAtMs = qMax(m_resetBarrierAtMs, barrier);
+    return commit(QVariantMap(), true, previous);
+}
+
+bool HistoryStore::clearSyncedAll(qint64 barrierAtMs) {
+    const qint64 barrier = barrierAtMs > 0
+        ? barrierAtMs
+        : QDateTime::currentMSecsSinceEpoch();
+    const OwnerState previous = ownerState();
+    for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
+        rememberTombstone(it.key(), barrier);
+    m_resetBarrierAtMs = qMax(m_resetBarrierAtMs, barrier);
+    return commit(QVariantMap(), false, previous);
 }
 
 bool HistoryStore::recordActivity(
@@ -193,15 +294,22 @@ bool HistoryStore::recordActivity(
         return false;
     }
 
+    const OwnerState previous = ownerState();
     QVariantMap next =
         m_records;
+
+    const QString key = recordKey(normalizedKind, normalizedId);
+    bool tombstoneCleared = false;
+    const auto tombstone = m_tombstones.constFind(key);
+    if (tombstone != m_tombstones.constEnd() && activityAtMs > tombstone.value()) {
+        clearTombstone(key);
+        tombstoneCleared = true;
+    }
 
     QVariantMap current =
         next
             .value(
-                recordKey(
-                    normalizedKind,
-                    normalizedId))
+                key)
             .toMap();
 
     qint64 firstActivityAt =
@@ -245,18 +353,17 @@ bool HistoryStore::recordActivity(
             lastActivityAt,
             completedAt);
 
-    if (current == normalized)
+    if (current == normalized && !tombstoneCleared)
         return true;
 
     next.insert(
-        recordKey(
-            normalizedKind,
-            normalizedId),
+        key,
         normalized);
 
     return commit(
         next,
-        true);
+        true,
+        previous);
 }
 
 bool HistoryStore::markCompleted(
@@ -275,15 +382,22 @@ bool HistoryStore::markCompleted(
         return false;
     }
 
+    const OwnerState previous = ownerState();
     QVariantMap next =
         m_records;
+
+    const QString key = recordKey(normalizedKind, normalizedId);
+    bool tombstoneCleared = false;
+    const auto tombstone = m_tombstones.constFind(key);
+    if (tombstone != m_tombstones.constEnd() && completedAtMs > tombstone.value()) {
+        clearTombstone(key);
+        tombstoneCleared = true;
+    }
 
     const QVariantMap current =
         next
             .value(
-                recordKey(
-                    normalizedKind,
-                    normalizedId))
+                key)
             .toMap();
 
     qint64 firstActivityAt =
@@ -319,20 +433,21 @@ bool HistoryStore::markCompleted(
             normalizedId,
             firstActivityAt,
             lastActivityAt,
-            completedAtMs);
+            current.value(QStringLiteral("completedAt")).toLongLong() > 0
+                ? qMin(current.value(QStringLiteral("completedAt")).toLongLong(), completedAtMs)
+                : completedAtMs);
 
-    if (current == normalized)
+    if (current == normalized && !tombstoneCleared)
         return true;
 
     next.insert(
-        recordKey(
-            normalizedKind,
-            normalizedId),
+        key,
         normalized);
 
     return commit(
         next,
-        true);
+        true,
+        previous);
 }
 
 bool HistoryStore::remove(
@@ -349,18 +464,16 @@ bool HistoryStore::remove(
         return false;
     }
 
-    QVariantMap next =
-        m_records;
-    if (!next.remove(
-            recordKey(
-                normalizedKind,
-                normalizedId))) {
-        return true;
-    }
+    const OwnerState previous = ownerState();
+    const QString key = recordKey(normalizedKind, normalizedId);
+    QVariantMap next = m_records;
+    next.remove(key);
+    rememberTombstone(key, QDateTime::currentMSecsSinceEpoch());
 
     return commit(
         next,
-        true);
+        true,
+        previous);
 }
 
 QVariantList HistoryStore::syncEntries() const {
@@ -402,22 +515,55 @@ bool HistoryStore::applySyncedRecord(
     const QString key =
         recordKey(kind, id);
 
-    if (m_records
-            .value(key)
-            .toMap()
-        == normalized) {
+    if (blockedByTombstone(normalized))
+        return true;
+
+    const OwnerState previous = ownerState();
+    const QVariantMap current = m_records.value(key).toMap();
+    const QVariantMap merged = current.isEmpty()
+        ? normalized
+        : mergeRecords(current, normalized);
+    const auto tombstone = m_tombstones.constFind(key);
+    const bool tombstoneCleared = tombstone != m_tombstones.constEnd()
+        && recordLast(normalized) > tombstone.value();
+    if (current == merged && !tombstoneCleared) {
         return true;
     }
+
+    clearTombstone(key);
 
     QVariantMap next =
         m_records;
     next.insert(
         key,
-        normalized);
+        merged);
 
     return commit(
         next,
-        false);
+        false,
+        previous);
+}
+
+bool HistoryStore::applySyncedReset(
+    qint64 generation,
+    qint64 resetAtMs) {
+    if (generation <= 0 || resetAtMs <= 0 || !healthy())
+        return false;
+    if (generation < m_resetGeneration
+        || (generation == m_resetGeneration
+            && resetAtMs <= m_resetBarrierAtMs)) {
+        return true;
+    }
+
+    const OwnerState previous = ownerState();
+    const qint64 effectiveBarrier =
+        qMax(m_resetBarrierAtMs, resetAtMs);
+
+    for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
+        rememberTombstone(it.key(), effectiveBarrier);
+    m_resetGeneration = qMax(m_resetGeneration, generation);
+    m_resetBarrierAtMs = effectiveBarrier;
+    return commit(QVariantMap(), false, previous);
 }
 
 bool HistoryStore::removeSyncedRecord(
@@ -434,18 +580,16 @@ bool HistoryStore::removeSyncedRecord(
         return false;
     }
 
-    QVariantMap next =
-        m_records;
-    if (!next.remove(
-            recordKey(
-                normalizedKind,
-                normalizedId))) {
-        return true;
-    }
+    const OwnerState previous = ownerState();
+    const QString key = recordKey(normalizedKind, normalizedId);
+    QVariantMap next = m_records;
+    next.remove(key);
+    rememberTombstone(key, QDateTime::currentMSecsSinceEpoch());
 
     return commit(
         next,
-        false);
+        false,
+        previous);
 }
 
 QString HistoryStore::recordKey(
@@ -556,109 +700,208 @@ bool HistoryStore::validIdentity(
 
 void HistoryStore::load() {
     m_records.clear();
+    m_tombstones.clear();
+    m_resetGeneration = 0;
+    m_resetBarrierAtMs = 0;
+    m_loadError.clear();
 
-    const QByteArray payload =
-        m_settings
-            ->value(
-                QString::fromLatin1(
-                    kHistoryRecordsKey))
-            .toByteArray();
+    const auto fail = [this](const QString &message) {
+        m_records.clear();
+        m_tombstones.clear();
+        m_resetGeneration = 0;
+        m_resetBarrierAtMs = 0;
+        m_loadError = message;
+    };
 
-    if (payload.isEmpty())
-        return;
-
-    const QJsonDocument document =
-        QJsonDocument::fromJson(
-            payload);
-
-    if (!document.isObject()) {
-        m_loadError =
-            QStringLiteral(
-                "The History persistence file is malformed.");
+    if (m_settings->status() != QSettings::NoError) {
+        fail(QStringLiteral("The History settings could not be read."));
         return;
     }
 
-    const QJsonObject object =
-        document.object();
+    const QString generationKey =
+        QString::fromLatin1(kHistoryResetGenerationKey);
+    const QString barrierKey =
+        QString::fromLatin1(kHistoryResetBarrierKey);
+    const bool hasGeneration = m_settings->contains(generationKey);
+    const bool hasBarrier = m_settings->contains(barrierKey);
+    qint64 generation = 0;
+    qint64 barrier = 0;
 
-    for (auto it =
-             object.constBegin();
-         it != object.constEnd();
-         ++it) {
+    if (hasGeneration) {
+        const QVariant raw = m_settings->value(generationKey);
+        if (!strictPositiveIntegerVariant(raw, &generation, true)) {
+            fail(QStringLiteral("The History reset generation is malformed."));
+            return;
+        }
+    }
+    if (hasBarrier) {
+        const QVariant raw = m_settings->value(barrierKey);
+        if (!strictPositiveIntegerVariant(raw, &barrier, true)) {
+            fail(QStringLiteral("The History reset barrier is malformed."));
+            return;
+        }
+    }
+    if ((generation == 0) != (barrier == 0)) {
+        fail(QStringLiteral("The History reset generation and barrier are incoherent."));
+        return;
+    }
+    m_resetGeneration = generation;
+    m_resetBarrierAtMs = barrier;
+
+    const QString tombstonesKey =
+        QString::fromLatin1(kHistoryTombstonesKey);
+    if (m_settings->contains(tombstonesKey)) {
+        const QByteArray tombstonePayload =
+            m_settings->value(tombstonesKey).toByteArray();
+        if (tombstonePayload.isEmpty()) {
+            fail(QStringLiteral("The History tombstone persistence is malformed."));
+            return;
+        }
+        QJsonParseError parseError;
+        const QJsonDocument tombstoneDocument =
+            QJsonDocument::fromJson(tombstonePayload, &parseError);
+        if (parseError.error != QJsonParseError::NoError
+            || !tombstoneDocument.isObject()) {
+            fail(QStringLiteral("The History tombstone persistence is malformed."));
+            return;
+        }
+        const QJsonObject tombstoneObject = tombstoneDocument.object();
+        for (auto it = tombstoneObject.constBegin();
+             it != tombstoneObject.constEnd(); ++it) {
+            const QStringList parts =
+                it.key().split(QChar(0x1f), Qt::KeepEmptyParts);
+            if (parts.size() != 2
+                || !validIdentity(parts.at(0), parts.at(1))
+                || recordKey(parts.at(0), parts.at(1)) != it.key()) {
+                fail(QStringLiteral("A History tombstone key is invalid."));
+                return;
+            }
+            qint64 atMs = 0;
+            if (!strictPositiveJsonInteger(it.value(), &atMs)) {
+                fail(QStringLiteral("A History tombstone timestamp is invalid."));
+                return;
+            }
+            m_tombstones.insert(it.key(), atMs);
+        }
+    }
+
+    const QString recordsKey =
+        QString::fromLatin1(kHistoryRecordsKey);
+    if (!m_settings->contains(recordsKey))
+        return;
+
+    const QByteArray payload = m_settings->value(recordsKey).toByteArray();
+    if (payload.isEmpty()) {
+        fail(QStringLiteral("The History record persistence is malformed."));
+        return;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(payload, &parseError);
+    if (parseError.error != QJsonParseError::NoError
+        || !document.isObject()) {
+        fail(QStringLiteral("The History persistence file is malformed."));
+        return;
+    }
+
+    const QJsonObject object = document.object();
+    for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
         if (!it.value().isObject()) {
-            m_loadError =
-                QStringLiteral(
-                    "A persisted History record is malformed.");
-            continue;
+            fail(QStringLiteral("A persisted History record is malformed."));
+            return;
         }
 
-        QVariantMap record =
-            it.value()
-                .toObject()
-                .toVariantMap();
+        const QJsonObject recordObject = it.value().toObject();
+        if (!recordObject.value(QStringLiteral("kind")).isString()
+            || !recordObject.value(QStringLiteral("id")).isString()) {
+            fail(QStringLiteral("A persisted History record identity is malformed."));
+            return;
+        }
+        QVariantMap record = recordObject.toVariantMap();
 
         // Cumulative 4A/4B placeholder compatibility: an old reference record
         // stored only completedAt. Promote that durable fact into a complete
         // first/last/completed record rather than discarding it.
-        if (!record.contains(
-                QStringLiteral(
-                    "firstActivityAt"))
-            && !record.contains(
-                QStringLiteral(
-                    "lastActivityAt"))) {
-            const qint64 completedAt =
-                record
-                    .value(
-                        QStringLiteral(
-                            "completedAt"))
-                    .toLongLong();
-            if (completedAt > 0) {
-                record.insert(
-                    QStringLiteral(
-                        "firstActivityAt"),
-                    completedAt);
-                record.insert(
-                    QStringLiteral(
-                        "lastActivityAt"),
-                    completedAt);
+        if (!record.contains(QStringLiteral("firstActivityAt"))
+            && !record.contains(QStringLiteral("lastActivityAt"))) {
+            qint64 completedAt = 0;
+            if (!strictPositiveJsonInteger(
+                    recordObject.value(QStringLiteral("completedAt")),
+                    &completedAt)) {
+                fail(QStringLiteral("A persisted History record has invalid semantic fields."));
+                return;
+            }
+            record.insert(QStringLiteral("firstActivityAt"), completedAt);
+            record.insert(QStringLiteral("lastActivityAt"), completedAt);
+        } else {
+            qint64 ignored = 0;
+            if (!strictPositiveJsonInteger(
+                    recordObject.value(QStringLiteral("firstActivityAt")),
+                    &ignored)
+                || !strictPositiveJsonInteger(
+                    recordObject.value(QStringLiteral("lastActivityAt")),
+                    &ignored)) {
+                fail(QStringLiteral("A persisted History record has invalid semantic fields."));
+                return;
+            }
+            if (recordObject.contains(QStringLiteral("completedAt"))
+                && !strictPositiveJsonInteger(
+                    recordObject.value(QStringLiteral("completedAt")),
+                    &ignored)) {
+                fail(QStringLiteral("A persisted History record has invalid semantic fields."));
+                return;
             }
         }
 
         QVariantMap normalized;
-        if (!normalizeRecord(
-                record,
-                &normalized)) {
-            m_loadError =
-                QStringLiteral(
-                    "A persisted History record has invalid semantic fields.");
-            continue;
+        if (!normalizeRecord(record, &normalized)) {
+            fail(QStringLiteral("A persisted History record has invalid semantic fields."));
+            return;
         }
 
-        const QString key =
-            recordKey(
-                normalized
-                    .value(
-                        QStringLiteral("kind"))
-                    .toString(),
-                normalized
-                    .value(
-                        QStringLiteral("id"))
-                    .toString());
-
-        m_records.insert(
-            key,
-            normalized);
+        const QString kind = normalized.value(QStringLiteral("kind")).toString();
+        const QString id = normalized.value(QStringLiteral("id")).toString();
+        if (recordKey(kind, id) != it.key()) {
+            fail(QStringLiteral("A persisted History record key is invalid."));
+            return;
+        }
+        m_records.insert(recordKey(kind, id), normalized);
     }
+}
+
+HistoryStore::OwnerState HistoryStore::ownerState() const {
+    OwnerState state;
+    state.records = m_records;
+    state.tombstones = m_tombstones;
+    state.resetGeneration = m_resetGeneration;
+    state.resetBarrierAtMs = m_resetBarrierAtMs;
+    return state;
+}
+
+void HistoryStore::restoreOwnerState(const OwnerState &state) {
+    m_records = state.records;
+    m_tombstones = state.tombstones;
+    m_resetGeneration = state.resetGeneration;
+    m_resetBarrierAtMs = state.resetBarrierAtMs;
 }
 
 bool HistoryStore::commit(
     const QVariantMap &next,
-    bool localMutation) {
-    if (!m_loadError.isEmpty())
+    bool localMutation,
+    const OwnerState &previous) {
+    if (!m_loadError.isEmpty()) {
+        restoreOwnerState(previous);
         return false;
+    }
 
-    if (!saveRecords(next))
+    if (!saveRecords(next)) {
+        restoreOwnerState(previous);
+        // Restore QSettings' in-memory view as well. If the backing file is
+        // writable again, this also repairs a partially staged failed write;
+        // when it is not, the owner still retains the exact pre-commit state.
+        saveRecords(previous.records);
         return false;
+    }
 
     m_records =
         next;
@@ -695,7 +938,82 @@ bool HistoryStore::saveRecords(
             .toJson(
                 QJsonDocument::Compact));
 
+    QJsonObject tombstones;
+    QStringList tombstoneKeys = m_tombstones.keys();
+    tombstoneKeys.sort();
+    for (const QString &key : tombstoneKeys)
+        tombstones.insert(key, m_tombstones.value(key));
+    m_settings->setValue(
+        QString::fromLatin1(kHistoryTombstonesKey),
+        QJsonDocument(tombstones).toJson(QJsonDocument::Compact));
+    m_settings->setValue(
+        QString::fromLatin1(kHistoryResetGenerationKey),
+        m_resetGeneration);
+    m_settings->setValue(
+        QString::fromLatin1(kHistoryResetBarrierKey),
+        m_resetBarrierAtMs);
+
     m_settings->sync();
     return m_settings->status()
         == QSettings::NoError;
+}
+
+qint64 HistoryStore::recordFirst(const QVariantMap &record) {
+    return record.value(QStringLiteral("firstActivityAt")).toLongLong();
+}
+
+qint64 HistoryStore::recordLast(const QVariantMap &record) {
+    return record.value(QStringLiteral("lastActivityAt")).toLongLong();
+}
+
+qint64 HistoryStore::recordCompletion(const QVariantMap &record) {
+    return record.value(QStringLiteral("completedAt")).toLongLong();
+}
+
+QVariantMap HistoryStore::mergeRecords(const QVariantMap &left,
+                                       const QVariantMap &right) {
+    const QString kind = left.value(QStringLiteral("kind")).toString();
+    const QString id = left.value(QStringLiteral("id")).toString();
+    const qint64 leftFirst = recordFirst(left);
+    const qint64 rightFirst = recordFirst(right);
+    const qint64 leftLast = recordLast(left);
+    const qint64 rightLast = recordLast(right);
+    const qint64 leftCompletion = recordCompletion(left);
+    const qint64 rightCompletion = recordCompletion(right);
+    const qint64 first = leftFirst > 0 && rightFirst > 0
+        ? qMin(leftFirst, rightFirst)
+        : qMax(leftFirst, rightFirst);
+    const qint64 last = qMax(leftLast, rightLast);
+    qint64 completion = 0;
+    if (leftCompletion > 0 && rightCompletion > 0)
+        completion = qMin(leftCompletion, rightCompletion);
+    else
+        completion = qMax(leftCompletion, rightCompletion);
+    if (first <= 0 || last < first)
+        return left;
+    if (completion > 0)
+        completion = qBound(first, completion, last);
+    return canonicalRecord(kind, id, first, last, completion);
+}
+
+bool HistoryStore::blockedByTombstone(const QVariantMap &record) const {
+    if (m_resetBarrierAtMs > 0
+        && recordLast(record) <= m_resetBarrierAtMs)
+        return true;
+    const QString key = recordKey(record.value(QStringLiteral("kind")).toString(),
+                                  record.value(QStringLiteral("id")).toString());
+    const auto tombstone = m_tombstones.constFind(key);
+    if (tombstone == m_tombstones.constEnd())
+        return false;
+    return recordLast(record) <= tombstone.value();
+}
+
+void HistoryStore::clearTombstone(const QString &key) {
+    m_tombstones.remove(key);
+}
+
+void HistoryStore::rememberTombstone(const QString &key, qint64 atMs) {
+    if (key.isEmpty() || atMs <= 0)
+        return;
+    m_tombstones.insert(key, qMax(m_tombstones.value(key), atMs));
 }
