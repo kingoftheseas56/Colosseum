@@ -18,7 +18,6 @@ TankoyomiChapterService::TankoyomiChapterService(
     : QObject(parent),
       m_registry(TankoyomiProviderRegistry::fromResource())
 {
-    Q_UNUSED(nam);
     if (!m_registry.isValid()) return;
     m_configuration = configuration;
     if (!m_configuration)
@@ -34,7 +33,7 @@ TankoyomiChapterService::TankoyomiChapterService(
              : m_registry.allProvidersForLanguage(language)) {
             auto *provider = new TankoyomiScriptProvider(
                 descriptor.id, descriptor.language, descriptor.resourcePath,
-                descriptor.allowedHosts, this);
+                descriptor.allowedHosts, nam, this);
             m_providers.insert(providerKey(descriptor.language, descriptor.id), provider);
         }
     }

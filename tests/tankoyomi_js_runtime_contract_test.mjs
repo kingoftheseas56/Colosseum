@@ -23,7 +23,9 @@ check(!cpp.includes('new Promise'), 'runtime avoids QJSEngine Promise scheduling
 check(cpp.includes('__tankoyomiCallbacks'), 'runtime owns per-call success/error callbacks');
 check(cpp.includes('fetchText') && cpp.includes('fetchJson'), 'runtime exposes scoped fetchText/fetchJson');
 check(h.includes('QStringList allowedHosts'), 'runtime receives a manifest origin allowlist');
-check(cpp.includes('allowedHosts.contains'), 'runtime rejects undeclared network hosts');
+check(cpp.includes('TankoyomiNetworkPolicy::metadataHostAllowed'), 'runtime rejects undeclared network hosts through the shared policy');
+check(cpp.includes('ManualRedirectPolicy') && cpp.includes('TankoyomiNetworkPolicy::redirectAllowed'), 'each metadata redirect re-enters the capability policy');
+check(service.includes('descriptor.allowedHosts, nam, this'), 'service injects its network manager into provider transport');
 check(cpp.includes('setTransferTimeout'), 'provider metadata requests have a finite timeout');
 for (const path of providerPaths) {
   const src = fs.readFileSync(path, 'utf8');

@@ -3,6 +3,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QNetworkAccessManager>
 #include <QTimer>
 #include <QVariantMap>
 
@@ -29,10 +30,11 @@ int main(int argc, char **argv)
         return 66;
     }
 
+    QNetworkAccessManager nam;
     QObject providerOwner;
     auto *provider = new TankoyomiScriptProvider(
         descriptor->id, descriptor->language, descriptor->resourcePath,
-        descriptor->allowedHosts, &providerOwner);
+        descriptor->allowedHosts, &nam, &providerOwner);
     if (!provider->isReady()) {
         qCritical().noquote() << "FAIL provider load" << provider->loadError();
         return 67;

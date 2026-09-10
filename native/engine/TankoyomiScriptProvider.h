@@ -1,6 +1,9 @@
 #pragma once
 
 #include <QObject>
+#include <QHash>
+#include <QPointer>
+#include <memory>
 #include <QJSEngine>
 #include <QJSValue>
 #include <QStringList>
@@ -17,7 +20,9 @@ public:
                             QString language,
                             QString resourcePath,
                             QStringList allowedHosts,
+                            QNetworkAccessManager *nam,
                             QObject *parent = nullptr);
+    ~TankoyomiScriptProvider() override;
 
     bool isReady() const { return m_ready; }
     QString loadError() const { return m_loadError; }
@@ -42,6 +47,9 @@ public:
     Q_INVOKABLE void jsReject(const QString &token, const QString &message);
 
 private:
+    struct Fetch;
+    void issueFetch(const std::shared_ptr<Fetch> &fetch);
+    void finishFetch(const std::shared_ptr<Fetch> &fetch, bool ok, const QString &payload);
     void invoke(const QString &method, const QString &token, const QJSValueList &args);
     void deliverFetch(const QString &callbackId, bool ok, const QString &payload);
     bool hostAllowed(const QString &host) const;
@@ -56,5 +64,6 @@ private:
     QJSValue m_context;
     QJSValue m_run;
     QJSValue m_deliverFetch;
-    QNetworkAccessManager *m_nam = nullptr;
+    QPointer<QNetworkAccessManager> m_nam;
+    QHash<QString, std::shared_ptr<Fetch>> m_fetches;
 };

@@ -19,5 +19,7 @@ check(runtime.includes('options.value(QStringLiteral("timeoutMs"))'),
 check(mangaNight.includes('{ timeoutMs: 45000 }'),
   'Manga Night explicitly opts its heavy HTML requests into the longer budget');
 
+check(runtime.includes('tankoyomiHardDeadlineExpired') && runtime.includes('deadline->start(timeoutMs)'),
+  'one absolute deadline covers the full scoped HTTP operation');
 if (failures) process.exit(1);
 console.log('\nPASS — Tankoyomi request timeout override stays bounded and provider-scoped');

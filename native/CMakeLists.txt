@@ -691,6 +691,15 @@ if(WIN32)
 endif()
 
 
+add_executable(tankoyomi_script_provider_transport_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    engine/TankoyomiScriptProvider.cpp
+    ../tests/tankoyomi_script_provider_transport_harness.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_script_provider_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_script_provider_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+
 add_executable(tankoyomi_network_policy_harness
     engine/TankoyomiNetworkPolicy.cpp
     engine/TankoyomiNetworkPolicy.h
@@ -722,6 +731,8 @@ target_include_directories(tankoyomi_identity_harness PRIVATE ${CMAKE_CURRENT_SO
 target_link_libraries(tankoyomi_identity_harness PRIVATE Qt6::Core)
 
 add_executable(tankoyomi_service_runtime_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/tankoyomi_service_runtime_harness.cpp
     engine/MangaPageTransport.cpp
     engine/MangaPageTransport.h
@@ -743,6 +754,8 @@ qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_re
     FILES ${TANKOYOMI_RESOURCE_FILES})
 
 add_executable(tankoyomi_service_configuration_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/tankoyomi_service_configuration_harness.cpp
     engine/TankoyomiChapterService.cpp
     engine/TankoyomiChapterService.h
@@ -761,6 +774,8 @@ qt_add_resources(tankoyomi_service_configuration_harness "tankoyomi_service_conf
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
 add_executable(tankoyomi_provider_live_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/tankoyomi_provider_live_harness.cpp
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
@@ -1690,6 +1705,8 @@ target_link_libraries(manga_image_host_resolver_harness PRIVATE Qt6::Core Qt6::N
 # at the filesystem boundary and assert lifetime/signal ordering without live
 # network or production data.
 add_executable(manga_downloader_cancel_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/manga_downloader_cancel_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
