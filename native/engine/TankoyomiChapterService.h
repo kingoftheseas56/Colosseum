@@ -2,6 +2,7 @@
 
 #include "TankoyomiProviderRegistry.h"
 #include "TankoyomiConfigurationStore.h"
+#include "TankoyomiSeriesMatcher.h"
 
 #include <QHash>
 #include <QObject>
@@ -25,6 +26,7 @@ public:
                             QObject *parent = nullptr);
 
     void fetchCatalogue(const QString &requestId, const QString &title, const QString &language);
+    void fetchCatalogue(const QString &requestId, const TankoyomiSeriesQuery &query, const QString &language);
     void fetchPages(const QString &requestId, const QString &qualifiedChapterId);
     QString pageAccessPolicyForChapter(const QString &qualifiedChapterId) const;
     QVariantList languages() const { return m_configuration ? m_configuration->languages() : QVariantList{}; }
@@ -42,7 +44,7 @@ private:
     TankoyomiScriptProvider *providerFor(const QString &language,
                                          const QString &providerId) const;
     void tryProviderChain(const QString &requestId,
-                          const QString &title,
+                          const TankoyomiSeriesQuery &query,
                           const QString &language,
                           const QList<TankoyomiProviderDescriptor> &providers,
                           int index = 0);

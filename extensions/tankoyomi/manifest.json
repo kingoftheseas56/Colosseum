@@ -41,7 +41,10 @@
           "allowedHosts": [
             "weebcentral.com"
           ],
-          "pageAccessPolicy": "public-https"
+          "pageAccessPolicy": "public-https",
+          "titleDecorators": [
+            "official"
+          ]
         }
       ]
     },

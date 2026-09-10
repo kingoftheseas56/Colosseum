@@ -10,6 +10,19 @@
 
 #include <memory>
 
+namespace {
+QString searchTitleForQuery(const TankoyomiSeriesQuery &query)
+{
+    if (!query.discoveryTitle.trimmed().isEmpty()) return query.discoveryTitle.trimmed();
+    if (!query.title.trimmed().isEmpty()) return query.title.trimmed();
+    for (const QString &alias : query.aliases) {
+        if (!alias.trimmed().isEmpty()) return alias.trimmed();
+    }
+    return {};
+}
+}
+
+
 TankoyomiChapterService::TankoyomiChapterService(QNetworkAccessManager *nam, QObject *parent)
     : TankoyomiChapterService(nam, nullptr, parent)
 {
@@ -72,6 +85,15 @@ void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
                                              const QString &title,
                                              const QString &language)
 {
+    TankoyomiSeriesQuery query;
+    query.title = title;
+    fetchCatalogue(requestId, query, language);
+}
+
+void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
+                                             const TankoyomiSeriesQuery &query,
+                                             const QString &language)
+{
     if (!m_registry.isValid()) {
         emit catalogueFailed(requestId, m_registry.error());
         return;
@@ -87,12 +109,16 @@ void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
                 .arg(normalized.isEmpty() ? language : normalized));
         return;
     }
-    tryProviderChain(requestId, title, normalized, providers);
+    if (searchTitleForQuery(query).isEmpty()) {
+        emit catalogueFailed(requestId, QStringLiteral("No series title was provided."));
+        return;
+    }
+    tryProviderChain(requestId, query, normalized, providers);
 }
 
 void TankoyomiChapterService::tryProviderChain(
     const QString &requestId,
-    const QString &title,
+    const TankoyomiSeriesQuery &query,
     const QString &language,
     const QList<TankoyomiProviderDescriptor> &providers,
     int index)
@@ -109,7 +135,7 @@ void TankoyomiChapterService::tryProviderChain(
     TankoyomiScriptProvider *provider = providerFor(language, descriptor.id);
     if (!provider || !provider->isReady()) {
         if (index + 1 < providers.size()) {
-            tryProviderChain(requestId, title, language, providers, index + 1);
+            tryProviderChain(requestId, query, language, providers, index + 1);
             return;
         }
         emit catalogueFailed(
@@ -128,13 +154,13 @@ void TankoyomiChapterService::tryProviderChain(
     const QString searchToken = requestId + QStringLiteral("|search|") + descriptor.id;
     const QString chaptersToken = requestId + QStringLiteral("|chapters|") + descriptor.id;
 
-    auto failOrFallback = [this, scope, state, requestId, title, language, providers, index]
+    auto failOrFallback = [this, scope, state, requestId, query, language, providers, index]
                           (const QString &message) {
         if (state->settled) return;
         state->settled = true;
         scope->deleteLater();
         if (index + 1 < providers.size())
-            tryProviderChain(requestId, title, language, providers, index + 1);
+            tryProviderChain(requestId, query, language, providers, index + 1);
         else
             emit catalogueFailed(requestId, message);
     };
@@ -147,7 +173,7 @@ void TankoyomiChapterService::tryProviderChain(
     });
 
     connect(provider, &TankoyomiScriptProvider::resolved, scope,
-            [this, scope, state, provider, descriptor, requestId, title, language,
+            [this, scope, state, provider, descriptor, requestId, query, language,
              searchToken, chaptersToken, failOrFallback](const QString &token,
                                                          const QVariant &value) {
         if (state->settled) return;
@@ -157,16 +183,13 @@ void TankoyomiChapterService::tryProviderChain(
                 failOrFallback(QStringLiteral("Series not found on %1").arg(descriptor.name));
                 return;
             }
-            state->series = results.first().toMap();
-            const QString wanted = title.trimmed();
-            for (const QVariant &candidateValue : results) {
-                const QVariantMap candidate = candidateValue.toMap();
-                if (candidate.value(QStringLiteral("title")).toString().trimmed()
-                        .compare(wanted, Qt::CaseInsensitive) == 0) {
-                    state->series = candidate;
-                    break;
-                }
+            const auto matched = TankoyomiSeriesMatcher::match(query, results, descriptor.titleDecorators);
+            if (!matched.accepted) {
+                failOrFallback(QStringLiteral("Series identity unavailable on %1 (%2)")
+                                   .arg(descriptor.name, matched.reason));
+                return;
             }
+            state->series = matched.row;
             provider->getChapters(chaptersToken, state->series);
             return;
         }
@@ -232,7 +255,7 @@ void TankoyomiChapterService::tryProviderChain(
         failOrFallback(timeout);
     });
     attemptDeadline->start(m_providerAttemptTimeoutMs);
-    provider->searchSeries(searchToken, title);
+    provider->searchSeries(searchToken, searchTitleForQuery(query));
 }
 
 QString TankoyomiChapterService::pageAccessPolicyForChapter(const QString &qualifiedChapterId) const

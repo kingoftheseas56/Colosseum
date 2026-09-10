@@ -1,5 +1,6 @@
 #include "engine/TankoyomiProviderRegistry.h"
 #include "engine/TankoyomiScriptProvider.h"
+#include "engine/TankoyomiSeriesMatcher.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -65,16 +66,15 @@ int main(int argc, char **argv)
                 app.exit(72);
                 return;
             }
-            selectedSeries = rows.first().toMap();
-            const QString wanted = query.trimmed();
-            for (const QVariant &candidateValue : rows) {
-                const QVariantMap candidate = candidateValue.toMap();
-                const QString candidateTitle = candidate.value(QStringLiteral("title")).toString().trimmed();
-                if (candidateTitle.compare(wanted, Qt::CaseInsensitive) == 0) {
-                    selectedSeries = candidate;
-                    break;
-                }
+            TankoyomiSeriesQuery identityQuery;
+            identityQuery.title = query;
+            const auto matched = TankoyomiSeriesMatcher::match(identityQuery, rows, descriptor->titleDecorators);
+            if (!matched.accepted) {
+                qCritical().noquote() << "FAIL series identity" << matched.reason;
+                app.exit(72);
+                return;
             }
+            selectedSeries = matched.row;
             qInfo().noquote() << "SEARCH" << providerId << rows.size()
                               << selectedSeries.value(QStringLiteral("title")).toString();
             provider->getChapters(QStringLiteral("chapters"), selectedSeries);

@@ -20,7 +20,8 @@ int main(int argc, char **argv)
         qInfo().noquote() << (ok ? "ok" : "FAIL") << label;
         if (!ok) ++failures;
     };
-    for (const QString mode : {"stall-fallback", "late-first", "last-timeout", "all-disabled", "unsupported"}) {
+    for (const QString mode : {"stall-fallback", "late-first", "last-timeout", "all-disabled", "unsupported",
+                               "unrelated-identity", "ambiguous-identity", "spin-off-identity"}) {
         TankoyomiTest::Nam nam;
         nam.respond = [mode](const QNetworkRequest &request, QNetworkAccessManager::Operation, int) {
             TankoyomiTest::ReplySpec reply;
@@ -30,8 +31,14 @@ int main(int argc, char **argv)
                 ? R"JSON([{"id":"series","title":"Fixture","url":"https://93.184.216.34/series"}])JSON"
                 : R"JSON([{"id":"chapter","title":"Chapter 1","number":1,"url":"https://93.184.216.34/chapter"}])JSON";
             if (path == QLatin1String("/first/search")) {
-                reply.neverFinish = mode != QLatin1String("late-first");
+                reply.neverFinish = mode == QLatin1String("stall-fallback") || mode == QLatin1String("last-timeout");
                 reply.delayMs = mode == QLatin1String("late-first") ? 160 : 0;
+                if (mode == QLatin1String("unrelated-identity"))
+                    reply.body = R"JSON([{"id":"other","title":"Unrelated Series"}])JSON";
+                if (mode == QLatin1String("spin-off-identity"))
+                    reply.body = R"JSON([{"id":"spinoff","title":"Fixture Party"}])JSON";
+                if (mode == QLatin1String("ambiguous-identity"))
+                    reply.body = R"JSON([{"id":"one","title":"Fixture"},{"id":"two","title":"Fixture"}])JSON";
             }
             return reply;
         };
@@ -76,6 +83,10 @@ int main(int argc, char **argv)
             check(ready == 1 && failed == 0 && selected == QLatin1String("second")
                       && settledAt >= 40 && settledAt < 400, mode + " advances once to the same-language provider");
             check(nam.requests.size() == 3, mode + " late first-provider search never starts chapters");
+        } else if (mode.endsWith(QLatin1String("-identity"))) {
+            check(ready == 1 && failed == 0 && selected == QLatin1String("second")
+                      && settledAt < 400 && nam.requests.size() == 3,
+                  mode + " rejects guessed identity before fetching first-provider chapters");
         } else if (mode == QLatin1String("last-timeout")) {
             check(ready == 0 && failed == 1 && settledAt >= 40 && settledAt < 400
                       && message.contains("first") && message.contains("es")

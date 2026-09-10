@@ -115,6 +115,22 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
                 return;
             }
             providerIds.insert(provider.id);
+            const QJsonValue decorators = providerObject.value(QStringLiteral("titleDecorators"));
+            if (!decorators.isUndefined() && !decorators.isArray()) {
+                m_error = QStringLiteral("Tankoyomi provider '%1' has invalid title decorators").arg(provider.id);
+                return;
+            }
+            for (const QJsonValue &value : decorators.toArray()) {
+                const QString token = value.toString().trimmed().toLower();
+                bool valid = value.isString() && !token.isEmpty();
+                for (const QChar character : token) valid = valid && character.isLetterOrNumber();
+                if (!valid) {
+                    m_error = QStringLiteral("Tankoyomi provider '%1' has an invalid title decorator").arg(provider.id);
+                    return;
+                }
+                if (!provider.titleDecorators.contains(token)) provider.titleDecorators.append(token);
+            }
+
             provider.pageAccessPolicy = providerObject.value(QStringLiteral("pageAccessPolicy")).toString();
             if (provider.pageAccessPolicy != QLatin1String("public-https")) {
                 m_error = QStringLiteral("Tankoyomi provider '%1' has an invalid page access policy")

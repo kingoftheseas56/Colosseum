@@ -44,5 +44,9 @@ check(cpp.includes('row.insert(QStringLiteral("source"), descriptor.id)'),
 check(cpp.includes('row.insert(QStringLiteral("language"), language)'),
   'all chapter rows retain their selected language');
 
+check(engine.includes('chapterCatalogueForProfile(') && engine.includes('requiredTitleMarkers') && engine.includes('m_tankoyomi->fetchCatalogue(requestId, query, language)'),
+  'profile-aware entry point preserves aliases and edition markers');
+check(cpp.includes('TankoyomiSeriesMatcher::match') && !cpp.includes('results.first()'),
+  'service rejects first-row identity guessing through the pure matcher');
 if (failures) process.exit(1);
 console.log('\nPASS — Chapter Mode reaches WeebCentral through Tankoyomi');

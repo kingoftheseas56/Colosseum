@@ -98,6 +98,13 @@ int main()
     unknownPolicy.replace("public-https", "unrestricted");
     check(!TankoyomiProviderRegistry(unknownPolicy).isValid(), "unknown page policy fails closed");
 
+    QByteArray emptyDecorator = validManifest();
+    emptyDecorator.replace("\"pageAccessPolicy\"", "\"titleDecorators\":[\"\"],\"pageAccessPolicy\"");
+    check(!TankoyomiProviderRegistry(emptyDecorator).isValid(), "empty decorator fails closed");
+    QByteArray unsafeDecorator = validManifest();
+    unsafeDecorator.replace("\"pageAccessPolicy\"", "\"titleDecorators\":[\"official.*\"],\"pageAccessPolicy\"");
+    check(!TankoyomiProviderRegistry(unsafeDecorator).isValid(), "decorators are literal tokens, not patterns");
+
     const QVariantList languages = registry.languages();
     check(languages.size() == 2
           && languages.at(0).toMap().value(QStringLiteral("code")).toString() == QStringLiteral("en")
