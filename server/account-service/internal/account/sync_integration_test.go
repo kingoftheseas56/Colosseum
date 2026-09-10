@@ -2,11 +2,32 @@ package account
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
+
+func fixtureCollectionRecordKey(identity string) string {
+	parts := strings.SplitN(identity, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		panic("fixture collection identity must be world/id")
+	}
+	return "collection/" +
+		base64.RawURLEncoding.EncodeToString([]byte(parts[0])) + "/" +
+		base64.RawURLEncoding.EncodeToString([]byte(parts[1]))
+}
+
+func fixtureHistoryRecordKey(kind, id string) string {
+	if kind == "" || id == "" {
+		panic("fixture history identity must contain kind and id")
+	}
+	return "history/" +
+		base64.RawURLEncoding.EncodeToString([]byte(kind)) + "/" +
+		base64.RawURLEncoding.EncodeToString([]byte(id))
+}
 
 func fixtureSyncMutation(
 	mutationID,
@@ -16,17 +37,22 @@ func fixtureSyncMutation(
 	physical int64,
 	counter uint64,
 ) SyncMutationInput {
+	parts := strings.SplitN(recordKey, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		panic("fixture collection identity must be world/id")
+	}
 	payload := json.RawMessage(nil)
 	operation := "delete"
 	if value != "" {
 		operation = "put"
-		payload = json.RawMessage(`{"value":"` + value + `"}`)
+		payload = json.RawMessage(`{"world":"` + parts[0] +
+			`","id":"` + parts[1] + `","value":"` + value + `"}`)
 	}
 	return SyncMutationInput{
 		MutationID:    mutationID,
 		DeviceID:      deviceID,
 		Category:      "collection",
-		RecordKey:     recordKey,
+		RecordKey:     fixtureCollectionRecordKey(recordKey),
 		SchemaVersion: 1,
 		HLCPhysicalMS: formatInt64(physical),
 		HLCCounter:    formatUint64(counter),
@@ -51,11 +77,12 @@ func TestSyncFullHistoryCategoryRoundTrips(t *testing.T) {
 	mutation := fixtureSyncMutation(
 		"89012345-8901-4890-8890-89012345abcd",
 		auth.Device.ID,
-		"history/ZXBpc29kZQ/c2hvdy0xLWUx",
+		"history/fixture",
 		"",
 		fixture.clock.Now().UnixMilli(),
 		0)
 	mutation.Category = "full_history"
+	mutation.RecordKey = fixtureHistoryRecordKey("episode", "show-1/e1")
 	mutation.Operation = "put"
 	mutation.Payload = json.RawMessage(
 		`{"kind":"episode","id":"show-1/e1","firstActivityAt":1000,"lastActivityAt":2000,"completedAt":2000}`)
@@ -265,7 +292,7 @@ func TestSyncConcurrentSameRecordUsesHLCTuple(t *testing.T) {
          FROM account_sync_current
          WHERE account_id = $1::uuid
            AND category = 'collection'
-           AND record_key = 'manga/item'`,
+           AND record_key = 'collection/bWFuZ2E/aXRlbQ'`,
 		auth.Account.ID).Scan(&mutationID); err != nil {
 		t.Fatalf("load concurrent current winner: %v", err)
 	}
@@ -309,7 +336,7 @@ func TestSyncWinnerIgnoresArrivalOrderAndTombstoneIsFirstClass(t *testing.T) {
          FROM account_sync_current
          WHERE account_id = $1::uuid
            AND category = 'collection'
-           AND record_key = 'manga/item'`,
+           AND record_key = 'collection/bWFuZ2E/aXRlbQ'`,
 		auth.Account.ID).Scan(&mutationID, &operation); err != nil {
 		t.Fatalf("load current: %v", err)
 	}
@@ -337,7 +364,7 @@ func TestSyncWinnerIgnoresArrivalOrderAndTombstoneIsFirstClass(t *testing.T) {
          FROM account_sync_current
          WHERE account_id = $1::uuid
            AND category = 'collection'
-           AND record_key = 'manga/item'`,
+           AND record_key = 'collection/bWFuZ2E/aXRlbQ'`,
 		auth.Account.ID).Scan(&mutationID, &operation); err != nil {
 		t.Fatalf("load tombstone current: %v", err)
 	}

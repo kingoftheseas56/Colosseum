@@ -3,6 +3,7 @@
 #include "ProfilePreferencesSyncAdapter.h"
 
 #include "ProfilePreferencesStore.h"
+#include "SyncAdapterValidation.h"
 
 #include <QJsonObject>
 #include <QtGlobal>
@@ -88,6 +89,20 @@ exportSnapshot(
     };
 
     return true;
+}
+
+bool ProfilePreferencesSyncAdapter::validateRemote(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersionValue,
+    SyncAdapterValidationError *error) const {
+    return SyncAdapterValidation::explicitPreference(
+        recordKey,
+        operation,
+        payload,
+        schemaVersionValue,
+        error);
 }
 
 bool ProfilePreferencesSyncAdapter::

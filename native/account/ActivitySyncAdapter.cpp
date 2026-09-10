@@ -1,6 +1,8 @@
 #include "ActivitySyncAdapter.h"
 
+#include "ActivityProjector.h"
 #include "ActivityStore.h"
+#include "SyncAdapterValidation.h"
 
 #include <QJsonObject>
 #include <QUuid>
@@ -83,6 +85,20 @@ bool ActivitySyncAdapter::exportSnapshot(
     }
 
     return true;
+}
+
+bool ActivitySyncAdapter::validateRemote(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersionValue,
+    SyncAdapterValidationError *error) const {
+    return SyncAdapterValidation::activity(
+        recordKey,
+        operation,
+        payload,
+        schemaVersionValue,
+        error);
 }
 
 bool ActivitySyncAdapter::applyRemote(

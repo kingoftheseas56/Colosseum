@@ -5,9 +5,11 @@
 #include "SyncOwnershipInventory.h"
 #include "SyncPayloadFirewall.h"
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QHash>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QUuid>
 
@@ -24,6 +26,7 @@ constexpr int kRetryMaximumMs = 5 * 60 * 1000;
 // not a clock observation (see processPullReply).
 constexpr qint64 kMaximumRemoteClockFutureMs =
     15 * 60 * 1000;
+constexpr qsizetype kPushBodyByteLimit = 64 * 1024;
 
 QString normalizedUuid(
     const QString &value) {
@@ -67,6 +70,31 @@ signedJsonInteger(
     }
 
     return std::nullopt;
+}
+
+QString syncMutationFingerprint(
+    const SyncWireMutation &mutation) {
+    const QByteArray bytes =
+        QJsonDocument(syncWireMutationToJson(mutation))
+            .toJson(QJsonDocument::Compact);
+    return QString::fromLatin1(
+        QCryptographicHash::hash(
+            bytes,
+            QCryptographicHash::Sha256)
+            .toHex());
+}
+
+bool isDurableCompatibilityFailure(
+    const SyncAdapterRegistryError &error) {
+    return error.failureClass
+        == SyncAdapterFailureClass::Compatibility;
+}
+
+bool hasDurableSyncWarning(
+    const SyncPersistentState &state) {
+    return !state.rejectedMutations.isEmpty()
+        || !state.quarantinedEntries.isEmpty()
+        || state.historicalReplayPending;
 }
 }
 
@@ -154,6 +182,27 @@ SyncEngine::SyncEngine(
                         == QLatin1String(
                             "unsupported_schema_version"))) {
                 clearError();
+                setState(State::Idle);
+            }
+
+            QString replayCode;
+            QString replayMessage;
+            if (!replayQuarantinedCategory(
+                    categoryId,
+                    &replayCode,
+                    &replayMessage)) {
+                setBlocked(
+                    replayCode.isEmpty()
+                        ? QStringLiteral("adapter_apply_failed")
+                        : replayCode,
+                    replayMessage.isEmpty()
+                        ? QStringLiteral("A quarantined sync record could not be applied safely.")
+                        : replayMessage);
+                return;
+            }
+            if (!replayCode.isEmpty()) {
+                m_lastErrorCode = replayCode;
+                m_lastErrorMessage = replayMessage;
                 setState(State::Idle);
             }
 
@@ -302,7 +351,8 @@ bool SyncEngine::start(
     m_signOutFlushRequested = false;
     m_retryAttempt = 0;
 
-    clearError();
+    if (!hasDurableSyncWarning(m_persistent))
+        clearError();
     setState(State::Idle);
 
     QString reconcileError;
@@ -317,7 +367,33 @@ bool SyncEngine::start(
         return false;
     }
 
+    for (const QString &category :
+         m_registry->registeredCategories()) {
+        QString replayCode;
+        QString replayMessage;
+        if (!replayQuarantinedCategory(
+                category,
+                &replayCode,
+                &replayMessage)) {
+            setBlocked(
+                replayCode.isEmpty()
+                    ? QStringLiteral("adapter_apply_failed")
+                    : replayCode,
+                replayMessage.isEmpty()
+                    ? QStringLiteral("A quarantined sync record could not be applied safely.")
+                    : replayMessage);
+            if (error)
+                *error = m_lastErrorMessage;
+            return false;
+        }
+        if (!replayCode.isEmpty()) {
+            m_lastErrorCode = replayCode;
+            m_lastErrorMessage = replayMessage;
+        }
+    }
+
     persistState();
+    emit recoveryAvailableChanged();
     return true;
 }
 
@@ -414,6 +490,25 @@ void SyncEngine::requestImmediateSync() {
     m_retryTimer.stop();
     m_initialPullPending = true;
     maybeRunNetwork();
+}
+
+void SyncEngine::retryRejectedMutations() {
+    if (!m_active
+        || m_persistent.rejectedMutations.isEmpty()) {
+        return;
+    }
+
+    // This is intentionally an explicit, bounded recovery action. Ordinary
+    // pulls and the idle timer leave rejected records parked so one old server
+    // capability cannot create a retry loop. The marker is removed before the
+    // retry is scheduled and persisted together with the existing outbox.
+    m_persistent.rejectedMutations.clear();
+    m_retryTimer.stop();
+    m_initialPullPending = true;
+    clearError();
+    setState(State::Idle);
+    persistState();
+    emit recoveryAvailableChanged();
 }
 
 void SyncEngine::beginSignOutFlush() {
@@ -611,6 +706,28 @@ QString SyncEngine::lastErrorMessage() const {
     return m_lastErrorMessage;
 }
 
+int SyncEngine::quarantinedEntryCount() const {
+    return static_cast<int>(
+        qMin<qsizetype>(
+            m_persistent.quarantinedEntries.size(),
+            std::numeric_limits<int>::max()));
+}
+
+int SyncEngine::rejectedMutationCount() const {
+    return static_cast<int>(
+        qMin<qsizetype>(
+            m_persistent.rejectedMutations.size(),
+            std::numeric_limits<int>::max()));
+}
+
+bool SyncEngine::historicalReplayPending() const {
+    return m_persistent.historicalReplayPending;
+}
+
+bool SyncEngine::recoveryAvailable() const {
+    return hasDurableSyncWarning(m_persistent);
+}
+
 void SyncEngine::handleClientCompleted(
     quint64 requestId,
     AccountOperation operation,
@@ -792,9 +909,15 @@ void SyncEngine::handleClientCompleted(
     }
 
     m_retryAttempt = 0;
-    clearError();
+    if (!errorCode.isEmpty()) {
+        m_lastErrorCode = errorCode;
+        m_lastErrorMessage = errorMessage;
+    } else if (!hasDurableSyncWarning(m_persistent)) {
+        clearError();
+    }
     setState(State::Idle);
     persistState();
+    emit recoveryAvailableChanged();
 }
 
 void SyncEngine::handleLocalMutation(
@@ -807,6 +930,7 @@ void SyncEngine::handleLocalMutation(
 
     if (m_disabledCategories.contains(categoryId)) {
         persistState();
+        emit recoveryAvailableChanged();
         return;
     }
 
@@ -823,10 +947,52 @@ void SyncEngine::handleLocalMutation(
     }
 
     persistState();
+    emit recoveryAvailableChanged();
 }
 
 bool SyncEngine::validateLoadedState(
     QString *error) const {
+    if (m_persistent.historicalReplayPending
+        && (m_persistent.historicalReplayLimit == 0
+            || m_persistent.historicalReplayCursor
+                > m_persistent.historicalReplayLimit)) {
+        if (error)
+            *error = QStringLiteral("The historical replay checkpoint is invalid.");
+        return false;
+    }
+
+    for (auto it = m_persistent.rejectedMutations.constBegin();
+         it != m_persistent.rejectedMutations.constEnd();
+         ++it) {
+        const SyncRejectedMutation &marker = it.value();
+        if (it.key() != marker.mutationId
+            || marker.mutationId.isEmpty()
+            || marker.category.isEmpty()
+            || !isValidSyncWireRecordKey(marker.recordKey)
+            || marker.code.isEmpty()
+            || marker.fingerprint.isEmpty()) {
+            if (error)
+                *error = QStringLiteral("The durable rejected-mutation state is invalid.");
+            return false;
+        }
+    }
+
+    QSet<quint64> quarantineSequences;
+    for (const SyncQuarantineEntry &entry :
+         m_persistent.quarantinedEntries) {
+        if (entry.serverSeq == 0
+            || quarantineSequences.contains(entry.serverSeq)
+            || entry.code.isEmpty()
+            || entry.mutation.mutationId.isEmpty()
+            || entry.mutation.category.isEmpty()
+            || !isValidSyncWireRecordKey(entry.mutation.recordKey)) {
+            if (error)
+                *error = QStringLiteral("The durable sync quarantine state is invalid.");
+            return false;
+        }
+        quarantineSequences.insert(entry.serverSeq);
+    }
+
     for (const SyncWireMutation &mutation :
          m_persistent.outbox) {
         if (mutation.deviceId
@@ -1170,6 +1336,16 @@ void SyncEngine::enqueueMutation(
         }
     }
 
+    for (auto it = m_persistent.rejectedMutations.begin();
+         it != m_persistent.rejectedMutations.end();) {
+        if (it->category == categoryId
+            && it->recordKey == recordKey) {
+            it = m_persistent.rejectedMutations.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     m_persistent.outbox.append(
         mutation);
 
@@ -1239,7 +1415,8 @@ void SyncEngine::maybeRunNetwork() {
         return;
     }
 
-    clearError();
+    if (!hasDurableSyncWarning(m_persistent))
+        clearError();
     setState(State::Idle);
 
     if (m_automaticSchedulingEnabled) {
@@ -1264,7 +1441,9 @@ void SyncEngine::beginPull() {
         nowMs();
     m_request.requestId =
         m_client->pullSync(
-            m_persistent.cursor);
+            m_persistent.historicalReplayPending
+                ? m_persistent.historicalReplayCursor
+                : m_persistent.cursor);
 }
 
 void SyncEngine::beginPush() {
@@ -1278,40 +1457,118 @@ void SyncEngine::beginPush() {
 
     m_retryTimer.stop();
 
-    const int count =
-        static_cast<int>(
-            qMin<qsizetype>(
-                m_persistent.outbox.size(),
-                kPushBatchLimit));
+    const qsizetype beforeDisabledRemoval =
+        m_persistent.outbox.size();
+    m_persistent.outbox.erase(
+        std::remove_if(
+            m_persistent.outbox.begin(),
+            m_persistent.outbox.end(),
+            [this](const SyncWireMutation &mutation) {
+                return m_disabledCategories.contains(mutation.category);
+            }),
+        m_persistent.outbox.end());
+    const bool removedDisabled =
+        beforeDisabledRemoval != m_persistent.outbox.size();
 
     QJsonArray mutations;
     QStringList mutationIds;
+    bool markerChanged = removedDisabled;
+    bool markedOversize = false;
+    QString warningCode;
+    QString warningMessage;
 
-    for (int index = 0;
-         index < count;
-         ++index) {
-        const SyncWireMutation &mutation =
-            m_persistent.outbox.at(index);
+    for (const SyncWireMutation &mutation :
+         std::as_const(m_persistent.outbox)) {
+        const QString fingerprint =
+            syncMutationFingerprint(mutation);
+        const auto rejectedIt =
+            m_persistent.rejectedMutations.constFind(
+                mutation.mutationId);
+        if (rejectedIt != m_persistent.rejectedMutations.constEnd()) {
+            if (rejectedIt->fingerprint == fingerprint)
+                continue;
+            m_persistent.rejectedMutations.remove(
+                mutation.mutationId);
+            markerChanged = true;
+        }
 
-        if (m_disabledCategories.contains(mutation.category))
-            continue;
-
-        mutations.append(
+        QJsonArray candidate = mutations;
+        candidate.append(
             syncWireMutationToJson(
                 mutation));
+        if (candidate.size() > kPushBatchLimit)
+            break;
+
+        const QByteArray candidateBytes =
+            syncWirePushRequestBytes(candidate);
+        if (candidateBytes.size() > kPushBodyByteLimit) {
+            if (syncWirePushRequestBytes(QJsonArray{
+                    syncWireMutationToJson(mutation)})
+                    .size()
+                > kPushBodyByteLimit) {
+                const SyncRejectedMutation marker{
+                    mutation.mutationId,
+                    mutation.category,
+                    mutation.recordKey,
+                    QStringLiteral("sync_mutation_oversize"),
+                    QStringLiteral("This sync record is larger than the 64 KiB wire limit and was held for repair."),
+                    fingerprint};
+                const auto existing =
+                    m_persistent.rejectedMutations.constFind(
+                        mutation.mutationId);
+                if (existing == m_persistent.rejectedMutations.constEnd()
+                    || existing->fingerprint != marker.fingerprint
+                    || existing->code != marker.code) {
+                    m_persistent.rejectedMutations.insert(
+                        mutation.mutationId,
+                        marker);
+                    markerChanged = true;
+                }
+                if (warningCode.isEmpty()) {
+                    warningCode = marker.code;
+                    warningMessage = marker.message;
+                }
+                markedOversize = true;
+                continue;
+            }
+            // The current record fits by itself but would exceed this batch;
+            // leave it for the next request so later records cannot overtake
+            // it and successful acknowledgements remain contiguous.
+            break;
+        }
+
+        mutations = candidate;
         mutationIds.append(
             mutation.mutationId);
     }
 
+    if (!warningCode.isEmpty()) {
+        m_lastErrorCode = warningCode;
+        m_lastErrorMessage = warningMessage;
+    }
+
+    if (markedOversize) {
+        if (mutations.isEmpty()) {
+            if (markerChanged)
+                persistState();
+            setState(State::Idle);
+            completeSignOutFlushIfPossible();
+            return;
+        }
+        // Send the fitting prefix/suffix in this request. The oversize entry
+        // is parked durably and must not starve unrelated acknowledgements.
+        if (markerChanged)
+            persistState();
+    }
+
     if (mutations.isEmpty()) {
-        m_persistent.outbox.erase(
-            std::remove_if(m_persistent.outbox.begin(),
-                           m_persistent.outbox.end(),
-                           [this](const SyncWireMutation &mutation) {
-                               return m_disabledCategories.contains(mutation.category);
-                           }),
-            m_persistent.outbox.end());
-        persistState();
+        if (markerChanged)
+            persistState();
+        else if (!hasDurableSyncWarning(m_persistent))
+            clearError();
+        setState(State::Idle);
+        if (m_automaticSchedulingEnabled)
+            m_retryTimer.start(kIdlePullIntervalMs);
         return;
     }
 
@@ -1349,11 +1606,32 @@ bool SyncEngine::processPullReply(
         return false;
     }
 
+    const bool replayingHistorical =
+        m_persistent.historicalReplayPending;
+    const quint64 historicalReplayLimit =
+        replayingHistorical
+            ? m_persistent.historicalReplayLimit
+            : 0;
+    QString firstWarningCode;
+    QString firstWarningMessage;
+    bool replayReachedLimit = false;
+
     for (const SyncWirePullEntry &entry :
          response->entries) {
-        if (entry.serverSeq
-            <= m_persistent.cursor) {
+        const quint64 processedCursor =
+            replayingHistorical
+                ? m_persistent.historicalReplayCursor
+                : m_persistent.cursor;
+        if (entry.serverSeq <= processedCursor)
             continue;
+
+        if (replayingHistorical
+            && entry.serverSeq > historicalReplayLimit) {
+            // Pull pages are ordered by server sequence. This response has
+            // crossed the one-time replay boundary; leave newer rows for the
+            // normal cursor after the replay checkpoint is committed.
+            replayReachedLimit = true;
+            break;
         }
 
         // Poison guard: a remote HLC far in the future would permanently
@@ -1375,29 +1653,94 @@ bool SyncEngine::processPullReply(
             entry.mutation.hlc,
             nowMs());
 
-        if (entry.won
-            && !applyWinningPullEntry(
-                entry,
-                errorCode,
-                errorMessage)) {
-            return false;
+        if (entry.won) {
+            SyncAdapterFailureClass failureClass =
+                SyncAdapterFailureClass::Owner;
+            QString applyCode;
+            QString applyMessage;
+            if (!applyWinningPullEntry(
+                    entry,
+                    &applyCode,
+                    &applyMessage,
+                    &failureClass)) {
+                if (failureClass
+                    != SyncAdapterFailureClass::Compatibility) {
+                    if (errorCode)
+                        *errorCode = applyCode;
+                    if (errorMessage)
+                        *errorMessage = applyMessage;
+                    return false;
+                }
+
+                bool alreadyQuarantined = false;
+                for (const SyncQuarantineEntry &quarantined :
+                     std::as_const(m_persistent.quarantinedEntries)) {
+                    if (quarantined.serverSeq == entry.serverSeq) {
+                        alreadyQuarantined = true;
+                        break;
+                    }
+                }
+                if (!alreadyQuarantined) {
+                    m_persistent.quarantinedEntries.append(
+                        SyncQuarantineEntry{
+                            entry.serverSeq,
+                            entry.won,
+                            entry.mutation,
+                            applyCode.isEmpty()
+                                ? QStringLiteral("sync_record_incompatible")
+                                : applyCode,
+                            applyMessage.isEmpty()
+                                ? QStringLiteral("A remote sync record was retained because the local owner could not materialize it.")
+                                : applyMessage});
+                }
+                if (firstWarningCode.isEmpty()) {
+                    firstWarningCode = applyCode.isEmpty()
+                        ? QStringLiteral("sync_record_incompatible")
+                        : applyCode;
+                    firstWarningMessage = applyMessage.isEmpty()
+                        ? QStringLiteral("A remote sync record was retained because the local owner could not materialize it.")
+                        : applyMessage;
+                }
+            }
         }
 
-        m_persistent.cursor =
-            entry.serverSeq;
+        if (replayingHistorical) {
+            m_persistent.historicalReplayCursor =
+                entry.serverSeq;
+        } else {
+            m_persistent.cursor = entry.serverSeq;
+        }
     }
 
     m_pullHasMore =
-        response->hasMore;
+        response->hasMore && !replayReachedLimit;
 
-    if (!m_pullHasMore)
+    if (!m_pullHasMore) {
         m_initialPullPending = false;
+        if (replayingHistorical) {
+            // The final page and this marker are persisted together by the
+            // completion handler. A crash before that commit leaves replay
+            // pending and resumes from the last durable replay position.
+            m_persistent.cursor =
+                qMax(m_persistent.cursor,
+                     m_persistent.historicalReplayCursor);
+            m_persistent.historicalReplayPending = false;
+            m_persistent.historicalReplayCursor = 0;
+            m_persistent.historicalReplayLimit = 0;
+        }
+    }
 
     if (!m_pullHasMore && !m_categoryReplayInProgress.isEmpty()
         && !finishCategoryReplay(m_categoryReplayInProgress,
                                  errorCode, errorMessage))
         return false;
 
+    if (!firstWarningCode.isEmpty()) {
+        if (errorCode)
+            *errorCode = firstWarningCode;
+        if (errorMessage)
+            *errorMessage = firstWarningMessage;
+    }
     return true;
 }
 
@@ -1465,6 +1808,8 @@ bool SyncEngine::processPushReply(
     QSet<QString> acknowledged;
     bool sawClockSkew = false;
     QList<SyncWireHlc> skewCurrentWinners;
+    QString firstRejectionCode;
+    QString firstRejectionMessage;
 
     for (const QString &mutationId :
          m_request.mutationIds) {
@@ -1489,6 +1834,8 @@ bool SyncEngine::processPushReply(
         if (it->accepted) {
             acknowledged.insert(
                 mutationId);
+            m_persistent.rejectedMutations.remove(
+                mutationId);
             continue;
         }
 
@@ -1504,22 +1851,36 @@ bool SyncEngine::processPushReply(
             continue;
         }
 
-        if (errorCode) {
-            *errorCode =
-                it->code.isEmpty()
-                ? QStringLiteral(
-                      "sync_mutation_rejected")
-                : it->code;
+        const auto pendingIt = std::find_if(
+            m_persistent.outbox.constBegin(),
+            m_persistent.outbox.constEnd(),
+            [mutationId](const SyncWireMutation &mutation) {
+                return mutation.mutationId == mutationId;
+            });
+        if (pendingIt != m_persistent.outbox.constEnd()) {
+            m_persistent.rejectedMutations.insert(
+                mutationId,
+                SyncRejectedMutation{
+                    mutationId,
+                    pendingIt->category,
+                    pendingIt->recordKey,
+                    it->code.isEmpty()
+                        ? QStringLiteral("sync_mutation_rejected")
+                        : it->code,
+                    it->message.isEmpty()
+                        ? QStringLiteral("A sync mutation was rejected and remains queued for repair.")
+                        : it->message,
+                    syncMutationFingerprint(*pendingIt)});
         }
 
-        if (errorMessage) {
-            *errorMessage =
-                it->message.isEmpty()
-                ? QStringLiteral(
-                      "A sync mutation was rejected.")
+        if (firstRejectionCode.isEmpty()) {
+            firstRejectionCode = it->code.isEmpty()
+                ? QStringLiteral("sync_mutation_rejected")
+                : it->code;
+            firstRejectionMessage = it->message.isEmpty()
+                ? QStringLiteral("A sync mutation was rejected and remains queued for repair.")
                 : it->message;
         }
-        return false;
     }
 
     if (!acknowledged.isEmpty()) {
@@ -1554,6 +1915,13 @@ bool SyncEngine::processPushReply(
         rebasePendingMutations();
     }
 
+    if (!firstRejectionCode.isEmpty()) {
+        if (errorCode)
+            *errorCode = firstRejectionCode;
+        if (errorMessage)
+            *errorMessage = firstRejectionMessage;
+    }
+
     emit observationChanged(
         m_state,
         pendingOutboxCount());
@@ -1563,7 +1931,8 @@ bool SyncEngine::processPushReply(
 bool SyncEngine::applyWinningPullEntry(
     const SyncWirePullEntry &entry,
     QString *errorCode,
-    QString *errorMessage) {
+    QString *errorMessage,
+    SyncAdapterFailureClass *failureClass) {
     const SyncWireMutation &mutation =
         entry.mutation;
 
@@ -1602,6 +1971,8 @@ bool SyncEngine::applyWinningPullEntry(
     if (!m_disabledCategories.contains(mutation.category)) {
         SyncAdapterRegistryError registryError;
         if (!m_registry->applyRemote(incoming, &registryError)) {
+            if (failureClass)
+                *failureClass = registryError.failureClass;
             if (errorCode)
                 *errorCode = registryError.code;
             if (errorMessage)
@@ -1640,6 +2011,66 @@ bool SyncEngine::applyWinningPullEntry(
                 mutation.recordKey);
     }
 
+    return true;
+}
+
+bool SyncEngine::replayQuarantinedCategory(
+    const QString &categoryId,
+    QString *errorCode,
+    QString *errorMessage) {
+    if (m_disabledCategories.contains(categoryId))
+        return true;
+
+    QList<SyncQuarantineEntry> remaining;
+    remaining.reserve(m_persistent.quarantinedEntries.size());
+    QString firstWarningCode;
+    QString firstWarningMessage;
+
+    for (const SyncQuarantineEntry &quarantined :
+         std::as_const(m_persistent.quarantinedEntries)) {
+        if (quarantined.mutation.category != categoryId) {
+            remaining.append(quarantined);
+            continue;
+        }
+
+        if (!quarantined.won)
+            continue;
+
+        SyncAdapterFailureClass failureClass =
+            SyncAdapterFailureClass::Owner;
+        QString applyCode;
+        QString applyMessage;
+        if (!applyWinningPullEntry(
+                SyncWirePullEntry{
+                    quarantined.serverSeq,
+                    quarantined.won,
+                    quarantined.mutation},
+                &applyCode,
+                &applyMessage,
+                &failureClass)) {
+            if (failureClass
+                != SyncAdapterFailureClass::Compatibility) {
+                if (errorCode)
+                    *errorCode = applyCode;
+                if (errorMessage)
+                    *errorMessage = applyMessage;
+                return false;
+            }
+            remaining.append(quarantined);
+            if (firstWarningCode.isEmpty()) {
+                firstWarningCode = quarantined.code;
+                firstWarningMessage = quarantined.message;
+            }
+        }
+    }
+
+    m_persistent.quarantinedEntries = remaining;
+    if (!firstWarningCode.isEmpty()) {
+        if (errorCode)
+            *errorCode = firstWarningCode;
+        if (errorMessage)
+            *errorMessage = firstWarningMessage;
+    }
     return true;
 }
 
@@ -1720,6 +2151,8 @@ bool SyncEngine::finishCategoryReplay(
 void SyncEngine::rebasePendingMutations() {
     for (SyncWireMutation &mutation :
          m_persistent.outbox) {
+        m_persistent.rejectedMutations.remove(
+            mutation.mutationId);
         mutation.mutationId =
             QUuid::createUuid()
                 .toString(
@@ -1888,6 +2321,21 @@ void SyncEngine::scheduleRetry() {
     m_retryTimer.start(delay);
 }
 
+bool SyncEngine::allOutboxEntriesParked() const {
+    if (m_persistent.outbox.isEmpty())
+        return false;
+
+    for (const SyncWireMutation &mutation : m_persistent.outbox) {
+        const auto marker = m_persistent.rejectedMutations.constFind(
+            mutation.mutationId);
+        if (marker == m_persistent.rejectedMutations.constEnd()
+            || marker->fingerprint != syncMutationFingerprint(mutation)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void SyncEngine::completeSignOutFlushIfPossible() {
     if (!m_signOutFlushRequested
         || m_networkBusy
@@ -1902,6 +2350,16 @@ void SyncEngine::completeSignOutFlushIfPossible() {
             true,
             QString(),
             QString());
+        return;
+    }
+
+    if (allOutboxEntriesParked()) {
+        m_signOutFlushRequested = false;
+        emit signOutFlushFinished(
+            false,
+            QStringLiteral("sync_unsynced_retained"),
+            QStringLiteral(
+                "Some changes remain queued because they need sync repair."));
         return;
     }
 

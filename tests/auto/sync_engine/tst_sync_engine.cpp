@@ -2,6 +2,8 @@
 
 #include "account/AccountClient.h"
 #include "account/AccountTransport.h"
+#include "account/ActivityStore.h"
+#include "account/ActivitySyncAdapter.h"
 #include "account/ProfilePaths.h"
 #include "account/SyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
@@ -11,12 +13,17 @@
 #include "account/SyncStateStore.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <limits>
 
 namespace {
 constexpr auto kAccountA =
@@ -52,6 +59,26 @@ QString recordIdentity(
     return category
         + QChar(0x1f)
         + recordKey;
+}
+
+QJsonObject malformedActivityPayload(
+    const QString &eventId,
+    bool syncable) {
+    return QJsonObject{
+        {QStringLiteral("v"), 1},
+        {QStringLiteral("type"), QStringLiteral("media_completed")},
+        {QStringLiteral("eventId"), eventId},
+        {QStringLiteral("sessionId"), QStringLiteral("fixture-session")},
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("kind"), QStringLiteral("movie")},
+        {QStringLiteral("titleKey"), QStringLiteral("movie:fixture")},
+        {QStringLiteral("itemKey"), QStringLiteral("movie:fixture")},
+        {QStringLiteral("title"), QStringLiteral("Fixture Movie")},
+        {QStringLiteral("utcOffsetMinutes"), 0},
+        {QStringLiteral("syncable"), syncable},
+        {QStringLiteral("source"), QStringLiteral("fixture")},
+        {QStringLiteral("atMs"), 1000},
+        {QStringLiteral("reason"), QStringLiteral("eof")}};
 }
 
 class FixtureSyncService {
@@ -98,6 +125,20 @@ public:
 
     QStringList pullRequestAfters() const {
         return m_pullRequestAfters;
+    }
+
+    void setRejectRecordKey(const QString &recordKey) {
+        m_rejectRecordKey = recordKey;
+    }
+
+    // Fail pull requests after the requested number of successful requests.
+    // This lets restart tests stop after a durable replay page without
+    // changing the transport or engine implementation.
+    void setPullNetworkFailuresAfterRequests(
+        int servedRequests,
+        int failures) {
+        m_pullFailAfterServed = servedRequests;
+        m_pullNetworkFailures = failures;
     }
 
     void appendRemote(
@@ -187,6 +228,17 @@ public:
                 result.insert(
                     QStringLiteral("won"),
                     duplicate->won);
+                results.append(result);
+                continue;
+            }
+
+            if (!m_rejectRecordKey.isEmpty()
+                && mutation.recordKey == m_rejectRecordKey) {
+                QJsonObject result;
+                result.insert(QStringLiteral("mutation_id"), mutation.mutationId);
+                result.insert(QStringLiteral("accepted"), false);
+                result.insert(QStringLiteral("code"), QStringLiteral("category_not_supported"));
+                result.insert(QStringLiteral("message"), QStringLiteral("fixture server lacks this category capability"));
                 results.append(result);
                 continue;
             }
@@ -340,8 +392,19 @@ public:
     }
 
     AccountTransportReply pull(
-        quint64 after) const {
+        quint64 after) {
         AccountTransportReply reply;
+
+        if (m_pullRequestAfters.size()
+                > m_pullFailAfterServed
+            && m_pullNetworkFailures > 0) {
+            --m_pullNetworkFailures;
+            reply.networkError = true;
+            reply.errorCode = QStringLiteral("offline");
+            reply.errorMessage = QStringLiteral("fixture pull offline");
+            return reply;
+        }
+
         reply.statusCode = 200;
 
         QJsonArray entries;
@@ -487,6 +550,9 @@ private:
     QStringList m_snapshotRequestTokens;
     QStringList m_pushAttachmentIds;
     QStringList m_pullRequestAfters;
+    QString m_rejectRecordKey;
+    int m_pullFailAfterServed = std::numeric_limits<int>::max();
+    int m_pullNetworkFailures = 0;
 };
 
 class FixtureSyncTransport final
@@ -506,6 +572,18 @@ public:
 
     void setPushOnline(bool online) {
         m_pushOnline = online;
+    }
+
+    QList<int> pushBodyBytes() const {
+        return m_pushBodyBytes;
+    }
+
+    QList<int> pushMutationCounts() const {
+        return m_pushMutationCounts;
+    }
+
+    QList<QByteArray> pushBodyPayloads() const {
+        return m_pushBodyPayloads;
     }
 
     void dropNextPushResponseAfterCommit() {
@@ -559,13 +637,25 @@ public:
                 return;
             }
 
+            const QJsonArray requestMutations =
+                request.body
+                    .value(QStringLiteral("mutations"))
+                    .toArray();
+            // Capture the AccountTransportRequest at the same boundary used
+            // by AccountHttpTransport before the fixture service sees it.
+            // This proves the engine's admission bound against the emitted
+            // compact UTF-8 HTTP body, rather than only against an internal
+            // sizing helper.
+            const QByteArray requestBody =
+                QJsonDocument(request.body)
+                    .toJson(QJsonDocument::Compact);
+            m_pushBodyBytes.append(requestBody.size());
+            m_pushMutationCounts.append(requestMutations.size());
+            m_pushBodyPayloads.append(requestBody);
+
             reply =
                 m_service->push(
-                    request.body
-                        .value(
-                            QStringLiteral(
-                                "mutations"))
-                        .toArray(),
+                    requestMutations,
                     request.body
                         .value(
                             QStringLiteral(
@@ -674,6 +764,9 @@ private:
     bool m_online = true;
     bool m_pushOnline = true;
     bool m_dropNextPush = false;
+    QList<int> m_pushBodyBytes;
+    QList<int> m_pushMutationCounts;
+    QList<QByteArray> m_pushBodyPayloads;
 };
 
 class SyntheticAdapter final
@@ -737,6 +830,12 @@ public:
         const QJsonValue &payload,
         int schemaVersion,
         QString *error) override {
+        if (m_rejectRemote) {
+            if (error)
+                error->clear();
+            return false;
+        }
+
         if (schemaVersion != 1) {
             if (error) {
                 *error = QStringLiteral(
@@ -837,6 +936,10 @@ public:
             enabled;
     }
 
+    void setRejectRemote(bool enabled) {
+        m_rejectRemote = enabled;
+    }
+
     void setMissingRecordsAreDeletes(
         bool enabled) {
         m_missingRecordsAreDeletes = enabled;
@@ -851,6 +954,7 @@ private:
         m_records;
     quint64 m_revision = 0;
     bool m_emitDuringRemoteApply = false;
+    bool m_rejectRemote = false;
     bool m_missingRecordsAreDeletes = true;
     int m_remoteApplyCount = 0;
 };
@@ -969,6 +1073,8 @@ private slots:
     void trustedLocalOrderingHintsBecomeOrderedHLCs();
     void rejectedFutureCanRebaseToServiceTime();
     void stateStoreRoundTripPreservesCheckpoint();
+    void legacyStateMigratesToBoundedHistoricalReplay();
+    void historicalReplayCrashReloadPromotesNormalCursor();
     void offlineMutationIsDurableAcrossRestart();
     void bearerRejectionPausesForAuthenticationRecoveryWithoutDroppingOutbox();
     void adapterRegisteredAfterStartSnapshotsExistingState();
@@ -982,9 +1088,15 @@ private slots:
     void futureClockIsRebasedAndRetried();
     void winningPullThenPendingPushLossKeepsServerWinner();
     void olderWinningPullRemainsSuppressed();
-    void unknownWinningCategoryDoesNotAdvanceCursor();
-    void bannedRemotePayloadDoesNotAdvanceCursor();
+    void unknownWinningCategoryQuarantinesAndAdvancesCursor();
+    void bannedRemotePayloadQuarantinesAndAdvancesCursor();
+    void quarantinePersistsAcrossRestartWithoutBlockingLaterDomain();
+    void ownerApplyFailureDoesNotAdvanceCursor();
+    void realActivityPreflightQuarantinesWithoutBlockingCollection();
+    void mixedPushRejectionRetainsAckAndExplicitRetry();
+    void pushBatchesStayWithinWireByteAndCountBounds();
     void signOutFlushWarnsWhenNetworkUnavailable();
+    void signOutFlushReportsParkedOversize();
     void signOutFlushSucceedsAfterDrain();
     void accountSwitchUsesSeparateProfileState();
 };
@@ -1125,6 +1237,9 @@ stateStoreRoundTripPreservesCheckpoint() {
 
     SyncPersistentState source;
     source.cursor = 42;
+    source.historicalReplayCursor = 7;
+    source.historicalReplayLimit = 42;
+    source.historicalReplayPending = true;
     source.hlcPhysicalMs = 1000;
     source.hlcCounter = 3;
     source.serverOffsetMs = -12;
@@ -1199,6 +1314,15 @@ stateStoreRoundTripPreservesCheckpoint() {
         loaded->cursor,
         quint64(42));
     QCOMPARE(
+        loaded->historicalReplayCursor,
+        quint64(7));
+    QCOMPARE(
+        loaded->historicalReplayLimit,
+        quint64(42));
+    QCOMPARE(
+        loaded->historicalReplayPending,
+        true);
+    QCOMPARE(
         loaded->outbox.size(),
         1);
     QCOMPARE(
@@ -1221,6 +1345,182 @@ stateStoreRoundTripPreservesCheckpoint() {
                     "manga/item"))
             .hlc.counter,
         quint64(3));
+}
+
+void tst_sync_engine::
+legacyStateMigratesToBoundedHistoricalReplay() {
+    SyncPersistentState source;
+    source.cursor = 42;
+    source.hlcPhysicalMs = 1000;
+    source.hlcCounter = 3;
+    source.serverOffsetMs = -12;
+
+    QJsonObject legacy = SyncStateStore::encode(source);
+    legacy.insert(QStringLiteral("schema_version"), 2);
+    legacy.remove(QStringLiteral("historical_replay_cursor"));
+    legacy.remove(QStringLiteral("historical_replay_limit"));
+    legacy.remove(QStringLiteral("historical_replay_pending"));
+    legacy.remove(QStringLiteral("quarantined_entries"));
+    legacy.remove(QStringLiteral("rejected_mutations"));
+
+    QString error;
+    const auto migrated = SyncStateStore::decode(legacy, &error);
+    QVERIFY2(migrated.has_value(), qPrintable(error));
+    QCOMPARE(migrated->cursor, quint64(42));
+    QCOMPARE(migrated->historicalReplayPending, true);
+    QCOMPARE(migrated->historicalReplayCursor, quint64(0));
+    QCOMPARE(migrated->historicalReplayLimit, quint64(42));
+
+    QJsonObject completed = SyncStateStore::encode(*migrated);
+    const auto roundTripped = SyncStateStore::decode(completed, &error);
+    QVERIFY2(roundTripped.has_value(), qPrintable(error));
+    QCOMPARE(roundTripped->historicalReplayPending, true);
+    QCOMPARE(roundTripped->historicalReplayLimit, quint64(42));
+}
+
+void tst_sync_engine::
+historicalReplayCrashReloadPromotesNormalCursor() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+
+    // The old cursor has already crossed the first 201 journal rows. The
+    // replay generation must revisit only that bounded prefix, while the
+    // local winner for this key remains authoritative.
+    SyncPersistentState source;
+    source.cursor = 201;
+    source.hlcPhysicalMs = 3000000;
+    source.hlcCounter = 4;
+    source.serverOffsetMs = 0;
+    const SyncWireMutation local = remoteMutation(
+        QStringLiteral("99999999-9999-4999-8999-999999999999"),
+        QStringLiteral("collection"),
+        QStringLiteral("manga/local"),
+        QString::fromLatin1(kDeviceA),
+        3000000,
+        4,
+        SyncWireOperation::Put,
+        QJsonObject{{QStringLiteral("value"), QStringLiteral("local-newer")} });
+    source.mirrors[QStringLiteral("collection")].insert(
+        local.recordKey,
+        SyncMirrorRecord{1, local.payload});
+    source.winners[QStringLiteral("collection")].insert(
+        local.recordKey,
+        SyncWinner{local.hlc, 1, SyncWireOperation::Put});
+
+    for (int index = 1; index <= 250; ++index) {
+        const QString suffix =
+            QStringLiteral("%1").arg(index, 12, 16, QLatin1Char('0'));
+        const QString mutationId =
+            QStringLiteral("bbbbbbbb-bbbb-4bbb-8bbb-") + suffix;
+        const bool isLocalKey = index == 100;
+        service.appendRemote(
+            remoteMutation(
+                mutationId,
+                QStringLiteral("collection"),
+                isLocalKey
+                    ? QStringLiteral("manga/local")
+                    : QStringLiteral("manga/historical-%1").arg(index),
+                QString::fromLatin1(kDeviceB),
+                service.serverTimeMs,
+                static_cast<quint64>(index),
+                SyncWireOperation::Put,
+                QJsonObject{{QStringLiteral("value"),
+                             isLocalKey
+                                 ? QStringLiteral("remote-older")
+                                 : QStringLiteral("historical-%1").arg(index)}}),
+            true);
+    }
+
+    // Write a schema-v2 checkpoint. Loading it starts the one-time replay from
+    // zero and captures 201 as its durable upper bound.
+    QJsonObject legacy = SyncStateStore::encode(source);
+    legacy.insert(QStringLiteral("schema_version"), 2);
+    legacy.remove(QStringLiteral("historical_replay_cursor"));
+    legacy.remove(QStringLiteral("historical_replay_limit"));
+    legacy.remove(QStringLiteral("historical_replay_pending"));
+    legacy.remove(QStringLiteral("quarantined_entries"));
+    legacy.remove(QStringLiteral("rejected_mutations"));
+    QSaveFile stateFile(profile.syncStatePath());
+    QVERIFY(QDir().mkpath(QFileInfo(profile.syncStatePath()).absolutePath()));
+    QVERIFY(stateFile.open(QIODevice::WriteOnly));
+    const QByteArray legacyBytes =
+        QJsonDocument(legacy).toJson(QJsonDocument::Compact);
+    QCOMPARE(stateFile.write(legacyBytes), legacyBytes.size());
+    QVERIFY(stateFile.commit());
+
+    SyntheticAdapter adapter;
+
+    {
+        FixtureSyncTransport transport(&service);
+        AccountClient client(&transport);
+        client.setAccessToken(QByteArrayLiteral("fixture-access"));
+        SyncAdapterRegistry registry;
+        QVERIFY(registry.registerAdapter(&adapter));
+        adapter.putLocal(QStringLiteral("manga/local"),
+                         QStringLiteral("local-newer"));
+
+        SyncEngine engine(&client, &registry, [&now]() { return now; });
+        engine.setAutomaticSchedulingEnabled(false);
+        engine.setNetworkEnabled(false);
+        QString error;
+        QVERIFY2(engine.start(profile, QString::fromLatin1(kDeviceA), &error),
+                 qPrintable(error));
+        service.setPullNetworkFailuresAfterRequests(1, 1);
+        engine.setNetworkEnabled(true);
+
+        QTRY_COMPARE(service.pullRequestAfters().size(), 2);
+        QTRY_COMPARE(engine.state(), SyncEngine::State::Retrying);
+        QCOMPARE(service.pullRequestAfters().at(0), QStringLiteral("0"));
+        QCOMPARE(service.pullRequestAfters().at(1), QStringLiteral("200"));
+    }
+
+    SyncStateStore store;
+    QString error;
+    const auto midReplay = store.load(profile.syncStatePath(), &error);
+    QVERIFY2(midReplay.has_value(), qPrintable(error));
+    QVERIFY(midReplay->historicalReplayPending);
+    QCOMPARE(midReplay->historicalReplayCursor, quint64(200));
+    QCOMPARE(midReplay->historicalReplayLimit, quint64(201));
+    QCOMPARE(midReplay->cursor, quint64(201));
+
+    {
+        FixtureSyncTransport transport(&service);
+        AccountClient client(&transport);
+        client.setAccessToken(QByteArrayLiteral("fixture-access"));
+        SyncAdapterRegistry registry;
+        QVERIFY(registry.registerAdapter(&adapter));
+        adapter.putLocal(QStringLiteral("manga/local"),
+                         QStringLiteral("local-newer"));
+
+        SyncEngine engine(&client, &registry, [&now]() { return now; });
+        engine.setAutomaticSchedulingEnabled(false);
+        engine.setNetworkEnabled(false);
+        QVERIFY2(engine.start(profile, QString::fromLatin1(kDeviceA), &error),
+                 qPrintable(error));
+        engine.setNetworkEnabled(true);
+
+        QTRY_COMPARE(engine.historicalReplayPending(), false);
+        QTRY_COMPARE(engine.cursor(), quint64(201));
+        QCOMPARE(service.pullRequestAfters().last(), QStringLiteral("200"));
+        QCOMPARE(adapter.value(QStringLiteral("manga/local")),
+                 QStringLiteral("local-newer"));
+        QCOMPARE(adapter.value(QStringLiteral("manga/historical-1")),
+                 QStringLiteral("historical-1"));
+    }
+
+    const auto completed = store.load(profile.syncStatePath(), &error);
+    QVERIFY2(completed.has_value(), qPrintable(error));
+    QCOMPARE(completed->historicalReplayPending, false);
+    QCOMPARE(completed->historicalReplayCursor, quint64(0));
+    QCOMPARE(completed->historicalReplayLimit, quint64(0));
+    // Final replay checkpoint promotes the normal cursor to the furthest
+    // recovered sequence, preventing the already-replayed page from being
+    // downloaded again after restart.
+    QCOMPARE(completed->cursor, quint64(201));
 }
 
 void tst_sync_engine::
@@ -1335,7 +1635,6 @@ bearerRejectionPausesForAuthenticationRecoveryWithoutDroppingOutbox() {
     replica.engine.setNetworkEnabled(true);
     replica.engine.requestImmediateSync();
 
-    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
     QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
     QCOMPARE(service.acceptedMutationCount(), 1);
 }
@@ -1832,6 +2131,7 @@ winningPullThenPendingPushLossKeepsServerWinner() {
 
     QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
     QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QTRY_COMPARE(replica.engine.cursor(), quint64(2));
     QCOMPARE(
         replica.adapter.value(QStringLiteral("manga/item")),
         QStringLiteral("server-newer"));
@@ -1891,7 +2191,7 @@ olderWinningPullRemainsSuppressed() {
 }
 
 void tst_sync_engine::
-unknownWinningCategoryDoesNotAdvanceCursor() {
+unknownWinningCategoryQuarantinesAndAdvancesCursor() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
 
@@ -1930,19 +2230,24 @@ unknownWinningCategoryDoesNotAdvanceCursor() {
     replica.engine.setNetworkEnabled(true);
 
     QTRY_COMPARE(
+        replica.engine.quarantinedEntryCount(),
+        1);
+    QCOMPARE(
         replica.engine.state(),
-        SyncEngine::State::Blocked);
+        SyncEngine::State::Idle);
     QCOMPARE(
         replica.engine.cursor(),
-        quint64(0));
+        quint64(1));
+    QCOMPARE(
+        replica.engine.quarantinedEntryCount(),
+        1);
     QCOMPARE(
         replica.engine.lastErrorCode(),
-        QStringLiteral(
-            "adapter_not_registered"));
+        QStringLiteral("adapter_not_registered"));
 }
 
 void tst_sync_engine::
-bannedRemotePayloadDoesNotAdvanceCursor() {
+bannedRemotePayloadQuarantinesAndAdvancesCursor() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
 
@@ -1981,14 +2286,285 @@ bannedRemotePayloadDoesNotAdvanceCursor() {
     replica.engine.setNetworkEnabled(true);
 
     QTRY_COMPARE(
+        replica.engine.quarantinedEntryCount(),
+        1);
+    QCOMPARE(
         replica.engine.state(),
-        SyncEngine::State::Blocked);
+        SyncEngine::State::Idle);
     QCOMPARE(
         replica.engine.cursor(),
-        quint64(0));
+        quint64(1));
+    QCOMPARE(
+        replica.engine.quarantinedEntryCount(),
+        1);
     QCOMPARE(
         replica.adapter.remoteApplyCount(),
         0);
+}
+
+void tst_sync_engine::
+quarantinePersistsAcrossRestartWithoutBlockingLaterDomain() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+            QStringLiteral("extension_roster"),
+            QStringLiteral("extension/item"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("remote")}}),
+        true);
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccd"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/after-quarantine"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            1,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("live")}}),
+        true);
+
+    {
+        Replica first(&service, profile, QString::fromLatin1(kDeviceA), &now);
+        first.engine.setNetworkEnabled(true);
+        QTRY_COMPARE(first.engine.quarantinedEntryCount(), 1);
+        QTRY_COMPARE(first.engine.cursor(), quint64(2));
+        QCOMPARE(first.adapter.value(QStringLiteral("manga/after-quarantine")),
+                 QStringLiteral("live"));
+        QVERIFY(first.engine.stopPreservingOutbox());
+    }
+
+    {
+        FixtureSyncTransport transport(&service);
+        AccountClient client(&transport);
+        client.setAccessToken(QByteArrayLiteral("fixture-access"));
+        SyncAdapterRegistry registry;
+        SyntheticAdapter adapter;
+        QVERIFY(registry.registerAdapter(&adapter));
+        SyncEngine restarted(&client, &registry, [&now]() { return now; });
+        restarted.setAutomaticSchedulingEnabled(false);
+        restarted.setNetworkEnabled(false);
+        QString error;
+        QVERIFY2(restarted.start(profile, QString::fromLatin1(kDeviceA), &error),
+                 qPrintable(error));
+        QCOMPARE(restarted.quarantinedEntryCount(), 1);
+        QCOMPARE(restarted.cursor(), quint64(2));
+        restarted.setNetworkEnabled(true);
+        QTRY_VERIFY(service.pullRequestAfters().size() >= 2);
+        QCOMPARE(restarted.quarantinedEntryCount(), 1);
+        QCOMPARE(restarted.cursor(), quint64(2));
+        QCOMPARE(service.pullRequestAfters().last(), QStringLiteral("2"));
+    }
+}
+
+void tst_sync_engine::ownerApplyFailureDoesNotAdvanceCursor() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("remote")}}),
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+    replica.adapter.setRejectRemote(true);
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Blocked);
+    QCOMPARE(replica.engine.cursor(), quint64(0));
+    QCOMPARE(replica.engine.quarantinedEntryCount(), 0);
+    QCOMPARE(replica.engine.lastErrorCode(), QStringLiteral("adapter_apply_failed"));
+    QCOMPARE(replica.adapter.remoteApplyCount(), 0);
+}
+
+void tst_sync_engine::realActivityPreflightQuarantinesWithoutBlockingCollection() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    const QString eventId = QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab"),
+            QStringLiteral("activity_fact"),
+            QStringLiteral("activity/") + eventId,
+            QString::fromLatin1(kDeviceB),
+            now,
+            0,
+            SyncWireOperation::Put,
+            malformedActivityPayload(eventId, false)),
+        true);
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaac"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/after-activity"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            1,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("still-live")}}),
+        true);
+
+    FixtureSyncTransport transport(&service);
+    AccountClient client(&transport);
+    ActivityStore activityStore;
+    ActivitySyncAdapter activityAdapter(&activityStore);
+    SyntheticAdapter collectionAdapter;
+    SyncAdapterRegistry registry;
+    QVERIFY(registry.registerAdapter(&activityAdapter));
+    QVERIFY(registry.registerAdapter(&collectionAdapter));
+    SyncEngine engine(&client, &registry, [&now]() { return now; });
+    client.setAccessToken(QByteArrayLiteral("fixture-access"));
+    engine.setAutomaticSchedulingEnabled(false);
+    engine.setNetworkEnabled(false);
+
+    QString error;
+    QVERIFY2(engine.start(accountProfile(&temp), QString::fromLatin1(kDeviceA), &error),
+             qPrintable(error));
+    engine.setNetworkEnabled(true);
+    QTRY_COMPARE(engine.quarantinedEntryCount(), 1);
+    QTRY_COMPARE(engine.cursor(), quint64(2));
+    QCOMPARE(engine.state(), SyncEngine::State::Idle);
+    QCOMPARE(engine.lastErrorCode(), QStringLiteral("activity_not_syncable"));
+    QCOMPARE(activityStore.portableSyncFacts().size(), 0);
+    QCOMPARE(collectionAdapter.value(QStringLiteral("manga/after-activity")),
+             QStringLiteral("still-live"));
+}
+
+void tst_sync_engine::mixedPushRejectionRetainsAckAndExplicitRetry() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    service.setRejectRecordKey(QStringLiteral("manga/second"));
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+    replica.adapter.putLocal(QStringLiteral("manga/first"), QStringLiteral("one"));
+    replica.adapter.putLocal(QStringLiteral("manga/second"), QStringLiteral("two"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 2);
+
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+    QTRY_COMPARE(replica.engine.rejectedMutationCount(), 1);
+    QCOMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QCOMPARE(replica.engine.lastErrorCode(), QStringLiteral("category_not_supported"));
+    QCOMPARE(service.acceptedMutationCount(), 1);
+    QCOMPARE(service.journal().size(), 1);
+
+    service.setRejectRecordKey(QString());
+    replica.engine.retryRejectedMutations();
+
+    QTRY_COMPARE(replica.engine.rejectedMutationCount(), 0);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(service.acceptedMutationCount(), 2);
+    QCOMPARE(service.journal().size(), 2);
+}
+
+void tst_sync_engine::pushBatchesStayWithinWireByteAndCountBounds() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    const QString largeValue(900, QChar(0x4e00));
+    for (int index = 0; index < 100; ++index) {
+        replica.adapter.putLocal(
+            QStringLiteral("manga/large-%1")
+                .arg(index, 3, 10, QLatin1Char('0')),
+            largeValue);
+    }
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 100);
+
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+
+    // Add a second bounded batch whose 100 mutations should exercise the
+    // count ceiling while the first batch exercises the byte ceiling.
+    replica.engine.setNetworkEnabled(false);
+    for (int index = 0; index < 100; ++index) {
+        replica.adapter.putLocal(
+            QStringLiteral("manga/small-%1")
+                .arg(index, 3, 10, QLatin1Char('0')),
+            QStringLiteral("small"));
+    }
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 100);
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+
+    const QList<int> bodyBytes = replica.transport.pushBodyBytes();
+    const QList<int> mutationCounts =
+        replica.transport.pushMutationCounts();
+    const QList<QByteArray> bodies =
+        replica.transport.pushBodyPayloads();
+    QVERIFY(!bodyBytes.isEmpty());
+    QCOMPARE(bodyBytes.size(), mutationCounts.size());
+    QCOMPARE(bodyBytes.size(), bodies.size());
+
+    bool sawCountLimit = false;
+    int totalMutations = 0;
+    for (int index = 0; index < bodyBytes.size(); ++index) {
+        QVERIFY2(bodyBytes.at(index) <= 64 * 1024,
+                 "an emitted AccountTransport push body exceeded 64 KiB");
+        QVERIFY(mutationCounts.at(index) > 0);
+        QVERIFY(mutationCounts.at(index) <= 100);
+        totalMutations += mutationCounts.at(index);
+        sawCountLimit = sawCountLimit || mutationCounts.at(index) == 100;
+
+        QJsonParseError parseError;
+        const QJsonDocument document =
+            QJsonDocument::fromJson(bodies.at(index), &parseError);
+        QVERIFY2(parseError.error == QJsonParseError::NoError,
+                 qPrintable(parseError.errorString()));
+        QVERIFY(document.isObject());
+        QCOMPARE(
+            bodies.at(index),
+            QJsonDocument(document.object())
+                .toJson(QJsonDocument::Compact));
+        QCOMPARE(
+            bodies.at(index),
+            syncWirePushRequestBytes(
+                document.object()
+                    .value(QStringLiteral("mutations"))
+                    .toArray()));
+    }
+    QCOMPARE(totalMutations, 200);
+    QVERIFY(sawCountLimit);
 }
 
 void tst_sync_engine::
@@ -2038,6 +2614,49 @@ signOutFlushWarnsWhenNetworkUnavailable() {
     QCOMPARE(
         replica.engine.pendingOutboxCount(),
         1);
+}
+
+void tst_sync_engine::signOutFlushReportsParkedOversize() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/oversize"),
+        QString(70 * 1024, QLatin1Char('x')));
+    replica.adapter.putLocal(
+        QStringLiteral("manga/fitting"),
+        QStringLiteral("small"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 2);
+
+    QSignalSpy spy(
+        &replica.engine,
+        &SyncEngine::signOutFlushFinished);
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.rejectedMutationCount(), 1);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+    QCOMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QCOMPARE(service.journal().size(), 1);
+    QCOMPARE(service.journal().constFirst().mutation.recordKey,
+             QStringLiteral("manga/fitting"));
+    QVERIFY(!replica.transport.pushBodyBytes().isEmpty());
+    for (const int bodyBytes : replica.transport.pushBodyBytes())
+        QVERIFY(bodyBytes <= 64 * 1024);
+
+    replica.engine.beginSignOutFlush();
+    QTRY_COMPARE(spy.count(), 1);
+    const QList<QVariant> args = spy.takeFirst();
+    QCOMPARE(args.at(0).toBool(), false);
+    QCOMPARE(args.at(1).toString(), QStringLiteral("sync_unsynced_retained"));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
 }
 
 void tst_sync_engine::

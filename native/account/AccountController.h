@@ -33,6 +33,7 @@ class AccountController final : public QObject {
     Q_PROPERTY(QJsonArray devices READ devices NOTIFY devicesChanged)
     Q_PROPERTY(bool newDeviceProtection READ newDeviceProtection NOTIFY newDeviceProtectionChanged)
     Q_PROPERTY(int pendingOutboxCount READ pendingOutboxCount NOTIFY pendingOutboxCountChanged)
+    Q_PROPERTY(bool syncRetryAvailable READ syncRetryAvailable NOTIFY syncRetryAvailableChanged)
     Q_PROPERTY(bool signOutSyncWarningPending READ signOutSyncWarningPending NOTIFY signOutSyncWarningPendingChanged)
     Q_PROPERTY(QString deletionEffectiveAt READ deletionEffectiveAt NOTIFY deletionEffectiveAtChanged)
     Q_PROPERTY(QString errorCategory READ errorCategory NOTIFY lastErrorChanged)
@@ -112,6 +113,7 @@ public:
     QJsonArray devices() const;
     bool newDeviceProtection() const;
     int pendingOutboxCount() const;
+    bool syncRetryAvailable() const;
     bool signOutSyncWarningPending() const;
     QString deletionEffectiveAt() const;
     QString errorCategory() const;
@@ -164,6 +166,7 @@ public:
     Q_INVOKABLE void logoutEverywhere();
     Q_INVOKABLE void stayAndRetrySignOut();
     Q_INVOKABLE void signOutAnyway();
+    Q_INVOKABLE void retrySync();
 
     Q_INVOKABLE void changePassword(
         const QString &currentPassword,
@@ -198,6 +201,7 @@ signals:
     void devicesChanged();
     void newDeviceProtectionChanged();
     void pendingOutboxCountChanged();
+    void syncRetryAvailableChanged();
     void signOutSyncWarningPendingChanged();
     void deletionEffectiveAtChanged();
     void lastErrorChanged();
@@ -283,6 +287,7 @@ private:
     void setDeviceCount(int count);
     void setNewDeviceProtectionValue(bool enabled);
     void setPendingOutboxCountValue(int count);
+    void setSyncRetryAvailableValue(bool available);
 
     void setError(
         ErrorCategory category,
@@ -356,6 +361,7 @@ private:
     QJsonArray m_devices;
     bool m_newDeviceProtection = false;
     int m_pendingOutboxCount = 0;
+    bool m_syncRetryAvailable = false;
     bool m_signOutSyncWarningPending = false;
     PendingLogout m_pendingLogout = PendingLogout::None;
     QDateTime m_deletionEffectiveAt;

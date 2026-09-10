@@ -524,6 +524,16 @@ func (s *Service) validateSyncMutation(
 		if err := validateSyncPayload(input.Payload); err != nil {
 			return parsedSyncMutation{}, err.Error(), "The sync payload contains data that cannot be synced."
 		}
+		if input.Category != "activity_fact" {
+			if err := validateSyncRecordShape(
+				input.Category,
+				input.SchemaVersion,
+				input.RecordKey,
+				operation,
+				input.Payload); err != nil {
+				return parsedSyncMutation{}, err.Error(), "The sync record key or payload does not match the shipping category schema."
+			}
+		}
 		canonicalPayload, err := canonicalSyncJSON(input.Payload)
 		if err != nil {
 			return parsedSyncMutation{}, "payload_invalid", "The sync payload contains invalid JSON."
@@ -543,6 +553,14 @@ func (s *Service) validateSyncMutation(
 	case "delete":
 		if len(input.Payload) > 0 && string(input.Payload) != "null" {
 			return parsedSyncMutation{}, "delete_payload_not_empty", "A delete mutation cannot contain a payload."
+		}
+		if err := validateSyncRecordShape(
+			input.Category,
+			input.SchemaVersion,
+			input.RecordKey,
+			operation,
+			input.Payload); err != nil {
+			return parsedSyncMutation{}, err.Error(), "The sync record key does not match the shipping category schema."
 		}
 	default:
 		return parsedSyncMutation{}, "invalid_operation", "The sync mutation operation is invalid."

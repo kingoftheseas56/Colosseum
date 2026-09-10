@@ -448,6 +448,7 @@ private slots:
     void legacyCompletedOnlyRecordPromotesOnLoad();
     void malformedPersistedRecordFailsClosedWithoutOverwrite();
     void filesystemIdentityIsRejected();
+    void remotePreflightKeepsHistoryIntegerBoundariesExact();
     void adapterExportsCanonicalRecordAndOrderingHint();
     void remoteWinnerReplacesRecordExactlyWithoutEcho();
     void explicitDeleteBecomesSnapshotAbsence();
@@ -746,6 +747,48 @@ filesystemIdentityIsRejected() {
             1000));
 
     QVERIFY(store.records().isEmpty());
+}
+
+void tst_history_sync::
+remotePreflightKeepsHistoryIntegerBoundariesExact() {
+    HistoryStore store;
+    HistorySyncAdapter adapter(&store);
+    const auto encode = [](const QString &value) {
+        return QString::fromLatin1(
+            value.toUtf8().toBase64(
+                QByteArray::Base64UrlEncoding
+                | QByteArray::OmitTrailingEquals));
+    };
+    const QString recordKey = QStringLiteral("history/")
+        + encode(QStringLiteral("book")) + QLatin1Char('/')
+        + encode(QStringLiteral("book-1"));
+    const auto payloadFor = [](const QByteArray &lastActivityAt) {
+        const QByteArray json = QByteArrayLiteral(
+            "{\"kind\":\"book\",\"id\":\"book-1\","
+            "\"firstActivityAt\":1,\"lastActivityAt\":")
+            + lastActivityAt + QByteArrayLiteral("}");
+        return QJsonDocument::fromJson(json).object();
+    };
+
+    for (const QByteArray &literal : {
+             QByteArrayLiteral("1"),
+             QByteArrayLiteral("9223372036854775807")}) {
+        SyncAdapterValidationError validation;
+        QVERIFY2(adapter.validateRemote(
+                     recordKey, SyncWireOperation::Put,
+                     payloadFor(literal), 1, &validation),
+                 qPrintable(validation.detail));
+    }
+
+    for (const QByteArray &literal : {
+             QByteArrayLiteral("9223372036854775808"),
+             QByteArrayLiteral("1.5")}) {
+        SyncAdapterValidationError validation;
+        QVERIFY(!adapter.validateRemote(
+            recordKey, SyncWireOperation::Put,
+            payloadFor(literal), 1, &validation));
+        QCOMPARE(validation.code, QStringLiteral("payload_invalid"));
+    }
 }
 
 void tst_history_sync::

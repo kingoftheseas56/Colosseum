@@ -3,6 +3,7 @@
 #include "ProgressSyncAdapter.h"
 
 #include "CoreStateSyncProjection.h"
+#include "SyncAdapterValidation.h"
 
 #include "ProgressStore.h"
 
@@ -153,6 +154,21 @@ exportSnapshot(
     }
 
     return true;
+}
+
+bool ProgressSyncAdapter::validateRemote(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersion,
+    SyncAdapterValidationError *error) const {
+    return SyncAdapterValidation::core(
+        QStringLiteral("continue_progress"),
+        recordKey,
+        operation,
+        payload,
+        schemaVersion,
+        error);
 }
 
 bool ProgressSyncAdapter::

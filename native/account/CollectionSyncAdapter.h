@@ -25,6 +25,13 @@ public:
         SyncAdapterExport *snapshot,
         QString *error = nullptr) const override;
 
+    bool validateRemote(
+        const QString &recordKey,
+        SyncWireOperation operation,
+        const QJsonValue &payload,
+        int schemaVersion,
+        SyncAdapterValidationError *error = nullptr) const override;
+
     bool applyRemote(
         const QString &recordKey,
         SyncWireOperation operation,

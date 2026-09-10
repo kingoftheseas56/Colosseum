@@ -37,8 +37,32 @@ struct SyncPausedCategoryState {
     bool replaying = false;
 };
 
+struct SyncQuarantineEntry {
+    quint64 serverSeq = 0;
+    bool won = false;
+    SyncWireMutation mutation;
+    QString code;
+    QString message;
+};
+
+struct SyncRejectedMutation {
+    QString mutationId;
+    QString category;
+    QString recordKey;
+    QString code;
+    QString message;
+    QString fingerprint;
+};
+
 struct SyncPersistentState {
     quint64 cursor = 0;
+    quint64 historicalReplayCursor = 0;
+    // Original normal cursor captured when the one-time historical replay
+    // generation began. Replay must never consume newer rows past this
+    // boundary; finalization promotes the normal cursor from the replayed
+    // position in the same persisted checkpoint.
+    quint64 historicalReplayLimit = 0;
+    bool historicalReplayPending = false;
     qint64 hlcPhysicalMs = 0;
     quint64 hlcCounter = 0;
     qint64 serverOffsetMs = 0;
@@ -56,6 +80,17 @@ struct SyncPersistentState {
         winners;
 
     QHash<QString, SyncPausedCategoryState> pausedCategories;
+
+    // A rejected mutation remains in the outbox for repair/retry visibility,
+    // while this marker prevents a known poison record from starving later
+    // records. Enqueueing a replacement clears the matching marker.
+    QHash<QString, SyncRejectedMutation> rejectedMutations;
+
+    // Raw remote entries stay durable until a compatible owner accepts them.
+    // Cursor advancement may continue past these entries so unrelated domains
+    // remain live, while the retained mutation is available for replay after
+    // an adapter/schema repair.
+    QList<SyncQuarantineEntry> quarantinedEntries;
 };
 
 class SyncStateStore final : public QObject {

@@ -1,10 +1,14 @@
 #include "account/ActivityStore.h"
 #include "account/ActivitySyncAdapter.h"
 
+#include <QFile>
 #include <QJsonObject>
+#include <QJsonDocument>
 #include <QSignalSpy>
 #include <QVariantList>
 #include <QtTest>
+
+#include <utility>
 
 namespace {
 QVariantMap readingDeltaFact(const QString &eventId) {
@@ -92,6 +96,9 @@ private slots:
     void exportUsesLowercaseEventKeyAndPortablePayload();
     void remotePutIsIdempotentAndDoesNotEcho();
     void rejectsDeleteMalformedKeyIdentitySchemaAndPayloadBeforeMutation();
+    void preflightMatchesPortableOwnerSchema();
+    void preflightKeepsIntegerBoundariesExact();
+    void sharedFixtureMatchesQtProjection();
     void twoDevicesUnionFactsIntoIdenticalProjections();
 };
 
@@ -216,6 +223,204 @@ void tst_activity_sync::rejectsDeleteMalformedKeyIdentitySchemaAndPayloadBeforeM
     QVERIFY(!adapter.applyRemote(
         record.recordKey, SyncWireOperation::Put, malformed, 1, &error));
     QCOMPARE(target.portableSyncFacts().size(), 0);
+}
+
+void tst_activity_sync::preflightMatchesPortableOwnerSchema() {
+    ActivityStore store;
+    ActivitySyncAdapter adapter(&store);
+    const QString eventId = QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const QString recordKey = QStringLiteral("activity/") + eventId;
+    QJsonObject payload = QJsonObject::fromVariantMap(
+        playbackFact(eventId));
+    payload.insert(QStringLiteral("v"), 1);
+    payload.insert(QStringLiteral("type"), QStringLiteral("playback_delta"));
+
+    SyncAdapterValidationError validation;
+    QVERIFY2(adapter.validateRemote(
+                 recordKey, SyncWireOperation::Put, payload, 1, &validation),
+             qPrintable(validation.detail));
+
+    payload.insert(QStringLiteral("syncable"), false);
+    validation = {};
+    QVERIFY(!adapter.validateRemote(
+        recordKey, SyncWireOperation::Put, payload, 1, &validation));
+    QCOMPARE(validation.code, QStringLiteral("activity_not_syncable"));
+
+    payload = QJsonObject::fromVariantMap(playbackFact(eventId));
+    payload.insert(QStringLiteral("v"), 1);
+    payload.insert(QStringLiteral("type"), QStringLiteral("playback_delta"));
+    payload.insert(QStringLiteral("atMs"), 1000);
+    validation = {};
+    QVERIFY(!adapter.validateRemote(
+        recordKey, SyncWireOperation::Put, payload, 1, &validation));
+    QCOMPARE(validation.code, QStringLiteral("payload_invalid"));
+    QCOMPARE(validation.fieldPath, QStringLiteral("atMs"));
+
+    payload = QJsonObject::fromVariantMap(playbackFact(eventId));
+    payload.insert(QStringLiteral("v"), 1);
+    payload.insert(QStringLiteral("type"), QStringLiteral("playback_delta"));
+    payload.insert(QStringLiteral("futureField"), QStringLiteral("must reject"));
+    validation = {};
+    QVERIFY(!adapter.validateRemote(
+        recordKey, SyncWireOperation::Put, payload, 1, &validation));
+    QCOMPARE(validation.code, QStringLiteral("payload_invalid"));
+    QCOMPARE(validation.fieldPath, QStringLiteral("futureField"));
+
+    payload = QJsonObject::fromVariantMap(playbackFact(eventId));
+    payload.insert(QStringLiteral("v"), 1);
+    payload.insert(QStringLiteral("type"), QStringLiteral("playback_delta"));
+    payload.remove(QStringLiteral("itemLabel"));
+    validation = {};
+    QVERIFY(!adapter.validateRemote(
+        recordKey, SyncWireOperation::Put, payload, 1, &validation));
+    QCOMPARE(validation.code, QStringLiteral("payload_invalid"));
+    QCOMPARE(validation.fieldPath, QStringLiteral("itemLabel"));
+}
+
+void tst_activity_sync::preflightKeepsIntegerBoundariesExact() {
+    ActivityStore store;
+    ActivitySyncAdapter adapter(&store);
+    const QString recordKey = QStringLiteral(
+        "activity/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const auto payloadFor = [](const QByteArray &atMs) {
+        const QByteArray json = QByteArrayLiteral(
+            "{\"v\":1,\"type\":\"media_completed\","
+            "\"eventId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\","
+            "\"sessionId\":\"session\",\"world\":\"theatre\","
+            "\"kind\":\"movie\",\"titleKey\":\"movie\","
+            "\"itemKey\":\"movie\",\"title\":\"Movie\","
+            "\"itemLabel\":\"\",\"cover\":\"\",\"source\":\"test\","
+            "\"utcOffsetMinutes\":0,\"syncable\":true,"
+            "\"atMs\":") + atMs + QByteArrayLiteral(
+            ",\"reason\":\"eof\"}");
+        return QJsonDocument::fromJson(json).object();
+    };
+
+    for (const QByteArray &literal : {
+             QByteArrayLiteral("-8640000000000000"),
+             QByteArrayLiteral("8640000000000000")}) {
+        SyncAdapterValidationError validation;
+        QVERIFY2(adapter.validateRemote(
+                     recordKey, SyncWireOperation::Put,
+                     payloadFor(literal), 1, &validation),
+                 qPrintable(validation.detail));
+    }
+
+    for (const QByteArray &literal : {
+             QByteArrayLiteral("-9223372036854775808"),
+             QByteArrayLiteral("9223372036854775807"),
+             QByteArrayLiteral("9223372036854775808"),
+             QByteArrayLiteral("1.5")}) {
+        SyncAdapterValidationError validation;
+        const bool accepted = adapter.validateRemote(
+            recordKey, SyncWireOperation::Put,
+            payloadFor(literal), 1, &validation);
+        QVERIFY2(!accepted, literal.constData());
+        QCOMPARE(validation.code, QStringLiteral("payload_invalid"));
+    }
+
+    const auto playbackPayloadFor = [](
+        const QByteArray &startAtMs,
+        const QByteArray &endAtMs,
+        const QByteArray &activeMs) {
+        const QByteArray json = QByteArrayLiteral(
+            "{\"v\":1,\"type\":\"playback_delta\","
+            "\"eventId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\","
+            "\"sessionId\":\"session\",\"world\":\"theatre\","
+            "\"kind\":\"movie\",\"titleKey\":\"movie\","
+            "\"itemKey\":\"movie\",\"title\":\"Movie\","
+            "\"itemLabel\":\"\",\"cover\":\"\",\"source\":\"test\","
+            "\"utcOffsetMinutes\":0,\"syncable\":true,"
+            "\"startAtMs\":") + startAtMs
+            + QByteArrayLiteral(
+                ",\"endAtMs\":") + endAtMs
+            + QByteArrayLiteral(
+                ",\"activeMs\":") + activeMs
+            + QByteArrayLiteral(
+                ",\"rateMilli\":1000}");
+        return QJsonDocument::fromJson(json).object();
+    };
+
+    for (const auto &bounds : {
+             std::pair<QByteArray, QByteArray>{
+                 QByteArrayLiteral("-8640000000000000"),
+                 QByteArrayLiteral("-8639999999999999")},
+             std::pair<QByteArray, QByteArray>{
+                 QByteArrayLiteral("8639999999999999"),
+                 QByteArrayLiteral("8640000000000000")}}) {
+        const QJsonObject payload = playbackPayloadFor(
+            bounds.first, bounds.second, QByteArrayLiteral("1"));
+        SyncAdapterValidationError validation;
+        QVERIFY2(adapter.validateRemote(
+                     recordKey, SyncWireOperation::Put,
+                     payload, 1, &validation),
+                 qPrintable(validation.detail));
+    }
+
+    const QJsonObject overflowingInterval = playbackPayloadFor(
+        QByteArrayLiteral("-9223372036854775808"),
+        QByteArrayLiteral("9223372036854775807"),
+        QByteArrayLiteral("1"));
+    SyncAdapterValidationError validation;
+    QVERIFY(!adapter.validateRemote(
+        recordKey, SyncWireOperation::Put,
+        overflowingInterval, 1, &validation));
+    QCOMPARE(validation.code, QStringLiteral("payload_invalid"));
+
+    ActivityStore ownerStore;
+    ActivitySyncAdapter ownerAdapter(&ownerStore);
+    QSignalSpy ownerIntegrity(&ownerStore, &ActivityStore::integrityError);
+    QString ownerError;
+    const bool ownerApplied = ownerAdapter.applyRemote(
+        recordKey, SyncWireOperation::Put,
+        playbackPayloadFor(
+            QByteArrayLiteral("8639999999999999"),
+            QByteArrayLiteral("8640000000000000"),
+            QByteArrayLiteral("1")),
+        1, &ownerError);
+    if (!ownerApplied && ownerIntegrity.count() > 0)
+        qDebug() << ownerIntegrity.last().at(0)
+                 << ownerIntegrity.last().at(1);
+    QVERIFY2(ownerApplied, qPrintable(ownerError));
+}
+
+void tst_activity_sync::sharedFixtureMatchesQtProjection() {
+#ifndef COLOSSEUM_SHARED_ACTIVITY_FIXTURE_PATH
+#error "The shared Activity sync fixture path must be provided by CMake."
+#endif
+    QFile file(QStringLiteral(COLOSSEUM_SHARED_ACTIVITY_FIXTURE_PATH));
+    QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.errorString()));
+    QJsonParseError parseError;
+    const QJsonDocument document =
+        QJsonDocument::fromJson(file.readAll(), &parseError);
+    QVERIFY2(parseError.error == QJsonParseError::NoError,
+             qPrintable(parseError.errorString()));
+    QVERIFY(document.isObject());
+    const QJsonObject fixture = document.object();
+    QCOMPARE(fixture.value(QStringLiteral("category")).toString(),
+             QStringLiteral("activity_fact"));
+    QCOMPARE(fixture.value(QStringLiteral("schema_version")).toInt(), 1);
+
+    const QString eventId = QStringLiteral(
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    ActivityStore store;
+    ActivitySyncAdapter adapter(&store);
+    QVERIFY(store.recordPlaybackDelta(playbackFact(eventId)));
+    const SyncAdapterRecord projected = exportOnlyRecord(adapter);
+
+    QCOMPARE(projected.recordKey,
+             fixture.value(QStringLiteral("record_key")).toString());
+    QCOMPARE(projected.payload,
+             fixture.value(QStringLiteral("payload")));
+
+    SyncAdapterValidationError validation;
+    QVERIFY2(adapter.validateRemote(
+                 projected.recordKey,
+                 SyncWireOperation::Put,
+                 projected.payload,
+                 fixture.value(QStringLiteral("schema_version")).toInt(),
+                 &validation),
+             qPrintable(validation.detail));
 }
 
 // Wave 3 Lead final proof: two devices that each hold part of the same

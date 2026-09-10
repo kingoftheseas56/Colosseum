@@ -2,6 +2,8 @@
 
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
+#include <QByteArray>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QList>
@@ -84,6 +86,12 @@ syncWireOperationFromName(
 
 bool isValidSyncWireRecordKey(
     const QString &recordKey);
+
+// Returns the exact compact UTF-8 request body used by AccountHttpTransport
+// for a sync push envelope. SyncEngine uses this seam to enforce the server's
+// 64 KiB decoder bound before dispatching a batch.
+QByteArray syncWirePushRequestBytes(
+    const QJsonArray &mutations);
 
 QJsonObject syncWireMutationToJson(
     const SyncWireMutation &mutation);

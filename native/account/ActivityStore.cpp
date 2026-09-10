@@ -16,6 +16,7 @@
 #include <QVariant>
 
 #include <algorithm>
+#include <limits>
 
 namespace {
 
@@ -29,7 +30,12 @@ QString generatedUuid() {
 }
 
 qint64 jsonInt(const QJsonObject &obj, const QString &key) {
-    return static_cast<qint64>(obj.value(key).toDouble());
+    const QJsonValue value = obj.value(key);
+    constexpr qint64 low = std::numeric_limits<qint64>::min();
+    constexpr qint64 high = std::numeric_limits<qint64>::max();
+    const qint64 lowResult = value.toInteger(low);
+    const qint64 highResult = value.toInteger(high);
+    return lowResult == highResult ? lowResult : 0;
 }
 
 bool setStaticError(QString *error, const QString &message) {

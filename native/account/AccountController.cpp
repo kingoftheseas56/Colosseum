@@ -174,6 +174,10 @@ int AccountController::pendingOutboxCount() const {
     return m_pendingOutboxCount;
 }
 
+bool AccountController::syncRetryAvailable() const {
+    return m_syncRetryAvailable;
+}
+
 bool AccountController::signOutSyncWarningPending() const {
     return m_signOutSyncWarningPending;
 }
@@ -243,8 +247,10 @@ void AccountController::setSyncEngine(
         disconnect(m_syncEngine, nullptr, this, nullptr);
 
     m_syncEngine = syncEngine;
-    if (!m_syncEngine)
+    if (!m_syncEngine) {
+        setSyncRetryAvailableValue(false);
         return;
+    }
 
     connect(
         m_syncEngine,
@@ -273,8 +279,24 @@ void AccountController::setSyncEngine(
 
             setSyncObservation(
                 mapped,
-                count);
+                 count);
         });
+
+    connect(
+        m_syncEngine,
+        &SyncEngine::recoveryAvailableChanged,
+        this,
+        [this]() {
+            setSyncRetryAvailableValue(
+                (m_mode == Mode::SignedIn || m_mode == Mode::Offline)
+                    && m_syncEngine
+                    && m_syncEngine->recoveryAvailable());
+        });
+
+    setSyncRetryAvailableValue(
+        m_mode == Mode::SignedIn || m_mode == Mode::Offline
+            ? m_syncEngine->recoveryAvailable()
+            : false);
 
     connect(
         m_syncEngine,
@@ -357,11 +379,15 @@ void AccountController::setSyncObservation(
         || m_mode == Mode::Error) {
         setSyncStateValue(SyncState::Inactive);
         setPendingOutboxCountValue(0);
+        setSyncRetryAvailableValue(false);
         return;
     }
 
     setSyncStateValue(state);
     setPendingOutboxCountValue(pendingOutboxCount);
+    setSyncRetryAvailableValue(
+        m_syncEngine
+            && m_syncEngine->recoveryAvailable());
 }
 
 void AccountController::setDeletionPending(const QDateTime &effectiveAt) {
@@ -694,6 +720,16 @@ void AccountController::signOutAnyway() {
 
     clearPendingLogoutWarning();
     continuePendingLogout();
+}
+
+void AccountController::retrySync() {
+    if (!m_syncEngine
+        || (m_mode != Mode::SignedIn && m_mode != Mode::Offline)
+        || !m_syncEngine->active()) {
+        return;
+    }
+
+    m_syncEngine->retryRejectedMutations();
 }
 
 void AccountController::changePassword(
@@ -1942,6 +1978,10 @@ void AccountController::setMode(Mode mode) {
 
     m_mode = mode;
     emit modeChanged();
+    setSyncRetryAvailableValue(
+        (m_mode == Mode::SignedIn || m_mode == Mode::Offline)
+            && m_syncEngine
+            && m_syncEngine->recoveryAvailable());
 }
 
 void AccountController::setSyncStateValue(SyncState state) {
@@ -2005,6 +2045,15 @@ void AccountController::setPendingOutboxCountValue(
 
     m_pendingOutboxCount = count;
     emit pendingOutboxCountChanged();
+}
+
+void AccountController::setSyncRetryAvailableValue(
+    bool available) {
+    if (m_syncRetryAvailable == available)
+        return;
+
+    m_syncRetryAvailable = available;
+    emit syncRetryAvailableChanged();
 }
 
 void AccountController::setError(

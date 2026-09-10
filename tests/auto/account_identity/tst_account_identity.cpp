@@ -5,6 +5,10 @@
 #include "account/AccountController.h"
 #include "account/AccountDeviceIdentity.h"
 #include "account/AccountHttpTransport.h"
+#include "account/SyncAdapter.h"
+#include "account/SyncAdapterRegistry.h"
+#include "account/SyncEngine.h"
+#include "account/SyncStateStore.h"
 #include "AccountFixtureTransport.h"
 #include "MemoryAccountCredentialStore.h"
 #include "MemoryAccountOneTimeSecretSink.h"
@@ -17,6 +21,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMetaProperty>
+#include <QJsonDocument>
+#include <QFileInfo>
+#include <QSaveFile>
 #include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -269,6 +276,54 @@ struct Fixture {
     }
 };
 
+class ControllerSyncAdapter final : public SyncAdapter {
+public:
+    explicit ControllerSyncAdapter(QObject *parent = nullptr)
+        : SyncAdapter(parent) {}
+
+    QString categoryId() const override {
+        return QStringLiteral("collection");
+    }
+
+    int schemaVersion() const override {
+        return 1;
+    }
+
+    quint64 revision() const override {
+        return 0;
+    }
+
+    bool exportSnapshot(
+        SyncAdapterExport *snapshot,
+        QString *error = nullptr) const override {
+        if (!snapshot) {
+            if (error)
+                *error = QStringLiteral("fixture snapshot output missing");
+            return false;
+        }
+        snapshot->revision = 0;
+        snapshot->records.clear();
+        return true;
+    }
+
+    bool applyRemote(
+        const QString &recordKey,
+        SyncWireOperation operation,
+        const QJsonValue &payload,
+        int schemaVersion,
+        QString *error = nullptr) override {
+        Q_UNUSED(recordKey)
+        Q_UNUSED(operation)
+        Q_UNUSED(payload)
+        if (schemaVersion != 1) {
+            if (error)
+                *error = QStringLiteral("fixture schema mismatch");
+            return false;
+        }
+        return true;
+    }
+};
+
 void queueRestore(
     Fixture &fixture,
     const QByteArray &refreshToken,
@@ -357,6 +412,7 @@ private slots:
     void currentDeviceRevokeTransitionsToLocked();
 
     void syncBlockedAndDeletionPendingStatesAreSafe();
+    void syncRetryActionReachesEngineRecoverySeam();
     void stableErrorCategoryMapsRateLimit();
     void deviceListUpdatesSafeCount();
 
@@ -703,6 +759,7 @@ void tst_account_identity::controllerExposesOnlySafeStateProperties() {
         QByteArrayLiteral("deviceCount"),
         QByteArrayLiteral("newDeviceProtection"),
         QByteArrayLiteral("pendingOutboxCount"),
+        QByteArrayLiteral("syncRetryAvailable"),
         QByteArrayLiteral("deletionEffectiveAt"),
         QByteArrayLiteral("errorCategory"),
         QByteArrayLiteral("lastErrorCode"),
@@ -2255,6 +2312,81 @@ void tst_account_identity::syncBlockedAndDeletionPendingStatesAreSafe() {
     QCOMPARE(
         fixture.controller->syncState(),
         QStringLiteral("idle"));
+}
+
+void tst_account_identity::syncRetryActionReachesEngineRecoverySeam() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+
+    const auto profileValue = ProfilePaths::account(
+        QString::fromLatin1(kAccountId),
+        fixture.temp.path());
+    QVERIFY(profileValue.has_value());
+    const ProfilePaths profile = *profileValue;
+    QVERIFY(QDir().mkpath(QFileInfo(profile.syncStatePath()).absolutePath()));
+
+    SyncWireMutation mutation;
+    mutation.mutationId = QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+    mutation.deviceId = QString::fromLatin1(kDeviceId);
+    mutation.category = QStringLiteral("collection");
+    mutation.recordKey = QStringLiteral("collection/bWFuZ2E/aXRlbQ");
+    mutation.schemaVersion = 1;
+    mutation.hlc = SyncWireHlc{2000000, 0, QString::fromLatin1(kDeviceId)};
+    mutation.operation = SyncWireOperation::Put;
+    mutation.payload = QJsonObject{
+        {QStringLiteral("world"), QStringLiteral("manga")},
+        {QStringLiteral("id"), QStringLiteral("item")},
+        {QStringLiteral("value"), QStringLiteral("pending")}};
+
+    SyncPersistentState state;
+    state.outbox = {mutation};
+    state.rejectedMutations.insert(
+        mutation.mutationId,
+        SyncRejectedMutation{
+            mutation.mutationId,
+            mutation.category,
+            mutation.recordKey,
+            QStringLiteral("category_not_supported"),
+            QStringLiteral("fixture rejection"),
+            QStringLiteral("fixture-fingerprint")});
+
+    QSaveFile stateFile(profile.syncStatePath());
+    QVERIFY(stateFile.open(QIODevice::WriteOnly));
+    const QByteArray stateBytes = QJsonDocument(
+        SyncStateStore::encode(state)).toJson(QJsonDocument::Compact);
+    QCOMPARE(stateFile.write(stateBytes), stateBytes.size());
+    QVERIFY(stateFile.commit());
+
+    SyncAdapterRegistry registry;
+    ControllerSyncAdapter adapter;
+    QVERIFY(registry.registerAdapter(&adapter));
+
+    SyncEngine engine(
+        fixture.client.get(),
+        &registry,
+        []() {
+            return qint64(2000000);
+        });
+    engine.setAutomaticSchedulingEnabled(false);
+    engine.setNetworkEnabled(false);
+    fixture.controller->setSyncEngine(&engine);
+
+    QString startError;
+    QVERIFY2(
+        engine.start(
+            profile,
+            QString::fromLatin1(kDeviceId),
+            &startError),
+        qPrintable(startError));
+    QVERIFY(fixture.controller->syncRetryAvailable());
+    QVERIFY(QMetaObject::invokeMethod(
+        fixture.controller.get(),
+        "retrySync",
+        Qt::DirectConnection));
+    QCOMPARE(engine.rejectedMutationCount(), 0);
+    QVERIFY(!fixture.controller->syncRetryAvailable());
+    QCOMPARE(engine.pendingOutboxCount(), 1);
 }
 
 void tst_account_identity::stableErrorCategoryMapsRateLimit() {

@@ -3,6 +3,8 @@
 #include "SyncProtocol.h"
 
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QUuid>
 
 #include <limits>
@@ -190,6 +192,13 @@ bool isValidSyncWireRecordKey(
     }
 
     return true;
+}
+
+QByteArray syncWirePushRequestBytes(
+    const QJsonArray &mutations) {
+    return QJsonDocument(QJsonObject{
+        {QStringLiteral("mutations"), mutations}})
+        .toJson(QJsonDocument::Compact);
 }
 
 QJsonObject syncWireMutationToJson(

@@ -49,7 +49,7 @@ func TestSyncMutationIDBindsCanonicalIdentity(t *testing.T) {
 		"one",
 		now,
 		0)
-	first.Payload = json.RawMessage(`{"value":9007199254740993,"nested":{"b":2,"a":1}}`)
+	first.Payload = json.RawMessage(`{"world":"collection","id":"item","value":9007199254740993,"nested":{"b":2,"a":1}}`)
 	firstResult := pushOneSyncMutation(t, fixture, auth, first)
 	if !firstResult.Accepted {
 		t.Fatalf("first result = %+v, want accepted", firstResult)
@@ -59,7 +59,7 @@ func TestSyncMutationIDBindsCanonicalIdentity(t *testing.T) {
 	// payload remains the stored representation while its canonical identity
 	// is used for retry comparison.
 	exact := first
-	exact.Payload = json.RawMessage(` { "nested": { "a": 1, "b": 2 }, "value": 9007199254740993 } `)
+	exact.Payload = json.RawMessage(` { "nested": { "a": 1, "b": 2 }, "id":"item", "value": 9007199254740993, "world":"collection" } `)
 	exactResult := pushOneSyncMutation(t, fixture, auth, exact)
 	if !exactResult.Accepted || exactResult.ServerSeq != firstResult.ServerSeq {
 		t.Fatalf("canonical retry = %+v, want original seq %d", exactResult, firstResult.ServerSeq)
@@ -72,14 +72,15 @@ func TestSyncMutationIDBindsCanonicalIdentity(t *testing.T) {
 		{
 			name: "numeric payload precision",
 			mutate: func(m SyncMutationInput) SyncMutationInput {
-				m.Payload = json.RawMessage(`{"value":9007199254740992,"nested":{"a":1,"b":2}}`)
+				m.Payload = json.RawMessage(`{"world":"collection","id":"item","value":9007199254740992,"nested":{"a":1,"b":2}}`)
 				return m
 			},
 		},
 		{
 			name: "record key",
 			mutate: func(m SyncMutationInput) SyncMutationInput {
-				m.RecordKey = "collection/other-item"
+				m.RecordKey = fixtureCollectionRecordKey("collection/other-item")
+				m.Payload = json.RawMessage(`{"world":"collection","id":"other-item","value":9007199254740993,"nested":{"a":1,"b":2}}`)
 				return m
 			},
 		},
@@ -136,6 +137,11 @@ func TestActivitySemanticAliasBindsMutationID(t *testing.T) {
 	changedOriginal := activityPlaybackPayload(eventID)
 	changedOriginal = bytes.Replace(
 		changedOriginal,
+		[]byte(`"endAtMs":6000`),
+		[]byte(`"endAtMs":7000`),
+		1)
+	changedOriginal = bytes.Replace(
+		changedOriginal,
 		[]byte(`"activeMs":5000`),
 		[]byte(`"activeMs":6000`),
 		1)
@@ -164,6 +170,11 @@ func TestActivitySemanticAliasBindsMutationID(t *testing.T) {
 	}
 
 	changedContent := aliasMutation
+	changedContent.Payload = bytes.Replace(
+		changedContent.Payload,
+		[]byte(`"endAtMs":6000`),
+		[]byte(`"endAtMs":7000`),
+		1)
 	changedContent.Payload = bytes.Replace(
 		changedContent.Payload,
 		[]byte(`"activeMs":5000`),
@@ -262,7 +273,8 @@ func TestSyncMutationNamespaceIsSharedAcrossDomains(t *testing.T) {
 	}
 
 	mutable.MutationID = activityID
-	mutable.RecordKey = "collection/activity-id-reuse"
+	mutable.RecordKey = fixtureCollectionRecordKey("collection/activity-id-reuse")
+	mutable.Payload = json.RawMessage(`{"world":"collection","id":"activity-id-reuse","value":"one"}`)
 	if result := pushOneSyncMutation(t, fixture, auth, mutable); result.Accepted || result.Code != "mutation_id_conflict" {
 		t.Fatalf("mutable reuse of activity ID = %+v, want mutation_id_conflict", result)
 	}

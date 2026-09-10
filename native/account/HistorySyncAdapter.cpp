@@ -4,6 +4,7 @@
 
 #include "CoreStateSyncProjection.h"
 #include "HistoryStore.h"
+#include "SyncAdapterValidation.h"
 
 #include <QtGlobal>
 
@@ -117,6 +118,21 @@ bool HistorySyncAdapter::exportSnapshot(
     }
 
     return true;
+}
+
+bool HistorySyncAdapter::validateRemote(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersionValue,
+    SyncAdapterValidationError *error) const {
+    return SyncAdapterValidation::core(
+        QStringLiteral("full_history"),
+        recordKey,
+        operation,
+        payload,
+        schemaVersionValue,
+        error);
 }
 
 bool HistorySyncAdapter::applyRemote(

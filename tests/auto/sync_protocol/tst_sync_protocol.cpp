@@ -5,6 +5,7 @@
 #include "account/SyncProtocol.h"
 
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QtTest>
 
@@ -42,6 +43,7 @@ private slots:
     void accountClientPushUsesAuthenticatedEndpoint();
     void accountClientPullUsesAuthenticatedCursorEndpoint();
     void accountClientPushOmitsAttachmentEnvelope();
+    void compactPushRequestReportsExactUtf8ByteSize();
 };
 
 void tst_sync_protocol::
@@ -642,6 +644,46 @@ accountClientPushOmitsAttachmentEnvelope() {
         mutations);
 
 
+}
+
+void tst_sync_protocol::
+compactPushRequestReportsExactUtf8ByteSize() {
+    QJsonArray mutations;
+    for (int index = 0; index < 100; ++index) {
+        SyncWireMutation mutation;
+        mutation.mutationId =
+            QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        mutation.deviceId =
+            QStringLiteral("11111111-1111-4111-8111-111111111111");
+        mutation.category = QStringLiteral("activity_fact");
+        mutation.recordKey = QStringLiteral(
+            "activity/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        mutation.schemaVersion = 1;
+        mutation.hlc = SyncWireHlc{2000 + index, 0, mutation.deviceId};
+        mutation.operation = SyncWireOperation::Put;
+        mutation.payload = QJsonObject{
+            {QStringLiteral("v"), 1},
+            {QStringLiteral("type"), QStringLiteral("playback_delta")},
+            {QStringLiteral("eventId"), mutation.mutationId},
+            {QStringLiteral("sessionId"), mutation.deviceId},
+            {QStringLiteral("world"), QStringLiteral("theatre")},
+            {QStringLiteral("kind"), QStringLiteral("movie")},
+            {QStringLiteral("titleKey"), QStringLiteral("movie")},
+            {QStringLiteral("itemKey"), QStringLiteral("movie")},
+            {QStringLiteral("title"), QString(700, QChar(0x03a9))},
+            {QStringLiteral("syncable"), true},
+            {QStringLiteral("startAtMs"), 1000},
+            {QStringLiteral("endAtMs"), 2000},
+            {QStringLiteral("activeMs"), 1000},
+            {QStringLiteral("rateMilli"), 1000}};
+        mutations.append(syncWireMutationToJson(mutation));
+    }
+
+    const QByteArray bytes = syncWirePushRequestBytes(mutations);
+    QCOMPARE(bytes, QJsonDocument(QJsonObject{
+        {QStringLiteral("mutations"), mutations}})
+        .toJson(QJsonDocument::Compact));
+    QVERIFY(bytes.size() > 64 * 1024);
 }
 
 QTEST_MAIN(tst_sync_protocol)

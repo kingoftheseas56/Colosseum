@@ -171,6 +171,65 @@ func TestActivityFactValidInsertIsEncryptedAndStaysOutOfMutableSync(t *testing.T
 	}
 }
 
+func TestActivityTimestampAdmissionMatchesOwnerDateRange(t *testing.T) {
+	const eventID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	withPlayback := func(start, end, active string) json.RawMessage {
+		raw := activityPlaybackPayload(eventID)
+		raw = bytes.Replace(raw, []byte(`"startAtMs":1000`),
+			[]byte(`"startAtMs":`+start), 1)
+		raw = bytes.Replace(raw, []byte(`"endAtMs":6000`),
+			[]byte(`"endAtMs":`+end), 1)
+		raw = bytes.Replace(raw, []byte(`"activeMs":5000`),
+			[]byte(`"activeMs":`+active), 1)
+		return raw
+	}
+
+	valid := withPlayback("8639999999999999", "8640000000000000", "1")
+	if err := validateSyncRecordShape(
+		"activity_fact", 1,
+		"activity/"+eventID,
+		"put", valid); err != nil {
+		t.Fatalf("owner-range Activity payload rejected: %v", err)
+	}
+
+	for _, literal := range []string{
+		"-9223372036854775808",
+		"9223372036854775807",
+		"9223372036854775808",
+	} {
+		t.Run(literal, func(t *testing.T) {
+			payload := withPlayback(literal, literal, "1")
+			if err := validateSyncRecordShape(
+				"activity_fact", 1,
+				"activity/"+eventID,
+				"put", payload); err == nil {
+				t.Fatalf("out-of-owner-range timestamp %s was accepted", literal)
+			}
+		})
+	}
+}
+
+func TestSharedActivityFixtureAcceptedByPushService(t *testing.T) {
+	fixture := loadSharedActivitySyncFixture(t)
+	serviceFixture := newServiceFixture(t)
+	created := createFixtureAccount(t, serviceFixture, "SharedActivityFixture")
+	auth := authenticateFixtureSession(t, serviceFixture, created.Session)
+
+	mutation := activityMutation(
+		"abababab-abab-4aba-8aba-abababababab",
+		auth.Device.ID,
+		"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+		fixture.Payload)
+	mutation.Category = fixture.Category
+	mutation.RecordKey = fixture.RecordKey
+	mutation.SchemaVersion = fixture.SchemaVersion
+
+	result := pushOneActivity(t, serviceFixture, auth, mutation)
+	if !result.Accepted || result.ServerSeq == 0 || !result.Won {
+		t.Fatalf("shared Activity fixture push result = %+v, want accepted seq/won", result)
+	}
+}
+
 func TestActivityFactAcceptsPutOnly(t *testing.T) {
 	fixture := newServiceFixture(t)
 	created := createFixtureAccount(t, fixture, "ActivityPutOnly")
@@ -507,6 +566,7 @@ func TestActivityFactConflictingContentIsRejected(t *testing.T) {
 		t.Fatalf("unmarshal conflicting payload: %v", err)
 	}
 	payloadObject["activeMs"] = json.Number("6000")
+	payloadObject["endAtMs"] = json.Number("7000")
 	reencoded, err := json.Marshal(payloadObject)
 	if err != nil {
 		t.Fatalf("marshal conflicting payload: %v", err)

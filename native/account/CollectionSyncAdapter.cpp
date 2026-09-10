@@ -3,6 +3,7 @@
 #include "CollectionSyncAdapter.h"
 
 #include "CoreStateSyncProjection.h"
+#include "SyncAdapterValidation.h"
 
 #include "CollectionStore.h"
 
@@ -122,6 +123,21 @@ exportSnapshot(
     }
 
     return true;
+}
+
+bool CollectionSyncAdapter::validateRemote(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersion,
+    SyncAdapterValidationError *error) const {
+    return SyncAdapterValidation::core(
+        QStringLiteral("collection"),
+        recordKey,
+        operation,
+        payload,
+        schemaVersion,
+        error);
 }
 
 bool CollectionSyncAdapter::

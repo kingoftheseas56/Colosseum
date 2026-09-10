@@ -41,6 +41,10 @@ public:
         QString *error = nullptr);
 
     void requestImmediateSync();
+    // Explicit recovery path for a server capability/schema upgrade. A normal
+    // scheduled sync keeps durable rejection markers in place; this operation
+    // clears those markers once and lets the existing outbox retry.
+    void retryRejectedMutations();
     void beginSignOutFlush();
 
     void setAutomaticSchedulingEnabled(
@@ -63,6 +67,10 @@ public:
     bool active() const;
     QString lastErrorCode() const;
     QString lastErrorMessage() const;
+    int quarantinedEntryCount() const;
+    int rejectedMutationCount() const;
+    bool historicalReplayPending() const;
+    bool recoveryAvailable() const;
 
 signals:
     void observationChanged(
@@ -75,6 +83,8 @@ signals:
         const QString &message);
 
     void accessTokenRejected();
+
+    void recoveryAvailableChanged();
 
 private:
     enum class NetworkPhase {
@@ -137,9 +147,15 @@ private:
     bool applyWinningPullEntry(
         const SyncWirePullEntry &entry,
         QString *errorCode,
-        QString *errorMessage);
+        QString *errorMessage,
+        SyncAdapterFailureClass *failureClass = nullptr);
 
     bool finishCategoryReplay(
+        const QString &categoryId,
+        QString *errorCode,
+        QString *errorMessage);
+
+    bool replayQuarantinedCategory(
         const QString &categoryId,
         QString *errorCode,
         QString *errorMessage);
@@ -169,6 +185,7 @@ private:
 
     void clearError();
     void scheduleRetry();
+    bool allOutboxEntriesParked() const;
     void completeSignOutFlushIfPossible();
 
     qint64 nowMs() const;

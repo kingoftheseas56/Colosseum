@@ -17,8 +17,10 @@
 #include <QSet>
 #include <QUuid>
 
+#include <algorithm>
+
 namespace {
-constexpr int kStateSchemaVersion = 2;
+constexpr int kStateSchemaVersion = 3;
 
 bool parseUnsigned(
     const QJsonValue &value,
@@ -340,6 +342,15 @@ QJsonObject SyncStateStore::encode(
             "server_offset_ms"),
         QString::number(
             state.serverOffsetMs));
+    root.insert(
+        QStringLiteral("historical_replay_cursor"),
+        QString::number(state.historicalReplayCursor));
+    root.insert(
+        QStringLiteral("historical_replay_limit"),
+        QString::number(state.historicalReplayLimit));
+    root.insert(
+        QStringLiteral("historical_replay_pending"),
+        state.historicalReplayPending);
 
     QJsonArray outbox;
     for (const SyncWireMutation &mutation :
@@ -484,6 +495,40 @@ QJsonObject SyncStateStore::encode(
     }
     root.insert(QStringLiteral("paused_categories"), pausedCategories);
 
+    QJsonArray quarantined;
+    QList<SyncQuarantineEntry> orderedQuarantine = state.quarantinedEntries;
+    std::sort(orderedQuarantine.begin(), orderedQuarantine.end(),
+              [](const SyncQuarantineEntry &left, const SyncQuarantineEntry &right) {
+                  if (left.serverSeq != right.serverSeq)
+                      return left.serverSeq < right.serverSeq;
+                  return left.mutation.mutationId < right.mutation.mutationId;
+              });
+    for (const SyncQuarantineEntry &entry : orderedQuarantine) {
+        QJsonObject object{
+            {QStringLiteral("server_seq"), QString::number(entry.serverSeq)},
+            {QStringLiteral("won"), entry.won},
+            {QStringLiteral("mutation"), syncWireMutationToJson(entry.mutation)},
+            {QStringLiteral("code"), entry.code},
+            {QStringLiteral("message"), entry.message}};
+        quarantined.append(object);
+    }
+    root.insert(QStringLiteral("quarantined_entries"), quarantined);
+
+    QJsonArray rejected;
+    QStringList rejectedIds = state.rejectedMutations.keys();
+    rejectedIds.sort();
+    for (const QString &mutationId : rejectedIds) {
+        const SyncRejectedMutation &entry = state.rejectedMutations.value(mutationId);
+        rejected.append(QJsonObject{
+            {QStringLiteral("mutation_id"), entry.mutationId},
+            {QStringLiteral("category"), entry.category},
+            {QStringLiteral("record_key"), entry.recordKey},
+            {QStringLiteral("code"), entry.code},
+            {QStringLiteral("message"), entry.message},
+            {QStringLiteral("fingerprint"), entry.fingerprint}});
+    }
+    root.insert(QStringLiteral("rejected_mutations"), rejected);
+
     return root;
 }
 
@@ -492,7 +537,7 @@ SyncStateStore::decode(
     const QJsonObject &object,
     QString *error) {
     const int schemaVersion = object.value(QStringLiteral("schema_version")).toInt();
-    if (schemaVersion != 1 && schemaVersion != kStateSchemaVersion) {
+    if (schemaVersion < 1 || schemaVersion > kStateSchemaVersion) {
         if (error) {
             *error = QStringLiteral(
                 "The sync state schema is unsupported.");
@@ -525,6 +570,47 @@ SyncStateStore::decode(
                 "The sync state numeric metadata is invalid.");
         }
         return std::nullopt;
+    }
+
+    if (schemaVersion >= 3) {
+        if (object.contains(QStringLiteral("historical_replay_cursor"))
+            && !parseUnsigned(object.value(QStringLiteral("historical_replay_cursor")),
+                              &state.historicalReplayCursor)) {
+            if (error)
+                *error = QStringLiteral("The historical replay cursor is invalid.");
+                return std::nullopt;
+        }
+        if (object.contains(QStringLiteral("historical_replay_limit"))
+            && !parseUnsigned(object.value(QStringLiteral("historical_replay_limit")),
+                              &state.historicalReplayLimit)) {
+            if (error)
+                *error = QStringLiteral("The historical replay limit is invalid.");
+            return std::nullopt;
+        }
+        if (object.contains(QStringLiteral("historical_replay_pending"))) {
+            const QJsonValue pending = object.value(QStringLiteral("historical_replay_pending"));
+            if (!pending.isBool()) {
+                if (error)
+                    *error = QStringLiteral("The historical replay marker is invalid.");
+                return std::nullopt;
+            }
+            state.historicalReplayPending = pending.toBool();
+        }
+        if (state.historicalReplayPending
+            && !object.contains(QStringLiteral("historical_replay_limit"))) {
+            // Accept an in-flight schema-v3 checkpoint written before the
+            // replay boundary field existed. Its normal cursor is the only
+            // durable boundary available, so recover it before resuming.
+            state.historicalReplayLimit = state.cursor;
+        }
+    } else {
+        // State written before the protocol-generation marker had already
+        // advanced its normal cursor. Replay from zero once to recover rows
+        // skipped by the old cursor transaction, without rewinding that
+        // normal cursor or discarding local HLC winners/outbox entries.
+        state.historicalReplayPending = state.cursor > 0;
+        state.historicalReplayCursor = 0;
+        state.historicalReplayLimit = state.cursor;
     }
 
     const QJsonValue outboxValue =
@@ -793,6 +879,80 @@ SyncStateStore::decode(
                 record.value(QStringLiteral("payload")), localOrderMs});
         }
         state.pausedCategories.insert(category, paused);
+    }
+
+    if (schemaVersion >= 3) {
+        const QJsonValue quarantineValue = object.value(QStringLiteral("quarantined_entries"));
+        if (!quarantineValue.isArray()) {
+            if (error)
+                *error = QStringLiteral("The sync quarantine state is malformed.");
+            return std::nullopt;
+        }
+        QSet<quint64> quarantineSequences;
+        for (const QJsonValue &value : quarantineValue.toArray()) {
+            if (!value.isObject()) {
+                if (error)
+                    *error = QStringLiteral("A sync quarantine entry is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = value.toObject();
+            quint64 serverSeq = 0;
+            const auto mutation = record.value(QStringLiteral("mutation"));
+            const auto parsedMutation = mutation.isObject()
+                ? syncWireMutationFromJson(mutation.toObject())
+                : std::nullopt;
+            if (!parseUnsigned(record.value(QStringLiteral("server_seq")), &serverSeq)
+                || serverSeq == 0 || !parsedMutation.has_value()
+                || quarantineSequences.contains(serverSeq)
+                || !record.value(QStringLiteral("code")).isString()
+                || !record.value(QStringLiteral("message")).isString()) {
+                if (error)
+                    *error = QStringLiteral("A sync quarantine entry is invalid or duplicated.");
+                return std::nullopt;
+            }
+            quarantineSequences.insert(serverSeq);
+            state.quarantinedEntries.append(SyncQuarantineEntry{
+                serverSeq,
+                record.value(QStringLiteral("won")).toBool(false),
+                *parsedMutation,
+                record.value(QStringLiteral("code")).toString(),
+                record.value(QStringLiteral("message")).toString()});
+        }
+
+        const QJsonValue rejectedValue = object.value(QStringLiteral("rejected_mutations"));
+        if (!rejectedValue.isArray()) {
+            if (error)
+                *error = QStringLiteral("The sync rejected-mutation state is malformed.");
+            return std::nullopt;
+        }
+        for (const QJsonValue &value : rejectedValue.toArray()) {
+            if (!value.isObject()) {
+                if (error)
+                    *error = QStringLiteral("A rejected sync mutation is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = value.toObject();
+            const QString mutationId = normalizedUuid(record.value(QStringLiteral("mutation_id")).toString());
+            const QString category = record.value(QStringLiteral("category")).toString();
+            const QString recordKey = record.value(QStringLiteral("record_key")).toString();
+            if (mutationId.isEmpty() || !validCategory(category)
+                || !isValidSyncWireRecordKey(recordKey)
+                || !record.value(QStringLiteral("code")).isString()
+                || !record.value(QStringLiteral("message")).isString()
+                || !record.value(QStringLiteral("fingerprint")).isString()
+                || state.rejectedMutations.contains(mutationId)) {
+                if (error)
+                    *error = QStringLiteral("A rejected sync mutation is invalid or duplicated.");
+                return std::nullopt;
+            }
+            state.rejectedMutations.insert(mutationId, SyncRejectedMutation{
+                mutationId,
+                category,
+                recordKey,
+                record.value(QStringLiteral("code")).toString(),
+                record.value(QStringLiteral("message")).toString(),
+                record.value(QStringLiteral("fingerprint")).toString()});
+        }
     }
 
     return state;

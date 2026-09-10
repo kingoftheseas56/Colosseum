@@ -31,6 +31,8 @@ struct SyncAdapterRegistryError {
     QString code;
     QString detail;
     QString fieldPath;
+    SyncAdapterFailureClass failureClass =
+        SyncAdapterFailureClass::Owner;
 
     bool isEmpty() const {
         return code.isEmpty();
@@ -114,6 +116,12 @@ private:
         const QString &categoryId);
 
     static bool fail(
+        SyncAdapterRegistryError *error,
+        const QString &code,
+        const QString &detail,
+        const QString &fieldPath = QString());
+
+    static bool failCompatibility(
         SyncAdapterRegistryError *error,
         const QString &code,
         const QString &detail,

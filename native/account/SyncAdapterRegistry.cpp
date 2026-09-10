@@ -9,6 +9,24 @@
 
 #include <algorithm>
 
+namespace {
+bool isCompatibilityCode(const QString &code) {
+    return code == QLatin1String("adapter_not_registered")
+        || code == QLatin1String("unsupported_schema_version")
+        || code == QLatin1String("invalid_record_key")
+        || code == QLatin1String("noncanonical_category")
+        || code == QLatin1String("unknown_category")
+        || code == QLatin1String("category_not_exportable_yet")
+        || code == QLatin1String("category_local_only")
+        || code == QLatin1String("secret_requires_protected_channel")
+        || code == QLatin1String("forbidden_field")
+        || code == QLatin1String("filesystem_path_value")
+        || code == QLatin1String("payload_too_deep")
+        || code == QLatin1String("delete_payload_not_empty")
+        || code == QLatin1String("payload_invalid");
+}
+}
+
 SyncAdapterRegistry::SyncAdapterRegistry(
     QObject *parent)
     : QObject(parent) {
@@ -315,6 +333,27 @@ bool SyncAdapterRegistry::applyRemote(
                 "A delete mutation cannot carry an ordinary payload."));
     }
 
+    SyncAdapterValidationError validation;
+    if (!adapter->validateRemote(
+            mutation.recordKey,
+            mutation.operation,
+            mutation.operation == SyncWireOperation::Put
+                ? mutation.payload
+                : QJsonValue(),
+            mutation.schemaVersion,
+            &validation)) {
+        return failCompatibility(
+            error,
+            validation.code.isEmpty()
+                ? QStringLiteral("payload_invalid")
+                : validation.code,
+            validation.detail.isEmpty()
+                ? QStringLiteral(
+                      "The remote record does not match the owner schema.")
+                : validation.detail,
+            validation.fieldPath);
+    }
+
     m_remoteApplyDepth[categoryId] =
         m_remoteApplyDepth.value(
             categoryId,
@@ -569,8 +608,26 @@ bool SyncAdapterRegistry::fail(
         error->code = code;
         error->detail = detail;
         error->fieldPath = fieldPath;
+        error->failureClass = isCompatibilityCode(code)
+            ? SyncAdapterFailureClass::Compatibility
+            : SyncAdapterFailureClass::Owner;
     }
     return false;
+}
+
+bool SyncAdapterRegistry::failCompatibility(
+    SyncAdapterRegistryError *error,
+    const QString &code,
+    const QString &detail,
+    const QString &fieldPath) {
+    const bool result = fail(
+        error,
+        code,
+        detail,
+        fieldPath);
+    if (error)
+        error->failureClass = SyncAdapterFailureClass::Compatibility;
+    return result;
 }
 
 void SyncAdapterRegistry::handleAdapterDestroyed(

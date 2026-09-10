@@ -30,6 +30,8 @@ Item {
     function syncLine() {
         if (!controller)
             return "";
+        if (controller.syncRetryAvailable)
+            return qsTr("Sync needs attention");
         if (controller.pendingOutboxCount > 0)
             return qsTr("Syncing — %1 change%2 pending")
                 .arg(controller.pendingOutboxCount)
@@ -119,6 +121,25 @@ Item {
             return false
 
         if (active === sessionAction) {
+            if (key === Qt.Key_Up && retrySyncAction.visible) {
+                retrySyncAction.forceActiveFocus()
+                return true
+            }
+            if (key === Qt.Key_Up && root.accountPresent && navRepeater.count > 0) {
+                const last = navRepeater.itemAt(navRepeater.count - 1)
+                if (last) {
+                    last.forceActiveFocus()
+                    return true
+                }
+            }
+            return false
+        }
+
+        if (active === retrySyncAction) {
+            if (key === Qt.Key_Down) {
+                sessionAction.forceActiveFocus()
+                return true
+            }
             if (key === Qt.Key_Up && root.accountPresent && navRepeater.count > 0) {
                 const last = navRepeater.itemAt(navRepeater.count - 1)
                 if (last) {
@@ -141,7 +162,10 @@ Item {
                     return true
                 }
             } else if (key === Qt.Key_Down) {
-                sessionAction.forceActiveFocus()
+                if (retrySyncAction.visible)
+                    retrySyncAction.forceActiveFocus()
+                else
+                    sessionAction.forceActiveFocus()
                 return true
             }
             return false
@@ -309,7 +333,10 @@ Item {
                                     event.accepted = true
                                 }
                             } else if (event.key === Qt.Key_Down) {
-                                sessionAction.forceActiveFocus()
+                                if (retrySyncAction.visible)
+                                    retrySyncAction.forceActiveFocus()
+                                else
+                                    sessionAction.forceActiveFocus()
                                 event.accepted = true
                             }
                         }
@@ -343,13 +370,57 @@ Item {
             }
 
             Button {
+                id: retrySyncAction
+                objectName: "accountFlyoutSyncRetry"
+                visible: root.accountPresent
+                    && root.controller
+                    && root.controller.syncRetryAvailable
+                width: parent.width
+                height: 34
+                focusPolicy: Qt.StrongFocus
+                Keys.onUpPressed: {
+                    if (root.accountPresent && navRepeater.count > 0) {
+                        const last = navRepeater.itemAt(navRepeater.count - 1)
+                        if (last)
+                            last.forceActiveFocus()
+                    }
+                }
+                Keys.onDownPressed: sessionAction.forceActiveFocus()
+                background: Rectangle {
+                    radius: 9
+                    color: retrySyncAction.activeFocus
+                        ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
+                        : Qt.rgba(0.94, 0.77, 0.29, 0.08)
+                    border.width: retrySyncAction.activeFocus ? 2 : 1
+                    border.color: retrySyncAction.activeFocus
+                        ? "#f0df9a"
+                        : Qt.rgba(0.94, 0.77, 0.29, 0.42)
+                }
+                contentItem: Text {
+                    text: qsTr("Retry sync")
+                    color: "#f0df9a"
+                    font.family: "Inter"
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: {
+                    if (root.controller)
+                        root.controller.retrySync()
+                }
+            }
+
+            Button {
                 id: sessionAction
                 objectName: "accountFlyoutSessionAction"
                 width: parent.width
                 height: 38
                 focusPolicy: Qt.StrongFocus
                 Keys.onUpPressed: {
-                    if (root.accountPresent && navRepeater.count > 0) {
+                    if (retrySyncAction.visible) {
+                        retrySyncAction.forceActiveFocus()
+                    } else if (root.accountPresent && navRepeater.count > 0) {
                         const last = navRepeater.itemAt(navRepeater.count - 1)
                         if (last)
                             last.forceActiveFocus()

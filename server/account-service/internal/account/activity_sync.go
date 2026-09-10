@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"strings"
 	"time"
 
@@ -31,6 +32,29 @@ var activityAllowedEventTypes = map[string]struct{}{
 	"reading_delta":   {},
 	"media_completed": {},
 }
+
+var activityCommonFields = map[string]struct{}{
+	"v": {}, "type": {}, "eventId": {}, "sessionId": {}, "world": {},
+	"kind": {}, "titleKey": {}, "itemKey": {}, "title": {}, "itemLabel": {},
+	"cover": {}, "utcOffsetMinutes": {}, "syncable": {}, "source": {},
+}
+
+var activityTypeFields = map[string]map[string]struct{}{
+	"playback_delta": {
+		"startAtMs": {}, "endAtMs": {}, "activeMs": {}, "rateMilli": {},
+	},
+	"reading_delta": {
+		"atMs": {}, "readingForm": {}, "pageKeys": {}, "progressMicros": {},
+	},
+	"media_completed": {
+		"atMs": {}, "reason": {},
+	},
+}
+
+// ActivityProjector uses the JavaScript Date-compatible millisecond window.
+// Its calendar projection also shifts values by utcOffsetMinutes, so the
+// same shifted range is enforced before a fact can enter the sync ledger.
+const activityTimeClipLimitMs int64 = 8640000000000000
 
 type parsedActivityFact struct {
 	EventID   string
@@ -92,6 +116,12 @@ func parseActivityFact(
 			"The Activity fact type is not accepted."
 	}
 
+	if err := validateActivityPayloadObject(object); err != nil {
+		return parsedActivityFact{},
+			"activity_schema_invalid",
+			"The Activity fact payload does not match the shipping Activity schema."
+	}
+
 	canonical, err := canonicalActivityJSON(object)
 	if err != nil {
 		return parsedActivityFact{},
@@ -131,6 +161,166 @@ func decodeActivityPayloadObject(
 		return nil, fmt.Errorf("activity payload must be a JSON object")
 	}
 	return object, nil
+}
+
+func activityInteger(value any) (int64, bool) {
+	return syncIntegerNumber(value)
+}
+
+func activityTimestamp(value any, offsetMs int64) (int64, bool) {
+	parsed, ok := activityInteger(value)
+	if !ok {
+		return 0, false
+	}
+	return parsed,
+		parsed >= -activityTimeClipLimitMs-offsetMs &&
+			parsed <= activityTimeClipLimitMs-offsetMs
+}
+
+func activityRequiredString(
+	object map[string]any,
+	field string,
+	allowEmpty bool,
+) (string, bool) {
+	value, ok := object[field].(string)
+	if !ok || (!allowEmpty && value == "") {
+		return "", false
+	}
+	return value, true
+}
+
+func activityValidWorldKind(world, kind string) bool {
+	switch world {
+	case "theatre":
+		return kind == "movie" || kind == "episode"
+	case "tankoban":
+		return kind == "manga_chapter" || kind == "comic_issue" || kind == "tankoban_volume"
+	case "biblio":
+		return kind == "book" || kind == "audiobook"
+	default:
+		return false
+	}
+}
+
+func validateActivityPayloadObject(object map[string]any) error {
+	v, ok := activityInteger(object["v"])
+	if !ok || v != 1 {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	eventType, ok := activityRequiredString(object, "type", false)
+	if !ok {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	if _, allowed := activityAllowedEventTypes[eventType]; !allowed {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	if _, ok := activityRequiredString(object, "eventId", false); !ok {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	if _, ok := activityRequiredString(object, "sessionId", false); !ok {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	world, ok := activityRequiredString(object, "world", false)
+	if !ok {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	kind, ok := activityRequiredString(object, "kind", false)
+	if !ok || !activityValidWorldKind(world, kind) {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	for _, field := range []string{"titleKey", "itemKey", "title"} {
+		if _, ok := activityRequiredString(object, field, false); !ok {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+	}
+	for _, field := range []string{"itemLabel", "cover", "source"} {
+		if _, ok := activityRequiredString(object, field, true); !ok {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+	}
+	allowedTypeFields, ok := activityTypeFields[eventType]
+	if !ok {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	for field := range object {
+		if _, common := activityCommonFields[field]; common {
+			continue
+		}
+		if _, typeSpecific := allowedTypeFields[field]; !typeSpecific {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+	}
+	utcOffset, ok := activityInteger(object["utcOffsetMinutes"])
+	if !ok || utcOffset < -840 || utcOffset > 840 {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	offsetMs := utcOffset * 60000
+	syncable, ok := object["syncable"].(bool)
+	if !ok || !syncable {
+		return fmt.Errorf("activity_schema_invalid")
+	}
+
+	switch eventType {
+	case "playback_delta":
+		if kind != "movie" && kind != "episode" && kind != "audiobook" {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		start, startOK := activityTimestamp(object["startAtMs"], offsetMs)
+		end, endOK := activityTimestamp(object["endAtMs"], offsetMs)
+		active, activeOK := activityInteger(object["activeMs"])
+		rate, rateOK := activityInteger(object["rateMilli"])
+		if !startOK || !endOK || !activeOK || !rateOK || end <= start ||
+			active <= 0 || active > 30000 || rate <= 0 {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		difference := new(big.Int).Sub(big.NewInt(end), big.NewInt(start))
+		if difference.Cmp(big.NewInt(active)) != 0 {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+	case "reading_delta":
+		if kind != "manga_chapter" && kind != "comic_issue" && kind != "tankoban_volume" && kind != "book" {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		if _, ok := activityTimestamp(object["atMs"], offsetMs); !ok {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		readingForm, ok := activityRequiredString(object, "readingForm", false)
+		if !ok || (readingForm != "fixed" && readingForm != "reflowable") {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		pageValues, ok := object["pageKeys"].([]any)
+		if !ok {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		seen := make(map[string]struct{}, len(pageValues))
+		for _, value := range pageValues {
+			page, ok := value.(string)
+			if !ok || page == "" {
+				return fmt.Errorf("activity_schema_invalid")
+			}
+			if _, duplicate := seen[page]; duplicate {
+				return fmt.Errorf("activity_schema_invalid")
+			}
+			seen[page] = struct{}{}
+		}
+		progress, ok := activityInteger(object["progressMicros"])
+		if !ok || progress < 0 || (readingForm == "reflowable" && len(pageValues) != 0) ||
+			(len(pageValues) == 0 && progress == 0) {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+	case "media_completed":
+		if _, ok := activityTimestamp(object["atMs"], offsetMs); !ok {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+		reason, ok := activityRequiredString(object, "reason", false)
+		if !ok || (reason != "guarded_90_percent" && reason != "eof" &&
+			reason != "full_page_coverage" && reason != "sequential_book_end") {
+			return fmt.Errorf("activity_schema_invalid")
+		}
+	default:
+		return fmt.Errorf("activity_schema_invalid")
+	}
+	return nil
 }
 
 // canonicalActivityJSON renders the portable fact deterministically — object

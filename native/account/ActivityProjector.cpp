@@ -3,11 +3,14 @@
 #include <QHash>
 #include <QJsonDocument>
 #include <QJsonValue>
+#include <QMetaType>
 #include <QRegularExpression>
 #include <QSet>
+#include <QVariant>
 #include <QVector>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <limits>
 
@@ -60,6 +63,12 @@ bool isValidCompletionReason(const QString &value) {
     return reasons.contains(value);
 }
 
+// Activity projections use the JavaScript Date-compatible millisecond
+// window. The owner shifts timestamps by the event's UTC offset before
+// deriving calendar boundaries, so admission keeps that shifted value inside
+// the same window and avoids overflowing the next-midnight calculation.
+constexpr qint64 kActivityTimeClipLimitMs = 8640000000000000LL;
+
 void validateWorldKind(const QString &world, const QString &kind) {
     if (world == QLatin1String("theatre")
         && (kind == QLatin1String("movie") || kind == QLatin1String("episode")))
@@ -90,13 +99,43 @@ qint64 requireInteger(const QJsonObject &obj, const QString &key) {
     if (!value.isDouble())
         fail(QStringLiteral("invalid %1").arg(key));
 
-    constexpr qint64 lowSentinel = std::numeric_limits<qint64>::min();
-    constexpr qint64 highSentinel = std::numeric_limits<qint64>::max();
-    qint64 parsed = value.toInteger(lowSentinel);
-    if (parsed == lowSentinel) {
-        parsed = value.toInteger(highSentinel);
-        if (parsed == highSentinel)
+    const QVariant variant = value.toVariant();
+    qint64 parsed = 0;
+    switch (variant.metaType().id()) {
+    case QMetaType::Char:
+    case QMetaType::SChar:
+    case QMetaType::UChar:
+    case QMetaType::Short:
+    case QMetaType::UShort:
+    case QMetaType::Int:
+    case QMetaType::UInt:
+    case QMetaType::Long:
+    case QMetaType::ULong:
+    case QMetaType::LongLong:
+        parsed = variant.toLongLong();
+        break;
+    case QMetaType::ULongLong: {
+        const qulonglong unsignedValue = variant.toULongLong();
+        if (unsignedValue > static_cast<qulonglong>(std::numeric_limits<qint64>::max()))
             fail(QStringLiteral("invalid %1").arg(key));
+        parsed = static_cast<qint64>(unsignedValue);
+        break;
+    }
+    case QMetaType::Double: {
+        const double number = variant.toDouble();
+        if (!std::isfinite(number) || std::trunc(number) != number)
+            fail(QStringLiteral("invalid %1").arg(key));
+        constexpr qint64 low = std::numeric_limits<qint64>::min();
+        constexpr qint64 high = std::numeric_limits<qint64>::max();
+        const qint64 lowResult = value.toInteger(low);
+        const qint64 highResult = value.toInteger(high);
+        if (lowResult != highResult)
+            fail(QStringLiteral("invalid %1").arg(key));
+        parsed = lowResult;
+        break;
+    }
+    default:
+        fail(QStringLiteral("invalid %1").arg(key));
     }
     return parsed;
 }
@@ -217,6 +256,11 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
     ev.utcOffsetMinutes = requireInteger(obj, QStringLiteral("utcOffsetMinutes"));
     if (ev.utcOffsetMinutes < -840 || ev.utcOffsetMinutes > 840)
         fail(QStringLiteral("invalid utcOffsetMinutes"));
+    const qint64 offsetMs = ev.utcOffsetMinutes * 60000;
+    const auto ownerTimestamp = [offsetMs](qint64 value) {
+        return value >= -kActivityTimeClipLimitMs - offsetMs
+            && value <= kActivityTimeClipLimitMs - offsetMs;
+    };
 
     const QJsonValue syncableValue = obj.value(QStringLiteral("syncable"));
     if (!syncableValue.isBool())
@@ -234,12 +278,19 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
         ev.endAtMs = requireInteger(obj, QStringLiteral("endAtMs"));
         ev.activeMs = requireInteger(obj, QStringLiteral("activeMs"));
         ev.rateMilli = requireInteger(obj, QStringLiteral("rateMilli"));
+        if (!ownerTimestamp(ev.startAtMs) || !ownerTimestamp(ev.endAtMs))
+            fail(QStringLiteral("invalid playback timestamp"));
         if (ev.endAtMs <= ev.startAtMs)
             fail(QStringLiteral("invalid playback interval"));
-        if (ev.activeMs != ev.endAtMs - ev.startAtMs)
-            fail(QStringLiteral("activeMs mismatch"));
         if (ev.activeMs <= 0 || ev.activeMs > 30000)
             fail(QStringLiteral("invalid activeMs"));
+        // The owner only accepts short playback deltas. Check the interval
+        // with a bounded addition instead of subtracting two arbitrary
+        // qint64 values; endAtMs - startAtMs can overflow before the
+        // activeMs bound is considered.
+        if (ev.startAtMs > std::numeric_limits<qint64>::max() - ev.activeMs
+            || ev.startAtMs + ev.activeMs != ev.endAtMs)
+            fail(QStringLiteral("activeMs mismatch"));
         if (ev.rateMilli <= 0)
             fail(QStringLiteral("invalid rateMilli"));
     } else if (ev.type == QLatin1String("reading_delta")) {
@@ -247,6 +298,8 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
               || ev.kind == QLatin1String("tankoban_volume") || ev.kind == QLatin1String("book")))
             fail(QStringLiteral("invalid reading kind"));
         ev.atMs = requireInteger(obj, QStringLiteral("atMs"));
+        if (!ownerTimestamp(ev.atMs))
+            fail(QStringLiteral("invalid reading timestamp"));
 
         const QJsonValue formValue = obj.value(QStringLiteral("readingForm"));
         const QString form = formValue.isString() ? formValue.toString() : QString();
@@ -277,6 +330,8 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
             fail(QStringLiteral("empty reading_delta"));
     } else { // media_completed
         ev.atMs = requireInteger(obj, QStringLiteral("atMs"));
+        if (!ownerTimestamp(ev.atMs))
+            fail(QStringLiteral("invalid completion timestamp"));
         const QJsonValue reasonValue = obj.value(QStringLiteral("reason"));
         if (!reasonValue.isString() || !isValidCompletionReason(reasonValue.toString()))
             fail(QStringLiteral("invalid completion reason"));

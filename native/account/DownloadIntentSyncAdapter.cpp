@@ -1,6 +1,7 @@
 #include "DownloadIntentSyncAdapter.h"
 
 #include "DownloadIntentStore.h"
+#include "SyncAdapterValidation.h"
 
 DownloadIntentSyncAdapter::DownloadIntentSyncAdapter(
     DownloadIntentStore *store,
@@ -38,6 +39,20 @@ bool DownloadIntentSyncAdapter::exportSnapshot(
         return false;
     }
     return m_store->exportSnapshot(snapshot, error);
+}
+
+bool DownloadIntentSyncAdapter::validateRemote(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersion,
+    SyncAdapterValidationError *error) const {
+    return SyncAdapterValidation::downloadIntent(
+        recordKey,
+        operation,
+        payload,
+        schemaVersion,
+        error);
 }
 
 bool DownloadIntentSyncAdapter::applyRemote(

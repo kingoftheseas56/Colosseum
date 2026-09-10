@@ -1845,6 +1845,8 @@ add_executable(tst_activity_sync
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h")
 target_include_directories(tst_activity_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_activity_sync PRIVATE
+    COLOSSEUM_SHARED_ACTIVITY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/sync/activity-playback.json")
 target_link_libraries(tst_activity_sync PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
 set_target_properties(tst_activity_sync PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -2376,6 +2378,12 @@ add_executable(tst_sync_engine
     "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
@@ -2397,6 +2405,7 @@ target_include_directories(tst_sync_engine PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_sync_engine PRIVATE
     Qt6::Core
+    Qt6::Sql
     Qt6::Test)
 set_target_properties(tst_sync_engine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -2404,6 +2413,16 @@ add_custom_command(TARGET tst_sync_engine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Test>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
 add_test(NAME colosseum.qttest.sync_engine
          COMMAND tst_sync_engine)
 set_tests_properties(colosseum.qttest.sync_engine PROPERTIES

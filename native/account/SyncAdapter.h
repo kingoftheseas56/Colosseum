@@ -25,6 +25,20 @@ struct SyncAdapterExport {
     QList<SyncAdapterRecord> records;
 };
 
+// A validation failure is compatibility evidence only when it comes from a
+// typed, side-effect-free adapter preflight. Owner apply failures remain
+// hard persistence/lifecycle failures in the registry.
+enum class SyncAdapterFailureClass {
+    Owner,
+    Compatibility
+};
+
+struct SyncAdapterValidationError {
+    QString code;
+    QString detail;
+    QString fieldPath;
+};
+
 class SyncAdapter : public QObject {
     Q_OBJECT
 
@@ -43,6 +57,25 @@ public:
     virtual quint64 revision() const = 0;
 
     virtual bool missingRecordsAreDeletes() const {
+        return true;
+    }
+
+    // Validates a remote mutation against the owner materialization contract
+    // without touching owner state. A false result is safe to quarantine as a
+    // compatibility rejection; applyRemote() remains the authoritative
+    // durable operation and may still fail hard for owner I/O/lifecycle.
+    virtual bool validateRemote(
+        const QString &recordKey,
+        SyncWireOperation operation,
+        const QJsonValue &payload,
+        int schemaVersion,
+        SyncAdapterValidationError *error = nullptr) const {
+        if (error)
+            *error = {};
+        Q_UNUSED(recordKey)
+        Q_UNUSED(operation)
+        Q_UNUSED(payload)
+        Q_UNUSED(schemaVersion)
         return true;
     }
 
