@@ -35,6 +35,20 @@ function progressSaveContext(bookId, bookPath, bookMeta) {
     }
 }
 
+// saveContextMatches(ctx, generation, routeGeneration) → true only while a
+// debounced relocation still belongs to the active profile and bridge route.
+// Missing/invalid tokens fail closed so a callback created before profile
+// isolation cannot write after the switch.
+function saveContextMatches(ctx, generation, routeGeneration) {
+    if (!ctx || !Number.isFinite(Number(ctx.personalStateGeneration))) return false
+    if (Number(ctx.personalStateGeneration) !== Number(generation)) return false
+    if (routeGeneration !== undefined) {
+        if (!Number.isFinite(Number(ctx.bridgeStateGeneration))) return false
+        if (Number(ctx.bridgeStateGeneration) !== Number(routeGeneration)) return false
+    }
+    return true
+}
+
 // progressRecord(prev, relocated, bookPath) → the store value to SAVE.
 //
 // READ-MODIFY-WRITE: start from `prev` (the existing progress.json entry, or {}),

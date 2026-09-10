@@ -36,6 +36,10 @@ Item {
     function addHighlight(h) { run("window.paper.addHighlight(" + JSON.stringify(JSON.stringify(h)) + ")") }
     function removeHighlight(id) { run("window.paper.removeHighlight(" + JSON.stringify(id) + ")") }
     function clearSelection() { run("window.paper.clearSelection()") }
+    // Profile switches invalidate the current paper even when no new book opens.
+    // The glue closes the foliate view, cancels in-flight opens via its generation,
+    // and clears annotations/read-along caches without emitting a stale event.
+    function scrub() { if (glueUp) run("window.paper.scrub()") }
     // read-along (Task 4): alignment presentation. Objects are double-encoded (like addHighlight)
     // so the glue receives a JSON string it JSON.parse()s. These only paint/navigate — the native
     // ReadAlongController owns all cue authority; the paper never sees SQLite/model state.

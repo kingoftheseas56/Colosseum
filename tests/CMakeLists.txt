@@ -48,6 +48,8 @@ colosseum_register_harness(biblio_catalog_logic_harness  unit)
 colosseum_register_harness(manga_downloader_cancel_harness unit;responsiveness)
 colosseum_register_harness(reader2_stores_harness        unit;reader2)
 colosseum_register_harness(reader2_bridge_harness        unit;reader2)
+colosseum_register_harness(reader2_profile_privacy_harness unit;reader2;account)
+colosseum_register_harness(reader2_profile_runtime_harness unit;reader2;account;profile)
 colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 
 # Tankoyomi configuration policy: deterministic manifest/inventory, persisted

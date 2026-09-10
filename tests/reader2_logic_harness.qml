@@ -59,6 +59,10 @@ QtObject {
             check(ctxA.bookMeta.id === "book-a", "save context: metadata id cannot drift to next book")
             check(ctxA.bookMeta.title === "Book A", "save context: metadata title cannot drift to next book")
             check(ctxA.bookMeta.author === "Author A", "save context: metadata author cannot drift to next book")
+            ctxA.personalStateGeneration = 7
+            check(L.saveContextMatches(ctxA, 7), "save context: active profile generation accepts callback")
+            check(!L.saveContextMatches(ctxA, 8), "save context: late callback from old profile is rejected")
+            check(!L.saveContextMatches({}, 7), "save context: missing generation fails closed")
 
             // 3. resumeCfiOf — the position to open at.
             check(L.resumeCfiOf({ locator: { cfi: "epubcfi(/6/12)" } }) === "epubcfi(/6/12)", "resumeCfiOf: reads cfi")

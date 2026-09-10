@@ -9,11 +9,10 @@
 // (dictionary lookups) lives here, never in the paper's JS — house rule "QML
 // paints, C++ decides": no raw XHR on the paper's web-content thread.
 //
-// Store methods delegate to BookStores (native/reader/BookStores.h) — the
-// SAME files the OLD reader's BookBridge uses under
-// <AppDataLocation>/book_reader/ (progress.json, settings.json,
-// bookmarks.json, annotations.json) — so both readers share state
-// byte-identically with zero migration.
+// Store methods delegate to a route-bound BookStores::ScopedStore. The explicit
+// LegacyLocal route reads the old <AppDataLocation>/book_reader/ files without
+// migration; account and local-only routes use their managed profile roots, and
+// the sealed route has no readable or writable store.
 //
 // Slim on purpose: no audiobook/window-chrome methods here. Those stay on the
 // old BookBridge until swap day (Task 16).
@@ -21,7 +20,13 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
+#include <QtGlobal>
+
+#include "../reader/BookStores.h"
+
 class QNetworkAccessManager;
+class ProfilePaths;
+class ProfileStoreRuntime;
 // Reader2Bridge — the fresh reader's native seam. QML context property
 // "Reader2Bridge"; the paper's QWebChannel sees only the paperGate (below).
 // Paper pulls book bytes (base64) and pushes events through the gate; QML
@@ -38,9 +43,27 @@ class Reader2Bridge : public QObject {
     // (Reader2Bridge.paperGate) on the channel; the gate exposes exactly filesRead + paperEvent
     // and nothing else. The full bridge stays QML-side only (context property).
     Q_PROPERTY(QObject* paperGate READ paperGate CONSTANT)
+    Q_PROPERTY(bool personalStateSealed READ personalStateSealed NOTIFY personalStateChanged)
+    Q_PROPERTY(quint64 personalStateGeneration READ personalStateGeneration NOTIFY personalStateChanged)
 public:
     explicit Reader2Bridge(QObject* parent = nullptr);
     QObject* paperGate() const;
+
+    // ProfileStoreRuntime owns the account/local store lifecycle. This binding
+    // keeps Reader2's private JSON route in the same transition window: the
+    // about-to-change signal reaches QML while the old route still exists, then
+    // storesChanged installs the new route after the old profile is destroyed.
+    void bindProfileStoreRuntime(ProfileStoreRuntime* runtime);
+    // Native/test route controls. They are deliberately not Q_INVOKABLE: the web
+    // paper can reach only Reader2PaperGate, and production QML follows the runtime
+    // binding above. Each explicit switch emits the same lifecycle signals.
+    void useLegacyPersonalState();
+    void useProfilePersonalState(const QString& profileRoot);
+    void sealPersonalState();
+    bool personalStateSealed() const;
+    quint64 personalStateGeneration() const;
+    QString personalStateRoot() const;
+    bool personalStateGenerationIsCurrent(quint64 generation) const;
     // paper-facing (reached through Reader2PaperGate; also directly callable by QML/tests)
     Q_INVOKABLE QString filesRead(const QString& filePath);     // base64, "" on error/unauthorized
     // Authorize which book filesRead may serve (hardening). The paper is UNTRUSTED web content;
@@ -61,32 +84,53 @@ public:
     // QML-facing stores (delegate to BookStores — same files as old reader)
     Q_INVOKABLE QJsonObject progressGet(const QString& bookId);
     Q_INVOKABLE void progressSave(const QString& bookId, const QJsonObject& data);
+    Q_INVOKABLE void progressSaveForGeneration(const QString& bookId,
+                                               const QJsonObject& data,
+                                               quint64 generation);
     Q_INVOKABLE QJsonObject settingsGet();
     Q_INVOKABLE void settingsSave(const QJsonObject& data);
+    Q_INVOKABLE void settingsSaveForGeneration(const QJsonObject& data,
+                                               quint64 generation);
     Q_INVOKABLE QJsonArray bookmarksGet(const QString& bookId);
     Q_INVOKABLE QJsonObject bookmarksSave(const QString& bookId, const QJsonObject& bm);
+    Q_INVOKABLE QJsonObject bookmarksSaveForGeneration(const QString& bookId,
+                                                       const QJsonObject& bm,
+                                                       quint64 generation);
     Q_INVOKABLE void bookmarksDelete(const QString& bookId, const QString& id);
+    Q_INVOKABLE void bookmarksDeleteForGeneration(const QString& bookId,
+                                                  const QString& id,
+                                                  quint64 generation);
     Q_INVOKABLE QJsonArray annotationsGet(const QString& bookId);
     Q_INVOKABLE QJsonObject annotationsSave(const QString& bookId, const QJsonObject& an);
+    Q_INVOKABLE QJsonObject annotationsSaveForGeneration(const QString& bookId,
+                                                         const QJsonObject& an,
+                                                         quint64 generation);
     Q_INVOKABLE void annotationsDelete(const QString& bookId, const QString& id);
+    Q_INVOKABLE void annotationsDeleteForGeneration(const QString& bookId,
+                                                    const QString& id,
+                                                    quint64 generation);
     // dictionary — Wiktionary REST, C++ side
     Q_INVOKABLE void dictLookup(const QString& word);
 signals:
     void paperEventReceived(const QString& name, const QString& json);
     void dictResult(const QString& word, const QString& json, bool ok);
+    void personalStateAboutToChange();
+    void personalStateChanged();
 private:
-    // Fire the actual Wiktionary GET for `word` (URL term = `query`), with the IPv4 pin,
-    // a `timeoutMs` timeout, and a ~512 KB response cap. Called either directly (host already
-    // resolved — full 8s budget) or from the async DNS callback in dictLookup (the REMAINING
-    // budget of the one overall 8s deadline, so DNS+HTTP never exceed 8s total). Emits
-    // dictResult in every terminal path (ok / error / timeout / too-big). `word` is the emit
-    // key (matches the QML dictWord); `query` is the possibly-trimmed lookup term in the URL.
     void sendDictRequest(const QString& word, const QString& query, int timeoutMs);
+    void beginPersonalStateChange();
+    void applyProfileStoreRoute(const ProfilePaths& paths);
+    void finishPersonalStateChange();
 
     QNetworkAccessManager* m_nam;
     // The one book filesRead is allowed to serve (normalized/canonical). Empty = nothing
     // authorized yet → filesRead refuses everything. Set by setAuthorizedBook() per open.
     QString m_authorizedBook;
+    BookStores::ScopedStore m_personalStores;
+    ProfileStoreRuntime* m_profileRuntime = nullptr;
+    QMetaObject::Connection m_profileStoresAboutToChange;
+    QMetaObject::Connection m_profileStoresChanged;
+    quint64 m_personalStateGeneration = 0;
     // IPv4 pin for the Wiktionary host (house scar: Wikimedia publishes AAAA records and
     // Qt-on-Windows stalls ~21s on the dead IPv6 route). Resolved once, then reused; empty
     // string = resolution failed, fall back to the plain hostname. See dictLookup().

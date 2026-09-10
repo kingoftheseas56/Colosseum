@@ -1199,6 +1199,32 @@ const paperRemoveHighlight = id => {
 
 const paperClearSelection = () => { currentView?.deselect?.() }
 
+// Profile transitions can leave the reader mounted while the account-owned stores
+// are being replaced. Scrub the web surface before a new profile is exposed: bump
+// openGen so every pending paperOpen/search/relocate continuation becomes stale,
+// close and remove the live foliate view, and clear all per-book JS caches. This is
+// intentionally silent; ReaderShell has already invalidated its own QML generation.
+const paperScrub = () => {
+  openGen += 1
+  readyEmitted = false
+  flatToc = []
+  annotations.clear()
+  footnoteTaps.clear()
+  footnoteRenderPending = false
+  try { readAlong?.invalidate() } catch (e) { /* best-effort cache teardown */ }
+  if (currentView) {
+    try { currentView.close?.() } catch (e) { /* best-effort teardown */ }
+    try { currentView.remove() } catch (e) { /* already detached */ }
+    currentView = null
+  }
+  // A superseded view should already have been removed above. Remove any detached
+  // foliate nodes left by a vendor failure so old book DOM cannot remain visible.
+  for (const view of Array.from(document.querySelectorAll('foliate-view'))) {
+    try { view.close?.() } catch (e) {}
+    try { view.remove() } catch (e) {}
+  }
+}
+
 // ---------------------------------------------------------------------------
 // bridge readiness — QWebChannel's handshake is async, so window.bridge may not
 // exist the instant the glue finishes loading. Wait for it (bounded) before we
@@ -1268,6 +1294,7 @@ const boot = async () => {
     addHighlight: paperAddHighlight,
     removeHighlight: paperRemoveHighlight,
     clearSelection: paperClearSelection,
+    scrub: paperScrub,
     // read-along (Task 4) — alignment presentation. Consume canonical locations only.
     setReadAlongStyle: paperSetReadAlongStyle,
     paintReadAlong: paperPaintReadAlong,

@@ -54,6 +54,13 @@ FocusScope {
     // (L.acceptBookEvent); 'error' routes through L.errorDisposition. A late event from book A
     // in flight over QWebChannel can't land in ANY window after we switched to B.
     property int currentGen: -1
+    // ProfileStoreRuntime has its own lifecycle generation. Reader2 increments this
+    // at the about-to-change boundary so a debounced save cannot cross profiles;
+    // production paper events are required to carry the existing per-open `gen`.
+    property int personalStateGeneration: 0
+    readonly property bool personalStateSealed: !!Reader2Bridge.personalStateSealed
+    readonly property bool requireStampedPaperEvents:
+        Number(Reader2Bridge.personalStateGeneration) > 0
     // Has the CURRENT open reached 'ready'? Gates the failed-open surface (Part B3): an
     // 'error' BEFORE ready = the book won't open (show the surface); after ready it's an
     // operational error (a failed search/highlight) that just traces.
@@ -139,7 +146,7 @@ FocusScope {
 
     // Reload marks from the shared stores (on ready, on panel open, and after any change).
     function refreshMarks() {
-        if (shell.bookPath === "") return
+        if (shell.bookPath === "" || shell.personalStateSealed) return
         var id = shell.bookId
         shell.bookmarks = Reader2Bridge.bookmarksGet(id)
         shell.highlights = Reader2Bridge.annotationsGet(id)
@@ -188,7 +195,8 @@ FocusScope {
             note: note,
             chapterLabel: shell.chapterLabel
         }
-        var saved = Reader2Bridge.annotationsSave(shell.bookId, rec)   // stamps id, returns record
+        var saved = Reader2Bridge.annotationsSaveForGeneration(
+            shell.bookId, rec, Number(Reader2Bridge.personalStateGeneration))
         var id = (saved && saved.id !== undefined && saved.id !== null) ? String(saved.id) : ""
         if (id !== "") paper.addHighlight({ id: id, cfi: shell.selCfi, color: color })
         shell.refreshMarks()                                          // Highlights pane picks it up
@@ -215,7 +223,8 @@ FocusScope {
         var updated = {}
         for (var k in rec) updated[k] = rec[k]     // preserve every field
         updated.color = color
-        Reader2Bridge.annotationsSave(shell.bookId, updated)          // same id → in-place update
+        Reader2Bridge.annotationsSaveForGeneration(
+            shell.bookId, updated, Number(Reader2Bridge.personalStateGeneration))
         if (cfi !== "") {
             paper.removeHighlight(shell.existingHlId)
             paper.addHighlight({ id: shell.existingHlId, cfi: cfi, color: color })
@@ -228,7 +237,8 @@ FocusScope {
     // call it with a real id.
     function deleteHighlight() {
         if (shell.existingHlId !== "") {
-            Reader2Bridge.annotationsDelete(shell.bookId, shell.existingHlId)
+            Reader2Bridge.annotationsDeleteForGeneration(
+                shell.bookId, shell.existingHlId, Number(Reader2Bridge.personalStateGeneration))
             paper.removeHighlight(shell.existingHlId)
             shell.refreshMarks()
         }
@@ -333,6 +343,26 @@ FocusScope {
     function lookupPairing(id, rev) {
         if (id === "" || typeof AudioPairing === "undefined") return ({})
         return AudioPairing.getPairing(id) || ({})
+    }
+
+    // The glue's QML-issued open generation is the primary stale-event fence. A
+    // production bridge also has a non-zero profile generation, so an unstamped
+    // paper callback is rejected there instead of being allowed to cross a profile
+    // switch; standalone pre-generation harnesses keep their defensive legacy path.
+    function acceptPaperBookEvent(p) {
+        if (shell.bookPath === "" || shell.personalStateSealed) return false
+        if (shell.requireStampedPaperEvents && !Number.isFinite(p && p.gen)) return false
+        return L.acceptBookEvent(p ? p.gen : undefined, shell.currentGen, shell.bookReady)
+    }
+    function acceptPaperReady(p) {
+        if (shell.bookPath === "" || shell.personalStateSealed) return false
+        if (shell.requireStampedPaperEvents && !Number.isFinite(p && p.gen)) return false
+        return L.acceptReady(p ? p.gen : undefined, shell.currentGen)
+    }
+    function paperErrorDisposition(p) {
+        if (shell.bookPath === "" || shell.personalStateSealed) return "drop"
+        if (shell.requireStampedPaperEvents && !Number.isFinite(p && p.gen)) return "drop"
+        return L.errorDisposition(p ? p.gen : undefined, shell.currentGen, shell.bookReady)
     }
     readonly property string audioPairKey: (shell.audioPairing && shell.audioPairing.pairKey)
                                            ? String(shell.audioPairing.pairKey) : ""
@@ -522,6 +552,7 @@ FocusScope {
     // PERSIST under the same namespaced settings.reader2 (read-modify-write, never clobbering the
     // old reader's flat keys or the appearance fields), and LIVE-STYLE the paper.
     function applyReadAlongPatch(key, value) {
+        if (shell.bookPath === "" || shell.personalStateSealed) return
         var patch = {}
         patch[key] = value
         shell.appearance = L.mergeReadAlong(shell.appearance, patch)
@@ -672,6 +703,7 @@ FocusScope {
     // Commit a new store: recompute this book's effective appearance, persist, and paint.
     // The single sync point for the three appearance actions (patch / use-as-default / reset).
     function commitAppearanceStore(newStore) {
+        if (shell.bookPath === "" || shell.personalStateSealed) return
         shell.appearanceStore = newStore
         shell.appearance = L.effectiveAppearance(newStore, shell.bookId)
         persistAppearanceStore()
@@ -699,9 +731,11 @@ FocusScope {
     // Persist the whole store under settings.reader2 (READ-MODIFY-WRITE — the OLD reader's
     // flat keys elsewhere in settings.json are never clobbered).
     function persistAppearanceStore() {
+        if (shell.bookPath === "" || shell.personalStateSealed) return
         var all = Reader2Bridge.settingsGet() || ({})
         all.reader2 = shell.appearanceStore
-        Reader2Bridge.settingsSave(all)
+        Reader2Bridge.settingsSaveForGeneration(
+            all, Number(Reader2Bridge.personalStateGeneration))
     }
 
     // Keyboard now lives IN-PAGE (paper_glue.js): the web view owns focus + keys, so a key
@@ -804,8 +838,18 @@ FocusScope {
             shell.pendingSaveContext = null
             return
         }
+        // The about-to-change handler flushes while the old route is still active,
+        // then advances personalStateGeneration. Any queued/late callback after
+        // that boundary loses ownership and must not write into the new profile.
+        if (!L.saveContextMatches(ctx, shell.personalStateGeneration,
+                                  Number(Reader2Bridge.personalStateGeneration))) {
+            shell.pendingSave = null
+            shell.pendingSaveContext = null
+            return
+        }
         var prev = Reader2Bridge.progressGet(ctx.bookId)
-        Reader2Bridge.progressSave(ctx.bookId, L.progressRecord(prev, pend, ctx.bookPath))
+        Reader2Bridge.progressSaveForGeneration(
+            ctx.bookId, L.progressRecord(prev, pend, ctx.bookPath), ctx.bridgeStateGeneration)
         // Feed the unified home Continue/resume row (old-reader parity — the swap dropped this
         // wire, so Continue went stale and never learned about fresh-reader sessions). Same
         // record shape the old reader wrote; resume carries {path, book} for openBookSession.
@@ -831,6 +875,84 @@ FocusScope {
         shell.pendingSave = null
         shell.pendingSaveContext = null
     }
+
+    // ProfileStoreRuntime calls this while the old Reader2 route still exists.
+    // Flush that route first, then invalidate every QML/paper generation and scrub
+    // all private reader state before the bridge seals the route. The shell stays
+    // mounted for the host Loader but is hidden until Main opens a new book.
+    function scrubForPersonalStateChange() {
+        shell.flushProgressSave()
+        shell.personalStateGeneration += 1
+        shell.currentGen = Math.max(1, shell.currentGen + 1)
+        shell.bookReady = false
+        shell.bookPath = ""
+        shell.bookMeta = ({})
+        shell.openErrorShown = false
+        shell.openErrorText = ""
+        shell.bookTitle = ""
+        shell.bookAuthor = ""
+        shell.chapterLabel = ""
+        shell.percent = 0
+        shell.pageInChapter = 0
+        shell.pagesInChapter = 0
+        shell.chapterTicks = []
+        shell.lastCfi = ""
+        shell.lastPageInChapter = 0
+        shell.rememberedCfi = ""
+        shell.returnVisible = false
+        shell.returnPageLabel = ""
+        shell.bookToc = []
+        shell.currentTocIndex = -1
+        shell.lastFraction = 0
+        shell.currentPageIsText = true
+        shell.bookmarks = []
+        shell.highlights = []
+        shell.selRect = ({ x: 0, y: 0, w: 0, h: 0 })
+        shell.selText = ""
+        shell.selCfi = ""
+        shell.selMenuShown = false
+        shell.selMenuMode = "select"
+        shell.existingHlId = ""
+        shell.dictShown = false
+        shell.dictRect = ({ x: 0, y: 0, w: 0, h: 0 })
+        shell.dictWord = ""
+        shell.dictEntries = []
+        shell.dictState = "loading"
+        shell.footnoteShown = false
+        shell.footnoteRect = ({ x: 0, y: 0, w: 0, h: 0 })
+        shell.footnoteText = ""
+        shell.appearanceStore = ({ defaults: L.appearanceDefaults(), books: {} })
+        shell.appearance = L.appearanceDefaults()
+        shell.resetSearch()
+        shell.activitySessionId = ""
+        shell.activityState = AH.freshState()
+        shell.followOn = false
+        shell.lastSyncedAudioChapter = -1
+        shell.readAlongFollowState = "following"
+        shell.lastPlayhead = null
+        shell.readAlongPreviewActive = false
+        shell.readAlongPreviewLabel = ""
+        shell.pendingReadAlongJump = false
+        shell.audioChapterBoundsMs = null
+        shell.audioChosenSpeed = 1.0
+        shell.audioPendingJump = -1
+        if (chrome.anyPanelOpen) chrome.closeAnyPanel()
+        paper.scrub()
+        shell.visible = false
+    }
+
+    Connections {
+        target: Reader2Bridge
+        function onPersonalStateAboutToChange() {
+            shell.scrubForPersonalStateChange()
+        }
+        function onPersonalStateChanged() {
+            // A profile change never reopens the previous book. Main's next
+            // openBook call makes the shell visible after a fresh authorization.
+            if (shell.bookPath === "") shell.visible = false
+        }
+    }
+
     // Leave the reader: FLUSH any pending save first (so a page turn within the debounce window
     // isn't lost when the book closes), then tell the embedder. Used everywhere we'd emit closed().
     function goBack() { shell.flushProgressSave(); shell.closed() }
@@ -853,8 +975,10 @@ FocusScope {
         id: paper
         anchors.fill: parent
         readerDebug: shell.readerDebug
-        onGlueUpChanged: if (glueUp && shell.bookPath !== "") shell.openAtResume(shell.bookPath)
+        onGlueUpChanged: if (glueUp && shell.bookPath !== "" && !shell.personalStateSealed)
+                              shell.openAtResume(shell.bookPath)
         onPaperEvent: (name, p) => {
+            if (shell.bookPath === "" || shell.personalStateSealed) return
             if (shell.readerDebug) console.log("[shell]", name, JSON.stringify(p).slice(0, 160))
 
             if (name === "ready") {
@@ -864,7 +988,7 @@ FocusScope {
                 // from a superseded slow open could carry a newer-than-adopted gen, get adopted,
                 // and re-arm bookReady mid-switch. No adoption happens here anymore — currentGen
                 // was set at issue time.
-                if (!L.acceptReady(p.gen, shell.currentGen)) return
+                if (!shell.acceptPaperReady(p)) return
                 shell.bookReady = true                            // opened OK → later 'error' is operational, not a failed open
                 shell.openErrorShown = false                      // clear any failed-open surface from a prior attempt
                 // book identity + toc arrive here (before the first relocate).
@@ -920,7 +1044,7 @@ FocusScope {
                 // Superseded open OR the pre-ready window (openBook fired, new 'ready' not yet
                 // adopted — currentGen still the OLD book's, so the gen check alone can't tell)
                 // → drop. (Codex re-review fix; see L.acceptBookEvent.)
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                if (!shell.acceptPaperBookEvent(p)) return
                 // A footnote/endnote link was tapped (the glue extracted its text). Show the
                 // FootnoteCard near the anchor; the page does NOT navigate to the note.
                 shell.footnoteText = (p.html !== undefined && p.html !== null) ? String(p.html) : ""
@@ -928,7 +1052,7 @@ FocusScope {
                 if (shell.footnoteText !== "") shell.footnoteShown = true
                 else if (shell.readerDebug) console.log("[shell] footnote had no extractable text — skipping card")
             } else if (name === "highlightTapped") {
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // pre-ready / stale — no popover over the wrong book
+                if (!shell.acceptPaperBookEvent(p)) return  // pre-ready / stale — no popover over the wrong book
                 // An existing highlight was tapped (the glue guards against a selection-ending
                 // click also firing this). Open the SelectionMenu in "existing" mode at its
                 // rect: Delete (+ re-color dots). p.id is the annotation id; p.rect the anchor.
@@ -946,10 +1070,10 @@ FocusScope {
                 // the page out from under the menu). Dismiss the popover so it never floats
                 // over a stale/empty selection. Gen-gated too (re-review #3): a queued clear
                 // from the PREVIOUS book must not dismiss a menu the current book just opened.
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                if (!shell.acceptPaperBookEvent(p)) return
                 if (shell.selMenuShown) shell.dismissSelectionMenu()
             } else if (name === "selection") {
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // pre-ready / stale — no popover over the wrong book
+                if (!shell.acceptPaperBookEvent(p)) return  // pre-ready / stale — no popover over the wrong book
                 // text selected in the paper → stash it + open the SelectionMenu at its rect.
                 // A new selection while the menu is up simply re-stashes (the menu repositions).
                 shell.selText = (p.text !== undefined && p.text !== null) ? String(p.text) : ""
@@ -959,7 +1083,7 @@ FocusScope {
                 shell.existingHlId = ""
                 shell.selMenuShown = (shell.selText !== "")
             } else if (name === "searchResults") {
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // superseded open or pre-ready window — drop
+                if (!shell.acceptPaperBookEvent(p)) return  // superseded open or pre-ready window — drop
                 // Hits from paper.search (the glue caps the payload at 300 + flags `capped`).
                 // Stash them for the SearchSheet; set searchLastQuery HERE (on arrival) so the
                 // sheet only shows "No results" once a search actually came back empty.
@@ -973,7 +1097,7 @@ FocusScope {
                 // ready it's operational (trace). Any other stamped gen is a superseded open's
                 // error and drops; no adoption is needed since currentGen was set at issue time.
                 var emsg = (p.message !== undefined && p.message !== null) ? String(p.message) : ""
-                var disp = L.errorDisposition(p.gen, shell.currentGen, shell.bookReady)
+                var disp = shell.paperErrorDisposition(p)
                 if (disp === "open-fail") {
                     shell.openErrorText = emsg
                     shell.openErrorShown = true
@@ -985,7 +1109,7 @@ FocusScope {
                 // that mattered most (Codex re-review): bookPath is already the NEW book's when
                 // openBook ran, so an old book's in-flight relocated accepted here would record
                 // ITS position under the new book's progress entry.
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                if (!shell.acceptPaperBookEvent(p)) return
                 // --- chrome view-model (rail + top bar + Contents current row) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)
                 if (p.chapterTitle !== undefined) shell.chapterLabel = String(p.chapterTitle)
@@ -1011,6 +1135,8 @@ FocusScope {
                 p.updatedAt = Date.now()
                 shell.pendingSave = p
                 shell.pendingSaveContext = L.progressSaveContext(shell.bookId, shell.bookPath, shell.bookMeta)
+                shell.pendingSaveContext.personalStateGeneration = shell.personalStateGeneration
+                shell.pendingSaveContext.bridgeStateGeneration = Number(Reader2Bridge.personalStateGeneration)
                 progressSaveTimer.restart()
 
                 // --- chapter-level follow (Task 13) — DORMANT-ONLY now (Task 6) ---
@@ -1024,7 +1150,7 @@ FocusScope {
                 // Converge on a controller commit → it emits audioSeekRequested (ONE seek) +
                 // navigationRequested (the page jump). Gated + gen-checked like other book events.
                 if (!shell.readAlongAvailable) return
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                if (!shell.acceptPaperBookEvent(p)) return
                 shell.pendingReadAlongJump = true
                 ReadAlong.commitLocation(shell.bookId, p.location)
             } else if (name === "manualNavigation") {
@@ -1033,7 +1159,7 @@ FocusScope {
                 // the "Return to narration" chip appears. Programmatic (controller) moves are
                 // tagged in the glue and never emit this, so return-to-narration can't detach itself.
                 if (!shell.readAlongAvailable) return
-                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                if (!shell.acceptPaperBookEvent(p)) return
                 ReadAlong.detachFollow()
             } else if (name === "readAlongRangeMissing") {
                 // The painted cue's range isn't in the live DOM (the reader turned away). Clear
@@ -1145,7 +1271,8 @@ FocusScope {
             // BookStores::listDelete — a malformed id-less record must never wipe the whole
             // set. Only delete a real id (siblings guard cfi !== "" the same way).
             if (id !== "") {
-                Reader2Bridge.bookmarksDelete(shell.bookId, id)
+                Reader2Bridge.bookmarksDeleteForGeneration(
+                    shell.bookId, id, Number(Reader2Bridge.personalStateGeneration))
                 shell.refreshMarks()
             }
         }
@@ -1189,7 +1316,8 @@ FocusScope {
                 snippet: detail,
                 page: shell.pageInChapter
             }
-            Reader2Bridge.bookmarksSave(shell.bookId, rec)
+            Reader2Bridge.bookmarksSaveForGeneration(
+                shell.bookId, rec, Number(Reader2Bridge.personalStateGeneration))
             shell.refreshMarks()
         }
 
@@ -1339,6 +1467,7 @@ FocusScope {
     // some legacy entries under the literal path (get(book.id) then get(book.path)), so
     // mirroring that fallback lets those still resume. "" cfi = open at the start.
     function openAtResume(path) {
+        if (path === "" || shell.personalStateSealed) return
         var entry = Reader2Bridge.progressGet(shell.bookId)
         if (!entry || Object.keys(entry).length === 0)
             entry = Reader2Bridge.progressGet(path)       // raw-path fallback (old-reader parity)
@@ -1388,6 +1517,11 @@ FocusScope {
 
     function openBook(path) {
         shell.flushProgressSave()          // don't lose the previous book's last position (Part B4)
+        if (shell.personalStateSealed) {
+            shell.scrubForPersonalStateChange()
+            return
+        }
+        shell.visible = true
         shell.bookReady = false            // the new book hasn't reached 'ready' yet (Part B3 gate)
         shell.openErrorShown = false       // drop any prior failed-open surface
         shell.openErrorText = ""

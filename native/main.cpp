@@ -985,9 +985,9 @@ int main(int argc, char *argv[]) {
     // The FRESH reader's native seam (Task 16 swap): Biblio's reader layer is
     // qml/reader2/ReaderShell over the vendored Anx foliate paper. QML sees the full
     // bridge; the paper's QWebChannel gets ONLY its filesRead/paperEvent gate
-    // (Reader2Bridge.paperGate — least privilege). It reads and writes the SAME
-    // BookStores files (native/reader/BookStores.h) the retired TB2 BookBridge used,
-    // byte-identically, so old-reader progress/marks resume unchanged.
+    // (Reader2Bridge.paperGate — least privilege). LegacyLocal keeps the old
+    // BookStores files (native/reader/BookStores.h) readable without migration;
+    // account and local-only profiles route new private records to their own roots.
     //
     // BookBridge itself was DELETED 2026-08-07: the Task 16 swap replaced its door
     // (Main.qml loads reader2/ReaderShell), and the one caller it was being kept for
@@ -1704,6 +1704,11 @@ int main(int argc, char *argv[]) {
     auto *accountRuntime = new AccountRuntime(&app);
     accountRuntime->setDownloadSource(localDownloads);
     accountRuntime->prepareForQml(&engine);
+    // Reader2 private JSON follows the same profile lifecycle as the account-owned
+    // stores. The runtime emits storesAboutToChange before destroying the old owner;
+    // Reader2Bridge uses that window to flush/scrub QML, clear paper authorization,
+    // and seal the old route before storesChanged installs the next profile root.
+    reader2Bridge->bindProfileStoreRuntime(accountRuntime->profileStores());
 
     // Arc 39 restores chapter mode. The 2026-08-20 one-time chapter purge is
     // intentionally retired: future boots must preserve <AppData>/manga and kind:"manga"

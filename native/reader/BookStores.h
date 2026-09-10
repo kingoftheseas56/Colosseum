@@ -1,12 +1,12 @@
 // BookStores.h
 //
 // Shared JSON store helpers, lifted out of BookBridge.cpp (the OLD reader's
-// persistence) so the NEW reader (reader2) can read/write the EXACT SAME files
-// under <appdata>/book_reader/ — progress.json, settings.json, bookmarks.json,
-// annotations.json, display_names.json — with zero migration. Both readers call
-// into this namespace; neither owns its own copy of the store logic.
+// persistence) so the NEW reader (reader2) can read/write the same JSON shapes.
+// The free functions below preserve the legacy installation-wide files. Reader2
+// uses ScopedStore for profile-private records so one profile never sees another
+// profile's progress, settings, bookmarks, or annotations.
 //
-// The directory resolves via QStandardPaths::writableLocation(AppDataLocation)
+// The legacy directory resolves via QStandardPaths::writableLocation(AppDataLocation)
 // (+ "/book_reader"), same as before. Under QStandardPaths::setTestModeEnabled(true)
 // (set by test harnesses) that location is automatically redirected to a sandbox,
 // so tests never touch a real user's stores.
@@ -19,6 +19,40 @@
 
 namespace BookStores {
 
+// A route-bound reader store. An empty root is sealed: reads return empty values
+// and writes do nothing, and no directory is created. A non-empty root is created
+// only for a write. The legacy constructor keeps the old installation-wide path
+// for callers that still own the explicit local/legacy policy (including Vault's
+// migration code); profile callers pass a managed profile root instead.
+class ScopedStore final {
+public:
+    ScopedStore();
+
+    void useLegacyRoot();
+    void useProfileRoot(const QString &profileRoot);
+    void seal();
+
+    bool isSealed() const;
+    QString root() const;
+
+    QJsonObject readStore(const QString &fileName) const;
+    void        writeStore(const QString &fileName, const QJsonObject &all) const;
+
+    QJsonObject get(const QString &fileName, const QString &bookId) const;
+    void        save(const QString &fileName, const QString &bookId,
+                     const QJsonObject &data) const;
+
+    QJsonArray  listGet(const QString &fileName, const QString &bookId) const;
+    QJsonObject listSave(const QString &fileName, const QString &bookId,
+                         QJsonObject item) const;
+    QJsonObject listDelete(const QString &fileName, const QString &bookId,
+                           const QString &itemId) const;
+    void        listClear(const QString &fileName, const QString &bookId) const;
+
+private:
+    QString m_root;
+};
+
 // ── canonical store key ──
 // SHA1[:20] of the path-normalized absolute path. This is the ONE place the
 // fingerprint is derived: the old reader (BookBridge::progressKey) and the fresh
@@ -26,7 +60,7 @@ namespace BookStores {
 // can never drift between them.
 QString keyFor(const QString& absPath);
 
-// ── raw whole-file JSON object store ──
+// ── legacy installation-wide raw whole-file JSON object store ──
 QJsonObject readStore(const QString& fileName);
 void        writeStore(const QString& fileName, const QJsonObject& all);
 

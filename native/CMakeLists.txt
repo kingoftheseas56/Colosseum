@@ -629,6 +629,7 @@ qt_add_resources(colosseum "tankoyomi_resources"
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
 endif()
@@ -935,6 +936,61 @@ add_executable(reader2_bridge_harness
 target_include_directories(reader2_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
+# F19: Reader2 personal-state isolation. Disposable profile roots prove the
+# A -> sealed -> B -> local -> A route and generation-rejected late writes.
+add_executable(reader2_profile_privacy_harness
+    ../tests/reader2_profile_privacy_harness.cpp
+    reader2/Reader2Bridge.cpp
+    reader2/Reader2Bridge.h
+    reader/BookStores.cpp
+    reader/BookStores.h
+)
+target_include_directories(reader2_profile_privacy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(reader2_profile_privacy_harness PRIVATE Qt6::Core Qt6::Network)
+
+# F19 companion proof: the production Reader2Bridge binding is compiled in and
+# driven by the real ProfileStoreRuntime signals. Keep the explicit-route
+# harness above lightweight; this target covers runtime-owned path selection,
+# about-to-change ordering, and sealing on runtime loss.
+add_executable(reader2_profile_runtime_harness
+    ../tests/reader2_profile_runtime_harness.cpp
+    reader2/Reader2Bridge.cpp
+    reader2/Reader2Bridge.h
+    reader/BookStores.cpp
+    reader/BookStores.h
+    account/ActivityStore.cpp
+    account/ActivityStore.h
+    account/ActivityProjector.cpp
+    account/ActivityProjector.h
+    account/ConsumptionHistoryBridge.cpp
+    account/ConsumptionHistoryBridge.h
+    account/HistoryStore.cpp
+    account/HistoryStore.h
+    account/SyncOwnershipInventory.cpp
+    account/SyncOwnershipInventory.h
+    account/SyncPayloadFirewall.cpp
+    account/SyncPayloadFirewall.h
+    account/LegacyPersonalStateStorage.cpp
+    account/LegacyPersonalStateStorage.h
+    account/ProfileContext.cpp
+    account/ProfileContext.h
+    account/ProfilePaths.cpp
+    account/ProfilePaths.h
+    account/ProfilePreferencesStore.cpp
+    account/ProfilePreferencesStore.h
+    account/ProfileStoreRuntime.cpp
+    account/ProfileStoreRuntime.h
+    ProgressStore.h
+    CollectionStore.h
+    SearchHistoryStore.h
+    AudioPairingStore.h
+)
+target_include_directories(reader2_profile_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(reader2_profile_runtime_harness PRIVATE
+    COLOSSEUM_READER2_PROFILE_RUNTIME=1)
+target_link_libraries(reader2_profile_runtime_harness PRIVATE
+    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+
 # Task 12: audiobook auto-attach on download completion. Offline/deterministic —
 # StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,
 # no libtorrent), so the attach logic is proven without a live download.
@@ -964,6 +1020,20 @@ if(WIN32)
                 "$<TARGET_FILE:Qt6::Core>"
                 "$<TARGET_FILE:Qt6::Network>"
                 "$<TARGET_FILE_DIR:reader2_bridge_harness>"
+        VERBATIM)
+    add_custom_command(TARGET reader2_profile_privacy_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:reader2_profile_privacy_harness>"
+        VERBATIM)
+    add_custom_command(TARGET reader2_profile_runtime_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Qml>"
+                "$<TARGET_FILE:Qt6::Sql>"
+                "$<TARGET_FILE_DIR:reader2_profile_runtime_harness>"
         VERBATIM)
     add_custom_command(TARGET reader2_autoattach_harness POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

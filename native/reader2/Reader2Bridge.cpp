@@ -1,5 +1,9 @@
 #include "Reader2Bridge.h"
 #include "../reader/BookStores.h"
+#ifdef COLOSSEUM_READER2_PROFILE_RUNTIME
+#include "../account/ProfilePaths.h"
+#include "../account/ProfileStoreRuntime.h"
+#endif
 
 #include <QAbstractSocket>
 #include <QDeadlineTimer>
@@ -34,6 +38,127 @@ Reader2Bridge::Reader2Bridge(QObject* parent) : QObject(parent)
 {
     m_nam = new QNetworkAccessManager(this);
     m_paperGate = new Reader2PaperGate(this);   // parented to the bridge; lives exactly as long
+}
+
+void Reader2Bridge::bindProfileStoreRuntime(ProfileStoreRuntime* runtime)
+{
+#ifdef COLOSSEUM_READER2_PROFILE_RUNTIME
+    QObject::disconnect(m_profileStoresAboutToChange);
+    QObject::disconnect(m_profileStoresChanged);
+    m_profileRuntime = runtime;
+    if (!runtime) {
+        // Losing the account runtime is a lifecycle fault. Keep the reader
+        // sealed until an explicit legacy-local route is requested; falling
+        // back here would reopen installation-wide private JSON implicitly.
+        sealPersonalState();
+        return;
+    }
+
+    // The runtime starts sealed. Install that route before QML is loaded without
+    // emitting a transition for a reader that does not exist yet.
+    m_personalStores.seal();
+    applyProfileStoreRoute(runtime->activeProfile());
+    ++m_personalStateGeneration;
+
+    m_profileStoresAboutToChange = QObject::connect(
+        runtime, &ProfileStoreRuntime::storesAboutToChange,
+        this, [this] {
+            // Clear the paper authorization before QML sees the transition. The
+            // QML handler flushes pending writes while m_personalStores still
+            // points at the old profile; only then do we seal the route.
+            m_authorizedBook.clear();
+            emit personalStateAboutToChange();
+            m_personalStores.seal();
+            ++m_personalStateGeneration;
+        });
+    m_profileStoresChanged = QObject::connect(
+        runtime, &ProfileStoreRuntime::storesChanged,
+        this, [this, runtime] {
+            applyProfileStoreRoute(runtime->activeProfile());
+            ++m_personalStateGeneration;
+            emit personalStateChanged();
+        });
+#else
+    Q_UNUSED(runtime);
+    // Standalone Reader2 harnesses deliberately do not link the account runtime;
+    // their explicit useProfilePersonalState()/sealPersonalState() controls cover
+    // the route contract without pulling in the full profile store graph.
+#endif
+}
+
+void Reader2Bridge::beginPersonalStateChange()
+{
+    m_authorizedBook.clear();
+    emit personalStateAboutToChange();
+    m_personalStores.seal();
+    ++m_personalStateGeneration;
+}
+
+void Reader2Bridge::applyProfileStoreRoute(const ProfilePaths& paths)
+{
+#ifdef COLOSSEUM_READER2_PROFILE_RUNTIME
+    switch (paths.kind()) {
+    case ProfilePaths::Kind::Sealed:
+        m_personalStores.seal();
+        break;
+    case ProfilePaths::Kind::LegacyLocal:
+        // This is the only route that intentionally retains the old shared
+        // installation files. No reader JSON is copied during adoption.
+        m_personalStores.useLegacyRoot();
+        break;
+    case ProfilePaths::Kind::LocalOnly:
+    case ProfilePaths::Kind::Account:
+        m_personalStores.useProfileRoot(paths.profileRoot());
+        break;
+    }
+#else
+    Q_UNUSED(paths);
+#endif
+}
+
+void Reader2Bridge::finishPersonalStateChange()
+{
+    emit personalStateChanged();
+}
+
+void Reader2Bridge::useLegacyPersonalState()
+{
+    beginPersonalStateChange();
+    m_personalStores.useLegacyRoot();
+    finishPersonalStateChange();
+}
+
+void Reader2Bridge::useProfilePersonalState(const QString& profileRoot)
+{
+    beginPersonalStateChange();
+    m_personalStores.useProfileRoot(profileRoot);
+    finishPersonalStateChange();
+}
+
+void Reader2Bridge::sealPersonalState()
+{
+    beginPersonalStateChange();
+    finishPersonalStateChange();
+}
+
+bool Reader2Bridge::personalStateSealed() const
+{
+    return m_personalStores.isSealed();
+}
+
+quint64 Reader2Bridge::personalStateGeneration() const
+{
+    return m_personalStateGeneration;
+}
+
+QString Reader2Bridge::personalStateRoot() const
+{
+    return m_personalStores.root();
+}
+
+bool Reader2Bridge::personalStateGenerationIsCurrent(quint64 generation) const
+{
+    return !m_personalStores.isSealed() && generation == m_personalStateGeneration;
 }
 
 QObject* Reader2Bridge::paperGate() const
@@ -78,7 +203,9 @@ QString Reader2Bridge::filesRead(const QString& filePath)
     // content; without this gate a rigged book could ask the bridge for ANY file on disk.
     // ReaderShell calls setAuthorizedBook(path) before every open; a request for any other path
     // (or before anything is authorized) is refused. Compare on the normalized/canonical form.
-    if (m_authorizedBook.isEmpty() || normalizeBookPath(filePath) != m_authorizedBook) {
+    if (m_personalStores.isSealed()
+        || m_authorizedBook.isEmpty()
+        || normalizeBookPath(filePath) != m_authorizedBook) {
         qWarning() << "[reader2] filesRead refused — not the authorized book:" << filePath;
         return QString();
     }
@@ -92,6 +219,10 @@ QString Reader2Bridge::filesRead(const QString& filePath)
 // Authorize the one book filesRead may serve this open (see header + filesRead above).
 void Reader2Bridge::setAuthorizedBook(const QString& absPath)
 {
+    if (m_personalStores.isSealed()) {
+        m_authorizedBook.clear();
+        return;
+    }
     m_authorizedBook = normalizeBookPath(absPath);
 }
 
@@ -111,59 +242,105 @@ QString Reader2Bridge::bookKey(const QString& absPath) const
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QML-facing stores — delegate to BookStores (native/reader/BookStores.h),
-// the SAME files/shapes the old BookBridge uses. Neither reader owns its own
-// copy of the store logic.
+// QML-facing stores — delegate to the route-bound BookStores::ScopedStore.
+// LegacyLocal preserves the old files/shapes; account/local-only routes are
+// private to their managed profile; sealed routes return empty/no-op values.
 // ─────────────────────────────────────────────────────────────────────────────
 
 QJsonObject Reader2Bridge::progressGet(const QString& bookId)
 {
-    return BookStores::get(QStringLiteral("progress.json"), bookId);
+    return m_personalStores.get(QStringLiteral("progress.json"), bookId);
 }
 
 void Reader2Bridge::progressSave(const QString& bookId, const QJsonObject& data)
 {
-    BookStores::save(QStringLiteral("progress.json"), bookId, data);
+    progressSaveForGeneration(bookId, data, m_personalStateGeneration);
+}
+
+void Reader2Bridge::progressSaveForGeneration(const QString& bookId,
+                                               const QJsonObject& data,
+                                               quint64 generation)
+{
+    if (!personalStateGenerationIsCurrent(generation)) return;
+    m_personalStores.save(QStringLiteral("progress.json"), bookId, data);
 }
 
 QJsonObject Reader2Bridge::settingsGet()
 {
-    return BookStores::readStore(QStringLiteral("settings.json"));
+    return m_personalStores.readStore(QStringLiteral("settings.json"));
 }
 
 void Reader2Bridge::settingsSave(const QJsonObject& data)
 {
-    BookStores::writeStore(QStringLiteral("settings.json"), data);
+    settingsSaveForGeneration(data, m_personalStateGeneration);
+}
+
+void Reader2Bridge::settingsSaveForGeneration(const QJsonObject& data, quint64 generation)
+{
+    if (!personalStateGenerationIsCurrent(generation)) return;
+    m_personalStores.writeStore(QStringLiteral("settings.json"), data);
 }
 
 QJsonArray Reader2Bridge::bookmarksGet(const QString& bookId)
 {
-    return BookStores::listGet(QStringLiteral("bookmarks.json"), bookId);
+    return m_personalStores.listGet(QStringLiteral("bookmarks.json"), bookId);
 }
 
 QJsonObject Reader2Bridge::bookmarksSave(const QString& bookId, const QJsonObject& bm)
 {
-    return BookStores::listSave(QStringLiteral("bookmarks.json"), bookId, bm);
+    return bookmarksSaveForGeneration(bookId, bm, m_personalStateGeneration);
+}
+
+QJsonObject Reader2Bridge::bookmarksSaveForGeneration(const QString& bookId,
+                                                      const QJsonObject& bm,
+                                                      quint64 generation)
+{
+    if (!personalStateGenerationIsCurrent(generation)) return {};
+    return m_personalStores.listSave(QStringLiteral("bookmarks.json"), bookId, bm);
 }
 
 void Reader2Bridge::bookmarksDelete(const QString& bookId, const QString& id)
 {
-    BookStores::listDelete(QStringLiteral("bookmarks.json"), bookId, id);
+    bookmarksDeleteForGeneration(bookId, id, m_personalStateGeneration);
+}
+
+void Reader2Bridge::bookmarksDeleteForGeneration(const QString& bookId,
+                                                 const QString& id,
+                                                 quint64 generation)
+{
+    if (!personalStateGenerationIsCurrent(generation)) return;
+    m_personalStores.listDelete(QStringLiteral("bookmarks.json"), bookId, id);
 }
 
 QJsonArray Reader2Bridge::annotationsGet(const QString& bookId)
 {
-    return BookStores::listGet(QStringLiteral("annotations.json"), bookId);
+    return m_personalStores.listGet(QStringLiteral("annotations.json"), bookId);
 }
 
 QJsonObject Reader2Bridge::annotationsSave(const QString& bookId, const QJsonObject& an)
 {
-    return BookStores::listSave(QStringLiteral("annotations.json"), bookId, an);
+    return annotationsSaveForGeneration(bookId, an, m_personalStateGeneration);
+}
+
+QJsonObject Reader2Bridge::annotationsSaveForGeneration(const QString& bookId,
+                                                        const QJsonObject& an,
+                                                        quint64 generation)
+{
+    if (!personalStateGenerationIsCurrent(generation)) return {};
+    return m_personalStores.listSave(QStringLiteral("annotations.json"), bookId, an);
 }
 
 void Reader2Bridge::annotationsDelete(const QString& bookId, const QString& id)
 {
-    BookStores::listDelete(QStringLiteral("annotations.json"), bookId, id);
+    annotationsDeleteForGeneration(bookId, id, m_personalStateGeneration);
+}
+
+void Reader2Bridge::annotationsDeleteForGeneration(const QString& bookId,
+                                                    const QString& id,
+                                                    quint64 generation)
+{
+    if (!personalStateGenerationIsCurrent(generation)) return;
+    m_personalStores.listDelete(QStringLiteral("annotations.json"), bookId, id);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
