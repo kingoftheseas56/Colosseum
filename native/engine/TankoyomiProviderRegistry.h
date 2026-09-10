@@ -33,7 +33,13 @@ public:
 
     static TankoyomiProviderRegistry fromResource(
         const QString &manifestPath = QStringLiteral(":/tankoyomi/manifest.json"));
+    // Normalization only shapes the tag (trim, lowercase, '_' to '-'); the
+    // complete regional tag is preserved. Resolving a requested tag to an
+    // installed language is a separate registry decision.
     static QString normalizeLanguage(const QString &language);
+    // Resolution order: exact installed code; explicit manifest alias; unique
+    // installed base-language match; otherwise unsupported/ambiguous (nullopt).
+    std::optional<QString> resolveLanguage(const QString &requested) const;
     bool isValid() const { return m_error.isEmpty(); }
     QString error() const { return m_error; }
     QString defaultLanguage() const { return m_defaultLanguage; }
@@ -55,6 +61,7 @@ private:
         QString code;
         QString label;
         QString countryCode;
+        QStringList aliases;
         QList<TankoyomiProviderDescriptor> providers;
     };
 

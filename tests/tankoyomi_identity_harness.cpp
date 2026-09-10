@@ -20,15 +20,22 @@ int main()
     };
     const QString qualified = TankoyomiIdentity::qualifyChapter(
         QStringLiteral("pt-BR"), QStringLiteral("provider-one"), chapter);
-    check(qualified.startsWith(QStringLiteral("tankoyomi:pt:provider-one:chapter:")),
-          "qualified id carries canonical language, provider, and chapter kind");
+    check(qualified.startsWith(QStringLiteral("tankoyomi:pt-br:provider-one:chapter:")),
+          "qualified id preserves the complete regional language tag");
 
     const auto parsed = TankoyomiIdentity::parseChapter(qualified);
     check(parsed.has_value(), "qualified chapter parses");    if (parsed) {
-        check(parsed->language == QStringLiteral("pt"), "identity stores canonical base language");
+        check(parsed->language == QStringLiteral("pt-br"), "identity stores the full normalized tag");
         check(parsed->providerId == QStringLiteral("provider-one"), "identity stores provider id");
         check(parsed->chapter == chapter, "opaque provider chapter object round-trips exactly");
     }
+
+    const QString stable = TankoyomiIdentity::qualifyChapter(
+        QStringLiteral("pt"), QStringLiteral("provider-one"), chapter);
+    const auto stableParsed = TankoyomiIdentity::parseChapter(stable);
+    check(stable.startsWith(QStringLiteral("tankoyomi:pt:provider-one:chapter:"))
+              && stableParsed.has_value() && stableParsed->language == QStringLiteral("pt"),
+          "existing installed-code ids round-trip byte-for-byte");
 
     check(!TankoyomiIdentity::parseChapter(QStringLiteral("weebcentral-raw-id")).has_value(),
           "legacy raw ids are not mistaken for Tankoyomi identities");

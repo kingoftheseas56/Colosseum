@@ -81,6 +81,7 @@
       "code": "pt",
       "label": "Português (Brasil)",
       "countryCode": "BR",
+      "aliases": ["pt-BR"],
       "providers": [
         {
           "id": "taiyo",

@@ -16,7 +16,6 @@ int main(int argc, char **argv)
         qCritical().noquote() << "usage: tankoyomi_provider_live_harness <language> <provider> <query>";
         return 64;
     }
-    const QString language = TankoyomiProviderRegistry::normalizeLanguage(args.at(1));
     const QString providerId = args.at(2);
     const QString query = args.at(3);
 
@@ -25,6 +24,14 @@ int main(int argc, char **argv)
         qCritical().noquote() << "FAIL registry" << registry.error();
         return 65;
     }
+    // Regional requests like pt-BR resolve to the canonical installed code; an
+    // unresolved tag fails the probe instead of silently crossing languages.
+    const std::optional<QString> resolved = registry.resolveLanguage(args.at(1));
+    if (!resolved.has_value()) {
+        qCritical().noquote() << "FAIL language not installed" << args.at(1);
+        return 66;
+    }
+    const QString language = resolved.value();
     const auto descriptor = registry.provider(language, providerId);
     if (!descriptor) {
         qCritical().noquote() << "FAIL provider not configured" << language << providerId;

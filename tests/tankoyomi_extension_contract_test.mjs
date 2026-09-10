@@ -66,11 +66,13 @@ if (fs.existsSync(`${root}/tankoyomi.js`)) {
   check(typeof router.providersForLanguage === 'function', 'router exposes providersForLanguage()');
   check(typeof router.resolveLanguage === 'function', 'router exposes resolveLanguage()');
   check(router.resolveLanguage(manifest, 'es') === 'es', 'router accepts installed Spanish');
-  check(router.resolveLanguage(manifest, 'pt-BR') === 'pt', 'router normalizes pt-BR to Portuguese');
-  check(router.resolveLanguage(manifest, 'fr-FR') === 'fr', 'router normalizes fr-FR to installed French');
+  check(router.normalizeLanguage('PT_br') === 'pt-br', 'router normalization preserves the complete regional tag');
+  check(router.resolveLanguage(manifest, 'pt-BR') === 'pt', 'pt-BR resolves through the manifest alias to stable pt');
+  check(router.resolveLanguage(manifest, 'fr-FR') === 'fr', 'fr-FR resolves through unique base-language matching');
   check(router.providersForLanguage(manifest, 'fr').map(x => x.id).join(',') === 'sushiscan-fr,lelscan-vf,lelmanga,mangamoins',
     'router preserves French provider priority');
-  check(router.resolveLanguage(manifest, 'de') === 'de', 'explicit unsupported language stays unsupported');
+  check(router.resolveLanguage(manifest, 'de') === null, 'explicit unsupported language resolves to nothing');
+  check(router.resolveLanguage(manifest, 'xx-XX') === null, 'unknown regional language resolves to nothing');
   check(router.providersForLanguage(manifest, 'de').length === 0, 'unsupported language never crosses to English providers');
   check(router.providersForLanguage(manifest, 'es').map(x => x.id).join(',') === 'zonatmo,niadd',
     'router preserves Spanish provider priority');

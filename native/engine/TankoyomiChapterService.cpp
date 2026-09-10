@@ -80,7 +80,9 @@ QList<TankoyomiProviderDescriptor> TankoyomiChapterService::candidateProviders(
 QString TankoyomiChapterService::providerKey(const QString &language,
                                              const QString &providerId) const
 {
-    return TankoyomiProviderRegistry::normalizeLanguage(language)
+    const std::optional<QString> resolved = m_registry.resolveLanguage(language);
+    return (resolved.has_value() ? resolved.value()
+                                 : TankoyomiProviderRegistry::normalizeLanguage(language))
         + QLatin1Char(':') + providerId.trimmed();
 }
 
@@ -107,9 +109,20 @@ void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
         emit catalogueFailed(requestId, m_registry.error());
         return;
     }
-    const QString normalized = language.trimmed().isEmpty()
-        ? m_configuration->defaultLanguage()
-        : TankoyomiProviderRegistry::normalizeLanguage(language);
+    // Resolve the requested tag to the canonical installed language before any
+    // provider key or chain is built; a regional request like pt-BR must land on
+    // the stable installed code while unsupported or ambiguous tags fail here.
+    // An empty request keeps its historical meaning: the configured default.
+    const std::optional<QString> resolved = m_registry.resolveLanguage(
+        language.trimmed().isEmpty() ? m_configuration->defaultLanguage() : language);
+    if (!resolved.has_value()) {
+        emit catalogueFailed(
+            requestId,
+            QStringLiteral("No Tankoyomi chapter provider is configured for language '%1'.")
+                .arg(language.trimmed()));
+        return;
+    }
+    const QString normalized = resolved.value();
     const QList<TankoyomiProviderDescriptor> providers = candidateProviders(normalized);
     if (providers.isEmpty()) {
         emit catalogueFailed(
