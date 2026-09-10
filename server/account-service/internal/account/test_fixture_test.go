@@ -79,7 +79,12 @@ type serviceFixture struct {
 func newServiceFixture(t *testing.T) serviceFixture {
 	t.Helper()
 
-	pool := testdb.Open(t)
+	return newServiceFixtureWithPool(t, testdb.Open(t))
+}
+
+func newServiceFixtureWithPool(t *testing.T, pool *pgxpool.Pool) serviceFixture {
+	t.Helper()
+
 	testdb.ResetPublicSchema(t, pool)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

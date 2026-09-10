@@ -15,6 +15,14 @@ import (
 
 var builtinAvatarIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
+const (
+	avatarDeleteTimeout         = 10 * time.Second
+	avatarCleanupEnqueueTimeout = 5 * time.Second
+	avatarUploadRollbackTimeout = 5 * time.Second
+)
+
+var errAvatarCleanupQueueUnavailable = errors.New("avatar cleanup intent unavailable")
+
 func (s *Service) GetProfile(ctx context.Context,
 	auth AuthenticatedSession) (Profile, error) {
 	record, err := s.loadAuthAccountByID(ctx, auth.Account.ID)
@@ -84,7 +92,9 @@ func (s *Service) SetBuiltinAvatar(ctx context.Context,
 		return AvatarUpdateResult{}, fmt.Errorf("commit built-in avatar update: %w", err)
 	}
 
-	s.deleteAvatarOrQueue(oldObjectKey)
+	if err := s.deleteAvatarOrQueue(oldObjectKey); err != nil {
+		return AvatarUpdateResult{}, err
+	}
 
 	profile, err := s.GetProfile(ctx, auth)
 	if err != nil {
@@ -95,7 +105,7 @@ func (s *Service) SetBuiltinAvatar(ctx context.Context,
 
 func (s *Service) UploadAvatar(ctx context.Context,
 	auth AuthenticatedSession,
-	data []byte) (AvatarUpdateResult, error) {
+	data []byte) (result AvatarUpdateResult, err error) {
 	if _, _, err := avatar.Validate(data); err != nil {
 		return AvatarUpdateResult{}, ErrAvatarInvalid
 	}
@@ -111,10 +121,30 @@ func (s *Service) UploadAvatar(ctx context.Context,
 	now := s.clock.Now()
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		s.deleteAvatarOrQueue(newObjectKey)
+		cleanupErr := s.deleteAvatarOrQueue(newObjectKey)
+		if cleanupErr != nil {
+			return AvatarUpdateResult{}, errors.Join(
+				fmt.Errorf("begin avatar upload commit: %w", err),
+				cleanupErr)
+		}
 		return AvatarUpdateResult{}, fmt.Errorf("begin avatar upload commit: %w", err)
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	cleanupPending := true
+	defer func() {
+		if !cleanupPending {
+			return
+		}
+		if cleanupErr := s.deleteAvatarOrQueue(newObjectKey); cleanupErr != nil {
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
+	defer func() {
+		rollbackCtx, cancel := context.WithTimeout(
+			context.Background(),
+			avatarUploadRollbackTimeout)
+		defer cancel()
+		_ = tx.Rollback(rollbackCtx)
+	}()
 
 	var oldObjectKey string
 	if err := tx.QueryRow(ctx, `
@@ -122,8 +152,7 @@ func (s *Service) UploadAvatar(ctx context.Context,
         FROM accounts
         WHERE id = $1::uuid
         FOR UPDATE
-    `, auth.Account.ID).Scan(&oldObjectKey); err != nil {
-		s.deleteAvatarOrQueue(newObjectKey)
+	`, auth.Account.ID).Scan(&oldObjectKey); err != nil {
 		return AvatarUpdateResult{}, fmt.Errorf("lock uploaded avatar profile: %w", err)
 	}
 
@@ -133,8 +162,7 @@ func (s *Service) UploadAvatar(ctx context.Context,
             uploaded_avatar_object_key = $2,
             updated_at = $3
         WHERE id = $1::uuid
-    `, auth.Account.ID, newObjectKey, now); err != nil {
-		s.deleteAvatarOrQueue(newObjectKey)
+	`, auth.Account.ID, newObjectKey, now); err != nil {
 		return AvatarUpdateResult{}, fmt.Errorf("commit uploaded avatar reference: %w", err)
 	}
 
@@ -146,16 +174,17 @@ func (s *Service) UploadAvatar(ctx context.Context,
 		auth.Device.ID,
 		now,
 		map[string]any{}); err != nil {
-		s.deleteAvatarOrQueue(newObjectKey)
 		return AvatarUpdateResult{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		s.deleteAvatarOrQueue(newObjectKey)
 		return AvatarUpdateResult{}, fmt.Errorf("commit uploaded avatar: %w", err)
 	}
+	cleanupPending = false
 
 	if oldObjectKey != "" && oldObjectKey != newObjectKey {
-		s.deleteAvatarOrQueue(oldObjectKey)
+		if err := s.deleteAvatarOrQueue(oldObjectKey); err != nil {
+			return AvatarUpdateResult{}, err
+		}
 	}
 
 	profile, err := s.GetProfile(ctx, auth)
@@ -165,20 +194,28 @@ func (s *Service) UploadAvatar(ctx context.Context,
 	return AvatarUpdateResult{Profile: profile}, nil
 }
 
-func (s *Service) deleteAvatarOrQueue(objectKey string) {
+func (s *Service) deleteAvatarOrQueue(objectKey string) error {
 	objectKey = strings.TrimSpace(objectKey)
 	if objectKey == "" {
-		return
+		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	deleteCtx, deleteCancel := context.WithTimeout(
+		context.Background(),
+		avatarDeleteTimeout)
+	deleteErr := s.avatarStore.Delete(deleteCtx, objectKey)
+	deleteCancel()
+	if deleteErr == nil {
+		return nil
+	}
 
-	if err := s.avatarStore.Delete(ctx, objectKey); err == nil {
-		return
-	} else {
-		now := s.clock.Now()
-		_, _ = s.pool.Exec(ctx, `
+	enqueueCtx, enqueueCancel := context.WithTimeout(
+		context.Background(),
+		avatarCleanupEnqueueTimeout)
+	defer enqueueCancel()
+
+	now := s.clock.Now()
+	if _, err := s.pool.Exec(enqueueCtx, `
             INSERT INTO avatar_cleanup_queue(
                 object_key,
                 enqueued_at,
@@ -194,8 +231,11 @@ func (s *Service) deleteAvatarOrQueue(objectKey string) {
                     avatar_cleanup_queue.next_attempt_at,
                     EXCLUDED.next_attempt_at
                 )
-        `, objectKey, now, avatarCleanupFailureCode(err))
+		`, objectKey, now, avatarCleanupFailureCode(deleteErr)); err != nil {
+		return fmt.Errorf("%w: %s", errAvatarCleanupQueueUnavailable,
+			avatarCleanupFailureCode(deleteErr))
 	}
+	return nil
 }
 
 func (s *Service) RunAvatarCleanupOnce(ctx context.Context, limit int) error {
