@@ -85,8 +85,9 @@ func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (
 		return CreateAccountResult{}, fmt.Errorf("reserve username: %w", err)
 	}
 
-	sourceSlot, err := s.rateLimiter.Reserve(
+	sourceSlot, err := s.rateLimiter.ReserveTx(
 		ctx,
+		tx,
 		"create_success_source",
 		[]string{sourceKey},
 		createSuccessWindow,
@@ -94,10 +95,10 @@ func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (
 	if err != nil {
 		return CreateAccountResult{}, err
 	}
-	defer sourceSlot.Release(context.Background())
 
-	globalSlot, err := s.rateLimiter.Reserve(
+	globalSlot, err := s.rateLimiter.ReserveTx(
 		ctx,
+		tx,
 		"create_success_global",
 		[]string{"global"},
 		createGlobalWindow,
@@ -105,7 +106,6 @@ func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (
 	if err != nil {
 		return CreateAccountResult{}, err
 	}
-	defer globalSlot.Release(context.Background())
 
 	var account authAccount
 	var usernameChangedAt sql.NullTime

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,9 +20,10 @@ type RateLimiter struct {
 }
 
 type RateReservation struct {
-	limiter   *RateLimiter
-	eventID   int64
-	committed bool
+	limiter       *RateLimiter
+	eventID       int64
+	committed     bool
+	transactional bool
 }
 
 func NewRateLimiter(pool *pgxpool.Pool, key []byte, clock Clock) (*RateLimiter, error) {
@@ -62,6 +64,24 @@ func (l *RateLimiter) Reserve(ctx context.Context,
 	return l.reserve(ctx, eventType, keyParts, window, limit)
 }
 
+// ReserveTx records a rate-limit event in the caller's transaction. It is
+// used by account creation, which already holds its account transaction and
+// must not acquire a second pool connection. The event is committed or
+// rolled back with tx.
+func (l *RateLimiter) ReserveTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	eventType string,
+	keyParts []string,
+	window time.Duration,
+	limit int,
+) (*RateReservation, error) {
+	if tx == nil {
+		return nil, fmt.Errorf("rate limiter transaction is required")
+	}
+	return l.reserveInTx(ctx, tx, eventType, keyParts, window, limit, true)
+}
+
 func (r *RateReservation) Commit() {
 	if r != nil {
 		r.committed = true
@@ -69,7 +89,7 @@ func (r *RateReservation) Commit() {
 }
 
 func (r *RateReservation) Release(ctx context.Context) {
-	if r == nil || r.committed || r.eventID == 0 {
+	if r == nil || r.committed || r.transactional || r.eventID == 0 {
 		return
 	}
 	_, _ = r.limiter.pool.Exec(ctx,
@@ -83,6 +103,39 @@ func (l *RateLimiter) reserve(ctx context.Context,
 	keyParts []string,
 	window time.Duration,
 	limit int) (*RateReservation, error) {
+	tx, err := l.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin rate limit transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	reservation, err := l.reserveInTx(
+		ctx,
+		tx,
+		eventType,
+		keyParts,
+		window,
+		limit,
+		false)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit rate limit event: %w", err)
+	}
+	return reservation, nil
+}
+
+func (l *RateLimiter) reserveInTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	eventType string,
+	keyParts []string,
+	window time.Duration,
+	limit int,
+	transactional bool,
+) (*RateReservation, error) {
 	if strings.TrimSpace(eventType) == "" || window <= 0 || limit <= 0 {
 		return nil, fmt.Errorf("invalid rate limit rule")
 	}
@@ -91,12 +144,6 @@ func (l *RateLimiter) reserve(ctx context.Context,
 	lockKey := int64(binary.BigEndian.Uint64(keyHash[:8]))
 	now := l.clock.Now()
 	cutoff := now.Add(-window)
-
-	tx, err := l.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin rate limit transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx,
 		"SELECT pg_advisory_xact_lock($1)",
@@ -138,11 +185,11 @@ func (l *RateLimiter) reserve(ctx context.Context,
     `, eventType, keyHash, now).Scan(&eventID); err != nil {
 		return nil, fmt.Errorf("record rate limit event: %w", err)
 	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit rate limit event: %w", err)
-	}
-	return &RateReservation{limiter: l, eventID: eventID}, nil
+	return &RateReservation{
+		limiter:       l,
+		eventID:       eventID,
+		transactional: transactional,
+	}, nil
 }
 
 func (l *RateLimiter) Prune(ctx context.Context, before time.Time) error {

@@ -15,15 +15,16 @@ import (
 const syncPullPageSize = 200
 
 type parsedSyncMutation struct {
-	MutationID    string
-	DeviceID      string
-	Category      string
-	RecordKey     string
-	SchemaVersion int
-	HLCPhysicalMS int64
-	HLCCounter    uint64
-	Operation     string
-	Payload       json.RawMessage
+	MutationID       string
+	DeviceID         string
+	Category         string
+	RecordKey        string
+	SchemaVersion    int
+	HLCPhysicalMS    int64
+	HLCCounter       uint64
+	Operation        string
+	Payload          json.RawMessage
+	CanonicalPayload []byte
 }
 
 func (s *Service) PushSync(
@@ -119,20 +120,43 @@ func (s *Service) pushOneSyncMutation(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	existing, found, err := loadJournalByMutationIDTx(
-		ctx,
-		tx,
-		auth.Account.ID,
-		parsed.MutationID)
+	if err := lockAccountSyncTx(ctx, tx, auth.Account.ID); err != nil {
+		return SyncPushResult{}, err
+	}
+
+	existingRows, err := loadMutationRowsByIDTx(
+		ctx, tx, auth.Account.ID, parsed.MutationID)
 	if err != nil {
 		return SyncPushResult{}, err
 	}
-	if found {
+	if existingRows.JournalFound || existingRows.ActivityFound || existingRows.AliasFound {
+		if !existingRows.JournalFound ||
+			existingRows.ActivityFound ||
+			existingRows.AliasFound {
+			return syncMutationConflictResult(parsed.MutationID), nil
+		}
+
+		exact, err := s.syncStoredMutationMatches(
+			ctx,
+			auth.Account.ID,
+			parsed,
+			parsed.CanonicalPayload,
+			existingRows.Journal)
+		if err != nil {
+			return SyncPushResult{}, err
+		}
+		if !exact {
+			return syncMutationConflictResult(parsed.MutationID), nil
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return SyncPushResult{}, fmt.Errorf("commit sync idempotency lookup: %w", err)
+		}
 		return SyncPushResult{
 			MutationID: parsed.MutationID,
 			Accepted:   true,
-			ServerSeq:  existing.ServerSeq,
-			Won:        existing.Won,
+			ServerSeq:  existingRows.Journal.ServerSeq,
+			Won:        existingRows.Journal.Won,
 		}, nil
 	}
 
@@ -185,16 +209,25 @@ func (s *Service) pushOneSyncMutation(
 
 	if err == pgx.ErrNoRows {
 		existing, found, loadErr := loadJournalByMutationIDTx(
-			ctx,
-			tx,
-			auth.Account.ID,
-			parsed.MutationID)
+			ctx, tx, auth.Account.ID, parsed.MutationID)
 		if loadErr != nil {
 			return SyncPushResult{}, loadErr
 		}
 		if !found {
 			return SyncPushResult{}, fmt.Errorf(
 				"sync mutation conflict completed without an idempotency row")
+		}
+		exact, matchErr := s.syncStoredMutationMatches(
+			ctx,
+			auth.Account.ID,
+			parsed,
+			parsed.CanonicalPayload,
+			existing)
+		if matchErr != nil {
+			return SyncPushResult{}, matchErr
+		}
+		if !exact {
+			return syncMutationConflictResult(parsed.MutationID), nil
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return SyncPushResult{}, fmt.Errorf("commit sync idempotency lookup: %w", err)
@@ -491,6 +524,22 @@ func (s *Service) validateSyncMutation(
 		if err := validateSyncPayload(input.Payload); err != nil {
 			return parsedSyncMutation{}, err.Error(), "The sync payload contains data that cannot be synced."
 		}
+		canonicalPayload, err := canonicalSyncJSON(input.Payload)
+		if err != nil {
+			return parsedSyncMutation{}, "payload_invalid", "The sync payload contains invalid JSON."
+		}
+		return parsedSyncMutation{
+			MutationID:       mutationID,
+			DeviceID:         deviceID,
+			Category:         input.Category,
+			RecordKey:        input.RecordKey,
+			SchemaVersion:    input.SchemaVersion,
+			HLCPhysicalMS:    physical,
+			HLCCounter:       counter,
+			Operation:        operation,
+			Payload:          input.Payload,
+			CanonicalPayload: canonicalPayload,
+		}, "", ""
 	case "delete":
 		if len(input.Payload) > 0 && string(input.Payload) != "null" {
 			return parsedSyncMutation{}, "delete_payload_not_empty", "A delete mutation cannot contain a payload."
@@ -533,33 +582,6 @@ func compareServerHLC(
 		return 1
 	}
 	return strings.Compare(leftDevice, rightDevice)
-}
-
-func loadJournalByMutationIDTx(
-	ctx context.Context,
-	tx pgx.Tx,
-	accountID,
-	mutationID string,
-) (syncStoredMutation, bool, error) {
-	row := tx.QueryRow(ctx, `
-        SELECT server_seq, won
-        FROM account_sync_journal
-        WHERE account_id = $1::uuid
-          AND mutation_id = $2::uuid
-    `, accountID, mutationID)
-
-	var serverSeq int64
-	var won bool
-	if err := row.Scan(&serverSeq, &won); err != nil {
-		if err == pgx.ErrNoRows {
-			return syncStoredMutation{}, false, nil
-		}
-		return syncStoredMutation{}, false, fmt.Errorf("load sync idempotency row: %w", err)
-	}
-	return syncStoredMutation{
-		ServerSeq: uint64(serverSeq),
-		Won:       won,
-	}, true, nil
 }
 
 func (s *Service) loadCurrent(

@@ -88,6 +88,16 @@ func TestRunMigrationsFromEmptyDatabase(t *testing.T) {
 		t.Fatal("account_activity_facts table was not created")
 	}
 
+	var aliasTableExists bool
+	if err := pool.QueryRow(ctx, `
+        SELECT to_regclass('public.account_sync_mutation_aliases') IS NOT NULL
+    `).Scan(&aliasTableExists); err != nil {
+		t.Fatalf("check account_sync_mutation_aliases: %v", err)
+	}
+	if !aliasTableExists {
+		t.Fatal("account_sync_mutation_aliases table was not created")
+	}
+
 	var activitySequenceDefault string
 	if err := pool.QueryRow(ctx, `
         SELECT pg_get_expr(adbin, adrelid)
