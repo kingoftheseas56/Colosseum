@@ -1732,6 +1732,39 @@ add_executable(manga_downloader_cancel_harness
 target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
 
+add_executable(tankoyomi_page_security_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    ../tests/tankoyomi_page_security_harness.cpp
+    # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
+    engine/MangaDownloader.h
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
+    engine/DownloadFileOps.h
+    engine/WeebCentralScraper.cpp
+    engine/WeebCentralScraper.h
+    engine/MangaScraper.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+)
+target_include_directories(tankoyomi_page_security_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_page_security_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
+
+qt_add_resources(tankoyomi_page_security_harness "tankoyomi_page_security_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
+
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp
     torrent/MangaVolumeFilePicker.cpp

@@ -213,6 +213,16 @@ void TankoyomiChapterService::tryProviderChain(
     provider->searchSeries(searchToken, title);
 }
 
+QString TankoyomiChapterService::pageAccessPolicyForChapter(const QString &qualifiedChapterId) const
+{
+    const auto parsed = TankoyomiIdentity::parseChapter(qualifiedChapterId);
+    if (!parsed) return {};
+    for (const auto &provider : m_registry.allProvidersForLanguage(parsed->language)) {
+        if (provider.id == parsed->providerId) return provider.pageAccessPolicy;
+    }
+    return {};
+}
+
 void TankoyomiChapterService::fetchPages(const QString &requestId,
                                          const QString &qualifiedChapterId)
 {

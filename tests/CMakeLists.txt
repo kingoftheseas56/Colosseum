@@ -56,6 +56,7 @@ colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 # overlay, and service candidate selection. The network runtime probe remains
 # intentionally unregistered; these harnesses cover the no-network boundary.
 colosseum_register_harness(tankoyomi_script_provider_transport_harness unit;tankoyomi;network)
+colosseum_register_harness(tankoyomi_page_security_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_network_policy_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_provider_registry_harness unit;tankoyomi)
 colosseum_register_harness(tankoyomi_configuration_store_harness unit;tankoyomi)
@@ -371,6 +372,8 @@ set_tests_properties(colosseum.qttest.local_downloads_failure PROPERTIES
 # Tankoyomi image transport: qualified chapters inherit their provider chapter
 # locator as Referer, never the legacy WeebCentral fallback.
 add_executable(tst_manga_page_transport
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiNetworkPolicy.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiNetworkPolicy.h"
     auto/manga/tst_manga_page_transport.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/MangaPageTransport.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/MangaPageTransport.h"

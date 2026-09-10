@@ -16,6 +16,9 @@ private slots:
     void explicitPageRefererWins();
     void qualifiedPageWithoutLocatorNeverUsesWeebCentralReferer();
     void legacyPageKeepsWeebCentralRefererFallback();
+    void qualifiedPagesRejectUnsafeUrls();
+    void qualifiedPagesUseManualRedirects();
+    void legacyPagesKeepAutomaticRedirects();
 };
 
 void tst_manga_page_transport::qualifiedPagesDoNotInventRefererFromChapterLocator()
@@ -77,6 +80,34 @@ void tst_manga_page_transport::legacyPageKeepsWeebCentralRefererFallback()
     const QNetworkRequest request = MangaPageTransport::requestForPage(
         page, QStringLiteral("01LEGACYCHAPTER"));
     QCOMPARE(request.rawHeader("Referer"), QByteArray("https://weebcentral.com/"));
+}
+
+void tst_manga_page_transport::qualifiedPagesRejectUnsafeUrls()
+{
+    const QString chapter = TankoyomiIdentity::qualifyChapter("en", "weebcentral", {{"id", "fixture"}});
+    for (const char *url : {"http://cdn.example/a", "https://127.0.0.1/a", "https://10.0.0.1/a",
+                           "https://localhost/a", "https://user@cdn.example/a", "file:///tmp/a",
+                           "https://[::1]/a", "https://169.254.169.254/a"}) {
+        const QVariantList rows{QVariantMap{{"url", QString::fromLatin1(url)}}};
+        QVERIFY2(MangaPageTransport::normalizeTankoyomiPages(rows, chapter).isEmpty(), url);
+    }
+}
+
+void tst_manga_page_transport::qualifiedPagesUseManualRedirects()
+{
+    const QString chapter = TankoyomiIdentity::qualifyChapter("en", "weebcentral", {{"id", "fixture"}});
+    PageInfo page; page.imageUrl = QStringLiteral("https://cdn.example/a");
+    QCOMPARE(MangaPageTransport::requestForPage(page, chapter)
+                 .attribute(QNetworkRequest::RedirectPolicyAttribute).toInt(),
+             int(QNetworkRequest::ManualRedirectPolicy));
+}
+
+void tst_manga_page_transport::legacyPagesKeepAutomaticRedirects()
+{
+    PageInfo page; page.imageUrl = QStringLiteral("https://cdn.example/a");
+    QCOMPARE(MangaPageTransport::requestForPage(page, "01LEGACYCHAPTER")
+                 .attribute(QNetworkRequest::RedirectPolicyAttribute).toInt(),
+             int(QNetworkRequest::NoLessSafeRedirectPolicy));
 }
 
 QTEST_GUILESS_MAIN(tst_manga_page_transport)

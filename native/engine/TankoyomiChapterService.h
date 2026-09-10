@@ -22,6 +22,7 @@ public:
 
     void fetchCatalogue(const QString &requestId, const QString &title, const QString &language);
     void fetchPages(const QString &requestId, const QString &qualifiedChapterId);
+    QString pageAccessPolicyForChapter(const QString &qualifiedChapterId) const;
     QVariantList languages() const { return m_configuration ? m_configuration->languages() : QVariantList{}; }
     TankoyomiConfigurationStore *configuration() const { return m_configuration; }
     QList<TankoyomiProviderDescriptor> candidateProviders(const QString &language) const;
