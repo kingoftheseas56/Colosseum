@@ -23,15 +23,61 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 	if err := run(logger); err != nil {
-		logger.Error("service stopped")
+		operation, errorClass := serviceFailureDetails(err)
+		logger.Error("service stopped",
+			"operation", operation,
+			"error_class", errorClass)
 		os.Exit(1)
 	}
+}
+
+type serviceFailure struct {
+	operation  string
+	errorClass string
+	err        error
+}
+
+type maintenanceRunner interface {
+	RunOnce(context.Context, account.MaintenanceOptions) error
+}
+
+func (e *serviceFailure) Error() string {
+	if e == nil || e.err == nil {
+		return "service failure"
+	}
+	return e.err.Error()
+}
+
+func (e *serviceFailure) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.err
+}
+
+func failService(operation, errorClass string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &serviceFailure{
+		operation:  operation,
+		errorClass: errorClass,
+		err:        err,
+	}
+}
+
+func serviceFailureDetails(err error) (operation, errorClass string) {
+	var failure *serviceFailure
+	if errors.As(err, &failure) && failure != nil {
+		return failure.operation, failure.errorClass
+	}
+	return "service", "service_failed"
 }
 
 func run(logger *slog.Logger) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return failService("configuration", "configuration_invalid", err)
 	}
 
 	rootCtx, stop := signal.NotifyContext(
@@ -40,53 +86,55 @@ func run(logger *slog.Logger) error {
 		syscall.SIGTERM)
 	defer stop()
 
+	startupCtx, startupCancel := context.WithTimeout(rootCtx, 20*time.Second)
+	defer startupCancel()
 	pool, err := database.Open(
-		rootCtx,
+		startupCtx,
 		cfg.DatabaseURL,
 		cfg.DatabaseMaxConnections)
 	if err != nil {
-		return err
+		return failService("database_connect", "database_unavailable", err)
 	}
 	defer pool.Close()
 
-	if err := database.RunMigrations(rootCtx, pool); err != nil {
-		return err
+	if err := database.CheckSchema(startupCtx, pool); err != nil {
+		return failService("schema_check", "schema_incompatible", err)
 	}
 
 	blocklist, err := account.LoadPasswordBlocklist(cfg.PasswordBlocklistPath)
 	if err != nil {
-		return err
+		return failService("password_policy", "password_blocklist_unavailable", err)
 	}
 	passwordHasher, err := account.NewPasswordHasher(account.DefaultArgon2Params())
 	if err != nil {
-		return err
+		return failService("password_policy", "password_hasher_unavailable", err)
 	}
 	recoveryVerifier, err := account.NewRecoveryKeyVerifier(cfg.RecoveryHMACKey)
 	if err != nil {
-		return err
+		return failService("crypto", "recovery_key_unavailable", err)
 	}
 	sessionCipher, err := account.NewSessionCipher(cfg.SessionWrapKey)
 	if err != nil {
-		return err
+		return failService("crypto", "session_cipher_unavailable", err)
 	}
 	syncCipher, err := account.NewSyncPayloadCipher(cfg.SyncDataKey)
 	if err != nil {
-		return err
+		return failService("crypto", "sync_cipher_unavailable", err)
 	}
 	rateLimiter, err := account.NewRateLimiter(pool, cfg.AbuseHMACKey, account.SystemClock{})
 	if err != nil {
-		return err
+		return failService("rate_limiter", "rate_limiter_unavailable", err)
 	}
 
 	var avatarStore avatar.Store = avatar.DisabledStore{}
 	if strings.TrimSpace(cfg.AvatarBucketName) != "" {
 		tigrisStore, err := avatar.NewTigrisStore(
-			rootCtx,
+			startupCtx,
 			cfg.AvatarEndpoint,
 			cfg.AvatarRegion,
 			cfg.AvatarBucketName)
 		if err != nil {
-			return err
+			return failService("avatar_storage", "avatar_storage_unavailable", err)
 		}
 		avatarStore = tigrisStore
 	}
@@ -105,18 +153,31 @@ func run(logger *slog.Logger) error {
 		RegistrationGlobalLimit: cfg.RegistrationGlobalLimit10m,
 	})
 	if err != nil {
-		return err
+		return failService("account_service", "account_service_unavailable", err)
+	}
+	maintenance, err := account.NewMaintenance(account.MaintenanceDependencies{
+		Pool:        pool,
+		AvatarStore: avatarStore,
+		Clock:       account.SystemClock{},
+	})
+	if err != nil {
+		return failService("maintenance", "maintenance_unavailable", err)
 	}
 
 	cleanupDone := make(chan struct{})
 	go func() {
 		defer close(cleanupDone)
-		runAvatarCleanup(rootCtx, logger, accounts)
+		runMaintenance(rootCtx, logger, maintenance)
 	}()
 
 	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(pool, accounts, cfg.ReadinessTimeout, logger),
+		Addr: cfg.HTTPAddr,
+		Handler: httpserver.New(
+			pool,
+			accounts,
+			cfg.ReadinessTimeout,
+			logger,
+			database.PoolSchemaChecker{Pool: pool}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      35 * time.Second,
@@ -135,7 +196,7 @@ func run(logger *slog.Logger) error {
 	case <-rootCtx.Done():
 	case err := <-listenErr:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
+			return failService("http_server", "listener_failed", err)
 		}
 		return nil
 	}
@@ -144,13 +205,13 @@ func run(logger *slog.Logger) error {
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		return err
+		return failService("http_shutdown", "shutdown_failed", err)
 	}
 
 	select {
 	case err := <-listenErr:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
+			return failService("http_server", "listener_failed", err)
 		}
 	default:
 	}
@@ -158,55 +219,40 @@ func run(logger *slog.Logger) error {
 	select {
 	case <-cleanupDone:
 	case <-shutdownCtx.Done():
-		return shutdownCtx.Err()
+		return failService("maintenance_shutdown", "shutdown_timeout", shutdownCtx.Err())
 	}
 
 	return nil
 }
 
-func runAvatarCleanup(
+func runMaintenance(
 	ctx context.Context,
 	logger *slog.Logger,
-	accounts *account.Service,
+	maintenance maintenanceRunner,
 ) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
-	lastRatePrune := time.Time{}
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case now := <-ticker.C:
-			cleanupCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-			if err := accounts.RunAvatarCleanupOnce(cleanupCtx, 25); err != nil {
-				logger.Warn("avatar cleanup pass failed")
-			}
-			cancel()
-
-			if lastRatePrune.IsZero() || now.Sub(lastRatePrune) >= time.Hour {
-				pruneCtx, pruneCancel := context.WithTimeout(ctx, 20*time.Second)
-				rateErr := accounts.PruneAuthRateEvents(
-					pruneCtx,
-					now.UTC().Add(-48*time.Hour))
-				securityErr := accounts.RunSecurityMaintenanceOnce(pruneCtx)
-				syncVersionErr := accounts.PruneSyncVersions(
-					pruneCtx,
-					now.UTC().Add(-30*24*time.Hour))
-				if rateErr != nil {
-					logger.Warn("auth rate-event prune failed")
-				}
-				if securityErr != nil {
-					logger.Warn("account security maintenance failed")
-				}
-				if syncVersionErr != nil {
-					logger.Warn("sync-version prune failed")
-				}
-				if rateErr == nil && securityErr == nil && syncVersionErr == nil {
-					lastRatePrune = now
-				}
-				pruneCancel()
-			}
+		case <-ticker.C:
+			runMaintenancePass(ctx, logger, maintenance)
 		}
+	}
+}
+
+func runMaintenancePass(
+	ctx context.Context,
+	logger *slog.Logger,
+	maintenance maintenanceRunner,
+) {
+	passCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	if err := maintenance.RunOnce(passCtx, account.MaintenanceOptions{}); err != nil {
+		logger.Warn("maintenance pass failed",
+			"operation", "maintenance",
+			"error_class", "maintenance_failed")
 	}
 }

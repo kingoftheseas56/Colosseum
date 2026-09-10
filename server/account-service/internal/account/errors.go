@@ -23,6 +23,11 @@ var (
 	ErrAvatarInvalid         = errors.New("avatar invalid")
 	ErrAvatarStorageDisabled = errors.New("avatar storage disabled")
 	ErrTrustedRecoveryNeeded = errors.New("trusted recovery approval required")
+	ErrExportCursorInvalid   = errors.New("export cursor invalid")
+	ErrExportSnapshotExpired = errors.New("export snapshot expired")
+	ErrExportIncomplete      = errors.New("account export incomplete")
+	ErrExportTooLarge        = errors.New("account export too large")
+	ErrDeletionRetryInvalid  = errors.New("account deletion retry invalid")
 )
 
 type RateLimitError struct {

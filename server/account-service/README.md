@@ -19,7 +19,12 @@ This repository is the external identity and cloud-sync service for Colosseum.
 - PostgreSQL-backed abuse throttling and security-event records;
 - deterministic service-native unit/integration tests against disposable PostgreSQL.
 
-The service still does **not** implement desktop production domain adapters, Recovery-area UI, export, or account deletion. Ordinary schema-v1 records are accepted for the six previously frozen safe categories plus Bundle 7B `full_history`; blocked/secret/local-only categories still fail closed.
+The service still does **not** implement desktop production domain adapters or
+Recovery-area UI. It now exposes bounded account export and account-deletion
+recovery endpoints; native adapters and UI remain separate integration work.
+Ordinary schema-v1 records are accepted for the six previously frozen safe
+categories plus Bundle 7B `full_history`; blocked/secret/local-only categories
+still fail closed.
 
 
 ## Generic sync contract
@@ -53,7 +58,9 @@ Future-clock mutations are rejected per mutation with `clock_skew`, while the re
 
 The server repeats the ordinary-payload exclusion firewall independently of the desktop. Search history, paths, media/blob bytes, session/window/PiP/cast/room state, credentials/secrets, and raw acquisition/transport endpoints are denied.
 
-Bundle 7B intentionally does not compact the journal because cursor-safe compaction policy is not yet approved. It also does not implement account deletion; those are separate lifecycle concerns.
+Bundle 7B intentionally does not compact the journal because cursor-safe
+compaction policy is not yet approved. Account export and deletion lifecycle
+data use their own bounded snapshot and receipt retention path.
 
 ### Bundle 7B full-history activation
 
@@ -131,16 +138,21 @@ Uploaded avatars are validated as bounded JPEG/PNG images, stored under account-
 
 ## Migration policy
 
-Production schema changes are forward-only and follow expand/contract. Do not add destructive automatic down-migrations to the service runtime.
-
-Cumulative schema through Bundle 6 adds:
+Production schema changes are forward-only and follow expand/contract. The
+long-running service never runs DDL or automatic down-migrations. Run the
+standalone migration command with a separately managed direct database URL:
 
 ```text
-internal/database/migrations/0002_identity_security.sql
-internal/database/migrations/0003_sync_core.sql
+MIGRATION_DATABASE_URL=<direct privileged URL> /colosseum-account-migrate
 ```
 
-The Bundle 1 migration runner remains advisory-locked and idempotent.
+The command is single-connection, advisory-locked, transactional, and
+idempotent. `schema_migrations` stores canonical SHA-256 checksums. Existing
+name-only rows are a documented legacy baseline: the command validates the
+physical schema contract before recording current hashes, but those hashes
+cannot prove the SQL text used by an older deployment. Runtime startup and
+`/readyz` reject missing, future, drifted, baseline-pending, or physically
+incompatible schema state.
 
 ## Local deterministic verification after adoption
 
@@ -171,6 +183,32 @@ The destructive integration-test helper refuses a database whose name does not e
 Without `TEST_DATABASE_URL` the database-backed suites skip and the run still reports `ok`, so a green result proves nothing unless that variable is set.
 
 The same gate runs in CI from `.github/workflows/account-service-ci.yml` at the repository root, filtered to `server/account-service/**`. GitHub Actions reads workflows only from the repository root, so this directory deliberately holds no `.github/` of its own.
+
+## Operations
+
+The service image contains three entrypoints:
+
+```text
+/colosseum-account-service
+/colosseum-account-migrate
+/colosseum-account-maintenance --timeout=20s --avatar-limit=25 --batch-size=100
+```
+
+The maintenance command is independently callable by an external provider job
+when the service has scaled to zero. It uses the runtime database role and
+optional avatar storage configuration, requires no authentication or payload
+encryption keys, and returns non-zero when a bounded pass fails. It covers due
+avatar cleanup, rate-event pruning, security challenge/retry cleanup, sync
+version retention, and bounded export-snapshot item/parent plus deletion-receipt
+pruning after the read-only schema compatibility gate. Immutable Activity
+retention/compaction remains a later native/protocol slice.
+
+`/healthz` checks process health. `/readyz` checks database connectivity and
+the exact supported schema. Monitor both with a 20-second client timeout and
+retain the request ID plus provider job/image/schema receipts for diagnosis.
+Structured HTTP logs contain fixed operation/error labels and latency; they do
+not contain tokens, passwords, account payloads, DSNs, raw database errors, or
+object keys.
 
 ## Runtime configuration
 
@@ -203,12 +241,21 @@ SYNC_MAX_FUTURE_SKEW_SECONDS=600
 AWS_REGION=auto
 ```
 
+Operator-only:
+
+```text
+MIGRATION_DATABASE_URL=<direct privileged database URL>
+MAINTENANCE_DATABASE_URL=<optional maintenance database URL>
+MAINTENANCE_DATABASE_MAX_CONNECTIONS=2
+```
+
 The security keys are independent deployment secrets. `SESSION_WRAP_KEY` and `SYNC_DATA_KEY` must each decode to exactly 32 bytes; the HMAC keys must decode to at least 32 bytes. The 600-second future-skew default is an operational reference default, not a product promise; operators may override it with a positive value.
 
-## Deployment target
+## Deployment evidence
 
-Operational resource names are deliberately not hard-coded. The active deployment target
-is Cloud Run (compute) plus Neon (PostgreSQL) — see `DEPLOYMENT.md` for the full runbook
-and the reasoning. `fly.toml` remains in the tree as a fallback reference only; it is not
-the active target. Create/attach whatever resources the chosen stack needs outside source
-control, then supply their real environment/secrets during deployment.
+The desktop source fallback is
+`https://colosseum-account-service.onrender.com`. The repository has no proven
+provider control-plane configuration, deployed image SHA, database/backup
+receipt, or external scheduler receipt. See `DEPLOYMENT.md` for the checked-in
+release sequence and provider-neutral operations contract; do not describe the
+fallback URL as a deployment receipt.

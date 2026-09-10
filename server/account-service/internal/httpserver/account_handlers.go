@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,6 +74,17 @@ type builtinAvatarRequest struct {
 
 type protectionRequest struct {
 	Enabled bool `json:"enabled"`
+}
+
+type accountDeletionRequest struct {
+	RequestID       string `json:"request_id"`
+	RetryCapability string `json:"retry_capability"`
+	CurrentPassword string `json:"current_password"`
+}
+
+type accountDeletionRetryRequest struct {
+	RequestID       string `json:"request_id"`
+	RetryCapability string `json:"retry_capability"`
 }
 
 type approvalDecisionRequest struct {
@@ -365,6 +377,70 @@ func (h *Handler) getProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, encodeProfile(profile))
 }
 
+func (h *Handler) exportAccount(w http.ResponseWriter, r *http.Request) {
+	limit := 0
+	if raw, found := r.URL.Query()["limit"]; found {
+		if len(raw) != 1 {
+			WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The export request is invalid.")
+			return
+		}
+		parsed, err := strconv.Atoi(strings.TrimSpace(raw[0]))
+		if err != nil || parsed < 0 {
+			WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The export request is invalid.")
+			return
+		}
+		limit = parsed
+	}
+	page, err := h.accounts.ExportAccount(r.Context(), authenticated(r), account.ExportAccountInput{
+		Cursor: r.URL.Query().Get("cursor"),
+		Limit:  limit,
+	})
+	if err != nil {
+		h.writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (h *Handler) deleteAccount(w http.ResponseWriter, r *http.Request) {
+	var request accountDeletionRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
+		return
+	}
+	result, err := h.accounts.DeleteAccount(r.Context(), authenticated(r), account.DeleteAccountInput{
+		RequestID:       request.RequestID,
+		RetryCapability: request.RetryCapability,
+		CurrentPassword: request.CurrentPassword,
+	})
+	if err != nil {
+		h.writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// retryDeleteAccount is intentionally outside the authenticated mux. It is
+// the response-loss recovery seam after the original account sessions have
+// been cascaded away; the service accepts only the opaque request id and
+// client-held capability and returns generic completion metadata.
+func (h *Handler) retryDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	var request accountDeletionRetryRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
+		return
+	}
+	result, err := h.accounts.RetryDeleteAccount(r.Context(), account.DeleteAccountRetryInput{
+		RequestID:       request.RequestID,
+		RetryCapability: request.RetryCapability,
+	})
+	if err != nil {
+		h.writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) renameUsername(w http.ResponseWriter, r *http.Request) {
 	var request usernameRenameRequest
 	if err := decodeJSON(w, r, &request); err != nil {
@@ -552,7 +628,12 @@ func isExpectedAccountError(err error) bool {
 		errors.Is(err, account.ErrDeviceNotFound) ||
 		errors.Is(err, account.ErrAvatarInvalid) ||
 		errors.Is(err, account.ErrAvatarStorageDisabled) ||
-		errors.Is(err, account.ErrTrustedRecoveryNeeded)
+		errors.Is(err, account.ErrTrustedRecoveryNeeded) ||
+		errors.Is(err, account.ErrExportCursorInvalid) ||
+		errors.Is(err, account.ErrExportSnapshotExpired) ||
+		errors.Is(err, account.ErrExportIncomplete) ||
+		errors.Is(err, account.ErrExportTooLarge) ||
+		errors.Is(err, account.ErrDeletionRetryInvalid)
 }
 
 func encodeSession(session account.IssuedSession) sessionResponse {

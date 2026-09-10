@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,6 +25,10 @@ func WriteAPIError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// This is a stable, low-cardinality diagnostic label. It contains no
+	// request payload, token, database detail, or other operator-controlled
+	// secret, and lets the outer request logger retain useful failure classes.
+	w.Header().Set("X-Colosseum-Error-Class", code)
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(APIError{
 		Error: APIErrorDetail{
@@ -44,6 +49,26 @@ func writeServiceError(w http.ResponseWriter, err error) {
 			http.StatusTooManyRequests,
 			"rate_limited",
 			"Too many attempts. Try again later.")
+		return
+	}
+	if errors.Is(err, account.ErrExportCursorInvalid) {
+		WriteAPIError(w, http.StatusBadRequest, "export_cursor_invalid", "The export cursor is invalid.")
+		return
+	}
+	if errors.Is(err, account.ErrExportSnapshotExpired) {
+		WriteAPIError(w, http.StatusGone, "export_expired", "The export snapshot expired.")
+		return
+	}
+	if errors.Is(err, account.ErrExportIncomplete) {
+		WriteAPIError(w, http.StatusServiceUnavailable, "export_unavailable", "The account export could not be completed.")
+		return
+	}
+	if errors.Is(err, account.ErrExportTooLarge) {
+		WriteAPIError(w, http.StatusRequestEntityTooLarge, "export_too_large", "The account export is too large to prepare.")
+		return
+	}
+	if errors.Is(err, account.ErrDeletionRetryInvalid) {
+		WriteAPIError(w, http.StatusNotFound, "deletion_retry_invalid", "The deletion retry could not be completed.")
 		return
 	}
 

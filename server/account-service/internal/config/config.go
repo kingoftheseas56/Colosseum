@@ -13,6 +13,7 @@ import (
 const (
 	defaultHTTPAddr               = ":8080"
 	defaultDatabaseMaxConnections = 8
+	defaultMaintenanceConnections = 2
 	defaultReadinessTimeout       = 2 * time.Second
 	defaultShutdownTimeout        = 10 * time.Second
 	defaultRegistrationGlobal10m  = 500
@@ -36,6 +37,25 @@ type Config struct {
 	AvatarBucketName           string
 	AvatarEndpoint             string
 	AvatarRegion               string
+}
+
+// MigrationConfig deliberately contains no authentication or avatar
+// settings. A migration job receives only the separately managed direct
+// database URL and therefore cannot accidentally become a second service
+// instance with runtime secrets.
+type MigrationConfig struct {
+	DatabaseURL string
+}
+
+// MaintenanceConfig contains only the database and optional object-storage
+// settings needed by the bounded maintenance command. It does not load
+// session, recovery, abuse, or sync encryption keys.
+type MaintenanceConfig struct {
+	DatabaseURL            string
+	DatabaseMaxConnections int32
+	AvatarBucketName       string
+	AvatarEndpoint         string
+	AvatarRegion           string
 }
 
 func Load() (Config, error) {
@@ -127,6 +147,52 @@ func Load() (Config, error) {
 		AvatarBucketName:           avatarBucketName,
 		AvatarEndpoint:             avatarEndpoint,
 		AvatarRegion:               avatarRegion,
+	}, nil
+}
+
+func LoadMigration() (MigrationConfig, error) {
+	databaseURL := strings.TrimSpace(os.Getenv("MIGRATION_DATABASE_URL"))
+	if databaseURL == "" {
+		return MigrationConfig{}, errors.New("MIGRATION_DATABASE_URL is required")
+	}
+	if runtimeURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); runtimeURL != "" && runtimeURL == databaseURL {
+		return MigrationConfig{}, errors.New("MIGRATION_DATABASE_URL must be separate from DATABASE_URL")
+	}
+	return MigrationConfig{DatabaseURL: databaseURL}, nil
+}
+
+func LoadMaintenance() (MaintenanceConfig, error) {
+	databaseURL := strings.TrimSpace(os.Getenv("MAINTENANCE_DATABASE_URL"))
+	if databaseURL == "" {
+		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	}
+	if databaseURL == "" {
+		return MaintenanceConfig{}, errors.New("DATABASE_URL or MAINTENANCE_DATABASE_URL is required")
+	}
+
+	maxConnections, err := positiveInt32Env(
+		"MAINTENANCE_DATABASE_MAX_CONNECTIONS",
+		defaultMaintenanceConnections)
+	if err != nil {
+		return MaintenanceConfig{}, err
+	}
+
+	bucket := strings.TrimSpace(os.Getenv("BUCKET_NAME"))
+	endpoint := strings.TrimSpace(os.Getenv("AWS_ENDPOINT_URL_S3"))
+	region := strings.TrimSpace(os.Getenv("AWS_REGION"))
+	if region == "" {
+		region = "auto"
+	}
+	if bucket != "" && endpoint == "" {
+		return MaintenanceConfig{}, errors.New("AWS_ENDPOINT_URL_S3 is required when BUCKET_NAME is set")
+	}
+
+	return MaintenanceConfig{
+		DatabaseURL:            databaseURL,
+		DatabaseMaxConnections: maxConnections,
+		AvatarBucketName:       bucket,
+		AvatarEndpoint:         endpoint,
+		AvatarRegion:           region,
 	}, nil
 }
 

@@ -84,3 +84,48 @@ func TestLoadUsesApprovedDefaults(t *testing.T) {
 		t.Fatalf("AvatarRegion = %q, want auto", cfg.AvatarRegion)
 	}
 }
+
+func TestLoadMigrationUsesOnlyDirectDatabaseURL(t *testing.T) {
+	t.Setenv("MIGRATION_DATABASE_URL", "postgres://migration@db.example/direct")
+	t.Setenv("DATABASE_URL", "postgres://runtime@db.example/pool")
+	t.Setenv("RECOVERY_HMAC_KEY", "")
+	t.Setenv("ABUSE_HMAC_KEY", "")
+	t.Setenv("SESSION_WRAP_KEY", "")
+	t.Setenv("SYNC_DATA_KEY", "")
+
+	cfg, err := LoadMigration()
+	if err != nil {
+		t.Fatalf("LoadMigration() error = %v", err)
+	}
+	if cfg.DatabaseURL != "postgres://migration@db.example/direct" {
+		t.Fatalf("DatabaseURL = %q, want direct migration URL", cfg.DatabaseURL)
+	}
+}
+
+func TestLoadMigrationRejectsRuntimeURLReuse(t *testing.T) {
+	t.Setenv("MIGRATION_DATABASE_URL", "postgres://runtime@db.example/pool")
+	t.Setenv("DATABASE_URL", "postgres://runtime@db.example/pool")
+	if _, err := LoadMigration(); err == nil {
+		t.Fatal("LoadMigration() accepted the runtime URL as the migration URL")
+	}
+}
+
+func TestLoadMaintenanceDoesNotRequireAuthenticationSecrets(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://runtime@db.example/pool")
+	t.Setenv("RECOVERY_HMAC_KEY", "")
+	t.Setenv("ABUSE_HMAC_KEY", "")
+	t.Setenv("SESSION_WRAP_KEY", "")
+	t.Setenv("SYNC_DATA_KEY", "")
+	t.Setenv("MAINTENANCE_DATABASE_MAX_CONNECTIONS", "")
+
+	cfg, err := LoadMaintenance()
+	if err != nil {
+		t.Fatalf("LoadMaintenance() error = %v", err)
+	}
+	if cfg.DatabaseURL != "postgres://runtime@db.example/pool" {
+		t.Fatalf("DatabaseURL = %q, want runtime URL", cfg.DatabaseURL)
+	}
+	if cfg.DatabaseMaxConnections != 2 {
+		t.Fatalf("DatabaseMaxConnections = %d, want 2", cfg.DatabaseMaxConnections)
+	}
+}

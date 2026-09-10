@@ -69,6 +69,26 @@ func (s *Service) SetBuiltinAvatar(ctx context.Context,
 	}
 
 	if _, err := tx.Exec(ctx, `
+        INSERT INTO avatar_cleanup_queue(
+            object_key,
+            enqueued_at,
+            attempts,
+            last_error,
+            next_attempt_at
+        )
+        SELECT $1, $3, 0, 'pending', $3
+        WHERE $1 <> ''
+          AND EXISTS(
+              SELECT 1 FROM accounts
+              WHERE id = $2::uuid
+                AND uploaded_avatar_object_key = $1
+          )
+        ON CONFLICT(object_key) DO NOTHING
+    `, oldObjectKey, auth.Account.ID, now); err != nil {
+		return AvatarUpdateResult{}, fmt.Errorf("queue old built-in avatar cleanup: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
         UPDATE accounts
         SET builtin_avatar_id = $2,
             uploaded_avatar_object_key = NULL,
@@ -157,6 +177,22 @@ func (s *Service) UploadAvatar(ctx context.Context,
 	}
 
 	if _, err := tx.Exec(ctx, `
+        INSERT INTO avatar_cleanup_queue(
+            object_key,
+            enqueued_at,
+            attempts,
+            last_error,
+            next_attempt_at
+        )
+        SELECT $1, $3, 0, 'pending', $3
+        WHERE $1 <> ''
+          AND $1 <> $2
+        ON CONFLICT(object_key) DO NOTHING
+    `, oldObjectKey, newObjectKey, now); err != nil {
+		return AvatarUpdateResult{}, fmt.Errorf("queue old uploaded avatar cleanup: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
         UPDATE accounts
         SET builtin_avatar_id = NULL,
             uploaded_avatar_object_key = $2,
@@ -200,12 +236,50 @@ func (s *Service) deleteAvatarOrQueue(objectKey string) error {
 		return nil
 	}
 
+	referenceCtx, referenceCancel := context.WithTimeout(
+		context.Background(),
+		avatarCleanupEnqueueTimeout)
+	referenced, referenceErr := s.avatarObjectReferenced(referenceCtx, objectKey)
+	referenceCancel()
+	if referenceErr != nil {
+		// A failed reference check is fail-closed: do not delete an object when
+		// the database cannot prove that no account still references it. The
+		// durable queue is the safe fallback.
+		return s.enqueueAvatarCleanup(objectKey, avatarCleanupFailureCode(referenceErr))
+	}
+	if referenced {
+		return nil
+	}
+
 	deleteCtx, deleteCancel := context.WithTimeout(
 		context.Background(),
 		avatarDeleteTimeout)
 	deleteErr := s.avatarStore.Delete(deleteCtx, objectKey)
 	deleteCancel()
 	if deleteErr == nil {
+		return nil
+	}
+	return s.enqueueAvatarCleanup(objectKey, avatarCleanupFailureCode(deleteErr))
+}
+
+func (s *Service) avatarObjectReferenced(ctx context.Context, objectKey string) (bool, error) {
+	var referenced bool
+	err := s.pool.QueryRow(ctx, `
+        SELECT EXISTS(
+            SELECT 1
+            FROM accounts
+            WHERE uploaded_avatar_object_key = $1
+        )
+    `, objectKey).Scan(&referenced)
+	if err != nil {
+		return false, fmt.Errorf("check avatar references: %w", err)
+	}
+	return referenced, nil
+}
+
+func (s *Service) enqueueAvatarCleanup(objectKey, failureCode string) error {
+	objectKey = strings.TrimSpace(objectKey)
+	if objectKey == "" {
 		return nil
 	}
 
@@ -231,9 +305,44 @@ func (s *Service) deleteAvatarOrQueue(objectKey string) error {
                     avatar_cleanup_queue.next_attempt_at,
                     EXCLUDED.next_attempt_at
                 )
-		`, objectKey, now, avatarCleanupFailureCode(deleteErr)); err != nil {
+		`, objectKey, now, failureCode); err != nil {
 		return fmt.Errorf("%w: %s", errAvatarCleanupQueueUnavailable,
-			avatarCleanupFailureCode(deleteErr))
+			failureCode)
+	}
+	return nil
+}
+
+func enqueueAvatarCleanupTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	objectKey string,
+	now time.Time,
+	lastError string,
+) error {
+	objectKey = strings.TrimSpace(objectKey)
+	if objectKey == "" {
+		return nil
+	}
+	if strings.TrimSpace(lastError) == "" {
+		lastError = "pending"
+	}
+	if _, err := tx.Exec(ctx, `
+        INSERT INTO avatar_cleanup_queue(
+            object_key,
+            enqueued_at,
+            attempts,
+            last_error,
+            next_attempt_at
+        )
+        VALUES($1, $2, 0, $3, $2)
+        ON CONFLICT(object_key)
+        DO UPDATE SET
+            next_attempt_at = LEAST(
+                avatar_cleanup_queue.next_attempt_at,
+                EXCLUDED.next_attempt_at
+            )
+    `, objectKey, now.UTC(), lastError); err != nil {
+		return fmt.Errorf("enqueue avatar cleanup intent: %w", err)
 	}
 	return nil
 }
@@ -275,7 +384,19 @@ func (s *Service) RunAvatarCleanupOnce(ctx context.Context, limit int) error {
 	rows.Close()
 
 	for _, item := range items {
-		err := s.avatarStore.Delete(ctx, item.key)
+		referenced, err := s.avatarObjectReferenced(ctx, item.key)
+		if err != nil {
+			return fmt.Errorf("check avatar cleanup reference: %w", err)
+		}
+		if referenced {
+			if _, err := s.pool.Exec(ctx,
+				"DELETE FROM avatar_cleanup_queue WHERE id = $1",
+				item.id); err != nil {
+				return fmt.Errorf("discard referenced avatar cleanup: %w", err)
+			}
+			continue
+		}
+		err = s.avatarStore.Delete(ctx, item.key)
 		if err == nil {
 			if _, err := s.pool.Exec(ctx,
 				"DELETE FROM avatar_cleanup_queue WHERE id = $1",
