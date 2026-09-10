@@ -82,17 +82,21 @@ catalogues, Vault, playback, reading, responsiveness, privacy, security, and rel
 
 Full release notes: [docs/release-notes/v1.1.5.md](docs/release-notes/v1.1.5.md).
 
-## Coming in 1.1.6
+## On `master` after 1.1.5
 
-1.1.6 is in development. These features are **not part of the current 1.1.5 release**:
+The repository has moved beyond the current 1.1.5 installer. Development already on `master` includes:
 
-- **Linux beta**
-- **Multi-language manga reading**
-- **Real account backend**
-- **Keyboard-only operation across the app**
-- **Colosseum Server**
+- **Linux beta qualification** and portable runtime/package work.
+- **Multilingual Tankoban Chapter Mode** through Tankoyomi, including language-aware providers and configurable provider order.
+- **Keyboard-only operation across the app**, including PlayStation-style spatial focus and directional scrolling through long surfaces.
+- **Account, recovery, sync, and lifecycle hardening** across the desktop client and account-service code. This does not mean a public production account service ships with 1.1.5.
 
-## What's new in 1.1.3
+Colosseum Server development exists separately, but it is not presented here as a 1.1.6 release commitment.
+
+<details>
+<summary><strong>Previous release: 1.1.3</strong></summary>
+
+### What's new in 1.1.3
 
 - **Release builds open again.** `Colosseum.Activity` is registered unconditionally, fixing the
   release-only startup failure that caused 1.1.2 to exit before a window appeared.
@@ -108,6 +112,8 @@ Full release notes: [docs/release-notes/v1.1.5.md](docs/release-notes/v1.1.5.md)
   ScrollGlide landed across grid/reader surfaces, and the Living Guide was removed.
 
 Full release notes: [docs/release-notes/v1.1.3.md](docs/release-notes/v1.1.3.md).
+
+</details>
 
 ## Highlights
 
@@ -195,8 +201,8 @@ moving the underlying download data.
 
 ## Watch Party
 
-Colosseum 1.1.3 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
-relay, so creating or joining a room no longer requires endpoint configuration. A Join action lives
+Watch Party first shipped in 1.1.3 and remains part of Player 1 in the current desktop line. It
+defaults to the hosted protocol-v3 relay, so creating or joining a room no longer requires endpoint configuration. A Join action lives
 on the taskbar; room controls live inside Player 1. The client supports guest and signed-in identity,
 participant rosters, chat and reactions, host/shared control, reconnect and host grace, kick/rejoin,
 room end, source readiness, sync status, catch-up, and room timeline commands.
@@ -242,17 +248,16 @@ direct manifest installation and community Browse use the same gate so the two p
 
 ## Accounts and sync
 
-**Not wired up yet — you cannot sign in.** There is no account service running, so account
-creation, sign-in, and cloud sync do not work in any released build, and every attempt reports
-that the account service configuration is invalid. Everything Colosseum does with your library
-works fully offline and is unaffected; accounts are an unfinished addition, not a dependency.
+**Public accounts are not part of the published 1.1.5 build.** The stable installer has no
+configured production account-service endpoint, so account creation, sign-in, and cloud sync are
+unavailable there. Everything Colosseum does with your local library works offline and is unaffected.
 
-What exists today is the desktop half: onboarding, remembered-session restore, an account
-medallion/flyout, and a six-page Account Centre — **Profile**, **Your Colosseum**, **Security**,
-**Devices**, **Recovery**, and **Data & privacy** — plus the server that answers them, which
-lives in this repository at [`server/account-service`](server/account-service) but is not
-deployed anywhere. See [its deployment runbook](server/account-service/DEPLOYMENT.md) for what
-closing that gap requires.
+Current `master` contains the desktop account surfaces, service implementation, and ongoing
+lifecycle/sync hardening: onboarding, remembered-session restore, an account medallion/flyout, and
+a six-page Account Centre — **Profile**, **Your Colosseum**, **Security**, **Devices**, **Recovery**,
+and **Data & privacy**. The service lives at [`server/account-service`](server/account-service),
+but this README does not claim a public production deployment. See
+[its deployment runbook](server/account-service/DEPLOYMENT.md) for the service contract.
 
 The rest of this section describes what those surfaces do once a service is running.
 
@@ -270,8 +275,8 @@ data export, and account-deletion flow do not yet have authoritative service wir
 
 The account service endpoint is configurable rather than hard-coded into the public desktop source:
 a build sets it with `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>`, and the
-`COLOSSEUM_ACCOUNT_SERVICE_URL` environment variable overrides it at runtime. Released builds set
-neither, which is why sign-in is unavailable. To exercise the surfaces locally, run
+`COLOSSEUM_ACCOUNT_SERVICE_URL` environment variable overrides it at runtime. The published 1.1.5
+build sets neither, which is why public sign-in is unavailable there. To exercise the surfaces locally, run
 [`tests/mock-account-service`](tests/mock-account-service) and point the environment variable at
 it.
 
@@ -318,7 +323,7 @@ Colosseum's installed updater checks the stable GitHub Releases channel and show
 show a full-bleed release chronicle, download into a resumable cache, verify the signed manifest and
 installer hash, and then launch the side-by-side installer. The installed release also ships with a
 bundled, signature-verified chronicle so the page has trustworthy history before any network check
-completes. In 1.1.3, updater result flags also survive the relaunch path instead of being mistaken for
+completes. Since 1.1.3, updater result flags also survive the relaunch path instead of being mistaken for
 a QML file override.
 
 1.1.1 closes the installer handoff that was incomplete in 1.1.0: once the verified installer has
@@ -338,8 +343,8 @@ remains the fallback.
 ### Build from source
 
 The current published 1.1.5 installer is Windows-only. Source-build documentation is maintained
-separately for **Windows**, **macOS**, and **Linux**; the Linux binary release track is planned to
-begin with the 1.1.6 beta.
+separately for **Windows**, **macOS**, and **Linux**. Linux is currently a beta/source-build track;
+see the Linux build guide for its current qualification and packaging boundary.
 
 Windows source builds use Visual Studio 2022 C++ Build Tools, CMake/Ninja, Qt 6.11.1 MSVC 2022 64-bit, MpvQt/libmpv, and libtorrent/Boost/OpenSSL. Contributors should pass their own dependency locations explicitly when configuring the build.
 
@@ -373,18 +378,18 @@ repair into `master`. This is development infrastructure, not part of the instal
 ## Known boundaries
 
 - Home-wide cross-world search is not implemented (per-world search is).
-- Tankoban remains volume-only. The old chapter browser/downloader is unrouted, and first launch
-  removes the obsolete chapter tree plus `manga` progress. Downloaded Tankoban volumes are kept.
+- The published 1.1.5 Windows release keeps Tankoban's manga flow volume-first. Current `master`
+  also contains multilingual Chapter Mode through Tankoyomi, so source builds from `master` differ
+  from the stable installer on this surface.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a
-  few seconds before recovering. This is a known issue in 1.1.3; no released fix has been verified yet.
+  few seconds before recovering; this remains a documented boundary until a released fix is verified.
 - Tankoban and Biblio can consume compatible extension catalogues for discovery, but their native
   acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
   torrent/direct-stream playback from compatible add-ons.
-- Accounts and cloud sync do not work: no account service is deployed, so sign-in fails in every
-  released build. The desktop surfaces and the service implementation both exist — Profile,
-  Security, Devices, Recovery, and Your Colosseum are built out — but nothing hosts them yet.
-  Separately, and even once a service is running, the Data & privacy policy switches, data export,
-  and the account-deletion flow still lack authoritative service wiring.
+- The published 1.1.5 build has no configured public production account service, so public sign-in
+  and cloud sync are unavailable there. Current `master` contains the desktop surfaces, service
+  implementation, and additional account/sync hardening. Separately, the Data & privacy policy
+  switches, data export, and the account-deletion flow still lack authoritative service wiring.
 - Watch Party uses the hosted relay by default; `COLOSSEUM_WATCH_PARTY_URL` is only an override.
   Exact torrents are eligible and can be fetched automatically by joiners; generic direct URLs are
   deliberately not. Guest rooms work; public signed-in hosting does not, because it needs bearer
