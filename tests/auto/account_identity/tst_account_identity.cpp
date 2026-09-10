@@ -319,6 +319,7 @@ private slots:
 
     void fixtureTransportRefusesUntaggedUse();
     void credentialTargetNamesAreIsolatedByAppDataTag();
+    void pendingCredentialTargetsMatchOnlyTheirExactNamespace();
     void httpTransportRejectsUnsafeBaseUrls();
     void httpTransportDoesNotFollowRedirects();
     void httpTransportTimesOutStalledReply();
@@ -410,6 +411,43 @@ void tst_account_identity::credentialTargetNamesAreIsolatedByAppDataTag() {
     qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("lanista-isolation-b"));
     QVERIFY(WindowsAccountCredentialStore::activeTargetName() != taggedActiveA);
     QVERIFY(WindowsAccountCredentialStore::pendingTargetPrefix() != taggedPendingA);
+}
+
+void tst_account_identity::pendingCredentialTargetsMatchOnlyTheirExactNamespace() {
+    using namespace windows_account_credential_store_detail;
+
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    qunsetenv("COLOSSEUM_APPDATA_TAG");
+
+    const QByteArray refreshToken = QByteArrayLiteral("synthetic-refresh-token");
+    const QString productionPending = WindowsAccountCredentialStore::pendingTargetPrefix();
+    const QString productionTarget = pendingTargetName(productionPending, refreshToken);
+    QVERIFY(pendingTargetMatches(productionPending, productionTarget));
+    QVERIFY(!pendingTargetMatches(
+        productionPending,
+        productionPending + QStringLiteral("Tagged.other.") + QString(64, QLatin1Char('a'))));
+    QVERIFY(!pendingTargetMatches(
+        productionPending,
+        productionPending + QString(63, QLatin1Char('a'))));
+    QVERIFY(!pendingTargetMatches(
+        productionPending,
+        productionPending + QString(64, QLatin1Char('A'))));
+    QVERIFY(!pendingTargetMatches(
+        productionPending,
+        productionTarget + QStringLiteral(".nested")));
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("lanista-isolation-a"));
+    const QString taggedPendingA = WindowsAccountCredentialStore::pendingTargetPrefix();
+    const QString taggedTargetA = pendingTargetName(taggedPendingA, refreshToken);
+    QVERIFY(pendingTargetMatches(taggedPendingA, taggedTargetA));
+    QVERIFY(taggedTargetA.startsWith(taggedPendingA));
+    QVERIFY(!pendingTargetMatches(taggedPendingA, productionTarget));
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("lanista-isolation-b"));
+    const QString taggedPendingB = WindowsAccountCredentialStore::pendingTargetPrefix();
+    const QString taggedTargetB = pendingTargetName(taggedPendingB, refreshToken);
+    QVERIFY(pendingTargetMatches(taggedPendingB, taggedTargetB));
+    QVERIFY(!pendingTargetMatches(taggedPendingA, taggedTargetB));
 }
 
 void tst_account_identity::httpTransportRejectsUnsafeBaseUrls() {

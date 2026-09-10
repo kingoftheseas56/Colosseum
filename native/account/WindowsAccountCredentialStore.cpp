@@ -36,6 +36,36 @@ QString taggedTargetKey() {
 }
 }
 
+namespace windows_account_credential_store_detail {
+
+QString pendingTargetName(const QString &prefix, const QByteArray &refreshToken) {
+    const QByteArray digest = QCryptographicHash::hash(
+        refreshToken,
+        QCryptographicHash::Sha256).toHex();
+    return prefix + QString::fromLatin1(digest);
+}
+
+bool pendingTargetMatches(const QString &prefix, const QString &target) {
+    constexpr qsizetype kDigestHexLength = 64;
+    if (prefix.isEmpty() || !target.startsWith(prefix))
+        return false;
+
+    const QString suffix = target.mid(prefix.size());
+    if (suffix.size() != kDigestHexLength)
+        return false;
+
+    for (const QChar character : suffix) {
+        const bool isLowerHex =
+            (character >= QLatin1Char('0') && character <= QLatin1Char('9'))
+            || (character >= QLatin1Char('a') && character <= QLatin1Char('f'));
+        if (!isLowerHex)
+            return false;
+    }
+    return true;
+}
+
+}
+
 bool WindowsAccountCredentialStore::isAvailable() const {
 #ifdef Q_OS_WIN
     return true;
@@ -157,10 +187,9 @@ std::optional<StoredAccountCredential> WindowsAccountCredentialStore::decodeCred
 }
 
 QString WindowsAccountCredentialStore::pendingTargetName(const QByteArray &refreshToken) {
-    const QByteArray digest = QCryptographicHash::hash(
-        refreshToken,
-        QCryptographicHash::Sha256).toHex();
-    return pendingTargetPrefix() + QString::fromLatin1(digest);
+    return windows_account_credential_store_detail::pendingTargetName(
+        pendingTargetPrefix(),
+        refreshToken);
 }
 
 bool WindowsAccountCredentialStore::writeGenericCredential(
@@ -241,7 +270,9 @@ QList<QString> WindowsAccountCredentialStore::enumerateTargets(const QString &pr
         if (!credentials[index] || !credentials[index]->TargetName)
             continue;
         const QString target = QString::fromWCharArray(credentials[index]->TargetName);
-        if (target.startsWith(prefix))
+        if (windows_account_credential_store_detail::pendingTargetMatches(
+                prefix,
+                target))
             targets.append(target);
     }
     CredFree(static_cast<void *>(credentials));

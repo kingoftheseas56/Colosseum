@@ -4,6 +4,17 @@
 
 #include "AccountCredentialStore.h"
 
+namespace windows_account_credential_store_detail {
+
+// These pure helpers define the exact namespace shape used by credential
+// enumeration and pending-revocation target derivation. They are kept outside
+// the store API so tests can exercise the production matcher without touching
+// the user's Credential Manager.
+QString pendingTargetName(const QString &prefix, const QByteArray &refreshToken);
+bool pendingTargetMatches(const QString &prefix, const QString &target);
+
+}
+
 class WindowsAccountCredentialStore final : public AccountCredentialStore {
 public:
     bool isAvailable() const override;
