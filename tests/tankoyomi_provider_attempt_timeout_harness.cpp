@@ -49,7 +49,11 @@ int main(int argc, char **argv)
             configuration.setProviderEnabled("es", "second", false);
         if (mode == QLatin1String("all-disabled"))
             configuration.setProviderEnabled("es", "first", false);
-        TankoyomiChapterService service(&nam, &configuration, 80);
+        TankoyomiChapterService service(&nam, &configuration, 80,
+                                         MangaImageHostResolver::Lookup(
+                                             [](const QString &, MangaImageHostResolver::LookupDone done) {
+                                                 done(QStringLiteral("93.184.216.34"));
+                                             }));
         QEventLoop loop;
         QTimer watchdog;
         watchdog.setSingleShot(true);

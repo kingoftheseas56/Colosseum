@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MangaImageHostResolver.h"
+
 #include <QObject>
 #include <QHash>
 #include <QPointer>
@@ -21,6 +23,13 @@ public:
                             QString resourcePath,
                             QStringList allowedHosts,
                             QNetworkAccessManager *nam,
+                            QObject *parent = nullptr);
+    TankoyomiScriptProvider(QString providerId,
+                            QString language,
+                            QString resourcePath,
+                            QStringList allowedHosts,
+                            QNetworkAccessManager *nam,
+                            MangaImageHostResolver::Lookup lookup,
                             QObject *parent = nullptr);
     ~TankoyomiScriptProvider() override;
 
@@ -66,4 +75,6 @@ private:
     QJSValue m_deliverFetch;
     QPointer<QNetworkAccessManager> m_nam;
     QHash<QString, std::shared_ptr<Fetch>> m_fetches;
+    MangaImageHostResolver m_hostResolver;
+    QHash<QString, QString> m_pins;
 };

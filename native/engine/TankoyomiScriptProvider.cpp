@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -18,11 +19,24 @@ TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
                                                  QStringList hosts,
                                                  QNetworkAccessManager *nam,
                                                  QObject *parent)
+    : TankoyomiScriptProvider(std::move(providerId), std::move(language), std::move(resourcePath),
+                              std::move(hosts), nam, MangaImageHostResolver::Lookup(), parent)
+{
+}
+
+TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
+                                                 QString language,
+                                                 QString resourcePath,
+                                                 QStringList hosts,
+                                                 QNetworkAccessManager *nam,
+                                                 MangaImageHostResolver::Lookup lookup,
+                                                 QObject *parent)
     : QObject(parent),
       m_providerId(std::move(providerId)),
       m_language(std::move(language)),
       allowedHosts(std::move(hosts)),
-      m_nam(nam ? nam : new QNetworkAccessManager(this))
+      m_nam(nam ? nam : new QNetworkAccessManager(this)),
+      m_hostResolver(std::move(lookup), this)
 {
     QFile file(resourcePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -315,9 +329,34 @@ void TankoyomiScriptProvider::issueFetch(const std::shared_ptr<Fetch> &fetch)
         finishFetch(fetch, false, QStringLiteral("Tankoyomi network manager is unavailable"));
         return;
     }
-    fetch->request.setUrl(fetch->logicalUrl);
+    const QString host = fetch->logicalUrl.host().toLower();
+    // Policy is decided against the logical hostname before any wire rewrite.
+    // Every hop (including redirects to a new allowed host) resolves through
+    // the async resolver; a dead-IPv6 or private result fails this fetch closed.
+    if (!m_pins.contains(host)) {
+        m_hostResolver.resolve(host, [this, fetch, host](const QString &ipv4) {
+            if (fetch->settled) return;
+            if (!TankoyomiNetworkPolicy::resolvedAddressAllowed(QHostAddress(ipv4),
+                                                                QStringLiteral("public-https"))) {
+                finishFetch(fetch, false,
+                            QStringLiteral("Tankoyomi provider %1 host %2 has no public IPv4 route")
+                                .arg(m_providerId, host));
+                return;
+            }
+            m_pins.insert(host, ipv4);
+            issueFetch(fetch);
+        });
+        return;
+    }
+    QNetworkRequest request = fetch->request;
+    QUrl wireUrl = fetch->logicalUrl;
+    request.setRawHeader("Host", host.toUtf8());
+    request.setPeerVerifyName(host);
+    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+    wireUrl.setHost(m_pins.value(host));
+    request.setUrl(wireUrl);
     QNetworkReply *reply = fetch->method == QLatin1String("POST")
-        ? m_nam->post(fetch->request, fetch->body) : m_nam->get(fetch->request);
+        ? m_nam->post(request, fetch->body) : m_nam->get(request);
     fetch->reply = reply;
     connect(reply, &QNetworkReply::finished, this, [this, fetch, reply] {
         if (fetch->settled) return;

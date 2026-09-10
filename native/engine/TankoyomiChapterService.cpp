@@ -37,6 +37,15 @@ TankoyomiChapterService::TankoyomiChapterService(
 TankoyomiChapterService::TankoyomiChapterService(
     QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
     int providerAttemptTimeoutMs, QObject *parent)
+    : TankoyomiChapterService(nam, configuration, providerAttemptTimeoutMs,
+                              MangaImageHostResolver::Lookup(), parent)
+{
+}
+
+TankoyomiChapterService::TankoyomiChapterService(
+    QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
+    int providerAttemptTimeoutMs, MangaImageHostResolver::Lookup resolverLookup,
+    QObject *parent)
     : QObject(parent),
       m_registry(TankoyomiProviderRegistry::fromResource()),
       m_providerAttemptTimeoutMs(qMax(1, providerAttemptTimeoutMs))
@@ -53,10 +62,10 @@ TankoyomiChapterService::TankoyomiChapterService(
         // remains manifest-enabled-only; construction needs the complete
         // validated inventory so a user can enable a manifest-disabled source.
         for (const TankoyomiProviderDescriptor &descriptor
-             : m_registry.allProvidersForLanguage(language)) {
+              : m_registry.allProvidersForLanguage(language)) {
             auto *provider = new TankoyomiScriptProvider(
                 descriptor.id, descriptor.language, descriptor.resourcePath,
-                descriptor.allowedHosts, nam, this);
+                descriptor.allowedHosts, nam, resolverLookup, this);
             m_providers.insert(providerKey(descriptor.language, descriptor.id), provider);
         }
     }

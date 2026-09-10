@@ -3,6 +3,7 @@
 #include "TankoyomiProviderRegistry.h"
 #include "TankoyomiConfigurationStore.h"
 #include "TankoyomiSeriesMatcher.h"
+#include "MangaImageHostResolver.h"
 
 #include <QHash>
 #include <QObject>
@@ -23,6 +24,11 @@ public:
     TankoyomiChapterService(QNetworkAccessManager *nam,
                             TankoyomiConfigurationStore *configuration,
                             int providerAttemptTimeoutMs,
+                            QObject *parent = nullptr);
+    TankoyomiChapterService(QNetworkAccessManager *nam,
+                            TankoyomiConfigurationStore *configuration,
+                            int providerAttemptTimeoutMs,
+                            MangaImageHostResolver::Lookup resolverLookup,
                             QObject *parent = nullptr);
 
     void fetchCatalogue(const QString &requestId, const QString &title, const QString &language);

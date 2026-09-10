@@ -698,7 +698,10 @@ add_executable(tankoyomi_script_provider_transport_harness
     engine/TankoyomiNetworkPolicy.h
     engine/TankoyomiScriptProvider.cpp
     ../tests/tankoyomi_script_provider_transport_harness.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_script_provider_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_script_provider_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 
@@ -756,7 +759,10 @@ add_executable(tankoyomi_service_runtime_harness
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_service_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_service_runtime_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_resources"
@@ -779,7 +785,10 @@ add_executable(tankoyomi_service_configuration_harness
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_service_configuration_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_service_configuration_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_service_configuration_harness "tankoyomi_service_configuration_resources"
@@ -801,7 +810,10 @@ add_executable(tankoyomi_provider_attempt_timeout_harness
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_provider_attempt_timeout_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_provider_attempt_timeout_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_provider_attempt_timeout_harness "tankoyomi_attempt_timeout_resources"
@@ -823,7 +835,10 @@ add_executable(tankoyomi_provider_live_harness
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_provider_live_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_provider_live_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_provider_live_harness "tankoyomi_provider_live_resources"

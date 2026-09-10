@@ -8,6 +8,7 @@
 #include <QJSEngine>
 #include "tankoyomi_fake_network.h"
 
+#include "engine/MangaImageHostResolver.h"
 #include "engine/TankoyomiScriptProvider.h"
 
 int main(int argc, char **argv)
@@ -34,10 +35,16 @@ int main(int argc, char **argv)
         if (!ok) ++failures;
     };
     struct Result { bool resolved = false; bool failed = false; QVariant value; QString error; qint64 elapsed = 0; };
-    const auto perform = [&](TankoyomiTest::Nam &nam, const QString &method = QStringLiteral("GET")) {
+    const auto pinningLookup = [](const QString &, MangaImageHostResolver::LookupDone done) {
+        done(QStringLiteral("93.184.216.34"));
+    };
+    const auto perform = [&](TankoyomiTest::Nam &nam, const QString &method = QStringLiteral("GET"),
+                             MangaImageHostResolver::Lookup lookup = {}) {
         QObject owner;
         auto *provider = new TankoyomiScriptProvider("fixture", "en", script.fileName(),
-                                                     {QStringLiteral("source.example")}, &nam, &owner);
+                                                     {QStringLiteral("source.example")}, &nam,
+                                                     lookup ? lookup : MangaImageHostResolver::Lookup(pinningLookup),
+                                                     &owner);
         Result result;
         QEventLoop loop;
         QElapsedTimer elapsed;
@@ -123,6 +130,71 @@ int main(int argc, char **argv)
         check(result.resolved && nam.operations == QList<QNetworkAccessManager::Operation>{
                   QNetworkAccessManager::PostOperation, QNetworkAccessManager::PostOperation},
               "307 preserves POST inside the declared host capability");
+    }
+    {
+        TankoyomiTest::Nam nam;
+        QStringList resolvedHosts;
+        const auto trackingLookup = [&resolvedHosts](const QString &host, MangaImageHostResolver::LookupDone done) {
+            resolvedHosts.append(host);
+            done(QStringLiteral("93.184.216.34"));
+        };
+        nam.respond = [&resolvedHosts](const QNetworkRequest &, QNetworkAccessManager::Operation, int count) {
+            TankoyomiTest::ReplySpec spec;
+            if (count == 1) { spec.status = 302; spec.redirect = QUrl("https://api.source.example/final"); }
+            return spec;
+        };
+        const auto result = perform(nam, QStringLiteral("GET"), trackingLookup);
+        check(result.resolved && !result.failed && nam.requests.size() == 2,
+              "pinned metadata requests follow allowed redirects");
+        check(!nam.requests.isEmpty() && nam.requests.first().url().host() == QStringLiteral("93.184.216.34"),
+              "metadata requests travel to the resolved public IPv4 wire address");
+        check(!nam.requests.isEmpty() && nam.requests.first().rawHeader("Host") == QByteArrayLiteral("source.example")
+                  && nam.requests.first().peerVerifyName() == QStringLiteral("source.example"),
+              "pinned metadata keeps the logical hostname for Host and TLS identity");
+        check(!nam.requests.isEmpty()
+                  && !nam.requests.first().attribute(QNetworkRequest::Http2AllowedAttribute).toBool(),
+              "pinned metadata disables HTTP/2");
+        check(resolvedHosts == QStringList{QStringLiteral("source.example"), QStringLiteral("api.source.example")},
+              "every redirected host re-enters resolution before its request");
+        check(nam.requests.size() > 1 && nam.requests.at(1).url().host() == QStringLiteral("93.184.216.34")
+                  && nam.requests.at(1).rawHeader("Host") == QByteArrayLiteral("api.source.example"),
+              "redirected metadata hops pin again with their own logical Host");
+    }
+    {
+        for (const QString &resolution : {QString(), QStringLiteral("192.168.1.5"), QStringLiteral("::1")}) {
+            TankoyomiTest::Nam nam;
+            const auto deadLookup = [resolution](const QString &, MangaImageHostResolver::LookupDone done) {
+                done(resolution);
+            };
+            const auto result = perform(nam, QStringLiteral("GET"), deadLookup);
+            check(result.failed && !result.resolved && nam.requests.isEmpty(),
+                  "empty or non-public resolution fails closed before any network request");
+        }
+    }
+    {
+        TankoyomiTest::Nam nam;
+        MangaImageHostResolver::LookupDone lateDone;
+        const auto holdingLookup = [&lateDone](const QString &, MangaImageHostResolver::LookupDone done) {
+            lateDone = done;
+        };
+        QObject owner;
+        auto *provider = new TankoyomiScriptProvider("fixture", "en", script.fileName(),
+                                                     {QStringLiteral("source.example")}, &nam,
+                                                     holdingLookup, &owner);
+        QEventLoop loop;
+        QTimer watchdog;
+        watchdog.setSingleShot(true);
+        QObject::connect(&watchdog, &QTimer::timeout, &loop, &QEventLoop::quit);
+        QObject::connect(provider, &TankoyomiScriptProvider::failed, &loop, &QEventLoop::quit);
+        QObject::connect(provider, &TankoyomiScriptProvider::resolved, &loop, &QEventLoop::quit);
+        watchdog.start(200);
+        provider->searchSeries("request", "https://source.example/start");
+        loop.exec();
+        delete provider;
+        if (lateDone) lateDone(QStringLiteral("93.184.216.34"));
+        QCoreApplication::processEvents();
+        check(nam.requests.isEmpty(),
+              "a late resolver callback cannot issue a request after provider destruction");
     }
     qInfo() << (failures ? "TANKOYOMI_TRANSPORT_FAIL" : "TANKOYOMI_TRANSPORT_OK");
     return failures ? 1 : 0;
