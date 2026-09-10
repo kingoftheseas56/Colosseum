@@ -19,6 +19,10 @@ public:
     TankoyomiChapterService(QNetworkAccessManager *nam,
                             TankoyomiConfigurationStore *configuration,
                             QObject *parent = nullptr);
+    TankoyomiChapterService(QNetworkAccessManager *nam,
+                            TankoyomiConfigurationStore *configuration,
+                            int providerAttemptTimeoutMs,
+                            QObject *parent = nullptr);
 
     void fetchCatalogue(const QString &requestId, const QString &title, const QString &language);
     void fetchPages(const QString &requestId, const QString &qualifiedChapterId);
@@ -46,4 +50,5 @@ private:
     TankoyomiProviderRegistry m_registry;
     TankoyomiConfigurationStore *m_configuration = nullptr;
     QHash<QString, TankoyomiScriptProvider *> m_providers;
+    int m_providerAttemptTimeoutMs = 50000;
 };

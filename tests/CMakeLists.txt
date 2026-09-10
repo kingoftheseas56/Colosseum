@@ -57,6 +57,7 @@ colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 # intentionally unregistered; these harnesses cover the no-network boundary.
 colosseum_register_harness(tankoyomi_script_provider_transport_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_page_security_harness unit;tankoyomi;network)
+colosseum_register_harness(tankoyomi_provider_attempt_timeout_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_network_policy_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_provider_registry_harness unit;tankoyomi)
 colosseum_register_harness(tankoyomi_configuration_store_harness unit;tankoyomi)

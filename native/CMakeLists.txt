@@ -773,6 +773,32 @@ qt_add_resources(tankoyomi_service_configuration_harness "tankoyomi_service_conf
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
+add_executable(tankoyomi_provider_attempt_timeout_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    ../tests/tankoyomi_provider_attempt_timeout_harness.cpp
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_provider_attempt_timeout_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_provider_attempt_timeout_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_provider_attempt_timeout_harness "tankoyomi_attempt_timeout_resources"
+    PREFIX "/tankoyomi"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout"
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/manifest.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/languages/es/first.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/languages/es/second.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/languages/en/english.js"
+)
+
 add_executable(tankoyomi_provider_live_harness
     engine/TankoyomiNetworkPolicy.cpp
     engine/TankoyomiNetworkPolicy.h

@@ -5,6 +5,8 @@
 
 #include <QNetworkAccessManager>
 #include <QVariantMap>
+#include <QTimer>
+#include <QDebug>
 
 #include <memory>
 
@@ -15,8 +17,16 @@ TankoyomiChapterService::TankoyomiChapterService(QNetworkAccessManager *nam, QOb
 
 TankoyomiChapterService::TankoyomiChapterService(
     QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration, QObject *parent)
+    : TankoyomiChapterService(nam, configuration, 50000, parent)
+{
+}
+
+TankoyomiChapterService::TankoyomiChapterService(
+    QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
+    int providerAttemptTimeoutMs, QObject *parent)
     : QObject(parent),
-      m_registry(TankoyomiProviderRegistry::fromResource())
+      m_registry(TankoyomiProviderRegistry::fromResource()),
+      m_providerAttemptTimeoutMs(qMax(1, providerAttemptTimeoutMs))
 {
     if (!m_registry.isValid()) return;
     m_configuration = configuration;
@@ -210,6 +220,18 @@ void TankoyomiChapterService::tryProviderChain(
         emit catalogueReady(requestId, sourceSeriesId, qualified);
     });
 
+    auto *attemptDeadline = new QTimer(scope);
+    attemptDeadline->setSingleShot(true);
+    attemptDeadline->setTimerType(Qt::PreciseTimer);
+    connect(attemptDeadline, &QTimer::timeout, scope,
+            [state, failOrFallback, descriptor, language]() {
+        if (state->settled) return;
+        const QString timeout = QStringLiteral("Tankoyomi provider '%1' (%2) attempt timeout")
+                                    .arg(descriptor.id, language);
+        qWarning().noquote() << timeout;
+        failOrFallback(timeout);
+    });
+    attemptDeadline->start(m_providerAttemptTimeoutMs);
     provider->searchSeries(searchToken, title);
 }
 
