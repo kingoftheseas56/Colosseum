@@ -20,7 +20,7 @@
 #include <algorithm>
 
 namespace {
-constexpr int kStateSchemaVersion = 3;
+constexpr int kStateSchemaVersion = 4;
 
 bool parseUnsigned(
     const QJsonValue &value,
@@ -529,6 +529,24 @@ QJsonObject SyncStateStore::encode(
     }
     root.insert(QStringLiteral("rejected_mutations"), rejected);
 
+    QJsonArray ownerRedos;
+    QList<SyncOwnerRedo> orderedOwnerRedos = state.ownerRedos;
+    std::sort(orderedOwnerRedos.begin(), orderedOwnerRedos.end(),
+              [](const SyncOwnerRedo &left, const SyncOwnerRedo &right) {
+                  if (left.serverSeq != right.serverSeq)
+                      return left.serverSeq < right.serverSeq;
+                  return left.mutation.mutationId < right.mutation.mutationId;
+              });
+    for (const SyncOwnerRedo &redo : orderedOwnerRedos) {
+        ownerRedos.append(QJsonObject{
+            {QStringLiteral("server_seq"), QString::number(redo.serverSeq)},
+            {QStringLiteral("won"), redo.won},
+            {QStringLiteral("mutation"), syncWireMutationToJson(redo.mutation)},
+            {QStringLiteral("historical_replay"), redo.replayingHistorical},
+            {QStringLiteral("from_quarantine"), redo.fromQuarantine}});
+    }
+    root.insert(QStringLiteral("owner_redos"), ownerRedos);
+
     return root;
 }
 
@@ -952,6 +970,54 @@ SyncStateStore::decode(
                 record.value(QStringLiteral("code")).toString(),
                 record.value(QStringLiteral("message")).toString(),
                 record.value(QStringLiteral("fingerprint")).toString()});
+        }
+    }
+
+    if (schemaVersion >= 4) {
+        const QJsonValue ownerRedoValue =
+            object.value(QStringLiteral("owner_redos"));
+        if (!ownerRedoValue.isArray()) {
+            if (error)
+                *error = QStringLiteral("The durable owner redo state is malformed.");
+            return std::nullopt;
+        }
+
+        QSet<quint64> ownerRedoSequences;
+        for (const QJsonValue &value : ownerRedoValue.toArray()) {
+            if (!value.isObject()) {
+                if (error)
+                    *error = QStringLiteral("A durable owner redo entry is malformed.");
+                return std::nullopt;
+            }
+
+            const QJsonObject record = value.toObject();
+            quint64 serverSeq = 0;
+            const auto mutationValue = record.value(QStringLiteral("mutation"));
+            const auto mutation = mutationValue.isObject()
+                ? syncWireMutationFromJson(mutationValue.toObject())
+                : std::nullopt;
+            if (!parseUnsigned(record.value(QStringLiteral("server_seq")), &serverSeq)
+                || serverSeq == 0
+                || ownerRedoSequences.contains(serverSeq)
+                || !record.value(QStringLiteral("won")).isBool()
+                || !record.value(QStringLiteral("won")).toBool()
+                || !mutation.has_value()
+                || (record.contains(QStringLiteral("historical_replay"))
+                    && !record.value(QStringLiteral("historical_replay")).isBool())
+                || (record.contains(QStringLiteral("from_quarantine"))
+                    && !record.value(QStringLiteral("from_quarantine")).isBool())) {
+                if (error)
+                    *error = QStringLiteral("A durable owner redo entry is invalid or duplicated.");
+                return std::nullopt;
+            }
+
+            ownerRedoSequences.insert(serverSeq);
+            state.ownerRedos.append(SyncOwnerRedo{
+                serverSeq,
+                true,
+                *mutation,
+                record.value(QStringLiteral("historical_replay")).toBool(),
+                record.value(QStringLiteral("from_quarantine")).toBool()});
         }
     }
 

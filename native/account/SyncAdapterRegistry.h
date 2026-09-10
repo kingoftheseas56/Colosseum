@@ -11,6 +11,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <functional>
+
 struct SyncAdapterSnapshot {
     QString categoryId;
     int schemaVersion = 0;
@@ -39,6 +41,9 @@ struct SyncAdapterRegistryError {
     }
 };
 
+using SyncAdapterRegistryCallback =
+    std::function<void(const SyncAdapterRegistryError &)>;
+
 class SyncAdapterRegistry final : public QObject {
     Q_OBJECT
 
@@ -65,6 +70,14 @@ public:
 
     bool applyRemote(
         const SyncAdapterMutation &mutation,
+        SyncAdapterRegistryError *error = nullptr);
+
+    // Performs the same side-effect-free admission checks as applyRemote(),
+    // then holds remote-apply suppression for adapters whose owner operation
+    // can emit the local mutation signal until durable completion.
+    bool applyRemoteAsync(
+        const SyncAdapterMutation &mutation,
+        SyncAdapterRegistryCallback callback,
         SyncAdapterRegistryError *error = nullptr);
 
 signals:

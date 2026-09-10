@@ -11,6 +11,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <utility>
+
 CollectionSyncAdapter::
 CollectionSyncAdapter(
     CollectionStore *store,
@@ -28,7 +30,7 @@ CollectionSyncAdapter(
 
     connect(
         store,
-        &CollectionStore::changed,
+        &CollectionStore::syncDirty,
         this,
         [this]() {
             if (!m_store)
@@ -79,6 +81,9 @@ exportSnapshot(
         }
         return false;
     }
+
+    if (!m_store->healthy(error))
+        return false;
 
     snapshot->revision =
         revision();
@@ -179,10 +184,10 @@ applyRemote(
 
     if (operation
         == SyncWireOperation::Delete) {
-        m_store->remove(
-            world,
-            id);
-        return true;
+        const bool removed = m_store->removeSyncedEntry(world, id);
+        if (!removed && error && error->isEmpty())
+            *error = m_store->persistenceError();
+        return removed;
     }
 
     if (!payload.isObject()) {
@@ -258,8 +263,87 @@ applyRemote(
                 existing,
                 object);
 
-    m_store->add(
-        world,
-        merged);
+    const bool added = m_store->applySyncedEntry(world, merged);
+    if (!added && error && error->isEmpty())
+        *error = m_store->persistenceError();
+    return added;
+}
+
+bool CollectionSyncAdapter::
+applyRemoteAsync(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersion,
+    std::function<void(bool, const QString &)> callback,
+    QString *error) {
+    auto reject = [&callback](const QString &message) {
+        if (callback)
+            callback(false, message);
+    };
+
+    if (!m_store) {
+        reject(QStringLiteral("The Collection owner is no longer available."));
+        return true;
+    }
+    if (!m_store->healthy(error)) {
+        reject(m_store->persistenceError());
+        return true;
+    }
+    if (schemaVersion != 1) {
+        reject(QStringLiteral("The Collection sync schema is unsupported."));
+        return true;
+    }
+
+    QString world;
+    QString id;
+    if (!CoreStateSyncProjection::decodeCollectionKey(recordKey, &world, &id)) {
+        reject(QStringLiteral("The Collection sync record key is invalid."));
+        return true;
+    }
+
+    if (operation == SyncWireOperation::Delete) {
+        m_store->removeSyncedEntryAsync(world, id, std::move(callback));
+        return true;
+    }
+
+    if (!payload.isObject()) {
+        reject(QStringLiteral("A Collection PUT requires an object payload."));
+        return true;
+    }
+
+    const QJsonObject object = payload.toObject();
+    if (object.value(QStringLiteral("world")).toString() != world
+        || object.value(QStringLiteral("id")).toString() != id) {
+        reject(QStringLiteral(
+            "The Collection payload identity does not match its record key."));
+        return true;
+    }
+
+    const QVariantMap portableEntry = object.toVariantMap();
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::collection(portableEntry);
+    if (projected.disposition != CoreStateSyncProjection::Disposition::Portable
+        || projected.recordKey != recordKey
+        || projected.payload != object) {
+        reject(projected.error.isEmpty()
+                   ? QStringLiteral(
+                         "The Collection payload is not a canonical portable record.")
+                   : projected.error);
+        return true;
+    }
+
+    QVariantMap existing;
+    for (const QVariant &value : m_store->items(world)) {
+        const QVariantMap candidate = value.toMap();
+        if (candidate.value(QStringLiteral("id")).toString() == id) {
+            existing = candidate;
+            break;
+        }
+    }
+
+    const QVariantMap merged =
+        CoreStateSyncProjection::mergePortableIntoLocal(existing, object);
+    m_store->applySyncedEntryAsync(world, merged, std::move(callback));
     return true;
 }

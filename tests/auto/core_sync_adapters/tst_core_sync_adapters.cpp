@@ -14,6 +14,7 @@
 #include "account/SyncEngine.h"
 #include "account/SyncProtocol.h"
 
+#include <QDeadlineTimer>
 #include <QDateTime>
 #include <QDir>
 #include <QHash>
@@ -42,6 +43,13 @@ struct Ack {
     quint64 sequence = 0;
     bool won = false;
 };
+
+bool waitForAsyncFlag(const bool &flag) {
+    const QDeadlineTimer deadline(5000);
+    while (!flag && !deadline.hasExpired())
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+    return flag;
+}
 
 QString identity(
     const SyncWireMutation &mutation) {
@@ -515,7 +523,13 @@ private slots:
     void repeatedSilentTicksAreThrottledNotIndefinitelyDebounced();
     void progressRemotePutPreservesLocalOnlyOverlay();
     void progressRemoteApplyPreservesTimestampWithoutEcho();
+    void progressAsyncRemoteReceiptPersistsBeforeCallback();
+    void collectionAsyncRemoteReceiptPersistsBeforeCallback();
     void progressRemoteApplyEmitsRemoteOnlyOwnerSignal();
+    void corruptProgressStorageFailsClosed();
+    void corruptCollectionStorageFailsClosed();
+    void progressPersistenceFailureDoesNotAdvanceCursor();
+    void collectionPersistenceFailureDoesNotAdvanceCursor();
     void progressForgetDoesNotEraseHistory();
     void twoReplicaCollectionConverges();
     void twoReplicaProgressConvergesAfterSilentOfflineTick();
@@ -527,6 +541,52 @@ void tst_core_sync_adapters::init() {
 
 void tst_core_sync_adapters::cleanup() {
     qunsetenv("COLOSSEUM_APPDATA_TAG");
+}
+
+void tst_core_sync_adapters::
+corruptProgressStorageFailsClosed() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path =
+        QDir(temp.path()).filePath(QStringLiteral("progress.ini"));
+
+    QSettings corrupt(path, QSettings::IniFormat);
+    corrupt.setValue(QStringLiteral("continue/entries"),
+                     QByteArrayLiteral(R"({"progress/manga/bad":42})"));
+    corrupt.sync();
+
+    ProgressStore store(path);
+    QString error;
+    QVERIFY(!store.healthy(&error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(store.syncEntries().isEmpty());
+    QVERIFY(!store.applySyncedEntry(progressEntry(
+        QStringLiteral("manga-1"), 0.4)));
+    QVERIFY(store.get(QStringLiteral("manga"),
+                      QStringLiteral("manga-1")).isEmpty());
+}
+
+void tst_core_sync_adapters::
+corruptCollectionStorageFailsClosed() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path =
+        QDir(temp.path()).filePath(QStringLiteral("collection.ini"));
+
+    QSettings corrupt(path, QSettings::IniFormat);
+    corrupt.setValue(QStringLiteral("collection/entries"),
+                     QByteArrayLiteral(R"({"collection/tankoban/bad":42})"));
+    corrupt.sync();
+
+    CollectionStore store(path);
+    QString error;
+    QVERIFY(!store.healthy(&error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(store.syncEntries().isEmpty());
+    store.add(QStringLiteral("tankoban"), collectionEntry(
+        QStringLiteral("item-1"), 1000));
+    QVERIFY(!store.has(QStringLiteral("tankoban"),
+                       QStringLiteral("item-1")));
 }
 
 void tst_core_sync_adapters::
@@ -1154,6 +1214,349 @@ progressRemoteApplyPreservesTimestampWithoutEcho() {
 }
 
 void tst_core_sync_adapters::
+progressAsyncRemoteReceiptPersistsBeforeCallback() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("progress.ini"));
+    ProgressStore store(path);
+    ProgressSyncAdapter adapter(&store, nullptr, 1);
+    SyncAdapterRegistry registry;
+    QVERIFY(registry.registerAdapter(&adapter));
+
+    const QVariantMap entry = progressEntry(
+        QStringLiteral("manga-async"),
+        0.65,
+        123456789);
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::progress(entry);
+    SyncAdapterMutation mutation{
+        QStringLiteral("continue_progress"),
+        projected.recordKey,
+        1,
+        SyncWireOperation::Put,
+        projected.payload};
+
+    bool callbackCalled = false;
+    SyncAdapterRegistryError callbackError;
+    QSignalSpy localSpy(
+        &registry,
+        &SyncAdapterRegistry::localMutationAvailable);
+    QVERIFY(registry.applyRemoteAsync(
+        mutation,
+        [&](const SyncAdapterRegistryError &result) {
+            callbackCalled = true;
+            callbackError = result;
+        }));
+    QVERIFY(!callbackCalled);
+    QTRY_VERIFY(callbackCalled);
+    QVERIFY2(callbackError.isEmpty(), qPrintable(callbackError.detail));
+    QCOMPARE(localSpy.count(), 0);
+
+    ProgressStore reopened(path);
+    QCOMPARE(
+        reopened.get(QStringLiteral("manga"), QStringLiteral("manga-async"))
+            .value(QStringLiteral("updatedAt"))
+            .toLongLong(),
+        qint64(123456789));
+
+    // A remote owner write races with a local write while its worker receipt
+    // is pending. Record-level base detection must preserve a newer same-key
+    // local edit, while an unrelated local edit must not suppress the remote
+    // winner or its delete. The registry signal is the outbox seam: the local
+    // write reports once, and the remote receipt never echoes.
+    QTemporaryDir raceTemp;
+    QVERIFY(raceTemp.isValid());
+    const auto runProgressRace = [&](SyncWireOperation operation,
+                                     bool sameKey,
+                                     const QString &label) -> QString {
+        const QString path = QDir(raceTemp.path()).filePath(
+            QStringLiteral("progress-%1.ini").arg(label));
+        ProgressStore raceStore(path);
+        ProgressSyncAdapter raceAdapter(&raceStore, nullptr, 1);
+        SyncAdapterRegistry raceRegistry;
+        SyncAdapterRegistryError registrationError;
+        if (!raceRegistry.registerAdapter(&raceAdapter, &registrationError))
+            return registrationError.detail;
+
+        const QString targetId = QStringLiteral("race-target");
+        const QString unrelatedId = QStringLiteral("race-unrelated");
+        raceStore.record(progressEntry(targetId, 0.10, 1000));
+
+        QVariantMap remote = progressEntry(targetId, 0.80, 2000);
+        const CoreStateSyncProjection projected =
+            CoreStateSyncProjection::progress(remote);
+        SyncAdapterMutation mutation{
+            QStringLiteral("continue_progress"),
+            projected.recordKey,
+            1,
+            operation,
+            operation == SyncWireOperation::Put
+                ? projected.payload
+                : QJsonValue()};
+
+        QSignalSpy localSpy(
+            &raceRegistry,
+            &SyncAdapterRegistry::localMutationAvailable);
+        bool callbackCalled = false;
+        SyncAdapterRegistryError callbackError;
+        if (!raceRegistry.applyRemoteAsync(
+                mutation,
+                [&](const SyncAdapterRegistryError &result) {
+                    callbackCalled = true;
+                    callbackError = result;
+                })) {
+            return QStringLiteral("remote race did not start");
+        }
+        if (callbackCalled)
+            return QStringLiteral("remote race callback completed synchronously");
+
+        if (sameKey)
+            raceStore.record(progressEntry(targetId, 0.60, 3000));
+        else
+            raceStore.record(progressEntry(unrelatedId, 0.30, 3000));
+
+        if (!waitForAsyncFlag(callbackCalled))
+            return QStringLiteral("remote race callback timed out");
+        if (!callbackError.isEmpty())
+            return callbackError.detail;
+        if (localSpy.count() != 1)
+            return QStringLiteral("local outbox signal was echoed or dropped");
+
+        const QVariantMap target = raceStore.get(QStringLiteral("manga"), targetId);
+        const QVariantMap unrelated = raceStore.get(QStringLiteral("manga"), unrelatedId);
+        if (operation == SyncWireOperation::Put) {
+            const double expectedTarget = sameKey ? 0.60 : 0.80;
+            if (!qFuzzyCompare(target.value(QStringLiteral("progress")).toDouble(), expectedTarget))
+                return QStringLiteral("Progress PUT race chose the wrong same-key result");
+            if (!sameKey
+                && !qFuzzyCompare(unrelated.value(QStringLiteral("progress")).toDouble(), 0.30))
+                return QStringLiteral("Progress PUT race dropped unrelated local work");
+        } else {
+            if (sameKey) {
+                if (!qFuzzyCompare(target.value(QStringLiteral("progress")).toDouble(), 0.60))
+                    return QStringLiteral("Progress DELETE race dropped same-key local work");
+            } else if (!target.isEmpty()) {
+                return QStringLiteral("Progress DELETE race retained an unchanged remote key");
+            }
+            if (!sameKey
+                && !qFuzzyCompare(unrelated.value(QStringLiteral("progress")).toDouble(), 0.30))
+                return QStringLiteral("Progress DELETE race dropped unrelated local work");
+        }
+
+        raceStore.flush();
+        ProgressStore persisted(path);
+        const QVariantMap persistedTarget =
+            persisted.get(QStringLiteral("manga"), targetId);
+        const QVariantMap persistedUnrelated =
+            persisted.get(QStringLiteral("manga"), unrelatedId);
+        if (operation == SyncWireOperation::Put) {
+            const double expectedTarget = sameKey ? 0.60 : 0.80;
+            if (!qFuzzyCompare(
+                    persistedTarget.value(QStringLiteral("progress")).toDouble(),
+                    expectedTarget))
+                return QStringLiteral("Progress PUT race did not persist the winning snapshot");
+        } else if (sameKey) {
+            if (!qFuzzyCompare(
+                    persistedTarget.value(QStringLiteral("progress")).toDouble(),
+                    0.60))
+                return QStringLiteral("Progress DELETE race did not persist the local winner");
+        } else if (!persistedTarget.isEmpty()) {
+            return QStringLiteral("Progress DELETE race persisted a stale remote key");
+        }
+        if (!sameKey
+            && !qFuzzyCompare(
+                persistedUnrelated.value(QStringLiteral("progress")).toDouble(),
+                0.30))
+            return QStringLiteral("Progress race did not persist unrelated local work");
+        return QString();
+    };
+
+    QVERIFY2(
+        runProgressRace(SyncWireOperation::Put, true, QStringLiteral("put-same")).isEmpty(),
+        "Progress same-key PUT race failed");
+    QVERIFY2(
+        runProgressRace(SyncWireOperation::Put, false, QStringLiteral("put-unrelated")).isEmpty(),
+        "Progress unrelated-key PUT race failed");
+    QVERIFY2(
+        runProgressRace(SyncWireOperation::Delete, true, QStringLiteral("delete-same")).isEmpty(),
+        "Progress same-key DELETE race failed");
+    QVERIFY2(
+        runProgressRace(SyncWireOperation::Delete, false, QStringLiteral("delete-unrelated")).isEmpty(),
+        "Progress unrelated-key DELETE race failed");
+}
+
+void tst_core_sync_adapters::
+collectionAsyncRemoteReceiptPersistsBeforeCallback() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("collection.ini"));
+    CollectionStore store(path);
+    CollectionSyncAdapter adapter(&store);
+    SyncAdapterRegistry registry;
+    QVERIFY(registry.registerAdapter(&adapter));
+
+    QVariantMap entry = collectionEntry(QStringLiteral("item-async"), 1000);
+    entry.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::collection(entry);
+    SyncAdapterMutation mutation{
+        QStringLiteral("collection"),
+        projected.recordKey,
+        1,
+        SyncWireOperation::Put,
+        projected.payload};
+
+    bool callbackCalled = false;
+    SyncAdapterRegistryError callbackError;
+    QVERIFY(registry.applyRemoteAsync(
+        mutation,
+        [&](const SyncAdapterRegistryError &result) {
+            callbackCalled = true;
+            callbackError = result;
+        }));
+    QVERIFY(!callbackCalled);
+    QTRY_VERIFY(callbackCalled);
+    QVERIFY2(callbackError.isEmpty(), qPrintable(callbackError.detail));
+
+    CollectionStore reopened(path);
+    QVERIFY(reopened.has(QStringLiteral("tankoban"), QStringLiteral("item-async")));
+
+    // Exercise the same record-level rebase rules for Collection PUT and
+    // DELETE. The immediate local add is the outbox mutation; only that local
+    // signal may be observed while the remote owner receipt is in flight.
+    QTemporaryDir raceTemp;
+    QVERIFY(raceTemp.isValid());
+    const auto runCollectionRace = [&](SyncWireOperation operation,
+                                       bool sameKey,
+                                       const QString &label) -> QString {
+        const QString path = QDir(raceTemp.path()).filePath(
+            QStringLiteral("collection-%1.ini").arg(label));
+        CollectionStore raceStore(path);
+        CollectionSyncAdapter raceAdapter(&raceStore);
+        SyncAdapterRegistry raceRegistry;
+        SyncAdapterRegistryError registrationError;
+        if (!raceRegistry.registerAdapter(&raceAdapter, &registrationError))
+            return registrationError.detail;
+
+        const QString targetId = QStringLiteral("race-target");
+        const QString unrelatedId = QStringLiteral("race-unrelated");
+        raceStore.add(
+            QStringLiteral("tankoban"),
+            collectionEntry(targetId, 1000));
+
+        QVariantMap remote = collectionEntry(targetId, 2000);
+        remote.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
+        const CoreStateSyncProjection projected =
+            CoreStateSyncProjection::collection(remote);
+        SyncAdapterMutation mutation{
+            QStringLiteral("collection"),
+            projected.recordKey,
+            1,
+            operation,
+            operation == SyncWireOperation::Put
+                ? projected.payload
+                : QJsonValue()};
+
+        QSignalSpy localSpy(
+            &raceRegistry,
+            &SyncAdapterRegistry::localMutationAvailable);
+        bool callbackCalled = false;
+        SyncAdapterRegistryError callbackError;
+        if (!raceRegistry.applyRemoteAsync(
+                mutation,
+                [&](const SyncAdapterRegistryError &result) {
+                    callbackCalled = true;
+                    callbackError = result;
+                })) {
+            return QStringLiteral("remote race did not start");
+        }
+        if (callbackCalled)
+            return QStringLiteral("remote race callback completed synchronously");
+
+        if (sameKey)
+            raceStore.add(
+                QStringLiteral("tankoban"),
+                collectionEntry(targetId, 3000));
+        else
+            raceStore.add(
+                QStringLiteral("tankoban"),
+                collectionEntry(unrelatedId, 3000));
+
+        if (!waitForAsyncFlag(callbackCalled))
+            return QStringLiteral("remote race callback timed out");
+        if (!callbackError.isEmpty())
+            return callbackError.detail;
+        if (localSpy.count() != 1)
+            return QStringLiteral("local outbox signal was echoed or dropped");
+
+        auto findEntry = [](CollectionStore &store, const QString &id) {
+            for (const QVariant &value : store.items(QStringLiteral("tankoban"))) {
+                const QVariantMap candidate = value.toMap();
+                if (candidate.value(QStringLiteral("id")).toString() == id)
+                    return candidate;
+            }
+            return QVariantMap();
+        };
+
+        const QVariantMap target = findEntry(raceStore, targetId);
+        const QVariantMap unrelated = findEntry(raceStore, unrelatedId);
+        if (operation == SyncWireOperation::Put) {
+            const qint64 expectedAddedAt = sameKey ? 3000 : 2000;
+            if (target.value(QStringLiteral("addedAt")).toLongLong() != expectedAddedAt)
+                return QStringLiteral("Collection PUT race chose the wrong same-key result");
+            if (!sameKey
+                && unrelated.value(QStringLiteral("addedAt")).toLongLong() != 3000)
+                return QStringLiteral("Collection PUT race dropped unrelated local work");
+        } else {
+            if (sameKey) {
+                if (target.value(QStringLiteral("addedAt")).toLongLong() != 3000)
+                    return QStringLiteral("Collection DELETE race dropped same-key local work");
+            } else if (!target.isEmpty()) {
+                return QStringLiteral("Collection DELETE race retained an unchanged remote key");
+            }
+            if (!sameKey
+                && unrelated.value(QStringLiteral("addedAt")).toLongLong() != 3000)
+                return QStringLiteral("Collection DELETE race dropped unrelated local work");
+        }
+
+        raceStore.flush();
+        CollectionStore persisted(path);
+        const QVariantMap persistedTarget = findEntry(persisted, targetId);
+        const QVariantMap persistedUnrelated = findEntry(persisted, unrelatedId);
+        if (operation == SyncWireOperation::Put) {
+            const qint64 expectedAddedAt = sameKey ? 3000 : 2000;
+            if (persistedTarget.value(QStringLiteral("addedAt")).toLongLong()
+                != expectedAddedAt)
+                return QStringLiteral("Collection PUT race did not persist the winning snapshot");
+        } else if (sameKey) {
+            if (persistedTarget.value(QStringLiteral("addedAt")).toLongLong() != 3000)
+                return QStringLiteral("Collection DELETE race did not persist the local winner");
+        } else if (!persistedTarget.isEmpty()) {
+            return QStringLiteral("Collection DELETE race persisted a stale remote key");
+        }
+        if (!sameKey
+            && persistedUnrelated.value(QStringLiteral("addedAt")).toLongLong() != 3000)
+            return QStringLiteral("Collection race did not persist unrelated local work");
+        return QString();
+    };
+
+    QVERIFY2(
+        runCollectionRace(SyncWireOperation::Put, true, QStringLiteral("put-same")).isEmpty(),
+        "Collection same-key PUT race failed");
+    QVERIFY2(
+        runCollectionRace(SyncWireOperation::Put, false, QStringLiteral("put-unrelated")).isEmpty(),
+        "Collection unrelated-key PUT race failed");
+    QVERIFY2(
+        runCollectionRace(SyncWireOperation::Delete, true, QStringLiteral("delete-same")).isEmpty(),
+        "Collection same-key DELETE race failed");
+    QVERIFY2(
+        runCollectionRace(SyncWireOperation::Delete, false, QStringLiteral("delete-unrelated")).isEmpty(),
+        "Collection unrelated-key DELETE race failed");
+}
+
+void tst_core_sync_adapters::
 progressRemoteApplyEmitsRemoteOnlyOwnerSignal() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
@@ -1366,6 +1769,98 @@ twoReplicaProgressConvergesAfterSilentOfflineTick() {
                 QStringLiteral("progress"))
             .toDouble(),
         0.75);
+}
+
+void tst_core_sync_adapters::
+progressPersistenceFailureDoesNotAdvanceCursor() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const ProfilePaths profile = makeProfile(&temp);
+
+    CoreFixtureService service;
+    const QVariantMap entry = progressEntry(
+        QStringLiteral("manga-disk-failure"),
+        0.45,
+        service.serverTimeMs);
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::progress(entry);
+
+    SyncWireMutation mutation;
+    mutation.mutationId = QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab");
+    mutation.deviceId = QString::fromLatin1(kDeviceB);
+    mutation.category = QStringLiteral("continue_progress");
+    mutation.recordKey = projected.recordKey;
+    mutation.schemaVersion = 1;
+    mutation.hlc = SyncWireHlc{service.serverTimeMs, 0, mutation.deviceId};
+    mutation.operation = SyncWireOperation::Put;
+    mutation.payload = projected.payload;
+    const AccountTransportReply seeded =
+        service.push(QJsonArray{syncWireMutationToJson(mutation)});
+    QCOMPARE(seeded.statusCode, 200);
+
+    CoreReplica replica(&service, profile, QString::fromLatin1(kDeviceA));
+
+    // Replace the unopened INI file with a directory. The store loaded as a
+    // legitimate empty owner, but its worker now cannot commit a snapshot.
+    QFile::remove(profile.progressIniPath());
+    QVERIFY(QDir().mkpath(profile.progressIniPath()));
+
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Blocked);
+    QCOMPARE(replica.engine.cursor(), quint64(0));
+    QCOMPARE(replica.progress.syncEntries().size(), 0);
+
+    SyncStateStore stateStore;
+    QString error;
+    const auto state = stateStore.load(profile.syncStatePath(), &error);
+    QVERIFY2(state.has_value(), qPrintable(error));
+    QCOMPARE(state->cursor, quint64(0));
+    QCOMPARE(state->ownerRedos.size(), 1);
+}
+
+void tst_core_sync_adapters::
+collectionPersistenceFailureDoesNotAdvanceCursor() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const ProfilePaths profile = makeProfile(&temp);
+
+    CoreFixtureService service;
+    QVariantMap entry = collectionEntry(
+        QStringLiteral("disk-failure"),
+        1000);
+    entry.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::collection(entry);
+
+    SyncWireMutation mutation;
+    mutation.mutationId = QStringLiteral("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbc");
+    mutation.deviceId = QString::fromLatin1(kDeviceB);
+    mutation.category = QStringLiteral("collection");
+    mutation.recordKey = projected.recordKey;
+    mutation.schemaVersion = 1;
+    mutation.hlc = SyncWireHlc{service.serverTimeMs, 0, mutation.deviceId};
+    mutation.operation = SyncWireOperation::Put;
+    mutation.payload = projected.payload;
+    const AccountTransportReply seeded =
+        service.push(QJsonArray{syncWireMutationToJson(mutation)});
+    QCOMPARE(seeded.statusCode, 200);
+
+    CoreReplica replica(&service, profile, QString::fromLatin1(kDeviceA));
+
+    QFile::remove(profile.collectionIniPath());
+    QVERIFY(QDir().mkpath(profile.collectionIniPath()));
+
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Blocked);
+    QCOMPARE(replica.engine.cursor(), quint64(0));
+    QCOMPARE(replica.collection.syncEntries().size(), 0);
+
+    SyncStateStore stateStore;
+    QString error;
+    const auto state = stateStore.load(profile.syncStatePath(), &error);
+    QVERIFY2(state.has_value(), qPrintable(error));
+    QCOMPARE(state->cursor, quint64(0));
+    QCOMPARE(state->ownerRedos.size(), 1);
 }
 
 void tst_core_sync_adapters::

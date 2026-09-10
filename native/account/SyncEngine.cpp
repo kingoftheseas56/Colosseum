@@ -94,6 +94,7 @@ bool hasDurableSyncWarning(
     const SyncPersistentState &state) {
     return !state.rejectedMutations.isEmpty()
         || !state.quarantinedEntries.isEmpty()
+        || !state.ownerRedos.isEmpty()
         || state.historicalReplayPending;
 }
 }
@@ -180,7 +181,11 @@ SyncEngine::SyncEngine(
                             "adapter_snapshot_failed")
                     || m_lastErrorCode
                         == QLatin1String(
-                            "unsupported_schema_version"))) {
+                            "unsupported_schema_version")
+                    || m_lastErrorCode
+                        == QLatin1String("adapter_unregistered")
+                    || m_lastErrorCode
+                        == QLatin1String("adapter_destroyed"))) {
                 clearError();
                 setState(State::Idle);
             }
@@ -285,6 +290,7 @@ bool SyncEngine::start(
         normalizedDevice;
     m_persistent =
         *loaded;
+    ++m_profileGeneration;
 
     m_disabledCategories = m_requestedDisabledCategories;
     m_categoryReplayInProgress.clear();
@@ -344,6 +350,17 @@ bool SyncEngine::start(
     m_retryTimer.stop();
     m_request = {};
     m_pendingPersistenceGenerations.clear();
+    m_persistenceCallbacks.clear();
+    m_pullProcessing.reset();
+    m_ownerApply.reset();
+    m_ownerRedoRecoveryInProgress = false;
+    m_ownerRedoBatchReady = false;
+    m_ownerRedoBatchPreparing = false;
+    m_startFinalizationPending = false;
+    m_quarantineReplayCategory.clear();
+    m_quarantineReplayRunning = false;
+    m_quarantineReplaySkipped.clear();
+    m_quarantineReplayCategories.clear();
     m_networkBusy = false;
     m_active = true;
     m_initialPullPending = true;
@@ -355,36 +372,44 @@ bool SyncEngine::start(
         clearError();
     setState(State::Idle);
 
-    QString reconcileError;
-    if (!reconcileAllAdapters(
-            &reconcileError)) {
-        setBlocked(
-            QStringLiteral(
-                "adapter_snapshot_failed"),
-            reconcileError);
-        if (error)
-            *error = reconcileError;
-        return false;
+    if (!m_persistent.ownerRedos.isEmpty()) {
+        m_ownerRedoRecoveryInProgress = true;
+        m_startFinalizationPending = true;
+        beginOwnerRedoRecovery();
+        emit recoveryAvailableChanged();
+        return true;
     }
 
-    for (const QString &category :
-         m_registry->registeredCategories()) {
+    finishStartAfterOwnerRedo();
+    if (m_state == State::Blocked && error)
+        *error = m_lastErrorMessage;
+    emit recoveryAvailableChanged();
+    return m_state != State::Blocked;
+}
+
+void SyncEngine::finishStartAfterOwnerRedo() {
+    if (!m_active)
+        return;
+
+    m_ownerRedoRecoveryInProgress = false;
+    m_startFinalizationPending = false;
+
+    QString reconcileError;
+    if (!reconcileAllAdapters(&reconcileError)) {
+        setBlocked(QStringLiteral("adapter_snapshot_failed"), reconcileError);
+        return;
+    }
+
+    for (const QString &category : m_registry->registeredCategories()) {
         QString replayCode;
         QString replayMessage;
-        if (!replayQuarantinedCategory(
-                category,
-                &replayCode,
-                &replayMessage)) {
+        if (!replayQuarantinedCategory(category, &replayCode, &replayMessage)) {
             setBlocked(
-                replayCode.isEmpty()
-                    ? QStringLiteral("adapter_apply_failed")
-                    : replayCode,
+                replayCode.isEmpty() ? QStringLiteral("adapter_apply_failed") : replayCode,
                 replayMessage.isEmpty()
                     ? QStringLiteral("A quarantined sync record could not be applied safely.")
                     : replayMessage);
-            if (error)
-                *error = m_lastErrorMessage;
-            return false;
+            return;
         }
         if (!replayCode.isEmpty()) {
             m_lastErrorCode = replayCode;
@@ -394,7 +419,6 @@ bool SyncEngine::start(
 
     persistState();
     emit recoveryAvailableChanged();
-    return true;
 }
 
 bool SyncEngine::stopPreservingOutbox(
@@ -408,11 +432,18 @@ bool SyncEngine::stopPreservingOutbox(
     m_retryTimer.stop();
     m_networkEnabled = false;
     m_signOutFlushRequested = false;
+    ++m_profileGeneration;
 
     QString reconcileError;
-    const bool reconciled =
-        reconcileAllAdapters(
-            &reconcileError);
+    const bool ownerTransactionInFlight =
+        m_ownerApply.has_value()
+        || m_ownerRedoRecoveryInProgress
+        || m_ownerRedoBatchPreparing
+        || m_pullProcessing.has_value()
+        || m_quarantineReplayRunning;
+    const bool reconciled = ownerTransactionInFlight
+        ? true
+        : reconcileAllAdapters(&reconcileError);
 
     if (!m_statePath.isEmpty())
         persistState();
@@ -423,6 +454,17 @@ bool SyncEngine::stopPreservingOutbox(
             &flushError);
 
     m_pendingPersistenceGenerations.clear();
+    m_persistenceCallbacks.clear();
+    m_pullProcessing.reset();
+    m_ownerApply.reset();
+    m_ownerRedoRecoveryInProgress = false;
+    m_ownerRedoBatchReady = false;
+    m_ownerRedoBatchPreparing = false;
+    m_startFinalizationPending = false;
+    m_quarantineReplayCategory.clear();
+    m_quarantineReplayRunning = false;
+    m_quarantineReplaySkipped.clear();
+    m_quarantineReplayCategories.clear();
     m_networkBusy = false;
     m_request = {};
     m_initialPullPending = false;
@@ -478,7 +520,11 @@ void SyncEngine::requestImmediateSync() {
                     "adapter_snapshot_failed")
             || m_lastErrorCode
                 == QLatin1String(
-                    "unsupported_schema_version");
+                    "unsupported_schema_version")
+            || m_lastErrorCode
+                == QLatin1String("adapter_unregistered")
+            || m_lastErrorCode
+                == QLatin1String("adapter_destroyed");
 
         if (!adapterMayHaveChanged)
             return;
@@ -493,10 +539,21 @@ void SyncEngine::requestImmediateSync() {
 }
 
 void SyncEngine::retryRejectedMutations() {
-    if (!m_active
-        || m_persistent.rejectedMutations.isEmpty()) {
+    if (!m_active)
         return;
-    }
+
+    const bool hasRejectedMutations =
+        !m_persistent.rejectedMutations.isEmpty();
+    const bool ownerRecoveryBlocked =
+        m_state == State::Blocked
+        && (m_lastErrorCode == QLatin1String("adapter_apply_failed")
+            || m_lastErrorCode == QLatin1String("sync_persistence_failed")
+            || m_lastErrorCode == QLatin1String("adapter_unregistered")
+            || m_lastErrorCode == QLatin1String("adapter_destroyed"));
+    if (!hasRejectedMutations
+        && !ownerRecoveryBlocked
+        && m_persistent.ownerRedos.isEmpty())
+        return;
 
     // This is intentionally an explicit, bounded recovery action. Ordinary
     // pulls and the idle timer leave rejected records parked so one old server
@@ -504,10 +561,25 @@ void SyncEngine::retryRejectedMutations() {
     // retry is scheduled and persisted together with the existing outbox.
     m_persistent.rejectedMutations.clear();
     m_retryTimer.stop();
-    m_initialPullPending = true;
     clearError();
     setState(State::Idle);
-    persistState();
+
+    // A durable owner redo is the explicit recovery handle for a disk or
+    // owner-lifecycle failure. Retry it before allowing network work again;
+    // this keeps the existing sync-repair affordance from leaving healthy
+    // categories behind a permanent global Blocked state.
+    if (!m_persistent.ownerRedos.isEmpty()
+        && !m_ownerApply.has_value()
+        && !m_ownerRedoRecoveryInProgress
+        && !m_pullProcessing.has_value()
+        && !m_quarantineReplayRunning) {
+        m_ownerRedoRecoveryInProgress = true;
+        m_startFinalizationPending = true;
+        beginOwnerRedoRecovery();
+    } else {
+        m_initialPullPending = true;
+        persistState();
+    }
     emit recoveryAvailableChanged();
 }
 
@@ -524,8 +596,14 @@ void SyncEngine::beginSignOutFlush() {
     m_retryTimer.stop();
 
     QString reconcileError;
-    if (!reconcileAllAdapters(
-            &reconcileError)) {
+    const bool ownerTransactionInFlight =
+        m_ownerApply.has_value()
+        || m_ownerRedoRecoveryInProgress
+        || m_ownerRedoBatchPreparing
+        || m_pullProcessing.has_value()
+        || m_quarantineReplayRunning;
+    if (!ownerTransactionInFlight
+        && !reconcileAllAdapters(&reconcileError)) {
         m_signOutFlushRequested = false;
         setBlocked(
             QStringLiteral(
@@ -884,6 +962,15 @@ void SyncEngine::handleClientCompleted(
             m_initialPullPending = true;
     }
 
+    if (phase == NetworkPhase::Pull
+        && m_pullProcessing.has_value()) {
+        // The transport reply has been parsed, but a remote owner still has
+        // to acknowledge durable commit. Keep the engine busy and let the
+        // owner receipt finish this request through finishPullProcessing().
+        m_request = {};
+        return;
+    }
+
     m_networkBusy = false;
     m_request = {};
 
@@ -975,6 +1062,48 @@ bool SyncEngine::validateLoadedState(
                 *error = QStringLiteral("The durable rejected-mutation state is invalid.");
             return false;
         }
+    }
+
+    QSet<quint64> ownerRedoSequences;
+    for (const SyncOwnerRedo &redo : m_persistent.ownerRedos) {
+        if (redo.serverSeq == 0
+            || ownerRedoSequences.contains(redo.serverSeq)
+            || !redo.won
+            || redo.mutation.mutationId.isEmpty()
+            || redo.mutation.category.isEmpty()
+            || !isValidSyncWireRecordKey(redo.mutation.recordKey)
+            || redo.mutation.schemaVersion <= 0
+            || (redo.mutation.operation == SyncWireOperation::Put
+                && !redo.mutation.payload.isObject())
+            || (redo.mutation.operation == SyncWireOperation::Delete
+                && !redo.mutation.payload.isUndefined()
+                && !redo.mutation.payload.isNull())) {
+            if (error)
+                *error = QStringLiteral("The durable owner redo state is invalid.");
+            return false;
+        }
+        if (redo.mutation.operation == SyncWireOperation::Put) {
+            const SyncPayloadValidation validation =
+                SyncPayloadFirewall::validate(
+                    redo.mutation.category,
+                    redo.mutation.payload);
+            if (!validation.allowed) {
+                if (error)
+                    *error = validation.detail;
+                return false;
+            }
+        }
+        const SyncOwnershipEntry *entry =
+            SyncOwnershipInventory::find(redo.mutation.category);
+        if (!entry
+            || entry->disposition != SyncDisposition::Syncable
+            || entry->ownerStatus != SyncOwnerStatus::Confirmed
+            || !entry->ordinaryPayloadEligible) {
+            if (error)
+                *error = QStringLiteral("The durable owner redo contains a category that is not eligible for ordinary sync.");
+            return false;
+        }
+        ownerRedoSequences.insert(redo.serverSeq);
     }
 
     QSet<quint64> quarantineSequences;
@@ -1387,6 +1516,9 @@ void SyncEngine::maybeRunNetwork() {
         || !m_networkEnabled
         || m_networkBusy
         || m_state == State::Blocked
+        || m_ownerRedoRecoveryInProgress
+        || m_startFinalizationPending
+        || m_quarantineReplayRunning
         || !m_pendingPersistenceGenerations
                 .isEmpty()) {
         return;
@@ -1428,7 +1560,10 @@ void SyncEngine::maybeRunNetwork() {
 void SyncEngine::beginPull() {
     if (!m_active
         || !m_networkEnabled
-        || m_networkBusy) {
+        || m_networkBusy
+        || m_ownerRedoRecoveryInProgress
+        || m_startFinalizationPending
+        || m_quarantineReplayRunning) {
         return;
     }
 
@@ -1585,6 +1720,40 @@ void SyncEngine::beginPush() {
             mutations);
 }
 
+void SyncEngine::finishPullProcessing(
+    bool processed,
+    const QString &errorCode,
+    const QString &errorMessage) {
+    if (!m_active)
+        return;
+
+    m_networkBusy = false;
+    m_request = {};
+
+    if (!processed) {
+        setBlocked(
+            errorCode.isEmpty() ? QStringLiteral("sync_protocol_error") : errorCode,
+            errorMessage.isEmpty() ? QStringLiteral("Sync needs attention.") : errorMessage);
+
+        if (m_signOutFlushRequested) {
+            m_signOutFlushRequested = false;
+            emit signOutFlushFinished(false, m_lastErrorCode, m_lastErrorMessage);
+        }
+        return;
+    }
+
+    m_retryAttempt = 0;
+    if (!errorCode.isEmpty()) {
+        m_lastErrorCode = errorCode;
+        m_lastErrorMessage = errorMessage;
+    } else if (!hasDurableSyncWarning(m_persistent)) {
+        clearError();
+    }
+    setState(State::Idle);
+    persistState();
+    emit recoveryAvailableChanged();
+}
+
 bool SyncEngine::processPullReply(
     const AccountTransportReply &reply,
     QString *errorCode,
@@ -1606,124 +1775,241 @@ bool SyncEngine::processPullReply(
         return false;
     }
 
-    const bool replayingHistorical =
-        m_persistent.historicalReplayPending;
-    const quint64 historicalReplayLimit =
-        replayingHistorical
-            ? m_persistent.historicalReplayLimit
-            : 0;
-    QString firstWarningCode;
-    QString firstWarningMessage;
-    bool replayReachedLimit = false;
+    PullProcessingContext context;
+    context.entries = response->entries;
+    context.hasMore = response->hasMore;
+    context.replayingHistorical = m_persistent.historicalReplayPending;
+    context.historicalLimit = context.replayingHistorical
+        ? m_persistent.historicalReplayLimit
+        : 0;
+    m_pullProcessing = std::move(context);
 
-    for (const SyncWirePullEntry &entry :
-         response->entries) {
-        const quint64 processedCursor =
-            replayingHistorical
-                ? m_persistent.historicalReplayCursor
-                : m_persistent.cursor;
-        if (entry.serverSeq <= processedCursor)
-            continue;
+    const bool completed = continuePullProcessing(errorCode, errorMessage);
+    if (!completed)
+        return false;
+    // A durable owner operation leaves the context installed until its receipt.
+    return true;
+}
 
-        if (replayingHistorical
-            && entry.serverSeq > historicalReplayLimit) {
-            // Pull pages are ordered by server sequence. This response has
-            // crossed the one-time replay boundary; leave newer rows for the
-            // normal cursor after the replay checkpoint is committed.
-            replayReachedLimit = true;
-            break;
-        }
+bool SyncEngine::continuePullProcessing(
+    QString *errorCode,
+    QString *errorMessage) {
+    if (!m_pullProcessing.has_value())
+        return true;
 
-        // Poison guard: a remote HLC far in the future would permanently
-        // inflate the local hybrid clock (persisted), making every later
-        // local mutation clock_skew-rejected. Reject the pull instead.
-        if (entry.mutation.hlc.physicalMs
-                > nowMs() + kMaximumRemoteClockFutureMs) {
-            if (errorCode) {
-                *errorCode = QStringLiteral("sync_protocol_error");
+    if (m_ownerRedoBatchPreparing)
+        return true;
+
+    PullProcessingContext &batchContext = *m_pullProcessing;
+    if (!m_ownerRedoBatchReady) {
+        bool addedRedo = false;
+        const quint64 processedCursor = batchContext.replayingHistorical
+            ? m_persistent.historicalReplayCursor
+            : m_persistent.cursor;
+        for (const SyncWirePullEntry &candidate :
+             std::as_const(batchContext.entries)) {
+            if (candidate.serverSeq <= processedCursor)
+                continue;
+            if (batchContext.replayingHistorical
+                && candidate.serverSeq > batchContext.historicalLimit)
+                break;
+            if (candidate.mutation.hlc.physicalMs
+                    > nowMs() + kMaximumRemoteClockFutureMs) {
+                if (errorCode)
+                    *errorCode = QStringLiteral("sync_protocol_error");
+                if (errorMessage)
+                    *errorMessage = QStringLiteral(
+                        "The sync service served a clock value that is implausibly far in the future.");
+                m_pullProcessing.reset();
+                return false;
             }
-            if (errorMessage) {
-                *errorMessage = QStringLiteral(
-                    "The sync service served a clock value that is implausibly far in the future.");
-            }
-            return false;
-        }
-
-        m_clock.observe(
-            entry.mutation.hlc,
-            nowMs());
-
-        if (entry.won) {
-            SyncAdapterFailureClass failureClass =
-                SyncAdapterFailureClass::Owner;
-            QString applyCode;
-            QString applyMessage;
-            if (!applyWinningPullEntry(
-                    entry,
-                    &applyCode,
-                    &applyMessage,
-                    &failureClass)) {
-                if (failureClass
-                    != SyncAdapterFailureClass::Compatibility) {
-                    if (errorCode)
-                        *errorCode = applyCode;
-                    if (errorMessage)
-                        *errorMessage = applyMessage;
-                    return false;
+            if (!candidate.won
+                || m_disabledCategories.contains(candidate.mutation.category))
+                continue;
+            const auto categoryIt =
+                m_persistent.winners.constFind(candidate.mutation.category);
+            if (categoryIt != m_persistent.winners.constEnd()) {
+                const auto winnerIt =
+                    categoryIt->constFind(candidate.mutation.recordKey);
+                if (winnerIt != categoryIt->constEnd()
+                    && compareSyncWireHlc(
+                           winnerIt->hlc,
+                           candidate.mutation.hlc) >= 0) {
+                    continue;
                 }
+            }
+            bool alreadyRedo = false;
+            for (const SyncOwnerRedo &redo : std::as_const(m_persistent.ownerRedos)) {
+                if (redo.serverSeq == candidate.serverSeq) {
+                    alreadyRedo = true;
+                    break;
+                }
+            }
+            if (!alreadyRedo) {
+                m_persistent.ownerRedos.append(SyncOwnerRedo{
+                    candidate.serverSeq,
+                    candidate.won,
+                    candidate.mutation,
+                    batchContext.replayingHistorical,
+                    false});
+                addedRedo = true;
+            }
+        }
 
-                bool alreadyQuarantined = false;
-                for (const SyncQuarantineEntry &quarantined :
-                     std::as_const(m_persistent.quarantinedEntries)) {
-                    if (quarantined.serverSeq == entry.serverSeq) {
-                        alreadyQuarantined = true;
-                        break;
+        m_ownerRedoBatchReady = true;
+        if (addedRedo) {
+            m_ownerRedoBatchPreparing = true;
+            const quint64 generation = m_profileGeneration;
+            persistState(
+                [this, generation](bool committed, const QString &message) {
+                    if (!m_active || generation != m_profileGeneration)
+                        return;
+                    m_ownerRedoBatchPreparing = false;
+                    if (!committed) {
+                        m_ownerRedoBatchReady = false;
+                        m_pullProcessing.reset();
+                        finishPullProcessing(
+                            false,
+                            QStringLiteral("sync_persistence_failed"),
+                            message.isEmpty()
+                                ? QStringLiteral("Sync state could not be stored safely before owner apply.")
+                                : message);
+                        return;
                     }
-                }
-                if (!alreadyQuarantined) {
-                    m_persistent.quarantinedEntries.append(
-                        SyncQuarantineEntry{
-                            entry.serverSeq,
-                            entry.won,
-                            entry.mutation,
-                            applyCode.isEmpty()
-                                ? QStringLiteral("sync_record_incompatible")
-                                : applyCode,
-                            applyMessage.isEmpty()
-                                ? QStringLiteral("A remote sync record was retained because the local owner could not materialize it.")
-                                : applyMessage});
-                }
-                if (firstWarningCode.isEmpty()) {
-                    firstWarningCode = applyCode.isEmpty()
-                        ? QStringLiteral("sync_record_incompatible")
-                        : applyCode;
-                    firstWarningMessage = applyMessage.isEmpty()
-                        ? QStringLiteral("A remote sync record was retained because the local owner could not materialize it.")
-                        : applyMessage;
-                }
-            }
-        }
-
-        if (replayingHistorical) {
-            m_persistent.historicalReplayCursor =
-                entry.serverSeq;
-        } else {
-            m_persistent.cursor = entry.serverSeq;
+                    QString code;
+                    QString detail;
+                    const bool completed = continuePullProcessing(&code, &detail);
+                    if (!completed) {
+                        finishPullProcessing(false, code, detail);
+                    } else if (!m_pullProcessing.has_value()) {
+                        finishPullProcessing(true, code, detail);
+                    }
+                });
+            return true;
         }
     }
 
-    m_pullHasMore =
-        response->hasMore && !replayReachedLimit;
+    PullProcessingContext &context = *m_pullProcessing;
+    while (context.index < context.entries.size()) {
+        const SyncWirePullEntry entry = context.entries.at(context.index++);
+        const quint64 processedCursor = context.replayingHistorical
+            ? m_persistent.historicalReplayCursor
+            : m_persistent.cursor;
+        if (entry.serverSeq <= processedCursor)
+            continue;
 
+        if (context.replayingHistorical
+            && entry.serverSeq > context.historicalLimit) {
+            context.replayReachedLimit = true;
+            break;
+        }
+
+        if (entry.mutation.hlc.physicalMs
+                > nowMs() + kMaximumRemoteClockFutureMs) {
+            if (errorCode)
+                *errorCode = QStringLiteral("sync_protocol_error");
+            if (errorMessage)
+                *errorMessage = QStringLiteral(
+                    "The sync service served a clock value that is implausibly far in the future.");
+            m_pullProcessing.reset();
+            return false;
+        }
+
+        m_clock.observe(entry.mutation.hlc, nowMs());
+
+        const auto categoryIt = m_persistent.winners.constFind(entry.mutation.category);
+        const auto winnerIt = categoryIt == m_persistent.winners.constEnd()
+            ? QHash<QString, SyncWinner>::const_iterator()
+            : categoryIt->constFind(entry.mutation.recordKey);
+        const bool alreadyWon = categoryIt != m_persistent.winners.constEnd()
+            && winnerIt != categoryIt->constEnd()
+            && compareSyncWireHlc(winnerIt->hlc, entry.mutation.hlc) >= 0;
+
+        if (!entry.won || alreadyWon) {
+            // The page checkpoint may have predeclared a redo for a later
+            // entry before an earlier winner for the same logical record was
+            // applied. Once the durable winner already covers this entry,
+            // retire that redundant redo together with the cursor advance.
+            removeOwnerRedo(entry.serverSeq);
+            if (context.replayingHistorical)
+                m_persistent.historicalReplayCursor = entry.serverSeq;
+            else
+                m_persistent.cursor = entry.serverSeq;
+            continue;
+        }
+
+        if (m_disabledCategories.contains(entry.mutation.category)) {
+            // Disabled categories are acknowledged by durable sync metadata
+            // without touching the owner. A page checkpoint can still have
+            // predeclared this row, so it must not survive as a startup redo.
+            removeOwnerRedo(entry.serverSeq);
+            recordWinningState(entry);
+            if (context.replayingHistorical)
+                m_persistent.historicalReplayCursor = entry.serverSeq;
+            else
+                m_persistent.cursor = entry.serverSeq;
+            continue;
+        }
+
+        const bool replayingHistorical = context.replayingHistorical;
+        const quint64 generation = m_profileGeneration;
+        beginDurableOwnerApply(
+            entry,
+            replayingHistorical,
+            false,
+            false,
+            [this, generation](
+                bool progressed,
+                const SyncAdapterRegistryError &result) {
+                if (!m_active || generation != m_profileGeneration)
+                    return;
+
+                if (!progressed) {
+                    m_ownerRedoBatchReady = false;
+                    m_pullProcessing.reset();
+                    finishPullProcessing(
+                        false,
+                        result.code.isEmpty()
+                            ? QStringLiteral("adapter_apply_failed")
+                            : result.code,
+                        result.detail);
+                    return;
+                }
+
+                QString code;
+                QString message;
+                if (result.failureClass == SyncAdapterFailureClass::Compatibility) {
+                    code = result.code;
+                    message = result.detail;
+                    if (m_pullProcessing.has_value()
+                        && m_pullProcessing->firstWarningCode.isEmpty()) {
+                        m_pullProcessing->firstWarningCode = code;
+                        m_pullProcessing->firstWarningMessage = message;
+                    }
+                }
+                const bool completed = continuePullProcessing(&code, &message);
+                if (!completed) {
+                    finishPullProcessing(false, code, message);
+                    return;
+                }
+                if (!m_pullProcessing.has_value())
+                    finishPullProcessing(true, code, message);
+            });
+
+        // beginDurableOwnerApply keeps m_ownerApply set until the receipt. If
+        // a future owner implementation completes synchronously, the callback
+        // above has already advanced the context and the loop can continue.
+        if (m_ownerApply.has_value())
+            return true;
+    }
+
+    m_pullHasMore = context.hasMore && !context.replayReachedLimit;
     if (!m_pullHasMore) {
         m_initialPullPending = false;
-        if (replayingHistorical) {
-            // The final page and this marker are persisted together by the
-            // completion handler. A crash before that commit leaves replay
-            // pending and resumes from the last durable replay position.
-            m_persistent.cursor =
-                qMax(m_persistent.cursor,
-                     m_persistent.historicalReplayCursor);
+        if (context.replayingHistorical) {
+            m_persistent.cursor = qMax(
+                m_persistent.cursor,
+                m_persistent.historicalReplayCursor);
             m_persistent.historicalReplayPending = false;
             m_persistent.historicalReplayCursor = 0;
             m_persistent.historicalReplayLimit = 0;
@@ -1732,16 +2018,266 @@ bool SyncEngine::processPullReply(
 
     if (!m_pullHasMore && !m_categoryReplayInProgress.isEmpty()
         && !finishCategoryReplay(m_categoryReplayInProgress,
-                                 errorCode, errorMessage))
-        return false;
-
-    if (!firstWarningCode.isEmpty()) {
+                                 &context.firstWarningCode,
+                                 &context.firstWarningMessage)) {
         if (errorCode)
-            *errorCode = firstWarningCode;
-        if (errorMessage)
-            *errorMessage = firstWarningMessage;
+            *errorCode = context.firstWarningCode;
+                    if (errorMessage)
+            *errorMessage = context.firstWarningMessage;
+                m_pullProcessing.reset();
+                return false;
     }
+
+    if (errorCode)
+        *errorCode = context.firstWarningCode;
+    if (errorMessage)
+        *errorMessage = context.firstWarningMessage;
+    m_ownerRedoBatchReady = false;
+    m_pullProcessing.reset();
     return true;
+}
+
+void SyncEngine::beginDurableOwnerApply(
+    const SyncWirePullEntry &entry,
+    bool replayingHistorical,
+    bool fromQuarantine,
+    bool recovery,
+    OwnerApplyContinuation continuation) {
+    if (!m_active || m_ownerApply.has_value())
+        return;
+
+    OwnerApplyContext context;
+    context.entry = entry;
+    context.replayingHistorical = replayingHistorical;
+    context.fromQuarantine = fromQuarantine;
+    context.recovery = recovery;
+    context.profileGeneration = m_profileGeneration;
+    context.continuation = std::move(continuation);
+    m_ownerApply = std::move(context);
+
+    bool hasRedo = false;
+    for (const SyncOwnerRedo &redo : std::as_const(m_persistent.ownerRedos)) {
+        if (redo.serverSeq == entry.serverSeq) {
+            hasRedo = true;
+            break;
+        }
+    }
+    if (!hasRedo) {
+        m_persistent.ownerRedos.append(SyncOwnerRedo{
+            entry.serverSeq,
+            entry.won,
+            entry.mutation,
+            replayingHistorical,
+            fromQuarantine});
+    }
+
+    const quint64 generation = m_profileGeneration;
+    auto startOwner = [this, generation]() {
+        if (!m_active
+            || generation != m_profileGeneration
+            || !m_ownerApply.has_value()) {
+            return;
+        }
+
+        const OwnerApplyContext context = *m_ownerApply;
+        SyncAdapterMutation incoming;
+        incoming.categoryId = context.entry.mutation.category;
+        incoming.recordKey = context.entry.mutation.recordKey;
+        incoming.schemaVersion = context.entry.mutation.schemaVersion;
+        incoming.operation = context.entry.mutation.operation;
+        incoming.payload = context.entry.mutation.payload;
+
+        SyncAdapterRegistryError startError;
+        const bool started = m_registry->applyRemoteAsync(
+            incoming,
+            [this, generation](const SyncAdapterRegistryError &result) {
+                if (!m_active || generation != m_profileGeneration)
+                    return;
+                handleOwnerApplyCompletion(result);
+            },
+            &startError);
+        if (!started)
+            handleOwnerApplyCompletion(startError);
+    };
+
+    if (m_ownerRedoBatchReady && !recovery && !fromQuarantine) {
+        // Keep the owner context installed until the event-loop turn. This
+        // also prevents synchronous test/donor adapters from re-entering the
+        // pull loop while its stack still holds a context reference.
+        QMetaObject::invokeMethod(
+            this,
+            [startOwner]() { startOwner(); },
+            Qt::QueuedConnection);
+        return;
+    }
+
+    persistState(
+        [this, generation, startOwner](bool committed, const QString &message) {
+            if (!m_active
+                || generation != m_profileGeneration
+                || !m_ownerApply.has_value()) {
+                return;
+            }
+
+            if (!committed) {
+                SyncAdapterRegistryError result;
+                result.code = QStringLiteral("sync_persistence_failed");
+                result.detail = message.isEmpty()
+                    ? QStringLiteral("Sync state could not be stored safely before owner apply.")
+                    : message;
+                result.failureClass = SyncAdapterFailureClass::Owner;
+                handleOwnerApplyCompletion(result);
+                return;
+            }
+
+            startOwner();
+        });
+}
+
+void SyncEngine::handleOwnerApplyCompletion(
+    const SyncAdapterRegistryError &result) {
+    if (!m_ownerApply.has_value())
+        return;
+
+    OwnerApplyContext context = std::move(*m_ownerApply);
+    m_ownerApply.reset();
+
+    if (!m_active || context.profileGeneration != m_profileGeneration)
+        return;
+
+    const SyncWirePullEntry &entry = context.entry;
+    const bool compatibility =
+        result.failureClass == SyncAdapterFailureClass::Compatibility
+        && !result.code.isEmpty();
+
+    if (!result.isEmpty() && !compatibility) {
+        if (context.continuation)
+            context.continuation(false, result);
+        return;
+    }
+
+    if (compatibility) {
+        if (context.fromQuarantine) {
+            m_quarantineReplaySkipped.insert(entry.serverSeq);
+        } else {
+            bool present = false;
+            for (const SyncQuarantineEntry &quarantined :
+                 std::as_const(m_persistent.quarantinedEntries)) {
+                if (quarantined.serverSeq == entry.serverSeq) {
+                    present = true;
+                    break;
+                }
+            }
+            if (!present) {
+                m_persistent.quarantinedEntries.append(SyncQuarantineEntry{
+                    entry.serverSeq,
+                    entry.won,
+                    entry.mutation,
+                    result.code.isEmpty()
+                        ? QStringLiteral("sync_record_incompatible")
+                        : result.code,
+                    result.detail.isEmpty()
+                        ? QStringLiteral("A remote sync record was retained because the local owner could not materialize it.")
+                        : result.detail});
+            }
+        }
+        removeOwnerRedo(entry.serverSeq);
+        if (!context.fromQuarantine) {
+            if (context.replayingHistorical)
+                m_persistent.historicalReplayCursor = entry.serverSeq;
+            else
+                m_persistent.cursor = entry.serverSeq;
+        }
+        if (!m_ownerRedoBatchReady || context.recovery || context.fromQuarantine)
+            persistState();
+        if (context.continuation)
+            context.continuation(true, result);
+        return;
+    }
+
+    removeOwnerRedo(entry.serverSeq);
+    recordWinningState(entry);
+    if (!context.fromQuarantine) {
+        if (context.replayingHistorical)
+            m_persistent.historicalReplayCursor = entry.serverSeq;
+        else
+            m_persistent.cursor = entry.serverSeq;
+    } else {
+        QList<SyncQuarantineEntry> remaining;
+        remaining.reserve(m_persistent.quarantinedEntries.size());
+        for (const SyncQuarantineEntry &quarantined :
+             std::as_const(m_persistent.quarantinedEntries)) {
+            if (quarantined.serverSeq != entry.serverSeq)
+                remaining.append(quarantined);
+        }
+        m_persistent.quarantinedEntries = remaining;
+    }
+
+    if (!m_ownerRedoBatchReady || context.recovery || context.fromQuarantine)
+        persistState();
+    if (context.continuation)
+        context.continuation(true, result);
+}
+
+void SyncEngine::recordWinningState(
+    const SyncWirePullEntry &entry) {
+    const SyncWireMutation &mutation = entry.mutation;
+    SyncWinner winner;
+    winner.hlc = mutation.hlc;
+    winner.schemaVersion = mutation.schemaVersion;
+    winner.operation = mutation.operation;
+    m_persistent.winners[mutation.category].insert(mutation.recordKey, winner);
+
+    if (mutation.operation == SyncWireOperation::Put) {
+        m_persistent.mirrors[mutation.category].insert(
+            mutation.recordKey,
+            SyncMirrorRecord{mutation.schemaVersion, mutation.payload});
+    } else {
+        m_persistent.mirrors[mutation.category].remove(mutation.recordKey);
+    }
+}
+
+void SyncEngine::removeOwnerRedo(
+    quint64 serverSeq) {
+    QList<SyncOwnerRedo> remaining;
+    remaining.reserve(m_persistent.ownerRedos.size());
+    for (const SyncOwnerRedo &redo : std::as_const(m_persistent.ownerRedos)) {
+        if (redo.serverSeq != serverSeq)
+            remaining.append(redo);
+    }
+    m_persistent.ownerRedos = remaining;
+}
+
+void SyncEngine::beginOwnerRedoRecovery() {
+    if (!m_active || !m_ownerRedoRecoveryInProgress || m_ownerApply.has_value())
+        return;
+
+    if (m_persistent.ownerRedos.isEmpty()) {
+        finishStartAfterOwnerRedo();
+        return;
+    }
+
+    const SyncOwnerRedo redo = m_persistent.ownerRedos.first();
+    beginDurableOwnerApply(
+        SyncWirePullEntry{redo.serverSeq, redo.won, redo.mutation},
+        redo.replayingHistorical,
+        redo.fromQuarantine,
+        true,
+        [this](bool progressed, const SyncAdapterRegistryError &result) {
+            if (!m_active || !m_ownerRedoRecoveryInProgress)
+                return;
+            if (!progressed) {
+                setBlocked(
+                    result.code.isEmpty()
+                        ? QStringLiteral("adapter_apply_failed")
+                        : result.code,
+                    result.detail.isEmpty()
+                        ? QStringLiteral("A pending remote owner operation could not be recovered.")
+                        : result.detail);
+                return;
+            }
+            beginOwnerRedoRecovery();
+        });
 }
 
 bool SyncEngine::processPushReply(
@@ -2020,58 +2556,81 @@ bool SyncEngine::replayQuarantinedCategory(
     QString *errorMessage) {
     if (m_disabledCategories.contains(categoryId))
         return true;
+    Q_UNUSED(errorCode);
+    Q_UNUSED(errorMessage);
 
-    QList<SyncQuarantineEntry> remaining;
-    remaining.reserve(m_persistent.quarantinedEntries.size());
-    QString firstWarningCode;
-    QString firstWarningMessage;
+    if (m_quarantineReplayRunning) {
+        if (m_quarantineReplayCategory != categoryId
+            && !m_quarantineReplayCategories.contains(categoryId)) {
+            m_quarantineReplayCategories.append(categoryId);
+        }
+        return true;
+    }
+
+    m_quarantineReplayCategory = categoryId;
+    m_quarantineReplayRunning = true;
+    m_quarantineReplaySkipped.clear();
+    m_quarantineReplayCategories.clear();
+    continueQuarantineReplay();
+    return true;
+}
+
+void SyncEngine::continueQuarantineReplay() {
+    if (!m_active || !m_quarantineReplayRunning)
+        return;
 
     for (const SyncQuarantineEntry &quarantined :
          std::as_const(m_persistent.quarantinedEntries)) {
-        if (quarantined.mutation.category != categoryId) {
-            remaining.append(quarantined);
+        if (quarantined.mutation.category != m_quarantineReplayCategory
+            || !quarantined.won
+            || m_quarantineReplaySkipped.contains(quarantined.serverSeq)) {
             continue;
         }
 
-        if (!quarantined.won)
-            continue;
-
-        SyncAdapterFailureClass failureClass =
-            SyncAdapterFailureClass::Owner;
-        QString applyCode;
-        QString applyMessage;
-        if (!applyWinningPullEntry(
-                SyncWirePullEntry{
-                    quarantined.serverSeq,
-                    quarantined.won,
-                    quarantined.mutation},
-                &applyCode,
-                &applyMessage,
-                &failureClass)) {
-            if (failureClass
-                != SyncAdapterFailureClass::Compatibility) {
-                if (errorCode)
-                    *errorCode = applyCode;
-                if (errorMessage)
-                    *errorMessage = applyMessage;
-                return false;
-            }
-            remaining.append(quarantined);
-            if (firstWarningCode.isEmpty()) {
-                firstWarningCode = quarantined.code;
-                firstWarningMessage = quarantined.message;
-            }
-        }
+        const quint64 generation = m_profileGeneration;
+        beginDurableOwnerApply(
+            SyncWirePullEntry{
+                quarantined.serverSeq,
+                quarantined.won,
+                quarantined.mutation},
+            false,
+            true,
+            false,
+            [this, generation](
+                bool progressed,
+                const SyncAdapterRegistryError &result) {
+                if (!m_active || generation != m_profileGeneration)
+                    return;
+                if (!progressed) {
+                    m_quarantineReplayRunning = false;
+                    setBlocked(
+                        result.code.isEmpty()
+                            ? QStringLiteral("adapter_apply_failed")
+                            : result.code,
+                        result.detail.isEmpty()
+                            ? QStringLiteral("A quarantined sync record could not be applied safely.")
+                            : result.detail);
+                    return;
+                }
+                continueQuarantineReplay();
+            });
+        return;
     }
 
-    m_persistent.quarantinedEntries = remaining;
-    if (!firstWarningCode.isEmpty()) {
-        if (errorCode)
-            *errorCode = firstWarningCode;
-        if (errorMessage)
-            *errorMessage = firstWarningMessage;
+    m_quarantineReplaySkipped.clear();
+    if (!m_quarantineReplayCategories.isEmpty()) {
+        m_quarantineReplayCategory = m_quarantineReplayCategories.takeFirst();
+        continueQuarantineReplay();
+        return;
     }
-    return true;
+
+    m_quarantineReplayCategory.clear();
+    m_quarantineReplayRunning = false;
+    persistState();
+    if (!hasDurableSyncWarning(m_persistent))
+        clearError();
+    if (!m_startFinalizationPending)
+        maybeRunNetwork();
 }
 
 bool SyncEngine::finishCategoryReplay(
@@ -2180,11 +2739,15 @@ void SyncEngine::rebasePendingMutations() {
     }
 }
 
-quint64 SyncEngine::persistState() {
+quint64 SyncEngine::persistState(
+    std::function<void(bool, const QString &)> callback) {
     persistClockIntoState();
 
-    if (m_statePath.isEmpty())
+    if (m_statePath.isEmpty()) {
+        if (callback)
+            callback(false, QStringLiteral("The sync state path is unavailable."));
         return 0;
+    }
 
     const quint64 generation =
         m_stateStore.saveAsync(
@@ -2193,6 +2756,8 @@ quint64 SyncEngine::persistState() {
 
     m_pendingPersistenceGenerations
         .insert(generation);
+    if (callback)
+        m_persistenceCallbacks.insert(generation, std::move(callback));
     return generation;
 }
 
@@ -2210,6 +2775,14 @@ void SyncEngine::handlePersistenceCommitted(
     if (!m_pendingPersistenceGenerations
              .remove(generation)) {
         return;
+    }
+
+    const auto callbackIt = m_persistenceCallbacks.find(generation);
+    if (callbackIt != m_persistenceCallbacks.end()) {
+        auto callback = std::move(callbackIt.value());
+        m_persistenceCallbacks.erase(callbackIt);
+        if (callback)
+            callback(true, QString());
     }
 
     if (!m_active)
@@ -2232,6 +2805,14 @@ void SyncEngine::handlePersistenceFailed(
     if (!m_pendingPersistenceGenerations
              .remove(generation)) {
         return;
+    }
+
+    const auto callbackIt = m_persistenceCallbacks.find(generation);
+    if (callbackIt != m_persistenceCallbacks.end()) {
+        auto callback = std::move(callbackIt.value());
+        m_persistenceCallbacks.erase(callbackIt);
+        if (callback)
+            callback(false, message);
     }
 
     if (!m_active)

@@ -20,6 +20,7 @@ public:
     QString categoryId() const override;
     int schemaVersion() const override;
     quint64 revision() const override;
+    bool remoteApplyEmitsLocalMutation() const override { return false; }
 
     bool exportSnapshot(
         SyncAdapterExport *snapshot,
@@ -37,6 +38,14 @@ public:
         SyncWireOperation operation,
         const QJsonValue &payload,
         int schemaVersion,
+        QString *error = nullptr) override;
+
+    bool applyRemoteAsync(
+        const QString &recordKey,
+        SyncWireOperation operation,
+        const QJsonValue &payload,
+        int schemaVersion,
+        std::function<void(bool, const QString &)> callback,
         QString *error = nullptr) override;
 
 private:

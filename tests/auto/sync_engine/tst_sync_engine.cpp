@@ -12,6 +12,7 @@
 #include "account/SyncProtocol.h"
 #include "account/SyncStateStore.h"
 
+#include <QDeadlineTimer>
 #include <QDir>
 #include <QFileInfo>
 #include <QHash>
@@ -21,9 +22,11 @@
 #include <QSaveFile>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QtTest>
 
 #include <limits>
+#include <utility>
 
 namespace {
 constexpr auto kAccountA =
@@ -865,6 +868,44 @@ public:
         return true;
     }
 
+    bool applyRemoteAsync(
+        const QString &recordKey,
+        SyncWireOperation operation,
+        const QJsonValue &payload,
+        int schemaVersion,
+        std::function<void(bool, const QString &)> callback,
+        QString *error) override {
+        if (m_remoteApplyDelayMs <= 0)
+            return SyncAdapter::applyRemoteAsync(
+                recordKey,
+                operation,
+                payload,
+                schemaVersion,
+                std::move(callback),
+                error);
+
+        QTimer::singleShot(
+            m_remoteApplyDelayMs,
+            this,
+            [this, recordKey, operation, payload, schemaVersion,
+             callback = std::move(callback)]() mutable {
+                QString applyError;
+                const bool applied = applyRemote(
+                    recordKey,
+                    operation,
+                    payload,
+                    schemaVersion,
+                    &applyError);
+                if (callback)
+                    callback(applied, applyError);
+            });
+        return true;
+    }
+
+    void setRemoteApplyDelayMs(int delayMs) {
+        m_remoteApplyDelayMs = delayMs;
+    }
+
     void seedLocalWithoutSignal(
         const QString &recordKey,
         const QString &value) {
@@ -957,6 +998,7 @@ private:
     bool m_rejectRemote = false;
     bool m_missingRecordsAreDeletes = true;
     int m_remoteApplyCount = 0;
+    int m_remoteApplyDelayMs = 0;
 };
 
 ProfilePaths accountProfile(
@@ -1073,6 +1115,7 @@ private slots:
     void trustedLocalOrderingHintsBecomeOrderedHLCs();
     void rejectedFutureCanRebaseToServiceTime();
     void stateStoreRoundTripPreservesCheckpoint();
+    void stateStoreRoundTripPreservesOwnerRedo();
     void legacyStateMigratesToBoundedHistoricalReplay();
     void historicalReplayCrashReloadPromotesNormalCursor();
     void offlineMutationIsDurableAcrossRestart();
@@ -1092,6 +1135,9 @@ private slots:
     void bannedRemotePayloadQuarantinesAndAdvancesCursor();
     void quarantinePersistsAcrossRestartWithoutBlockingLaterDomain();
     void ownerApplyFailureDoesNotAdvanceCursor();
+    void asyncOwnerAckKeepsCursorBehindDurableReceipt();
+    void ownerRedoRecoversBeforeReconcile();
+    void staleOwnerReceiptCannotCommitNewProfile();
     void realActivityPreflightQuarantinesWithoutBlockingCollection();
     void mixedPushRejectionRetainsAckAndExplicitRetry();
     void pushBatchesStayWithinWireByteAndCountBounds();
@@ -1345,6 +1391,33 @@ stateStoreRoundTripPreservesCheckpoint() {
                     "manga/item"))
             .hlc.counter,
         quint64(3));
+}
+
+void tst_sync_engine::
+stateStoreRoundTripPreservesOwnerRedo() {
+    SyncPersistentState source;
+    source.cursor = 7;
+    source.ownerRedos.append(SyncOwnerRedo{
+        7,
+        true,
+        remoteMutation(
+            QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+            QStringLiteral("collection"),
+            QStringLiteral("tankoban/item"),
+            QString::fromLatin1(kDeviceB),
+            2000,
+            1,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("remote")}})});
+
+    QString error;
+    const auto encoded = SyncStateStore::encode(source);
+    const auto loaded = SyncStateStore::decode(encoded, &error);
+    QVERIFY2(loaded.has_value(), qPrintable(error));
+    QCOMPARE(loaded->ownerRedos.size(), 1);
+    QCOMPARE(loaded->ownerRedos.first().serverSeq, quint64(7));
+    QCOMPARE(loaded->ownerRedos.first().mutation.recordKey,
+             QStringLiteral("tankoban/item"));
 }
 
 void tst_sync_engine::
@@ -2397,6 +2470,184 @@ void tst_sync_engine::ownerApplyFailureDoesNotAdvanceCursor() {
     QCOMPARE(replica.engine.quarantinedEntryCount(), 0);
     QCOMPARE(replica.engine.lastErrorCode(), QStringLiteral("adapter_apply_failed"));
     QCOMPARE(replica.adapter.remoteApplyCount(), 0);
+
+    // The existing sync-repair action is also the bounded recovery path for
+    // a durable owner failure. Once the owner is healthy again, it replays
+    // the redo before reopening network work.
+    replica.adapter.setRejectRemote(false);
+    replica.engine.retryRejectedMutations();
+    QTRY_COMPARE(replica.adapter.remoteApplyCount(), 1);
+    QTRY_COMPARE(replica.engine.cursor(), quint64(1));
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
+}
+
+void tst_sync_engine::asyncOwnerAckKeepsCursorBehindDurableReceipt() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("abababab-abab-4aba-8aba-abababababab"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/async-owner"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("durable")}}),
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+    replica.adapter.setRemoteApplyDelayMs(100);
+    replica.engine.setNetworkEnabled(true);
+
+    SyncStateStore stateStore;
+    bool sawRedo = false;
+    QTRY_VERIFY((sawRedo = [&]() {
+        QString error;
+        const auto state = stateStore.load(replica.profile.syncStatePath(), &error);
+        return state.has_value() && !state->ownerRedos.isEmpty();
+    }()));
+    QCOMPARE(replica.engine.cursor(), quint64(0));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(replica.adapter.remoteApplyCount(), 0);
+
+    QTRY_COMPARE(replica.adapter.remoteApplyCount(), 1);
+    QTRY_COMPARE(replica.engine.cursor(), quint64(1));
+    QCOMPARE(replica.adapter.value(QStringLiteral("manga/async-owner")),
+             QStringLiteral("durable"));
+    QString finalStateError;
+    QTRY_VERIFY2(([&]() {
+        finalStateError.clear();
+        const auto state = stateStore.load(replica.profile.syncStatePath(), &finalStateError);
+        return state.has_value() && state->ownerRedos.isEmpty();
+    })(), qPrintable(finalStateError));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+}
+
+void tst_sync_engine::ownerRedoRecoversBeforeReconcile() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    const ProfilePaths profile = accountProfile(&temp);
+    QVERIFY(QDir().mkpath(QFileInfo(profile.syncStatePath()).absolutePath()));
+    SyncPersistentState source;
+    const SyncWireMutation redoMutation = remoteMutation(
+        QStringLiteral("cdcdcdcd-cdcd-4cdc-8cdc-cdcdcdcdcdcd"),
+        QStringLiteral("collection"),
+        QStringLiteral("manga/recovered"),
+        QString::fromLatin1(kDeviceB),
+        2000000,
+        1,
+        SyncWireOperation::Put,
+        QJsonObject{{QStringLiteral("value"), QStringLiteral("redo")} });
+    source.ownerRedos.append(SyncOwnerRedo{5, true, redoMutation});
+
+    QSaveFile stateFile(profile.syncStatePath());
+    QVERIFY(stateFile.open(QIODevice::WriteOnly));
+    const QByteArray bytes =
+        QJsonDocument(SyncStateStore::encode(source))
+            .toJson(QJsonDocument::Compact);
+    QCOMPARE(stateFile.write(bytes), bytes.size());
+    QVERIFY(stateFile.commit());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    FixtureSyncTransport transport(&service);
+    AccountClient client(&transport);
+    client.setAccessToken(QByteArrayLiteral("fixture-access"));
+    SyncAdapterRegistry registry;
+    SyntheticAdapter adapter;
+    QVERIFY(registry.registerAdapter(&adapter));
+    SyncEngine engine(&client, &registry, [&now]() { return now; });
+    engine.setAutomaticSchedulingEnabled(false);
+    engine.setNetworkEnabled(false);
+
+    QString error;
+    QVERIFY2(engine.start(profile, QString::fromLatin1(kDeviceA), &error),
+             qPrintable(error));
+    QTRY_COMPARE(adapter.remoteApplyCount(), 1);
+    QTRY_COMPARE(engine.cursor(), quint64(5));
+    QCOMPARE(adapter.value(QStringLiteral("manga/recovered")),
+             QStringLiteral("redo"));
+    QCOMPARE(engine.pendingOutboxCount(), 0);
+
+    SyncStateStore store;
+    QTRY_VERIFY(([&]() {
+        QString loadError;
+        const auto loaded = store.load(profile.syncStatePath(), &loadError);
+        return loaded.has_value() && loaded->ownerRedos.isEmpty();
+    })());
+}
+
+void tst_sync_engine::staleOwnerReceiptCannotCommitNewProfile() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("efefefef-efef-4efe-8efe-efefefefefef"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/stale-owner"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{{QStringLiteral("value"), QStringLiteral("old-profile")}}),
+        true);
+
+    FixtureSyncTransport transport(&service);
+    AccountClient client(&transport);
+    client.setAccessToken(QByteArrayLiteral("fixture-access"));
+    SyncAdapterRegistry registry;
+    SyntheticAdapter oldAdapter;
+    QVERIFY(registry.registerAdapter(&oldAdapter));
+
+    SyncEngine engine(&client, &registry, [&now]() { return now; });
+    engine.setAutomaticSchedulingEnabled(false);
+    engine.setNetworkEnabled(false);
+
+    const ProfilePaths oldProfile = accountProfile(&temp, QString::fromLatin1(kAccountA));
+    const ProfilePaths newProfile = accountProfile(&temp, QStringLiteral("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
+    QString error;
+    QVERIFY2(engine.start(oldProfile, QString::fromLatin1(kDeviceA), &error),
+             qPrintable(error));
+
+    oldAdapter.setRemoteApplyDelayMs(500);
+    engine.setNetworkEnabled(true);
+
+    SyncStateStore store;
+    QTRY_VERIFY(([&]() {
+        QString loadError;
+        const auto state = store.load(oldProfile.syncStatePath(), &loadError);
+        return state.has_value() && !state->ownerRedos.isEmpty();
+    })());
+
+    QVERIFY2(engine.stopPreservingOutbox(&error), qPrintable(error));
+    QVERIFY(!engine.active());
+
+    // Keep the old delayed adapter alive so its late callback reaches the
+    // registry after a new profile and adapter have taken the category slot.
+    QVERIFY(registry.unregisterAdapter(QStringLiteral("collection")));
+    SyntheticAdapter newAdapter;
+    QVERIFY(registry.registerAdapter(&newAdapter));
+
+    QVERIFY2(engine.start(newProfile, QString::fromLatin1(kDeviceA), &error),
+             qPrintable(error));
+    QCOMPARE(engine.cursor(), quint64(0));
+    QCOMPARE(newAdapter.remoteApplyCount(), 0);
+
+    QTest::qWait(650);
+    QCOMPARE(engine.cursor(), quint64(0));
+    QCOMPARE(newAdapter.remoteApplyCount(), 0);
 }
 
 void tst_sync_engine::realActivityPreflightQuarantinesWithoutBlockingCollection() {
@@ -2511,8 +2762,31 @@ void tst_sync_engine::pushBatchesStayWithinWireByteAndCountBounds() {
     }
     QTRY_COMPARE(replica.engine.pendingOutboxCount(), 100);
 
+    // AccountClient emits completion after the fixture has accepted each
+    // emitted push. Wait on that event instead of relying on QTRY's default
+    // five-second polling window while the debug build drains large bodies.
+    const auto waitForPushDrain = [&]() {
+        QSignalSpy completed(
+            &replica.client,
+            &AccountClient::completed);
+        const QDeadlineTimer deadline(15000);
+        while (replica.engine.pendingOutboxCount() != 0) {
+            if (deadline.hasExpired())
+                return false;
+
+            const qint64 remaining = deadline.remainingTime();
+            const int waitMs = static_cast<int>(
+                qMax<qint64>(1, remaining));
+            if (!completed.wait(waitMs))
+                return false;
+        }
+        return true;
+    };
+
     replica.engine.setNetworkEnabled(true);
-    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QVERIFY2(
+        waitForPushDrain(),
+        "timed out waiting for the push completion signal while draining the byte-bounded batch");
 
     // Add a second bounded batch whose 100 mutations should exercise the
     // count ceiling while the first batch exercises the byte ceiling.
@@ -2525,7 +2799,9 @@ void tst_sync_engine::pushBatchesStayWithinWireByteAndCountBounds() {
     }
     QTRY_COMPARE(replica.engine.pendingOutboxCount(), 100);
     replica.engine.setNetworkEnabled(true);
-    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QVERIFY2(
+        waitForPushDrain(),
+        "timed out waiting for the push completion signal while draining the count-bounded batch");
 
     const QList<int> bodyBytes = replica.transport.pushBodyBytes();
     const QList<int> mutationCounts =

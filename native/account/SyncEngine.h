@@ -13,6 +13,7 @@
 #include <QTimer>
 
 #include <functional>
+#include <optional>
 
 class SyncEngine final : public QObject {
     Q_OBJECT
@@ -100,6 +101,29 @@ private:
         QStringList mutationIds;
     };
 
+    struct PullProcessingContext {
+        QList<SyncWirePullEntry> entries;
+        bool hasMore = false;
+        bool replayingHistorical = false;
+        quint64 historicalLimit = 0;
+        qsizetype index = 0;
+        bool replayReachedLimit = false;
+        QString firstWarningCode;
+        QString firstWarningMessage;
+    };
+
+    using OwnerApplyContinuation =
+        std::function<void(bool, const SyncAdapterRegistryError &)>;
+
+    struct OwnerApplyContext {
+        SyncWirePullEntry entry;
+        bool replayingHistorical = false;
+        bool fromQuarantine = false;
+        bool recovery = false;
+        quint64 profileGeneration = 0;
+        OwnerApplyContinuation continuation;
+    };
+
     void handleClientCompleted(
         quint64 requestId,
         AccountOperation operation,
@@ -139,6 +163,35 @@ private:
         QString *errorCode,
         QString *errorMessage);
 
+    bool continuePullProcessing(
+        QString *errorCode = nullptr,
+        QString *errorMessage = nullptr);
+
+    void finishPullProcessing(
+        bool processed,
+        const QString &errorCode,
+        const QString &errorMessage);
+
+    void beginDurableOwnerApply(
+        const SyncWirePullEntry &entry,
+        bool replayingHistorical,
+        bool fromQuarantine,
+        bool recovery,
+        OwnerApplyContinuation continuation);
+
+    void handleOwnerApplyCompletion(
+        const SyncAdapterRegistryError &result);
+
+    void recordWinningState(
+        const SyncWirePullEntry &entry);
+
+    void removeOwnerRedo(
+        quint64 serverSeq);
+
+    void beginOwnerRedoRecovery();
+    void finishStartAfterOwnerRedo();
+    void continueQuarantineReplay();
+
     bool processPushReply(
         const AccountTransportReply &reply,
         QString *errorCode,
@@ -162,7 +215,8 @@ private:
 
     void rebasePendingMutations();
 
-    quint64 persistState();
+    quint64 persistState(
+        std::function<void(bool, const QString &)> callback = {});
     void persistClockIntoState();
 
     void handlePersistenceCommitted(
@@ -227,7 +281,21 @@ private:
     QString m_lastErrorMessage;
 
     QSet<quint64> m_pendingPersistenceGenerations;
+    QHash<quint64, std::function<void(bool, const QString &)>>
+        m_persistenceCallbacks;
     int m_retryAttempt = 0;
+
+    quint64 m_profileGeneration = 0;
+    std::optional<PullProcessingContext> m_pullProcessing;
+    std::optional<OwnerApplyContext> m_ownerApply;
+    bool m_ownerRedoRecoveryInProgress = false;
+    bool m_ownerRedoBatchReady = false;
+    bool m_ownerRedoBatchPreparing = false;
+    bool m_startFinalizationPending = false;
+    QString m_quarantineReplayCategory;
+    bool m_quarantineReplayRunning = false;
+    QSet<quint64> m_quarantineReplaySkipped;
+    QStringList m_quarantineReplayCategories;
 
     RequestContext m_request;
 };

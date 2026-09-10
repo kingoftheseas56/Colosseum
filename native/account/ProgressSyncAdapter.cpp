@@ -11,6 +11,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <utility>
+
 ProgressSyncAdapter::
 ProgressSyncAdapter(
     ProgressStore *store,
@@ -61,7 +63,7 @@ ProgressSyncAdapter(
 
     connect(
         store,
-        &ProgressStore::changed,
+        &ProgressStore::localMutationChanged,
         this,
         &ProgressSyncAdapter::
             emitImmediateLocalMutation);
@@ -110,6 +112,9 @@ exportSnapshot(
         }
         return false;
     }
+
+    if (!m_store->healthy(error))
+        return false;
 
     snapshot->revision =
         revision();
@@ -210,10 +215,10 @@ applyRemote(
 
     if (operation
         == SyncWireOperation::Delete) {
-        return m_store
-            ->removeSyncedEntry(
-                kind,
-                id);
+        const bool removed = m_store->removeSyncedEntry(kind, id);
+        if (!removed && error && error->isEmpty())
+            *error = m_store->persistenceError();
+        return removed;
     }
 
     if (!payload.isObject()) {
@@ -274,9 +279,85 @@ applyRemote(
                 existing,
                 object);
 
-    return m_store
-        ->applySyncedEntry(
-            merged);
+    const bool applied = m_store->applySyncedEntry(merged);
+    if (!applied && error && error->isEmpty())
+        *error = m_store->persistenceError();
+    return applied;
+}
+
+bool ProgressSyncAdapter::
+applyRemoteAsync(
+    const QString &recordKey,
+    SyncWireOperation operation,
+    const QJsonValue &payload,
+    int schemaVersion,
+    std::function<void(bool, const QString &)> callback,
+    QString *error) {
+    auto reject = [&callback](const QString &message) {
+        if (callback)
+            callback(false, message);
+    };
+
+    if (!m_store) {
+        reject(QStringLiteral(
+            "The Continue/progress owner is no longer available."));
+        return true;
+    }
+    if (!m_store->healthy(error)) {
+        reject(m_store->persistenceError());
+        return true;
+    }
+    if (schemaVersion != 1) {
+        reject(QStringLiteral(
+            "The Continue/progress sync schema is unsupported."));
+        return true;
+    }
+
+    QString kind;
+    QString id;
+    if (!CoreStateSyncProjection::decodeProgressKey(recordKey, &kind, &id)) {
+        reject(QStringLiteral(
+            "The Continue/progress sync record key is invalid."));
+        return true;
+    }
+
+    if (operation == SyncWireOperation::Delete) {
+        m_store->removeSyncedEntryAsync(kind, id, std::move(callback));
+        return true;
+    }
+
+    if (!payload.isObject()) {
+        reject(QStringLiteral(
+            "A Continue/progress PUT requires an object payload."));
+        return true;
+    }
+
+    const QJsonObject object = payload.toObject();
+    if (object.value(QStringLiteral("kind")).toString() != kind
+        || object.value(QStringLiteral("id")).toString() != id) {
+        reject(QStringLiteral(
+            "The Continue/progress payload identity does not match its record key."));
+        return true;
+    }
+
+    const QVariantMap portableEntry = object.toVariantMap();
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::progress(portableEntry);
+    if (projected.disposition != CoreStateSyncProjection::Disposition::Portable
+        || projected.recordKey != recordKey
+        || projected.payload != object) {
+        reject(projected.error.isEmpty()
+                   ? QStringLiteral(
+                         "The Continue/progress payload is not a canonical portable record.")
+                   : projected.error);
+        return true;
+    }
+
+    const QVariantMap existing = m_store->get(kind, id);
+    const QVariantMap merged =
+        CoreStateSyncProjection::mergePortableIntoLocal(existing, object);
+    m_store->applySyncedEntryAsync(merged, std::move(callback));
+    return true;
 }
 
 void ProgressSyncAdapter::

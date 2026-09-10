@@ -9,6 +9,8 @@
 #include <QObject>
 #include <QString>
 
+#include <functional>
+
 struct SyncAdapterRecord {
     QString recordKey;
     QJsonValue payload;
@@ -60,6 +62,14 @@ public:
         return true;
     }
 
+    // Adapters whose owner separates local and remote change signals can allow
+    // a user mutation to be reported while an async remote receipt is pending.
+    // Adapters that may emit the same local signal for their remote operation
+    // keep the conservative suppression default.
+    virtual bool remoteApplyEmitsLocalMutation() const {
+        return true;
+    }
+
     // Validates a remote mutation against the owner materialization contract
     // without touching owner state. A false result is safe to quarantine as a
     // compatibility rejection; applyRemote() remains the authoritative
@@ -100,6 +110,27 @@ public:
         const QJsonValue &payload,
         int schemaVersion,
         QString *error = nullptr) = 0;
+
+    // Asynchronous owner acknowledgement seam. The default preserves the
+    // synchronous behavior of adapters whose owners are already durable on
+    // return; durable disk-backed owners override it and invoke the callback
+    // only after their worker receipt arrives.
+    virtual bool applyRemoteAsync(
+        const QString &recordKey,
+        SyncWireOperation operation,
+        const QJsonValue &payload,
+        int schemaVersion,
+        std::function<void(bool, const QString &)> callback,
+        QString *error = nullptr) {
+        QString applyError;
+        const bool applied = applyRemote(recordKey, operation, payload,
+                                         schemaVersion, &applyError);
+        if (callback)
+            callback(applied, applyError);
+        if (!applied && error)
+            *error = applyError;
+        return true;
+    }
 
 signals:
     // Emit only for durable local/user-originated semantic mutations.

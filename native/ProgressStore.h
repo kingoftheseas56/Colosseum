@@ -45,6 +45,7 @@
 #include <QVariantHash>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonParseError>
 #include <QJsonDocument>
 #include <QDateTime>
 #include <QThread>
@@ -53,6 +54,7 @@
 #include <QDir>
 #include <memory>
 #include <algorithm>
+#include <functional>
 
 namespace ProgressStoreDetail {
 // Isolation gate (2026-08-14 fix). ProgressStore/CollectionStore historically hardcoded the
@@ -102,6 +104,27 @@ public:
 
 public slots:
     void writeSnapshot(const QVariantHash &snapshot) {
+        QString error;
+        const bool committed = writeSnapshotInternal(snapshot, &error);
+        if (!committed)
+            emit writeFailed(error);
+    }
+
+    void writeSnapshotWithReceipt(quint64 requestId,
+                                  const QVariantHash &snapshot) {
+        QString error;
+        const bool committed = writeSnapshotInternal(snapshot, &error);
+        emit snapshotFinished(requestId, committed, error);
+    }
+    void flushSync() {}   // shutdown/flush barrier (see ProgressStore::flush)
+
+signals:
+    void snapshotFinished(quint64 requestId, bool committed,
+                           const QString &error);
+    void writeFailed(const QString &error);
+
+private:
+    bool writeSnapshotInternal(const QVariantHash &snapshot, QString *error) {
         ensureSettings();   // created on the worker thread on first use (correct affinity)
         QJsonObject obj;
         for (auto it = snapshot.constBegin(); it != snapshot.constEnd(); ++it)
@@ -109,10 +132,13 @@ public slots:
         m_settings->setValue(QStringLiteral("continue/entries"),
                              QJsonDocument(obj).toJson(QJsonDocument::Compact));
         m_settings->sync();
+        if (m_settings->status() == QSettings::NoError)
+            return true;
+        if (error)
+            *error = QStringLiteral("The Continue/progress store could not be committed.");
+        return false;
     }
-    void flushSync() {}   // shutdown/flush barrier (see ProgressStore::flush)
 
-private:
     // Constructed lazily inside a worker slot (see ensureSettings) so its thread affinity is the
     // worker thread, never the GUI thread that built this object.
     void ensureSettings() {
@@ -131,7 +157,11 @@ private:
 class ProgressStore : public QObject {
     Q_OBJECT
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    Q_PROPERTY(bool healthy READ healthy NOTIFY healthChanged)
+    Q_PROPERTY(QString persistenceError READ persistenceError NOTIFY healthChanged)
 public:
+    using RemoteCommitCallback = std::function<void(bool, const QString &)>;
+
     explicit ProgressStore(QObject *parent = nullptr)
         : QObject(parent) {
         // Tagged (isolated Lanista test) sessions divert to a file under the tag's own
@@ -188,6 +218,14 @@ public:
     }
 
     int revision() const { return m_revision; }
+    bool healthy(QString *error = nullptr) const {
+        if (error)
+            *error = m_loadError.isEmpty() ? m_persistenceError : m_loadError;
+        return m_loadError.isEmpty() && m_persistenceError.isEmpty();
+    }
+    QString persistenceError() const {
+        return m_loadError.isEmpty() ? m_persistenceError : m_loadError;
+    }
 
     // Native sync seam: complete raw Continue/progress state. Unlike recent(),
     // this does NOT group/dedupe series episodes, because sync identity is one
@@ -258,8 +296,10 @@ public:
     // per-chapter and never auto-dropped (finishing a chapter ≠ finishing the series — use
     // forget() for an explicit "remove from Continue").
     Q_INVOKABLE void record(const QVariantMap &entry) {
-        if (persist(entry))
+        if (persist(entry)) {
             bump();
+            emit localMutationChanged();
+        }
     }
     // Persist progress for crash-resume WITHOUT refreshing the Continue row. The player's 5s
     // playback tick calls this: emitting changed() every 5s re-rendered every Continue tile
@@ -323,6 +363,8 @@ public:
     Q_INVOKABLE void forget(const QString &kind, const QString &id) {
         if (kind.isEmpty() || id.isEmpty())
             return;
+        if (!healthy())
+            return;
         QVariantMap probe;
         probe.insert(QStringLiteral("kind"), kind);
         probe.insert(QStringLiteral("id"), id);
@@ -342,6 +384,7 @@ public:
         scheduleSave();
         emit syncDirty();
         bump();
+        emit localMutationChanged();
     }
 
     Q_INVOKABLE QVariantMap get(const QString &kind, const QString &id) const {
@@ -357,6 +400,8 @@ public:
     Q_INVOKABLE int purgeKind(const QString &kind) {
         if (kind.isEmpty())
             return 0;
+        if (!healthy())
+            return 0;
         QStringList doomed;
         for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it) {
             if (it.value().toMap().value(QStringLiteral("kind")).toString() == kind)
@@ -369,6 +414,7 @@ public:
         scheduleSave();
         emit syncDirty();
         bump();
+        emit localMutationChanged();
         return doomed.size();
     }
 
@@ -379,7 +425,7 @@ public:
     }
 
     Q_INVOKABLE void rememberLastSeason(const QString &seriesId, int season) {
-        if (seriesId.isEmpty() || season <= 0)
+        if (seriesId.isEmpty() || season <= 0 || !healthy())
             return;
         const QString key = QStringLiteral("video/lastSeason/") + seriesId;
         if (m_settings->value(key, -1).toInt() == season)
@@ -399,14 +445,14 @@ public:
         return m_settings->value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
     }
     Q_INVOKABLE void setWatchedMark(const QString &id, bool watched) {
-        if (id.isEmpty()) return;
+        if (id.isEmpty() || !healthy()) return;
         m_settings->setValue(QStringLiteral("video/watchedMark/") + seriesRootId(id),
                             watched ? 1 : -1);
         m_settings->sync();
         bump();
     }
     Q_INVOKABLE void clearWatchedMark(const QString &id) {
-        if (id.isEmpty()) return;
+        if (id.isEmpty() || !healthy()) return;
         m_settings->remove(QStringLiteral("video/watchedMark/") + seriesRootId(id));
         m_settings->sync();
         bump();
@@ -415,7 +461,8 @@ public:
     bool applySyncedWatchedMark(
         const QString &id,
         int mark) {
-        if (id.isEmpty()
+        if (!healthy()
+            || id.isEmpty()
             || (mark != -1 && mark != 1)) {
             return false;
         }
@@ -438,7 +485,7 @@ public:
 
     bool removeSyncedWatchedMark(
         const QString &id) {
-        if (id.isEmpty())
+        if (!healthy() || id.isEmpty())
             return false;
 
         const QString key =
@@ -461,7 +508,7 @@ public:
     bool applySyncedLastSeason(
         const QString &seriesId,
         int season) {
-        if (seriesId.isEmpty() || season <= 0)
+        if (!healthy() || seriesId.isEmpty() || season <= 0)
             return false;
 
         const QString key =
@@ -482,7 +529,7 @@ public:
 
     bool removeSyncedLastSeason(
         const QString &seriesId) {
-        if (seriesId.isEmpty())
+        if (!healthy() || seriesId.isEmpty())
             return false;
 
         const QString key =
@@ -508,6 +555,8 @@ public:
     // action. They emit changed() so existing Continue/QML bindings react once, but
     // deliberately do not emit syncDirty(): remote import is not a new local mutation.
     bool applySyncedEntry(const QVariantMap &entry) {
+        if (!healthy())
+            return false;
         const QString kind = entry.value(QStringLiteral("kind")).toString();
         const QString id   = entry.value(QStringLiteral("id")).toString();
         if (kind.isEmpty() || id.isEmpty())
@@ -528,7 +577,57 @@ public:
         return true;
     }
 
+    // Asynchronous remote-owner seam. The target snapshot is written by the
+    // dedicated writer and the callback fires only after QSettings::sync()
+    // reports success. The in-memory owner is published at that receipt, so a
+    // sync cursor never acknowledges an owner that only exists in RAM.
+    bool applySyncedEntryAsync(const QVariantMap &entry,
+                               RemoteCommitCallback callback) {
+        if (!healthy()) {
+            if (callback)
+                callback(false, persistenceError());
+            return false;
+        }
+
+        const QString kind = entry.value(QStringLiteral("kind")).toString();
+        const QString id = entry.value(QStringLiteral("id")).toString();
+        if (kind.isEmpty() || id.isEmpty()) {
+            if (callback)
+                callback(false, QStringLiteral("The Continue/progress record identity is invalid."));
+            return false;
+        }
+
+        const QString key = mapKey(kind, id);
+        const QVariantHash baseSnapshot = snapshotHash();
+        QVariantHash target = snapshotHash();
+        QVariantMap exact = entry;
+        exact.insert(QStringLiteral("kind"), kind);
+        exact.insert(QStringLiteral("id"), id);
+        target.insert(key, exact);
+
+        // Even an idempotent remote winner goes through the writer receipt:
+        // the sync layer must verify the backing store before it advances its
+        // cursor, including when the in-memory owner already matches.
+        PendingRemote pending;
+        pending.requestId = m_nextRemoteRequest++;
+        pending.key = key;
+        pending.kind = kind;
+        pending.id = id;
+        pending.target = target;
+        pending.remoteEntry = exact;
+        pending.baseSnapshot = baseSnapshot;
+        pending.baseKeyPresent = m_map.contains(key);
+        if (pending.baseKeyPresent)
+            pending.baseEntry = m_map.value(key).toMap();
+        pending.callback = std::move(callback);
+        m_pendingRemote.insert(pending.requestId, pending);
+        postRemoteSnapshot(pending.requestId, pending.target);
+        return true;
+    }
+
     bool removeSyncedEntry(const QString &kind, const QString &id) {
+        if (!healthy())
+            return false;
         if (kind.isEmpty() || id.isEmpty())
             return false;
 
@@ -541,8 +640,46 @@ public:
         return true;
     }
 
+    bool removeSyncedEntryAsync(const QString &kind, const QString &id,
+                                RemoteCommitCallback callback) {
+        if (!healthy()) {
+            if (callback)
+                callback(false, persistenceError());
+            return false;
+        }
+        if (kind.isEmpty() || id.isEmpty()) {
+            if (callback)
+                callback(false, QStringLiteral("The Continue/progress record identity is invalid."));
+            return false;
+        }
+
+        const QString key = mapKey(kind, id);
+        const QVariantHash baseSnapshot = snapshotHash();
+        QVariantHash target = snapshotHash();
+        target.remove(key);
+
+        // Verify the backing store even when the tombstone is already absent;
+        // an in-memory no-op is not a durable owner acknowledgement.
+        PendingRemote pending;
+        pending.requestId = m_nextRemoteRequest++;
+        pending.key = key;
+        pending.kind = kind;
+        pending.id = id;
+        pending.target = target;
+        pending.baseSnapshot = baseSnapshot;
+        pending.baseKeyPresent = m_map.contains(key);
+        if (pending.baseKeyPresent)
+            pending.baseEntry = m_map.value(key).toMap();
+        pending.callback = std::move(callback);
+        m_pendingRemote.insert(pending.requestId, pending);
+        postRemoteSnapshot(pending.requestId, pending.target);
+        return true;
+    }
+
 signals:
     void changed();
+    void healthChanged();
+    void persistenceFailed(const QString &error);
     void completionCrossed(const QString &kind, const QString &id, qint64 completedAtMs);
     // Remote-only import notification. Active readers may react to a synced
     // winner without treating ordinary local progress writes as imported resume.
@@ -552,8 +689,24 @@ signals:
     // recordSilent() playback tick. It intentionally does not alter revision
     // or changed(), preserving the proven no-rerender silent path.
     void syncDirty();
+    // Fires for local mutations that refresh the visible Continue row. Remote
+    // owner imports intentionally emit no local signal.
+    void localMutationChanged();
 
 private:
+    struct PendingRemote {
+        quint64 requestId = 0;
+        QString key;
+        QString kind;
+        QString id;
+        QVariantHash target;
+        QVariantMap remoteEntry;
+        QVariantHash baseSnapshot;
+        bool baseKeyPresent = false;
+        QVariantMap baseEntry;
+        RemoteCommitCallback callback;
+    };
+
     static QString mapKey(const QString &kind, const QString &id) {
         return kind + QStringLiteral("\x1f") + id;   // unit-separator: safe joiner
     }
@@ -587,10 +740,115 @@ private:
     // few user-driven lifecycle writes), so the cost is acceptable and each write is independent.
     // The GUI/render thread does no serialization and no QSettings::sync().
     void scheduleSave() {
-        if (m_writer) {
+        if (m_writer && healthy()) {
             QMetaObject::invokeMethod(m_writer, "writeSnapshot", Qt::QueuedConnection,
                                       Q_ARG(QVariantHash, m_map));
         }
+    }
+
+    QVariantHash snapshotHash() const {
+        QVariantHash snapshot;
+        for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it)
+            snapshot.insert(it.key(), it.value().toMap());
+        return snapshot;
+    }
+
+    void postRemoteSnapshot(quint64 requestId, const QVariantHash &snapshot) {
+        if (!m_writer || !m_writerThread.isRunning()) {
+            handleRemoteSnapshotFinished(requestId, false,
+                                         QStringLiteral("The Continue/progress writer is unavailable."));
+            return;
+        }
+        const bool queued = QMetaObject::invokeMethod(
+            m_writer,
+            "writeSnapshotWithReceipt",
+            Qt::QueuedConnection,
+            Q_ARG(quint64, requestId),
+            Q_ARG(QVariantHash, snapshot));
+        if (!queued)
+            handleRemoteSnapshotFinished(
+                requestId,
+                false,
+                QStringLiteral("The Continue/progress writer could not queue the owner snapshot."));
+    }
+
+    void handleWriterFailure(const QString &error) {
+        if (m_persistenceError == error)
+            return;
+        m_persistenceError = error.isEmpty()
+            ? QStringLiteral("The Continue/progress store could not be committed.")
+            : error;
+        emit healthChanged();
+        emit persistenceFailed(m_persistenceError);
+    }
+
+    void handleRemoteSnapshotFinished(quint64 requestId, bool committed,
+                                      const QString &error) {
+        auto it = m_pendingRemote.find(requestId);
+        if (it == m_pendingRemote.end())
+            return;
+        PendingRemote pending = it.value();
+        m_pendingRemote.erase(it);
+
+        if (!committed) {
+            handleWriterFailure(error);
+            if (pending.callback)
+                pending.callback(false, persistenceError());
+            return;
+        }
+
+        if (!healthy()) {
+            if (pending.callback)
+                pending.callback(false, persistenceError());
+            return;
+        }
+
+        // Local playback/user work may have landed while the worker was
+        // writing. Rebase over the newest in-memory map, but only apply the
+        // remote operation when its target record still matches the state that
+        // existed when the remote write began. Unrelated local records remain
+        // part of the final snapshot; a newer same-record local write wins.
+        const QVariantHash current = snapshotHash();
+        if (pending.baseSnapshot != current) {
+            const bool keyUnchanged =
+                m_map.contains(pending.key) == pending.baseKeyPresent
+                && (!pending.baseKeyPresent
+                    || m_map.value(pending.key).toMap()
+                        == pending.baseEntry);
+            pending.target = current;
+            if (keyUnchanged) {
+                if (!pending.remoteEntry.isEmpty())
+                    pending.target.insert(pending.key, pending.remoteEntry);
+                else
+                    pending.target.remove(pending.key);
+            }
+            pending.baseSnapshot = current;
+            m_pendingRemote.insert(requestId, pending);
+            postRemoteSnapshot(requestId, pending.target);
+            return;
+        }
+
+        const QVariantHash before = snapshotHash();
+        m_map.clear();
+        for (auto mapIt = pending.target.constBegin();
+             mapIt != pending.target.constEnd(); ++mapIt)
+            m_map.insert(mapIt.key(), mapIt.value());
+
+        if (before != pending.target) {
+            ++m_revision;
+            emit changed();
+            if (!pending.kind.isEmpty() && !pending.id.isEmpty()
+                && pending.target.contains(pending.key))
+                emit syncedEntryApplied(pending.kind, pending.id);
+        }
+
+        if (pending.callback)
+            pending.callback(true, QString());
+    }
+
+    void handleWriterSnapshotFinished(quint64 requestId, bool committed,
+                                      const QString &error) {
+        handleRemoteSnapshotFinished(requestId, committed, error);
     }
 
     // Move the writer onto its thread and arrange a final synchronous flush at shutdown so the
@@ -598,6 +856,12 @@ private:
     void setupWriter() {
         m_writer->moveToThread(&m_writerThread);
         connect(&m_writerThread, &QThread::finished, m_writer, &QObject::deleteLater);
+        connect(m_writer, &ProgressDiskWriter::writeFailed,
+                this, &ProgressStore::handleWriterFailure,
+                Qt::QueuedConnection);
+        connect(m_writer, &ProgressDiskWriter::snapshotFinished,
+                this, &ProgressStore::handleWriterSnapshotFinished,
+                Qt::QueuedConnection);
         if (qApp) {
             connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
                 // Drain every queued write (and post the latest map first) so the final resume
@@ -619,6 +883,8 @@ private:
     // (>= 90%): a film watched past 90% is "done" and drops off Continue. (TB2 advances a series
     // to the next episode instead of dropping — a future enhancement here; for now we drop.)
     bool persist(const QVariantMap &entry) {
+        if (!healthy())
+            return false;
         const QString kind = entry.value(QStringLiteral("kind")).toString();
         const QString id   = entry.value(QStringLiteral("id")).toString();
         if (id.isEmpty() || kind.isEmpty())
@@ -668,12 +934,38 @@ private:
         m_map.clear();
         const QByteArray blob =
             m_settings->value(QStringLiteral("continue/entries")).toByteArray();
-        const QJsonDocument doc = QJsonDocument::fromJson(blob);
-        if (doc.isObject()) {
-            const QJsonObject obj = doc.object();
-            for (auto it = obj.constBegin(); it != obj.constEnd(); ++it)
-                m_map.insert(it.key(), it.value().toObject().toVariantMap());
+        if (m_settings->status() != QSettings::NoError) {
+            m_loadError = QStringLiteral("The Continue/progress persistence store could not be read.");
+            return;
         }
+        if (blob.isEmpty())
+            return;
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(blob, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            m_loadError = QStringLiteral("The Continue/progress persistence file is malformed.");
+            return;
+        }
+
+        QHash<QString, QVariant> loaded;
+        const QJsonObject obj = doc.object();
+        for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
+            if (!it.value().isObject()) {
+                m_loadError = QStringLiteral("A persisted Continue/progress record is malformed.");
+                m_map.clear();
+                return;
+            }
+            const QVariantMap record = it.value().toObject().toVariantMap();
+            const QString kind = record.value(QStringLiteral("kind")).toString();
+            const QString id = record.value(QStringLiteral("id")).toString();
+            if (kind.isEmpty() || id.isEmpty() || it.key() != mapKey(kind, id)) {
+                m_loadError = QStringLiteral("A persisted Continue/progress record has invalid identity fields.");
+                m_map.clear();
+                return;
+            }
+            loaded.insert(it.key(), record);
+        }
+        m_map = loaded;
     }
 
     // GUI-thread QSettings: used ONLY for load() at startup and for the infrequent
@@ -685,6 +977,10 @@ private:
     std::unique_ptr<QSettings> m_settings;
     QHash<QString, QVariant> m_map;   // "kind\x1fid" → entry map
     int m_revision = 0;
+    QString m_loadError;
+    QString m_persistenceError;
+    quint64 m_nextRemoteRequest = 1;
+    QHash<quint64, PendingRemote> m_pendingRemote;
     ProgressDiskWriter *m_writer = nullptr;
     QThread m_writerThread;
 };

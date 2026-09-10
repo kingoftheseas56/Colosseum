@@ -54,6 +54,17 @@ struct SyncRejectedMutation {
     QString fingerprint;
 };
 
+// A winning remote mutation whose owner has not acknowledged durable commit
+// yet. The state file is the crash-safe redo record: it is written before the
+// owner operation starts and retained until the owner receipt arrives.
+struct SyncOwnerRedo {
+    quint64 serverSeq = 0;
+    bool won = true;
+    SyncWireMutation mutation;
+    bool replayingHistorical = false;
+    bool fromQuarantine = false;
+};
+
 struct SyncPersistentState {
     quint64 cursor = 0;
     quint64 historicalReplayCursor = 0;
@@ -91,6 +102,12 @@ struct SyncPersistentState {
     // remain live, while the retained mutation is available for replay after
     // an adapter/schema repair.
     QList<SyncQuarantineEntry> quarantinedEntries;
+
+    // Remote owner transactions are serialized by SyncEngine. Keeping the
+    // full mutation here makes a process death between the sync checkpoint and
+    // the owner write recoverable without inferring a local delete from a
+    // temporarily empty owner snapshot.
+    QList<SyncOwnerRedo> ownerRedos;
 };
 
 class SyncStateStore final : public QObject {
