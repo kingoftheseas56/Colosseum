@@ -91,29 +91,8 @@ The repository has moved beyond the current 1.1.5 installer. Development already
 - **Keyboard-only operation across the app**, including PlayStation-style spatial focus and directional scrolling through long surfaces.
 - **Account, recovery, sync, and lifecycle hardening** across the desktop client and account-service code. This does not mean a public production account service ships with 1.1.5.
 
-Colosseum Server development exists separately, but it is not presented here as a 1.1.6 release commitment.
 
-<details>
-<summary><strong>Previous release: 1.1.3</strong></summary>
 
-### What's new in 1.1.3
-
-- **Release builds open again.** `Colosseum.Activity` is registered unconditionally, fixing the
-  release-only startup failure that caused 1.1.2 to exit before a window appeared.
-- **Updates relaunch correctly.** Installer result flags now reach the updater instead of being
-  mistaken for a QML file path, so the post-update relaunch path no longer exits immediately.
-- **A much smaller installer.** Release packaging strips build intermediates, test harnesses, and
-  source trees, with a size gate preventing the old 647 MB packaging failure from returning.
-- **Vault hardening and a Home portal.** Live delete/replace reconciliation, revision-guarded
-  enrichment, honest CBR failure handling, and a permanent Vault entry point shipped together.
-- **Watch Party ships configured.** The hosted relay is the default, and exact torrent rooms can
-  fetch the room source for joiners instead of requiring it to exist locally first.
-- **Catalogue and reading polish.** Tankoban gained a Library tab, Biblio's catalogue was reworked,
-  ScrollGlide landed across grid/reader surfaces, and the Living Guide was removed.
-
-Full release notes: [docs/release-notes/v1.1.3.md](docs/release-notes/v1.1.3.md).
-
-</details>
 
 ## Highlights
 
