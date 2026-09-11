@@ -28,10 +28,39 @@ TankoyomiProviderRegistry TankoyomiProviderRegistry::fromResource(const QString 
 
 QString TankoyomiProviderRegistry::normalizeLanguage(const QString &language)
 {
-    QString normalized = language.trimmed().toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
-    const int dash = normalized.indexOf(QLatin1Char('-'));
-    if (dash >= 0) normalized.truncate(dash);
-    return normalized;
+    return language.trimmed().toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
+}
+
+std::optional<QString> TankoyomiProviderRegistry::resolveLanguage(const QString &requested) const
+{
+    if (!isValid()) return std::nullopt;
+    const QString tag = requested.trimmed().isEmpty()
+        ? m_defaultLanguage : normalizeLanguage(requested);
+    if (tag.isEmpty()) return std::nullopt;
+    // Exact installed code wins outright; regional variants never collapse.
+    for (const LanguageDescriptor &entry : m_languages) {
+        if (entry.code == tag) return entry.code;
+    }
+    // An explicit manifest alias resolves before any base-language guessing.
+    const LanguageDescriptor *aliasHit = nullptr;
+    for (const LanguageDescriptor &entry : m_languages) {
+        if (entry.aliases.contains(tag)) {
+            if (aliasHit) return std::nullopt; // manifest overlap must not pick a winner
+            aliasHit = &entry;
+        }
+    }
+    if (aliasHit) return aliasHit->code;
+    // A unique installed base-language match keeps today's pt-BR -> pt routing.
+    const QString base = tag.section(QLatin1Char('-'), 0, 0);
+    const LanguageDescriptor *baseHit = nullptr;
+    for (const LanguageDescriptor &entry : m_languages) {
+        if (entry.code.section(QLatin1Char('-'), 0, 0) == base) {
+            if (baseHit) return std::nullopt; // ambiguous: two regional variants
+            baseHit = &entry;
+        }
+    }
+    if (baseHit) return baseHit->code;
+    return std::nullopt;
 }
 bool TankoyomiProviderRegistry::safeEntry(const QString &entry)
 {
@@ -97,6 +126,20 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
             return;
         }
         languageCodes.insert(language.code);
+        const QJsonValue aliases = languageObject.value(QStringLiteral("aliases"));
+        if (!aliases.isUndefined() && !aliases.isArray()) {
+            m_error = QStringLiteral("Tankoyomi manifest contains invalid language aliases");
+            return;
+        }
+        for (const QJsonValue &aliasValue : aliases.toArray()) {
+            const QString alias = normalizeLanguage(aliasValue.toString());
+            if (!aliasValue.isString() || alias.isEmpty() || alias == language.code
+                || language.aliases.contains(alias)) {
+                m_error = QStringLiteral("Tankoyomi manifest contains an invalid language alias");
+                return;
+            }
+            language.aliases.append(alias);
+        }
         QSet<QString> providerIds;
         const QJsonArray providers = languageObject.value(QStringLiteral("providers")).toArray();
         for (const QJsonValue &providerValue : providers) {
@@ -115,6 +158,28 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
                 return;
             }
             providerIds.insert(provider.id);
+            const QJsonValue decorators = providerObject.value(QStringLiteral("titleDecorators"));
+            if (!decorators.isUndefined() && !decorators.isArray()) {
+                m_error = QStringLiteral("Tankoyomi provider '%1' has invalid title decorators").arg(provider.id);
+                return;
+            }
+            for (const QJsonValue &value : decorators.toArray()) {
+                const QString token = value.toString().trimmed().toLower();
+                bool valid = value.isString() && !token.isEmpty();
+                for (const QChar character : token) valid = valid && character.isLetterOrNumber();
+                if (!valid) {
+                    m_error = QStringLiteral("Tankoyomi provider '%1' has an invalid title decorator").arg(provider.id);
+                    return;
+                }
+                if (!provider.titleDecorators.contains(token)) provider.titleDecorators.append(token);
+            }
+
+            provider.pageAccessPolicy = providerObject.value(QStringLiteral("pageAccessPolicy")).toString();
+            if (provider.pageAccessPolicy != QLatin1String("public-https")) {
+                m_error = QStringLiteral("Tankoyomi provider '%1' has an invalid page access policy")
+                              .arg(provider.id);
+                return;
+            }
 
             const QJsonArray hosts = providerObject.value(QStringLiteral("allowedHosts")).toArray();
             for (const QJsonValue &hostValue : hosts) {
@@ -146,6 +211,15 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
         return;
     }
     for (const LanguageDescriptor &language : m_languages) {
+        for (const QString &alias : language.aliases) {
+            if (languageCodes.contains(alias)) {
+                m_error = QStringLiteral("Tankoyomi language alias '%1' collides with an installed code")
+                              .arg(alias);
+                return;
+            }
+        }
+    }
+    for (const LanguageDescriptor &language : m_languages) {
         if (language.code == m_defaultLanguage && language.providers.isEmpty()) {
             m_error = QStringLiteral("Tankoyomi default language has no inventory providers");
             return;
@@ -167,10 +241,10 @@ QList<TankoyomiProviderDescriptor>
 TankoyomiProviderRegistry::allProvidersForLanguage(const QString &requested) const
 {
     if (!isValid()) return {};
-    const QString language = requested.trimmed().isEmpty()
-        ? m_defaultLanguage : normalizeLanguage(requested);
+    const std::optional<QString> language = resolveLanguage(requested);
+    if (!language.has_value()) return {};
     for (const LanguageDescriptor &entry : m_languages) {
-        if (entry.code == language) return entry.providers;
+        if (entry.code == language.value()) return entry.providers;
     }
     return {};
 }

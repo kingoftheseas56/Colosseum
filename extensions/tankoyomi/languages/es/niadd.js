@@ -30,24 +30,36 @@
       return out;
     });
   }
+  function chapterRows(html) {
+    const absolute = href => {
+      if (href.startsWith('//')) return 'https:' + href;
+      if (href.startsWith('/')) return BASE + href;
+      return href;
+    };
+    const out = [], seen = new Set();
+    const re = /<a\b[^>]*\bhref="([^"]+)"[^>]*(?:title="([^"]*)")?[^>]*>([\s\S]*?)<\/a>/gi;
+    let m;
+    while ((m = re.exec(html))) {
+      const url = absolute(m[1]);
+      if (!/^https?:\/\/es\.niadd\.com\/chapter\//.test(url)) continue;
+      if (seen.has(url)) continue;
+      const title = strip(m[2] || m[3]);
+      if (!title) continue;
+      seen.add(url);
+      const id = (url.match(/\/(\d+)(?:[-/]?\d*)?\/?(?:\.html)?$/) || [])[1] || url;
+      out.push({ id, title, number: num(title), url, source: 'niadd', language: 'es' });
+    }
+    return out.sort((a, b) => (a.number == null ? 1e12 : a.number) - (b.number == null ? 1e12 : b.number));
+  }
   function getChapters(ctx, series) {
     const fetchText = need(ctx, 'fetchText');
     const seriesUrl = typeof series === 'string' ? series : series.url;
-    const chaptersUrl = seriesUrl.replace(/\.html$/i, '/chapters.html');
-    return fetchText(chaptersUrl).then(function(html) {
-      const out = [], seen = new Set();
-      const re = /<a\b[^>]*href="(https?:\/\/es\.niadd\.com\/chapter\/[^\"]+)"[^>]*(?:title="([^"]*)")?[^>]*>([\s\S]*?)<\/a>/gi;
-      let m;
-      while ((m = re.exec(html))) {
-        const url = m[1];
-        if (seen.has(url)) continue;
-        const title = strip(m[2] || m[3]);
-        if (!title) continue;
-        seen.add(url);
-        const id = (url.match(/\/(\d+)(?:[-/]?\d*)?\/?(?:\.html)?$/) || [])[1] || url;
-        out.push({ id, title, number: num(title), url, source: 'niadd', language: 'es' });
-      }
-      return out.sort((a, b) => (a.number == null ? 1e12 : a.number) - (b.number == null ? 1e12 : b.number));
+    // The canonical series page already carries the chapter list; the historical
+    // /chapters.html form is one bounded compatibility fallback for older URLs.
+    return fetchText(seriesUrl).then(function(html) {
+      const rows = chapterRows(html);
+      if (rows.length || !/\.html$/i.test(seriesUrl)) return rows;
+      return fetchText(seriesUrl.replace(/\.html$/i, '/chapters.html')).then(chapterRows);
     });
   }
 

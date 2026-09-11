@@ -13,8 +13,8 @@ const check = (ok, message) => {
 
 check(manifest.behaviorHints?.configurable === true,
   'Tankoyomi advertises an in-app configuration surface');
-check(store.includes('constexpr int kHouseDefaultsVersion = 13;'),
-  'house defaults version advances for the configuration metadata migration');
+// The global house-defaults generation is owned by tst_extensions_first_run,
+// not by Tankoyomi; later unrelated migrations may advance it freely.
 check(store.includes('manifest("colosseum.well.tankoyomi", "Tankoyomi"')
       && store.includes('{}, true));'),
   'the seeded Tankoyomi row carries configurable metadata');

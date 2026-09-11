@@ -1,6 +1,7 @@
 #include "MangaPageTransport.h"
 
 #include "TankoyomiIdentity.h"
+#include "TankoyomiNetworkPolicy.h"
 
 #include <QNetworkRequest>
 #include <QUrl>
@@ -35,6 +36,10 @@ QList<PageInfo> MangaPageTransport::normalizeTankoyomiPages(
         const QVariantMap row = value.toMap();
         const QString imageUrl = row.value(QStringLiteral("url")).toString().trimmed();
         if (imageUrl.isEmpty()) continue;
+        if (TankoyomiIdentity::isQualifiedChapter(qualifiedChapterId)
+            && !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(
+                QUrl(imageUrl), QStringLiteral("public-https")))
+            continue;
 
         PageInfo page;
         page.index = row.contains(QStringLiteral("index"))
@@ -67,7 +72,9 @@ QNetworkRequest MangaPageTransport::requestForPage(const PageInfo &page,
         request.setRawHeader("Referer", referer.toUtf8());
 
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
+                         TankoyomiIdentity::isQualifiedChapter(chapterId)
+                             ? QNetworkRequest::ManualRedirectPolicy
+                             : QNetworkRequest::NoLessSafeRedirectPolicy);
     request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
     request.setTransferTimeout(30000);
     return request;

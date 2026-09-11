@@ -9,8 +9,8 @@ const check = (ok, msg) => {
   if (!ok) failures++;
 };
 
-check(store.includes('constexpr int kHouseDefaultsVersion = 13;'),
-  'house defaults version bumps for Tankoyomi migration');
+// The global house-defaults generation belongs to tst_extensions_first_run;
+// Tankoyomi never asserts ownership of a specific generation number.
 check(store.includes('add("colosseum.well.tankoyomi", "colosseum://well/tankoyomi"'),
   'Tankoyomi is seeded as the Tankoban chapter well');
 check(store.includes('manifest("colosseum.well.tankoyomi", "Tankoyomi"'),

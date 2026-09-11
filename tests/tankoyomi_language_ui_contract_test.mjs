@@ -14,8 +14,12 @@ check(page.includes('property string selectedChapterLanguage: "en"'), 'series pa
 check(page.includes('chapterDefaultLanguage'), 'Chapter Mode reads the persisted Tankoyomi default language');
 check(page.includes('onChapterConfigurationChanged'), 'Chapter Mode listens for live Tankoyomi configuration changes');
 check(page.includes('onChanged'), 'Chapter Mode listens for live ExtensionsStore changes');
-check(page.includes('chapterCatalogueForLanguage(page._chapterRequestId, title, page.selectedChapterLanguage)'),
-  'Chapter Mode loads through the language-aware catalogue seam');
+check(page.includes('chapterCatalogueForProfile(page._chapterRequestId, profile, page.selectedChapterLanguage)'),
+  'Chapter Mode loads through the profile-aware catalogue seam and forwards the selected language');
+check(engine.includes('chapterCatalogueForProfile('), 'MangaEngine exposes the profile-aware catalogue entry point');
+check(page.includes('discoveryTitle: page.sourceSearchTitle') && page.includes('aliases: page.sourceSearchAliases')
+  && page.includes('requiredTitleMarkers: page.sourceRequiredMarkers'),
+  'catalogue profile carries discovery title, aliases, and required markers');
 check(page.includes('Chapter language unavailable.'), 'unsupported Chapter languages fail without an English fallback');
 check(page.includes('function _selectChapterLanguage(code)'), 'series page owns language-change correlation');
 check(header.includes('objectName: "mangaLanguageSelector"'), 'shared masthead owns one language selector geometry');

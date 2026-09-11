@@ -5,8 +5,23 @@
 
 #include <QNetworkAccessManager>
 #include <QVariantMap>
+#include <QTimer>
+#include <QDebug>
 
 #include <memory>
+
+namespace {
+QString searchTitleForQuery(const TankoyomiSeriesQuery &query)
+{
+    if (!query.discoveryTitle.trimmed().isEmpty()) return query.discoveryTitle.trimmed();
+    if (!query.title.trimmed().isEmpty()) return query.title.trimmed();
+    for (const QString &alias : query.aliases) {
+        if (!alias.trimmed().isEmpty()) return alias.trimmed();
+    }
+    return {};
+}
+}
+
 
 TankoyomiChapterService::TankoyomiChapterService(QNetworkAccessManager *nam, QObject *parent)
     : TankoyomiChapterService(nam, nullptr, parent)
@@ -15,10 +30,26 @@ TankoyomiChapterService::TankoyomiChapterService(QNetworkAccessManager *nam, QOb
 
 TankoyomiChapterService::TankoyomiChapterService(
     QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration, QObject *parent)
-    : QObject(parent),
-      m_registry(TankoyomiProviderRegistry::fromResource())
+    : TankoyomiChapterService(nam, configuration, 50000, parent)
 {
-    Q_UNUSED(nam);
+}
+
+TankoyomiChapterService::TankoyomiChapterService(
+    QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
+    int providerAttemptTimeoutMs, QObject *parent)
+    : TankoyomiChapterService(nam, configuration, providerAttemptTimeoutMs,
+                              MangaImageHostResolver::Lookup(), parent)
+{
+}
+
+TankoyomiChapterService::TankoyomiChapterService(
+    QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
+    int providerAttemptTimeoutMs, MangaImageHostResolver::Lookup resolverLookup,
+    QObject *parent)
+    : QObject(parent),
+      m_registry(TankoyomiProviderRegistry::fromResource()),
+      m_providerAttemptTimeoutMs(qMax(1, providerAttemptTimeoutMs))
+{
     if (!m_registry.isValid()) return;
     m_configuration = configuration;
     if (!m_configuration)
@@ -31,10 +62,10 @@ TankoyomiChapterService::TankoyomiChapterService(
         // remains manifest-enabled-only; construction needs the complete
         // validated inventory so a user can enable a manifest-disabled source.
         for (const TankoyomiProviderDescriptor &descriptor
-             : m_registry.allProvidersForLanguage(language)) {
+              : m_registry.allProvidersForLanguage(language)) {
             auto *provider = new TankoyomiScriptProvider(
                 descriptor.id, descriptor.language, descriptor.resourcePath,
-                descriptor.allowedHosts, this);
+                descriptor.allowedHosts, nam, resolverLookup, this);
             m_providers.insert(providerKey(descriptor.language, descriptor.id), provider);
         }
     }
@@ -49,7 +80,9 @@ QList<TankoyomiProviderDescriptor> TankoyomiChapterService::candidateProviders(
 QString TankoyomiChapterService::providerKey(const QString &language,
                                              const QString &providerId) const
 {
-    return TankoyomiProviderRegistry::normalizeLanguage(language)
+    const std::optional<QString> resolved = m_registry.resolveLanguage(language);
+    return (resolved.has_value() ? resolved.value()
+                                 : TankoyomiProviderRegistry::normalizeLanguage(language))
         + QLatin1Char(':') + providerId.trimmed();
 }
 
@@ -63,13 +96,33 @@ void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
                                              const QString &title,
                                              const QString &language)
 {
+    TankoyomiSeriesQuery query;
+    query.title = title;
+    fetchCatalogue(requestId, query, language);
+}
+
+void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
+                                             const TankoyomiSeriesQuery &query,
+                                             const QString &language)
+{
     if (!m_registry.isValid()) {
         emit catalogueFailed(requestId, m_registry.error());
         return;
     }
-    const QString normalized = language.trimmed().isEmpty()
-        ? m_configuration->defaultLanguage()
-        : TankoyomiProviderRegistry::normalizeLanguage(language);
+    // Resolve the requested tag to the canonical installed language before any
+    // provider key or chain is built; a regional request like pt-BR must land on
+    // the stable installed code while unsupported or ambiguous tags fail here.
+    // An empty request keeps its historical meaning: the configured default.
+    const std::optional<QString> resolved = m_registry.resolveLanguage(
+        language.trimmed().isEmpty() ? m_configuration->defaultLanguage() : language);
+    if (!resolved.has_value()) {
+        emit catalogueFailed(
+            requestId,
+            QStringLiteral("No Tankoyomi chapter provider is configured for language '%1'.")
+                .arg(language.trimmed()));
+        return;
+    }
+    const QString normalized = resolved.value();
     const QList<TankoyomiProviderDescriptor> providers = candidateProviders(normalized);
     if (providers.isEmpty()) {
         emit catalogueFailed(
@@ -78,12 +131,16 @@ void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
                 .arg(normalized.isEmpty() ? language : normalized));
         return;
     }
-    tryProviderChain(requestId, title, normalized, providers);
+    if (searchTitleForQuery(query).isEmpty()) {
+        emit catalogueFailed(requestId, QStringLiteral("No series title was provided."));
+        return;
+    }
+    tryProviderChain(requestId, query, normalized, providers);
 }
 
 void TankoyomiChapterService::tryProviderChain(
     const QString &requestId,
-    const QString &title,
+    const TankoyomiSeriesQuery &query,
     const QString &language,
     const QList<TankoyomiProviderDescriptor> &providers,
     int index)
@@ -100,7 +157,7 @@ void TankoyomiChapterService::tryProviderChain(
     TankoyomiScriptProvider *provider = providerFor(language, descriptor.id);
     if (!provider || !provider->isReady()) {
         if (index + 1 < providers.size()) {
-            tryProviderChain(requestId, title, language, providers, index + 1);
+            tryProviderChain(requestId, query, language, providers, index + 1);
             return;
         }
         emit catalogueFailed(
@@ -119,13 +176,13 @@ void TankoyomiChapterService::tryProviderChain(
     const QString searchToken = requestId + QStringLiteral("|search|") + descriptor.id;
     const QString chaptersToken = requestId + QStringLiteral("|chapters|") + descriptor.id;
 
-    auto failOrFallback = [this, scope, state, requestId, title, language, providers, index]
+    auto failOrFallback = [this, scope, state, requestId, query, language, providers, index]
                           (const QString &message) {
         if (state->settled) return;
         state->settled = true;
         scope->deleteLater();
         if (index + 1 < providers.size())
-            tryProviderChain(requestId, title, language, providers, index + 1);
+            tryProviderChain(requestId, query, language, providers, index + 1);
         else
             emit catalogueFailed(requestId, message);
     };
@@ -138,7 +195,7 @@ void TankoyomiChapterService::tryProviderChain(
     });
 
     connect(provider, &TankoyomiScriptProvider::resolved, scope,
-            [this, scope, state, provider, descriptor, requestId, title, language,
+            [this, scope, state, provider, descriptor, requestId, query, language,
              searchToken, chaptersToken, failOrFallback](const QString &token,
                                                          const QVariant &value) {
         if (state->settled) return;
@@ -148,16 +205,13 @@ void TankoyomiChapterService::tryProviderChain(
                 failOrFallback(QStringLiteral("Series not found on %1").arg(descriptor.name));
                 return;
             }
-            state->series = results.first().toMap();
-            const QString wanted = title.trimmed();
-            for (const QVariant &candidateValue : results) {
-                const QVariantMap candidate = candidateValue.toMap();
-                if (candidate.value(QStringLiteral("title")).toString().trimmed()
-                        .compare(wanted, Qt::CaseInsensitive) == 0) {
-                    state->series = candidate;
-                    break;
-                }
+            const auto matched = TankoyomiSeriesMatcher::match(query, results, descriptor.titleDecorators);
+            if (!matched.accepted) {
+                failOrFallback(QStringLiteral("Series identity unavailable on %1 (%2)")
+                                   .arg(descriptor.name, matched.reason));
+                return;
             }
+            state->series = matched.row;
             provider->getChapters(chaptersToken, state->series);
             return;
         }
@@ -211,7 +265,29 @@ void TankoyomiChapterService::tryProviderChain(
         emit catalogueReady(requestId, sourceSeriesId, qualified);
     });
 
-    provider->searchSeries(searchToken, title);
+    auto *attemptDeadline = new QTimer(scope);
+    attemptDeadline->setSingleShot(true);
+    attemptDeadline->setTimerType(Qt::PreciseTimer);
+    connect(attemptDeadline, &QTimer::timeout, scope,
+            [state, failOrFallback, descriptor, language]() {
+        if (state->settled) return;
+        const QString timeout = QStringLiteral("Tankoyomi provider '%1' (%2) attempt timeout")
+                                    .arg(descriptor.id, language);
+        qWarning().noquote() << timeout;
+        failOrFallback(timeout);
+    });
+    attemptDeadline->start(m_providerAttemptTimeoutMs);
+    provider->searchSeries(searchToken, searchTitleForQuery(query));
+}
+
+QString TankoyomiChapterService::pageAccessPolicyForChapter(const QString &qualifiedChapterId) const
+{
+    const auto parsed = TankoyomiIdentity::parseChapter(qualifiedChapterId);
+    if (!parsed) return {};
+    for (const auto &provider : m_registry.allProvidersForLanguage(parsed->language)) {
+        if (provider.id == parsed->providerId) return provider.pageAccessPolicy;
+    }
+    return {};
 }
 
 void TankoyomiChapterService::fetchPages(const QString &requestId,

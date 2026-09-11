@@ -5,10 +5,9 @@
 
 QString TankoyomiIdentity::normalizeLanguage(const QString &language)
 {
-    QString normalized = language.trimmed().toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
-    const int dash = normalized.indexOf(QLatin1Char('-'));
-    if (dash >= 0) normalized.truncate(dash);
-    return normalized;
+    // Preserve the complete regional tag; existing en/es/pt/fr identities are
+    // unaffected because their provider descriptors still use those exact codes.
+    return language.trimmed().toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
 }
 
 bool TankoyomiIdentity::safeProviderId(const QString &providerId)

@@ -49,10 +49,13 @@ void TankoyomiConfigurationStore::initializeDefaults()
 
 QString TankoyomiConfigurationStore::canonicalLanguage(const QString &language) const
 {
-    const QString normalized = language.trimmed().isEmpty()
-        ? m_defaultLanguage
-        : TankoyomiProviderRegistry::normalizeLanguage(language);
-    return m_states.contains(normalized) ? normalized : QString();
+    // Registry resolution owns the exact/alias/base decision; the store only
+    // substitutes its own configured default for an empty request and confirms
+    // the resolved value is an installed configuration key.
+    const std::optional<QString> resolved = m_registry.resolveLanguage(
+        language.trimmed().isEmpty() ? m_defaultLanguage : language);
+    if (!resolved.has_value()) return QString();
+    return m_states.contains(resolved.value()) ? resolved.value() : QString();
 }
 
 const TankoyomiConfigurationStore::LanguageState *TankoyomiConfigurationStore::stateFor(
@@ -253,8 +256,8 @@ QList<TankoyomiProviderDescriptor> TankoyomiConfigurationStore::providersForLang
 
 bool TankoyomiConfigurationStore::setDefaultLanguage(const QString &language)
 {
-    const QString canonical = TankoyomiProviderRegistry::normalizeLanguage(language);
-    if (!m_states.contains(canonical) || manifestProviders(canonical).isEmpty()) return false;
+    const QString canonical = canonicalLanguage(language);
+    if (canonical.isEmpty() || manifestProviders(canonical).isEmpty()) return false;
     if (canonical == m_defaultLanguage) return true;
     const QString previous = m_defaultLanguage;
     m_defaultLanguage = canonical;

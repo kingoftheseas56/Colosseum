@@ -160,6 +160,10 @@ else()
 endif()
 
 add_executable(colosseum
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     main.cpp
     bootstrap/InstanceLock.cpp
     bootstrap/InstanceLock.h
@@ -691,6 +695,32 @@ if(WIN32)
 endif()
 
 
+add_executable(tankoyomi_script_provider_transport_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    engine/TankoyomiScriptProvider.cpp
+    ../tests/tankoyomi_script_provider_transport_harness.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
+target_include_directories(tankoyomi_script_provider_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_script_provider_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+
+add_executable(tankoyomi_series_matcher_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    ../tests/tankoyomi_series_matcher_harness.cpp)
+target_include_directories(tankoyomi_series_matcher_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_series_matcher_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_network_policy_harness
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    ../tests/tankoyomi_network_policy_harness.cpp)
+target_include_directories(tankoyomi_network_policy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_network_policy_harness PRIVATE Qt6::Core Qt6::Network)
+
 add_executable(tankoyomi_provider_registry_harness
     ../tests/tankoyomi_provider_registry_harness.cpp
     engine/TankoyomiProviderRegistry.cpp
@@ -715,6 +745,10 @@ target_include_directories(tankoyomi_identity_harness PRIVATE ${CMAKE_CURRENT_SO
 target_link_libraries(tankoyomi_identity_harness PRIVATE Qt6::Core)
 
 add_executable(tankoyomi_service_runtime_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/tankoyomi_service_runtime_harness.cpp
     engine/MangaPageTransport.cpp
     engine/MangaPageTransport.h
@@ -727,7 +761,10 @@ add_executable(tankoyomi_service_runtime_harness
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_service_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_service_runtime_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_resources"
@@ -736,6 +773,10 @@ qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_re
     FILES ${TANKOYOMI_RESOURCE_FILES})
 
 add_executable(tankoyomi_service_configuration_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/tankoyomi_service_configuration_harness.cpp
     engine/TankoyomiChapterService.cpp
     engine/TankoyomiChapterService.h
@@ -746,19 +787,68 @@ add_executable(tankoyomi_service_configuration_harness
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
 target_include_directories(tankoyomi_service_configuration_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_service_configuration_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_service_configuration_harness "tankoyomi_service_configuration_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
+add_executable(tankoyomi_provider_attempt_timeout_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    ../tests/tankoyomi_provider_attempt_timeout_harness.cpp
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
+target_include_directories(tankoyomi_provider_attempt_timeout_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_provider_attempt_timeout_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_provider_attempt_timeout_harness "tankoyomi_attempt_timeout_resources"
+    PREFIX "/tankoyomi"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout"
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/manifest.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/languages/es/first.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/languages/es/second.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoyomi/attempt-timeout/languages/en/english.js"
+)
+
 add_executable(tankoyomi_provider_live_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/tankoyomi_provider_live_harness.cpp
     engine/TankoyomiProviderRegistry.cpp
     engine/TankoyomiProviderRegistry.h
     engine/TankoyomiScriptProvider.cpp
-    engine/TankoyomiScriptProvider.h)
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+)
 target_include_directories(tankoyomi_provider_live_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_provider_live_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_provider_live_harness "tankoyomi_provider_live_resources"
@@ -1683,6 +1773,10 @@ target_link_libraries(manga_image_host_resolver_harness PRIVATE Qt6::Core Qt6::N
 # at the filesystem boundary and assert lifetime/signal ordering without live
 # network or production data.
 add_executable(manga_downloader_cancel_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
     ../tests/manga_downloader_cancel_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
@@ -1707,6 +1801,41 @@ add_executable(manga_downloader_cancel_harness
 )
 target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
+
+add_executable(tankoyomi_page_security_harness
+    engine/TankoyomiSeriesMatcher.cpp
+    engine/TankoyomiSeriesMatcher.h
+    engine/TankoyomiNetworkPolicy.cpp
+    engine/TankoyomiNetworkPolicy.h
+    ../tests/tankoyomi_page_security_harness.cpp
+    # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
+    engine/MangaDownloader.h
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
+    engine/DownloadFileOps.h
+    engine/WeebCentralScraper.cpp
+    engine/WeebCentralScraper.h
+    engine/MangaScraper.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+)
+target_include_directories(tankoyomi_page_security_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_page_security_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
+
+qt_add_resources(tankoyomi_page_security_harness "tankoyomi_page_security_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
 
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp

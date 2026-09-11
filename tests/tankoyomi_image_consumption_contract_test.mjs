@@ -33,5 +33,9 @@ check(harness.includes('QNetworkRequest') && harness.includes('Referer'),
 check(harness.includes('image/') || harness.includes('magic'),
   'live Tankoyomi smoke validates image bytes rather than URL shape only');
 
+check(downloader.includes('pageAccessPolicyForChapter') && downloader.includes('TankoyomiNetworkPolicy::resolvedAddressAllowed'),
+  'qualified image requests enforce provider inventory policy and public DNS addresses');
+check(downloader.includes('requestUrl.resolved(location)') && downloader.includes('redirectDepth >= 5'),
+  'image redirect chains use logical URLs and a finite hop budget');
 if (failures) process.exit(1);
 console.log('\nPASS — Tankoyomi page discovery is consumed through native image transport');

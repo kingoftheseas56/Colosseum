@@ -158,6 +158,18 @@ public:
                                                   const QString &language) {
         m_tankoyomi->fetchCatalogue(requestId, title, language);
     }
+    Q_INVOKABLE void chapterCatalogueForProfile(const QString &requestId,
+                                                 const QVariantMap &profile,
+                                                 const QString &language) {
+        TankoyomiSeriesQuery query;
+        query.title = profile.value(QStringLiteral("title")).toString();
+        query.discoveryTitle = profile.value(QStringLiteral("discoveryTitle")).toString();
+        for (const QVariant &alias : profile.value(QStringLiteral("aliases")).toList())
+            query.aliases.append(alias.toString());
+        for (const QVariant &marker : profile.value(QStringLiteral("requiredTitleMarkers")).toList())
+            query.requiredTitleMarkers.append(marker.toString());
+        m_tankoyomi->fetchCatalogue(requestId, query, language);
+    }
     // Reader: page images for a chapter. pages() = flat (long-strip/single/double);
     // pagesPaired() = MangaPlus facing-pairs (pageGroup set). Result → pagesResult.
     Q_INVOKABLE void pages(const QString &chapterId) {

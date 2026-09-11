@@ -1,7 +1,9 @@
 #include "TankoyomiScriptProvider.h"
+#include "TankoyomiNetworkPolicy.h"
 
 #include <QDebug>
 #include <QFile>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -9,17 +11,32 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <QTimer>
 
 TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
                                                  QString language,
                                                  QString resourcePath,
                                                  QStringList hosts,
+                                                 QNetworkAccessManager *nam,
+                                                 QObject *parent)
+    : TankoyomiScriptProvider(std::move(providerId), std::move(language), std::move(resourcePath),
+                              std::move(hosts), nam, MangaImageHostResolver::Lookup(), parent)
+{
+}
+
+TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
+                                                 QString language,
+                                                 QString resourcePath,
+                                                 QStringList hosts,
+                                                 QNetworkAccessManager *nam,
+                                                 MangaImageHostResolver::Lookup lookup,
                                                  QObject *parent)
     : QObject(parent),
       m_providerId(std::move(providerId)),
       m_language(std::move(language)),
       allowedHosts(std::move(hosts)),
-      m_nam(new QNetworkAccessManager(this))
+      m_nam(nam ? nam : new QNetworkAccessManager(this)),
+      m_hostResolver(std::move(lookup), this)
 {
     QFile file(resourcePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -107,7 +124,8 @@ this.__tankoyomiNextCallbackId = 1;
       task,
       function(value) { __tkNative.jsResolve(String(token), JSON.stringify(value)); },
       function(error) {
-        var message = error && error.stack ? error.stack : error;
+        var message = String(error);
+        if (error && error.stack) message += '\n' + String(error.stack);
         __tkNative.jsReject(String(token), String(message));
       }
     );
@@ -193,17 +211,39 @@ void TankoyomiScriptProvider::invoke(const QString &method,
     if (started.isError())
         emit failed(token, started.toString());
 }
+struct TankoyomiScriptProvider::Fetch
+{
+    QString callbackId;
+    QUrl logicalUrl;
+    QNetworkRequest request;
+    QString method;
+    QByteArray body;
+    int redirects = 0;
+    bool settled = false;
+    QPointer<QTimer> deadline;
+    QPointer<QNetworkReply> reply;
+};
+
+TankoyomiScriptProvider::~TankoyomiScriptProvider()
+{
+    // The manager can outlive this provider. Cancel its work before QJSEngine
+    // destruction, rather than leaving replies attached to a shared manager.
+    const auto pending = m_fetches.values();
+    m_fetches.clear();
+    for (const auto &fetch : pending) {
+        fetch->settled = true;
+        if (fetch->deadline) fetch->deadline->stop();
+        if (fetch->reply) {
+            disconnect(fetch->reply, nullptr, this, nullptr);
+            if (!fetch->reply->isFinished()) fetch->reply->abort();
+            fetch->reply->deleteLater();
+        }
+    }
+}
+
 bool TankoyomiScriptProvider::hostAllowed(const QString &host) const
 {
-    const QString normalized = host.trimmed().toLower();
-    if (allowedHosts.contains(normalized, Qt::CaseInsensitive))
-        return true;
-    for (const QString &allowed : allowedHosts) {
-        const QString suffix = QStringLiteral(".") + allowed.trimmed().toLower();
-        if (normalized.endsWith(suffix))
-            return true;
-    }
-    return false;
+    return TankoyomiNetworkPolicy::metadataHostAllowed(host, allowedHosts);
 }
 
 void TankoyomiScriptProvider::jsFetchText(const QString &callbackId,
@@ -211,7 +251,7 @@ void TankoyomiScriptProvider::jsFetchText(const QString &callbackId,
                                           const QString &optionsJson)
 {
     const QUrl target(url);
-    if (!target.isValid() || target.scheme() != QLatin1String("https")
+    if (!TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(target, QStringLiteral("public-https"))
         || !hostAllowed(target.host())) {
         deliverFetch(callbackId, false,
                      QStringLiteral("Tankoyomi provider %1 cannot access host %2")
@@ -220,64 +260,161 @@ void TankoyomiScriptProvider::jsFetchText(const QString &callbackId,
     }
 
     QJsonParseError optionsError;
-    const QJsonObject options =
-        QJsonDocument::fromJson(optionsJson.toUtf8(), &optionsError).object();
-    if (optionsError.error != QJsonParseError::NoError) {
+    const QJsonDocument document = QJsonDocument::fromJson(optionsJson.toUtf8(), &optionsError);
+    if (optionsError.error != QJsonParseError::NoError || !document.isObject()) {
         deliverFetch(callbackId, false, QStringLiteral("Invalid Tankoyomi request options"));
         return;
     }
-
-    QNetworkRequest request(target);
-    const int defaultTimeoutMs = 15000;
-    const int requestedTimeoutMs = options.value(QStringLiteral("timeoutMs")).toInt(defaultTimeoutMs);
-    request.setTransferTimeout(qBound(1000, requestedTimeoutMs, 45000));
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setRawHeader(
-        "User-Agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/152.0 Safari/537.36");
-    request.setRawHeader("Accept", "text/html,application/json;q=0.9,*/*;q=0.8");
-
-    const QJsonObject headers = options.value(QStringLiteral("headers")).toObject();
-    for (auto it = headers.begin(); it != headers.end(); ++it)
-        request.setRawHeader(it.key().toUtf8(), it.value().toString().toUtf8());
-
+    const QJsonObject options = document.object();
     const QString method = options.value(QStringLiteral("method"))
-                               .toString(QStringLiteral("GET"))
-                               .trimmed().toUpper();
-    QNetworkReply *reply = nullptr;
-    if (method == QLatin1String("GET")) {
-        reply = m_nam->get(request);
-    } else if (method == QLatin1String("POST")) {
-        reply = m_nam->post(request,
-                            options.value(QStringLiteral("body")).toString().toUtf8());
-    } else {
+                               .toString(QStringLiteral("GET")).trimmed().toUpper();
+    if (method != QLatin1String("GET") && method != QLatin1String("POST")) {
         deliverFetch(callbackId, false,
                      QStringLiteral("Tankoyomi provider %1 cannot use HTTP method %2")
                          .arg(m_providerId, method));
         return;
     }
+    if (m_fetches.contains(callbackId)) {
+        finishFetch(m_fetches.value(callbackId), false, QStringLiteral("Duplicate Tankoyomi callback"));
+        return;
+    }
 
-    connect(reply, &QNetworkReply::finished, this,
-            [this, reply, callbackId, url]() {
+    auto fetch = std::make_shared<Fetch>();
+    fetch->callbackId = callbackId;
+    fetch->logicalUrl = target;
+    fetch->request = QNetworkRequest(target);
+    fetch->method = method;
+    fetch->body = options.value(QStringLiteral("body")).toString().toUtf8();
+    const int defaultTimeoutMs = 15000;
+    const int requestedTimeoutMs = options.value(QStringLiteral("timeoutMs")).toInt(defaultTimeoutMs);
+    const int timeoutMs = qBound(1000, requestedTimeoutMs, 45000);
+    fetch->request.setTransferTimeout(timeoutMs);
+    fetch->request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                                QNetworkRequest::ManualRedirectPolicy);
+    fetch->request.setRawHeader(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/152.0 Safari/537.36");
+    fetch->request.setRawHeader("Accept", "text/html,application/json;q=0.9,*/*;q=0.8");
+    const QJsonObject headers = options.value(QStringLiteral("headers")).toObject();
+    for (auto it = headers.begin(); it != headers.end(); ++it) {
+        const QByteArray name = it.key().toUtf8();
+        const QByteArray value = it.value().toString().toUtf8();
+        // A provider may describe HTTP metadata, not override the routed host.
+        if (name.compare("Host", Qt::CaseInsensitive) == 0
+            || name.contains('\r') || name.contains('\n')
+            || value.contains('\r') || value.contains('\n'))
+            continue;
+        fetch->request.setRawHeader(name, value);
+    }
+
+    auto *deadline = new QTimer(this);
+    deadline->setSingleShot(true);
+    fetch->deadline = deadline;
+    m_fetches.insert(callbackId, fetch);
+    connect(deadline, &QTimer::timeout, this, [this, fetch] {
+        if (fetch->settled) return;
+        if (fetch->reply) fetch->reply->setProperty("tankoyomiHardDeadlineExpired", true);
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi request timeout"));
+    });
+    // One absolute budget covers the entire redirect chain, not each hop anew.
+    deadline->start(timeoutMs);
+    issueFetch(fetch);
+}
+
+void TankoyomiScriptProvider::issueFetch(const std::shared_ptr<Fetch> &fetch)
+{
+    if (fetch->settled) return;
+    if (!m_nam) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi network manager is unavailable"));
+        return;
+    }
+    const QString host = fetch->logicalUrl.host().toLower();
+    // Policy is decided against the logical hostname before any wire rewrite.
+    // Every hop (including redirects to a new allowed host) resolves through
+    // the async resolver; a dead-IPv6 or private result fails this fetch closed.
+    if (!m_pins.contains(host)) {
+        m_hostResolver.resolve(host, [this, fetch, host](const QString &ipv4) {
+            if (fetch->settled) return;
+            if (!TankoyomiNetworkPolicy::resolvedAddressAllowed(QHostAddress(ipv4),
+                                                                QStringLiteral("public-https"))) {
+                finishFetch(fetch, false,
+                            QStringLiteral("Tankoyomi provider %1 host %2 has no public IPv4 route")
+                                .arg(m_providerId, host));
+                return;
+            }
+            m_pins.insert(host, ipv4);
+            issueFetch(fetch);
+        });
+        return;
+    }
+    QNetworkRequest request = fetch->request;
+    QUrl wireUrl = fetch->logicalUrl;
+    request.setRawHeader("Host", host.toUtf8());
+    request.setPeerVerifyName(host);
+    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+    wireUrl.setHost(m_pins.value(host));
+    request.setUrl(wireUrl);
+    QNetworkReply *reply = fetch->method == QLatin1String("POST")
+        ? m_nam->post(request, fetch->body) : m_nam->get(request);
+    fetch->reply = reply;
+    connect(reply, &QNetworkReply::finished, this, [this, fetch, reply] {
+        if (fetch->settled) return;
+        fetch->reply.clear();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QUrl location = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
         const auto error = reply->error();
         const QString errorText = reply->errorString();
-        const QByteArray payload = reply->readAll();
-        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         reply->deleteLater();
-
-        if (error != QNetworkReply::NoError) {
-            qWarning().noquote() << "[tankoyomi]" << m_providerId << "request failed"
-                                 << url << "status" << status << "error" << int(error) << errorText;
-            deliverFetch(callbackId, false,
-                         status > 0
-                             ? QStringLiteral("HTTP %1: %2").arg(status).arg(errorText)
-                             : errorText);
+        if (status >= 300 && status < 400) {
+            if (fetch->redirects >= 5
+                || !TankoyomiNetworkPolicy::redirectAllowed(fetch->logicalUrl, location, allowedHosts)) {
+                finishFetch(fetch, false, QStringLiteral("Tankoyomi metadata redirect rejected"));
+                return;
+            }
+            const QUrl next = fetch->logicalUrl.resolved(location);
+            if (next.host() != fetch->logicalUrl.host() || next.port(443) != fetch->logicalUrl.port(443)) {
+                fetch->request.setRawHeader("Authorization", QByteArray());
+                fetch->request.setRawHeader("Cookie", QByteArray());
+            }
+            if ((status == 301 || status == 302 || status == 303)
+                && fetch->method == QLatin1String("POST")) {
+                fetch->method = QStringLiteral("GET");
+                fetch->body.clear();
+                fetch->request.setRawHeader("Content-Type", QByteArray());
+                fetch->request.setRawHeader("Content-Length", QByteArray());
+            }
+            fetch->logicalUrl = next;
+            ++fetch->redirects;
+            issueFetch(fetch);
             return;
         }
-        deliverFetch(callbackId, true, QString::fromUtf8(payload));
+        if (error != QNetworkReply::NoError || status < 200 || status >= 300) {
+            finishFetch(fetch, false,
+                        status > 0 ? QStringLiteral("HTTP %1: %2").arg(status).arg(errorText) : errorText);
+            return;
+        }
+        finishFetch(fetch, true, QString::fromUtf8(reply->readAll()));
     });
+}
+
+void TankoyomiScriptProvider::finishFetch(const std::shared_ptr<Fetch> &fetch,
+                                          bool ok, const QString &payload)
+{
+    if (fetch->settled) return;
+    fetch->settled = true;
+    m_fetches.remove(fetch->callbackId);
+    if (fetch->deadline) {
+        fetch->deadline->stop();
+        fetch->deadline->deleteLater();
+    }
+    if (fetch->reply) {
+        disconnect(fetch->reply, nullptr, this, nullptr);
+        if (!fetch->reply->isFinished()) fetch->reply->abort();
+        fetch->reply->deleteLater();
+        fetch->reply.clear();
+    }
+    deliverFetch(fetch->callbackId, ok, payload);
 }
 
 void TankoyomiScriptProvider::deliverFetch(const QString &callbackId,
