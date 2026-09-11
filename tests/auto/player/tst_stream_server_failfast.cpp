@@ -2,6 +2,7 @@
 
 #include <QFile>
 #include <QHostAddress>
+#include <QCoreApplication>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTcpServer>
@@ -57,6 +58,25 @@ bool rejectProbe(QTcpServer *server)
     return accepted;
 }
 
+bool stageFakeRuntime(const QString &runtimeDir)
+{
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    const QString fixture = appDir.filePath(QStringLiteral("fake_stremio_runtime")
+#if defined(Q_OS_WIN)
+                                             + QStringLiteral(".exe")
+#endif
+    );
+    if (!QFile::copy(fixture, QDir(runtimeDir).filePath(QString::fromLatin1(kRuntimeName))))
+        return false;
+#if defined(Q_OS_WIN)
+    for (const QString &dll : {QStringLiteral("Qt6Core.dll"), QStringLiteral("Qt6Network.dll")}) {
+        if (!QFile::copy(appDir.filePath(dll), QDir(runtimeDir).filePath(dll)))
+            return false;
+    }
+#endif
+    return true;
+}
+
 } // namespace
 
 class tst_stream_server_failfast : public QObject
@@ -65,8 +85,70 @@ class tst_stream_server_failfast : public QObject
 
 private slots:
     void failedStartReportsAndCanRetry();
+    void hungChildTimesOutAndCanRetry();
+    void ownedChildWithDeadListenerRestartsPendingPlay();
     void readyChildShutdownIsNotReportedAsStartupFailure();
 };
+
+void tst_stream_server_failfast::hungChildTimesOutAndCanRetry()
+{
+    QTemporaryDir runtimeDir;
+    QVERIFY(runtimeDir.isValid());
+
+    QVERIFY(stageFakeRuntime(runtimeDir.path()));
+    QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
+    QVERIFY(serverScript.open(QIODevice::WriteOnly));
+    QVERIFY(serverScript.write("var port = 11470;") > 0);
+    serverScript.close();
+
+    ScopedEnvironment runtimeOverride("COLOSSEUM_STREAM_SERVER", runtimeDir.path().toUtf8());
+    ScopedEnvironment mode("COLOSSEUM_FAKE_STREMIO_MODE", QByteArrayLiteral("hang-before-ready"));
+    StreamServer stream;
+    QSignalSpy errorSpy(&stream, &StreamServer::streamError);
+
+    stream.play(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
+    QTRY_VERIFY_WITH_TIMEOUT(stream.engineUnavailable(), 3000);
+    QVERIFY(!stream.starting());
+    QVERIFY(!stream.ready());
+    QCOMPARE(errorSpy.count(), 1);
+
+    stream.play(QStringLiteral("fedcba9876543210fedcba9876543210fedcba98"), 0);
+    QTRY_COMPARE_WITH_TIMEOUT(errorSpy.count(), 2, 3000);
+    QVERIFY(!stream.starting());
+}
+
+void tst_stream_server_failfast::ownedChildWithDeadListenerRestartsPendingPlay()
+{
+    QTemporaryDir runtimeDir;
+    QVERIFY(runtimeDir.isValid());
+
+    QVERIFY(stageFakeRuntime(runtimeDir.path()));
+    QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
+    QVERIFY(serverScript.open(QIODevice::WriteOnly));
+    QVERIFY(serverScript.write("var port = 11470;") > 0);
+    serverScript.close();
+
+    const QString marker = runtimeDir.filePath(QStringLiteral("listener-dropped"));
+    ScopedEnvironment runtimeOverride("COLOSSEUM_STREAM_SERVER", runtimeDir.path().toUtf8());
+    ScopedEnvironment mode("COLOSSEUM_FAKE_STREMIO_MODE", QByteArrayLiteral("drop-once"));
+    ScopedEnvironment markerOverride("COLOSSEUM_FAKE_STREMIO_MARKER", marker.toUtf8());
+    StreamServer stream;
+    QSignalSpy readySpy(&stream, &StreamServer::streamReady);
+    QSignalSpy errorSpy(&stream, &StreamServer::streamError);
+
+    stream.warmUp();
+    QTRY_VERIFY_WITH_TIMEOUT(stream.ready(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(marker), 3000);
+
+    const QString hash = QStringLiteral("0123456789abcdef0123456789abcdef01234567");
+    constexpr int requestCount = 12;
+    for (int fileIdx = 0; fileIdx < requestCount; ++fileIdx)
+        stream.play(hash, fileIdx);
+    QTRY_COMPARE_WITH_TIMEOUT(readySpy.count(), requestCount, 6000);
+    QCOMPARE(errorSpy.count(), 0);
+    QCOMPARE(readySpy.at(0).at(1).toString(), hash);
+    QVERIFY(stream.ready());
+}
 
 void tst_stream_server_failfast::readyChildShutdownIsNotReportedAsStartupFailure()
 {
@@ -89,7 +171,7 @@ void tst_stream_server_failfast::readyChildShutdownIsNotReportedAsStartupFailure
                                    | QFileDevice::ExeOwner));
     QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
     QVERIFY(serverScript.open(QIODevice::WriteOnly));
-    QVERIFY(serverScript.write("// fixture") > 0);
+    QVERIFY(serverScript.write("var port = 11470;") > 0);
     serverScript.close();
 
     QTcpServer probe;
@@ -120,7 +202,7 @@ void tst_stream_server_failfast::failedStartReportsAndCanRetry()
                                           | QFileDevice::ExeOwner));
     QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
     QVERIFY(serverScript.open(QIODevice::WriteOnly));
-    QVERIFY(serverScript.write("// fixture") > 0);
+    QVERIFY(serverScript.write("var port = 11470;") > 0);
     serverScript.close();
 
     QTcpServer probe;

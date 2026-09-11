@@ -12,11 +12,17 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QStandardPaths>
+#include <QTcpServer>
 #include <QTimer>
 #include <QUrl>
 
 namespace {
+
+#ifndef COLOSSEUM_STREAM_START_TIMEOUT_MS
+#define COLOSSEUM_STREAM_START_TIMEOUT_MS 10000
+#endif
 
 QString runtimeExecutableName()
 {
@@ -34,6 +40,30 @@ QString engineUnavailableMessage()
 #else
     return QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum.");
 #endif
+}
+
+QString prepareRuntimeScript(const QString &runtimeDir, const QString &cacheDir, int port)
+{
+    QFile source(QDir(runtimeDir).filePath(QStringLiteral("server.js")));
+    if (!source.open(QIODevice::ReadOnly))
+        return {};
+
+    QByteArray script = source.readAll();
+    source.close();
+    if (!script.contains("11470"))
+        return {};
+
+    // Disable the bundle's fixed-range retry, then update every internal default-port URL.
+    // Replace 11474 first so a selected port with those digits cannot be rewritten twice.
+    script.replace("11474", QByteArray::number(port));
+    script.replace("11470", QByteArray::number(port));
+
+    const QString patchedPath = QDir(cacheDir).filePath(QStringLiteral("server-colosseum.js"));
+    QSaveFile patched(patchedPath);
+    if (!patched.open(QIODevice::WriteOnly) || patched.write(script) != script.size()
+        || !patched.commit())
+        return {};
+    return patchedPath;
 }
 
 } // namespace
@@ -167,17 +197,40 @@ void StreamServer::launchChild()
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/colosseum-stream");
     QDir().mkpath(cacheDir);
 
+    // Windows can reserve the complete 11470-11474 fallback range (Hyper-V/WSL commonly does),
+    // leaving the Stremio runtime alive without an HTTP listener. Give our owned child a free
+    // ephemeral port and patch every internal 11470 reference in its self-contained bundle.
+    // Official Stremio Service adoption remains on its standard 11470 endpoint above.
+    QTcpServer portReservation;
+    if (!portReservation.listen(QHostAddress::LocalHost, 0)) {
+        m_starting = false;
+        Q_EMIT startingChanged();
+        markEngineUnavailable(engineUnavailableMessage());
+        return;
+    }
+    const int childPort = portReservation.serverPort();
+    portReservation.close();
+    const QString runtimeScript = prepareRuntimeScript(dir, cacheDir, childPort);
+    if (runtimeScript.isEmpty()) {
+        qWarning("[stream] could not prepare the runtime script for a dynamic local port");
+        m_starting = false;
+        Q_EMIT startingChanged();
+        markEngineUnavailable(engineUnavailableMessage());
+        return;
+    }
+
     QProcessEnvironment penv = QProcessEnvironment::systemEnvironment();
     // Some desktop shells inject Node flags that this bundled runtime rejects at boot.
     penv.remove(QStringLiteral("NODE_OPTIONS"));
     penv.insert(QStringLiteral("NO_HTTPS_SERVER"), QStringLiteral("1"));
     penv.insert(QStringLiteral("APP_PATH"), QDir::toNativeSeparators(cacheDir));
 
+    m_stdoutBuf.clear();
     m_proc = new QProcess(this);
     m_proc->setProcessEnvironment(penv);
     m_proc->setWorkingDirectory(dir);
     m_proc->setProgram(QDir(dir).filePath(runtimeExecutableName()));
-    m_proc->setArguments({QStringLiteral("server.js")});
+    m_proc->setArguments({QDir::toNativeSeparators(runtimeScript)});
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
 
     connect(m_proc, &QProcess::readyReadStandardOutput, this, &StreamServer::onStdout);
@@ -224,6 +277,13 @@ void StreamServer::launchChild()
                 Q_EMIT readyChanged();
                 Q_EMIT startingChanged();
             });
+
+    QTimer::singleShot(COLOSSEUM_STREAM_START_TIMEOUT_MS, process, [this, process]() {
+        if (m_proc != process || m_port > 0 || process->state() == QProcess::NotRunning)
+            return;
+        qWarning("[stream] engine startup timed out before opening its HTTP listener");
+        process->kill();
+    });
 
     qInfo("[stream] launching %s", qUtf8Printable(dir));
     m_proc->start();
@@ -302,6 +362,7 @@ void StreamServer::flushPending()
 void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch)
 {
     const QString hash = infoHash.toLower();
+    const int requestPort = m_port;
     // Register the torrent with the runtime (it constructs the magnet from the hash).
     // We emit the playable URL regardless of the create result — newer runtimes also
     // auto-create on the first ranged GET that mpv issues — but doing the POST first
@@ -310,25 +371,29 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
 
     QNetworkReply *reply = m_nam->post(req, QByteArray("{}"));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, hash, fileIdx, fetch]() {
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply, hash, fileIdx, fetch, requestPort]() {
         const auto err = reply->error();
         reply->deleteLater();
-        // DEAD-ADOPT SELF-HEAL (2026-07-18): when the engine was ADOPTED (no child of ours,
-        // m_proc null) and the port now refuses connections, the external server died out
-        // from under us. The child path resets via its finished() handler, but adoption had
-        // NO reset — m_port stayed set forever and every later create/manifest hit a dead
-        // port (audiobook 'retry' failed deterministically). Reset, re-queue THIS request,
-        // and run the ensureStarted probe again — which now spawns our own runtime.
-        if (err == QNetworkReply::ConnectionRefusedError && !m_proc && m_port > 0) {
-            qWarning("[stream] adopted server on :%d is gone — resetting and relaunching", m_port);
-            m_port = -1;
-            Q_EMIT readyChanged();
+        // A process handle is not a health signal: the runtime can stay alive after losing
+        // its listener. Re-queue this request and retire either an owned or adopted server.
+        if (err == QNetworkReply::ConnectionRefusedError) {
+            if (m_port > 0 && m_port != requestPort) {
+                registerThenReady(hash, fileIdx, fetch);
+                return;
+            }
             m_pending.append({hash, fileIdx, fetch});
-            ensureStarted();
+            if (m_port == requestPort)
+                recoverDeadServer(requestPort);
+            else
+                ensureStarted();
             return;
         }
-        if (err != QNetworkReply::NoError)
+        if (err != QNetworkReply::NoError) {
             qWarning("[stream] create warning: %s", qUtf8Printable(reply->errorString()));
+        } else {
+            m_consecutiveHealthRestarts = 0;
+        }
         const QString url = streamUrl(hash, fileIdx);
         if (url.isEmpty())
             Q_EMIT streamError(QStringLiteral("Stream engine not ready."));
@@ -337,6 +402,41 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
         else
             Q_EMIT streamReady(url, hash, fileIdx);
     });
+}
+
+void StreamServer::recoverDeadServer(int failedPort)
+{
+    // A delayed reply from the retired generation must never kill its healthy replacement.
+    if (m_port != failedPort)
+        return;
+    const int deadPort = m_port;
+    m_port = -1;
+    const bool wasStarting = m_starting;
+    m_starting = false;
+    Q_EMIT readyChanged();
+    if (wasStarting)
+        Q_EMIT startingChanged();
+
+    if (m_proc) {
+        QProcess *deadProcess = m_proc;
+        disconnect(deadProcess, nullptr, this, nullptr);
+        m_proc = nullptr;
+        connect(deadProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+                deadProcess, &QObject::deleteLater);
+        deadProcess->kill();
+        if (deadProcess->state() == QProcess::NotRunning)
+            deadProcess->deleteLater();
+    }
+
+    ++m_consecutiveHealthRestarts;
+    if (m_consecutiveHealthRestarts > 1) {
+        qWarning("[stream] server on :%d stayed unreachable after restart", deadPort);
+        markEngineUnavailable(engineUnavailableMessage());
+        return;
+    }
+
+    qWarning("[stream] server on :%d is unreachable — restarting", deadPort);
+    QTimer::singleShot(0, this, &StreamServer::ensureStarted);
 }
 
 void StreamServer::pushTunedSettings()
@@ -350,7 +450,8 @@ void StreamServer::pushTunedSettings()
     // POST to settle — the first stream of the session must not race the old caps. Values:
     // 200 connections (the same desktop-scale jump our libtorrent side ratified) and
     // 20 / 40 MB/s caps — above any line speed here, so the line itself is the only limit.
-    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/settings").arg(m_port)));
+    const int requestPort = m_port;
+    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/settings").arg(requestPort)));
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     req.setTransferTimeout(3000);
     const QByteArray body = QByteArrayLiteral(
@@ -358,13 +459,20 @@ void StreamServer::pushTunedSettings()
         "\"btDownloadSpeedSoftLimit\":20971520,"
         "\"btDownloadSpeedHardLimit\":41943040}");
     QNetworkReply *r = m_nam->post(req, body);
-    connect(r, &QNetworkReply::finished, this, [this, r]() {
+    connect(r, &QNetworkReply::finished, this, [this, r, requestPort]() {
+        const auto err = r->error();
         r->deleteLater();
-        if (r->error() == QNetworkReply::NoError)
+        if (err == QNetworkReply::ConnectionRefusedError) {
+            recoverDeadServer(requestPort);
+            return;
+        }
+        if (err == QNetworkReply::NoError) {
+            m_consecutiveHealthRestarts = 0;
             qInfo("[stream] swarm tuning pushed (200 conns, 20/40 MB/s caps)");
-        else
+        } else {
             qWarning("[stream] swarm tuning push failed (streams keep stock caps): %s",
                      qUtf8Printable(r->errorString()));
+        }
         flushPending();   // tuning is best-effort; playback must never be blocked by it
     });
 }

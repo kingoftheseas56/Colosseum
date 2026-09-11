@@ -3275,15 +3275,23 @@ foreach(_qt_target Qt6::Core Qt6::Network Qt6::Gui)
                 "${CMAKE_CURRENT_BINARY_DIR}/..")
 endforeach()
 
-# Stream runtime fail-fast contract: missing packaged runtime is an installation
-# failure, not a candidate-stream failure. The static contract is offline; the
-# Qt test uses only a local probe socket and an invalid test runtime.
+# Stream runtime lifecycle contract: missing or wedged packaged runtimes are
+# actionable installation failures, and a lost listener restarts pending work.
+# The fake child is local and deterministic; no torrent network is involved.
+add_executable(fake_stremio_runtime auto/player/fake_stremio_runtime.cpp)
+target_link_libraries(fake_stremio_runtime PRIVATE Qt6::Core Qt6::Network)
+set_target_properties(fake_stremio_runtime PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+
 add_executable(tst_stream_server_failfast
     auto/player/tst_stream_server_failfast.cpp
     "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
 target_include_directories(tst_stream_server_failfast PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_stream_server_failfast PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+target_compile_definitions(tst_stream_server_failfast PRIVATE
+    COLOSSEUM_STREAM_START_TIMEOUT_MS=500)
+add_dependencies(tst_stream_server_failfast fake_stremio_runtime)
 set_target_properties(tst_stream_server_failfast PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 if(WIN32)

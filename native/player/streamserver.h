@@ -96,6 +96,7 @@ private:
     void onStdout();                      // scrape the "EngineFS server started at …:<port>" line
     void flushPending();
     void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL
+    void recoverDeadServer(int failedPort); // retire the matching unreachable server and retry once
     void pollStats();                     // one stats.json GET; single-flight behind m_statsInflight
     void pushTunedSettings();             // raise the runtime's swarm caps, THEN flush pending streams
 
@@ -110,6 +111,7 @@ private:
     QString m_statsHash;
     int m_statsIdx = -1;
     bool m_statsInflight = false;
+    int m_consecutiveHealthRestarts = 0;
 };
 
 #endif // COLOSSEUM_STREAMSERVER_H
