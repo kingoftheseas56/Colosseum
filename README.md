@@ -89,7 +89,7 @@ The repository has moved beyond the current 1.1.5 installer. Development already
 - **Linux beta qualification** and portable runtime/package work.
 - **Multilingual Tankoban Chapter Mode** through Tankoyomi, including language-aware providers and configurable provider order.
 - **Keyboard-only operation across the app**, including PlayStation-style spatial focus and directional scrolling through long surfaces.
-- **Account, recovery, sync, and lifecycle hardening** across the desktop client and account-service code. This does not mean a public production account service ships with 1.1.5.
+- **Account, recovery, sync, and lifecycle hardening** across the desktop client and account-service code. 
 
 
 
