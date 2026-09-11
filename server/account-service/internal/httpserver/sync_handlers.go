@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,8 +9,12 @@ import (
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
 )
 
+// syncPushRequest is the decoded SyncPushEnvelope: an optional envelope-level
+// attachment_id plus the unchanged mutation array. Ordinary pushes omit the
+// attachment field entirely.
 type syncPushRequest struct {
-	Mutations []account.SyncMutationInput `json:"mutations"`
+	AttachmentID string                      `json:"attachment_id,omitempty"`
+	Mutations    []account.SyncMutationInput `json:"mutations"`
 }
 
 func (h *Handler) pushSync(w http.ResponseWriter, r *http.Request) {
@@ -23,12 +28,24 @@ func (h *Handler) pushSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.accounts.PushSync(
-		r.Context(),
-		authenticated(r),
-		request.Mutations)
+	var result account.SyncPushResponse
+	var err error
+	if attachmentID := strings.TrimSpace(request.AttachmentID); attachmentID != "" {
+		result, err = h.accounts.PushSyncWithAttachment(
+			r.Context(),
+			authenticated(r),
+			attachmentID,
+			request.Mutations)
+	} else {
+		result, err = h.accounts.PushSync(
+			r.Context(),
+			authenticated(r),
+			request.Mutations)
+	}
 	if err != nil {
-		h.writeAccountError(w, err)
+		if !writeAttachmentAPIError(w, err) {
+			h.writeAccountError(w, err)
+		}
 		return
 	}
 
@@ -52,6 +69,28 @@ func (h *Handler) pullSync(w http.ResponseWriter, r *http.Request) {
 		authenticated(r),
 		after)
 	if err != nil {
+		h.writeAccountError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// pullSyncSnapshot serves the fixed-cursor canonical snapshot. The first
+// page carries no after_key; later pages replay the opaque token returned by
+// the previous page.
+func (h *Handler) pullSyncSnapshot(w http.ResponseWriter, r *http.Request) {
+	pageToken := strings.TrimSpace(r.URL.Query().Get("after_key"))
+
+	result, err := h.accounts.SnapshotSync(
+		r.Context(),
+		authenticated(r),
+		pageToken)
+	if err != nil {
+		if errors.Is(err, account.ErrInvalidPageToken) {
+			WriteAPIError(w, http.StatusBadRequest, "invalid_page_token", "The snapshot page token is invalid.")
+			return
+		}
 		h.writeAccountError(w, err)
 		return
 	}

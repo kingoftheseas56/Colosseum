@@ -310,6 +310,43 @@ bool ProfileAdoption::commit(QString *error) {
     return writeSnapshot(error);
 }
 
+bool ProfileAdoption::commitForAttachment(QString *error) {
+    if (m_snapshot.state != State::Promoted)
+        return setError(
+            error,
+            QStringLiteral(
+                "Profile adoption cannot commit for attachment before profile promotion."));
+    if (!QFileInfo::exists(m_snapshot.finalRoot))
+        return setError(
+            error,
+            QStringLiteral(
+                "The promoted account profile no longer exists."));
+    if (m_snapshot.legacyBackupRoot.isEmpty()
+        || !QFileInfo::exists(m_snapshot.legacyBackupRoot)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "The attachment promotion requires the verified rollback backup."));
+    }
+    if (m_snapshot.targetSemanticDigest != m_snapshot.sourceSemanticDigest
+        || m_snapshot.activityTargetDigest != m_snapshot.activitySourceDigest) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Profile adoption semantic verification is incomplete."));
+    }
+
+    // Record the backup verification facts without claiming that the source
+    // was quarantined.  The account attachment receipt is the independent
+    // durable owner of source retirement.
+    m_snapshot.legacyBackupSemanticDigest =
+        m_snapshot.sourceSemanticDigest;
+    m_snapshot.activityLegacyBackupDigest =
+        m_snapshot.activitySourceDigest;
+    m_snapshot.state = State::Committed;
+    return writeSnapshot(error);
+}
+
 bool ProfileAdoption::rollbackBeforeLegacyQuarantine(QString *error) {
     if (m_snapshot.state == State::LegacyQuarantined
         || m_snapshot.state == State::Committed) {

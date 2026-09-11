@@ -88,6 +88,12 @@ public:
 
     bool commit(QString *error = nullptr);
 
+    // The account profile has been promoted and verified, but the source is
+    // intentionally retained while the separate cloud-attachment receipt
+    // drives upload and retirement.  This is still a local ownership commit;
+    // it does not claim that cloud attachment completed.
+    bool commitForAttachment(QString *error = nullptr);
+
     bool rollbackBeforeLegacyQuarantine(QString *error = nullptr);
     bool rollbackAfterLegacyRestore(
         const QString &restoredSemanticDigest,

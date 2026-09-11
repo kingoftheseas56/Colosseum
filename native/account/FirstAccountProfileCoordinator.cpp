@@ -3,9 +3,11 @@
 #include "FirstAccountProfileCoordinator.h"
 
 #include "ActivityStore.h"
+#include "AccountAttachmentReceipt.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfilePreferencesStore.h"
 #include "ProfileStoreRuntime.h"
+#include "SyncStateStore.h"
 
 #include "AudioPairingStore.h"
 #include "CollectionStore.h"
@@ -21,6 +23,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
+#include <QSet>
+#include <QUuid>
 
 namespace {
 bool equalMap(
@@ -35,6 +39,75 @@ QString adoptionFailure(
     if (detail.trimmed().isEmpty())
         return prefix;
     return prefix + QStringLiteral(" ") + detail;
+}
+
+bool ensureAttachmentReceipt(
+    const ProfilePaths &paths,
+    ProfilePaths::Kind sourceKind,
+    const PersonalStateSnapshot &source,
+    const QString &activityDigest,
+    QString *error) {
+    const QString sourceKindName =
+        sourceKind == ProfilePaths::Kind::LocalOnly
+        ? AccountAttachmentReceipt::sourceKindLocalOnly()
+        : AccountAttachmentReceipt::sourceKindLegacyLocal();
+    const QString sourceProfileId =
+        sourceKind == ProfilePaths::Kind::LocalOnly
+        ? ProfilePaths::localOnly(paths.appDataRoot()).profileId()
+        : ProfilePaths::legacyLocal().profileId();
+
+    const AccountAttachmentReceipt::ReadResult existing =
+        AccountAttachmentReceipt::read(paths);
+    if (existing.status == AccountAttachmentReceipt::ReadStatus::Invalid) {
+        if (error)
+            *error = adoptionFailure(
+                QStringLiteral("The account attachment receipt is invalid."),
+                existing.error);
+        return false;
+    }
+
+    AccountAttachmentReceiptData receipt;
+    if (existing.status == AccountAttachmentReceipt::ReadStatus::Ok) {
+        receipt = existing.data;
+        if (receipt.sourceKind != sourceKindName
+            || receipt.sourceProfileId != sourceProfileId
+            || receipt.sourceSemanticDigest != source.semanticDigest()
+            || receipt.sourceActivityDigest != activityDigest
+            || receipt.sourceRetired) {
+            if (error)
+                *error = QStringLiteral(
+                    "The existing account attachment receipt does not match the local source.");
+            return false;
+        }
+        return true;
+    }
+
+    receipt.version = 1;
+    receipt.attachmentId =
+        QUuid::createUuid().toString(QUuid::WithoutBraces);
+    receipt.sourceKind = sourceKindName;
+    receipt.sourceProfileId = sourceProfileId;
+    receipt.sourceSemanticDigest = source.semanticDigest();
+    receipt.sourceActivityDigest = activityDigest;
+    receipt.accountId = paths.profileId();
+    SyncStateStore stateStore;
+    const auto syncState = stateStore.load(paths.syncStatePath(), error);
+    if (!syncState.has_value())
+        return false;
+    QSet<QString> preexistingIds;
+    for (const SyncWireMutation &mutation : syncState->outbox)
+        preexistingIds.insert(mutation.mutationId);
+    for (auto it = syncState->pausedCategories.constBegin();
+         it != syncState->pausedCategories.constEnd(); ++it) {
+        for (const SyncWireMutation &mutation : it->pendingMutations)
+            preexistingIds.insert(mutation.mutationId);
+    }
+    receipt.preexistingMutationIds = preexistingIds.values();
+    receipt.preexistingMutationIds.sort();
+    receipt.sourceRetired = false;
+    receipt.retirementPhase =
+        AccountAttachmentReceipt::retirementPhasePending();
+    return AccountAttachmentReceipt::save(paths, receipt, error);
 }
 
 
@@ -510,6 +583,9 @@ prepareAccountSession(
             return mergeExistingAccount(
                 *paths,
                 *sourceStorage,
+                explicitProfile
+                    ? ProfilePaths::Kind::LocalOnly
+                    : ProfilePaths::Kind::LegacyLocal,
                 error);
         }
     }
@@ -975,6 +1051,7 @@ bool FirstAccountProfileCoordinator::
 mergeExistingAccount(
     const ProfilePaths &paths,
     const LegacyPersonalStateStorage &sourceStorage,
+    ProfilePaths::Kind sourceKind,
     QString *error) {
     const auto targetStorage =
         LegacyPersonalStateStorage::forProfile(
@@ -982,6 +1059,8 @@ mergeExistingAccount(
             error);
     if (!targetStorage.has_value())
         return false;
+
+    m_profileRuntime->flushPersonalStores();
 
     QString sourceError;
     const auto source =
@@ -1010,10 +1089,16 @@ mergeExistingAccount(
             m_profileRuntime->activityStore()
                 ->historyProjectionFacts();
     } else {
-        ActivityStore sourceActivity(
-            sourceStorage.activityDbPath());
-        if (sourceActivity.healthy())
-            activityFacts = sourceActivity.historyProjectionFacts();
+        // Constructing ActivityStore creates a SQLite file.  Do not turn a
+        // source with no Activity ledger into a new empty ledger during a
+        // repeated sign-in; the receipt's empty digest is its durable
+        // identity for that source state.
+        const QString activityPath = sourceStorage.activityDbPath();
+        if (QFileInfo::exists(activityPath)) {
+            ActivityStore sourceActivity(activityPath);
+            if (sourceActivity.healthy())
+                activityFacts = sourceActivity.historyProjectionFacts();
+        }
     }
 
     m_profileRuntime->suspendPersonalStoresForMigration();
@@ -1062,9 +1147,14 @@ mergeExistingAccount(
         return setError(error, verifyError);
     }
 
-    if (!clearMigrationSource(
-            sourceStorage,
-            true,
+    const QString activitySourceDigest =
+        ActivityStore::fileDigestSha256(
+            sourceStorage.activityDbPath());
+    if (!ensureAttachmentReceipt(
+            paths,
+            sourceKind,
+            *source,
+            activitySourceDigest,
             error)) {
         sourceStorage.restorePersonalState(*source, nullptr);
         m_profileRuntime->activateLocalOnlyProfile(nullptr);
@@ -1422,9 +1512,11 @@ resumeAdoption(
                     .sourceSemanticDigest)) {
             bool onlyActivityProjection = false;
             const auto backup = readBackup(paths, nullptr);
-            if (backup.has_value()) {
-                ActivityStore activity(
-                    resolved->storage.activityDbPath());
+            const QString activityPath =
+                resolved->storage.activityDbPath();
+            if (backup.has_value()
+                && QFileInfo::exists(activityPath)) {
+                ActivityStore activity(activityPath);
                 if (activity.healthy()) {
                     onlyActivityProjection =
                         matchesWithActivityProjection(
@@ -1480,6 +1572,26 @@ bool FirstAccountProfileCoordinator::
 mergeResidualLocalOnlyState(
     const ProfilePaths &paths,
     QString *error) {
+    const AccountAttachmentReceipt::ReadResult attachment =
+        AccountAttachmentReceipt::read(paths);
+    if (attachment.status
+        == AccountAttachmentReceipt::ReadStatus::Invalid) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "The account attachment receipt is invalid."),
+                attachment.error));
+    }
+    if (attachment.status
+            == AccountAttachmentReceipt::ReadStatus::Ok
+        && !attachment.data.sourceRetired) {
+        // A promoted local-only source belongs to the pending cloud
+        // attachment.  Do not merge or clear it again while recovering the
+        // local ownership journal.
+        return true;
+    }
+
     const ProfilePaths localPaths =
         ProfilePaths::localOnly(m_appDataRoot);
     QString localError;
@@ -1513,6 +1625,7 @@ mergeResidualLocalOnlyState(
     return mergeExistingAccount(
         paths,
         *localStorage,
+        ProfilePaths::Kind::LocalOnly,
         error);
 }
 
@@ -1583,120 +1696,73 @@ finishPromotedAdoption(
         return false;
     }
 
-    m_profileRuntime
-        ->suspendPersonalStoresForMigration();
-
-    // NOTE: restoreLegacyActivityFromBackup() always runs BEFORE
-    // restoreSourceForRetry() in every failure branch below — reopening the
-    // selected source profile creates a live ActivityStore connection at its
-    // path, so the file on disk must already be back in its pre-quarantine
-    // state before that connection opens.
-
-    if (!quarantineLegacyActivityLedger(sourceStorage, error)) {
-        restoreLegacyActivityFromBackup(
-            paths,
-            sourceStorage,
-            nullptr);
-        restoreSourceForRetry(
-            paths,
-            sourceStorage,
-            sourceKind,
-            source,
-            nullptr);
-        return false;
-    }
-
-    if (!sourceStorage.clearPersonalState(error)) {
-        restoreLegacyActivityFromBackup(
-            paths,
-            sourceStorage,
-            nullptr);
-        restoreSourceForRetry(
-            paths,
-            sourceStorage,
-            sourceKind,
-            source,
-            nullptr);
-        return false;
-    }
-
-    const auto cleared =
-        sourceStorage.capture(error);
-    if (!cleared.has_value()) {
-        restoreLegacyActivityFromBackup(
-            paths,
-            sourceStorage,
-            nullptr);
-        restoreSourceForRetry(
-            paths,
-            sourceStorage,
-            sourceKind,
-            source,
-            nullptr);
-        return false;
-    }
-
-    if (!cleared->isEmpty()) {
-        restoreLegacyActivityFromBackup(
-            paths,
-            sourceStorage,
-            nullptr);
-        restoreSourceForRetry(
-            paths,
-            sourceStorage,
-            sourceKind,
-            source,
-            nullptr);
+    // Promotion is the local ownership boundary.  The source remains intact
+    // until the account attachment coordinator proves cloud absorption and
+    // performs the exact receipt-bound retirement.  Persist this receipt
+    // before committing the promoted adoption so a crash cannot leave a
+    // committed account with no durable attachment evidence.
+    const QString sourceProfileId =
+        sourceKind == ProfilePaths::Kind::LocalOnly
+        ? ProfilePaths::localOnly(paths.appDataRoot()).profileId()
+        : ProfilePaths::legacyLocal().profileId();
+    AccountAttachmentReceiptData attachment;
+    const AccountAttachmentReceipt::ReadResult existingReceipt =
+        AccountAttachmentReceipt::read(paths);
+    if (existingReceipt.status
+        == AccountAttachmentReceipt::ReadStatus::Invalid) {
         return setError(
             error,
-            QStringLiteral(
-                "Legacy personal state was not fully quarantined."));
+            adoptionFailure(
+                QStringLiteral(
+                    "The account attachment receipt is invalid."),
+                existingReceipt.error));
+    }
+    if (existingReceipt.status
+        == AccountAttachmentReceipt::ReadStatus::Ok) {
+        attachment = existingReceipt.data;
+        if (attachment.sourceKind
+                != (sourceKind == ProfilePaths::Kind::LocalOnly
+                        ? AccountAttachmentReceipt::sourceKindLocalOnly()
+                        : AccountAttachmentReceipt::sourceKindLegacyLocal())
+            || attachment.sourceProfileId != sourceProfileId
+            || attachment.sourceSemanticDigest
+                   != source.semanticDigest()
+            || attachment.sourceActivityDigest
+                   != activitySourceDigest) {
+            return setError(
+                error,
+                QStringLiteral(
+                    "The account attachment receipt does not match the promoted source."));
+        }
+    } else {
+        attachment.version = 1;
+        attachment.attachmentId =
+            QUuid::createUuid().toString(QUuid::WithoutBraces);
+        attachment.sourceKind =
+            sourceKind == ProfilePaths::Kind::LocalOnly
+            ? AccountAttachmentReceipt::sourceKindLocalOnly()
+            : AccountAttachmentReceipt::sourceKindLegacyLocal();
+        attachment.sourceProfileId = sourceProfileId;
+        attachment.sourceSemanticDigest = source.semanticDigest();
+        attachment.sourceActivityDigest = activitySourceDigest;
+        attachment.accountId = paths.profileId();
+        attachment.sourceRetired = false;
+        attachment.retirementPhase =
+            AccountAttachmentReceipt::retirementPhasePending();
+        if (!AccountAttachmentReceipt::save(
+                paths,
+                attachment,
+                error)) {
+            return false;
+        }
     }
 
-    // markActivityLegacyQuarantined() runs BEFORE markLegacyQuarantined():
-    // both require state==Promoted, and markLegacyQuarantined() is the call
-    // that actually advances state to LegacyQuarantined — calling it first
-    // would leave no valid state for the activity call to run in.
-    if (!adoption.markActivityLegacyQuarantined(
-            activityBackupDigest,
-            error)) {
-        restoreLegacyActivityFromBackup(
-            paths,
-            sourceStorage,
-            nullptr);
-        restoreSourceForRetry(
-            paths,
-            sourceStorage,
-            sourceKind,
-            source,
-            nullptr);
-        return false;
-    }
-
-    if (!adoption.markLegacyQuarantined(
-            backup->semanticDigest(),
-            error)) {
-        restoreLegacyActivityFromBackup(
-            paths,
-            sourceStorage,
-            nullptr);
-        restoreSourceForRetry(
-            paths,
-            sourceStorage,
-            sourceKind,
-            source,
-            nullptr);
-        return false;
-    }
-
-    // Once source state is quarantined, the journal is the durable ownership
-    // record.  Commit before activation so an activation failure cannot
-    // restore private pre-account state over the account that was promoted.
-    if (!adoption.commit(error))
+    m_profileRuntime
+        ->suspendPersonalStoresForMigration();
+    if (!adoption.commitForAttachment(error))
         return false;
 
-    m_quarantinedThisProcess.insert(
-        paths.profileId());
+    Q_UNUSED(activityBackupDigest);
     return activate(paths, error);
 }
 

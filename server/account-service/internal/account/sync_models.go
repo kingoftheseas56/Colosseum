@@ -59,6 +59,7 @@ type SyncMutationView struct {
 type SyncPullEntry struct {
 	ServerSeq uint64           `json:"server_seq"`
 	Won       bool             `json:"won"`
+	Canonical bool             `json:"canonical,omitempty"`
 	Mutation  SyncMutationView `json:"mutation"`
 }
 
@@ -71,6 +72,18 @@ type SyncPullResponse struct {
 	ServerTimeMS int64           `json:"server_time_ms"`
 	Entries      []SyncPullEntry `json:"entries"`
 	HasMore      bool            `json:"has_more"`
+}
+
+// SyncSnapshotResponse is the bounded, cursor-frozen canonical feed used by
+// profile attachment verification. Cursor is the maximum committed
+// server_seq captured for this snapshot; NextPageToken is opaque and bound to
+// the authenticated account.
+type SyncSnapshotResponse struct {
+	ServerTimeMS  int64           `json:"server_time_ms"`
+	Cursor        uint64          `json:"cursor"`
+	Entries       []SyncPullEntry `json:"entries"`
+	NextPageToken string          `json:"next_page_token,omitempty"`
+	HasMore       bool            `json:"has_more"`
 }
 
 type syncStoredMutation struct {
@@ -92,6 +105,7 @@ type syncStoredMutation struct {
 	MaterializedHLCCounter    uint64
 	MaterializedDeviceID      string
 	MaterializedHLCValid      bool
+	AttachmentID              string
 	Won                       bool
 	ReceivedAt                time.Time
 }

@@ -28,11 +28,13 @@ Item {
     property bool dataExportBusy: false
     property bool accountDeletionFlowBusy: false
     property string errorMessage: ""
+    property string statusMessage: ""
 
     // Ephemeral presentation state only.
     property bool searchClearConfirmationOpen: false
     property bool activityClearConfirmationOpen: false
     property bool deleteConfirmationOpen: false
+    property string deletePassword: ""
 
     readonly property bool compactRows: scroller.width < 900
     readonly property bool compactMap: scroller.width < 900
@@ -43,7 +45,8 @@ Item {
     signal clearSearchHistoryRequested()
     signal clearActivityHistoryRequested()
     signal dataExportRequested()
-    signal accountDeletionFlowRequested()
+    signal dataExportCancelRequested()
+    signal accountDeletionFlowRequested(string currentPassword)
 
     Theme { id: theme }
 
@@ -84,6 +87,7 @@ Item {
         searchClearConfirmationOpen = false
         activityClearConfirmationOpen = false
         deleteConfirmationOpen = false
+        deletePassword = ""
     }
 
     function openSearchClearConfirmation() {
@@ -136,6 +140,7 @@ Item {
 
     function closeDeleteConfirmation() {
         deleteConfirmationOpen = false
+        deletePassword = ""
         Qt.callLater(function() {
             if (root.active)
                 deleteButton.forceActiveFocus()
@@ -178,6 +183,17 @@ Item {
                 font.pixelSize: 26
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.5
+            }
+
+            Text {
+                width: parent.width
+                visible: root.statusMessage.length > 0
+                text: root.statusMessage
+                color: "#8bc7a3"
+                font.family: theme.ui
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                Accessible.name: qsTr("Data and privacy status: %1").arg(root.statusMessage)
             }
 
             Item { width: 1; height: 34 }
@@ -741,11 +757,13 @@ Item {
                             ? exportSettingMain.height + 14
                             : Math.max(0, (parent.height - height) / 2)
                         text: root.dataExportBusy
-                            ? qsTr("Requesting…")
+                            ? qsTr("Cancel export")
                             : qsTr("Request export")
-                        enabled: !root.dataExportBusy
+                        enabled: true
                         Accessible.name: qsTr("Request export of my Colosseum account data")
-                        onClicked: root.dataExportRequested()
+                        onClicked: root.dataExportBusy
+                            ? root.dataExportCancelRequested()
+                            : root.dataExportRequested()
                     }
                 }
 
@@ -1292,13 +1310,27 @@ Item {
 
                             Text {
                                 width: parent.width
-                                text: qsTr("Deleting the account removes its server-side identity and account data. A production implementation must require explicit re-authentication and final confirmation before deletion begins.")
+                                text: qsTr("Deleting the account removes its server-side identity and portable cloud data. Local media files stay on your devices. Provider backups follow the provider's retention policy; Colosseum keeps only a capability-protected retry receipt for up to 30 days.")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
                                 font.pixelSize: 10
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.55
                                 wrapMode: Text.WordWrap
+                            }
+
+                            Item { width: 1; height: 13 }
+
+                            TextField {
+                                id: deletePasswordField
+                                objectName: "privacyDeletePassword"
+                                width: Math.min(parent.width, 360)
+                                placeholderText: qsTr("Current password")
+                                echoMode: TextInput.Password
+                                enabled: !root.accountDeletionFlowBusy
+                                text: root.deletePassword
+                                onTextChanged: root.deletePassword = text
+                                Accessible.name: qsTr("Current password for account deletion")
                             }
 
                             Item { width: 1; height: 13 }
@@ -1327,8 +1359,9 @@ Item {
                                     hoverEnabled: true
                                     focusPolicy: Qt.StrongFocus
                                     enabled: !root.accountDeletionFlowBusy
+                                        && root.deletePassword.length > 0
                                     Accessible.name: qsTr("Continue to Colosseum account deletion re-authentication")
-                                    onClicked: root.accountDeletionFlowRequested()
+                                    onClicked: root.accountDeletionFlowRequested(root.deletePassword)
 
                                     contentItem: Text {
                                         text: root.accountDeletionFlowBusy

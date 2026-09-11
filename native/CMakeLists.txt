@@ -168,9 +168,12 @@ add_executable(colosseum
     bootstrap/InstanceLock.cpp
     bootstrap/InstanceLock.h
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
+    account/AccountAttachmentCoordinator.cpp
+    account/AccountAttachmentReceipt.cpp
     account/AccountBootstrapStore.cpp
     account/AccountClient.cpp
     account/AccountController.cpp
+    account/AccountLifecycleCoordinator.cpp
     account/AccountDeviceIdentity.cpp
     account/AccountHttpTransport.cpp
     account/AccountRecoveryKeyPresenter.cpp
@@ -212,10 +215,13 @@ add_executable(colosseum
     account/TankobanReaderPreferencesCodec.cpp
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
+    account/AccountAttachmentReceipt.h
+    account/AccountAttachmentCoordinator.h
     account/WindowsAccountSensitiveClipboard.cpp
     account/AccountBootstrapStore.h
     account/AccountClient.h
     account/AccountController.h
+    account/AccountLifecycleCoordinator.h
     account/AccountCredentialStore.h
     account/AccountDeviceIdentity.h
     account/AccountHttpTransport.h

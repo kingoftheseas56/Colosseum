@@ -19,6 +19,7 @@
 
 namespace {
 constexpr int kPushBatchLimit = 100;
+constexpr qsizetype kAttachmentManifestWireByteLimit = 48 * 1024;
 constexpr int kIdlePullIntervalMs = 30 * 1000;
 constexpr int kRetryBaseMs = 2 * 1000;
 constexpr int kRetryMaximumMs = 5 * 60 * 1000;
@@ -670,6 +671,266 @@ void SyncEngine::beginSignOutFlush() {
     persistState();
 }
 
+bool SyncEngine::beginAttachmentMode(
+    const QString &attachmentId,
+    QString *error) {
+    if (!m_active) {
+        if (error) {
+            *error = QStringLiteral(
+                "Attachment mode requires a running sync engine.");
+        }
+        return false;
+    }
+
+    if (m_persistent.attachmentModeActive) {
+        if (error) {
+            *error = QStringLiteral(
+                "An attachment mode is already active.");
+        }
+        return false;
+    }
+
+    const QString normalized =
+        normalizedUuid(attachmentId);
+    if (normalized.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral(
+                "Attachment mode requires a valid attachment id.");
+        }
+        return false;
+    }
+
+    m_persistent.attachmentModeActive = true;
+    m_persistent.attachmentId = normalized;
+    m_persistent.attachmentMutationIds.clear();
+    m_persistent.attachmentSnapshotDone = false;
+    m_persistent.attachmentSnapshotNextPageToken.clear();
+
+    persistState();
+    requestImmediateSync();
+    return true;
+}
+
+bool SyncEngine::endAttachmentMode(
+    QString *error) {
+    if (!m_active) {
+        if (error) {
+            *error = QStringLiteral(
+                "Attachment mode requires a running sync engine.");
+        }
+        return false;
+    }
+
+    if (!m_persistent.attachmentModeActive) {
+        if (error) {
+            *error = QStringLiteral(
+                "No attachment mode is active.");
+        }
+        return false;
+    }
+
+    // A snapshot request in flight belongs to the mode being exited;
+    // its late reply no longer matches any request context and is
+    // dropped when it arrives.
+    if (m_request.phase == NetworkPhase::Snapshot) {
+        m_request = {};
+        m_networkBusy = false;
+    }
+
+    m_persistent.attachmentModeActive = false;
+    m_persistent.attachmentId.clear();
+    m_persistent.attachmentMutationIds.clear();
+    m_persistent.attachmentSnapshotDone = false;
+    m_persistent.attachmentSnapshotNextPageToken.clear();
+    m_initialPullPending = true;
+
+    persistState();
+    requestImmediateSync();
+    return true;
+}
+
+bool SyncEngine::attachmentModeActive() const {
+    return m_persistent.attachmentModeActive;
+}
+
+bool SyncEngine::attachmentSnapshotComplete() const {
+    return m_persistent.attachmentModeActive
+        && m_persistent.attachmentSnapshotDone;
+}
+
+QString SyncEngine::attachmentId() const {
+    return m_persistent.attachmentId;
+}
+
+QList<SyncWireAttachmentManifestItem> SyncEngine::attachmentManifest(
+    QString *error) const {
+    return attachmentManifest({}, error);
+}
+
+QList<SyncWireAttachmentManifestItem> SyncEngine::attachmentManifest(
+    const QSet<QString> &excludedMutationIds,
+    QString *error) const {
+    if (error)
+        error->clear();
+    if (!m_active) {
+        if (error)
+            *error = QStringLiteral(
+                "Attachment manifest requires a running sync engine.");
+        return {};
+    }
+
+    QList<SyncWireAttachmentManifestItem> result;
+    result.reserve(qMin<qsizetype>(m_persistent.outbox.size(), kPushBatchLimit));
+    QJsonArray wireItems;
+    for (const SyncWireMutation &mutation : std::as_const(m_persistent.outbox)) {
+        if (excludedMutationIds.contains(mutation.mutationId))
+            continue;
+        const SyncWireAttachmentManifestItem item{
+            mutation, syncWireCanonicalPayloadHash(mutation)};
+        QJsonArray candidate = wireItems;
+        candidate.append(syncWireAttachmentManifestItemToJson(item));
+        if (candidate.size() > kPushBatchLimit
+            || QJsonDocument(candidate).toJson(QJsonDocument::Compact).size()
+                   > kAttachmentManifestWireByteLimit) {
+            if (result.isEmpty() && error) {
+                *error = QStringLiteral(
+                    "One attachment mutation is too large for the bounded manifest request.");
+            }
+            break;
+        }
+        wireItems = candidate;
+        result.append(item);
+    }
+    return result;
+}
+
+bool SyncEngine::enqueueAttachmentMutations(
+    const QList<SyncWireAttachmentManifestItem> &items,
+    QStringList *acceptedMutationIds,
+    QString *error) {
+    if (acceptedMutationIds)
+        acceptedMutationIds->clear();
+
+    if (!m_active || !m_persistent.attachmentModeActive) {
+        if (error)
+            *error = QStringLiteral(
+                "Attachment enqueue requires active attachment mode.");
+        return false;
+    }
+    if (items.isEmpty() || items.size() > kPushBatchLimit) {
+        if (error)
+            *error = QStringLiteral(
+                "Attachment manifest must contain between 1 and 100 mutations.");
+        return false;
+    }
+
+    QSet<QString> requestIds;
+    for (const SyncWireAttachmentManifestItem &item : items) {
+        const SyncWireMutation &mutation = item.mutation;
+        if (normalizedUuid(mutation.mutationId) != mutation.mutationId
+            || normalizedUuid(mutation.deviceId) != m_deviceId
+            || mutation.hlc.deviceId != mutation.deviceId
+            || mutation.category.isEmpty()
+            || mutation.category != mutation.category.trimmed().toLower()
+            || !isValidSyncWireRecordKey(mutation.recordKey)
+            || mutation.schemaVersion <= 0
+            || mutation.hlc.physicalMs < 0
+            || mutation.materializedHlc.has_value()
+            || (mutation.operation == SyncWireOperation::Put
+                && mutation.payload.isUndefined())
+            || (mutation.operation == SyncWireOperation::Delete
+                && !mutation.payload.isUndefined()
+                && !mutation.payload.isNull())
+            || requestIds.contains(mutation.mutationId)) {
+            if (error)
+                *error = QStringLiteral(
+                    "Attachment manifest contains an invalid or mismatched mutation.");
+            return false;
+        }
+        const QByteArray expectedHash =
+            syncWireCanonicalPayloadHash(mutation);
+        if (!item.canonicalPayloadHash.isEmpty()
+            && item.canonicalPayloadHash != expectedHash) {
+            if (error)
+                *error = QStringLiteral(
+                    "Attachment manifest payload hash does not match its mutation.");
+            return false;
+        }
+        requestIds.insert(mutation.mutationId);
+
+        for (const SyncWireMutation &existing : std::as_const(m_persistent.outbox)) {
+            if (existing.mutationId != mutation.mutationId)
+                continue;
+            const QByteArray existingBytes =
+                QJsonDocument(syncWireMutationToJson(existing))
+                    .toJson(QJsonDocument::Compact);
+            const QByteArray incomingBytes =
+                QJsonDocument(syncWireMutationToJson(mutation))
+                    .toJson(QJsonDocument::Compact);
+            if (existingBytes != incomingBytes) {
+                if (error)
+                    *error = QStringLiteral(
+                        "Attachment mutation id is already bound to different content.");
+                return false;
+            }
+        }
+    }
+
+    const SyncPersistentState previous = m_persistent;
+    m_persistent.attachmentMutationIds = requestIds.values();
+    m_persistent.attachmentMutationIds.sort();
+    for (const SyncWireAttachmentManifestItem &item : items) {
+        const SyncWireMutation &mutation = item.mutation;
+        bool alreadyPresent = false;
+        for (const SyncWireMutation &existing : std::as_const(m_persistent.outbox)) {
+            if (existing.mutationId == mutation.mutationId) {
+                alreadyPresent = true;
+                break;
+            }
+        }
+        if (alreadyPresent) {
+            if (acceptedMutationIds)
+                acceptedMutationIds->append(mutation.mutationId);
+            continue;
+        }
+
+        m_clock.observe(mutation.hlc, nowMs());
+        m_persistent.outbox.append(mutation);
+        SyncWinner winner;
+        winner.hlc = mutation.hlc;
+        winner.schemaVersion = mutation.schemaVersion;
+        winner.operation = mutation.operation;
+        m_persistent.winners[mutation.category].insert(
+            mutation.recordKey, winner);
+        if (mutation.operation == SyncWireOperation::Put) {
+            m_persistent.mirrors[mutation.category].insert(
+                mutation.recordKey,
+                SyncMirrorRecord{mutation.schemaVersion, mutation.payload});
+        } else {
+            m_persistent.mirrors[mutation.category].remove(mutation.recordKey);
+        }
+        if (acceptedMutationIds)
+            acceptedMutationIds->append(mutation.mutationId);
+    }
+
+    persistClockIntoState();
+    const quint64 generation = persistState();
+    QString persistenceError;
+    if (generation == 0 || !m_stateStore.flush(&persistenceError)) {
+        m_persistent = previous;
+        if (error)
+            *error = persistenceError.isEmpty()
+                ? QStringLiteral("Attachment mutations could not be persisted safely.")
+                : persistenceError;
+        if (acceptedMutationIds)
+            acceptedMutationIds->clear();
+        return false;
+    }
+
+    emit observationChanged(m_state, pendingOutboxCount());
+    return true;
+}
+
 void SyncEngine::setAutomaticSchedulingEnabled(
     bool enabled) {
     m_automaticSchedulingEnabled =
@@ -832,6 +1093,21 @@ int SyncEngine::pendingOutboxCount() const {
             std::numeric_limits<int>::max()));
 }
 
+int SyncEngine::pendingAttachmentOutboxCount() const {
+    if (!m_persistent.attachmentModeActive)
+        return 0;
+    const QSet<QString> attachmentIds(
+        m_persistent.attachmentMutationIds.cbegin(),
+        m_persistent.attachmentMutationIds.cend());
+    qsizetype count = 0;
+    for (const SyncWireMutation &mutation : std::as_const(m_persistent.outbox)) {
+        if (attachmentIds.contains(mutation.mutationId))
+            ++count;
+    }
+    return static_cast<int>(qMin<qsizetype>(
+        count, std::numeric_limits<int>::max()));
+}
+
 quint64 SyncEngine::cursor() const {
     return m_persistent.cursor;
 }
@@ -890,7 +1166,11 @@ void SyncEngine::handleClientCompleted(
              != AccountOperation::SyncPull)
         || (phase == NetworkPhase::Push
             && operation
-                != AccountOperation::SyncPush)) {
+                != AccountOperation::SyncPush)
+        || (phase == NetworkPhase::Snapshot
+            && operation
+                != AccountOperation::
+                    SyncSnapshot)) {
         return;
     }
 
@@ -1009,7 +1289,13 @@ void SyncEngine::handleClientCompleted(
     QString errorMessage;
     bool processed = false;
 
-    if (phase == NetworkPhase::Pull) {
+    if (phase == NetworkPhase::Snapshot) {
+        processed =
+            processSnapshotReply(
+                reply,
+                &errorCode,
+                &errorMessage);
+    } else if (phase == NetworkPhase::Pull) {
         processed =
             processPullReply(
                 reply,
@@ -1086,10 +1372,14 @@ void SyncEngine::handleLocalMutation(
     }
 
     QString error;
+    // Union/merge during attachment replay: while the stable snapshot
+    // bootstrap is running, records that exist in the mirror but are
+    // missing locally are imports the account already owns — never
+    // inferred deletes, even for delete-capable adapters.
     if (!reconcileCategory(
             categoryId,
             &error,
-            true)) {
+            !attachmentSnapshotPending())) {
         setBlocked(
             QStringLiteral(
                 "adapter_snapshot_failed"),
@@ -1640,6 +1930,14 @@ void SyncEngine::maybeRunNetwork() {
         }
     }
 
+    // The attachment bootstrap gates everything else: the stable
+    // snapshot must run to completion before ordinary pull resumes or
+    // an attached push leaves the outbox.
+    if (attachmentSnapshotPending()) {
+        beginSnapshot();
+        return;
+    }
+
     if (m_initialPullPending
         || m_pullHasMore) {
         beginPull();
@@ -1667,7 +1965,8 @@ void SyncEngine::beginPull() {
         || m_networkBusy
         || m_ownerRedoRecoveryInProgress
         || m_startFinalizationPending
-        || m_quarantineReplayRunning) {
+        || m_quarantineReplayRunning
+        || attachmentSnapshotPending()) {
         return;
     }
 
@@ -1683,6 +1982,34 @@ void SyncEngine::beginPull() {
             m_persistent.historicalReplayPending
                 ? m_persistent.historicalReplayCursor
                 : m_persistent.cursor);
+}
+
+void SyncEngine::beginSnapshot() {
+    if (!m_active
+        || !m_networkEnabled
+        || m_networkBusy
+        || !attachmentSnapshotPending()) {
+        return;
+    }
+
+    m_retryTimer.stop();
+    m_networkBusy = true;
+    m_request = {};
+    m_request.phase =
+        NetworkPhase::Snapshot;
+    m_request.sentLocalMs =
+        nowMs();
+    // An empty token fetches the first page; the durable continuation
+    // token resumes exactly where the bootstrap left off.
+    m_request.requestId =
+        m_client->pullSyncSnapshot(
+            m_persistent
+                .attachmentSnapshotNextPageToken);
+}
+
+bool SyncEngine::attachmentSnapshotPending() const {
+    return m_persistent.attachmentModeActive
+        && !m_persistent.attachmentSnapshotDone;
 }
 
 void SyncEngine::beginPush() {
@@ -1711,6 +2038,10 @@ void SyncEngine::beginPush() {
 
     QJsonArray mutations;
     QStringList mutationIds;
+    const QSet<QString> attachmentMutationIds(
+        m_persistent.attachmentMutationIds.cbegin(),
+        m_persistent.attachmentMutationIds.cend());
+    std::optional<bool> attachedBatch;
     bool markerChanged = removedDisabled;
     bool markedOversize = false;
     QString warningCode;
@@ -1718,6 +2049,20 @@ void SyncEngine::beginPush() {
 
     for (const SyncWireMutation &mutation :
          std::as_const(m_persistent.outbox)) {
+        const bool mutationIsAttached =
+            m_persistent.attachmentModeActive
+            && attachmentMutationIds.contains(mutation.mutationId);
+        if (m_persistent.attachmentModeActive
+            && !attachmentMutationIds.isEmpty()
+            && !mutationIsAttached) {
+            continue;
+        }
+        if (attachedBatch.has_value()
+            && *attachedBatch != mutationIsAttached) {
+            break;
+        }
+        if (!attachedBatch.has_value())
+            attachedBatch = mutationIsAttached;
         const QString fingerprint =
             syncMutationFingerprint(mutation);
         const auto rejectedIt =
@@ -1819,9 +2164,15 @@ void SyncEngine::beginPush() {
         nowMs();
     m_request.mutationIds =
         mutationIds;
+    // Attached pushes stamp the envelope with the active attachment id
+    // while mutation identity, batching, retry, clock, and persistence
+    // semantics stay exactly as they are for ordinary pushes.
     m_request.requestId =
         m_client->pushSync(
-            mutations);
+            mutations,
+            attachedBatch.value_or(false)
+                ? m_persistent.attachmentId
+                : QString());
 }
 
 void SyncEngine::finishPullProcessing(
@@ -2370,7 +2721,7 @@ void SyncEngine::beginOwnerRedoRecovery() {
 
     const SyncOwnerRedo redo = m_persistent.ownerRedos.first();
     beginDurableOwnerApply(
-        SyncWirePullEntry{redo.serverSeq, redo.won, redo.mutation},
+        SyncWirePullEntry{redo.serverSeq, redo.won, false, redo.mutation},
         redo.replayingHistorical,
         redo.fromQuarantine,
         true,
@@ -2389,6 +2740,94 @@ void SyncEngine::beginOwnerRedoRecovery() {
             }
             beginOwnerRedoRecovery();
         });
+
+}
+
+bool SyncEngine::processSnapshotReply(
+    const AccountTransportReply &reply,
+    QString *errorCode,
+    QString *errorMessage) {
+    const auto response =
+        syncWireSnapshotResponseFromJson(
+            reply.body);
+    if (!response.has_value()) {
+        if (errorCode) {
+            *errorCode =
+                QStringLiteral(
+                    "sync_protocol_error");
+        }
+        if (errorMessage) {
+            *errorMessage =
+                QStringLiteral(
+                    "The sync service returned an invalid snapshot response.");
+        }
+        return false;
+    }
+
+    for (const SyncWirePullEntry &entry :
+         response->entries) {
+        // Snapshot pages are sorted by (category, record_key), not by
+        // server_seq: an entry at or below the engine cursor is a row
+        // unchanged since the last ordinary pull, so it is skipped;
+        // everything above it merges in through the ordinary pull-entry
+        // validation.
+        if (entry.serverSeq
+                <= m_persistent.cursor) {
+            continue;
+        }
+
+        // Poison guard, as with ordinary pull: a remote HLC far in the
+        // future would permanently inflate the persisted hybrid clock.
+        if (entry.mutation.hlc.physicalMs
+                > nowMs() + kMaximumRemoteClockFutureMs) {
+            if (errorCode) {
+                *errorCode = QStringLiteral("sync_protocol_error");
+            }
+            if (errorMessage) {
+                *errorMessage = QStringLiteral(
+                    "The sync service served a clock value that is implausibly far in the future.");
+            }
+            return false;
+        }
+
+        m_clock.observe(
+            entry.mutation.hlc,
+            nowMs());
+
+        if ((entry.canonical || entry.won)
+            && !applyWinningPullEntry(
+                    entry,
+                    errorCode,
+                    errorMessage)) {
+            return false;
+        }
+    }
+
+    if (response->hasMore) {
+        // The continuation token is durable before the next page is
+        // requested, so a crash or restart resumes this page stream
+        // instead of restarting the bootstrap.
+        m_persistent
+            .attachmentSnapshotNextPageToken =
+            response->nextPageToken;
+        return true;
+    }
+
+    // Bootstrap complete. The frozen baseline cursor advances the
+    // engine cursor only when ahead — never regressing it — and
+    // ordinary pull then resumes strictly after it.
+    m_persistent
+        .attachmentSnapshotNextPageToken
+        .clear();
+    m_persistent.attachmentSnapshotDone =
+        true;
+    if (response->cursor
+            > m_persistent.cursor) {
+        m_persistent.cursor =
+            response->cursor;
+    }
+    m_initialPullPending = true;
+    return true;
 }
 
 bool SyncEngine::processPushReply(
@@ -2731,6 +3170,7 @@ void SyncEngine::continueQuarantineReplay() {
             SyncWirePullEntry{
                 quarantined.serverSeq,
                 quarantined.won,
+                false,
                 quarantined.mutation},
             false,
             true,

@@ -36,6 +36,11 @@ struct SyncWireMutation {
     QJsonValue payload;
 };
 
+struct SyncWireAttachmentManifestItem {
+    SyncWireMutation mutation;
+    QByteArray canonicalPayloadHash;
+};
+
 struct SyncWireCurrentMetadata {
     QString mutationId;
     QString deviceId;
@@ -58,6 +63,7 @@ struct SyncWirePushResult {
 struct SyncWirePullEntry {
     quint64 serverSeq = 0;
     bool won = false;
+    bool canonical = false;
     SyncWireMutation mutation;
 };
 
@@ -69,6 +75,56 @@ struct SyncWirePushResponse {
 struct SyncWirePullResponse {
     qint64 serverTimeMs = 0;
     QList<SyncWirePullEntry> entries;
+    bool hasMore = false;
+};
+
+enum class SyncWireAttachmentState {
+    Open,
+    Uploaded,
+    Committed,
+    Aborted
+};
+
+struct SyncWireAttachmentDisposition {
+    QString mutationId;
+    QString category;
+    QString recordKey;
+    SyncWireOperation operation = SyncWireOperation::Put;
+    // Server-certified outcome for the exact manifest identity.  A
+    // materialized item is present in canonical export with the source
+    // contribution; a superseded item is represented by a newer canonical
+    // winner and may differ from the source payload.
+    QString disposition;
+    QByteArray materializedPayloadHash;
+};
+
+struct SyncWireAttachmentResponse {
+    QString attachmentId;
+    QString deviceId;
+    quint64 baselineServerSeq = 0;
+    SyncWireAttachmentState state = SyncWireAttachmentState::Open;
+    QString freshExportSnapshotId;
+    QString freshExportCursor;
+    quint64 freshExportHighWaterSeq = 0;
+    QList<SyncWireAttachmentDisposition> dispositions;
+};
+
+struct SyncWireExportPage {
+    QString format;
+    int schemaVersion = 0;
+    QString snapshotId;
+    QString cursor;
+    QString nextCursor;
+    quint64 highWaterServerSeq = 0;
+    QJsonArray items;
+    bool hasMore = false;
+};
+
+struct SyncWireSnapshotResponse {
+    qint64 serverTimeMs = 0;
+    quint64 cursor = 0;
+    QList<SyncWirePullEntry> entries;
+    QString nextPageToken;
     bool hasMore = false;
 };
 
@@ -99,6 +155,16 @@ QByteArray syncWirePushRequestBytes(
 QJsonObject syncWireMutationToJson(
     const SyncWireMutation &mutation);
 
+QByteArray syncWireCanonicalPayloadHash(
+    const SyncWireMutation &mutation);
+
+QJsonObject syncWireAttachmentManifestItemToJson(
+    const SyncWireAttachmentManifestItem &item);
+
+std::optional<SyncWireAttachmentManifestItem>
+syncWireAttachmentManifestItemFromJson(
+    const QJsonObject &object);
+
 std::optional<SyncWireMutation>
 syncWireMutationFromJson(
     const QJsonObject &object);
@@ -117,4 +183,23 @@ syncWirePushResponseFromJson(
 
 std::optional<SyncWirePullResponse>
 syncWirePullResponseFromJson(
+    const QJsonObject &object);
+
+QString syncWireAttachmentStateName(
+    SyncWireAttachmentState state);
+
+std::optional<SyncWireAttachmentState>
+syncWireAttachmentStateFromName(
+    const QString &name);
+
+std::optional<SyncWireAttachmentResponse>
+syncWireAttachmentResponseFromJson(
+    const QJsonObject &object);
+
+std::optional<SyncWireExportPage>
+syncWireExportPageFromJson(
+    const QJsonObject &object);
+
+std::optional<SyncWireSnapshotResponse>
+syncWireSnapshotResponseFromJson(
     const QJsonObject &object);

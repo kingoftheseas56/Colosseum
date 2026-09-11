@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AccountBootstrapStore.h"
+#include "AccountAttachmentCoordinator.h"
+#include "AccountLifecycleCoordinator.h"
 #include "AccountClient.h"
 #include "AccountController.h"
 #include "ProgressSyncAdapter.h"
@@ -57,6 +59,7 @@ private:
     bool installCoreSyncAdapters(
         QString *error = nullptr);
     void clearCoreSyncAdapters();
+    void startOrResumeAccountAttachment();
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
@@ -85,6 +88,9 @@ private:
         m_downloadIntentSyncAdapter;
     LocalDownloads *m_downloadSource = nullptr;
     SyncEngine m_syncEngine;
+    std::unique_ptr<AccountAttachmentCoordinator>
+        m_attachmentCoordinator;
     AccountController m_controller;
+    AccountLifecycleCoordinator m_lifecycleCoordinator;
     bool m_qmlPrepared = false;
 };

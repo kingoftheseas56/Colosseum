@@ -52,6 +52,7 @@ private:
     bool mergeExistingAccount(
         const ProfilePaths &paths,
         const LegacyPersonalStateStorage &sourceStorage,
+        ProfilePaths::Kind sourceKind,
         QString *error);
 
     std::optional<LegacyPersonalStateStorage> currentMigrationSource(

@@ -45,6 +45,7 @@ private slots:
     void accountClientPushUsesAuthenticatedEndpoint();
     void accountClientPullUsesAuthenticatedCursorEndpoint();
     void accountClientPushOmitsAttachmentEnvelope();
+    void accountClientAttachmentManifestUsesServerMutationShape();
     void compactPushRequestReportsExactUtf8ByteSize();
 };
 
@@ -708,6 +709,52 @@ accountClientPushOmitsAttachmentEnvelope() {
         mutations);
 
 
+}
+
+void tst_sync_protocol::
+accountClientAttachmentManifestUsesServerMutationShape() {
+    CaptureAccountTransport transport;
+    AccountClient client(&transport);
+    client.setAccessToken(QByteArrayLiteral("fixture-access"));
+
+    SyncWireMutation mutation;
+    mutation.mutationId =
+        QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    mutation.deviceId =
+        QStringLiteral("11111111-1111-4111-8111-111111111111");
+    mutation.category = QStringLiteral("collection");
+    mutation.recordKey = QStringLiteral("manga/item-1");
+    mutation.schemaVersion = 1;
+    mutation.hlc = SyncWireHlc{9000, 1, mutation.deviceId};
+    mutation.operation = SyncWireOperation::Put;
+    mutation.payload = QJsonObject{
+        {QStringLiteral("value"), QStringLiteral("fixture")}};
+
+    SyncWireAttachmentManifestItem manifestItem;
+    manifestItem.mutation = mutation;
+    manifestItem.canonicalPayloadHash =
+        syncWireCanonicalPayloadHash(mutation);
+
+    client.beginProfileAttachment(
+        QStringLiteral("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+        QStringLiteral("local_only"),
+        QStringLiteral("local-only"),
+        QStringLiteral("sha256:source"),
+        QString(),
+        QStringLiteral("sha256:manifest"),
+        {manifestItem});
+
+    QCOMPARE(transport.sendCount, 1);
+    QCOMPARE(transport.lastRequest.path,
+             QStringLiteral("/v1/profile/attachments"));
+    const QJsonArray manifest = transport.lastRequest.body
+                                    .value(QStringLiteral("manifest"))
+                                    .toArray();
+    QCOMPARE(manifest.size(), 1);
+    const QJsonObject sentItem = manifest.first().toObject();
+    QCOMPARE(sentItem, syncWireMutationToJson(mutation));
+    QVERIFY(!sentItem.contains(
+        QStringLiteral("canonical_payload_hash")));
 }
 
 void tst_sync_protocol::

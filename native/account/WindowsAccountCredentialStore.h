@@ -27,13 +27,19 @@ public:
     bool addPendingRevocation(const QByteArray &refreshToken) override;
     bool removePendingRevocation(const QByteArray &refreshToken) override;
 
+    QList<StoredAccountDeletion> pendingDeletions() const override;
+    bool savePendingDeletion(const StoredAccountDeletion &deletion) override;
+    bool removePendingDeletion(const QString &requestId) override;
+
     static QString activeTargetName();
     static QString pendingTargetPrefix();
+    static QString deletionTargetPrefix();
 
 private:
     static QByteArray encodeCredential(const StoredAccountCredential &credential);
     static std::optional<StoredAccountCredential> decodeCredential(const QByteArray &blob);
     static QString pendingTargetName(const QByteArray &refreshToken);
+    static QString deletionTargetName(const QString &requestId);
 
     static bool writeGenericCredential(const QString &target, const QByteArray &blob);
     static std::optional<QByteArray> readGenericCredential(const QString &target);

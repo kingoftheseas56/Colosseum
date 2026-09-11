@@ -14,6 +14,7 @@ QStringList approvedInventoryIds() {
     return {
         QStringLiteral("collection"),
         QStringLiteral("continue_progress"),
+        QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
         QStringLiteral("activity_fact"),
         QStringLiteral("per_world_customization"),

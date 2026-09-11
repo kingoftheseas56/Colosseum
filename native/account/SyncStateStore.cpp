@@ -556,6 +556,35 @@ QJsonObject SyncStateStore::encode(
     }
     root.insert(QStringLiteral("owner_redos"), ownerRedos);
 
+    // Attachment mode state rides along only while a mode is active, so
+    // inactive state files stay byte-identical to the engine output
+    // that predates attachment support.
+    if (state.attachmentModeActive) {
+        QJsonObject attachment;
+        attachment.insert(
+            QStringLiteral("attachment_id"),
+            state.attachmentId);
+        attachment.insert(
+            QStringLiteral("snapshot_done"),
+            state.attachmentSnapshotDone);
+        if (!state.attachmentMutationIds.isEmpty()) {
+            QJsonArray mutationIds;
+            QStringList ordered = state.attachmentMutationIds;
+            ordered.sort();
+            for (const QString &mutationId : std::as_const(ordered))
+                mutationIds.append(mutationId);
+            attachment.insert(QStringLiteral("mutation_ids"), mutationIds);
+        }
+        if (!state.attachmentSnapshotNextPageToken.isEmpty()) {
+            attachment.insert(
+                QStringLiteral("next_page_token"),
+                state.attachmentSnapshotNextPageToken);
+        }
+        root.insert(
+        QStringLiteral("attachment"),
+        attachment);
+    }
+
     return root;
 }
 
@@ -1058,6 +1087,68 @@ SyncStateStore::decode(
                 record.value(QStringLiteral("historical_replay")).toBool(),
                 record.value(QStringLiteral("from_quarantine")).toBool()});
         }
+
+    }
+
+    const QJsonValue attachmentValue =
+        object.value(QStringLiteral("attachment"));
+    if (!attachmentValue.isUndefined()) {
+        if (!attachmentValue.isObject()) {
+            if (error)
+                *error = QStringLiteral("The attachment sync mode state is malformed.");
+            return std::nullopt;
+        }
+
+        const QJsonObject attachment = attachmentValue.toObject();
+        const QString attachmentId =
+            attachment.value(QStringLiteral("attachment_id")).toString();
+        const QString nextPageToken =
+            attachment.value(QStringLiteral("next_page_token")).toString();
+        const QJsonValue mutationIdsValue =
+            attachment.value(QStringLiteral("mutation_ids"));
+        const bool snapshotDone =
+            attachment.value(QStringLiteral("snapshot_done")).toBool(false);
+
+        // Fail closed: the mode is bound to exactly one canonical
+        // lowercase attachment id, and a completed bootstrap must not
+        // carry a continuation token.
+        if (attachmentId.isEmpty()
+            || normalizedUuid(attachmentId) != attachmentId
+            || (snapshotDone && !nextPageToken.isEmpty())) {
+            if (error)
+                *error = QStringLiteral("The attachment sync mode state is invalid.");
+            return std::nullopt;
+        }
+
+        QStringList mutationIds;
+        QSet<QString> uniqueMutationIds;
+        if (!mutationIdsValue.isUndefined()) {
+            if (!mutationIdsValue.isArray()
+                || mutationIdsValue.toArray().size() > 100) {
+                if (error)
+                    *error = QStringLiteral("The attachment mutation identity set is invalid.");
+                return std::nullopt;
+            }
+            for (const QJsonValue &value : mutationIdsValue.toArray()) {
+                const QString mutationId = value.toString();
+                if (!value.isString()
+                    || normalizedUuid(mutationId) != mutationId
+                    || uniqueMutationIds.contains(mutationId)) {
+                    if (error)
+                        *error = QStringLiteral("The attachment mutation identity set is invalid.");
+                    return std::nullopt;
+                }
+                uniqueMutationIds.insert(mutationId);
+                mutationIds.append(mutationId);
+            }
+            mutationIds.sort();
+        }
+
+        state.attachmentModeActive = true;
+        state.attachmentId = attachmentId;
+        state.attachmentMutationIds = mutationIds;
+        state.attachmentSnapshotDone = snapshotDone;
+        state.attachmentSnapshotNextPageToken = nextPageToken;
     }
 
     return state;

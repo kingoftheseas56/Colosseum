@@ -1,6 +1,7 @@
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
 #include "account/ActivityStore.h"
+#include "account/AccountAttachmentReceipt.h"
 #include "account/FirstAccountProfileCoordinator.h"
 #include "account/LegacyPersonalStateStorage.h"
 #include "account/ProfileAdoption.h"
@@ -327,6 +328,8 @@ private slots:
 
     void existingAccountMergeAcceptsCompletedActivity();
     void activityOnlyLocalStateIsMergedIntoExistingAccount();
+    void existingCachedAccountKeepsSourceForAttachment();
+    void activityOnlyExistingAccountKeepsSourceForAttachment();
     void firstAccountAdoptionMigratesActivityLedger();
     void interruptedAdoptionPreservesAccountActivityEvidence();
     void postAdoptionWritesSurviveCleanRestart();
@@ -432,7 +435,10 @@ populatedFirstAccountCommitsBeforeActivation() {
     QVERIFY2(
         legacyAfter.has_value(),
         qPrintable(error));
-    QVERIFY(legacyAfter->isEmpty());
+    // Promotion now preserves the exact local source for the attachment
+    // coordinator; cloud proof owns the later retirement boundary.
+    QCOMPARE(legacyAfter->semanticDigest(), source.semanticDigest());
+    QVERIFY(QFileInfo::exists(paths.cloudAttachmentReceiptPath()));
 
     const auto profileStorage =
         LegacyPersonalStateStorage::forProfile(
@@ -647,16 +653,19 @@ committedAccountSessionMergesResidualLocalOnlyState() {
         QVERIFY2(
             merged.has_value(),
             qPrintable(error));
-        QVERIFY(
-            merged->progressEntries.contains(
-                QStringLiteral("movie\x1fresidual-local-movie")));
+        // A committed account with a pending attachment receipt does not
+        // consume a second source opportunistically.  The residual source
+        // remains available for its own explicit adoption/attachment pass.
+        QVERIFY(!merged->progressEntries.contains(
+            QStringLiteral("movie\x1fresidual-local-movie")));
 
         const auto localAfter =
             localStorage->capture(&error);
         QVERIFY2(
             localAfter.has_value(),
             qPrintable(error));
-        QVERIFY(localAfter->isEmpty());
+        QVERIFY(!localAfter->isEmpty());
+        QVERIFY(QFileInfo::exists(paths.cloudAttachmentReceiptPath()));
     }
 }
 
@@ -683,15 +692,16 @@ ordinarySignInAdoptsLegacyLocalState() {
             &error),
         qPrintable(error));
 
+    const ProfilePaths paths =
+        fixture.accountPaths();
     const auto legacyAfter =
         fixture.legacy.capture(&error);
     QVERIFY2(
         legacyAfter.has_value(),
         qPrintable(error));
-    QVERIFY(legacyAfter->isEmpty());
+    QCOMPARE(legacyAfter->semanticDigest(), source.semanticDigest());
+    QVERIFY(QFileInfo::exists(paths.cloudAttachmentReceiptPath()));
 
-    const ProfilePaths paths =
-        fixture.accountPaths();
     const auto profileStorage =
         LegacyPersonalStateStorage::forProfile(
             paths,
@@ -771,7 +781,8 @@ ordinarySignInMergesExistingAccountWithLocalOnlyState() {
     const auto localAfter =
         localStorage->capture(&error);
     QVERIFY2(localAfter.has_value(), qPrintable(error));
-    QVERIFY(localAfter->isEmpty());
+    QVERIFY(!localAfter->isEmpty());
+    QVERIFY(QFileInfo::exists(accountPaths.cloudAttachmentReceiptPath()));
 }
 
 void tst_account_adoption::
@@ -840,7 +851,8 @@ activeAccountSessionMergesLaterLocalOnlyState() {
 
     const auto localAfter = localStorage->capture(&error);
     QVERIFY2(localAfter.has_value(), qPrintable(error));
-    QVERIFY(localAfter->isEmpty());
+    QVERIFY(!localAfter->isEmpty());
+    QVERIFY(QFileInfo::exists(accountPaths.cloudAttachmentReceiptPath()));
 }
 
 void tst_account_adoption::
@@ -894,7 +906,8 @@ rememberedAccountSessionMergesLaterLocalOnlyState() {
 
     const auto localAfter = localStorage->capture(&error);
     QVERIFY2(localAfter.has_value(), qPrintable(error));
-    QVERIFY(localAfter->isEmpty());
+    QVERIFY(!localAfter->isEmpty());
+    QVERIFY(QFileInfo::exists(accountPaths.cloudAttachmentReceiptPath()));
 }
 
 void tst_account_adoption::
@@ -983,15 +996,15 @@ continueLocalAfterAdoptionUsesDedicatedLocalProfile() {
         qPrintable(error));
     QVERIFY(localState->isEmpty());
 
+    const ProfilePaths account =
+        fixture.accountPaths();
     const auto legacyState =
         fixture.legacy.capture(&error);
     QVERIFY2(
         legacyState.has_value(),
         qPrintable(error));
-    QVERIFY(legacyState->isEmpty());
-
-    const ProfilePaths account =
-        fixture.accountPaths();
+    QCOMPARE(legacyState->semanticDigest(), source.semanticDigest());
+    QVERIFY(QFileInfo::exists(account.cloudAttachmentReceiptPath()));
     const auto accountStorage =
         LegacyPersonalStateStorage::forProfile(
             account,
@@ -1080,7 +1093,8 @@ corruptRestartPreservesAccountAndEvidence() {
     QVERIFY2(
         restored.has_value(),
         qPrintable(error));
-    QVERIFY(restored->isEmpty());
+    QCOMPARE(restored->semanticDigest(), source.semanticDigest());
+    QVERIFY(QFileInfo::exists(paths.cloudAttachmentReceiptPath()));
 
     QVERIFY(
         QFileInfo::exists(paths.profileRoot()));
@@ -1160,7 +1174,8 @@ missingFinalStorePreservesAccountEvidence() {
             .filePath(QStringLiteral("personal-state.json"))));
     const auto legacy = fixture.legacy.capture(&error);
     QVERIFY2(legacy.has_value(), qPrintable(error));
-    QVERIFY(legacy->isEmpty());
+    QCOMPARE(legacy->semanticDigest(), source.semanticDigest());
+    QVERIFY(QFileInfo::exists(paths.cloudAttachmentReceiptPath()));
     const auto adoption = ProfileAdoption::open(paths, &error);
     QVERIFY2(adoption.has_value(), qPrintable(error));
     QCOMPARE(adoption->state(), ProfileAdoption::State::LegacyQuarantined);
@@ -1302,7 +1317,7 @@ existingAccountMergeAcceptsCompletedActivity() {
 }
 
 void tst_account_adoption::
-activityOnlyLocalStateIsMergedIntoExistingAccount() {
+    activityOnlyLocalStateIsMergedIntoExistingAccount() {
     AdoptionFixture fixture;
 
     const ProfilePaths paths = fixture.accountPaths();
@@ -1333,6 +1348,90 @@ activityOnlyLocalStateIsMergedIntoExistingAccount() {
     QCOMPARE(
         facts.first().value(QStringLiteral("type")).toString(),
         QStringLiteral("playback_delta"));
+}
+
+void tst_account_adoption::
+    existingCachedAccountKeepsSourceForAttachment() {
+    AdoptionFixture fixture;
+    QVERIFY(fixture.legacy.restorePersonalState(populatedSnapshot()));
+
+    const PersonalStateSnapshot before =
+        *fixture.legacy.capture();
+    const ProfilePaths paths = fixture.accountPaths();
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths);
+    QVERIFY(accountStorage.has_value());
+    QVERIFY(QDir().mkpath(paths.profileRoot()));
+    QVERIFY(accountStorage->restorePersonalState(PersonalStateSnapshot{}));
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareAccountSession(QString::fromLatin1(kAccountA), &error),
+        qPrintable(error));
+
+    const auto after = fixture.legacy.capture(&error);
+    QVERIFY2(after.has_value(), qPrintable(error));
+    QVERIFY(after->matchesSemanticDigest(before.semanticDigest()));
+    QVERIFY2(
+        QFileInfo::exists(paths.cloudAttachmentReceiptPath()),
+        "Existing cached-account adoption must leave a durable attachment receipt.");
+
+    const auto firstReceipt = AccountAttachmentReceipt::read(paths);
+    QCOMPARE(
+        firstReceipt.status,
+        AccountAttachmentReceipt::ReadStatus::Ok);
+    const QString attachmentId = firstReceipt.data.attachmentId;
+    QVERIFY2(
+        coordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+    const auto repeatedReceipt = AccountAttachmentReceipt::read(paths);
+    QCOMPARE(
+        repeatedReceipt.status,
+        AccountAttachmentReceipt::ReadStatus::Ok);
+    QCOMPARE(repeatedReceipt.data.attachmentId, attachmentId);
+    QCOMPARE(
+        repeatedReceipt.data.sourceSemanticDigest,
+        firstReceipt.data.sourceSemanticDigest);
+}
+
+void tst_account_adoption::
+    activityOnlyExistingAccountKeepsSourceForAttachment() {
+    AdoptionFixture fixture;
+
+    const ProfilePaths paths = fixture.accountPaths();
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths);
+    QVERIFY(accountStorage.has_value());
+    QVERIFY(QDir().mkpath(paths.profileRoot()));
+    QVERIFY(accountStorage->restorePersonalState(PersonalStateSnapshot{}));
+
+    {
+        ActivityStore legacyActivity(fixture.legacy.activityDbPath());
+        QVERIFY(legacyActivity.healthy());
+        QVERIFY(legacyActivity.recordPlaybackDelta(fixtureMovieFact()));
+    }
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareAccountSession(QString::fromLatin1(kAccountA), &error),
+        qPrintable(error));
+
+    ActivityStore sourceAfter(fixture.legacy.activityDbPath());
+    QVERIFY(sourceAfter.healthy());
+    QVERIFY2(
+        activityContainsItem(sourceAfter, QStringLiteral("adoption-fixture-movie")),
+        "Activity-only adoption must retain the source ledger for cloud attachment.");
+    QVERIFY2(
+        QFileInfo::exists(paths.cloudAttachmentReceiptPath()),
+        "Activity-only adoption must leave a durable attachment receipt.");
 }
 
 void tst_account_adoption::
@@ -1379,11 +1478,15 @@ firstAccountAdoptionMigratesActivityLedger() {
     const ProfilePaths paths =
         fixture.accountPaths();
 
-    // Legacy activity ledger is quarantined (removed) — mirrors the legacy
-    // personal-state quarantine the existing adoption tests already prove.
+    // The source ledger remains byte-identical until the attachment
+    // coordinator receives cloud proof and performs exact retirement.
     QVERIFY(
-        !QFileInfo::exists(
+        QFileInfo::exists(
             fixture.legacy.activityDbPath()));
+    QCOMPARE(
+        ActivityStore::fileDigestSha256(
+            fixture.legacy.activityDbPath()),
+        expectedActivityDigest);
 
     // The promoted profile's activity ledger is a byte-identical copy.
     QCOMPARE(
@@ -1499,9 +1602,13 @@ interruptedAdoptionPreservesAccountActivityEvidence() {
         QVERIFY(!error.isEmpty());
     }
 
-    // The unrelated legacy ledger was not recreated, and both active account
-    // evidence and the rollback backup remain available for repair.
-    QVERIFY(!QFileInfo::exists(fixture.legacy.activityDbPath()));
+    // The source ledger remains untouched, and both active account evidence
+    // and the rollback backup remain available for repair.
+    QVERIFY(QFileInfo::exists(fixture.legacy.activityDbPath()));
+    QCOMPARE(
+        ActivityStore::fileDigestSha256(
+            fixture.legacy.activityDbPath()),
+        expectedActivityDigest);
     QVERIFY(QFileInfo::exists(paths.profileRoot()));
     QCOMPARE(
         QFileInfo(paths.activityDbPath()).size(),
@@ -1650,6 +1757,16 @@ legacyQuarantinedRestartPreservesAccountWrites() {
     }
 
     QString error;
+    // The old journal state below represents a post-attachment restart.  In
+    // the current lifecycle the source is cleared only after cloud proof, so
+    // model that verified boundary explicitly before replaying the legacy
+    // quarantine state.
+    QVERIFY2(
+        fixture.legacy.clearPersonalState(&error),
+        qPrintable(error));
+    QVERIFY(
+        !QFileInfo::exists(fixture.legacy.activityDbPath())
+        || QFile::remove(fixture.legacy.activityDbPath()));
     QVERIFY2(
         rewriteAdoptionState(
             paths,

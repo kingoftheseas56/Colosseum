@@ -261,7 +261,7 @@ func TestExportHighWaterIncludesCommittedTombstone(t *testing.T) {
 
 func TestExportOmitsHistoryClearedByActivityReset(t *testing.T) {
 	fixture := newServiceFixture(t)
-	created := createFixtureAccount(t, fixture, "LifecycleExportActivityReset")
+	created := createFixtureAccount(t, fixture, "LifecycleActReset")
 	auth := authenticateFixtureSession(t, fixture, created.Session)
 	now := fixture.clock.Now().UnixMilli()
 

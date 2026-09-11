@@ -4478,6 +4478,18 @@ Window {
         }
     }
 
+    FileDialog {
+        id: accountExportDialog
+        title: qsTr("Save Colosseum account export")
+        fileMode: FileDialog.SaveFile
+        nameFilters: [qsTr("JSON files (*.json)")]
+        defaultSuffix: "json"
+        onAccepted: {
+            if (typeof AccountLifecycle !== "undefined" && AccountLifecycle)
+                AccountLifecycle.exportAccountData(selectedFile)
+        }
+    }
+
     // App-wide file drop. Sits LOW (z:5) so an open player/reader — and PlayerPage's own subtitle
     // DropArea — claim drops on their surface first; only the general app surface routes a dropped
     // media file here. A dropped FOLDER explains + offers the picker (the folder gesture is Slice 10).
@@ -4720,10 +4732,53 @@ Window {
         objectName: "accountCenter"
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
+        privacyDataExportBusy: typeof AccountLifecycle !== "undefined"
+            && AccountLifecycle ? AccountLifecycle.exportBusy : false
+        privacyAccountDeletionFlowBusy: typeof AccountLifecycle !== "undefined"
+            && AccountLifecycle ? AccountLifecycle.deletionBusy : false
+        onPrivacyDataExportRequested: {
+            privacyErrorMessage = ""
+            privacyStatusMessage = ""
+            accountExportDialog.open()
+        }
+        onPrivacyDataExportCancelRequested: {
+            if (typeof AccountLifecycle !== "undefined" && AccountLifecycle)
+                AccountLifecycle.cancelExport()
+        }
+        onPrivacyAccountDeletionFlowRequested: function(currentPassword) {
+            privacyErrorMessage = ""
+            privacyStatusMessage = ""
+            if (typeof AccountLifecycle !== "undefined" && AccountLifecycle)
+                AccountLifecycle.deleteAccount(currentPassword)
+        }
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
             return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
+        }
+    }
+
+    Connections {
+        target: typeof AccountLifecycle !== "undefined" ? AccountLifecycle : null
+        function onExportSucceeded(path, itemCount) {
+            accountCenter.privacyErrorMessage = ""
+            accountCenter.privacyStatusMessage = qsTr("Exported %1 account records to %2.")
+                .arg(itemCount).arg(path)
+        }
+        function onExportFailed(message) {
+            accountCenter.privacyStatusMessage = ""
+            accountCenter.privacyErrorMessage = message
+        }
+        function onDeletionSucceeded() {
+            accountCenter.privacyErrorMessage = ""
+            accountCenter.privacyStatusMessage = qsTr("The Colosseum account was deleted. Local media files were preserved.")
+            accountCenter.close()
+        }
+        function onDeletionFailed(message, retryAvailable) {
+            accountCenter.privacyStatusMessage = ""
+            accountCenter.privacyErrorMessage = retryAvailable
+                ? message + qsTr(" Colosseum saved the recovery request and will retry safely.")
+                : message
         }
     }
 

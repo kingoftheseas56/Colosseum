@@ -54,28 +54,33 @@ type schemaCheckContract struct {
 }
 
 const (
-	checkAvatarChoice           = "((builtin_avatar_id IS NULL) OR (uploaded_avatar_object_key IS NULL))"
-	checkState                  = "(state = ANY (ARRAY['pending'::text, 'approved'::text, 'denied'::text, 'consumed'::text]))"
-	checkRetryMaterial          = "(((recovery_retry_ciphertext IS NULL) AND (recovery_retry_expires_at IS NULL)) OR ((recovery_retry_ciphertext IS NOT NULL) AND (recovery_retry_expires_at IS NOT NULL)))"
-	checkOperation              = "(operation = ANY (ARRAY['put'::text, 'delete'::text]))"
-	checkPayload                = "(((operation = 'put'::text) AND (payload_ciphertext IS NOT NULL)) OR ((operation = 'delete'::text) AND (payload_ciphertext IS NULL)))"
-	checkPositiveSchemaVersion  = "(schema_version > 0)"
-	checkNonNegativeHLC         = "(hlc_counter >= 0)"
-	checkNonNegativePhysicalHLC = "(hlc_physical_ms >= 0)"
-	checkActivityCategory       = "(category = 'activity_fact'::text)"
-	checkActivityRecordKey      = "(record_key ~~ 'activity/%'::text)"
-	checkPutOperation           = "(operation = 'put'::text)"
-	checkPayloadHashLength      = "(octet_length(canonical_payload_hash) = 32)"
-	checkPositiveServerSequence = "(server_seq > 0)"
-	checkNonNegativeHighWater   = "(highwater_server_seq >= 0)"
-	checkPositiveFormat         = "(format_version > 0)"
-	checkExpiryAfterCreation    = "(expires_at > created_at)"
-	checkNonNegativeItemIndex   = "(item_index >= 0)"
-	checkExportKind             = "(kind = ANY (ARRAY['account_metadata'::text, 'sync_record'::text, 'activity_fact'::text]))"
-	checkPayloadPresent         = "(octet_length(payload_ciphertext) > 0)"
-	checkCapabilityHashLength   = "(octet_length(capability_hash) = 32)"
-	checkCompletedAfterCreation = "(completed_at >= created_at)"
-	checkMaterializedHLC        = "(((materialized_hlc_physical_ms IS NULL) AND (materialized_hlc_counter IS NULL) AND (materialized_device_id IS NULL)) OR ((materialized_hlc_physical_ms IS NOT NULL) AND (materialized_hlc_counter IS NOT NULL) AND (materialized_device_id IS NOT NULL) AND (materialized_hlc_physical_ms >= 0) AND (materialized_hlc_counter >= 0)))"
+	checkAvatarChoice             = "((builtin_avatar_id IS NULL) OR (uploaded_avatar_object_key IS NULL))"
+	checkState                    = "(state = ANY (ARRAY['pending'::text, 'approved'::text, 'denied'::text, 'consumed'::text]))"
+	checkRetryMaterial            = "(((recovery_retry_ciphertext IS NULL) AND (recovery_retry_expires_at IS NULL)) OR ((recovery_retry_ciphertext IS NOT NULL) AND (recovery_retry_expires_at IS NOT NULL)))"
+	checkOperation                = "(operation = ANY (ARRAY['put'::text, 'delete'::text]))"
+	checkPayload                  = "(((operation = 'put'::text) AND (payload_ciphertext IS NOT NULL)) OR ((operation = 'delete'::text) AND (payload_ciphertext IS NULL)))"
+	checkPositiveSchemaVersion    = "(schema_version > 0)"
+	checkNonNegativeHLC           = "(hlc_counter >= 0)"
+	checkNonNegativePhysicalHLC   = "(hlc_physical_ms >= 0)"
+	checkActivityCategory         = "(category = 'activity_fact'::text)"
+	checkActivityRecordKey        = "(record_key ~~ 'activity/%'::text)"
+	checkPutOperation             = "(operation = 'put'::text)"
+	checkPayloadHashLength        = "(octet_length(canonical_payload_hash) = 32)"
+	checkPositiveServerSequence   = "(server_seq > 0)"
+	checkNonNegativeHighWater     = "(highwater_server_seq >= 0)"
+	checkPositiveFormat           = "(format_version > 0)"
+	checkExpiryAfterCreation      = "(expires_at > created_at)"
+	checkNonNegativeItemIndex     = "(item_index >= 0)"
+	checkExportKind               = "(kind = ANY (ARRAY['account_metadata'::text, 'sync_record'::text, 'activity_fact'::text]))"
+	checkPayloadPresent           = "(octet_length(payload_ciphertext) > 0)"
+	checkCapabilityHashLength     = "(octet_length(capability_hash) = 32)"
+	checkCompletedAfterCreation   = "(completed_at >= created_at)"
+	checkMaterializedHLC          = "(((materialized_hlc_physical_ms IS NULL) AND (materialized_hlc_counter IS NULL) AND (materialized_device_id IS NULL)) OR ((materialized_hlc_physical_ms IS NOT NULL) AND (materialized_hlc_counter IS NOT NULL) AND (materialized_device_id IS NOT NULL) AND (materialized_hlc_physical_ms >= 0) AND (materialized_hlc_counter >= 0)))"
+	checkAttachmentState          = "(state = ANY (ARRAY['open'::text, 'uploaded'::text, 'committed'::text, 'aborted'::text]))"
+	checkAttachmentBaseline       = "(baseline_server_seq >= 0)"
+	checkAttachmentManifestCount  = "((manifest_count >= 0) AND (manifest_count <= 100))"
+	checkAttachmentDigest         = "((length(source_semantic_digest) > 0) AND (length(source_semantic_digest) <= 256))"
+	checkAttachmentManifestDigest = "((manifest_count = 0) OR (length(manifest_digest) > 0))"
 )
 
 func schemaContract() []schemaTableContract {
@@ -282,12 +287,15 @@ func schemaContract() []schemaTableContract {
 				"materialized_hlc_physical_ms", "bigint", false,
 				"materialized_hlc_counter", "bigint", false,
 				"materialized_device_id", "uuid", false,
+				"attachment_id", "uuid", false,
 				"won", "boolean", true,
 				"received_at", "timestamp with time zone", true),
 			primaryKey: []string{"server_seq"},
 			uniqueKeys: [][]string{{"account_id", "mutation_id"}},
 			foreignKeys: []schemaForeignKeyContract{{
 				columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"},
+			}, {
+				columns: []string{"attachment_id"}, referenced: "account_device_attachments", refColumns: []string{"id"}, onDelete: "n",
 			}},
 			checks: []string{
 				"account_sync_journal_operation_ck",
@@ -368,12 +376,14 @@ func schemaContract() []schemaTableContract {
 				"hlc_counter", "bigint", true,
 				"server_seq", "bigint", true,
 				"suppressed", "boolean", true,
+				"attachment_id", "uuid", false,
 				"received_at", "timestamp with time zone", true),
 			primaryKey: []string{"account_id", "event_id"},
 			uniqueKeys: [][]string{{"account_id", "mutation_id"}, {"server_seq"}},
 			foreignKeys: []schemaForeignKeyContract{
 				{columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"}},
 				{columns: []string{"origin_device_id"}, referenced: "devices", refColumns: []string{"id"}},
+				{columns: []string{"attachment_id"}, referenced: "account_device_attachments", refColumns: []string{"id"}, onDelete: "n"},
 			},
 			checks: []string{
 				"account_activity_facts_schema_ck",
@@ -406,10 +416,10 @@ func schemaContract() []schemaTableContract {
 				"account_activity_reset_hlc_counter_ck",
 			},
 			checkExpressions: map[string]string{
-				"account_activity_reset_generation_ck":   "reset_generation > 0",
-				"account_activity_reset_at_ck":           "reset_at_ms > 0",
-				"account_activity_reset_hlc_physical_ck": "hlc_physical_ms >= 0",
-				"account_activity_reset_hlc_counter_ck":  "hlc_counter >= 0",
+				"account_activity_reset_generation_ck":   "(reset_generation > 0)",
+				"account_activity_reset_at_ck":           "(reset_at_ms > 0)",
+				"account_activity_reset_hlc_physical_ck": "(hlc_physical_ms >= 0)",
+				"account_activity_reset_hlc_counter_ck":  "(hlc_counter >= 0)",
 			},
 		},
 		{
@@ -432,10 +442,10 @@ func schemaContract() []schemaTableContract {
 				"account_history_reset_hlc_counter_ck",
 			},
 			checkExpressions: map[string]string{
-				"account_history_reset_generation_ck":   "reset_generation > 0",
-				"account_history_reset_at_ck":           "reset_at_ms > 0",
-				"account_history_reset_hlc_physical_ck": "hlc_physical_ms >= 0",
-				"account_history_reset_hlc_counter_ck":  "hlc_counter >= 0",
+				"account_history_reset_generation_ck":   "(reset_generation > 0)",
+				"account_history_reset_at_ck":           "(reset_at_ms > 0)",
+				"account_history_reset_hlc_physical_ck": "(hlc_physical_ms >= 0)",
+				"account_history_reset_hlc_counter_ck":  "(hlc_counter >= 0)",
 			},
 		},
 		{
@@ -454,10 +464,20 @@ func schemaContract() []schemaTableContract {
 				"server_seq", "bigint", true,
 				"won", "boolean", true,
 				"activity_event_id", "uuid", true,
+				"attachment_id", "uuid", false,
 				"created_at", "timestamp with time zone", true),
 			primaryKey: []string{"account_id", "mutation_id"},
+			indexes:    []string{"account_sync_mutation_aliases_attachment_idx"},
+			indexDefinitions: map[string]schemaIndexContract{
+				"account_sync_mutation_aliases_attachment_idx": {
+					method: "btree", columns: []string{"account_id", "attachment_id", "server_seq"},
+					predicate: "(attachment_id IS NOT NULL)",
+				},
+			},
 			foreignKeys: []schemaForeignKeyContract{{
 				columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"},
+			}, {
+				columns: []string{"attachment_id"}, referenced: "account_device_attachments", refColumns: []string{"id"}, onDelete: "n",
 			}},
 			checks: []string{
 				"account_sync_mutation_aliases_category_ck",
@@ -567,6 +587,95 @@ func schemaContract() []schemaTableContract {
 				"account_deletion_receipts_capability_ck": checkCapabilityHashLength,
 				"account_deletion_receipts_expiry_ck":     checkExpiryAfterCreation,
 				"account_deletion_receipts_completed_ck":  checkCompletedAfterCreation,
+			},
+		},
+		{
+			name: "account_device_attachments",
+			columns: schemaColumns(
+				"id", "uuid", true,
+				"account_id", "uuid", true,
+				"device_id", "uuid", true,
+				"source_kind", "text", true,
+				"source_profile_id", "text", true,
+				"source_semantic_digest", "text", true,
+				"source_activity_digest", "text", true,
+				"manifest_digest", "text", true,
+				"manifest_count", "integer", true,
+				"baseline_server_seq", "bigint", true,
+				"state", "text", true,
+				"created_at", "timestamp with time zone", true,
+				"updated_at", "timestamp with time zone", true,
+				"committed_at", "timestamp with time zone", false),
+			primaryKey: []string{"id"},
+			indexes:    []string{"account_device_attachments_open_idx"},
+			indexDefinitions: map[string]schemaIndexContract{
+				"account_device_attachments_open_idx": {
+					method: "btree", columns: []string{"account_id", "device_id", "state"},
+				},
+			},
+			foreignKeys: []schemaForeignKeyContract{
+				{columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"}},
+				{columns: []string{"device_id"}, referenced: "devices", refColumns: []string{"id"}},
+			},
+			checks: []string{
+				"account_device_attachments_state_ck",
+				"account_device_attachments_baseline_ck",
+				"account_device_attachments_manifest_count_ck",
+				"account_device_attachments_digest_ck",
+				"account_device_attachments_manifest_digest_ck",
+			},
+			checkExpressions: map[string]string{
+				"account_device_attachments_state_ck":           checkAttachmentState,
+				"account_device_attachments_baseline_ck":        checkAttachmentBaseline,
+				"account_device_attachments_manifest_count_ck":  checkAttachmentManifestCount,
+				"account_device_attachments_digest_ck":          checkAttachmentDigest,
+				"account_device_attachments_manifest_digest_ck": checkAttachmentManifestDigest,
+			},
+		},
+		{
+			name: "account_device_attachment_manifest",
+			columns: schemaColumns(
+				"attachment_id", "uuid", true,
+				"ordinal", "integer", true,
+				"mutation_id", "uuid", true,
+				"device_id", "uuid", true,
+				"category", "text", true,
+				"record_key", "text", true,
+				"schema_version", "integer", true,
+				"hlc_physical_ms", "bigint", true,
+				"hlc_counter", "bigint", true,
+				"operation", "text", true,
+				"payload_ciphertext", "bytea", false,
+				"canonical_payload_hash", "bytea", true,
+				"created_at", "timestamp with time zone", true),
+			primaryKey: []string{"attachment_id", "ordinal"},
+			uniqueKeys: [][]string{{"attachment_id", "mutation_id"}},
+			indexes:    []string{"account_device_attachment_manifest_mutation_idx"},
+			indexDefinitions: map[string]schemaIndexContract{
+				"account_device_attachment_manifest_mutation_idx": {
+					method: "btree", columns: []string{"attachment_id", "mutation_id"},
+				},
+			},
+			foreignKeys: []schemaForeignKeyContract{
+				{columns: []string{"attachment_id"}, referenced: "account_device_attachments", refColumns: []string{"id"}},
+			},
+			checks: []string{
+				"account_device_attachment_manifest_ordinal_ck",
+				"account_device_attachment_manifest_schema_ck",
+				"account_device_attachment_manifest_hlc_physical_ck",
+				"account_device_attachment_manifest_hlc_counter_ck",
+				"account_device_attachment_manifest_operation_ck",
+				"account_device_attachment_manifest_payload_ck",
+				"account_device_attachment_manifest_hash_ck",
+			},
+			checkExpressions: map[string]string{
+				"account_device_attachment_manifest_ordinal_ck":      "((ordinal >= 0) AND (ordinal < 100))",
+				"account_device_attachment_manifest_schema_ck":       "(schema_version > 0)",
+				"account_device_attachment_manifest_hlc_physical_ck": "(hlc_physical_ms >= 0)",
+				"account_device_attachment_manifest_hlc_counter_ck":  "(hlc_counter >= 0)",
+				"account_device_attachment_manifest_operation_ck":    checkOperation,
+				"account_device_attachment_manifest_payload_ck":      checkPayload,
+				"account_device_attachment_manifest_hash_ck":         checkPayloadHashLength,
 			},
 		},
 	}

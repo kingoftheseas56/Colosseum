@@ -5,6 +5,7 @@
 #include "account/AccountController.h"
 #include "account/AccountDeviceIdentity.h"
 #include "account/AccountHttpTransport.h"
+#include "account/AccountLifecycleCoordinator.h"
 #include "account/SyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
 #include "account/SyncEngine.h"
@@ -364,6 +365,47 @@ void restoreSignedIn(
         fixture.controller->mode(),
         QStringLiteral("signedIn"));
 }
+
+QJsonObject exportPage(
+    const QString &cursor,
+    const QString &nextCursor,
+    const QJsonArray &items) {
+    QJsonObject page;
+    page.insert(QStringLiteral("format"), QStringLiteral("colosseum.account.export"));
+    page.insert(QStringLiteral("schema_version"), 1);
+    page.insert(QStringLiteral("snapshot_id"),
+                QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"));
+    page.insert(QStringLiteral("high_water_server_seq"), 17);
+    page.insert(QStringLiteral("cursor"), cursor);
+    page.insert(QStringLiteral("has_more"), !nextCursor.isEmpty());
+    if (!nextCursor.isEmpty())
+        page.insert(QStringLiteral("next_cursor"), nextCursor);
+    page.insert(QStringLiteral("items"), items);
+    return page;
+}
+
+QJsonObject exportItem(const QString &key, const QString &value) {
+    QJsonObject item;
+    item.insert(QStringLiteral("kind"), QStringLiteral("sync_record"));
+    item.insert(QStringLiteral("category"), QStringLiteral("collection"));
+    item.insert(QStringLiteral("key"), key);
+    item.insert(QStringLiteral("payload"), QJsonObject{
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("id"), key},
+        {QStringLiteral("value"), value}});
+    return item;
+}
+
+QJsonObject exportAccountMetadataItem() {
+    QJsonObject item;
+    item.insert(QStringLiteral("kind"), QStringLiteral("account_metadata"));
+    item.insert(QStringLiteral("category"), QStringLiteral("account_metadata"));
+    item.insert(QStringLiteral("key"), QStringLiteral("profile"));
+    item.insert(QStringLiteral("payload"), QJsonObject{
+        {QStringLiteral("account_id"), QString::fromLatin1(kAccountId)},
+        {QStringLiteral("username"), QStringLiteral("Hemanth56")}});
+    return item;
+}
 }
 
 class tst_account_identity : public QObject {
@@ -381,6 +423,10 @@ private slots:
     void httpTransportHardDeadlineStopsTrickleReply();
     void accountClientPreservesPasswordWhitespace();
     void accountClientAssignsRequestDeadlines();
+    void lifecycleExportWritesStableMultiPageBundle();
+    void lifecycleExportFailurePreservesExistingDestination();
+    void lifecycleDeletionPersistsCapabilityAndFinalizesLocally();
+    void lifecycleDeletionResponseLossResumesWithoutSession();
 
     void controllerExposesOnlySafeStateProperties();
     void deviceIdentityIsStableAndNonSecret();
@@ -717,6 +763,25 @@ void tst_account_identity::accountClientAssignsRequestDeadlines() {
 
     client.listApprovals(25);
     QCOMPARE(transport.lastRequest.timeoutMs, 35000);
+
+    client.setAccessToken(QByteArrayLiteral("deadline-access-token"));
+    client.deleteAccount(
+        QStringLiteral("11111111-1111-4111-8111-111111111111"),
+        QByteArray(32, 'd'),
+        QStringLiteral("current-password"));
+    QCOMPARE(transport.lastRequest.method, QByteArrayLiteral("DELETE"));
+    QCOMPARE(transport.lastRequest.path, QStringLiteral("/v1/account"));
+    QCOMPARE(transport.lastRequest.timeoutMs, 30000);
+    QVERIFY(!transport.lastRequest.bearerToken.isEmpty());
+
+    client.retryAccountDeletion(
+        QStringLiteral("11111111-1111-4111-8111-111111111111"),
+        QByteArray(32, 'd'));
+    QCOMPARE(transport.lastRequest.method, QByteArrayLiteral("POST"));
+    QCOMPARE(transport.lastRequest.path,
+             QStringLiteral("/v1/account/deletion/retry"));
+    QCOMPARE(transport.lastRequest.timeoutMs, 15000);
+    QVERIFY(transport.lastRequest.bearerToken.isEmpty());
 }
 
 void tst_account_identity::controllerExposesOnlySafeStateProperties() {
@@ -963,6 +1028,138 @@ void tst_account_identity::rememberedSessionRestartRotatesSecureCredential() {
     const auto stored = fixture.credentials.loadActive();
     QVERIFY(stored.has_value());
     QCOMPARE(stored->refreshToken, secondRefresh);
+}
+
+void tst_account_identity::lifecycleExportWritesStableMultiPageBundle() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+    AccountLifecycleCoordinator lifecycle(
+        fixture.client.get(), &fixture.credentials, fixture.controller.get());
+    QSignalSpy succeeded(&lifecycle,
+        &AccountLifecycleCoordinator::exportSucceeded);
+
+    const QString cursorA = QStringLiteral("snapshot-a.page-0");
+    const QString cursorB = QStringLiteral("snapshot-a.page-1");
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/account/export?cursor=&limit=100"),
+        okReply(200, exportPage(cursorA, cursorB,
+            QJsonArray{exportAccountMetadataItem(),
+                       exportItem(QStringLiteral("theatre/a"), QStringLiteral("A"))})));
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/account/export?cursor=snapshot-a.page-1&limit=100"),
+        okReply(200, exportPage(cursorB, QString(),
+            QJsonArray{exportItem(QStringLiteral("theatre/b"), QStringLiteral("B"))})));
+
+    const QString path = fixture.temp.path() + QStringLiteral("/account-export.json");
+    lifecycle.exportAccountData(QUrl::fromLocalFile(path));
+    QTRY_COMPARE(succeeded.size(), 1);
+    QCOMPARE(succeeded.at(0).at(1).toInt(), 3);
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    QVERIFY(document.isObject());
+    const QJsonArray items = document.object().value(QStringLiteral("items")).toArray();
+    QCOMPARE(items.size(), 3);
+    QCOMPARE(items.first().toObject().value(QStringLiteral("kind")).toString(),
+             QStringLiteral("account_metadata"));
+    QCOMPARE(document.object().value(QStringLiteral("snapshot_id")).toString(),
+             QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"));
+}
+
+void tst_account_identity::lifecycleExportFailurePreservesExistingDestination() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+    AccountLifecycleCoordinator lifecycle(
+        fixture.client.get(), &fixture.credentials, fixture.controller.get());
+    QSignalSpy failed(&lifecycle, &AccountLifecycleCoordinator::exportFailed);
+
+    const QString cursorA = QStringLiteral("snapshot-a.page-0");
+    const QString cursorB = QStringLiteral("snapshot-a.page-1");
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/account/export?cursor=&limit=100"),
+        okReply(200, exportPage(cursorA, cursorB,
+            QJsonArray{exportItem(QStringLiteral("theatre/a"), QStringLiteral("A"))})));
+    QJsonObject wrong = exportPage(cursorB, QString(),
+        QJsonArray{exportItem(QStringLiteral("theatre/b"), QStringLiteral("B"))});
+    wrong.insert(QStringLiteral("snapshot_id"),
+                 QStringLiteral("dddddddd-dddd-4ddd-8ddd-dddddddddddd"));
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/account/export?cursor=snapshot-a.page-1&limit=100"),
+        okReply(200, wrong));
+
+    const QString path = fixture.temp.path() + QStringLiteral("/existing.json");
+    QFile original(path);
+    QVERIFY(original.open(QIODevice::WriteOnly));
+    QCOMPARE(original.write("preserve-me"), qint64(11));
+    original.close();
+    lifecycle.exportAccountData(QUrl::fromLocalFile(path));
+    QTRY_COMPARE(failed.size(), 1);
+    QFile after(path);
+    QVERIFY(after.open(QIODevice::ReadOnly));
+    QCOMPARE(after.readAll(), QByteArrayLiteral("preserve-me"));
+}
+
+void tst_account_identity::lifecycleDeletionPersistsCapabilityAndFinalizesLocally() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+    AccountLifecycleCoordinator lifecycle(
+        fixture.client.get(), &fixture.credentials, fixture.controller.get());
+    QSignalSpy succeeded(&lifecycle,
+        &AccountLifecycleCoordinator::deletionSucceeded);
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("DELETE"), QStringLiteral("/v1/account"),
+        okReply(200, QJsonObject{
+            {QStringLiteral("status"), QStringLiteral("completed")},
+            {QStringLiteral("receipt_expires_at"),
+             QDateTime::currentDateTimeUtc().addDays(30).toString(Qt::ISODateWithMs)}}));
+
+    lifecycle.deleteAccount(QStringLiteral("current-password"));
+    QTRY_COMPARE(succeeded.size(), 1);
+    QVERIFY(fixture.credentials.pendingDeletions().isEmpty());
+    QVERIFY(!fixture.credentials.loadActive().has_value());
+    QCOMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
+}
+
+void tst_account_identity::lifecycleDeletionResponseLossResumesWithoutSession() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+    {
+        AccountLifecycleCoordinator first(
+            fixture.client.get(), &fixture.credentials, fixture.controller.get());
+        QSignalSpy failed(&first, &AccountLifecycleCoordinator::deletionFailed);
+        fixture.transport->setOnline(false);
+        first.deleteAccount(QStringLiteral("current-password"));
+        QTRY_COMPARE(failed.size(), 1);
+        QCOMPARE(fixture.credentials.pendingDeletions().size(), 1);
+    }
+
+    fixture.transport->setOnline(true);
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/account/deletion/retry"),
+        okReply(200, QJsonObject{
+            {QStringLiteral("status"), QStringLiteral("completed")},
+            {QStringLiteral("retried"), true},
+            {QStringLiteral("receipt_expires_at"),
+             QDateTime::currentDateTimeUtc().addDays(30)
+                 .toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss"))
+                 + QStringLiteral(".123456789Z")}}));
+    AccountLifecycleCoordinator restarted(
+        fixture.client.get(), &fixture.credentials, fixture.controller.get());
+    QSignalSpy succeeded(&restarted,
+        &AccountLifecycleCoordinator::deletionSucceeded);
+    restarted.resumePendingDeletion();
+    QTRY_COMPARE(succeeded.size(), 1);
+    QVERIFY(fixture.credentials.pendingDeletions().isEmpty());
+    QCOMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
 }
 
 void tst_account_identity::serverPrecisionExpiryDoesNotTriggerRapidRefresh() {

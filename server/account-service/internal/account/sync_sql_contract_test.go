@@ -75,6 +75,7 @@ func TestSyncJournalSQLColumnParity(t *testing.T) {
 		"materialized_hlc_physical_ms",
 		"materialized_hlc_counter",
 		"materialized_device_id",
+		"attachment_id",
 		"won",
 		"received_at",
 	}

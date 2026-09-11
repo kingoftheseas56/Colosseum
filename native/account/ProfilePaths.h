@@ -38,6 +38,10 @@ public:
     QString syncOutboxPath() const;
     QString syncMetaIniPath() const;
 
+    QString cloudAttachmentReceiptPath() const;
+    QString accountReplacementBackupRoot() const;
+    QString localAttachmentJournalPath() const;
+
     QString accountStagingRoot() const;
     QString adoptionJournalPath() const;
     QString adoptionBackupRoot() const;

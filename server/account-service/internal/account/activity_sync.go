@@ -104,9 +104,10 @@ func (s *Service) pushOneActivityReset(
 	ctx context.Context,
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
+	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
-	return s.pushOneSyncMutation(ctx, auth, parsed, now)
+	return s.pushOneSyncMutation(ctx, auth, parsed, attachmentID, now)
 }
 
 func (s *Service) storeActivityResetStateTx(
@@ -489,6 +490,7 @@ func (s *Service) pushOneActivityFact(
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
 	fact parsedActivityFact,
+	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
 	result := SyncPushResult{
@@ -581,7 +583,11 @@ func (s *Service) pushOneActivityFact(
 			fact,
 			storedSeq,
 			true,
+			attachmentID,
 			now); err != nil {
+			return result, err
+		}
+		if err := markAttachmentUploadedTx(ctx, tx, auth.Account.ID, attachmentID, now); err != nil {
 			return result, err
 		}
 		if err := tx.Commit(ctx); err != nil {
@@ -637,12 +643,13 @@ func (s *Service) pushOneActivityFact(
             payload_ciphertext,
             hlc_physical_ms,
             hlc_counter,
+            attachment_id,
             suppressed,
             received_at
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4::uuid,
-            $5, $6, $7, $8, $9, $10, $11
+            $5, $6, $7, $8, $9, $10::uuid, $11, $12
         )
         RETURNING server_seq
     `,
@@ -655,6 +662,7 @@ func (s *Service) pushOneActivityFact(
 		ciphertext,
 		parsed.HLCPhysicalMS,
 		int64(parsed.HLCCounter),
+		nullableUUIDArgument(attachmentID),
 		suppressed,
 		now).Scan(&serverSeq)
 
@@ -669,9 +677,12 @@ func (s *Service) pushOneActivityFact(
 				return result, fmt.Errorf("rollback activity unique violation: %w", rollbackErr)
 			}
 			return s.resolveActivityUniqueViolation(
-				ctx, auth, parsed, fact)
+				ctx, auth, parsed, fact, attachmentID)
 		}
 		return result, fmt.Errorf("insert activity fact: %w", err)
+	}
+	if err := markAttachmentUploadedTx(ctx, tx, auth.Account.ID, attachmentID, now); err != nil {
+		return result, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -692,6 +703,7 @@ func (s *Service) resolveActivityUniqueViolation(
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
 	fact parsedActivityFact,
+	attachmentID string,
 ) (SyncPushResult, error) {
 	result := SyncPushResult{
 		MutationID: parsed.MutationID,
@@ -764,7 +776,11 @@ func (s *Service) resolveActivityUniqueViolation(
 			fact,
 			storedSeq,
 			true,
+			attachmentID,
 			s.clock.Now().UTC()); err != nil {
+			return result, err
+		}
+		if err := markAttachmentUploadedTx(ctx, tx, auth.Account.ID, attachmentID, s.clock.Now().UTC()); err != nil {
 			return result, err
 		}
 		if err := tx.Commit(ctx); err != nil {
@@ -903,6 +919,7 @@ func insertActivityMutationAliasTx(
 	fact parsedActivityFact,
 	serverSeq uint64,
 	won bool,
+	attachmentID string,
 	createdAt time.Time,
 ) error {
 	if serverSeq == 0 {
@@ -923,11 +940,12 @@ func insertActivityMutationAliasTx(
             server_seq,
             won,
             activity_event_id,
+            attachment_id,
             created_at
         )
         VALUES(
             $1::uuid, $2::uuid, $3, $4, $5::uuid, $6,
-            $7, $8, $9, $10, $11, $12, $13::uuid, $14
+            $7, $8, $9, $10, $11, $12, $13::uuid, $14::uuid, $15
         )
     `,
 		accountID,
@@ -943,6 +961,7 @@ func insertActivityMutationAliasTx(
 		int64(serverSeq),
 		won,
 		fact.EventID,
+		nullableUUIDArgument(attachmentID),
 		createdAt.UTC()); err != nil {
 		return fmt.Errorf("store activity mutation alias: %w", err)
 	}

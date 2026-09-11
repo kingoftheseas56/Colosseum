@@ -7,6 +7,7 @@
 
 #include <QDateTime>
 #include <QJsonObject>
+#include <QUuid>
 
 #include <limits>
 
@@ -720,6 +721,56 @@ void AccountController::signOutAnyway() {
 
     clearPendingLogoutWarning();
     continuePendingLogout();
+}
+
+bool AccountController::finalizeDeletedAccount(
+    const QString &accountId,
+    QString *error) {
+    const QUuid parsed(accountId);
+    if (parsed.isNull()) {
+        if (error)
+            *error = QStringLiteral("The deleted account identity is invalid.");
+        return false;
+    }
+    const QString normalized = parsed.toString(QUuid::WithoutBraces).toLower();
+    const bool currentAccount = m_accountId == normalized;
+    const auto stored = m_credentialStore->loadActive();
+    const bool storedAccount = stored.has_value()
+        && stored->accountId == normalized;
+
+    if (currentAccount) {
+        advanceGeneration();
+        if (m_syncEngine && m_syncEngine->active()) {
+            QString ignored;
+            m_syncEngine->stopPreservingOutbox(&ignored);
+        }
+    }
+
+    QString sealError;
+    const bool sealed = !m_profileCoordinator
+        || m_profileCoordinator->sealAccountSession(normalized, &sealError);
+    const bool credentialsCleared = !storedAccount || clearStoredSession();
+
+    if (currentAccount || storedAccount) {
+        m_bootstrapStore->clearRememberedIdentity();
+        m_bootstrapStore->setLocalOnlyChosen(false);
+    }
+    if (currentAccount) {
+        clearVolatileSession();
+        clearError();
+        setMode(Mode::SignedOut);
+        emit signedOut();
+    }
+
+    if (!sealed || !credentialsCleared) {
+        if (error) {
+            *error = !sealed && !sealError.trimmed().isEmpty()
+                ? sealError
+                : QStringLiteral("The deleted account was confirmed, but local cleanup must be retried.");
+        }
+        return false;
+    }
+    return true;
 }
 
 void AccountController::retrySync() {

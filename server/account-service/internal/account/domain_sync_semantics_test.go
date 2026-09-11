@@ -61,9 +61,9 @@ func TestFullHistoryServerMergeConvergesInBothUploadOrders(t *testing.T) {
 	}
 
 	const (
-		olderPayload = `{"kind":"episode","id":"show-1/e1","firstActivityAt":1000,"lastActivityAt":5000,"completedAt":3000,"title":"older"}`
-		newerPayload = `{"kind":"episode","id":"show-1/e1","firstActivityAt":2000,"lastActivityAt":7000,"completedAt":2500,"title":"newer"}`
-		wantPayload  = `{"completedAt":2500,"firstActivityAt":1000,"id":"show-1/e1","kind":"episode","lastActivityAt":7000,"title":"newer"}`
+		olderPayload = `{"kind":"episode","id":"show-1/e1","firstActivityAt":1000,"lastActivityAt":5000,"completedAt":3000}`
+		newerPayload = `{"kind":"episode","id":"show-1/e1","firstActivityAt":2000,"lastActivityAt":7000,"completedAt":2500}`
+		wantPayload  = `{"completedAt":2500,"firstActivityAt":1000,"id":"show-1/e1","kind":"episode","lastActivityAt":7000}`
 	)
 
 	for _, order := range orders {
@@ -381,9 +381,9 @@ func TestActivityResetBlocksDelayedHistoryRecordsInBothOrders(t *testing.T) {
 	for _, order := range orders {
 		t.Run(order.name, func(t *testing.T) {
 			fixture := newServiceFixture(t)
-			username := "ActivityResetHistoryFirst"
+			username := "ActivityHistoryFirst"
 			if order.resetFirst {
-				username = "ActivityResetHistoryResetFirst"
+				username = "ActivityResetFirst"
 			}
 			created := createFixtureAccount(t, fixture, username)
 			auth := authenticateFixtureSession(t, fixture, created.Session)

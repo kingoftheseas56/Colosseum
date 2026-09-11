@@ -115,6 +115,17 @@ struct SyncPersistentState {
     // the owner write recoverable without inferring a local delete from a
     // temporarily empty owner snapshot.
     QList<SyncOwnerRedo> ownerRedos;
+
+    // Attachment execution mode. Inactive mode keeps every field at its
+    // default so encoded state stays byte-identical to the engine that
+    // predates attachment support.
+    bool attachmentModeActive = false;
+    QString attachmentId;
+    // Exact receipt-bound mutations. Other durable outbox entries remain
+    // ordinary account work even while attachment mode is active.
+    QStringList attachmentMutationIds;
+    bool attachmentSnapshotDone = false;
+    QString attachmentSnapshotNextPageToken;
 };
 
 class SyncStateStore final : public QObject {

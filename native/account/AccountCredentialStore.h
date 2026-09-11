@@ -14,6 +14,12 @@ struct StoredAccountCredential {
     QByteArray refreshToken;
 };
 
+struct StoredAccountDeletion {
+    QString accountId;
+    QString requestId;
+    QByteArray retryCapability;
+};
+
 class AccountCredentialStore {
 public:
     virtual ~AccountCredentialStore() = default;
@@ -27,4 +33,8 @@ public:
     virtual QList<QByteArray> pendingRevocations() const = 0;
     virtual bool addPendingRevocation(const QByteArray &refreshToken) = 0;
     virtual bool removePendingRevocation(const QByteArray &refreshToken) = 0;
+
+    virtual QList<StoredAccountDeletion> pendingDeletions() const = 0;
+    virtual bool savePendingDeletion(const StoredAccountDeletion &deletion) = 0;
+    virtual bool removePendingDeletion(const QString &requestId) = 0;
 };

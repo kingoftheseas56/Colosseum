@@ -297,10 +297,10 @@ void tst_account_onboarding::freshInstallSettlesIntoLocalOnly() {
 
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("localOnly"));
-    QVERIFY(!fixture.controller->onboardingRequired());
-    QVERIFY(fixture.bootstrap->onboardingCompleted());
-    QVERIFY(fixture.bootstrap->localOnlyChosen());
+        QStringLiteral("signedOut"));
+    QVERIFY(fixture.controller->onboardingRequired());
+    QVERIFY(!fixture.bootstrap->onboardingCompleted());
+    QVERIFY(!fixture.bootstrap->localOnlyChosen());
 }
 
 void tst_account_onboarding::continueLocalCompletesOnboardingDurably() {
@@ -559,7 +559,8 @@ offlineLogoutQueuesRevocationAndSealsProfile() {
         QString::fromLatin1(kAccountId));
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("localOnly"));
+        QStringLiteral("signedOut"));
+    QVERIFY(!fixture.bootstrap->localOnlyChosen());
     QVERIFY(
         !fixture.credentials
              .loadActive()

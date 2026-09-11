@@ -126,6 +126,7 @@ Rectangle {
     property bool privacyDataExportBusy: false
     property bool privacyAccountDeletionFlowBusy: false
     property string privacyErrorMessage: ""
+    property string privacyStatusMessage: ""
 
     signal privacyRememberSearchHistoryChangeRequested(bool enabled)
     signal privacyKeepActivityHistoryChangeRequested(bool enabled)
@@ -133,7 +134,8 @@ Rectangle {
     signal privacyClearSearchHistoryRequested()
     signal privacyClearActivityHistoryRequested()
     signal privacyDataExportRequested()
-    signal privacyAccountDeletionFlowRequested()
+    signal privacyDataExportCancelRequested()
+    signal privacyAccountDeletionFlowRequested(string currentPassword)
 
     onPrivacyRememberSearchHistoryChangeRequested: function(enabled) {
         if (searchHistoryStore) searchHistoryStore.rememberEnabled = enabled
@@ -606,6 +608,7 @@ Rectangle {
                 dataExportBusy: root.privacyDataExportBusy
                 accountDeletionFlowBusy: root.privacyAccountDeletionFlowBusy
                 errorMessage: root.privacyErrorMessage
+                statusMessage: root.privacyStatusMessage
 
                 onRememberSearchHistoryChangeRequested: function(enabled) {
                     root.privacyRememberSearchHistoryChangeRequested(enabled)
@@ -622,8 +625,12 @@ Rectangle {
                     root.privacyClearActivityHistoryRequested()
                 onDataExportRequested:
                     root.privacyDataExportRequested()
+                onDataExportCancelRequested:
+                    root.privacyDataExportCancelRequested()
                 onAccountDeletionFlowRequested:
-                    root.privacyAccountDeletionFlowRequested()
+                    function(currentPassword) {
+                        root.privacyAccountDeletionFlowRequested(currentPassword)
+                    }
             }
         }
     }

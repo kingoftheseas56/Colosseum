@@ -30,12 +30,13 @@ const syncJournalInsertQuery = `
             materialized_hlc_physical_ms,
             materialized_hlc_counter,
             materialized_device_id,
+            attachment_id,
             won,
             received_at
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4, $5, $6,
-            $7, $8, $9, $10, NULL, NULL, NULL, NULL, false, $11
+            $7, $8, $9, $10, NULL, NULL, NULL, NULL, $11::uuid, false, $12
         )
         ON CONFLICT(account_id, mutation_id) DO NOTHING
         RETURNING server_seq
@@ -57,6 +58,7 @@ const syncJournalPullQuery = `
             COALESCE(materialized_hlc_physical_ms, hlc_physical_ms),
             COALESCE(materialized_hlc_counter, hlc_counter),
             COALESCE(materialized_device_id::text, device_id::text),
+            COALESCE(attachment_id::text, ''),
             won,
             received_at
         FROM account_sync_journal
@@ -78,6 +80,7 @@ const syncJournalPullQuery = `
             hlc_physical_ms,
             hlc_counter,
             origin_device_id::text,
+            '',
             true,
             received_at
         FROM account_activity_facts
@@ -104,6 +107,34 @@ type parsedSyncMutation struct {
 func (s *Service) PushSync(
 	ctx context.Context,
 	auth AuthenticatedSession,
+	inputs []SyncMutationInput,
+) (SyncPushResponse, error) {
+	return s.pushSyncMutations(ctx, auth, "", inputs)
+}
+
+// PushSyncWithAttachment binds every newly accepted mutation to the durable
+// attachment receipt. Replays keep their original identity and are checked
+// against the manifest before they can be accepted.
+func (s *Service) PushSyncWithAttachment(
+	ctx context.Context,
+	auth AuthenticatedSession,
+	attachmentID string,
+	inputs []SyncMutationInput,
+) (SyncPushResponse, error) {
+	normalized, err := normalizeProfileAttachmentID(attachmentID)
+	if err != nil {
+		return SyncPushResponse{}, err
+	}
+	if err := s.loadOwnedActiveAttachment(ctx, auth, normalized); err != nil {
+		return SyncPushResponse{}, err
+	}
+	return s.pushSyncMutations(ctx, auth, normalized, inputs)
+}
+
+func (s *Service) pushSyncMutations(
+	ctx context.Context,
+	auth AuthenticatedSession,
+	attachmentID string,
 	inputs []SyncMutationInput,
 ) (SyncPushResponse, error) {
 	now := s.clock.Now().UTC()
@@ -143,6 +174,18 @@ func (s *Service) PushSync(
 			response.Results = append(response.Results, result)
 			continue
 		}
+		if attachmentID != "" {
+			if err := s.validateAttachmentMutationForPush(
+				ctx, auth, attachmentID, parsed); err != nil {
+				response.Results = append(response.Results, SyncPushResult{
+					MutationID: parsed.MutationID,
+					Accepted:   false,
+					Code:       attachmentErrorCode(err),
+					Message:    err.Error(),
+				})
+				continue
+			}
+		}
 
 		if parsed.Category == "activity_fact" {
 			if parsed.RecordKey == "activity/reset" {
@@ -156,7 +199,7 @@ func (s *Service) PushSync(
 					})
 					continue
 				}
-				result, err := s.pushOneActivityReset(ctx, auth, parsed, now)
+				result, err := s.pushOneActivityReset(ctx, auth, parsed, attachmentID, now)
 				if err != nil {
 					return response, err
 				}
@@ -178,6 +221,7 @@ func (s *Service) PushSync(
 				auth,
 				parsed,
 				fact,
+				attachmentID,
 				now)
 			if err != nil {
 				return response, err
@@ -190,6 +234,7 @@ func (s *Service) PushSync(
 			ctx,
 			auth,
 			parsed,
+			attachmentID,
 			now)
 		if err != nil {
 			return response, err
@@ -204,6 +249,7 @@ func (s *Service) pushOneSyncMutation(
 	ctx context.Context,
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
+	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
 	tx, err := s.pool.Begin(ctx)
@@ -263,6 +309,10 @@ func (s *Service) pushOneSyncMutation(
 			return SyncPushResult{}, fmt.Errorf("encrypt sync payload: %w", err)
 		}
 	}
+	var attachmentParam any
+	if attachmentID != "" {
+		attachmentParam = attachmentID
+	}
 
 	var serverSeq int64
 	err = tx.QueryRow(ctx, syncJournalInsertQuery,
@@ -276,6 +326,7 @@ func (s *Service) pushOneSyncMutation(
 		int64(parsed.HLCCounter),
 		parsed.Operation,
 		ciphertext,
+		attachmentParam,
 		now).Scan(&serverSeq)
 
 	if err == pgx.ErrNoRows {
@@ -312,6 +363,9 @@ func (s *Service) pushOneSyncMutation(
 	}
 	if err != nil {
 		return SyncPushResult{}, fmt.Errorf("insert sync journal: %w", err)
+	}
+	if err := markAttachmentUploadedTx(ctx, tx, auth.Account.ID, attachmentID, now); err != nil {
+		return SyncPushResult{}, err
 	}
 
 	recordLockKey :=
@@ -720,6 +774,7 @@ func (s *Service) PullSync(
 		var serverSeq int64
 		var counter int64
 		var materializedCounter int64
+		var attachmentID string
 		if err := rows.Scan(
 			&serverSeq,
 			&stored.MutationID,
@@ -735,6 +790,7 @@ func (s *Service) PullSync(
 			&stored.MaterializedHLCPhysicalMS,
 			&materializedCounter,
 			&stored.MaterializedDeviceID,
+			&attachmentID,
 			&stored.Won,
 			&stored.ReceivedAt); err != nil {
 			return response, fmt.Errorf("scan sync journal: %w", err)
@@ -757,6 +813,7 @@ func (s *Service) PullSync(
 		stored.HLCCounter = uint64(counter)
 		stored.MaterializedHLCCounter = uint64(materializedCounter)
 		stored.MaterializedHLCValid = true
+		stored.AttachmentID = attachmentID
 
 		if len(response.Entries) == syncPullPageSize {
 			response.HasMore = true

@@ -135,6 +135,9 @@ public:
     void setSyncObservation(SyncState state, int pendingOutboxCount);
     void setDeletionPending(const QDateTime &effectiveAt);
     void clearDeletionPending();
+    bool finalizeDeletedAccount(
+        const QString &accountId,
+        QString *error = nullptr);
 
     Q_INVOKABLE void restoreRememberedSession();
     Q_INVOKABLE void continueWithoutAccount();

@@ -48,6 +48,41 @@ public:
     void retryRejectedMutations();
     void beginSignOutFlush();
 
+    // Attachment execution mode: entered explicitly after an ordinary
+    // start(), bound to one lowercase-UUID attachment id, and exited
+    // explicitly. While active, pushes carry the envelope attachment id
+    // and the engine bootstraps through the stable snapshot before
+    // ordinary pull and push resume.
+    bool beginAttachmentMode(
+        const QString &attachmentId,
+        QString *error = nullptr);
+
+    bool endAttachmentMode(
+        QString *error = nullptr);
+
+    bool attachmentModeActive() const;
+    bool attachmentSnapshotComplete() const;
+    QString attachmentId() const;
+
+    // Returns the exact durable outbox identities that an attachment may
+    // bind. The coordinator receives hashes alongside each mutation so its
+    // receipt is a complete replay manifest without reaching into engine
+    // storage.
+    QList<SyncWireAttachmentManifestItem> attachmentManifest(
+        QString *error = nullptr) const;
+    QList<SyncWireAttachmentManifestItem> attachmentManifest(
+        const QSet<QString> &excludedMutationIds,
+        QString *error = nullptr) const;
+
+    // Durably appends exact, caller-supplied attachment manifest items. An
+    // existing identical mutation id is idempotent; a reused id with changed
+    // content fails closed. The returned ids are accepted only after the
+    // state writer has flushed the new outbox.
+    bool enqueueAttachmentMutations(
+        const QList<SyncWireAttachmentManifestItem> &items,
+        QStringList *acceptedMutationIds = nullptr,
+        QString *error = nullptr);
+
     void setAutomaticSchedulingEnabled(
         bool enabled);
 
@@ -64,6 +99,7 @@ public:
     State state() const;
     QString stateName() const;
     int pendingOutboxCount() const;
+    int pendingAttachmentOutboxCount() const;
     quint64 cursor() const;
     bool active() const;
     QString lastErrorCode() const;
@@ -91,7 +127,8 @@ private:
     enum class NetworkPhase {
         None,
         Pull,
-        Push
+        Push,
+        Snapshot
     };
 
     struct RequestContext {
@@ -157,6 +194,9 @@ private:
     void maybeRunNetwork();
     void beginPull();
     void beginPush();
+    void beginSnapshot();
+
+    bool attachmentSnapshotPending() const;
 
     bool processPullReply(
         const AccountTransportReply &reply,
@@ -191,6 +231,11 @@ private:
     void beginOwnerRedoRecovery();
     void finishStartAfterOwnerRedo();
     void continueQuarantineReplay();
+
+    bool processSnapshotReply(
+        const AccountTransportReply &reply,
+        QString *errorCode,
+        QString *errorMessage);
 
     bool processPushReply(
         const AccountTransportReply &reply,

@@ -3,6 +3,7 @@
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
 #include "AccountTransport.h"
+#include "SyncProtocol.h"
 
 #include <QByteArray>
 #include <QHash>
@@ -35,7 +36,14 @@ enum class AccountOperation {
     ListApprovals,
     DecideApproval,
     SyncPush,
-    SyncPull
+    SyncPull,
+    BeginProfileAttachment,
+    GetProfileAttachment,
+    CommitProfileAttachment,
+    SyncSnapshot,
+    AccountExport,
+    AccountDelete,
+    AccountDeletionRetry
 };
 
 Q_DECLARE_METATYPE(AccountOperation)
@@ -114,10 +122,42 @@ public:
         bool approve);
 
     quint64 pushSync(
-        const QJsonArray &mutations);
+        const QJsonArray &mutations,
+        const QString &attachmentId = QString());
 
     quint64 pullSync(
         quint64 afterServerSeq);
+
+    quint64 beginProfileAttachment(
+        const QString &attachmentId,
+        const QString &sourceKind,
+        const QString &sourceProfileId,
+        const QString &sourceSemanticDigest,
+        const QString &sourceActivityDigest,
+        const QString &manifestDigest,
+        const QList<SyncWireAttachmentManifestItem> &manifest);
+
+    quint64 getProfileAttachment(
+        const QString &attachmentId);
+
+    quint64 commitProfileAttachment(
+        const QString &attachmentId);
+
+    quint64 pullSyncSnapshot(
+        const QString &nextPageToken = QString());
+
+    quint64 pullAccountExport(
+        const QString &cursor,
+        int limit = 100);
+
+    quint64 deleteAccount(
+        const QString &requestId,
+        const QByteArray &retryCapability,
+        const QString &currentPassword);
+
+    quint64 retryAccountDeletion(
+        const QString &requestId,
+        const QByteArray &retryCapability);
 
 signals:
     void completed(

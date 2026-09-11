@@ -29,8 +29,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUrl>
 
 #include <functional>
 #include <memory>
@@ -121,6 +123,10 @@ public:
         return m_journal.size();
     }
 
+    int attachmentCount() const {
+        return m_attachments.size();
+    }
+
     int firstEvent(const QString &prefix) const {
         for (int index = 0;
              index < events.size();
@@ -145,6 +151,32 @@ public:
         int failures) {
         m_snapshotFailAfterServed = servedPages;
         m_snapshotNetworkFailures = failures;
+    }
+
+    void setFreshExportPages(
+        const QList<SyncWireExportPage> &pages) {
+        m_freshExportPages = pages;
+        m_freshExportServed = 0;
+    }
+
+    void setCommitFreshExport(
+        const QString &snapshotId,
+        const QString &cursor,
+        quint64 highWaterServerSeq,
+        bool sourceAbsorbed) {
+        m_commitFreshExportSnapshotId = snapshotId;
+        m_commitFreshExportCursor = cursor;
+        m_commitFreshExportHighWaterSeq = highWaterServerSeq;
+        m_commitFreshExportConfigured = true;
+        m_freshExportSourceAbsorbed = sourceAbsorbed;
+    }
+
+    bool freshExportSourceAbsorbed() const {
+        return m_freshExportSourceAbsorbed;
+    }
+
+    const QJsonObject &lastCommitResponse() const {
+        return m_lastCommitResponse;
     }
 
     AccountTransportReply begin(
@@ -235,9 +267,26 @@ public:
         existing->state =
             QStringLiteral(
                 "committed");
-        return attachmentView(
+        AccountTransportReply reply = attachmentView(
             attachmentId,
             existing->state);
+        if (m_commitFreshExportConfigured) {
+            reply.body.insert(
+                QStringLiteral(
+                    "fresh_export_snapshot_id"),
+                m_commitFreshExportSnapshotId);
+            reply.body.insert(
+                QStringLiteral(
+                    "fresh_export_cursor"),
+                m_commitFreshExportCursor);
+            reply.body.insert(
+                QStringLiteral(
+                    "fresh_export_high_water_server_seq"),
+                QString::number(
+                    m_commitFreshExportHighWaterSeq));
+        }
+        m_lastCommitResponse = reply.body;
+        return reply;
     }
 
     AccountTransportReply push(
@@ -409,6 +458,45 @@ public:
         return reply;
     }
 
+    AccountTransportReply exportPage(
+        const QString &cursor) {
+        events << QStringLiteral("export:") + cursor;
+        if (m_freshExportServed >= m_freshExportPages.size())
+            return apiError(
+                400,
+                QStringLiteral("fixture_export_exhausted"),
+                QStringLiteral("fixture export pages exhausted"));
+
+        const SyncWireExportPage &page =
+            m_freshExportPages.at(m_freshExportServed++);
+        if (page.cursor != cursor)
+            return apiError(
+                400,
+                QStringLiteral("fixture_export_cursor_mismatch"),
+                QStringLiteral("fixture export cursor mismatch"));
+
+        AccountTransportReply reply;
+        reply.statusCode = 200;
+        reply.body.insert(QStringLiteral("format"), page.format);
+        reply.body.insert(
+            QStringLiteral("schema_version"),
+            page.schemaVersion);
+        reply.body.insert(
+            QStringLiteral("snapshot_id"),
+            page.snapshotId);
+        reply.body.insert(QStringLiteral("cursor"), page.cursor);
+        reply.body.insert(
+            QStringLiteral("high_water_server_seq"),
+            QString::number(page.highWaterServerSeq));
+        reply.body.insert(QStringLiteral("items"), page.items);
+        reply.body.insert(QStringLiteral("has_more"), page.hasMore);
+        if (!page.nextCursor.isEmpty())
+            reply.body.insert(
+                QStringLiteral("next_cursor"),
+                page.nextCursor);
+        return reply;
+    }
+
     AccountTransportReply pull(
         quint64 after) const {
         AccountTransportReply reply;
@@ -573,6 +661,14 @@ private:
     int m_snapshotNetworkFailures = 0;
     int m_snapshotFailAfterServed = 0;
     QStringList m_pushAttachmentIds;
+    QList<SyncWireExportPage> m_freshExportPages;
+    int m_freshExportServed = 0;
+    bool m_commitFreshExportConfigured = false;
+    QString m_commitFreshExportSnapshotId;
+    QString m_commitFreshExportCursor;
+    quint64 m_commitFreshExportHighWaterSeq = 0;
+    bool m_freshExportSourceAbsorbed = false;
+    QJsonObject m_lastCommitResponse;
 
     static AccountTransportReply apiError(
         int statusCode,
@@ -844,6 +940,25 @@ public:
                 return;
             }
             emit finished(requestId, pushReply);
+            return;
+        }
+
+        const QString exportPath =
+            QStringLiteral("/v1/account/export");
+        if (request.method
+                == QByteArrayLiteral("GET")
+            && request.path.startsWith(exportPath
+                                       + QStringLiteral("?cursor="))) {
+            QString encodedCursor = request.path.mid(
+                (exportPath + QStringLiteral("?cursor=")).size());
+            const int queryEnd = encodedCursor.indexOf(QChar('&'));
+            if (queryEnd >= 0)
+                encodedCursor.truncate(queryEnd);
+            emit finished(
+                requestId,
+                m_service->exportPage(
+                    QUrl::fromPercentEncoding(
+                        encodedCursor.toLatin1())));
             return;
         }
 
@@ -1382,11 +1497,16 @@ private slots:
     void invalidReceiptFailsClosedUntouched();
     void mismatchedIdentityFailsClosed();
     void retirementWriteFailureKeepsReceiptAndSource();
+    void retirementClearResponseLossWithHistoricalActivityDigestResumesFromStarted();
 
     // Arc 36 Wave 4B lane N-18 — fresh-stack crash/restart proofs at the
     // durable receipt, begin, attached-upload, and cloud-verification edges.
     void crashRestartMatrixUsesDurableReceiptAndEngineState();
     void abandonedAttachmentKeepsSourceAndAccountUnchanged();
+    void exactManifestIsDurableBeforeAttachedEnqueue();
+    void exactManifestExcludesPreexistingAccountOutbox();
+    void largeContributionUsesBoundedAttachmentChunks();
+    void commitFreshExportMismatchRefusesRetirement();
 };
 
 // Input validation refuses before any durable or server side effect.
@@ -2229,6 +2349,12 @@ void tst_account_attachment_coordinator::
                 QStringLiteral(
                     "commit")),
             1);
+        const int snapshot =
+            service.firstEvent(QStringLiteral("snapshot:"));
+        const int commit =
+            service.firstEvent(QStringLiteral("commit"));
+        QVERIFY(snapshot >= 0);
+        QVERIFY(commit > snapshot);
         QVERIFY(adapter.contains(
             QStringLiteral(
                 "manga/cloud")));
@@ -3201,6 +3327,133 @@ void tst_account_attachment_coordinator::
             ReadStatus::Missing);
 }
 
+// A response loss after the exact source was cleared can leave only the
+// durable retirement_started receipt.  A fresh coordinator must treat the
+// already-empty source as the successful recovery case and finish the
+// receipt transition without clearing any other profile state.
+void tst_account_attachment_coordinator::
+    retirementClearResponseLossWithHistoricalActivityDigestResumesFromStarted() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureAttachmentService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+
+    FixtureSnapshotPage page;
+    page.cursor = 0;
+    page.hasMore = false;
+    service.setSnapshotPages({page});
+
+    bool sourcePresent = true;
+    bool historicalActivityDigestObserved = false;
+    std::unique_ptr<QFile> receiptLock;
+
+    {
+        SyntheticAdapter adapter;
+        EngineRun run(&service, &adapter, profile, &now);
+        adapter.putLocal(
+            QStringLiteral("manga/source"),
+            QStringLiteral("source"));
+        QTRY_COMPARE(run.engine.pendingOutboxCount(), 1);
+
+        AccountAttachmentCoordinator coordinator(
+            &run.client,
+            &run.engine,
+            profile);
+        Recording recording;
+        recordProgress(&coordinator, &recording);
+        coordinator.setCloudStateVerifier(
+            [](QString *) { return true; });
+        coordinator.setSourceLifecycle(
+            [&](const AccountAttachmentReceiptData &receipt, QString *) {
+                historicalActivityDigestObserved =
+                    !receipt.sourceActivityDigest.isEmpty();
+                return sourcePresent
+                    ? AccountAttachmentCoordinator::SourceState::Matching
+                    : AccountAttachmentCoordinator::SourceState::Empty;
+            },
+            [&](const AccountAttachmentReceiptData &, QString *error) {
+                sourcePresent = false;
+                receiptLock = std::make_unique<QFile>(
+                    profile.cloudAttachmentReceiptPath());
+                if (!receiptLock->open(QIODevice::ReadOnly)) {
+                    if (error)
+                        *error = QStringLiteral(
+                            "The receipt lock could not be acquired after source clear.");
+                    return false;
+                }
+                return true;
+            });
+
+        QString error;
+        QVERIFY2(
+            coordinator.start(
+                QString::fromLatin1(kAttachmentId),
+                validSource(),
+                &error),
+            qPrintable(error));
+        run.engine.setNetworkEnabled(true);
+        QTRY_COMPARE(recording.finishedCount, 1);
+
+        QVERIFY(!recording.succeeded);
+        QCOMPARE(
+            recording.errorCode,
+            QStringLiteral("receipt_retire_failed"));
+        QVERIFY(!sourcePresent);
+        QVERIFY(historicalActivityDigestObserved);
+        const AccountAttachmentReceipt::ReadResult pending =
+            AccountAttachmentReceipt::read(profile);
+        QCOMPARE(
+            pending.status,
+            AccountAttachmentReceipt::ReadStatus::Ok);
+        QCOMPARE(
+            pending.data.retirementPhase,
+            AccountAttachmentReceipt::retirementPhaseStarted());
+        QVERIFY(!pending.data.sourceRetired);
+    }
+
+    receiptLock.reset();
+
+    {
+        SyntheticAdapter adapter;
+        EngineRun run(&service, &adapter, profile, &now);
+        AccountAttachmentCoordinator recovered(
+            &run.client,
+            &run.engine,
+            profile);
+        Recording recording;
+        recordProgress(&recovered, &recording);
+        recovered.setCloudStateVerifier(
+            [](QString *) { return true; });
+        recovered.setSourceLifecycle(
+            [&](const AccountAttachmentReceiptData &, QString *) {
+                return sourcePresent
+                    ? AccountAttachmentCoordinator::SourceState::Matching
+                    : AccountAttachmentCoordinator::SourceState::Empty;
+            },
+            [](const AccountAttachmentReceiptData &, QString *) {
+                return true;
+            });
+
+        QString error;
+        QVERIFY2(
+            recovered.resumePending(&error),
+            qPrintable(error));
+        run.engine.setNetworkEnabled(true);
+        QTRY_COMPARE(recording.finishedCount, 1);
+        QVERIFY(recording.succeeded);
+        QVERIFY(!sourcePresent);
+        QCOMPARE(
+            AccountAttachmentReceipt::read(profile).status,
+            AccountAttachmentReceipt::ReadStatus::Missing);
+        QCOMPARE(
+            service.attachmentState(
+                QString::fromLatin1(kAttachmentId)),
+            QStringLiteral("committed"));
+    }
+}
+
 // Every client-visible crash edge below is followed by a fresh transport,
 // client, engine, coordinator, and persistent synthetic local store. The
 // fixture service is the durable server side; the receipt and SyncStateStore
@@ -3695,6 +3948,336 @@ void tst_account_attachment_coordinator::
         AccountAttachmentReceipt::read(profile)
             .status,
         AccountAttachmentReceipt::ReadStatus::Ok);
+}
+
+// The first F03 proof seam: capture the exact pending mutation identity,
+// persist it in the receipt, then enqueue that same identity through the
+// public engine attachment API. The server-facing coordinator must never
+// regenerate a mutation id after this point.
+void tst_account_attachment_coordinator::
+    exactManifestIsDurableBeforeAttachedEnqueue() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureAttachmentService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+    SyntheticAdapter adapter;
+    EngineRun run(&service, &adapter, profile, &now);
+
+    const SyncWireMutation source = remoteMutation(
+        QStringLiteral("33333333-3333-4333-8333-333333333333"),
+        QStringLiteral("collection"),
+        QStringLiteral("manga/source"),
+        QString::fromLatin1(kDeviceA),
+        1000,
+        1,
+        SyncWireOperation::Put,
+        QJsonObject{{QStringLiteral("value"), QStringLiteral("source")}});
+
+    QString error;
+    QVERIFY2(run.engine.beginAttachmentMode(
+                 QString::fromLatin1(kAttachmentId), &error),
+             qPrintable(error));
+    const QList<SyncWireAttachmentManifestItem> seed{
+        SyncWireAttachmentManifestItem{source, {}}};
+    QStringList seeded;
+    QVERIFY2(run.engine.enqueueAttachmentMutations(
+                 seed, &seeded, &error),
+             qPrintable(error));
+    QCOMPARE(seeded, QStringList{source.mutationId});
+
+    const QList<SyncWireAttachmentManifestItem> manifest =
+        run.engine.attachmentManifest(&error);
+    QCOMPARE(manifest.size(), 1);
+    QCOMPARE(manifest.first().mutation.mutationId, source.mutationId);
+
+    AccountAttachmentReceiptData receipt;
+    receipt.attachmentId = QString::fromLatin1(kAttachmentId);
+    receipt.sourceKind = QStringLiteral("legacy_local");
+    receipt.sourceProfileId = QStringLiteral("legacy");
+    receipt.sourceSemanticDigest = QStringLiteral("sha256:source");
+    receipt.manifest.append(manifest.first());
+    receipt.manifestDigest.clear();
+    QVERIFY2(AccountAttachmentReceipt::save(profile, receipt, &error),
+             qPrintable(error));
+    const auto persisted = AccountAttachmentReceipt::read(profile);
+    QCOMPARE(persisted.status, AccountAttachmentReceipt::ReadStatus::Ok);
+    QCOMPARE(persisted.data.manifest.size(), 1);
+
+    QStringList accepted;
+    QVERIFY2(run.engine.enqueueAttachmentMutations(
+                 persisted.data.manifest, &accepted, &error),
+             qPrintable(error));
+    QCOMPARE(accepted, QStringList{source.mutationId});
+}
+
+void tst_account_attachment_coordinator::
+    exactManifestExcludesPreexistingAccountOutbox() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureAttachmentService service;
+    FixtureSnapshotPage snapshot;
+    snapshot.cursor = 0;
+    service.setSnapshotPages({snapshot});
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+    SyntheticAdapter adapter;
+    EngineRun run(&service, &adapter, profile, &now);
+
+    adapter.putLocal(
+        QStringLiteral("manga/account-pending"),
+        QStringLiteral("account"));
+    QTRY_COMPARE(run.engine.pendingOutboxCount(), 1);
+    QString error;
+    const auto beforeMerge = run.engine.attachmentManifest(&error);
+    QCOMPARE(beforeMerge.size(), 1);
+    const QString preexistingId = beforeMerge.first().mutation.mutationId;
+
+    adapter.putLocal(
+        QStringLiteral("manga/imported-source"),
+        QStringLiteral("source"));
+    QTRY_COMPARE(run.engine.pendingOutboxCount(), 2);
+    const QSet<QString> excluded{preexistingId};
+    const auto contribution =
+        run.engine.attachmentManifest(excluded, &error);
+    QCOMPARE(contribution.size(), 1);
+    QCOMPARE(contribution.first().mutation.recordKey,
+             QStringLiteral("manga/imported-source"));
+
+    const auto begun = service.begin(
+        QString::fromLatin1(kAttachmentId),
+        QStringLiteral("legacy_local"),
+        QStringLiteral("sha256:source-semantic-v1"));
+    QCOMPARE(begun.statusCode, 200);
+    QVERIFY2(run.engine.beginAttachmentMode(
+                 QString::fromLatin1(kAttachmentId), &error),
+             qPrintable(error));
+    QStringList accepted;
+    QVERIFY2(run.engine.enqueueAttachmentMutations(
+                 contribution, &accepted, &error),
+             qPrintable(error));
+    QCOMPARE(accepted.size(), 1);
+
+    run.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(run.engine.pendingAttachmentOutboxCount(), 0);
+    QCOMPARE(run.engine.pendingOutboxCount(), 1);
+    QCOMPARE(service.pushAttachmentIds().size(), 1);
+    QCOMPARE(service.pushAttachmentIds().at(0),
+             QString::fromLatin1(kAttachmentId));
+}
+
+void tst_account_attachment_coordinator::
+    largeContributionUsesBoundedAttachmentChunks() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureAttachmentService service;
+    FixtureSnapshotPage snapshot;
+    snapshot.cursor = 0;
+    service.setSnapshotPages({snapshot, snapshot});
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+    SyntheticAdapter adapter;
+    EngineRun run(&service, &adapter, profile, &now);
+
+    for (int index = 0; index < 101; ++index) {
+        adapter.putLocal(
+            QStringLiteral("manga/source-%1").arg(index, 3, 10, QLatin1Char('0')),
+            QStringLiteral("value-%1").arg(index));
+    }
+    QTRY_COMPARE(run.engine.pendingOutboxCount(), 101);
+
+    AccountAttachmentCoordinator coordinator(
+        &run.client, &run.engine, profile);
+    Recording recording;
+    recordProgress(&coordinator, &recording);
+    coordinator.setCloudStateVerifier([](QString *) { return true; });
+
+    QString error;
+    QVERIFY2(coordinator.start(QString::fromLatin1(kAttachmentId),
+                               validSource(), &error),
+             qPrintable(error));
+    run.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE_WITH_TIMEOUT(recording.finishedCount, 1, 30000);
+    QVERIFY(recording.succeeded);
+    QCOMPARE(run.engine.pendingOutboxCount(), 0);
+    QCOMPARE(service.acceptedMutationCount(), 101);
+    QCOMPARE(service.attachmentCount(), 2);
+    QCOMPARE(service.eventCount(QStringLiteral("begin")), 2);
+    QCOMPARE(service.eventCount(QStringLiteral("commit")), 2);
+    QVERIFY(service.pushAttachmentIds().size() >= 2);
+    for (const QString &attachmentId : service.pushAttachmentIds())
+        QVERIFY(!attachmentId.isEmpty());
+    QVERIFY(service.pushAttachmentIds().contains(QString::fromLatin1(kAttachmentId)));
+    QCOMPARE(AccountAttachmentReceipt::read(profile).status,
+             AccountAttachmentReceipt::ReadStatus::Missing);
+}
+
+// A commit seals a forced-fresh canonical export. A concurrent record is
+// allowed in that export, but a source contribution that is not semantically
+// absorbed must keep the source and receipt alive for retry.
+void tst_account_attachment_coordinator::
+    commitFreshExportMismatchRefusesRetirement() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureAttachmentService service;
+    qint64 now = service.serverTimeMs;
+    SyntheticAdapter adapter;
+    const ProfilePaths profile = accountProfile(&temp);
+
+    FixtureSnapshotPage page;
+    page.cursor = 1;
+    page.hasMore = false;
+    page.entries.append(
+        canonicalSnapshotEntry(
+            1,
+            remoteMutation(
+                QStringLiteral(
+                    "f5100000-0000-4000-8000-000000000020"),
+                QStringLiteral("collection"),
+                QStringLiteral("manga/concurrent"),
+                QString::fromLatin1(kDeviceB),
+                now,
+                0,
+                SyncWireOperation::Put,
+                QJsonObject{
+                    {QStringLiteral("value"),
+                     QStringLiteral("other-device")}})));
+    service.setSnapshotPages({page});
+    service.setCommitFreshExport(
+        QStringLiteral("f5100000-0000-4000-8000-000000000021"),
+        QStringLiteral("sealed-export-cursor-v1"),
+        17,
+        false);
+    SyncWireExportPage freshExport;
+    freshExport.format = QStringLiteral("colosseum.account.export");
+    freshExport.schemaVersion = 1;
+    freshExport.snapshotId =
+        QStringLiteral("f5100000-0000-4000-8000-000000000021");
+    freshExport.cursor = QStringLiteral("sealed-export-cursor-v1");
+    freshExport.highWaterServerSeq = 17;
+    freshExport.items = QJsonArray{
+        QJsonObject{
+            {QStringLiteral("kind"), QStringLiteral("sync_record")},
+            {QStringLiteral("category"), QStringLiteral("collection")},
+            {QStringLiteral("key"), QStringLiteral("manga/concurrent")},
+            {QStringLiteral("payload"),
+             QJsonObject{
+                 {QStringLiteral("value"),
+                  QStringLiteral("other-device")}}}}};
+    service.setFreshExportPages({freshExport});
+
+    EngineRun run(&service, &adapter, profile, &now);
+    adapter.putLocal(
+        QStringLiteral("manga/source"),
+        QStringLiteral("source"));
+    QTRY_COMPARE(run.engine.pendingOutboxCount(), 1);
+
+    AccountAttachmentCoordinator coordinator(
+        &run.client,
+        &run.engine,
+        profile);
+    Recording recording;
+    recordProgress(&coordinator, &recording);
+
+    int verifierCalls = 0;
+    bool verifierSawConcurrentRecord = false;
+    coordinator.setCloudStateVerifier(
+        [&](QString *error) {
+            ++verifierCalls;
+            verifierSawConcurrentRecord =
+                adapter.contains(QStringLiteral("manga/source"))
+                && adapter.contains(QStringLiteral("manga/concurrent"));
+            if (!verifierSawConcurrentRecord) {
+                if (error)
+                    *error = QStringLiteral(
+                        "The concurrent canonical record was not materialized.");
+                return false;
+            }
+
+            // The first call is the legacy pre-commit check. The required
+            // fresh-export check must run after commit and reject this
+            // deliberately non-absorbing export.
+            if (service.eventCount(QStringLiteral("commit")) > 0
+                && !service.freshExportSourceAbsorbed()) {
+                if (error)
+                    *error = QStringLiteral(
+                        "The fresh canonical export does not absorb the source.");
+                return false;
+            }
+            return true;
+        });
+    bool canonicalVerifierCalled = false;
+    bool canonicalVerifierSawConcurrentRecord = false;
+    bool canonicalVerifierSawSource = false;
+    coordinator.setCanonicalExportVerifier(
+        [&](const QList<SyncWireExportPage> &pages,
+            QString *error) {
+            canonicalVerifierCalled = true;
+            for (const SyncWireExportPage &page : pages) {
+                for (const QJsonValue &value : page.items) {
+                    if (!value.isObject())
+                        continue;
+                    const QJsonObject item = value.toObject();
+                    const QString key = item.value(
+                        QStringLiteral("key")).toString();
+                    canonicalVerifierSawConcurrentRecord |=
+                        key == QStringLiteral("manga/concurrent");
+                    canonicalVerifierSawSource |=
+                        key == QStringLiteral("manga/source");
+                }
+            }
+            if (!canonicalVerifierSawSource && error)
+                *error = QStringLiteral(
+                    "The fresh canonical export does not absorb the source.");
+            return canonicalVerifierSawSource;
+        });
+
+    QString error;
+    QVERIFY2(
+        coordinator.start(
+            QString::fromLatin1(kAttachmentId),
+            validSource(),
+            &error),
+        qPrintable(error));
+    run.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(recording.finishedCount, 1);
+
+    QVERIFY(!recording.succeeded);
+    QCOMPARE(
+        recording.errorCode,
+        QStringLiteral("cloud_state_verification_failed"));
+    QCOMPARE(verifierCalls, 1);
+    QVERIFY(verifierSawConcurrentRecord);
+    QVERIFY(canonicalVerifierCalled);
+    QVERIFY(canonicalVerifierSawConcurrentRecord);
+    QVERIFY(!canonicalVerifierSawSource);
+    QCOMPARE(service.eventCount(QStringLiteral("export:")), 1);
+    QCOMPARE(service.eventCount(QStringLiteral("commit")), 1);
+
+    const auto commitResponse =
+        syncWireAttachmentResponseFromJson(
+            service.lastCommitResponse());
+    QVERIFY(commitResponse.has_value());
+    QCOMPARE(
+        commitResponse->freshExportSnapshotId,
+        QStringLiteral("f5100000-0000-4000-8000-000000000021"));
+    QCOMPARE(
+        commitResponse->freshExportCursor,
+        QStringLiteral("sealed-export-cursor-v1"));
+    QCOMPARE(commitResponse->freshExportHighWaterSeq, quint64(17));
+
+    const AccountAttachmentReceipt::ReadResult pending =
+        AccountAttachmentReceipt::read(profile);
+    QCOMPARE(
+        pending.status,
+        AccountAttachmentReceipt::ReadStatus::Ok);
+    QVERIFY(!pending.data.sourceRetired);
+    QVERIFY(adapter.contains(QStringLiteral("manga/source")));
 }
 
 QTEST_GUILESS_MAIN(

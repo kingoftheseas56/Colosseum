@@ -17,6 +17,7 @@
 namespace {
 constexpr auto kActiveTarget = "Brotherhood.Colosseum.Account.Active.v1";
 constexpr auto kPendingPrefix = "Brotherhood.Colosseum.Account.PendingRevoke.v1.";
+constexpr auto kDeletionPrefix = "Brotherhood.Colosseum.Account.PendingDeletion.v1.";
 
 // Isolated Lanista/test instances re-root every AppData store under
 // COLOSSEUM_APPDATA_TAG (main.cpp, ProgressStore/CollectionStore/
@@ -126,6 +127,79 @@ bool WindowsAccountCredentialStore::removePendingRevocation(const QByteArray &re
     return deleteGenericCredential(pendingTargetName(refreshToken));
 }
 
+QList<StoredAccountDeletion> WindowsAccountCredentialStore::pendingDeletions() const {
+    QList<StoredAccountDeletion> deletions;
+    for (const QString &target : enumerateTargets(deletionTargetPrefix())) {
+        const auto blob = readGenericCredential(target);
+        if (!blob.has_value())
+            continue;
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(*blob, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject())
+            continue;
+        const QJsonObject object = document.object();
+        StoredAccountDeletion deletion;
+        deletion.accountId = object.value(QStringLiteral("account_id")).toString();
+        deletion.requestId = object.value(QStringLiteral("request_id")).toString();
+        deletion.retryCapability = QByteArray::fromBase64(
+            object.value(QStringLiteral("retry_capability")).toString().toLatin1(),
+            QByteArray::Base64UrlEncoding);
+        const QUuid accountId(deletion.accountId);
+        const QUuid requestId(deletion.requestId);
+        if (object.value(QStringLiteral("version")).toInt() != 1
+            || accountId.isNull() || requestId.isNull()
+            || deletion.retryCapability.size() != 32)
+            continue;
+        deletion.accountId = accountId.toString(QUuid::WithoutBraces).toLower();
+        deletion.requestId = requestId.toString(QUuid::WithoutBraces).toLower();
+        if (target != deletionTargetName(deletion.requestId))
+            continue;
+        deletions.append(deletion);
+    }
+    return deletions;
+}
+
+bool WindowsAccountCredentialStore::savePendingDeletion(
+    const StoredAccountDeletion &deletion) {
+    const QUuid accountId(deletion.accountId);
+    const QUuid requestId(deletion.requestId);
+    if (accountId.isNull() || requestId.isNull()
+        || deletion.retryCapability.size() != 32)
+        return false;
+    const QString normalizedAccount = accountId.toString(QUuid::WithoutBraces).toLower();
+    const QString normalizedRequest = requestId.toString(QUuid::WithoutBraces).toLower();
+    const QString target = deletionTargetName(normalizedRequest);
+    if (const auto existing = readGenericCredential(target); existing.has_value()) {
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(*existing, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject())
+            return false;
+        const QJsonObject object = document.object();
+        return object.value(QStringLiteral("account_id")).toString() == normalizedAccount
+            && object.value(QStringLiteral("request_id")).toString() == normalizedRequest
+            && QByteArray::fromBase64(
+                   object.value(QStringLiteral("retry_capability")).toString().toLatin1(),
+                   QByteArray::Base64UrlEncoding) == deletion.retryCapability;
+    }
+    QJsonObject object;
+    object.insert(QStringLiteral("version"), 1);
+    object.insert(QStringLiteral("account_id"), normalizedAccount);
+    object.insert(QStringLiteral("request_id"), normalizedRequest);
+    object.insert(QStringLiteral("retry_capability"), QString::fromLatin1(
+        deletion.retryCapability.toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
+    return writeGenericCredential(
+        target, QJsonDocument(object).toJson(QJsonDocument::Compact));
+}
+
+bool WindowsAccountCredentialStore::removePendingDeletion(const QString &requestId) {
+    const QUuid parsed(requestId);
+    if (parsed.isNull())
+        return false;
+    return deleteGenericCredential(deletionTargetName(
+        parsed.toString(QUuid::WithoutBraces).toLower()));
+}
+
 QString WindowsAccountCredentialStore::activeTargetName() {
     const QString taggedKey = taggedTargetKey();
     if (taggedKey.isEmpty())
@@ -143,6 +217,14 @@ QString WindowsAccountCredentialStore::pendingTargetPrefix() {
         + QStringLiteral("Tagged.")
         + taggedKey
         + QLatin1Char('.');
+}
+
+QString WindowsAccountCredentialStore::deletionTargetPrefix() {
+    const QString taggedKey = taggedTargetKey();
+    if (taggedKey.isEmpty())
+        return QString::fromLatin1(kDeletionPrefix);
+    return QString::fromLatin1(kDeletionPrefix)
+        + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.');
 }
 
 QByteArray WindowsAccountCredentialStore::encodeCredential(
@@ -190,6 +272,10 @@ QString WindowsAccountCredentialStore::pendingTargetName(const QByteArray &refre
     return windows_account_credential_store_detail::pendingTargetName(
         pendingTargetPrefix(),
         refreshToken);
+}
+
+QString WindowsAccountCredentialStore::deletionTargetName(const QString &requestId) {
+    return deletionTargetPrefix() + requestId;
 }
 
 bool WindowsAccountCredentialStore::writeGenericCredential(

@@ -218,6 +218,28 @@ func (s *Service) createExportSnapshot(
 	if err := lockAccountSyncTx(ctx, tx, auth.Account.ID); err != nil {
 		return ExportPage{}, err
 	}
+	page, err := s.createExportSnapshotTx(ctx, tx, auth, limit, false)
+	if err != nil {
+		return ExportPage{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return ExportPage{}, fmt.Errorf("commit export snapshot: %w", err)
+	}
+	return page, nil
+}
+
+// createExportSnapshotTx is the transaction half of ExportAccount.  When
+// forceFresh is true it deliberately bypasses an active ordinary export so a
+// cloud attachment commit receives a new canonical snapshot and high-water
+// mark from the same account sync lock it uses for attachment validation.
+func (s *Service) createExportSnapshotTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	auth AuthenticatedSession,
+	limit int,
+	forceFresh bool,
+) (ExportPage, error) {
 	metadata, err := loadExportAccountTx(ctx, tx, auth.Account.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ExportPage{}, ErrSessionInvalid
@@ -230,34 +252,27 @@ func (s *Service) createExportSnapshot(
 	}
 
 	createdAt := s.clock.Now().UTC()
-	if snapshot, found, err := loadActiveExportSnapshotTx(
-		ctx, tx, auth.Account.ID, createdAt); err != nil {
-		return ExportPage{}, fmt.Errorf("load active export snapshot: %w", err)
-	} else if found {
-		page, err := readExportPageTx(ctx, tx, s, auth.Account.ID, snapshot, 0, limit)
-		if err != nil {
-			return ExportPage{}, err
+	if !forceFresh {
+		if snapshot, found, err := loadActiveExportSnapshotTx(ctx, tx, auth.Account.ID, createdAt); err != nil {
+			return ExportPage{}, fmt.Errorf("load active export snapshot: %w", err)
+		} else if found {
+			page, err := readExportPageTx(ctx, tx, s, auth.Account.ID, snapshot, 0, limit)
+			if err != nil {
+				return ExportPage{}, err
+			}
+			if err := s.setExportPageCursors(&page, auth.Account.ID, snapshot.ID, 0); err != nil {
+				return ExportPage{}, err
+			}
+			return page, nil
 		}
-		if err := s.setExportPageCursors(&page, auth.Account.ID, snapshot.ID, 0); err != nil {
-			return ExportPage{}, err
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return ExportPage{}, fmt.Errorf("commit active export page: %w", err)
-		}
-		return page, nil
 	}
 
 	expiresAt := createdAt.Add(exportSnapshotLifetime)
 	var snapshotID string
 	if err := tx.QueryRow(ctx, `
         INSERT INTO account_export_snapshots(
-            id,
-            account_id,
-            highwater_server_seq,
-            format_version,
-            created_at,
-            expires_at
-        )
+            id, account_id, highwater_server_seq, format_version,
+            created_at, expires_at)
         VALUES(gen_random_uuid(), $1::uuid, 0, $2, $3, $4)
         RETURNING id::text
     `, auth.Account.ID, exportSchemaVersion, createdAt, expiresAt).Scan(&snapshotID); err != nil {
@@ -274,32 +289,15 @@ func (s *Service) createExportSnapshot(
 	if err != nil {
 		return ExportPage{}, fmt.Errorf("encode export account metadata: %w", err)
 	}
-	metadataPayload, err = canonicalExportItemPayload(
-		"account_metadata",
-		"account_metadata",
-		"profile",
-		metadataPayload,
-		auth.Account.ID)
+	metadataPayload, err = canonicalExportItemPayload("account_metadata", "account_metadata", "profile", metadataPayload, auth.Account.ID)
 	if err != nil {
 		return ExportPage{}, err
 	}
-	metadataCiphertext, err := s.syncCipher.Seal(
-		auth.Account.ID,
-		"account_metadata",
-		"profile",
-		metadataPayload)
+	metadataCiphertext, err := s.syncCipher.Seal(auth.Account.ID, "account_metadata", "profile", metadataPayload)
 	if err != nil {
 		return ExportPage{}, fmt.Errorf("encrypt export account metadata: %w", err)
 	}
-	if err := insertExportItemTx(
-		ctx,
-		tx,
-		snapshotID,
-		0,
-		"account_metadata",
-		"account_metadata",
-		"profile",
-		metadataCiphertext); err != nil {
+	if err := insertExportItemTx(ctx, tx, snapshotID, 0, "account_metadata", "account_metadata", "profile", metadataCiphertext); err != nil {
 		return ExportPage{}, err
 	}
 
@@ -308,22 +306,10 @@ func (s *Service) createExportSnapshot(
 	if materializedBytes > exportMaxSnapshotBytes {
 		return ExportPage{}, ErrExportTooLarge
 	}
-	if err := s.materializeExportSyncItemsTx(
-		ctx,
-		tx,
-		auth.Account.ID,
-		snapshotID,
-		&itemIndex,
-		&materializedBytes); err != nil {
+	if err := s.materializeExportSyncItemsTx(ctx, tx, auth.Account.ID, snapshotID, &itemIndex, &materializedBytes); err != nil {
 		return ExportPage{}, err
 	}
-	if err := s.materializeExportActivityItemsTx(
-		ctx,
-		tx,
-		auth.Account.ID,
-		snapshotID,
-		&itemIndex,
-		&materializedBytes); err != nil {
+	if err := s.materializeExportActivityItemsTx(ctx, tx, auth.Account.ID, snapshotID, &itemIndex, &materializedBytes); err != nil {
 		return ExportPage{}, err
 	}
 
@@ -343,23 +329,12 @@ func (s *Service) createExportSnapshot(
 	if err != nil {
 		return ExportPage{}, fmt.Errorf("reload export snapshot: %w", err)
 	}
-	page, err := readExportPageTx(
-		ctx,
-		tx,
-		s,
-		auth.Account.ID,
-		snapshot,
-		0,
-		limit)
+	page, err := readExportPageTx(ctx, tx, s, auth.Account.ID, snapshot, 0, limit)
 	if err != nil {
 		return ExportPage{}, err
 	}
 	if err := s.setExportPageCursors(&page, auth.Account.ID, snapshot.ID, 0); err != nil {
 		return ExportPage{}, err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return ExportPage{}, fmt.Errorf("commit export snapshot: %w", err)
 	}
 	return page, nil
 }

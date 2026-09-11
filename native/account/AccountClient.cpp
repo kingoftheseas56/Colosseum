@@ -361,11 +361,14 @@ quint64 AccountClient::decideApproval(
 }
 
 quint64 AccountClient::pushSync(
-    const QJsonArray &mutations) {
+    const QJsonArray &mutations,
+    const QString &attachmentId) {
     QJsonObject body;
     body.insert(
         QStringLiteral("mutations"),
         mutations);
+    if (!attachmentId.isEmpty())
+        body.insert(QStringLiteral("attachment_id"), attachmentId);
     return send(
         AccountOperation::SyncPush,
         QByteArrayLiteral("POST"),
@@ -383,6 +386,117 @@ quint64 AccountClient::pullSync(
             + QString::number(afterServerSeq),
         QJsonObject(),
         true);
+}
+
+quint64 AccountClient::beginProfileAttachment(
+    const QString &attachmentId,
+    const QString &sourceKind,
+    const QString &sourceProfileId,
+    const QString &sourceSemanticDigest,
+    const QString &sourceActivityDigest,
+    const QString &manifestDigest,
+    const QList<SyncWireAttachmentManifestItem> &manifest) {
+    QJsonObject body;
+    body.insert(QStringLiteral("attachment_id"), attachmentId);
+    body.insert(QStringLiteral("source_kind"), sourceKind);
+    body.insert(QStringLiteral("source_profile_id"), sourceProfileId);
+    body.insert(QStringLiteral("source_semantic_digest"), sourceSemanticDigest);
+    if (!sourceActivityDigest.isEmpty())
+        body.insert(QStringLiteral("source_activity_digest"), sourceActivityDigest);
+    if (!manifestDigest.isEmpty())
+        body.insert(QStringLiteral("manifest_digest"), manifestDigest);
+    if (!manifest.isEmpty()) {
+        QJsonArray items;
+        for (const SyncWireAttachmentManifestItem &item : manifest)
+            items.append(syncWireMutationToJson(item.mutation));
+        body.insert(QStringLiteral("manifest"), items);
+    }
+    return send(
+        AccountOperation::BeginProfileAttachment,
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/profile/attachments"),
+        body,
+        true);
+}
+
+quint64 AccountClient::getProfileAttachment(
+    const QString &attachmentId) {
+    return send(
+        AccountOperation::GetProfileAttachment,
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/profile/attachments/")
+            + encodedPathSegment(attachmentId),
+        QJsonObject(),
+        true);
+}
+
+quint64 AccountClient::commitProfileAttachment(
+    const QString &attachmentId) {
+    return send(
+        AccountOperation::CommitProfileAttachment,
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/profile/attachments/")
+            + encodedPathSegment(attachmentId)
+            + QStringLiteral("/commit"),
+        QJsonObject(),
+        true);
+}
+
+quint64 AccountClient::pullSyncSnapshot(
+    const QString &nextPageToken) {
+    QString path = QStringLiteral("/v1/sync/snapshot");
+    if (!nextPageToken.isEmpty())
+        path += QStringLiteral("?after_key=")
+            + encodedPathSegment(nextPageToken);
+    return send(
+        AccountOperation::SyncSnapshot,
+        QByteArrayLiteral("GET"),
+        path,
+        QJsonObject(),
+        true);
+}
+
+quint64 AccountClient::pullAccountExport(
+    const QString &cursor,
+    int limit) {
+    const int boundedLimit = qBound(1, limit, 100);
+    const QString path =
+        QStringLiteral("/v1/account/export?cursor=")
+        + encodedPathSegment(cursor)
+        + QStringLiteral("&limit=")
+        + QString::number(boundedLimit);
+    return send(
+        AccountOperation::AccountExport,
+        QByteArrayLiteral("GET"),
+        path,
+        QJsonObject(),
+        true);
+}
+
+quint64 AccountClient::deleteAccount(
+    const QString &requestId,
+    const QByteArray &retryCapability,
+    const QString &currentPassword) {
+    QJsonObject body;
+    body.insert(QStringLiteral("request_id"), requestId);
+    body.insert(QStringLiteral("retry_capability"), QString::fromLatin1(
+        retryCapability.toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
+    body.insert(QStringLiteral("current_password"), currentPassword);
+    return send(AccountOperation::AccountDelete, QByteArrayLiteral("DELETE"),
+        QStringLiteral("/v1/account"), body, true, 30000);
+}
+
+quint64 AccountClient::retryAccountDeletion(
+    const QString &requestId,
+    const QByteArray &retryCapability) {
+    QJsonObject body;
+    body.insert(QStringLiteral("request_id"), requestId);
+    body.insert(QStringLiteral("retry_capability"), QString::fromLatin1(
+        retryCapability.toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
+    return send(AccountOperation::AccountDeletionRetry, QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/account/deletion/retry"), body, false, 15000);
 }
 
 quint64 AccountClient::send(

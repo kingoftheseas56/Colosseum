@@ -1624,11 +1624,16 @@ add_executable(account_first_light
     auto/account/first_light.cpp
     "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
@@ -1663,6 +1668,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
@@ -1678,6 +1685,142 @@ if(WIN32)
 endif()
 set_target_properties(account_first_light PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+
+# ── F03 runtime adoption red proof ─────────────────────────────────────
+# This drives the real AccountRuntime/AccountController/FirstAccountProfileCoordinator
+# chain over a disposable loopback HTTP service.  The first assertion records the
+# current gap: ordinary adoption retires the source before cloud attachment has a
+# durable receipt or canonical-export verification.
+add_executable(tst_account_attachment_runtime
+    auto/account_attachment_runtime/tst_account_attachment_runtime.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(tst_account_attachment_runtime PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_attachment_runtime PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::Qml
+    Qt6::Sql
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_account_attachment_runtime PRIVATE
+        Advapi32
+        User32)
+endif()
+set_target_properties(tst_account_attachment_runtime PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
+add_test(NAME colosseum.qttest.account_attachment_runtime
+         COMMAND tst_account_attachment_runtime)
+set_tests_properties(colosseum.qttest.account_attachment_runtime PROPERTIES
+    LABELS "unit;qttest;sync;attachment;f03;runtime"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
 
 # ── Account + cloud sync foundation (Preflight Bundle 8C cumulative, adopted
 #    2026-08-16 by Agent 0 (ZCode); hand-applied from tests-CMakeLists.bundle8c-cumulative.patch) ──
@@ -1756,6 +1899,8 @@ add_executable(tst_account_identity
     "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountOneTimeSecretSink.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h")
@@ -2056,6 +2201,10 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
     # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
@@ -2068,6 +2217,9 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
 target_include_directories(tst_account_adoption PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
+target_sources(tst_account_adoption PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h")
 target_link_libraries(tst_account_adoption PRIVATE
     Qt6::Core
     Qt6::Qml
@@ -2089,6 +2241,65 @@ set_tests_properties(colosseum.qttest.account_adoption PROPERTIES
     LABELS "unit;qttest;profile"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# ── Cloud attachment coordinator (F03 red-first journey) ────────────────
+# Keep the draft end-to-end fixture enabled before production implementation:
+# its first run is the required red receipt for receipt -> attached sync ->
+# canonical absorption -> source retirement.
+add_executable(tst_account_attachment_coordinator
+    auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_include_directories(tst_account_attachment_coordinator PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_attachment_coordinator PRIVATE
+    Qt6::Core
+    Qt6::Sql
+    Qt6::Test)
+set_target_properties(tst_account_attachment_coordinator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_coordinator POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_coordinator POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_coordinator POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
+add_test(NAME colosseum.qttest.account_attachment_coordinator
+         COMMAND tst_account_attachment_coordinator)
+set_tests_properties(colosseum.qttest.account_attachment_coordinator PROPERTIES
+    LABELS "unit;qttest;sync;attachment;f03"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
 
 
 # ── Shared-PC profile sealing / isolation (Bundle 4B, Slice 11B) ─────
@@ -2130,6 +2341,13 @@ add_executable(tst_account_shared_pc
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
 target_include_directories(tst_account_shared_pc PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
+target_sources(tst_account_shared_pc PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h")
 target_link_libraries(tst_account_shared_pc PRIVATE
     Qt6::Core
     Qt6::Qml
@@ -2208,6 +2426,13 @@ add_executable(tst_profile_activity_isolation
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
 target_include_directories(tst_profile_activity_isolation PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
+target_sources(tst_profile_activity_isolation PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h")
 target_link_libraries(tst_profile_activity_isolation PRIVATE
     Qt6::Core
     Qt6::Qml
