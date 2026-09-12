@@ -53,7 +53,7 @@
         "result": "65 passed; 1 qualified-Node precondition failure; 8 expected oracle-environment skips"
       },
       {
-        "command": "P05_QUALIFIED_NODE=C:/Users/Suprabha/AppData/Local/Temp/p05-b-node-v22.16.0/node-v22.16.0-win-x64/node.exe; python -m unittest discover -s tools/server_lab/tests -p test_*.py -v",
+        "command": "P05_QUALIFIED_NODE=C:/Users/PublicUser/AppData/Local/Temp/p05-b-node-v22.16.0/node-v22.16.0-win-x64/node.exe; python -m unittest discover -s tools/server_lab/tests -p test_*.py -v",
         "exit": 0,
         "result": "66 tests passed; 8 expected oracle-environment skips"
       }

@@ -1,7 +1,7 @@
 worker_id=H00-A
 parent_packet=H00
 state=test-authored; contract RED before production repair
-command=cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && "C:\Qt\Tools\Ninja\ninja.exe" -C "C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused-build" -t clean && "C:\Qt\Tools\Ninja\ninja.exe" -C "C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused-build" server1_h00_http_contract -j2'
+command=cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && "C:\Qt\Tools\Ninja\ninja.exe" -C "C:\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused-build" -t clean && "C:\Qt\Tools\Ninja\ninja.exe" -C "C:\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\H00-A-repair\artifacts\server1\H00\H00-A\focused-build" server1_h00_http_contract -j2'
 exit=1
 raw_output=the test translation unit compiled, then the executable link failed on the new public handler/stream contract
 representative_unresolved_symbols=server1_http_router_add_handler, server1_http_router_add_middleware, server1_http_request_param, server1_http_response_set_status, server1_http_response_set_body, server1_http_response_set_header, server1_http_response_set_stream

@@ -1,4 +1,4 @@
-$ C:\Qt\Tools\CMake_64\bin\cmake.exe --build C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\build --config Release --parallel
+$ C:\Qt\Tools\CMake_64\bin\cmake.exe --build C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\build --config Release --parallel
 [1/116] Automatic MOC for target colosseum_server_native
 [2/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\media\EmbeddedSamples.cpp.obj
 [3/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\enginefs\QtEngineFsTimerScheduler.cpp.obj
@@ -18,7 +18,7 @@ $ C:\Qt\Tools\CMake_64\bin\cmake.exe --build C:\Users\Suprabha\AppData\Local\Tem
 [17/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\colosseum_server_native_autogen\mocs_compilation.cpp.obj
 [18/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\integration\SchedulerTransportBridge.cpp.obj
 [19/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\network_app\NetworkAppServices.cpp.obj
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\colosseum_server\network_app\NetworkAppServices.cpp(875): warning C4996: 'QDateTime::fromMSecsSinceEpoch': Pass QTimeZone instead of time-spec, offset
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\colosseum_server\network_app\NetworkAppServices.cpp(875): warning C4996: 'QDateTime::fromMSecsSinceEpoch': Pass QTimeZone instead of time-spec, offset
 [20/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\remote_archive\RemoteArchive.cpp.obj
 [21/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\scheduler\FileStream.cpp.obj
 [22/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\remote_archive\RemoteServices.cpp.obj
@@ -32,14 +32,14 @@ C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\c
 [30/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\torrent\Storage.cpp.obj
 [31/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\integration\LibtorrentBlockTransport.cpp.obj
 C:\tools\libtorrent-2.0-msvc\include\libtorrent/performance_counters.hpp(463): warning C5054: operator '-': deprecated between enumerations of different types
-[32/116] Building C object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c.obj
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(1254): warning C4132: 's_tdefl_num_probes': const object should be initialized
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(3064): warning C4005: 'WIN32_LEAN_AND_MEAN': macro redefinition
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(3064): note: 'WIN32_LEAN_AND_MEAN' previously declared on the command line
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(4573): warning C4127: conditional expression is constant
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(4666): warning C4127: conditional expression is constant
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(4766): warning C4127: conditional expression is constant
-C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(5675): warning C4127: conditional expression is constant
+[32/116] Building C object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c.obj
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(1254): warning C4132: 's_tdefl_num_probes': const object should be initialized
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(3064): warning C4005: 'WIN32_LEAN_AND_MEAN': macro redefinition
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(3064): note: 'WIN32_LEAN_AND_MEAN' previously declared on the command line
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(4573): warning C4127: conditional expression is constant
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(4666): warning C4127: conditional expression is constant
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(4766): warning C4127: conditional expression is constant
+C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\third_party\miniz\miniz.c(5675): warning C4127: conditional expression is constant
 [33/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\torrent\model\MetadataExchange.cpp.obj
 [34/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\torrent\model\VirtualPieceMap.cpp.obj
 [35/116] Building CXX object colosseum_server_production\CMakeFiles\colosseum_server_native.dir\torrent_http\StreamProgressTracker.cpp.obj
@@ -77,29 +77,29 @@ C:\tools\libtorrent-2.0-msvc\include\libtorrent/performance_counters.hpp(463): w
 [66/116] Building CXX object CMakeFiles\scheduler_transport_bridge_test.dir\transport_bridge_test.cpp.obj
 [67/116] Building CXX object CMakeFiles\piece_source_block_transport_test.dir\piece_source_transport_test.cpp.obj
 [68/116] Building CXX object CMakeFiles\streamserver_native_cutover_test.dir\streamserver_native_cutover_test_autogen\mocs_compilation.cpp.obj
-[69/116] Building CXX object CMakeFiles\runtime_composition_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[69/116] Building CXX object CMakeFiles\runtime_composition_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
 [70/116] Building CXX object CMakeFiles\torrent_http_wire_integration_test.dir\torrent_http_wire_integration_test.cpp.obj
 [71/116] Building CXX object CMakeFiles\runtime_composition_test.dir\runtime_composition_test.cpp.obj
 [72/116] Building CXX object CMakeFiles\colosseum_server_integration_smoke.dir\integration_smoke.cpp.obj
 [73/116] Building CXX object CMakeFiles\feature_route_composition_test.dir\feature_route_composition_test.cpp.obj
 [74/116] Building CXX object CMakeFiles\runtime_lifecycle_test.dir\runtime_lifecycle_test_autogen\mocs_compilation.cpp.obj
-[75/116] Building CXX object CMakeFiles\streamserver_native_cutover_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\streamserver.cpp.obj
+[75/116] Building CXX object CMakeFiles\streamserver_native_cutover_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\streamserver.cpp.obj
 [76/116] Building CXX object CMakeFiles\torrent_piece_source_test.dir\torrent_piece_source_test.cpp.obj
 [77/116] Building CXX object CMakeFiles\runtime_restart_stress_test.dir\runtime_restart_stress_test_autogen\mocs_compilation.cpp.obj
 [78/116] Building CXX object CMakeFiles\streamserver_native_cutover_test.dir\streamserver_native_cutover_test.cpp.obj
-[79/116] Building CXX object CMakeFiles\streamserver_native_cutover_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[79/116] Building CXX object CMakeFiles\streamserver_native_cutover_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
 [80/116] Building CXX object CMakeFiles\runtime_active_request_shutdown_test.dir\runtime_active_request_shutdown_test_autogen\mocs_compilation.cpp.obj
 [81/116] Building CXX object CMakeFiles\runtime_torrent_http_e2e_test.dir\runtime_torrent_http_e2e_test_autogen\mocs_compilation.cpp.obj
 [82/116] Building CXX object CMakeFiles\libtorrent_block_transport_test.dir\libtorrent_block_transport_test.cpp.obj
-[83/116] Building CXX object CMakeFiles\runtime_torrent_http_e2e_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[83/116] Building CXX object CMakeFiles\runtime_torrent_http_e2e_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
 [84/116] Building CXX object CMakeFiles\runtime_lifecycle_test.dir\runtime_lifecycle_test.cpp.obj
-[85/116] Building CXX object CMakeFiles\runtime_torrent_http_e2e_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\streamserver.cpp.obj
-[86/116] Building CXX object CMakeFiles\runtime_lifecycle_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
-[87/116] Building CXX object CMakeFiles\runtime_restart_stress_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[85/116] Building CXX object CMakeFiles\runtime_torrent_http_e2e_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\streamserver.cpp.obj
+[86/116] Building CXX object CMakeFiles\runtime_lifecycle_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[87/116] Building CXX object CMakeFiles\runtime_restart_stress_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
 [88/116] Building CXX object CMakeFiles\async_media_executor_lifecycle_test.dir\async_media_executor_lifecycle_test_autogen\mocs_compilation.cpp.obj
 [89/116] Building CXX object CMakeFiles\runtime_restart_stress_test.dir\runtime_restart_stress_test.cpp.obj
 [90/116] Building CXX object CMakeFiles\media_executable_locator_test.dir\media_executable_locator_test_autogen\mocs_compilation.cpp.obj
-[91/116] Building CXX object CMakeFiles\runtime_active_request_shutdown_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[91/116] Building CXX object CMakeFiles\runtime_active_request_shutdown_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
 [92/116] Building CXX object CMakeFiles\runtime_active_request_shutdown_test.dir\runtime_active_request_shutdown_test.cpp.obj
 [93/116] Linking CXX executable colosseum_server_integration_smoke.exe
 [94/116] Linking CXX executable scheduler_transport_bridge_test.exe
@@ -109,12 +109,12 @@ C:\tools\libtorrent-2.0-msvc\include\libtorrent/performance_counters.hpp(463): w
 [98/116] Linking CXX executable feature_route_composition_test.exe
 [99/116] Linking CXX executable torrent_piece_source_test.exe
 [100/116] Linking CXX executable libtorrent_block_transport_test.exe
-[101/116] Building CXX object CMakeFiles\runtime_mpv_playback_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
+[101/116] Building CXX object CMakeFiles\runtime_mpv_playback_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\torrent\engine\DebugLogBuffer.cpp.obj
 [102/116] Linking CXX executable runtime_composition_test.exe
 [103/116] Linking CXX executable streamserver_native_cutover_test.exe
 [104/116] Linking CXX executable runtime_lifecycle_test.exe
-[105/116] Building CXX object CMakeFiles\runtime_mpv_playback_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\streamserver.cpp.obj
-[106/116] Building CXX object CMakeFiles\runtime_mpv_playback_test.dir\C_\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\mpvitem.cpp.obj
+[105/116] Building CXX object CMakeFiles\runtime_mpv_playback_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\streamserver.cpp.obj
+[106/116] Building CXX object CMakeFiles\runtime_mpv_playback_test.dir\C_\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\player\mpvitem.cpp.obj
 [107/116] Building CXX object CMakeFiles\runtime_torrent_http_e2e_test.dir\runtime_torrent_http_e2e_test.cpp.obj
 [108/116] Linking CXX executable runtime_restart_stress_test.exe
 [109/116] Linking CXX executable runtime_active_request_shutdown_test.exe

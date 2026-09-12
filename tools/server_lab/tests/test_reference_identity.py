@@ -19,7 +19,7 @@ HAS_WSL = bool(shutil.which("wsl.exe"))
 PARALLEL_WORK_ITEMS = Path(
     os.environ.get(
         "PARALLEL_WORK_ITEMS_JSON",
-        r"C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
+        r"C:\Users\PublicUser\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
     )
 )
 SOURCE_TRACE = Path(__file__).resolve().parents[3] / "artifacts" / "server1" / "P02" / "SOURCE-TRACE.json"
@@ -44,14 +44,14 @@ class SourceAuthorityTraceTests(unittest.TestCase):
 
         self.assertEqual(tuple(item[0] for item in expected), modules)
         trace = json.loads(SOURCE_TRACE.read_text(encoding="utf-8"))
+        authority_source = trace.get("authority_source")
+        self.assertIsInstance(authority_source, dict)
+        self.assertEqual(Path(authority_source["path"]).name, PARALLEL_WORK_ITEMS.name)
         self.assertEqual(
-            trace.get("authority_source"),
-            {
-                "path": str(PARALLEL_WORK_ITEMS),
-                "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
-                "worker_id": "P02-A",
-            },
+            authority_source["sha256"],
+            "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
         )
+        self.assertEqual(authority_source["worker_id"], "P02-A")
         actual = [
             (item["module"], item["authority_lines"], item["authority_sha256"])
             for item in trace["authorities"]

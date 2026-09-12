@@ -12,7 +12,7 @@ The authenticated evidence mirror was checked before recording these claims:
 
 The source index used for byte boundaries was the authoritative v2.1 pack file:
 
-`C:\Users\Suprabha\Downloads\Colosseum-Server-1.0-Execution-Plan-Pack-v2.1\Colosseum-Server-1.0-Execution-Plan-v2.1\MODULE-INDEX.json`
+`C:\Users\PublicUser\Downloads\Colosseum-Server-1.0-Execution-Plan-Pack-v2.1\Colosseum-Server-1.0-Execution-Plan-v2.1\MODULE-INDEX.json`
 
 Command: a Node SHA-256 verification read the mirror oracle, the index byte spans, and each assigned module; exit `0`.
 

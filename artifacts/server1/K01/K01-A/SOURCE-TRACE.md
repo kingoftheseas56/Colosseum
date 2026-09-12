@@ -1,6 +1,6 @@
 # K01-A source trace
 
-Oracle: `C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\oracle\server.js`
+Oracle: `C:\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\oracle\server.js`
 
 Whole-file SHA-256: `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f`
 

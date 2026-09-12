@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import unittest
 from pathlib import Path
 
@@ -17,7 +18,7 @@ RUNNER_PATH = ARTIFACT_ROOT / "run_reference_profiles.py"
 PROFILE_RUNS_PATH = ARTIFACT_ROOT / "profile-runs.json"
 QUALIFICATION_PATH = ARTIFACT_ROOT / "QUALIFICATION-SUMMARY.json"
 QUALIFIED_NODE = Path(
-    r"C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0"
+    r"C:\Users\PublicUser\AppData\Local\Temp\p05-b-node-v22.16.0"
 ) / "node-v22.16.0-win-x64" / "node.exe"
 CLASSIFICATIONS = {
     "always_initialized",

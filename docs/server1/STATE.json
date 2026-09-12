@@ -284,6 +284,9 @@
     },
     "H00": "pinned source-derived trace profile plus real native loopback raw-wire and stream/disconnect checks",
     "W3_released": false,
-    "scope_note": "Existing integrated worker labels refer to assembly in this candidate, not acceptance on the official feature branch."
+    "scope_note": "Existing integrated worker labels refer to assembly in this candidate, not acceptance on the official feature branch.",
+    "public_path_guard": "PASS",
+    "tracked_private_path_findings": 0,
+    "post_sanitization_reproduction": "PASS"
   }
 }

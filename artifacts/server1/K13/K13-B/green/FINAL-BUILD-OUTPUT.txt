@@ -7,10 +7,10 @@ Cleaning... 0 files.
 
 [1/9] Building CXX object server1\CMakeFiles\server1_k00_policy.dir\src\policy\Value.cpp.obj
 [2/9] Building CXX object server1\CMakeFiles\server1_k00_policy.dir\src\policy\JsConversions.cpp.obj
-[3/9] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\C_\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\src\settings\SettingsStore.cpp.obj
-[4/9] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\C_\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\src\settings\CachePolicy.cpp.obj
+[3/9] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\C_\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\src\settings\SettingsStore.cpp.obj
+[4/9] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\C_\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\src\settings\CachePolicy.cpp.obj
 [5/9] Linking CXX static library server1\server1_k00_policy.lib
-[6/9] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\C_\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\src\platform\DiskSpace.cpp.obj
+[6/9] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\C_\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\src\platform\DiskSpace.cpp.obj
 [7/9] Linking CXX static library server1_k13_settings_cache.lib
-[8/9] Building CXX object CMakeFiles\server1_k13_settings_cache_test.dir\C_\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\tests\test_settings_cache.cpp.obj
+[8/9] Building CXX object CMakeFiles\server1_k13_settings_cache_test.dir\C_\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\K13-B-repair\native\colosseum_server_v1\tests\test_settings_cache.cpp.obj
 [9/9] Linking CXX executable server1_k13_settings_cache_test.exe

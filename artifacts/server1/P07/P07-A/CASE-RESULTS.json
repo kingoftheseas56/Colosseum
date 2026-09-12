@@ -22,8 +22,8 @@
     {"command": "python -m json.tool artifacts/server1/P07/P07-A/PACKET-RECEIPT.json", "exit": 0},
     {"command": "python -m json.tool artifacts/server1/P07/P07-A/WIRING-REQUEST.json", "exit": 0},
     {"command": "git diff --check", "exit": 0},
-    {"command": "$env:P05_QUALIFIED_NODE='C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe'; python -m unittest discover -s tools/server_lab/tests -v", "exit": 0, "note": "qualified Node v22.16.0; 48 tests; 8 skipped"},
-    {"command": "$env:P05_QUALIFIED_NODE='C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe'; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v", "exit": 0, "note": "exact P04/reference; 24 tests; 8 skipped"}
+    {"command": "$env:P05_QUALIFIED_NODE='C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe'; python -m unittest discover -s tools/server_lab/tests -v", "exit": 0, "note": "qualified Node v22.16.0; 48 tests; 8 skipped"},
+    {"command": "$env:P05_QUALIFIED_NODE='C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe'; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v", "exit": 0, "note": "exact P04/reference; 24 tests; 8 skipped"}
   ],
   "thresholds_frozen_before_1_0": true,
   "baseline_0_1": "BASELINE_UNAVAILABLE_OPTIONAL",

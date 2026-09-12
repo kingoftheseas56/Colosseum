@@ -2,8 +2,8 @@ Start testing: Sep 12 23:08 India Standard Time
 ----------------------------------------------------------
 1/16 Testing: P03-02-server1-host
 1/16 Test: P03-02-server1-host
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_host.exe"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_host.exe"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "P03-02-server1-host" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -20,8 +20,8 @@ Required regular expression found. Regex=[server1 skeleton initialized]
 
 1/16 Testing: P03-02-server1-host
 1/16 Test: P03-02-server1-host
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_host.exe"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_host.exe"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "P03-02-server1-host" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -38,8 +38,8 @@ Required regular expression found. Regex=[server1 skeleton initialized]
 
 1/16 Testing: P03-02-server1-host
 1/16 Test: P03-02-server1-host
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_host.exe"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_host.exe"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "P03-02-server1-host" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -56,8 +56,8 @@ Required regular expression found. Regex=[server1 skeleton initialized]
 
 2/16 Testing: K00-01-js-semantics
 2/16 Test: K00-01-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-01-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -72,8 +72,8 @@ Test Passed.
 
 2/16 Testing: K00-01-js-semantics
 2/16 Test: K00-01-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-01-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -88,8 +88,8 @@ Test Passed.
 
 2/16 Testing: K00-01-js-semantics
 2/16 Test: K00-01-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-01-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -104,8 +104,8 @@ Test Passed.
 
 3/16 Testing: K00-02-js-semantics
 3/16 Test: K00-02-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-02-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -120,8 +120,8 @@ Test Passed.
 
 3/16 Testing: K00-02-js-semantics
 3/16 Test: K00-02-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-02-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -136,8 +136,8 @@ Test Passed.
 
 3/16 Testing: K00-02-js-semantics
 3/16 Test: K00-02-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-02-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -152,8 +152,8 @@ Test Passed.
 
 4/16 Testing: K00-03-js-semantics
 4/16 Test: K00-03-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-03-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -168,8 +168,8 @@ Test Passed.
 
 4/16 Testing: K00-03-js-semantics
 4/16 Test: K00-03-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-03-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -184,8 +184,8 @@ Test Passed.
 
 4/16 Testing: K00-03-js-semantics
 4/16 Test: K00-03-js-semantics
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K00-03-js-semantics" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -200,8 +200,8 @@ Test Passed.
 
 5/16 Testing: K01-01-metadata-geometry
 5/16 Test: K01-01-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-01-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -216,8 +216,8 @@ Test Passed.
 
 5/16 Testing: K01-01-metadata-geometry
 5/16 Test: K01-01-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-01-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -232,8 +232,8 @@ Test Passed.
 
 5/16 Testing: K01-01-metadata-geometry
 5/16 Test: K01-01-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-01-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -248,8 +248,8 @@ Test Passed.
 
 6/16 Testing: K01-02-metadata-geometry
 6/16 Test: K01-02-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-02-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -264,8 +264,8 @@ Test Passed.
 
 6/16 Testing: K01-02-metadata-geometry
 6/16 Test: K01-02-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-02-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -280,8 +280,8 @@ Test Passed.
 
 6/16 Testing: K01-02-metadata-geometry
 6/16 Test: K01-02-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-02-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -296,8 +296,8 @@ Test Passed.
 
 7/16 Testing: K01-03-metadata-geometry
 7/16 Test: K01-03-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-03-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -312,8 +312,8 @@ Test Passed.
 
 7/16 Testing: K01-03-metadata-geometry
 7/16 Test: K01-03-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-03-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -328,8 +328,8 @@ Test Passed.
 
 7/16 Testing: K01-03-metadata-geometry
 7/16 Test: K01-03-metadata-geometry
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K01-03-metadata-geometry" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -344,8 +344,8 @@ Test Passed.
 
 8/16 Testing: K13-01-settings-cache-defaults
 8/16 Test: K13-01-settings-cache-defaults
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-01-settings-cache-defaults" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -361,8 +361,8 @@ Test Passed.
 
 8/16 Testing: K13-01-settings-cache-defaults
 8/16 Test: K13-01-settings-cache-defaults
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-01-settings-cache-defaults" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -378,8 +378,8 @@ Test Passed.
 
 8/16 Testing: K13-01-settings-cache-defaults
 8/16 Test: K13-01-settings-cache-defaults
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-01-settings-cache-defaults" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -395,8 +395,8 @@ Test Passed.
 
 9/16 Testing: K13-02-cache-policy
 9/16 Test: K13-02-cache-policy
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-02-cache-policy" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -412,8 +412,8 @@ Test Passed.
 
 9/16 Testing: K13-02-cache-policy
 9/16 Test: K13-02-cache-policy
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-02-cache-policy" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -429,8 +429,8 @@ Test Passed.
 
 9/16 Testing: K13-02-cache-policy
 9/16 Test: K13-02-cache-policy
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-02-cache-policy" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -446,8 +446,8 @@ Test Passed.
 
 10/16 Testing: K13-03-cache-convergence
 10/16 Test: K13-03-cache-convergence
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-03-cache-convergence" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -462,8 +462,8 @@ Test Passed.
 
 10/16 Testing: K13-03-cache-convergence
 10/16 Test: K13-03-cache-convergence
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-03-cache-convergence" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -478,8 +478,8 @@ Test Passed.
 
 10/16 Testing: K13-03-cache-convergence
 10/16 Test: K13-03-cache-convergence
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "<SCRATCH_ROOT>/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "K13-03-cache-convergence" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -494,8 +494,8 @@ Test Passed.
 
 11/16 Testing: H00-01-http-contract
 11/16 Test: H00-01-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-01-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -510,8 +510,8 @@ Test Passed.
 
 11/16 Testing: H00-01-http-contract
 11/16 Test: H00-01-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-01-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -526,8 +526,8 @@ Test Passed.
 
 11/16 Testing: H00-01-http-contract
 11/16 Test: H00-01-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-01-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -542,8 +542,8 @@ Test Passed.
 
 12/16 Testing: H00-02-http-contract
 12/16 Test: H00-02-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-02-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -558,8 +558,8 @@ Test Passed.
 
 12/16 Testing: H00-02-http-contract
 12/16 Test: H00-02-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-02-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -574,8 +574,8 @@ Test Passed.
 
 12/16 Testing: H00-02-http-contract
 12/16 Test: H00-02-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-02-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -590,8 +590,8 @@ Test Passed.
 
 13/16 Testing: H00-03-http-contract
 13/16 Test: H00-03-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-03-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -606,8 +606,8 @@ Test Passed.
 
 13/16 Testing: H00-03-http-contract
 13/16 Test: H00-03-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-03-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -622,8 +622,8 @@ Test Passed.
 
 13/16 Testing: H00-03-http-contract
 13/16 Test: H00-03-http-contract
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "H00-03-http-contract" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -638,8 +638,8 @@ Test Passed.
 
 14/16 Testing: M00-01-process-discovery
 14/16 Test: M00-01-process-discovery
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-01-process-discovery" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -654,8 +654,8 @@ Test Passed.
 
 14/16 Testing: M00-01-process-discovery
 14/16 Test: M00-01-process-discovery
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-01-process-discovery" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -670,8 +670,8 @@ Test Passed.
 
 14/16 Testing: M00-01-process-discovery
 14/16 Test: M00-01-process-discovery
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-01"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-01"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-01-process-discovery" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -686,8 +686,8 @@ Test Passed.
 
 15/16 Testing: M00-02-process-lifecycle
 15/16 Test: M00-02-process-lifecycle
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-02-process-lifecycle" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -702,8 +702,8 @@ Test Passed.
 
 15/16 Testing: M00-02-process-lifecycle
 15/16 Test: M00-02-process-lifecycle
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-02-process-lifecycle" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -718,8 +718,8 @@ Test Passed.
 
 15/16 Testing: M00-02-process-lifecycle
 15/16 Test: M00-02-process-lifecycle
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-02"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-02"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-02-process-lifecycle" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -734,8 +734,8 @@ Test Passed.
 
 16/16 Testing: M00-03-remote-driver
 16/16 Test: M00-03-remote-driver
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-03-remote-driver" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -750,8 +750,8 @@ Test Passed.
 
 16/16 Testing: M00-03-remote-driver
 16/16 Test: M00-03-remote-driver
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-03-remote-driver" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------
@@ -766,8 +766,8 @@ Test Passed.
 
 16/16 Testing: M00-03-remote-driver
 16/16 Test: M00-03-remote-driver
-Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-03"
-Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+Command: "<SCRATCH_ROOT>/aggregate-build/server1_m00_process_tests.exe" "M00-03"
+Directory: <SCRATCH_ROOT>/aggregate-build/p03-tests
 "M00-03-remote-driver" start time: Sep 12 23:08 India Standard Time
 Output:
 ----------------------------------------------------------

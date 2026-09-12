@@ -1,6 +1,6 @@
-*.stdout.txt -text
-*.stderr.txt -text
-*.log -text
+*.stdout.txt -text whitespace=cr-at-eol
+*.stderr.txt -text whitespace=cr-at-eol
+*.log -text whitespace=cr-at-eol
 *.diff -text
 *.json text eol=lf
 *.py text eol=lf

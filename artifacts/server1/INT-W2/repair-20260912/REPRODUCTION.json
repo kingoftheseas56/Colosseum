@@ -1,6 +1,6 @@
 {
-  "recorded_checkout": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
-  "recorded_scratch": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb",
+  "recorded_checkout": "<REPO_ROOT>",
+  "recorded_scratch": "<SCRATCH_ROOT>",
   "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
   "cmake": "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
   "ctest": "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",

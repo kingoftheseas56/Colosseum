@@ -181,7 +181,7 @@ def main() -> int:
             "oracle_sha256": identity["oracle"]["sha256"],
             "oracle_bytes": identity["oracle"]["bytes"],
             "authority_source": {
-                "path": r"C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
+                "path": r"C:\Users\PublicUser\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
                 "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
                 "worker_id": "P02-A",
             },

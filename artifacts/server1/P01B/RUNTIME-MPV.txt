@@ -1,6 +1,6 @@
-$ C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\build -C Release -R ^runtime_mpv_playback_test$ --output-on-failure
-Internal ctest changing into directory: C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
-Test project C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+$ C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\build -C Release -R ^runtime_mpv_playback_test$ --output-on-failure
+Internal ctest changing into directory: C:/Users/PublicUser/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+Test project C:/Users/PublicUser/AppData/Local/Temp/colosseum-server01-n33l27f_/build
     Start 14: runtime_mpv_playback_test
 1/1 Test #14: runtime_mpv_playback_test ........***Failed   17.07 sec
 FAIL:mpv did not load the native torrent URL

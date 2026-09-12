@@ -20,9 +20,9 @@
         "-G",
         "Ninja",
         "-S",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\source\\native\\colosseum_server\\tests",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\source\\native\\colosseum_server\\tests",
         "-B",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_MAKE_PROGRAM=C:\\Qt\\Tools\\Ninja\\ninja.exe",
         "-DCMAKE_PREFIX_PATH=C:\\Qt\\6.11.1\\msvc2022_64"
@@ -34,7 +34,7 @@
       "argv": [
         "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
         "--build",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
         "--config",
         "Release",
         "--parallel"
@@ -46,7 +46,7 @@
       "argv": [
         "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
         "--test-dir",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
         "-N",
         "-C",
         "Release"
@@ -58,7 +58,7 @@
       "argv": [
         "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
         "--test-dir",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
         "-C",
         "Release",
         "-R",

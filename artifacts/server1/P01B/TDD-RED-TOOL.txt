@@ -13,12 +13,12 @@ Traceback (most recent call last):
   File "C:\b\Colosseum-Server-1.0-workers\P01B-A\tools\server_lab\adapters\colosseum01.py", line 71, in _run
     completed = subprocess.run(
                 ^^^^^^^^^^^^^^^
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 548, in run
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 548, in run
     with Popen(*popenargs, **kwargs) as process:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1026, in __init__
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1026, in __init__
     self._execute_child(args, executable, preexec_fn, close_fds,
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1538, in _execute_child
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1538, in _execute_child
     hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 FileNotFoundError: [WinError 2] The system cannot find the file specified

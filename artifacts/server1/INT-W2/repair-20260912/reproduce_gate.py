@@ -9,6 +9,23 @@ import subprocess
 import sys
 
 
+def path_variants(value):
+    text = str(value)
+    return (text, text.replace("\\", "/"))
+
+
+def scrub_text(value, replacements):
+    for source, replacement in replacements:
+        for variant in path_variants(source):
+            value = value.replace(variant, replacement)
+    return value
+
+
+def scrub_bytes(value, replacements):
+    text = value.decode("utf-8", errors="replace")
+    return scrub_text(text, replacements).encode("utf-8")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True, type=Path, help="A new, nonexistent scratch directory")
@@ -27,6 +44,21 @@ def main():
     args.work.mkdir(parents=True, exist_ok=False)
     logs = args.work / "logs"
     logs.mkdir()
+    guard = subprocess.run(
+        [sys.executable, str(repo / "scripts" / "check_public_paths.py")],
+        cwd=repo, capture_output=True, text=True, check=False,
+    )
+    (logs / "PUBLIC-PATH-GUARD.stdout.txt").write_text(guard.stdout, encoding="utf-8")
+    (logs / "PUBLIC-PATH-GUARD.stderr.txt").write_text(guard.stderr, encoding="utf-8")
+    print(f"PUBLIC-PATH-GUARD: exit {guard.returncode}", flush=True)
+    if guard.returncode:
+        raise RuntimeError("public path guard failed")
+    replacements = [
+        (args.work, config["recorded_scratch"]),
+        (args.oracle, "<ORACLE_PATH>"),
+        (repo, config["recorded_checkout"]),
+        (Path.home(), "<USER_HOME>"),
+    ]
     env_script = args.work / "load-msvc.cmd"
     env_script.write_text('@echo off\ncall "' + config["vsdevcmd"]
                           + '" -arch=x64 -host_arch=x64 >nul\nif errorlevel 1 exit /b 1\nset\n',
@@ -62,9 +94,14 @@ def main():
             argv[argv.index("--output") + 1] = str(logs / "m00-differential")
         cwd = Path(relocate(record["cwd"]))
         result = subprocess.run(argv, cwd=cwd, env=env, capture_output=True, timeout=180)
-        (logs / (name + ".stdout.txt")).write_bytes(result.stdout)
-        (logs / (name + ".stderr.txt")).write_bytes(result.stderr)
-        executed.append({"name": name, "argv": argv, "cwd": str(cwd), "exit": result.returncode})
+        (logs / (name + ".stdout.txt")).write_bytes(scrub_bytes(result.stdout, replacements))
+        (logs / (name + ".stderr.txt")).write_bytes(scrub_bytes(result.stderr, replacements))
+        executed.append({
+            "name": name,
+            "argv": [scrub_text(value, replacements) for value in argv],
+            "cwd": scrub_text(str(cwd), replacements),
+            "exit": result.returncode,
+        })
         (logs / "EXECUTED.json").write_text(json.dumps(executed, indent=2) + "\n", encoding="utf-8")
         print(f"{name}: exit {result.returncode}", flush=True)
         if result.returncode:
@@ -90,7 +127,8 @@ def main():
     assert m00["differences"] == 0 and m00["source_lines"] == 11 and m00["candidate_lines"] == 11
     assert m00["mutated_oracle_rejected"]
     head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"]).decode().strip()
-    verdict = {"result": "PASS", "candidate_head": head, "ctest": "16/16", "repeated_test_executions": 48,
+    verdict = {"result": "PASS", "candidate_head": head, "public_path_guard": "PASS",
+               "ctest": "16/16", "repeated_test_executions": 48,
                "combined_link": "PASS", "source_native_lines": {"K01": 72, "K13-A": 11, "K13-B": 9, "M00": 11},
                "H00_scope": "pinned source-derived trace profile and native real-loopback raw-wire/stream checks, not full live-oracle HTTP parity",
                "B-W2B": "closed pending independent Codex acceptance", "W3": "closed"}

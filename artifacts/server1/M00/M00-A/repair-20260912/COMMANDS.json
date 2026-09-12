@@ -6,7 +6,7 @@
       "-S",
       "C:\\b\\Colosseum-Server-1.0-sol\\M00-A-evidence\\artifacts\\server1\\M00\\M00-A\\repair-20260912",
       "-B",
-      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\m00-build",
+      "<SCRATCH_ROOT>\\m00-build",
       "-G",
       "Ninja",
       "-DCMAKE_BUILD_TYPE=Release",
@@ -24,7 +24,7 @@
     "argv": [
       "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
       "--build",
-      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\m00-build",
+      "<SCRATCH_ROOT>\\m00-build",
       "--clean-first",
       "--parallel",
       "2"
@@ -39,7 +39,7 @@
     "argv": [
       "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
       "--test-dir",
-      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\m00-build",
+      "<SCRATCH_ROOT>\\m00-build",
       "--output-on-failure",
       "--repeat",
       "until-fail:3",
@@ -58,7 +58,7 @@
       "--oracle",
       "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
       "--candidate",
-      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\m00-build\\server1_m00_process_tests.exe",
+      "<SCRATCH_ROOT>\\m00-build\\server1_m00_process_tests.exe",
       "--output",
       "C:\\b\\Colosseum-Server-1.0-sol\\M00-A-evidence\\artifacts\\server1\\M00\\M00-A\\repair-20260912\\differential"
     ],

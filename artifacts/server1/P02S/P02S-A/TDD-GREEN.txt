@@ -1,6 +1,6 @@
 P02S-A verification record
 
-qualified_node: C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe
+qualified_node: C:\Users\PublicUser\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe
 qualified_node_version: v22.16.0
 qualified_node_sha256: c5ff4c736112dd483c750fd4149d30c8a116db1a49b8b3ec88be4b65e6c86c19
 oracle: C:\b\Colosseum-Server-1.0-Planning-Pack\oracle\stremio-service-v4.21.1-server-bundle\server.js

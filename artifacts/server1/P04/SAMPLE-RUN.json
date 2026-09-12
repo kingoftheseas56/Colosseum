@@ -89,7 +89,7 @@
       "mode": "pass"
     },
     "exact_command": [
-      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\PublicUser\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
       "-m",
       "tools.server_lab.lab",
       "--config",
@@ -117,7 +117,7 @@
   "request_sequence": [
     {
       "argv": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
         "C:\\b\\Colosseum-Server-1.0-workers\\P04-A\\artifacts\\server1\\P04\\fixtures\\replay_subject.py",
         "pass",
         "8f8b36a045e74cb687911fe0ebd61e15"

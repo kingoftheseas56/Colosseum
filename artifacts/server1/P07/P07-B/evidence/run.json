@@ -25,7 +25,7 @@
     "player_version": {
       "available": true,
       "command": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
         "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
         "--version"
       ],
@@ -157,9 +157,9 @@
   ],
   "paths": {
     "config": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\tools\\server_lab\\cases\\P07-B.json",
-    "run_root": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final",
-    "stderr": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final\\stderr.txt",
-    "stdout": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final\\stdout.txt"
+    "run_root": "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final",
+    "stderr": "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final\\stderr.txt",
+    "stdout": "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final\\stdout.txt"
   },
   "peer_observations": [
     {
@@ -200,7 +200,7 @@
   "replay": {
     "backend": "synthetic_fixture",
     "exact_command": [
-      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\PublicUser\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
       "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
       "http://127.0.0.1:9/media.mp4",
       "--start",
@@ -217,7 +217,7 @@
   "request_sequence": [
     {
       "argv": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
         "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
         "--version"
       ],
@@ -225,7 +225,7 @@
     },
     {
       "argv": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "C:\\Users\\PublicUser\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
         "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
         "http://127.0.0.1:9/media.mp4",
         "--start",

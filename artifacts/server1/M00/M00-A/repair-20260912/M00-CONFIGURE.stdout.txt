@@ -16,4 +16,4 @@
 -- Found WrapAtomic: TRUE
 -- Configuring done (5.2s)
 -- Generating done (0.1s)
--- Build files have been written to: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/m00-build
+-- Build files have been written to: <SCRATCH_ROOT>/m00-build

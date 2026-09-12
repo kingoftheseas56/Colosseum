@@ -16,4 +16,4 @@
 -- Found WrapAtomic: TRUE
 -- Configuring done (5.3s)
 -- Generating done (0.2s)
--- Build files have been written to: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build
+-- Build files have been written to: <SCRATCH_ROOT>/aggregate-build

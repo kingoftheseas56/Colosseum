@@ -1,6 +1,6 @@
-$ C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\build -N -C Release
-Internal ctest changing into directory: C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
-Test project C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+$ C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir C:\Users\PublicUser\AppData\Local\Temp\colosseum-server01-n33l27f_\build -N -C Release
+Internal ctest changing into directory: C:/Users/PublicUser/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+Test project C:/Users/PublicUser/AppData/Local/Temp/colosseum-server01-n33l27f_/build
   Test  #1: colosseum_server_integration_smoke
   Test  #2: scheduler_transport_bridge_test
   Test  #3: piece_source_block_transport_test

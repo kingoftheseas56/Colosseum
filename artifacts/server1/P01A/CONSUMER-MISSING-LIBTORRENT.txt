@@ -5,7 +5,7 @@ Exit: 1
 -- The CXX compiler identification is MSVC 19.44.35227.0
 -- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
 -- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
--- Compiler cache: sccache (C:/Users/Suprabha/AppData/Local/Microsoft/WinGet/Links/sccache.exe)
+-- Compiler cache: sccache (C:/Users/PublicUser/AppData/Local/Microsoft/WinGet/Links/sccache.exe)
 -- Found Threads: TRUE
 -- Found WrapAtomic: TRUE
 -- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR)

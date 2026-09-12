@@ -1,19 +1,19 @@
 {
   "convention": "SHA-256 over committed Git blob bytes",
   "files": {
-    "artifacts/server1/M00/M00-A/PACKET-RECEIPT.json": "c65efd77459ca1b94afee0704c6d3e0c70777a620f3c2510378dc6374fa82a40",
+    "artifacts/server1/M00/M00-A/PACKET-RECEIPT.json": "c85c2d56d2ac33a17f6b69a16ec260ce4b9c77e83f163017a9d6c7026afa6266",
     "artifacts/server1/M00/M00-A/differential/SOURCE-VS-CANDIDATE.json": "b2c303b66806e27e58735cc1791a4ea174d39355be491abda1833ac7f42c00c4",
     "artifacts/server1/M00/M00-A/repair-20260912/.gitattributes": "85f25793d2c810f9695a0afbe6ccb9d324699d6864100a68538ade78bcafe9b2",
     "artifacts/server1/M00/M00-A/repair-20260912/CMakeLists.txt": "e01d72895056ebb469d34936d82b90878097eff115f0e9a6f8efae9b30d4f04b",
-    "artifacts/server1/M00/M00-A/repair-20260912/COMMANDS.json": "35f6542f47fe374cd91e9d0a9f6c74e5a6f53b253a3c4cb9a7a9b9138b28ac50",
+    "artifacts/server1/M00/M00-A/repair-20260912/COMMANDS.json": "8ccb9b0dc7aa2be8e9973a7ccd74cae0126417b83d454232a6e9c03f2b984d68",
     "artifacts/server1/M00/M00-A/repair-20260912/ENDPOINT.md": "252b4adfb62c51bd70e33e44e6e4835f164d8e2cd7cf91b038003b1ccf5f0c6d",
     "artifacts/server1/M00/M00-A/repair-20260912/GREEN-ORACLE-GUARD.txt": "b7e227df68931f42ba131f459677c5de38999c601bfb6f543fba69004e5a5eb5",
     "artifacts/server1/M00/M00-A/repair-20260912/M00-BUILD.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "artifacts/server1/M00/M00-A/repair-20260912/M00-BUILD.stdout.txt": "d408a6980f1d7d50efeb67ec9fa9f8467deffa8715db789ff00e8cf1bedc5020",
     "artifacts/server1/M00/M00-A/repair-20260912/M00-CONFIGURE.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "artifacts/server1/M00/M00-A/repair-20260912/M00-CONFIGURE.stdout.txt": "1d430ec2a2d8e973ee857824a756a41766c5b9a734782575a001725b59d9af0a",
+    "artifacts/server1/M00/M00-A/repair-20260912/M00-CONFIGURE.stdout.txt": "9ef3cc067705fa1ba678b8737b8a5dc0bfa9081f2880475838b28b66a41fc5a5",
     "artifacts/server1/M00/M00-A/repair-20260912/M00-CTEST.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "artifacts/server1/M00/M00-A/repair-20260912/M00-CTEST.stdout.txt": "5cefdf4e6b3da7e81d3d2ef4dcb6a34c711fac7af74e3c454a7e6a69ba11b234",
+    "artifacts/server1/M00/M00-A/repair-20260912/M00-CTEST.stdout.txt": "2b8781b4037d7c1652ea3062d943003b1f217605299179a107119246bc4039a3",
     "artifacts/server1/M00/M00-A/repair-20260912/M00-DIFFERENTIAL.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "artifacts/server1/M00/M00-A/repair-20260912/M00-DIFFERENTIAL.stdout.txt": "39722026c45a4361e8e79787a9dca868a86487fd50fef0fc6fd54464aaa14edf",
     "artifacts/server1/M00/M00-A/repair-20260912/README.md": "b17056d51f785fb88bbbe39772fbfdc66e73617e08c3775603c94472ebce71e1",
@@ -21,7 +21,7 @@
     "artifacts/server1/M00/M00-A/repair-20260912/RED-ORACLE-GUARD.json": "674d7afc4030e3e2410da9c12a5e7d9df2a13fe7e587fc6bd8f8be3aa933a07a",
     "artifacts/server1/M00/M00-A/repair-20260912/SOURCE-EXECUTION.json": "74007f7216f76e3aba48c1e86f412cc3ad5cbe031537363eb645086515405203",
     "artifacts/server1/M00/M00-A/repair-20260912/SOURCE-EXECUTION.stderr.txt": "b924b7be1722ec4a36fa6c4c2628df41d95e2981136615823a8fdab057279f37",
-    "artifacts/server1/M00/M00-A/repair-20260912/START-STATE.json": "b85860d1397d91fc5c771f6ee304be30b630834349646fce4d89a3f193ecba2d",
+    "artifacts/server1/M00/M00-A/repair-20260912/START-STATE.json": "5aa82e6a4b1db706b377c642e6d4341f3df648280e640813d1893ff1bc5325f5",
     "artifacts/server1/M00/M00-A/repair-20260912/differential/RESULT.json": "5dc2c52325712c11253af81a5aeefe8486e5b7c23b50bb152f9d21aeecba94c0",
     "artifacts/server1/M00/M00-A/repair-20260912/differential/candidate.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "artifacts/server1/M00/M00-A/repair-20260912/differential/candidate.stdout.txt": "31ad394326bfb86a3aeedba486231aa05e3fe4444eb227e72c57b660e651bec1",
@@ -32,6 +32,6 @@
     "artifacts/server1/M00/M00-A/repair-20260912/differential/source.trace.txt": "7256c7edf082339d047a2631db045e0be51a0c65a76403f769f6fc95e4bb13ac",
     "artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs": "942307f4e2b130d7a67c399fff0a510b0a7b612c9fb92363b6e3782e09279fc0",
     "artifacts/server1/M00/M00-A/scenarios/verify_m00_oracle.py": "f6cb38876100bea2c4bd132581f556e180644af702ad3c57808a13778859f440",
-    "artifacts/server1/M00/M00-A/source/SOURCE-TRACE.json": "905bfa7f68733e5626695736d2a231aea24b2f77cb28b3f551f59e4caf69e94c"
+    "artifacts/server1/M00/M00-A/source/SOURCE-TRACE.json": "9206bb4c30e1ea9828dd02f38a54ba7accbfc2378973347d9e6847b3ebea630b"
   }
 }

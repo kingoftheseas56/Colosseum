@@ -1,5 +1,5 @@
-Internal ctest changing into directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/m00-build
-Test project C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/m00-build
+Internal ctest changing into directory: <SCRATCH_ROOT>/m00-build
+Test project <SCRATCH_ROOT>/m00-build
     Start 1: M00-01-process-discovery
     Test #1: M00-01-process-discovery .........   Passed    0.13 sec
     Start 1: M00-01-process-discovery

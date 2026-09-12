@@ -24,31 +24,31 @@ test_schema_round_trip_and_raw_normalized_lanes_are_separate (test_runner.P04Run
 ERROR: test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 632, in _rmtree_unsafe
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 632, in _rmtree_unsafe
     os.unlink(fullname)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p04-runner-test-650dj186\\data\\run-a\\stderr.txt'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p04-runner-test-650dj186\\data\\run-a\\stderr.txt'
 
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
   File "C:\b\Colosseum-Server-1.0-workers\P06-A\tools\server_lab\tests\test_runner.py", line 70, in tearDown
     self.temp.cleanup()
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 947, in cleanup
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 947, in cleanup
     self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 929, in _rmtree
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 929, in _rmtree
     _shutil.rmtree(name, onerror=onerror)
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 787, in rmtree
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 787, in rmtree
     return _rmtree_unsafe(path, onerror)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
     _rmtree_unsafe(fullname, onerror)
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
     _rmtree_unsafe(fullname, onerror)
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 634, in _rmtree_unsafe
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 634, in _rmtree_unsafe
     onerror(os.unlink, fullname, sys.exc_info())
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 893, in onerror
+  File "C:\Users\PublicUser\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 893, in onerror
     _os.unlink(path)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p04-runner-test-650dj186\\data\\run-a\\stderr.txt'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p04-runner-test-650dj186\\data\\run-a\\stderr.txt'
 
 ======================================================================
 FAIL: test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans)

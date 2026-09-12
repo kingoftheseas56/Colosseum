@@ -16,7 +16,7 @@ MEASUREMENT_PATH = PACKET_ROOT / "measurement-run.json"
 REPORT_PATH = ROOT / "docs" / "server1" / "BASELINE-REPORT.json"
 ORACLE = Path(r"C:\b\Colosseum-Server-1.0-Planning-Pack\oracle\stremio-service-v4.21.1-server-bundle\server.js")
 WORK_ITEMS = Path(
-    r"C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json"
+    r"C:\Users\PublicUser\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json"
 )
 ORACLE_SHA256 = "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
 PLAN_SHA256 = "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7"

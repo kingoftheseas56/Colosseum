@@ -2,10 +2,10 @@
   "schema": "colosseum-server1-packet-receipt/v2",
   "worker_id": "M00-A",
   "parent_packet": "M00",
-  "checkout": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/M00-A-repair",
+  "checkout": "C:/Users/PublicUser/Desktop/Brotherhood/.codex/server1-review/M00-A-repair",
   "base": "a97bd1aa64f573b0730118a2abe253ebcf596483",
   "oracle": {
-    "path": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/oracle/server.js",
+    "path": "C:/Users/PublicUser/Desktop/Brotherhood/.codex/server1-review/oracle/server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
   "source_authorities": {

@@ -2,11 +2,11 @@
 
 Worker: `K13-B`
 Packet: `K13`
-Oracle: `C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\oracle\server.js`
+Oracle: `C:\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\oracle\server.js`
 Oracle SHA-256: `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f`
 Oracle input: `K13_B_ORACLE_PATH` overrides the path; when unset, the probe uses the adjacent
 `../oracle/server.js` review-mirror fallback. The recorded run used:
-`K13_B_ORACLE_PATH='C:\Users\Suprabha\Desktop\Brotherhood\.codex\server1-review\oracle\server.js'`.
+`K13_B_ORACLE_PATH='C:\Users\PublicUser\Desktop\Brotherhood\.codex\server1-review\oracle\server.js'`.
 
 Hash convention: the oracle hash is SHA-256 over the exact raw bytes of the local mirror with no
 newline normalization. The module/range hashes above retain the planning-pack source-byte

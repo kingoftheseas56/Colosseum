@@ -1,7 +1,7 @@
 Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" -S native -B artifacts/server1/P01A/native-build-valid -G Ninja -DCMAKE_MAKE_PROGRAM="C:/Qt/Tools/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/msvc2022_64" -Wno-dev'
 Exit: 0
 
--- Compiler cache: sccache (C:/Users/Suprabha/AppData/Local/Microsoft/WinGet/Links/sccache.exe)
+-- Compiler cache: sccache (C:/Users/PublicUser/AppData/Local/Microsoft/WinGet/Links/sccache.exe)
 -- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR)
 -- Could NOT find Qt6TaskTree (missing: Qt6TaskTree_DIR)
 CMake Warning at C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package):

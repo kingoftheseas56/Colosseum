@@ -220,9 +220,9 @@
   ],
   "paths": {
     "config": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\tools\\server_lab\\cases\\P07-B.json",
-    "run_root": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5",
-    "stderr": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5\\stderr.txt",
-    "stdout": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5\\stdout.txt"
+    "run_root": "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5",
+    "stderr": "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5\\stderr.txt",
+    "stdout": "C:\\Users\\PublicUser\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5\\stdout.txt"
   },
   "peer_observations": [
     {

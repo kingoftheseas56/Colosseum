@@ -115,5 +115,12 @@
     "M00 11-line comparison is a bounded behavioral projection; source stderr sink and source-only ffprobe differences are documented in its repair README.",
     "One wrong K13-B CLI invocation ran its default cases; retained as discarded harness evidence and rerun correctly with a private root before --trace."
   ],
-  "next_action": "Codex review the exact candidate HEAD and run reproduce_gate.py from a new scratch directory. Only an independent acceptance may permit feature-branch integration or W3."
+  "next_action": "Codex review the sanitized candidate HEAD and run reproduce_gate.py from a new scratch directory. Only an independent acceptance may permit feature-branch integration or W3.",
+  "integration_hygiene": {
+    "public_path_guard": "PASS",
+    "public_path_guard_tests": "4/4 PASS",
+    "tracked_private_path_findings": 0,
+    "sanitization_scope": "All tracked findings in the repaired candidate, including inherited historical Server 1.0 evidence.",
+    "post_sanitization_reproduction": "PASS"
+  }
 }

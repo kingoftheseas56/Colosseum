@@ -32,13 +32,13 @@ exit: 0
 owned paths: artifacts/server1/P07/P07-A/CASE-RESULTS.json; artifacts/server1/P07/P07-A/PACKET-RECEIPT.json; artifacts/server1/P07/P07-A/RAW-TEST-OUTPUT.txt; artifacts/server1/P07/P07-A/WIRING-REQUEST.json; artifacts/server1/P07/P07-A/test_p07_a.py; tools/server_lab/cases/P07-A.json; tools/server_lab/probes/http_bytes.py; tools/server_lab/probes/resources.py
 
 qualified predecessor regression
-command: $env:P05_QUALIFIED_NODE='C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe'; & $env:P05_QUALIFIED_NODE --version; python -m unittest discover -s tools/server_lab/tests -v
+command: $env:P05_QUALIFIED_NODE='C:\Users\PublicUser\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe'; & $env:P05_QUALIFIED_NODE --version; python -m unittest discover -s tools/server_lab/tests -v
 node_version: v22.16.0
 exit: 0
 summary: Ran 48 tests in 30.092s; OK (skipped=8).
 
 exact P04/reference suite
-command: $env:P05_QUALIFIED_NODE='C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe'; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v
+command: $env:P05_QUALIFIED_NODE='C:\Users\PublicUser\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe'; python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v
 exit: 0
 summary: Ran 24 tests in 19.062s; OK (skipped=8).
 

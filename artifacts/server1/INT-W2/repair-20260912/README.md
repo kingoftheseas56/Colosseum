@@ -27,3 +27,6 @@ RECEIPT.json, REPLAY.json, SCOPE-AUDIT.json, DEPENDENCY-HASH-CHECK.json, BINARY-
 The official feature remains at e5660e27, with the three unrelated deletions in docs/build/linux.md, macos.md and windows.md preserved. No official checkout, master, Runtime, ServerComposition, RootRoutes, application entry/CMake/TorrentEngine or CI mutation occurred. The only native difference from 801a4b4f is the previously approved H00 owning-string line. No branch was pushed.
 
 Codex must independently inspect the M00 repair and the assembled tree and decide B-W2B. This producer does not accept its own integration gate. Full server runtime, playback and platform qualification remain downstream.
+## Integration hygiene repair
+
+The candidate now passes `python scripts/check_public_paths.py` with zero tracked findings. The cleanup sanitized both the repaired W2 evidence and inherited historical Server 1.0 evidence that predated this assembly; the guard itself was not weakened. `reproduce_gate.py` now executes the public-path guard before the mechanical gate and aborts if it fails. The post-sanitization fresh reproduction passed the full 16-test/48-repeat, combined-link, H00 413, and differential gate. B-W2B remains pending independent acceptance and W3 remains closed.

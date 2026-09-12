@@ -1,5 +1,5 @@
-Internal ctest changing into directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build
-Test project C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build
+Internal ctest changing into directory: <SCRATCH_ROOT>/aggregate-build
+Test project <SCRATCH_ROOT>/aggregate-build
       Start  1: P03-02-server1-host
     Test  #1: P03-02-server1-host ..............   Passed    0.03 sec
       Start  1: P03-02-server1-host

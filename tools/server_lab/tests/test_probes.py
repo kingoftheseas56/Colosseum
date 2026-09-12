@@ -11,6 +11,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 import statistics
 import unittest
 from pathlib import Path
@@ -20,7 +21,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[3]
 REPORT_PATH = ROOT / "docs" / "server1" / "BASELINE-REPORT.json"
 WORK_ITEMS_PATH = Path(
-    r"C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json"
+    os.environ.get(
+        "PARALLEL_WORK_ITEMS_JSON",
+        r"C:\Users\PublicUser\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
+    )
 )
 ORACLE_PATH = Path(
     r"C:\b\Colosseum-Server-1.0-Planning-Pack\oracle\stremio-service-v4.21.1-server-bundle\server.js"

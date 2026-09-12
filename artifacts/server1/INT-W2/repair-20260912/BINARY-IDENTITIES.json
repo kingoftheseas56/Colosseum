@@ -1,18 +1,18 @@
 {
   "source_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
   "sha256": {
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_h00_http.lib": "19333f0a9c421a8395d9bd64440948f0e32680f60540e45028f39edddec9b5f2",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_host.exe": "f5129e79fe9601cf4faa8d6b8af2b2824d5b7c3d2891736e2006d8165c2ff944",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_k00_js_semantics.exe": "da1cd293eccca85196ccbf7605b1e9c500bc4641fd47261baf075cd7cbefebea",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_k00_policy.lib": "c1c11bd83fcb694ae63fdb302b07d3337c84389fcf2112153af6314b1cbb57b8",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_k01_metadata.lib": "7b5e6e4078e0962674ec541772999cd52781f2b8a4e9c8748003ce8897e28f68",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_k01_metadata_geometry.exe": "c67c8af2a426babecd2ffbea439ad5e66e415ff97fce3a320e390415c0820b60",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_k13_settings_cache.lib": "9bb8cbd8d95c74ffad467b955999cb4188f341f9cede658eae1f03fd90310cee",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_m00_process.lib": "e7a053dd8790bb8af50fc8832b6bb80e348fa7f08090a9549fe01fb28b680e2a",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_m00_process_tests.exe": "e114ab72897c7942f33543f8cc1620e052ff58c2f5d2548d5b855e57d2b54306",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_h00_http_contract.exe": "099d3b59f879b0d8cf9a9a50f4c12043584479608b4276d50f97e8a7d077f4f3",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_k13_settings_cache_test.exe": "fefc727abfc11444e347e13d609dade6db0ae5f3291d856f56ca15aafd7baa18",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build\\combined_w2.exe": "c989b727b4c0b787357c128695cc4ffdc110700b9bb81ede4c6379316c603cdb",
-    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build\\k13a_assembled_probe.exe": "3d068a7ce2de266ce79602dbeeebc5abf50e1872f334802b06c8f93a8b07dd2a"
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_h00_http.lib": "19333f0a9c421a8395d9bd64440948f0e32680f60540e45028f39edddec9b5f2",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_host.exe": "f5129e79fe9601cf4faa8d6b8af2b2824d5b7c3d2891736e2006d8165c2ff944",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_k00_js_semantics.exe": "da1cd293eccca85196ccbf7605b1e9c500bc4641fd47261baf075cd7cbefebea",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_k00_policy.lib": "c1c11bd83fcb694ae63fdb302b07d3337c84389fcf2112153af6314b1cbb57b8",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_k01_metadata.lib": "7b5e6e4078e0962674ec541772999cd52781f2b8a4e9c8748003ce8897e28f68",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_k01_metadata_geometry.exe": "c67c8af2a426babecd2ffbea439ad5e66e415ff97fce3a320e390415c0820b60",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_k13_settings_cache.lib": "9bb8cbd8d95c74ffad467b955999cb4188f341f9cede658eae1f03fd90310cee",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_m00_process.lib": "e7a053dd8790bb8af50fc8832b6bb80e348fa7f08090a9549fe01fb28b680e2a",
+    "<SCRATCH_ROOT>\\aggregate-build\\server1_m00_process_tests.exe": "e114ab72897c7942f33543f8cc1620e052ff58c2f5d2548d5b855e57d2b54306",
+    "<SCRATCH_ROOT>\\aggregate-build\\p03-tests\\server1_h00_http_contract.exe": "099d3b59f879b0d8cf9a9a50f4c12043584479608b4276d50f97e8a7d077f4f3",
+    "<SCRATCH_ROOT>\\aggregate-build\\p03-tests\\server1_k13_settings_cache_test.exe": "fefc727abfc11444e347e13d609dade6db0ae5f3291d856f56ca15aafd7baa18",
+    "<SCRATCH_ROOT>\\combined-link-build\\combined_w2.exe": "c989b727b4c0b787357c128695cc4ffdc110700b9bb81ede4c6379316c603cdb",
+    "<SCRATCH_ROOT>\\combined-link-build\\k13a_assembled_probe.exe": "3d068a7ce2de266ce79602dbeeebc5abf50e1872f334802b06c8f93a8b07dd2a"
   }
 }
