@@ -1,0 +1,43 @@
+Internal ctest changing into directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build
+Test project C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build
+      Start  1: P03-02-server1-host
+ 1/16 Test  #1: P03-02-server1-host ..............   Passed    0.08 sec
+      Start  2: K00-01-js-semantics
+ 2/16 Test  #2: K00-01-js-semantics ..............   Passed    0.05 sec
+      Start  3: K00-02-js-semantics
+ 3/16 Test  #3: K00-02-js-semantics ..............   Passed    0.01 sec
+      Start  4: K00-03-js-semantics
+ 4/16 Test  #4: K00-03-js-semantics ..............   Passed    0.01 sec
+      Start  5: K01-01-metadata-geometry
+ 5/16 Test  #5: K01-01-metadata-geometry .........   Passed    0.06 sec
+      Start  6: K01-02-metadata-geometry
+ 6/16 Test  #6: K01-02-metadata-geometry .........   Passed    0.01 sec
+      Start  7: K01-03-metadata-geometry
+ 7/16 Test  #7: K01-03-metadata-geometry .........   Passed    0.01 sec
+      Start  8: K13-01-settings-cache-defaults
+ 8/16 Test  #8: K13-01-settings-cache-defaults ...   Passed    0.08 sec
+      Start  9: K13-02-cache-policy
+ 9/16 Test  #9: K13-02-cache-policy ..............   Passed    0.04 sec
+      Start 10: K13-03-cache-convergence
+10/16 Test #10: K13-03-cache-convergence .........   Passed    0.09 sec
+      Start 11: H00-01-http-contract
+11/16 Test #11: H00-01-http-contract .............   Passed    0.10 sec
+      Start 12: H00-02-http-contract
+12/16 Test #12: H00-02-http-contract .............   Passed    0.03 sec
+      Start 13: H00-03-http-contract
+13/16 Test #13: H00-03-http-contract .............   Passed    1.63 sec
+      Start 14: M00-01-process-discovery
+14/16 Test #14: M00-01-process-discovery .........   Passed    0.07 sec
+      Start 15: M00-02-process-lifecycle
+15/16 Test #15: M00-02-process-lifecycle .........   Passed    1.43 sec
+      Start 16: M00-03-remote-driver
+16/16 Test #16: M00-03-remote-driver .............   Passed    0.06 sec
+
+100% tests passed, 0 tests failed out of 16
+
+Label Time Summary:
+http       =   1.76 sec*proc (3 tests)
+server1    =   1.76 sec*proc (3 tests)
+unit       =   1.76 sec*proc (3 tests)
+
+Total Test time (real) =   3.80 sec

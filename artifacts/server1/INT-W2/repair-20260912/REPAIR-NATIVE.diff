@@ -1,0 +1,13 @@
+diff --git a/native/colosseum_server_v1/src/http/RequestParsing.cpp b/native/colosseum_server_v1/src/http/RequestParsing.cpp
+index 64d6f39b..a529f15b 100644
+--- a/native/colosseum_server_v1/src/http/RequestParsing.cpp
++++ b/native/colosseum_server_v1/src/http/RequestParsing.cpp
+@@ -270,7 +270,7 @@ bool parseDecimal(std::string_view value, std::size_t &result)
+ bool parseChunkSize(std::string_view value, std::size_t &result)
+ {
+     const std::size_t extension = value.find(';');
+-    const std::string_view sizeText = trimOWS(value.substr(0, extension));
++    const std::string sizeText = trimOWS(value.substr(0, extension));
+     if (sizeText.empty())
+         return false;
+     result = 0;

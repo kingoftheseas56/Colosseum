@@ -1,0 +1,6 @@
+[1/1] Cleaning all built files...
+Cleaning... 0 files.
+[1/4] Building CXX object CMakeFiles\k13a_assembled_probe.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K13\K13-A\probe-src\settings_store_probe.cpp.obj
+[2/4] Linking CXX executable k13a_assembled_probe.exe
+[3/4] Building CXX object CMakeFiles\combined_w2.dir\combined_w2.cpp.obj
+[4/4] Linking CXX executable combined_w2.exe

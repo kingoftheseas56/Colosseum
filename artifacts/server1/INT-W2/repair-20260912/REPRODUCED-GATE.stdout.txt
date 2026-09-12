@@ -1,0 +1,21 @@
+AGG-CONFIGURE: exit 0
+AGG-BUILD: exit 0
+AGG-INVENTORY: exit 0
+AGG-CTEST: exit 0
+AGG-CTEST-REPEAT: exit 0
+COMBINED-CONFIGURE: exit 0
+COMBINED-BUILD: exit 0
+COMBINED-RUN: exit 0
+K01-SOURCE: exit 0
+K01-NATIVE: exit 0
+K13A-SOURCE: exit 0
+K13A-NATIVE: exit 0
+K13A-K13-01: exit 0
+K13A-K13-03: exit 0
+K13B-SOURCE: exit 0
+K13B-NATIVE: exit 0
+H00-NATIVE-TRACE: exit 0
+H00-RAW-WIRE: exit 0
+H00-STREAM-DISCONNECT: exit 0
+M00-ASSEMBLED-DIFFERENTIAL: exit 0
+{"result": "PASS", "candidate_head": "260835ff2b52b11a169cf97493b9dbe49c7eb285", "ctest": "16/16", "repeated_test_executions": 48, "combined_link": "PASS", "source_native_lines": {"K01": 72, "K13-A": 11, "K13-B": 9, "M00": 11}, "H00_scope": "pinned source-derived trace profile and native real-loopback raw-wire/stream checks, not full live-oracle HTTP parity", "B-W2B": "closed pending independent Codex acceptance", "W3": "closed"}

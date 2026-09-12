@@ -1,0 +1,29 @@
+{
+  "recorded_checkout": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+  "recorded_scratch": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "cmake": "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+  "ctest": "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+  "vsdevcmd": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat",
+  "qt_prefix": "C:\\Qt\\6.11.1\\msvc2022_64",
+  "ninja": "C:\\Qt\\Tools\\Ninja\\ninja.exe",
+  "expected_ctest": [
+    "P03-02-server1-host",
+    "K00-01-js-semantics",
+    "K00-02-js-semantics",
+    "K00-03-js-semantics",
+    "K01-01-metadata-geometry",
+    "K01-02-metadata-geometry",
+    "K01-03-metadata-geometry",
+    "K13-01-settings-cache-defaults",
+    "K13-02-cache-policy",
+    "K13-03-cache-convergence",
+    "H00-01-http-contract",
+    "H00-02-http-contract",
+    "H00-03-http-contract",
+    "M00-01-process-discovery",
+    "M00-02-process-lifecycle",
+    "M00-03-remote-driver"
+  ],
+  "source_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285"
+}

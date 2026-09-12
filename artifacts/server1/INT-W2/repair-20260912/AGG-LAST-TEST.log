@@ -1,0 +1,790 @@
+Start testing: Sep 12 23:08 India Standard Time
+----------------------------------------------------------
+1/16 Testing: P03-02-server1-host
+1/16 Test: P03-02-server1-host
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_host.exe"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"P03-02-server1-host" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+server1 skeleton initialized; streaming-ready=NO
+server1 skeleton shutdown; streaming-ready=NO
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Pass Reason:
+Required regular expression found. Regex=[server1 skeleton initialized]
+"P03-02-server1-host" end time: Sep 12 23:08 India Standard Time
+"P03-02-server1-host" time elapsed: 00:00:00
+----------------------------------------------------------
+
+1/16 Testing: P03-02-server1-host
+1/16 Test: P03-02-server1-host
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_host.exe"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"P03-02-server1-host" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+server1 skeleton initialized; streaming-ready=NO
+server1 skeleton shutdown; streaming-ready=NO
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Pass Reason:
+Required regular expression found. Regex=[server1 skeleton initialized]
+"P03-02-server1-host" end time: Sep 12 23:08 India Standard Time
+"P03-02-server1-host" time elapsed: 00:00:00
+----------------------------------------------------------
+
+1/16 Testing: P03-02-server1-host
+1/16 Test: P03-02-server1-host
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_host.exe"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"P03-02-server1-host" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+server1 skeleton initialized; streaming-ready=NO
+server1 skeleton shutdown; streaming-ready=NO
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Pass Reason:
+Required regular expression found. Regex=[server1 skeleton initialized]
+"P03-02-server1-host" end time: Sep 12 23:08 India Standard Time
+"P03-02-server1-host" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/16 Testing: K00-01-js-semantics
+2/16 Test: K00-01-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-01-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-01 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-01-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-01-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/16 Testing: K00-01-js-semantics
+2/16 Test: K00-01-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-01-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-01 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-01-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-01-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/16 Testing: K00-01-js-semantics
+2/16 Test: K00-01-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-01-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-01 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-01-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-01-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/16 Testing: K00-02-js-semantics
+3/16 Test: K00-02-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-02-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-02 PASS
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"K00-02-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-02-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/16 Testing: K00-02-js-semantics
+3/16 Test: K00-02-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-02-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-02 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-02-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-02-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/16 Testing: K00-02-js-semantics
+3/16 Test: K00-02-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-02-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-02 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-02-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-02-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/16 Testing: K00-03-js-semantics
+4/16 Test: K00-03-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-03-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-03 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-03-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-03-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/16 Testing: K00-03-js-semantics
+4/16 Test: K00-03-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-03-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-03 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-03-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-03-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/16 Testing: K00-03-js-semantics
+4/16 Test: K00-03-js-semantics
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k00_js_semantics.exe" "K00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K00-03-js-semantics" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K00-03 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K00-03-js-semantics" end time: Sep 12 23:08 India Standard Time
+"K00-03-js-semantics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/16 Testing: K01-01-metadata-geometry
+5/16 Test: K01-01-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-01-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-01 PASS
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"K01-01-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-01-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/16 Testing: K01-01-metadata-geometry
+5/16 Test: K01-01-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-01-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-01 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K01-01-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-01-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/16 Testing: K01-01-metadata-geometry
+5/16 Test: K01-01-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-01-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-01 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K01-01-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-01-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/16 Testing: K01-02-metadata-geometry
+6/16 Test: K01-02-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-02-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-02 PASS
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"K01-02-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-02-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/16 Testing: K01-02-metadata-geometry
+6/16 Test: K01-02-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-02-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-02 PASS
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"K01-02-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-02-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/16 Testing: K01-02-metadata-geometry
+6/16 Test: K01-02-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-02-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-02 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K01-02-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-02-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/16 Testing: K01-03-metadata-geometry
+7/16 Test: K01-03-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-03-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-03 PASS
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"K01-03-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-03-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/16 Testing: K01-03-metadata-geometry
+7/16 Test: K01-03-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-03-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-03 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K01-03-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-03-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/16 Testing: K01-03-metadata-geometry
+7/16 Test: K01-03-metadata-geometry
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_k01_metadata_geometry.exe" "K01-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K01-03-metadata-geometry" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K01-03 PASS
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"K01-03-metadata-geometry" end time: Sep 12 23:08 India Standard Time
+"K01-03-metadata-geometry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/16 Testing: K13-01-settings-cache-defaults
+8/16 Test: K13-01-settings-cache-defaults
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-01-settings-cache-defaults" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-02 atime-ordering PASS
+K13-01 defaults/no-cache and K13-02 enumeration/eviction PASS
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"K13-01-settings-cache-defaults" end time: Sep 12 23:08 India Standard Time
+"K13-01-settings-cache-defaults" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/16 Testing: K13-01-settings-cache-defaults
+8/16 Test: K13-01-settings-cache-defaults
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-01-settings-cache-defaults" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-02 atime-ordering PASS
+K13-01 defaults/no-cache and K13-02 enumeration/eviction PASS
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"K13-01-settings-cache-defaults" end time: Sep 12 23:08 India Standard Time
+"K13-01-settings-cache-defaults" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/16 Testing: K13-01-settings-cache-defaults
+8/16 Test: K13-01-settings-cache-defaults
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-01-settings-cache-defaults" "K13-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-01-settings-cache-defaults" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-02 atime-ordering PASS
+K13-01 defaults/no-cache and K13-02 enumeration/eviction PASS
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"K13-01-settings-cache-defaults" end time: Sep 12 23:08 India Standard Time
+"K13-01-settings-cache-defaults" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/16 Testing: K13-02-cache-policy
+9/16 Test: K13-02-cache-policy
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-02-cache-policy" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-02 atime-ordering PASS
+K13-01 defaults/no-cache and K13-02 enumeration/eviction PASS
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"K13-02-cache-policy" end time: Sep 12 23:08 India Standard Time
+"K13-02-cache-policy" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/16 Testing: K13-02-cache-policy
+9/16 Test: K13-02-cache-policy
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-02-cache-policy" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-02 atime-ordering PASS
+K13-01 defaults/no-cache and K13-02 enumeration/eviction PASS
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"K13-02-cache-policy" end time: Sep 12 23:08 India Standard Time
+"K13-02-cache-policy" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/16 Testing: K13-02-cache-policy
+9/16 Test: K13-02-cache-policy
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-02-cache-policy" "K13-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-02-cache-policy" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-02 atime-ordering PASS
+K13-01 defaults/no-cache and K13-02 enumeration/eviction PASS
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"K13-02-cache-policy" end time: Sep 12 23:08 India Standard Time
+"K13-02-cache-policy" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/16 Testing: K13-03-cache-convergence
+10/16 Test: K13-03-cache-convergence
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-03-cache-convergence" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-03 fallback cache directory and delayed cleaning PASS
+<end of output>
+Test time =   0.10 sec
+----------------------------------------------------------
+Test Passed.
+"K13-03-cache-convergence" end time: Sep 12 23:08 India Standard Time
+"K13-03-cache-convergence" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/16 Testing: K13-03-cache-convergence
+10/16 Test: K13-03-cache-convergence
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-03-cache-convergence" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-03 fallback cache directory and delayed cleaning PASS
+<end of output>
+Test time =   0.08 sec
+----------------------------------------------------------
+Test Passed.
+"K13-03-cache-convergence" end time: Sep 12 23:08 India Standard Time
+"K13-03-cache-convergence" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/16 Testing: K13-03-cache-convergence
+10/16 Test: K13-03-cache-convergence
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe" "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/K13-03-cache-convergence" "K13-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"K13-03-cache-convergence" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+K13-03 fallback cache directory and delayed cleaning PASS
+<end of output>
+Test time =   0.08 sec
+----------------------------------------------------------
+Test Passed.
+"K13-03-cache-convergence" end time: Sep 12 23:08 India Standard Time
+"K13-03-cache-convergence" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/16 Testing: H00-01-http-contract
+11/16 Test: H00-01-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-01-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-01 PASS
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"H00-01-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-01-http-contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/16 Testing: H00-01-http-contract
+11/16 Test: H00-01-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-01-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-01 PASS
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"H00-01-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-01-http-contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/16 Testing: H00-01-http-contract
+11/16 Test: H00-01-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-01-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-01 PASS
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"H00-01-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-01-http-contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/16 Testing: H00-02-http-contract
+12/16 Test: H00-02-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-02-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-02 PASS
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"H00-02-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-02-http-contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/16 Testing: H00-02-http-contract
+12/16 Test: H00-02-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-02-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-02 PASS
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"H00-02-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-02-http-contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/16 Testing: H00-02-http-contract
+12/16 Test: H00-02-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-02-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-02 PASS
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"H00-02-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-02-http-contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/16 Testing: H00-03-http-contract
+13/16 Test: H00-03-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-03-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-03 PASS
+<end of output>
+Test time =   1.62 sec
+----------------------------------------------------------
+Test Passed.
+"H00-03-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-03-http-contract" time elapsed: 00:00:01
+----------------------------------------------------------
+
+13/16 Testing: H00-03-http-contract
+13/16 Test: H00-03-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-03-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-03 PASS
+<end of output>
+Test time =   1.62 sec
+----------------------------------------------------------
+Test Passed.
+"H00-03-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-03-http-contract" time elapsed: 00:00:01
+----------------------------------------------------------
+
+13/16 Testing: H00-03-http-contract
+13/16 Test: H00-03-http-contract
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests/server1_h00_http_contract.exe" "H00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"H00-03-http-contract" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+H00-03 PASS
+<end of output>
+Test time =   1.63 sec
+----------------------------------------------------------
+Test Passed.
+"H00-03-http-contract" end time: Sep 12 23:08 India Standard Time
+"H00-03-http-contract" time elapsed: 00:00:01
+----------------------------------------------------------
+
+14/16 Testing: M00-01-process-discovery
+14/16 Test: M00-01-process-discovery
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-01-process-discovery" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-01 PASS
+<end of output>
+Test time =   0.08 sec
+----------------------------------------------------------
+Test Passed.
+"M00-01-process-discovery" end time: Sep 12 23:08 India Standard Time
+"M00-01-process-discovery" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/16 Testing: M00-01-process-discovery
+14/16 Test: M00-01-process-discovery
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-01-process-discovery" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-01 PASS
+<end of output>
+Test time =   0.08 sec
+----------------------------------------------------------
+Test Passed.
+"M00-01-process-discovery" end time: Sep 12 23:08 India Standard Time
+"M00-01-process-discovery" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/16 Testing: M00-01-process-discovery
+14/16 Test: M00-01-process-discovery
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-01"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-01-process-discovery" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-01 PASS
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"M00-01-process-discovery" end time: Sep 12 23:08 India Standard Time
+"M00-01-process-discovery" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/16 Testing: M00-02-process-lifecycle
+15/16 Test: M00-02-process-lifecycle
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-02-process-lifecycle" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-02 PASS
+<end of output>
+Test time =   1.75 sec
+----------------------------------------------------------
+Test Passed.
+"M00-02-process-lifecycle" end time: Sep 12 23:08 India Standard Time
+"M00-02-process-lifecycle" time elapsed: 00:00:01
+----------------------------------------------------------
+
+15/16 Testing: M00-02-process-lifecycle
+15/16 Test: M00-02-process-lifecycle
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-02-process-lifecycle" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-02 PASS
+<end of output>
+Test time =   1.77 sec
+----------------------------------------------------------
+Test Passed.
+"M00-02-process-lifecycle" end time: Sep 12 23:08 India Standard Time
+"M00-02-process-lifecycle" time elapsed: 00:00:01
+----------------------------------------------------------
+
+15/16 Testing: M00-02-process-lifecycle
+15/16 Test: M00-02-process-lifecycle
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-02"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-02-process-lifecycle" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-02 PASS
+<end of output>
+Test time =   2.01 sec
+----------------------------------------------------------
+Test Passed.
+"M00-02-process-lifecycle" end time: Sep 12 23:08 India Standard Time
+"M00-02-process-lifecycle" time elapsed: 00:00:02
+----------------------------------------------------------
+
+16/16 Testing: M00-03-remote-driver
+16/16 Test: M00-03-remote-driver
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-03-remote-driver" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-03 PASS
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"M00-03-remote-driver" end time: Sep 12 23:08 India Standard Time
+"M00-03-remote-driver" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/16 Testing: M00-03-remote-driver
+16/16 Test: M00-03-remote-driver
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-03-remote-driver" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-03 PASS
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"M00-03-remote-driver" end time: Sep 12 23:08 India Standard Time
+"M00-03-remote-driver" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/16 Testing: M00-03-remote-driver
+16/16 Test: M00-03-remote-driver
+Command: "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/server1_m00_process_tests.exe" "M00-03"
+Directory: C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/aggregate-build/p03-tests
+"M00-03-remote-driver" start time: Sep 12 23:08 India Standard Time
+Output:
+----------------------------------------------------------
+M00-03 PASS
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"M00-03-remote-driver" end time: Sep 12 23:08 India Standard Time
+"M00-03-remote-driver" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 12 23:08 India Standard Time
+
+http =   1.84 sec*proc
+
+server1 =   1.84 sec*proc
+
+unit =   1.84 sec*proc
+

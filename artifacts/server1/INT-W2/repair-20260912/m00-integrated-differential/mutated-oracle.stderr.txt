@@ -1,0 +1,23 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: oracle SHA-256 mismatch
++ actual - expected
+
++ '41f021e3b1e9ceb93050e3c7b44ae47bb08fc372504f57f6424b0e32c683e995'
+- '405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f'
+
+    at file:///C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs:18:8
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '41f021e3b1e9ceb93050e3c7b44ae47bb08fc372504f57f6424b0e32c683e995',
+  expected: '405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.14.0

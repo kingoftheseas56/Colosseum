@@ -1,0 +1,46 @@
+{
+  "starting_assembly": "801a4b4f7013febebcc1bef884c07a4115ad6b98",
+  "inputs": [
+    {
+      "input": "82aa8cdbc991de6f88bdf04664336675109e760b",
+      "assembled": "df0f5d7dbeb8fb3fe1a047a8d1e062e23a965a8d"
+    },
+    {
+      "input": "7fd34942efc5af2ea7520b07f4e3020c4fc1ac11",
+      "assembled": "1888bf1753630b7e15fcf6196deb68a56bd1e2cc"
+    },
+    {
+      "input": "f689afae740c2c26756d4fa8762323f0d180c73e",
+      "assembled": "fb65c65227b19b8a94bf453a988f81b66ed3f0d9"
+    },
+    {
+      "input": "ff1f74093c4ab40c582c7a9b89f54bb142bf1b07",
+      "assembled": "260835ff2b52b11a169cf97493b9dbe49c7eb285"
+    }
+  ],
+  "source_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
+  "original_history": [
+    "dbe5330b9fab6bf94be594474b3689b56a46e3e9 feat(server1): implement K01 metadata geometry",
+    "1165457027cc06e804d07c27373467d71474841e chore(server1): record K01 receipt and wiring",
+    "125f8f13f32aa685c5829f00033a5e44002238d6 fix(server1): align K01 metadata parser with oracle",
+    "7afcfd8ef69b30fd5e755b5507bbaf4d0956bd84 chore(server1): refresh K01 repair receipt",
+    "f609c5452bbb77e1cb2d3e990a5c9f7cb65b57ba chore(server1): correct K01 evidence hashes",
+    "7660d985a7543523b3427e7bfdc5f3e283221e3f feat(server1): implement K13-A settings store",
+    "cff57d6a86d779bc6631c88b5837262c5e27009e chore(server1): record K13-A packet handoff",
+    "8e81d02249c56df7af46629e2da5619404e030c9 feat(server1): implement K13-B cache policy",
+    "5f125d9da50e14e255d64f2f4745e4c035b41e49 chore(server1): preserve K13-B packet evidence",
+    "af4e428f0bfb039aee3def495074d34eda0336a5 chore(server1): repair K13-B source differential evidence",
+    "08026abbfdb7275a866004cc30f4e55cbaee5cc6 chore(server1): make K13-B oracle path configurable",
+    "a191a6319c533d52d9f2b72b7a47848c93dbdc2d Implement H00 HTTP parser router and connection facade",
+    "21aacc3cfee8109b7a26dcdbbe862d83163eb3e2 Record H00 packet evidence and wiring request",
+    "06ba13d0d9f214b02b02c5e7827e4bc39c2221e0 Repair H00 backpressure lifecycle and HTTP parsing bounds",
+    "4774aed452eb88f6d72561db07c70cd952718990 Record H00 repair evidence and wiring update",
+    "20e525b1baaf23ead2915e602fde35d1cf7b1a63 Repair H00 HTTP handler and streaming contract",
+    "5530b856f83eebfd5bf4a693dadbe3346ef2f86c feat(server1): add M00 process ports",
+    "abd3524470357d472cd3255fb63fd85849008b11 fix(server1): guard process driver callback lifetime",
+    "79a466c42e8b34b867b84e85bf3feaaca5151038 Repair M00 process parity and lifecycle",
+    "77e3b4d88418507016649b736326cf2c7517b3b6 docs(server1): defer M00 composition wiring to C00",
+    "f351b482a50a575d33b6ccab4add364b20bbf02d feat(server1): assemble W2 foundation registries",
+    "801a4b4f7013febebcc1bef884c07a4115ad6b98 docs(server1): record INT-W2 B-W2B evidence"
+  ]
+}

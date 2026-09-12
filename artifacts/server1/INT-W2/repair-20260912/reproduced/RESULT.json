@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "candidate_head": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
+  "ctest": "16/16",
+  "repeated_test_executions": 48,
+  "combined_link": "PASS",
+  "source_native_lines": {
+    "K01": 72,
+    "K13-A": 11,
+    "K13-B": 9,
+    "M00": 11
+  },
+  "H00_scope": "pinned source-derived trace profile and native real-loopback raw-wire/stream checks, not full live-oracle HTTP parity",
+  "B-W2B": "closed pending independent Codex acceptance",
+  "W3": "closed"
+}

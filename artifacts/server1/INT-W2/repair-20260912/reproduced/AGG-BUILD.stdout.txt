@@ -1,0 +1,31 @@
+[1/1] Cleaning all built files...
+Cleaning... 0 files.
+[1/29] Building CXX object CMakeFiles\server1_k00_policy.dir\src\policy\Value.cpp.obj
+[2/29] Building CXX object CMakeFiles\server1_k00_policy.dir\src\policy\JsConversions.cpp.obj
+[3/29] Linking CXX static library server1_k00_policy.lib
+[4/29] Building CXX object CMakeFiles\server1_k01_metadata.dir\src\policy\VirtualPieceMap.cpp.obj
+[5/29] Building CXX object CMakeFiles\server1_k01_metadata.dir\src\policy\TorrentMetadata.cpp.obj
+[6/29] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\src\settings\SettingsStore.cpp.obj
+[7/29] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\src\settings\CachePolicy.cpp.obj
+[8/29] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\src\platform\DiskSpace.cpp.obj
+[9/29] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\Router.cpp.obj
+[10/29] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\Connection.cpp.obj
+[11/29] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\RequestParsing.cpp.obj
+[12/29] Building CXX object CMakeFiles\server1_m00_process.dir\src\media\ExecutableLocator.cpp.obj
+[13/29] Building CXX object CMakeFiles\server1_host.dir\host\main.cpp.obj
+[14/29] Building CXX object CMakeFiles\server1_m00_process.dir\src\media\ProcessDriver.cpp.obj
+[15/29] Linking CXX static library server1_k01_metadata.lib
+[16/29] Building CXX object CMakeFiles\server1_k00_js_semantics.dir\tests\test_js_semantics.cpp.obj
+[17/29] Linking CXX static library server1_k13_settings_cache.lib
+[18/29] Linking CXX static library server1_h00_http.lib
+[19/29] Linking CXX static library server1_m00_process.lib
+[20/29] Building CXX object CMakeFiles\server1_k01_metadata_geometry.dir\tests\test_metadata_geometry.cpp.obj
+[21/29] Building CXX object p03-tests\CMakeFiles\server1_k13_settings_cache_test.dir\test_settings_cache.cpp.obj
+[22/29] Building CXX object CMakeFiles\server1_m00_process_tests.dir\tests\test_process_driver.cpp.obj
+[23/29] Linking CXX executable server1_host.exe
+[24/29] Linking CXX executable server1_k00_js_semantics.exe
+[25/29] Linking CXX executable server1_k01_metadata_geometry.exe
+[26/29] Linking CXX executable server1_m00_process_tests.exe
+[27/29] Linking CXX executable p03-tests\server1_k13_settings_cache_test.exe
+[28/29] Building CXX object p03-tests\CMakeFiles\server1_h00_http_contract.dir\test_http_contract.cpp.obj
+[29/29] Linking CXX executable p03-tests\server1_h00_http_contract.exe

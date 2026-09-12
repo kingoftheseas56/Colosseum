@@ -1,0 +1,2 @@
+(node:23800) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)

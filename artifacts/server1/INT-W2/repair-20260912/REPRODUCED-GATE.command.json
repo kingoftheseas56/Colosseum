@@ -1,0 +1,15 @@
+{
+  "name": "REPRODUCED-GATE",
+  "argv": [
+    "python",
+    "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\INT-W2\\repair-20260912\\reproduce_gate.py",
+    "--work",
+    "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\reproduced",
+    "--oracle",
+    "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+  ],
+  "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+  "exit": 0,
+  "stdout": "REPRODUCED-GATE.stdout.txt",
+  "stderr": "REPRODUCED-GATE.stderr.txt"
+}

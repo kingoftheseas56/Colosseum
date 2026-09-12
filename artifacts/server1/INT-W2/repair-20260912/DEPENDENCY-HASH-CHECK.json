@@ -1,0 +1,125 @@
+{
+  "lock_sha256": "3b282d0d5de8d98bdf8c1498145b9f932c6448a5c0a432943496c0ea7e17be42",
+  "external_files": [
+    {
+      "path": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp",
+      "expected_sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07",
+      "actual_sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07",
+      "match": true
+    },
+    {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake",
+      "expected_sha256": "5ae6857c3d170c4a4e4be175aa5c7419baf23de23d60fe19a99cecc5b9d19832",
+      "actual_sha256": "5ae6857c3d170c4a4e4be175aa5c7419baf23de23d60fe19a99cecc5b9d19832",
+      "match": true
+    },
+    {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfigVersion.cmake",
+      "expected_sha256": "aad782cd610f5cfb1ca0d4af4ee3c2c9761dc45abafff8040d04a8f65c8f9116",
+      "actual_sha256": "aad782cd610f5cfb1ca0d4af4ee3c2c9761dc45abafff8040d04a8f65c8f9116",
+      "match": true
+    },
+    {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarTargets.cmake",
+      "expected_sha256": "f57b2b183fbfee0e3bfc56d4aa629da7621a9568f6fa887615b9ce1b787d584c",
+      "actual_sha256": "f57b2b183fbfee0e3bfc56d4aa629da7621a9568f6fa887615b9ce1b787d584c",
+      "match": true
+    },
+    {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarTargets-release.cmake",
+      "expected_sha256": "f6c61fef24cfbce62066be0f5c3d48c8b1bdaf1b6ba38d9cc6f3e8a65909684f",
+      "actual_sha256": "f6c61fef24cfbce62066be0f5c3d48c8b1bdaf1b6ba38d9cc6f3e8a65909684f",
+      "match": true
+    },
+    {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib",
+      "expected_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30",
+      "actual_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30",
+      "match": true
+    },
+    {
+      "path": "C:/tools/boost-1.84.0/boost/version.hpp",
+      "expected_sha256": "4c95293960faf1fda21a3c2ae512d3beb0aedb18a33259b80e76fbf9e36a391a",
+      "actual_sha256": "4c95293960faf1fda21a3c2ae512d3beb0aedb18a33259b80e76fbf9e36a391a",
+      "match": true
+    },
+    {
+      "path": "C:/tools/openssl-msvc/include/openssl/opensslv.h",
+      "expected_sha256": "3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def",
+      "actual_sha256": "3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def",
+      "match": true
+    },
+    {
+      "path": "C:/tools/openssl-msvc/lib/libssl.lib",
+      "expected_sha256": "419c6df2e6ca3bde4aa54991429012e300ed3e9f77b65b1bff7d5e41da712245",
+      "actual_sha256": "419c6df2e6ca3bde4aa54991429012e300ed3e9f77b65b1bff7d5e41da712245",
+      "match": true
+    },
+    {
+      "path": "C:/tools/openssl-msvc/lib/libcrypto.lib",
+      "expected_sha256": "857be3bd43ae454d21aae9c904c8c2a400325565fd7255234b1aa17e98b4c0bc",
+      "actual_sha256": "857be3bd43ae454d21aae9c904c8c2a400325565fd7255234b1aa17e98b4c0bc",
+      "match": true
+    },
+    {
+      "path": "C:/Qt/6.11.1/msvc2022_64/include/QtCore/qglobal.h",
+      "expected_sha256": "ffb6e6d34a463b0b60525a8ef3068befbef5681b4b82b46e1532d400a9f239f3",
+      "actual_sha256": "ffb6e6d34a463b0b60525a8ef3068befbef5681b4b82b46e1532d400a9f239f3",
+      "match": true
+    },
+    {
+      "path": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install/include/MpvQt/mpvqt_version.h",
+      "expected_sha256": "f85a33737b33fd5de24c411bb0b0ebad6a612d4a3519fadc30ac897abbda4fba",
+      "actual_sha256": "f85a33737b33fd5de24c411bb0b0ebad6a612d4a3519fadc30ac897abbda4fba",
+      "match": true
+    },
+    {
+      "path": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install/lib/MpvQt.lib",
+      "expected_sha256": "ece72e16e08a0b4d72fef431720e4c4f11a5eac82fc70a3c216c84ed883ac20b",
+      "actual_sha256": "ece72e16e08a0b4d72fef431720e4c4f11a5eac82fc70a3c216c84ed883ac20b",
+      "match": true
+    },
+    {
+      "path": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install/bin/MpvQt.dll",
+      "expected_sha256": "80ab26830d418381ab5812a48c906c05554bf5ad0342e74cef7d8917dcc5b8eb",
+      "actual_sha256": "80ab26830d418381ab5812a48c906c05554bf5ad0342e74cef7d8917dcc5b8eb",
+      "match": true
+    },
+    {
+      "path": "C:/tools/mpvqt-feasibility/libmpv-prefix/include/mpv/client.h",
+      "expected_sha256": "1acf99ee77c8c2a6f1d1993bd81bbc8a91d27fb5924e80171670e6139a4bd353",
+      "actual_sha256": "1acf99ee77c8c2a6f1d1993bd81bbc8a91d27fb5924e80171670e6139a4bd353",
+      "match": true
+    },
+    {
+      "path": "C:/tools/mpvqt-feasibility/libmpv-prefix/lib/mpv.lib",
+      "expected_sha256": "064dc62825f74ede1a7fae6f28b1d8cc92a72a7cafc4737179db4daaee367cd7",
+      "actual_sha256": "064dc62825f74ede1a7fae6f28b1d8cc92a72a7cafc4737179db4daaee367cd7",
+      "match": true
+    },
+    {
+      "path": "C:/tools/mpvqt-feasibility/libmpv-prefix/bin/libmpv-2.dll",
+      "expected_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "actual_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "match": true
+    },
+    {
+      "path": "C:/Qt/Tools/CMake_64/bin/cmake.exe",
+      "expected_sha256": "8c846b65810ba32a5197d0abc9748355b17508c7f887f7c43d273e46d9888c69",
+      "actual_sha256": "8c846b65810ba32a5197d0abc9748355b17508c7f887f7c43d273e46d9888c69",
+      "match": true
+    },
+    {
+      "path": "C:/Qt/Tools/Ninja/ninja.exe",
+      "expected_sha256": "5020138b3757035df9dca9a2243624d5810ffa6ae24444bd95f752cbd1b89123",
+      "actual_sha256": "5020138b3757035df9dca9a2243624d5810ffa6ae24444bd95f752cbd1b89123",
+      "match": true
+    },
+    {
+      "path": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe",
+      "expected_sha256": "7a154e5136cc538b42e6944997fc5e3bb49112894e41dd88a70940aaff9aa831",
+      "actual_sha256": "7a154e5136cc538b42e6944997fc5e3bb49112894e41dd88a70940aaff9aa831",
+      "match": true
+    }
+  ]
+}

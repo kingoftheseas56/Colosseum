@@ -1,0 +1,8 @@
+*.stdout.txt -text
+*.stderr.txt -text
+*.log -text
+*.diff -text
+*.json text eol=lf
+*.py text eol=lf
+*.cpp text eol=lf
+*.md text eol=lf

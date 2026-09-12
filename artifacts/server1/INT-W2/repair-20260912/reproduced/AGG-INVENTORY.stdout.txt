@@ -1,0 +1,611 @@
+{
+  "backtraceGraph" : 
+  {
+    "commands" : 
+    [
+      "add_test",
+      "server1_register_k00_tests",
+      "server1_register_k01_tests",
+      "server1_register_k13_tests",
+      "server1_register_h00_tests",
+      "server1_register_m00_tests"
+    ],
+    "files" : 
+    [
+      "C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/CMakeLists.txt",
+      "C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/cmake/K00.cmake",
+      "C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/cmake/K01.cmake",
+      "C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/cmake/K13.cmake",
+      "C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/cmake/H00.cmake",
+      "C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/cmake/M00.cmake"
+    ],
+    "nodes" : 
+    [
+      {
+        "file" : 0
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 1,
+        "parent" : 0
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 1,
+        "file" : 0,
+        "line" : 8,
+        "parent" : 2
+      },
+      {
+        "command" : 0,
+        "file" : 1,
+        "line" : 2,
+        "parent" : 3
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 1,
+        "file" : 0,
+        "line" : 8,
+        "parent" : 5
+      },
+      {
+        "command" : 0,
+        "file" : 1,
+        "line" : 3,
+        "parent" : 6
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 1,
+        "file" : 0,
+        "line" : 8,
+        "parent" : 8
+      },
+      {
+        "command" : 0,
+        "file" : 1,
+        "line" : 4,
+        "parent" : 9
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 2,
+        "file" : 0,
+        "line" : 10,
+        "parent" : 11
+      },
+      {
+        "command" : 0,
+        "file" : 2,
+        "line" : 2,
+        "parent" : 12
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 2,
+        "file" : 0,
+        "line" : 10,
+        "parent" : 14
+      },
+      {
+        "command" : 0,
+        "file" : 2,
+        "line" : 3,
+        "parent" : 15
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 2,
+        "file" : 0,
+        "line" : 10,
+        "parent" : 17
+      },
+      {
+        "command" : 0,
+        "file" : 2,
+        "line" : 4,
+        "parent" : 18
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 3,
+        "file" : 0,
+        "line" : 12,
+        "parent" : 20
+      },
+      {
+        "command" : 0,
+        "file" : 3,
+        "line" : 11,
+        "parent" : 21
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 3,
+        "file" : 0,
+        "line" : 12,
+        "parent" : 23
+      },
+      {
+        "command" : 0,
+        "file" : 3,
+        "line" : 14,
+        "parent" : 24
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 3,
+        "file" : 0,
+        "line" : 12,
+        "parent" : 26
+      },
+      {
+        "command" : 0,
+        "file" : 3,
+        "line" : 17,
+        "parent" : 27
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 4,
+        "file" : 0,
+        "line" : 14,
+        "parent" : 29
+      },
+      {
+        "command" : 0,
+        "file" : 4,
+        "line" : 12,
+        "parent" : 30
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 4,
+        "file" : 0,
+        "line" : 14,
+        "parent" : 32
+      },
+      {
+        "command" : 0,
+        "file" : 4,
+        "line" : 12,
+        "parent" : 33
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 4,
+        "file" : 0,
+        "line" : 14,
+        "parent" : 35
+      },
+      {
+        "command" : 0,
+        "file" : 4,
+        "line" : 12,
+        "parent" : 36
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 5,
+        "file" : 0,
+        "line" : 16,
+        "parent" : 38
+      },
+      {
+        "command" : 0,
+        "file" : 5,
+        "line" : 2,
+        "parent" : 39
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 5,
+        "file" : 0,
+        "line" : 16,
+        "parent" : 41
+      },
+      {
+        "command" : 0,
+        "file" : 5,
+        "line" : 4,
+        "parent" : 42
+      },
+      {
+        "file" : 0
+      },
+      {
+        "command" : 5,
+        "file" : 0,
+        "line" : 16,
+        "parent" : 44
+      },
+      {
+        "command" : 0,
+        "file" : 5,
+        "line" : 6,
+        "parent" : 45
+      }
+    ]
+  },
+  "kind" : "ctestInfo",
+  "tests" : 
+  [
+    {
+      "backtrace" : 1,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_host.exe"
+      ],
+      "name" : "P03-02-server1-host",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "PASS_REGULAR_EXPRESSION",
+          "value" : 
+          [
+            "server1 skeleton initialized",
+            " streaming-ready=NO"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 4,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_k00_js_semantics.exe",
+        "K00-01"
+      ],
+      "name" : "K00-01-js-semantics",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 7,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_k00_js_semantics.exe",
+        "K00-02"
+      ],
+      "name" : "K00-02-js-semantics",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 10,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_k00_js_semantics.exe",
+        "K00-03"
+      ],
+      "name" : "K00-03-js-semantics",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 13,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_k01_metadata_geometry.exe",
+        "K01-01"
+      ],
+      "name" : "K01-01-metadata-geometry",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 16,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_k01_metadata_geometry.exe",
+        "K01-02"
+      ],
+      "name" : "K01-02-metadata-geometry",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 19,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_k01_metadata_geometry.exe",
+        "K01-03"
+      ],
+      "name" : "K01-03-metadata-geometry",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 22,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe",
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/K13-01-settings-cache-defaults",
+        "K13-01"
+      ],
+      "name" : "K13-01-settings-cache-defaults",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 25,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe",
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/K13-02-cache-policy",
+        "K13-02"
+      ],
+      "name" : "K13-02-cache-policy",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 28,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/server1_k13_settings_cache_test.exe",
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/K13-03-cache-convergence",
+        "K13-03"
+      ],
+      "name" : "K13-03-cache-convergence",
+      "properties" : 
+      [
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 31,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/server1_h00_http_contract.exe",
+        "H00-01"
+      ],
+      "name" : "H00-01-http-contract",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "LABELS",
+          "value" : 
+          [
+            "http",
+            "server1",
+            "unit"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 34,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/server1_h00_http_contract.exe",
+        "H00-02"
+      ],
+      "name" : "H00-02-http-contract",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "LABELS",
+          "value" : 
+          [
+            "http",
+            "server1",
+            "unit"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 37,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests/server1_h00_http_contract.exe",
+        "H00-03"
+      ],
+      "name" : "H00-03-http-contract",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "LABELS",
+          "value" : 
+          [
+            "http",
+            "server1",
+            "unit"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 40,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_m00_process_tests.exe",
+        "M00-01"
+      ],
+      "name" : "M00-01-process-discovery",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 43,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_m00_process_tests.exe",
+        "M00-02"
+      ],
+      "name" : "M00-02-process-lifecycle",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 46,
+      "command" : 
+      [
+        "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/server1_m00_process_tests.exe",
+        "M00-03"
+      ],
+      "name" : "M00-03-remote-driver",
+      "properties" : 
+      [
+        {
+          "name" : "ENVIRONMENT_MODIFICATION",
+          "value" : 
+          [
+            "PATH=path_list_prepend:C:/Qt/6.11.1/msvc2022_64/bin"
+          ]
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "C:/Users/Suprabha/AppData/Local/Temp/server1-w2-repair-znkmk8cb/reproduced/aggregate-build/p03-tests"
+        }
+      ]
+    }
+  ],
+  "version" : 
+  {
+    "major" : 1,
+    "minor" : 0
+  }
+}

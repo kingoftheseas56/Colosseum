@@ -1,0 +1,281 @@
+[
+  {
+    "name": "AGG-CONFIGURE",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+      "-S",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\native\\colosseum_server_v1",
+      "-B",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build",
+      "-G",
+      "Ninja",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+      "-DCMAKE_MAKE_PROGRAM=C:\\Qt\\Tools\\Ninja\\ninja.exe",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "AGG-CONFIGURE.stdout.txt",
+    "stderr": "AGG-CONFIGURE.stderr.txt"
+  },
+  {
+    "name": "AGG-BUILD",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+      "--build",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build",
+      "--clean-first",
+      "--parallel",
+      "2"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "AGG-BUILD.stdout.txt",
+    "stderr": "AGG-BUILD.stderr.txt"
+  },
+  {
+    "name": "AGG-INVENTORY",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+      "--test-dir",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build",
+      "--show-only=json-v1"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "AGG-INVENTORY.stdout.txt",
+    "stderr": "AGG-INVENTORY.stderr.txt"
+  },
+  {
+    "name": "AGG-CTEST",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+      "--test-dir",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build",
+      "-j1",
+      "--output-on-failure"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "AGG-CTEST.stdout.txt",
+    "stderr": "AGG-CTEST.stderr.txt"
+  },
+  {
+    "name": "AGG-CTEST-REPEAT",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+      "--test-dir",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build",
+      "-j1",
+      "--output-on-failure",
+      "--repeat",
+      "until-fail:3"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "AGG-CTEST-REPEAT.stdout.txt",
+    "stderr": "AGG-CTEST-REPEAT.stderr.txt"
+  },
+  {
+    "name": "COMBINED-CONFIGURE",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+      "-S",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\INT-W2\\repair-20260912\\checks",
+      "-B",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build",
+      "-G",
+      "Ninja",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+      "-DCMAKE_MAKE_PROGRAM=C:\\Qt\\Tools\\Ninja\\ninja.exe",
+      "-DCMAKE_PREFIX_PATH=C:\\Qt\\6.11.1\\msvc2022_64",
+      "-DW2_BUILD_DIR=C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "COMBINED-CONFIGURE.stdout.txt",
+    "stderr": "COMBINED-CONFIGURE.stderr.txt"
+  },
+  {
+    "name": "COMBINED-BUILD",
+    "argv": [
+      "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+      "--build",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build",
+      "--clean-first",
+      "--parallel",
+      "2"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "COMBINED-BUILD.stdout.txt",
+    "stderr": "COMBINED-BUILD.stderr.txt"
+  },
+  {
+    "name": "COMBINED-RUN",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build\\combined_w2.exe"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "COMBINED-RUN.stdout.txt",
+    "stderr": "COMBINED-RUN.stderr.txt"
+  },
+  {
+    "name": "K01-SOURCE",
+    "argv": [
+      "node",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\K01\\K01-A\\comparison\\oracle_k01_probe.mjs",
+      "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+    ],
+    "cwd": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\k01-oracle-run",
+    "exit": 0,
+    "stdout": "K01-SOURCE.stdout.txt",
+    "stderr": "K01-SOURCE.stderr.txt"
+  },
+  {
+    "name": "K01-NATIVE",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_k01_metadata_geometry.exe",
+      "--trace"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K01-NATIVE.stdout.txt",
+    "stderr": "K01-NATIVE.stderr.txt"
+  },
+  {
+    "name": "K13A-SOURCE",
+    "argv": [
+      "node",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\K13\\K13-A\\scenarios\\oracle_k13_probe.mjs"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13A-SOURCE.stdout.txt",
+    "stderr": "K13A-SOURCE.stderr.txt"
+  },
+  {
+    "name": "K13A-NATIVE",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build\\k13a_assembled_probe.exe",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\k13a-trace",
+      "--trace"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13A-NATIVE.stdout.txt",
+    "stderr": "K13A-NATIVE.stderr.txt"
+  },
+  {
+    "name": "K13A-K13-01",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build\\k13a_assembled_probe.exe",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\k13a-K13-01",
+      "K13-01"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13A-K13-01.stdout.txt",
+    "stderr": "K13A-K13-01.stderr.txt"
+  },
+  {
+    "name": "K13A-K13-03",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\combined-link-build\\k13a_assembled_probe.exe",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\k13a-K13-03",
+      "K13-03"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13A-K13-03.stdout.txt",
+    "stderr": "K13A-K13-03.stderr.txt"
+  },
+  {
+    "name": "K13B-SOURCE",
+    "argv": [
+      "node",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\K13\\K13-B\\scenarios\\oracle_k13_b_probe.mjs"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13B-SOURCE.stdout.txt",
+    "stderr": "K13B-SOURCE.stderr.txt"
+  },
+  {
+    "name": "K13B-NATIVE-WRONG-CLI",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_k13_settings_cache_test.exe",
+      "--trace"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13B-NATIVE-WRONG-CLI.stdout.txt",
+    "stderr": "K13B-NATIVE-WRONG-CLI.stderr.txt",
+    "qualification": "discarded harness invocation; argv1 is a fixture root, not a case selector"
+  },
+  {
+    "name": "K13B-NATIVE",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_k13_settings_cache_test.exe",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\k13b-trace",
+      "--trace"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "K13B-NATIVE.stdout.txt",
+    "stderr": "K13B-NATIVE.stderr.txt"
+  },
+  {
+    "name": "H00-NATIVE-TRACE",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_h00_http_contract.exe",
+      "--trace"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "H00-NATIVE-TRACE.stdout.txt",
+    "stderr": "H00-NATIVE-TRACE.stderr.txt"
+  },
+  {
+    "name": "H00-RAW-WIRE",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_h00_http_contract.exe",
+      "H00-01"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "H00-RAW-WIRE.stdout.txt",
+    "stderr": "H00-RAW-WIRE.stderr.txt"
+  },
+  {
+    "name": "H00-STREAM-DISCONNECT",
+    "argv": [
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\p03-tests\\server1_h00_http_contract.exe",
+      "H00-03"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "H00-STREAM-DISCONNECT.stdout.txt",
+    "stderr": "H00-STREAM-DISCONNECT.stderr.txt"
+  },
+  {
+    "name": "M00-ASSEMBLED-DIFFERENTIAL",
+    "argv": [
+      "python",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\M00\\M00-A\\scenarios\\verify_m00_oracle.py",
+      "--oracle",
+      "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+      "--candidate",
+      "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\server1-w2-repair-znkmk8cb\\aggregate-build\\server1_m00_process_tests.exe",
+      "--output",
+      "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\INT-W2\\repair-20260912\\m00-integrated-differential"
+    ],
+    "cwd": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired",
+    "exit": 0,
+    "stdout": "M00-ASSEMBLED-DIFFERENTIAL.stdout.txt",
+    "stderr": "M00-ASSEMBLED-DIFFERENTIAL.stderr.txt"
+  }
+]

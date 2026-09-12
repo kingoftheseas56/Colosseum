@@ -1,0 +1,119 @@
+{
+  "schema": "colosseum-server1-repaired-w2-gate/v1",
+  "date": "2026-09-12",
+  "candidate_branch": "sol/server1-int-w2b-repaired-20260912",
+  "verified_source_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
+  "native_tree": "699220438f9f768fb8fd46342accf02ce04fe3b9",
+  "base_assembly": "801a4b4f7013febebcc1bef884c07a4115ad6b98",
+  "repair_inputs": [
+    {
+      "input": "82aa8cdbc991de6f88bdf04664336675109e760b",
+      "assembled": "df0f5d7dbeb8fb3fe1a047a8d1e062e23a965a8d"
+    },
+    {
+      "input": "7fd34942efc5af2ea7520b07f4e3020c4fc1ac11",
+      "assembled": "1888bf1753630b7e15fcf6196deb68a56bd1e2cc"
+    },
+    {
+      "input": "f689afae740c2c26756d4fa8762323f0d180c73e",
+      "assembled": "fb65c65227b19b8a94bf453a988f81b66ed3f0d9"
+    },
+    {
+      "input": "ff1f74093c4ab40c582c7a9b89f54bb142bf1b07",
+      "assembled": "260835ff2b52b11a169cf97493b9dbe49c7eb285"
+    }
+  ],
+  "mechanical_gate": "PASS",
+  "independent_B-W2B_acceptance": "PENDING",
+  "W3_released": false,
+  "official_feature_mutated": false,
+  "push": false,
+  "build": {
+    "fresh": true,
+    "steps": 29,
+    "exit": 0,
+    "cxx_standard": 17,
+    "runtime": "MultiThreadedDLL",
+    "compiler": "MSVC 19.44.35227.0",
+    "qt": "6.11.1",
+    "dependency_identities_matched": 20
+  },
+  "ctest": {
+    "inventory": [
+      "P03-02-server1-host",
+      "K00-01-js-semantics",
+      "K00-02-js-semantics",
+      "K00-03-js-semantics",
+      "K01-01-metadata-geometry",
+      "K01-02-metadata-geometry",
+      "K01-03-metadata-geometry",
+      "K13-01-settings-cache-defaults",
+      "K13-02-cache-policy",
+      "K13-03-cache-convergence",
+      "H00-01-http-contract",
+      "H00-02-http-contract",
+      "H00-03-http-contract",
+      "M00-01-process-discovery",
+      "M00-02-process-lifecycle",
+      "M00-03-remote-driver"
+    ],
+    "count": 16,
+    "all_pass_exit": 0,
+    "repeat_count": 3,
+    "repeated_test_executions": 48,
+    "repeat_exit": 0,
+    "skipped_or_not_run": false
+  },
+  "combined_link": {
+    "result": "PASS",
+    "libraries": 5,
+    "real_behavior": "metadata/geometry, settings/cache/disk, HTTP parser 413 and loopback listener, ProcessPort/driver construction"
+  },
+  "differential": {
+    "K01": {
+      "source_lines": 72,
+      "native_lines": 72,
+      "differences": 0
+    },
+    "K13-A": {
+      "source_lines": 11,
+      "native_lines": 11,
+      "differences": 0,
+      "cases": "K13-01/K13-03 also passed"
+    },
+    "K13-B": {
+      "source_lines": 9,
+      "native_lines": 9,
+      "differences": 0
+    },
+    "M00": {
+      "source_lines": 11,
+      "native_lines": 11,
+      "differences": 0,
+      "mutation_guard": true,
+      "factory_hashes_and_LF_ranges": "7/7 matched"
+    },
+    "H00": {
+      "trace_profile": "5 source-derived expected lines matched",
+      "raw_wire": "real native loopback compared byte-for-byte with pinned transport profile",
+      "stream_disconnect": "PASS",
+      "full_live_oracle_HTTP_parity": false
+    }
+  },
+  "second_fresh_reproduction": {
+    "result": "PASS",
+    "receipt": "reproduced/RESULT.json",
+    "command": "REPRODUCED-GATE.command.json"
+  },
+  "source_annotation_correction": "All seven original M00 frozen factory hashes and LF ranges are correct; exact factory-text hashing resolves the prior false allegation. The handwritten replay was the real evidence defect. Frozen authorities unchanged.",
+  "scope_audit": "SCOPE-AUDIT.json",
+  "commands": "COMMANDS.json",
+  "hashes": "HASHES.json; committed Git blobs excluding manifest itself",
+  "limitations": [
+    "Producer verification only; Codex independently reviews M00 and B-W2B.",
+    "No full Server 1.0 runtime, playback, Linux/Android or cutover claim.",
+    "M00 11-line comparison is a bounded behavioral projection; source stderr sink and source-only ffprobe differences are documented in its repair README.",
+    "One wrong K13-B CLI invocation ran its default cases; retained as discarded harness evidence and rerun correctly with a private root before --trace."
+  ],
+  "next_action": "Codex review the exact candidate HEAD and run reproduce_gate.py from a new scratch directory. Only an independent acceptance may permit feature-branch integration or W3."
+}

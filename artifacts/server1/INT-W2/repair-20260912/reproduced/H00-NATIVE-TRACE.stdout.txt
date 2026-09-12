@@ -1,0 +1,5 @@
+candidate H00-01 result=1 method=POST path=/submit query=tag:one|tag:two|name:hello world body-kind=1 duplicate-x-trace=2 keep-alive=true
+candidate H00-02 target=/hlsv2/status status=200 body=external-hls
+candidate H00-02 target=/yt/id status=200 body=yt:id
+candidate H00-02 target=/proxy/anything status=200 body=external-proxy
+candidate H00-02 target=/local-addon/manifest.json status=200 body=external-addon
