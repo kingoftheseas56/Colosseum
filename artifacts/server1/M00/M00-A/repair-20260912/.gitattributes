@@ -1,0 +1,4 @@
+*.stdout.txt -text
+*.stderr.txt -text
+GREEN-ORACLE-GUARD.txt -text
+*.json text eol=lf

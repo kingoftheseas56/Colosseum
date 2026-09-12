@@ -1,0 +1,7 @@
+[1/1] Cleaning all built files...
+Cleaning... 0 files.
+[1/5] Building CXX object CMakeFiles\server1_m00_process.dir\C_\b\Colosseum-Server-1.0-sol\M00-A-evidence\native\colosseum_server_v1\src\media\ExecutableLocator.cpp.obj
+[2/5] Building CXX object CMakeFiles\server1_m00_process.dir\C_\b\Colosseum-Server-1.0-sol\M00-A-evidence\native\colosseum_server_v1\src\media\ProcessDriver.cpp.obj
+[3/5] Linking CXX static library server1_m00_process.lib
+[4/5] Building CXX object CMakeFiles\server1_m00_process_tests.dir\C_\b\Colosseum-Server-1.0-sol\M00-A-evidence\native\colosseum_server_v1\tests\test_process_driver.cpp.obj
+[5/5] Linking CXX executable server1_m00_process_tests.exe

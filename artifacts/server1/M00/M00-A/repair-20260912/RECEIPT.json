@@ -1,0 +1,92 @@
+{
+  "worker_id": "M00-A",
+  "base_sha": "cd19265b92e3020c33d7741c7f0016d829778a1c",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "scope": "evidence repair only",
+  "production_changed": false,
+  "tests": "M00-01/02/03, three serial repetitions, all passed",
+  "differential": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "source_exit": 0,
+    "candidate_exit": 0,
+    "source_lines": 11,
+    "candidate_lines": 11,
+    "differences": 0,
+    "mutated_oracle_rejected": true,
+    "frozen_factory_identities": "7/7 matched",
+    "scope": "11 field projections; see SOURCE-EXECUTION details for non-equivalent callback/sink APIs and source-only wrapper behavior"
+  },
+  "source_identity": "seven of seven frozen factory hashes and LF ranges matched",
+  "source_api_boundaries": {
+    "locateAll_retains_previous": true,
+    "local_stderr": "M855 debug-file sink; native trace uses callbacks. Equal bytes, not equal callback APIs.",
+    "local_spawn": [
+      {
+        "args": [
+          "-e",
+          "<scripted-child>",
+          "pipe:1"
+        ],
+        "detached": true,
+        "stdout_mode": "pipe",
+        "stderr_mode": "debug-file",
+        "program": "<node-fixture>"
+      },
+      {
+        "args": [
+          "-e",
+          "<scripted-child>",
+          "pipe:1"
+        ],
+        "detached": true,
+        "stdout_mode": "pipe",
+        "stderr_mode": "debug-file",
+        "program": "<node-fixture>"
+      }
+    ],
+    "remote_listener_after_destroy": 1,
+    "remote_polls": 5,
+    "callback_cancel_boundary": "Compares one bridge cancellation and closed streams only; native finish-once/no-ready checks remain native ownership assertions.",
+    "ffprobe": {
+      "argv": [
+        "-show_entries",
+        "stream=index,bit_rate,max_bit_rate,codec_type,codec_name,start_time,start_pts,r_frame_rate,sample_rate,channels,channel_layout,time_base,has_b_frames,nb_frames,width,height,color_space,color_transfer,color_primaries,codec_tag_string : stream_tags=title,language,duration,bps,number_of_bytes : format=format_name,duration,bit_rate,max_bit_rate",
+        "-print_format",
+        "json",
+        "http://fixture/probe"
+      ],
+      "local_close": [
+        23,
+        null
+      ],
+      "remote_bytes_hex": "00ff50524f4245",
+      "remote_close": [
+        0,
+        null
+      ],
+      "remote_destroy": "no-op",
+      "forced_mode_precedence": "forced mode first"
+    },
+    "ffmpeg_forced_mode_precedence": "environment mode first",
+    "tree_kill_command": [
+      "taskkill /pid 424242 /T /F"
+    ]
+  },
+  "commands": "COMMANDS.json",
+  "acceptance": "pending independent Codex review",
+  "official_feature_changed": false,
+  "push": false,
+  "W3": "closed",
+  "compiler_standard": "Generated Ninja flags contain -std:c++17, -MD, -utf-8; MSVC 19.44.35227.0, Qt 6.11.1",
+  "candidate_executable_sha256": "b59e407e025e21779cbbc883d11673543ecbe06df526fc352903f3ead91a985d",
+  "native_git_blobs": {
+    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "594d78c3bce4156b30874de0e60fa2b9c9fd30c4",
+    "native/colosseum_server_v1/src/media/ExecutableLocator.cpp": "08a2c0b510e9108233fe7132d419388766e4cffc",
+    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "17e28c3648ee35826b226917d8616e57e327c064",
+    "native/colosseum_server_v1/tests/test_process_driver.cpp": "0d7ecf5f2f60d2ba826673349e473cd32f60f6ba",
+    "native/colosseum_server_v1/cmake/packets/M00.cmake": "168aa21df7f0caeadfdd8b67f9203edae39bb674",
+    "native/colosseum_server_v1/tests/cmake/M00.cmake": "959df81cdc94d92dae47daec2ea17c4855c92207"
+  },
+  "hash_manifest": "HASHES.json (SHA-256 of committed blob bytes; excludes this manifest itself)",
+  "whitespace_check": "Code/JSON/CMake pass; raw build stdout retains captured carriage returns and is intentionally excluded."
+}

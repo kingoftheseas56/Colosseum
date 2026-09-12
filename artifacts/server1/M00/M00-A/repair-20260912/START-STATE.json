@@ -1,0 +1,27 @@
+{
+  "C:\\b\\Colosseum-Server-1.0": {
+    "head": "e5660e27a320845ab993201918443e609e1a34d5",
+    "status": "D docs/build/linux.md\n D docs/build/macos.md\n D docs/build/windows.md",
+    "staged": ""
+  },
+  "C:\\b\\Colosseum-Server-1.0-sol\\H00-A-repair": {
+    "head": "82aa8cdbc991de6f88bdf04664336675109e760b",
+    "status": "",
+    "staged": ""
+  },
+  "C:\\b\\Colosseum-Server-1.0-sol\\K13-A-evidence": {
+    "head": "7fd34942efc5af2ea7520b07f4e3020c4fc1ac11",
+    "status": "",
+    "staged": ""
+  },
+  "C:\\b\\Colosseum-Server-1.0-sol\\M00-A-evidence": {
+    "head": "cd19265b92e3020c33d7741c7f0016d829778a1c",
+    "status": "",
+    "staged": ""
+  },
+  "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\.codex\\server1-review\\INT-W2-luna": {
+    "head": "801a4b4f7013febebcc1bef884c07a4115ad6b98",
+    "status": "",
+    "staged": ""
+  }
+}

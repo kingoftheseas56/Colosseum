@@ -1,61 +1,24 @@
 {
-  "schema": "colosseum-server1-source-vs-candidate/v2",
+  "schema": "colosseum-server1-source-vs-candidate/v3",
   "worker_id": "M00-A",
   "parent_packet": "M00",
   "oracle": {
-    "path": "C:/Users/Suprabha/Desktop/Brotherhood/.codex/server1-review/oracle/server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
   "source_fixture": "artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs",
-  "candidate_fixture": "native/colosseum_server_v1/tests/test_process_driver.cpp --trace",
-  "source_command": "node artifacts/server1/M00/M00-A/scenarios/oracle_m00_probe.mjs",
-  "candidate_command": "server1_m00_process_tests.exe --trace",
-  "source_exit": 0,
-  "candidate_exit": 0,
-  "source_raw": "artifacts/server1/M00/M00-A/comparison/source.raw.txt",
-  "candidate_raw": "artifacts/server1/M00/M00-A/comparison/candidate.raw.txt",
-  "raw_comparison": "artifacts/server1/M00/M00-A/comparison/RAW-COMPARISON.txt",
+  "verifier": "artifacts/server1/M00/M00-A/scenarios/verify_m00_oracle.py",
+  "result": "artifacts/server1/M00/M00-A/repair-20260912/differential/RESULT.json",
+  "source_raw": "artifacts/server1/M00/M00-A/repair-20260912/differential/source.stdout.txt",
+  "candidate_raw": "artifacts/server1/M00/M00-A/repair-20260912/differential/candidate.stdout.txt",
   "comparison": {
-    "tool": "PowerShell Compare-Object",
     "source_lines": 11,
     "candidate_lines": 11,
-    "differences": 0
+    "differences": 0,
+    "ordering": "strict equality, only line ending representation differs"
   },
-  "cases": {
-    "M00-01": {
-      "oracle_ranges": ["M667:62094-62104", "M564:46585-46589"],
-      "trace": [
-        "locator.override=preferred",
-        "locator.directory=accepted",
-        "locator.missing-fallback=path"
-      ],
-      "candidate_case_raw": "artifacts/server1/M00/M00-A/evidence/M00-01.raw.txt",
-      "status": "test-executed"
-    },
-    "M00-02": {
-      "oracle_ranges": ["M434:37693-37756", "M855:75098-75115", "M861:76508-76518"],
-      "trace": [
-        "process=argv-environment-preserved",
-        "output=callbacks-complete",
-        "exit=23"
-      ],
-      "candidate_case_raw": "artifacts/server1/M00/M00-A/evidence/M00-02.raw.txt",
-      "retention_assertion": "native ProcessResult stdout/stderr each <= 65536 bytes while callbacks receive 71680 bytes",
-      "status": "test-executed"
-    },
-    "M00-03": {
-      "oracle_ranges": ["M436:37824-37826", "M855:75063-75095", "M855:75109-75115"],
-      "trace": [
-        "mode=local-remote-preserved",
-        "port-search=dispatch-requested-port",
-        "bridge.concurrent=unique",
-        "bridge.remaining=one",
-        "callback-cancel=one"
-      ],
-      "candidate_case_raw": "artifacts/server1/M00/M00-A/evidence/M00-03.raw.txt",
-      "status": "test-executed"
-    }
-  },
-  "status": "test-executed",
-  "qualification_boundary": "Paired source/candidate fixture traces and packet-local tests only; aggregate integration remains with INT-W2."
+  "qualification_boundary": "11 field projections, not all wrapper APIs. Source stderr uses its real debug-file sink while native uses callbacks. Callback-cancel compares one cancel; native finish-once/no-ready assertions are separate. M861 source-only cases are not claimed native ffprobe integration.",
+  "supersedes": {
+    "commit": "cd19265b92e3020c33d7741c7f0016d829778a1c",
+    "reason": "previous handwritten replay is not an oracle execution"
+  }
 }

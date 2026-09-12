@@ -7,18 +7,115 @@
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
   "authorities": [
-    {"module": "M433", "lines": "37687-37693", "sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602", "behavior": "exports ffmpeg and ffprobe process helpers"},
-    {"module": "M434", "lines": "37693-37756", "sha256": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd", "behavior": "kills a process tree only for the supplied process id; Windows uses taskkill /T /F"},
-    {"module": "M436", "lines": "37824-37826", "sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0", "behavior": "selects remote when HLSV2_REMOTE is truthy, otherwise local"},
-    {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569", "behavior": "builds executable search arrays, locates all HLS executables, preserves HLSV2 route registration and local/remote mode"},
-    {"module": "M667", "lines": "62092-62112", "sha256": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6", "behavior": "preferred search paths precede PATH candidates and missing candidates fall through"},
-    {"module": "M855", "lines": "75051-75119", "sha256": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79", "behavior": "local ffmpeg uses argv array, inherited environment, binary stdout, separate stderr, exit capture and forceful destroy; remote appends -listen 1 URL, polls and cancels bridge"},
-    {"module": "M861", "lines": "76486-76522", "sha256": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3", "behavior": "local ffprobe uses a fixed argv array, inherited environment, binary stdout and close(code, signal); remote dispatches and returns streamed data"}
+    {
+      "module": "M433",
+      "lines": "37687-37693",
+      "sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602",
+      "behavior": "exports ffmpeg and ffprobe process helpers"
+    },
+    {
+      "module": "M434",
+      "lines": "37693-37756",
+      "sha256": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd",
+      "behavior": "kills a process tree only for the supplied process id; Windows uses taskkill /T /F"
+    },
+    {
+      "module": "M436",
+      "lines": "37824-37826",
+      "sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0",
+      "behavior": "selects remote when HLSV2_REMOTE is truthy, otherwise local"
+    },
+    {
+      "module": "M564",
+      "lines": "46578-46979",
+      "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+      "behavior": "builds executable search arrays, locates all HLS executables, preserves HLSV2 route registration and local/remote mode"
+    },
+    {
+      "module": "M667",
+      "lines": "62092-62112",
+      "sha256": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6",
+      "behavior": "preferred search paths precede PATH candidates and missing candidates fall through"
+    },
+    {
+      "module": "M855",
+      "lines": "75051-75119",
+      "sha256": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79",
+      "behavior": "local ffmpeg appends pipe:1, launches detached with stdout pipe and debug-file/ignored stderr; remote port fallback, bridge identity, polling, exit and destroy are executed through controlled ports"
+    },
+    {
+      "module": "M861",
+      "lines": "76486-76522",
+      "sha256": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3",
+      "behavior": "local ffprobe uses a fixed argv array, inherited environment, binary stdout and close(code, signal); remote dispatches and returns streamed data"
+    }
   ],
   "cases": {
     "M00-01": "override precedence, missing override fallthrough, PATH lookup, unusual paths, refusal to launch a non-executable",
     "M00-02": "binary stdout/stderr, environment, unsuccessful exit, graceful-stop escalation, cancellation race and ownership boundary",
     "M00-03": "remote port selection, completion polling, binary response and disconnect cancellation"
   },
-  "implementation_boundary": "ProcessPort owns only QProcess children started through its own start method. ProcessDriver delegates local children to that owner and keeps remote bridge cancellation/poll state separate."
+  "implementation_boundary": "ProcessPort owns only QProcess children started through its own start method. ProcessDriver delegates local children to that owner and keeps remote bridge cancellation/poll state separate.",
+  "hash_convention": "SHA-256 of exact UTF-8 webpack module factory text, from function(...) through its closing brace; not complete raw lines. Ranges count LF only.",
+  "verified_on": "2026-09-12",
+  "verified_factories": [
+    {
+      "module": "M433",
+      "factory_sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602",
+      "byte_start": 2076149,
+      "byte_end_exclusive": 2076359,
+      "first_lf_line": 37687,
+      "last_lf_line": 37693
+    },
+    {
+      "module": "M434",
+      "factory_sha256": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd",
+      "byte_start": 2076361,
+      "byte_end_exclusive": 2079105,
+      "first_lf_line": 37693,
+      "last_lf_line": 37756
+    },
+    {
+      "module": "M436",
+      "factory_sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0",
+      "byte_start": 2083326,
+      "byte_end_exclusive": 2083423,
+      "first_lf_line": 37824,
+      "last_lf_line": 37826
+    },
+    {
+      "module": "M564",
+      "factory_sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+      "byte_start": 2625953,
+      "byte_end_exclusive": 2651031,
+      "first_lf_line": 46578,
+      "last_lf_line": 46979
+    },
+    {
+      "module": "M667",
+      "factory_sha256": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6",
+      "byte_start": 3429981,
+      "byte_end_exclusive": 3430898,
+      "first_lf_line": 62092,
+      "last_lf_line": 62112
+    },
+    {
+      "module": "M855",
+      "factory_sha256": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79",
+      "byte_start": 4260952,
+      "byte_end_exclusive": 4265833,
+      "first_lf_line": 75051,
+      "last_lf_line": 75119
+    },
+    {
+      "module": "M861",
+      "factory_sha256": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3",
+      "byte_start": 4346578,
+      "byte_end_exclusive": 4349363,
+      "first_lf_line": 76486,
+      "last_lf_line": 76522
+    }
+  ],
+  "execution": "repair-20260912/SOURCE-EXECUTION.json; M433/M434/M436/M667/M855/M861 executed with documented ports; M564 identity verified only, full startup remains composition-owned.",
+  "prior_review_correction": "The allegation that frozen M667/M861 line ranges and digests are wrong is refuted by exact byte-offset lookup and all seven matching factory digests. The old handwritten oracle probe was genuinely insufficient and is replaced."
 }

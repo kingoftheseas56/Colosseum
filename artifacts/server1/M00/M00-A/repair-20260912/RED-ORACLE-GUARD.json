@@ -1,0 +1,7 @@
+{
+  "case": "mutated oracle must be rejected before execution",
+  "actual_exit": 0,
+  "required": "nonzero with SHA-256 mismatch",
+  "test_pass": false,
+  "reason": "legacy probe ignores the supplied oracle"
+}

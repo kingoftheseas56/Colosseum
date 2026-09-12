@@ -1,0 +1,11 @@
+M00-01 locator.override=preferred
+M00-01 locator.directory=accepted
+M00-01 locator.missing-fallback=path
+M00-02 process=argv-environment-preserved
+M00-02 output=callbacks-complete
+M00-02 exit=23
+M00-03 mode=local-remote-preserved
+M00-03 port-search=dispatch-requested-port
+M00-03 bridge.concurrent=unique
+M00-03 bridge.remaining=one
+M00-03 callback-cancel=one

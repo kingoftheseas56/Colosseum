@@ -1,0 +1,150 @@
+{
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "trace_lines": [
+    "M00-01 locator.override=preferred",
+    "M00-01 locator.directory=accepted",
+    "M00-01 locator.missing-fallback=path",
+    "M00-02 process=argv-environment-preserved",
+    "M00-02 output=callbacks-complete",
+    "M00-02 exit=23",
+    "M00-03 mode=local-remote-preserved",
+    "M00-03 port-search=dispatch-requested-port",
+    "M00-03 bridge.concurrent=unique",
+    "M00-03 bridge.remaining=one",
+    "M00-03 callback-cancel=one"
+  ],
+  "details": {
+    "moduleMap": [
+      {
+        "module": "M433",
+        "factory_sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602",
+        "byte_start": 2076149,
+        "byte_end_exclusive": 2076359,
+        "first_lf_line": 37687,
+        "last_lf_line": 37693
+      },
+      {
+        "module": "M434",
+        "factory_sha256": "60b675d80d4ba47f377a5e2398a3f3c15cb1386f703bb5e03b132460d2e5d9dd",
+        "byte_start": 2076361,
+        "byte_end_exclusive": 2079105,
+        "first_lf_line": 37693,
+        "last_lf_line": 37756
+      },
+      {
+        "module": "M436",
+        "factory_sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0",
+        "byte_start": 2083326,
+        "byte_end_exclusive": 2083423,
+        "first_lf_line": 37824,
+        "last_lf_line": 37826
+      },
+      {
+        "module": "M564",
+        "factory_sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+        "byte_start": 2625953,
+        "byte_end_exclusive": 2651031,
+        "first_lf_line": 46578,
+        "last_lf_line": 46979
+      },
+      {
+        "module": "M667",
+        "factory_sha256": "c8df613ede67c60bf03442f26894c942877feb7c9adf700af2d68b753f0ec4f6",
+        "byte_start": 3429981,
+        "byte_end_exclusive": 3430898,
+        "first_lf_line": 62092,
+        "last_lf_line": 62112
+      },
+      {
+        "module": "M855",
+        "factory_sha256": "b85c9c0df479a986c0624a3252bc2f46b44e242e71bd684268121cb3c1b37d79",
+        "byte_start": 4260952,
+        "byte_end_exclusive": 4265833,
+        "first_lf_line": 75051,
+        "last_lf_line": 75119
+      },
+      {
+        "module": "M861",
+        "factory_sha256": "ce82a7428c06b491297607a1aa14ccb42541227ce2eb0b5e879e77faea4de8e3",
+        "byte_start": 4346578,
+        "byte_end_exclusive": 4349363,
+        "first_lf_line": 76486,
+        "last_lf_line": 76522
+      }
+    ],
+    "injected_boundaries": [
+      "real temporary filesystem",
+      "real Node children for M855 local spawn",
+      "M855 bridge and HTTP port fixtures",
+      "explicit virtual 500ms timers",
+      "M861 observed spawn boundary",
+      "M434 observed taskkill boundary; no arbitrary PID killed"
+    ],
+    "source_only": {
+      "locateAll_retains_previous": true,
+      "local_stderr": "M855 debug-file sink; native trace uses callbacks. Equal bytes, not equal callback APIs.",
+      "local_spawn": [
+        {
+          "args": [
+            "-e",
+            "<scripted-child>",
+            "pipe:1"
+          ],
+          "detached": true,
+          "stdout_mode": "pipe",
+          "stderr_mode": "debug-file",
+          "program": "<node-fixture>"
+        },
+        {
+          "args": [
+            "-e",
+            "<scripted-child>",
+            "pipe:1"
+          ],
+          "detached": true,
+          "stdout_mode": "pipe",
+          "stderr_mode": "debug-file",
+          "program": "<node-fixture>"
+        }
+      ],
+      "remote_listener_after_destroy": 1,
+      "remote_polls": 5,
+      "callback_cancel_boundary": "Compares one bridge cancellation and closed streams only; native finish-once/no-ready checks remain native ownership assertions.",
+      "ffprobe": {
+        "argv": [
+          "-show_entries",
+          "stream=index,bit_rate,max_bit_rate,codec_type,codec_name,start_time,start_pts,r_frame_rate,sample_rate,channels,channel_layout,time_base,has_b_frames,nb_frames,width,height,color_space,color_transfer,color_primaries,codec_tag_string : stream_tags=title,language,duration,bps,number_of_bytes : format=format_name,duration,bit_rate,max_bit_rate",
+          "-print_format",
+          "json",
+          "http://fixture/probe"
+        ],
+        "local_close": [
+          23,
+          null
+        ],
+        "remote_bytes_hex": "00ff50524f4245",
+        "remote_close": [
+          0,
+          null
+        ],
+        "remote_destroy": "no-op",
+        "forced_mode_precedence": "forced mode first"
+      },
+      "ffmpeg_forced_mode_precedence": "environment mode first",
+      "tree_kill_command": [
+        "taskkill /pid 424242 /T /F"
+      ]
+    },
+    "executed_modules": [
+      433,
+      434,
+      436,
+      667,
+      855,
+      861
+    ],
+    "identity_only_modules": [
+      564
+    ]
+  }
+}

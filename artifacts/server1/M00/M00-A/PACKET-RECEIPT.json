@@ -83,7 +83,13 @@
     "raw": "artifacts/server1/M00/M00-A/evidence/ALL-STABILITY.raw.txt",
     "sha256": "017303BA3641895547CDD6B8BFFAF9C45B090E7F2058217D911217BCED954D5D"
   },
-  "evidence_states": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed"],
+  "evidence_states": [
+    "source-traced",
+    "test-authored",
+    "implementation-authored",
+    "compiled",
+    "test-executed"
+  ],
   "shared_file_check": {
     "status": "clean",
     "forbidden_shared_files_edited": []
@@ -93,5 +99,14 @@
     "changes": "ProcessPort behavior repaired within M00 ownership; no shared interface signature changed.",
     "integration": "Deferred to INT-W2/B-W2B."
   },
-  "push": false
+  "push": false,
+  "latest_repair": {
+    "date": "2026-09-12",
+    "base": "cd19265b92e3020c33d7741c7f0016d829778a1c",
+    "receipt": "artifacts/server1/M00/M00-A/repair-20260912/RECEIPT.json",
+    "state": "compiled and tested; independent acceptance pending",
+    "production_changed": false,
+    "aggregate_gate_pending": true,
+    "previous_evidence": "historical; superseded for source execution by latest_repair"
+  }
 }
