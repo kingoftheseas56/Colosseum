@@ -270,7 +270,7 @@ bool parseDecimal(std::string_view value, std::size_t &result)
 bool parseChunkSize(std::string_view value, std::size_t &result)
 {
     const std::size_t extension = value.find(';');
-    const std::string_view sizeText = trimOWS(value.substr(0, extension));
+    const std::string sizeText = trimOWS(value.substr(0, extension));
     if (sizeText.empty())
         return false;
     result = 0;

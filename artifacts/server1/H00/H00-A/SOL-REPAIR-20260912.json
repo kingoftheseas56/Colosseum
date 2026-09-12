@@ -1,0 +1,50 @@
+{
+  "schema": "colosseum-server1-repair-receipt/v1",
+  "worker_id": "H00-A",
+  "repair_date": "2026-09-12",
+  "base_tip": "60a52740844436289fa33924da258494b5966ff0",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "defect": {
+    "file": "native/colosseum_server_v1/src/http/RequestParsing.cpp",
+    "function": "parseChunkSize",
+    "mechanism": "std::string_view referenced the temporary std::string returned by trimOWS, making chunk-size parsing undefined and capable of mapping an oversized chunk to 400 instead of 413",
+    "repair": "store the trimmed chunk-size text in an owning std::string before parsing",
+    "public_contract_changed": false,
+    "policy_changed": false
+  },
+  "changed_production_files": [
+    "native/colosseum_server_v1/src/http/RequestParsing.cpp"
+  ],
+  "regression_test": {
+    "path": "native/colosseum_server_v1/tests/test_http_contract.cpp",
+    "changed": false,
+    "reason": "the existing H00-01 contract already asserts maxBody=4 with chunk size 5 returns HTTP 413, maximal in-range numeric chunk above the body limit returns 413, and numeric overflow returns 400"
+  },
+  "duplicate_pattern_audit": "no second '= trimOWS(' assignment exists under native/colosseum_server_v1"
+,
+  "verification": {
+    "toolchain": "MSVC 19.44.35227, C++17, Qt 6.11.1, Ninja, Release, MultiThreadedDLL",
+    "configure": {
+      "artifact": "CMAKE-CONFIGURE-OUTPUT-H00-A-SOL-REPAIR.txt",
+      "exit": 0
+    },
+    "build": {
+      "artifact": "CMAKE-BUILD-OUTPUT-H00-A-SOL-REPAIR.txt",
+      "exit": 0,
+      "steps": "6/6"
+    },
+    "tests": {
+      "artifact": "CTEST-OUTPUT-H00-A-SOL-REPAIR.txt",
+      "exit": 0,
+      "result": "3/3 PASS"
+    },
+    "repeat": {
+      "artifact": "CTEST-REPEAT-OUTPUT-H00-A-SOL-REPAIR.txt",
+      "exit": 0,
+      "result": "H00-01, H00-02 and H00-03 each PASS through three consecutive repetitions"
+    },
+    "diff_check": "PASS for the changed production path",
+    "aggregate_claim": "not claimed; INT-W2 must replay the accepted repair and rerun the 16-test B-W2B gate"
+  },
+  "hashes": "SOL-REPAIR-HASHES-20260912.json"
+}

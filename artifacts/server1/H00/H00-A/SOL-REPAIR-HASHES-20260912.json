@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-repair-hashes/v1",
+  "worker_id": "H00-A",
+  "repair_date": "2026-09-12",
+  "hash_bytes": "git index blob bytes",
+  "files": [
+    {
+      "path": "native/colosseum_server_v1/src/http/RequestParsing.cpp",
+      "before_sha256": "58d4dfee57a7c55dcee19bfd81b9295396d011654d71e62b6928bc82943fc102",
+      "after_sha256": "cfc9b147824da8ae0be8ed53c4c6182b0f41dd7768c02726baa077b46ac43fd9"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_http_contract.cpp",
+      "before_sha256": "db90523724084f89f83e4beeb4d46a72d339958f5c1d68d0f8c4c12370be75e9",
+      "after_sha256": "db90523724084f89f83e4beeb4d46a72d339958f5c1d68d0f8c4c12370be75e9"
+    }
+  ]
+}

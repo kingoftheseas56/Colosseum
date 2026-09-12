@@ -103,8 +103,23 @@
     "artifacts/server1/H00/H00-A/DIFFERENTIAL-TRACE.txt",
     "artifacts/server1/H00/H00-A/CANDIDATE-HASHES.json",
     "artifacts/server1/H00/H00-A/WIRING-REQUEST.json",
+    "artifacts/server1/H00/H00-A/CMAKE-CONFIGURE-OUTPUT-H00-A-SOL-REPAIR.txt",
+    "artifacts/server1/H00/H00-A/CMAKE-BUILD-OUTPUT-H00-A-SOL-REPAIR.txt",
+    "artifacts/server1/H00/H00-A/CTEST-OUTPUT-H00-A-SOL-REPAIR.txt",
+    "artifacts/server1/H00/H00-A/CTEST-REPEAT-OUTPUT-H00-A-SOL-REPAIR.txt",
+    "artifacts/server1/H00/H00-A/SOL-REPAIR-HASHES-20260912.json",
+    "artifacts/server1/H00/H00-A/SOL-REPAIR-20260912.json",
     "artifacts/server1/H00/H00-A/PACKET-RECEIPT.json"
   ],
+  "latest_repair": {
+    "date": "2026-09-12",
+    "base_tip": "60a52740844436289fa33924da258494b5966ff0",
+    "receipt": "artifacts/server1/H00/H00-A/SOL-REPAIR-20260912.json",
+    "defect": "parseChunkSize temporary-string lifetime made chunk-size parsing undefined",
+    "production_change": "own trimOWS result in std::string before parsing",
+    "verification": "fresh C++17 build; H00-01, H00-02 and H00-03 PASS and three-repeat PASS",
+    "aggregate_gate_pending": true
+  },
   "integration": {
     "destination": "B-W2B on feature/colosseum-server-1.0",
     "wiring_request": "artifacts/server1/H00/H00-A/WIRING-REQUEST.json",
