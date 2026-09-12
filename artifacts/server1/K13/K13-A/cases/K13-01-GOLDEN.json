@@ -7,7 +7,7 @@
     "M400:34767-34775"
   ],
   "expected_observations": {
-    "serverVersion": "4.21.1",
+    "serverVersion": "4.21.0",
     "appPath": "resolved caller app path",
     "cacheRoot": "appPath when absent",
     "cacheSize": 2147483648,

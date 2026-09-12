@@ -1,7 +1,7 @@
 {
   "packet": "K13",
   "worker_id": "K13-A",
-  "status": "READY_FOR_B-W2B",
+  "status": "READY_FOR_SOL-K13-REVIEW",
   "branch": "codex/server1-k13-a",
   "base": "e5660e27a320845ab993201918443e609e1a34d5",
   "implementation_commit": "659341e6545accced51e4a8c9d1adb33ddac8827",
@@ -20,12 +20,35 @@
     "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "range_hashes": [
-      {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
-      {"module": "M194", "lines": "19675-19682", "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"},
-      {"module": "M400", "lines": "34767-34775", "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"},
-      {"module": "M414", "lines": "35959-36170", "sha256": "16b1c32e135ce079b4d718a627c0a6405f34bb0878a6804f1dbecd51a5b5770d"},
-      {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"}
-    ]
+      {
+        "module": "M106",
+        "lines": "12792-12833",
+        "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"
+      },
+      {
+        "module": "M194",
+        "lines": "19675-19682",
+        "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"
+      },
+      {
+        "module": "M400",
+        "lines": "34767-34775",
+        "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"
+      },
+      {
+        "module": "M414",
+        "lines": "35959-36170",
+        "sha256": "16b1c32e135ce079b4d718a627c0a6405f34bb0878a6804f1dbecd51a5b5770d"
+      },
+      {
+        "module": "M564",
+        "lines": "46578-46979",
+        "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"
+      }
+    ],
+    "cdn_selector": "4.21.1",
+    "embedded_package_version": "4.21.0",
+    "embedded_version_authority": "P00-02 plus exact oracle M413"
   },
   "scope": {
     "original_owned_files": [
@@ -42,7 +65,10 @@
     "shared_files_modified": [],
     "forbidden_paths_changed": [],
     "topology_unchanged": true,
-    "affected_workers": ["K13-A", "K13-B"],
+    "affected_workers": [
+      "K13-A",
+      "K13-B"
+    ],
     "affected_barrier": "B-W2B",
     "integration_owner": "INT-W2",
     "build_outputs_committed": false
@@ -69,24 +95,64 @@
     "tests_authored": "packet-local executable probe; no K13 test/manifests changed",
     "implementation_authored": "complete",
     "compiled": "verified with production header include path; exit 0",
-    "tests_executed": "K13-01, K13-03 settings slice, and combined probe; all exit 0",
-    "differentially_qualified": "11 trace lines; 0 differences; source and candidate exit 0",
+    "tests_executed": "fresh corrected-input K13-01 and K13-03 PASS on 2026-09-12",
+    "differentially_qualified": "exact SHA-verified bundle M106/M400 with real M413; 11 trace lines, 0 differences; source and candidate exit 0",
     "integrated": "not integrated; waiting for K13-B and B-W2B",
     "runtime": "not claimed"
   },
   "cases": {
-    "K13-01": "GREEN and differential-qualified",
+    "K13-01": "GREEN; exact-oracle differential-qualified with embedded serverVersion 4.21.0",
     "K13-03": "GREEN and differential-qualified for settings load/merge/unknown-field/persistence slice; cache-policy subcases remain K13-B-owned"
   },
   "commands": [
-    {"kind": "RED", "command_file": "artifacts/server1/K13/K13-A/red/RED-TEST-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/red/RED-TEST-OUTPUT.txt", "exit_code": 2},
-    {"kind": "production-header-compile", "command_file": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
-    {"kind": "all-probe-cases", "command_file": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
-    {"kind": "K13-01", "command_file": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
-    {"kind": "K13-03", "command_file": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-OUTPUT.txt", "exit_code": 0},
-    {"kind": "source-trace", "command_file": "artifacts/server1/K13/K13-A/comparison/SOURCE-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/comparison/source.raw.txt", "exit_code": 0},
-    {"kind": "candidate-trace", "command_file": "artifacts/server1/K13/K13-A/comparison/CANDIDATE-PRODUCTION-HEADER-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/comparison/candidate.raw.txt", "exit_code": 0},
-    {"kind": "differential", "command_file": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON.txt", "exit_code": 0}
+    {
+      "kind": "RED",
+      "command_file": "artifacts/server1/K13/K13-A/red/RED-TEST-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/red/RED-TEST-OUTPUT.txt",
+      "exit_code": 2
+    },
+    {
+      "kind": "production-header-compile",
+      "command_file": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-COMPILE-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    },
+    {
+      "kind": "all-probe-cases",
+      "command_file": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/GREEN-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    },
+    {
+      "kind": "K13-01",
+      "command_file": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/K13-01-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    },
+    {
+      "kind": "K13-03",
+      "command_file": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/green/K13-03-TEST-PRODUCTION-HEADER-OUTPUT.txt",
+      "exit_code": 0
+    },
+    {
+      "kind": "source-trace",
+      "command_file": "artifacts/server1/K13/K13-A/comparison/SOURCE-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/comparison/source.raw.txt",
+      "exit_code": 0
+    },
+    {
+      "kind": "candidate-trace",
+      "command_file": "artifacts/server1/K13/K13-A/comparison/CANDIDATE-PRODUCTION-HEADER-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/comparison/candidate.raw.txt",
+      "exit_code": 0
+    },
+    {
+      "kind": "differential",
+      "command_file": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON-COMMAND.txt",
+      "raw_output": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON.txt",
+      "exit_code": 0
+    }
   ],
   "artifacts": [
     "artifacts/server1/K13/K13-A/SOURCE-TRACE.md",
@@ -97,10 +163,25 @@
     "artifacts/server1/K13/K13-A/cases/K13-01-GOLDEN.json",
     "artifacts/server1/K13/K13-A/cases/K13-03-GOLDEN.json",
     "artifacts/server1/K13/K13-A/red/RED-TEST-EVIDENCE.json",
-    "artifacts/server1/K13/K13-A/WIRING-REQUEST.json"
+    "artifacts/server1/K13/K13-A/WIRING-REQUEST.json",
+    "artifacts/server1/K13/K13-A/comparison/CANDIDATE-COMPILE-20260912.txt",
+    "artifacts/server1/K13/K13-A/comparison/CANDIDATE-CASES-20260912.txt"
   ],
   "blocked_evidence": [
     "K13-B cache directory enumeration, equal-access-time eviction, disk-space adjustment, delayed cleaning, and fallback directory behavior",
     "shared CMake/test-manifest convergence and full-server runtime verification"
-  ]
+  ],
+  "evidence_repair_branch": "sol/server1-k13-a-evidence-20260912",
+  "latest_evidence_repair": {
+    "date": "2026-09-12",
+    "reason": "replace handwritten source replay with exact bundle execution and correct selector/embedded version confusion",
+    "production_files_changed": false,
+    "packet_probe_changed": true,
+    "golden_changed": true,
+    "compile": "PASS",
+    "K13-01": "PASS",
+    "K13-03": "PASS",
+    "differential": "11 trace lines, 0 differences, both exit 0",
+    "aggregate_gate_pending": true
+  }
 }

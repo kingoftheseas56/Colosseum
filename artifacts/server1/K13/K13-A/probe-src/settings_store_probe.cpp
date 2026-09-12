@@ -67,7 +67,7 @@ std::string readText(const fs::path &path)
 
 SettingsStoreConfig configFor(const fs::path &root)
 {
-    return SettingsStoreConfig {root.string(), "4.21.1", root.string(), false, false};
+    return SettingsStoreConfig {root.string(), "4.21.0", root.string(), false, false};
 }
 
 void caseK13_01(const fs::path &root)
@@ -77,7 +77,7 @@ void caseK13_01(const fs::path &root)
     auto config = configFor(settingsDir);
 
     SettingsStore fresh(config);
-    requireString(fresh, "serverVersion", "4.21.1");
+    requireString(fresh, "serverVersion", "4.21.0");
     requireString(fresh, "appPath", settingsDir.string());
     requireString(fresh, "cacheRoot", settingsDir.string());
     requireNumber(fresh, "cacheSize", 2147483648.0);
@@ -102,7 +102,7 @@ void caseK13_01(const fs::path &root)
 
     require(!fresh.set("serverVersion", Value::string("9.9.9")),
             "serverVersion override must be readonly");
-    require(fresh.serverVersion() == "4.21.1", "serverVersion override changed effective version");
+    require(fresh.serverVersion() == "4.21.0", "serverVersion override changed effective version");
 
     auto noCache = config;
     noCache.settingsPathOverride = (settingsDir / "no-cache").string();
@@ -128,7 +128,7 @@ void caseK13_03(const fs::path &root)
     config.settingsPathOverride = overrideDir.string();
     SettingsStore loaded(config);
     require(loaded.settingsPath() == settingsFile.string(), "SETTINGS_PATH override did not win");
-    require(loaded.serverVersion() == "4.21.1", "loaded serverVersion bypassed readonly setter");
+    require(loaded.serverVersion() == "4.21.0", "loaded serverVersion bypassed readonly setter");
     requireNumber(loaded, "cacheSize", 0.0);
     requireNumber(loaded, "btMaxConnections", 99.0);
     requireString(loaded, "unknownKey", "retained");
@@ -196,7 +196,7 @@ void traceCase(const fs::path &root)
     requireNumber(loaded, "cacheSize", 0.0);
     requireNumber(loaded, "btMaxConnections", 99.0);
     requireString(loaded, "unknownKey", "retained");
-    require(loaded.serverVersion() == "4.21.1", "trace persisted serverVersion override changed version");
+    require(loaded.serverVersion() == "4.21.0", "trace persisted serverVersion override changed version");
     std::cout << "K13-01 load.cacheSize=" << requiredValue(loaded, "cacheSize").asNumber() << '\n';
     std::cout << "K13-01 load.btMaxConnections="
               << requiredValue(loaded, "btMaxConnections").asNumber() << '\n';

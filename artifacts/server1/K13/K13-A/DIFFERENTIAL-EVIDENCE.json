@@ -1,20 +1,39 @@
 {
   "packet": "K13",
   "worker_id": "K13-A",
+  "repair_date": "2026-09-12",
   "oracle": {
     "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
-    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "cdn_selector": "4.21.1",
+    "embedded_package_version": "4.21.0",
+    "version_contract": "P00-02"
   },
-  "source_command": "node artifacts/server1/K13/K13-A/scenarios/oracle_k13_probe.mjs",
-  "source_raw_output": "artifacts/server1/K13/K13-A/comparison/source.raw.txt",
-  "source_exit_code": 0,
-  "candidate_command": "& \"$env:TEMP/server1-k13-a-production-header-20260907.exe\" \"$env:TEMP/server1-k13-a-production-header-trace-20260907\" --trace",
-  "candidate_raw_output": "artifacts/server1/K13/K13-A/comparison/candidate.raw.txt",
-  "candidate_exit_code": 0,
-  "comparison_command": "Compare-Object (Get-Content artifacts/server1/K13/K13-A/comparison/source.raw.txt | Select-Object -SkipLast 1) (Get-Content artifacts/server1/K13/K13-A/comparison/candidate.raw.txt | Select-Object -SkipLast 1)",
-  "comparison_raw_output": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON.txt",
-  "comparison_exit_code": 0,
-  "compared_lines": 11,
-  "differences": 0,
-  "qualification": "settings defaults, load/merge, unknown-field retention, readonly serverVersion, and nonfinite persistence trace matched"
+  "source_probe": {
+    "path": "artifacts/server1/K13/K13-A/scenarios/oracle_k13_probe.mjs",
+    "method": "loads and SHA-verifies the exact bundle, exposes its webpack module table, executes M400 and M106, and leaves M413 as the real bundled package module",
+    "controlled_dependencies": "host fs/path/util shims plus a temporary SETTINGS_PATH; these bound file IO without replaying settings semantics",
+    "raw_output": "artifacts/server1/K13/K13-A/comparison/source.raw.txt",
+    "exit_code": 0
+  },
+  "candidate": {
+    "production_behavior_changed": false,
+    "packet_probe_input_version": "4.21.0",
+    "compile_output": "artifacts/server1/K13/K13-A/comparison/CANDIDATE-COMPILE-20260912.txt",
+    "case_output": "artifacts/server1/K13/K13-A/comparison/CANDIDATE-CASES-20260912.txt",
+    "cases": {
+      "K13-01": "PASS",
+      "K13-03": "PASS"
+    },
+    "raw_output": "artifacts/server1/K13/K13-A/comparison/candidate.raw.txt",
+    "exit_code": 0
+  },
+  "comparison": {
+    "raw_output": "artifacts/server1/K13/K13-A/comparison/RAW-COMPARISON.txt",
+    "trace_lines": 11,
+    "source_exit_code": 0,
+    "candidate_exit_code": 0,
+    "differences": 0
+  },
+  "qualification": "exact-bundle settings defaults, load/merge, unknown-field retention, readonly embedded serverVersion, persistence, DISABLE_CACHING and nonfinite JSON behavior are now source-executed rather than replayed"
 }
