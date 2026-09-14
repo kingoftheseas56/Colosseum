@@ -1,6 +1,6 @@
 {
   "schema": "colosseum-server1-git-blob-manifest/v1",
-  "content_ref": "116181487745501b733971855c5978e1a6fa0685",
+  "content_ref": "4a04e9f9981fd87342c9dc6e933ff877e88ab0ad",
   "hash_algorithm": "sha256-git-blob",
   "hash_scope": {
     "files": "SHA-256 over committed Git blob bytes at content_ref; this manifest is excluded from self-reference"
@@ -65,6 +65,8 @@
     "artifacts/server1/INT-W2/repair-20260912/REPRODUCED-GATE.stdout.txt": "cfc73f5952ed4816a7bc30b47ee3d035d4b734107c3b32833f4a5e6dd0c3a2c0",
     "artifacts/server1/INT-W2/repair-20260912/REPRODUCTION.json": "91835ea0b4791e524f01c5c422e895e8f7aba5fbd495432c2a4d50d6204243b6",
     "artifacts/server1/INT-W2/repair-20260912/SCOPE-AUDIT.json": "c8a595bf8eb7dc25406e2ce5fff28d00dfedb26406e2513bf43530835fe4da86",
+    "artifacts/server1/INT-W2/repair-20260912/TDD-GREEN.txt": "79354f42e47c72d356e165dc966038f9fb1de61b7851b1197fc6beea3bd36afd",
+    "artifacts/server1/INT-W2/repair-20260912/TDD-RED.txt": "bd0ac8017ffe89a5ca7437b5dc159440407abf32a7836354b671bf2a698b9444",
     "artifacts/server1/INT-W2/repair-20260912/W2-NATIVE.diff": "487576f8406e3fe258d46d730b75ff4d71063b376a35444426c9b25477cd26b5",
     "artifacts/server1/INT-W2/repair-20260912/checks/CMakeLists.txt": "afbb78c3ed9781bcd6f263daf28f83af43089fd5643af3c25d853c9810787890",
     "artifacts/server1/INT-W2/repair-20260912/checks/combined_w2.cpp": "7c08b53bc9a7774bbc5cbb8936a510a3423cba54a09bd371ddc0e9487f0b05f4",
@@ -76,7 +78,8 @@
     "artifacts/server1/INT-W2/repair-20260912/m00-integrated-differential/source.stderr.txt": "346c3803438a9e6928553467702afb1c380ec67158ff3ccd3728e76a63136091",
     "artifacts/server1/INT-W2/repair-20260912/m00-integrated-differential/source.stdout.txt": "74007f7216f76e3aba48c1e86f412cc3ad5cbe031537363eb645086515405203",
     "artifacts/server1/INT-W2/repair-20260912/m00-integrated-differential/source.trace.txt": "7256c7edf082339d047a2631db045e0be51a0c65a76403f769f6fc95e4bb13ac",
-    "artifacts/server1/INT-W2/repair-20260912/reproduce_gate.py": "26b8df7b0f6a22950025aebb53bbfb36ca0a621f550dede6b81457e8097e29b3",
+    "artifacts/server1/INT-W2/repair-20260912/reproduce_gate.py": "be40064f4d34eacdfd09c5571f0c9a2759db32330ae621e399c51997112c149c",
+    "artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py": "c2326d78b91e32034af15ccd0cf4e4b30a0f4e7b84e7a6ab2c7953f8187c6ae6",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/AGG-BUILD.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/AGG-BUILD.stdout.txt": "089f15680f4d7cbc38fc59d11424e2a293926bd09b1be8aadf9782e5eac8cdeb",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/AGG-CONFIGURE.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -127,6 +130,9 @@
     "artifacts/server1/INT-W2/repair-20260912/reproduced/m00-differential/source.stderr.txt": "15cb594c8662e8e330443cff98eeff72420744342e8152432b5099e7de08df8c",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/m00-differential/source.stdout.txt": "74007f7216f76e3aba48c1e86f412cc3ad5cbe031537363eb645086515405203",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/m00-differential/source.trace.txt": "7256c7edf082339d047a2631db045e0be51a0c65a76403f769f6fc95e4bb13ac",
+    "artifacts/server1/K01/K01-A/HASHES.json": "300b31d87ba462644c707ca66ed55023cf055f0a70cc0b1c5d521a57db41e9b6",
+    "artifacts/server1/K13/K13-A/HASHES.json": "bd588c83d6aba7445fe86681ed234358b6c8a0a443da07274d2cc90ada905eee",
+    "artifacts/server1/K13/K13-B/HASHES.json": "0651f7901a19b454d11c8fce6681b7f74ad7e663031f88b314e57ce10ec67adc",
     "docs/server1/STATE.json": "d9278b8a51cf7e31f90ea55750486dc1f15a61ef4955fac167c6d87b8a4be8f3"
   }
 }
