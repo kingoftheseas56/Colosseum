@@ -1,6 +1,6 @@
 {
   "schema": "colosseum-server1-git-blob-manifest/v1",
-  "content_ref": "f9bca5e23cb776f02dc82e0e107b49dca45d398e",
+  "content_ref": "16145efefa497fbb51abb641ab543f2da524e702",
   "hash_algorithm": "sha256-git-blob",
   "hash_scope": {
     "worker_files_sha256": "SHA-256 over committed Git blob bytes at content_ref"
