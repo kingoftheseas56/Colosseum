@@ -1,0 +1,5 @@
+Command: cl.exe /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include test_scheduler_selections.cpp SchedulerSelections.cpp Value.cpp JsConversions.cpp /Fe:test_scheduler_selections.exe; run K03-01, K03-02, K03-03
+Compile exit: 0
+K03-01 exit: 0; output: K03-01 PASS
+K03-02 exit: 0; output: K03-02 PASS
+K03-03 exit: 0; output: K03-03 PASS

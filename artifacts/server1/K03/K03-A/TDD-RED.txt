@@ -1,0 +1,4 @@
+Command: cl.exe /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include /c native\colosseum_server_v1\tests\test_scheduler_selections.cpp /Foartifacts\server1\K03\K03-A\red-test.obj
+Exit: 1
+Observed: fatal error C1083: Cannot open include file: 'server1/policy/Scheduler.h': No such file or directory
+Meaning: the owned cases were executable as a compile contract and failed before production implementation existed.
