@@ -1,0 +1,6 @@
+K02-A GREEN
+command: cl /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include native\colosseum_server_v1\tests\test_piece_buffer.cpp native\colosseum_server_v1\src\policy\PieceBuffer.cpp /Fe:artifacts\server1\INT-W3\k02-green.exe
+compile exit: 0
+K02-01 exit: 0; output: K02-01 PASS
+K02-02 exit: 0; output: K02-02 PASS
+K02-03 exit: 0; output: K02-03 PASS

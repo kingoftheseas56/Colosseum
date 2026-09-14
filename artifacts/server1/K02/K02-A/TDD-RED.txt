@@ -1,0 +1,5 @@
+K02-A RED
+command: cl /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include native\colosseum_server_v1\tests\test_piece_buffer.cpp native\colosseum_server_v1\src\policy\PieceBuffer.cpp /Fe:artifacts\server1\INT-W3\k02-red.exe
+exit: 2
+expected failure: server1/policy/PieceBuffer.h and src/policy/PieceBuffer.cpp did not exist at base 4cddbf88.
+named breaks: K02-01 tail geometry and exhausted sentinel; K02-02 LIFO cancellation and duplicate-set counters; K02-03 terminal flush and stale generation.

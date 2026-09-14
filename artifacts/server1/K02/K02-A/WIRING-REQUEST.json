@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K02-A",
+  "parent_packet": "K02",
+  "base": "4cddbf88c979533b39232e68b56e87d46eed4d84",
+  "request": "INT-W3 may include K02 packet and test manifests when forming B-W3A.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K02.cmake",
+    "native/colosseum_server_v1/tests/cmake/K02.cmake"
+  ],
+  "interface_changes": "Produces PieceBufferContract in new packet-owned PieceBuffer.h; no frozen existing interface changed.",
+  "gate": "K02-A candidate pending Sol/Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

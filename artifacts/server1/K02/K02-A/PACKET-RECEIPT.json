@@ -1,0 +1,26 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K02",
+  "worker": "K02-A",
+  "branch": "sol/server1-w3-spine-20260914",
+  "base": "4cddbf88c979533b39232e68b56e87d46eed4d84",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K02/K02-A/PACKET-RECEIPT.json)",
+  "source_authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "M851": "74856-74884 / 2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041"
+  },
+  "cases": {
+    "K02-01": "test-reported PASS",
+    "K02-02": "test-reported PASS",
+    "K02-03": "test-reported PASS"
+  },
+  "negative_controls": {
+    "exhausted_reservation": "PASS",
+    "duplicate_delivery": "PASS",
+    "stale_generation": "PASS",
+    "reserve_and_set_after_flush": "PASS"
+  },
+  "aggregate_registration": "pending INT-W3 B-W3A",
+  "review": "candidate only; independent Agent 4 review pending",
+  "status": "implementation-authored; directly compiled; focused tests executed; integration pending"
+}
