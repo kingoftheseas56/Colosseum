@@ -5,3 +5,7 @@ tools/biblio_series.db filter=lfs diff=lfs merge=lfs -text
 # exact bytes; core.autocrlf=true otherwise rewrites LF->CRLF on checkout and breaks it.
 tests/lanista_fixtures/**/manifest.json -text
 tests/lanista_fixtures/**/manifest.sig  -text
+
+# Production chronicle signatures also cover exact checkout bytes.
+resources/installed-chronicle/installed-manifest.json -text
+resources/installed-chronicle/installed-manifest.json.sig -text

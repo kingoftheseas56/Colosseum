@@ -46,6 +46,42 @@ class FakeGitHub:
 
 
 class UpdateReleaseToolingTests(unittest.TestCase):
+    def test_signed_chronicle_checkout_preserves_bytes_with_autocrlf(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+
+            def git(*args):
+                return subprocess.run(["git", "-C", str(root), *args], check=True,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            git("init", "--quiet")
+            git("config", "core.autocrlf", "true")
+            git("config", "core.safecrlf", "false")
+            attributes = ROOT / ".gitattributes"
+            (root / ".gitattributes").write_bytes(attributes.read_bytes())
+            empty_attributes = root / "empty-attributes"
+            empty_attributes.write_bytes(b"")
+            git("config", "core.attributesFile", str(empty_attributes))
+            # Controlled payloads test Git's byte transport, not signature validity.
+            payloads = {
+                "resources/installed-chronicle/installed-manifest.json":
+                    b'{"schemaVersion":1,"version":"1.1.6"}\n',
+                "resources/installed-chronicle/installed-manifest.json.sig":
+                    b"s" * 63 + b"\n",
+            }
+            for relative, payload in payloads.items():
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(payload)
+            git("add", "--", ".gitattributes", *payloads)
+            for relative in payloads:
+                (root / relative).unlink()
+            git("checkout-index", "--force", "--all")
+            for relative, payload in payloads.items():
+                with self.subTest(path=relative):
+                    self.assertEqual((root / relative).read_bytes(), payload,
+                                     "checkout must not alter signed bytes")
+
     def test_deterministic_sign_verify_and_mutation_rejection(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
