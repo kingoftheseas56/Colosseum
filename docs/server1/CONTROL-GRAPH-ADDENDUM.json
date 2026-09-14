@@ -1,7 +1,7 @@
 {
   "schema": "colosseum-server1-control-graph-addendum/v1",
   "plan_version": "2.1",
-  "status": "proposed-for-agent4-acceptance",
+  "status": "accepted-by-agent4",
   "base_commit": "cbcae97986bd7891326f7835623847e14c28a8f8",
   "purpose": "Close the remaining worker, dependency, interface, ownership, packaging, observation, and rollback seams without changing the frozen 64-packet plan or authoring production code.",
   "frozen_authority": {

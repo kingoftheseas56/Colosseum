@@ -4,7 +4,10 @@
   "worker": "Sol planning/integration worker (Codex)",
   "date": "2026-09-14",
   "base_commit": "cbcae97986bd7891326f7835623847e14c28a8f8",
-  "status": "test-reported",
+  "status": "accepted",
+  "reviewed_head": "529e297cd2616d2bbd13cdaeecd828fbd88e2de3",
+  "accepted_by": "[Agent 4 (Codex), stream mode]",
+  "accepted_date": "2026-09-14",
   "scope": "non-production control graph only",
   "addendum": "docs/server1/CONTROL-GRAPH-ADDENDUM.json",
   "frozen_authority": {
@@ -104,5 +107,5 @@
   "production_files_changed": [],
   "state_json_changed": false,
   "runtime_verification": "not applicable",
-  "acceptance_boundary": "Agent 4 must independently accept this graph before any W3 producer is dispatched."
+  "acceptance_boundary": "Accepted by Agent 4 after independent Sol review and fresh reproduction; W3 producers may dispatch only through this amended graph."
 }
