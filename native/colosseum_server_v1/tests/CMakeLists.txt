@@ -28,3 +28,15 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K09.cmake")
 server1_register_k09_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K04.cmake")
 server1_register_k04_tests()
+
+add_executable(server1_p08_torrent_transport_contract
+  "${CMAKE_CURRENT_SOURCE_DIR}/test_torrent_transport_contract.cpp")
+target_include_directories(server1_p08_torrent_transport_contract PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+target_compile_features(server1_p08_torrent_transport_contract PRIVATE cxx_std_17)
+target_compile_options(server1_p08_torrent_transport_contract PRIVATE
+  "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
+add_test(NAME P08-T-torrent-transport-contract
+  COMMAND server1_p08_torrent_transport_contract)
+set_tests_properties(P08-T-torrent-transport-contract PROPERTIES
+  LABELS "server1;unit;P08-T")
