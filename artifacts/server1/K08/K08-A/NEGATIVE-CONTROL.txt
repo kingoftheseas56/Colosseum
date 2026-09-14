@@ -1,0 +1,19 @@
+Internal ctest changing into directory: C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K08/K08-A/green-build
+Test project C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K08/K08-A/green-build
+    Start 3: K08-03-file-reader
+1/1 Test #3: K08-03-file-reader ...............***Failed    0.04 sec
+K08-03 1 MiB critical span floors to two pieces
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+K08        =   0.04 sec*proc (1 test)
+server1    =   0.04 sec*proc (1 test)
+unit       =   0.04 sec*proc (1 test)
+
+Total Test time (real) =   0.04 sec
+
+The following tests FAILED:
+	  3 - K08-03-file-reader (Failed)
+Errors while running CTest

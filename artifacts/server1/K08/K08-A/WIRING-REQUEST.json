@@ -1,0 +1,19 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "K08-A",
+  "parent_packet": "K08",
+  "request": "INT-W3 may register the K08 packet and test manifests when forming B-W3D after K10-A is committed.",
+  "packet_manifest": "native/colosseum_server_v1/cmake/packets/K08.cmake",
+  "test_manifest": "native/colosseum_server_v1/tests/cmake/K08.cmake",
+  "production_target": "server1_k08_file_reader",
+  "test_target": "server1_k08_file_reader_test",
+  "dependencies": ["server1_k03_scheduler_selections"],
+  "cases": ["K08-01", "K08-02", "K08-03"],
+  "shared_files_requested": [
+    "native/colosseum_server_v1/CMakeLists.txt",
+    "native/colosseum_server_v1/tests/CMakeLists.txt",
+    "docs/server1/STATE.json"
+  ],
+  "public_interface_change": "Introduces FileReader.h as K08's FileReaderContract; no frozen predecessor header changes.",
+  "forbidden_shared_files_changed_by_packet": []
+}

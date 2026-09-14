@@ -1,0 +1,32 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K08",
+  "worker": "K08-A",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-20260915",
+  "base": "5ed22961d74e43c842eadcaeecda7c3ad9f3b8b6",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K08/K08-A/PACKET-RECEIPT.json)",
+  "source": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "trace": "artifacts/server1/K08/K08-A/SOURCE-TRACE.md"
+  },
+  "cases": {
+    "K08-01": "PASS; inclusive ranges, end=0, first byte, EOF, exact boundaries, cross-piece order, and two files sharing one verification piece",
+    "K08-02": "PASS; explicit backpressure, two readers, seek generation replacement, wait/notify, EOF deselection, cancel, and inert late completion",
+    "K08-03": "PASS; 512 KiB geometry yields critical width 2 and 15 MiB yields 30 buffer pieces"
+  },
+  "tdd": {
+    "red": "PASS; configure rejected the absent FileReader.cpp production surface",
+    "green": "PASS; packet library built and all 3 cases passed",
+    "negative_control": "PASS; forcing critical width to one made K08-03 fail, then the production expression was restored and 3/3 passed"
+  },
+  "test_architecture": {
+    "production_library": "server1_k08_file_reader",
+    "linked_predecessor_libraries": ["server1_k03_scheduler_selections", "server1_k00_policy"],
+    "production_cpp_included_by_test": false
+  },
+  "interface_statement": "Introduces FileReaderContract in FileReader.h; accepted predecessor interfaces are unchanged.",
+  "aggregate_registration": "pending INT-W3 B-W3D",
+  "review": "candidate only; independent Sol review and Agent 4 acceptance pending",
+  "status": "source-traced; test-authored; implementation-authored; compiled; test-executed; candidate-test-reported"
+}

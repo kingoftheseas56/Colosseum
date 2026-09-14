@@ -1,0 +1,32 @@
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Configuring done (3.4s)
+CMake Error at C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/cmake/packets/K08.cmake:4 (add_library):
+  Cannot find source file:
+
+    C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/src/policy/FileReader.cpp
+Call Stack (most recent call first):
+  CMakeLists.txt:19 (server1_register_k08_packet)
+
+
+CMake Error at C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/cmake/packets/K08.cmake:4 (add_library):
+  No SOURCES given to target: server1_k08_file_reader
+Call Stack (most recent call first):
+  CMakeLists.txt:19 (server1_register_k08_packet)
+
+
+CMake Generate step failed.  Build files cannot be regenerated correctly.

@@ -1,0 +1,15 @@
+RED (x64 VsDevCmd):
+C:/Qt/Tools/CMake_64/bin/cmake.exe -S artifacts/server1/K08/K08-A/packet-build -B artifacts/server1/K08/K08-A/red-build -G Ninja -DQt6_DIR=C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6
+Exit 1: missing native/colosseum_server_v1/src/policy/FileReader.cpp.
+
+GREEN (x64 VsDevCmd, CMAKE_BUILD_PARALLEL_LEVEL=1):
+C:/Qt/Tools/CMake_64/bin/cmake.exe -S artifacts/server1/K08/K08-A/packet-build -B artifacts/server1/K08/K08-A/green-build -G Ninja -DQt6_DIR=C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6
+C:/Qt/Tools/CMake_64/bin/cmake.exe --build artifacts/server1/K08/K08-A/green-build
+C:/Qt/Tools/CMake_64/bin/ctest.exe --test-dir artifacts/server1/K08/K08-A/green-build --output-on-failure
+Exit 0: 3/3.
+
+NEGATIVE CONTROL:
+Temporarily set FileReader criticalWidth to 1, rebuild, then run:
+C:/Qt/Tools/CMake_64/bin/ctest.exe --test-dir artifacts/server1/K08/K08-A/green-build -R K08-03 --output-on-failure
+Exit 8: K08-03 rejected the mutation. Restore source, rebuild, and rerun all K08 cases.
+Exit 0: 3/3.
