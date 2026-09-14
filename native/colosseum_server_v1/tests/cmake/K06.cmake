@@ -12,6 +12,8 @@ function(server1_register_k06_tests)
     add_test(NAME ${case_id}-persistent-store
       COMMAND server1_k06_persistent_store_test
         "${CMAKE_CURRENT_BINARY_DIR}/${case_id}" ${case_id})
-    set_tests_properties(${case_id}-persistent-store PROPERTIES LABELS "server1;unit;K06")
+    set_tests_properties(${case_id}-persistent-store PROPERTIES
+      LABELS "server1;unit;K06"
+      ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
   endforeach()
 endfunction()

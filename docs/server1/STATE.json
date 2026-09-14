@@ -201,6 +201,10 @@
     "INT-W2": "Repaired candidate preserves native source 260835ff2b52b11a169cf97493b9dbe49c7eb285. Evidence integrity was repaired and sealed through accepted candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 with 185 committed blobs verified, explicit fail-closed verdicts, recursive generated-output scrubbing, and no production or aggregate-CMake delta.",
     "B-W2B": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact candidate 1b882bfddfaa829dbf118a5af0535900d7f73443. Independent fresh gate: verifier tests 10/10 normally and under python -O, 185/185 blobs, public path PASS, CTest 16/16 plus 48/48 repeats, combined link PASS, K01 72/72, K13-A 11/11, K13-B 9/9, M00 11/11, H00 trace/raw-wire/disconnect/413 PASS, 54 generated files with zero private-path findings. W3 is released.",
     "CONTROL-PLAN": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact reviewed head 529e297cd2616d2bbd13cdaeecd828fbd88e2de3. Independent Sol re-review approved after two repair rounds. Fresh Agent 4 gate: 619/619 mutation tests, 1331/1331 semantic checks, frozen graph 57/57, 9/9 authority hashes, clean diff, no production changes. W3 execution is governed by the accepted addendum.",
+    "K02-A": "Candidate authored and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
+    "K05-A": "Candidate authored and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
+    "K06-A": "Candidate authored after K02-A and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
+    "B-W3A": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
     "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; B-W2A was bd39020125eed2180ba59043f1e1088be11ad73a; accepted INT-W2 candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 was pushed on sol/server1-int-w2b-repaired-20260912."
   },
   "accepted_states": {
@@ -320,5 +324,16 @@
     "production_files_changed": 0,
     "W3_execution_released": true,
     "scope_note": "This accepts the corrected execution and ownership graph only. It does not accept any planned W3 production worker or claim playback, packaging, platform qualification, or release readiness."
+  },
+  "candidate_states": {
+    "workers": {
+      "K02-A": "test-reported-pending-review",
+      "K05-A": "test-reported-pending-review",
+      "K06-A": "test-reported-pending-review",
+      "INT-W3": "integration-in-progress"
+    },
+    "barriers": {
+      "B-W3A": "candidate-pending-aggregate-verification-and-agent4-review"
+    }
   }
 }
