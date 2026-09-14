@@ -4,6 +4,8 @@
 #define generation generation_removed
 #elif defined(P08_NEGATE_EXACT_BLOCK)
 #define length length_removed
+#elif defined(P08_NEGATE_BLOCK_IDENTITY)
+#define blockOrdinal blockOrdinal_removed
 #elif defined(P08_NEGATE_CANCELLATION)
 #define CancelAction CancelAction_removed
 #elif defined(P08_NEGATE_OBSERVATION)
@@ -22,6 +24,8 @@
 #undef generation
 #elif defined(P08_NEGATE_EXACT_BLOCK)
 #undef length
+#elif defined(P08_NEGATE_BLOCK_IDENTITY)
+#undef blockOrdinal
 #elif defined(P08_NEGATE_CANCELLATION)
 #undef CancelAction
 #elif defined(P08_NEGATE_OBSERVATION)
@@ -91,6 +95,7 @@ int main()
     static_assert(std::is_same_v<decltype(RequestOwnership::requestId), std::uint64_t>);
     static_assert(std::is_same_v<decltype(RequestOwnership::generation), std::uint64_t>);
     static_assert(std::is_same_v<decltype(BlockSpan::length), std::uint32_t>);
+    static_assert(std::is_same_v<decltype(BlockSpan::blockOrdinal), std::uint32_t>);
     static_assert(std::is_same_v<decltype(&TorrentTransport::poll),
                                  std::vector<TorrentObservation> (TorrentTransport::*)()>);
     static_assert(std::is_same_v<decltype(&TorrentTransport::statistics),
@@ -107,23 +112,25 @@ int main()
     expect(transport.configureAutonomy({}) && transport.suppressionApplied,
            "P08-T carries and enforces explicit external-control suppression");
     const RequestOwnership owner{41, 7, 3};
-    const BlockSpan full{9, 0, kWireBlockLength};
-    const BlockSpan tail{9, kWireBlockLength, 123};
+    const BlockSpan full{9, 0, 0, kWireBlockLength};
+    const BlockSpan tail{9, 1, kWireBlockLength, 123};
     expect(isValidBlock(full) && isValidBlock(tail), "P08-T exact block and tail contract");
-    expect(!isValidBlock({9, 1, kWireBlockLength}), "P08-T rejects unaligned block");
-    expect(!isValidBlock({9, 0, 0}), "P08-T rejects zero block");
+    expect(!isValidBlock({9, 0, 1, kWireBlockLength}), "P08-T rejects unaligned block");
+    expect(!isValidBlock({9, 2, kWireBlockLength, 123}),
+           "P08-T rejects block ordinal and offset disagreement");
+    expect(!isValidBlock({9, 0, 0, 0}), "P08-T rejects zero block");
 
     const RequestAction request{owner, 12, tail};
     const CancelAction cancel{owner, 12, tail, true};
     expect(transport.submit(request) && transport.submit(cancel),
            "P08-T request and cancellation action surface");
     expect(request.ownership.requestId == 41 && request.ownership.generation == 7
-               && request.block.length == 123,
-           "P08-T ownership, generation and exact tail are carried together");
+               && request.block.blockOrdinal == 1 && request.block.length == 123,
+           "P08-T ownership, generation, block ordinal and exact tail are carried together");
 
     const server1::policy::SchedulerAction schedulerRequest{
         server1::policy::SchedulerActionType::Request,
-        {41, 7, 3, 12, 9, 0, kWireBlockLength, 123}, false};
+        {41, 7, 3, 12, 9, 1, kWireBlockLength, 123}, false};
     const auto convertedRequest = toTorrentAction(schedulerRequest);
     expect(convertedRequest && std::holds_alternative<RequestAction>(*convertedRequest),
            "P08-T consumes the K04 request action contract");
@@ -133,16 +140,29 @@ int main()
                && convertedRequestValue.ownership.selectionId == 3
                && convertedRequestValue.peer == 12
                && convertedRequestValue.block.piece == 9
+               && convertedRequestValue.block.blockOrdinal == 1
                && convertedRequestValue.block.offset == kWireBlockLength
                && convertedRequestValue.block.length == 123,
            "P08-T conversion preserves K04 ownership, peer, and exact block span");
+    auto inconsistentBlock = schedulerRequest;
+    inconsistentBlock.request.block = 0;
+    expect(!toTorrentAction(inconsistentBlock),
+           "P08-T conversion rejects K04 block ordinal and offset disagreement");
     auto schedulerCancel = schedulerRequest;
     schedulerCancel.type = server1::policy::SchedulerActionType::Cancel;
     schedulerCancel.requestWireCancel = true;
     const auto convertedCancel = toTorrentAction(schedulerCancel);
     expect(convertedCancel && std::holds_alternative<CancelAction>(*convertedCancel)
-               && std::get<CancelAction>(*convertedCancel).requestWireCancel,
-           "P08-T consumes explicit K04 wire cancellation");
+               && std::get<CancelAction>(*convertedCancel).requestWireCancel
+               && std::get<CancelAction>(*convertedCancel).ownership.requestId == 41
+               && std::get<CancelAction>(*convertedCancel).ownership.generation == 7
+               && std::get<CancelAction>(*convertedCancel).ownership.selectionId == 3
+               && std::get<CancelAction>(*convertedCancel).peer == 12
+               && std::get<CancelAction>(*convertedCancel).block.piece == 9
+               && std::get<CancelAction>(*convertedCancel).block.blockOrdinal == 1
+               && std::get<CancelAction>(*convertedCancel).block.offset == kWireBlockLength
+               && std::get<CancelAction>(*convertedCancel).block.length == 123,
+           "P08-T preserves K04 block identity on explicit wire cancellation");
 
     BlockObservation block{owner, 12, tail, {1, 2, 3}, false, false};
     PeerObservation peer{12, false, true, 65536.0, 1024.0, 4, 99};

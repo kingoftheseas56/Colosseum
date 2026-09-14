@@ -215,9 +215,11 @@ void PersistentPieceStore::close()
     closed_ = true;
 }
 
-void PersistentPieceStore::failNextWrite(std::string error)
+void PersistentPieceStore::failNextWrite(std::string error,
+                                         std::size_t successfulWritesBeforeFailure)
 {
     nextWriteError_ = std::move(error);
+    nextWriteFailureCountdown_ = successfulWritesBeforeFailure;
 }
 
 bool PersistentPieceStore::isAssembled(std::size_t piece) const
@@ -263,10 +265,14 @@ CommitResult PersistentPieceStore::commitNow(std::size_t start, std::size_t endE
 bool PersistentPieceStore::writePiece(std::size_t piece, std::string *error)
 {
     if (nextWriteError_.has_value()) {
-        if (error)
-            *error = *nextWriteError_;
-        nextWriteError_.reset();
-        return false;
+        if (nextWriteFailureCountdown_ > 0) {
+            --nextWriteFailureCountdown_;
+        } else {
+            if (error)
+                *error = *nextWriteError_;
+            nextWriteError_.reset();
+            return false;
+        }
     }
     if (!staged_[piece].has_value()) {
         if (error)

@@ -21,6 +21,7 @@ struct RequestOwnership final {
 
 struct BlockSpan final {
     std::uint32_t piece = 0;
+    std::uint32_t blockOrdinal = 0;
     std::uint32_t offset = 0;
     std::uint32_t length = 0;
 };
@@ -28,7 +29,9 @@ struct BlockSpan final {
 [[nodiscard]] constexpr bool isValidBlock(const BlockSpan &block) noexcept
 {
     return block.length > 0 && block.length <= kWireBlockLength
-        && block.offset % kWireBlockLength == 0;
+        && block.offset % kWireBlockLength == 0
+        && static_cast<std::uint64_t>(block.blockOrdinal) * kWireBlockLength
+            == block.offset;
 }
 
 struct RequestAction final {
@@ -62,11 +65,15 @@ toTorrentAction(const policy::SchedulerAction &action)
     const RequestOwnership ownership{action.request.requestId,
                                      action.request.generation,
                                      action.request.selectionId};
+    if (action.request.piece > UINT32_MAX || action.request.block > UINT32_MAX
+        || action.request.offset > UINT32_MAX
+        || action.request.length > UINT32_MAX)
+        return std::nullopt;
     const BlockSpan block{static_cast<std::uint32_t>(action.request.piece),
+                          static_cast<std::uint32_t>(action.request.block),
                           static_cast<std::uint32_t>(action.request.offset),
                           static_cast<std::uint32_t>(action.request.length)};
-    if (action.request.piece > UINT32_MAX || action.request.offset > UINT32_MAX
-        || action.request.length > UINT32_MAX || !isValidBlock(block))
+    if (!isValidBlock(block))
         return std::nullopt;
     switch (action.type) {
     case policy::SchedulerActionType::Request:

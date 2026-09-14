@@ -104,6 +104,36 @@ void caseK0703(const std::filesystem::path &root)
     store.close();
     expect(!store.read(8, 5).has_value(), "K07-03 close clears slots");
 
+    CircularPieceStore duplicateSecondFirst(root / "duplicate-second-first",
+                                            CircularStoreMode::Filesystem, 4, 4);
+    expect(duplicateSecondFirst.write(8, bytes(4, 8), {}, {}, 1).success,
+           "K07-03 duplicate scenario writes original bytes");
+    const auto originalToken = duplicateSecondFirst.commit(8, 8, hashForByte(8));
+    const auto repeatedToken = duplicateSecondFirst.commit(8, 8, hashForByte(8));
+    expect(originalToken.spillTokens.size() == 1 && repeatedToken.spillTokens.size() == 1
+               && originalToken.spillTokens[0] == repeatedToken.spillTokens[0],
+           "K07-03 repeated commit coalesces to one live spill token");
+    expect(duplicateSecondFirst.completeSpill(repeatedToken.spillTokens[0], true)
+               && !duplicateSecondFirst.completeSpill(originalToken.spillTokens[0], true),
+           "K07-03 completing repeated reference first applies one completion only");
+    expect(duplicateSecondFirst.read(8, 2) == bytes(4, 8),
+           "K07-03 duplicate completion cannot replace original persisted bytes");
+
+    CircularPieceStore duplicateFirstSecond(root / "duplicate-first-second",
+                                            CircularStoreMode::Filesystem, 4, 4);
+    expect(duplicateFirstSecond.write(8, bytes(4, 8), {}, {}, 1).success,
+           "K07-03 reverse duplicate scenario writes original bytes");
+    const auto firstReference = duplicateFirstSecond.commit(8, 8, hashForByte(8));
+    const auto secondReference = duplicateFirstSecond.commit(8, 8, hashForByte(8));
+    expect(firstReference.spillTokens.size() == 1 && secondReference.spillTokens.size() == 1
+               && firstReference.spillTokens[0] == secondReference.spillTokens[0],
+           "K07-03 reverse repeated commit still has one live token");
+    expect(duplicateFirstSecond.completeSpill(firstReference.spillTokens[0], true)
+               && !duplicateFirstSecond.completeSpill(secondReference.spillTokens[0], true),
+           "K07-03 completing original reference first applies one completion only");
+    expect(duplicateFirstSecond.read(8, 2) == bytes(4, 8),
+           "K07-03 reverse duplicate completion preserves original persisted bytes");
+
     CircularPieceStore zero(root / "zero", CircularStoreMode::Memory, 3, 4);
     expect(zero.capacity() == 0, "K07-03 zero-capacity floor");
     expect(!zero.write(0, bytes(4, 0), {}, {}, 1).success,

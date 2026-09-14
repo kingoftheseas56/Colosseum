@@ -30,7 +30,7 @@ CircularCommitResult CircularPieceStore::commit(std::size_t start,std::size_t en
  const auto actual=QCryptographicHash::hash(input,QCryptographicHash::Sha1).toHex().toStdString();
  if(expectedSha1.empty()||actual!=expectedSha1){r.error="SHA-1 verification failed";return r;}
  r.verification.success=true;r.success=true;r.noNotifyHave=true;
- for(std::size_t p=start;p<=end;++p){Slot*s=find(p);s->committed=true;if(mode_==CircularStoreMode::Filesystem){const auto t=nextToken_++;spills_[t]={p,s->generation,false};r.spillTokens.push_back(t);}}
+ for(std::size_t p=start;p<=end;++p){Slot*s=find(p);s->committed=true;if(mode_==CircularStoreMode::Filesystem){const auto pending=std::find_if(spills_.begin(),spills_.end(),[&](const auto&entry){return entry.second.piece==p&&entry.second.generation==s->generation&&!entry.second.canceled;});if(pending!=spills_.end())r.spillTokens.push_back(pending->first);else{const auto t=nextToken_++;spills_[t]={p,s->generation,false};r.spillTokens.push_back(t);}}}
  return r;
 }
 bool CircularPieceStore::cancelSpill(SpillToken t){auto i=spills_.find(t);if(i==spills_.end()||i->second.canceled)return false;i->second.canceled=true;return true;}

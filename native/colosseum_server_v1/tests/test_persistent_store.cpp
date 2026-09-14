@@ -163,6 +163,25 @@ void caseK06_03(const std::filesystem::path &root)
     require(!failedReopen.isVerified(0),
             "failed destination write reopens unverified because no committed bit was persisted");
 
+    const auto multiRoot = caseRoot / "multi-piece-error";
+    auto multiFailure = makeEightByteStore(multiRoot);
+    multiFailure.stage(0, bytes("abcd"));
+    multiFailure.stage(1, bytes("eFGH"));
+    require(multiFailure.verify(0).success && multiFailure.verify(1).success,
+            "multi-piece failure fixture verifies both pieces in memory");
+    multiFailure.failNextWrite("later piece write", 1);
+    const auto laterFailure = multiFailure.commit(0, 2);
+    require(laterFailure.state == CommitState::Error
+                && !multiFailure.isCommitted(0) && !multiFailure.isCommitted(1),
+            "later write failure cannot commit any piece in the atomic range");
+    server1::policy::VerificationBitmap multiBitmap(
+        2, multiRoot / ".verification-bitmap");
+    require(!multiBitmap.get(0) && !multiBitmap.get(1),
+            "later write failure persists no bitmap bit for the atomic range");
+    auto multiReopen = makeEightByteStore(multiRoot);
+    require(!multiReopen.isVerified(0) && !multiReopen.isVerified(1),
+            "partially written atomic range reopens wholly unverified");
+
     const auto bitmapPath = caseRoot / "bitmap";
     {
         server1::policy::VerificationBitmap bitmap(2, bitmapPath);

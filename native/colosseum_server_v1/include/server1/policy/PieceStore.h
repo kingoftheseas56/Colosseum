@@ -63,7 +63,8 @@ public:
     void pauseWrites() noexcept;
     void resumeWrites();
     void close();
-    void failNextWrite(std::string error);
+    void failNextWrite(std::string error,
+                       std::size_t successfulWritesBeforeFailure = 0);
 
     [[nodiscard]] bool isAssembled(std::size_t piece) const;
     [[nodiscard]] bool isVerified(std::size_t piece) const;
@@ -94,6 +95,7 @@ private:
     std::optional<VerificationBitmap> verificationBitmap_;
     std::vector<PendingCommit> pending_;
     std::optional<std::string> nextWriteError_;
+    std::size_t nextWriteFailureCountdown_ = 0;
     std::vector<std::string> ledger_;
     bool paused_ = false;
     bool closeQueued_ = false;

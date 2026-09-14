@@ -40,7 +40,8 @@ int main()
     if (!torrentAction || !std::holds_alternative<server1::ports::RequestAction>(*torrentAction)) return 9;
     const auto &converted = std::get<server1::ports::RequestAction>(*torrentAction);
     if (converted.ownership.generation != 1 || converted.ownership.selectionId != selection
-        || converted.peer != 12 || converted.block.piece != 0 || converted.block.length != 1) return 10;
+        || converted.peer != 12 || converted.block.piece != 0
+        || converted.block.blockOrdinal != 0 || converted.block.length != 1) return 10;
     MetadataExchange metadata("0000000000000000000000000000000000000000");
     if (!metadata.advertise(1)) return 3;
     SwarmPolicy swarm(10, 1);
