@@ -1,4 +1,11 @@
 {
+  "schema": "colosseum-server1-git-blob-manifest/v1",
+  "content_ref": "f9bca5e23cb776f02dc82e0e107b49dca45d398e",
+  "hash_algorithm": "sha256-git-blob",
+  "hash_scope": {
+    "candidate_files": "SHA-256 over committed Git blob bytes at content_ref",
+    "evidence_files": "SHA-256 over committed Git blob bytes at content_ref"
+  },
   "worker_id": "K01-A",
   "oracle": {
     "path": "C:\\Users\\PublicUser\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
@@ -11,30 +18,30 @@
     }
   },
   "candidate_files": {
-    "native/colosseum_server_v1/include/server1/policy/TorrentMetadata.h": "392AD198D4ACD440D21F0EBC1496FBC5DE0C48B680EDC46E145729E3D4C8705B",
-    "native/colosseum_server_v1/src/policy/TorrentMetadata.cpp": "91AC8CC83769D7112BFFBB1C5BF12D7E896D5D20477DF7B5CD84E8911C53BC1A",
-    "native/colosseum_server_v1/src/policy/VirtualPieceMap.cpp": "75A537D5A67FCB3DEAA819E5598B94230BCEC4AFEC2BB9F6AD0A712ADE186E56",
-    "native/colosseum_server_v1/tests/test_metadata_geometry.cpp": "18A481E174E12DC8A0D541E069BB57838E7A7A57F70CD81A234D023899EF593A",
-    "native/colosseum_server_v1/cmake/packets/K01.cmake": "96819193ADCB8A6DAA1300B3A24D7E1F21D6CF600CC50C916D56039CC207070C",
-    "native/colosseum_server_v1/tests/cmake/K01.cmake": "FC12CABC864CCDF5D7CE27D3225DE5A5D9BA73FF2952039EA2A2CE2BF6E91E48"
+    "native/colosseum_server_v1/include/server1/policy/TorrentMetadata.h": "c2a0ccd3a677369800915a9e03a95f87368ecdb56c001c6acae544d9adc25e09",
+    "native/colosseum_server_v1/src/policy/TorrentMetadata.cpp": "5ad6011c7db5142ae9046d8ed4dc3e578a5a3f6e77c1c59af7cc9a1b7e1e03b7",
+    "native/colosseum_server_v1/src/policy/VirtualPieceMap.cpp": "ab343ff79e54218b4c3cc268aebf46751de19124c5930cca1288163b30306409",
+    "native/colosseum_server_v1/tests/test_metadata_geometry.cpp": "a850ec777da71a56b294e302da32b469cb3bab2642c31f8eef7b37d600b2aedb",
+    "native/colosseum_server_v1/cmake/packets/K01.cmake": "a0c26d9a52acf48a2c2760fff73fa61bf99a4df6272ffabbe455391fd9b9a963",
+    "native/colosseum_server_v1/tests/cmake/K01.cmake": "b9677ab6b73f308cd04d8fdf4f5a106ceb510b6ec1b8840c46f698e8f5bd3515"
   },
   "evidence_files": {
-    "artifacts/server1/K01/K01-A/comparison/oracle_k01_probe.mjs": "A03FACDEDF8F4FB21D57AFFF86F451B85AAD206555A2B228A286B5D93EB356B0",
-    "artifacts/server1/K01/K01-A/comparison/source.raw.txt": "248E14692D87995A2637011388004DBE6894623DD88D7DA2C9614B058953724D",
-    "artifacts/server1/K01/K01-A/comparison/candidate.raw.txt": "248E14692D87995A2637011388004DBE6894623DD88D7DA2C9614B058953724D",
-    "artifacts/server1/K01/K01-A/comparison/RAW-COMPARISON.txt": "2153CBF1A823C10CDFEB47B43CA9543FE7EFA6DFB15B24004E13AEE6111245BE",
-    "artifacts/server1/K01/K01-A/green/GREEN-TEST-COMMAND.txt": "1F6E46C9A6D6774C63D75B70F8BBB857DF501A4257AFD4CE8E4FCDF996A7A030",
-    "artifacts/server1/K01/K01-A/green/GREEN-TEST-OUTPUT.txt": "2698E2F7098BC37238611D3323B0E2CCCF2BADA67231A19672D2634F55387B29",
-    "artifacts/server1/K01/K01-A/GREEN-EVIDENCE.json": "19F3826F3F524710B9E3035043B7049B52AB173B75C3F12EDD688013F8AA84C3",
-    "artifacts/server1/K01/K01-A/DIFFERENTIAL-EVIDENCE.json": "FDEB30726A4EA341E28315DA4524DD02ABD14AB58C13ABEFB6FCBE21E82C9A68",
-    "artifacts/server1/K01/K01-A/SOURCE-TRACE.md": "74BE41A253C586B49AAB6A7D737281B302CC7CD4B063669BAF115CD6A712A8B2",
-    "artifacts/server1/K01/K01-A/cases/K01-01-GOLDEN.json": "F679CFA7DA19B81C1CC6CD3EDE5F9812049BB85FA311498CA361C4F91A39CAEB",
-    "artifacts/server1/K01/K01-A/cases/K01-02-GOLDEN.json": "A3F4D0F968039C19248CA61CA029D28BFF9BB3573712C683EE8612B64EB633BA",
-    "artifacts/server1/K01/K01-A/cases/K01-03-GOLDEN.json": "93A2529E0932BEFD1606FEBF965F9676DD1856D010A0C67C7498E95A7A7458BC",
-    "artifacts/server1/K01/K01-A/red/RED-TEST-COMMAND.txt": "C748AC640C0BB912A052BF8CD1C99D08CB153DE71AF4A1DD9CE76AC1D04C9E2C",
-    "artifacts/server1/K01/K01-A/red/RED-TEST-OUTPUT.txt": "624C0F135F3F00DDD8D96290D6B65529D40885AEFD5C5180BC1E1544F89F6BB6",
-    "artifacts/server1/K01/K01-A/red/RED-TEST-EVIDENCE.json": "BB6A17120F726D99B5BB47D94A5FB350E2FB4FCA2D0977CE8A4EE5994B3DBFCE",
-    "artifacts/server1/K01/K01-A/WIRING-REQUEST.json": "2D0362F8D70476EC714A52A3AB4F39CDF86AE28BE88536119D5903429AC45971",
-    "artifacts/server1/K01/K01-A/PACKET-RECEIPT.json": "18752627D42C8603BD485CB8A96ECCA1F4B4062514F1CAC3EC969A8594758364"
+    "artifacts/server1/K01/K01-A/comparison/oracle_k01_probe.mjs": "a03facdedf8f4fb21d57afff86f451b85aad206555a2b228a286b5d93eb356b0",
+    "artifacts/server1/K01/K01-A/comparison/source.raw.txt": "edfce4e8ee6cbc6d431596614d62d434852f627977d33d9f1c0cd11f4019e0bf",
+    "artifacts/server1/K01/K01-A/comparison/candidate.raw.txt": "edfce4e8ee6cbc6d431596614d62d434852f627977d33d9f1c0cd11f4019e0bf",
+    "artifacts/server1/K01/K01-A/comparison/RAW-COMPARISON.txt": "1860cb294293cfb141c3bb39b65e1abef0f760fe5f8b63b5e5cf00768a390dd4",
+    "artifacts/server1/K01/K01-A/green/GREEN-TEST-COMMAND.txt": "1f6e46c9a6d6774c63d75b70f8bbb857df501a4257afd4ce8e4fcdf996a7a030",
+    "artifacts/server1/K01/K01-A/green/GREEN-TEST-OUTPUT.txt": "2698e2f7098bc37238611d3323b0e2cccf2bada67231a19672d2634f55387b29",
+    "artifacts/server1/K01/K01-A/GREEN-EVIDENCE.json": "13ef764a46967fa54af2d1065995eb0daf9f838b83dec83ed8222134807a5898",
+    "artifacts/server1/K01/K01-A/DIFFERENTIAL-EVIDENCE.json": "fdeb30726a4ea341e28315da4524dd02abd14ab58c13abefb6fcbe21e82c9a68",
+    "artifacts/server1/K01/K01-A/SOURCE-TRACE.md": "74be41a253c586b49aab6a7d737281b302cc7cd4b063669baf115cd6a712a8b2",
+    "artifacts/server1/K01/K01-A/cases/K01-01-GOLDEN.json": "dd848b33d5c9b78b4e666f5442d069cc43230851f8508c290e2e0c4433f7bbb9",
+    "artifacts/server1/K01/K01-A/cases/K01-02-GOLDEN.json": "17ffe799411bd6eaaca11e6a3ba215f53bb96e07959023b2a69398f67f3c69f8",
+    "artifacts/server1/K01/K01-A/cases/K01-03-GOLDEN.json": "ad531d9625be19aa28cc50c5bd6814b49d308ae3b3ccf31195d2433ef8f00ad0",
+    "artifacts/server1/K01/K01-A/red/RED-TEST-COMMAND.txt": "7895962504bc9fac15a8cfe1d2fed49e8f35bbc0681342840800453e10a01bc8",
+    "artifacts/server1/K01/K01-A/red/RED-TEST-OUTPUT.txt": "d4d821e7ceaaf0d5630f8c9ba79468a8cf11cbd21bc1e4cfb71902a3beaac1f6",
+    "artifacts/server1/K01/K01-A/red/RED-TEST-EVIDENCE.json": "d9474e9cf1095a5305eb745e5c6064f39723eb8e17576c454e12dc88abb43afd",
+    "artifacts/server1/K01/K01-A/WIRING-REQUEST.json": "0acde71be11e457bb6ac7847a6498a42e7c68f258724a2c05503c477a718c813",
+    "artifacts/server1/K01/K01-A/PACKET-RECEIPT.json": "18752627d42c8603bd485cb8a96ecca1f4b4062514f1cac3ec969a8594758364"
   }
 }

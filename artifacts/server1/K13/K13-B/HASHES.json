@@ -1,4 +1,10 @@
 {
+  "schema": "colosseum-server1-git-blob-manifest/v1",
+  "content_ref": "f9bca5e23cb776f02dc82e0e107b49dca45d398e",
+  "hash_algorithm": "sha256-git-blob",
+  "hash_scope": {
+    "worker_files_sha256": "SHA-256 over committed Git blob bytes at content_ref"
+  },
   "base": "9f68c56dcfe9f60be9accd9bb78bebbbb6330358",
   "oracle": {
     "path": "C:\\Users\\PublicUser\\Desktop\\Brotherhood\\.codex\\server1-review\\oracle\\server.js",
@@ -7,7 +13,7 @@
   "hash_convention": {
     "oracle": "SHA-256 over exact raw oracle mirror bytes; no newline normalization",
     "oracle_ranges": "Planning-pack source-byte hashes for the identified inclusive line ranges; retained unchanged because the mirror hash matches",
-    "artifacts": "SHA-256 over exact raw artifact-file bytes, equivalent to Get-FileHash -Algorithm SHA256",
+    "artifacts": "SHA-256 over committed Git blob bytes at content_ref",
     "raw_traces": "Captured stdout is compared as an exact line sequence with no normalization"
   },
   "oracle_ranges": [
@@ -38,24 +44,24 @@
     }
   ],
   "worker_files_sha256": {
-    "native/colosseum_server_v1/include/server1/settings/CachePolicy.h": "850BD563D4F855F45494C1C5DCE8A24DB0CA57B7A15C3AFC316968E514570752",
-    "native/colosseum_server_v1/include/server1/platform/DiskSpace.h": "66816272DB262F591A1E21D4F1EBA08D0D82396EFCC779BDD185DA8F694A3A90",
-    "native/colosseum_server_v1/src/settings/CachePolicy.cpp": "2AAC6C38EB47A13FE657677CF6C1B837CDDB235DC3CED32EFEA15BD55F59D7FD",
-    "native/colosseum_server_v1/src/platform/DiskSpace.cpp": "CF977E2BE51D98EDCE1C8642EFCCC0C17969A7B0D4769E750E44F8B37859C675",
-    "native/colosseum_server_v1/tests/test_settings_cache.cpp": "7E7F7903A48641BF3D1700FC36A091CEB22DE0514EB4D2AFD92F8710AEC9F46A",
-    "native/colosseum_server_v1/cmake/packets/K13.cmake": "92DA2156B03C96671BD65AD2EEC113F19CDBC9616ADEC105A440343CFA0D67FF",
-    "native/colosseum_server_v1/tests/cmake/K13.cmake": "978BAF935B164233896DFF1C4067252DCE78D2EA1193763FCEB61B9F04A16475",
-    "artifacts/server1/K13/K13-B/scenarios/oracle_k13_b_probe.mjs": "350F193672A742145446EE24AC04CD2CC6DD2A48A47266FF7AB0C9C91FBEE1ED",
-    "artifacts/server1/K13/K13-B/comparison/source.raw.txt": "2361A746A3834482D7441C68FCA4E4297655C978A8C5F83AAF98981095DCC2CF",
-    "artifacts/server1/K13/K13-B/comparison/candidate.raw.txt": "2361A746A3834482D7441C68FCA4E4297655C978A8C5F83AAF98981095DCC2CF",
-    "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON.txt": "A276F4C741CCBEB938A50FB50C8835BF5CEE0F56127FF48FC2B238DACC810F24",
-    "artifacts/server1/K13/K13-B/green/FINAL-CONFIGURE-OUTPUT.txt": "2F1DE368E18565D235993F3DA6F6B083DA2C7C10DFE1F6D6FFF23A53789CC3C1",
-    "artifacts/server1/K13/K13-B/green/FINAL-BUILD-OUTPUT.txt": "2BB9D15506FD44407D2EECB5461AC153ABC2826301046EAA49A5C1D91832AA29",
-    "artifacts/server1/K13/K13-B/green/FINAL-CTEST-OUTPUT.txt": "A1EA1669F1B71CC53CE4E630ED6ACF93ED203CF7035B989CCDD11ACF3C41478F",
-    "artifacts/server1/K13/K13-B/green/K13-01-TEST-OUTPUT.txt": "311C2935C8316BDE724375EA023109797AF819B159BF8D7F9F7A9371E397EFA6",
-    "artifacts/server1/K13/K13-B/green/K13-02-TEST-OUTPUT.txt": "311C2935C8316BDE724375EA023109797AF819B159BF8D7F9F7A9371E397EFA6",
-    "artifacts/server1/K13/K13-B/green/K13-03-TEST-OUTPUT.txt": "05993A5513560A118C61647D14CB50814ABAABF618B4713E18579C368D07CB87",
-    "artifacts/server1/K13/K13-B/red/RED-CONFIGURE-OUTPUT.txt": "E448097AD23F936620FD4162C06C146D4511CFC511AA31223A33BE437371E2CA"
+    "native/colosseum_server_v1/include/server1/settings/CachePolicy.h": "5300462a5a1fe0c4060acd97852f184444bb8d16372c48f0ca578415b9e59c37",
+    "native/colosseum_server_v1/include/server1/platform/DiskSpace.h": "54cc7528a901fd10ff47dc7eca2bea496d7a3b914920fb109a044a34cb171ec9",
+    "native/colosseum_server_v1/src/settings/CachePolicy.cpp": "8d29a204a6dc6cda70ada5da97150cfc8a9e186e22529d7a0cbbd24e0db35f59",
+    "native/colosseum_server_v1/src/platform/DiskSpace.cpp": "066c4a77f97832086781dd095d96f26486c55dc31adc2a984fa2bf62ce83e096",
+    "native/colosseum_server_v1/tests/test_settings_cache.cpp": "1cc3b0d24d0686be7d9f7c4a6aab2e38c5538bcd80a270fa4bf60c73d1d9a5fb",
+    "native/colosseum_server_v1/cmake/packets/K13.cmake": "6f8178a910401df380ea08f9a8f2b58297622a71303821f752263d720acd2f46",
+    "native/colosseum_server_v1/tests/cmake/K13.cmake": "389a21c4d2f8bb7e169b1cf16038febea8d9ebcc7dcf1df1fdfc99e72e6baa41",
+    "artifacts/server1/K13/K13-B/scenarios/oracle_k13_b_probe.mjs": "350f193672a742145446ee24ac04cd2cc6dd2a48a47266ff7ab0c9c91fbee1ed",
+    "artifacts/server1/K13/K13-B/comparison/source.raw.txt": "8d2bbcf51766facc9b16aa1f1a29dfe230fb5d22fb2c1779b2ac02c3fc1c0b6b",
+    "artifacts/server1/K13/K13-B/comparison/candidate.raw.txt": "8d2bbcf51766facc9b16aa1f1a29dfe230fb5d22fb2c1779b2ac02c3fc1c0b6b",
+    "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON.txt": "a276f4c741ccbeb938a50fb50c8835bf5cee0f56127ff48fc2b238dacc810f24",
+    "artifacts/server1/K13/K13-B/green/FINAL-CONFIGURE-OUTPUT.txt": "2f1de368e18565d235993f3da6f6b083da2c7c10dfe1f6d6fff23a53789cc3c1",
+    "artifacts/server1/K13/K13-B/green/FINAL-BUILD-OUTPUT.txt": "2bb9d15506fd44407d2eecb5461ac153abc2826301046eaa49a5c1d91832aa29",
+    "artifacts/server1/K13/K13-B/green/FINAL-CTEST-OUTPUT.txt": "a1ea1669f1b71cc53ce4e630ed6acf93ed203cf7035b989ccdd11acf3c41478f",
+    "artifacts/server1/K13/K13-B/green/K13-01-TEST-OUTPUT.txt": "311c2935c8316bde724375ea023109797af819b159bf8d7f9f7a9371e397efa6",
+    "artifacts/server1/K13/K13-B/green/K13-02-TEST-OUTPUT.txt": "311c2935c8316bde724375ea023109797af819b159bf8d7f9f7a9371e397efa6",
+    "artifacts/server1/K13/K13-B/green/K13-03-TEST-OUTPUT.txt": "05993a5513560a118c61647d14cb50814abaabf618b4713e18579c368d07cb87",
+    "artifacts/server1/K13/K13-B/red/RED-CONFIGURE-OUTPUT.txt": "32d73713052a9c6f27bd74467f90ee43f033efe305bd67eff6a641aab66ab6dd"
   },
-  "hash_command": "Get-FileHash <listed files> -Algorithm SHA256"
+  "hash_command": "git cat-file blob <content_ref>:<path> | SHA-256"
 }
