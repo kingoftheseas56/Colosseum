@@ -2,10 +2,12 @@
   "schema": "colosseum-server1-barrier-receipt/v1",
   "worker_id": "INT-W2",
   "barrier": "B-W2B",
-  "branch": "codex/server1-int-w2b-luna",
+  "branch": "sol/server1-int-w2b-repaired-20260912",
   "integration_base": "e5660e27a320845ab993201918443e609e1a34d5",
   "integration_parent_after_replay": "77e3b4d88418507016649b736326cf2c7517b3b6",
   "integration_sha": "f351b482a50a575d33b6ccab4add364b20bbf02d",
+  "accepted_candidate_sha": "1b882bfddfaa829dbf118a5af0535900d7f73443",
+  "verified_native_source_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
   "predecessor_barrier": "B-W2A",
   "predecessor_integrated_sha": "bd39020125eed2180ba59043f1e1088be11ad73a",
   "accepted_inputs": {
@@ -312,11 +314,30 @@
     "M00-02": "PASS and differential-qualified",
     "M00-03": "PASS and differential-qualified"
   },
-  "unresolved_failures": [
-    "No verification failures.",
-    "B-W2B remains closed pending the named external integration reviewer; no Lanista action is required for this foundation barrier."
-  ],
-  "status": "ready_for_external_review",
-  "push": false,
-  "pushed_head": null
+  "independent_review": {
+    "reviewer": "[Agent 4 (Codex), stream mode]",
+    "review_date": "2026-09-14",
+    "task_review": "ALL ADDRESSED after fix round 1",
+    "manifest_verification": "185/185 committed Git blobs",
+    "verifier_tests": "10/10 normal and 10/10 under python -O",
+    "public_path_guard": "PASS",
+    "ctest": "16/16",
+    "repeated_test_executions": 48,
+    "combined_link": "PASS",
+    "source_native_lines": {
+      "K01": 72,
+      "K13-A": 11,
+      "K13-B": 9,
+      "M00": 11
+    },
+    "H00": "pinned trace, raw-wire, stream/disconnect and oversized-chunk 413 PASS",
+    "generated_files_scanned": 54,
+    "private_path_findings": 0,
+    "lanista": "not applicable for this foundation barrier",
+    "verdict": "ACCEPT"
+  },
+  "unresolved_failures": [],
+  "status": "accepted",
+  "push": true,
+  "pushed_head": "1b882bfddfaa829dbf118a5af0535900d7f73443"
 }

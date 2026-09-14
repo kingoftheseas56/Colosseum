@@ -198,9 +198,9 @@
     "B-W1D": "Accepted at integrated source 9898964d; G-LAB, G-SURFACE, and G-NATIVE passed with topology unchanged.",
     "K00-A": "Accepted and integrated from 8b88dda782e56b0e7f0a6abffb8295518de87bbf with receipt/wiring metadata 64ef2c491bce48bffa60c456d47435ddf6af34b1; aggregate wiring is at bd39020125eed2180ba59043f1e1088be11ad73a.",
     "B-W2A": "Accepted at integrated source bd39020125eed2180ba59043f1e1088be11ad73a; predecessor P03 regression and K00-01/K00-02/K00-03 passed with topology unchanged; no runtime claim.",
-    "INT-W2": "Repaired candidate source 260835ff2b52b11a169cf97493b9dbe49c7eb285 assembled from existing INT-W2 801a4b4f and approved H00/K13 plus new M00 evidence repair. Fresh 29-step C++17 build, exact 16 tests repeated three times, actual five-library combined consumer, and integrated differentials passed twice including the single-command reproducer. This is candidate verification only, not independent B-W2B acceptance or official feature publication.",
-    "B-W2B": "Verification complete at f351b482a50a575d33b6ccab4add364b20bbf02d; barrier remains closed pending the named external integration reviewer.",
-    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; B-W2A was bd39020125eed2180ba59043f1e1088be11ad73a; INT-W2 assembled source is f351b482a50a575d33b6ccab4add364b20bbf02d and was not pushed."
+    "INT-W2": "Repaired candidate preserves native source 260835ff2b52b11a169cf97493b9dbe49c7eb285. Evidence integrity was repaired and sealed through accepted candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 with 185 committed blobs verified, explicit fail-closed verdicts, recursive generated-output scrubbing, and no production or aggregate-CMake delta.",
+    "B-W2B": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact candidate 1b882bfddfaa829dbf118a5af0535900d7f73443. Independent fresh gate: verifier tests 10/10 normally and under python -O, 185/185 blobs, public path PASS, CTest 16/16 plus 48/48 repeats, combined link PASS, K01 72/72, K13-A 11/11, K13-B 9/9, M00 11/11, H00 trace/raw-wire/disconnect/413 PASS, 54 generated files with zero private-path findings. W3 is released.",
+    "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; B-W2A was bd39020125eed2180ba59043f1e1088be11ad73a; accepted INT-W2 candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 was pushed on sol/server1-int-w2b-repaired-20260912."
   },
   "accepted_states": {
     "workers": {
@@ -235,7 +235,7 @@
       "B-W1C": "accepted",
       "B-W1D": "accepted",
       "B-W2A": "accepted",
-      "B-W2B": "closed_pending_external_acceptance"
+      "B-W2B": "accepted"
     },
     "releases": {
       "P05-A": "released",
@@ -247,7 +247,8 @@
       "P07-A": "completed_at_B-W1D",
       "P07-B": "completed_at_B-W1D",
       "P07-C": "completed_at_B-W1D",
-      "P08-A": "completed_at_B-W1D"
+      "P08-A": "completed_at_B-W1D",
+      "B-W2B": "released_W3"
     },
     "integrated_inputs": {
       "K01-A": "7b1558fcfe065002a7e0545623a84451d3ddfa8c",
@@ -257,16 +258,18 @@
       "M00-A": "7f46291c6e4b7bb4fb37e9c408648e7071ef1882"
     },
     "integrated_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
-    "pushed_head": null,
+    "pushed_head": "1b882bfddfaa829dbf118a5af0535900d7f73443",
     "receipt": "artifacts/server1/INT-W2/repair-20260912/RECEIPT.json",
-    "push": false
+    "push": true
   },
   "candidate_verification": {
     "branch": "sol/server1-int-w2b-repaired-20260912",
     "source_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
     "mechanical_gate": "PASS",
-    "independent_acceptance": "PENDING",
-    "official_feature_head": "e5660e27a320845ab993201918443e609e1a34d5",
+    "accepted_candidate_sha": "1b882bfddfaa829dbf118a5af0535900d7f73443",
+    "independent_acceptance": "ACCEPT",
+    "independent_reviewer": "[Agent 4 (Codex), stream mode]",
+    "official_feature_head_at_review": "e5660e27a320845ab993201918443e609e1a34d5",
     "repair_inputs": [
       "82aa8cdbc991de6f88bdf04664336675109e760b",
       "7fd34942efc5af2ea7520b07f4e3020c4fc1ac11",
@@ -283,10 +286,14 @@
       "M00": 11
     },
     "H00": "pinned source-derived trace profile plus real native loopback raw-wire and stream/disconnect checks",
-    "W3_released": false,
-    "scope_note": "Existing integrated worker labels refer to assembly in this candidate, not acceptance on the official feature branch.",
+    "W3_released": true,
+    "scope_note": "B-W2B acceptance covers the frozen W2 foundation only. It does not claim Server 1.0 playback, full composition, platform packaging, or release readiness.",
     "public_path_guard": "PASS",
     "tracked_private_path_findings": 0,
-    "post_sanitization_reproduction": "PASS"
+    "post_sanitization_reproduction": "PASS",
+    "manifest_verification": "185/185",
+    "optimized_verifier_tests": "10/10",
+    "generated_files_scanned": 54,
+    "generated_private_path_findings": 0
   }
 }
