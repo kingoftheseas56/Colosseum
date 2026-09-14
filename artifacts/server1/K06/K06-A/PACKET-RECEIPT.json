@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K06",
+  "worker": "K06-A",
+  "branch": "sol/server1-w3-spine-20260914",
+  "base": "d29c8b0b95d1db1f021221683b8ca3e66055f6c0",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K06/K06-A/PACKET-RECEIPT.json)",
+  "cases": {
+    "K06-01": "test-reported PASS",
+    "K06-02": "test-reported PASS",
+    "K06-03": "test-reported PASS"
+  },
+  "negative_controls": {
+    "absent_destination": "PASS",
+    "corrupt_real_piece": "PASS",
+    "partial_or_disk_error": "PASS",
+    "reordered_close_before_commit": "PASS rejected",
+    "stale_persisted_bitmap": "PASS invalidated"
+  },
+  "callback_multiplicity": "N committed pieces plus one terminal callback, source-compatible",
+  "aggregate_registration": "pending INT-W3 B-W3A",
+  "review": "candidate only; independent Agent 4 review pending",
+  "status": "implementation-authored; directly compiled; focused tests executed; integration pending"
+}

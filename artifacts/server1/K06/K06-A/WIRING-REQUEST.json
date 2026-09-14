@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K06-A",
+  "parent_packet": "K06",
+  "base": "d29c8b0b95d1db1f021221683b8ca3e66055f6c0",
+  "request": "INT-W3 may include K06 packet and test manifests after K02 when forming B-W3A.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K06.cmake",
+    "native/colosseum_server_v1/tests/cmake/K06.cmake"
+  ],
+  "interface_changes": "Produces PieceStoreContract in new packet-owned PieceStore.h; no frozen existing interface changed.",
+  "gate": "K06-A candidate pending Sol/Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

@@ -1,0 +1,6 @@
+K06-A GREEN
+compile: MSVC 19.44 C++17, locked Qt 6.11.1, test_persistent_store.cpp + PersistentPieceStore.cpp + VerificationBitmap.cpp + PieceBuffer.cpp
+compile exit: 0
+K06-01 exit: 0; output: K06-01 PASS
+K06-02 exit: 0; output: K06-02 PASS
+K06-03 exit: 0; output: K06-03 PASS

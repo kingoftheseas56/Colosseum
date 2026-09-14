@@ -1,0 +1,5 @@
+K06-A RED
+command: cl /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include /c native\colosseum_server_v1\tests\test_persistent_store.cpp /Fo:artifacts\server1\INT-W3\k06-red.obj
+exit: 2
+expected failure: server1/policy/PieceStore.h did not exist.
+named breaks: K06-01 cross-file destinations and tail sizes; K06-02 assembled/verified/committed distinctions and corrupt reset; K06-03 single-writer close order, write errors, and stale bitmap invalidation.
