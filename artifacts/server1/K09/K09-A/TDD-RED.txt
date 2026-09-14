@@ -1,0 +1,4 @@
+Initial command: cl.exe /nologo /std:c++17 /EHsc /c artifacts\server1\K09\K09-A\TDD-DRIVER.cpp
+Exit: 1
+Observed: fatal error C1083 opening the not-yet-created TrackerSource.cpp include.
+Test-harness correction before GREEN: corrected the driver-relative repository depth from five parent segments to four. No production behavior changed by this correction.

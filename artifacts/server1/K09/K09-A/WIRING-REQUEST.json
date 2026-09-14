@@ -1,0 +1,10 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K09-A",
+  "parent_packet": "K09",
+  "base": "fccffda26a74bfee811f28babc30e72602bd00ac",
+  "request": "K09-B must add SwarmCaps.cpp and the frozen K09 packet/test manifests; INT-W3 may register them only after K09-B converges.",
+  "interface_changes": "Produces packet-internal PeerSearchContract in the three frozen source-owned files; K09-B owns the converged test and manifests.",
+  "gate": "K09-A candidate only; K09-B convergence and Agent 4 review pending.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

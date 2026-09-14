@@ -1,0 +1,7 @@
+Command: cl.exe /nologo /std:c++17 /EHsc artifacts\server1\K09\K09-A\TDD-DRIVER.cpp /Fe:artifacts\server1\K09\K09-A\driver.exe; run driver.exe
+Compile exit: 0
+Run exit: 0
+Output: K09-A PASS
+Standalone PeerSearch.cpp compile: exit 0
+Standalone TrackerSource.cpp compile: exit 0
+Standalone DhtSource.cpp compile: exit 0
