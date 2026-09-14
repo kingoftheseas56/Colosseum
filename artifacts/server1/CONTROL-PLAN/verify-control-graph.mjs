@@ -15,6 +15,28 @@ const REQUIRED_AUTHORITY_INPUTS = [
   '_verify_parallel_plan.mjs'
 ];
 const REQUIRED_WORKERS = ['P08-T', 'H02-C', 'INT-W4', 'C02-D', 'Q02-P'];
+const WORKER_SEMANTIC_FIELDS = [
+  'kind',
+  'parent_packet',
+  'wave',
+  'objective',
+  'dependencies',
+  'interfaces_consumed',
+  'interfaces_produced',
+  'owned_files',
+  'acceptance_tests',
+  'integration_owner',
+  'review_gate',
+  'cases',
+  'status'
+];
+const EXPECTED_WORKER_SEMANTIC_SHA256 = {
+  'P08-T': '63754114cc366a27d41e73ae7c3d52c1b1b33edc4fa7c3e4eba2b31217ce4c7c',
+  'H02-C': '1f8a4c577fa6b4b1c2ec3cb8958cff35caaafbd02009b8340829cc70f2611006',
+  'INT-W4': '9fe46b5341a6de494bc9ebc3bd70dae3f5cbbd08e76a8b28bda8852b81edb1e2',
+  'C02-D': '83d3ed6a9e11863000294f19402cce065c5c1e657871034486d1e81b78a41f9c',
+  'Q02-P': '4d0b6d49b1c775d7d609eb0560dfa60e6948115bab72f6a2c2848428bf74701f'
+};
 const REQUIRED_EDGES = [
   'K02-A->K06-A',
   'K09-A->K09-B',
@@ -60,6 +82,52 @@ const REQUIRED_OWNERS = {
   'desktop-release-package-mutation': 'C02-D',
   'assembled-app-torrent-playback-probe': 'Q02-P'
 };
+const EXPECTED_OWNER_SHA256 = {
+  'torrent-transport-public-contract': '263ab72fd15f0ba505556da50a90c32d94a92d52a69061bcad51124a2e82f27c',
+  'standalone-torrent-host': '8a7cfa749e0004aca5db8abc11b7cda06f86a846d605fc5d2c0c0db88c0d0734',
+  'w4-state-checkpoint-mutation': '0c7eeac869843cce4b95a13258ad3c2666b16417d242a2663d85c26a8582970f',
+  'desktop-release-package-mutation': 'f4b7d7f5097903c38c713a1dfdbf7cdd5c3d4acda689813b769d898155cffc6e',
+  'assembled-app-torrent-playback-probe': '79845317ab8b52049d4ec7cec15ae16a5e379b5c7821dcefb7cb9e270fb7434d'
+};
+const EXPECTED_DISPATCH_SHA256 = '29086ce7b252eba17ba39251285329f958ec3909fcc6cc13848c22932104433b';
+const EXPECTED_DISPATCH_STAGE_IDS = [
+  'W3-foundation',
+  'W3-piece-store',
+  'W3-policy-fanout',
+  'W3-swarm-caps',
+  'W3-transport-contract',
+  'W3-native-adapter',
+  'W4-host-and-adapter',
+  'W4-torrent-qualification',
+  'W4-torrent-barrier',
+  'W4-embed-audit',
+  'W4-embed-integration',
+  'W4-embed-barrier',
+  'W7-initial',
+  'W7-ffmpeg-arguments',
+  'W9-app-integration',
+  'W9-package-and-other-platform',
+  'W9-desktop-qualification',
+  'W9-platform-convergence',
+  'W10-parity-and-stress',
+  'W10-accounting',
+  'W10-lifecycle',
+  'W10-assembled-app-probe',
+  'W10-playback-and-soak',
+  'W10-playback-convergence'
+];
+const EXPECTED_BARRIER_OWNER_SHA256 = {
+  'B-W4A': 'b9a62d2ea1d981bc00113e01dfd5592f45239d854fdddca57bca5bce6a087245',
+  'B-W4B': '269b6b2d64d550a1e2db8473637c2e08f56b1664148c9bd394687c4690a2cb27'
+};
+const EXPECTED_ROLLBACK_SHA256 = '68f9faf248aac80560db449ba76e7dc6fc0820a972103dfb6af5eeebb2390835';
+const EXPECTED_BASE_INVARIANTS_SHA256 = '20b309b117f397773c9fe8f80485a40f6ed1352f95415abf8d2ef2a79f3a4241';
+const EXPECTED_MANIFEST_ALGORITHM = 'sha256(filename-sorted manifest lines encoded as UTF-8: <file_sha256><two spaces><basename><LF>)';
+const EXPECTED_COMPOSITION_FILE_OWNERS = {
+  'native/colosseum_server_v1/src/Runtime.cpp': 'C00-C',
+  'native/colosseum_server_v1/src/ServerComposition.cpp': 'C00-C',
+  'native/colosseum_server_v1/src/http/RootRoutes.cpp': 'C00-B'
+};
 const REQUIRED_CONTRACTS = {
   TorrentTransportContract: {
     producer: 'P08-T',
@@ -84,6 +152,11 @@ const sameSet = (actual, expected) =>
   JSON.stringify(sorted(new Set(actual))) === JSON.stringify(sorted(new Set(expected)));
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const array = value => Array.isArray(value) ? value : [];
+const objectProjection = (value, fields) => Object.fromEntries(fields.map(field => [field, value?.[field]]));
+const objectSha256 = value => {
+  const serialized = JSON.stringify(value);
+  return sha256(Buffer.from(serialized === undefined ? 'undefined' : serialized, 'utf8'));
+};
 
 export class ControlGraphValidationError extends Error {
   constructor(failures) {
@@ -115,6 +188,7 @@ function applyWorkerPatches(workerMap, patches, check) {
         worker[field] = array(worker[field]).filter(value => !remove.has(value));
       }
     }
+    if ('replace_integration_owner' in patch) worker.integration_owner = patch.replace_integration_owner;
   }
 }
 
@@ -159,10 +233,7 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
     manifestLines.push(`${digest}  ${input}\n`);
   }
   const packageDigest = sha256(Buffer.from(manifestLines.join(''), 'utf8'));
-  check(
-    addendum?.frozen_authority?.manifest_algorithm === 'sha256(sorted UTF-8 lines: <file_sha256><two spaces><basename><LF>)',
-    'package digest algorithm is explicit'
-  );
+  check(addendum?.frozen_authority?.manifest_algorithm === EXPECTED_MANIFEST_ALGORITHM, 'package digest algorithm is exact and filename-sorted');
   check(packageDigest === addendum?.frozen_authority?.package_sha256, 'frozen authority package digest matches', packageDigest);
 
   const frozenResultPath = authorityRoot ? path.join(authorityRoot, 'VERIFICATION-RESULTS.json') : '';
@@ -186,6 +257,7 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   check(addendum?.base_invariants?.master_packet_outcomes_changed === false, 'master packet outcomes are unchanged');
   check(addendum?.base_invariants?.case_assignments_changed === false, 'case assignments are unchanged');
   check(addendum?.base_invariants?.frozen_public_contracts_changed === false, 'frozen public contracts are unchanged in this slice');
+  check(objectSha256(addendum?.base_invariants) === EXPECTED_BASE_INVARIANTS_SHA256, 'base composition and route invariants are exact');
 
   const addedWorkers = array(addendum?.workers);
   check(sameSet(addedWorkers.map(worker => worker.worker_id), REQUIRED_WORKERS), 'all five graph-repair workers are present exactly');
@@ -197,6 +269,10 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
     check(array(worker.cases).length === 0, `added worker does not change case inventory: ${worker.worker_id}`);
     check(array(worker.owned_files).length > 0, `added worker has bounded ownership: ${worker.worker_id}`);
     check(array(worker.acceptance_tests).length > 0, `added worker has mandatory acceptance tests: ${worker.worker_id}`);
+    check(
+      objectSha256(objectProjection(worker, WORKER_SEMANTIC_FIELDS)) === EXPECTED_WORKER_SEMANTIC_SHA256[worker.worker_id],
+      `worker semantic fields are exact: ${worker.worker_id}`
+    );
   }
 
   const workerMap = new Map();
@@ -225,6 +301,7 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   check(array(sidecarOption?.required_evidence).some(item => item.includes('explicit Agent 4 approval')), 'current-sidecar rollback requires specific approval');
   const p01bOption = array(rollback?.options).find(option => option.id === 'buildable-p01b');
   check(p01bOption?.source_worker === 'P01B-A', 'buildable rollback alternative is P01B-A');
+  check(objectSha256(rollback) === EXPECTED_ROLLBACK_SHA256, 'rollback alternatives and every evidence requirement are exact');
 
   const virtualNodes = new Set(conditionalDependencies.map(rule => rule.virtual_gate));
   const dependencies = new Map();
@@ -279,6 +356,41 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   for (const edge of edgeRecords) check(reaches(edge.from, edge.to), `required edge is reachable: ${edge.id}`);
   const dispatchWaves = array(addendum?.dispatch_overrides).map(override => override.wave);
   check(sameSet(dispatchWaves, ['W3', 'W4', 'W7', 'W9', 'W10']), 'dispatch overrides cover every corrected wave');
+  const dispatchOverrides = array(addendum?.dispatch_overrides);
+  const dispatchStages = dispatchOverrides.flatMap(override => array(override.stages));
+  check(sameSet(dispatchStages.map(stage => stage.id), EXPECTED_DISPATCH_STAGE_IDS), 'every required dispatch stage is present exactly');
+  check(dispatchStages.length === new Set(dispatchStages.map(stage => stage.id)).size, 'dispatch stage IDs are unique');
+  check(objectSha256(dispatchOverrides) === EXPECTED_DISPATCH_SHA256, 'dispatch stages and ordering are exact');
+  for (const stage of dispatchStages) {
+    check(array(stage.after).length > 0, `dispatch stage has prerequisites: ${stage.id}`);
+    check(array(stage.release).length > 0, `dispatch stage has releases: ${stage.id}`);
+    for (const prerequisite of array(stage.after)) {
+      check(dependencies.has(prerequisite), `dispatch prerequisite exists: ${stage.id}:${prerequisite}`);
+      for (const released of array(stage.release)) {
+        check(dependencies.has(released), `dispatch release exists: ${stage.id}:${released}`);
+        check(reaches(prerequisite, released), `dispatch prerequisite precedes release: ${stage.id}:${prerequisite}->${released}`);
+      }
+    }
+  }
+
+  const barrierOwnerOverlays = array(addendum?.barrier_owner_overrides);
+  check(sameSet(barrierOwnerOverlays.map(overlay => overlay.barrier_id), Object.keys(EXPECTED_BARRIER_OWNER_SHA256)), 'both W4 barrier-owner overlays are present');
+  check(barrierOwnerOverlays.length === new Set(barrierOwnerOverlays.map(overlay => overlay.barrier_id)).size, 'W4 barrier-owner overlays are unique');
+  const barrierOwners = {};
+  for (const [barrierId, expectedDigest] of Object.entries(EXPECTED_BARRIER_OWNER_SHA256)) {
+    const overlay = barrierOwnerOverlays.find(candidate => candidate.barrier_id === barrierId);
+    check(Boolean(overlay), `barrier-owner overlay exists: ${barrierId}`);
+    if (!overlay) continue;
+    check(objectSha256(overlay) === expectedDigest, `barrier-owner overlay fields are exact: ${barrierId}`);
+    check(overlay.owner_worker === 'INT-W4', `INT-W4 owns barrier acceptance/state/checkpoint: ${barrierId}`);
+    check(overlay.ownership === 'barrier-acceptance-state-and-checkpoint', `barrier ownership kind is exact: ${barrierId}`);
+    check(workerMap.get(overlay.producer_worker)?.integration_owner === 'INT-W4', `frozen producer ownership is reconciled: ${barrierId}`);
+    check(array(workerMap.get('INT-W4')?.owned_files).includes(overlay.checkpoint_path), `INT-W4 owns checkpoint path: ${barrierId}`);
+    check(array(workerMap.get('INT-W4')?.owned_files).includes(overlay.state_path), `INT-W4 owns state path: ${barrierId}`);
+    check(array(dependencies.get(barrierId)).includes(overlay.owner_worker), `barrier depends on INT-W4: ${barrierId}`);
+    check(array(dependencies.get(barrierId)).includes(overlay.producer_worker), `barrier depends on its producer: ${barrierId}`);
+    barrierOwners[barrierId] = overlay.owner_worker;
+  }
 
   const produced = interfaceIndex(workerMap, 'interfaces_produced');
   const consumed = interfaceIndex(workerMap, 'interfaces_consumed');
@@ -322,6 +434,8 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
     check(Boolean(owner), `exclusive owner exists: ${ownerId}`);
     if (!owner) continue;
     check(owner.owner_worker === expectedWorker, `exclusive owner worker matches: ${ownerId}`);
+    check(array(owner.paths).length > 0, `exclusive owner path scope is nonempty: ${ownerId}`);
+    check(objectSha256(owner) === EXPECTED_OWNER_SHA256[ownerId], `exclusive owner record and path scope are exact: ${ownerId}`);
     const worker = workerMap.get(expectedWorker);
     check(Boolean(worker), `exclusive owner worker exists: ${ownerId}`);
     for (const ownedPath of array(owner.paths)) {
@@ -338,24 +452,35 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   }
   check(owners.find(owner => owner.id === 'desktop-release-package-mutation')?.owner_worker === 'C02-D', 'release-package mutation owner is C02-D');
   check(owners.find(owner => owner.id === 'assembled-app-torrent-playback-probe')?.owner_worker === 'Q02-P', 'assembled-app probe owner is Q02-P');
+  check(reaches('C02-D', 'C02-A') && reaches('C02-D', 'C02-B'), 'C02-D package construction precedes both independent desktop qualification workers');
+  check(sameSet(produced.get('WindowsQualificationReceipt') || [], ['C02-A']), 'C02-A alone owns Windows qualification');
+  check(sameSet(produced.get('LinuxQualificationReceipt') || [], ['C02-B']), 'C02-B alone owns Linux qualification');
 
   check(array(workerMap.get('Q04-A')?.interfaces_consumed).includes('RollbackArtifact'), 'Q04 consumes the conditional rollback artifact');
   check(reaches('G-ROLLBACK-ARTIFACT', 'Q04-A'), 'rollback gate precedes Q04');
   const compositionFiles = new Set(array(addendum?.base_invariants?.full_composition_files));
+  const compositionOwnerParents = new Set();
   for (const worker of workerMap.values()) {
     for (const ownedFile of array(worker.owned_files)) {
-      if (compositionFiles.has(ownedFile)) check(worker.parent_packet === 'C00', `full composition file remains owned only by C00: ${ownedFile}`);
+      if (compositionFiles.has(ownedFile)) {
+        check(worker.parent_packet === 'C00', `full composition file remains owned only by C00: ${ownedFile}`);
+        check(EXPECTED_COMPOSITION_FILE_OWNERS[ownedFile] === worker.worker_id, `full composition file owner is exact: ${ownedFile}`);
+        compositionOwnerParents.add(worker.parent_packet);
+      }
     }
   }
+  check(sameSet([...compositionFiles], Object.keys(EXPECTED_COMPOSITION_FILE_OWNERS)), 'full composition file invariant is exact');
+  check(addendum?.base_invariants?.full_composition_parent_packet === 'C00', 'full composition parent invariant is C00');
+  check(addendum?.base_invariants?.route_order === 'source-ordered', 'route invariant remains source-ordered');
   check(sameSet(produced.get('G-COMPOSITION') || [], ['C00-C']), 'C00-C remains the sole G-COMPOSITION producer');
   check(!reaches('P01B-A', 'Q04-A'), 'P01B remains optional; Q04 uses the conditional rollback gate');
 
   if (failures.length) throw new ControlGraphValidationError(failures);
   return {
     schema: 'colosseum-server1-control-graph-verification/v1',
-    verdict: 'VERIFIED',
+    verdict: failures.length === 0 ? 'VERIFIED' : 'REFUTED',
     checks_passed: pass.length,
-    checks_failed: 0,
+    checks_failed: failures.length,
     frozen_authority_inputs_verified: verifiedAuthorityInputs,
     frozen_authority_package_sha256: packageDigest,
     frozen_graph_checks: `${frozenResult.checks_passed}/${frozenResult.checks_passed + frozenResult.checks_failed}`,
@@ -366,13 +491,17 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
     interface_aliases: aliases.length,
     semantic_contracts: contracts.length,
     exclusive_owners: owners.length,
+    dispatch_stages: dispatchStages.length,
+    barrier_owners: barrierOwners,
     rollback_rules: conditionalDependencies.length,
     amended_graph_nodes: dependencies.size,
-    amended_graph_acyclic: true,
-    source_ordered_routes_preserved: true,
-    full_composition_owner: 'C00',
-    release_package_owner: 'C02-D',
-    assembled_app_probe_owner: 'Q02-P'
+    amended_graph_acyclic: visited === dependencies.size,
+    source_ordered_routes_preserved: routeAlias?.preserve_source_order === true && addendum?.base_invariants?.route_order === 'source-ordered',
+    full_composition_owner: compositionOwnerParents.size === 1 ? [...compositionOwnerParents][0] : null,
+    release_package_owner: owners.find(owner => owner.id === 'desktop-release-package-mutation')?.owner_worker || null,
+    assembled_app_probe_owner: owners.find(owner => owner.id === 'assembled-app-torrent-playback-probe')?.owner_worker || null,
+    windows_qualification_owner: (produced.get('WindowsQualificationReceipt') || [])[0] || null,
+    linux_qualification_owner: (produced.get('LinuxQualificationReceipt') || [])[0] || null
   };
 }
 

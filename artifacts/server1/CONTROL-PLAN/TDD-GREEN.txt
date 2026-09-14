@@ -19,3 +19,20 @@ Negative-control coverage:
 
 The canonical addendum test also passed with 64 packets, 193 cases, 9 frozen inputs, 5 added
 workers, 22 required edges, 2 aliases, 5 owners, and 1 rollback rule.
+
+Fix Round 1 fail-closed expansion:
+Exit: 0
+Tests: 600 passed, 0 failed
+Duration: 7210.6018 ms
+
+Expanded negative-control coverage independently rejects:
+- deletion or replacement of every pinned semantic field for all 5 required workers;
+- empty, appended, removed, or replaced path scopes and mutated owner metadata for all 5 owners;
+- removal, replacement, property deletion/mutation, or reordering of all 24 dispatch stages;
+- removal or property deletion/mutation of both INT-W4 barrier-owner overlays;
+- removal or replacement of every rollback evidence item and each rollback rule/option field;
+- deletion or mutation of every base route/composition invariant and every composition-file entry;
+- deletion or mutation of the exact filename-sorted manifest algorithm.
+
+The canonical graph now also proves INT-W4 owns B-W4A/B-W4B state/checkpoint acceptance, and
+C02-A/C02-B independently own Windows/Linux qualification after C02-D package construction.

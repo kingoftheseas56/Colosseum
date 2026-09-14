@@ -7,7 +7,7 @@
   "frozen_authority": {
     "package": "server1-v2.1-parallel",
     "location_policy": "Supply the external frozen directory to the validator; no machine-local absolute path is tracked.",
-    "manifest_algorithm": "sha256(sorted UTF-8 lines: <file_sha256><two spaces><basename><LF>)",
+    "manifest_algorithm": "sha256(filename-sorted manifest lines encoded as UTF-8: <file_sha256><two spaces><basename><LF>)",
     "package_sha256": "5979af60150d6cb0cf73f2529a27ef3a796daa2a0b23ae38aa4fde41eebb7e2c",
     "inputs": [
       {
@@ -198,8 +198,8 @@
         "tests/test_server1_release_package.py"
       ],
       "acceptance_tests": [
-        "Package-content assertions reject stale stremio-runtime.exe or server.js assets and require the reviewed Server 1.0 build identity.",
-        "Windows installer and Linux package lanes each earn independent build, install, launch, playback, shutdown, and restart receipts."
+        "A clean deterministic package build reproduces the package manifest, content hashes, and reviewed Server 1.0 build identity from the same pinned inputs.",
+        "Package-content assertions reject stale stremio-runtime.exe or server.js assets."
       ],
       "integration_owner": "C02-D",
       "review_gate": "DESKTOP-RELEASE-PACKAGE",
@@ -266,7 +266,12 @@
       ],
       "remove_owned_files": [
         "docs/server1/checkpoints/G-TORRENT.json"
-      ]
+      ],
+      "replace_integration_owner": "INT-W4"
+    },
+    {
+      "worker_id": "E00-B",
+      "replace_integration_owner": "INT-W4"
     },
     {
       "worker_id": "C02-A",
@@ -437,37 +442,167 @@
     {
       "wave": "W3",
       "stages": [
-        "K02-A and K05-A may start after B-W2B; K06-A waits for K02-A.",
-        "K09-A starts after B-W3A; K09-B waits for K09-A.",
-        "P08-T starts after B-W3C; K10-A waits for P08-T."
+        {
+          "id": "W3-foundation",
+          "after": ["B-W2B"],
+          "release": ["K02-A", "K05-A", "INT-W3"]
+        },
+        {
+          "id": "W3-piece-store",
+          "after": ["K02-A"],
+          "release": ["K06-A"]
+        },
+        {
+          "id": "W3-policy-fanout",
+          "after": ["B-W3A"],
+          "release": ["K03-A", "K07-A", "K09-A"]
+        },
+        {
+          "id": "W3-swarm-caps",
+          "after": ["K09-A"],
+          "release": ["K09-B"]
+        },
+        {
+          "id": "W3-transport-contract",
+          "after": ["P08-A", "B-W3C"],
+          "release": ["P08-T", "K08-A"]
+        },
+        {
+          "id": "W3-native-adapter",
+          "after": ["P08-T"],
+          "release": ["K10-A"]
+        }
       ]
     },
     {
       "wave": "W4",
       "stages": [
-        "H02-A and H02-C may start after B-W3G; H02-B waits for both.",
-        "INT-W4 alone mutates aggregate registries, STATE.json, and W4 checkpoint files."
+        {
+          "id": "W4-host-and-adapter",
+          "after": ["B-W3G"],
+          "release": ["H02-A", "H02-C", "INT-W4"]
+        },
+        {
+          "id": "W4-torrent-qualification",
+          "after": ["H02-A", "H02-C"],
+          "release": ["H02-B"]
+        },
+        {
+          "id": "W4-torrent-barrier",
+          "after": ["H02-B", "INT-W4"],
+          "release": ["B-W4A"]
+        },
+        {
+          "id": "W4-embed-audit",
+          "after": ["B-W4A"],
+          "release": ["E00-A"]
+        },
+        {
+          "id": "W4-embed-integration",
+          "after": ["E00-A"],
+          "release": ["E00-B"]
+        },
+        {
+          "id": "W4-embed-barrier",
+          "after": ["E00-B", "INT-W4"],
+          "release": ["B-W4B"]
+        }
       ]
     },
     {
       "wave": "W7",
       "stages": [
-        "M05-A starts in the first batch; M05-B waits for M05-A."
+        {
+          "id": "W7-initial",
+          "after": ["B-W6"],
+          "release": ["M05-A"]
+        },
+        {
+          "id": "W7-ffmpeg-arguments",
+          "after": ["M05-A"],
+          "release": ["M05-B"]
+        }
       ]
     },
     {
       "wave": "W9",
       "stages": [
-        "C02-D serially updates release-package surfaces after B-W9A.",
-        "C02-A and C02-B qualify the resulting package before C02-C closes the platform matrix."
+        {
+          "id": "W9-app-integration",
+          "after": ["B-W8"],
+          "release": ["C01-A"]
+        },
+        {
+          "id": "W9-package-and-other-platform",
+          "after": ["B-W9A"],
+          "release": ["C02-D", "C03-A"]
+        },
+        {
+          "id": "W9-desktop-qualification",
+          "after": ["C02-D"],
+          "release": ["C02-A", "C02-B"]
+        },
+        {
+          "id": "W9-platform-convergence",
+          "after": ["C02-A", "C02-B"],
+          "release": ["C02-C"]
+        }
       ]
     },
     {
       "wave": "W10",
       "stages": [
-        "Q00-A precedes Q00-B and Q01-A precedes Q01-B.",
-        "Q02-P follows B-W10A and precedes Q02-A and Q02-B."
+        {
+          "id": "W10-parity-and-stress",
+          "after": ["B-W9B"],
+          "release": ["Q00-A", "Q01-A"]
+        },
+        {
+          "id": "W10-accounting",
+          "after": ["Q00-A"],
+          "release": ["Q00-B"]
+        },
+        {
+          "id": "W10-lifecycle",
+          "after": ["Q01-A"],
+          "release": ["Q01-B"]
+        },
+        {
+          "id": "W10-assembled-app-probe",
+          "after": ["B-W10A", "C02-D"],
+          "release": ["Q02-P"]
+        },
+        {
+          "id": "W10-playback-and-soak",
+          "after": ["Q02-P"],
+          "release": ["Q02-A", "Q02-B"]
+        },
+        {
+          "id": "W10-playback-convergence",
+          "after": ["Q02-A", "Q02-B"],
+          "release": ["Q02-C"]
+        }
       ]
+    }
+  ],
+  "barrier_owner_overrides": [
+    {
+      "barrier_id": "B-W4A",
+      "owner_worker": "INT-W4",
+      "producer_worker": "H02-B",
+      "checkpoint_path": "docs/server1/checkpoints/G-TORRENT.json",
+      "state_path": "docs/server1/STATE.json",
+      "supersedes_worker": "H02-B",
+      "ownership": "barrier-acceptance-state-and-checkpoint"
+    },
+    {
+      "barrier_id": "B-W4B",
+      "owner_worker": "INT-W4",
+      "producer_worker": "E00-B",
+      "checkpoint_path": "docs/server1/checkpoints/G-EMBED-EARLY.json",
+      "state_path": "docs/server1/STATE.json",
+      "supersedes_worker": "E00-B",
+      "ownership": "barrier-acceptance-state-and-checkpoint"
     }
   ],
   "interface_aliases": [

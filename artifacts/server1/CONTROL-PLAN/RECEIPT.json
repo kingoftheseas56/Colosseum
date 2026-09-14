@@ -10,6 +10,7 @@
   "frozen_authority": {
     "inputs_verified": 9,
     "package_sha256": "5979af60150d6cb0cf73f2529a27ef3a796daa2a0b23ae38aa4fde41eebb7e2c",
+    "package_digest_algorithm": "sha256(filename-sorted manifest lines encoded as UTF-8: <file_sha256><two spaces><basename><LF>)",
     "preflight_copy_modified": false
   },
   "mechanical_graph": {
@@ -20,7 +21,7 @@
   },
   "semantic_graph": {
     "verdict": "VERIFIED",
-    "passed": 927,
+    "passed": 1142,
     "failed": 0,
     "master_packets": 64,
     "planned_cases": 193,
@@ -35,17 +36,26 @@
     "interface_aliases": 2,
     "semantic_contracts": 4,
     "exclusive_owners": 5,
+    "dispatch_stages": 24,
+    "barrier_owner_overrides": 2,
     "conditional_rollback_rules": 1,
     "evidence": "artifacts/server1/CONTROL-PLAN/SEMANTIC-VERIFICATION.txt"
   },
   "negative_controls": {
     "verdict": "PASS",
-    "tests_passed": 41,
+    "tests_passed": 600,
     "tests_failed": 0,
     "worker_removals": "5/5 rejected",
     "edge_removals": "22/22 rejected",
     "alias_removals": "2/2 rejected",
     "owner_removals": "5/5 rejected",
+    "worker_semantic_field_mutations": "all rejected",
+    "owner_scope_and_metadata_mutations": "all rejected",
+    "dispatch_stage_and_order_mutations": "all rejected",
+    "barrier_owner_mutations": "all rejected",
+    "rollback_evidence_mutations": "all rejected",
+    "base_route_and_composition_mutations": "all rejected",
+    "digest_algorithm_mutation": "rejected",
     "rollback_rule_removal": "rejected",
     "authority_digest_mutation": "rejected",
     "red_evidence": "artifacts/server1/CONTROL-PLAN/TDD-RED.txt",
@@ -57,11 +67,16 @@
     "W4_state_and_checkpoints": "INT-W4",
     "desktop_release_package": "C02-D",
     "assembled_app_torrent_playback_probe": "Q02-P",
+    "B-W4A_state_checkpoint_barrier": "INT-W4",
+    "B-W4B_state_checkpoint_barrier": "INT-W4",
     "full_production_composition": "C00"
   },
   "interfaces": {
     "HlsV2RouteSurface": "G-MEDIA-V2",
     "G-PLATFORM": "DesktopPlatformQualification",
+    "windows_qualification_receipt": "C02-A",
+    "linux_qualification_receipt": "C02-B",
+    "C02-D_acceptance_boundary": "deterministic package construction, content, and build identity only",
     "source_ordered_routes_preserved": true
   },
   "rollback": {

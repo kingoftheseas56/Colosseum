@@ -6,7 +6,7 @@ node artifacts/server1/CONTROL-PLAN/verify-control-graph.mjs --addendum docs/ser
 
 Exit: 0
 Verdict: VERIFIED
-Checks: 927 passed, 0 failed
+Checks: 1142 passed, 0 failed
 Frozen authority inputs: 9/9
 Frozen authority package SHA256: 5979af60150d6cb0cf73f2529a27ef3a796daa2a0b23ae38aa4fde41eebb7e2c
 Frozen graph: 57/57
@@ -16,9 +16,13 @@ Required dependency/dispatch edges: 22
 Aliases: 2
 Semantic contracts: 4
 Exclusive owners: 5
+Dispatch stages: 24
+Barrier owners: B-W4A=INT-W4, B-W4B=INT-W4
 Rollback rules: 1
 Amended graph: acyclic, 144 nodes
 Full-composition owner: C00
 Release-package owner: C02-D
 Assembled-app probe owner: Q02-P
+Windows qualification owner: C02-A
+Linux qualification owner: C02-B
 Source-ordered routes: preserved

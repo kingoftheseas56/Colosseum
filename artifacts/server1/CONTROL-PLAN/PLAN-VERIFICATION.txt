@@ -20,3 +20,20 @@ Preflight VERIFICATION-RESULTS.json SHA256 before and after:
 e4cb1058e6a7d5b6b741b011dbc199232857b178054598a6a8295a564bd039d3
 
 The disposable copied files were removed after verification.
+
+Fix Round 1 reseal:
+Command:
+node .superpowers/tmp/server1-plan-verifier-slice1-fix1/_verify_parallel_plan.mjs
+
+Exit: 0
+Verdict: VERIFIED
+Checks: 57 passed, 0 failed
+Graph: visited 138/138
+Packets: 64
+Cases: 193
+
+Preflight VERIFICATION-RESULTS.json SHA256 before and after:
+e4cb1058e6a7d5b6b741b011dbc199232857b178054598a6a8295a564bd039d3
+
+As before, the verifier ran only against the disposable copy; the frozen Preflight authority
+remained unchanged and read-only.

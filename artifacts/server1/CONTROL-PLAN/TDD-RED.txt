@@ -20,3 +20,17 @@ Expected implementation defects exposed by the canonical test:
 - case inventory was read from master packets instead of the worker case assignments.
 
 Both defects were fixed in the validator. No production source was authored during either RED run.
+
+Fix Round 1 fail-closed expansion RED:
+Exit: 1
+Tests: 90 passed, 100 failed (190 total)
+Expected gaps exposed independently:
+- exact semantic fields for every required worker were not pinned;
+- exclusive-owner metadata and each path-scope element were not pinned;
+- dispatch stage identity, contents, and order were not pinned;
+- B-W4A/B-W4B did not have explicit sole-owner overlays;
+- rollback option evidence was not pinned;
+- base composition and source-ordered route invariants were not pinned.
+
+The expanded mutation controls were written before the validator hardening. No production or
+acceptance-state file was changed during this RED run.
