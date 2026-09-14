@@ -9,21 +9,195 @@ import subprocess
 import sys
 
 
+class EvidenceIntegrityError(RuntimeError):
+    """The committed evidence cannot be verified or safely published."""
+
+
+MANIFEST_SPECS = (
+    ("artifacts/server1/INT-W2/repair-20260912/HASHES.json", ("files",)),
+    ("artifacts/server1/K01/K01-A/HASHES.json", ("candidate_files", "evidence_files")),
+    ("artifacts/server1/K13/K13-A/HASHES.json", ("worker_files_sha256",)),
+    ("artifacts/server1/K13/K13-B/HASHES.json", ("worker_files_sha256",)),
+)
+
+
+def _git(repo, *argv):
+    return subprocess.run(
+        ["git", "-C", str(repo), *argv],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def _git_blob(repo, content_ref, relative):
+    result = _git(repo, "cat-file", "blob", f"{content_ref}:{relative}")
+    if result.returncode:
+        raise EvidenceIntegrityError(f"missing Git blob at {content_ref}:{relative}")
+    return result.stdout
+
+
+def verify_hash_manifest(repo, manifest_path, sections, manifest_ref="HEAD"):
+    """Verify listed paths against immutable committed Git blob bytes."""
+    repo = Path(repo).resolve()
+    manifest_path = Path(manifest_path).resolve()
+    try:
+        relative = manifest_path.relative_to(repo).as_posix()
+    except ValueError as exc:
+        raise EvidenceIntegrityError("manifest is outside the repository") from exc
+
+    resolved_manifest_ref = _git(repo, "rev-parse", "--verify", f"{manifest_ref}^{{commit}}")
+    if resolved_manifest_ref.returncode:
+        raise EvidenceIntegrityError("manifest ref is not a commit")
+    committed_manifest = _git_blob(repo, resolved_manifest_ref.stdout.decode().strip(), relative)
+    try:
+        worktree_manifest = manifest_path.read_bytes()
+    except OSError as exc:
+        raise EvidenceIntegrityError(f"manifest is unreadable: {relative}") from exc
+    if worktree_manifest != committed_manifest:
+        raise EvidenceIntegrityError(f"manifest differs from committed {manifest_ref}: {relative}")
+    try:
+        manifest = json.loads(committed_manifest.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise EvidenceIntegrityError(f"manifest is not valid UTF-8 JSON: {relative}") from exc
+
+    if manifest.get("schema") != "colosseum-server1-git-blob-manifest/v1":
+        raise EvidenceIntegrityError(f"unsupported manifest schema: {relative}")
+    if manifest.get("hash_algorithm") != "sha256-git-blob":
+        raise EvidenceIntegrityError(f"unsupported hash algorithm: {relative}")
+    content_ref = manifest.get("content_ref", "")
+    if not re.fullmatch(r"[0-9a-f]{40}", content_ref):
+        raise EvidenceIntegrityError(f"content_ref is not an explicit full commit id: {relative}")
+    resolved_content_ref = _git(repo, "rev-parse", "--verify", f"{content_ref}^{{commit}}")
+    if (resolved_content_ref.returncode
+            or resolved_content_ref.stdout.decode().strip().lower() != content_ref):
+        raise EvidenceIntegrityError(f"content_ref is not an available commit: {relative}")
+    ancestor = _git(repo, "merge-base", "--is-ancestor", content_ref,
+                    resolved_manifest_ref.stdout.decode().strip())
+    if ancestor.returncode:
+        raise EvidenceIntegrityError(f"content_ref is not an ancestor of {manifest_ref}: {relative}")
+
+    checked = 0
+    mismatches = []
+    seen = set()
+    for section in sections:
+        entries = manifest.get(section)
+        if not isinstance(entries, dict) or not entries:
+            raise EvidenceIntegrityError(f"missing hash section {section}: {relative}")
+        for path, expected in entries.items():
+            if path in seen:
+                raise EvidenceIntegrityError(f"duplicate manifest path: {path}")
+            seen.add(path)
+            if not isinstance(expected, str) or not re.fullmatch(r"[0-9A-Fa-f]{64}", expected):
+                raise EvidenceIntegrityError(f"invalid SHA-256 for manifest path: {path}")
+            try:
+                blob = _git_blob(repo, content_ref, path)
+            except EvidenceIntegrityError:
+                mismatches.append({"path": path, "reason": "missing"})
+                continue
+            actual = hashlib.sha256(blob).hexdigest()
+            if actual != expected.lower():
+                mismatches.append({"path": path, "reason": "sha256-mismatch"})
+            checked += 1
+    if mismatches:
+        raise EvidenceIntegrityError(
+            f"manifest verification failed for {relative}: {len(mismatches)} mismatch(es)")
+    return {
+        "result": "PASS",
+        "manifest": relative,
+        "manifest_ref": resolved_manifest_ref.stdout.decode().strip(),
+        "content_ref": content_ref,
+        "hash_algorithm": "sha256-git-blob",
+        "checked_files": checked,
+    }
+
+
+def verify_all_manifests(repo):
+    results = []
+    for relative, sections in MANIFEST_SPECS:
+        results.append(verify_hash_manifest(repo, Path(repo) / relative, sections))
+    return {
+        "result": "PASS",
+        "manifests": results,
+        "checked_files": sum(item["checked_files"] for item in results),
+    }
+
+
 def path_variants(value):
     text = str(value)
     return (text, text.replace("\\", "/"))
 
 
 def scrub_text(value, replacements):
-    for source, replacement in replacements:
-        for variant in path_variants(source):
-            value = value.replace(variant, replacement)
+    for source, replacement in sorted(replacements, key=lambda item: len(str(item[0])), reverse=True):
+        parts = [re.escape(part) for part in re.split(r"[\\/]+", str(source)) if part]
+        if not parts:
+            continue
+        pattern = re.compile(r"[\\/]+".join(parts), re.IGNORECASE)
+        value = pattern.sub(lambda _: str(replacement), value)
     return value
 
 
 def scrub_bytes(value, replacements):
     text = value.decode("utf-8", errors="replace")
     return scrub_text(text, replacements).encode("utf-8")
+
+
+def _sensitive_pattern(value):
+    parts = [re.escape(part) for part in re.split(r"[\\/]+", str(value)) if part]
+    if not parts:
+        raise EvidenceIntegrityError("empty sensitive path")
+    return re.compile(r"[\\/]+".join(parts), re.IGNORECASE)
+
+
+def scrub_generated_tree(root, replacements):
+    """Recursively scrub every regular UTF-8 generated file below root."""
+    root = Path(root)
+    changed = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.is_symlink():
+            raise EvidenceIntegrityError(f"generated output contains a symlink: {path.relative_to(root)}")
+        try:
+            original = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise EvidenceIntegrityError(
+                f"generated output is not readable UTF-8: {path.relative_to(root)}") from exc
+        scrubbed = scrub_text(original, replacements)
+        if scrubbed != original:
+            path.write_text(scrubbed, encoding="utf-8", newline="")
+            changed += 1
+    return changed
+
+
+def find_private_path_leaks(root, sensitive_paths):
+    root = Path(root)
+    patterns = [_sensitive_pattern(path) for path in sensitive_paths]
+    findings = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.is_symlink():
+            findings.append({"path": path.relative_to(root).as_posix(), "reason": "symlink"})
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            findings.append({"path": path.relative_to(root).as_posix(), "reason": "unreadable"})
+            continue
+        if any(pattern.search(text) for pattern in patterns):
+            findings.append({"path": path.relative_to(root).as_posix(), "reason": "private-path"})
+    return findings
+
+
+def assert_no_private_path_leaks(root, sensitive_paths):
+    findings = find_private_path_leaks(root, sensitive_paths)
+    if findings:
+        names = ", ".join(item["path"] for item in findings)
+        raise EvidenceIntegrityError(
+            f"generated output private-path scan failed: {len(findings)} file(s): {names}")
+    return len([path for path in Path(root).rglob("*") if path.is_file()])
 
 
 def main():
@@ -44,6 +218,10 @@ def main():
     args.work.mkdir(parents=True, exist_ok=False)
     logs = args.work / "logs"
     logs.mkdir()
+    manifest_result = verify_all_manifests(repo)
+    (logs / "MANIFEST-VERIFIER.json").write_text(
+        json.dumps(manifest_result, indent=2) + "\n", encoding="utf-8")
+    print(f"MANIFEST-VERIFIER: {manifest_result['checked_files']} Git blobs PASS", flush=True)
     guard = subprocess.run(
         [sys.executable, str(repo / "scripts" / "check_public_paths.py")],
         cwd=repo, capture_output=True, text=True, check=False,
@@ -103,6 +281,8 @@ def main():
             "exit": result.returncode,
         })
         (logs / "EXECUTED.json").write_text(json.dumps(executed, indent=2) + "\n", encoding="utf-8")
+        scrub_generated_tree(logs, replacements)
+        assert_no_private_path_leaks(logs, [item[0] for item in replacements])
         print(f"{name}: exit {result.returncode}", flush=True)
         if result.returncode:
             raise RuntimeError(f"{name} failed; inspect {logs}")
@@ -133,6 +313,19 @@ def main():
                "H00_scope": "pinned source-derived trace profile and native real-loopback raw-wire/stream checks, not full live-oracle HTTP parity",
                "B-W2B": "closed pending independent Codex acceptance", "W3": "closed"}
     (logs / "RESULT.json").write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+    scrubbed_files = scrub_generated_tree(logs, replacements)
+    regular_files = assert_no_private_path_leaks(logs, [item[0] for item in replacements])
+    public_path_result = {
+        "result": "PASS",
+        "tracked_public_path_guard": "PASS",
+        "generated_output_scan": "PASS",
+        "regular_files_scanned": regular_files + 1,
+        "private_path_findings": 0,
+        "files_scrubbed_in_final_pass": scrubbed_files,
+    }
+    (logs / "PUBLIC-PATH-RESULT.json").write_text(
+        json.dumps(public_path_result, indent=2) + "\n", encoding="utf-8")
+    assert_no_private_path_leaks(logs, [item[0] for item in replacements])
     print(json.dumps(verdict), flush=True)
 
 

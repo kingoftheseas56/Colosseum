@@ -1,0 +1,12 @@
+Command: python artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py -v
+Exit: 0
+Result: OK (7 tests)
+
+Passed controls:
+- wrong content ref rejected
+- one-byte committed blob mutation rejected
+- missing path rejected
+- uncommitted manifest modification rejected
+- CRLF digest cannot stand in for an LF Git blob
+- worktree newline variance does not alter committed blob verification
+- nested backslash, slash, file-URL, and case-varied path leaks detected then recursively scrubbed

@@ -1,0 +1,17 @@
+Command: python artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py -v
+Exit: 1
+Result: FAILED (failures=7)
+
+Expected RED failures:
+- packet-local Git-blob manifest verifier is missing
+- evidence-integrity failure type is missing
+- recursive scrub seam is missing: find_private_path_leaks
+
+Covered controls:
+- wrong content ref
+- one-byte committed blob mutation
+- missing path
+- modified manifest
+- CRLF digest substituted for an LF Git blob
+- CRLF/LF worktree variance independent of committed blob verification
+- nested backslash, slash, file-URL, and case-varied private path spellings
