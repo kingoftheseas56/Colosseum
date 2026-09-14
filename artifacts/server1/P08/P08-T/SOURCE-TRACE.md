@@ -8,3 +8,5 @@
 - The public header contains no libtorrent type. K10 remains the sole future adapter implementation owner.
 
 Fix Round 1 (2026-09-15): TorrentTransport accepts only an externally controlled K09 autonomy policy before invoking its adapter suppression hook. Runtime negative controls and a compile-fail mutation prove autonomous activity cannot pass through this contract.
+
+Fix Round 2 (2026-09-15): TorrentTransport directly includes the K04 SchedulerActions contract and provides a checked request/cancel conversion. The P08 consumer and combined smoke prove ownership, generation, selection, peer, exact block, and wire-cancel compatibility.

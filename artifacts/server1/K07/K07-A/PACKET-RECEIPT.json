@@ -11,7 +11,10 @@
     "K07-03": "test-reported PASS"
   },
   "negative_controls": {
-    "failed_verification_commit": "PASS rejected",
+    "missing_expected_sha1": "PASS rejected",
+    "missing_required_piece": "PASS rejected",
+    "corrupt_sha1": "PASS rejected without noNotifyHave",
+    "real_sha1_vectors": "PASS accepted only after hashing required bytes",
     "all_slots_unfreeable": "PASS exact source error",
     "locked_piece_eviction": "PASS excluded",
     "stale_spill_completion": "PASS ignored",
@@ -24,6 +27,7 @@
     "reason": "bounded K07-owned verification and noNotifyHave result contract required by linked consumers"
   },
   "fix_round_1": "exported verification result and noNotifyHave=true commit semantics repaired at d1003e04; candidate pending Agent 4 re-review",
+  "fix_round_2": "caller-supplied verification boolean removed; K07 hashes the complete required byte range with SHA-1 and returns noNotifyHave=true only on verified success at 6ab19547; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3B",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"

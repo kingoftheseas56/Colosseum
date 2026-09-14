@@ -5,3 +5,4 @@ Output: K09-A PASS
 Standalone PeerSearch.cpp compile: exit 0
 Standalone TrackerSource.cpp compile: exit 0
 Standalone DhtSource.cpp compile: exit 0
+Fix Round 2 (2026-09-15): linked K09-01 proves a tracker/DHT duplicate creates one actionable peer add and that the public queue drains exactly once. Source commit: 6ab19547.

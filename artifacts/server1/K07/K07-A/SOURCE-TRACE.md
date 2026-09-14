@@ -8,3 +8,5 @@
 Native fs completion tokens carry slot generations. This makes the source callback lifecycle explicit: read-before-spill sees memory, and a stale/canceled/closed completion cannot replace a newer slot occupant.
 
 Fix Round 1 (2026-09-15): K07 now exports its public store contract. Commit exposes the verification result, rejects failed verification, and returns `noNotifyHave=true` without claiming later scheduler integration.
+
+Fix Round 2 (2026-09-15): commit hashes the complete required in-memory or spilled byte range using SHA-1. Missing pieces, missing spill files, absent expected hashes, and corrupt bytes fail before commit; only verified success returns `noNotifyHave=true`.

@@ -13,3 +13,5 @@ Frozen ranges inspected:
 K05-01 covers M843 chunk and hash behavior. K05-02 covers M814/M818/M822 choke and rechoke policy. K05-03 covers M814/M818 per-engine cleanup and isolation. The packet models higher-level source policy only; native wire control remains behind the already accepted P08 seam.
 
 Fix Round 1 (2026-09-15): M664 peer identity and M818/M822 queued, handshake, request, generation, and timeout behavior are now public exported K05 symbols. Transport effects are typed actions; no socket or K10 adapter was added.
+
+Fix Round 2 (2026-09-15): M814/M818 per-engine teardown now purges queued connect, request, cancel, and disconnect actions before restart generation replacement or stop, so no old-generation transport effect can escape later.

@@ -15,6 +15,8 @@
     "duplicate_peer_queue": "PASS rejected",
     "handshake_timeout": "PASS explicit disconnect action",
     "request_timeout": "PASS explicit cancel action",
+    "generation_replacement_action_purge": "PASS connect/request/cancel/disconnect actions suppressed",
+    "stop_action_purge": "PASS connect/request/cancel/disconnect actions suppressed",
     "negative_metadata_piece": "PASS",
     "metadata_hash_mismatch": "PASS",
     "metadata_above_4MiB": "PASS",
@@ -29,6 +31,7 @@
     "reason": "bounded K05-owned API needed by linked consumers; no aggregate or later-packet surface claimed"
   },
   "fix_round_1": "real exported symbols, peer identity, lifecycle, generation checks, timeouts, transport actions, and per-engine isolation repaired at d1003e04; candidate pending Agent 4 re-review",
+  "fix_round_2": "start replacement and stop purge every queued action owned by the engine infohash before generation replacement/removal at 6ab19547; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3A",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "implementation-authored; directly compiled; focused tests executed; integration pending"

@@ -15,7 +15,7 @@
     "automatic_tracker": "PASS construction rejected",
     "strict_min_max_boundaries": "PASS",
     "paused_swarm_running_search": "PASS pauses",
-    "cross_source_duplicate": "PASS coordinator-wide unique count",
+    "cross_source_duplicate": "PASS one coordinator-wide actionable add and one unique count",
     "early_dht_lookup": "PASS rejected",
     "canceled_dht_wait": "PASS",
     "duplicate_internal_discovery": "PASS disabled by contract"
@@ -25,6 +25,7 @@
     "reason": "bounded K09-owned composed discovery and autonomy policy surface required by linked consumers"
   },
   "fix_round_1": "PeerSearch now composes public TrackerSource/DhtSource behavior and rejects autonomous activity at d1003e04; candidate pending Agent 4 re-review",
+  "fix_round_2": "PeerSearch globally deduplicates the actionable add queue and exposes a draining takePeerAdds consumer surface at 6ab19547; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending K09-B then INT-W3 B-W3B",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; focused A-driver test-authored; implementation-authored; directly compiled; integration pending"

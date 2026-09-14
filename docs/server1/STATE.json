@@ -202,17 +202,17 @@
     "B-W2B": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact candidate 1b882bfddfaa829dbf118a5af0535900d7f73443. Independent fresh gate: verifier tests 10/10 normally and under python -O, 185/185 blobs, public path PASS, CTest 16/16 plus 48/48 repeats, combined link PASS, K01 72/72, K13-A 11/11, K13-B 9/9, M00 11/11, H00 trace/raw-wire/disconnect/413 PASS, 54 generated files with zero private-path findings. W3 is released.",
     "CONTROL-PLAN": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact reviewed head 529e297cd2616d2bbd13cdaeecd828fbd88e2de3. Independent Sol re-review approved after two repair rounds. Fresh Agent 4 gate: 619/619 mutation tests, 1331/1331 semantic checks, frozen graph 57/57, 9/9 authority hashes, clean diff, no production changes. W3 execution is governed by the accepted addendum.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
-    "K05-A": "Fix Round 1 candidate exposes a linked public contract with peer identity, lifecycle, generation checks, timeouts, transport actions, and engine isolation; test-reported pending Agent 4 re-review.",
-    "K06-A": "Fix Round 1 candidate validates geometry before division, connects bitmap lifecycle, clears restaged verification, rejects coverage gaps, and preserves queued errors; test-reported pending Agent 4 re-review.",
+    "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
+    "K06-A": "Fix Round 2 candidate persists verification bits only after complete successful destination writes; staged verification and failed/uncommitted reopen remain unverified; test-reported pending Agent 4 re-review.",
     "B-W3A": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
     "K03-A": "Fix Round 1 candidate adds source priority rotation after budget fill and width-zero critical normalization; test-reported pending Agent 4 re-review.",
-    "K07-A": "Fix Round 1 candidate exposes a linked public verification and noNotifyHave commit contract; test-reported pending Agent 4 re-review.",
-    "K09-A": "Fix Round 1 candidate exposes and composes TrackerSource/DhtSource through PeerSearch and rejects autonomous picker/discovery; test-reported pending Agent 4 re-review.",
-    "K09-B": "Fix Round 1 candidate exposes linked SwarmCaps and actionable no-autonomy policy convergence; test-reported pending Agent 4 re-review.",
+    "K07-A": "Fix Round 2 candidate performs real SHA-1 over the complete required byte range and exposes noNotifyHave only on verified success; test-reported pending Agent 4 re-review.",
+    "K09-A": "Fix Round 2 candidate exposes globally unique actionable peer adds across composed TrackerSource/DhtSource and rejects autonomous picker/discovery; test-reported pending Agent 4 re-review.",
+    "K09-B": "Fix Round 2 candidate converges linked SwarmCaps, actionable no-autonomy policy, and global actionable-peer uniqueness; test-reported pending Agent 4 re-review.",
     "B-W3B": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
-    "K04-A": "Fix Round 1 candidate exposes a linked two-pass scheduler action contract with full ownership identity, explicit request/cancel actions, one-terminal ledger, and pulse behavior; test-reported pending Agent 4 re-review.",
+    "K04-A": "Fix Round 2 candidate exposes transport-compatible peer handles in its linked two-pass scheduler action contract; test-reported pending Agent 4 re-review.",
     "B-W3C": "Candidate integration verified at cefb6fe21524c21ccf526d5f2e70904b1ee793aa with 37/37 aggregate tests; independent Agent 4 acceptance remains required.",
-    "P08-T": "Fix Round 1 candidate carries and enforces external-control suppression, has a linked spine consumer, passes 7/7 compile-fail mutations and fresh 39/39 aggregate; independent Agent 4 re-review pending.",
+    "P08-T": "Fix Round 2 candidate directly consumes and converts K04 request/cancel scheduler actions, carries external-control suppression, passes 7/7 compile-fail mutations and fresh 39/39 aggregate; independent Agent 4 re-review pending.",
     "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; B-W2A was bd39020125eed2180ba59043f1e1088be11ad73a; accepted INT-W2 candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 was pushed on sol/server1-int-w2b-repaired-20260912."
   },
   "accepted_states": {
@@ -344,7 +344,7 @@
       "K09-B": "test-reported-pending-review",
       "K04-A": "test-reported-pending-review",
       "P08-T": "aggregate-compiled-and-mutation-tested-pending-agent4-review",
-      "INT-W3": "fix-round-1-candidate-test-reported-pending-agent4-rereview"
+      "INT-W3": "fix-round-2-candidate-test-reported-pending-agent4-rereview"
     },
     "barriers": {
       "B-W3A": "candidate-pending-agent4-review",

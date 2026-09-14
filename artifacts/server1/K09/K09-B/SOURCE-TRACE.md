@@ -8,3 +8,5 @@
 - K09-03 covers strict minPeers/speed/buffer boundaries, maxBuffer precedence, and zero-window exclusion.
 
 Fix Round 1 (2026-09-15): public linked composition replaces test-private cpp inclusion, and K09/P08 share an actionable external-control-only autonomy policy.
+
+Fix Round 2 (2026-09-15): convergence now includes the K09-A globally unique actionable peer-add queue; duplicate addresses across sources are not surfaced twice.

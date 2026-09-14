@@ -21,6 +21,7 @@
     ,"autonomy_suppression": "PASS rejected"
   },
   "fix_round_1": "TorrentTransport now carries and enforces K09 external-control suppression before adapter activation; runtime negative controls and 7/7 compile-fail mutations pass; candidate pending Agent 4 re-review",
+  "fix_round_2": "TorrentTransport directly consumes SchedulerActions.h and converts K04 request/cancel actions into TorrentAction with exact ownership, generation, selection, peer and block preservation at 6ab19547; fresh 7/7 compile-fail mutations pass; candidate pending Agent 4 re-review",
   "scope": "public contract header and minimal compile consumer only; no K10 adapter or later packet implementation",
   "aggregate_registration": "pending INT-W3",
   "review": "candidate only; independent Agent 4 review pending",

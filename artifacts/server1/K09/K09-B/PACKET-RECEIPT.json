@@ -27,6 +27,7 @@
     "reason": "bounded K09-owned swarm-cap convergence surface required by linked consumers"
   },
   "fix_round_1": "public real-library composition and explicit autonomy policy repaired at d1003e04; candidate pending Agent 4 re-review",
+  "fix_round_2": "K09 convergence includes globally unique actionable PeerSearch adds across tracker and DHT sources at 6ab19547; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3B",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"

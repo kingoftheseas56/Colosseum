@@ -4,3 +4,4 @@ compile exit: 0
 K06-01 exit: 0; output: K06-01 PASS
 K06-02 exit: 0; output: K06-02 PASS
 K06-03 exit: 0; output: K06-03 PASS
+Fix Round 2 (2026-09-15): linked K06-02/K06-03 prove verify-only state is not persisted, failed writes reopen unverified, and bitmap bits appear only after complete destination commit. Source commit: 6ab19547.

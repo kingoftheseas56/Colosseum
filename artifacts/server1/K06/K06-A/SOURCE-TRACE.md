@@ -9,3 +9,5 @@ Oracle SHA-256: `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930
 The M844 successful commit callback is invoked once per committed virtual piece and once by the terminal `async.each` callback. `CommitResult.callbackCount` preserves that measured N+1 behavior instead of normalizing it to once-only.
 
 Fix Round 1 (2026-09-15): geometry is rejected before division; restage clears memory and bitmap verification; commit requires verified staged bytes plus complete destination coverage; queued write errors precede close in the causal ledger.
+
+Fix Round 2 (2026-09-15): the M830 bitmap represents disk-committed verified bytes only. Hash verification remains in memory until every destination segment is written successfully; failed or uncommitted stores reopen unverified.

@@ -53,5 +53,9 @@
     "repair_commits": ["2947cce0", "d1003e04"],
     "verification": "included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
   },
+  "fix_round_2": {
+    "repair_commit": "6ab19547",
+    "verification": "K05 generation/stop action purges and K06 commit-only bitmap truth included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
+  },
   "status": "candidate; test-reported pending Agent 4 review"
 }

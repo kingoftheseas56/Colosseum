@@ -6,3 +6,4 @@ K05-02 exit: 0; output: K05-02 PASS
 K05-03 exit: 0; output: K05-03 PASS
 standalone production object compile: MetadataExchange.cpp exit 0; SwarmPolicy.cpp exit 0
 discarded environment attempts: missing /Zc:__cplusplus and /permissive- were compiler-precondition failures before the test executable existed.
+Fix Round 2 (2026-09-15): linked K05-03 passes replacement and stop regressions that queue connect, request, cancel, and disconnect actions, then prove none escape after the engine generation is replaced or removed. Source commit: 6ab19547.

@@ -516,3 +516,121 @@ Not implemented: K08, K10, K11, K12, H01, H02, application integration,
 packaging, full composition, playback, device proof, or release readiness.
 All refreshed B-W3A/B/C and P08-T receipts remain candidates. Agent 4 re-review
 is pending; this producer does not self-accept them.
+
+## Fix Round 2 — 2026-09-15
+
+Agent 4 returned Fix Round 1 as `REQUEST CHANGES` with five bounded Important
+findings. The starting pushed head was
+`e96cb2c0939a00c70916d6b95c0dc9302633428e`. The source-and-test repair is
+`6ab19547` (`fix(server1): close round two contract gaps`). This evidence/report
+commit resolves as `SELF`. Every worker and barrier remains a producer candidate
+pending independent Agent 4 re-review; no barrier is self-accepted.
+
+### RED and causal repairs
+
+- K06: review reproduced that `verify()` persisted bitmap truth before bytes had
+  reached destinations. `verify()` now changes memory state only. `commitNow()`
+  verifies and writes the full half-open range first, then atomically advances
+  the in-memory commit ledger and persisted bitmap. K06-02 changes the old
+  precommit assertion to false and proves verify-only reopen is unverified.
+  K06-03 proves a failed write reopens unverified. Coverage, geometry, restage,
+  queued-error and missing-destination controls remain.
+- K07: real-hash TDD first failed compilation with MSVC C2664 because the public
+  contract still accepted caller-supplied `bool verificationSuccess`. The
+  contract now accepts the expected SHA-1 and hashes every required piece byte
+  (including spilled bytes) with Qt SHA-1. Known vectors cover 4 zero, one, two,
+  and eight bytes plus a three-byte tail. Missing pieces, missing spill files,
+  absent hashes and corrupt hashes fail before commit. `noNotifyHave` defaults
+  false and becomes true only on verified success.
+- P08-T/K04: K04 peer identity is now a transport-compatible 64-bit handle.
+  `TorrentTransport.h` includes `SchedulerActions.h` and supplies a checked K04
+  request/cancel-to-`TorrentAction` conversion. The P08 consumer and combined
+  link smoke inspect exact request id, generation, selection id, peer, piece,
+  offset, length and wire-cancel preservation. Unsupported K04 update/select
+  policy actions are not misrepresented as transport actions.
+- K05: `start()` and `stop()` purge queued actions by owning infohash before
+  generation replacement or removal. K05-03 queues connect, request, cancel and
+  disconnect effects, then proves both restart and stop prevent them from being
+  observed. Another engine remains isolated.
+- K09: coordinator-wide uniqueness now gates the actionable peer-add queue, not
+  statistics alone. K09-01 injects the same peer through tracker and DHT source
+  indices, observes one drained add, then observes an empty second drain.
+
+The Round 2 source commit changes these exact source/build/test files:
+
+    native/colosseum_server_v1/cmake/packets/K07.cmake
+    native/colosseum_server_v1/include/server1/discovery/PeerSearch.h
+    native/colosseum_server_v1/include/server1/policy/CircularPieceStore.h
+    native/colosseum_server_v1/include/server1/policy/SchedulerActions.h
+    native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h
+    native/colosseum_server_v1/include/server1/ports/TorrentTransport.h
+    native/colosseum_server_v1/src/discovery/PeerSearch.cpp
+    native/colosseum_server_v1/src/policy/SwarmPolicy.cpp
+    native/colosseum_server_v1/src/storage/CircularPieceStore.cpp
+    native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+    native/colosseum_server_v1/tests/cmake/K07.cmake
+    native/colosseum_server_v1/tests/test_circular_store.cpp
+    native/colosseum_server_v1/tests/test_peer_search.cpp
+    native/colosseum_server_v1/tests/test_persistent_store.cpp
+    native/colosseum_server_v1/tests/test_scheduler_requests.cpp
+    native/colosseum_server_v1/tests/test_spine_contracts.cpp
+    native/colosseum_server_v1/tests/test_swarm_metadata.cpp
+    native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp
+
+K07 packet CMake links Qt6::Core for the real SHA-1 implementation and the K07
+test receives the same Qt runtime PATH convention used elsewhere. Aggregate
+CMake/test registration did not change in Round 2.
+
+### Fresh linked MSVC gate and per-case evidence
+
+Commands ran under x64 `VsDevCmd.bat`:
+
+    cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W3/fix-round-2-final -G Ninja -DQt6_DIR=C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6
+    cmake --build artifacts/server1/INT-W3/fix-round-2-final -j 1
+    ctest --test-dir artifacts/server1/INT-W3/fix-round-2-final --output-on-failure
+    ctest --test-dir artifacts/server1/INT-W3/fix-round-2-final --output-on-failure --repeat until-fail:3
+
+Configure passed with Ninja, MSVC 19.44.35227.0 x64, C++17 and Qt 6.11.1
+msvc2022_64. Fresh build passed 67/67 steps. The CTest inventory is 39 and the
+full run passed 39/39. Three repeats passed 117/117 executions. Retained W0-W2
+tests 1-16 passed. A linked focus over K05, K06, K07, K09, P08-T and the INT-W3
+consumer passed 14/14. K05-01/02/03, K06-01/02/03, K07-01/02/03,
+K09-01/02/03, P08-T and INT-W3-spine-contracts-link each report PASS.
+The adversarial focus K05-03, K06-02, K06-03, K07-03, K09-01, P08-T and
+INT-W3-spine-contracts-link passed 7/7.
+
+The P08 positive linked consumer compiled and executed. Seven fresh standalone
+MSVC compile mutations returned nonzero exit 2: `P08_NEGATE_OWNERSHIP`,
+`GENERATION`, `EXACT_BLOCK`, `CANCELLATION`, `OBSERVATION`, `STATISTICS` and
+`AUTONOMY`. The first six raw evidence entries were corrected from the stale
+exit-1 text to the observed exit 2, and the previously omitted seventh mutation
+is now recorded. The linked P08 and INT-W3 executables are the minimal consumer
+proof: headers are included normally, packet libraries resolve real symbols,
+K04 actions are converted rather than independently instantiated, and no `.cpp`
+test include or duplicate implementation symbol is used.
+
+### Differential, ownership, state, risks and scope
+
+Packet-owned public-header extensions remain bounded to the receipts recorded
+in Fix Round 1. Round 2 changes K04's peer alias within its owned header and
+extends the K09-owned public queue drain; it does not claim K10 transport adapter
+ownership. K04 continues to consume K03 selection types. P08 consumes K04
+request/cancel actions and K09 autonomy policy. Frozen Preflight authority was
+read-only and its source ranges/hashes were not mutated.
+
+Source differential checks remain static source-trace-to-native-test evidence,
+not live network or playback proof. The implementation risk is intentionally
+bounded: K07 now depends on Qt6::Core for SHA-1; K06 can leave partially written
+destination bytes after a failed multi-piece write, but it never persists those
+bytes as verified, so reopening correctly forces re-verification. K04 update and
+select policy actions deliberately have no transport conversion because they
+are not request/cancel/interest/choke wire actions in the frozen K04 contract.
+
+Updated evidence comprises affected K04/K05/K06/K07/K09/P08-T packet receipts,
+TDD/source traces, B-W3A/B/C and P08-T candidate receipts,
+`FIX-ROUND-2.json`, STATE candidate notes, and this report. JSON parse, diff
+whitespace, public-header/no-`.cpp` consumer, scope and remote equality checks
+are recorded at the final evidence boundary. Included scope is K04, K05, K06,
+K07, K09, P08-T and INT-W3 evidence/state only. K08, K10, K11, K12, H01, H02,
+application integration, packaging, full composition, runtime playback, device
+proof and release readiness remain unimplemented.

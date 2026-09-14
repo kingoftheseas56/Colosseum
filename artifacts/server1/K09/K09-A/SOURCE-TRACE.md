@@ -9,3 +9,5 @@
 - M804 lines 71090-71092 (`77e375644fdae102dec312e7d8b99918194b25f5bd7a447d936e938f4ca133bd`): frozen default tracker corpus inspected; no larger list is introduced.
 
 Fix Round 1 (2026-09-15): PeerSearch now owns and invokes public TrackerSource/DhtSource objects. The public autonomy policy rejects automatic picker, DHT, or tracker activity at construction.
+
+Fix Round 2 (2026-09-15): M612 coordinator-wide uniqueness now governs emitted peer-add actions as well as statistics. A tracker/DHT duplicate is delivered once and the public drain cannot replay it.

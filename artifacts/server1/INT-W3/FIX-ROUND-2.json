@@ -1,0 +1,36 @@
+{
+  "schema": "colosseum-server1-fix-round/v1",
+  "worker_id": "INT-W3",
+  "round": 2,
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-spine-20260914",
+  "review_input": "REQUEST CHANGES",
+  "repair_commit": "6ab19547",
+  "red": {
+    "K06": "review reproduced staged verification being persisted before destination commit",
+    "K07": "new real-hash tests failed to compile against the caller-supplied boolean facade",
+    "P08-T": "scheduler and transport actions were independently instantiated rather than converted",
+    "K05": "queued actions survived engine generation replacement and stop",
+    "K09": "cross-source duplicates were counted uniquely but emitted repeatedly"
+  },
+  "green": {
+    "build_dir": "artifacts/server1/INT-W3/fix-round-2-final",
+    "configure": "PASS; Ninja; MSVC 19.44.35227.0 x64; C++17; Qt 6.11.1 msvc2022_64",
+    "build": "PASS; 67/67 steps",
+    "ctest": "PASS; 39/39",
+    "repeat": "PASS; 117/117 executions",
+    "w0_w2_regression": "PASS; retained tests 1-16",
+    "focused": "PASS; K05/K06/K07/K09/P08-T/INT-W3 14/14",
+    "linked_consumer": "PASS; P08-T and INT-W3 smoke consume K04 scheduler action conversion",
+    "compile_negative": "PASS; 7/7 mutations rejected"
+  },
+  "scope": {
+    "included": ["K04", "K05", "K06", "K07", "K09", "P08-T", "INT-W3 evidence/state"],
+    "excluded": ["K08", "K10", "K11", "K12", "H01", "H02", "application integration", "packaging", "full composition", "runtime playback"]
+  },
+  "independent_review": {
+    "reviewer": "Agent 4",
+    "verdict": "pending re-review"
+  },
+  "status": "candidate; test-reported pending Agent 4 re-review"
+}
