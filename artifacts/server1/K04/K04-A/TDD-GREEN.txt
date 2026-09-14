@@ -1,0 +1,7 @@
+Command: cl.exe /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include test_scheduler_requests.cpp /Fe:test.exe; run K04-01, K04-02, K04-03
+Compile exit: 0
+K04-01 exit: 0; output: K04-01 PASS
+K04-02 exit: 0; output: K04-02 PASS
+K04-03 exit: 0; output: K04-03 PASS
+Standalone SchedulerRequests.cpp compile exit: 0
+Standalone SchedulerHotswap.cpp compile exit: 0

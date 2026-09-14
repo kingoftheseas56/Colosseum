@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K04",
+  "worker": "K04-A",
+  "branch": "sol/server1-w3-spine-20260914",
+  "base": "fc1c49943227614594edad8c3789c9e1aa9ed937",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K04/K04-A/PACKET-RECEIPT.json)",
+  "cases": {
+    "K04-01": "test-reported PASS",
+    "K04-02": "test-reported PASS",
+    "K04-03": "test-reported PASS"
+  },
+  "negative_controls": {
+    "requester_below_16KiBps": "PASS no hotswap",
+    "victim_at_48KiBps": "PASS protected",
+    "more_than_half_requester_speed": "PASS protected",
+    "canceled_reservation": "PASS excluded",
+    "late_failure_after_replacement": "PASS ignored as second terminal",
+    "pulse_and_flood_equality": "PASS immediate"
+  },
+  "aggregate_registration": "pending INT-W3 B-W3C",
+  "review": "candidate only; independent Agent 4 review pending",
+  "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"
+}

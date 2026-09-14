@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K04-A",
+  "parent_packet": "K04",
+  "base": "fc1c49943227614594edad8c3789c9e1aa9ed937",
+  "request": "INT-W3 may include K04 packet and test manifests when forming B-W3C.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K04.cmake",
+    "native/colosseum_server_v1/tests/cmake/K04.cmake"
+  ],
+  "interface_changes": "Consumes SchedulerSelectionContract and implements the SchedulerActionContract declarations already frozen in K03-owned Scheduler.h; K04 does not mutate that header.",
+  "gate": "K04-A candidate pending Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

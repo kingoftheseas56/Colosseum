@@ -1,0 +1,5 @@
+Command: cl.exe /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include /c native\colosseum_server_v1\tests\test_scheduler_requests.cpp /Foartifacts\server1\K04\K04-A\red.obj
+Exit: 1
+Observed: fatal error C1083: Cannot open include file: '../src/policy/SchedulerRequests.cpp': No such file or directory
+Meaning: K04 cases failed before the owned request and hotswap implementations existed.
+First implementation compile exposed missing standard `<cmath>` declarations for round/pow; adding the exact required include produced GREEN without behavior changes.
