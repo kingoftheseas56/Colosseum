@@ -240,6 +240,10 @@
       "status": "planned"
     }
   ],
+  "worker_patches_integrity": {
+    "algorithm": "sha256(JSON.stringify(worker_patches) encoded as UTF-8)",
+    "sha256": "ee01121885874f6980fbc76f68c7f2ba3561307753471fd5c8b9e74c98029b64"
+  },
   "worker_patches": [
     {
       "worker_id": "P03-A",

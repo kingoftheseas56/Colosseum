@@ -89,6 +89,50 @@ const EXPECTED_OWNER_SHA256 = {
   'desktop-release-package-mutation': 'f4b7d7f5097903c38c713a1dfdbf7cdd5c3d4acda689813b769d898155cffc6e',
   'assembled-app-torrent-playback-probe': '79845317ab8b52049d4ec7cec15ae16a5e379b5c7821dcefb7cb9e270fb7434d'
 };
+const EXPECTED_WORKER_PATCHES_ALGORITHM = 'sha256(JSON.stringify(worker_patches) encoded as UTF-8)';
+const EXPECTED_WORKER_PATCHES_SHA256 = 'ee01121885874f6980fbc76f68c7f2ba3561307753471fd5c8b9e74c98029b64';
+const EXPECTED_EFFECTIVE_WORKER_SHA256 = {
+  'P03-A': 'f013dbebdfa53015b17da80d20cc9c251c76f0d1d92049ce612d20383ed2a600',
+  'K10-A': '27011426d192e3d872d9b2faa40ee404a9bebbdbeb60e8d99b01602f35d7d7bf',
+  'H02-B': '47b26a7f5f31794824b66dd21dcfbe76943e16af2b58c3b8c4b935cfe85988c4',
+  'E00-B': '9bac25eae5c7980db5ec27c0cb2a454b7383a4a07d0164ccad18c4ef9081bf13',
+  'C02-A': 'd6a590987b137c199044ba85ab27a11055252ae4c3593eb0e153e8623e8f592d',
+  'C02-B': 'f7e7b12082217c86743907318c6485eef2131fbe6169986bc959d5d21676dc5f',
+  'Q02-A': 'c67aec8f0673ed986240f5d093941a31f9fe0179bf260d4288be4571388ca470',
+  'Q02-B': 'e4c5d6f4e6d0947a352960cefd15c16672aac0d9461ac73aa789bbe4fc076901',
+  'Q04-A': '808cff47fb3c453d8ffb79eda99dc1ad5538203f440e174fba5a9afb8c0831d7',
+  'P08-T': '82efdcc83eafb64edae458ed20ddb2f941e380ad63bed6c5ab92290b9fd9cef2',
+  'H02-C': 'f1e487cc8ce85d31c6d3f0a135e95c38cf73545bd2c928debf3e43ba8abf1f8c',
+  'INT-W4': '8cc629c41e1b0d27a910135bdb035adba1c490c5c913894c8b3fb843f389a71b',
+  'C02-D': '9e6d129c7f65caaff3d4948658f51d2c478bae1d3d167d4d15039c08f834fe90',
+  'Q02-P': '42cfa8bf1c3ef5ae781fdc557db920585e506e0fadd664b13ff6c9fdf38b2391'
+};
+const W4_CHECKPOINT_PATHS = [
+  'docs/server1/checkpoints/G-TORRENT.json',
+  'docs/server1/checkpoints/G-EMBED-EARLY.json'
+];
+const W4_AUTHORITY_PATHS = ['docs/server1/STATE.json', ...W4_CHECKPOINT_PATHS];
+const EXPECTED_PROTECTED_PATH_OWNERS = {
+  'native/colosseum_server_v1/include/server1/ports/TorrentTransport.h': ['P08-T'],
+  'native/colosseum_server_v1/host/main.cpp': ['H02-C'],
+  'native/colosseum_server_v1/tests/test_standalone_torrent_host.cpp': ['H02-C'],
+  'native/colosseum_server_v1/CMakeLists.txt': ['P03-A', 'INT-W1', 'INT-W2', 'INT-W3', 'INT-W4', 'INT-W5', 'INT-W6', 'INT-W7'],
+  'native/colosseum_server_v1/tests/CMakeLists.txt': ['P03-A', 'INT-W1', 'INT-W2', 'INT-W3', 'INT-W4', 'INT-W5', 'INT-W6', 'INT-W7'],
+  'docs/server1/STATE.json': ['P00-A', 'INT-W1', 'INT-W2', 'INT-W3', 'INT-W4', 'INT-W5', 'INT-W6', 'INT-W7'],
+  'docs/server1/checkpoints/G-TORRENT.json': ['INT-W4'],
+  'docs/server1/checkpoints/G-EMBED-EARLY.json': ['INT-W4'],
+  'native/build-target.bat': ['C02-D'],
+  'scripts/installer/package_release.sh': ['C02-D'],
+  'scripts/installer/colosseum.nsi': ['C02-D'],
+  'scripts/publish_app_release.py': ['C02-D'],
+  '.github/workflows/release-installer-smoke.yml': ['C02-D'],
+  'docs/build/windows.md': ['C02-D'],
+  'docs/build/linux.md': ['C02-D'],
+  'tests/test_server1_release_package.py': ['C02-D'],
+  'tools/server_lab/scenarios/assembled_app_torrent_playback.json': ['Q02-P'],
+  'tools/server_lab/tests/test_assembled_app_observations.py': ['Q02-P'],
+  'artifacts/server1/Q02/Q02-P/': ['Q02-P']
+};
 const EXPECTED_DISPATCH_SHA256 = '29086ce7b252eba17ba39251285329f958ec3909fcc6cc13848c22932104433b';
 const EXPECTED_DISPATCH_STAGE_IDS = [
   'W3-foundation',
@@ -279,7 +323,21 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   for (const worker of [...array(basePlan?.workers), ...addedWorkers]) {
     workerMap.set(worker.worker_id, structuredClone(worker));
   }
-  applyWorkerPatches(workerMap, addendum?.worker_patches, check);
+  const workerPatches = array(addendum?.worker_patches);
+  const workerPatchesDigest = objectSha256(workerPatches);
+  const workerPatchesExact =
+    addendum?.worker_patches_integrity?.algorithm === EXPECTED_WORKER_PATCHES_ALGORITHM &&
+    addendum?.worker_patches_integrity?.sha256 === EXPECTED_WORKER_PATCHES_SHA256 &&
+    workerPatchesDigest === EXPECTED_WORKER_PATCHES_SHA256;
+  check(addendum?.worker_patches_integrity?.algorithm === EXPECTED_WORKER_PATCHES_ALGORITHM, 'worker patch digest algorithm is exact');
+  check(addendum?.worker_patches_integrity?.sha256 === EXPECTED_WORKER_PATCHES_SHA256, 'worker patch digest declaration is exact');
+  check(workerPatchesDigest === EXPECTED_WORKER_PATCHES_SHA256, 'worker patch set and ordering are exact');
+  if (workerPatchesExact) applyWorkerPatches(workerMap, workerPatches, check);
+  for (const [workerId, expectedDigest] of Object.entries(EXPECTED_EFFECTIVE_WORKER_SHA256)) {
+    const worker = workerMap.get(workerId);
+    check(Boolean(worker), `effective worker exists: ${workerId}`);
+    check(objectSha256(worker) === expectedDigest, `effective worker record is exact: ${workerId}`);
+  }
 
   const edgeRecords = array(addendum?.required_edges);
   check(sameSet(edgeRecords.map(edge => edge.id), REQUIRED_EDGES), 'every required dependency and dispatch edge is declared');
@@ -412,6 +470,8 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   check(routeAlias?.kind === 'route-surface' && routeAlias?.preserve_source_order === true, 'G-MEDIA-V2 alias preserves source-ordered routes');
 
   const contracts = array(addendum?.semantic_contracts);
+  check(contracts.length === Object.keys(REQUIRED_CONTRACTS).length, 'semantic contract count is exact');
+  check(contracts.length === new Set(contracts.map(contract => contract.interface)).size, 'semantic contract interface IDs are unique');
   check(sameSet(contracts.map(contract => contract.interface), Object.keys(REQUIRED_CONTRACTS)), 'new semantic contract catalog is complete');
   for (const [interfaceName, expected] of Object.entries(REQUIRED_CONTRACTS)) {
     const contract = contracts.find(candidate => candidate.interface === interfaceName);
@@ -429,6 +489,14 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   check(owners.length === new Set(owners.map(owner => owner.id)).size, 'exclusive owner IDs are unique');
   check(owners.length === new Set(owners.map(owner => owner.owner_worker)).size, 'each new shared scope has one distinct owner');
   const ownedScopePaths = new Set();
+  const effectiveOwnersByPath = new Map();
+  for (const worker of workerMap.values()) {
+    check(array(worker.owned_files).length === new Set(array(worker.owned_files)).size, `effective worker owned paths are unique: ${worker.worker_id}`);
+    for (const ownedPath of array(worker.owned_files)) {
+      if (!effectiveOwnersByPath.has(ownedPath)) effectiveOwnersByPath.set(ownedPath, []);
+      effectiveOwnersByPath.get(ownedPath).push(worker.worker_id);
+    }
+  }
   for (const [ownerId, expectedWorker] of Object.entries(REQUIRED_OWNERS)) {
     const owner = owners.find(candidate => candidate.id === ownerId);
     check(Boolean(owner), `exclusive owner exists: ${ownerId}`);
@@ -442,14 +510,24 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
       check(!ownedScopePaths.has(ownedPath), `exclusive ownership scopes do not overlap: ${ownedPath}`);
       ownedScopePaths.add(ownedPath);
       check(array(worker?.owned_files).includes(ownedPath), `owner ledger and worker ownership agree: ${ownerId}:${ownedPath}`);
-    }
-    if (owner.supersedes_worker && owner.phase !== 'W4') {
-      const predecessor = workerMap.get(owner.supersedes_worker);
-      for (const ownedPath of array(owner.paths)) {
-        check(!array(predecessor?.owned_files).includes(ownedPath), `superseded owner no longer owns active path: ${ownerId}:${ownedPath}`);
-      }
+      const effectiveOwners = ownerId === 'w4-state-checkpoint-mutation' && !W4_CHECKPOINT_PATHS.includes(ownedPath)
+        ? array(effectiveOwnersByPath.get(ownedPath)).filter(workerId => workerMap.get(workerId)?.wave === 'W4')
+        : array(effectiveOwnersByPath.get(ownedPath));
+      check(sameSet(effectiveOwners, [expectedWorker]), `protected path has exactly one effective phase owner: ${ownerId}:${ownedPath}`);
     }
   }
+  check(sameSet([...ownedScopePaths], Object.keys(EXPECTED_PROTECTED_PATH_OWNERS)), 'protected path catalog is exact');
+  for (const [protectedPath, expectedOwners] of Object.entries(EXPECTED_PROTECTED_PATH_OWNERS)) {
+    check(sameSet(effectiveOwnersByPath.get(protectedPath) || [], expectedOwners), `protected path global effective owner set is exact: ${protectedPath}`);
+  }
+  for (const authorityPath of W4_AUTHORITY_PATHS) {
+    const authorityOwners = W4_CHECKPOINT_PATHS.includes(authorityPath)
+      ? array(effectiveOwnersByPath.get(authorityPath))
+      : array(effectiveOwnersByPath.get(authorityPath)).filter(workerId => workerMap.get(workerId)?.wave === 'W4');
+    check(sameSet(authorityOwners, ['INT-W4']), `INT-W4 solely owns W4 state/checkpoint authority: ${authorityPath}`);
+  }
+  check(workerMap.get('H02-B')?.integration_owner === 'INT-W4', 'INT-W4 is H02-B integration owner');
+  check(workerMap.get('E00-B')?.integration_owner === 'INT-W4', 'INT-W4 is E00-B integration owner');
   check(owners.find(owner => owner.id === 'desktop-release-package-mutation')?.owner_worker === 'C02-D', 'release-package mutation owner is C02-D');
   check(owners.find(owner => owner.id === 'assembled-app-torrent-playback-probe')?.owner_worker === 'Q02-P', 'assembled-app probe owner is Q02-P');
   check(reaches('C02-D', 'C02-A') && reaches('C02-D', 'C02-B'), 'C02-D package construction precedes both independent desktop qualification workers');
@@ -457,6 +535,7 @@ export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
   check(sameSet(produced.get('LinuxQualificationReceipt') || [], ['C02-B']), 'C02-B alone owns Linux qualification');
 
   check(array(workerMap.get('Q04-A')?.interfaces_consumed).includes('RollbackArtifact'), 'Q04 consumes the conditional rollback artifact');
+  check(array(produced.get('RollbackArtifact')).length === 0, 'RollbackArtifact has no worker producer and exists only through its conditional virtual gate');
   check(reaches('G-ROLLBACK-ARTIFACT', 'Q04-A'), 'rollback gate precedes Q04');
   const compositionFiles = new Set(array(addendum?.base_invariants?.full_composition_files));
   const compositionOwnerParents = new Set();

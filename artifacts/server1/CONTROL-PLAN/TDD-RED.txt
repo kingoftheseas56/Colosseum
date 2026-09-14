@@ -34,3 +34,19 @@ Expected gaps exposed independently:
 
 The expanded mutation controls were written before the validator hardening. No production or
 acceptance-state file was changed during this RED run.
+
+Fix Round 2 worker-patch and effective-ownership RED:
+Exit: 1
+Tests: 603 passed, 15 failed (618 total)
+Expected fail-open cases reproduced:
+- H02-B could regain the G-TORRENT checkpoint and E00-B could gain STATE.json through extra patches;
+- C02-A could gain native/build-target.bat and a worker could produce RollbackArtifact;
+- unknown worker patch operations were ignored;
+- equivalent protected-path/interface collisions injected into effective base records were accepted;
+- the worker-patch integrity declaration was absent or ignored;
+- a conflicting duplicate DesktopReleasePackage semantic contract was accepted.
+
+A second RED run moved the checkpoint collision to a non-W4 worker and failed 616/618, proving
+checkpoint ownership needed global enforcement rather than only W4-phase enforcement.
+A third RED run added a non-W4 STATE.json claimant and failed 617/619, proving the validator also
+needed the exact global permitted-owner set for every protected path.

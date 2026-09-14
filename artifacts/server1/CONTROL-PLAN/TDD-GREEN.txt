@@ -36,3 +36,14 @@ Expanded negative-control coverage independently rejects:
 
 The canonical graph now also proves INT-W4 owns B-W4A/B-W4B state/checkpoint acceptance, and
 C02-A/C02-B independently own Windows/Linux qualification after C02-D package construction.
+
+Fix Round 2 worker-patch and effective-ownership hardening:
+Exit: 0
+Tests: 619 passed, 0 failed
+Duration: 8686.0134 ms
+
+The focused controls now reject all reported patch-channel escalations, direct effective-record
+collisions, INT-W4/C02-D integration-owner changes, conflicting duplicate semantic contracts,
+worker RollbackArtifact producers, and deletion/replacement of the exact worker-patch digest.
+W4 checkpoint ownership is globally unique; STATE.json and shared CMake ownership remain
+wave-sequenced under an exact global permitted-owner set, with INT-W4 sole during W4.

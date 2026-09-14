@@ -6,7 +6,7 @@ node artifacts/server1/CONTROL-PLAN/verify-control-graph.mjs --addendum docs/ser
 
 Exit: 0
 Verdict: VERIFIED
-Checks: 1142 passed, 0 failed
+Checks: 1331 passed, 0 failed
 Frozen authority inputs: 9/9
 Frozen authority package SHA256: 5979af60150d6cb0cf73f2529a27ef3a796daa2a0b23ae38aa4fde41eebb7e2c
 Frozen graph: 57/57
@@ -15,10 +15,15 @@ Added workers: 5
 Required dependency/dispatch edges: 22
 Aliases: 2
 Semantic contracts: 4
+Semantic contract interface IDs: 4/4 unique
 Exclusive owners: 5
+Worker patches: exact 9-record set, SHA256 ee01121885874f6980fbc76f68c7f2ba3561307753471fd5c8b9e74c98029b64
+Effective protected worker records: 14/14 exact
+Protected ownership: 19 exact global permitted-owner sets; checkpoints globally unique; W4 STATE/CMake ownership phase-unique
 Dispatch stages: 24
 Barrier owners: B-W4A=INT-W4, B-W4B=INT-W4
 Rollback rules: 1
+RollbackArtifact worker producers: 0; provider is conditional gate G-ROLLBACK-ARTIFACT
 Amended graph: acyclic, 144 nodes
 Full-composition owner: C00
 Release-package owner: C02-D

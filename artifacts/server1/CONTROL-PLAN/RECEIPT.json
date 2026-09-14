@@ -21,7 +21,7 @@
   },
   "semantic_graph": {
     "verdict": "VERIFIED",
-    "passed": 1142,
+    "passed": 1331,
     "failed": 0,
     "master_packets": 64,
     "planned_cases": 193,
@@ -35,7 +35,15 @@
     "required_edges": 22,
     "interface_aliases": 2,
     "semantic_contracts": 4,
+    "semantic_contract_interface_ids_unique": true,
     "exclusive_owners": 5,
+    "worker_patches": {
+      "records": 9,
+      "sha256": "ee01121885874f6980fbc76f68c7f2ba3561307753471fd5c8b9e74c98029b64",
+      "applied_only_after_exact_validation": true
+    },
+    "effective_worker_records_exact": 14,
+    "protected_path_global_owner_sets_exact": 19,
     "dispatch_stages": 24,
     "barrier_owner_overrides": 2,
     "conditional_rollback_rules": 1,
@@ -43,7 +51,7 @@
   },
   "negative_controls": {
     "verdict": "PASS",
-    "tests_passed": 600,
+    "tests_passed": 619,
     "tests_failed": 0,
     "worker_removals": "5/5 rejected",
     "edge_removals": "22/22 rejected",
@@ -56,6 +64,11 @@
     "rollback_evidence_mutations": "all rejected",
     "base_route_and_composition_mutations": "all rejected",
     "digest_algorithm_mutation": "rejected",
+    "worker_patch_escalations": "all reported mutations rejected",
+    "effective_protected_path_collisions": "rejected",
+    "effective_integration_owner_mutations": "rejected",
+    "semantic_contract_duplicate": "rejected",
+    "worker_RollbackArtifact_producer": "rejected",
     "rollback_rule_removal": "rejected",
     "authority_digest_mutation": "rejected",
     "red_evidence": "artifacts/server1/CONTROL-PLAN/TDD-RED.txt",
@@ -65,6 +78,8 @@
     "TorrentTransport_contract": "P08-T",
     "standalone_torrent_host": "H02-C",
     "W4_state_and_checkpoints": "INT-W4",
+    "W4_checkpoint_scope": "globally unique",
+    "W4_STATE_and_CMake_scope": "INT-W4 sole within W4; other integration waves remain sequential owners",
     "desktop_release_package": "C02-D",
     "assembled_app_torrent_playback_probe": "Q02-P",
     "B-W4A_state_checkpoint_barrier": "INT-W4",
@@ -82,7 +97,9 @@
   "rollback": {
     "consumer": "Q04-A",
     "gate": "G-ROLLBACK-ARTIFACT",
-    "selection": "exactly one of buildable P01B or specifically Agent 4-approved current-sidecar artifact"
+    "selection": "exactly one of buildable P01B or specifically Agent 4-approved current-sidecar artifact",
+    "worker_producers": 0,
+    "only_provider": "G-ROLLBACK-ARTIFACT conditional virtual gate"
   },
   "production_files_changed": [],
   "state_json_changed": false,

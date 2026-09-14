@@ -167,6 +167,126 @@ test('authority digest drift is rejected before graph acceptance', () => {
   expectRejected(fixture);
 });
 
+test('worker patch channel rejects every reported ownership and interface escalation', async t => {
+  const mutations = [
+    {
+      name: 'H02-B cannot regain G-TORRENT checkpoint ownership',
+      mutate: fixture => fixture.addendum.worker_patches.push({
+        worker_id: 'H02-B',
+        add_owned_files: ['docs/server1/checkpoints/G-TORRENT.json']
+      })
+    },
+    {
+      name: 'E00-B cannot gain STATE ownership',
+      mutate: fixture => fixture.addendum.worker_patches.push({
+        worker_id: 'E00-B',
+        add_owned_files: ['docs/server1/STATE.json']
+      })
+    },
+    {
+      name: 'C02-A cannot gain release build-target ownership',
+      mutate: fixture => fixture.addendum.worker_patches.push({
+        worker_id: 'C02-A',
+        add_owned_files: ['native/build-target.bat']
+      })
+    },
+    {
+      name: 'no worker may produce RollbackArtifact',
+      mutate: fixture => fixture.addendum.worker_patches.push({
+        worker_id: 'Q00-A',
+        add_interfaces_produced: ['RollbackArtifact']
+      })
+    },
+    {
+      name: 'unknown patch operations fail closed',
+      mutate: fixture => fixture.addendum.worker_patches.push({
+        worker_id: 'Q00-A',
+        replace_objective: 'MUTATED'
+      })
+    }
+  ];
+  for (const mutation of mutations) {
+    await t.test(mutation.name, () => {
+      const fixture = loadFixture();
+      mutation.mutate(fixture);
+      expectRejected(fixture);
+    });
+  }
+});
+
+test('effective records reject direct protected ownership and interface collisions', async t => {
+  const mutations = [
+    {
+      name: 'effective non-owner G-TORRENT checkpoint collision',
+      mutate: fixture => fixture.basePlan.workers.find(worker => worker.worker_id === 'Q00-A')
+        .owned_files.push('docs/server1/checkpoints/G-TORRENT.json')
+    },
+    {
+      name: 'effective E00-B STATE collision',
+      mutate: fixture => fixture.basePlan.workers.find(worker => worker.worker_id === 'E00-B')
+        .owned_files.push('docs/server1/STATE.json')
+    },
+    {
+      name: 'effective non-W4 STATE collision',
+      mutate: fixture => fixture.basePlan.workers.find(worker => worker.worker_id === 'Q00-A')
+        .owned_files.push('docs/server1/STATE.json')
+    },
+    {
+      name: 'effective C02-A release build-target collision',
+      mutate: fixture => fixture.basePlan.workers.find(worker => worker.worker_id === 'C02-A')
+        .owned_files.push('native/build-target.bat')
+    },
+    {
+      name: 'effective RollbackArtifact producer',
+      mutate: fixture => fixture.basePlan.workers.find(worker => worker.worker_id === 'Q00-A')
+        .interfaces_produced.push('RollbackArtifact')
+    }
+  ];
+  for (const mutation of mutations) {
+    await t.test(mutation.name, () => {
+      const fixture = loadFixture();
+      mutation.mutate(fixture);
+      expectRejected(fixture);
+    });
+  }
+});
+
+test('worker patch integrity declaration cannot be deleted or replaced', async t => {
+  await t.test('delete', () => {
+    const fixture = loadFixture();
+    delete fixture.addendum.worker_patches_integrity;
+    expectRejected(fixture);
+  });
+  await t.test('replace digest', () => {
+    const fixture = loadFixture();
+    fixture.addendum.worker_patches_integrity = {
+      algorithm: 'MUTATED',
+      sha256: '0'.repeat(64)
+    };
+    expectRejected(fixture);
+  });
+});
+
+test('INT-W4 and C02-D effective integration ownership cannot change', async t => {
+  for (const workerId of ['INT-W4', 'C02-D']) {
+    await t.test(workerId, () => {
+      const fixture = loadFixture();
+      fixture.addendum.workers.find(worker => worker.worker_id === workerId).integration_owner = 'MUTATED';
+      expectRejected(fixture);
+    });
+  }
+});
+
+test('conflicting duplicate DesktopReleasePackage semantic contract is rejected', () => {
+  const fixture = loadFixture();
+  fixture.addendum.semantic_contracts.push({
+    interface: 'DesktopReleasePackage',
+    producer_worker: 'C02-A',
+    consumer_workers: ['Q04-A']
+  });
+  expectRejected(fixture);
+});
+
 test('deleting or replacing every required worker semantic field is rejected independently', async t => {
   for (const workerId of requiredWorkers) {
     for (const field of workerSemanticFields) {
