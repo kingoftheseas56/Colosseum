@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K07",
+  "worker": "K07-A",
+  "branch": "sol/server1-w3-spine-20260914",
+  "base": "ef0934e28e6461499333e098093131a8cf7edb62",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K07/K07-A/PACKET-RECEIPT.json)",
+  "cases": {
+    "K07-01": "test-reported PASS",
+    "K07-02": "test-reported PASS",
+    "K07-03": "test-reported PASS"
+  },
+  "negative_controls": {
+    "all_slots_unfreeable": "PASS exact source error",
+    "locked_piece_eviction": "PASS excluded",
+    "stale_spill_completion": "PASS ignored",
+    "canceled_spill_completion": "PASS ignored",
+    "completion_after_close": "PASS impossible after ledger clear",
+    "zero_capacity": "PASS visible full condition"
+  },
+  "aggregate_registration": "pending INT-W3 B-W3B",
+  "review": "candidate only; independent Agent 4 review pending",
+  "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"
+}

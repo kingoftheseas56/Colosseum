@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K07-A",
+  "parent_packet": "K07",
+  "base": "ef0934e28e6461499333e098093131a8cf7edb62",
+  "request": "INT-W3 may include K07 packet and test manifests when forming B-W3B after K03-A, K09-A and K09-B are committed.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K07.cmake",
+    "native/colosseum_server_v1/tests/cmake/K07.cmake"
+  ],
+  "interface_changes": "Produces the packet-internal CircularStoreContract in the frozen source-owned implementation file; no existing public header changed.",
+  "gate": "K07-A candidate pending Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}
