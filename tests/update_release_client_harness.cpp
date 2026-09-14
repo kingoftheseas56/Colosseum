@@ -260,6 +260,7 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood"));
     QCoreApplication::setApplicationName(QStringLiteral("UpdateReleaseClientHarness"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("9.8.7"));
 
     QNetworkAccessManager nam;
     FixtureServer server;
@@ -292,7 +293,7 @@ int main(int argc, char** argv)
             "GitHub JSON accept header sent");
     require(server.latestRequest.contains("X-Github-Api-Version: 2022-11-28"),
             "GitHub API version header sent");
-    require(server.latestRequest.contains("User-Agent: Colosseum/1.1.4"),
+    require(server.latestRequest.contains("User-Agent: Colosseum/9.8.7"),
             "installed-version user agent sent");
 
     server.returnNotModified = true;

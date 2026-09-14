@@ -1,0 +1,51 @@
+{
+  "eyebrow": "INPUT, SYNC, SOURCES",
+  "title": "Colosseum 1.1.6",
+  "summary": "Keyboard-first navigation, multilingual Tankoyomi sources, more durable account state, and a stricter Windows release gate.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.6",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "KEYBOARD",
+      "title": "Arrows keep moving",
+      "body": "Spatial navigation now follows visual direction across worlds and continues through overflowing content instead of stopping at the viewport edge.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "TANKOBAN",
+      "title": "Multilingual chapter sources",
+      "body": "Persisted language configuration, region-safe routing, identity-safe matching, bounded provider fallback, and real-image qualification strengthen Tankoyomi chapter mode.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "ACCOUNTS",
+      "title": "State survives the rough edges",
+      "body": "Remembered sessions, sync replay identity, profile replacement, activity migration, and attachment recovery received another durability pass.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "RESPONSIVENESS",
+      "title": "Less work on the interaction path",
+      "body": "Recurring background work and startup sequencing were tightened to reduce GUI-thread contention and make regressions measurable.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "THEATRE",
+      "title": "Stremio startup recovers",
+      "body": "The bundled stream-server launch path can recover from failed startup state instead of leaving Theatre stranded behind it.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "milestone",
+      "section": "RELEASE",
+      "title": "One version identity",
+      "body": "Executable metadata, updater network identity, release notes, and the Windows release workflow now converge on 1.1.6.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}

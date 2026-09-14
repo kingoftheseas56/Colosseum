@@ -1,5 +1,7 @@
 #include "update/UpdateDownload.h"
 
+#include "update/UpdateUserAgent.h"
+
 #include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
@@ -109,7 +111,7 @@ void UpdateDownload::requestNetwork(bool resume)
     QNetworkRequest request(m_request.url);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setRawHeader("User-Agent", "Colosseum/1.1.4");
+    request.setRawHeader("User-Agent", updateUserAgent());
     if (resume) {
         request.setRawHeader("Range", QByteArray("bytes=") + QByteArray::number(m_requestOffset)
             + "-");

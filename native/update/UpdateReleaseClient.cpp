@@ -1,5 +1,7 @@
 #include "update/UpdateReleaseClient.h"
 
+#include "update/UpdateUserAgent.h"
+
 #include "update/UpdateTrust.h"
 #include "update/UpdateVersion.h"
 
@@ -100,7 +102,7 @@ void UpdateReleaseClient::fetch(const QUrl& url, qint64 cap, const QByteArray& p
     QNetworkRequest request(url);
     request.setRawHeader("Accept", "application/vnd.github+json");
     request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
-    request.setRawHeader("User-Agent", "Colosseum/1.1.4");
+    request.setRawHeader("User-Agent", updateUserAgent());
     if (!priorEtag.isEmpty())
         request.setRawHeader("If-None-Match", priorEtag);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,

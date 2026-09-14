@@ -424,11 +424,11 @@ void MangaDownloader::finalizeCancel(Job* job)
     const QString id = job->chapterId;
     const QString dir = job->dir;
     const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
-    auto* watcher = new QFutureWatcher<DownloadFileOps::Result>(this);
-    connect(watcher, &QFutureWatcher<DownloadFileOps::Result>::finished, this,
-            [this, watcher, lifetime, id]() {
-        const DownloadFileOps::Result result = watcher->result();
-        watcher->deleteLater();
+    const DownloadFileOps::Remover remover = m_cleanupRemover;
+    QtConcurrent::run([dir, remover]() {
+        return remover ? DownloadFileOps::removeTree(dir, remover)
+                        : DownloadFileOps::removeTree(dir);
+    }).then(this, [this, lifetime, id](DownloadFileOps::Result result) {
         Job* job = lifetime ? lifetime->job : nullptr;
         if (!job) return;
         if (!result.success)
@@ -437,11 +437,6 @@ void MangaDownloader::finalizeCancel(Job* job)
         cleanupJob(job);
         emit removed(id);
     });
-    const DownloadFileOps::Remover remover = m_cleanupRemover;
-    watcher->setFuture(QtConcurrent::run([dir, remover]() {
-        return remover ? DownloadFileOps::removeTree(dir, remover)
-                        : DownloadFileOps::removeTree(dir);
-    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -1056,9 +1051,15 @@ void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
 {
     const QString outputPath = job->dir + QStringLiteral("/") + fileName;
     const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
-    auto* watcher = new QFutureWatcher<ImageSaveResult>(this);
-    connect(watcher, &QFutureWatcher<ImageSaveResult>::finished, this,
-            [this, watcher, lifetime, pageIndex, attempt, fileName]() {
+    QtConcurrent::run([outputPath, data]() {
+        QSaveFile out(outputPath);
+        ImageSaveResult result;
+        if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
+            result.success = true;
+            result.size = data.size();
+        }
+        return result;
+    }).then(this, [this, lifetime, pageIndex, attempt, fileName](ImageSaveResult result) {
         Job* job = lifetime ? lifetime->job : nullptr;
         if (!job || job->cancelled) {
             if (job) {
@@ -1066,11 +1067,8 @@ void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
                 if (job->inFlight == 0)
                     finalizeCancel(job);
             }
-            watcher->deleteLater();
             return;
         }
-        const ImageSaveResult result = watcher->result();
-        watcher->deleteLater();
         if (result.success) {
             onImageSaved(job, pageIndex, fileName, result.size);
             return;
@@ -1087,15 +1085,6 @@ void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
         --job->inFlight;
         pumpImages(job);
     });
-    watcher->setFuture(QtConcurrent::run([outputPath, data]() {
-        QSaveFile out(outputPath);
-        ImageSaveResult result;
-        if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
-            result.success = true;
-            result.size = data.size();
-        }
-        return result;
-    }));
 }
 
 void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,

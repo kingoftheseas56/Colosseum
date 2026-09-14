@@ -219,6 +219,7 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood"));
     QCoreApplication::setApplicationName(QStringLiteral("UpdateDownloadHarness"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("9.8.7"));
 
     DownloadServer server;
     require(server.listen(QHostAddress::LocalHost), "download fixture server listens");
@@ -235,6 +236,8 @@ int main(int argc, char** argv)
         QFile file(result.path);
         require(file.open(QIODevice::ReadOnly) && digest(file.readAll()) == request.expectedSha256,
                 "promoted installer has expected hash");
+        require(server.lastRequest.contains("User-Agent: Colosseum/9.8.7"),
+                "download user agent follows application version");
     }
 
     {

@@ -58,6 +58,9 @@ foreach ($relative in $required) {
 }
 
 $appExe = Join-Path $installRoot "native\build-msvc\colosseum.exe"
+$binaryVersion = (& $appExe --version | Out-String).Trim()
+Require ($LASTEXITCODE -eq 0) "binary version probe exit=$LASTEXITCODE"
+Require ($binaryVersion -eq "Colosseum $ExpectedVersion") "binary version=$binaryVersion"
 $env:COLOSSEUM_APPDATA_TAG = "github-release-smoke-$env:GITHUB_RUN_ID"
 $env:COLOSSEUM_LANISTA_PIPE = "ColosseumReleaseSmoke-$env:GITHUB_RUN_ID"
 $app = Start-Process -FilePath $appExe -WorkingDirectory $installRoot -PassThru `

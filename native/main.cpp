@@ -34,6 +34,8 @@
 #include <QThread>
 #include <QTimer>
 
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <functional>
 
@@ -51,6 +53,7 @@
 #include "update/UpdateInstallBridge.h"
 #include "update/UpdateReleaseClient.h"
 #include "update/UpdateService.h"
+#include "update/UpdateUserAgent.h"
 #include "update/UpdateTrust.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
@@ -456,6 +459,10 @@ private:
 };
 
 int main(int argc, char *argv[]) {
+    if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
+        std::printf("Colosseum %s\n", COLOSSEUM_VERSION);
+        return 0;
+    }
     // mpvqt renders through OpenGL, so the whole Quick scene must use the OpenGL RHI
     // backend (set process-wide, before the QGuiApplication). Proven 2026-06-27 that
     // Colosseum's frosted glass survives this — the player path's one prerequisite.
@@ -663,7 +670,7 @@ int main(int argc, char *argv[]) {
             return;
         }
         QNetworkRequest request(url);
-        request.setRawHeader("User-Agent", "Colosseum/1.1.4");
+        request.setRawHeader("User-Agent", Colosseum::Update::updateUserAgent());
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::NoLessSafeRedirectPolicy);
         QNetworkReply *reply = updateNam->get(request);
