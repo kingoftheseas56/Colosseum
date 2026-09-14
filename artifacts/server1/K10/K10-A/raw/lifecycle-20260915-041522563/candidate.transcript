@@ -1,0 +1,2 @@
+K10 OWNED_ADD peer=77 request=52/4/9 piece=0 offset=0 length=16384 queued=1
+K10-02 LIFECYCLE PASS stop_during_on_piece=1 late_completion=0 replay=0 queued=1 framed=1

@@ -1,0 +1,35 @@
+K10 packet configure/build:
+cmd.exe /d /s /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && set "CMAKE_BUILD_PARALLEL_LEVEL=1" && "C:\Qt\Tools\CMake_64\bin\cmake.exe" -S artifacts\server1\K10\K10-A -B artifacts\server1\K10\K10-A\build -G Ninja -DCMAKE_BUILD_TYPE=Release && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts\server1\K10\K10-A\build'
+Exit: 0. Locked libtorrent production library and test executable compiled and linked.
+
+Registered K10 suite:
+cmd.exe /d /s /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && set "CMAKE_BUILD_PARALLEL_LEVEL=1" && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts\server1\K10\K10-A\build && "C:\Qt\Tools\CMake_64\bin\ctest.exe" --test-dir artifacts\server1\K10\K10-A\build --output-on-failure'
+Exit: 0. K10 registered tests 4/4 PASS.
+K10-01: peer B socket requests=1 exact=1; peer A=0; queued=1; framed=1; autonomous=0; replay=0.
+K10-02 ledger: multi-peer/head retry/reused endpoint/multi-infohash/terminal lifecycle PASS.
+K10-02 lifecycle: reverse connection order; stop during on_piece=1; late completion=0; replay=0; disconnects=A1/B1.
+K10-03: two forbidden caller-thread accesses rejected/accounted.
+Wire run: artifacts/server1/K10/K10-A/raw/wire-20260915-041511837
+Lifecycle run: artifacts/server1/K10/K10-A/raw/lifecycle-20260915-041522563
+
+P08 locked-seam regression:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green -ProbeExe artifacts/server1/P08A/bin/exact_block_probe.exe -PeerScript artifacts/server1/P08A/probe-src/tiny_peer.py
+Exit: 0. controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_replayed=0.
+Run: artifacts/server1/P08A/raw/run-20260915-042017918
+The generated P08 feasibility document was restored byte-identically and is not part of K10.
+
+Full accepted predecessor aggregate:
+cmd.exe /d /s /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && set "CMAKE_BUILD_PARALLEL_LEVEL=1" && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts\server1\INT-W3\slice3-baseline-5ed22961 && "C:\Qt\Tools\CMake_64\bin\ctest.exe" --test-dir artifacts\server1\INT-W3\slice3-baseline-5ed22961 --output-on-failure'
+Exit: 0. 39/39 PASS.
+
+Negative mutation control:
+Temporarily changed the K10-01 framed-count assertion from 1 to 2, rebuilt, and ran run_wire.ps1 on ports 49710/49711.
+Exit: 1. Exact candidate failure: `K10-01 queued/framed/autonomous counters mismatch`.
+Run: artifacts/server1/K10/K10-A/raw/wire-20260915-040944391
+The assertion was restored to 1, rebuilt, and the registered suite returned 4/4 PASS.
+
+Audits:
+git diff --check -> exit 0.
+TorrentTransport.h diff -> empty.
+Production .cpp includes from tests -> zero.
+Deferred send_block_requests() calls in K10 -> zero.

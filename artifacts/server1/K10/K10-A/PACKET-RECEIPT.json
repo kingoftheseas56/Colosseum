@@ -1,0 +1,30 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K10",
+  "worker": "K10-A",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-20260915",
+  "base": "98d1bca9a0cb4045c3839dc3ee4dc9fde48283a5",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K10/K10-A/PACKET-RECEIPT.json)",
+  "dependency": {
+    "libtorrent_version": "2.0.11.0",
+    "libtorrent_revision": "6e1587799",
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+  },
+  "cases": {
+    "K10-01": "PASS; real controlled-peer socket B observed one exact selected request, A observed zero, unowned zero, queued one, framed one, autonomous native mutation zero, replay zero",
+    "K10-02": "PASS; multi-peer queue, failed-head retry, exact cancel, endpoint replacement, multi-infohash isolation, late disconnect, stop during active on_piece, no late completion or replay",
+    "K10-03": "PASS; forbidden main and secondary caller-thread native accesses rejected and accounted"
+  },
+  "verification": {
+    "registered_k10": "4/4 PASS",
+    "p08_regression": "PASS; controlled peer/plugin 1/1, unowned zero, lifecycle replay zero",
+    "predecessor_aggregate": "39/39 PASS",
+    "negative_mutation": "PASS; framed-count 1-to-2 mutation failed K10-01, restored suite 4/4 PASS"
+  },
+  "architecture": "Selected peer network-thread callback; all pieces dont_download; exact one-shot permit before native mutation; libtorrent::cork plus add_request queued=true plus synchronous send_block_requests_impl; write_request assertion firewall; sent_request framing only.",
+  "interface_statement": "Implements the accepted TorrentTransport contract without changing TorrentTransport.h.",
+  "aggregate_registration": "pending INT-W3 B-W3D",
+  "review": "candidate/test-reported only; independent Sol and Agent 4 acceptance pending",
+  "status": "source-traced; test-authored; implementation-authored; compiled; test-executed; differentially-qualified; candidate-test-reported"
+}

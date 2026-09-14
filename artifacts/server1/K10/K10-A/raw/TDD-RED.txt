@@ -1,0 +1,3 @@
+Command: cmake -S artifacts/server1/K10/K10-A -B artifacts/server1/K10/K10-A/build -G Ninja
+Exit: 1 (expected)
+Failure: Cannot find source file native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp; production K10 implementation absent.

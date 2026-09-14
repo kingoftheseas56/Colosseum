@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K10-A",
+  "parent_packet": "K10",
+  "base": "98d1bca9a0cb4045c3839dc3ee4dc9fde48283a5",
+  "request": "INT-W3 may include the K10 packet and test manifests when forming B-W3D/G-WIRE after independent acceptance.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K10.cmake",
+    "native/colosseum_server_v1/tests/cmake/K10.cmake"
+  ],
+  "interface_changes": "No TorrentTransport.h change; K10 implements the accepted P08-T contract.",
+  "gate": "K10-A candidate/test-reported; not self-accepted.",
+  "push": "K10 commit remains on the requested Slice 3 Sol branch until parent review."
+}

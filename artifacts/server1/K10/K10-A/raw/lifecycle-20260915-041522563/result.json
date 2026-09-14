@@ -1,0 +1,14 @@
+{
+  "replayed": 0,
+  "requests": 1,
+  "unowned": 0,
+  "peer_a_disconnects": 1,
+  "peer_b_disconnects": 1,
+  "run": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\K10\\K10-A\\raw\\lifecycle-20260915-041522563",
+  "state": "PASS",
+  "schema": "colosseum-server1-k10-lifecycle/v1",
+  "late_completion": 0,
+  "exact": 1,
+  "framed": 1,
+  "stop_during_on_piece": true
+}
