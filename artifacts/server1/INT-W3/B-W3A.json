@@ -1,0 +1,53 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W3",
+  "barrier": "B-W3A",
+  "branch": "sol/server1-w3-spine-20260914",
+  "integration_base": "4cddbf88c979533b39232e68b56e87d46eed4d84",
+  "integration_sha": "fd1216a0faecc14554753ffb0d920de443c91336",
+  "predecessor_barrier": "B-W2B",
+  "predecessor_accepted_sha": "1b882bfddfaa829dbf118a5af0535900d7f73443",
+  "inputs": {
+    "K02-A": "b0a27d5d769cab9b2b46d4f6bf71cfc4ef18112f",
+    "K05-A": "d29c8b0b95d1db1f021221683b8ca3e66055f6c0",
+    "K06-A": "99122be413287e9ee5f1646423331e69590af4fd"
+  },
+  "verification": {
+    "build_dir": "artifacts/server1/INT-W3/B-W3A-fd1216a0",
+    "environment": {
+      "generator": "Ninja",
+      "compiler": "MSVC 19.44.35227.0 x64",
+      "language_standard": "C++17",
+      "runtime_library": "MultiThreadedDLL",
+      "qt": "6.11.1 msvc2022_64"
+    },
+    "configure": "PASS",
+    "build": "PASS; 43/43 steps",
+    "ctest": "PASS; 25/25 tests",
+    "baseline_regression": "PASS; retained W0-W2 inventory 16/16",
+    "packet_cases": {
+      "K02-01": "PASS",
+      "K02-02": "PASS",
+      "K02-03": "PASS",
+      "K05-01": "PASS",
+      "K05-02": "PASS",
+      "K05-03": "PASS",
+      "K06-01": "PASS",
+      "K06-02": "PASS",
+      "K06-03": "PASS"
+    },
+    "red_green_note": "The first aggregate run built all 43 steps but K05/K06 failed at process load with Windows 0xc0000135. Generated CTest metadata showed those six cases lacked the Qt runtime PATH property used by existing H00/M00 tests. Adding the same target-derived Qt6::Core path made the existing failing aggregate cases pass, then a fresh committed-tree configure/build/CTest passed 25/25."
+  },
+  "shared_surface": {
+    "aggregate_cmake_mutated_by": "INT-W3 only",
+    "production_aggregate": "native/colosseum_server_v1/CMakeLists.txt",
+    "test_aggregate": "native/colosseum_server_v1/tests/CMakeLists.txt",
+    "state": "docs/server1/STATE.json",
+    "deferred_packets_implemented": []
+  },
+  "independent_review": {
+    "reviewer": "Agent 4",
+    "verdict": "pending"
+  },
+  "status": "candidate; test-reported pending Agent 4 review"
+}
