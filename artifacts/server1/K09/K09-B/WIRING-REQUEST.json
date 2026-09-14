@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K09-B",
+  "parent_packet": "K09",
+  "base": "d41cac8acfb0ab76318d93e3a991dbaac5346157",
+  "request": "INT-W3 may include K09 packet and test manifests when forming B-W3B after K03-A and K07-A are committed.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K09.cmake",
+    "native/colosseum_server_v1/tests/cmake/K09.cmake"
+  ],
+  "interface_changes": "Produces packet-internal SwarmCapsContract and converges the K09-A PeerSearchContract; no existing public header changed.",
+  "gate": "K09-B candidate pending Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

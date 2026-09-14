@@ -1,0 +1,6 @@
+Command: cl.exe /nologo /std:c++17 /EHsc native\colosseum_server_v1\tests\test_peer_search.cpp /Fe:artifacts\server1\K09\K09-B\test_peer_search.exe; run K09-01, K09-02, K09-03
+Compile exit: 0
+K09-01 exit: 0; output: K09-01 PASS
+K09-02 exit: 0; output: K09-02 PASS
+K09-03 exit: 0; output: K09-03 PASS
+Standalone SwarmCaps.cpp compile exit: 0

@@ -1,0 +1,4 @@
+Command: cl.exe /nologo /std:c++17 /EHsc /c native\colosseum_server_v1\tests\test_peer_search.cpp /Foartifacts\server1\K09\K09-B\red.obj
+Exit: 1
+Observed: fatal error C1083: Cannot open include file: '../src/policy/SwarmCaps.cpp': No such file or directory
+Meaning: the converged K09 cases failed before the K09-B-owned caps implementation existed.
