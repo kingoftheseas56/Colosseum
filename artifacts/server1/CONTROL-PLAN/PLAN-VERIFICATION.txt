@@ -1,0 +1,22 @@
+Colosseum Server 1.0 Slice 1 — frozen plan verification
+Date: 2026-09-14
+
+Method:
+The nine-file frozen server1-v2.1-parallel authority was copied to a disposable repository-local
+scratch directory. Only the copied _verify_parallel_plan.mjs outRoot was redirected to that copy,
+then the copied verifier was executed. The Preflight authority remained read-only.
+
+Command:
+node .superpowers/tmp/server1-plan-verifier-slice1/_verify_parallel_plan.mjs
+
+Exit: 0
+Verdict: VERIFIED
+Checks: 57 passed, 0 failed
+Graph: visited 138/138
+Packets: 64
+Cases: 193
+
+Preflight VERIFICATION-RESULTS.json SHA256 before and after:
+e4cb1058e6a7d5b6b741b011dbc199232857b178054598a6a8295a564bd039d3
+
+The disposable copied files were removed after verification.

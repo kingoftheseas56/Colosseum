@@ -1,0 +1,635 @@
+{
+  "schema": "colosseum-server1-control-graph-addendum/v1",
+  "plan_version": "2.1",
+  "status": "proposed-for-agent4-acceptance",
+  "base_commit": "cbcae97986bd7891326f7835623847e14c28a8f8",
+  "purpose": "Close the remaining worker, dependency, interface, ownership, packaging, observation, and rollback seams without changing the frozen 64-packet plan or authoring production code.",
+  "frozen_authority": {
+    "package": "server1-v2.1-parallel",
+    "location_policy": "Supply the external frozen directory to the validator; no machine-local absolute path is tracked.",
+    "manifest_algorithm": "sha256(sorted UTF-8 lines: <file_sha256><two spaces><basename><LF>)",
+    "package_sha256": "5979af60150d6cb0cf73f2529a27ef3a796daa2a0b23ae38aa4fde41eebb7e2c",
+    "inputs": [
+      {
+        "path": "EXECUTION-WAVES.md",
+        "bytes": 13475,
+        "sha256": "e94c0e9a688d679be91248a76397177b8bfa3db51b19498ffa7505996e2f5233"
+      },
+      {
+        "path": "PARALLEL-DEPENDENCIES.mmd",
+        "bytes": 18097,
+        "sha256": "dc46e4fb9217df2c621788a09a6f9a481edb506cecfc2f7cf53a8a4101386276"
+      },
+      {
+        "path": "PARALLEL-EXECUTION-PLAN.md",
+        "bytes": 470456,
+        "sha256": "7d743d027abd1aad54d21d32fce4130fe117cc9f2afc97f5ad52399941db49e0"
+      },
+      {
+        "path": "PARALLEL-WORK-ITEMS.json",
+        "bytes": 670883,
+        "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7"
+      },
+      {
+        "path": "SELF-REVIEW.md",
+        "bytes": 3825,
+        "sha256": "41543e40c02417eb0cc3f83255e16585c20c08adf2245d3720afe9ad26a7a880"
+      },
+      {
+        "path": "SHARED-OWNERSHIP.md",
+        "bytes": 6570,
+        "sha256": "0b9186d9af740ef13ea8d1d53c8178f940499772c17b91f034ac6a56877dc7bd"
+      },
+      {
+        "path": "VERIFICATION-RESULTS.json",
+        "bytes": 5085,
+        "sha256": "e4cb1058e6a7d5b6b741b011dbc199232857b178054598a6a8295a564bd039d3"
+      },
+      {
+        "path": "_generate_parallel_plan.mjs",
+        "bytes": 73297,
+        "sha256": "83bc9ee22c91e242300dce5c27f7ec74bb81dae27498211aa08525dde6ada765"
+      },
+      {
+        "path": "_verify_parallel_plan.mjs",
+        "bytes": 8641,
+        "sha256": "4923db8d55617a465b470b8ef37fef0b3067ae135ed167792189dc7917493b57"
+      }
+    ]
+  },
+  "base_invariants": {
+    "master_packets": 64,
+    "planned_cases": 193,
+    "master_packet_outcomes_changed": false,
+    "case_assignments_changed": false,
+    "frozen_public_contracts_changed": false,
+    "full_composition_parent_packet": "C00",
+    "full_composition_files": [
+      "native/colosseum_server_v1/src/Runtime.cpp",
+      "native/colosseum_server_v1/src/ServerComposition.cpp",
+      "native/colosseum_server_v1/src/http/RootRoutes.cpp"
+    ],
+    "route_order": "source-ordered"
+  },
+  "workers": [
+    {
+      "worker_id": "P08-T",
+      "kind": "contract-freeze",
+      "parent_packet": "P08",
+      "wave": "W3",
+      "objective": "Freeze the production scheduler-action-to-libtorrent TorrentTransport contract before K10 implements the adapter.",
+      "dependencies": [
+        "P08-A",
+        "B-W3C"
+      ],
+      "interfaces_consumed": [
+        "G-NATIVE",
+        "TorrentTransportSeamDesign",
+        "SchedulerActionContract"
+      ],
+      "interfaces_produced": [
+        "TorrentTransportContract"
+      ],
+      "owned_files": [
+        "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
+        "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp"
+      ],
+      "acceptance_tests": [
+        "A minimal compile consumer constructs the scheduler action/observation surface against the frozen header.",
+        "Removing request ownership, generation, exact block/tail, cancellation, observation, or statistics members makes the compile consumer fail."
+      ],
+      "integration_owner": "INT-W3",
+      "review_gate": "P08-T-CONTRACT",
+      "cases": [],
+      "status": "planned"
+    },
+    {
+      "worker_id": "H02-C",
+      "kind": "standalone-host",
+      "parent_packet": "H02",
+      "wave": "W4",
+      "objective": "Build the packet-local standalone torrent host from real accepted W3 components without owning Runtime.cpp, ServerComposition.cpp, or RootRoutes.cpp.",
+      "dependencies": [
+        "B-W3G",
+        "P08-T"
+      ],
+      "interfaces_consumed": [
+        "RuntimeSkeleton",
+        "TorrentTransportContract",
+        "TorrentHttpRoutes",
+        "EngineRegistryContract",
+        "EngineLifecycleContract"
+      ],
+      "interfaces_produced": [
+        "StandaloneTorrentHost"
+      ],
+      "owned_files": [
+        "native/colosseum_server_v1/host/main.cpp",
+        "native/colosseum_server_v1/tests/test_standalone_torrent_host.cpp",
+        "native/colosseum_server_v1/cmake/packets/H02.cmake",
+        "native/colosseum_server_v1/tests/cmake/H02.cmake"
+      ],
+      "acceptance_tests": [
+        "A minimal compile consumer links the host factory to the accepted W3 libraries without Runtime.cpp, ServerComposition.cpp, or RootRoutes.cpp.",
+        "The standalone lifecycle test proves dynamic bind, readiness, request service, drain, and clean shutdown before G-TORRENT."
+      ],
+      "integration_owner": "INT-W4",
+      "review_gate": "H02-C-HOST",
+      "cases": [],
+      "status": "planned"
+    },
+    {
+      "worker_id": "INT-W4",
+      "kind": "integration",
+      "parent_packet": "CONTROL",
+      "wave": "W4",
+      "objective": "Act as the sole W4 aggregate-registry, state-ledger, and checkpoint mutation owner through B-W4A and B-W4B.",
+      "dependencies": [
+        "B-W3G"
+      ],
+      "interfaces_consumed": [
+        "Accepted worker commits",
+        "WIRING-REQUEST.json",
+        "previous barrier receipt"
+      ],
+      "interfaces_produced": [
+        "B-W4A",
+        "B-W4B"
+      ],
+      "owned_files": [
+        "native/colosseum_server_v1/CMakeLists.txt",
+        "native/colosseum_server_v1/tests/CMakeLists.txt",
+        "docs/server1/STATE.json",
+        "docs/server1/checkpoints/G-TORRENT.json",
+        "docs/server1/checkpoints/G-EMBED-EARLY.json"
+      ],
+      "acceptance_tests": [
+        "Every W4 checkpoint mutation names INT-W4 and binds the accepted integrated SHA; no producer self-greens its parent."
+      ],
+      "integration_owner": "INT-W4",
+      "review_gate": "B-W4A, B-W4B",
+      "cases": [],
+      "status": "planned"
+    },
+    {
+      "worker_id": "C02-D",
+      "kind": "release-integration",
+      "parent_packet": "C02",
+      "wave": "W9",
+      "objective": "Own serialized desktop release-package mutation before independent Windows and Linux package qualification.",
+      "dependencies": [
+        "B-W9A"
+      ],
+      "interfaces_consumed": [
+        "G-COMPOSITION",
+        "G-INTEGRATION"
+      ],
+      "interfaces_produced": [
+        "DesktopReleasePackage"
+      ],
+      "owned_files": [
+        "native/build-target.bat",
+        "scripts/installer/package_release.sh",
+        "scripts/installer/colosseum.nsi",
+        "scripts/publish_app_release.py",
+        ".github/workflows/release-installer-smoke.yml",
+        "docs/build/windows.md",
+        "docs/build/linux.md",
+        "tests/test_server1_release_package.py"
+      ],
+      "acceptance_tests": [
+        "Package-content assertions reject stale stremio-runtime.exe or server.js assets and require the reviewed Server 1.0 build identity.",
+        "Windows installer and Linux package lanes each earn independent build, install, launch, playback, shutdown, and restart receipts."
+      ],
+      "integration_owner": "C02-D",
+      "review_gate": "DESKTOP-RELEASE-PACKAGE",
+      "cases": [],
+      "status": "planned"
+    },
+    {
+      "worker_id": "Q02-P",
+      "kind": "runtime-probe-prerequisite",
+      "parent_packet": "Q02",
+      "wave": "W10",
+      "objective": "Drive one deterministic controlled peer and torrent through the assembled packaged app and capture attributable Server 1.0, player, process, port, and handle observations before Q02 playback qualification.",
+      "dependencies": [
+        "B-W10A",
+        "C02-D"
+      ],
+      "interfaces_consumed": [
+        "G-INTEGRATION",
+        "DesktopPlatformQualification",
+        "DesktopReleasePackage",
+        "G-TORRENT"
+      ],
+      "interfaces_produced": [
+        "AssembledAppTorrentPlaybackObservation"
+      ],
+      "owned_files": [
+        "tools/server_lab/scenarios/assembled_app_torrent_playback.json",
+        "tools/server_lab/tests/test_assembled_app_observations.py",
+        "artifacts/server1/Q02/Q02-P/"
+      ],
+      "acceptance_tests": [
+        "A deterministic peer script is causally linked to demanded and served bytes, first decoded frame, seek generation, EOF/error, and shutdown.",
+        "OS process, listener port, and handle witnesses reject a hidden sidecar or leaked owner; QML state alone cannot prove absence."
+      ],
+      "integration_owner": "Q02-P",
+      "review_gate": "Q02-P-OBSERVATION",
+      "cases": [],
+      "status": "planned"
+    }
+  ],
+  "worker_patches": [
+    {
+      "worker_id": "P03-A",
+      "remove_owned_files": [
+        "native/colosseum_server_v1/host/main.cpp"
+      ]
+    },
+    {
+      "worker_id": "K10-A",
+      "add_interfaces_consumed": [
+        "TorrentTransportContract"
+      ],
+      "remove_interfaces_produced": [
+        "TorrentTransportContract"
+      ],
+      "remove_owned_files": [
+        "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h"
+      ]
+    },
+    {
+      "worker_id": "H02-B",
+      "add_interfaces_consumed": [
+        "StandaloneTorrentHost"
+      ],
+      "remove_owned_files": [
+        "docs/server1/checkpoints/G-TORRENT.json"
+      ]
+    },
+    {
+      "worker_id": "C02-A",
+      "add_interfaces_consumed": [
+        "DesktopReleasePackage"
+      ]
+    },
+    {
+      "worker_id": "C02-B",
+      "add_interfaces_consumed": [
+        "DesktopReleasePackage"
+      ]
+    },
+    {
+      "worker_id": "Q02-A",
+      "add_interfaces_consumed": [
+        "AssembledAppTorrentPlaybackObservation"
+      ]
+    },
+    {
+      "worker_id": "Q02-B",
+      "add_interfaces_consumed": [
+        "AssembledAppTorrentPlaybackObservation"
+      ]
+    },
+    {
+      "worker_id": "Q04-A",
+      "add_interfaces_consumed": [
+        "RollbackArtifact"
+      ]
+    }
+  ],
+  "required_edges": [
+    {
+      "id": "K02-A->K06-A",
+      "from": "K02-A",
+      "to": "K06-A",
+      "reason": "PieceStore consumes PieceBufferContract; K06 may not launch in the first W3 batch."
+    },
+    {
+      "id": "K09-A->K09-B",
+      "from": "K09-A",
+      "to": "K09-B",
+      "reason": "SwarmCaps consumes PeerSearchContract; K09-B follows K09-A."
+    },
+    {
+      "id": "M05-A->M05-B",
+      "from": "M05-A",
+      "to": "M05-B",
+      "reason": "FFmpeg argv construction consumes the accepted track conversion policy."
+    },
+    {
+      "id": "Q00-A->Q00-B",
+      "from": "Q00-A",
+      "to": "Q00-B",
+      "reason": "Omission accounting consumes the completed parity matrix."
+    },
+    {
+      "id": "Q01-A->Q01-B",
+      "from": "Q01-A",
+      "to": "Q01-B",
+      "reason": "Lifecycle reconciliation consumes the native stress receipt."
+    },
+    {
+      "id": "P08-A->P08-T",
+      "from": "P08-A",
+      "to": "P08-T",
+      "reason": "The production contract promotes only the accepted feasibility seam."
+    },
+    {
+      "id": "B-W3C->P08-T",
+      "from": "B-W3C",
+      "to": "P08-T",
+      "reason": "The transport contract is frozen only after SchedulerActionContract."
+    },
+    {
+      "id": "P08-T->K10-A",
+      "from": "P08-T",
+      "to": "K10-A",
+      "reason": "K10 implements the already-frozen TorrentTransport contract."
+    },
+    {
+      "id": "B-W3G->H02-C",
+      "from": "B-W3G",
+      "to": "H02-C",
+      "reason": "The standalone host composes only the complete accepted W3 torrent slice."
+    },
+    {
+      "id": "P08-T->H02-C",
+      "from": "P08-T",
+      "to": "H02-C",
+      "reason": "The standalone host consumes the frozen transport contract."
+    },
+    {
+      "id": "H02-C->H02-B",
+      "from": "H02-C",
+      "to": "H02-B",
+      "reason": "G-TORRENT cannot execute against the non-streaming P03 skeleton."
+    },
+    {
+      "id": "B-W3G->INT-W4",
+      "from": "B-W3G",
+      "to": "INT-W4",
+      "reason": "W4 integration ownership begins only after W3 acceptance."
+    },
+    {
+      "id": "INT-W4->B-W4A",
+      "from": "INT-W4",
+      "to": "B-W4A",
+      "reason": "INT-W4 alone records the G-TORRENT checkpoint and barrier state."
+    },
+    {
+      "id": "INT-W4->B-W4B",
+      "from": "INT-W4",
+      "to": "B-W4B",
+      "reason": "INT-W4 alone records the G-EMBED-EARLY checkpoint and barrier state."
+    },
+    {
+      "id": "B-W9A->C02-D",
+      "from": "B-W9A",
+      "to": "C02-D",
+      "reason": "Release-package mutation starts only after full app integration."
+    },
+    {
+      "id": "C02-D->C02-A",
+      "from": "C02-D",
+      "to": "C02-A",
+      "reason": "Windows qualifies the serialized current package, not obsolete sidecar assets."
+    },
+    {
+      "id": "C02-D->C02-B",
+      "from": "C02-D",
+      "to": "C02-B",
+      "reason": "Linux qualifies the serialized current package, not a candidate-only path."
+    },
+    {
+      "id": "B-W10A->Q02-P",
+      "from": "B-W10A",
+      "to": "Q02-P",
+      "reason": "The assembled-app probe starts after parity and lifecycle prerequisites."
+    },
+    {
+      "id": "C02-D->Q02-P",
+      "from": "C02-D",
+      "to": "Q02-P",
+      "reason": "The deterministic journey must drive the serialized release package."
+    },
+    {
+      "id": "Q02-P->Q02-A",
+      "from": "Q02-P",
+      "to": "Q02-A",
+      "reason": "Player acceptance requires attributable torrent-to-player observations."
+    },
+    {
+      "id": "Q02-P->Q02-B",
+      "from": "Q02-P",
+      "to": "Q02-B",
+      "reason": "Playback soak requires the same deterministic observation seam."
+    },
+    {
+      "id": "G-ROLLBACK-ARTIFACT->Q04-A",
+      "from": "G-ROLLBACK-ARTIFACT",
+      "to": "Q04-A",
+      "reason": "Cutover cannot proceed without one explicitly qualified rollback artifact."
+    }
+  ],
+  "dispatch_overrides": [
+    {
+      "wave": "W3",
+      "stages": [
+        "K02-A and K05-A may start after B-W2B; K06-A waits for K02-A.",
+        "K09-A starts after B-W3A; K09-B waits for K09-A.",
+        "P08-T starts after B-W3C; K10-A waits for P08-T."
+      ]
+    },
+    {
+      "wave": "W4",
+      "stages": [
+        "H02-A and H02-C may start after B-W3G; H02-B waits for both.",
+        "INT-W4 alone mutates aggregate registries, STATE.json, and W4 checkpoint files."
+      ]
+    },
+    {
+      "wave": "W7",
+      "stages": [
+        "M05-A starts in the first batch; M05-B waits for M05-A."
+      ]
+    },
+    {
+      "wave": "W9",
+      "stages": [
+        "C02-D serially updates release-package surfaces after B-W9A.",
+        "C02-A and C02-B qualify the resulting package before C02-C closes the platform matrix."
+      ]
+    },
+    {
+      "wave": "W10",
+      "stages": [
+        "Q00-A precedes Q00-B and Q01-A precedes Q01-B.",
+        "Q02-P follows B-W10A and precedes Q02-A and Q02-B."
+      ]
+    }
+  ],
+  "interface_aliases": [
+    {
+      "id": "HlsV2RouteSurface->G-MEDIA-V2",
+      "kind": "route-surface",
+      "producer_worker": "M06-B",
+      "source_interface": "HlsV2RouteSurface",
+      "target_interface": "G-MEDIA-V2",
+      "consumer_workers": [
+        "C00-A",
+        "C00-B",
+        "C00-C"
+      ],
+      "preserve_source_order": true
+    },
+    {
+      "id": "G-PLATFORM->DesktopPlatformQualification",
+      "kind": "platform-barrier",
+      "producer_worker": "C02-C",
+      "source_interface": "G-PLATFORM",
+      "target_interface": "DesktopPlatformQualification",
+      "consumer_workers": [
+        "Q00-A",
+        "Q00-B",
+        "Q01-A",
+        "Q01-B",
+        "Q02-P",
+        "Q04-A"
+      ],
+      "preserve_source_order": false
+    }
+  ],
+  "semantic_contracts": [
+    {
+      "interface": "TorrentTransportContract",
+      "producer_worker": "P08-T",
+      "consumer_workers": [
+        "K10-A",
+        "K11-A",
+        "H02-A",
+        "H02-B",
+        "H02-C",
+        "C03-A",
+        "C03-B"
+      ]
+    },
+    {
+      "interface": "StandaloneTorrentHost",
+      "producer_worker": "H02-C",
+      "consumer_workers": [
+        "H02-B"
+      ]
+    },
+    {
+      "interface": "DesktopReleasePackage",
+      "producer_worker": "C02-D",
+      "consumer_workers": [
+        "C02-A",
+        "C02-B",
+        "Q02-P"
+      ]
+    },
+    {
+      "interface": "AssembledAppTorrentPlaybackObservation",
+      "producer_worker": "Q02-P",
+      "consumer_workers": [
+        "Q02-A",
+        "Q02-B"
+      ]
+    }
+  ],
+  "exclusive_owners": [
+    {
+      "id": "torrent-transport-public-contract",
+      "owner_worker": "P08-T",
+      "phase": "W3-contract-freeze",
+      "paths": [
+        "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h"
+      ],
+      "supersedes_worker": "K10-A"
+    },
+    {
+      "id": "standalone-torrent-host",
+      "owner_worker": "H02-C",
+      "phase": "W4-standalone-qualification",
+      "paths": [
+        "native/colosseum_server_v1/host/main.cpp",
+        "native/colosseum_server_v1/tests/test_standalone_torrent_host.cpp"
+      ],
+      "supersedes_worker": "P03-A"
+    },
+    {
+      "id": "w4-state-checkpoint-mutation",
+      "owner_worker": "INT-W4",
+      "phase": "W4",
+      "paths": [
+        "native/colosseum_server_v1/CMakeLists.txt",
+        "native/colosseum_server_v1/tests/CMakeLists.txt",
+        "docs/server1/STATE.json",
+        "docs/server1/checkpoints/G-TORRENT.json",
+        "docs/server1/checkpoints/G-EMBED-EARLY.json"
+      ],
+      "supersedes_worker": "INT-W3"
+    },
+    {
+      "id": "desktop-release-package-mutation",
+      "owner_worker": "C02-D",
+      "phase": "W9-release-packaging",
+      "paths": [
+        "native/build-target.bat",
+        "scripts/installer/package_release.sh",
+        "scripts/installer/colosseum.nsi",
+        "scripts/publish_app_release.py",
+        ".github/workflows/release-installer-smoke.yml",
+        "docs/build/windows.md",
+        "docs/build/linux.md",
+        "tests/test_server1_release_package.py"
+      ],
+      "supersedes_worker": null
+    },
+    {
+      "id": "assembled-app-torrent-playback-probe",
+      "owner_worker": "Q02-P",
+      "phase": "W10-playback-prerequisite",
+      "paths": [
+        "tools/server_lab/scenarios/assembled_app_torrent_playback.json",
+        "tools/server_lab/tests/test_assembled_app_observations.py",
+        "artifacts/server1/Q02/Q02-P/"
+      ],
+      "supersedes_worker": null
+    }
+  ],
+  "conditional_dependencies": [
+    {
+      "id": "Q04-ROLLBACK-ARTIFACT",
+      "consumer_worker": "Q04-A",
+      "virtual_gate": "G-ROLLBACK-ARTIFACT",
+      "produces_interface": "RollbackArtifact",
+      "selection": "exactly-one-approved-option",
+      "options": [
+        {
+          "id": "buildable-p01b",
+          "source_worker": "P01B-A",
+          "required_evidence": [
+            "pinned source and build identity",
+            "successful package build",
+            "rollback startup and owned-settings migration test",
+            "no deletion of user downloads or cache"
+          ]
+        },
+        {
+          "id": "approved-current-sidecar",
+          "source_worker": null,
+          "required_evidence": [
+            "pinned current-sidecar source and package identity",
+            "explicit Agent 4 approval for this candidate",
+            "rollback startup and owned-settings migration test",
+            "no deletion of user downloads or cache"
+          ]
+        }
+      ]
+    }
+  ]
+}

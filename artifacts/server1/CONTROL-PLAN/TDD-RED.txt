@@ -1,0 +1,22 @@
+Colosseum Server 1.0 Slice 1 semantic graph validator — TDD RED
+Date: 2026-09-14
+
+Command:
+$env:SERVER1_FROZEN_PLAN_DIR='C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel'
+node --test artifacts/server1/CONTROL-PLAN/test-control-graph.mjs
+
+Exit: 1
+Expected first failure:
+ERR_MODULE_NOT_FOUND: artifacts/server1/CONTROL-PLAN/verify-control-graph.mjs
+
+The tests existed before the validator/addendum implementation. The missing validator was the
+intended seam failure.
+
+First implementation run:
+Exit: 1
+Tests: 40 passed, 1 failed
+Expected implementation defects exposed by the canonical test:
+- frozen authority package digest ordering did not match the pinned manifest algorithm;
+- case inventory was read from master packets instead of the worker case assignments.
+
+Both defects were fixed in the validator. No production source was authored during either RED run.

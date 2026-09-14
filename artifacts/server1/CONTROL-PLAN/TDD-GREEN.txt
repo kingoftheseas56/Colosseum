@@ -1,0 +1,21 @@
+Colosseum Server 1.0 Slice 1 semantic graph validator — TDD GREEN
+Date: 2026-09-14
+
+Command:
+$env:SERVER1_FROZEN_PLAN_DIR='C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel'
+node --test artifacts/server1/CONTROL-PLAN/test-control-graph.mjs
+
+Exit: 0
+Tests: 41 passed, 0 failed
+Duration: 581.1321 ms
+
+Negative-control coverage:
+- 5/5 required workers rejected when individually removed;
+- 22/22 required dependency/dispatch edges rejected when individually removed;
+- 2/2 interface aliases rejected when individually removed;
+- 5/5 exclusive ownership scopes rejected when individually removed;
+- the Q04 conditional rollback rule rejected when removed;
+- one frozen-authority digest mutation rejected.
+
+The canonical addendum test also passed with 64 packets, 193 cases, 9 frozen inputs, 5 added
+workers, 22 required edges, 2 aliases, 5 owners, and 1 rollback rule.

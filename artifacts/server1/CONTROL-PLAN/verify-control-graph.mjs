@@ -1,0 +1,408 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const REQUIRED_AUTHORITY_INPUTS = [
+  'EXECUTION-WAVES.md',
+  'PARALLEL-DEPENDENCIES.mmd',
+  'PARALLEL-EXECUTION-PLAN.md',
+  'PARALLEL-WORK-ITEMS.json',
+  'SELF-REVIEW.md',
+  'SHARED-OWNERSHIP.md',
+  'VERIFICATION-RESULTS.json',
+  '_generate_parallel_plan.mjs',
+  '_verify_parallel_plan.mjs'
+];
+const REQUIRED_WORKERS = ['P08-T', 'H02-C', 'INT-W4', 'C02-D', 'Q02-P'];
+const REQUIRED_EDGES = [
+  'K02-A->K06-A',
+  'K09-A->K09-B',
+  'M05-A->M05-B',
+  'Q00-A->Q00-B',
+  'Q01-A->Q01-B',
+  'P08-A->P08-T',
+  'B-W3C->P08-T',
+  'P08-T->K10-A',
+  'B-W3G->H02-C',
+  'P08-T->H02-C',
+  'H02-C->H02-B',
+  'B-W3G->INT-W4',
+  'INT-W4->B-W4A',
+  'INT-W4->B-W4B',
+  'B-W9A->C02-D',
+  'C02-D->C02-A',
+  'C02-D->C02-B',
+  'B-W10A->Q02-P',
+  'C02-D->Q02-P',
+  'Q02-P->Q02-A',
+  'Q02-P->Q02-B',
+  'G-ROLLBACK-ARTIFACT->Q04-A'
+];
+const REQUIRED_ALIASES = {
+  'HlsV2RouteSurface->G-MEDIA-V2': {
+    producer: 'M06-B',
+    source: 'HlsV2RouteSurface',
+    target: 'G-MEDIA-V2',
+    consumers: ['C00-A', 'C00-B', 'C00-C']
+  },
+  'G-PLATFORM->DesktopPlatformQualification': {
+    producer: 'C02-C',
+    source: 'G-PLATFORM',
+    target: 'DesktopPlatformQualification',
+    consumers: ['Q00-A', 'Q00-B', 'Q01-A', 'Q01-B', 'Q02-P', 'Q04-A']
+  }
+};
+const REQUIRED_OWNERS = {
+  'torrent-transport-public-contract': 'P08-T',
+  'standalone-torrent-host': 'H02-C',
+  'w4-state-checkpoint-mutation': 'INT-W4',
+  'desktop-release-package-mutation': 'C02-D',
+  'assembled-app-torrent-playback-probe': 'Q02-P'
+};
+const REQUIRED_CONTRACTS = {
+  TorrentTransportContract: {
+    producer: 'P08-T',
+    consumers: ['K10-A', 'K11-A', 'H02-A', 'H02-B', 'H02-C', 'C03-A', 'C03-B']
+  },
+  StandaloneTorrentHost: {
+    producer: 'H02-C',
+    consumers: ['H02-B']
+  },
+  DesktopReleasePackage: {
+    producer: 'C02-D',
+    consumers: ['C02-A', 'C02-B', 'Q02-P']
+  },
+  AssembledAppTorrentPlaybackObservation: {
+    producer: 'Q02-P',
+    consumers: ['Q02-A', 'Q02-B']
+  }
+};
+
+const sorted = values => [...values].sort();
+const sameSet = (actual, expected) =>
+  JSON.stringify(sorted(new Set(actual))) === JSON.stringify(sorted(new Set(expected)));
+const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+const array = value => Array.isArray(value) ? value : [];
+
+export class ControlGraphValidationError extends Error {
+  constructor(failures) {
+    super(`control graph validation failed (${failures.length})`);
+    this.name = 'ControlGraphValidationError';
+    this.failures = failures;
+  }
+}
+
+function applyWorkerPatches(workerMap, patches, check) {
+  for (const patch of array(patches)) {
+    const worker = workerMap.get(patch.worker_id);
+    check(Boolean(worker), `worker patch target exists: ${patch.worker_id}`);
+    if (!worker) continue;
+    for (const [addField, field] of [
+      ['add_interfaces_consumed', 'interfaces_consumed'],
+      ['add_interfaces_produced', 'interfaces_produced'],
+      ['add_owned_files', 'owned_files']
+    ]) {
+      if (patch[addField]) worker[field] = [...new Set([...array(worker[field]), ...array(patch[addField])])];
+    }
+    for (const [removeField, field] of [
+      ['remove_interfaces_consumed', 'interfaces_consumed'],
+      ['remove_interfaces_produced', 'interfaces_produced'],
+      ['remove_owned_files', 'owned_files']
+    ]) {
+      if (patch[removeField]) {
+        const remove = new Set(array(patch[removeField]));
+        worker[field] = array(worker[field]).filter(value => !remove.has(value));
+      }
+    }
+  }
+}
+
+function interfaceIndex(workerMap, field) {
+  const index = new Map();
+  for (const worker of workerMap.values()) {
+    for (const name of array(worker[field])) {
+      if (!index.has(name)) index.set(name, []);
+      index.get(name).push(worker.worker_id);
+    }
+  }
+  return index;
+}
+
+export function validateControlGraph({ basePlan, addendum, authorityRoot }) {
+  const failures = [];
+  const pass = [];
+  const check = (condition, name, detail = '') => {
+    (condition ? pass : failures).push(detail ? `${name}: ${detail}` : name);
+  };
+
+  check(addendum?.schema === 'colosseum-server1-control-graph-addendum/v1', 'recognized addendum schema');
+  check(addendum?.plan_version === '2.1', 'plan version remains 2.1');
+  check(addendum?.base_commit === 'cbcae97986bd7891326f7835623847e14c28a8f8', 'accepted B-W2B base is pinned');
+
+  const authorityInputs = array(addendum?.frozen_authority?.inputs);
+  check(sameSet(authorityInputs.map(input => input.path), REQUIRED_AUTHORITY_INPUTS), 'all frozen authority inputs are pinned exactly once');
+  check(authorityInputs.length === new Set(authorityInputs.map(input => input.path)).size, 'authority input paths are unique');
+  const manifestLines = [];
+  let verifiedAuthorityInputs = 0;
+  for (const input of sorted(authorityInputs.map(entry => entry.path))) {
+    const entry = authorityInputs.find(candidate => candidate.path === input);
+    const file = authorityRoot ? path.join(authorityRoot, input) : '';
+    check(Boolean(authorityRoot), 'frozen authority root supplied');
+    check(Boolean(file) && fs.existsSync(file), `frozen authority input exists: ${input}`);
+    if (!file || !fs.existsSync(file)) continue;
+    const bytes = fs.readFileSync(file);
+    const digest = sha256(bytes);
+    check(bytes.length === entry.bytes, `frozen authority byte count matches: ${input}`, `${bytes.length}/${entry.bytes}`);
+    check(digest === entry.sha256, `frozen authority SHA256 matches: ${input}`, `${digest}/${entry.sha256}`);
+    if (bytes.length === entry.bytes && digest === entry.sha256) verifiedAuthorityInputs++;
+    manifestLines.push(`${digest}  ${input}\n`);
+  }
+  const packageDigest = sha256(Buffer.from(manifestLines.join(''), 'utf8'));
+  check(
+    addendum?.frozen_authority?.manifest_algorithm === 'sha256(sorted UTF-8 lines: <file_sha256><two spaces><basename><LF>)',
+    'package digest algorithm is explicit'
+  );
+  check(packageDigest === addendum?.frozen_authority?.package_sha256, 'frozen authority package digest matches', packageDigest);
+
+  const frozenResultPath = authorityRoot ? path.join(authorityRoot, 'VERIFICATION-RESULTS.json') : '';
+  let frozenResult = null;
+  if (frozenResultPath && fs.existsSync(frozenResultPath)) {
+    try {
+      frozenResult = JSON.parse(fs.readFileSync(frozenResultPath, 'utf8'));
+    } catch (error) {
+      failures.push(`frozen verification result parses: ${error.message}`);
+    }
+  }
+  check(frozenResult?.verdict === 'VERIFIED', 'frozen graph verifier verdict is VERIFIED');
+  check(frozenResult?.checks_passed === 57 && frozenResult?.checks_failed === 0, 'frozen graph verifier remains 57/57');
+
+  const packetCount = array(basePlan?.master_packets).length;
+  const caseIds = array(basePlan?.workers).flatMap(worker => array(worker.cases));
+  check(packetCount === 64, 'all 64 master packets preserved', String(packetCount));
+  check(caseIds.length === 193 && new Set(caseIds).size === 193, 'all 193 cases preserved exactly once', String(caseIds.length));
+  check(addendum?.base_invariants?.master_packets === 64, 'addendum pins 64 master packets');
+  check(addendum?.base_invariants?.planned_cases === 193, 'addendum pins 193 cases');
+  check(addendum?.base_invariants?.master_packet_outcomes_changed === false, 'master packet outcomes are unchanged');
+  check(addendum?.base_invariants?.case_assignments_changed === false, 'case assignments are unchanged');
+  check(addendum?.base_invariants?.frozen_public_contracts_changed === false, 'frozen public contracts are unchanged in this slice');
+
+  const addedWorkers = array(addendum?.workers);
+  check(sameSet(addedWorkers.map(worker => worker.worker_id), REQUIRED_WORKERS), 'all five graph-repair workers are present exactly');
+  check(addedWorkers.length === new Set(addedWorkers.map(worker => worker.worker_id)).size, 'added worker IDs are unique');
+  const baseWorkerIds = new Set(array(basePlan?.workers).map(worker => worker.worker_id));
+  for (const worker of addedWorkers) {
+    check(!baseWorkerIds.has(worker.worker_id), `added worker does not collide with frozen graph: ${worker.worker_id}`);
+    check(worker.status === 'planned', `added worker remains planned: ${worker.worker_id}`);
+    check(array(worker.cases).length === 0, `added worker does not change case inventory: ${worker.worker_id}`);
+    check(array(worker.owned_files).length > 0, `added worker has bounded ownership: ${worker.worker_id}`);
+    check(array(worker.acceptance_tests).length > 0, `added worker has mandatory acceptance tests: ${worker.worker_id}`);
+  }
+
+  const workerMap = new Map();
+  for (const worker of [...array(basePlan?.workers), ...addedWorkers]) {
+    workerMap.set(worker.worker_id, structuredClone(worker));
+  }
+  applyWorkerPatches(workerMap, addendum?.worker_patches, check);
+
+  const edgeRecords = array(addendum?.required_edges);
+  check(sameSet(edgeRecords.map(edge => edge.id), REQUIRED_EDGES), 'every required dependency and dispatch edge is declared');
+  check(edgeRecords.length === new Set(edgeRecords.map(edge => edge.id)).size, 'required edge IDs are unique');
+  for (const edge of edgeRecords) {
+    check(edge.id === `${edge.from}->${edge.to}`, `edge ID matches endpoints: ${edge.id}`);
+    check(typeof edge.reason === 'string' && edge.reason.length > 0, `edge has rationale: ${edge.id}`);
+  }
+
+  const conditionalDependencies = array(addendum?.conditional_dependencies);
+  const rollback = conditionalDependencies.find(rule => rule.id === 'Q04-ROLLBACK-ARTIFACT');
+  check(conditionalDependencies.length === 1 && Boolean(rollback), 'exactly one Q04 rollback dependency rule exists');
+  check(rollback?.consumer_worker === 'Q04-A', 'rollback rule gates Q04-A');
+  check(rollback?.virtual_gate === 'G-ROLLBACK-ARTIFACT', 'rollback rule exposes the required virtual gate');
+  check(rollback?.produces_interface === 'RollbackArtifact', 'rollback gate produces RollbackArtifact');
+  check(rollback?.selection === 'exactly-one-approved-option', 'rollback artifact selection is exclusive and approved');
+  check(sameSet(array(rollback?.options).map(option => option.id), ['buildable-p01b', 'approved-current-sidecar']), 'rollback rule has only the two approved alternatives');
+  const sidecarOption = array(rollback?.options).find(option => option.id === 'approved-current-sidecar');
+  check(array(sidecarOption?.required_evidence).some(item => item.includes('explicit Agent 4 approval')), 'current-sidecar rollback requires specific approval');
+  const p01bOption = array(rollback?.options).find(option => option.id === 'buildable-p01b');
+  check(p01bOption?.source_worker === 'P01B-A', 'buildable rollback alternative is P01B-A');
+
+  const virtualNodes = new Set(conditionalDependencies.map(rule => rule.virtual_gate));
+  const dependencies = new Map();
+  for (const worker of workerMap.values()) dependencies.set(worker.worker_id, [...array(worker.dependencies)]);
+  for (const barrier of array(basePlan?.barriers)) dependencies.set(barrier.id, [...array(barrier.dependencies)]);
+  for (const virtualNode of virtualNodes) dependencies.set(virtualNode, []);
+  for (const edge of edgeRecords) {
+    check(dependencies.has(edge.from), `edge source exists: ${edge.id}`);
+    check(dependencies.has(edge.to), `edge target exists: ${edge.id}`);
+    if (dependencies.has(edge.to) && !dependencies.get(edge.to).includes(edge.from)) dependencies.get(edge.to).push(edge.from);
+  }
+  for (const workerId of REQUIRED_WORKERS) {
+    const worker = workerMap.get(workerId);
+    const declaredIncoming = edgeRecords.filter(edge => edge.to === workerId).map(edge => edge.from);
+    check(Boolean(worker) && sameSet(array(worker.dependencies), declaredIncoming), `new worker dependencies are fully declared as required edges: ${workerId}`);
+  }
+  for (const [node, deps] of dependencies) {
+    for (const dependency of deps) check(dependencies.has(dependency), `graph dependency exists: ${dependency}->${node}`);
+  }
+
+  const indegree = new Map([...dependencies].map(([node, deps]) => [node, deps.length]));
+  const outgoing = new Map([...dependencies.keys()].map(node => [node, []]));
+  for (const [node, deps] of dependencies) {
+    for (const dependency of deps) if (outgoing.has(dependency)) outgoing.get(dependency).push(node);
+  }
+  const queue = [...indegree].filter(([, degree]) => degree === 0).map(([node]) => node);
+  let visited = 0;
+  while (queue.length) {
+    const node = queue.shift();
+    visited++;
+    for (const next of outgoing.get(node) || []) {
+      indegree.set(next, indegree.get(next) - 1);
+      if (indegree.get(next) === 0) queue.push(next);
+    }
+  }
+  check(visited === dependencies.size, 'amended worker and barrier graph is acyclic', `${visited}/${dependencies.size}`);
+  const reaches = (from, to) => {
+    const seen = new Set([from]);
+    const pending = [from];
+    while (pending.length) {
+      const node = pending.shift();
+      if (node === to) return true;
+      for (const next of outgoing.get(node) || []) {
+        if (!seen.has(next)) {
+          seen.add(next);
+          pending.push(next);
+        }
+      }
+    }
+    return false;
+  };
+  for (const edge of edgeRecords) check(reaches(edge.from, edge.to), `required edge is reachable: ${edge.id}`);
+  const dispatchWaves = array(addendum?.dispatch_overrides).map(override => override.wave);
+  check(sameSet(dispatchWaves, ['W3', 'W4', 'W7', 'W9', 'W10']), 'dispatch overrides cover every corrected wave');
+
+  const produced = interfaceIndex(workerMap, 'interfaces_produced');
+  const consumed = interfaceIndex(workerMap, 'interfaces_consumed');
+  const aliases = array(addendum?.interface_aliases);
+  check(sameSet(aliases.map(alias => alias.id), Object.keys(REQUIRED_ALIASES)), 'both required interface aliases are declared');
+  check(aliases.length === new Set(aliases.map(alias => alias.id)).size, 'interface alias IDs are unique');
+  for (const [aliasId, expected] of Object.entries(REQUIRED_ALIASES)) {
+    const alias = aliases.find(candidate => candidate.id === aliasId);
+    check(Boolean(alias), `interface alias exists: ${aliasId}`);
+    if (!alias) continue;
+    check(alias.producer_worker === expected.producer, `alias producer matches: ${aliasId}`);
+    check(alias.source_interface === expected.source && alias.target_interface === expected.target, `alias endpoints match: ${aliasId}`);
+    check(sameSet(array(alias.consumer_workers), expected.consumers), `alias consumer closure is exact: ${aliasId}`);
+    check(sameSet(produced.get(alias.source_interface) || [], [alias.producer_worker]), `alias source has one producer: ${aliasId}`);
+    check(sameSet(consumed.get(alias.target_interface) || [], expected.consumers), `alias target covers every consumer: ${aliasId}`);
+    for (const consumer of expected.consumers) check(reaches(alias.producer_worker, consumer), `alias producer precedes consumer: ${aliasId}:${consumer}`);
+  }
+  const routeAlias = aliases.find(alias => alias.id === 'HlsV2RouteSurface->G-MEDIA-V2');
+  check(routeAlias?.kind === 'route-surface' && routeAlias?.preserve_source_order === true, 'G-MEDIA-V2 alias preserves source-ordered routes');
+
+  const contracts = array(addendum?.semantic_contracts);
+  check(sameSet(contracts.map(contract => contract.interface), Object.keys(REQUIRED_CONTRACTS)), 'new semantic contract catalog is complete');
+  for (const [interfaceName, expected] of Object.entries(REQUIRED_CONTRACTS)) {
+    const contract = contracts.find(candidate => candidate.interface === interfaceName);
+    check(Boolean(contract), `semantic contract exists: ${interfaceName}`);
+    if (!contract) continue;
+    check(contract.producer_worker === expected.producer, `semantic producer matches: ${interfaceName}`);
+    check(sameSet(array(contract.consumer_workers), expected.consumers), `semantic consumers match: ${interfaceName}`);
+    check(sameSet(produced.get(interfaceName) || [], [expected.producer]), `semantic interface has exactly one producer: ${interfaceName}`);
+    check(sameSet(consumed.get(interfaceName) || [], expected.consumers), `semantic interface closes every consumer: ${interfaceName}`);
+    for (const consumer of expected.consumers) check(reaches(expected.producer, consumer), `semantic producer precedes consumer: ${interfaceName}:${consumer}`);
+  }
+
+  const owners = array(addendum?.exclusive_owners);
+  check(sameSet(owners.map(owner => owner.id), Object.keys(REQUIRED_OWNERS)), 'all five exclusive ownership records are present');
+  check(owners.length === new Set(owners.map(owner => owner.id)).size, 'exclusive owner IDs are unique');
+  check(owners.length === new Set(owners.map(owner => owner.owner_worker)).size, 'each new shared scope has one distinct owner');
+  const ownedScopePaths = new Set();
+  for (const [ownerId, expectedWorker] of Object.entries(REQUIRED_OWNERS)) {
+    const owner = owners.find(candidate => candidate.id === ownerId);
+    check(Boolean(owner), `exclusive owner exists: ${ownerId}`);
+    if (!owner) continue;
+    check(owner.owner_worker === expectedWorker, `exclusive owner worker matches: ${ownerId}`);
+    const worker = workerMap.get(expectedWorker);
+    check(Boolean(worker), `exclusive owner worker exists: ${ownerId}`);
+    for (const ownedPath of array(owner.paths)) {
+      check(!ownedScopePaths.has(ownedPath), `exclusive ownership scopes do not overlap: ${ownedPath}`);
+      ownedScopePaths.add(ownedPath);
+      check(array(worker?.owned_files).includes(ownedPath), `owner ledger and worker ownership agree: ${ownerId}:${ownedPath}`);
+    }
+    if (owner.supersedes_worker && owner.phase !== 'W4') {
+      const predecessor = workerMap.get(owner.supersedes_worker);
+      for (const ownedPath of array(owner.paths)) {
+        check(!array(predecessor?.owned_files).includes(ownedPath), `superseded owner no longer owns active path: ${ownerId}:${ownedPath}`);
+      }
+    }
+  }
+  check(owners.find(owner => owner.id === 'desktop-release-package-mutation')?.owner_worker === 'C02-D', 'release-package mutation owner is C02-D');
+  check(owners.find(owner => owner.id === 'assembled-app-torrent-playback-probe')?.owner_worker === 'Q02-P', 'assembled-app probe owner is Q02-P');
+
+  check(array(workerMap.get('Q04-A')?.interfaces_consumed).includes('RollbackArtifact'), 'Q04 consumes the conditional rollback artifact');
+  check(reaches('G-ROLLBACK-ARTIFACT', 'Q04-A'), 'rollback gate precedes Q04');
+  const compositionFiles = new Set(array(addendum?.base_invariants?.full_composition_files));
+  for (const worker of workerMap.values()) {
+    for (const ownedFile of array(worker.owned_files)) {
+      if (compositionFiles.has(ownedFile)) check(worker.parent_packet === 'C00', `full composition file remains owned only by C00: ${ownedFile}`);
+    }
+  }
+  check(sameSet(produced.get('G-COMPOSITION') || [], ['C00-C']), 'C00-C remains the sole G-COMPOSITION producer');
+  check(!reaches('P01B-A', 'Q04-A'), 'P01B remains optional; Q04 uses the conditional rollback gate');
+
+  if (failures.length) throw new ControlGraphValidationError(failures);
+  return {
+    schema: 'colosseum-server1-control-graph-verification/v1',
+    verdict: 'VERIFIED',
+    checks_passed: pass.length,
+    checks_failed: 0,
+    frozen_authority_inputs_verified: verifiedAuthorityInputs,
+    frozen_authority_package_sha256: packageDigest,
+    frozen_graph_checks: `${frozenResult.checks_passed}/${frozenResult.checks_passed + frozenResult.checks_failed}`,
+    master_packets: packetCount,
+    planned_cases: caseIds.length,
+    added_workers: addedWorkers.length,
+    required_edges: edgeRecords.length,
+    interface_aliases: aliases.length,
+    semantic_contracts: contracts.length,
+    exclusive_owners: owners.length,
+    rollback_rules: conditionalDependencies.length,
+    amended_graph_nodes: dependencies.size,
+    amended_graph_acyclic: true,
+    source_ordered_routes_preserved: true,
+    full_composition_owner: 'C00',
+    release_package_owner: 'C02-D',
+    assembled_app_probe_owner: 'Q02-P'
+  };
+}
+
+function parseArgs(argv) {
+  const values = {};
+  for (let index = 0; index < argv.length; index++) {
+    if (argv[index] === '--addendum') values.addendum = argv[++index];
+    else if (argv[index] === '--frozen-plan-dir') values.frozenPlanDir = argv[++index];
+    else throw new Error(`unknown argument: ${argv[index]}`);
+  }
+  if (!values.addendum || !values.frozenPlanDir) {
+    throw new Error('usage: node verify-control-graph.mjs --addendum <json> --frozen-plan-dir <server1-v2.1-parallel>');
+  }
+  return values;
+}
+
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+if (invokedPath === fileURLToPath(import.meta.url)) {
+  try {
+    const args = parseArgs(process.argv.slice(2));
+    const basePlan = JSON.parse(fs.readFileSync(path.join(args.frozenPlanDir, 'PARALLEL-WORK-ITEMS.json'), 'utf8'));
+    const addendum = JSON.parse(fs.readFileSync(args.addendum, 'utf8'));
+    console.log(JSON.stringify(validateControlGraph({ basePlan, addendum, authorityRoot: args.frozenPlanDir }), null, 2));
+  } catch (error) {
+    const result = {
+      schema: 'colosseum-server1-control-graph-verification/v1',
+      verdict: 'REFUTED',
+      failures: error?.failures || [error.message]
+    };
+    console.error(JSON.stringify(result, null, 2));
+    process.exitCode = 1;
+  }
+}

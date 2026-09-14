@@ -1,0 +1,24 @@
+Colosseum Server 1.0 Slice 1 — semantic control-graph verification
+Date: 2026-09-14
+
+Command:
+node artifacts/server1/CONTROL-PLAN/verify-control-graph.mjs --addendum docs/server1/CONTROL-GRAPH-ADDENDUM.json --frozen-plan-dir C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel
+
+Exit: 0
+Verdict: VERIFIED
+Checks: 927 passed, 0 failed
+Frozen authority inputs: 9/9
+Frozen authority package SHA256: 5979af60150d6cb0cf73f2529a27ef3a796daa2a0b23ae38aa4fde41eebb7e2c
+Frozen graph: 57/57
+Packets/cases: 64/193
+Added workers: 5
+Required dependency/dispatch edges: 22
+Aliases: 2
+Semantic contracts: 4
+Exclusive owners: 5
+Rollback rules: 1
+Amended graph: acyclic, 144 nodes
+Full-composition owner: C00
+Release-package owner: C02-D
+Assembled-app probe owner: Q02-P
+Source-ordered routes: preserved
