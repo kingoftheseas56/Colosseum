@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K05-A",
+  "parent_packet": "K05",
+  "base": "b0a27d5d769cab9b2b46d4f6bf71cfc4ef18112f",
+  "request": "INT-W3 may include K05 packet and test manifests when forming B-W3A.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K05.cmake",
+    "native/colosseum_server_v1/tests/cmake/K05.cmake"
+  ],
+  "interface_changes": "Produces packet-local SwarmMetadataContract in the frozen source-owned implementation units; no existing public header changed and TorrentTransport.h remains absent.",
+  "gate": "K05-A candidate pending Sol/Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

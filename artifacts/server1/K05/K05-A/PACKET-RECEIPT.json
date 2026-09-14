@@ -1,0 +1,23 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K05",
+  "worker": "K05-A",
+  "branch": "sol/server1-w3-spine-20260914",
+  "base": "b0a27d5d769cab9b2b46d4f6bf71cfc4ef18112f",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K05/K05-A/PACKET-RECEIPT.json)",
+  "cases": {
+    "K05-01": "test-reported PASS",
+    "K05-02": "test-reported PASS",
+    "K05-03": "test-reported PASS"
+  },
+  "negative_controls": {
+    "negative_metadata_piece": "PASS",
+    "metadata_hash_mismatch": "PASS",
+    "metadata_above_4MiB": "PASS",
+    "pre_timeout_choke_check": "PASS",
+    "cross_infohash_state_leak": "PASS"
+  },
+  "aggregate_registration": "pending INT-W3 B-W3A",
+  "review": "candidate only; independent Agent 4 review pending",
+  "status": "implementation-authored; directly compiled; focused tests executed; integration pending"
+}

@@ -1,0 +1,8 @@
+K05-A GREEN
+compile command: cl /nologo /std:c++17 /Zc:__cplusplus /permissive- /EHsc with locked Qt 6.11.1 include/lib paths, test_swarm_metadata.cpp, and Qt6Core.lib
+compile exit: 0
+K05-01 exit: 0; output: K05-01 PASS
+K05-02 exit: 0; output: K05-02 PASS
+K05-03 exit: 0; output: K05-03 PASS
+standalone production object compile: MetadataExchange.cpp exit 0; SwarmPolicy.cpp exit 0
+discarded environment attempts: missing /Zc:__cplusplus and /permissive- were compiler-precondition failures before the test executable existed.

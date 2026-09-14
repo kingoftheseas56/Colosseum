@@ -1,0 +1,5 @@
+K05-A RED
+command: cl /nologo /std:c++17 /EHsc /c native\colosseum_server_v1\tests\test_swarm_metadata.cpp /Fo:artifacts\server1\INT-W3\k05-red.obj
+exit: 2
+expected failure: test_swarm_metadata.cpp could not include the not-yet-authored MetadataExchange.cpp; SwarmPolicy.cpp was also absent.
+named breaks: K05-01 metadata chunk/hash validation; K05-02 choke/rechoke state and ordering; K05-03 per-infohash lifecycle isolation.
