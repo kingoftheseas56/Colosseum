@@ -211,8 +211,8 @@
     "K09-B": "Candidate authored after K09-A and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
     "B-W3B": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
     "K04-A": "Candidate authored after B-W3B and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
-    "B-W3C": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
-    "P08-T": "Candidate TorrentTransport contract authored only after B-W3C, positive-compiled, and compile-fail mutation-tested; independent Agent 4 review pending.",
+    "B-W3C": "Candidate integration verified at cefb6fe21524c21ccf526d5f2e70904b1ee793aa with 37/37 aggregate tests; independent Agent 4 acceptance remains required.",
+    "P08-T": "Candidate TorrentTransport contract authored only after B-W3C, integrated at 2ff8f20617927d151098c11b303477f6ec735628, positive-compiled, aggregate-tested, and compile-fail mutation-tested; independent Agent 4 review pending.",
     "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; B-W2A was bd39020125eed2180ba59043f1e1088be11ad73a; accepted INT-W2 candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 was pushed on sol/server1-int-w2b-repaired-20260912."
   },
   "accepted_states": {
@@ -343,13 +343,16 @@
       "K09-A": "test-reported-pending-K09-B-convergence-review",
       "K09-B": "test-reported-pending-review",
       "K04-A": "test-reported-pending-review",
-      "P08-T": "contract-compiled-and-mutation-tested-pending-review",
-      "INT-W3": "integration-in-progress"
+      "P08-T": "aggregate-compiled-and-mutation-tested-pending-agent4-review",
+      "INT-W3": "slice2-candidate-test-reported-pending-agent4-review"
     },
     "barriers": {
       "B-W3A": "candidate-pending-agent4-review",
       "B-W3B": "candidate-pending-agent4-review",
-      "B-W3C": "candidate-pending-aggregate-verification-and-agent4-review"
+      "B-W3C": "candidate-aggregate-verified-pending-agent4-review"
+    },
+    "control_gates": {
+      "P08-T-CONTRACT": "candidate-pending-agent4-review"
     }
   }
 }
