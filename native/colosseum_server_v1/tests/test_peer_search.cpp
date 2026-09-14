@@ -1,7 +1,5 @@
-#include "../src/discovery/TrackerSource.cpp"
-#include "../src/discovery/DhtSource.cpp"
-#include "../src/discovery/PeerSearch.cpp"
-#include "../src/policy/SwarmCaps.cpp"
+#include "server1/discovery/PeerSearch.h"
+#include "server1/policy/SwarmCaps.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -13,6 +11,7 @@ namespace {
 using server1::discovery::DhtSource;
 using server1::discovery::PeerSearch;
 using server1::discovery::TrackerSource;
+using server1::discovery::AutonomyPolicy;
 using server1::policy::BufferSelection;
 using server1::policy::SwarmCapOptions;
 using server1::policy::SwarmCaps;
@@ -33,6 +32,11 @@ void expect(bool condition, const std::string &message)
 void caseK0901()
 {
     PeerSearch search({"tracker:udp://one", "dht:abc"}, 40, 200, 0);
+    expect(search.trackerRequests(0) == 1 && search.dhtWaiting(1),
+           "K09-01 coordinator runs composed tracker and delayed DHT sources");
+    search.tick(1500);
+    expect(search.dhtRequests(1) == 1,
+           "K09-01 coordinator advances the composed DHT source");
     search.onSwarmState(199, false, 1);
     expect(search.isRunning(), "K09-01 below max stays running");
     search.onSwarmState(200, false, 2);
@@ -63,6 +67,14 @@ void caseK0902()
     expect(PeerSearch::selectSources({}, {}, "abc").empty(), "K09-02 no sources stays empty");
     expect(!PeerSearch::internalDhtEnabled() && !PeerSearch::internalTrackerEnabled(),
            "K09-02 no duplicate native discovery underneath PeerSearch");
+    for (const auto policy : {AutonomyPolicy{true, false, false},
+                              AutonomyPolicy{false, true, false},
+                              AutonomyPolicy{false, false, true}}) {
+        bool rejected = false;
+        try { PeerSearch forbidden({}, {}, {}, 0, policy); }
+        catch (const std::invalid_argument &) { rejected = true; }
+        expect(rejected, "K09-02 autonomous picker/discovery policy is actively rejected");
+    }
 
     TrackerSource tracker("udp://failed", "abc");
     tracker.failNextRun();
@@ -84,6 +96,8 @@ void caseK0902()
     expect(tornDown.numRequests() == 0 && tornDown.closed(),
            "K09-02 teardown wins over deferred discovery completion");
     PeerSearch search({}, 40, 200, 0);
+    expect(search.autonomyPolicy().externallyControlled(),
+           "K09-02 accepted coordinator exposes explicit external-control policy");
     search.close();
     expect(search.closed() && !search.intervalActive(), "K09-02 coordinator teardown stops interval");
 }

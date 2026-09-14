@@ -72,6 +72,11 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/K07.cmake")
 server1_register_k07_packet()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/K09.cmake")
 server1_register_k09_packet()
+add_library(server1_p08_torrent_transport_contract INTERFACE)
+target_include_directories(server1_p08_torrent_transport_contract INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(server1_p08_torrent_transport_contract INTERFACE
+  server1_k09_peer_search)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/K04.cmake")
 server1_register_k04_packet()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/P03.cmake")

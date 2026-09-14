@@ -1,4 +1,4 @@
-#include "../src/storage/CircularPieceStore.cpp"
+#include "server1/policy/CircularPieceStore.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -66,21 +66,26 @@ void caseK0703(const std::filesystem::path &root)
 {
     CircularPieceStore store(root, CircularStoreMode::Filesystem, 4, 4);
     expect(store.write(7, bytes(3, 7), {}, {}, 1).success, "K07-03 tail write");
-    const auto tokens = store.commit(7, 7);
-    expect(tokens.size() == 1, "K07-03 filesystem commit queues one spill");
+    const auto committed = store.commit(7, 7);
+    expect(committed.success && committed.verification.complete
+               && committed.verification.success && committed.noNotifyHave
+               && committed.spillTokens.size() == 1,
+           "K07-03 verified commit suppresses have notification and queues one spill");
+    expect(!store.commit(7, 7, false).success,
+           "K07-03 failed verification cannot commit circular bytes");
     const auto before = store.read(7, 2);
     expect(before && before->size() == 3 && (*before)[2] == 7,
            "K07-03 read during spill returns in-memory tail bytes");
 
     const auto overwrite = store.write(8, bytes(4, 8), {}, {}, 3);
     expect(overwrite.success && overwrite.resetPiece == 7, "K07-03 committed spill may be evicted");
-    expect(!store.completeSpill(tokens[0], true), "K07-03 stale spill completion ignored");
+    expect(!store.completeSpill(committed.spillTokens[0], true), "K07-03 stale spill completion ignored");
     const auto current = store.read(8, 4);
     expect(current && (*current)[0] == 8, "K07-03 stale completion cannot overwrite replacement");
 
-    const auto nextTokens = store.commit(8, 8);
-    expect(nextTokens.size() == 1 && store.cancelSpill(nextTokens[0]), "K07-03 spill cancellation");
-    expect(!store.completeSpill(nextTokens[0], true), "K07-03 canceled completion ignored");
+    const auto nextCommit = store.commit(8, 8);
+    expect(nextCommit.spillTokens.size() == 1 && store.cancelSpill(nextCommit.spillTokens[0]), "K07-03 spill cancellation");
+    expect(!store.completeSpill(nextCommit.spillTokens[0], true), "K07-03 canceled completion ignored");
     store.close();
     expect(!store.read(8, 5).has_value(), "K07-03 close clears slots");
 

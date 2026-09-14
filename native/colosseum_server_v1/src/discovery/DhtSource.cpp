@@ -1,76 +1,10 @@
-#include <cstddef>
-#include <cstdint>
-#include <string>
+#include "server1/discovery/PeerSearch.h"
 #include <utility>
-
 namespace server1::discovery {
-
-class DhtSource final {
-public:
-    explicit DhtSource(std::string infoHash)
-        : infoHash_(std::move(infoHash))
-    {
-    }
-
-    void run(std::uint64_t nowMs)
-    {
-        if (!closed_ && !lookupActive_ && !waiting_) {
-            waiting_ = true;
-            lookupAtMs_ = nowMs + 1500;
-        }
-    }
-
-    void pause(std::uint64_t nowMs)
-    {
-        if (waiting_) {
-            waiting_ = false;
-        }
-        if (lookupActive_) {
-            lookupActive_ = false;
-            abortPending_ = true;
-            abortAtMs_ = nowMs + 1500;
-        }
-    }
-
-    void advance(std::uint64_t nowMs)
-    {
-        if (closed_) {
-            return;
-        }
-        if (waiting_ && nowMs >= lookupAtMs_) {
-            waiting_ = false;
-            lookupActive_ = true;
-            ++numRequests_;
-        }
-        if (abortPending_ && nowMs >= abortAtMs_) {
-            abortPending_ = false;
-        }
-    }
-
-    void close() noexcept
-    {
-        waiting_ = false;
-        lookupActive_ = false;
-        abortPending_ = false;
-        closed_ = true;
-    }
-
-    [[nodiscard]] const std::string &infoHash() const noexcept { return infoHash_; }
-    [[nodiscard]] std::size_t numRequests() const noexcept { return numRequests_; }
-    [[nodiscard]] bool waiting() const noexcept { return waiting_; }
-    [[nodiscard]] bool lookupActive() const noexcept { return lookupActive_; }
-    [[nodiscard]] bool abortPending() const noexcept { return abortPending_; }
-    [[nodiscard]] bool closed() const noexcept { return closed_; }
-
-private:
-    std::string infoHash_;
-    std::size_t numRequests_ = 0;
-    std::uint64_t lookupAtMs_ = 0;
-    std::uint64_t abortAtMs_ = 0;
-    bool waiting_ = false;
-    bool lookupActive_ = false;
-    bool abortPending_ = false;
-    bool closed_ = false;
-};
-
-} // namespace server1::discovery
+DhtSource::DhtSource(std::string h):infoHash_(std::move(h)){}void DhtSource::run(std::uint64_t now){if(!closed_&&!lookupActive_&&!waiting_){waiting_=true;lookupAtMs_=now+1500;}}
+void DhtSource::pause(std::uint64_t now){if(waiting_)waiting_=false;if(lookupActive_){lookupActive_=false;abortPending_=true;abortAtMs_=now+1500;}}
+void DhtSource::advance(std::uint64_t now){if(closed_)return;if(waiting_&&now>=lookupAtMs_){waiting_=false;lookupActive_=true;++numRequests_;}if(abortPending_&&now>=abortAtMs_)abortPending_=false;}
+void DhtSource::close()noexcept{waiting_=lookupActive_=abortPending_=false;closed_=true;}const std::string&DhtSource::infoHash()const noexcept{return infoHash_;}
+std::size_t DhtSource::numRequests()const noexcept{return numRequests_;}bool DhtSource::waiting()const noexcept{return waiting_;}bool DhtSource::lookupActive()const noexcept{return lookupActive_;}
+bool DhtSource::abortPending()const noexcept{return abortPending_;}bool DhtSource::closed()const noexcept{return closed_;}
+}

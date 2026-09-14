@@ -10,6 +10,8 @@
 #define poll poll_removed
 #elif defined(P08_NEGATE_STATISTICS)
 #define statistics statistics_removed
+#elif defined(P08_NEGATE_AUTONOMY)
+#define configureAutonomy configureAutonomy_removed
 #endif
 
 #include "server1/ports/TorrentTransport.h"
@@ -26,6 +28,8 @@
 #undef poll
 #elif defined(P08_NEGATE_STATISTICS)
 #undef statistics
+#elif defined(P08_NEGATE_AUTONOMY)
+#undef configureAutonomy
 #endif
 
 #include <cstdlib>
@@ -74,6 +78,9 @@ public:
     std::vector<TorrentObservation> observations;
     TransportStatistics stats;
     bool closed = false;
+    bool suppressionApplied = false;
+protected:
+    bool applyAutonomySuppression() override { suppressionApplied = true; return true; }
 };
 
 } // namespace
@@ -88,8 +95,17 @@ int main()
                                  std::vector<TorrentObservation> (TorrentTransport::*)()>);
     static_assert(std::is_same_v<decltype(&TorrentTransport::statistics),
                                  TransportStatistics (TorrentTransport::*)() const>);
+    static_assert(std::is_same_v<decltype(&TorrentTransport::configureAutonomy),
+                                 bool (TorrentTransport::*)(const server1::discovery::AutonomyPolicy &)>);
 
     ContractConsumer transport;
+    expect(!transport.configureAutonomy({true, false, false})
+               && !transport.configureAutonomy({false, true, false})
+               && !transport.configureAutonomy({false, false, true})
+               && !transport.suppressionApplied,
+           "P08-T rejects autonomous picker/tracker/DHT before adapter activation");
+    expect(transport.configureAutonomy({}) && transport.suppressionApplied,
+           "P08-T carries and enforces explicit external-control suppression");
     const RequestOwnership owner{41, 7, 3};
     const BlockSpan full{9, 0, kWireBlockLength};
     const BlockSpan tail{9, kWireBlockLength, 123};

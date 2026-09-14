@@ -29,14 +29,30 @@ server1_register_k09_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K04.cmake")
 server1_register_k04_tests()
 
-add_executable(server1_p08_torrent_transport_contract
+add_executable(server1_p08_torrent_transport_contract_test
   "${CMAKE_CURRENT_SOURCE_DIR}/test_torrent_transport_contract.cpp")
-target_include_directories(server1_p08_torrent_transport_contract PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/../include")
-target_compile_features(server1_p08_torrent_transport_contract PRIVATE cxx_std_17)
-target_compile_options(server1_p08_torrent_transport_contract PRIVATE
+target_link_libraries(server1_p08_torrent_transport_contract_test PRIVATE
+  server1_p08_torrent_transport_contract)
+target_compile_features(server1_p08_torrent_transport_contract_test PRIVATE cxx_std_17)
+target_compile_options(server1_p08_torrent_transport_contract_test PRIVATE
   "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
 add_test(NAME P08-T-torrent-transport-contract
-  COMMAND server1_p08_torrent_transport_contract)
+  COMMAND server1_p08_torrent_transport_contract_test)
 set_tests_properties(P08-T-torrent-transport-contract PROPERTIES
   LABELS "server1;unit;P08-T")
+
+add_executable(server1_spine_contracts_link_test test_spine_contracts.cpp)
+target_link_libraries(server1_spine_contracts_link_test PRIVATE
+  server1_k02_piece_buffer
+  server1_k03_scheduler_selections
+  server1_k04_scheduler_actions
+  server1_k05_swarm_metadata
+  server1_k06_persistent_store
+  server1_k07_circular_store
+  server1_k09_peer_search
+  server1_p08_torrent_transport_contract)
+target_compile_features(server1_spine_contracts_link_test PRIVATE cxx_std_17)
+target_compile_options(server1_spine_contracts_link_test PRIVATE
+  "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
+add_test(NAME INT-W3-spine-contracts-link COMMAND server1_spine_contracts_link_test)
+set_tests_properties(INT-W3-spine-contracts-link PROPERTIES LABELS "server1;unit;INT-W3")

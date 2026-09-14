@@ -1,6 +1,7 @@
 #pragma once
 
 #include "server1/policy/Scheduler.h"
+#include "server1/discovery/PeerSearch.h"
 
 #include <cstdint>
 #include <string>
@@ -107,7 +108,13 @@ public:
     [[nodiscard]] virtual bool submit(const TorrentAction &action) = 0;
     [[nodiscard]] virtual std::vector<TorrentObservation> poll() = 0;
     [[nodiscard]] virtual TransportStatistics statistics() const = 0;
+    [[nodiscard]] bool configureAutonomy(const discovery::AutonomyPolicy &policy)
+    {
+        return policy.externallyControlled() && applyAutonomySuppression();
+    }
     virtual void close() = 0;
+protected:
+    [[nodiscard]] virtual bool applyAutonomySuppression() = 0;
 };
 
 } // namespace server1::ports
