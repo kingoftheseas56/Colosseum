@@ -1,5 +1,10 @@
 {
-  "convention": "SHA-256 of committed Git blob bytes. This manifest is excluded from self-reference.",
+  "schema": "colosseum-server1-git-blob-manifest/v1",
+  "content_ref": "116181487745501b733971855c5978e1a6fa0685",
+  "hash_algorithm": "sha256-git-blob",
+  "hash_scope": {
+    "files": "SHA-256 over committed Git blob bytes at content_ref; this manifest is excluded from self-reference"
+  },
   "files": {
     "artifacts/server1/INT-W2/repair-20260912/.gitattributes": "3938d909e87cd47f88e012f76121c852adea148e05bdf2b21316cc8f1d735b8d",
     "artifacts/server1/INT-W2/repair-20260912/AGG-BUILD.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -71,7 +76,7 @@
     "artifacts/server1/INT-W2/repair-20260912/m00-integrated-differential/source.stderr.txt": "346c3803438a9e6928553467702afb1c380ec67158ff3ccd3728e76a63136091",
     "artifacts/server1/INT-W2/repair-20260912/m00-integrated-differential/source.stdout.txt": "74007f7216f76e3aba48c1e86f412cc3ad5cbe031537363eb645086515405203",
     "artifacts/server1/INT-W2/repair-20260912/m00-integrated-differential/source.trace.txt": "7256c7edf082339d047a2631db045e0be51a0c65a76403f769f6fc95e4bb13ac",
-    "artifacts/server1/INT-W2/repair-20260912/reproduce_gate.py": "9106d1d3f2f93b849228b5ecee3520302a60069f1119b3ae67b7ddd14ba26a13",
+    "artifacts/server1/INT-W2/repair-20260912/reproduce_gate.py": "26b8df7b0f6a22950025aebb53bbfb36ca0a621f550dede6b81457e8097e29b3",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/AGG-BUILD.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/AGG-BUILD.stdout.txt": "089f15680f4d7cbc38fc59d11424e2a293926bd09b1be8aadf9782e5eac8cdeb",
     "artifacts/server1/INT-W2/repair-20260912/reproduced/AGG-CONFIGURE.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
