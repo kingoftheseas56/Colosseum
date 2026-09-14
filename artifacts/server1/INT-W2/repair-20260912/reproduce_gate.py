@@ -13,11 +13,23 @@ class EvidenceIntegrityError(RuntimeError):
     """The committed evidence cannot be verified or safely published."""
 
 
+AGGREGATE_REQUIRED_PATHS = (
+    "artifacts/server1/INT-W2/repair-20260912/TDD-GREEN.txt",
+    "artifacts/server1/INT-W2/repair-20260912/TDD-RED.txt",
+    "artifacts/server1/INT-W2/repair-20260912/reproduce_gate.py",
+    "artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py",
+    "artifacts/server1/K01/K01-A/HASHES.json",
+    "artifacts/server1/K13/K13-A/HASHES.json",
+    "artifacts/server1/K13/K13-B/HASHES.json",
+)
+
+
 MANIFEST_SPECS = (
-    ("artifacts/server1/INT-W2/repair-20260912/HASHES.json", ("files",)),
-    ("artifacts/server1/K01/K01-A/HASHES.json", ("candidate_files", "evidence_files")),
-    ("artifacts/server1/K13/K13-A/HASHES.json", ("worker_files_sha256",)),
-    ("artifacts/server1/K13/K13-B/HASHES.json", ("worker_files_sha256",)),
+    ("artifacts/server1/INT-W2/repair-20260912/HASHES.json", ("files",),
+     AGGREGATE_REQUIRED_PATHS),
+    ("artifacts/server1/K01/K01-A/HASHES.json", ("candidate_files", "evidence_files"), ()),
+    ("artifacts/server1/K13/K13-A/HASHES.json", ("worker_files_sha256",), ()),
+    ("artifacts/server1/K13/K13-B/HASHES.json", ("worker_files_sha256",), ()),
 )
 
 
@@ -37,7 +49,7 @@ def _git_blob(repo, content_ref, relative):
     return result.stdout
 
 
-def verify_hash_manifest(repo, manifest_path, sections, manifest_ref="HEAD"):
+def verify_hash_manifest(repo, manifest_path, sections, manifest_ref="HEAD", required_paths=()):
     """Verify listed paths against immutable committed Git blob bytes."""
     repo = Path(repo).resolve()
     manifest_path = Path(manifest_path).resolve()
@@ -99,6 +111,11 @@ def verify_hash_manifest(repo, manifest_path, sections, manifest_ref="HEAD"):
             if actual != expected.lower():
                 mismatches.append({"path": path, "reason": "sha256-mismatch"})
             checked += 1
+    missing_required = sorted(set(required_paths) - seen)
+    if missing_required:
+        raise EvidenceIntegrityError(
+            f"manifest omits required sealing artifacts for {relative}: "
+            + ", ".join(missing_required))
     if mismatches:
         raise EvidenceIntegrityError(
             f"manifest verification failed for {relative}: {len(mismatches)} mismatch(es)")
@@ -114,8 +131,10 @@ def verify_hash_manifest(repo, manifest_path, sections, manifest_ref="HEAD"):
 
 def verify_all_manifests(repo):
     results = []
-    for relative, sections in MANIFEST_SPECS:
-        results.append(verify_hash_manifest(repo, Path(repo) / relative, sections))
+    for relative, sections, required_paths in MANIFEST_SPECS:
+        results.append(verify_hash_manifest(
+            repo, Path(repo) / relative, sections, required_paths=required_paths,
+        ))
     return {
         "result": "PASS",
         "manifests": results,
@@ -198,6 +217,83 @@ def assert_no_private_path_leaks(root, sensitive_paths):
         raise EvidenceIntegrityError(
             f"generated output private-path scan failed: {len(findings)} file(s): {names}")
     return len([path for path in Path(root).rglob("*") if path.is_file()])
+
+
+def _require_verdict(condition, message):
+    if not condition:
+        raise EvidenceIntegrityError(message)
+
+
+def verify_mandatory_verdicts(outputs, expected_ctest, expected_http, m00):
+    """Fail closed on every result required before emitting a PASS receipt."""
+    try:
+        inventory = json.loads(outputs["AGG-INVENTORY"])
+        tests = inventory["tests"]
+        names = [test["name"] for test in tests]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise EvidenceIntegrityError("aggregate CTest inventory is malformed") from exc
+
+    _require_verdict(
+        len(expected_ctest) == 16 and len(set(expected_ctest)) == 16,
+        "configured CTest inventory must contain 16 unique tests",
+    )
+    _require_verdict(
+        len(names) == 16 and len(set(names)) == 16 and set(names) == set(expected_ctest),
+        "aggregate CTest inventory does not match the exact 16-test contract",
+    )
+    for name in ("AGG-CTEST", "AGG-CTEST-REPEAT"):
+        _require_verdict(
+            "100% tests passed, 0 tests failed out of 16" in outputs.get(name, ""),
+            f"{name} does not report 16/16 passing",
+        )
+    repeated = len(re.findall(
+        r"^\s*Start\s+\d+:", outputs.get("AGG-CTEST-REPEAT", ""), re.MULTILINE,
+    ))
+    _require_verdict(repeated == 48, "aggregate repeat gate did not execute exactly 48 tests")
+
+    line_counts = {}
+    for name, label, count in (("K01", "K01", 72), ("K13A", "K13-A", 11),
+                               ("K13B", "K13-B", 9)):
+        source = outputs.get(name + "-SOURCE", "").splitlines()
+        candidate = outputs.get(name + "-NATIVE", "").splitlines()
+        _require_verdict(
+            len(source) == count and source == candidate,
+            f"{label} source/native differential is not exact at {count} lines",
+        )
+        line_counts[label] = count
+
+    _require_verdict(
+        outputs.get("H00-NATIVE-TRACE", "").splitlines() == list(expected_http),
+        "H00 native trace does not match the pinned candidate profile",
+    )
+    _require_verdict("H00-01 PASS" in outputs.get("H00-RAW-WIRE", ""),
+                     "H00 raw-wire verdict is missing")
+    _require_verdict("H00-03 PASS" in outputs.get("H00-STREAM-DISCONNECT", ""),
+                     "H00 stream-disconnect verdict is missing")
+    _require_verdict("oversized-chunk-status=413" in outputs.get("COMBINED-RUN", ""),
+                     "combined consumer did not prove oversized chunk status 413")
+
+    try:
+        differences = m00["differences"]
+        source_lines = m00["source_lines"]
+        candidate_lines = m00["candidate_lines"]
+        m00_exact = (
+            type(differences) is int and differences == 0
+            and type(source_lines) is int and source_lines == 11
+            and type(candidate_lines) is int and candidate_lines == 11
+        )
+        mutation_rejected = m00["mutated_oracle_rejected"] is True
+    except (KeyError, TypeError) as exc:
+        raise EvidenceIntegrityError("M00 differential result is malformed") from exc
+    _require_verdict(m00_exact, "M00 source/native differential is not exact at 11 lines")
+    _require_verdict(mutation_rejected, "M00 one-byte oracle mutation was not rejected")
+
+    line_counts["M00"] = 11
+    return {
+        "ctest": "16/16",
+        "repeated_test_executions": repeated,
+        "source_native_lines": line_counts,
+    }
 
 
 def main():
@@ -287,29 +383,20 @@ def main():
         if result.returncode:
             raise RuntimeError(f"{name} failed; inspect {logs}")
         outputs[name] = result.stdout.decode("utf-8")
-    names = [test["name"] for test in json.loads(outputs["AGG-INVENTORY"])["tests"]]
-    assert len(names) == 16 and set(names) == set(config["expected_ctest"])
-    for name in ("AGG-CTEST", "AGG-CTEST-REPEAT"):
-        assert "100% tests passed, 0 tests failed out of 16" in outputs[name]
-    assert len(re.findall(r"^\s*Start\s+\d+:", outputs["AGG-CTEST-REPEAT"], re.MULTILINE)) == 48
-    pairs = [("K01", 72), ("K13A", 11), ("K13B", 9)]
-    for name, count in pairs:
-        source = outputs[name + "-SOURCE"].splitlines()
-        candidate = outputs[name + "-NATIVE"].splitlines()
-        assert len(source) == count and source == candidate, name
     expected_http = [line for line in (repo / "artifacts/server1/H00/H00-A/DIFFERENTIAL-TRACE.txt")
                      .read_text(encoding="utf-8").splitlines() if line.startswith("candidate ")]
-    assert outputs["H00-NATIVE-TRACE"].splitlines() == expected_http
-    assert "H00-01 PASS" in outputs["H00-RAW-WIRE"]
-    assert "H00-03 PASS" in outputs["H00-STREAM-DISCONNECT"]
-    assert "oversized-chunk-status=413" in outputs["COMBINED-RUN"]
-    m00 = json.loads((logs / "m00-differential/RESULT.json").read_text(encoding="utf-8"))
-    assert m00["differences"] == 0 and m00["source_lines"] == 11 and m00["candidate_lines"] == 11
-    assert m00["mutated_oracle_rejected"]
+    try:
+        m00 = json.loads((logs / "m00-differential/RESULT.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise EvidenceIntegrityError("M00 differential result is unreadable") from exc
+    mandatory = verify_mandatory_verdicts(
+        outputs, config["expected_ctest"], expected_http, m00,
+    )
     head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"]).decode().strip()
     verdict = {"result": "PASS", "candidate_head": head, "public_path_guard": "PASS",
-               "ctest": "16/16", "repeated_test_executions": 48,
-               "combined_link": "PASS", "source_native_lines": {"K01": 72, "K13-A": 11, "K13-B": 9, "M00": 11},
+               "ctest": mandatory["ctest"],
+               "repeated_test_executions": mandatory["repeated_test_executions"],
+               "combined_link": "PASS", "source_native_lines": mandatory["source_native_lines"],
                "H00_scope": "pinned source-derived trace profile and native real-loopback raw-wire/stream checks, not full live-oracle HTTP parity",
                "B-W2B": "closed pending independent Codex acceptance", "W3": "closed"}
     (logs / "RESULT.json").write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")

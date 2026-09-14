@@ -15,3 +15,16 @@ Covered controls:
 - CRLF digest substituted for an LF Git blob
 - CRLF/LF worktree variance independent of committed blob verification
 - nested backslash, slash, file-URL, and case-varied private path spellings
+
+Fix round 1 command: python artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py -v
+Exit: 1
+Result: FAILED (10 tests; 15 failures/subtest failures)
+
+Expected fix-round failures:
+- aggregate sealing-chain requirements are missing
+- explicit mandatory verdict verifier is missing for inventory, CTest summaries/repeat count,
+  K01/K13 differentials, H00 trace/raw-wire/disconnect/413, and M00 differential/mutation checks
+
+Strict-type follow-up RED:
+- MandatoryVerdictTests.test_every_mandatory_verdict_fails_closed exited 1 because Boolean
+  false was accepted as integer zero for M00 differences

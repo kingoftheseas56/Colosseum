@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib.util
 import json
@@ -106,6 +107,132 @@ class ManifestVerifierTests(unittest.TestCase):
         result = self.verify(root, manifest)
         self.assertEqual(result["checked_files"], 1)
         self.assertEqual(result["result"], "PASS")
+
+    def test_aggregate_manifest_must_bind_preceding_sealing_artifacts(self):
+        root, manifest, _, _ = self.base_repo()
+        self.assertTrue(hasattr(gate, "AGGREGATE_REQUIRED_PATHS"),
+                        "aggregate sealing-chain requirements are missing")
+        with self.assertRaises(self.integrity_error()):
+            gate.verify_hash_manifest(
+                root,
+                manifest,
+                ("files",),
+                required_paths=("packet-HASHES.json", "test_reproduce_gate.py"),
+            )
+
+
+class MandatoryVerdictTests(unittest.TestCase):
+    def good_fixture(self):
+        expected_tests = [f"T{number:02d}" for number in range(16)]
+        repeat_lines = "\n".join(
+            f"      Start {number}: {expected_tests[(number - 1) % 16]}"
+            for number in range(1, 49)
+        )
+        outputs = {
+            "AGG-INVENTORY": json.dumps({
+                "tests": [{"name": name} for name in expected_tests],
+            }),
+            "AGG-CTEST": "100% tests passed, 0 tests failed out of 16\n",
+            "AGG-CTEST-REPEAT": (
+                "100% tests passed, 0 tests failed out of 16\n" + repeat_lines + "\n"
+            ),
+            "K01-SOURCE": "\n".join(f"k01-{number}" for number in range(72)),
+            "K01-NATIVE": "\n".join(f"k01-{number}" for number in range(72)),
+            "K13A-SOURCE": "\n".join(f"k13a-{number}" for number in range(11)),
+            "K13A-NATIVE": "\n".join(f"k13a-{number}" for number in range(11)),
+            "K13B-SOURCE": "\n".join(f"k13b-{number}" for number in range(9)),
+            "K13B-NATIVE": "\n".join(f"k13b-{number}" for number in range(9)),
+            "H00-NATIVE-TRACE": "candidate one\ncandidate two\n",
+            "H00-RAW-WIRE": "H00-01 PASS\n",
+            "H00-STREAM-DISCONNECT": "H00-03 PASS\n",
+            "COMBINED-RUN": "oversized-chunk-status=413\n",
+        }
+        m00 = {
+            "differences": 0,
+            "source_lines": 11,
+            "candidate_lines": 11,
+            "mutated_oracle_rejected": True,
+        }
+        expected_http = ["candidate one", "candidate two"]
+        return outputs, expected_tests, expected_http, m00
+
+    def verify(self, outputs, expected_tests, expected_http, m00):
+        self.assertTrue(hasattr(gate, "verify_mandatory_verdicts"),
+                        "explicit mandatory verdict verifier is missing")
+        return gate.verify_mandatory_verdicts(
+            outputs, expected_tests, expected_http, m00,
+        )
+
+    def test_valid_gate_outputs_pass_explicit_verdict_checks(self):
+        outputs, expected_tests, expected_http, m00 = self.good_fixture()
+        result = self.verify(outputs, expected_tests, expected_http, m00)
+        self.assertEqual(result["ctest"], "16/16")
+        self.assertEqual(result["repeated_test_executions"], 48)
+        self.assertEqual(result["source_native_lines"], {
+            "K01": 72,
+            "K13-A": 11,
+            "K13-B": 9,
+            "M00": 11,
+        })
+
+    def test_every_mandatory_verdict_fails_closed(self):
+        cases = {}
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["AGG-INVENTORY"] = json.dumps({"tests": [{"name": name} for name in expected[:-1]]})
+        cases["inventory"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["AGG-CTEST"] = "99% tests passed\n"
+        cases["single ctest"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["AGG-CTEST-REPEAT"] = outputs["AGG-CTEST-REPEAT"].replace(
+            "100% tests passed, 0 tests failed out of 16", "99% tests passed", 1)
+        cases["repeated ctest"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["AGG-CTEST-REPEAT"] = outputs["AGG-CTEST-REPEAT"].replace(
+            "      Start 48: T15\n", "", 1)
+        cases["repeat count"] = (outputs, expected, http, m00)
+
+        for pair in ("K01", "K13A", "K13B"):
+            outputs, expected, http, m00 = self.good_fixture()
+            outputs[pair + "-NATIVE"] += "\nmutation"
+            cases[pair + " differential"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["H00-NATIVE-TRACE"] = "candidate one\nmutation\n"
+        cases["H00 trace"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["H00-RAW-WIRE"] = ""
+        cases["H00 raw wire"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["H00-STREAM-DISCONNECT"] = ""
+        cases["H00 disconnect"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        outputs["COMBINED-RUN"] = "oversized-chunk-status=400\n"
+        cases["H00 413"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        m00["differences"] = 1
+        cases["M00 differential"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        m00["differences"] = False
+        cases["M00 typed differential"] = (outputs, expected, http, m00)
+
+        outputs, expected, http, m00 = self.good_fixture()
+        m00["mutated_oracle_rejected"] = False
+        cases["M00 mutation"] = (outputs, expected, http, m00)
+
+        for name, values in cases.items():
+            with self.subTest(name=name):
+                with self.assertRaises(gate.EvidenceIntegrityError):
+                    self.verify(*copy.deepcopy(values))
 
 
 class RecursiveScrubberTests(unittest.TestCase):

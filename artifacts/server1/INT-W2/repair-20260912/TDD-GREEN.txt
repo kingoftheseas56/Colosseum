@@ -10,3 +10,15 @@ Passed controls:
 - CRLF digest cannot stand in for an LF Git blob
 - worktree newline variance does not alter committed blob verification
 - nested backslash, slash, file-URL, and case-varied path leaks detected then recursively scrubbed
+
+Fix round 1 commands:
+- python artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py -v
+- python -O artifacts/server1/INT-W2/repair-20260912/test_reproduce_gate.py -v
+Exits: 0 / 0
+Results: OK (10 tests in normal mode and 10 tests with assertions optimized away)
+
+Added proof:
+- aggregate manifest must bind all preceding verifier/test/TDD/packet-manifest sealing artifacts
+- every mandatory inventory, repeat, differential, H00, 413, and M00 verdict fails through
+  EvidenceIntegrityError, including under optimized Python
+- M00 numeric verdict fields reject Boolean stand-ins
