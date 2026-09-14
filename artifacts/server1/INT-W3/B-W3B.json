@@ -42,5 +42,9 @@
     "reviewer": "Agent 4",
     "verdict": "pending"
   },
+  "fix_round_1": {
+    "repair_commits": ["2947cce0", "d1003e04"],
+    "verification": "public K03/K07/K09 library consumers included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
+  },
   "status": "candidate; test-reported pending Agent 4 review"
 }

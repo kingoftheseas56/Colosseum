@@ -8,3 +8,5 @@
 - Critical width follows `engine.critical(piece, width || 1)` and reset clears the critical bit.
 
 The component returns deterministic policy choices/events only. It does not call a transport or convenience downloader.
+
+Fix Round 1 (2026-09-15): the frozen M814 `shufflePriority` behavior is exposed as stable truthy-group rotation after request-budget fill, and source defaulting makes critical width zero act as one.

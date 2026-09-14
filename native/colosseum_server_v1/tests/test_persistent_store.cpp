@@ -56,6 +56,9 @@ void caseK06_01(const std::filesystem::path &root)
                 && std::filesystem::exists(overridePath),
             "numeric default and changed destination both receive bytes");
     require(store.destination(1) == overridePath, "destination override replaces open path");
+    auto reopenedCommitted = makeEightByteStore(caseRoot);
+    require(reopenedCommitted.isVerified(0),
+            "persisted verification survives only when its destination bytes exist");
 
     PersistentPieceStore absent(caseRoot / "absent", 4, 2, 4,
         {StoreFile{0, 2}}, {""});
@@ -118,6 +121,10 @@ void caseK06_02(const std::filesystem::path &root)
     server1::policy::VerificationBitmap persisted(2, caseRoot / ".verification-bitmap");
     require(persisted.get(0) && persisted.get(1),
             "store verification is connected to the persisted bitmap lifecycle");
+    PersistentPieceStore noDestination(caseRoot, 4, 8, 8, {StoreFile{0, 8}},
+        {"425af12a0743502b322e93a015bcf868e324d56a"});
+    require(!noDestination.isVerified(0) && !noDestination.isVerified(1),
+            "reopen invalidates bitmap bits whose destination bytes do not exist");
     store.stage(0, bytes("abcd"));
     require(!store.isVerified(0), "restaging clears prior verification state");
     server1::policy::VerificationBitmap restaged(2, caseRoot / ".verification-bitmap");

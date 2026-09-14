@@ -12,6 +12,7 @@
     "K09-03": "test-reported PASS"
   },
   "negative_controls": {
+    "automatic_picker_or_discovery": "PASS rejected by actionable public policy",
     "max_and_min_equality": "PASS no transition",
     "tracker_failure": "PASS visible",
     "dht_before_timeout": "PASS no request",
@@ -21,6 +22,11 @@
     "zero_selection_window": "PASS excluded",
     "duplicate_internal_discovery": "PASS disabled"
   },
+  "ownership_extension": {
+    "public_header": "native/colosseum_server_v1/include/server1/policy/SwarmCaps.h",
+    "reason": "bounded K09-owned swarm-cap convergence surface required by linked consumers"
+  },
+  "fix_round_1": "public real-library composition and explicit autonomy policy repaired at d1003e04; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3B",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"

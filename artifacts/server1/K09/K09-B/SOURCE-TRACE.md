@@ -6,3 +6,5 @@
 - K09-01 covers strict queued min/max hysteresis and coordinator-wide duplicate accounting.
 - K09-02 covers source selection, no sources, tracker failure visibility, exact DHT delay, and teardown before delayed work.
 - K09-03 covers strict minPeers/speed/buffer boundaries, maxBuffer precedence, and zero-window exclusion.
+
+Fix Round 1 (2026-09-15): public linked composition replaces test-private cpp inclusion, and K09/P08 share an actionable external-control-only autonomy policy.

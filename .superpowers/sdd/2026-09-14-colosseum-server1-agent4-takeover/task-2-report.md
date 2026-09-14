@@ -403,3 +403,116 @@ The final branch push and remote-ref comparison are performed after this
 report is committed. The immutable final HEAD and remote equality proof are
 returned in the producer handoff because a committed report cannot contain its
 own future commit hash.
+
+## Fix Round 1 — 2026-09-15
+
+Agent 4 returned REQUEST CHANGES because the original 38/38 suite compiled K04,
+K05, K07, and K09 implementation cpp files into tests rather than consuming
+the packet libraries. This round repairs that usable-spine defect while keeping
+every barrier and worker state candidate pending independent Agent 4 re-review.
+
+### Repair commit chain and files
+
+- `2947cce0` — public K04 scheduler-action contract plus K02 reservation,
+  K03 source-semantics, and K06 storage-safety repairs.
+- `d1003e04` — public/exported K05, K07, and K09 contracts; composed discovery;
+  actionable P08 autonomy suppression; real-library test links; all-contract
+  consumer/link smoke.
+- The final evidence checkpoint follows these commits and contains the one-line
+  Qt runtime property for the new linked smoke, refreshed receipts/source traces,
+  STATE candidate notes, this report, and `FIX-ROUND-1.json`.
+
+New packet-owned headers are `SchedulerActions.h` (K04), `MetadataExchange.h`
+and `SwarmPolicy.h` (K05), `CircularPieceStore.h` (K07), and `PeerSearch.h` plus
+`SwarmCaps.h` (K09). These bounded ownership extensions are recorded in packet
+receipts. No later packet or application header was used as a substitute.
+
+### RED evidence
+
+- K02 review reproduction showed cancel-before-reserve, repeated cancel, and
+  delivered-block cancel were accepted by the old counter/stack implementation.
+- K03's new public rotation test linked RED with unresolved
+  `Scheduler::rotatePriorityAfterBudgetFill` before implementation.
+- K04's first public linked hotswap regression failed until the normal-pass
+  budget guard permitted the second hotswap pass at a full request budget.
+- K05/K07/K09 review reproduction showed tests included implementation cpp files
+  and did not link packet libraries; those tests are now public-header consumers.
+- K06 exact regressions were 0/3 before repair: zero piece length raised a
+  numerical exception before validation, store verification was absent from
+  the persisted bitmap, and a queued write error disappeared before close.
+- The first fresh linked-spine CTest was 38/39: the new consumer exited
+  `0xc0000135` until given the existing target-derived Qt runtime PATH property.
+  The final clean run is the evidence used below.
+
+### GREEN behavior and case evidence
+
+- K02-02 rejects cancel-before-reserve, duplicate cancel, and cancel after
+  delivery. K02 remained 3/3.
+- K03-02 rotates a request-budget-filled selection to the end of the contiguous
+  truthy-priority group. K03-03 normalizes critical width zero to one. K03 3/3.
+- K04-01 carries generation, peer, selection, piece, block, offset, and length
+  through request actions. K04-02 runs normal then hotswap passes and emits wire
+  cancel followed by replacement request. K04-03 enforces generation-aware
+  one-terminal outcomes and update-before-select pulse order. K04 3/3 through
+  `server1_k04_scheduler_actions`.
+- K05-01 retains metadata geometry/hash behavior. K05-02 uses configured
+  capacity/uploads. K05-03 covers source-shaped per-engine peer identity,
+  queued/handshaking/ready lifecycle, stale-generation rejection, typed
+  connect/request/cancel/disconnect actions, 10-second handshake and 30-second
+  request timeouts, and engine isolation. K05 3/3 through its real library.
+- K06-01 rejects geometry before division and reloads verification only when
+  destination bytes exist. K06-02 connects verify/restage to the bitmap and
+  rejects commit after restage. K06-03 rejects destination coverage gaps and
+  records queued error before close. K06 3/3.
+- K07-03 exposes verification, rejects failed verification, and returns
+  `noNotifyHave=true`. K07 3/3 through its real library.
+- K09-01 proves PeerSearch invokes TrackerSource and advances DhtSource. K09-02
+  rejects automatic picker, DHT, and tracker policy and exposes the accepted
+  external-control policy. K09-03 retains cap boundaries. K09 3/3 through its
+  real library.
+- P08-T rejects autonomous controls before the adapter hook and accepts only the
+  all-suppressed policy. The seventh compile-negative mutation removes
+  `configureAutonomy` and is rejected.
+- `INT-W3-spine-contracts-link` includes every public K02/K03/K04/K05/K06/K07/
+  K09/P08-T header and links all packet targets. Repository test search found
+  zero `.cpp` includes.
+
+### Fresh configure, build, CTest, repeat, and binary evidence
+
+Commands used under x64 `VsDevCmd.bat`:
+
+    cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W3/fix-round-1-final -G Ninja -DQt6_DIR=C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6
+    cmake --build artifacts/server1/INT-W3/fix-round-1-final -j 1
+    ctest --test-dir artifacts/server1/INT-W3/fix-round-1-final --output-on-failure
+    ctest --test-dir artifacts/server1/INT-W3/fix-round-1-final --output-on-failure --repeat until-fail:3
+
+Environment: MSVC 19.44.35227.0 x64, Ninja, C++17, Qt 6.11.1
+msvc2022_64. Configure passed. Fresh build passed 67/67. Final CTest passed
+39/39. Repeat passed 117/117 executions. Tests 1-16, the retained W0-W2
+inventory, all passed. These remain producer test results, not acceptance.
+
+The P08 positive consumer compiled and executed. Seven separate `cl.exe /c`
+mutations for ownership, generation, exact tail, cancellation, observations,
+statistics, and autonomy suppression all failed compilation as required (7/7).
+`dumpbin /linkermember:1` showed linkable PieceBuffer, scheduler rotation/action,
+MetadataExchange/EngineSwarmRegistry, PersistentPieceStore, CircularPieceStore,
+PeerSearch/TrackerSource/DhtSource, and SwarmCaps symbols. The combined consumer
+supplies the stronger link-and-execute proof and avoids duplicate symbols.
+
+### Differential, ownership, interface drift, risks, and scope
+
+Frozen source ranges and hashes remain unchanged. Refreshed source traces map
+Round 1 behavior to the same M664/M814/M818/M822/M843/M844 authorities. This is
+static source-trace-to-native-test comparison, not a live network differential.
+
+Only INT-W3 changed aggregate CMake, aggregate test CMake, and STATE. Packet
+CMake changes only link packet tests to packet targets. K04 consumes K03 types
+from a K04-owned header. P08 consumes K09's `AutonomyPolicy`; it contains no
+libtorrent type and does not implement K10. The prior report risk claiming
+K07/K09 had no public headers is superseded by the bounded extensions above.
+
+Changed production scope remains K02, K03, K04, K05, K06, K07, K09, and P08-T.
+Not implemented: K08, K10, K11, K12, H01, H02, application integration,
+packaging, full composition, playback, device proof, or release readiness.
+All refreshed B-W3A/B/C and P08-T receipts remain candidates. Agent 4 re-review
+is pending; this producer does not self-accept them.

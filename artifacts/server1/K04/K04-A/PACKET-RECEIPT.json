@@ -18,6 +18,11 @@
     "late_failure_after_replacement": "PASS ignored as second terminal",
     "pulse_and_flood_equality": "PASS immediate"
   },
+  "ownership_extension": {
+    "public_header": "native/colosseum_server_v1/include/server1/policy/SchedulerActions.h",
+    "reason": "bounded K04-owned public action and ledger contract required for an actual library consumer"
+  },
+  "fix_round_1": "public generation/peer/selection/block-aware two-pass contract, explicit request/cancel actions, terminal ledger, and pulse behavior repaired at 2947cce0; tests link the packet library; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3C",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"

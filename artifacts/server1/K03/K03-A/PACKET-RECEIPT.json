@@ -15,11 +15,14 @@
     "K03-03": "test-reported PASS"
   },
   "negative_controls": {
+    "request_budget_priority_rotation": "PASS stable truthy-group rotation",
+    "critical_width_zero": "PASS normalized to one",
     "inverted_read_window": "PASS rejected",
     "out_of_selection_window": "PASS rejected",
     "fresh_peer_with_outstanding_request": "PASS no request",
     "duplicate_idle_collection": "PASS no duplicate"
   },
+  "fix_round_1": "source priority rotation and zero-width critical semantics repaired at 2947cce0; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3B",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"

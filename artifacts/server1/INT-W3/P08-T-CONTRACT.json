@@ -9,7 +9,7 @@
   "contract_commit": "36a3fa3651022c4d89f9d74b3154983b80e697bc",
   "integration_commit": "2ff8f20617927d151098c11b303477f6ec735628",
   "verification": {
-    "build_dir": "artifacts/server1/INT-W3/P08-T-2ff8f206",
+    "build_dir": "artifacts/server1/INT-W3/fix-round-1-final",
     "environment": {
       "generator": "Ninja",
       "compiler": "MSVC 19.44.35227.0 x64",
@@ -17,9 +17,9 @@
       "qt": "6.11.1 msvc2022_64"
     },
     "configure": "PASS",
-    "build": "PASS; 65/65 steps",
-    "ctest": "PASS; 38/38 tests",
-    "repeat": "PASS; 38 tests repeated three times, 114/114 executions",
+    "build": "PASS; 67/67 steps",
+    "ctest": "PASS; 39/39 tests",
+    "repeat": "PASS; 39 tests repeated three times, 117/117 executions",
     "predecessor_regression": "PASS; B-W3C inventory 37/37",
     "positive_compile_consumer": "PASS and executed",
     "compile_fail_mutations": {
@@ -28,15 +28,18 @@
       "exact_block_tail": "PASS; rejected missing BlockSpan::length",
       "cancellation": "PASS; rejected missing CancelAction",
       "observation": "PASS; rejected missing poll observation override",
-      "statistics": "PASS; rejected missing statistics override"
+      "statistics": "PASS; rejected missing statistics override",
+      "autonomy_suppression": "PASS; rejected missing configureAutonomy enforcement"
     }
   },
   "scope": {
     "public_contract": "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
     "compile_consumer": "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp",
+    "linked_spine_consumer": "native/colosseum_server_v1/tests/test_spine_contracts.cpp",
     "aggregate_cmake_mutated_by": "INT-W3 only",
     "later_packets_implemented": []
   },
+  "fix_round_1": "actionable autonomy suppression and linked all-contract consumer added at d1003e04; fresh candidate pending Agent 4 re-review",
   "independent_review": {
     "reviewer": "Agent 4",
     "verdict": "pending"

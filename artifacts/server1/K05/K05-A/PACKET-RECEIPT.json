@@ -11,12 +11,24 @@
     "K05-03": "test-reported PASS"
   },
   "negative_controls": {
+    "stale_generation_connect_or_completion": "PASS rejected",
+    "duplicate_peer_queue": "PASS rejected",
+    "handshake_timeout": "PASS explicit disconnect action",
+    "request_timeout": "PASS explicit cancel action",
     "negative_metadata_piece": "PASS",
     "metadata_hash_mismatch": "PASS",
     "metadata_above_4MiB": "PASS",
     "pre_timeout_choke_check": "PASS",
     "cross_infohash_state_leak": "PASS"
   },
+  "ownership_extension": {
+    "public_headers": [
+      "native/colosseum_server_v1/include/server1/policy/MetadataExchange.h",
+      "native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h"
+    ],
+    "reason": "bounded K05-owned API needed by linked consumers; no aggregate or later-packet surface claimed"
+  },
+  "fix_round_1": "real exported symbols, peer identity, lifecycle, generation checks, timeouts, transport actions, and per-engine isolation repaired at d1003e04; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3A",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "implementation-authored; directly compiled; focused tests executed; integration pending"

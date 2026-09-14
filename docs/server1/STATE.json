@@ -201,18 +201,18 @@
     "INT-W2": "Repaired candidate preserves native source 260835ff2b52b11a169cf97493b9dbe49c7eb285. Evidence integrity was repaired and sealed through accepted candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 with 185 committed blobs verified, explicit fail-closed verdicts, recursive generated-output scrubbing, and no production or aggregate-CMake delta.",
     "B-W2B": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact candidate 1b882bfddfaa829dbf118a5af0535900d7f73443. Independent fresh gate: verifier tests 10/10 normally and under python -O, 185/185 blobs, public path PASS, CTest 16/16 plus 48/48 repeats, combined link PASS, K01 72/72, K13-A 11/11, K13-B 9/9, M00 11/11, H00 trace/raw-wire/disconnect/413 PASS, 54 generated files with zero private-path findings. W3 is released.",
     "CONTROL-PLAN": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact reviewed head 529e297cd2616d2bbd13cdaeecd828fbd88e2de3. Independent Sol re-review approved after two repair rounds. Fresh Agent 4 gate: 619/619 mutation tests, 1331/1331 semantic checks, frozen graph 57/57, 9/9 authority hashes, clean diff, no production changes. W3 execution is governed by the accepted addendum.",
-    "K02-A": "Candidate authored and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
-    "K05-A": "Candidate authored and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
-    "K06-A": "Candidate authored after K02-A and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
+    "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
+    "K05-A": "Fix Round 1 candidate exposes a linked public contract with peer identity, lifecycle, generation checks, timeouts, transport actions, and engine isolation; test-reported pending Agent 4 re-review.",
+    "K06-A": "Fix Round 1 candidate validates geometry before division, connects bitmap lifecycle, clears restaged verification, rejects coverage gaps, and preserves queued errors; test-reported pending Agent 4 re-review.",
     "B-W3A": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
-    "K03-A": "Candidate authored after B-W3A and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
-    "K07-A": "Candidate authored after B-W3A and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
-    "K09-A": "Candidate authored after B-W3A and focused-driver tested on sol/server1-w3-spine-20260914; K09-B convergence and independent Agent 4 review pending.",
-    "K09-B": "Candidate authored after K09-A and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
+    "K03-A": "Fix Round 1 candidate adds source priority rotation after budget fill and width-zero critical normalization; test-reported pending Agent 4 re-review.",
+    "K07-A": "Fix Round 1 candidate exposes a linked public verification and noNotifyHave commit contract; test-reported pending Agent 4 re-review.",
+    "K09-A": "Fix Round 1 candidate exposes and composes TrackerSource/DhtSource through PeerSearch and rejects autonomous picker/discovery; test-reported pending Agent 4 re-review.",
+    "K09-B": "Fix Round 1 candidate exposes linked SwarmCaps and actionable no-autonomy policy convergence; test-reported pending Agent 4 re-review.",
     "B-W3B": "Candidate integration only. Aggregate verification and independent Agent 4 acceptance remain required.",
-    "K04-A": "Candidate authored after B-W3B and packet-tested on sol/server1-w3-spine-20260914; independent Agent 4 review pending.",
+    "K04-A": "Fix Round 1 candidate exposes a linked two-pass scheduler action contract with full ownership identity, explicit request/cancel actions, one-terminal ledger, and pulse behavior; test-reported pending Agent 4 re-review.",
     "B-W3C": "Candidate integration verified at cefb6fe21524c21ccf526d5f2e70904b1ee793aa with 37/37 aggregate tests; independent Agent 4 acceptance remains required.",
-    "P08-T": "Candidate TorrentTransport contract authored only after B-W3C, integrated at 2ff8f20617927d151098c11b303477f6ec735628, positive-compiled, aggregate-tested, and compile-fail mutation-tested; independent Agent 4 review pending.",
+    "P08-T": "Fix Round 1 candidate carries and enforces external-control suppression, has a linked spine consumer, passes 7/7 compile-fail mutations and fresh 39/39 aggregate; independent Agent 4 re-review pending.",
     "worktree": "Created from selected immutable application base 81e750b65f3788af7be99392f16b86a9212ff2bd; B-W2A was bd39020125eed2180ba59043f1e1088be11ad73a; accepted INT-W2 candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 was pushed on sol/server1-int-w2b-repaired-20260912."
   },
   "accepted_states": {
@@ -344,7 +344,7 @@
       "K09-B": "test-reported-pending-review",
       "K04-A": "test-reported-pending-review",
       "P08-T": "aggregate-compiled-and-mutation-tested-pending-agent4-review",
-      "INT-W3": "slice2-candidate-test-reported-pending-agent4-review"
+      "INT-W3": "fix-round-1-candidate-test-reported-pending-agent4-rereview"
     },
     "barriers": {
       "B-W3A": "candidate-pending-agent4-review",

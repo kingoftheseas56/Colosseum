@@ -55,4 +55,6 @@ target_compile_features(server1_spine_contracts_link_test PRIVATE cxx_std_17)
 target_compile_options(server1_spine_contracts_link_test PRIVATE
   "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
 add_test(NAME INT-W3-spine-contracts-link COMMAND server1_spine_contracts_link_test)
-set_tests_properties(INT-W3-spine-contracts-link PROPERTIES LABELS "server1;unit;INT-W3")
+set_tests_properties(INT-W3-spine-contracts-link PROPERTIES
+  LABELS "server1;unit;INT-W3"
+  ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")

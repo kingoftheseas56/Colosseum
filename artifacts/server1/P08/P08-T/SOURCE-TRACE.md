@@ -6,3 +6,5 @@
 - K02 fixes exact wire block length at 16 KiB and supports final tails. K03/K04 fix selection identity, request ownership, hotswap cancellation and generation-safe terminal behavior.
 - The public contract therefore carries request id, selection id, generation, peer handle and exact piece/offset/length together on request, cancellation, block and failure paths. It exposes typed peer/block/failure observations, honest statistics, interest/choke actions, and explicit close.
 - The public header contains no libtorrent type. K10 remains the sole future adapter implementation owner.
+
+Fix Round 1 (2026-09-15): TorrentTransport accepts only an externally controlled K09 autonomy policy before invoking its adapter suppression hook. Runtime negative controls and a compile-fail mutation prove autonomous activity cannot pass through this contract.

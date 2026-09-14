@@ -11,12 +11,17 @@
     "K06-03": "test-reported PASS"
   },
   "negative_controls": {
+    "zero_piece_geometry": "PASS rejected before division",
+    "restage_after_verify": "PASS clears memory and persisted verification",
+    "incomplete_destination_coverage": "PASS commit rejected",
+    "queued_error_before_close": "PASS causal ledger",
     "absent_destination": "PASS",
     "corrupt_real_piece": "PASS",
     "partial_or_disk_error": "PASS",
     "reordered_close_before_commit": "PASS rejected",
     "stale_persisted_bitmap": "PASS invalidated"
   },
+  "fix_round_1": "geometry, bitmap lifecycle, destination coverage, restage, and queued-error ordering repaired at 2947cce0; candidate pending Agent 4 re-review",
   "callback_multiplicity": "N committed pieces plus one terminal callback, source-compatible",
   "aggregate_registration": "pending INT-W3 B-W3A",
   "review": "candidate only; independent Agent 4 review pending",

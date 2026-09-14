@@ -8,3 +8,5 @@
 - M851 lines 74856-74884, SHA-256 `2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041`, was rechecked for 16 KiB block reservation/cancellation semantics.
 
 The request ledger expresses actions and terminal outcomes. It does not add connection-recovery retries or execute transport operations.
+
+Fix Round 1 (2026-09-15): the K04-owned public header carries generation, peer, selection, piece, block, offset, and length through normal then hotswap decisions. Hotswap emits cancel then request, and the ledger admits one terminal outcome.

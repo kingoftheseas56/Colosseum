@@ -11,3 +11,5 @@ Frozen ranges inspected:
 - M843 74473-74529 / `520011da2b4a68a3c71f967416cda41badb047ade587672ef031b1edce9efa30`: 16 KiB metadata chunks, negative/reject handling, 4 MiB cap, out-of-order assembly, and SHA-1 validation.
 
 K05-01 covers M843 chunk and hash behavior. K05-02 covers M814/M818/M822 choke and rechoke policy. K05-03 covers M814/M818 per-engine cleanup and isolation. The packet models higher-level source policy only; native wire control remains behind the already accepted P08 seam.
+
+Fix Round 1 (2026-09-15): M664 peer identity and M818/M822 queued, handshake, request, generation, and timeout behavior are now public exported K05 symbols. Transport effects are typed actions; no socket or K10 adapter was added.

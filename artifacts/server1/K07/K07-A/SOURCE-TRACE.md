@@ -6,3 +6,5 @@
 - M814 lines 72439-72764, SHA-256 `05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e`: circular store is selected only for circular-buffer mode and reset flows through the scheduler.
 
 Native fs completion tokens carry slot generations. This makes the source callback lifecycle explicit: read-before-spill sees memory, and a stale/canceled/closed completion cannot replace a newer slot occupant.
+
+Fix Round 1 (2026-09-15): K07 now exports its public store contract. Commit exposes the verification result, rejects failed verification, and returns `noNotifyHave=true` without claiming later scheduler integration.

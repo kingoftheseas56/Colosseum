@@ -11,6 +11,7 @@
     "K07-03": "test-reported PASS"
   },
   "negative_controls": {
+    "failed_verification_commit": "PASS rejected",
     "all_slots_unfreeable": "PASS exact source error",
     "locked_piece_eviction": "PASS excluded",
     "stale_spill_completion": "PASS ignored",
@@ -18,6 +19,11 @@
     "completion_after_close": "PASS impossible after ledger clear",
     "zero_capacity": "PASS visible full condition"
   },
+  "ownership_extension": {
+    "public_header": "native/colosseum_server_v1/include/server1/policy/CircularPieceStore.h",
+    "reason": "bounded K07-owned verification and noNotifyHave result contract required by linked consumers"
+  },
+  "fix_round_1": "exported verification result and noNotifyHave=true commit semantics repaired at d1003e04; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3B",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "source-traced; test-authored; implementation-authored; directly compiled; focused tests executed; integration pending"

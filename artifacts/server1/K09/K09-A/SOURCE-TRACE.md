@@ -7,3 +7,5 @@
 - M626 lines 59022-59107 (`82e99353539ff19db4729f0dbf5022f0cbea18ea20c1927eb30c2327784a3363`) and M290 lines 26267-26757 (`3900d32bb67bb1795561f42eb2a222de5e01e7136f1855aed31319819d02ce65`): tracker/DHT client lifecycle authority.
 - M172 lines 18110-18500 (`bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486`): torrent announces replace configured sources, are prefixed with `tracker:`, and append the infohash DHT source. Internal engine DHT/tracker remain disabled.
 - M804 lines 71090-71092 (`77e375644fdae102dec312e7d8b99918194b25f5bd7a447d936e938f4ca133bd`): frozen default tracker corpus inspected; no larger list is introduced.
+
+Fix Round 1 (2026-09-15): PeerSearch now owns and invokes public TrackerSource/DhtSource objects. The public autonomy policy rejects automatic picker, DHT, or tracker activity at construction.

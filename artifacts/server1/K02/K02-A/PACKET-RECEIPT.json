@@ -15,11 +15,15 @@
     "K02-03": "test-reported PASS"
   },
   "negative_controls": {
+    "cancel_before_reserve": "PASS rejected",
+    "duplicate_cancel": "PASS rejected",
+    "cancel_after_delivery": "PASS rejected",
     "exhausted_reservation": "PASS",
     "duplicate_delivery": "PASS",
     "stale_generation": "PASS",
     "reserve_and_set_after_flush": "PASS"
   },
+  "fix_round_1": "reservation ownership state repaired at 2947cce0; focused and aggregate tests pass; candidate pending Agent 4 re-review",
   "aggregate_registration": "pending INT-W3 B-W3A",
   "review": "candidate only; independent Agent 4 review pending",
   "status": "implementation-authored; directly compiled; focused tests executed; integration pending"

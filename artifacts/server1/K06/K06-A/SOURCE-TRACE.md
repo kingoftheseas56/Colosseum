@@ -7,3 +7,5 @@ Oracle SHA-256: `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930
 - M844 74529-74645 / `71a56c9f02ee5ed434085228d1e585949cd79c2f7081f270ffe783b4cd27a730`: numeric destinations, destination replacement, memory-first reads, cross-file segments, serialized writes, SHA-1 verification, queued close, and callback multiplicity.
 
 The M844 successful commit callback is invoked once per committed virtual piece and once by the terminal `async.each` callback. `CommitResult.callbackCount` preserves that measured N+1 behavior instead of normalizing it to once-only.
+
+Fix Round 1 (2026-09-15): geometry is rejected before division; restage clears memory and bitmap verification; commit requires verified staged bytes plus complete destination coverage; queued write errors precede close in the causal ledger.

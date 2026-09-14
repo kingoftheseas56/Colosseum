@@ -42,8 +42,39 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
     verified_.assign(count, false);
     committed_.assign(count, false);
     verificationBitmap_.emplace(count, root_ / ".verification-bitmap");
-    for (std::size_t piece = 0; piece < count; ++piece)
+    bool invalidated = false;
+    for (std::size_t piece = 0; piece < count; ++piece) {
         verified_[piece] = verificationBitmap_->get(piece);
+        if (!verified_[piece])
+            continue;
+        const auto byteStart = piece * pieceLength_;
+        const auto byteEnd = byteStart + pieceSize(piece);
+        std::vector<std::pair<std::size_t, std::size_t>> coverage;
+        bool destinationsExist = true;
+        for (std::size_t fileIndex = 0; fileIndex < files_.size(); ++fileIndex) {
+            const auto &file = files_[fileIndex];
+            const auto start = std::max(byteStart, file.offset);
+            const auto end = std::min(byteEnd, file.offset + file.length);
+            if (start < end) {
+                coverage.emplace_back(start - byteStart, end - byteStart);
+                destinationsExist = destinationsExist && std::filesystem::exists(destination(fileIndex));
+            }
+        }
+        std::sort(coverage.begin(), coverage.end());
+        std::size_t covered = 0;
+        for (const auto &[start, end] : coverage) {
+            if (start > covered)
+                break;
+            covered = std::max(covered, end);
+        }
+        if (!destinationsExist || covered != pieceSize(piece)) {
+            verified_[piece] = false;
+            verificationBitmap_->set(piece, false);
+            invalidated = true;
+        }
+    }
+    if (invalidated)
+        verificationBitmap_->persist();
 }
 
 void PersistentPieceStore::setDestination(std::size_t fileIndex, std::filesystem::path path)
