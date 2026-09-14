@@ -15,13 +15,15 @@
     "request_ownership": "PASS rejected",
     "generation": "PASS rejected",
     "exact_block_tail": "PASS rejected",
+    "block_identity": "PASS rejected",
     "cancellation": "PASS rejected",
     "observation": "PASS rejected",
     "statistics": "PASS rejected"
     ,"autonomy_suppression": "PASS rejected"
   },
   "fix_round_1": "TorrentTransport now carries and enforces K09 external-control suppression before adapter activation; runtime negative controls and 7/7 compile-fail mutations pass; candidate pending Agent 4 re-review",
-  "fix_round_2": "TorrentTransport directly consumes SchedulerActions.h and converts K04 request/cancel actions into TorrentAction with exact ownership, generation, selection, peer and block preservation at 6ab19547; fresh 7/7 compile-fail mutations pass; candidate pending Agent 4 re-review",
+  "fix_round_2": "TorrentTransport directly consumed SchedulerActions.h and converted ownership, generation, selection, peer, piece, offset and length at 6ab19547, but omitted RequestIdentity.block; superseded by Fix Round 3",
+  "fix_round_3": "BlockSpan carries blockOrdinal; conversion validates ordinal/offset geometry and preserves the exact K04 block identity on request and cancel at 8964aa27; fresh 8/8 compile-fail mutations pass; candidate pending Agent 4 re-review",
   "scope": "public contract header and minimal compile consumer only; no K10 adapter or later packet implementation",
   "aggregate_registration": "pending INT-W3",
   "review": "candidate only; independent Agent 4 review pending",

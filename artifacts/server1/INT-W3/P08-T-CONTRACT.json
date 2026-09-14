@@ -9,7 +9,7 @@
   "contract_commit": "36a3fa3651022c4d89f9d74b3154983b80e697bc",
   "integration_commit": "2ff8f20617927d151098c11b303477f6ec735628",
   "verification": {
-    "build_dir": "artifacts/server1/INT-W3/fix-round-2-final",
+    "build_dir": "artifacts/server1/INT-W3/fix-round-3-final",
     "environment": {
       "generator": "Ninja",
       "compiler": "MSVC 19.44.35227.0 x64",
@@ -26,6 +26,7 @@
       "request_ownership": "PASS; rejected missing RequestOwnership::requestId",
       "generation": "PASS; rejected missing RequestOwnership::generation",
       "exact_block_tail": "PASS; rejected missing BlockSpan::length",
+      "block_identity": "PASS; rejected missing BlockSpan::blockOrdinal",
       "cancellation": "PASS; rejected missing CancelAction",
       "observation": "PASS; rejected missing poll observation override",
       "statistics": "PASS; rejected missing statistics override",
@@ -40,7 +41,8 @@
     "later_packets_implemented": []
   },
   "fix_round_1": "actionable autonomy suppression and linked all-contract consumer added at d1003e04; fresh candidate pending Agent 4 re-review",
-  "fix_round_2": "P08-T directly consumes and converts K04 SchedulerAction request/cancel values at 6ab19547; combined smoke exercises the conversion and fresh candidate remains pending Agent 4 re-review",
+  "fix_round_2": "P08-T directly consumed K04 SchedulerAction request/cancel values at 6ab19547 but omitted RequestIdentity.block; superseded by Fix Round 3",
+  "fix_round_3": "P08-T preserves and validates K04 block ordinal on request/cancel at 8964aa27; combined smoke and fresh 8/8 compile mutations cover the field; candidate pending Agent 4 re-review",
   "independent_review": {
     "reviewer": "Agent 4",
     "verdict": "pending"

@@ -9,4 +9,6 @@
 
 Fix Round 1 (2026-09-15): TorrentTransport accepts only an externally controlled K09 autonomy policy before invoking its adapter suppression hook. Runtime negative controls and a compile-fail mutation prove autonomous activity cannot pass through this contract.
 
-Fix Round 2 (2026-09-15): TorrentTransport directly includes the K04 SchedulerActions contract and provides a checked request/cancel conversion. The P08 consumer and combined smoke prove ownership, generation, selection, peer, exact block, and wire-cancel compatibility.
+Fix Round 2 (2026-09-15): TorrentTransport directly included the K04 SchedulerActions contract and converted request/cancel ownership, generation, selection, peer, piece, offset, length, and wire-cancel state, but it omitted `RequestIdentity.block`; this claim is superseded by Fix Round 3.
+
+Fix Round 3 (2026-09-15): `BlockSpan::blockOrdinal` carries `RequestIdentity.block`. Conversion range-checks it, enforces `offset == blockOrdinal * 16 KiB`, and the P08 request/cancel consumer plus combined smoke inspect exact preservation. The new block-identity mutation fails compilation when that field is removed.

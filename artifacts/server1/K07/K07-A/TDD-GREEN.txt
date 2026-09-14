@@ -5,3 +5,4 @@ K07-02 exit: 0; output: K07-02 PASS
 K07-03 exit: 0; output: K07-03 PASS
 Standalone packet source compile exit: 0
 Fix Round 2 (2026-09-15): linked K07-01/02/03 pass real SHA-1 vectors and reject missing expected hashes, missing required pieces, and corrupt bytes; noNotifyHave is true only for verified success. Source commit: 6ab19547.
+Fix Round 3 (2026-09-15): linked K07-03 coalesces repeated pre-completion commits to one live token; first-then-second and second-then-first completion orders each apply once and preserve original bytes. Source commit: 8964aa27.

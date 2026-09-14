@@ -1,0 +1,34 @@
+{
+  "schema": "colosseum-server1-fix-round/v1",
+  "worker_id": "INT-W3",
+  "round": 3,
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-spine-20260914",
+  "review_input": "REQUEST CHANGES",
+  "repair_commit": "8964aa27",
+  "red": {
+    "P08-T": "MSVC compile failed because BlockSpan lacked blockOrdinal and the corrected four-field fixture did not fit",
+    "K07": "K07-03 failed because repeated pending commit returned a different second spill token",
+    "K06": "MSVC compile failed because later-write failure injection did not exist"
+  },
+  "green": {
+    "build_dir": "artifacts/server1/INT-W3/fix-round-3-final",
+    "configure": "PASS; Ninja; MSVC 19.44.35227.0 x64; C++17; Qt 6.11.1 msvc2022_64",
+    "build": "PASS; 67/67 steps",
+    "ctest": "PASS; 39/39",
+    "repeat": "PASS; 117/117 executions",
+    "w0_w2_regression": "PASS; retained tests 1-16",
+    "focused": "PASS; K06/K07/P08-T/INT-W3 8/8",
+    "adversarial": "PASS; K06-03/K07-03/P08-T/INT-W3 4/4",
+    "compile_negative": "PASS; 8/8 mutations rejected including P08_NEGATE_BLOCK_IDENTITY"
+  },
+  "scope": {
+    "included": ["K06", "K07", "P08-T", "K04/P08 claim correction", "INT-W3 evidence/state"],
+    "excluded": ["K08", "K10", "K11", "K12", "H01", "H02", "application integration", "packaging", "full composition", "runtime playback"]
+  },
+  "independent_review": {
+    "reviewer": "Agent 4",
+    "verdict": "pending re-review"
+  },
+  "status": "candidate; test-reported pending Agent 4 re-review"
+}

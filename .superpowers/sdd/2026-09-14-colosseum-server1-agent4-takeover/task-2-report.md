@@ -634,3 +634,98 @@ are recorded at the final evidence boundary. Included scope is K04, K05, K06,
 K07, K09, P08-T and INT-W3 evidence/state only. K08, K10, K11, K12, H01, H02,
 application integration, packaging, full composition, runtime playback, device
 proof and release readiness remain unimplemented.
+
+## Fix Round 3 — 2026-09-15
+
+Agent 4 returned Fix Round 2 as `REQUEST CHANGES`, bounded to two Important
+defects and one coverage gap. The starting pushed head was
+`69e585b793b4cda50a1fdeca9d41ab5fbc40747d`. The source-and-test repair is
+`8964aa27` (`fix(server1): preserve block and commit identities`). This
+evidence/report commit resolves as `SELF`. B-W3A, B-W3B, B-W3C, P08-T and
+INT-W3 remain candidates pending independent Agent 4 re-review.
+
+### RED/GREEN and exact regressions
+
+- P08-T RED: the corrected four-field `BlockSpan` fixture failed MSVC compilation
+  because no `blockOrdinal` member existed; the compiler also rejected every
+  assertion that tried to observe that missing identity. GREEN adds a 32-bit
+  ordinal, range-checks K04 `RequestIdentity.block`, and requires
+  `offset == blockOrdinal * 16384`. The prior inconsistent K04 fixture
+  `{piece=9, block=0, offset=16384, length=123}` is corrected to block 1.
+  Request and cancel conversion assertions independently inspect request id,
+  generation, selection, peer, piece, ordinal, offset, length, and wire-cancel.
+  A mismatched block-0/offset-16384 scheduler action is rejected.
+- K07 RED: K07-03 completed compilation but failed with
+  `repeated commit coalesces to one live spill token`; CTest exited 8 because
+  the second successful commit minted a second token. GREEN finds an existing
+  noncanceled spill for the same piece and slot generation and returns that
+  token. Two filesystem scenarios complete the second reference first and the
+  first reference first. In each order exactly one completion succeeds, the
+  duplicate returns false, and reading the spill yields the original four
+  `0x08` bytes.
+- K06 RED: the two-piece later-write test failed compilation because the existing
+  failure seam could inject only the first write. GREEN extends the bounded
+  existing seam with a successful-write countdown. K06-03 verifies both pieces,
+  writes the first, fails the second, and proves neither piece becomes committed,
+  neither bitmap bit is persisted, and both pieces reopen unverified despite the
+  first destination already containing bytes.
+
+The Round 3 source commit changes exactly:
+
+    native/colosseum_server_v1/include/server1/policy/PieceStore.h
+    native/colosseum_server_v1/include/server1/ports/TorrentTransport.h
+    native/colosseum_server_v1/src/storage/CircularPieceStore.cpp
+    native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+    native/colosseum_server_v1/tests/test_circular_store.cpp
+    native/colosseum_server_v1/tests/test_persistent_store.cpp
+    native/colosseum_server_v1/tests/test_spine_contracts.cpp
+    native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp
+
+No aggregate CMake, packet registration, K04 scheduler implementation, K10
+adapter, application, packaging, or later packet source changed.
+
+### Fresh MSVC gate and negative controls
+
+Commands ran under x64 `VsDevCmd.bat`:
+
+    cmake -S native/colosseum_server_v1 -B artifacts/server1/INT-W3/fix-round-3-final -G Ninja -DQt6_DIR=C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6
+    cmake --build artifacts/server1/INT-W3/fix-round-3-final -j 1
+    ctest --test-dir artifacts/server1/INT-W3/fix-round-3-final --output-on-failure
+    ctest --test-dir artifacts/server1/INT-W3/fix-round-3-final --output-on-failure --repeat until-fail:3
+
+Configure passed with Ninja, MSVC 19.44.35227.0 x64, C++17 and Qt 6.11.1
+msvc2022_64. Fresh build passed 67/67 steps. CTest inventory remained 39 and
+passed 39/39. Three repeats passed 117/117 executions. Retained W0-W2 tests
+1-16 passed. The linked K06/K07/P08-T/INT-W3 focus passed 8/8. The adversarial
+K06-03, K07-03, P08-T and INT-W3-spine-contracts-link focus passed 4/4.
+
+The positive P08 consumer compiled and executed in both P08-T and the combined
+spine link test. Eight standalone MSVC mutations returned nonzero exit 2:
+ownership, generation, exact length, block identity, cancellation, observation,
+statistics, and autonomy suppression. `P08_NEGATE_BLOCK_IDENTITY` specifically
+removed `BlockSpan::blockOrdinal`, and the consumer failed on the missing member.
+Raw P08 evidence and the contract receipt now record 8/8 rather than 7/7.
+
+### Claim correction, ownership, risk, and scope
+
+Fix Round 2's P08/K04 receipt and source-trace wording is corrected: that round
+preserved request id, generation, selection, peer, piece, offset, length, and
+wire-cancel, but omitted `RequestIdentity.block`. Fix Round 3 is the first
+candidate that preserves and validates the block ordinal. Historical source and
+test commits remain unchanged; only their candidate evidence claim is corrected.
+
+The new P08 field stays within INT-W3's existing public transport-contract
+ownership. K06 extends its preexisting write-failure test seam. K07 changes only
+K07-owned spill scheduling. Preflight authority remained read-only. There is no
+interface drift into K08, K10, K11, K12, H01 or H02. The K06 atomic range can
+leave early destination bytes on disk after a later failure, matching the known
+write sequence, but no verification bit persists and reopening forces recovery.
+K07 coalescing scans the bounded pending-spill map and distinguishes slot
+generations, so a replacement occupant never inherits the prior token.
+
+Updated evidence is bounded to K04 claim correction, K06/K07/P08 receipts and
+source/TDD traces, B-W3A/B-W3B/B-W3C/P08-T candidate receipts,
+`FIX-ROUND-3.json`, STATE candidate notes, and this report. Final JSON, diff,
+scope, no-`.cpp`-include, ancestry, clean-tree, and remote-equality checks are
+recorded at the evidence boundary. No acceptance, live network, playback,
+device, packaging, full-composition, or release claim is made.

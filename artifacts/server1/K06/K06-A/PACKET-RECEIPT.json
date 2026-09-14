@@ -18,11 +18,13 @@
     "absent_destination": "PASS",
     "corrupt_real_piece": "PASS",
     "partial_or_disk_error": "PASS",
+    "later_write_atomic_range_failure": "PASS no bitmap bit and wholly unverified reopen",
     "reordered_close_before_commit": "PASS rejected",
     "stale_persisted_bitmap": "PASS invalidated"
   },
   "fix_round_1": "geometry, bitmap lifecycle, destination coverage, restage, and queued-error ordering repaired at 2947cce0; candidate pending Agent 4 re-review",
   "fix_round_2": "verification bitmap now records only fully written disk commits; verify-only, failed-write and uncommitted reopen paths remain unverified at 6ab19547; candidate pending Agent 4 re-review",
+  "fix_round_3": "K06-03 injects failure after the first write of a two-piece commit and proves neither bitmap bit persists and both pieces reopen unverified at 8964aa27; candidate pending Agent 4 re-review",
   "callback_multiplicity": "N committed pieces plus one terminal callback, source-compatible",
   "aggregate_registration": "pending INT-W3 B-W3A",
   "review": "candidate only; independent Agent 4 review pending",

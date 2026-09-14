@@ -57,5 +57,9 @@
     "repair_commit": "6ab19547",
     "verification": "K05 generation/stop action purges and K06 commit-only bitmap truth included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
   },
+  "fix_round_3": {
+    "repair_commit": "8964aa27",
+    "verification": "K06 multi-piece later-write failure persists no bitmap bit and reopens wholly unverified; included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
+  },
   "status": "candidate; test-reported pending Agent 4 review"
 }

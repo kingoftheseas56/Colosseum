@@ -11,4 +11,6 @@ The request ledger expresses actions and terminal outcomes. It does not add conn
 
 Fix Round 1 (2026-09-15): the K04-owned public header carries generation, peer, selection, piece, block, offset, and length through normal then hotswap decisions. Hotswap emits cancel then request, and the ledger admits one terminal outcome.
 
-Fix Round 2 (2026-09-15): the peer identity is a transport-compatible 64-bit handle. P08-T consumes the K04 header and converts request/cancel actions without dropping ownership, generation, selection, peer, or block fields.
+Fix Round 2 (2026-09-15): the peer identity became a transport-compatible 64-bit handle. P08-T converted ownership, generation, selection, peer, piece, offset and length but omitted `RequestIdentity.block`; this claim is superseded by Fix Round 3.
+
+Fix Round 3 (2026-09-15): P08-T maps `RequestIdentity.block` to `BlockSpan::blockOrdinal` and validates its 16 KiB offset geometry for both request and cancel actions.

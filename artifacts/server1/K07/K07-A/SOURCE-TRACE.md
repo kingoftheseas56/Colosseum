@@ -10,3 +10,5 @@ Native fs completion tokens carry slot generations. This makes the source callba
 Fix Round 1 (2026-09-15): K07 now exports its public store contract. Commit exposes the verification result, rejects failed verification, and returns `noNotifyHave=true` without claiming later scheduler integration.
 
 Fix Round 2 (2026-09-15): commit hashes the complete required in-memory or spilled byte range using SHA-1. Missing pieces, missing spill files, absent expected hashes, and corrupt bytes fail before commit; only verified success returns `noNotifyHave=true`.
+
+Fix Round 3 (2026-09-15): while a filesystem spill is pending, a repeated successful commit for the same piece and slot generation returns the existing token instead of creating another. Completing either reference first writes the original bytes once; the duplicate completion is rejected.

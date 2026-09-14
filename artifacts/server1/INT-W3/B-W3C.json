@@ -40,5 +40,9 @@
     "repair_commit": "6ab19547",
     "verification": "K04 transport-compatible peer identity and direct P08 consumption included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
   },
+  "fix_round_3": {
+    "repair_commit": "8964aa27",
+    "verification": "P08 conversion now preserves K04 RequestIdentity.block as a validated ordinal; combined smoke and fresh aggregate pass; candidate pending Agent 4 re-review"
+  },
   "status": "candidate; test-reported pending Agent 4 review"
 }

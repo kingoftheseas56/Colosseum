@@ -50,5 +50,9 @@
     "repair_commit": "6ab19547",
     "verification": "K07 real SHA-1 verification and globally unique K09 actionable adds included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
   },
+  "fix_round_3": {
+    "repair_commit": "8964aa27",
+    "verification": "K07 repeated pending commits coalesce to one spill token and duplicate completions preserve original bytes; included in fresh 39/39 aggregate and 117/117 repeat; candidate pending Agent 4 re-review"
+  },
   "status": "candidate; test-reported pending Agent 4 review"
 }

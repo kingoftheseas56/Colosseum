@@ -11,3 +11,5 @@ The M844 successful commit callback is invoked once per committed virtual piece 
 Fix Round 1 (2026-09-15): geometry is rejected before division; restage clears memory and bitmap verification; commit requires verified staged bytes plus complete destination coverage; queued write errors precede close in the causal ledger.
 
 Fix Round 2 (2026-09-15): the M830 bitmap represents disk-committed verified bytes only. Hash verification remains in memory until every destination segment is written successfully; failed or uncommitted stores reopen unverified.
+
+Fix Round 3 (2026-09-15): K06-03 exercises a two-piece atomic commit whose second write fails after the first reaches disk. The two-pass bitmap phase persists no bit, commits neither piece, and reopening treats both as unverified.
