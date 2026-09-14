@@ -1,0 +1,26 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "P08",
+  "worker": "P08-T",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-spine-20260914",
+  "base": "0de98ef49f5a546a0e4148d02d75b638eb49db53",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/P08/P08-T/PACKET-RECEIPT.json)",
+  "dependencies": {
+    "P08-A": "accepted feasibility seam in B-W1D",
+    "B-W3C": "cefb6fe21524c21ccf526d5f2e70904b1ee793aa"
+  },
+  "positive_compile_consumer": "PASS and executed",
+  "compile_fail_mutations": {
+    "request_ownership": "PASS rejected",
+    "generation": "PASS rejected",
+    "exact_block_tail": "PASS rejected",
+    "cancellation": "PASS rejected",
+    "observation": "PASS rejected",
+    "statistics": "PASS rejected"
+  },
+  "scope": "public contract header and minimal compile consumer only; no K10 adapter or later packet implementation",
+  "aggregate_registration": "pending INT-W3",
+  "review": "candidate only; independent Agent 4 review pending",
+  "status": "source-traced; test-authored; contract-authored; directly compiled; mutation-tested; aggregate integration pending"
+}

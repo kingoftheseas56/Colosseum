@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "P08-T",
+  "parent_packet": "P08",
+  "base": "0de98ef49f5a546a0e4148d02d75b638eb49db53",
+  "request": "INT-W3 must register the P08-T compile consumer in aggregate tests after the P08-T packet commit.",
+  "owned_files": [
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
+    "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp"
+  ],
+  "interface_changes": "Produces the frozen TorrentTransportContract. It consumes SchedulerActionContract and the accepted P08-A seam; it does not implement the K10 adapter.",
+  "gate": "P08-T candidate pending aggregate compile/CTest and independent Agent 4 review; not self-accepted.",
+  "push": "packet commit will be pushed only with the complete Slice 2 branch"
+}

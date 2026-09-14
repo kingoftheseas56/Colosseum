@@ -1,0 +1,14 @@
+Positive command: cl.exe /nologo /std:c++17 /EHsc /I native\colosseum_server_v1\include test_torrent_transport_contract.cpp /Fe:contract.exe
+Compile exit: 0
+Run exit: 0
+Output: P08-T PASS
+
+Compile-fail mutations, each using the same consumer and one P08_NEGATE_* definition:
+- OWNERSHIP: exit 1; missing RequestOwnership::requestId
+- GENERATION: exit 1; missing RequestOwnership::generation
+- EXACT_BLOCK: exit 1; missing BlockSpan::length
+- CANCELLATION: exit 1; missing CancelAction
+- OBSERVATION: exit 1; poll no longer overrides and consumer remains abstract
+- STATISTICS: exit 1; statistics no longer overrides and consumer remains abstract
+
+All six negative controls failed compilation for the intended missing member.
