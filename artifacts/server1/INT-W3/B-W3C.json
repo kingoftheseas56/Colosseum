@@ -1,0 +1,36 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W3",
+  "barrier": "B-W3C",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-spine-20260914",
+  "integration_base": "fc1c49943227614594edad8c3789c9e1aa9ed937",
+  "integration_sha": "cefb6fe21524c21ccf526d5f2e70904b1ee793aa",
+  "predecessor_barrier": "B-W3B",
+  "predecessor_candidate_sha": "de4a76f3824c991ba5497d8a2644ae3d40fc4bcc",
+  "inputs": {
+    "K04-A": "fb0e1e4cbfca3bb2255e44bca86cdbf6e267bba6"
+  },
+  "verification": {
+    "build_dir": "artifacts/server1/INT-W3/B-W3C-cefb6fe2",
+    "configure": "PASS",
+    "build": "PASS; 63/63 steps",
+    "ctest": "PASS; 37/37 tests",
+    "predecessor_regression": "PASS; B-W3B inventory 34/34",
+    "new_cases": {
+      "K04-01": "PASS",
+      "K04-02": "PASS",
+      "K04-03": "PASS"
+    }
+  },
+  "collision_review": {
+    "scheduler_header": "unchanged after K03-A; K04 implements the predeclared SchedulerActionContract",
+    "aggregate_cmake_mutated_by": "INT-W3 only",
+    "forbidden_files_changed": []
+  },
+  "independent_review": {
+    "reviewer": "Agent 4",
+    "verdict": "pending"
+  },
+  "status": "candidate; test-reported pending Agent 4 review"
+}
