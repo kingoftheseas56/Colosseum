@@ -1,0 +1,46 @@
+{
+  "schema": "colosseum-server1-barrier-receipt/v1",
+  "worker_id": "INT-W3",
+  "barrier": "B-W3B",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-spine-20260914",
+  "integration_base": "13f53418c96b4922caffc3ea56b1b6e52e09aa40",
+  "integration_sha": "de4a76f3824c991ba5497d8a2644ae3d40fc4bcc",
+  "predecessor_barrier": "B-W3A",
+  "predecessor_candidate_sha": "fd1216a0faecc14554753ffb0d920de443c91336",
+  "inputs": {
+    "K03-A": "ef0934e28e6461499333e098093131a8cf7edb62",
+    "K07-A": "fccffda26a74bfee811f28babc30e72602bd00ac",
+    "K09-A": "d41cac8acfb0ab76318d93e3a991dbaac5346157",
+    "K09-B": "573c1211da0437607c92c7a108cf30c4943df6f9"
+  },
+  "verification": {
+    "build_dir": "artifacts/server1/INT-W3/B-W3B-de4a76f3",
+    "configure": "PASS",
+    "build": "PASS; 58/58 steps",
+    "ctest": "PASS; 34/34 tests",
+    "predecessor_regression": "PASS; B-W3A and retained W0-W2 inventory 25/25",
+    "new_cases": {
+      "K03-01": "PASS",
+      "K03-02": "PASS",
+      "K03-03": "PASS",
+      "K07-01": "PASS",
+      "K07-02": "PASS",
+      "K07-03": "PASS",
+      "K09-01": "PASS",
+      "K09-02": "PASS",
+      "K09-03": "PASS"
+    }
+  },
+  "collision_review": {
+    "shared_interface": "Scheduler.h is owned by K03-A; K04 consumes its predeclared action-policy surface without a header mutation.",
+    "aggregate_cmake_mutated_by": "INT-W3 only",
+    "duplicate_discovery": "internal engine DHT and tracker remain disabled",
+    "forbidden_files_changed": []
+  },
+  "independent_review": {
+    "reviewer": "Agent 4",
+    "verdict": "pending"
+  },
+  "status": "candidate; test-reported pending Agent 4 review"
+}
