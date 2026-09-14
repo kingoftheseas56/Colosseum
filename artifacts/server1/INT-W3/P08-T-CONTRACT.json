@@ -44,8 +44,9 @@
   "fix_round_2": "P08-T directly consumed K04 SchedulerAction request/cancel values at 6ab19547 but omitted RequestIdentity.block; superseded by Fix Round 3",
   "fix_round_3": "P08-T preserves and validates K04 block ordinal on request/cancel at 8964aa27; combined smoke and fresh 8/8 compile mutations cover the field; candidate pending Agent 4 re-review",
   "independent_review": {
-    "reviewer": "Agent 4",
-    "verdict": "pending"
+    "reviewer": "[Agent 4 (Codex), stream mode]",
+    "verdict": "ACCEPT",
+    "reviewed_head": "bd6e3256ee3d46eccc17303558746c62dea5511c"
   },
-  "status": "candidate; test-reported pending Agent 4 review"
+  "status": "accepted"
 }

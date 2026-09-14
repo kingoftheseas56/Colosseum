@@ -29,8 +29,9 @@
     "forbidden_files_changed": []
   },
   "independent_review": {
-    "reviewer": "Agent 4",
-    "verdict": "pending"
+    "reviewer": "[Agent 4 (Codex), stream mode]",
+    "verdict": "ACCEPT",
+    "reviewed_head": "bd6e3256ee3d46eccc17303558746c62dea5511c"
   },
   "fix_round_1": {
     "repair_commits": ["2947cce0", "d1003e04"],
@@ -44,5 +45,5 @@
     "repair_commit": "8964aa27",
     "verification": "P08 conversion now preserves K04 RequestIdentity.block as a validated ordinal; combined smoke and fresh aggregate pass; candidate pending Agent 4 re-review"
   },
-  "status": "candidate; test-reported pending Agent 4 review"
+  "status": "accepted"
 }

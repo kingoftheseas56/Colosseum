@@ -201,6 +201,7 @@
     "INT-W2": "Repaired candidate preserves native source 260835ff2b52b11a169cf97493b9dbe49c7eb285. Evidence integrity was repaired and sealed through accepted candidate 1b882bfddfaa829dbf118a5af0535900d7f73443 with 185 committed blobs verified, explicit fail-closed verdicts, recursive generated-output scrubbing, and no production or aggregate-CMake delta.",
     "B-W2B": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact candidate 1b882bfddfaa829dbf118a5af0535900d7f73443. Independent fresh gate: verifier tests 10/10 normally and under python -O, 185/185 blobs, public path PASS, CTest 16/16 plus 48/48 repeats, combined link PASS, K01 72/72, K13-A 11/11, K13-B 9/9, M00 11/11, H00 trace/raw-wire/disconnect/413 PASS, 54 generated files with zero private-path findings. W3 is released.",
     "CONTROL-PLAN": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-14 for exact reviewed head 529e297cd2616d2bbd13cdaeecd828fbd88e2de3. Independent Sol re-review approved after two repair rounds. Fresh Agent 4 gate: 619/619 mutation tests, 1331/1331 semantic checks, frozen graph 57/57, 9/9 authority hashes, clean diff, no production changes. W3 execution is governed by the accepted addendum.",
+    "SLICE-2": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head bd6e3256ee3d46eccc17303558746c62dea5511c after three repair rounds. Fresh Agent 4 CTest 39/39; producer repeat 117/117; P08-T compile mutations 8/8 rejected. B-W3A, B-W3B, B-W3C, and P08-T-CONTRACT accepted. Slice 3 may consume the frozen transport contract.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -239,6 +240,15 @@
       "K13-B": "integrated",
       "H00-A": "integrated",
       "M00-A": "integrated",
+      "K02-A": "integrated",
+      "K03-A": "integrated",
+      "K04-A": "integrated",
+      "K05-A": "integrated",
+      "K06-A": "integrated",
+      "K07-A": "integrated",
+      "K09-A": "integrated",
+      "K09-B": "integrated",
+      "P08-T": "integrated",
       "INT-W1": "integrated",
       "INT-W2": "integrated"
     },
@@ -249,6 +259,9 @@
       "B-W1D": "accepted",
       "B-W2A": "accepted",
       "B-W2B": "accepted"
+      ,"B-W3A": "accepted"
+      ,"B-W3B": "accepted"
+      ,"B-W3C": "accepted"
     },
     "control_gates": {
       "CONTROL-PLAN": "accepted"
@@ -354,5 +367,16 @@
     "control_gates": {
       "P08-T-CONTRACT": "candidate-pending-agent4-review"
     }
+  },
+  "slice2_acceptance": {
+    "status": "accepted",
+    "reviewed_head": "bd6e3256ee3d46eccc17303558746c62dea5511c",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "fresh_ctest": "39/39",
+    "repeat_ctest": "117/117",
+    "P08_compile_mutations": "8/8 rejected",
+    "accepted_gates": ["B-W3A", "B-W3B", "B-W3C", "P08-T-CONTRACT"],
+    "slice3_released": true,
+    "scope_note": "Policy, storage, discovery, scheduler-action, and TorrentTransport contract are accepted. No libtorrent adapter, engine, torrent HTTP, playback, packaging, or release claim is made."
   }
 }
