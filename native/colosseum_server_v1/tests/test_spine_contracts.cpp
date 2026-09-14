@@ -32,7 +32,15 @@ int main()
     Scheduler scheduler(1);
     const auto selection = scheduler.select(0, 0, Value::number(1));
     SchedulerActionContract actions;
-    if (!actions.track({1, 1, selection, "peer", 0, 0, 0, 1})) return 2;
+    if (!actions.track({1, 1, selection, 12, 0, 0, 0, 1})) return 2;
+    const auto schedulerActions = actions.decide({12, 1, 1, 0, 0.0},
+        {{selection, 1, 0, 0, 0, 1, true, false}}, {});
+    if (schedulerActions.size() != 1) return 8;
+    const auto torrentAction = server1::ports::toTorrentAction(schedulerActions[0]);
+    if (!torrentAction || !std::holds_alternative<server1::ports::RequestAction>(*torrentAction)) return 9;
+    const auto &converted = std::get<server1::ports::RequestAction>(*torrentAction);
+    if (converted.ownership.generation != 1 || converted.ownership.selectionId != selection
+        || converted.peer != 12 || converted.block.piece != 0 || converted.block.length != 1) return 10;
     MetadataExchange metadata("0000000000000000000000000000000000000000");
     if (!metadata.advertise(1)) return 3;
     SwarmPolicy swarm(10, 1);

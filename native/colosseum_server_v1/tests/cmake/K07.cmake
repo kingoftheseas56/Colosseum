@@ -14,6 +14,7 @@ function(server1_register_k07_tests)
       COMMAND server1_k07_circular_store_test
         "${CMAKE_CURRENT_BINARY_DIR}/${case_id}" ${case_id})
     set_tests_properties(${case_id}-circular-store PROPERTIES
-      LABELS "server1;unit;K07")
+      LABELS "server1;unit;K07"
+      ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
   endforeach()
 endfunction()

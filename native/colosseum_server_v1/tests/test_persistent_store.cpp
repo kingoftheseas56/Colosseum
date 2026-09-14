@@ -119,12 +119,12 @@ void caseK06_02(const std::filesystem::path &root)
     require(store.isVerified(0) && store.isVerified(1) && !store.isCommitted(0),
             "verified remains distinct from disk-committed");
     server1::policy::VerificationBitmap persisted(2, caseRoot / ".verification-bitmap");
-    require(persisted.get(0) && persisted.get(1),
-            "store verification is connected to the persisted bitmap lifecycle");
+    require(!persisted.get(0) && !persisted.get(1),
+            "staged verification is not persisted before destination commit");
     PersistentPieceStore noDestination(caseRoot, 4, 8, 8, {StoreFile{0, 8}},
         {"425af12a0743502b322e93a015bcf868e324d56a"});
     require(!noDestination.isVerified(0) && !noDestination.isVerified(1),
-            "reopen invalidates bitmap bits whose destination bytes do not exist");
+            "uncommitted verified bytes reopen unverified");
     store.stage(0, bytes("abcd"));
     require(!store.isVerified(0), "restaging clears prior verification state");
     server1::policy::VerificationBitmap restaged(2, caseRoot / ".verification-bitmap");
@@ -159,6 +159,9 @@ void caseK06_03(const std::filesystem::path &root)
     require(failed.state == CommitState::Error && !failing.isCommitted(0),
             "partial or disk error cannot become committed");
     require(failing.isVerified(0), "disk failure does not fabricate or erase hash result");
+    auto failedReopen = makeEightByteStore(caseRoot / "errors");
+    require(!failedReopen.isVerified(0),
+            "failed destination write reopens unverified because no committed bit was persisted");
 
     const auto bitmapPath = caseRoot / "bitmap";
     {

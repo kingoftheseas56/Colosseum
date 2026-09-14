@@ -21,12 +21,12 @@ void caseK0401()
     expect(Scheduler::requestBudget(0) == 50 && Scheduler::requestBudget(30) == 5,
            "K04-01 source request-budget bounds");
     SchedulerActionContract contract;
-    RequestDecisionContext context{"peer-a", 7, 30, 3, 32768.0};
+    RequestDecisionContext context{12, 7, 30, 3, 32768.0};
     const auto actions = contract.decide(context,
         {candidate(11, 7, 2, 0), candidate(11, 7, 2, 1), candidate(12, 6, 3, 0)}, {});
     expect(actions.size() == 2, "K04-01 first pass fills remaining normal request budget");
     expect(actions[0].type == SchedulerActionType::Request
-               && actions[0].request.peer == "peer-a"
+               && actions[0].request.peer == 12
                && actions[0].request.generation == 7
                && actions[0].request.selectionId == 11
                && actions[0].request.piece == 2 && actions[0].request.block == 0,
@@ -36,15 +36,15 @@ void caseK0401()
 void caseK0402()
 {
     SchedulerActionContract contract;
-    RequestIdentity victim{91, 4, 3, "peer-slow", 8, 2, 32768, 16384};
+    RequestIdentity victim{91, 4, 3, 8, 8, 2, 32768, 16384};
     expect(contract.track(victim), "K04-02 victim tracked");
     HotswapRequestCandidate swap{victim, 8192.0, candidate(3, 4, 8, 2), true};
-    RequestDecisionContext context{"peer-fast", 4, 30, 5, 16384.0};
+    RequestDecisionContext context{9, 4, 30, 5, 16384.0};
     const auto actions = contract.decide(context, {}, {swap});
     expect(actions.size() == 2 && actions[0].type == SchedulerActionType::Cancel
                && actions[0].request.requestId == 91 && actions[0].requestWireCancel
                && actions[1].type == SchedulerActionType::Request
-               && actions[1].request.peer == "peer-fast",
+               && actions[1].request.peer == 9,
            "K04-02 second pass emits explicit victim cancel then replacement request");
     expect(contract.outcome(91) == RequestOutcome::Replaced && contract.terminalCount(91) == 1,
            "K04-02 hotswap records exactly one terminal outcome");
@@ -55,8 +55,8 @@ void caseK0402()
 void caseK0403()
 {
     SchedulerActionContract contract;
-    const RequestIdentity first{1, 5, 2, "p", 3, 0, 0, 4};
-    const RequestIdentity stale{2, 4, 2, "p", 3, 1, 4, 4};
+    const RequestIdentity first{1, 5, 2, 7, 3, 0, 0, 4};
+    const RequestIdentity stale{2, 4, 2, 7, 3, 1, 4, 4};
     expect(contract.track(first) && contract.track(stale), "K04-03 requests tracked");
     expect(contract.replacePiece(3, 5) == 1, "K04-03 replacement is generation aware");
     expect(contract.outcome(2) == RequestOutcome::Active,

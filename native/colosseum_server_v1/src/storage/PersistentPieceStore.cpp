@@ -173,9 +173,7 @@ VerifyResult PersistentPieceStore::verify(std::size_t piece)
     }
     for (std::size_t index = start; index < end; ++index) {
         verified_[index] = true;
-        verificationBitmap_->set(index, true);
     }
-    verificationBitmap_->persist();
     return {true, true, start, end};
 }
 
@@ -251,10 +249,14 @@ CommitResult PersistentPieceStore::commitNow(std::size_t start, std::size_t endE
         std::string error;
         if (!writePiece(piece, &error))
             return {CommitState::Error, result.callbackCount, false, error};
+    }
+    for (std::size_t piece = start; piece < endExclusive; ++piece) {
         committed_[piece] = true;
         staged_[piece].reset();
+        verificationBitmap_->set(piece, true);
         ledger_.push_back("commit:" + std::to_string(piece));
     }
+    verificationBitmap_->persist();
     return result;
 }
 

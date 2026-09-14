@@ -44,6 +44,7 @@ public:
     [[nodiscard]]bool isRunning()const noexcept;[[nodiscard]]bool closed()const noexcept;
     [[nodiscard]]bool intervalActive()const noexcept;[[nodiscard]]const std::vector<PeerSourceStats>&stats()const noexcept;
     [[nodiscard]]const std::vector<std::string>&peerAdds()const noexcept;
+    std::vector<std::string> takePeerAdds();
     [[nodiscard]]const AutonomyPolicy&autonomyPolicy()const noexcept;
     [[nodiscard]]std::size_t trackerRequests(std::size_t sourceIndex)const;
     [[nodiscard]]std::size_t dhtRequests(std::size_t sourceIndex)const;

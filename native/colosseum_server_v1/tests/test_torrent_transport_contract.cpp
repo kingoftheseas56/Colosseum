@@ -121,6 +121,29 @@ int main()
                && request.block.length == 123,
            "P08-T ownership, generation and exact tail are carried together");
 
+    const server1::policy::SchedulerAction schedulerRequest{
+        server1::policy::SchedulerActionType::Request,
+        {41, 7, 3, 12, 9, 0, kWireBlockLength, 123}, false};
+    const auto convertedRequest = toTorrentAction(schedulerRequest);
+    expect(convertedRequest && std::holds_alternative<RequestAction>(*convertedRequest),
+           "P08-T consumes the K04 request action contract");
+    const auto &convertedRequestValue = std::get<RequestAction>(*convertedRequest);
+    expect(convertedRequestValue.ownership.requestId == 41
+               && convertedRequestValue.ownership.generation == 7
+               && convertedRequestValue.ownership.selectionId == 3
+               && convertedRequestValue.peer == 12
+               && convertedRequestValue.block.piece == 9
+               && convertedRequestValue.block.offset == kWireBlockLength
+               && convertedRequestValue.block.length == 123,
+           "P08-T conversion preserves K04 ownership, peer, and exact block span");
+    auto schedulerCancel = schedulerRequest;
+    schedulerCancel.type = server1::policy::SchedulerActionType::Cancel;
+    schedulerCancel.requestWireCancel = true;
+    const auto convertedCancel = toTorrentAction(schedulerCancel);
+    expect(convertedCancel && std::holds_alternative<CancelAction>(*convertedCancel)
+               && std::get<CancelAction>(*convertedCancel).requestWireCancel,
+           "P08-T consumes explicit K04 wire cancellation");
+
     BlockObservation block{owner, 12, tail, {1, 2, 3}, false, false};
     PeerObservation peer{12, false, true, 65536.0, 1024.0, 4, 99};
     FailureObservation failure{owner, 12, tail, "timeout", true};

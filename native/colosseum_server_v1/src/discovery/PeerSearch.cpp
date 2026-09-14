@@ -14,10 +14,11 @@ void PeerSearch::run(std::uint64_t now){if(closed_)return;running_=true;lastNowM
 void PeerSearch::pause(std::uint64_t now)noexcept{running_=false;lastNowMs_=now;for(auto&t:trackers_)t.pause();for(auto&d:dhts_)d.pause(now);}
 void PeerSearch::onSwarmState(std::size_t queued,bool swarmPaused,std::uint64_t now){if(swarmPaused&&running_)pause(now);else if(minimum_&&queued<*minimum_&&!running_)run(now);else if(maximum_&&queued>*maximum_&&running_)pause(now);}
 void PeerSearch::tick(std::uint64_t now){lastNowMs_=now;for(auto&d:dhts_)d.advance(now);for(std::size_t i=0;i<bindings_.size();++i)if(!bindings_[i].tracker)sources_[i].numRequests=dhts_[bindings_[i].index].numRequests();if(running_&&intervalActive_&&now>=lastIntervalMs_+30000){lastIntervalMs_=now;run(now);}}
-void PeerSearch::emitPeer(std::size_t i,std::string address){if(closed_||i>=sources_.size())return;auto&s=sources_[i];if(uniquePeers_.insert(address).second)++s.numFoundUniq;++s.numFound;peerAdds_.push_back(std::move(address));}
+void PeerSearch::emitPeer(std::size_t i,std::string address){if(closed_||i>=sources_.size())return;auto&s=sources_[i];const bool unique=uniquePeers_.insert(address).second;if(unique){++s.numFoundUniq;peerAdds_.push_back(std::move(address));}++s.numFound;}
 void PeerSearch::close(){pause(lastNowMs_);for(auto&t:trackers_)t.close();for(auto&d:dhts_)d.close();intervalActive_=false;closed_=true;}
 bool PeerSearch::isRunning()const noexcept{return running_;}bool PeerSearch::closed()const noexcept{return closed_;}bool PeerSearch::intervalActive()const noexcept{return intervalActive_;}
 const std::vector<PeerSourceStats>&PeerSearch::stats()const noexcept{return sources_;}const std::vector<std::string>&PeerSearch::peerAdds()const noexcept{return peerAdds_;}
+std::vector<std::string>PeerSearch::takePeerAdds(){std::vector<std::string>result;result.swap(peerAdds_);return result;}
 const AutonomyPolicy&PeerSearch::autonomyPolicy()const noexcept{return autonomy_;}
 std::size_t PeerSearch::trackerRequests(std::size_t i)const{if(i>=bindings_.size()||!bindings_[i].tracker)throw std::out_of_range("tracker source index");return trackers_[bindings_[i].index].numRequests();}
 std::size_t PeerSearch::dhtRequests(std::size_t i)const{if(i>=bindings_.size()||bindings_[i].tracker)throw std::out_of_range("dht source index");return dhts_[bindings_[i].index].numRequests();}

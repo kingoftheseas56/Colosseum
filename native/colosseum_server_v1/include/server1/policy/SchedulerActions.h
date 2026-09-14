@@ -11,13 +11,13 @@
 
 namespace server1::policy {
 
-using SchedulerPeerId = std::string;
+using SchedulerPeerId = std::uint64_t;
 
 struct RequestIdentity final {
     std::uint64_t requestId = 0;
     std::uint64_t generation = 0;
     SelectionId selectionId = 0;
-    SchedulerPeerId peer;
+    SchedulerPeerId peer = 0;
     std::size_t piece = 0;
     std::size_t block = 0;
     std::size_t offset = 0;
@@ -52,7 +52,7 @@ struct HotswapRequestCandidate final {
 };
 
 struct RequestDecisionContext final {
-    SchedulerPeerId peer;
+    SchedulerPeerId peer = 0;
     std::uint64_t generation = 0;
     std::size_t unchokedPeers = 0;
     std::size_t outstandingRequests = 0;

@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace server1::policy {
@@ -15,7 +16,7 @@ struct CircularWriteResult final { bool success=false; std::optional<std::size_t
 struct CircularCommitResult final {
     bool success = false;
     VerifyResult verification;
-    bool noNotifyHave = true;
+    bool noNotifyHave = false;
     std::vector<std::uint64_t> spillTokens;
     std::string error;
 };
@@ -29,7 +30,8 @@ public:
                               const std::set<std::size_t> &selected,
                               const std::set<std::size_t> &locked, std::uint64_t now);
     [[nodiscard]] std::optional<ByteBuffer> read(std::size_t index, std::uint64_t now);
-    CircularCommitResult commit(std::size_t start, std::size_t end, bool verificationSuccess=true);
+    CircularCommitResult commit(std::size_t start, std::size_t end,
+                                std::string_view expectedSha1);
     bool cancelSpill(SpillToken token);
     bool completeSpill(SpillToken token, bool success);
     void close();

@@ -71,8 +71,8 @@ std::string generatePeerIdentity(std::uint64_t seed)
 }
 
 void EngineSwarmRegistry::start(std::string infoHash, std::uint64_t generation, std::uint64_t seed)
-{ const auto identity = generatePeerIdentity(seed); entries_[std::move(infoHash)] = {generation, identity, {}, 0, {}, {}}; }
-bool EngineSwarmRegistry::stop(const std::string &infoHash) { return entries_.erase(infoHash) != 0; }
+{ purgeActions(infoHash); const auto identity = generatePeerIdentity(seed); entries_[std::move(infoHash)] = {generation, identity, {}, 0, {}, {}}; }
+bool EngineSwarmRegistry::stop(const std::string &infoHash) { purgeActions(infoHash); return entries_.erase(infoHash) != 0; }
 bool EngineSwarmRegistry::live(const std::string &infoHash) const { return entries_.count(infoHash) != 0; }
 std::string EngineSwarmRegistry::peerIdentity(const std::string &infoHash) const { return entries_.at(infoHash).identity; }
 void EngineSwarmRegistry::recordDiscovery(const std::string &h, std::string s) { entries_.at(h).discovery.push_back(std::move(s)); }
@@ -96,4 +96,6 @@ void EngineSwarmRegistry::advance(std::uint64_t now)
 std::optional<PeerLifecycleState> EngineSwarmRegistry::peerState(const std::string &h,const std::string &p) const
 { auto i=entries_.find(h); if(i==entries_.end())return std::nullopt; auto q=i->second.peers.find(p); return q==i->second.peers.end()?std::nullopt:std::optional<PeerLifecycleState>(q->second.state); }
 std::vector<SwarmTransportAction> EngineSwarmRegistry::takeActions(){std::vector<SwarmTransportAction> r; r.swap(actions_); return r;}
+void EngineSwarmRegistry::purgeActions(const std::string &infoHash)
+{ actions_.erase(std::remove_if(actions_.begin(),actions_.end(),[&](const auto &action){return action.infoHash==infoHash;}),actions_.end()); }
 }

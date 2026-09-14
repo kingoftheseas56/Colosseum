@@ -65,6 +65,7 @@ public:
         const std::string &infoHash, const std::string &peer) const;
     std::vector<SwarmTransportAction> takeActions();
 private:
+    void purgeActions(const std::string &infoHash);
     struct PeerEntry final { PeerLifecycleState state; std::uint64_t handshakeDeadlineMs = 0; };
     struct RequestEntry final { std::string peer; std::uint64_t generation; std::size_t piece;
         std::size_t offset; std::size_t length; std::uint64_t deadlineMs; };

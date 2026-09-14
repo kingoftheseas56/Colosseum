@@ -130,6 +130,35 @@ void caseK05_03()
     require(actions.size() == 2 && actions.back().type == SwarmTransportActionType::Disconnect
                 && actions.back().reason == "handshake timeout",
             "handshake timeout is an explicit transport disconnect");
+
+    require(registry.queuePeer("bbbbbbbb", "stale-ready", 20)
+                && registry.connectPeer("bbbbbbbb", "stale-ready", 20, 60000)
+                && registry.completeHandshake("bbbbbbbb", "stale-ready", 20, "bbbbbbbb")
+                && registry.requestBlock("bbbbbbbb", "stale-ready", 20, 8, 4, 0, 16384, 60000),
+            "replacement regression queues old-generation connect and request actions");
+    require(registry.queuePeer("bbbbbbbb", "stale-bad", 20)
+                && registry.connectPeer("bbbbbbbb", "stale-bad", 20, 60000)
+                && !registry.completeHandshake("bbbbbbbb", "stale-bad", 20, "aaaaaaaa"),
+            "replacement regression queues old-generation disconnect action");
+    registry.advance(90000);
+    registry.start("bbbbbbbb", 21, 3);
+    require(registry.takeActions().empty(),
+            "generation replacement purges old connect/request/cancel/disconnect actions");
+    require(!registry.completeHandshake("bbbbbbbb", "stale-ready", 20, "bbbbbbbb"),
+            "generation replacement cannot emit completion actions from stale peers");
+    require(registry.queuePeer("bbbbbbbb", "stopped", 21)
+                && registry.connectPeer("bbbbbbbb", "stopped", 21, 100000)
+                && registry.completeHandshake("bbbbbbbb", "stopped", 21, "bbbbbbbb")
+                && registry.requestBlock("bbbbbbbb", "stopped", 21, 9, 5, 0, 16384, 100000),
+            "stop regression queues current-generation connect and request actions");
+    require(registry.queuePeer("bbbbbbbb", "stopped-bad", 21)
+                && registry.connectPeer("bbbbbbbb", "stopped-bad", 21, 100000)
+                && !registry.completeHandshake("bbbbbbbb", "stopped-bad", 21, "aaaaaaaa"),
+            "stop regression queues current-generation disconnect action");
+    registry.advance(130000);
+    registry.stop("bbbbbbbb");
+    require(registry.takeActions().empty(),
+            "stop purges pending connect/request/cancel/disconnect actions for its engine");
     std::cout << "K05-03 PASS\n";
 }
 

@@ -54,6 +54,10 @@ void caseK0901()
     const auto stats = search.stats();
     expect(stats[0].numFoundUniq == 1 && stats[1].numFoundUniq == 0,
            "K09-01 peer uniqueness spans sources");
+    const auto peerAdds = search.takePeerAdds();
+    expect(peerAdds == std::vector<std::string>{"1.2.3.4:5"},
+           "K09-01 duplicate peers across sources produce one actionable add");
+    expect(search.takePeerAdds().empty(), "K09-01 actionable peer adds drain exactly once");
 }
 
 void caseK0902()

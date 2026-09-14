@@ -1,4 +1,5 @@
 #include "server1/policy/CircularPieceStore.h"
+#include <QCryptographicHash>
 #include <algorithm>
 #include <fstream>
 #include <limits>
@@ -18,8 +19,20 @@ CircularWriteResult CircularPieceStore::write(std::size_t index,ByteBuffer buffe
 }
 std::optional<ByteBuffer> CircularPieceStore::read(std::size_t index,std::uint64_t now)
 {Slot*s=find(index);if(!s||closed_)return std::nullopt;s->accessedAt=now;if(!s->spilled)return s->buffer;std::ifstream in(piecePath(index),std::ios::binary);if(!in)return std::nullopt;return ByteBuffer(std::istreambuf_iterator<char>(in),{});}
-CircularCommitResult CircularPieceStore::commit(std::size_t start,std::size_t end,bool verified)
-{CircularCommitResult r; r.verification={true,verified,start,end+1}; if(start>end){r.error="invalid commit range";return r;} if(!verified){r.error="verification failed";return r;} r.success=true;for(std::size_t p=start;p<=end;++p){Slot*s=find(p);if(!s)continue;s->committed=true;if(mode_==CircularStoreMode::Filesystem){const auto t=nextToken_++;spills_[t]={p,s->generation,false};r.spillTokens.push_back(t);}}return r;}
+CircularCommitResult CircularPieceStore::commit(std::size_t start,std::size_t end,std::string_view expectedSha1)
+{
+ CircularCommitResult r; r.verification={false,false,start,end+1};
+ if(start>end){r.error="invalid commit range";return r;}
+ ByteBuffer joined;
+ for(std::size_t p=start;p<=end;++p){Slot*s=find(p);if(!s||!s->buffer){r.error="required piece is missing";return r;}if(s->spilled){std::ifstream in(piecePath(p),std::ios::binary);if(!in){r.error="required spilled piece is missing";return r;}joined.insert(joined.end(),std::istreambuf_iterator<char>(in),{});}else joined.insert(joined.end(),s->buffer->begin(),s->buffer->end());}
+ r.verification.complete=true;
+ const QByteArray input(reinterpret_cast<const char*>(joined.data()),static_cast<qsizetype>(joined.size()));
+ const auto actual=QCryptographicHash::hash(input,QCryptographicHash::Sha1).toHex().toStdString();
+ if(expectedSha1.empty()||actual!=expectedSha1){r.error="SHA-1 verification failed";return r;}
+ r.verification.success=true;r.success=true;r.noNotifyHave=true;
+ for(std::size_t p=start;p<=end;++p){Slot*s=find(p);s->committed=true;if(mode_==CircularStoreMode::Filesystem){const auto t=nextToken_++;spills_[t]={p,s->generation,false};r.spillTokens.push_back(t);}}
+ return r;
+}
 bool CircularPieceStore::cancelSpill(SpillToken t){auto i=spills_.find(t);if(i==spills_.end()||i->second.canceled)return false;i->second.canceled=true;return true;}
 bool CircularPieceStore::completeSpill(SpillToken t,bool success){auto i=spills_.find(t);if(i==spills_.end())return false;auto spill=i->second;spills_.erase(i);if(!success||spill.canceled||closed_)return false;Slot*s=find(spill.piece);if(!s||s->generation!=spill.generation||!s->buffer)return false;std::ofstream out(piecePath(spill.piece),std::ios::binary|std::ios::trunc);if(!out)return false;out.write(reinterpret_cast<const char*>(s->buffer->data()),static_cast<std::streamsize>(s->buffer->size()));if(!out)return false;s->buffer=ByteBuffer{'f','s'};s->spilled=true;return true;}
 void CircularPieceStore::close(){closed_=true;spills_.clear();slots_.clear();}

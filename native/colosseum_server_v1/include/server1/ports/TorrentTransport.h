@@ -1,6 +1,6 @@
 #pragma once
 
-#include "server1/policy/Scheduler.h"
+#include "server1/policy/SchedulerActions.h"
 #include "server1/discovery/PeerSearch.h"
 
 #include <cstdint>
@@ -55,6 +55,31 @@ struct ChokeAction final {
 };
 
 using TorrentAction = std::variant<RequestAction, CancelAction, InterestAction, ChokeAction>;
+
+[[nodiscard]] inline std::optional<TorrentAction>
+toTorrentAction(const policy::SchedulerAction &action)
+{
+    const RequestOwnership ownership{action.request.requestId,
+                                     action.request.generation,
+                                     action.request.selectionId};
+    const BlockSpan block{static_cast<std::uint32_t>(action.request.piece),
+                          static_cast<std::uint32_t>(action.request.offset),
+                          static_cast<std::uint32_t>(action.request.length)};
+    if (action.request.piece > UINT32_MAX || action.request.offset > UINT32_MAX
+        || action.request.length > UINT32_MAX || !isValidBlock(block))
+        return std::nullopt;
+    switch (action.type) {
+    case policy::SchedulerActionType::Request:
+        return TorrentAction{RequestAction{ownership, action.request.peer, block}};
+    case policy::SchedulerActionType::Cancel:
+        return TorrentAction{CancelAction{ownership, action.request.peer, block,
+                                          action.requestWireCancel}};
+    case policy::SchedulerActionType::Update:
+    case policy::SchedulerActionType::Select:
+        return std::nullopt;
+    }
+    return std::nullopt;
+}
 
 struct BlockObservation final {
     RequestOwnership ownership;
