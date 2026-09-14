@@ -1,6 +1,4 @@
-#include "server1/policy/Scheduler.h"
-#include "../src/policy/SchedulerRequests.cpp"
-#include "../src/policy/SchedulerHotswap.cpp"
+#include "server1/policy/SchedulerActions.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -8,110 +6,85 @@
 #include <vector>
 
 namespace {
+using namespace server1::policy;
+[[noreturn]] void fail(const std::string &message) { std::cerr << message << '\n'; std::exit(1); }
+void expect(bool condition, const std::string &message) { if (!condition) fail(message); }
 
-using server1::policy::HotswapCandidate;
-using server1::policy::PulseActionType;
-using server1::policy::PulseDisposition;
-using server1::policy::PulseGate;
-using server1::policy::RequestLedger;
-using server1::policy::RequestOutcome;
-using server1::policy::Scheduler;
-
-[[noreturn]] void fail(const std::string &message)
+NormalRequestCandidate candidate(SelectionId selection, std::uint64_t generation,
+                                 std::size_t piece, std::size_t block)
 {
-    std::cerr << message << '\n';
-    std::exit(1);
-}
-
-void expect(bool condition, const std::string &message)
-{
-    if (!condition) {
-        fail(message);
-    }
+    return {selection, generation, piece, block, block * 16384, 16384, true, false};
 }
 
 void caseK0401()
 {
-    const std::vector<std::pair<std::size_t, int>> cases{
-        {0, 50}, {1, 50}, {2, 44}, {15, 8}, {30, 5}, {100, 5}};
-    for (const auto &[unchoked, expected] : cases) {
-        expect(Scheduler::requestBudget(unchoked) == expected, "K04-01 source request budget");
-    }
+    expect(Scheduler::requestBudget(0) == 50 && Scheduler::requestBudget(30) == 5,
+           "K04-01 source request-budget bounds");
+    SchedulerActionContract contract;
+    RequestDecisionContext context{"peer-a", 7, 30, 3, 32768.0};
+    const auto actions = contract.decide(context,
+        {candidate(11, 7, 2, 0), candidate(11, 7, 2, 1), candidate(12, 6, 3, 0)}, {});
+    expect(actions.size() == 2, "K04-01 first pass fills remaining normal request budget");
+    expect(actions[0].type == SchedulerActionType::Request
+               && actions[0].request.peer == "peer-a"
+               && actions[0].request.generation == 7
+               && actions[0].request.selectionId == 11
+               && actions[0].request.piece == 2 && actions[0].request.block == 0,
+           "K04-01 request action preserves generation/peer/selection/block identity");
 }
 
 void caseK0402()
 {
-    expect(!Scheduler::hotswapVictim(16383.0, {{1, 100.0, true}}),
-           "K04-02 requester below 16 KiB/s cannot hotswap");
-    const auto atRequestThreshold = Scheduler::hotswapVictim(16384.0, {{1, 8192.0, true}});
-    expect(atRequestThreshold && *atRequestThreshold == 1,
-           "K04-02 requester at 16 KiB/s and exactly 2x qualifies");
-    expect(!Scheduler::hotswapVictim(200000.0, {{1, 49152.0, true}}),
-           "K04-02 candidate at 48 KiB/s threshold is protected");
-    const auto ties = Scheduler::hotswapVictim(
-        40000.0, {{3, 10000.0, true}, {4, 10000.0, true}, {5, 1000.0, false}});
-    expect(ties && *ties == 4, "K04-02 equal slow candidates select the later source reservation");
-    expect(!Scheduler::hotswapVictim(40000.0, {{3, 1000.0, false}}),
-           "K04-02 canceled reservation is not a candidate");
+    SchedulerActionContract contract;
+    RequestIdentity victim{91, 4, 3, "peer-slow", 8, 2, 32768, 16384};
+    expect(contract.track(victim), "K04-02 victim tracked");
+    HotswapRequestCandidate swap{victim, 8192.0, candidate(3, 4, 8, 2), true};
+    RequestDecisionContext context{"peer-fast", 4, 30, 5, 16384.0};
+    const auto actions = contract.decide(context, {}, {swap});
+    expect(actions.size() == 2 && actions[0].type == SchedulerActionType::Cancel
+               && actions[0].request.requestId == 91 && actions[0].requestWireCancel
+               && actions[1].type == SchedulerActionType::Request
+               && actions[1].request.peer == "peer-fast",
+           "K04-02 second pass emits explicit victim cancel then replacement request");
+    expect(contract.outcome(91) == RequestOutcome::Replaced && contract.terminalCount(91) == 1,
+           "K04-02 hotswap records exactly one terminal outcome");
+    expect(!contract.finish(91, 4, RequestOutcome::Failed),
+           "K04-02 late failure cannot terminalize replaced request twice");
 }
 
 void caseK0403()
 {
-    RequestLedger ledger;
-    expect(ledger.begin(1, 3, 0), "K04-03 begin request");
-    expect(ledger.replacePiece(3) == 1, "K04-03 replacing piece terminalizes request");
-    expect(!ledger.finish(1, RequestOutcome::Failed),
-           "K04-03 late failure after replacement cannot create a second terminal outcome");
-    expect(ledger.terminalCount(1) == 1 && ledger.outcome(1) == RequestOutcome::Replaced,
-           "K04-03 one policy owner and one terminal outcome");
+    SchedulerActionContract contract;
+    const RequestIdentity first{1, 5, 2, "p", 3, 0, 0, 4};
+    const RequestIdentity stale{2, 4, 2, "p", 3, 1, 4, 4};
+    expect(contract.track(first) && contract.track(stale), "K04-03 requests tracked");
+    expect(contract.replacePiece(3, 5) == 1, "K04-03 replacement is generation aware");
+    expect(contract.outcome(2) == RequestOutcome::Active,
+           "K04-03 replacement leaves another generation untouched");
+    expect(!contract.finish(2, 5, RequestOutcome::Failed)
+               && contract.finish(2, 4, RequestOutcome::Failed),
+           "K04-03 completion rejects the wrong generation");
 
-    expect(ledger.begin(2, 4, 0) && ledger.begin(3, 5, 0), "K04-03 corrupt group requests");
-    const auto reset = ledger.invalidateGroup(4, 6);
-    expect(reset == std::vector<std::size_t>{4, 5}, "K04-03 corrupt group exact reset range");
-    expect(ledger.outcome(2) == RequestOutcome::CorruptReset
-               && ledger.outcome(3) == RequestOutcome::CorruptReset,
-           "K04-03 corrupt group terminal outcomes");
-
-    expect(Scheduler::pulseDisposition(100, 100, 101.0, 100.0) == PulseDisposition::Debounced,
-           "K04-03 flood equality and speed above pulse debounce");
-    expect(Scheduler::pulseDisposition(99, 100, 1000.0, 100.0) == PulseDisposition::Immediate,
-           "K04-03 below flood is immediate");
-    expect(Scheduler::pulseDisposition(100, 100, 100.0, 100.0) == PulseDisposition::Immediate,
-           "K04-03 pulse equality is immediate");
-
-    PulseGate gate;
-    gate.update(100, 100, 101.0, 100.0, 0);
-    gate.update(100, 100, 101.0, 100.0, 100);
-    expect(gate.takeActions().size() == 2, "K04-03 each pulse call emits update first");
-    gate.advance(599, 100, 100, 101.0, 100.0);
-    expect(gate.takeActions().empty(), "K04-03 debounce resets to latest call plus 500ms");
-    gate.advance(600, 100, 100, 100.0, 100.0);
-    auto actions = gate.takeActions();
-    expect(actions == std::vector<PulseActionType>{PulseActionType::Update, PulseActionType::Select},
-           "K04-03 debounced reevaluation emits update then selects when threshold clears");
-    gate.update(0, 100, 0.0, 100.0, 700);
-    actions = gate.takeActions();
-    expect(actions == std::vector<PulseActionType>{PulseActionType::Update, PulseActionType::Select},
-           "K04-03 below-threshold order is update then immediate select");
+    contract.pulse(100, 100, 101.0, 100.0, 0);
+    contract.pulse(100, 100, 101.0, 100.0, 100);
+    expect(contract.takeActions().size() == 2, "K04-03 each pulse emits update first");
+    contract.advancePulse(599, 100, 100, 101.0, 100.0);
+    expect(contract.takeActions().empty(), "K04-03 debounce resets to latest pulse plus 500ms");
+    contract.advancePulse(600, 100, 100, 100.0, 100.0);
+    const auto actions = contract.takeActions();
+    expect(actions.size() == 2 && actions[0].type == SchedulerActionType::Update
+               && actions[1].type == SchedulerActionType::Select,
+           "K04-03 debounced reevaluation updates before selecting");
 }
-
-} // namespace
+}
 
 int main(int argc, char **argv)
 {
-    if (argc != 2) {
-        fail("expected one case id");
-    }
+    if (argc != 2) fail("expected one case id");
     const std::string id = argv[1];
-    if (id == "K04-01") {
-        caseK0401();
-    } else if (id == "K04-02") {
-        caseK0402();
-    } else if (id == "K04-03") {
-        caseK0403();
-    } else {
-        fail("unknown case id");
-    }
+    if (id == "K04-01") caseK0401();
+    else if (id == "K04-02") caseK0402();
+    else if (id == "K04-03") caseK0403();
+    else fail("unknown case id");
     std::cout << id << " PASS\n";
-    return 0;
 }

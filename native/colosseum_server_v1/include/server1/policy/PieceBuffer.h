@@ -32,6 +32,7 @@ public:
     [[nodiscard]] std::optional<ByteBuffer> flush();
 
 private:
+    enum class ReservationState { Available, Reserved, Canceled, Delivered };
     bool init();
 
     std::size_t length_ = 0;
@@ -41,6 +42,7 @@ private:
     std::size_t buffered_ = 0;
     std::uint64_t generation_ = 0;
     std::vector<std::optional<ByteBuffer>> blocks_;
+    std::vector<ReservationState> reservationStates_;
     std::vector<std::size_t> cancellations_;
     std::size_t reservations_ = 0;
     bool initialized_ = false;

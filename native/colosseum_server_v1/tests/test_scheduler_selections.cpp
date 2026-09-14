@@ -61,6 +61,17 @@ void caseK0302()
            "K03-02 prior payload uses priority-sorted normal forward selection path");
     expect(!scheduler.choosePiece(available, 0, false),
            "K03-02 initial policy does not issue a second outstanding request");
+
+    Scheduler priorities(8);
+    const auto first = priorities.select(0, 1, Value::number(3));
+    const auto second = priorities.select(2, 3, Value::number(2));
+    const auto third = priorities.select(4, 5, Value::number(1));
+    static_cast<void>(priorities.select(6, 7, Value::number(0)));
+    expect(priorities.rotatePriorityAfterBudgetFill(first),
+           "K03-02 a truthy priority rotates after request budget fill");
+    const auto rotated = priorities.selections();
+    expect(rotated[0].id == second && rotated[1].id == third && rotated[2].id == first,
+           "K03-02 request-budget rotation moves source selection behind truthy priorities");
 }
 
 void caseK0303()
@@ -88,6 +99,9 @@ void caseK0303()
 
     scheduler.collectGarbage();
     expect(scheduler.takeEvents().empty(), "K03-03 repeated GC does not duplicate idle transition");
+
+    scheduler.setCritical(3, 0);
+    expect(scheduler.isCritical(3), "K03-03 width zero retains source default width of one");
 }
 
 } // namespace

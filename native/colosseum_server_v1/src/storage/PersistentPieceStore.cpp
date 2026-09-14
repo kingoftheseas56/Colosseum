@@ -32,14 +32,18 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
     , verificationLength_(verificationLength)
     , files_(std::move(files))
     , verificationHashes_(std::move(verificationHashes))
-    , staged_(pieceCount())
-    , assembled_(pieceCount(), false)
-    , verified_(pieceCount(), false)
-    , committed_(pieceCount(), false)
 {
     if (pieceLength_ == 0 || verificationLength_ == 0
         || verificationLength_ % pieceLength_ != 0)
         throw std::invalid_argument("invalid piece-store geometry");
+    const auto count = pieceCount();
+    staged_.resize(count);
+    assembled_.assign(count, false);
+    verified_.assign(count, false);
+    committed_.assign(count, false);
+    verificationBitmap_.emplace(count, root_ / ".verification-bitmap");
+    for (std::size_t piece = 0; piece < count; ++piece)
+        verified_[piece] = verificationBitmap_->get(piece);
 }
 
 void PersistentPieceStore::setDestination(std::size_t fileIndex, std::filesystem::path path)
@@ -63,7 +67,10 @@ void PersistentPieceStore::stage(std::size_t piece, ByteBuffer bytes)
         throw std::invalid_argument("invalid staged piece");
     staged_[piece] = std::move(bytes);
     assembled_[piece] = true;
+    verified_[piece] = false;
     committed_[piece] = false;
+    verificationBitmap_->set(piece, false);
+    verificationBitmap_->persist();
 }
 
 std::optional<ByteBuffer> PersistentPieceStore::read(std::size_t piece, std::string *error) const
@@ -133,8 +140,11 @@ VerifyResult PersistentPieceStore::verify(std::size_t piece)
         resetRange(start, end);
         return {true, false, start, end};
     }
-    for (std::size_t index = start; index < end; ++index)
+    for (std::size_t index = start; index < end; ++index) {
         verified_[index] = true;
+        verificationBitmap_->set(index, true);
+    }
+    verificationBitmap_->persist();
     return {true, true, start, end};
 }
 
@@ -154,8 +164,11 @@ void PersistentPieceStore::resumeWrites()
     paused_ = false;
     const auto pending = std::move(pending_);
     pending_.clear();
-    for (const auto &entry : pending)
-        (void)commitNow(entry.start, entry.endExclusive);
+    for (const auto &entry : pending) {
+        const auto result = commitNow(entry.start, entry.endExclusive);
+        if (result.state == CommitState::Error)
+            ledger_.push_back("error:" + result.error);
+    }
     if (closeQueued_) {
         ledger_.push_back("close");
         closeQueued_ = false;
@@ -230,6 +243,25 @@ bool PersistentPieceStore::writePiece(std::size_t piece, std::string *error)
     const auto &buffer = *staged_[piece];
     const auto byteStart = piece * pieceLength_;
     const auto byteEnd = byteStart + buffer.size();
+    std::vector<std::pair<std::size_t, std::size_t>> coverage;
+    for (const auto &file : files_) {
+        const auto start = std::max(byteStart, file.offset);
+        const auto end = std::min(byteEnd, file.offset + file.length);
+        if (start < end)
+            coverage.emplace_back(start - byteStart, end - byteStart);
+    }
+    std::sort(coverage.begin(), coverage.end());
+    std::size_t covered = 0;
+    for (const auto &[start, end] : coverage) {
+        if (start > covered)
+            break;
+        covered = std::max(covered, end);
+    }
+    if (covered != buffer.size()) {
+        if (error)
+            *error = "piece destination coverage is incomplete";
+        return false;
+    }
     for (std::size_t fileIndex = 0; fileIndex < files_.size(); ++fileIndex) {
         const auto &file = files_[fileIndex];
         const auto start = std::max(byteStart, file.offset);
@@ -246,6 +278,7 @@ bool PersistentPieceStore::writePiece(std::size_t piece, std::string *error)
         output.seekp(static_cast<std::streamoff>(start - file.offset));
         output.write(reinterpret_cast<const char *>(buffer.data() + (start - byteStart)),
                      static_cast<std::streamsize>(end - start));
+        output.flush();
         if (!output) {
             if (error)
                 *error = "disk write failed: " + path.string();
@@ -273,8 +306,10 @@ void PersistentPieceStore::resetRange(std::size_t start, std::size_t endExclusiv
         staged_[piece].reset();
         assembled_[piece] = false;
         verified_[piece] = false;
+        verificationBitmap_->set(piece, false);
         committed_[piece] = false;
     }
+    verificationBitmap_->persist();
 }
 
 } // namespace server1::policy

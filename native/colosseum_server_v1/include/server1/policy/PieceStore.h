@@ -91,6 +91,7 @@ private:
     std::vector<bool> assembled_;
     std::vector<bool> verified_;
     std::vector<bool> committed_;
+    std::optional<VerificationBitmap> verificationBitmap_;
     std::vector<PendingCommit> pending_;
     std::optional<std::string> nextWriteError_;
     std::vector<std::string> ledger_;

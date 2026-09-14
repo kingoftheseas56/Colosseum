@@ -76,6 +76,15 @@ void caseK06_01(const std::filesystem::path &root)
     require(shortVerify.complete && shortVerify.success, "final short piece verifies");
     shortStore.commit(1, 2);
     require(shortStore.read(1).value() == bytes("ef"), "final short read keeps its exact size");
+    bool rejected = false;
+    try {
+        PersistentPieceStore invalid(caseRoot / "invalid", 0, 4, 4,
+                                     {StoreFile{0, 4}}, {""});
+        static_cast<void>(invalid);
+    } catch (const std::invalid_argument &) {
+        rejected = true;
+    }
+    require(rejected, "geometry is rejected before any piece-count division");
     std::cout << "K06-01 PASS\n";
 }
 
@@ -106,6 +115,15 @@ void caseK06_02(const std::filesystem::path &root)
             "valid virtual group maps to one real verification piece");
     require(store.isVerified(0) && store.isVerified(1) && !store.isCommitted(0),
             "verified remains distinct from disk-committed");
+    server1::policy::VerificationBitmap persisted(2, caseRoot / ".verification-bitmap");
+    require(persisted.get(0) && persisted.get(1),
+            "store verification is connected to the persisted bitmap lifecycle");
+    store.stage(0, bytes("abcd"));
+    require(!store.isVerified(0), "restaging clears prior verification state");
+    server1::policy::VerificationBitmap restaged(2, caseRoot / ".verification-bitmap");
+    require(!restaged.get(0), "restaging clears the persisted verification bit");
+    require(store.commit(0, 1).state == CommitState::Error,
+            "restaged bytes cannot commit before reverification");
     std::cout << "K06-02 PASS\n";
 }
 
@@ -145,6 +163,26 @@ void caseK06_03(const std::filesystem::path &root)
     server1::policy::VerificationBitmap reopened(2, bitmapPath);
     reopened.invalidateMissing({false, true});
     require(!reopened.get(0), "missing destination invalidates stale persisted verification");
+
+    auto queuedFailure = makeEightByteStore(caseRoot / "queued-error");
+    queuedFailure.stage(0, bytes("abcd"));
+    queuedFailure.verify(0);
+    queuedFailure.pauseWrites();
+    queuedFailure.failNextWrite("queued partial write");
+    queuedFailure.commit(0, 1);
+    queuedFailure.close();
+    queuedFailure.resumeWrites();
+    require(queuedFailure.ledger() == std::vector<std::string>({
+                "error:queued partial write", "close"}),
+            "queued write error remains visible before the queued close");
+
+    PersistentPieceStore uncovered(caseRoot / "uncovered", 4, 4, 4,
+        {StoreFile{0, 2}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+    uncovered.stage(0, bytes("abcd"));
+    require(uncovered.verify(0).success, "coverage regression reaches commit");
+    const auto incomplete = uncovered.commit(0, 1);
+    require(incomplete.state == CommitState::Error && !uncovered.isCommitted(0),
+            "destination coverage gaps cannot become committed");
     std::cout << "K06-03 PASS\n";
 }
 

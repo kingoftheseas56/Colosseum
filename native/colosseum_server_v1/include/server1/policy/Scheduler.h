@@ -59,6 +59,7 @@ public:
                                         std::size_t selectTo);
     [[nodiscard]] const std::vector<SchedulerSelection> &selections() const noexcept;
     [[nodiscard]] std::optional<SchedulerSelection> find(SelectionId id) const;
+    [[nodiscard]] bool rotatePriorityAfterBudgetFill(SelectionId id);
 
     void markPieceComplete(std::size_t piece);
     void resetPiece(std::size_t piece);

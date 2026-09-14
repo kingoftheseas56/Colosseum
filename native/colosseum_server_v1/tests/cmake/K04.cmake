@@ -3,8 +3,8 @@ set(SERVER1_K04_ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
 function(server1_register_k04_tests)
   add_executable(server1_k04_scheduler_actions_test
     "${SERVER1_K04_ROOT}/tests/test_scheduler_requests.cpp")
-  target_include_directories(server1_k04_scheduler_actions_test PRIVATE
-    "${SERVER1_K04_ROOT}/include")
+  target_link_libraries(server1_k04_scheduler_actions_test PRIVATE
+    server1_k04_scheduler_actions)
   target_compile_features(server1_k04_scheduler_actions_test PRIVATE cxx_std_17)
   target_compile_options(server1_k04_scheduler_actions_test PRIVATE
     "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")

@@ -102,6 +102,19 @@ std::optional<SchedulerSelection> Scheduler::find(SelectionId id) const
     return *it;
 }
 
+bool Scheduler::rotatePriorityAfterBudgetFill(SelectionId id)
+{
+    const auto first = std::find_if(selections_.begin(), selections_.end(),
+                                    [id](const auto &selection) { return selection.id == id; });
+    if (first == selections_.end() || first->priority == 0.0)
+        return false;
+    auto after = first + 1;
+    while (after != selections_.end() && after->priority != 0.0)
+        ++after;
+    std::rotate(first, first + 1, after);
+    return true;
+}
+
 void Scheduler::markPieceComplete(std::size_t piece)
 {
     if (piece >= piecePending_.size()) {
@@ -177,6 +190,7 @@ std::optional<std::size_t> Scheduler::choosePiece(const std::vector<bool> &peerP
 
 void Scheduler::setCritical(std::size_t piece, std::size_t width)
 {
+    width = std::max<std::size_t>(width, 1);
     for (std::size_t offset = 0; offset < width && piece + offset < critical_.size(); ++offset) {
         critical_[piece + offset] = true;
     }

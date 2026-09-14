@@ -41,9 +41,12 @@ void caseK02_01()
 void caseK02_02()
 {
     PieceBuffer piece(3 * PieceBuffer::kBlockSize, 11);
+    require(!piece.cancel(0), "cancel-before-reserve is rejected");
     require(piece.reserve() == 0 && piece.reserve() == 1 && piece.reserve() == 2,
             "initial reservations are monotonic");
     require(piece.cancel(0) && piece.cancel(1), "live reservations can be cancelled");
+    require(!piece.cancel(0) && !piece.cancel(1),
+            "an already-cancelled reservation cannot be duplicated");
     require(piece.reserve() == 1 && piece.reserve() == 0,
             "cancelled reservations are reused in LIFO order");
 
@@ -57,6 +60,7 @@ void caseK02_02()
             "duplicate delivery does not advance counters or replace bytes");
     require(piece.get(0).value() == bytes(PieceBuffer::kBlockSize, 0x41),
             "the first delivered block wins");
+    require(!piece.cancel(0), "a delivered block cannot return to the reservation pool");
     std::cout << "K02-02 PASS\n";
 }
 

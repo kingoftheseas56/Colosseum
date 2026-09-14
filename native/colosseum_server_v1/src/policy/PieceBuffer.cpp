@@ -42,17 +42,24 @@ int PieceBuffer::reserve()
     if (!cancellations_.empty()) {
         const auto block = cancellations_.back();
         cancellations_.pop_back();
+        if (reservationStates_[block] != ReservationState::Canceled)
+            return kNoReservation;
+        reservationStates_[block] = ReservationState::Reserved;
         return static_cast<int>(block);
     }
     if (reservations_ >= parts_)
         return kNoReservation;
-    return static_cast<int>(reservations_++);
+    const auto block = reservations_++;
+    reservationStates_[block] = ReservationState::Reserved;
+    return static_cast<int>(block);
 }
 
 bool PieceBuffer::cancel(std::size_t block)
 {
-    if (!init() || block >= parts_)
+    if (!init() || block >= parts_
+        || reservationStates_[block] != ReservationState::Reserved)
         return false;
+    reservationStates_[block] = ReservationState::Canceled;
     cancellations_.push_back(block);
     return true;
 }
@@ -67,12 +74,15 @@ std::optional<ByteBuffer> PieceBuffer::get(std::size_t block)
 bool PieceBuffer::set(std::uint64_t generation, std::size_t block, ByteBuffer data)
 {
     if (generation != generation_ || !init() || block >= parts_
+        || (reservationStates_[block] != ReservationState::Reserved
+            && reservationStates_[block] != ReservationState::Delivered)
         || data.size() != size(block))
         return false;
     if (!blocks_[block].has_value()) {
         missing_ -= data.size();
         ++buffered_;
         blocks_[block] = std::move(data);
+        reservationStates_[block] = ReservationState::Delivered;
     }
     return buffered_ == parts_;
 }
@@ -102,6 +112,7 @@ bool PieceBuffer::init()
         return false;
     if (!initialized_) {
         blocks_.resize(parts_);
+        reservationStates_.assign(parts_, ReservationState::Available);
         cancellations_.clear();
         initialized_ = true;
     }
