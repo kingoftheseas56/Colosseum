@@ -1,0 +1,26 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "afdec249b85c690aa041a2de4458251306464ebd",
+  "blobs": {
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "11ebfd13fc04cebc3c89969461941ecd90daac07",
+    "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp": "904e8491122f1062ec502c18b349fc42e9a78b06",
+    "native/colosseum_server_v1/src/transport/PeerPlugin.cpp": "3bebcd40f161c4215c6281088f0bcecdb9cb2c99",
+    "native/colosseum_server_v1/src/transport/ActionLedger.cpp": "f0b4291a7149a4bac712b166d6e1c1dbbe5fe329",
+    "native/colosseum_server_v1/tests/test_native_transport.cpp": "f28bfa6f8703c97d36e1cd8f90ae810e0f79baa9",
+    "native/colosseum_server_v1/tests/cmake/K10.cmake": "3a8f0c88655ddc9ab81fa2bbfce9e63a34045a67",
+    "artifacts/server1/K10/K10-H/CMakeLists.txt": "ff7af316734d71a6c5d7060d5651a4cd8fee7b0f",
+    "artifacts/server1/K10/K10-H/DEBUG-TRACE.md": "9bc967f0acd1556dbd4fe7b1fc4a37a8f2b7a2bc",
+    "artifacts/server1/K10/K10-H/PACKET-RECEIPT.json": "db04b009cfa6d2057d06df70321a0ad571f2cbc4",
+    "artifacts/server1/K10/K10-H/SOURCE-TRACE.md": "8ddf284aa3fc047ff973ca03aada41486a30fcad",
+    "artifacts/server1/K10/K10-H/TDD-GREEN.txt": "fe82a466f57d15d3fa978e6cab2e0d73df82d261",
+    "artifacts/server1/K10/K10-H/TDD-RED.txt": "a1d058b1120d6a2a2580dc93a45620beb112bf1a",
+    "artifacts/server1/K10/K10-H/TEST-COMMANDS.txt": "cabc7edc5c7110915f9cf61e7d3293a609fa49c9",
+    "artifacts/server1/K10/K10-H/WIRING-REQUEST.json": "62112e392a46d51bb80c146cb079ccbceaf4ff66",
+    "artifacts/server1/K10/K10-H/run_behavioral_mutations.ps1": "1c4bc4280ef5f5284993cb686ca6446ebf6a73af",
+    "artifacts/server1/K10/K10-H/run_upload.ps1": "bd5a86ef78f35af4fbe279be9b388c212dad5efa",
+    "artifacts/server1/K10/K10-H/upload_burst_peer.py": "574ee940ccd2076acf7be745f094e3327f3630a7",
+    "artifacts/server1/K10/K10-H/upload_lifecycle_peer.py": "a90d1d1068ae8f9172da3cdcd6f7e4ea99013403",
+    "artifacts/server1/K10/K10-H/upload_peer.py": "29c186f94462e96987750b67f52a434fd1d5c651"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file; this seal intentionally excludes itself"
+}

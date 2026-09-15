@@ -1,0 +1,22 @@
+K10-H TDD GREEN - 2026-09-15
+
+Live raw-wire scenarios: 3/3 PASS.
+- Feasibility: exact swallowed on_request/on_cancel path, nonzero monotonic retry
+  ownership, 73-byte final tail, raw HAVE and PIECE frames, copied caller payload,
+  network-tick framing, and exact counters.
+- Admission: unaligned and unadvertised requests emitted no ownership; live duplicate,
+  per-peer fifth, and global twenty-first requests were rejected; exact caps were 4/20;
+  five monotonic advertisements replayed once to each new peer; 20 aborts were local
+  and emitted zero PIECE frames.
+- Lifecycle: choke, detach, and close each terminalized once; stale mailbox and late
+  actions were rejected; no terminal race emitted a PIECE frame.
+
+Behavioral production mutations: 6/6 rejected on exact intended signals.
+Fresh full Release build: 66/66 steps.
+Fresh aggregate CTest: 64/64 PASS.
+K10/E/G/H native inventory: 19/19 PASS.
+P08-T5 compile mutations: 19/19 rejected.
+Legacy P08/T4 compile mutations: 19/19 rejected.
+INT-W3 spine combined-link: PASS.
+
+[Agent 4 (Codex/Sol subagent), K10-H producer]

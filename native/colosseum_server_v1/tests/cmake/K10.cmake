@@ -60,4 +60,10 @@ function(server1_register_k10_tests)
       -PortA 49819 -PortB 49820)
   set_tests_properties(K10-G-transport-pause-generation PROPERTIES
     LABELS "server1;native;K10-G")
+  set(K10_H_PACKET_ROOT "${SERVER1_K10_ROOT}/../../artifacts/server1/K10/K10-H")
+  add_test(NAME K10-H-transport-upload-real-wire
+    COMMAND pwsh -NoProfile -File "${K10_H_PACKET_ROOT}/run_upload.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>")
+  set_tests_properties(K10-H-transport-upload-real-wire PROPERTIES
+    LABELS "server1;native;K10-H")
 endfunction()

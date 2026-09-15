@@ -1121,6 +1121,291 @@ void caseCloseSuppressesSource(const fs::path &directory)
            "K10-E connect escaped after close");
     std::cout << "K10-E CLOSE PASS stale_source_effects=0\n";
 }
+
+void caseUploadFeasibility(const fs::path &directory, int port)
+{
+    constexpr EngineGeneration generation = 707;
+    constexpr PeerHandle peer = 301;
+    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+        generation, readInfoHash(directory),
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "upload-download").string()});
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-H feasibility setup");
+    const auto metadata = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<MetadataReadyObservation>(item);
+        });
+    });
+    expect(std::count_if(metadata.begin(), metadata.end(), [](const auto &item) {
+               return std::holds_alternative<MetadataReadyObservation>(item);
+           }) == 1, "K10-H metadata readiness missing");
+    expect(transport->submit(AdvertisePieceAction{generation, 1}),
+           "K10-H committed piece advertisement rejected");
+    expect(transport->submit(ChokeAction{peer, false}), "K10-H local unchoke rejected");
+    expect(transport->submit(ConnectAction{generation, peer, "127.0.0.1",
+                                           static_cast<std::uint16_t>(port)}),
+           "K10-H raw upload peer connection rejected");
+
+    const auto observations = pollUntil(*transport, [](const auto &items) {
+        const auto requests = std::count_if(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<UploadRequestObservation>(item);
+        });
+        const auto cancels = std::count_if(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<UploadCancelObservation>(item);
+        });
+        return requests >= 2 && cancels >= 1;
+    });
+    std::vector<UploadRequestObservation> requests;
+    std::vector<UploadCancelObservation> cancels;
+    for (const auto &item : observations) {
+        if (const auto *request = std::get_if<UploadRequestObservation>(&item))
+            requests.push_back(*request);
+        if (const auto *cancel = std::get_if<UploadCancelObservation>(&item))
+            cancels.push_back(*cancel);
+    }
+    expect(requests.size() == 2 && cancels.size() == 1,
+           "K10-H on_request/on_cancel interception count mismatch");
+    expect(requests[0].ownership.requestId != 0
+               && requests[1].ownership.requestId > requests[0].ownership.requestId
+               && requests[0].ownership.generation == generation
+               && cancels[0].ownership.requestId == requests[0].ownership.requestId,
+           "K10-H upload ownership retry monotonicity mismatch");
+    expect(requests[1].block.piece == 1 && requests[1].block.offset == 0
+               && requests[1].block.length == 73 && requests[1].block.blockOrdinal == 0,
+           "K10-H final-tail block identity mismatch");
+
+    UploadResponseAction response{requests[1].ownership, peer, requests[1].block,
+                                  std::vector<std::uint8_t>(73, 'R')};
+    expect(transport->submit(response), "K10-H exact upload response rejected");
+    std::fill(response.payload.begin(), response.payload.end(), static_cast<std::uint8_t>('X'));
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+    while (std::chrono::steady_clock::now() < deadline
+           && transport->statistics().uploadResponsesFramed != 1)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    const auto stats = transport->statistics();
+    expect(stats.uploadRequestsAccepted == 2 && stats.uploadRequestsCancelled == 1
+               && stats.uploadResponsesFramed == 1 && stats.uploadPayloadBytesFramed == 73
+               && stats.ownedUploadsOutstanding == 0,
+           "K10-H upload feasibility accounting mismatch");
+    transport->close();
+    std::cout << "K10-H FEASIBILITY PASS request=2 cancel=1 retry_id=monotonic"
+              << " have=raw piece=raw copied_lifetime=1 network_tick=1\n";
+}
+
+void caseUploadCaps(const fs::path &directory, const std::vector<int> &ports)
+{
+    constexpr EngineGeneration generation = 708;
+    expect(ports.size() == 6, "K10-H caps port inventory");
+    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+        generation, readInfoHash(directory),
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "caps-download").string()});
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-H caps setup");
+    const auto metadata = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<MetadataReadyObservation>(item);
+        });
+    });
+    expect(!metadata.empty(), "K10-H caps metadata readiness missing");
+    for (std::uint32_t piece = 0; piece < 5; ++piece)
+        expect(transport->submit(AdvertisePieceAction{generation, piece}),
+               "K10-H caps advertisement rejected");
+    expect(transport->submit(AdvertisePieceAction{generation, 0}),
+           "K10-H repeated advertisement was not idempotent");
+    expect(!transport->submit(AdvertisePieceAction{generation - 1, 0})
+               && !transport->submit(AdvertisePieceAction{generation, 6}),
+           "K10-H stale or out-of-range advertisement accepted");
+
+    for (std::size_t index = 0; index < 1; ++index) {
+        const auto peer = static_cast<PeerHandle>(401 + index);
+        expect(transport->submit(ChokeAction{peer, false}), "K10-H caps unchoke rejected");
+        expect(transport->submit(ConnectAction{generation, peer, "127.0.0.1",
+                                               static_cast<std::uint16_t>(ports[index])}),
+               "K10-H caps peer connect rejected");
+    }
+    const auto firstPeer = pollUntil(*transport, [](const auto &items) {
+        return std::count_if(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<UploadRequestObservation>(item);
+        }) >= kMaxOutstandingUploadsPerPeer;
+    }, std::chrono::seconds(12));
+    std::vector<UploadRequestObservation> uploads;
+    for (const auto &item : firstPeer)
+        if (const auto *upload = std::get_if<UploadRequestObservation>(&item))
+            uploads.push_back(*upload);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    expect(uploads.size() == kMaxOutstandingUploadsPerPeer,
+           "K10-H per-peer admission cap mismatch");
+    expect(std::count_if(uploads.begin(), uploads.end(), [](const auto &upload) {
+               return upload.peer == 401 && upload.block.piece == 0;
+           }) == 1, "K10-H live duplicate block was admitted twice");
+    expect(transport->statistics().uploadRequestsRejected >= 3,
+           "K10-H invalid, unadvertised, duplicate, and per-peer-cap requests were not suppressed");
+
+    for (std::size_t index = 1; index < 5; ++index) {
+        const auto peer = static_cast<PeerHandle>(401 + index);
+        expect(transport->submit(ChokeAction{peer, false}), "K10-H caps unchoke rejected");
+        expect(transport->submit(ConnectAction{generation, peer, "127.0.0.1",
+                                               static_cast<std::uint16_t>(ports[index])}),
+               "K10-H caps peer connect rejected");
+    }
+    const auto admitted = pollUntil(*transport, [](const auto &items) {
+        return std::count_if(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<UploadRequestObservation>(item);
+        }) >= kMaxOutstandingUploadsGlobal - kMaxOutstandingUploadsPerPeer;
+    }, std::chrono::seconds(12));
+    for (const auto &item : admitted)
+        if (const auto *upload = std::get_if<UploadRequestObservation>(&item))
+            uploads.push_back(*upload);
+    expect(uploads.size() == kMaxOutstandingUploadsGlobal,
+           "K10-H global admission did not reach exact cap");
+    for (PeerHandle peer = 401; peer <= 405; ++peer)
+        expect(std::count_if(uploads.begin(), uploads.end(), [&](const auto &upload) {
+                   return upload.peer == peer;
+               }) == kMaxOutstandingUploadsPerPeer,
+               "K10-H per-peer admission cap mismatch");
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    const auto rejectedBeforeGlobal = transport->statistics().uploadRequestsRejected;
+    expect(transport->submit(ChokeAction{406, false}), "K10-H global cap unchoke rejected");
+    expect(transport->submit(ConnectAction{generation, 406, "127.0.0.1",
+                                           static_cast<std::uint16_t>(ports[5])}),
+           "K10-H global cap peer connect rejected");
+    const auto rejectDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+    while (std::chrono::steady_clock::now() < rejectDeadline) {
+        const auto current = transport->statistics();
+        if (current.connectedPeers >= 6
+            && current.uploadRequestsRejected > rejectedBeforeGlobal) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    const auto capped = transport->statistics();
+    expect(capped.connectedPeers >= 6
+               && capped.uploadRequestsAccepted == kMaxOutstandingUploadsGlobal
+               && capped.uploadRequestsRejected > rejectedBeforeGlobal
+               && capped.ownedUploadsOutstanding == kMaxOutstandingUploadsGlobal,
+           "K10-H global cap did not reject the twenty-first live ownership");
+
+    for (const auto &upload : uploads)
+        expect(transport->submit(UploadAbortAction{upload.ownership, upload.peer, upload.block}),
+               "K10-H exact upload abort rejected");
+    expect(!transport->submit(UploadResponseAction{uploads.front().ownership,
+                                                    uploads.front().peer,
+                                                    uploads.front().block,
+                                                    std::vector<std::uint8_t>(16384, 'X')}),
+           "K10-H second terminal action was accepted");
+    const auto abortDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+    while (std::chrono::steady_clock::now() < abortDeadline
+           && transport->statistics().uploadRequestsAborted != uploads.size())
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    const auto stats = transport->statistics();
+    expect(stats.uploadRequestsAborted == uploads.size() && stats.ownedUploadsOutstanding == 0
+               && stats.uploadResponsesFramed == 0 && stats.uploadPayloadBytesFramed == 0
+               && stats.uploadActionsRejected >= 3,
+           "K10-H abort/rejection accounting mismatch");
+    transport->close();
+    std::cout << "K10-H CAPS PASS per_peer=4 global=20 invalid=2 duplicate=1 replay=5"
+              << " abort_local=20 piece_frames=0\n";
+}
+
+void caseUploadLifecycle(const fs::path &directory, const std::vector<int> &ports)
+{
+    constexpr EngineGeneration generation = 709;
+    expect(ports.size() == 3, "K10-H lifecycle port inventory");
+    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+        generation, readInfoHash(directory),
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "lifecycle-upload-download").string()});
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-H lifecycle setup");
+    const auto metadata = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<MetadataReadyObservation>(item);
+        });
+    });
+    expect(!metadata.empty(), "K10-H lifecycle metadata missing");
+    expect(transport->submit(AdvertisePieceAction{generation, 0})
+               && transport->submit(AdvertisePieceAction{generation, 1}),
+           "K10-H lifecycle advertise failed");
+
+    const auto connect = [&](PeerHandle peer, int port) {
+        expect(transport->submit(ChokeAction{peer, false}), "K10-H lifecycle unchoke failed");
+        expect(transport->submit(ConnectAction{generation, peer, "127.0.0.1",
+                                               static_cast<std::uint16_t>(port)}),
+               "K10-H lifecycle connect failed");
+    };
+    const auto waitRequest = [&](PeerHandle peer) {
+        const auto items = pollUntil(*transport, [&](const auto &all) {
+            return std::any_of(all.begin(), all.end(), [&](const auto &item) {
+                const auto *upload = std::get_if<UploadRequestObservation>(&item);
+                return upload && upload->peer == peer;
+            });
+        });
+        const auto found = std::find_if(items.begin(), items.end(), [&](const auto &item) {
+            const auto *upload = std::get_if<UploadRequestObservation>(&item);
+            return upload && upload->peer == peer;
+        });
+        expect(found != items.end(), "K10-H lifecycle upload request missing");
+        return std::get<UploadRequestObservation>(*found);
+    };
+
+    connect(501, ports[0]);
+    const auto chokeUpload = waitRequest(501);
+    expect(transport->submit(UploadResponseAction{chokeUpload.ownership, 501, chokeUpload.block,
+                                                  std::vector<std::uint8_t>(16384, 'L')}),
+           "K10-H lifecycle queued response rejected");
+    expect(transport->submit(ChokeAction{501, true}), "K10-H lifecycle choke rejected");
+    const auto chokeTerminal = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            const auto *cancel = std::get_if<UploadCancelObservation>(&item);
+            return cancel && cancel->peer == 501;
+        });
+    });
+    expect(std::count_if(chokeTerminal.begin(), chokeTerminal.end(), [](const auto &item) {
+               const auto *cancel = std::get_if<UploadCancelObservation>(&item);
+               return cancel && cancel->peer == 501;
+           }) == 1, "K10-H choke did not terminalize once");
+    const auto staleDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+    while (std::chrono::steady_clock::now() < staleDeadline
+           && transport->statistics().uploadActionsRejected < 1)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    expect(transport->statistics().uploadResponsesFramed == 0
+               && transport->statistics().uploadActionsRejected >= 1,
+           "K10-H stale mailbox response wrote after choke");
+
+    connect(502, ports[1]);
+    const auto detachedUpload = waitRequest(502);
+    const auto detachTerminal = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            const auto *cancel = std::get_if<UploadCancelObservation>(&item);
+            return cancel && cancel->peer == 502;
+        });
+    });
+    expect(std::count_if(detachTerminal.begin(), detachTerminal.end(), [](const auto &item) {
+               const auto *cancel = std::get_if<UploadCancelObservation>(&item);
+               return cancel && cancel->peer == 502;
+           }) == 1, "K10-H detach did not terminalize once");
+    expect(!transport->submit(UploadAbortAction{detachedUpload.ownership, 502,
+                                                detachedUpload.block}),
+           "K10-H detached ownership accepted a late action");
+
+    connect(503, ports[2]);
+    const auto closeUpload = waitRequest(503);
+    transport->close();
+    const auto closed = transport->poll();
+    expect(std::count_if(closed.begin(), closed.end(), [&](const auto &item) {
+               const auto *cancel = std::get_if<UploadCancelObservation>(&item);
+               return cancel && cancel->ownership.requestId == closeUpload.ownership.requestId;
+           }) == 1, "K10-H close did not terminalize upload once");
+    expect(std::count_if(closed.begin(), closed.end(), [](const auto &item) {
+               return std::holds_alternative<ClosedObservation>(item);
+           }) == 1, "K10-H close was not terminal once");
+    expect(!transport->submit(UploadAbortAction{closeUpload.ownership, 503, closeUpload.block}),
+           "K10-H closed ownership accepted a late action");
+    const auto stats = transport->statistics();
+    expect(stats.uploadRequestsAccepted == 3 && stats.uploadRequestsCancelled == 3
+               && stats.ownedUploadsOutstanding == 0 && stats.uploadResponsesFramed == 0
+               && stats.uploadActionsRejected >= 3,
+           "K10-H lifecycle counters mismatch");
+    std::cout << "K10-H LIFECYCLE PASS choke=1 detach=1 close=1 stale_mailbox=1"
+              << " late_action=reject piece_frames=0\n";
+}
 }
 
 int main(int argc, char **argv)
@@ -1128,6 +1413,12 @@ int main(int argc, char **argv)
     if (argc == 3 && std::string(argv[1]) == "--prepare") { prepare(argv[2]); return 0; }
     if (argc == 3 && std::string(argv[1]) == "--prepare-availability") {
         prepare(argv[2], 'K', 65536); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--prepare-upload") {
+        prepare(argv[2], 'U', 16457); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--prepare-upload-caps") {
+        prepare(argv[2], 'C', 98304); return 0;
     }
     if (argc == 5 && std::string(argv[1]) == "--wire") {
         caseWire(argv[2], std::stoi(argv[3]), std::stoi(argv[4])); return 0;
@@ -1183,6 +1474,19 @@ int main(int argc, char **argv)
     }
     if (argc == 3 && std::string(argv[1]) == "--source-close") {
         caseCloseSuppressesSource(argv[2]); return 0;
+    }
+    if (argc == 4 && std::string(argv[1]) == "--upload-feasibility") {
+        caseUploadFeasibility(argv[2], std::stoi(argv[3])); return 0;
+    }
+    if (argc == 9 && std::string(argv[1]) == "--upload-caps") {
+        std::vector<int> ports;
+        for (int index = 3; index < argc; ++index) ports.push_back(std::stoi(argv[index]));
+        caseUploadCaps(argv[2], ports); return 0;
+    }
+    if (argc == 6 && std::string(argv[1]) == "--upload-lifecycle") {
+        std::vector<int> ports;
+        for (int index = 3; index < argc; ++index) ports.push_back(std::stoi(argv[index]));
+        caseUploadLifecycle(argv[2], ports); return 0;
     }
     std::cerr << "usage: test_native_transport --prepare DIR | --wire DIR PORT_A PORT_B | --lifecycle DIR PORT_A PORT_B | --thread-guard DIR PORT | K10-02 DIR\n";
     return 2;

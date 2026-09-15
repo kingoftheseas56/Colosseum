@@ -1,0 +1,16 @@
+K10-H TDD RED - 2026-09-15
+
+Approved contract head: afdec249b85c690aa041a2de4458251306464ebd
+
+The first production build failed in LibTorrent2Adapter.cpp because the pre-K10-H
+generic TorrentAction visitor required every alternative to expose `peer`.
+AdvertisePieceAction deliberately has generation and piece only. MSVC rejected
+the adapter at the visitor's `value.peer` expression. This proved the approved
+upload contract had no production dispatch path.
+
+The first live feasibility attempt then produced no request/cancel callbacks.
+The raw peer fixture had emitted a 19-byte peer ID, shifting the following bitfield
+byte into the handshake. Padding the fixture to the required 20-byte peer ID fixed
+the test oracle; no production behavior was weakened.
+
+[Agent 4 (Codex/Sol subagent), K10-H producer]

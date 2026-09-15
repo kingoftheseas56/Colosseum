@@ -50,10 +50,14 @@ using ReceivePiece = std::function<void(ports::PeerHandle, ConnectionIdentity,
 using PeerState = std::function<void(ports::PeerHandle, ConnectionIdentity, bool, bool,
     std::shared_ptr<lt::peer_connection>)>;
 using PeerHave = std::function<void(ports::PeerHandle, ConnectionIdentity, lt::piece_index_t)>;
+using UploadRequest = std::function<void(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &)>;
+using UploadCancel = std::function<void(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &)>;
 using NetworkTick = std::function<void()>;
 std::shared_ptr<lt::torrent_plugin> makeProductionPeerPlugin(
     IdentifyPeer, PeerInbound, DetachPeer, AuthorizeRequest, SentRequest, ReceivePiece, PeerState,
-    PeerHave, NetworkTick);
+    PeerHave, UploadRequest, UploadCancel, NetworkTick);
 
 namespace {
 using namespace ports;
@@ -153,6 +157,16 @@ struct OwnedRequest {
     bool terminal = false;
 };
 
+struct OwnedUpload {
+    UploadOwnership ownership;
+    PeerHandle peer = 0;
+    ConnectionIdentity identity = 0;
+    BlockSpan block;
+    bool mailboxPending = false;
+};
+
+using UploadMailboxAction = std::variant<UploadResponseAction, UploadAbortAction>;
+
 bool matches(const BlockSpan &block, const lt::peer_request &request)
 {
     return request.piece == lt::piece_index_t(static_cast<int>(block.piece))
@@ -163,13 +177,21 @@ bool matches(const BlockSpan &block, const lt::peer_request &request)
 std::string endpointKey(const lt::tcp::endpoint &endpoint)
 { return endpoint.address().to_string() + ":" + std::to_string(endpoint.port()); }
 
+void appendBigEndian(std::vector<char> &bytes, std::uint32_t value)
+{
+    bytes.push_back(static_cast<char>((value >> 24) & 0xff));
+    bytes.push_back(static_cast<char>((value >> 16) & 0xff));
+    bytes.push_back(static_cast<char>((value >> 8) & 0xff));
+    bytes.push_back(static_cast<char>(value & 0xff));
+}
+
 class LibTorrent2Adapter final : public TorrentTransport {
 public:
     explicit LibTorrent2Adapter(const TorrentOpenRequest &request)
         : generation_(request.generation), canonicalInfoHash_(request.infoHash)
     {
         auto params = sourceParams(request);
-        if (params.ti) pieceCount_ = static_cast<std::uint32_t>(params.ti->num_pieces());
+        if (params.ti) setPieceSizes(*params.ti);
         lt::settings_pack settings;
         settings.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
         settings.set_bool(lt::settings_pack::enable_dht, false);
@@ -204,6 +226,12 @@ public:
                     observePeer(p, id, c, i, std::move(n));
                 },
                 [this](PeerHandle p, ConnectionIdentity id, auto piece) { have(p, id, piece); },
+                [this](PeerHandle p, ConnectionIdentity id, const auto &r) {
+                    uploadRequest(p, id, r);
+                },
+                [this](PeerHandle p, ConnectionIdentity id, const auto &r) {
+                    uploadCancel(p, id, r);
+                },
                 [this] { tickDrain(); });
         });
 
@@ -221,7 +249,49 @@ public:
         if (const auto *connectAction = std::get_if<ConnectAction>(&action))
             return connect(*connectAction);
         std::lock_guard<std::mutex> lock(mutex_);
-        if (closed_ || !controlled_) return false;
+        if (closed_ || !controlled_) {
+            if (std::holds_alternative<AdvertisePieceAction>(action)
+                || std::holds_alternative<UploadResponseAction>(action)
+                || std::holds_alternative<UploadAbortAction>(action))
+                ++stats_.uploadActionsRejected;
+            return false;
+        }
+        if (const auto *advertise = std::get_if<AdvertisePieceAction>(&action)) {
+            if (advertise->generation == 0 || advertise->generation != generation_
+                || !metadataReadyObserved_ || advertise->piece >= pieceCount_) {
+                ++stats_.uploadActionsRejected;
+                return false;
+            }
+            if (localAdvertisedPieces_.insert(advertise->piece).second) requestDrainLocked();
+            return true;
+        }
+        if (const auto *response = std::get_if<UploadResponseAction>(&action)) {
+            auto found = findUpload(response->ownership, response->peer, response->block);
+            if (response->ownership.requestId == 0 || response->ownership.generation != generation_
+                || response->peer == 0 || !isValidBlock(response->block)
+                || response->payload.size() != response->block.length
+                || found == activeUploads_.end() || found->mailboxPending) {
+                ++stats_.uploadActionsRejected;
+                return false;
+            }
+            found->mailboxPending = true;
+            pendingUploadActions_.push_back(*response);
+            requestDrainLocked();
+            return true;
+        }
+        if (const auto *abort = std::get_if<UploadAbortAction>(&action)) {
+            auto found = findUpload(abort->ownership, abort->peer, abort->block);
+            if (abort->ownership.requestId == 0 || abort->ownership.generation != generation_
+                || abort->peer == 0 || !isValidBlock(abort->block)
+                || found == activeUploads_.end() || found->mailboxPending) {
+                ++stats_.uploadActionsRejected;
+                return false;
+            }
+            found->mailboxPending = true;
+            pendingUploadActions_.push_back(*abort);
+            requestDrainLocked();
+            return true;
+        }
         if (const auto *request = std::get_if<RequestAction>(&action)) {
             if (!isValidBlock(request->block) || request->block.piece >= pieceCount_
                 || request->peer == 0 || request->ownership.requestId == 0
@@ -251,9 +321,19 @@ public:
             requestDrainLocked();
             return true;
         }
+        if (const auto *choke = std::get_if<ChokeAction>(&action)) {
+            if (choke->peer == 0) return false;
+            if (choke->choked) {
+                locallyUnchoked_.erase(choke->peer);
+                cancelUploadsLocked(choke->peer, 0);
+            } else {
+                locallyUnchoked_.insert(choke->peer);
+            }
+        }
         const auto peer = std::visit([](const auto &value) -> PeerHandle {
             using Value = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<Value, PauseAction>) return 0;
+            if constexpr (std::is_same_v<Value, PauseAction>
+                || std::is_same_v<Value, AdvertisePieceAction>) return 0;
             else return value.peer;
         }, action);
         if (peer == 0) return false;
@@ -292,8 +372,12 @@ public:
                 observations_.push_back(FailureObservation{owned.action.ownership, owned.action.peer,
                     owned.action.block, "transport closed", true});
             }
+            cancelUploadsLocked(0, 0);
+            stats_.uploadActionsRejected += pendingUploadActions_.size();
             stats_.ownedRequestsOutstanding = 0;
+            stats_.ownedUploadsOutstanding = 0;
             pendingRequests_.clear(); pendingControl_.clear(); permits_.clear();
+            pendingUploadActions_.clear();
             pendingConnects_.clear(); deferredConnects_.clear();
             observations_.erase(std::remove_if(observations_.begin(), observations_.end(),
                 [](const auto &observation) {
@@ -308,6 +392,8 @@ public:
         }
         std::lock_guard<std::mutex> lock(mutex_);
         peers_.clear(); advertised_.clear(); unchoked_.clear(); endpointPeers_.clear();
+        locallyUnchoked_.clear(); interestedPeers_.clear(); announcedLocalPieces_.clear();
+        localAdvertisedPieces_.clear(); activeUploads_.clear();
         lastDetachedIdentity_.clear(); peerIdentities_.clear();
         stats_.connectedPeers = 0; stats_.unchokedPeers = 0;
         if (!closedObserved_) { observations_.push_back(ClosedObservation{}); closedObserved_ = true; }
@@ -541,13 +627,28 @@ private:
         urlSeedSet.insert(infoUrlSeeds.begin(), infoUrlSeeds.end());
         std::vector<std::string> trackers(trackerSet.begin(), trackerSet.end());
         std::vector<std::string> urlSeeds(urlSeedSet.begin(), urlSeedSet.end());
+        std::vector<std::uint32_t> pieceSizes;
+        pieceSizes.reserve(static_cast<std::size_t>(info->num_pieces()));
+        for (auto piece = lt::piece_index_t{0}; piece < info->end_piece(); ++piece)
+            pieceSizes.push_back(static_cast<std::uint32_t>(info->piece_size(piece)));
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_ || metadataReadyObserved_ || sourceFailed_) return;
         pieceCount_ = static_cast<std::uint32_t>(info->num_pieces());
+        pieceSizes_ = std::move(pieceSizes);
         observations_.push_back(MetadataReadyObservation{
             generation_, canonicalInfoHash_, std::move(bytes),
             std::move(trackers), std::move(urlSeeds)});
         metadataReadyObserved_ = true;
+        requestDrainLocked();
+    }
+
+    void setPieceSizes(const lt::torrent_info &info)
+    {
+        pieceCount_ = static_cast<std::uint32_t>(info.num_pieces());
+        pieceSizes_.clear();
+        pieceSizes_.reserve(pieceCount_);
+        for (auto piece = lt::piece_index_t{0}; piece < info.end_piece(); ++piece)
+            pieceSizes_.push_back(static_cast<std::uint32_t>(info.piece_size(piece)));
     }
 
     void emitSourceFailure(std::string error, bool retryable)
@@ -587,8 +688,73 @@ private:
             if (!stats_.paused) connects.swap(deferredConnects_);
         }
         for (auto &[peer, native] : ready) dispatchControl(peer, native);
+        dispatchUploadWire(ready);
         for (const auto &connectAction : connects) (void)connect(connectAction);
         issueReady(0);
+    }
+
+    void sendHaveLocked(PeerHandle peer, const std::shared_ptr<lt::peer_connection> &native,
+                        std::uint32_t piece)
+    {
+        if (!native || native->is_connecting() || native->is_disconnecting()) return;
+        std::vector<char> frame;
+        frame.reserve(9);
+        appendBigEndian(frame, 5);
+        frame.push_back(static_cast<char>(4));
+        appendBigEndian(frame, piece);
+        native->send_buffer(lt::span<const char>(frame.data(), frame.size()));
+        announcedLocalPieces_[peer].insert(piece);
+    }
+
+    void dispatchUploadWire(
+        const std::vector<std::pair<PeerHandle, std::shared_ptr<lt::peer_connection>>> &ready)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_) return;
+        for (const auto &[peer, native] : ready) {
+            if (!isCurrentNativeLocked(peer, native)) continue;
+            for (const auto piece : localAdvertisedPieces_)
+                if (announcedLocalPieces_[peer].count(piece) == 0)
+                    sendHaveLocked(peer, native, piece);
+        }
+
+        while (!pendingUploadActions_.empty()) {
+            auto action = std::move(pendingUploadActions_.front());
+            pendingUploadActions_.pop_front();
+            std::visit([&](const auto &value) {
+                auto found = findUpload(value.ownership, value.peer, value.block);
+                const auto peer = peers_.find(value.peer);
+                auto native = peer == peers_.end() ? std::shared_ptr<lt::peer_connection>{}
+                                                   : peer->second.lock();
+                const bool valid = found != activeUploads_.end()
+                    && isCurrentIdentityLocked(value.peer, found->identity)
+                    && locallyUnchoked_.count(value.peer) != 0
+                    && interestedPeers_.count(value.peer) != 0
+                    && native && !native->is_connecting() && !native->is_disconnecting();
+                if (!valid) {
+                    ++stats_.uploadActionsRejected;
+                    if (found != activeUploads_.end()) found->mailboxPending = false;
+                    return;
+                }
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, UploadResponseAction>) {
+                    std::vector<char> frame;
+                    frame.reserve(13 + value.payload.size());
+                    appendBigEndian(frame, static_cast<std::uint32_t>(9 + value.payload.size()));
+                    frame.push_back(static_cast<char>(7));
+                    appendBigEndian(frame, value.block.piece);
+                    appendBigEndian(frame, value.block.offset);
+                    frame.insert(frame.end(), value.payload.begin(), value.payload.end());
+                    native->send_buffer(lt::span<const char>(frame.data(), frame.size()));
+                    ++stats_.uploadResponsesFramed;
+                    stats_.uploadPayloadBytesFramed += value.payload.size();
+                } else {
+                    ++stats_.uploadRequestsAborted;
+                }
+                activeUploads_.erase(found);
+                if (stats_.ownedUploadsOutstanding > 0) --stats_.ownedUploadsOutstanding;
+            }, action);
+        }
     }
 
     PeerHandle identify(const lt::tcp::endpoint &endpoint)
@@ -627,8 +793,12 @@ private:
             if (!pieces) {
                 const auto current = peerIdentities_.find(peer);
                 if (current != peerIdentities_.end() && current->second != identity) {
+                    cancelUploadsLocked(peer, current->second);
                     advertised_.erase(peer);
                     unchoked_.erase(peer);
+                    locallyUnchoked_.erase(peer);
+                    interestedPeers_.erase(peer);
+                    announcedLocalPieces_.erase(peer);
                     emitAvailabilityLocked(peer);
                 }
             }
@@ -645,10 +815,9 @@ private:
                 emitAvailabilityLocked(peer);
             }
         }
-        if (pieces) {
-            dispatchControl(peer, native);
-            issueReady(peer);
-        }
+        dispatchControl(peer, native);
+        drainOnNetworkThread();
+        if (pieces) issueReady(peer);
     }
 
     void issueReady(PeerHandle)
@@ -729,6 +898,96 @@ private:
                 if (choke->choked) native->send_choke(); else native->send_unchoke();
             }
         }
+    }
+
+    bool isCurrentNativeLocked(PeerHandle peer,
+                               const std::shared_ptr<lt::peer_connection> &native) const
+    {
+        const auto found = peers_.find(peer);
+        return found != peers_.end() && found->second.lock() == native;
+    }
+
+    bool validUploadBlockLocked(const lt::peer_request &wire, BlockSpan &block) const
+    {
+        if (wire.piece < lt::piece_index_t{0} || wire.start < 0 || wire.length <= 0
+            || wire.length > static_cast<int>(kWireBlockLength)) return false;
+        const auto piece = static_cast<std::uint32_t>(static_cast<int>(wire.piece));
+        const auto offset = static_cast<std::uint32_t>(wire.start);
+        const auto length = static_cast<std::uint32_t>(wire.length);
+        if (piece >= pieceCount_ || piece >= pieceSizes_.size()
+            || offset % kWireBlockLength != 0
+            || static_cast<std::uint64_t>(offset) + length > pieceSizes_[piece]) return false;
+        block = {piece, offset / kWireBlockLength, offset, length};
+        return isValidBlock(block);
+    }
+
+    void uploadRequest(PeerHandle peer, ConnectionIdentity identity,
+                       const lt::peer_request &wire)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        nativeThread_ = std::this_thread::get_id();
+        BlockSpan block;
+        const bool validBlock = validUploadBlockLocked(wire, block);
+        const auto peerCount = static_cast<std::uint32_t>(std::count_if(
+            activeUploads_.begin(), activeUploads_.end(),
+            [&](const auto &owned) { return owned.peer == peer; }));
+        const bool duplicate = std::any_of(activeUploads_.begin(), activeUploads_.end(),
+            [&](const auto &owned) {
+                return owned.peer == peer && owned.identity == identity
+                    && validBlock && sameBlock(owned.block, block);
+            });
+        if (closed_ || !isCurrentIdentityLocked(peer, identity) || !metadataReadyObserved_
+            || !validBlock
+            || localAdvertisedPieces_.count(block.piece) == 0
+            || interestedPeers_.count(peer) == 0 || locallyUnchoked_.count(peer) == 0
+            || duplicate || peerCount >= kMaxOutstandingUploadsPerPeer
+            || activeUploads_.size() >= kMaxOutstandingUploadsGlobal
+            || nextUploadRequestId_ == 0) {
+            ++stats_.uploadRequestsRejected;
+            return;
+        }
+        const UploadOwnership ownership{nextUploadRequestId_++, generation_};
+        activeUploads_.push_back({ownership, peer, identity, block, false});
+        stats_.ownedUploadsOutstanding = static_cast<std::uint32_t>(activeUploads_.size());
+        ++stats_.uploadRequestsAccepted;
+        observations_.push_back(UploadRequestObservation{ownership, peer, block});
+    }
+
+    void uploadCancel(PeerHandle peer, ConnectionIdentity identity,
+                      const lt::peer_request &wire)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        nativeThread_ = std::this_thread::get_id();
+        if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+            ++staleCallbacksIgnored_;
+            return;
+        }
+        BlockSpan block;
+        if (!validUploadBlockLocked(wire, block)) return;
+        const auto found = std::find_if(activeUploads_.begin(), activeUploads_.end(),
+            [&](const auto &owned) {
+                return owned.peer == peer && owned.identity == identity
+                    && sameBlock(owned.block, block);
+            });
+        if (found == activeUploads_.end()) return;
+        observations_.push_back(UploadCancelObservation{found->ownership, peer, found->block});
+        ++stats_.uploadRequestsCancelled;
+        activeUploads_.erase(found);
+        stats_.ownedUploadsOutstanding = static_cast<std::uint32_t>(activeUploads_.size());
+    }
+
+    void cancelUploadsLocked(PeerHandle peer, ConnectionIdentity identity)
+    {
+        for (auto it = activeUploads_.begin(); it != activeUploads_.end();) {
+            if ((peer == 0 || it->peer == peer) && (identity == 0 || it->identity == identity)) {
+                observations_.push_back(UploadCancelObservation{it->ownership, it->peer, it->block});
+                ++stats_.uploadRequestsCancelled;
+                it = activeUploads_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        stats_.ownedUploadsOutstanding = static_cast<std::uint32_t>(activeUploads_.size());
     }
 
     bool authorize(PeerHandle peer, ConnectionIdentity identity, const lt::peer_request &wire)
@@ -857,11 +1116,15 @@ private:
                 return;
             }
             if (identity != 0) lastDetachedIdentity_.try_emplace(peer, identity);
+            cancelUploadsLocked(peer, identity);
             peers_.erase(peer);
             peerIdentities_.erase(peer);
             advertised_.erase(peer);
             emitAvailabilityLocked(peer);
             unchoked_.erase(peer);
+            locallyUnchoked_.erase(peer);
+            interestedPeers_.erase(peer);
+            announcedLocalPieces_.erase(peer);
             pendingControl_.erase(peer);
             if (!endpoint.empty()) {
                 const auto owner = endpointPeers_.find(endpoint);
@@ -926,6 +1189,7 @@ private:
                 return;
             }
             if (choking) unchoked_.erase(peer); else unchoked_.insert(peer);
+            if (interested) interestedPeers_.insert(peer); else interestedPeers_.erase(peer);
             stats_.unchokedPeers = static_cast<std::uint32_t>(unchoked_.size());
             std::uint32_t outstanding = 0;
             for (const auto &owned : active_) if (!owned.terminal && owned.action.peer == peer) ++outstanding;
@@ -950,11 +1214,22 @@ private:
         });
     }
 
+    std::vector<OwnedUpload>::iterator findUpload(const UploadOwnership &owner,
+        PeerHandle peer, const BlockSpan &block)
+    {
+        return std::find_if(activeUploads_.begin(), activeUploads_.end(), [&](const auto &owned) {
+            return owned.peer == peer && owned.ownership.requestId == owner.requestId
+                && owned.ownership.generation == owner.generation
+                && sameBlock(owned.block, block);
+        });
+    }
+
     mutable std::mutex mutex_;
     std::mutex alertMutex_;
     std::unique_ptr<lt::session> session_;
     lt::torrent_handle torrent_;
     std::uint32_t pieceCount_ = 0;
+    std::vector<std::uint32_t> pieceSizes_;
     EngineGeneration generation_ = 0;
     V1InfoHash canonicalInfoHash_{};
     bool controlled_ = false, closed_ = false, closedObserved_ = false, drainRequested_ = false;
@@ -968,13 +1243,20 @@ private:
     std::map<PeerHandle, ConnectionIdentity> peerIdentities_;
     std::map<PeerHandle, ConnectionIdentity> lastDetachedIdentity_;
     std::map<PeerHandle, std::set<std::uint32_t>> advertised_;
+    std::set<std::uint32_t> localAdvertisedPieces_;
+    std::map<PeerHandle, std::set<std::uint32_t>> announcedLocalPieces_;
     std::set<PeerHandle> unchoked_;
+    std::set<PeerHandle> locallyUnchoked_;
+    std::set<PeerHandle> interestedPeers_;
     std::deque<RequestAction> pendingRequests_;
     std::vector<ConnectAction> pendingConnects_;
     std::vector<ConnectAction> deferredConnects_;
     std::map<PeerHandle, std::deque<TorrentAction>> pendingControl_;
     std::vector<RequestAction> permits_, framedPending_, retired_;
     std::vector<OwnedRequest> active_;
+    std::vector<OwnedUpload> activeUploads_;
+    std::deque<UploadMailboxAction> pendingUploadActions_;
+    UploadRequestId nextUploadRequestId_ = 1;
     std::deque<TorrentObservation> observations_;
     TransportStatistics stats_{};
     std::string receiveBarrierEntered_, receiveBarrierRelease_;
