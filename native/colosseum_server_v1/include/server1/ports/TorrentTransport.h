@@ -4,6 +4,7 @@
 #include "server1/discovery/PeerSearch.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <variant>
 #include <vector>
@@ -12,6 +13,26 @@ namespace server1::ports {
 
 inline constexpr std::uint32_t kWireBlockLength = 16384;
 using PeerHandle = std::uint64_t;
+using EngineGeneration = std::uint64_t;
+
+struct InfoHashSource final {};
+
+struct MagnetSource final {
+    std::string uri;
+};
+
+struct MetainfoSource final {
+    std::vector<std::uint8_t> bytes;
+};
+
+using TorrentSource = std::variant<InfoHashSource, MagnetSource, MetainfoSource>;
+
+struct TorrentOpenRequest final {
+    EngineGeneration generation = 0;
+    std::string infoHash;
+    TorrentSource source = InfoHashSource{};
+    std::string savePath;
+};
 
 struct RequestOwnership final {
     std::uint64_t requestId = 0;
@@ -57,7 +78,18 @@ struct ChokeAction final {
     bool choked = true;
 };
 
-using TorrentAction = std::variant<RequestAction, CancelAction, InterestAction, ChokeAction>;
+struct ConnectAction final {
+    EngineGeneration generation = 0;
+    PeerHandle peer = 0;
+    std::string address;
+    std::uint16_t port = 0;
+};
+
+using TorrentAction = std::variant<RequestAction,
+                                   CancelAction,
+                                   InterestAction,
+                                   ChokeAction,
+                                   ConnectAction>;
 
 [[nodiscard]] inline std::optional<TorrentAction>
 toTorrentAction(const policy::SchedulerAction &action)
@@ -117,10 +149,27 @@ struct FailureObservation final {
 
 struct ClosedObservation final {};
 
+struct MetadataReadyObservation final {
+    EngineGeneration generation = 0;
+    std::string canonicalInfoHash;
+    std::vector<std::uint8_t> infoSection;
+    std::vector<std::string> trackers;
+    std::vector<std::string> urlSeeds;
+};
+
+struct SourceFailureObservation final {
+    EngineGeneration generation = 0;
+    std::string canonicalInfoHash;
+    std::string error;
+    bool retryable = false;
+};
+
 using TorrentObservation = std::variant<BlockObservation,
                                         PeerObservation,
                                         FailureObservation,
-                                        ClosedObservation>;
+                                        ClosedObservation,
+                                        MetadataReadyObservation,
+                                        SourceFailureObservation>;
 
 struct TransportStatistics final {
     std::uint32_t connectedPeers = 0;
@@ -148,5 +197,8 @@ public:
 protected:
     [[nodiscard]] virtual bool applyAutonomySuppression() = 0;
 };
+
+[[nodiscard]] std::unique_ptr<TorrentTransport>
+openTorrentTransport(const TorrentOpenRequest &request) noexcept;
 
 } // namespace server1::ports

@@ -1,0 +1,4 @@
+Command: configured MSVC environment, then cmake --build artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb --target server1_p08_torrent_transport_contract_test
+Exit: 1
+Expected cause: the consumer could not find EngineGeneration, TorrentOpenRequest, TorrentSource, openTorrentTransport, ConnectAction, MetadataReadyObservation, or SourceFailureObservation.
+Meaning: the accepted F8 contract did not expose a transport-source/open seam.

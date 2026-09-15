@@ -14,6 +14,16 @@
 #define statistics statistics_removed
 #elif defined(P08_NEGATE_AUTONOMY)
 #define configureAutonomy configureAutonomy_removed
+#elif defined(P08_NEGATE_SOURCE_GENERATION)
+#define EngineGeneration EngineGeneration_removed
+#elif defined(P08_NEGATE_OPEN_REQUEST)
+#define TorrentOpenRequest TorrentOpenRequest_removed
+#elif defined(P08_NEGATE_CONNECT_ACTION)
+#define ConnectAction ConnectAction_removed
+#elif defined(P08_NEGATE_METADATA_READY)
+#define MetadataReadyObservation MetadataReadyObservation_removed
+#elif defined(P08_NEGATE_SOURCE_FAILURE)
+#define SourceFailureObservation SourceFailureObservation_removed
 #endif
 
 #include "server1/ports/TorrentTransport.h"
@@ -34,6 +44,16 @@
 #undef statistics
 #elif defined(P08_NEGATE_AUTONOMY)
 #undef configureAutonomy
+#elif defined(P08_NEGATE_SOURCE_GENERATION)
+#undef EngineGeneration
+#elif defined(P08_NEGATE_OPEN_REQUEST)
+#undef TorrentOpenRequest
+#elif defined(P08_NEGATE_CONNECT_ACTION)
+#undef ConnectAction
+#elif defined(P08_NEGATE_METADATA_READY)
+#undef MetadataReadyObservation
+#elif defined(P08_NEGATE_SOURCE_FAILURE)
+#undef SourceFailureObservation
 #endif
 
 #include <cstdlib>
@@ -102,6 +122,13 @@ int main()
                                  TransportStatistics (TorrentTransport::*)() const>);
     static_assert(std::is_same_v<decltype(&TorrentTransport::configureAutonomy),
                                  bool (TorrentTransport::*)(const server1::discovery::AutonomyPolicy &)>);
+    static_assert(std::is_same_v<EngineGeneration, std::uint64_t>);
+    static_assert(std::is_same_v<decltype(TorrentOpenRequest::generation), EngineGeneration>);
+    static_assert(std::is_same_v<decltype(TorrentOpenRequest::infoHash), std::string>);
+    static_assert(std::is_same_v<decltype(TorrentOpenRequest::source), TorrentSource>);
+    static_assert(std::is_same_v<decltype(TorrentOpenRequest::savePath), std::string>);
+    static_assert(std::is_same_v<decltype(&openTorrentTransport),
+                                 std::unique_ptr<TorrentTransport> (*)(const TorrentOpenRequest &) noexcept>);
 
     ContractConsumer transport;
     expect(!transport.configureAutonomy({true, false, false})
@@ -122,8 +149,9 @@ int main()
 
     const RequestAction request{owner, 12, tail};
     const CancelAction cancel{owner, 12, tail, true};
-    expect(transport.submit(request) && transport.submit(cancel),
-           "P08-T request and cancellation action surface");
+    const ConnectAction connect{7, 12, "127.0.0.1", 49080};
+    expect(transport.submit(request) && transport.submit(cancel) && transport.submit(connect),
+           "P08-T request, cancellation, and public connection action surface");
     expect(request.ownership.requestId == 41 && request.ownership.generation == 7
                && request.block.blockOrdinal == 1 && request.block.length == 123,
            "P08-T ownership, generation, block ordinal and exact tail are carried together");
@@ -167,9 +195,30 @@ int main()
     BlockObservation block{owner, 12, tail, {1, 2, 3}, false, false};
     PeerObservation peer{12, false, true, 65536.0, 1024.0, 4, 99};
     FailureObservation failure{owner, 12, tail, "timeout", true};
-    transport.observations = {block, peer, failure};
+    MetadataReadyObservation metadata{7, "0123456789abcdef0123456789abcdef01234567",
+                                      {1, 2, 3}, {"http://tracker.invalid/announce"},
+                                      {"http://seed.invalid/file"}};
+    SourceFailureObservation sourceFailure{7,
+        "0123456789abcdef0123456789abcdef01234567", "invalid source", false};
+    transport.observations = {block, peer, failure, metadata, sourceFailure};
     const auto observed = transport.poll();
-    expect(observed.size() == 3, "P08-T typed observation surface");
+    expect(observed.size() == 5
+               && std::get<MetadataReadyObservation>(observed[3]).generation == 7
+               && std::get<MetadataReadyObservation>(observed[3]).infoSection.size() == 3
+               && std::get<SourceFailureObservation>(observed[4]).generation == 7,
+           "P08-T typed source observation surface carries generation and libtorrent info section");
+
+    const TorrentOpenRequest bare{7, "0123456789abcdef0123456789abcdef01234567",
+                                  InfoHashSource{}, "download"};
+    const TorrentOpenRequest magnet{8, "0123456789abcdef0123456789abcdef01234567",
+                                    MagnetSource{"magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567"},
+                                    "download"};
+    const TorrentOpenRequest cached{9, "0123456789abcdef0123456789abcdef01234567",
+                                    MetainfoSource{{1, 2, 3}}, "download"};
+    expect(std::holds_alternative<InfoHashSource>(bare.source)
+               && std::holds_alternative<MagnetSource>(magnet.source)
+               && std::holds_alternative<MetainfoSource>(cached.source),
+           "P08-T source variant makes bare hash, magnet, and metainfo mutually exclusive");
 
     transport.stats = {2, 1, 1, 4096, 128, 65536.0, 1024.0, 3};
     const auto stats = transport.statistics();

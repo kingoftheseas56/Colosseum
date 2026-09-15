@@ -1,0 +1,3 @@
+pwsh -NoProfile -File artifacts/server1/P08/P08-T2/run_contract.ps1
+
+Expected: positive consumer exits 0 and all 13 P08_NEGATE_* mutations fail compilation.

@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "P08",
+  "worker": "P08-T2",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-source-20260915",
+  "base": "f8619b065598e258f0a9d188ba815fa49cd447f0",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/P08/P08-T2/PACKET-RECEIPT.json)",
+  "positive_compile_consumer": "PASS and executed",
+  "compile_fail_mutations": "13/13 PASS rejected",
+  "contract": "mandatory generation and canonical lowercase v1 infohash; mutually exclusive bare-infohash, magnet, or metainfo source; public ConnectAction; generation-bound metadata-ready and source-failure observations; public noexcept factory",
+  "metadata_payload": "libtorrent torrent_info::info_section bytes with trackers and URL seeds carried separately; not a reconstructed full metainfo round-trip",
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
+  "scope": "accepted P08-T header and compile consumer plus packet-local evidence only",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; contract-authored; directly-compiled; mutation-tested"
+}
