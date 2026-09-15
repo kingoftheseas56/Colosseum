@@ -1,0 +1,22 @@
+Focused K10-E:
+cmake --build artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb
+ctest --test-dir artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb -L "^K10-E$" --output-on-failure
+Exit: 0. 7/7 PASS in 7.53 seconds.
+
+Legacy K10 wire/firewall suite:
+ctest --test-dir artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb -L "^K10$" --output-on-failure
+Exit: 0. 10/10 PASS in 84.13 seconds.
+
+Full registered aggregate:
+cmake --build artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb
+ctest --test-dir artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb --output-on-failure
+Exit: 0. 59/59 PASS in 100.87 seconds.
+
+P08-T2 contract/mutations:
+pwsh -NoProfile -File artifacts/server1/P08/P08-T2/run_contract.ps1
+Exit: 0. Positive consumer PASS; 14/14 mutations rejected.
+
+Public-path guards:
+python tests/test_public_path_guard.py
+python scripts/check_public_paths.py
+Exit: 0. Four unittest cases PASS; PUBLIC_PATH_GUARD_OK.

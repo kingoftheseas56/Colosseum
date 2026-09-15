@@ -167,6 +167,7 @@ struct MetadataReadyObservation final {
     EngineGeneration generation = 0;
     V1InfoHash infoHash{};
     std::vector<std::uint8_t> infoSection;
+    // Active values at readiness, each lexicographically sorted and deduplicated.
     std::vector<std::string> trackers;
     std::vector<std::string> urlSeeds;
 };

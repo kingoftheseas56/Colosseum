@@ -809,11 +809,15 @@ void caseHashMismatch(const fs::path &directory)
 
 void casePeerMetadata(const fs::path &directory, bool magnet)
 {
+    const std::string magnetTracker = "http://magnet-tracker.invalid/announce";
+    const std::string magnetUrlSeed = "http://magnet-seed.invalid/K10-wire.bin";
     prepare(directory);
     const auto hash = readInfoHash(directory);
     NativeMetadataSeeder seeder(directory);
     TorrentSource source = InfoHashSource{};
-    if (magnet) source = MagnetSource{"magnet:?xt=urn:btih:" + infoHashHex(hash)};
+    if (magnet) source = MagnetSource{"magnet:?xt=urn:btih:" + infoHashHex(hash)
+        + "&tr=http%3A%2F%2Fmagnet-tracker.invalid%2Fannounce"
+        + "&ws=http%3A%2F%2Fmagnet-seed.invalid%2FK10-wire.bin"};
     const EngineGeneration generation = magnet ? 305 : 304;
     const TorrentOpenRequest request{generation, hash, std::move(source),
         (directory / (magnet ? "magnet-download" : "hash-download")).string()};
@@ -844,6 +848,12 @@ void casePeerMetadata(const fs::path &directory, bool magnet)
     expect(metadata.generation == generation && metadata.infoHash == hash
                && !metadata.infoSection.empty(),
            "K10-E real libtorrent metadata lost generation, hash, or info section");
+    if (magnet) {
+        expect(metadata.trackers == std::vector<std::string>{magnetTracker},
+               "K10-E magnet ready observation did not carry normalized live trackers");
+        expect(metadata.urlSeeds == std::vector<std::string>{magnetUrlSeed},
+               "K10-E magnet ready observation did not carry normalized live URL seeds");
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
     expect(transport->poll().empty(), "K10-E real libtorrent metadata repeated");
     transport->close();

@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "reviewed_commit": "facfb843b4ee28ea4b350169965f0d847c74f9a5",
+  "blobs": {
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "8707bbc6711a10a218f2aee30d8b1e959420e8b4",
+    "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp": "b046b739ae0ca3dbead8a003c85e9f051945e97d",
+    "native/colosseum_server_v1/tests/test_native_transport.cpp": "d6bd2b671f08e0d2803ed8b476f6add7e5a139d0",
+    "artifacts/server1/K10/K10-E/REVIEW-REPAIR-TDD.txt": "8ec2f11cb14e42e3a7a5dd54c76a1a2aadd59a55",
+    "artifacts/server1/K10/K10-E/REVIEW-REPAIR-SOURCE-TRACE.md": "5274b58b5a4785e2408fbb910489c3fdbb69c930",
+    "artifacts/server1/K10/K10-E/REVIEW-REPAIR-TESTS.txt": "04841c1c6c4cb79bcc624084e7a024dab3f54913",
+    "artifacts/server1/K10/K10-E/REVIEW-REPAIR-RECEIPT.json": "8fe925fe401ef293debe09472d56400f8a2a859c"
+  },
+  "preserved_blobs": {
+    "artifacts/server1/K10/K10-E/PACKET-RECEIPT.json": "c46e8f56e1c147c9a056f0be87fcf4ebcc309be5",
+    "artifacts/server1/K10/K10-E/BLOB-SEAL.json": "8abcab1e1a05f36703f404eb4b964870b3060e48"
+  },
+  "verification": "git rev-parse HEAD:<path> must equal each recorded blob after the repair commit"
+}

@@ -422,7 +422,7 @@ private:
             if (const auto *added = lt::alert_cast<lt::add_torrent_alert>(alert)) {
                 handleAdded(*added);
             } else if (const auto *metadata = lt::alert_cast<lt::metadata_received_alert>(alert)) {
-                emitMetadataReady(metadata->handle.torrent_file());
+                emitMetadataReady(metadata->handle, metadata->handle.torrent_file());
             }
         }
     }
@@ -447,11 +447,12 @@ private:
             return;
         }
         const auto info = alert.params.ti ? alert.params.ti : alert.handle.torrent_file();
-        if (info) emitMetadataReady(info);
+        if (info) emitMetadataReady(alert.handle, info);
         for (const auto &connectAction : connects) (void)connect(connectAction);
     }
 
-    void emitMetadataReady(const std::shared_ptr<const lt::torrent_info> &info)
+    void emitMetadataReady(const lt::torrent_handle &handle,
+                           const std::shared_ptr<const lt::torrent_info> &info)
     {
         if (!info) return;
         const auto actualHash = v1InfoHash(*info);
@@ -461,10 +462,21 @@ private:
         }
         const auto section = info->info_section();
         std::vector<std::uint8_t> bytes(section.begin(), section.end());
-        std::vector<std::string> trackers;
-        for (const auto &tracker : info->trackers()) trackers.push_back(tracker.url);
-        std::vector<std::string> urlSeeds;
-        for (const auto &seed : info->web_seeds()) urlSeeds.push_back(seed.url);
+        std::set<std::string> trackerSet;
+        std::set<std::string> urlSeedSet;
+        try {
+            for (const auto &tracker : handle.trackers()) trackerSet.insert(tracker.url);
+            const auto liveUrlSeeds = handle.url_seeds();
+            urlSeedSet.insert(liveUrlSeeds.begin(), liveUrlSeeds.end());
+        } catch (...) {
+            // The alert handle can become invalid during shutdown. Immutable torrent-info
+            // values remain a safe fallback for any source metadata it carries.
+        }
+        for (const auto &tracker : info->trackers()) trackerSet.insert(tracker.url);
+        const auto infoUrlSeeds = info->url_seeds();
+        urlSeedSet.insert(infoUrlSeeds.begin(), infoUrlSeeds.end());
+        std::vector<std::string> trackers(trackerSet.begin(), trackerSet.end());
+        std::vector<std::string> urlSeeds(urlSeedSet.begin(), urlSeedSet.end());
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_ || metadataReadyObserved_ || sourceFailed_) return;
         pieceCount_ = static_cast<std::uint32_t>(info->num_pieces());

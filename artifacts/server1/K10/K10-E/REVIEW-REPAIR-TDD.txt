@@ -1,0 +1,21 @@
+K10-E independent-review repair TDD — 2026-09-15
+
+RED:
+The real magnet-before-metadata case was changed first to include explicit percent-encoded
+`tr=http://magnet-tracker.invalid/announce` and
+`ws=http://magnet-seed.invalid/K10-wire.bin` parameters and assert their public ready values.
+Against facfb843, the targeted test failed at:
+`K10-E magnet ready observation did not carry normalized live trackers`.
+Exit: 1; 0/1 passed.
+
+ROOT CAUSE:
+Instrumentation after the first handle-snapshot implementation observed exactly:
+trackers=[http://magnet-tracker.invalid/announce]
+urlSeeds=[http://magnet-seed.invalid/K10-wire.bin]
+Peer metadata exchange supplies the info dictionary, not the outer tracker/web-seed fields
+from the seeder's .torrent. The active magnet values remained on the live torrent handle.
+
+GREEN:
+Ready construction now receives the live alert handle, snapshots `trackers()` and
+`url_seeds()`, unions immutable torrent-info fallback values, deduplicates, and sorts.
+The focused magnet case passed, then K10-E passed 7/7.

@@ -1,0 +1,21 @@
+{
+  "schema": "colosseum-server1-review-repair-receipt/v1",
+  "packet": "K10-E",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-source-20260915",
+  "reviewed_commit": "facfb843b4ee28ea4b350169965f0d847c74f9a5",
+  "repair_commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K10/K10-E/REVIEW-REPAIR-RECEIPT.json)",
+  "finding": "magnet tr/ws parameters were absent from torrent-info-only ready observations",
+  "resolution": "snapshot live handle trackers and URL seeds on both add and metadata alerts, union fallback torrent-info values, then sort and deduplicate",
+  "proof": {
+    "tdd_red": "targeted real magnet test failed against reviewed behavior",
+    "targeted_green": "real magnet tr/ws carried exactly",
+    "k10_e": "7/7 PASS; 7.53 seconds",
+    "legacy_k10": "10/10 PASS; 84.13 seconds",
+    "aggregate": "59/59 PASS; 100.87 seconds",
+    "p08_t2": "positive consumer PASS; 14/14 mutations rejected",
+    "public_path": "four unittest cases PASS; PUBLIC_PATH_GUARD_OK"
+  },
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
+  "status": "repair-authored; red-observed; root-caused; compiled; native-tested; aggregate-tested; candidate-test-reported"
+}
