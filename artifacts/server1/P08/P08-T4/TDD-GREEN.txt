@@ -1,0 +1,8 @@
+P08-T4 GREEN observed on 2026-09-15.
+
+- Positive C++17/MSVC public consumer: PASS and executed.
+- Compile-fail mutations: 4/4 rejected.
+- Semantic clauses: 10/10 present.
+- Semantic mutations: 10/10 rejected.
+
+The contract appends PauseAction after ConnectAction, preserving variant indices 0 through 4, and appends TransportStatistics.paused with a false default.

@@ -1,0 +1,7 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "packet": "P08-T4",
+  "request": "Implement generation-bound PauseAction behavior in K10 without torrent_handle::pause().",
+  "dependency": "Independent Sol contract approval",
+  "status": "contract candidate only"
+}

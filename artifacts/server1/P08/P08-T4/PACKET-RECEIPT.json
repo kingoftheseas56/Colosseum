@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "P08",
+  "worker": "P08-T4",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-pause-peercounts-20260915",
+  "base": "a3ffdc257453e47b3ffcbe71dad57d0958fea872",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/P08/P08-T4/PACKET-RECEIPT.json)",
+  "contract": "generation-bound idempotent scheduler pause; gates only new outbound ConnectAction; resume drains; existing activity continues; no torrent_handle::pause; paused statistic defaults false",
+  "positive_compile_consumer": "PASS and executed",
+  "compile_fail_mutations": "4/4 rejected",
+  "semantic_mutations": "10/10 rejected",
+  "scope": "TorrentTransport public header and packet-local contract evidence only; no production cpp change",
+  "merge_endpoint": "feature/colosseum-server-1.0 only after independent Sol contract and code approval plus gates",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; contract-authored; directly-compiled; mutation-tested"
+}

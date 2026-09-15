@@ -99,11 +99,25 @@ struct ConnectAction final {
     std::uint16_t port = 0;
 };
 
+// Generation-bound scheduler pressure signal. Only the current open
+// generation may change this state; stale generations are rejected. Repeating
+// the current state is successful and has no additional effect.
+//
+// Pausing gates and defers only new outbound ConnectAction work. Existing
+// peers, owned requests, metadata exchange, and incoming connections continue.
+// Resuming drains the deferred outbound connects. Implementations must not map
+// this scheduler signal to torrent_handle::pause().
+struct PauseAction final {
+    EngineGeneration generation = 0;
+    bool paused = false;
+};
+
 using TorrentAction = std::variant<RequestAction,
                                    CancelAction,
                                    InterestAction,
                                    ChokeAction,
-                                   ConnectAction>;
+                                   ConnectAction,
+                                   PauseAction>;
 
 [[nodiscard]] inline std::optional<TorrentAction>
 toTorrentAction(const policy::SchedulerAction &action)
@@ -204,6 +218,7 @@ struct TransportStatistics final {
     double downloadBytesPerSecond = 0.0;
     double uploadBytesPerSecond = 0.0;
     std::uint64_t pickerRequestsSuppressed = 0;
+    bool paused = false;
 };
 
 class TorrentTransport {
