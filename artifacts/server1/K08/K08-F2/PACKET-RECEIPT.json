@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K08",
+  "worker": "K08-F2-contract",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-reader-failure-20260915",
+  "base": "a4890e19c8621fdc0d63028894c12ce3ad3fe1da",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K08/K08-F2/PACKET-RECEIPT.json)",
+  "contract": "FileReader::fail(std::string); first non-empty failure wins and becomes a once-readable terminal error",
+  "scope": "FileReader public header, packet-local compile consumer, mutation verifier, and evidence only; no FileReader.cpp change",
+  "positive_compile_consumer": "PASS",
+  "signature_mutations": "6/6 PASS rejected",
+  "semantic_mutations": "9/9 PASS rejected",
+  "existing_k08_regressions": "3/3 PASS from fresh build",
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol contract/code approval, Agent 4 acceptance, and all K08 regression, mutation, and blob-seal gates",
+  "review": "producer contract candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "red-observed; contract-authored; directly-compiled; mutation-tested; regressions-passed"
+}

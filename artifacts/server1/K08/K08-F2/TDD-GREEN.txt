@@ -1,0 +1,7 @@
+Candidate contract verification:
+
+- Positive C++17/MSVC signature consumer: PASS.
+- Incorrect signature mutations: 6/6 rejected.
+- Required semantic-clause mutations: 9/9 rejected.
+- Existing K08 regression inventory: K08-01/02/03 = 3/3 PASS from a fresh build.
+- FileReader.cpp production implementation: unchanged from base.

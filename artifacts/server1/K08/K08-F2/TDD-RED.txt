@@ -1,0 +1,5 @@
+Base: a4890e19c8621fdc0d63028894c12ce3ad3fe1da
+
+The positive K08-F2 compile consumer was compiled against the exact base header restored from Git.
+
+Observed: FAIL as required. MSVC rejected `FileReader::fail` because the member did not exist. No production implementation was introduced to obtain this red result.

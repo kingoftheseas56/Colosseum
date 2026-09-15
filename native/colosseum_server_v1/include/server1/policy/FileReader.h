@@ -56,6 +56,13 @@ public:
 
     void request(std::size_t bytes);
     void notifyPiece(std::size_t piece);
+    // Inject an external terminal failure. The first non-empty failure wins:
+    // it closes the reader, cancels live reads, clears pending/completed work,
+    // releases its scheduler selection, and makes the reason available exactly
+    // once through takeError(). Bytes already returned by takeData() or already
+    // queued for takeData() remain valid; late source completions are ignored.
+    // Empty reasons and calls after EOF, close, or an earlier failure are no-ops.
+    void fail(std::string error);
     [[nodiscard]] std::vector<ByteBuffer> takeData();
     [[nodiscard]] std::optional<std::string> takeError();
     void close();
