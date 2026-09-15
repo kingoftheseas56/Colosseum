@@ -1,0 +1,16 @@
+{
+  "offset": 0,
+  "run": "C:\\b\\Colosseum-Server-1.0-sol\\INT-W2-repaired\\artifacts\\server1\\K10\\K10-A\\raw\\wire-20260915-055341270",
+  "exact": 1,
+  "piece": 0,
+  "replayed": 0,
+  "requests": 1,
+  "state": "PASS",
+  "autonomous_mutations": 0,
+  "unowned": 0,
+  "queued": 1,
+  "peer": 77,
+  "length": 16384,
+  "schema": "colosseum-server1-k10-wire/v1",
+  "framed": 1
+}

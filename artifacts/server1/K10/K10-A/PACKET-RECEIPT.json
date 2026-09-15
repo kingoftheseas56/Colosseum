@@ -12,17 +12,17 @@
     "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
   },
   "cases": {
-    "K10-01": "PASS; real controlled-peer socket B observed one exact selected request, A observed zero, unowned zero, queued one, framed one, autonomous native mutation zero, replay zero",
-    "K10-02": "PASS; multi-peer queue, failed-head retry, exact cancel, endpoint replacement, multi-infohash isolation, late disconnect, stop during active on_piece, no late completion or replay",
-    "K10-03": "PASS; forbidden main and secondary caller-thread native accesses rejected and accounted"
+    "K10-01": "PASS; one advertised connected unchoked peer suffices; submit-after-ready queues and frames once on a bounded libtorrent-owned tick; two-peer differential socket capture observes one exact selected request, zero on the unselected peer, zero unowned, and zero replay",
+    "K10-02": "PASS; sequential real-wire completion, failed-head exact retry, exact cancel, terminal failure drain to surviving peer, on_have eligibility, live endpoint replacement with stale generation rejection, multi-infohash isolation, submit/close race, and stop during active on_piece",
+    "K10-03": "PASS; after real native-thread establishment, main and secondary caller-thread drain attempts are rejected/accounted before libtorrent touch; live peer remains usable"
   },
   "verification": {
-    "registered_k10": "4/4 PASS",
-    "p08_regression": "PASS; controlled peer/plugin 1/1, unowned zero, lifecycle replay zero",
+    "registered_k10": "10/10 PASS; 79.43 seconds",
+    "p08_regression": "PASS; controlled peer/plugin 1/1, unowned zero, lifecycle replay zero; run-20260915-054640778",
     "predecessor_aggregate": "39/39 PASS",
     "negative_mutation": "PASS; framed-count 1-to-2 mutation failed K10-01, restored suite 4/4 PASS"
   },
-  "architecture": "Selected peer network-thread callback; all pieces dont_download; exact one-shot permit before native mutation; libtorrent::cork plus add_request queued=true plus synchronous send_block_requests_impl; write_request assertion firewall; sent_request framing only.",
+  "architecture": "Libtorrent-owned torrent tick mailbox and inbound callbacks drain scheduler-owned actions on the native network thread; all pieces dont_download; exact one-shot permit before native mutation; libtorrent::cork plus add_request queued=true plus synchronous send_block_requests_impl; write_request assertion firewall; sent_request framing only. Per-plugin immutable connection generations guard stale disconnects without retaining native objects.",
   "interface_statement": "Implements the accepted TorrentTransport contract without changing TorrentTransport.h.",
   "aggregate_registration": "pending INT-W3 B-W3D",
   "review": "candidate/test-reported only; independent Sol and Agent 4 acceptance pending",

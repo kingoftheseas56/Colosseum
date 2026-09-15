@@ -1,0 +1,2 @@
+LISTEN label=K10-A port=49610 mode=regular
+CONFIG hold_all=0 hold_after_offset=-1 release_file= duplicate_late=0

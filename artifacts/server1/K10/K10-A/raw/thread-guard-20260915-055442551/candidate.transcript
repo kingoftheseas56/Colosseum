@@ -1,0 +1,2 @@
+K10 OWNED_ADD peer=77 request=101/1/1 piece=0 offset=0 length=16384 queued=1
+K10-03 PASS established_native_thread=1 forbidden=2 native_touches=0 request=1

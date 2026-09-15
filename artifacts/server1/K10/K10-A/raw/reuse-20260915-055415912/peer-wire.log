@@ -1,0 +1,17 @@
+LISTEN port=49813
+HANDSHAKE connection=1 remote=127.0.0.1:4540 info_hash_match=1
+BITFIELD_SENT pieces=0
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+FORCED_FIRST_DISCONNECT connection=1
+HANDSHAKE connection=2 remote=127.0.0.1:4632 info_hash_match=1
+BITFIELD_SENT pieces=0
+UNCHOKE_SENT connection=2
+INTERESTED_SENT connection=2
+INTERESTED connection=2
+MESSAGE connection=2 id=3 bytes=0
+MESSAGE connection=2 id=1 bytes=0
+REQUEST epoch_ms=1789431862870 connection=2 piece=0 start=0 length=16384
+PIECE_SENT connection=2 piece=0 start=0 length=16384
+MESSAGE connection=2 id=4 bytes=4
+CLIENT_DISCONNECTED connection=2 error=ConnectionResetError

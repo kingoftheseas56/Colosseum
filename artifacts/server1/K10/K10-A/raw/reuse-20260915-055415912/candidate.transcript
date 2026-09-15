@@ -1,0 +1,2 @@
+K10 OWNED_ADD peer=90 request=91/1/1 piece=0 offset=0 length=16384 queued=1
+K10-02 REUSE PASS detached=0/0 replacement=live request=1

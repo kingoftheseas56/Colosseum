@@ -1,0 +1,25 @@
+K10 review-repair final GREEN evidence, 2026-09-15
+
+Build:
+cmd.exe /d /c call VsDevCmd.bat -arch=x64 -host_arch=x64 && set CMAKE_BUILD_PARALLEL_LEVEL=1 && C:\Qt\Tools\CMake_64\bin\cmake.exe --build artifacts\server1\K10\K10-A\build --target server1_k10_native_transport_test
+Exit: 0
+
+Registered K10:
+C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir artifacts/server1/K10/K10-A/build -L K10 --output-on-failure
+Exit: 0; 10/10 PASS; 79.43 seconds.
+
+P08 locked-seam regression:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
+Exit: 0; controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_plugin_peer=1/1; lifecycle_replayed=0.
+Run: artifacts/server1/P08A/raw/run-20260915-054640778.
+
+Predecessor aggregate:
+C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir artifacts/server1/INT-W3/slice3-baseline-5ed22961 --output-on-failure
+Exit: 0; 39/39 PASS; 4.75 seconds.
+
+Audits:
+git diff --check: exit 0.
+TorrentTransport.h working and HEAD blob: 58a5c4df7c98677dc45315359af25027fd4a14fa.
+Production .cpp includes from tests: zero.
+Direct get_context/post or deferred send_block_requests calls in K10 production: zero.
+Steady-state queue clearing: zero; clear_request_queue/clear_download_queue occur only in initial prepareNative before controlled request issuance.

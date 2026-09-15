@@ -10,10 +10,38 @@ function(server1_register_k10_tests)
     COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_wire.ps1"
       -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -PortA 49610 -PortB 49611)
   set_tests_properties(K10-01-native-transport-real-wire PROPERTIES LABELS "server1;native;K10")
-  foreach(case_id IN ITEMS K10-02 K10-03)
+  add_test(NAME K10-01-native-transport-submit-after-ready
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_submit_ready.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -Port 49810)
+  set_tests_properties(K10-01-native-transport-submit-after-ready PROPERTIES LABELS "server1;native;K10")
+  add_test(NAME K10-02-native-transport-sequential-wire
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_sequential.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -Port 49811)
+  set_tests_properties(K10-02-native-transport-sequential-wire PROPERTIES LABELS "server1;native;K10")
+  add_test(NAME K10-02-native-transport-have-wire
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_have.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -Port 49812)
+  set_tests_properties(K10-02-native-transport-have-wire PROPERTIES LABELS "server1;native;K10")
+  add_test(NAME K10-02-native-transport-live-reuse
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_reuse.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -Port 49813)
+  set_tests_properties(K10-02-native-transport-live-reuse PROPERTIES LABELS "server1;native;K10")
+  add_test(NAME K10-02-native-transport-failure-drain
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_failure_drain.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -FailingPort 49815 -SurvivingPort 49816)
+  set_tests_properties(K10-02-native-transport-failure-drain PROPERTIES LABELS "server1;native;K10")
+  add_test(NAME K10-02-native-transport-cancel-drain
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_cancel_drain.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -Port 49817)
+  set_tests_properties(K10-02-native-transport-cancel-drain PROPERTIES LABELS "server1;native;K10")
+  foreach(case_id IN ITEMS K10-02)
     add_test(NAME ${case_id}-native-transport COMMAND server1_k10_native_transport_test ${case_id} "${CMAKE_CURRENT_BINARY_DIR}/${case_id}")
     set_tests_properties(${case_id}-native-transport PROPERTIES LABELS "server1;native;K10")
   endforeach()
+  add_test(NAME K10-03-native-transport
+    COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_thread_guard.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -Port 49814)
+  set_tests_properties(K10-03-native-transport PROPERTIES LABELS "server1;native;K10")
   add_test(NAME K10-02-native-transport-lifecycle
     COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_lifecycle.ps1"
       -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -PortA 49612 -PortB 49613)

@@ -1,0 +1,3 @@
+K10 OWNED_ADD peer=77 request=111/1/1 piece=0 offset=0 length=16384 queued=1
+K10 OWNED_ADD peer=78 request=112/1/1 piece=1 offset=0 length=16384 queued=1
+K10-02 FAILURE-DRAIN PASS failed=111 completed=112 queued=2 framed=2

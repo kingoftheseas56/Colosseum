@@ -4,18 +4,27 @@ Exit: 0. Locked libtorrent production library and test executable compiled and l
 
 Registered K10 suite:
 cmd.exe /d /s /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && set "CMAKE_BUILD_PARALLEL_LEVEL=1" && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts\server1\K10\K10-A\build && "C:\Qt\Tools\CMake_64\bin\ctest.exe" --test-dir artifacts\server1\K10\K10-A\build --output-on-failure'
-Exit: 0. K10 registered tests 4/4 PASS.
+Exit: 0. K10 registered tests 10/10 PASS in 79.43 seconds.
 K10-01: peer B socket requests=1 exact=1; peer A=0; queued=1; framed=1; autonomous=0; replay=0.
-K10-02 ledger: multi-peer/head retry/reused endpoint/multi-infohash/terminal lifecycle PASS.
+K10-01 submit-after-ready: one ready peer; queued=1; framed=1; socket request=1.
+K10-02 sequential: requests=2 in order; stale head retry preserved; queued=2; framed=2.
+K10-02 HAVE: initially ineligible piece became eligible; socket order piece1,piece0.
+K10-02 live reuse: detach stats=0/0; real replacement connected; stale generation rejected; replacement socket request=1.
+K10-02 failure drain: request 111 failed on disconnect; surviving peer received request 112 one millisecond later.
+K10-02 cancel drain: request 115 canceled before native mutation; peer socket received only surviving request 116.
+K10-02 ledger: multi-peer/head retry/exact cancel/multi-infohash/submit-close race/terminal lifecycle PASS.
 K10-02 lifecycle: reverse connection order; stop during on_piece=1; late completion=0; replay=0; disconnects=A1/B1.
-K10-03: two forbidden caller-thread accesses rejected/accounted.
-Wire run: artifacts/server1/K10/K10-A/raw/wire-20260915-041511837
-Lifecycle run: artifacts/server1/K10/K10-A/raw/lifecycle-20260915-041522563
+K10-03: real peer establishes native thread; two forbidden caller-thread drains rejected/accounted; guarded native touches=0; peer socket request=1.
+Final runs: artifacts/server1/K10/K10-A/raw/wire-20260915-055341270,
+submit-ready-20260915-055350451, sequential-20260915-055358667,
+have-20260915-055407840, reuse-20260915-055415912,
+failure-drain-20260915-055424982, cancel-drain-20260915-055433043,
+thread-guard-20260915-055442551, lifecycle-20260915-055450465.
 
 P08 locked-seam regression:
 pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green -ProbeExe artifacts/server1/P08A/bin/exact_block_probe.exe -PeerScript artifacts/server1/P08A/probe-src/tiny_peer.py
 Exit: 0. controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_replayed=0.
-Run: artifacts/server1/P08A/raw/run-20260915-042017918
+Run: artifacts/server1/P08A/raw/run-20260915-054640778
 The generated P08 feasibility document was restored byte-identically and is not part of K10.
 
 Full accepted predecessor aggregate:

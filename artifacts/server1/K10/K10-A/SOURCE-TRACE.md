@@ -14,18 +14,23 @@ The production adapter is bound to libtorrent 2.0.11.0 revision `6e1587799`. The
 `C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib`, 320838716 bytes, SHA-256
 `a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30`.
 
-The scheduler-owned transaction runs inside the selected peer's libtorrent network-thread callback.
-All pieces remain `dont_download`. After both controlled peers advertise, the adapter validates the
+The scheduler-owned transaction runs inside libtorrent-owned network-thread callbacks. A
+`torrent_plugin::tick()` mailbox wakes actions submitted after readiness without direct Asio template
+instantiation or caller-thread native access; inbound, HAVE, receive, and detach callbacks drain
+immediately when native state permits. All pieces remain `dont_download`. With one eligible peer, the adapter validates the
 selected peer, exact block, active ownership, connection state, remote choke state, and empty native
 request/download queues. It installs one exact permit, creates `libtorrent::cork`, calls
 `add_request(piece_block)`, requires/logs `queued=1`, then calls `send_block_requests_impl()` while the
 cork lives. `write_request` consumes the permit atomically as an assertion firewall. `sent_request`
 only records framing. No deferred `send_block_requests()` call is used.
 
-K10-01 maps to exact production request framing and controlled-peer socket comparison. K10-02 maps
-to multi-peer ledger order, failed-head retry, exact cancellation, endpoint rebinding, independent
-infohash adapters, stale/late disconnect handling, and deterministic stop while `on_piece` is active.
-K10-03 maps to rejection/accounting of forbidden caller-thread native access.
+K10-01 maps to one-peer submit-after-ready delivery plus exact two-peer production request framing
+and controlled-peer socket comparison. K10-02 maps to sequential and terminal-failure wire drain,
+failed-head retry, exact cancellation, `on_have`, live endpoint rebinding with immutable connection
+generation rejection, independent infohash adapters, submit/close race, late disconnect handling,
+and deterministic stop while `on_piece` is active. K10-03 establishes the native thread with a real
+peer, then proves foreign-thread drain attempts are rejected/accounted before the libtorrent-touch
+boundary and that the peer remains usable.
 
 `close_redundant_connections=false` is confined to this scheduler-owned session because locked
 libtorrent otherwise closes zero-priority controlled peers before the readiness barrier. DHT, LSD,

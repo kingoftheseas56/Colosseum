@@ -1,0 +1,24 @@
+K10 review-repair TDD RED evidence, 2026-09-15
+
+1. Real K10-03 test added before its evidence counter.
+Command: cmake --build artifacts/server1/K10/K10-A/build --target server1_k10_native_transport_test
+Exit: 1
+Exact link failure: unresolved external symbol server1::transport::guardedNativeTouchCount(TorrentTransport const&).
+
+2. Live reused-endpoint stale identity proof with raw pointer addresses.
+Command: ctest --test-dir artifacts/server1/K10/K10-A/build -R K10-02-native-transport-live-reuse --output-on-failure
+Exit: 1
+Exact assertion: K10-02 stale disconnect identity was not rejected.
+Trace: first real detach address and replacement address were reused, so a raw address was not an immutable connection identity.
+
+3. First immutable-identity repair retained shared_ptr<peer_connection>.
+Same focused CTest did not terminate within 95 seconds and was stopped.
+Evidence-backed cause: detached native ownership extended connection/session teardown lifetime.
+Correction: adapter-assigned scalar generation, never retained native ownership.
+
+4. First real failure-drain run.
+Command: ctest --test-dir artifacts/server1/K10/K10-A/build -R K10-02-native-transport-failure-drain --output-on-failure
+Exit: 1
+Exact assertion: K10-02 failure-drain peers did not become ready.
+Wire evidence: both fixture processes generated the same peer id; locked libtorrent rejected one duplicate connection before readiness.
+Correction: distinct fixture-only peer tags. Production code was unchanged for this harness failure.
