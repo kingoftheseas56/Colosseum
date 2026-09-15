@@ -1,0 +1,8 @@
+K10-F TDD GREEN — 2026-09-15
+
+Focused command:
+ctest --test-dir artifacts/server1/K10/K10-F/build -R "^K10-F-peer-availability$" --repeat until-fail:2 --output-on-failure
+
+Exit: 0. Two consecutive real-wire runs passed in 8.78 seconds and 6.50 seconds.
+
+Observed behavior: generation 404; initial full snapshot `{1,3}` from wire bitfield `3,1,3`; full updated snapshot `{0,1,3}` after HAVE 0; empty current-detach snapshot; empty reconnect bitfield; stale disconnect emitted nothing; stale HAVE/state/authorize/framed/payload each rejected without observation, accounting, permit, or payload-delivery effects.

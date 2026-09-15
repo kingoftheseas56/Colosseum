@@ -17,12 +17,15 @@ using PeerInbound = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const lt::bitfield *)>;
 using DetachPeer = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const std::string &)>;
-using AuthorizeRequest = std::function<bool(ports::PeerHandle, const lt::peer_request &)>;
-using SentRequest = std::function<void(ports::PeerHandle, const lt::peer_request &)>;
-using ReceivePiece = std::function<void(ports::PeerHandle, const lt::peer_request &, lt::span<const char>)>;
-using PeerState = std::function<void(ports::PeerHandle, bool, bool,
+using AuthorizeRequest = std::function<bool(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &)>;
+using SentRequest = std::function<void(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &)>;
+using ReceivePiece = std::function<void(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &, lt::span<const char>)>;
+using PeerState = std::function<void(ports::PeerHandle, ConnectionIdentity, bool, bool,
     std::shared_ptr<lt::peer_connection>)>;
-using PeerHave = std::function<void(ports::PeerHandle, lt::piece_index_t)>;
+using PeerHave = std::function<void(ports::PeerHandle, ConnectionIdentity, lt::piece_index_t)>;
 using NetworkTick = std::function<void()>;
 
 namespace {
@@ -41,23 +44,24 @@ public:
     bool on_bitfield(const lt::bitfield &pieces) override
     { inbound_(handle_, peer_.native_handle(), identity_, &pieces); return false; }
     bool on_unchoke() override
-    { state_(handle_, false, false, peer_.native_handle()); return false; }
+    { state_(handle_, identity_, false, false, peer_.native_handle()); return false; }
     bool on_choke() override
-    { state_(handle_, true, false, peer_.native_handle()); return false; }
+    { state_(handle_, identity_, true, false, peer_.native_handle()); return false; }
     bool on_interested() override
-    { state_(handle_, false, true, peer_.native_handle()); return false; }
+    { state_(handle_, identity_, false, true, peer_.native_handle()); return false; }
     bool on_not_interested() override
-    { state_(handle_, false, false, peer_.native_handle()); return false; }
+    { state_(handle_, identity_, false, false, peer_.native_handle()); return false; }
     bool on_have(lt::piece_index_t piece) override
-    { have_(handle_, piece); return false; }
+    { have_(handle_, identity_, piece); return false; }
     void on_disconnect(const lt::error_code &error) override
     { detach_(handle_, peer_.native_handle(), identity_, error.message()); }
     bool write_request(const lt::peer_request &request) override
-    { return !authorize_(handle_, request); }
-    void sent_request(const lt::peer_request &request) override { sent_(handle_, request); }
+    { return !authorize_(handle_, identity_, request); }
+    void sent_request(const lt::peer_request &request) override
+    { sent_(handle_, identity_, request); }
     bool on_piece(const lt::peer_request &request, lt::span<const char> payload) override
     {
-        receive_(handle_, request, payload);
+        receive_(handle_, identity_, request, payload);
         return false;
     }
 private:

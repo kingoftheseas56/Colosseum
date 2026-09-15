@@ -40,12 +40,15 @@ using PeerInbound = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const lt::bitfield *)>;
 using DetachPeer = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const std::string &)>;
-using AuthorizeRequest = std::function<bool(ports::PeerHandle, const lt::peer_request &)>;
-using SentRequest = std::function<void(ports::PeerHandle, const lt::peer_request &)>;
-using ReceivePiece = std::function<void(ports::PeerHandle, const lt::peer_request &, lt::span<const char>)>;
-using PeerState = std::function<void(ports::PeerHandle, bool, bool,
+using AuthorizeRequest = std::function<bool(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &)>;
+using SentRequest = std::function<void(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &)>;
+using ReceivePiece = std::function<void(ports::PeerHandle, ConnectionIdentity,
+    const lt::peer_request &, lt::span<const char>)>;
+using PeerState = std::function<void(ports::PeerHandle, ConnectionIdentity, bool, bool,
     std::shared_ptr<lt::peer_connection>)>;
-using PeerHave = std::function<void(ports::PeerHandle, lt::piece_index_t)>;
+using PeerHave = std::function<void(ports::PeerHandle, ConnectionIdentity, lt::piece_index_t)>;
 using NetworkTick = std::function<void()>;
 std::shared_ptr<lt::torrent_plugin> makeProductionPeerPlugin(
     IdentifyPeer, PeerInbound, DetachPeer, AuthorizeRequest, SentRequest, ReceivePiece, PeerState,
@@ -189,11 +192,17 @@ public:
                 [this](PeerHandle p, auto n, ConnectionIdentity id, const auto &e) {
                     detach(p, std::move(n), id, e);
                 },
-                [this](PeerHandle p, const auto &r) { return authorize(p, r); },
-                [this](PeerHandle p, const auto &r) { framed(p, r); },
-                [this](PeerHandle p, const auto &r, auto bytes) { receive(p, r, bytes); },
-                [this](PeerHandle p, bool c, bool i, auto n) { observePeer(p, c, i, std::move(n)); },
-                [this](PeerHandle p, auto piece) { have(p, piece); },
+                [this](PeerHandle p, ConnectionIdentity id, const auto &r) {
+                    return authorize(p, id, r);
+                },
+                [this](PeerHandle p, ConnectionIdentity id, const auto &r) { framed(p, id, r); },
+                [this](PeerHandle p, ConnectionIdentity id, const auto &r, auto bytes) {
+                    receive(p, id, r, bytes);
+                },
+                [this](PeerHandle p, ConnectionIdentity id, bool c, bool i, auto n) {
+                    observePeer(p, id, c, i, std::move(n));
+                },
+                [this](PeerHandle p, ConnectionIdentity id, auto piece) { have(p, id, piece); },
                 [this] { tickDrain(); });
         });
 
@@ -347,6 +356,7 @@ public:
     std::uint64_t forbiddenAttemptCount() const { std::lock_guard<std::mutex> lock(mutex_); return forbiddenAttempts_; }
     std::uint64_t guardedNativeTouchCount() const { std::lock_guard<std::mutex> lock(mutex_); return guardedNativeTouches_; }
     std::uint64_t staleDisconnectCount() const { std::lock_guard<std::mutex> lock(mutex_); return staleDisconnectsIgnored_; }
+    std::uint64_t staleCallbackCount() const { std::lock_guard<std::mutex> lock(mutex_); return staleCallbacksIgnored_; }
 
     bool replayLastDetached(PeerHandle peer)
     {
@@ -360,6 +370,28 @@ public:
         const auto before = staleDisconnectCount();
         detach(peer, {}, old, "replayed stale disconnect");
         return staleDisconnectCount() == before + 1;
+    }
+
+    bool replayLastDetachedCallbacks(PeerHandle peer, const BlockSpan &block)
+    {
+        ConnectionIdentity old = 0;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto found = lastDetachedIdentity_.find(peer);
+            if (found == lastDetachedIdentity_.end() || found->second == 0) return false;
+            old = found->second;
+        }
+        const lt::peer_request wire{lt::piece_index_t(static_cast<int>(block.piece)),
+                                    static_cast<int>(block.offset),
+                                    static_cast<int>(block.length)};
+        const auto before = staleCallbackCount();
+        have(peer, old, wire.piece);
+        observePeer(peer, old, false, true, {});
+        const bool authorized = authorize(peer, old, wire);
+        framed(peer, old, wire);
+        std::vector<char> bytes(block.length, 'S');
+        receive(peer, old, wire, bytes);
+        return !authorized && staleCallbackCount() == before + 5;
     }
 
     bool armReceiveBarrier(std::string entered, std::string release)
@@ -553,14 +585,29 @@ private:
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_) return;
+            if (pieces && !isCurrentIdentityLocked(peer, identity)) {
+                ++staleCallbacksIgnored_;
+                return;
+            }
+            if (!pieces) {
+                const auto current = peerIdentities_.find(peer);
+                if (current != peerIdentities_.end() && current->second != identity) {
+                    advertised_.erase(peer);
+                    unchoked_.erase(peer);
+                    emitAvailabilityLocked(peer);
+                }
+            }
             prepareNative(peer, native);
             peers_[peer] = native;
             peerIdentities_[peer] = identity;
             stats_.connectedPeers = static_cast<std::uint32_t>(peers_.size());
+            stats_.unchokedPeers = static_cast<std::uint32_t>(unchoked_.size());
             if (pieces) {
                 auto &available = advertised_[peer];
+                available.clear();
                 for (int index = 0; index < pieces->size(); ++index)
                     if ((*pieces)[index]) available.insert(static_cast<std::uint32_t>(index));
+                emitAvailabilityLocked(peer);
             }
         }
         if (pieces) {
@@ -649,9 +696,13 @@ private:
         }
     }
 
-    bool authorize(PeerHandle peer, const lt::peer_request &wire)
+    bool authorize(PeerHandle peer, ConnectionIdentity identity, const lt::peer_request &wire)
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+            ++staleCallbacksIgnored_;
+            return false;
+        }
         nativeThread_ = std::this_thread::get_id();
         const auto found = std::find_if(permits_.begin(), permits_.end(), [&](const auto &r) {
             return r.peer == peer && matches(r.block, wire) && findActive(r) != active_.end();
@@ -670,9 +721,13 @@ private:
         return true;
     }
 
-    void framed(PeerHandle peer, const lt::peer_request &wire)
+    void framed(PeerHandle peer, ConnectionIdentity identity, const lt::peer_request &wire)
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+            ++staleCallbacksIgnored_;
+            return;
+        }
         const auto found = std::find_if(framedPending_.begin(), framedPending_.end(),
             [&](const auto &r) { return r.peer == peer && matches(r.block, wire); });
         if (found == framedPending_.end()) return;
@@ -681,12 +736,17 @@ private:
         framedPending_.erase(found);
     }
 
-    void receive(PeerHandle peer, const lt::peer_request &wire, lt::span<const char> payload)
+    void receive(PeerHandle peer, ConnectionIdentity identity,
+                 const lt::peer_request &wire, lt::span<const char> payload)
     {
         std::string entered;
         std::string release;
         {
             std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+                ++staleCallbacksIgnored_;
+                return;
+            }
             entered = receiveBarrierEntered_;
             release = receiveBarrierRelease_;
         }
@@ -698,7 +758,10 @@ private:
         }
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (closed_) return;
+            if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+                ++staleCallbacksIgnored_;
+                return;
+            }
             const auto active = std::find_if(active_.begin(), active_.end(), [&](const auto &owned) {
                 return !owned.terminal && owned.action.peer == peer && matches(owned.action.block, wire);
             });
@@ -727,14 +790,21 @@ private:
         // callback after normal receive accounting, so it drains this mailbox.
     }
 
-    void have(PeerHandle peer, lt::piece_index_t piece)
+    void have(PeerHandle peer, ConnectionIdentity identity, lt::piece_index_t piece)
     {
+        bool changed = false;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (closed_ || static_cast<int>(piece) < 0) return;
-            advertised_[peer].insert(static_cast<std::uint32_t>(static_cast<int>(piece)));
+            if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+                ++staleCallbacksIgnored_;
+                return;
+            }
+            if (static_cast<int>(piece) < 0) return;
+            changed = advertised_[peer].insert(
+                static_cast<std::uint32_t>(static_cast<int>(piece))).second;
+            if (changed) emitAvailabilityLocked(peer);
         }
-        drainOnNetworkThread();
+        if (changed) drainOnNetworkThread();
     }
 
     void detach(PeerHandle peer, const std::shared_ptr<lt::peer_connection> &native,
@@ -755,6 +825,7 @@ private:
             peers_.erase(peer);
             peerIdentities_.erase(peer);
             advertised_.erase(peer);
+            emitAvailabilityLocked(peer);
             unchoked_.erase(peer);
             pendingControl_.erase(peer);
             if (!endpoint.empty()) {
@@ -787,14 +858,38 @@ private:
         return current != peerIdentities_.end() && current->second != identity;
     }
 
-    void observePeer(PeerHandle peer, bool choking, bool interested,
+    bool isCurrentIdentityLocked(PeerHandle peer, ConnectionIdentity identity) const
+    {
+        const auto current = peerIdentities_.find(peer);
+        return identity != 0 && current != peerIdentities_.end() && current->second == identity;
+    }
+
+    void emitAvailabilityLocked(PeerHandle peer)
+    {
+        std::vector<std::uint32_t> pieces;
+        const auto found = advertised_.find(peer);
+        if (found != advertised_.end()) pieces.assign(found->second.begin(), found->second.end());
+        observations_.push_back(AvailablePiecesObservation{generation_, peer, std::move(pieces)});
+    }
+
+    void observePeer(PeerHandle peer, ConnectionIdentity identity, bool choking, bool interested,
                      std::shared_ptr<lt::peer_connection> native)
     {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+                ++staleCallbacksIgnored_;
+                return;
+            }
+        }
         lt::peer_info info;
         if (native) native->get_peer_info(info);
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (closed_) return;
+            if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
+                ++staleCallbacksIgnored_;
+                return;
+            }
             if (choking) unchoked_.erase(peer); else unchoked_.insert(peer);
             stats_.unchokedPeers = static_cast<std::uint32_t>(unchoked_.size());
             std::uint32_t outstanding = 0;
@@ -831,7 +926,7 @@ private:
     bool metadataReadyObserved_ = false, sourceFailed_ = false;
     std::uint64_t forbiddenAttempts_ = 0, guardedNativeTouches_ = 0;
     std::uint64_t autonomousNativeMutations_ = 0, ownedAddCount_ = 0;
-    std::uint64_t framedCount_ = 0, staleDisconnectsIgnored_ = 0;
+    std::uint64_t framedCount_ = 0, staleDisconnectsIgnored_ = 0, staleCallbacksIgnored_ = 0;
     std::thread::id nativeThread_{};
     std::map<std::string, PeerHandle> endpointPeers_;
     std::map<PeerHandle, std::weak_ptr<lt::peer_connection>> peers_;
@@ -921,6 +1016,19 @@ bool replayLastDetachedIdentity(ports::TorrentTransport &transport, ports::PeerH
 {
     auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
     return adapter && adapter->replayLastDetached(peer);
+}
+
+bool replayLastDetachedCallbacks(ports::TorrentTransport &transport, ports::PeerHandle peer,
+                                 const ports::BlockSpan &block)
+{
+    auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
+    return adapter && adapter->replayLastDetachedCallbacks(peer, block);
+}
+
+std::uint64_t staleCallbackIgnoredCount(const ports::TorrentTransport &transport)
+{
+    const auto *adapter = dynamic_cast<const LibTorrent2Adapter *>(&transport);
+    return adapter ? adapter->staleCallbackCount() : 0;
 }
 
 bool armReceiveCallbackBarrier(ports::TorrentTransport &transport,

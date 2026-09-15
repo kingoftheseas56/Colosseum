@@ -1,0 +1,26 @@
+Configure/build:
+cmake -S artifacts/server1/K10/K10-F -B artifacts/server1/K10/K10-F/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build artifacts/server1/K10/K10-F/build --target server1_k10_native_transport_test
+Exit: 0.
+
+Focused K10-F stability:
+ctest --test-dir artifacts/server1/K10/K10-F/build -R "^K10-F-peer-availability$" --repeat until-fail:2 --output-on-failure
+Exit: 0; 2/2 consecutive PASS.
+
+Legacy K10:
+ctest --test-dir artifacts/server1/K10/K10-F/build -L "^K10$" --output-on-failure
+Exit: 0; 10/10 PASS; 79.33 seconds.
+
+K10-E:
+ctest --test-dir artifacts/server1/K10/K10-F/build -L "^K10-E$" --output-on-failure
+Exit: 0; 7/7 PASS; 7.54 seconds.
+
+Prior aggregate after rebuilding K10, P08 contract, and spine-link targets:
+ctest --test-dir artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb --output-on-failure
+Exit: 0; 59/59 PASS; 94.47 seconds. K10-F adds one packet-local test, for 60 distinct prior-plus-new tests.
+
+Public guards:
+python tests/test_public_path_guard.py
+Exit: 0; 4/4 PASS; PUBLIC_PATH_GUARD_OK.
+rg -n '#include\s+["<].*\.cpp[">]' native/colosseum_server_v1/tests native/colosseum_server_v1/include
+Exit: 1 expected; zero production `.cpp` includes from public consumers/tests.

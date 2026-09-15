@@ -1,0 +1,13 @@
+K10-F TDD RED — 2026-09-15
+
+The native availability/reuse case and packet-local CMake were authored before K10 production changes.
+
+Build command:
+cmake --build artifacts/server1/K10/K10-F/build --target server1_k10_native_transport_test
+
+Exit: 1 at link.
+Signals:
+- unresolved external `server1::transport::replayLastDetachedCallbacks`
+- unresolved external `server1::transport::staleCallbackIgnoredCount`
+
+The test required the stale-connection callback rejection seam before the adapter supplied it. Availability assertions were already present for initial bitfield, HAVE, detach, reconnect, stale disconnect, and generation.

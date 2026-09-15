@@ -1,0 +1,15 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K10-F",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-availability-20260915",
+  "base": "2600bfe2 (P08-T3 contract commit; original accepted base 2e82d97f20399c7362fe4d204edd6643a4d13361)",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K10/K10-F/PACKET-RECEIPT.json)",
+  "behavior": "generation-bound sorted/deduplicated full availability snapshots on bitfield/HAVE, empty detach clear, reconnect replacement, stale disconnect and stale callback isolation",
+  "identity_firewall": "HAVE/state/authorize/framed/payload carry ConnectionIdentity and reject non-current callbacks before mutation or delivery",
+  "tests": "K10-F 2/2 consecutive; legacy K10 10/10; K10-E 7/7; predecessor aggregate 59/59 plus one new; public guard 4/4",
+  "scope": "K10 adapter/plugin/native test plus new packet-local K10-F CMake and evidence only",
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
+  "review": "producer self-review APPROVE; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; production-authored; real-wire-tested; regression-tested; producer-reviewed"
+}

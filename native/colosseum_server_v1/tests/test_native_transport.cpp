@@ -40,6 +40,9 @@ std::uint64_t forbiddenNativeAttemptCount(const ports::TorrentTransport &);
 std::uint64_t guardedNativeTouchCount(const ports::TorrentTransport &);
 std::uint64_t staleDisconnectIgnoredCount(const ports::TorrentTransport &);
 bool replayLastDetachedIdentity(ports::TorrentTransport &, ports::PeerHandle);
+bool replayLastDetachedCallbacks(ports::TorrentTransport &, ports::PeerHandle,
+                                 const ports::BlockSpan &);
+std::uint64_t staleCallbackIgnoredCount(const ports::TorrentTransport &);
 bool armReceiveCallbackBarrier(ports::TorrentTransport &, const std::string &, const std::string &);
 bool closeHasStarted(const ports::TorrentTransport &);
 ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &, const std::string &, std::uint16_t);
@@ -59,15 +62,15 @@ void expect(bool condition, const std::string &message)
     if (!condition) fail(message);
 }
 
-void prepare(const fs::path &directory, char fill = 'K')
+void prepare(const fs::path &directory, char fill = 'K', std::size_t size = 32768)
 {
     fs::create_directories(directory);
     const auto payload = directory / "K10-wire.bin";
     std::ofstream output(payload, std::ios::binary | std::ios::trunc);
-    output << std::string(32768, fill);
+    output << std::string(size, fill);
     output.close();
     lt::file_storage storage;
-    storage.add_file("K10-wire.bin", 32768);
+    storage.add_file("K10-wire.bin", static_cast<std::int64_t>(size));
     lt::create_torrent creator(storage, 16384);
     lt::set_piece_hashes(creator, directory.string());
     creator.add_tracker("http://tracker.invalid/announce");
@@ -435,6 +438,107 @@ void caseLiveReuse(const fs::path &directory, int port)
            }) == 1, "K10-02 live replacement did not carry the owned block");
     transport->close();
     std::cout << "K10-02 REUSE PASS detached=0/0 replacement=live request=1\n";
+}
+
+void caseAvailability(const fs::path &directory, int port)
+{
+    const auto haveMarker = directory / "send-have.marker";
+    const auto disconnectMarker = directory / "disconnect-first.marker";
+    const auto disconnected = directory / "first-disconnected.marker";
+    const auto hash = readInfoHash(directory);
+    const EngineGeneration generation = 404;
+    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+        generation, hash, MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "availability-download").string()});
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-F availability setup");
+    expect(transport->submit(InterestAction{90, true}), "K10-F first interest rejected");
+    expect(transport->submit(ConnectAction{generation, 90, "127.0.0.1",
+                                            static_cast<std::uint16_t>(port)}),
+           "K10-F first connection rejected");
+
+    const auto initial = pollUntil(*transport, [=](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [=](const auto &item) {
+            const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+            return available && available->generation == generation && available->peer == 90
+                && available->pieces == std::vector<std::uint32_t>({1, 3});
+        });
+    });
+    expect(std::any_of(initial.begin(), initial.end(), [=](const auto &item) {
+               const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+               return available && available->generation == generation && available->peer == 90
+                   && available->pieces == std::vector<std::uint32_t>({1, 3});
+           }), "K10-F initial bitfield did not emit sorted, deduplicated full snapshot");
+
+    std::ofstream(haveMarker, std::ios::trunc).close();
+    const auto afterHave = pollUntil(*transport, [=](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [=](const auto &item) {
+            const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+            return available && available->generation == generation && available->peer == 90
+                && available->pieces == std::vector<std::uint32_t>({0, 1, 3});
+        });
+    });
+    expect(std::any_of(afterHave.begin(), afterHave.end(), [=](const auto &item) {
+               const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+               return available && available->pieces == std::vector<std::uint32_t>({0, 1, 3});
+           }), "K10-F HAVE did not emit the full updated snapshot");
+
+    std::ofstream(disconnectMarker, std::ios::trunc).close();
+    const auto detached = pollUntil(*transport, [&](const auto &items) {
+        return fs::exists(disconnected)
+            && std::any_of(items.begin(), items.end(), [=](const auto &item) {
+                const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+                return available && available->generation == generation && available->peer == 90
+                    && available->pieces.empty();
+            });
+    });
+    expect(std::any_of(detached.begin(), detached.end(), [=](const auto &item) {
+               const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+               return available && available->generation == generation && available->peer == 90
+                   && available->pieces.empty();
+           }), "K10-F current detach did not emit an empty clearing snapshot");
+
+    expect(transport->submit(InterestAction{90, true}), "K10-F replacement interest rejected");
+    expect(transport->submit(ConnectAction{generation, 90, "127.0.0.1",
+                                            static_cast<std::uint16_t>(port)}),
+           "K10-F replacement connection rejected");
+    const auto replacement = pollUntil(*transport, [&, generation](const auto &items) {
+        const bool emptySnapshot = std::any_of(items.begin(), items.end(), [=](const auto &item) {
+            const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+            return available && available->generation == generation && available->peer == 90
+                && available->pieces.empty();
+        });
+        return emptySnapshot && transport->statistics().connectedPeers == 1
+            && transport->statistics().unchokedPeers == 1;
+    });
+    expect(std::any_of(replacement.begin(), replacement.end(), [=](const auto &item) {
+               const auto *available = std::get_if<AvailablePiecesObservation>(&item);
+               return available && available->pieces.empty();
+           }), "K10-F empty replacement bitfield did not replace stale pieces");
+    expect(server1::transport::replayLastDetachedIdentity(*transport, 90),
+           "K10-F stale disconnect was not rejected");
+    expect(transport->poll().empty(), "K10-F stale disconnect emitted a clearing snapshot");
+
+    const RequestAction pending{{405, generation, 9}, 90, {0, 0, 0, 16384}};
+    expect(transport->submit(pending), "K10-F pending replacement request rejected");
+    const auto before = transport->statistics();
+    const auto staleBefore = server1::transport::staleCallbackIgnoredCount(*transport);
+    expect(server1::transport::replayLastDetachedCallbacks(*transport, 90, pending.block),
+           "K10-F stale callback replay was not rejected in every lane");
+    const auto afterStale = transport->statistics();
+    const auto staleEffects = transport->poll();
+    expect(server1::transport::staleCallbackIgnoredCount(*transport) == staleBefore + 5,
+           "K10-F stale callback rejection count mismatch");
+    expect(staleEffects.empty() && afterStale.connectedPeers == before.connectedPeers
+               && afterStale.unchokedPeers == before.unchokedPeers
+               && afterStale.ownedRequestsOutstanding == 1
+               && afterStale.downloadedBytes == before.downloadedBytes
+               && afterStale.pickerRequestsSuppressed == before.pickerRequestsSuppressed,
+           "K10-F stale HAVE/state/authorize/framed/payload mutated live replacement state");
+    expect(transport->submit(CancelAction{pending.ownership, pending.peer, pending.block, false}),
+           "K10-F stale payload retired the live pending request");
+    transport->close();
+    std::cout << "K10-F PASS generation=404 initial=1,3 have=0,1,3 detach=empty"
+              << " replacement=empty stale_disconnect=preserved stale_callbacks=5\n";
 }
 
 void caseFailureDrain(const fs::path &directory, int failingPort, int survivingPort)
@@ -888,6 +992,9 @@ void caseCloseSuppressesSource(const fs::path &directory)
 int main(int argc, char **argv)
 {
     if (argc == 3 && std::string(argv[1]) == "--prepare") { prepare(argv[2]); return 0; }
+    if (argc == 3 && std::string(argv[1]) == "--prepare-availability") {
+        prepare(argv[2], 'K', 65536); return 0;
+    }
     if (argc == 5 && std::string(argv[1]) == "--wire") {
         caseWire(argv[2], std::stoi(argv[3]), std::stoi(argv[4])); return 0;
     }
@@ -905,6 +1012,9 @@ int main(int argc, char **argv)
     }
     if (argc == 4 && std::string(argv[1]) == "--reuse") {
         caseLiveReuse(argv[2], std::stoi(argv[3])); return 0;
+    }
+    if (argc == 4 && std::string(argv[1]) == "--availability") {
+        caseAvailability(argv[2], std::stoi(argv[3])); return 0;
     }
     if (argc == 5 && std::string(argv[1]) == "--failure-drain") {
         caseFailureDrain(argv[2], std::stoi(argv[3]), std::stoi(argv[4])); return 0;

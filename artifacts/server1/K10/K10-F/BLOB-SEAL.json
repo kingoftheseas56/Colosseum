@@ -1,0 +1,21 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "2600bfe2",
+  "blobs": {
+    "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp": "8af7158853dee0b81fa5a08ddbdacbe46d461d63",
+    "native/colosseum_server_v1/src/transport/PeerPlugin.cpp": "854559ee9b79ce2a2933dcb46b070138ea9c48f1",
+    "native/colosseum_server_v1/tests/test_native_transport.cpp": "ddf606a432f8f27e31635105e5183516f279b402",
+    "artifacts/server1/K10/K10-F/availability_peer.py": "43b8b6f00882940dec3fce01682b7139055e221f",
+    "artifacts/server1/K10/K10-F/CMakeLists.txt": "180fa6214edacceaf2ef74039250eb849f67655f",
+    "artifacts/server1/K10/K10-F/DEBUG-TRACE.md": "06475294a2aa3cc008f62f66d6519956f12cfd50",
+    "artifacts/server1/K10/K10-F/PACKET-RECEIPT.json": "408c6b339a307f04995f191225fb230813cd92b8",
+    "artifacts/server1/K10/K10-F/run_availability.ps1": "fab710e851bc23e5da88f98599a04bc0b773317e",
+    "artifacts/server1/K10/K10-F/SELF-REVIEW.md": "91346a4cca261892b1b72d99a25daabc3e64c296",
+    "artifacts/server1/K10/K10-F/SOURCE-TRACE.md": "c94f63f8b392ae9a7b257682f1bda7885563d9d6",
+    "artifacts/server1/K10/K10-F/TDD-GREEN.txt": "c1136a8483956e15b926553d7bfbfc64bab946ad",
+    "artifacts/server1/K10/K10-F/TDD-RED.txt": "7212506209132d0dee228fdf4aa3098b6570e3ab",
+    "artifacts/server1/K10/K10-F/TEST-COMMANDS.txt": "372535aad2dc7ef1258c119926019144ad34022b",
+    "artifacts/server1/K10/K10-F/WIRING-REQUEST.json": "1b6de86c35c7f8ca38fea578784cbc5721ac1788"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file"
+}
