@@ -94,18 +94,17 @@ ports::TorrentSource sourceFor(const Value &options)
 
 } // namespace
 
-struct EngineRegistry::Impl final {
+struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry::Impl> {
     struct Completion final {
         EngineCreateCallback callback;
-        bool done = false;
+        std::atomic_bool done{false};
 
         void finish(EngineCreateOutcome outcome,
                     std::shared_ptr<TorrentEngine> engine = {},
                     std::string error = {})
         {
-            if (done)
+            if (done.exchange(true))
                 return;
-            done = true;
             if (callback)
                 callback({outcome, std::move(engine), std::move(error)});
         }
@@ -149,15 +148,19 @@ struct EngineRegistry::Impl final {
     };
 
     explicit Impl(EngineRegistryConfig registryConfig)
-        : config(std::move(registryConfig)), queue(std::make_shared<Queue>())
+        : config(std::move(registryConfig)), workQueue(std::make_shared<Queue>()),
+          callbackQueue(std::make_shared<Queue>())
     {}
 
     ~Impl()
     {
         {
-            std::lock_guard<std::mutex> lock(queue->mutex);
-            queue->accepting = false;
-            queue->tasks.clear();
+            std::lock_guard<std::mutex> workLock(workQueue->mutex);
+            workQueue->accepting = false;
+            workQueue->tasks.clear();
+            std::lock_guard<std::mutex> callbackLock(callbackQueue->mutex);
+            callbackQueue->accepting = false;
+            callbackQueue->tasks.clear();
         }
         for (auto &[key, entry] : entries) {
             static_cast<void>(key);
@@ -166,6 +169,45 @@ struct EngineRegistry::Impl final {
         for (auto &completion : completions)
             completion->finish(EngineCreateOutcome::Cancelled);
     }
+
+    struct DispatchGate final {
+        std::atomic_bool returned{false};
+        std::atomic_bool rejected{false};
+        std::atomic_bool ranInline{false};
+    };
+
+    void enqueue(const std::shared_ptr<Queue> &fallback,
+                 const EnginePost &executor,
+                 Task task)
+    {
+        if (executor) {
+            auto owned = std::make_shared<Task>(task);
+            auto gate = std::make_shared<DispatchGate>();
+            std::weak_ptr<Impl> weakSelf = weak_from_this();
+            bool accepted = false;
+            try {
+                accepted = executor([weakSelf, owned, gate] {
+                    if (!gate->returned.load(std::memory_order_acquire)) {
+                        gate->ranInline.store(true, std::memory_order_release);
+                        return;
+                    }
+                    if (gate->rejected.load(std::memory_order_acquire)) return;
+                    if (const auto self = weakSelf.lock()) (*owned)(*self);
+                });
+            } catch (...) {
+                accepted = false;
+            }
+            if (!accepted || gate->ranInline.load(std::memory_order_acquire))
+                gate->rejected.store(true, std::memory_order_release);
+            gate->returned.store(true, std::memory_order_release);
+            if (accepted && !gate->ranInline.load(std::memory_order_acquire)) return;
+        }
+        fallback->push(std::move(task));
+    }
+
+    void enqueueWork(Task task) { enqueue(workQueue, config.workExecutor, std::move(task)); }
+    void enqueueCallback(Task task)
+    { enqueue(callbackQueue, config.callbackExecutor, std::move(task)); }
 
     void emit(EngineEventType type,
               const std::string &key,
@@ -181,8 +223,10 @@ struct EngineRegistry::Impl final {
     {
         const auto key = pending.request.sourceKey;
         if (!validV1Key(key)) {
-            pending.completion->finish(EngineCreateOutcome::InvalidSource, {},
-                                       "source key must be a 40-character v1 info hash");
+            enqueueCallback([completion = pending.completion](Impl &) {
+                completion->finish(EngineCreateOutcome::InvalidSource, {},
+                                   "source key must be a 40-character v1 info hash");
+            });
             return;
         }
 
@@ -196,7 +240,9 @@ struct EngineRegistry::Impl final {
         auto current = entries.find(key);
         const bool isNew = current == entries.end();
         const auto generation = isNew ? nextGeneration++ : current->second.generation;
-        emit(EngineEventType::Create, key, generation, options);
+        enqueueCallback([key, generation, options](Impl &self) mutable {
+            self.emit(EngineEventType::Create, key, generation, std::move(options));
+        });
 
         if (isNew) {
             ports::TorrentOpenRequest openRequest(
@@ -207,25 +253,48 @@ struct EngineRegistry::Impl final {
                     ? config.transportFactory(openRequest)
                     : ports::openTorrentTransport(openRequest);
             } catch (const std::exception &error) {
-                pending.completion->finish(EngineCreateOutcome::SourceError, {}, error.what());
+                const std::string message = error.what();
+                enqueueCallback([completion = pending.completion, message](Impl &) {
+                    completion->finish(EngineCreateOutcome::SourceError, {}, message);
+                });
                 return;
             }
             if (!transport) {
-                pending.completion->finish(EngineCreateOutcome::SourceError, {},
-                                           "torrent transport could not be opened");
+                enqueueCallback([completion = pending.completion](Impl &) {
+                    completion->finish(EngineCreateOutcome::SourceError, {},
+                                       "torrent transport could not be opened");
+                });
                 return;
             }
             std::shared_ptr<TorrentEngine> engine;
             try {
+                std::weak_ptr<Impl> weakSelf = weak_from_this();
+                EnginePost engineWork = [weakSelf](EngineContinuation continuation) {
+                    if (auto target = weakSelf.lock()) {
+                        target->enqueueWork([continuation = std::move(continuation)](Impl &) mutable {
+                            if (continuation) continuation();
+                        });
+                        return true;
+                    }
+                    return false;
+                };
                 engine = EngineRegistry::makeEngine(
-                    key, generation, options, std::filesystem::path(path), std::move(transport));
+                    key, generation, options, std::filesystem::path(path), std::move(transport),
+                    std::move(engineWork), config.repeat, config.monotonicClock);
             } catch (const std::exception &error) {
-                pending.completion->finish(EngineCreateOutcome::SourceError, {}, error.what());
+                const std::string message = error.what();
+                enqueueCallback([completion = pending.completion, message](Impl &) {
+                    completion->finish(EngineCreateOutcome::SourceError, {}, message);
+                });
                 return;
             }
             current = entries.emplace(key, Entry{generation, std::move(engine), {}, {}, false}).first;
             ++constructionCount;
-            emit(EngineEventType::Created, key, generation);
+            enqueueCallback([key, generation](Impl &self) {
+                const auto current = self.entries.find(key);
+                if (current != self.entries.end() && current->second.generation == generation)
+                    self.emit(EngineEventType::Created, key, generation);
+            });
         }
 
         auto &entry = current->second;
@@ -235,7 +304,7 @@ struct EngineRegistry::Impl final {
             enqueueReady(key, entry.generation, pending.completion);
         } else if (entry.engine->failed()) {
             const auto error = entry.engine->sourceError();
-            queue->push([key, generation = entry.generation,
+            enqueueCallback([key, generation = entry.generation,
                          completion = pending.completion, error](Impl &self) mutable {
                 const auto current = self.entries.find(key);
                 if (current != self.entries.end() && current->second.generation == generation)
@@ -251,14 +320,28 @@ struct EngineRegistry::Impl final {
                       ports::EngineGeneration generation,
                       std::shared_ptr<Completion> completion)
     {
-        queue->push([key, generation, completion = std::move(completion)](Impl &self) mutable {
-            const auto current = self.entries.find(key);
-            if (current == self.entries.end() || current->second.generation != generation
-                || !current->second.engine->ready())
-                return;
-            self.emit(EngineEventType::ScopedReady, key, generation);
-            self.emit(EngineEventType::Ready, key, generation);
-            completion->finish(EngineCreateOutcome::Ready, current->second.engine);
+        enqueueWork([key, generation, completion = std::move(completion)](Impl &self) mutable {
+            self.enqueueCallback([key, generation, completion = std::move(completion)](
+                                     Impl &callbackSelf) mutable {
+                const auto current = callbackSelf.entries.find(key);
+                if (current == callbackSelf.entries.end()
+                    || current->second.generation != generation
+                    || !current->second.engine->ready())
+                    return;
+                callbackSelf.emit(EngineEventType::ScopedReady, key, generation);
+                auto afterScoped = callbackSelf.entries.find(key);
+                if (afterScoped == callbackSelf.entries.end()
+                    || afterScoped->second.generation != generation
+                    || !afterScoped->second.engine->ready())
+                    return;
+                callbackSelf.emit(EngineEventType::Ready, key, generation);
+                auto afterReady = callbackSelf.entries.find(key);
+                if (afterReady == callbackSelf.entries.end()
+                    || afterReady->second.generation != generation
+                    || !afterReady->second.engine->ready())
+                    return;
+                completion->finish(EngineCreateOutcome::Ready, afterReady->second.engine);
+            });
         });
     }
 
@@ -271,21 +354,30 @@ struct EngineRegistry::Impl final {
         entry.pending.clear();
         const auto generation = entry.generation;
         const auto error = entry.engine->sourceError();
-        queue->push([key, generation, pending = std::move(pending), error](Impl &self) mutable {
+        enqueueCallback([key, generation, pending = std::move(pending), error](Impl &self) mutable {
             const auto current = self.entries.find(key);
             if (current == self.entries.end() || current->second.generation != generation
                 || !current->second.engine->failed())
                 return;
             self.emit(EngineEventType::ScopedError, key, generation, Value::missing(), error);
+            auto afterScoped = self.entries.find(key);
+            if (afterScoped == self.entries.end()
+                || afterScoped->second.generation != generation)
+                return;
             self.emit(EngineEventType::Error, key, generation, Value::missing(), error);
+            auto afterError = self.entries.find(key);
+            if (afterError == self.entries.end()
+                || afterError->second.generation != generation)
+                return;
             for (auto &completion : pending)
                 completion->finish(EngineCreateOutcome::SourceError,
-                                   current->second.engine, error);
+                                   afterError->second.engine, error);
         });
     }
 
     EngineRegistryConfig config;
-    std::shared_ptr<Queue> queue;
+    std::shared_ptr<Queue> workQueue;
+    std::shared_ptr<Queue> callbackQueue;
     std::map<std::string, Entry> entries;
     std::vector<std::shared_ptr<Completion>> completions;
     EngineRequestToken nextToken = 1;
@@ -294,7 +386,7 @@ struct EngineRegistry::Impl final {
 };
 
 EngineRegistry::EngineRegistry(EngineRegistryConfig config)
-    : impl_(std::make_unique<Impl>(std::move(config)))
+    : impl_(std::make_shared<Impl>(std::move(config)))
 {}
 
 EngineRegistry::~EngineRegistry() = default;
@@ -302,6 +394,12 @@ EngineRegistry::~EngineRegistry() = default;
 EngineRequestToken EngineRegistry::create(EngineCreateRequest request,
                                           EngineCreateCallback callback)
 {
+    struct HookGate final {
+        std::mutex mutex;
+        bool returned = false;
+        bool used = false;
+        bool cancelled = false;
+    };
     request.sourceKey = canonicalKey(std::move(request.sourceKey));
     request.options = normalizeInputOptions(std::move(request.options));
     const auto token = impl_->nextToken++;
@@ -310,28 +408,48 @@ EngineRequestToken EngineRegistry::create(EngineCreateRequest request,
     impl_->completions.push_back(completion);
     auto pending = std::make_shared<Impl::PendingCreate>(
         Impl::PendingCreate{request, token, completion});
-    auto continued = std::make_shared<std::atomic_bool>(false);
-    std::weak_ptr<Impl::Queue> weakQueue = impl_->queue;
-    EngineContinuation continuation = [weakQueue, pending, continued]() mutable {
-        if (continued->exchange(true))
-            return;
-        *continued = true;
-        if (auto queue = weakQueue.lock()) {
-            queue->push([pending](Impl &state) mutable {
-                state.applyCreate(std::move(*pending));
+    auto gate = std::make_shared<HookGate>();
+    std::weak_ptr<Impl> weakImpl = impl_;
+    auto schedule = [weakImpl, pending] {
+        if (auto state = weakImpl.lock())
+            state->enqueueWork([pending](Impl &owner) mutable {
+                owner.applyCreate(std::move(*pending));
             });
+    };
+    EngineContinuation continuation = [gate, schedule]() mutable {
+        bool scheduleNow = false;
+        {
+            std::lock_guard<std::mutex> lock(gate->mutex);
+            if (gate->used || gate->cancelled) return;
+            gate->used = true;
+            scheduleNow = gate->returned;
         }
+        if (scheduleNow) schedule();
     };
 
-    if (impl_->config.beforeCreate) {
-        try {
+    bool scheduleAfterReturn = false;
+    try {
+        if (impl_->config.beforeCreate)
             impl_->config.beforeCreate(request, std::move(continuation));
-        } catch (const std::exception &error) {
-            completion->finish(EngineCreateOutcome::SourceError, {}, error.what());
+        else
+            continuation();
+        {
+            std::lock_guard<std::mutex> lock(gate->mutex);
+            gate->returned = true;
+            scheduleAfterReturn = gate->used && !gate->cancelled;
         }
-    } else {
-        continuation();
+    } catch (const std::exception &error) {
+        {
+            std::lock_guard<std::mutex> lock(gate->mutex);
+            gate->returned = true;
+            gate->cancelled = true;
+        }
+        const std::string message = error.what();
+        impl_->enqueueCallback([completion, message](Impl &) {
+            completion->finish(EngineCreateOutcome::SourceError, {}, message);
+        });
     }
+    if (scheduleAfterReturn) schedule();
     return token;
 }
 
@@ -354,16 +472,21 @@ bool EngineRegistry::remove(const std::string &sourceKey,
     const auto current = impl_->entries.find(key);
     if (current == impl_->entries.end()) {
         if (callback)
-            impl_->queue->push([callback = std::move(callback)](Impl &) mutable { callback(false); });
+            impl_->enqueueCallback([callback = std::move(callback)](Impl &) mutable {
+                callback(false);
+            });
         return false;
     }
 
     auto engine = current->second.engine;
+    const auto generation = engine->generation();
     auto requests = std::move(current->second.requests);
     impl_->entries.erase(current);
     engine->close();
-    impl_->queue->push([engine = std::move(engine), requests = std::move(requests),
-                        callback = std::move(callback)](Impl &) mutable {
+    impl_->enqueueCallback([key, generation, engine = std::move(engine),
+                        requests = std::move(requests),
+                        callback = std::move(callback)](Impl &self) mutable {
+        self.emit(EngineEventType::Destroyed, key, generation);
         for (auto &completion : requests)
             completion->finish(EngineCreateOutcome::Removed, engine);
         if (callback)
@@ -408,6 +531,20 @@ void EngineRegistry::poll()
                     "torrent transport closed before metadata", false});
                 if (entry.engine->failed())
                     impl_->terminalFailure(key, entry);
+            } else if (const auto *available =
+                           std::get_if<ports::AvailablePiecesObservation>(&observation)) {
+                static_cast<void>(available);
+                entry.engine->acceptRuntimeObservation(observation);
+            } else if (const auto *peer = std::get_if<ports::PeerObservation>(&observation)) {
+                static_cast<void>(peer);
+                entry.engine->acceptRuntimeObservation(observation);
+            } else if (const auto *block = std::get_if<ports::BlockObservation>(&observation)) {
+                static_cast<void>(block);
+                entry.engine->acceptRuntimeObservation(observation);
+            } else if (std::holds_alternative<ports::FailureObservation>(observation)
+                       || std::holds_alternative<ports::UploadRequestObservation>(observation)
+                       || std::holds_alternative<ports::UploadCancelObservation>(observation)) {
+                entry.engine->acceptRuntimeObservation(observation);
             }
         }
     }
@@ -415,9 +552,11 @@ void EngineRegistry::poll()
 
 void EngineRegistry::dispatch()
 {
-    auto tasks = impl_->queue->take();
-    for (auto &task : tasks)
-        task(*impl_);
+    const auto core = impl_;
+    auto work = core->workQueue->take();
+    for (auto &task : work) task(*core);
+    auto callbacks = core->callbackQueue->take();
+    for (auto &task : callbacks) task(*core);
 }
 
 std::size_t EngineRegistry::constructionCount() const noexcept

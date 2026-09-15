@@ -1,0 +1,115 @@
+{
+  "selectedVirtualPiece": 1,
+  "verificationPieceLength": 1048576,
+  "virtualPieceLength": 524288,
+  "requestCount": 34,
+  "firstRequest": [
+    0,
+    524288,
+    1
+  ],
+  "retryRequest": [
+    0,
+    524288,
+    1
+  ],
+  "finalRequest": [
+    0,
+    507904,
+    16384
+  ],
+  "pipeline": [
+    [
+      "retry",
+      0
+    ],
+    [
+      "write",
+      1,
+      1
+    ],
+    [
+      "verify",
+      1
+    ],
+    [
+      "download",
+      1,
+      1
+    ],
+    [
+      "write",
+      0,
+      524288
+    ],
+    [
+      "verify",
+      0
+    ],
+    [
+      "commit",
+      0,
+      1
+    ],
+    [
+      "verified",
+      0
+    ],
+    [
+      "verified",
+      1
+    ],
+    [
+      "have",
+      0
+    ],
+    [
+      "download",
+      0,
+      524288
+    ],
+    [
+      "notify"
+    ],
+    [
+      "notify"
+    ],
+    [
+      "read",
+      1
+    ],
+    [
+      "upload-result",
+      {
+        "bytes": [
+          200
+        ]
+      }
+    ],
+    [
+      "swarm-destroy"
+    ],
+    [
+      "store-close"
+    ],
+    [
+      "destroyed"
+    ]
+  ],
+  "upload": {
+    "bytes": [
+      200
+    ]
+  },
+  "timer": [
+    [
+      "start",
+      1,
+      10000
+    ],
+    [
+      "cancel",
+      1
+    ]
+  ]
+}

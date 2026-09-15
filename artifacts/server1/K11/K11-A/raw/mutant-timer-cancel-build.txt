@@ -1,0 +1,4 @@
+[1/4] Building CXX object CMakeFiles\server1_k11_engine.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\src\policy\TorrentEngine.cpp.obj
+[2/4] Building CXX object CMakeFiles\server1_k11_engine.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\src\policy\EngineRegistry.cpp.obj
+[3/4] Linking CXX static library server1_k11_engine.lib
+[4/4] Linking CXX executable server1_k11_engine_registry_test.exe

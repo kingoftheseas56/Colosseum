@@ -1,0 +1,1 @@
+K11-02 verification group did not request all exact virtual blocks

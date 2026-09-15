@@ -1,0 +1,5 @@
+Fresh accepted-base configure: 64 tests.
+Stale predecessor configure: 63 tests; missing K10-H-transport-upload-real-wire only.
+Fresh artifact combined configure: 67 tests.
+Candidate additions: K11-01-engine-registry, K11-02-engine-registry, K11-03-engine-registry.
+Candidate tail: #65 K10-H-transport-upload-real-wire; #66 P08-T-torrent-transport-contract; #67 INT-W3-spine-contracts-link.

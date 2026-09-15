@@ -8,6 +8,8 @@ function(server1_register_k11_packet)
     "${SERVER1_K11_ROOT}/include")
   target_link_libraries(server1_k11_engine PUBLIC
     server1_k01_metadata
+    server1_k02_piece_buffer
+    server1_k04_scheduler_actions
     server1_k10_native_transport
     server1_k08_file_reader
     server1_k06_persistent_store

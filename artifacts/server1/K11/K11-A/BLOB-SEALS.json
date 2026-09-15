@@ -1,17 +1,16 @@
 {
-  "schema": "colosseum-server1-blob-seals/v1",
-  "algorithm": "git blob oid plus filesystem SHA-256 before commit; each git blob oid must equal HEAD:path after commit",
+  "schema": "colosseum-server1-blob-seals/v2",
+  "algorithm": "staged git blob oid and pre-commit working-file SHA-256; each blob must equal committed HEAD:path",
   "files": [
-    {"path":"native/colosseum_server_v1/include/server1/policy/EngineRegistry.h","blob":"e367dac1be577415c96bee7f154fb3ffabd2ddb3","sha256":"c6c695f3ec96e7abc2e38f28af97e109f5960089d15decc0c8f891b628b5b52e"},
-    {"path":"native/colosseum_server_v1/src/policy/TorrentEngine.cpp","blob":"9e0152c2ec03e711141184e4434f24182adffc32","sha256":"81607278d05facacb1103713f35d6a645a67c0e6db0b5e29e6b09cff76606b97"},
-    {"path":"native/colosseum_server_v1/src/policy/EngineRegistry.cpp","blob":"28e0d793acf2b3bca00d0c4bec54ce5846e330bd","sha256":"2ac401667adab8f4875f6484e7bb3f3f0aa2f5c17413964f22e845eff34fdcef"},
-    {"path":"native/colosseum_server_v1/tests/test_engine_registry.cpp","blob":"d0c2f2aa9f22c02a906a243aa96af8bfeb3cfedf","sha256":"6bd874ca8f9caccc75b1cdfae22e80cdc1a88f9a3032d7f48d26ac0f67a8797a"},
-    {"path":"native/colosseum_server_v1/cmake/packets/K11.cmake","blob":"22f0b400b9d2ac1d99c87dd23c0212a44db174ac","sha256":"f4250b7c01d200b2996c085170e694cc8e28018f068ef936155108293e8f8f51"},
-    {"path":"native/colosseum_server_v1/tests/cmake/K11.cmake","blob":"561a8e6414c0d709973dbda675707c7fa548155c","sha256":"3388bfddb1804c085843a720f43adcacd834d1ef39bf5b3b1e84c009daa6934a"},
-    {"path":"artifacts/server1/K11/K11-A/CMakeLists.txt","blob":"19a9f0a00c95c5d44fe85a8a15e1861ed7f2f9c3","sha256":"b4a0d7adef2b490546799b5305bc66bc7740d98bc8a9efe70dbce5fe4229d716"},
-    {"path":"artifacts/server1/K11/K11-A/WIRING-REQUEST.json","blob":"42e98e2ad5ea05336f295ff2838a3ebba7b95061","sha256":"2ca4d08dd7c9166eaeada9662d50e9f040f0278a1a36969ce6afeb19e2ca423a"},
-    {"path":"artifacts/server1/K11/K11-A/SOURCE-TRACE.md","blob":"f65af1a0d9fbed58e006ee44875b67554fc2c335","sha256":"59b9b85d1bd11ad1617805c2e8fb6100a7667d921f9483a631b9237a32cdc23b"},
-    {"path":"artifacts/server1/K11/K11-A/TEST-COMMANDS.txt","blob":"b536d1c8b70729ed6535ce2a38858ed830981ec2","sha256":"5612ffd9a4eeb0938c01ad22fdac6099d6b08525861b6bbdacd334c732d94976"},
-    {"path":"artifacts/server1/K11/K11-A/PACKET-RECEIPT.json","blob":"627eb782c10d15d96bdbb40ca7004c96bcdffe62","sha256":"fc2f8ed965ca64cc10efb7d844a3a2123dc4a8d3024b21704873309f48ebdfa3"}
+    {"path":"native/colosseum_server_v1/include/server1/policy/EngineRegistry.h","blob":"542abe9b7e707e1bd25254f9341a2ee5f7d41477","sha256":"c5572880957aec16f2443a0136a8b3a5d551a37345c99d4efe8f34dd98304565"},
+    {"path":"native/colosseum_server_v1/src/policy/EngineRegistry.cpp","blob":"fd65495e02444fd65f90647602333a31bbe7d147","sha256":"b9023c91a967130ddf56d614ffab10a24f88a6c8a76e7da3c79d2a02cc78a9eb"},
+    {"path":"native/colosseum_server_v1/src/policy/TorrentEngine.cpp","blob":"ecc37c19865280ee9c977cf88e6554a7165df163","sha256":"77c93995d98ab0b291f15fc41ab04d0af2c8f576aef7e6c9ec5075b8967926b6"},
+    {"path":"native/colosseum_server_v1/tests/test_engine_registry.cpp","blob":"2419efae920aca23559be0d0f706f1a86a19cbd5","sha256":"a3aa9c7f9fe15a3195e04e1d9cbbdd7c2ed51edda7fec4c28edd90a1f749efbc"},
+    {"path":"native/colosseum_server_v1/cmake/packets/K11.cmake","blob":"f272b65c0fcbdc15e974a4317de5af06b23fa0a9","sha256":"72cb8accc65ec8f7f05fae4110f91c34d6861833e78eb9ae6ec34e142b96a6d7"},
+    {"path":"native/colosseum_server_v1/tests/cmake/K11.cmake","blob":"561a8e6414c0d709973dbda675707c7fa548155c","sha256":"afd54a2c40a42d5721a85458bc9b59e636fb7c2eb98c2946ce83a1c8c72af7b7"},
+    {"path":"artifacts/server1/K11/K11-A/CMakeLists.txt","blob":"2bac7ad36da71ea1b0f5c4a5bba13ce8c8d99fda","sha256":"dd0839b1a2f84b31e324ceaf9fb541368918f11525e93d7917d3a9359d566bd7"},
+    {"path":"artifacts/server1/K11/K11-A/aggregate/CMakeLists.txt","blob":"ae4ebc971fe9f226df929f92fad3ff3439f9056a","sha256":"3bc9c61c1fe277e420161262d475d5e4e69af987617fb3af004d64ffe95d0d74"},
+    {"path":"artifacts/server1/K11/K11-A/run_oracle.js","blob":"bef9a6ca0d7858f16c564ccf28c7da8b4001a616","sha256":"0b04e04a5b2713902e0bc368ca8a18d2fe8c7b76236f5f8af014e18abb4cf767"},
+    {"path":"artifacts/server1/K11/K11-A/raw/comparison.json","blob":"53868efab4fda5aa4954dd4daeb390c196c9c92e","sha256":"c8e3847889c7ae994d8e30912588526d522c2cc457457b6b183a88d92d196649"}
   ]
 }

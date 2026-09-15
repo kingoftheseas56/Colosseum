@@ -1,0 +1,1 @@
+K11-02 virtual requests were not mapped to exact verification-wire coordinates

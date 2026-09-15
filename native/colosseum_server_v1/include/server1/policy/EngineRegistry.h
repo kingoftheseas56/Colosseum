@@ -29,6 +29,7 @@ enum class EngineEventType {
     Ready,
     ScopedError,
     Error,
+    Destroyed,
 };
 
 struct EngineEvent final {
@@ -56,6 +57,19 @@ struct EngineCreateResult final {
 };
 
 using EngineContinuation = std::function<void()>;
+using EnginePost = std::function<bool(EngineContinuation)>;
+using EngineClock = std::function<std::uint64_t()>;
+
+class EngineTimer {
+public:
+    virtual ~EngineTimer() = default;
+    virtual void cancel() noexcept = 0;
+    [[nodiscard]] virtual bool active() const noexcept = 0;
+    [[nodiscard]] virtual std::uint64_t id() const noexcept = 0;
+};
+
+using EngineRepeat = std::function<std::shared_ptr<EngineTimer>(
+    std::uint64_t intervalMs, EngineContinuation)>;
 using BeforeCreateEngine =
     std::function<void(const EngineCreateRequest &, EngineContinuation)>;
 using EngineCreateCallback = std::function<void(EngineCreateResult)>;
@@ -70,6 +84,10 @@ struct EngineRegistryConfig final {
     BeforeCreateEngine beforeCreate;
     EngineEventCallback onEvent;
     EngineTransportFactory transportFactory;
+    EnginePost workExecutor;
+    EnginePost callbackExecutor;
+    EngineRepeat repeat;
+    EngineClock monotonicClock;
 };
 
 class TorrentEngine final {
@@ -106,16 +124,17 @@ public:
 
 private:
     struct Impl;
-    explicit TorrentEngine(std::unique_ptr<Impl> impl);
+    explicit TorrentEngine(std::shared_ptr<Impl> impl);
 
     void resume(Value options);
     std::vector<ports::TorrentObservation> pollTransport();
     bool acceptMetadata(const ports::MetadataReadyObservation &metadata,
                         std::string *error);
     void acceptSourceFailure(const ports::SourceFailureObservation &failure);
+    void acceptRuntimeObservation(const ports::TorrentObservation &observation);
     void close();
 
-    std::unique_ptr<Impl> impl_;
+    std::shared_ptr<Impl> impl_;
     friend class EngineRegistry;
 };
 
@@ -152,8 +171,11 @@ private:
                ports::EngineGeneration generation,
                Value options,
                std::filesystem::path cachePath,
-               std::unique_ptr<ports::TorrentTransport> transport);
-    std::unique_ptr<Impl> impl_;
+               std::unique_ptr<ports::TorrentTransport> transport,
+               EnginePost workPost,
+               EngineRepeat repeat,
+               EngineClock clock);
+    std::shared_ptr<Impl> impl_;
 };
 
 } // namespace server1::policy

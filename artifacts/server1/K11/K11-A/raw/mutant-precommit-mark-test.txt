@@ -1,0 +1,1 @@
+K11-02 exposed virtual bytes before the verification group committed

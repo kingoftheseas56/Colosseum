@@ -1,0 +1,21 @@
+{
+  "constructions": 1,
+  "events": [
+    "Create",
+    "Created",
+    "Create",
+    "ScopedReady",
+    "Ready",
+    "ScopedReady",
+    "Ready"
+  ],
+  "createMarkers": [
+    2,
+    1
+  ],
+  "callbacks": [
+    "C2",
+    "C1"
+  ],
+  "resumeCount": 2
+}

@@ -1,0 +1,1 @@
+K11-02 corrupt verification group was not reset and retried
