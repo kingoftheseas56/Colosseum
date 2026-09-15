@@ -7,7 +7,7 @@
   "date": "2026-09-15",
   "branch": "sol/server1-w3-transport-20260915",
   "integration_base": "60ecb9bbbf9c8798a0469a3e6fa608d7a22defb8",
-  "integration_sha": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/INT-W3/B-W3D.json)",
+  "integration_sha": "fe28b51973a32385d472cac88f17853d26445c9a",
   "predecessor_barrier": "B-W3C",
   "inputs": {
     "K08-A": "98d1bca9a0cb4045c3839dc3ee4dc9fde48283a5",
@@ -95,7 +95,20 @@
     ],
     "combined_link_smoke": "References FileReader::length and makeLibTorrent2Adapter while linking both production libraries; no production .cpp is included by a test."
   },
-  "review": "candidate/test-reported only; independent Agent 4 acceptance required",
-  "scope_note": "B-W3D/G-WIRE candidate only. No K11+, H02, app integration, C00 composition, packaging, playback qualification, vendored libtorrent, K08/K10 production implementation, or frozen TorrentTransport.h change.",
-  "status": "candidate-test-reported-pending-agent4-review"
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "date": "2026-09-15",
+    "reviewed_head": "fe28b51973a32385d472cac88f17853d26445c9a",
+    "independent_reviewer_result": "APPROVE",
+    "producer_ctest": "52/52",
+    "producer_repeat": "156/156",
+    "agent4_public_path_guard": "PASS",
+    "agent4_committed_blob_hashes": "13/13 PASS",
+    "agent4_build": "no-op success",
+    "agent4_ctest": "52/52 PASS in 87.78 seconds"
+  },
+  "review": "accepted by Agent 4 after independent approval and fresh aggregate verification",
+  "scope_note": "Acceptance covers B-W3D/G-WIRE through reviewed head fe28b519 only. No K11+, H02, app integration, C00 composition, packaging, playback qualification, vendored libtorrent, K08/K10 production implementation, or frozen TorrentTransport.h change.",
+  "status": "accepted"
 }
