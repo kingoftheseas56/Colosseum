@@ -202,13 +202,28 @@ void waitReady(TorrentTransport &transport, const std::string &caseName)
          + " unchoked=" + std::to_string(stats.unchokedPeers));
 }
 
+void waitEndpointOwner(TorrentTransport &transport, const std::string &address,
+                       std::uint16_t port, PeerHandle expected, const std::string &caseName)
+{
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (server1::transport::boundEndpointOwner(transport, address, port) == expected
+            && transport.statistics().connectedPeers >= 1) return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    fail(caseName + " endpoint ownership deadline expected=" + std::to_string(expected)
+         + " actual=" + std::to_string(
+               server1::transport::boundEndpointOwner(transport, address, port))
+         + " connected=" + std::to_string(transport.statistics().connectedPeers));
+}
+
 void caseWire(const fs::path &directory, int portA, int portB)
 {
     auto transport = server1::transport::makeLibTorrent2Adapter(
         (directory / "K10-wire.torrent").string(), (directory / "download").string());
     expect(bool(transport), "K10-01 production adapter factory failed");
     expect(transport->configureAutonomy({}), "K10-01 external-control suppression rejected");
-    const RequestAction request{{41, 7, 3}, 77, {0, 0, 0, 16384}};
+    const RequestAction request{{41, 1, 3}, 77, {0, 0, 0, 16384}};
     expect(transport->submit(request), "K10-01 owned request rejected");
     expect(transport->submit(InterestAction{77, true})
                && transport->submit(InterestAction{76, true}),
@@ -233,7 +248,7 @@ void caseWire(const fs::path &directory, int portA, int portB)
     for (const auto &item : observations) {
         if (const auto *block = std::get_if<BlockObservation>(&item)) {
             ++blocks;
-            expect(block->ownership.requestId == 41 && block->ownership.generation == 7
+            expect(block->ownership.requestId == 41 && block->ownership.generation == 1
                        && block->ownership.selectionId == 3,
                    "K10-01 ownership changed across native wire");
             expect(block->peer == 77 && block->block.piece == 0 && block->block.offset == 0
@@ -541,6 +556,124 @@ void caseAvailability(const fs::path &directory, int port)
               << " replacement=empty stale_disconnect=preserved stale_callbacks=5\n";
 }
 
+void casePauseAndGenerationOwnership(const fs::path &directory, int activePort, int deferredPort)
+{
+    const auto generation = EngineGeneration{407};
+    const auto hash = readInfoHash(directory);
+    const TorrentOpenRequest open{generation, hash,
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "pause-download").string()};
+    auto transport = server1::ports::openTorrentTransport(open);
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-G setup");
+
+    expect(!transport->submit(PauseAction{0, true})
+               && !transport->submit(PauseAction{generation - 1, true}),
+           "K10-G zero or stale pause was accepted");
+    expect(!transport->statistics().paused, "K10-G rejected pause changed state");
+    expect(transport->submit(InterestAction{201, true})
+               && transport->submit(ConnectAction{generation, 201, "127.0.0.1",
+                                                   static_cast<std::uint16_t>(activePort)}),
+           "K10-G active peer setup rejected");
+    waitReady(*transport, "K10-G active peer");
+
+    expect(transport->submit(PauseAction{generation, true})
+               && transport->submit(PauseAction{generation, true}),
+           "K10-G current pause was not idempotent");
+    expect(transport->statistics().paused, "K10-G paused statistic did not publish");
+
+    const auto ownedBefore = transport->statistics().ownedRequestsOutstanding;
+    const auto addsBefore = server1::transport::ownedNativeAddCount(*transport);
+    const auto framedBefore = server1::transport::framedRequestCount(*transport);
+    const RequestAction stale{{601, generation - 1, 1}, 201, {0, 0, 0, 16384}};
+    const RequestAction zero{{602, 0, 1}, 201, {0, 0, 0, 16384}};
+    expect(!transport->submit(stale) && !transport->submit(zero),
+           "K10-G stale or zero request generation was accepted");
+    expect(transport->statistics().ownedRequestsOutstanding == ownedBefore
+               && server1::transport::ownedNativeAddCount(*transport) == addsBefore
+               && server1::transport::framedRequestCount(*transport) == framedBefore,
+           "K10-G rejected request changed counters or native wire state");
+
+    const RequestAction active{{603, generation, 1}, 201, {0, 0, 0, 16384}};
+    expect(transport->submit(active), "K10-G active request was rejected while paused");
+    const auto activeObservations = pollUntil(*transport, [&](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [&](const auto &item) {
+            const auto *block = std::get_if<BlockObservation>(&item);
+            return block && block->ownership.requestId == active.ownership.requestId;
+        });
+    });
+    const auto activeBlock = std::find_if(activeObservations.begin(), activeObservations.end(),
+        [&](const auto &item) {
+            const auto *block = std::get_if<BlockObservation>(&item);
+            return block && block->ownership.requestId == active.ownership.requestId;
+        });
+    if (activeBlock == activeObservations.end()) {
+        const auto diagnostics = transport->statistics();
+        std::cerr << "K10-G active diagnostics connected=" << diagnostics.connectedPeers
+                  << " unchoked=" << diagnostics.unchokedPeers
+                  << " outstanding=" << diagnostics.ownedRequestsOutstanding
+                  << " paused=" << diagnostics.paused
+                  << " native_adds=" << server1::transport::ownedNativeAddCount(*transport)
+                  << " framed=" << server1::transport::framedRequestCount(*transport)
+                  << " observations=" << activeObservations.size() << '\n';
+        for (const auto &item : activeObservations)
+            if (const auto *failure = std::get_if<FailureObservation>(&item))
+                std::cerr << "K10-G active failure=" << failure->error
+                          << " generation=" << failure->ownership.generation
+                          << " request=" << failure->ownership.requestId << '\n';
+    }
+    expect(activeBlock != activeObservations.end(),
+           "K10-G paused active peer did not complete its owned block");
+    const auto &payload = std::get<BlockObservation>(*activeBlock).payload;
+    expect(payload.size() == 16384
+               && std::all_of(payload.begin(), payload.end(), [](std::uint8_t byte) {
+                      return byte == static_cast<std::uint8_t>('P');
+                  }),
+           "K10-G paused active transfer changed payload bytes");
+
+    expect(transport->submit(InterestAction{202, true})
+               && transport->submit(ConnectAction{generation, 202, "127.0.0.1",
+                                                   static_cast<std::uint16_t>(deferredPort)}),
+           "K10-G paused outbound connect was not accepted for deferral");
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    const auto pausedDeferredOwner = server1::transport::boundEndpointOwner(
+        *transport, "127.0.0.1", static_cast<std::uint16_t>(deferredPort));
+    expect(pausedDeferredOwner == 0,
+           "K10-G paused outbound connect escaped before resume");
+
+    const RequestAction deferred{{604, generation, 1}, 202, {1, 0, 0, 16384}};
+    expect(transport->submit(deferred), "K10-G deferred-peer request setup failed");
+    const auto pendingBeforeCancel = transport->statistics().ownedRequestsOutstanding;
+    expect(pendingBeforeCancel == 1,
+           "K10-G deferred-peer request did not enter the ownership ledger");
+    expect(!transport->submit(CancelAction{{604, generation - 1, 1}, 202,
+                                           deferred.block, true})
+               && !transport->submit(CancelAction{{604, 0, 1}, 202,
+                                                   deferred.block, true}),
+           "K10-G stale or zero cancel generation was accepted");
+    expect(transport->statistics().ownedRequestsOutstanding == pendingBeforeCancel,
+           "K10-G rejected cancel changed ownership state");
+    expect(transport->submit(CancelAction{deferred.ownership, deferred.peer,
+                                         deferred.block, true})
+               && transport->statistics().ownedRequestsOutstanding == 0,
+           "K10-G current cancel did not settle the exact owned request");
+
+    expect(transport->submit(PauseAction{generation, false})
+               && transport->submit(PauseAction{generation, false}),
+           "K10-G current resume was not idempotent");
+    expect(!transport->statistics().paused, "K10-G resumed statistic did not publish");
+    waitEndpointOwner(*transport, "127.0.0.1", static_cast<std::uint16_t>(deferredPort),
+                      202, "K10-G deferred resume");
+    expect(server1::transport::boundEndpointOwner(
+               *transport, "127.0.0.1", static_cast<std::uint16_t>(deferredPort)) == 202,
+           "K10-G resume did not drain deferred connect ownership");
+    expect(server1::transport::ownedNativeAddCount(*transport) == addsBefore + 1
+               && server1::transport::framedRequestCount(*transport) == framedBefore + 1,
+           "K10-G paused active transfer was not the only new wire request");
+    transport->close();
+    std::cout << "K10-G PASS active_bytes=16384 deferred_connect=1 stale_generation=0"
+              << " handle_pause_calls=0\n";
+}
+
 void caseFailureDrain(const fs::path &directory, int failingPort, int survivingPort)
 {
     auto transport = server1::transport::makeLibTorrent2Adapter(
@@ -645,7 +778,7 @@ void caseLifecycle(const fs::path &directory, int portA, int portB)
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 lifecycle setup");
     expect(server1::transport::armReceiveCallbackBarrier(*transport, entered.string(), release.string()),
            "K10-02 receive callback barrier rejected");
-    const RequestAction request{{52, 4, 9}, 77, {0, 0, 0, 16384}};
+    const RequestAction request{{52, 1, 9}, 77, {0, 0, 0, 16384}};
     expect(transport->submit(request), "K10-02 lifecycle request rejected");
     expect(transport->submit(InterestAction{77, true})
                && transport->submit(InterestAction{76, true}),
@@ -711,7 +844,8 @@ void caseLedger(const fs::path &directory)
     expect(transport->submit(first), "K10-02 first queued command");
     expect(!transport->submit(first), "K10-02 duplicate ownership must fail");
     const RequestAction sameIdNewGeneration{{9, 2, 4}, 81, {1, 0, 0, 16384}};
-    expect(transport->submit(sameIdNewGeneration), "K10-02 new generation must queue independently");
+    expect(!transport->submit(sameIdNewGeneration),
+           "K10-02 stale generation must not enter the ownership ledger");
     const RequestAction thirdPeer{{10, 1, 5}, 82, {0, 0, 0, 16384}};
     expect(transport->submit(thirdPeer), "K10-02 several-peer queue must accept independent owner");
     expect(!transport->submit(CancelAction{{9, 0, 4}, 80, first.block, true}),
@@ -719,7 +853,7 @@ void caseLedger(const fs::path &directory)
     expect(transport->submit(CancelAction{first.ownership, first.peer, first.block, true}),
            "K10-02 head-of-line exact retry must reconcile");
     expect(!transport->submit(first), "K10-02 canceled ownership must never replay");
-    expect(transport->statistics().ownedRequestsOutstanding == 2,
+    expect(transport->statistics().ownedRequestsOutstanding == 1,
            "K10-02 cancellation decrements exactly one active request");
 
     auto otherInfoHash = server1::transport::makeLibTorrent2Adapter(
@@ -729,7 +863,7 @@ void caseLedger(const fs::path &directory)
     expect(otherInfoHash->submit(first),
            "K10-02 ownership ledger is isolated across infohash adapters");
     expect(otherInfoHash->statistics().ownedRequestsOutstanding == 1
-               && transport->statistics().ownedRequestsOutstanding == 2,
+               && transport->statistics().ownedRequestsOutstanding == 1,
            "K10-02 multi-infohash counters remain isolated");
 
     constexpr std::uint16_t reusedPort = 65530;
@@ -750,7 +884,7 @@ void caseLedger(const fs::path &directory)
     const auto terminal = transport->poll();
     expect(std::count_if(terminal.begin(), terminal.end(), [](const auto &item) {
                return std::holds_alternative<FailureObservation>(item);
-           }) == 2, "K10-02 close terminalizes each queued peer once");
+           }) == 1, "K10-02 close terminalizes each current-generation request once");
     expect(std::count_if(terminal.begin(), terminal.end(), [](const auto &item) {
                return std::holds_alternative<ClosedObservation>(item);
            }) == 1, "K10-02 close observation is emitted once");
@@ -1015,6 +1149,9 @@ int main(int argc, char **argv)
     }
     if (argc == 4 && std::string(argv[1]) == "--availability") {
         caseAvailability(argv[2], std::stoi(argv[3])); return 0;
+    }
+    if (argc == 5 && std::string(argv[1]) == "--pause") {
+        casePauseAndGenerationOwnership(argv[2], std::stoi(argv[3]), std::stoi(argv[4])); return 0;
     }
     if (argc == 5 && std::string(argv[1]) == "--failure-drain") {
         caseFailureDrain(argv[2], std::stoi(argv[3]), std::stoi(argv[4])); return 0;

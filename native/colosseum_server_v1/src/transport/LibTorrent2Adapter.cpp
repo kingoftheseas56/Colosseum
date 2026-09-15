@@ -26,6 +26,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -215,13 +216,17 @@ public:
     bool submit(const TorrentAction &action) override
     {
         collectSourceAlerts();
+        if (const auto *pauseAction = std::get_if<PauseAction>(&action))
+            return setPaused(*pauseAction);
         if (const auto *connectAction = std::get_if<ConnectAction>(&action))
             return connect(*connectAction);
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_ || !controlled_) return false;
         if (const auto *request = std::get_if<RequestAction>(&action)) {
             if (!isValidBlock(request->block) || request->block.piece >= pieceCount_
-                || request->peer == 0 || request->ownership.requestId == 0) return false;
+                || request->peer == 0 || request->ownership.requestId == 0
+                || request->ownership.generation == 0
+                || request->ownership.generation != generation_) return false;
             for (const auto &owned : active_)
                 if (sameOwnership(owned.action.ownership, request->ownership)) return false;
             active_.push_back({*request});
@@ -231,6 +236,8 @@ public:
             return true;
         }
         if (const auto *cancel = std::get_if<CancelAction>(&action)) {
+            if (cancel->ownership.generation == 0
+                || cancel->ownership.generation != generation_) return false;
             auto found = findActive(cancel->ownership, cancel->peer, cancel->block);
             if (found == active_.end()) return false;
             found->terminal = true;
@@ -244,7 +251,11 @@ public:
             requestDrainLocked();
             return true;
         }
-        const auto peer = std::visit([](const auto &value) { return value.peer; }, action);
+        const auto peer = std::visit([](const auto &value) -> PeerHandle {
+            using Value = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<Value, PauseAction>) return 0;
+            else return value.peer;
+        }, action);
         if (peer == 0) return false;
         pendingControl_[peer].push_back(action);
         requestDrainLocked();
@@ -283,7 +294,7 @@ public:
             }
             stats_.ownedRequestsOutstanding = 0;
             pendingRequests_.clear(); pendingControl_.clear(); permits_.clear();
-            pendingConnects_.clear();
+            pendingConnects_.clear(); deferredConnects_.clear();
             observations_.erase(std::remove_if(observations_.begin(), observations_.end(),
                 [](const auto &observation) {
                     return std::holds_alternative<MetadataReadyObservation>(observation)
@@ -313,6 +324,10 @@ public:
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_ || !controlled_ || action.generation != generation_ || action.peer == 0)
                 return false;
+            if (stats_.paused) {
+                deferredConnects_.push_back(action);
+                return true;
+            }
             endpointPeers_[endpointKey(endpoint)] = action.peer;
             if (!torrent_.is_valid()) {
                 pendingConnects_.push_back(action);
@@ -333,6 +348,17 @@ public:
             if (found != endpointPeers_.end() && found->second == action.peer) endpointPeers_.erase(found);
             return false;
         }
+    }
+
+    bool setPaused(const PauseAction &action)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_ || !controlled_ || action.generation == 0
+            || action.generation != generation_) return false;
+        if (stats_.paused == action.paused) return true;
+        stats_.paused = action.paused;
+        if (!action.paused) requestDrainLocked();
+        return true;
     }
 
     bool crossThreadGuard()
@@ -472,7 +498,13 @@ private:
             if (closed_) return;
             torrent_ = alert.handle;
             controlled = controlled_;
-            connects.swap(pendingConnects_);
+            if (stats_.paused) {
+                deferredConnects_.insert(deferredConnects_.end(),
+                                         pendingConnects_.begin(), pendingConnects_.end());
+                pendingConnects_.clear();
+            } else {
+                connects.swap(pendingConnects_);
+            }
         }
         if (controlled && !suppressAutonomy(alert.handle)) {
             emitSourceFailure("libtorrent autonomy suppression failed", false);
@@ -545,14 +577,17 @@ private:
     void drainOnNetworkThread()
     {
         std::vector<std::pair<PeerHandle, std::shared_ptr<lt::peer_connection>>> ready;
+        std::vector<ConnectAction> connects;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_) return;
             nativeThread_ = std::this_thread::get_id();
             for (const auto &[peer, weak] : peers_)
                 if (auto native = weak.lock()) ready.emplace_back(peer, std::move(native));
+            if (!stats_.paused) connects.swap(deferredConnects_);
         }
         for (auto &[peer, native] : ready) dispatchControl(peer, native);
+        for (const auto &connectAction : connects) (void)connect(connectAction);
         issueReady(0);
     }
 
@@ -936,6 +971,7 @@ private:
     std::set<PeerHandle> unchoked_;
     std::deque<RequestAction> pendingRequests_;
     std::vector<ConnectAction> pendingConnects_;
+    std::vector<ConnectAction> deferredConnects_;
     std::map<PeerHandle, std::deque<TorrentAction>> pendingControl_;
     std::vector<RequestAction> permits_, framedPending_, retired_;
     std::vector<OwnedRequest> active_;

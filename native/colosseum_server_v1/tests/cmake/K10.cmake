@@ -53,4 +53,11 @@ function(server1_register_k10_tests)
     set_tests_properties(K10-E-transport-source-${source_case} PROPERTIES
       LABELS "server1;native;K10-E")
   endforeach()
+  set(K10_G_PACKET_ROOT "${SERVER1_K10_ROOT}/../../artifacts/server1/K10/K10-G")
+  add_test(NAME K10-G-transport-pause-generation
+    COMMAND pwsh -NoProfile -File "${K10_G_PACKET_ROOT}/run_pause.ps1"
+      -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>"
+      -PortA 49819 -PortB 49820)
+  set_tests_properties(K10-G-transport-pause-generation PROPERTIES
+    LABELS "server1;native;K10-G")
 endfunction()

@@ -1,0 +1,12 @@
+# Run from a clean checkout represented as $REPO.
+pwsh -NoProfile -File $REPO/artifacts/server1/K10/K10-G/run_behavioral_mutations.ps1
+pwsh -NoProfile -File $REPO/artifacts/server1/P08/P08-T4/run_contract.ps1
+pwsh -NoProfile -File $REPO/artifacts/server1/P08/P08-T3/run_contract.ps1
+cmake -S $REPO/artifacts/server1/K10/K10-F -B $SCRATCH/k10-f -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build $SCRATCH/k10-f --target server1_k10_native_transport_test
+ctest --test-dir $SCRATCH/k10-f -L K10-F --output-on-failure
+cmake -S $REPO/native/colosseum_server_v1 -B $SCRATCH/aggregate -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build $SCRATCH/aggregate
+ctest --test-dir $SCRATCH/aggregate --output-on-failure
+python $REPO/scripts/check_public_paths.py
+rg -n "torrent_handle::pause|\\.pause\\(\\)" $REPO/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp

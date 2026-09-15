@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K10",
+  "worker": "K10-G",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-pause-peercounts-20260915",
+  "base": "28199ef9053619196e446bfb6c1c345c6c73695e",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K10/K10-G/PACKET-RECEIPT.json)",
+  "behavior": "current-generation idempotent scheduler pause defers only new outbound ConnectAction; resume drains on the libtorrent network tick; current requests continue while paused; zero or stale request and cancel ownership is rejected before counters, wire, or state change",
+  "real_wire": "controlled peer returned one exact 16384-byte P payload while paused; deferred endpoint saw no handshake before resume and one real handshake after resume; deferred peer saw zero requests",
+  "forbidden_native_pause": "zero torrent_handle::pause calls",
+  "behavioral_mutations": "5/5 rejected: request generation, cancel generation, pause connect gate, paused statistic, resume network drain",
+  "regressions": "fresh full build 77/77; aggregate 63/63; K10-F 1/1; P08-T4 4/4 compile mutations; legacy P08 15/15; combined link PASS; public path guard PASS",
+  "scope": "LibTorrent2Adapter, native transport tests/CMake, and packet-local K10-G evidence only",
+  "merge_endpoint": "feature/colosseum-server-1.0 only after independent Sol code approval and gates",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; production-authored; real-wire-tested; mutation-tested; aggregate-tested; unintegrated"
+}

@@ -1,0 +1,19 @@
+K10-G TDD RED - 2026-09-15
+
+Contract-only head: 28199ef9053619196e446bfb6c1c345c6c73695e
+
+1. Adding PauseAction to TorrentAction made the existing adapter fail to compile because
+   its generic visitor required every action to expose a peer member. This proved that
+   the approved contract had no production PauseAction handling.
+2. The first real-wire pause test failed after the peer connected and unchoked because
+   the trial seeder advertised HAVE_ALL. The production adapter's availability snapshot
+   is intentionally driven by bitfield/HAVE callbacks, so no owned request became ready.
+3. After switching to the proven controlled peer, the handshake failed because the test
+   prepared the torrent twice and the second preparation regenerated the info-hash after
+   the fixture had already been configured with the first hash.
+4. The resume-network-drain mutation initially escaped. It proved resume could drain via
+   a caller-thread fallback after the one-shot active peer detached, contrary to the
+   approved network-thread drain contract.
+
+The oracle was not weakened. The fixture now prepares once and uses bitfield/HAVE. The
+production fallback was removed so resume always schedules the torrent-plugin network tick.

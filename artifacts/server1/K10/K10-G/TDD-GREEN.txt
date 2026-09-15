@@ -1,0 +1,20 @@
+K10-G TDD GREEN - 2026-09-15
+
+Focused real-wire K10-G: 1/1 PASS
+- active current-generation request completed while paused
+- exact payload: 16384 bytes, every byte P
+- deferred endpoint owner remained zero before resume
+- deferred endpoint completed one real handshake after resume
+- deferred peer received zero requests
+- zero/stale PauseAction, RequestAction, and CancelAction rejected
+- current pause/resume idempotent; paused statistic published
+- torrent_handle::pause calls: 0
+
+Behavioral mutations: 5/5 rejected on exact intended signals.
+Fresh full Release build: 77/77 steps.
+Fresh aggregate CTest: 63/63 PASS.
+K10-F real-wire availability regression: 1/1 PASS.
+P08-T4 contract: positive consumer PASS, 4/4 compile mutations rejected.
+Legacy P08 contract: positive consumer PASS, 15/15 compile mutations rejected.
+Combined public-contract link: PASS.
+Public-path guard: PASS.
