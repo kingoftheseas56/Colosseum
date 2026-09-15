@@ -1,0 +1,8 @@
+P08-T3 TDD GREEN — 2026-09-15
+
+Command:
+pwsh -NoProfile -File artifacts/server1/P08/P08-T3/run_contract.ps1 -BuildDir artifacts/server1/P08/P08-T3-build
+
+Exit: 0.
+Positive public consumer: PASS.
+Compile-fail mutations: 15/15 rejected, including P08_NEGATE_AVAILABLE_PIECES.

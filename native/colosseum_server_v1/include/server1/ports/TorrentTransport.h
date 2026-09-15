@@ -179,12 +179,21 @@ struct SourceFailureObservation final {
     bool retryable = false;
 };
 
+// Full, sorted, deduplicated snapshot advertised by one peer. An empty
+// snapshot clears all previously advertised pieces for that peer.
+struct AvailablePiecesObservation final {
+    EngineGeneration generation = 0;
+    PeerHandle peer = 0;
+    std::vector<std::uint32_t> pieces;
+};
+
 using TorrentObservation = std::variant<BlockObservation,
                                         PeerObservation,
                                         FailureObservation,
                                         ClosedObservation,
                                         MetadataReadyObservation,
-                                        SourceFailureObservation>;
+                                        SourceFailureObservation,
+                                        AvailablePiecesObservation>;
 
 struct TransportStatistics final {
     std::uint32_t connectedPeers = 0;

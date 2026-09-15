@@ -26,6 +26,8 @@
 #define MetadataReadyObservation MetadataReadyObservation_removed
 #elif defined(P08_NEGATE_SOURCE_FAILURE)
 #define SourceFailureObservation SourceFailureObservation_removed
+#elif defined(P08_NEGATE_AVAILABLE_PIECES)
+#define AvailablePiecesObservation AvailablePiecesObservation_removed
 #endif
 
 #include "server1/ports/TorrentTransport.h"
@@ -58,6 +60,8 @@
 #undef MetadataReadyObservation
 #elif defined(P08_NEGATE_SOURCE_FAILURE)
 #undef SourceFailureObservation
+#elif defined(P08_NEGATE_AVAILABLE_PIECES)
+#undef AvailablePiecesObservation
 #endif
 
 #include <cstdlib>
@@ -135,6 +139,10 @@ int main()
     static_assert(std::is_same_v<decltype(TorrentOpenRequest::savePath), std::string>);
     static_assert(std::is_same_v<decltype(&openTorrentTransport),
                                  std::unique_ptr<TorrentTransport> (*)(const TorrentOpenRequest &) noexcept>);
+    static_assert(std::is_same_v<decltype(AvailablePiecesObservation::generation), EngineGeneration>);
+    static_assert(std::is_same_v<decltype(AvailablePiecesObservation::peer), PeerHandle>);
+    static_assert(std::is_same_v<decltype(AvailablePiecesObservation::pieces),
+                                 std::vector<std::uint32_t>>);
 
     ContractConsumer transport;
     expect(!transport.configureAutonomy({true, false, false})
@@ -207,13 +215,18 @@ int main()
                                       {1, 2, 3}, {"http://tracker.invalid/announce"},
                                       {"http://seed.invalid/file"}};
     SourceFailureObservation sourceFailure{7, infoHash, "invalid source", false};
-    transport.observations = {block, peer, failure, metadata, sourceFailure};
+    AvailablePiecesObservation available{7, 12, {1, 4, 9}};
+    transport.observations = {block, peer, failure, metadata, sourceFailure, available};
     const auto observed = transport.poll();
-    expect(observed.size() == 5
+    expect(observed.size() == 6
                && std::get<MetadataReadyObservation>(observed[3]).generation == 7
                && std::get<MetadataReadyObservation>(observed[3]).infoSection.size() == 3
-               && std::get<SourceFailureObservation>(observed[4]).generation == 7,
-           "P08-T typed source observation surface carries generation and libtorrent info section");
+               && std::get<SourceFailureObservation>(observed[4]).generation == 7
+               && std::get<AvailablePiecesObservation>(observed[5]).generation == 7
+               && std::get<AvailablePiecesObservation>(observed[5]).peer == 12
+               && std::get<AvailablePiecesObservation>(observed[5]).pieces
+                    == std::vector<std::uint32_t>({1, 4, 9}),
+           "P08-T typed source and full peer-availability observations carry generation");
 
     const TorrentOpenRequest bare{7, infoHash, InfoHashSource{}, "download"};
     const TorrentOpenRequest magnet{8, infoHash,

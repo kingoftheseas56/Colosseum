@@ -1,0 +1,10 @@
+P08-T3 TDD RED — 2026-09-15
+
+Command:
+pwsh -NoProfile -File artifacts/server1/P08/P08-T2/run_contract.ps1 -BuildDir artifacts/server1/P08/P08-T3-red-build
+
+Exit: 1 during positive consumer compilation.
+First diagnostic:
+test_torrent_transport_contract.cpp(142): error C2653: 'AvailablePiecesObservation': is not a class or namespace name
+
+The consumer test named the required public type and its generation, peer, and vector fields before production declared it.

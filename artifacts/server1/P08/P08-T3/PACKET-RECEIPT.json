@@ -1,0 +1,16 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "P08",
+  "worker": "P08-T3",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-availability-20260915",
+  "base": "2e82d97f20399c7362fe4d204edd6643a4d13361",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/P08/P08-T3/PACKET-RECEIPT.json)",
+  "positive_compile_consumer": "PASS and executed",
+  "compile_fail_mutations": "15/15 PASS rejected",
+  "contract": "generation-bound peer full-availability snapshot; sorted and deduplicated; empty clears prior peer availability",
+  "scope": "TorrentTransport public header, public contract consumer, and new P08-T3 packet evidence only",
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; contract-authored; directly-compiled; mutation-tested"
+}

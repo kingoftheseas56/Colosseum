@@ -1,0 +1,16 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "2e82d97f20399c7362fe4d204edd6643a4d13361",
+  "blobs": {
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "3f9d5cc2eafe8e7557a83fac6e9d383ac7ecc6b9",
+    "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp": "1a07f4c56e67941e6a7c43d17960435125f860d1",
+    "artifacts/server1/P08/P08-T3/run_contract.ps1": "2d9c34e800e8cc673e3a4363856ec48b826d068c",
+    "artifacts/server1/P08/P08-T3/TDD-RED.txt": "969aa2e750044fa8e9e89d7e2b3af555acf91679",
+    "artifacts/server1/P08/P08-T3/TDD-GREEN.txt": "b3295b2d6cc6ca4cf0003ee3b502b844c2a1d609",
+    "artifacts/server1/P08/P08-T3/SOURCE-TRACE.md": "d8b6d2cf8732fbe565c09b02a3e680c8c63948f5",
+    "artifacts/server1/P08/P08-T3/TEST-COMMANDS.txt": "41f687ac321e443c263e988f11fed3d72fe2b555",
+    "artifacts/server1/P08/P08-T3/WIRING-REQUEST.json": "c7f748878ff5904d0ace593980e1a7afad26ca70",
+    "artifacts/server1/P08/P08-T3/PACKET-RECEIPT.json": "96ee4a0de26e59cba4b2c56963eaf61bbf5ef712"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file"
+}
