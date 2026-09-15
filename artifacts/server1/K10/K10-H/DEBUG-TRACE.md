@@ -24,9 +24,18 @@ connection replacement clear desired and applied state conservatively.
 
 The first pending-unchoke oracle mistook libtorrent's initial protocol UNCHOKE for the
 requested transition. The raw peer now waits for an explicit adapter CHOKE before submitting
-the held-window request. Because libtorrent may reject a request while wire-choked before the
-plugin callback, the test also replays the exact callback admission path for the current
-private connection identity. That replay makes removal of the applied gate deterministic;
-the raw peer independently proves CHOKE -> early REQUEST -> requested UNCHOKE -> retry order.
+the held-window request. The first repair used a synthetic callback replay because libtorrent
+might have rejected the request before the plugin. Independent review correctly required the
+live proof: the final test waits for the raw request to increment the callback-derived rejection
+counter before releasing dispatch, and uses distinct piece 1 after raw UNCHOKE so only the
+post-wire request can create ownership.
+
+The first repair still dequeued control actions outside the adapter mutex. A newer accepted
+choke could clear desired/applied state, yet the already-dequeued old unchoke would still call
+the native send function before declining to mark applied state. The final network-thread path
+waits at the test barrier, then locks and atomically validates current native identity plus
+desired state, calls `send_unchoke()`, and records applied state. Caller submission uses the same
+mutex, so either the unchoke send/applied update wins first or the newer choke wins and the stale
+wire send is skipped.
 
 [Agent 4 (Codex/Sol subagent), K10-H producer]

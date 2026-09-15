@@ -46,8 +46,8 @@ std::uint64_t staleCallbackIgnoredCount(const ports::TorrentTransport &);
 bool armReceiveCallbackBarrier(ports::TorrentTransport &, const std::string &, const std::string &);
 bool closeHasStarted(const ports::TorrentTransport &);
 bool holdUploadControlDispatch(ports::TorrentTransport &, bool);
-bool replayCurrentUploadRequest(ports::TorrentTransport &, ports::PeerHandle,
-                                const ports::BlockSpan &);
+bool armUploadControlPreSendBarrier(ports::TorrentTransport &, const std::string &,
+                                    const std::string &);
 ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &, const std::string &, std::uint16_t);
 }
 
@@ -1425,8 +1425,9 @@ void caseUploadPendingUnchoke(const fs::path &directory, int port)
         });
     });
     expect(!metadata.empty(), "K10-H pending metadata missing");
-    expect(transport->submit(AdvertisePieceAction{generation, 0}),
-           "K10-H pending advertisement rejected");
+    expect(transport->submit(AdvertisePieceAction{generation, 0})
+               && transport->submit(AdvertisePieceAction{generation, 1}),
+           "K10-H pending advertisements rejected");
     expect(transport->submit(ConnectAction{generation, peer, "127.0.0.1",
                                            static_cast<std::uint16_t>(port)}),
            "K10-H pending peer connect rejected");
@@ -1448,6 +1449,7 @@ void caseUploadPendingUnchoke(const fs::path &directory, int port)
            "K10-H pending dispatch hold rejected");
     expect(transport->submit(ChokeAction{peer, false}),
            "K10-H pending unchoke submission rejected");
+    const auto rejectedBeforeRaw = transport->statistics().uploadRequestsRejected;
     std::ofstream(directory / "pre-dispatch-request.trigger", std::ios::trunc).close();
 
     const auto preMarker = directory / "pre-wire-request.sent";
@@ -1455,15 +1457,20 @@ void caseUploadPendingUnchoke(const fs::path &directory, int port)
     while (std::chrono::steady_clock::now() < preDeadline && !fs::exists(preMarker))
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     expect(fs::exists(preMarker), "K10-H pending pre-wire request missing");
-    expect(server1::transport::replayCurrentUploadRequest(
-               *transport, peer, BlockSpan{0, 0, 0, 16384}),
-           "K10-H pre-dispatch request was not rejected");
     std::vector<TorrentObservation> beforeWire;
+    const auto callbackDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < callbackDeadline
+           && transport->statistics().uploadRequestsRejected == rejectedBeforeRaw) {
+        auto items = transport->poll();
+        beforeWire.insert(beforeWire.end(), std::make_move_iterator(items.begin()),
+                          std::make_move_iterator(items.end()));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     auto remaining = transport->poll();
     beforeWire.insert(beforeWire.end(), std::make_move_iterator(remaining.begin()),
                       std::make_move_iterator(remaining.end()));
-    expect(transport->statistics().uploadRequestsRejected >= 1,
-           "K10-H pre-dispatch rejection was not recorded");
+    expect(transport->statistics().uploadRequestsRejected > rejectedBeforeRaw,
+           "K10-H raw pre-wire request callback was not rejected");
     expect(std::none_of(beforeWire.begin(), beforeWire.end(), [](const auto &item) {
                return std::holds_alternative<UploadRequestObservation>(item);
            }), "K10-H pending unchoke admitted ownership before wire dispatch");
@@ -1480,7 +1487,8 @@ void caseUploadPendingUnchoke(const fs::path &directory, int port)
     });
     expect(request != afterWire.end(), "K10-H post-wire retry was not admitted");
     const auto upload = std::get<UploadRequestObservation>(*request);
-    expect(upload.ownership.requestId != 0 && upload.ownership.generation == generation,
+    expect(upload.ownership.requestId != 0 && upload.ownership.generation == generation
+               && upload.block.piece == 1 && upload.block.offset == 0,
            "K10-H post-wire retry ownership invalid");
     expect(transport->submit(UploadAbortAction{upload.ownership, peer, upload.block}),
            "K10-H pending-case abort rejected");
@@ -1492,8 +1500,55 @@ void caseUploadPendingUnchoke(const fs::path &directory, int port)
     expect(stats.uploadRequestsRejected >= 1 && stats.uploadRequestsAccepted == 1
                && stats.uploadRequestsAborted == 1 && stats.ownedUploadsOutstanding == 0,
            "K10-H pending unchoke accounting mismatch");
+
+    expect(transport->submit(ChokeAction{peer, true}),
+           "K10-H race precondition choke rejected");
+    const auto raceChoked = directory / "race-choke.observed";
+    const auto raceChokeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < raceChokeDeadline && !fs::exists(raceChoked))
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(fs::exists(raceChoked), "K10-H race precondition wire choke missing");
+
+    const auto dequeued = directory / "unchoke-dequeued.entered";
+    const auto release = directory / "unchoke-dequeued.release";
+    expect(server1::transport::armUploadControlPreSendBarrier(
+               *transport, dequeued.string(), release.string()),
+           "K10-H unchoke pre-send barrier rejected");
+    expect(transport->submit(ChokeAction{peer, false}),
+           "K10-H raced unchoke submission rejected");
+    const auto dequeueDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < dequeueDeadline && !fs::exists(dequeued))
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(fs::exists(dequeued), "K10-H unchoke was not dequeued into pre-send barrier");
+    expect(transport->submit(ChokeAction{peer, true}),
+           "K10-H newer choke submission rejected");
+
+    const auto monitorTrigger = directory / "race-monitor.trigger";
+    const auto monitorReady = directory / "race-monitor.ready";
+    std::ofstream(monitorTrigger, std::ios::trunc).close();
+    const auto monitorDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < monitorDeadline && !fs::exists(monitorReady))
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(fs::exists(monitorReady), "K10-H raw stale-unchoke monitor missing");
+    std::ofstream(release, std::ios::trunc).close();
+
+    const auto monitorComplete = directory / "race-monitor.complete";
+    const auto completeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < completeDeadline && !fs::exists(monitorComplete))
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(fs::exists(monitorComplete), "K10-H stale-unchoke monitor did not complete");
+    expect(!fs::exists(directory / "stale-unchoke.observed"),
+           "K10-H stale dequeued unchoke reached the wire after newer choke");
+    const auto raceObservations = transport->poll();
+    expect(std::none_of(raceObservations.begin(), raceObservations.end(), [](const auto &item) {
+               return std::holds_alternative<UploadRequestObservation>(item);
+           }), "K10-H stale unchoke race admitted upload ownership");
+    expect(transport->statistics().uploadRequestsAccepted == 1
+               && transport->statistics().ownedUploadsOutstanding == 0,
+           "K10-H stale unchoke race changed upload ownership accounting");
     transport->close();
-    std::cout << "K10-H PENDING-UNCHOKE PASS pre_wire=rejected post_wire=admitted"
+    std::cout << "K10-H PENDING-UNCHOKE PASS raw_pre_wire=rejected"
+              << " post_wire_piece=1 admitted stale_dequeued_unchoke=skipped"
               << " caller_native_calls=0\n";
 }
 }

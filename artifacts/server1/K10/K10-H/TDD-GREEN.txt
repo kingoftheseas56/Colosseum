@@ -10,16 +10,22 @@ Live raw-wire scenarios: 4/4 PASS, followed by three consecutive full-run repeat
   and emitted zero PIECE frames.
 - Lifecycle: choke, detach, and close each terminalized once; stale mailbox and late
   actions were rejected; no terminal race emitted a PIECE frame.
-- Applied unchoke: the peer observed an explicit CHOKE, sent a request after caller-side
-  unchoke submission while network dispatch was held, and received no ownership. After
-  the network thread called send_unchoke and the peer observed raw UNCHOKE, the retry was
-  admitted with one new nonzero ownership. No caller-thread native call occurred.
+- Applied unchoke: the peer observed an explicit CHOKE, sent piece 0 after caller-side
+  unchoke submission while network dispatch was held, and the real plugin callback
+  incremented `uploadRequestsRejected` without ownership. After the network thread called
+  send_unchoke and the peer observed raw UNCHOKE, distinct piece 1 alone was admitted with
+  one new nonzero ownership. No synthetic callback replay or caller-thread native call occurred.
+- Control linearization: a second unchoke was dequeued into a deterministic pre-send barrier;
+  a newer caller choke was accepted before release. The stale unchoke was skipped, no raw
+  UNCHOKE appeared, and upload ownership/accounting did not change.
 
-Behavioral production mutations: 7/7 rejected on exact intended signals, including removal
-of the applied-unchoke admission gate.
+Behavioral production mutations: 9/9 rejected on exact intended signals, including removal
+of the applied-unchoke admission gate, pre-send desired-state check, and raw callback rejection
+accounting.
 Fresh full Release build: 77/77 steps.
 Fresh aggregate CTest: 64/64 PASS.
 K10/E/G/H native inventory: 19/19 PASS.
+K10-F real-wire availability: 2/2 consecutive PASS.
 P08-T5 compile mutations: 19/19 rejected.
 Legacy P08/T4 compile mutations: 19/19 rejected.
 INT-W3 spine combined-link: PASS.

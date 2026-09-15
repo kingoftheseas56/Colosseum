@@ -29,7 +29,13 @@ $mutations = @(
     @{ Name='payload-accounting'; Pattern='\s+stats_\.uploadPayloadBytesFramed \+= value\.payload\.size\(\);';
        Replacement=''; Signal='upload feasibility accounting mismatch' },
     @{ Name='applied-unchoke-gate'; Pattern=' \|\| locallyUnchoked_\.count\(peer\) == 0';
-       Replacement=''; Signal='pending unchoke admitted ownership before wire dispatch' }
+       Replacement=''; Signal='raw pre-wire request callback was not rejected' },
+    @{ Name='pre-send-desired-linearization';
+       Pattern='\s+\|\| desiredLocallyUnchoked_\.count\(peer\) == 0';
+       Replacement=''; Signal='stale dequeued unchoke reached the wire after newer choke' },
+    @{ Name='raw-upload-rejection-accounting';
+       Pattern='\s+\+\+stats_\.uploadRequestsRejected;';
+       Replacement=''; Signal='raw pre-wire request callback was not rejected' }
 )
 
 foreach ($mutation in $mutations) {

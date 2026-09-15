@@ -39,10 +39,20 @@ try {
     $trigger = Join-Path $pending 'pre-dispatch-request.trigger'
     $chokedMarker = Join-Path $pending 'explicit-choke.observed'
     $preMarker = Join-Path $pending 'pre-wire-request.sent'
+    $raceChokedMarker = Join-Path $pending 'race-choke.observed'
+    $raceMonitorTrigger = Join-Path $pending 'race-monitor.trigger'
+    $raceMonitorReady = Join-Path $pending 'race-monitor.ready'
+    $raceCompleteMarker = Join-Path $pending 'race-monitor.complete'
+    $staleUnchokeMarker = Join-Path $pending 'stale-unchoke.observed'
     $pendingPeer = Start-Process python -ArgumentList @(
         (Join-Path $PSScriptRoot 'upload_pending_peer.py'), '--port', '0', '--info-hash', $hash,
         '--log', $pendingWire, '--trigger', $trigger,
-        '--choked-marker', $chokedMarker, '--pre-marker', $preMarker) -PassThru -WindowStyle Hidden
+        '--choked-marker', $chokedMarker, '--pre-marker', $preMarker,
+        '--race-choked-marker', $raceChokedMarker,
+        '--race-monitor-trigger', $raceMonitorTrigger,
+        '--race-monitor-ready', $raceMonitorReady,
+        '--race-complete-marker', $raceCompleteMarker,
+        '--stale-unchoke-marker', $staleUnchokeMarker) -PassThru -WindowStyle Hidden
     $peers += $pendingPeer
     $deadline = (Get-Date).AddSeconds(5)
     while ((Get-Date) -lt $deadline -and -not ((Test-Path $pendingWire) -and
@@ -59,9 +69,11 @@ try {
     $chokeIndex = [Array]::IndexOf($pendingLines, 'CHOKE_RECEIVED')
     $preIndex = [Array]::IndexOf($pendingLines, 'PRE_WIRE_REQUEST_SENT piece=0 offset=0 length=16384')
     $unchokeIndex = [Array]::IndexOf($pendingLines, 'UNCHOKE_RECEIVED')
-    $retryIndex = [Array]::IndexOf($pendingLines, 'POST_WIRE_RETRY_SENT piece=0 offset=0 length=16384')
+    $retryIndex = [Array]::IndexOf($pendingLines, 'POST_WIRE_RETRY_SENT piece=1 offset=0 length=16384')
+    $raceChokeIndex = [Array]::IndexOf($pendingLines, 'RACE_CHOKE_RECEIVED')
     if ($chokeIndex -lt 0 -or $preIndex -le $chokeIndex -or $unchokeIndex -le $preIndex `
-        -or $retryIndex -le $unchokeIndex `
+        -or $retryIndex -le $unchokeIndex -or $raceChokeIndex -le $retryIndex `
+        -or (@(Select-String -LiteralPath $pendingWire -Pattern '^STALE_UNCHOKE').Count -ne 0) `
         -or (@(Select-String -LiteralPath $pendingWire -Pattern '^UNEXPECTED_PIECE').Count -ne 0)) {
         throw 'K10-H pending unchoke raw ordering mismatch'
     }

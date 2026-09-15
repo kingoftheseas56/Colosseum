@@ -20,4 +20,11 @@ local-unchoke set before the network thread called send_unchoke. A compiled beha
 mutation that removes the repaired applied-state gate still fails with `K10-H pending
 unchoke admitted ownership before wire dispatch`, proving the regression detects the defect.
 
+Review repair 2 RED at exact producer head 6dfb4838a5b7c2d326e46ba92cde7499f46555f5:
+after the unchoke action was dequeued and held immediately before its native send, a newer
+choke was accepted. Releasing the old code emitted a stale raw UNCHOKE and failed with
+`K10-H stale dequeued unchoke reached the wire after newer choke`. The first repair's
+synthetic callback replay was also removed; the live test now waits for the raw piece-0
+request's callback-derived rejection counter before allowing network dispatch.
+
 [Agent 4 (Codex/Sol subagent), K10-H producer]

@@ -532,22 +532,13 @@ public:
         return true;
     }
 
-    bool replayCurrentUploadRequest(PeerHandle peer, const BlockSpan &block)
+    bool armUploadControlPreSendBarrier(std::string entered, std::string release)
     {
-        ConnectionIdentity identity = 0;
-        std::uint64_t rejected = 0;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            const auto found = peerIdentities_.find(peer);
-            if (found == peerIdentities_.end()) return false;
-            identity = found->second;
-            rejected = stats_.uploadRequestsRejected;
-        }
-        uploadRequest(peer, identity,
-                      {lt::piece_index_t(static_cast<int>(block.piece)),
-                       static_cast<int>(block.offset), static_cast<int>(block.length)});
         std::lock_guard<std::mutex> lock(mutex_);
-        return stats_.uploadRequestsRejected > rejected;
+        if (closed_ || entered.empty() || release.empty()) return false;
+        uploadControlPreSendEntered_ = std::move(entered);
+        uploadControlPreSendRelease_ = std::move(release);
+        return true;
     }
 
     PeerHandle endpointOwner(const std::string &address, std::uint16_t port) const
@@ -934,14 +925,33 @@ private:
                     std::lock_guard<std::mutex> lock(mutex_);
                     if (isCurrentNativeLocked(peer, native)) locallyUnchoked_.erase(peer);
                 } else {
-                    native->send_unchoke();
+                    waitUploadControlPreSendBarrier();
                     std::lock_guard<std::mutex> lock(mutex_);
-                    if (!closed_ && isCurrentNativeLocked(peer, native)
-                        && desiredLocallyUnchoked_.count(peer) != 0)
-                        locallyUnchoked_.insert(peer);
+                    if (closed_ || !isCurrentNativeLocked(peer, native)
+                        || desiredLocallyUnchoked_.count(peer) == 0) continue;
+                    native->send_unchoke();
+                    locallyUnchoked_.insert(peer);
                 }
             }
         }
+    }
+
+    void waitUploadControlPreSendBarrier()
+    {
+        std::string entered;
+        std::string release;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            entered = std::move(uploadControlPreSendEntered_);
+            release = std::move(uploadControlPreSendRelease_);
+            uploadControlPreSendEntered_.clear();
+            uploadControlPreSendRelease_.clear();
+        }
+        if (entered.empty()) return;
+        std::ofstream(entered, std::ios::trunc).close();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (!std::filesystem::exists(release) && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     bool isCurrentNativeLocked(PeerHandle peer,
@@ -1304,6 +1314,7 @@ private:
     std::deque<TorrentObservation> observations_;
     TransportStatistics stats_{};
     std::string receiveBarrierEntered_, receiveBarrierRelease_;
+    std::string uploadControlPreSendEntered_, uploadControlPreSendRelease_;
 };
 }
 
@@ -1413,11 +1424,12 @@ bool holdUploadControlDispatch(ports::TorrentTransport &transport, bool held)
     return adapter && adapter->holdUploadControl(held);
 }
 
-bool replayCurrentUploadRequest(ports::TorrentTransport &transport, ports::PeerHandle peer,
-                                const ports::BlockSpan &block)
+bool armUploadControlPreSendBarrier(ports::TorrentTransport &transport,
+                                    const std::string &entered,
+                                    const std::string &release)
 {
     auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
-    return adapter && adapter->replayCurrentUploadRequest(peer, block);
+    return adapter && adapter->armUploadControlPreSendBarrier(entered, release);
 }
 
 ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &transport,
