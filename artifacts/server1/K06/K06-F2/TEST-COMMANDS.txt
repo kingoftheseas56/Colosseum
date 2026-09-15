@@ -6,6 +6,11 @@ Focused and legacy gates:
 ctest --test-dir <scratch>/k06f2 -R "^K06-F2-persistent-store$" --repeat until-fail:3 --output-on-failure
 ctest --test-dir <scratch>/k06f2 -R "^K06-0[1-3]-persistent-store$" --output-on-failure
 ctest --test-dir <scratch>/k06f2 -L K06 --output-on-failure
+ctest --test-dir <scratch>/k06f2 -L K03 --output-on-failure
+
+Exact isolated mutation gate in an x64 Visual Studio environment:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File artifacts/server1/K06/K06-F2/run_mutations.ps1 -ScratchRoot <scratch>
+Expected: K06_F2_MUTATIONS_OK 8/8, exit 0. Each mutant build exits 0 and its focused CTest exits 8 with the exact named assertion.
 
 Full aggregate:
 cmake --build <scratch>/k06f2 --parallel 1

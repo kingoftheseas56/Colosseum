@@ -1,0 +1,35 @@
+K06-F2 executable mutation result
+
+Command in an x64 Visual Studio environment:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File artifacts/server1/K06/K06-F2/run_mutations.ps1 -ScratchRoot <scratch>
+
+Runner result: exit 0; K06_F2_MUTATIONS_OK 8/8.
+
+M01 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: valid persisted first piece restores verified and committed only
+
+M02 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: short physical destination invalidates persisted true bit
+
+M03 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: physical bytes never promote a persisted false bit
+
+M04 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: valid persisted first piece restores verified and committed only
+
+M05 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: missing-destination invalidation is persisted
+
+M06 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: logical destination gap invalidates persisted true bit
+
+M07 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: staged bytes remain the memory-first read source
+
+M08 build_exit=0 test_exit=8 expected_match=True rejected=True
+Raw: K06 FAIL: bitmap persistence reports destination-open failure
+
+For every control CTest also reported:
+0% tests passed, 1 tests failed out of 1
+The runner preserves complete raw configure, build, and CTest logs beneath its
+reported unique scratch run directory. Paths are omitted from this tracked copy.

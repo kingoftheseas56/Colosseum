@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -365,6 +366,45 @@ void caseK06_F2(const std::filesystem::path &root)
     staged.stage(0, bytes("abcd"));
     require(staged.read(0).value() == bytes("abcd"),
             "staged bytes remain the memory-first read source");
+
+    const auto blockedPath = caseRoot / "bitmap-open-failure";
+    std::filesystem::create_directories(blockedPath);
+    bool directPersistFailed = false;
+    try {
+        server1::policy::VerificationBitmap blocked(1, blockedPath);
+        blocked.set(0, true);
+        blocked.persist();
+    } catch (const std::exception &) {
+        directPersistFailed = true;
+    }
+    require(directPersistFailed,
+            "bitmap persistence reports destination-open failure");
+
+    const auto deniedRoot = caseRoot / "denied-bitmap-repair";
+    seedBitmap(deniedRoot, 1, {0});
+    const auto deniedBitmap = deniedRoot / ".verification-bitmap";
+    const auto originalPermissions = std::filesystem::status(deniedBitmap).permissions();
+    std::filesystem::permissions(deniedBitmap,
+        std::filesystem::perms::owner_write
+            | std::filesystem::perms::group_write
+            | std::filesystem::perms::others_write,
+        std::filesystem::perm_options::remove);
+    std::optional<PersistentPieceStore> escaped;
+    bool repairFailed = false;
+    try {
+        escaped.emplace(deniedRoot, 4, 4, 4,
+            std::vector<StoreFile>{{0, 4}},
+            std::vector<std::string>{"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+    } catch (const std::exception &) {
+        repairFailed = true;
+    }
+    std::filesystem::permissions(deniedBitmap, originalPermissions,
+                                 std::filesystem::perm_options::replace);
+    require(repairFailed && !escaped.has_value(),
+            "failed stale-bit repair prevents committed store exposure");
+    server1::policy::VerificationBitmap deniedPersisted(1, deniedBitmap);
+    require(deniedPersisted.get(0),
+            "failed stale-bit repair does not masquerade as a durable clear");
 
     std::cout << "K06-F2 PASS\n";
 }

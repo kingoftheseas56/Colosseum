@@ -1,0 +1,12 @@
+diff --git a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+--- a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
++++ b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+@@ -97,8 +97,5 @@ std::optional<ByteBuffer> PersistentPieceStore::read(std::size_t piece, std::string *error) const
+             *error = "piece index out of range";
+         return std::nullopt;
+     }
+-    if (staged_[piece].has_value())
+-        return staged_[piece];
+-
+     const auto length = pieceSize(piece);
+     ByteBuffer result(length, 0);

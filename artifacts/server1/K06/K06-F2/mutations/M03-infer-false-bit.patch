@@ -1,0 +1,11 @@
+diff --git a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+--- a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
++++ b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+@@ -44,7 +44,5 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
+     verificationBitmap_.emplace(count, root_ / ".verification-bitmap");
+     bool invalidated = false;
+     for (std::size_t piece = 0; piece < count; ++piece) {
+-        if (!verificationBitmap_->get(piece))
+-            continue;
+         const auto byteStart = piece * pieceLength_;
+         const auto byteEnd = byteStart + pieceSize(piece);

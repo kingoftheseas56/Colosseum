@@ -1,0 +1,14 @@
+K06-F2 review-repair TDD RED
+
+Command:
+cmake --build <scratch>/k06f2 --target server1_k06_persistent_store_test --parallel 1
+ctest --test-dir <scratch>/k06f2 -R "^K06-F2-persistent-store$" --output-on-failure
+
+Build result: exit 0.
+CTest result: exit 1.
+Raw failure:
+1/1 Test #26: K06-F2-persistent-store ..........***Failed
+K06 FAIL: bitmap persistence reports destination-open failure
+0% tests passed, 1 tests failed out of 1
+
+The test existed and failed before `VerificationBitmap.cpp` changed.

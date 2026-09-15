@@ -1,0 +1,10 @@
+diff --git a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+--- a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
++++ b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+@@ -78,6 +78,4 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
+         verified_[piece] = true;
+         committed_[piece] = true;
+     }
+-    if (invalidated)
+-        verificationBitmap_->persist();
+ }

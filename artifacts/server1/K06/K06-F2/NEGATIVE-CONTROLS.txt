@@ -1,8 +1,10 @@
 K06-F2 behavioral mutation controls
 
-Each mutation was applied alone to the production implementation, the focused
-K06-F2 binary was rebuilt, the named assertion failed, and the candidate was
-restored before the next mutation.
+Each tracked patch under `mutations/` is applied alone by `run_mutations.ps1`
+to an isolated Git archive plus candidate overlay. The runner rebuilds the real
+K06 binary, requires a nonzero focused CTest result containing the named
+assertion, reverses the patch, and preserves raw build/CTest logs in its unique
+scratch run directory.
 
 1. Omit restored committed=true.
    Rejected: valid persisted first piece restores verified and committed only.
@@ -25,5 +27,9 @@ restored before the next mutation.
 7. Skip the staged memory-first read branch.
    Rejected: staged bytes remain the memory-first read source.
 
-Result: 7/7 meaningful behavioral mutations rejected. The production candidate
-was restored and then passed the focused and aggregate gates.
+8. Restore the former silent bitmap persistence implementation by removing its
+   open, write, and flush failure reporting.
+   Rejected: bitmap persistence reports destination-open failure.
+
+Result: 8/8 exact, reproducible behavioral mutations rejected. See
+`MUTATION-RESULTS.txt` for commands, exit codes, and raw failure excerpts.

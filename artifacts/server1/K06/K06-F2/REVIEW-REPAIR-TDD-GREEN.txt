@@ -1,0 +1,15 @@
+K06-F2 review-repair TDD GREEN
+
+`VerificationBitmap::persist()` now checks destination open, complete write, and
+flush state, throwing on each failure. The public signature is unchanged.
+
+Deterministic failure paths:
+
+- A directory used as the bitmap destination forces an open failure and throws.
+- On Windows, a stale true bitmap is made read-only while its destination bytes
+  are absent. Constructor invalidation cannot persist, construction throws, the
+  optional store remains disengaged, and reopening the bitmap still observes
+  the stale true bit instead of a false durability claim.
+
+Focused result after production repair: K06-F2 passed, exit 0.
+Final focused stability: 3/3 consecutive K06-F2 executions passed.

@@ -1,0 +1,11 @@
+diff --git a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+--- a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
++++ b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+@@ -73,6 +73,7 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
+             invalidated = true;
+             continue;
+         }
++        assembled_[piece] = true;
+         verified_[piece] = true;
+         committed_[piece] = true;
+     }

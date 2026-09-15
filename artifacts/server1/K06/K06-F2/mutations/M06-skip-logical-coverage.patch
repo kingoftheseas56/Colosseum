@@ -1,0 +1,12 @@
+diff --git a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+--- a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
++++ b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+@@ -68,7 +68,7 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
+                 break;
+             covered = std::max(covered, end);
+         }
+-        if (!physicalCoverage || covered != pieceSize(piece)) {
++        if (!physicalCoverage) {
+             verificationBitmap_->set(piece, false);
+             invalidated = true;
+             continue;

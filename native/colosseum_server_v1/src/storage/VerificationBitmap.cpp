@@ -41,8 +41,15 @@ void VerificationBitmap::persist() const
     if (!persistPath_.parent_path().empty())
         std::filesystem::create_directories(persistPath_.parent_path());
     std::ofstream output(persistPath_, std::ios::binary | std::ios::trunc);
+    if (!output.is_open())
+        throw std::runtime_error("verification bitmap open failed: " + persistPath_.string());
     for (const bool bit : bits_)
         output.put(bit ? '\1' : '\0');
+    if (!output)
+        throw std::runtime_error("verification bitmap write failed: " + persistPath_.string());
+    output.flush();
+    if (!output)
+        throw std::runtime_error("verification bitmap flush failed: " + persistPath_.string());
 }
 
 void VerificationBitmap::invalidateMissing(const std::vector<bool> &filePresent)

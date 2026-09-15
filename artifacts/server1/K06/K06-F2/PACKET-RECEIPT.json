@@ -7,9 +7,10 @@
   "base": "2dc47a3ed6b5650b6b971d972f19f425b1b057e8",
   "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K06/K06-F2/PACKET-RECEIPT.json)",
   "behavior": "persisted true bits restore verified and committed only after complete logical and physical coverage validation; invalid bits clear durably; false bits remain false; assembled remains false",
-  "production_scope": "native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp only; no public contract change",
-  "tests": "K06-F2 3/3 consecutive; legacy K06 3/3; combined K06 4/4; full aggregate 61/61; mutations 7/7 rejected",
+  "production_scope": "PersistentPieceStore.cpp plus bounded VerificationBitmap.cpp failure-reporting repair; no public contract change",
+  "review_repair": "bitmap open/write/flush failures throw; failed constructor invalidation exposes no store; exact mutation runner added",
+  "tests": "K06-F2 3/3 consecutive; K03 3/3; legacy K06 3/3; combined K06 4/4; full aggregate 61/61; exact mutations 8/8 rejected",
   "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
-  "review": "producer self-review APPROVE; independent Sol review and Agent 4 acceptance pending",
+  "review": "REQUEST-CHANGES repaired additively; producer self-review APPROVE; independent Sol re-review and Agent 4 acceptance pending",
   "status": "test-authored; red-observed; production-authored; compiled; test-reported; integration pending"
 }

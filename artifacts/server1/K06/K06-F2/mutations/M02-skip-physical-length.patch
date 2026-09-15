@@ -1,0 +1,11 @@
+diff --git a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+--- a/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
++++ b/native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp
+@@ -58,6 +58,5 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
+                 const auto size = std::filesystem::file_size(destination(fileIndex), sizeError);
+                 physicalCoverage = physicalCoverage
+-                    && !sizeError
+-                    && size >= end - file.offset;
++                    && !sizeError;
+             }
+         }
