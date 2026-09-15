@@ -1,11 +1,16 @@
 P08-T5 GREEN observed on 2026-09-15.
 
 - Positive C++17/MSVC public consumer: PASS and executed.
-- P08-T5 compile-fail mutations: 17/17 rejected.
-- Semantic clauses: 35/35 present.
-- Semantic clause mutations: 35/35 rejected.
+- P08-T5 compile-fail mutations: 19/19 rejected.
+- Semantic clauses: 60/60 present.
+- Semantic clause mutations: 60/60 rejected.
 - Legacy P08 contract mutations: 19/19 rejected; both positive consumers executed.
 - Public-path guard: PASS after staging the candidate.
+
+Review repair removed the unconditional wire-reject claim and its frame counter.
+Abort is local terminalization. Queued response/abort rejection and framed
+payload bytes now have separate truthful cumulative counters. Caps count only
+live ownership records within one generation.
 
 The wider K10 library is intentionally RED at this contract-only boundary. Its
 generic action visitor assumes every non-pause action has `peer`; the newly

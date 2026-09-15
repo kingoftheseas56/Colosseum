@@ -14,6 +14,9 @@
 namespace server1::ports {
 
 inline constexpr std::uint32_t kWireBlockLength = 16384;
+// These admission caps count only live upload ownership records within one
+// open transport generation. Both limits reset on generation replacement.
+// They do not bound queued payload bytes or native send-buffer backlog.
 inline constexpr std::uint32_t kMaxOutstandingUploadsPerPeer = 4;
 inline constexpr std::uint32_t kMaxOutstandingUploadsGlobal = 20;
 using PeerHandle = std::uint64_t;
@@ -128,13 +131,23 @@ struct PauseAction final {
 // upstream commit assertion only: it asserts an upstream commit; it does not read or verify storage.
 // The advertised set is monotonic and idempotent within that generation and is
 // replayed to every newly attached peer. Generation replacement clears it.
+// A syntactically invalid, out-of-bounds, or stale-generation advertisement is
+// rejected synchronously and increments uploadActionsRejected.
 struct AdvertisePieceAction final {
     EngineGeneration generation = 0;
     std::uint32_t piece = 0;
 };
 
+// submit() synchronously rejects a syntactically invalid response or abort, or
+// one that does not match exact live ownership, and increments uploadActionsRejected.
+// An accepted response or abort only enters the caller mailbox. Network tick
+// revalidates it; if it has become stale or invalid, uploadActionsRejected is
+// incremented and no peer write is allowed.
+//
 // A response must match exact peer, block, and generation ownership and its
-// payload size exactly equals the owned BlockSpan length. K11 must call
+// payload size exactly equals the owned BlockSpan length. Copying its payload
+// into the native send buffer increments uploadResponsesFramed once and adds
+// exactly that payload length to uploadPayloadBytesFramed. K11 must call
 // PersistentPieceStore::isCommitted before reading persistent bytes. Circular-cache upload is forbidden.
 struct UploadResponseAction final {
     UploadOwnership ownership;
@@ -143,8 +156,10 @@ struct UploadResponseAction final {
     std::vector<std::uint8_t> payload;
 };
 
-// Abort rejects the exact still-live request. For one ownership record,
-// exactly one successful response or abort terminalizes the upload.
+// A valid UploadAbortAction always terminalizes its upload locally and increments
+// uploadRequestsAborted. No wire frame is required by this public contract.
+// For one ownership record, exactly one successful response or abort terminalizes
+// the upload.
 struct UploadAbortAction final {
     UploadOwnership ownership;
     PeerHandle peer = 0;
@@ -244,11 +259,15 @@ struct AvailablePiecesObservation final {
 };
 
 // The adapter accepts an inbound request only from a private live connection identity
-// whose peer is interested and locally unchoked. The requested block must be
-// aligned and no larger than kWireBlockLength, remain within the exact final-piece bounds,
-// and name a piece advertised as committed. on_request and on_cancel are intercepted and swallowed;
+// whose peer is interested and locally unchoked. The requested block offset must
+// be an exact multiple of kWireBlockLength, blockOrdinal * kWireBlockLength must
+// equal offset, and length must be from 1 through kWireBlockLength. A short final
+// block is valid only when it remains within the exact final-piece bounds, and
+// the request must name a piece advertised as committed. on_request and on_cancel are intercepted and swallowed;
 // they never enter libtorrent's default disk request queue. Duplicate requests for one live connection identity and BlockSpan
-// are suppressed. At most kMaxOutstandingUploadsPerPeer requests per peer and
+// are suppressed only while that ownership remains live. After terminalization,
+// a retry of the same block receives a new monotonic request identifier.
+// At most kMaxOutstandingUploadsPerPeer requests per peer and
 // kMaxOutstandingUploadsGlobal requests overall may be live. Rejected requests
 // do not allocate an identifier or emit this observation.
 struct UploadRequestObservation final {
@@ -289,19 +308,25 @@ struct TransportStatistics final {
     // Submit is a mailbox boundary: the caller thread only enqueues a mailbox command;
     // network tick performs all peer-connection writes. ownedUploadsOutstanding is a current gauge.
     // uploadRequestsAccepted counts observations enqueued.
-    // uploadRequestsRejected counts intercepted requests denied before observation.
+    // uploadRequestsRejected counts intercepted inbound requests denied before observation.
     // uploadResponsesFramed counts full piece frames handed to a live connection.
+    // uploadPayloadBytesFramed counts only payload bytes copied into the native send buffer.
     // uploadRequestsCancelled counts cancel observations enqueued.
-    // uploadAbortsFramed counts reject frames handed to a live connection.
-    // All five upload counters are cumulative event counters.
+    // uploadRequestsAborted counts valid actions that terminalize locally.
+    // uploadActionsRejected counts synchronous rejection of any upload action and
+    // accepted response/abort mailbox actions rejected by network-tick revalidation
+    // before any peer write. It is distinct from inbound uploadRequestsRejected.
+    // All seven upload counters are cumulative event counters.
     // uploadedBytes and uploadBytesPerSecond remain native libtorrent measurements and
     // must not be synthesized from upload actions or payload sizes.
     std::uint32_t ownedUploadsOutstanding = 0;
     std::uint64_t uploadRequestsAccepted = 0;
     std::uint64_t uploadRequestsRejected = 0;
     std::uint64_t uploadResponsesFramed = 0;
+    std::uint64_t uploadPayloadBytesFramed = 0;
     std::uint64_t uploadRequestsCancelled = 0;
-    std::uint64_t uploadAbortsFramed = 0;
+    std::uint64_t uploadRequestsAborted = 0;
+    std::uint64_t uploadActionsRejected = 0;
 };
 
 class TorrentTransport {

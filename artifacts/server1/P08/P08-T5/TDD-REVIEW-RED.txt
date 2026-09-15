@@ -1,0 +1,12 @@
+P08-T5 review RED observed on 2026-09-15 at 92ba8a977da0be22cbe299e389207b20c658632b.
+
+After the repaired consumer requested the review-mandated statistics, the first
+failures were:
+
+contract_consumer.cpp(139): error C2039: 'uploadActionsRejected': is not a member of 'server1::ports::TransportStatistics'
+contract_consumer.cpp(140): error C2039: 'uploadPayloadBytesFramed': is not a member of 'server1::ports::TransportStatistics'
+contract_consumer.cpp(141): error C2039: 'uploadRequestsAborted': is not a member of 'server1::ports::TransportStatistics'
+
+The reviewed header instead exposed `uploadAbortsFramed`, which made an
+unsupported unconditional wire-frame claim and did not expose accepted-mailbox
+rejection or custom framed-payload bytes.

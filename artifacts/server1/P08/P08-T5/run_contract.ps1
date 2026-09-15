@@ -40,7 +40,9 @@ $mutations = @(
     'P08_T5_NEGATE_REJECTED_STAT',
     'P08_T5_NEGATE_RESPONSE_STAT',
     'P08_T5_NEGATE_CANCEL_STAT',
-    'P08_T5_NEGATE_ABORT_STAT'
+    'P08_T5_NEGATE_ACTION_REJECTED_STAT',
+    'P08_T5_NEGATE_PAYLOAD_BYTES_STAT',
+    'P08_T5_NEGATE_ABORTED_STAT'
 )
 foreach ($mutation in $mutations) {
     $object = Join-Path $BuildDir ($mutation + '.obj')

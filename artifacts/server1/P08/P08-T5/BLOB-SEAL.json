@@ -2,19 +2,21 @@
   "schema": "colosseum-server1-blob-seal/v1",
   "base": "9668b5aa9e441ebf9493a8212b0c4ba65a3c0e06",
   "blobs": {
-    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "58dd15d9db41111008258654a90eae0542cb2f81",
-    "artifacts/server1/P08/P08-T5/contract_consumer.cpp": "d5824424c0478f0ccc9996633053f68b9923d9b6",
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "11ebfd13fc04cebc3c89969461941ecd90daac07",
+    "artifacts/server1/P08/P08-T5/contract_consumer.cpp": "dbbc19c08c51a03091007194f0c50d95a2d9f620",
     "artifacts/server1/P08/P08-T5/legacy_pause_consumer.cpp": "f48be7221c7d1e7bc52a5c7d804b9e271379a5d5",
-    "artifacts/server1/P08/P08-T5/run_contract.ps1": "437870f53552e2cdf9cf2f88a48a79585741a05f",
+    "artifacts/server1/P08/P08-T5/run_contract.ps1": "04ad76113a3948918df12162ce522c2b19205a11",
     "artifacts/server1/P08/P08-T5/run_legacy_contract.ps1": "ddfe0c24467a27ba9c3ccbc316abbda03cdfaa90",
-    "artifacts/server1/P08/P08-T5/verify_semantics.py": "4d6c50e83b7a874b9e2eae1cc95494408a000926",
+    "artifacts/server1/P08/P08-T5/verify_semantics.py": "d786507e4d01d0660c945495dc8a9258c3787f14",
     "artifacts/server1/P08/P08-T5/TDD-RED.txt": "51ad40d2fb89e0a3203a17939e2fe1bfc58c7090",
-    "artifacts/server1/P08/P08-T5/TDD-GREEN.txt": "cd6d00ed6d87b950c494cccedb29d437088c868d",
+    "artifacts/server1/P08/P08-T5/TDD-REVIEW-RED.txt": "07a798387374ce5b5bfaad8b9d7d38fd21f7fcac",
+    "artifacts/server1/P08/P08-T5/TDD-GREEN.txt": "5475a4ef2f1b795c64185992e66c13cff11bbf89",
     "artifacts/server1/P08/P08-T5/AGGREGATE-EXPECTED-RED.txt": "d41de628bf2b6584f846b631227dcecda592958c",
-    "artifacts/server1/P08/P08-T5/SOURCE-TRACE.md": "feefe04c66c86d25e7930aa01e15761d8e97d7a2",
-    "artifacts/server1/P08/P08-T5/TEST-COMMANDS.txt": "49abe6f795ea0ab71c0ca83797a3d3b01bca8e75",
+    "artifacts/server1/P08/P08-T5/SOURCE-TRACE.md": "cf50a4ed4e64163812388ff2ff1cdbac0c0dc7e2",
+    "artifacts/server1/P08/P08-T5/REVIEW-REPAIR.md": "c61e8cceac2d5c8ac6bcbccd0d619120f0ff9a64",
+    "artifacts/server1/P08/P08-T5/TEST-COMMANDS.txt": "9cc064ade95a31caefc4ed9bd4a83525ac25fec9",
     "artifacts/server1/P08/P08-T5/WIRING-REQUEST.json": "a9fc0ace4b52dbc649df4fb75c9d57085bef171f",
-    "artifacts/server1/P08/P08-T5/PACKET-RECEIPT.json": "e5b34efc6a951f85945c8c58273acc3ee72bb4a7"
+    "artifacts/server1/P08/P08-T5/PACKET-RECEIPT.json": "794e5b57051ba738c3de7120a3e5b1288b916a71"
   },
   "verification": "git cat-file blob <hash> must reproduce each recorded file"
 }

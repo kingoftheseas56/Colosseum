@@ -30,8 +30,12 @@
 #define uploadResponsesFramed uploadResponsesFramed_removed
 #elif defined(P08_T5_NEGATE_CANCEL_STAT)
 #define uploadRequestsCancelled uploadRequestsCancelled_removed
-#elif defined(P08_T5_NEGATE_ABORT_STAT)
-#define uploadAbortsFramed uploadAbortsFramed_removed
+#elif defined(P08_T5_NEGATE_ACTION_REJECTED_STAT)
+#define uploadActionsRejected uploadActionsRejected_removed
+#elif defined(P08_T5_NEGATE_PAYLOAD_BYTES_STAT)
+#define uploadPayloadBytesFramed uploadPayloadBytesFramed_removed
+#elif defined(P08_T5_NEGATE_ABORTED_STAT)
+#define uploadRequestsAborted uploadRequestsAborted_removed
 #endif
 
 #include "server1/ports/TorrentTransport.h"
@@ -68,8 +72,12 @@
 #undef uploadResponsesFramed
 #elif defined(P08_T5_NEGATE_CANCEL_STAT)
 #undef uploadRequestsCancelled
-#elif defined(P08_T5_NEGATE_ABORT_STAT)
-#undef uploadAbortsFramed
+#elif defined(P08_T5_NEGATE_ACTION_REJECTED_STAT)
+#undef uploadActionsRejected
+#elif defined(P08_T5_NEGATE_PAYLOAD_BYTES_STAT)
+#undef uploadPayloadBytesFramed
+#elif defined(P08_T5_NEGATE_ABORTED_STAT)
+#undef uploadRequestsAborted
 #endif
 
 #include <cstdint>
@@ -128,7 +136,9 @@ static_assert(std::is_same_v<decltype(TransportStatistics::uploadRequestsAccepte
 static_assert(std::is_same_v<decltype(TransportStatistics::uploadRequestsRejected), std::uint64_t>);
 static_assert(std::is_same_v<decltype(TransportStatistics::uploadResponsesFramed), std::uint64_t>);
 static_assert(std::is_same_v<decltype(TransportStatistics::uploadRequestsCancelled), std::uint64_t>);
-static_assert(std::is_same_v<decltype(TransportStatistics::uploadAbortsFramed), std::uint64_t>);
+static_assert(std::is_same_v<decltype(TransportStatistics::uploadActionsRejected), std::uint64_t>);
+static_assert(std::is_same_v<decltype(TransportStatistics::uploadPayloadBytesFramed), std::uint64_t>);
+static_assert(std::is_same_v<decltype(TransportStatistics::uploadRequestsAborted), std::uint64_t>);
 
 int main()
 {
@@ -145,7 +155,9 @@ int main()
     stats.uploadRequestsRejected = 2;
     stats.uploadResponsesFramed = 3;
     stats.uploadRequestsCancelled = 4;
-    stats.uploadAbortsFramed = 5;
+    stats.uploadActionsRejected = 5;
+    stats.uploadPayloadBytesFramed = 6;
+    stats.uploadRequestsAborted = 7;
     return std::get<AdvertisePieceAction>(advertise).piece == 3
             && std::get<UploadResponseAction>(response).payload.size() == 73
             && std::get<UploadAbortAction>(abort).peer == 44
@@ -156,5 +168,7 @@ int main()
             && stats.uploadRequestsRejected == 2
             && stats.uploadResponsesFramed == 3
             && stats.uploadRequestsCancelled == 4
-            && stats.uploadAbortsFramed == 5 ? 0 : 1;
+            && stats.uploadActionsRejected == 5
+            && stats.uploadPayloadBytesFramed == 6
+            && stats.uploadRequestsAborted == 7 ? 0 : 1;
 }
