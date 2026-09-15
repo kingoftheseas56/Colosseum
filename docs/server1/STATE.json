@@ -215,6 +215,10 @@
     "READER-FAILURE-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 798a4ff2fe42f0f1d1c960dae6c32586920cd511. Public-path guard PASS, 21/21 committed blobs verified, contract consumer PASS, 6/6 signature and 25/25 semantic mutations rejected, K08-F2 three consecutive passes, K08 4/4, and fresh non-K10 aggregate 43/43. K08-F2-CONTRACT is accepted. B-W3E is not formed.",
     "K06-F2": "Accepted and integrated at 5ed2d73403c6d52cf0c3b3e98e561a4882e91492 after independent Sol REQUEST-CHANGES at 9820b621 and re-review APPROVE; durable restored commit state, invalidation persistence, and fail-closed bitmap repair passed three focused repetitions, K03 3/3, combined K06 4/4, and 8/8 mutations.",
     "STORE-RESTORE-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 5ed2d73403c6d52cf0c3b3e98e561a4882e91492. Public-path guard PASS, 26/26 committed blobs verified, K06-F2 three consecutive passes, K03 3/3, legacy K06 3/3, combined K06 4/4, 8/8 exact mutations rejected, and fresh aggregate 61/61. K06-F2-DURABLE-COMMIT is accepted. B-W3E is not formed.",
+    "P08-T4": "Accepted and integrated at 5260bc2a25e0eb1f7474488e2e2de9cab24da132 after independent Sol contract review APPROVE; its positive consumer passed, 4/4 compile-fail mutations and 10/10 semantic mutations were rejected.",
+    "K05-A2": "Accepted and integrated at 7659b37700711053df922a1e859a2dfbe0b64a7f after independent Sol review APPROVE; exact current-generation peer lifecycle counts passed focused K05 4/4 and 4/4 behavioral mutations.",
+    "K10-G": "Accepted and integrated at repaired head 9a7513cbb1aa4757a944b38e94d7c361496aa4d1 after independent Sol evidence REQUEST-CHANGES and re-review APPROVE; generation-safe transport pause passed focused K10-G 1/1 and 5/5 behavioral mutations.",
+    "PAUSE-PEER-COUNTS-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 9a7513cbb1aa4757a944b38e94d7c361496aa4d1. Public-path guard PASS, 49/49 committed blobs verified, contract and behavioral mutations rejected, K05 4/4, K10 10/10, K10-E 7/7, K10-F 1/1, K10-G 1/1, combined link PASS, and fresh aggregate 63/63. P08-T4-CONTRACT, G-TRANSPORT-PAUSE, and G-SWARM-COUNTS are accepted. B-W3E is not formed.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -270,6 +274,9 @@
       "K10-F": "integrated",
       "K08-F2": "integrated",
       "K06-F2": "integrated",
+      "P08-T4": "integrated",
+      "K05-A2": "integrated",
+      "K10-G": "integrated",
       "INT-W1": "integrated",
       "INT-W2": "integrated",
       "INT-W3": "integrated"
@@ -294,7 +301,10 @@
       "P08-T3-CONTRACT": "accepted",
       "G-PEER-AVAILABILITY": "accepted",
       "K08-F2-CONTRACT": "accepted",
-      "K06-F2-DURABLE-COMMIT": "accepted"
+      "K06-F2-DURABLE-COMMIT": "accepted",
+      "P08-T4-CONTRACT": "accepted",
+      "G-TRANSPORT-PAUSE": "accepted",
+      "G-SWARM-COUNTS": "accepted"
     },
     "releases": {
       "P05-A": "released",
@@ -321,6 +331,9 @@
       "K10-E": "c19c50682269467d4348ce620dab4d59e275e6df",
       "K08-F2": "798a4ff2fe42f0f1d1c960dae6c32586920cd511",
       "K06-F2": "5ed2d73403c6d52cf0c3b3e98e561a4882e91492",
+      "P08-T4": "5260bc2a25e0eb1f7474488e2e2de9cab24da132",
+      "K05-A2": "7659b37700711053df922a1e859a2dfbe0b64a7f",
+      "K10-G": "9a7513cbb1aa4757a944b38e94d7c361496aa4d1",
       "INT-W3": "fe28b51973a32385d472cac88f17853d26445c9a"
     },
     "integrated_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
@@ -566,5 +579,39 @@
     "receipt": "artifacts/server1/INT-W3/STORE-RESTORE-GATE.json",
     "B-W3E": "not formed; remains K11",
     "scope_note": "This acceptance supplies durable restored commit state and fail-closed bitmap repair for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
+  },
+  "slice3_pause_peer_counts_acceptance": {
+    "status": "accepted",
+    "reviewed_head": "9a7513cbb1aa4757a944b38e94d7c361496aa4d1",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integration_base": "a3ffdc257453e47b3ffcbe71dad57d0958fea872",
+    "inputs": {
+      "P08-T4": "5260bc2a25e0eb1f7474488e2e2de9cab24da132",
+      "K05-A2": [
+        "28199ef9053619196e446bfb6c1c345c6c73695e",
+        "7659b37700711053df922a1e859a2dfbe0b64a7f"
+      ],
+      "K10-G": [
+        "96d8a7494b8c6cb7119eb05cec7349794c789e99",
+        "9a7513cbb1aa4757a944b38e94d7c361496aa4d1"
+      ]
+    },
+    "review_lineage": "P08-T4 and K05-A2 received independent Sol APPROVE; K10-G received an evidence-truth REQUEST-CHANGES at 96d8a749 and independent re-review APPROVE at repaired head 9a7513cb.",
+    "agent4_fresh_verification": {
+      "public_path_guard": "PASS",
+      "committed_blob_hashes": "49/49 PASS",
+      "P08-T4_contract": "positive consumer PASS; 4/4 compile and 10/10 semantic mutations rejected",
+      "K05-A2_contract": "positive consumer PASS; 5/5 compile and 5/5 semantic mutations rejected",
+      "behavioral_mutations": "K05-A2 4/4 and K10-G 5/5 rejected",
+      "focused": "K05 4/4; K10 10/10; K10-E 7/7; K10-F 1/1; K10-G 1/1",
+      "combined_link": "PASS",
+      "aggregate": "fresh Release build; 63/63 PASS"
+    },
+    "accepted_gates": ["P08-T4-CONTRACT", "G-TRANSPORT-PAUSE", "G-SWARM-COUNTS"],
+    "integrated_workers": ["P08-T4", "K05-A2", "K10-G"],
+    "receipt": "artifacts/server1/INT-W3/PAUSE-PEER-COUNTS-GATE.json",
+    "B-W3E": "not formed; remains K11",
+    "scope_note": "This acceptance supplies generation-safe scheduler pause and exact current-generation swarm lifecycle counts for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
   }
 }

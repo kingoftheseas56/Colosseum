@@ -1,0 +1,73 @@
+{
+  "schema": "colosseum-server1-pause-peer-counts-gate/v1",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-pause-peercounts-20260915",
+  "base": "a3ffdc257453e47b3ffcbe71dad57d0958fea872",
+  "accepted_head": "9a7513cbb1aa4757a944b38e94d7c361496aa4d1",
+  "inputs": {
+    "P08-T4": "5260bc2a25e0eb1f7474488e2e2de9cab24da132",
+    "K05-A2": [
+      "28199ef9053619196e446bfb6c1c345c6c73695e",
+      "7659b37700711053df922a1e859a2dfbe0b64a7f"
+    ],
+    "K10-G": [
+      "96d8a7494b8c6cb7119eb05cec7349794c789e99",
+      "9a7513cbb1aa4757a944b38e94d7c361496aa4d1"
+    ]
+  },
+  "review_lineage": {
+    "P08-T4": "Independent Sol contract review APPROVE at 5260bc2a25e0eb1f7474488e2e2de9cab24da132",
+    "K05-A2": "Independent Sol production review APPROVE at 7659b37700711053df922a1e859a2dfbe0b64a7f",
+    "K10-G": "Independent Sol requested an evidence-truth repair at 96d8a7494b8c6cb7119eb05cec7349794c789e99; repaired head 9a7513cbb1aa4757a944b38e94d7c361496aa4d1 received independent Sol re-review APPROVE"
+  },
+  "accepted_gates": [
+    "P08-T4-CONTRACT",
+    "G-TRANSPORT-PAUSE",
+    "G-SWARM-COUNTS"
+  ],
+  "integrated_workers": [
+    "P08-T4",
+    "K05-A2",
+    "K10-G"
+  ],
+  "verification": {
+    "branch_and_remote": "PASS; local and origin review ref at 9a7513cbb1aa4757a944b38e94d7c361496aa4d1 before ledger commit",
+    "ancestry": "PASS; a3ffdc257453e47b3ffcbe71dad57d0958fea872 is an ancestor of 9a7513cbb1aa4757a944b38e94d7c361496aa4d1",
+    "candidate_cleanliness": "PASS; clean before ledger authoring and diff-check clean",
+    "committed_blob_seals": "PASS; P08-T4, K05-A2 contract and implementation, and K10-G are 49/49",
+    "public_path_guard": "PASS; four unittest cases and PUBLIC_PATH_GUARD_OK",
+    "P08-T4_contract": "PASS; positive consumer, 4/4 compile-fail mutations, and 10/10 semantic mutations",
+    "K05-A2_contract": "PASS; positive consumer, 5/5 compile-fail mutations, and 5/5 semantic mutations",
+    "K05-A2_behavior": "PASS; 4/4 behavioral mutations rejected and focused K05 4/4",
+    "K10-G_behavior": "PASS; 5/5 behavioral mutations rejected and focused K10-G 1/1",
+    "legacy_K10": "PASS; 10/10",
+    "K10-E": "PASS; 7/7",
+    "K10-F": "PASS; 1/1",
+    "combined_link": "PASS; INT-W3-spine-contracts-link 1/1",
+    "aggregate": "PASS; rebuilt Release inventory and 63/63 tests",
+    "forbidden_native_pause": "PASS; no torrent_handle::pause or native pause call"
+  },
+  "scope": {
+    "production": [
+      "native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h",
+      "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
+      "native/colosseum_server_v1/src/policy/SwarmPolicy.cpp",
+      "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp"
+    ],
+    "tests": [
+      "native/colosseum_server_v1/tests/test_swarm_metadata.cpp",
+      "native/colosseum_server_v1/tests/test_native_transport.cpp",
+      "native/colosseum_server_v1/tests/cmake/K05.cmake",
+      "native/colosseum_server_v1/tests/cmake/K10.cmake"
+    ],
+    "boundary": "This acceptance supplies generation-safe scheduler pause and exact current-generation swarm lifecycle counts for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness.",
+    "B-W3E": "not formed; remains K11"
+  },
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integrated_by": "[Agent 4 (Codex/Sol subagent), pause-counts integration]"
+  },
+  "status": "accepted-and-integrated"
+}
