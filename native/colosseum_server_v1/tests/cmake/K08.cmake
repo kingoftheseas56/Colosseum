@@ -9,7 +9,7 @@ function(server1_register_k08_tests)
   target_compile_options(server1_k08_file_reader_test PRIVATE
     "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
 
-  foreach(case_id IN ITEMS K08-01 K08-02 K08-03)
+  foreach(case_id IN ITEMS K08-01 K08-02 K08-03 K08-F2)
     add_test(NAME ${case_id}-file-reader
       COMMAND server1_k08_file_reader_test ${case_id})
     set_tests_properties(${case_id}-file-reader PROPERTIES

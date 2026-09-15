@@ -2,9 +2,12 @@
   "schema": "colosseum-server1-wiring-request/v1",
   "packet": "K08-F2",
   "requested_files": [
-    "native/colosseum_server_v1/include/server1/policy/FileReader.h"
+    "native/colosseum_server_v1/include/server1/policy/FileReader.h",
+    "native/colosseum_server_v1/src/policy/FileReader.cpp",
+    "native/colosseum_server_v1/tests/test_file_reader.cpp",
+    "native/colosseum_server_v1/tests/cmake/K08.cmake"
   ],
-  "aggregate_change": "none; contract is compiled by the packet-local runner",
-  "production_implementation": "deferred until independent contract approval",
+  "aggregate_change": "registers one additional K08-F2 test case in the existing K08 executable",
+  "production_implementation": "authored after independent contract approval; integration remains pending independent code review",
   "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol contract/code approval, Agent 4 acceptance, and all K08 regression, mutation, and blob-seal gates"
 }

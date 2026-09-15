@@ -1,6 +1,7 @@
 #include "server1/policy/FileReader.h"
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <map>
 #include <stdexcept>
@@ -30,12 +31,13 @@ std::size_t saturatingAdd(std::size_t left, std::size_t right)
         : left + right;
 }
 
+std::atomic<std::uint64_t> nextFileReadToken{1};
+
 } // namespace
 
 struct FileReader::State final {
     struct CompletedRead final {
         ByteBuffer bytes;
-        std::string error;
     };
 
     Scheduler *scheduler = nullptr;
@@ -56,7 +58,6 @@ struct FileReader::State final {
     std::size_t criticalWidth = 0;
     std::size_t demandBytes = 0;
     std::size_t reservedBytes = 0;
-    std::uint64_t nextRequestToken = 1;
     std::map<std::uint64_t, std::size_t> activeReads;
     std::map<std::size_t, CompletedRead> completedReads;
     std::set<std::size_t> lockedPieces;
@@ -68,6 +69,38 @@ struct FileReader::State final {
     bool eof = false;
     bool closed = false;
     bool destroyed = false;
+
+    void terminalFailure(std::string reason)
+    {
+        if (closed || eof || error) {
+            return;
+        }
+        if (reason.empty()) {
+            reason = "file reader failed";
+        }
+
+        error = std::move(reason);
+        closed = true;
+        std::vector<std::uint64_t> detachedTokens;
+        detachedTokens.reserve(activeReads.size());
+        for (const auto &[token, piece] : activeReads) {
+            static_cast<void>(piece);
+            detachedTokens.push_back(token);
+        }
+        activeReads.clear();
+        lockedPieces.clear();
+        completedReads.clear();
+        waitingPiece.reset();
+
+        const bool detachSelection = selectionActive;
+        selectionActive = false;
+        for (const auto token : detachedTokens) {
+            static_cast<void>(source->cancelRead(token));
+        }
+        if (detachSelection) {
+            static_cast<void>(scheduler->deselect(selectionId));
+        }
+    }
 };
 
 FileReader::FileReader(Scheduler &scheduler,
@@ -142,6 +175,12 @@ void FileReader::notifyPiece(std::size_t piece)
     pump(state_);
 }
 
+void FileReader::fail(std::string error)
+{
+    const auto state = state_;
+    state->terminalFailure(std::move(error));
+}
+
 std::vector<ByteBuffer> FileReader::takeData()
 {
     std::vector<ByteBuffer> result;
@@ -191,7 +230,8 @@ void FileReader::pump(const std::shared_ptr<State> &state)
         return;
     }
     state->pumping = true;
-    while (state->activeReads.size() < 2
+    while (!state->closed && !state->eof && !state->error
+           && state->activeReads.size() < 2
            && state->nextReadPiece <= state->endPiece
            && state->reservedBytes < state->demandBytes) {
         const auto piece = state->nextReadPiece;
@@ -212,18 +252,18 @@ void FileReader::pump(const std::shared_ptr<State> &state)
         const auto pieceEnd = saturatingAdd(pieceStart, state->pieceLength - 1);
         const auto ownedEnd = std::min(state->globalEnd, pieceEnd);
         const auto ownedLength = ownedEnd - ownedStart + 1;
-        const auto token = state->nextRequestToken++;
+        const auto token = nextFileReadToken.fetch_add(1, std::memory_order_relaxed);
         state->activeReads.emplace(token, piece);
         state->lockedPieces.insert(piece);
         state->reservedBytes = saturatingAdd(state->reservedBytes, ownedLength);
         ++state->nextReadPiece;
 
         if (state->bufferPieces != 0 && state->nextReadPiece <= state->endPiece) {
-            state->scheduler->updateReadWindow(
+            static_cast<void>(state->scheduler->updateReadWindow(
                 state->selectionId,
                 state->nextReadPiece,
                 std::min(state->endPiece,
-                         saturatingAdd(state->nextReadPiece, state->bufferPieces)));
+                         saturatingAdd(state->nextReadPiece, state->bufferPieces))));
         }
 
         std::weak_ptr<State> weakState = state;
@@ -261,20 +301,17 @@ void FileReader::complete(const std::shared_ptr<State> &state,
     if (state->destroyed || state->closed) {
         return;
     }
-    state->completedReads[piece] = {std::move(bytes), std::move(error)};
+    if (!error.empty()) {
+        state->terminalFailure(std::move(error));
+        return;
+    }
+    state->completedReads[piece] = {std::move(bytes)};
 
     while (true) {
         const auto completed = state->completedReads.find(state->nextDeliverPiece);
         if (completed == state->completedReads.end()) {
             break;
         }
-        if (!completed->second.error.empty()) {
-            state->error = completed->second.error;
-            state->completedReads.clear();
-            closeState(state, false);
-            return;
-        }
-
         const auto pieceStart = state->nextDeliverPiece * state->pieceLength;
         const auto ownedStart = std::max(state->globalStart, pieceStart);
         const auto pieceEnd = saturatingAdd(pieceStart, state->pieceLength - 1);
@@ -283,9 +320,7 @@ void FileReader::complete(const std::shared_ptr<State> &state,
         const auto count = ownedEnd - ownedStart + 1;
         if (offset > completed->second.bytes.size()
             || count > completed->second.bytes.size() - offset) {
-            state->error = "piece shorter than requested file span";
-            state->completedReads.clear();
-            closeState(state, false);
+            state->terminalFailure("piece shorter than requested file span");
             return;
         }
         state->ready.emplace_back(completed->second.bytes.begin()
@@ -300,7 +335,7 @@ void FileReader::complete(const std::shared_ptr<State> &state,
     if (state->remaining == 0) {
         state->eof = true;
         if (state->selectionActive) {
-            state->scheduler->deselect(state->selectionId);
+            static_cast<void>(state->scheduler->deselect(state->selectionId));
             state->selectionActive = false;
         }
         return;
@@ -319,14 +354,14 @@ void FileReader::closeState(const std::shared_ptr<State> &state, bool destroyed)
     state->closed = true;
     for (const auto &[token, piece] : state->activeReads) {
         static_cast<void>(piece);
-        state->source->cancelRead(token);
+        static_cast<void>(state->source->cancelRead(token));
     }
     state->activeReads.clear();
     state->lockedPieces.clear();
     state->completedReads.clear();
     state->waitingPiece.reset();
     if (state->selectionActive) {
-        state->scheduler->deselect(state->selectionId);
+        static_cast<void>(state->scheduler->deselect(state->selectionId));
         state->selectionActive = false;
     }
 }

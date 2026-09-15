@@ -1,0 +1,10 @@
+The implemented K08-F2 case proves six architecture groups:
+
+1. Empty input normalizes to `file reader failed`; the first active failure wins and takeError is one-shot.
+2. Failure after EOF or explicit close is inert.
+3. Ready bytes survive; detached active tokens cancel once; late completions are inert.
+4. Waiting state and out-of-order not-yet-ready completion state are discarded.
+5. Synchronous completion from cancelRead cannot reenter detached state or deliver bytes.
+6. Source-read errors use the same transition, and sibling readers sharing source/scheduler remain isolated and reach ordered EOF.
+
+The focused case passed three consecutive executions. Legacy K08 passed 3/3 and combined K08 passed 4/4.

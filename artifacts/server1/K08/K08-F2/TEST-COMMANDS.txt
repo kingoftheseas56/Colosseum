@@ -5,4 +5,18 @@ Expected: positive consumer compiles; all 6 signature mutations and all 17 seman
 cmake --build <existing-K08-build>
 ctest --test-dir <existing-K08-build> -C Debug --output-on-failure
 
-Expected: existing K08-01/02/03 regression inventory remains 3/3 PASS without a FileReader.cpp change.
+Expected: existing K08-01/02/03 regression inventory remains 3/3 PASS.
+
+Production focused and legacy gates (x64 Visual Studio environment):
+
+cmake --build <K08-build> --parallel 1
+ctest --test-dir <K08-build> -C Debug -R K08-F2 --repeat until-fail:3 --output-on-failure
+ctest --test-dir <K08-build> -C Debug -R K08-0 --output-on-failure
+ctest --test-dir <K08-build> -C Debug --output-on-failure
+
+Proportionate aggregate:
+
+cmake --build <INT-W3-build> --parallel 1
+ctest --test-dir <INT-W3-build> -C Release -LE K10 --output-on-failure
+
+Expected: focused K08-F2 3/3 repetitions, legacy K08 3/3, K08 combined 4/4, and non-K10 aggregate 43/43.

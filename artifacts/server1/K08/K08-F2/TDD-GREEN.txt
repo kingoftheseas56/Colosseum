@@ -4,4 +4,12 @@ Candidate contract verification:
 - Incorrect signature mutations: 6/6 rejected.
 - Required semantic-clause mutations: 17/17 rejected.
 - Existing K08 regression inventory: K08-01/02/03 = 3/3 PASS from a fresh build.
-- FileReader.cpp production implementation: unchanged from base.
+- At the independently approved contract commit, FileReader.cpp was unchanged from base.
+
+Production implementation verification:
+
+- K08-F2 focused case: PASS three consecutive executions.
+- Legacy K08-01/02/03: 3/3 PASS.
+- Combined K08 inventory: 4/4 PASS.
+- Two live production negative controls: 2/2 rejected, followed by source restoration.
+- Proportionate non-K10 aggregate: 43/43 PASS, including the INT-W3 spine link.

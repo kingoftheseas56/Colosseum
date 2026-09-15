@@ -74,8 +74,15 @@ public:
         if (it == pending.end() || it->canceled) {
             return false;
         }
+        ++cancelCalls[token];
         it->canceled = true;
         canceled.insert(token);
+        if (completeDuringCancel) {
+            auto completion = std::move(it->completion);
+            const auto piece = it->piece;
+            pending.erase(it);
+            completion(token, piece, pieces[piece], {});
+        }
         return true;
     }
 
@@ -111,7 +118,9 @@ public:
     std::set<std::size_t> available;
     std::vector<Pending> pending;
     std::set<std::uint64_t> canceled;
+    std::map<std::uint64_t, std::size_t> cancelCalls;
     std::size_t reads = 0;
+    bool completeDuringCancel = false;
 };
 
 FileReadOptions options(std::size_t start,
@@ -287,6 +296,167 @@ void caseK0803()
            "K08-03 missing read marks the two-piece critical span");
 }
 
+void caseK08F2()
+{
+    // Break caught: empty external failures must terminalize with the exact fallback,
+    // and a later failure must not replace the first terminal reason.
+    {
+        ControlledPieceSource source;
+        Scheduler scheduler(1);
+        FileReader reader(scheduler, source, TorrentFile{"fallback", "fallback", 4, 0}, 4,
+                          options(0, 3, 0, 60));
+        reader.fail({});
+        reader.fail("later failure");
+        expect(reader.closed() && !reader.eof() && !reader.hasActiveSelection(),
+               "K08-F2 empty failure closes and detaches the active reader");
+        expect(reader.takeError() == std::optional<std::string>{"file reader failed"}
+                   && !reader.takeError(),
+               "K08-F2 empty failure uses the exact once-readable fallback");
+    }
+
+    // Break caught: EOF and explicit close are terminal boundaries which failure
+    // injection cannot rewrite into errors.
+    {
+        ControlledPieceSource eofSource;
+        eofSource.pieces = {{0, bytes({1, 2, 3, 4})}};
+        eofSource.available = {0};
+        Scheduler eofScheduler(1);
+        FileReader eofReader(eofScheduler, eofSource, TorrentFile{"eof", "eof", 4, 0}, 4,
+                             options(0, 3, 0, 61));
+        eofReader.request(4);
+        eofSource.complete(0);
+        eofReader.fail("after eof");
+        expect(eofReader.eof() && !eofReader.takeError(),
+               "K08-F2 failure after EOF is inert");
+
+        ControlledPieceSource closedSource;
+        Scheduler closedScheduler(1);
+        FileReader closedReader(closedScheduler, closedSource,
+                                TorrentFile{"closed", "closed", 4, 0}, 4,
+                                options(0, 3, 0, 62));
+        closedReader.close();
+        closedReader.fail("after close");
+        expect(closedReader.closed() && !closedReader.takeError(),
+               "K08-F2 failure after explicit close is inert");
+    }
+
+    // Break caught: external failure preserves bytes already ready, cancels each
+    // still-active token once, and makes late completions inert.
+    {
+        ControlledPieceSource source;
+        source.pieces = {{0, bytes({0, 1, 2, 3})}, {1, bytes({4, 5, 6, 7})}};
+        source.available = {0, 1};
+        Scheduler scheduler(2);
+        FileReader reader(scheduler, source, TorrentFile{"ready", "ready", 8, 0}, 4,
+                          options(0, 7, 0, 63));
+        reader.request(8);
+        const auto secondToken = source.pending[1].token;
+        source.complete(0);
+        reader.fail("transport failed");
+        reader.fail("replacement");
+        expect(flatten(reader.takeData()) == bytes({0, 1, 2, 3}),
+               "K08-F2 failure preserves the already-ready takeData queue");
+        expect(source.cancelCalls[secondToken] == 1 && reader.lockedPieces().empty(),
+               "K08-F2 failure cancels each detached active token exactly once");
+        source.completeCanceled(secondToken);
+        expect(reader.takeData().empty()
+                   && reader.takeError() == std::optional<std::string>{"transport failed"},
+               "K08-F2 late completion is inert and the first reason wins");
+    }
+
+    // Break caught: out-of-order completions and waiting-piece state must not
+    // survive failure and later become consumer-visible work.
+    {
+        ControlledPieceSource source;
+        source.pieces = {{0, bytes({0, 1, 2, 3})}, {1, bytes({4, 5, 6, 7})}};
+        source.available = {0, 1};
+        Scheduler scheduler(2);
+        FileReader reader(scheduler, source, TorrentFile{"ordered", "ordered", 8, 0}, 4,
+                          options(0, 7, 0, 64));
+        reader.request(8);
+        const auto firstToken = source.pending[0].token;
+        source.complete(1);
+        reader.fail("stop ordered delivery");
+        source.completeCanceled(firstToken);
+        expect(reader.takeData().empty() && reader.pendingReads() == 0,
+               "K08-F2 failure discards out-of-order not-ready completion state");
+
+        ControlledPieceSource waitingSource;
+        Scheduler waitingScheduler(1);
+        std::size_t refreshes = 0;
+        FileReader waiting(waitingScheduler, waitingSource,
+                           TorrentFile{"waiting", "waiting", 4, 0}, 4,
+                           options(0, 3, 0, 65), [&refreshes] { ++refreshes; });
+        waiting.request(4);
+        waiting.fail("stop waiting");
+        waitingSource.available.insert(0);
+        waiting.notifyPiece(0);
+        expect(refreshes == 1 && waitingSource.pending.empty(),
+               "K08-F2 failure detaches waiting-piece state");
+    }
+
+    // Break caught: a source which completes synchronously from cancelRead must
+    // not mutate the detached active-read ledger or deliver bytes reentrantly.
+    {
+        ControlledPieceSource source;
+        source.pieces = {{0, bytes({8, 8, 8, 8})}};
+        source.available = {0};
+        source.completeDuringCancel = true;
+        Scheduler scheduler(1);
+        FileReader reader(scheduler, source, TorrentFile{"reentrant", "reentrant", 4, 0}, 4,
+                          options(0, 3, 0, 66));
+        reader.request(4);
+        const auto token = source.pending[0].token;
+        reader.fail("reentrant cancel");
+        expect(source.cancelCalls[token] == 1 && reader.pendingReads() == 0
+                   && reader.takeData().empty(),
+               "K08-F2 synchronous cancel completion is inert after ownership detaches");
+    }
+
+    // Break caught: source-read errors use the same terminal transition, while a
+    // failed reader cannot cancel or deselect a sibling sharing both dependencies.
+    {
+        ControlledPieceSource source;
+        source.pieces = {{0, bytes({1, 1, 1, 1})}, {1, bytes({2, 2, 2, 2})}};
+        source.available = {0, 1};
+        Scheduler scheduler(2);
+        FileReader left(scheduler, source, TorrentFile{"left-fail", "left-fail", 4, 0}, 4,
+                        options(0, 3, 0, 67));
+        FileReader right(scheduler, source, TorrentFile{"right-live", "right-live", 4, 4}, 4,
+                         options(0, 3, 0, 68));
+        left.request(4);
+        right.request(4);
+        const auto leftToken = source.pending[0].token;
+        const auto rightToken = source.pending[1].token;
+        expect(leftToken != rightToken,
+               "K08-F2 sibling readers sharing a source require distinct live tokens");
+        left.fail("left only");
+        expect(source.cancelCalls[leftToken] == 1 && source.cancelCalls[rightToken] == 0
+                   && right.hasActiveSelection(),
+               "K08-F2 external failure cannot cancel or deselect a sibling reader");
+        source.complete(1);
+        expect(flatten(right.takeData()) == bytes({2, 2, 2, 2}) && right.eof(),
+               "K08-F2 sibling reader continues to ordered EOF");
+
+        ControlledPieceSource errorSource;
+        errorSource.pieces = {{0, bytes({3, 3, 3, 3})}, {1, bytes({4, 4, 4, 4})}};
+        errorSource.available = {0, 1};
+        Scheduler errorScheduler(2);
+        FileReader sourceError(errorScheduler, errorSource,
+                               TorrentFile{"source-error", "source-error", 8, 0}, 4,
+                               options(0, 7, 0, 69));
+        sourceError.request(8);
+        const auto survivingToken = errorSource.pending[1].token;
+        errorSource.complete(0, "disk failed");
+        expect(sourceError.closed() && errorSource.cancelCalls[survivingToken] == 1
+                   && sourceError.takeError() == std::optional<std::string>{"disk failed"},
+               "K08-F2 source-read error uses the shared terminal transition");
+        errorSource.completeCanceled(survivingToken);
+        expect(sourceError.takeData().empty(),
+               "K08-F2 source-error cancellation completion stays inert");
+    }
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -301,6 +471,8 @@ int main(int argc, char **argv)
         caseK0802();
     } else if (id == "K08-03") {
         caseK0803();
+    } else if (id == "K08-F2") {
+        caseK08F2();
     } else {
         fail("unknown case id");
     }

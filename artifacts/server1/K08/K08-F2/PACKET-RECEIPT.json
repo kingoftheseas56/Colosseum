@@ -7,12 +7,16 @@
   "base": "a4890e19c8621fdc0d63028894c12ce3ad3fe1da",
   "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K08/K08-F2/PACKET-RECEIPT.json)",
   "contract": "FileReader::fail(std::string); first active call wins; empty input becomes exact fallback file reader failed; ownership detaches before external cancellation/deselection; sibling readers remain untouched",
-  "scope": "FileReader public header, packet-local compile consumer, mutation verifier, and evidence only; no FileReader.cpp change",
+  "scope": "approved FileReader public header plus FileReader.cpp, test_file_reader.cpp, K08 test registration, and K08-F2 evidence",
   "positive_compile_consumer": "PASS",
   "signature_mutations": "6/6 PASS rejected",
   "semantic_mutations": "17/17 PASS rejected",
   "existing_k08_regressions": "3/3 PASS from fresh build",
+  "production_case": "K08-F2 PASS three consecutive focused repetitions and as part of K08 4/4",
+  "production_negative_controls": "2/2 rejected: constant source token and empty-failure no-op",
+  "proportionate_aggregate": "43/43 PASS including K08-F2 and INT-W3 spine link; K10/K10-E excluded because this packet has zero K10 diff",
+  "full_aggregate_observation": "58/60 PASS; unchanged fixed-port K10 failure-drain and cancel-drain readiness lanes failed; isolated cancel-drain then passed while failure-drain remained unable to connect to two listening peers",
   "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol contract/code approval, Agent 4 acceptance, and all K08 regression, mutation, and blob-seal gates",
-  "review": "first independent Sol review requested precise empty-input, reentrancy-ordering, disposal, and sibling-isolation semantics; repaired candidate awaits re-review and Agent 4 acceptance",
-  "status": "red-observed; contract-authored; review-repaired; directly-compiled; mutation-tested; regressions-passed"
+  "review": "contract independently approved at 31c67a57; production candidate awaits independent Sol code review and Agent 4 acceptance",
+  "status": "contract-approved; production-red-observed; implementation-authored; mutation-tested; focused-and-proportionate-regressions-passed"
 }
