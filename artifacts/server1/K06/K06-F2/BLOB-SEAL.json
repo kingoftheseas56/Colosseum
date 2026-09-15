@@ -1,0 +1,19 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "2dc47a3ed6b5650b6b971d972f19f425b1b057e8",
+  "blobs": {
+    "native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp": "8418070b6a8f90d03b65704b5183b75bb9f8c24c",
+    "native/colosseum_server_v1/tests/test_persistent_store.cpp": "683fa502be197fc2bfc4ec210b61bd58b79d8594",
+    "native/colosseum_server_v1/tests/cmake/K06.cmake": "5be6e38386b1eb54bb449ed93f60cd7c80541263",
+    "artifacts/server1/K06/K06-F2/SOURCE-TRACE.md": "c0020556041d244b67b43b1aa1c1f22346582546",
+    "artifacts/server1/K06/K06-F2/TDD-RED.txt": "cf0c393f384a198195c300224c22173d030a1380",
+    "artifacts/server1/K06/K06-F2/TDD-GREEN.txt": "3445a67c6cc8f7de421fe7735624f768495b929f",
+    "artifacts/server1/K06/K06-F2/NEGATIVE-CONTROLS.txt": "cc195d40a8633f8abc30d543c9b8f63e3677175e",
+    "artifacts/server1/K06/K06-F2/AGGREGATE-RESULT.md": "c2f4f1a471bf3902d608cdde808e0225053e7ceb",
+    "artifacts/server1/K06/K06-F2/TEST-COMMANDS.txt": "0135849b0c0761775f3266d53a30b87b2274d296",
+    "artifacts/server1/K06/K06-F2/SELF-REVIEW.md": "80a30678e0f7e3dbfbe6c13b10222e1a69669f47",
+    "artifacts/server1/K06/K06-F2/WIRING-REQUEST.json": "13efed63209f038979c6513196acd6d1de770809",
+    "artifacts/server1/K06/K06-F2/PACKET-RECEIPT.json": "ec8055e2ed38c25f0dfe3bc55d9bfd2ad3afd2a8"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file"
+}

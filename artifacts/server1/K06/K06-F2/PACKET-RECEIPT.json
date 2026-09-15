@@ -1,0 +1,15 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K06-F2",
+  "date": "2026-09-15",
+  "producer": "Agent 4 (Codex/Sol subagent), K06-F2 producer",
+  "branch": "sol/server1-w3-store-restored-commit-20260915",
+  "base": "2dc47a3ed6b5650b6b971d972f19f425b1b057e8",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K06/K06-F2/PACKET-RECEIPT.json)",
+  "behavior": "persisted true bits restore verified and committed only after complete logical and physical coverage validation; invalid bits clear durably; false bits remain false; assembled remains false",
+  "production_scope": "native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp only; no public contract change",
+  "tests": "K06-F2 3/3 consecutive; legacy K06 3/3; combined K06 4/4; full aggregate 61/61; mutations 7/7 rejected",
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
+  "review": "producer self-review APPROVE; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; production-authored; compiled; test-reported; integration pending"
+}

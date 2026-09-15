@@ -1,0 +1,18 @@
+K06-F2 production TDD GREEN
+
+Focused stability:
+ctest --test-dir <scratch>/k06f2 -R "^K06-F2-persistent-store$" --repeat until-fail:3 --output-on-failure
+Result: 3/3 consecutive executions passed, exit 0.
+
+Legacy K06:
+ctest --test-dir <scratch>/k06f2 -R "^K06-0[1-3]-persistent-store$" --output-on-failure
+Result: 3/3 passed, exit 0.
+
+Combined K06:
+ctest --test-dir <scratch>/k06f2 -L K06 --output-on-failure
+Result: 4/4 passed, exit 0.
+
+K06-F2 covers valid persisted restoration, cross-file and tail pieces, missing
+and short destinations, logical gaps, durable invalidation, persisted false
+bits, verify-before-commit, failed writes, restored assembled=false, exact disk
+reads, and memory-first staged reads.

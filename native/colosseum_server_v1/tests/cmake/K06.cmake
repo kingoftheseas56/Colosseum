@@ -8,7 +8,7 @@ function(server1_register_k06_tests)
   target_compile_options(server1_k06_persistent_store_test PRIVATE
     "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
 
-  foreach(case_id IN ITEMS K06-01 K06-02 K06-03)
+  foreach(case_id IN ITEMS K06-01 K06-02 K06-03 K06-F2)
     add_test(NAME ${case_id}-persistent-store
       COMMAND server1_k06_persistent_store_test
         "${CMAKE_CURRENT_BINARY_DIR}/${case_id}" ${case_id})

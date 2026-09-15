@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "packet": "K06-F2",
+  "branch": "sol/server1-w3-store-restored-commit-20260915",
+  "base": "2dc47a3ed6b5650b6b971d972f19f425b1b057e8",
+  "target": "feature/colosseum-server-1.0",
+  "merge": "fast-forward only",
+  "conditions": [
+    "independent Sol review approves exact candidate",
+    "Agent 4 accepts K06-F2",
+    "focused K06, mutation, aggregate, hygiene, and blob-seal gates pass"
+  ],
+  "status": "candidate only; do not integrate"
+}

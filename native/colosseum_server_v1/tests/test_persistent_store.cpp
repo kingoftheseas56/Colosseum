@@ -1,6 +1,7 @@
 #include "server1/policy/PieceStore.h"
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -31,6 +32,25 @@ PersistentPieceStore makeEightByteStore(const std::filesystem::path &root)
         {StoreFile{0, 5}, StoreFile{5, 3}},
         {"81fe8bfe87576c3ecb22426f8e57847382917acf",
          "af22ae53b04cc158b44032b537842902627055dc"});
+}
+
+void writeFile(const std::filesystem::path &path, std::string_view value)
+{
+    if (!path.parent_path().empty())
+        std::filesystem::create_directories(path.parent_path());
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    output.write(value.data(), static_cast<std::streamsize>(value.size()));
+    require(static_cast<bool>(output), "fixture file write succeeds");
+}
+
+void seedBitmap(const std::filesystem::path &root,
+                std::size_t count,
+                const std::vector<std::size_t> &trueBits)
+{
+    server1::policy::VerificationBitmap bitmap(count, root / ".verification-bitmap");
+    for (const auto bit : trueBits)
+        bitmap.set(bit, true);
+    bitmap.persist();
 }
 
 void caseK06_01(const std::filesystem::path &root)
@@ -215,6 +235,140 @@ void caseK06_03(const std::filesystem::path &root)
     std::cout << "K06-03 PASS\n";
 }
 
+void caseK06_F2(const std::filesystem::path &root)
+{
+    const auto caseRoot = root / "K06-F2";
+    std::filesystem::remove_all(caseRoot);
+
+    const auto validRoot = caseRoot / "valid-cross-file-tail";
+    {
+        PersistentPieceStore store(validRoot, 4, 6, 4,
+            {StoreFile{0, 5}, StoreFile{5, 1}},
+            {"81fe8bfe87576c3ecb22426f8e57847382917acf",
+             "f822051471957b7bbebb8ab088fe9bd6d14f4261"});
+        store.stage(0, bytes("abcd"));
+        require(store.verify(0).success, "valid first piece verifies before commit");
+        require(store.commit(0, 1).state == CommitState::Committed,
+                "valid first piece commits");
+        store.stage(1, bytes("ef"));
+        require(store.verify(1).success, "valid cross-file tail verifies before commit");
+        require(store.commit(1, 2).state == CommitState::Committed,
+                "valid cross-file tail commits");
+    }
+    {
+        PersistentPieceStore reopened(validRoot, 4, 6, 4,
+            {StoreFile{0, 5}, StoreFile{5, 1}},
+            {"81fe8bfe87576c3ecb22426f8e57847382917acf",
+             "f822051471957b7bbebb8ab088fe9bd6d14f4261"});
+        require(reopened.isVerified(0) && reopened.isCommitted(0)
+                    && !reopened.isAssembled(0),
+                "valid persisted first piece restores verified and committed only");
+        require(reopened.isVerified(1) && reopened.isCommitted(1)
+                    && !reopened.isAssembled(1),
+                "valid persisted cross-file tail restores verified and committed only");
+        require(reopened.read(1).value() == bytes("ef"),
+                "restored cross-file tail reads exact physical bytes");
+    }
+
+    const auto missingRoot = caseRoot / "missing";
+    writeFile(missingRoot / "0", "abcd");
+    seedBitmap(missingRoot, 1, {0});
+    std::filesystem::remove(missingRoot / "0");
+    {
+        PersistentPieceStore missing(missingRoot, 4, 4, 4,
+            {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+        require(!missing.isVerified(0) && !missing.isCommitted(0)
+                    && !missing.isAssembled(0),
+                "missing destination invalidates restored state");
+    }
+    {
+        server1::policy::VerificationBitmap persisted(
+            1, missingRoot / ".verification-bitmap");
+        require(!persisted.get(0), "missing-destination invalidation is persisted");
+    }
+
+    const auto shortRoot = caseRoot / "short";
+    writeFile(shortRoot / "0", "abcd");
+    seedBitmap(shortRoot, 1, {0});
+    std::filesystem::resize_file(shortRoot / "0", 3);
+    {
+        PersistentPieceStore shortFile(shortRoot, 4, 4, 4,
+            {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+        require(!shortFile.isVerified(0) && !shortFile.isCommitted(0),
+                "short physical destination invalidates persisted true bit");
+    }
+    {
+        server1::policy::VerificationBitmap persisted(
+            1, shortRoot / ".verification-bitmap");
+        require(!persisted.get(0), "short-destination invalidation is persisted");
+    }
+
+    const auto gapRoot = caseRoot / "logical-gap";
+    writeFile(gapRoot / "0", "ab");
+    writeFile(gapRoot / "1", "d");
+    seedBitmap(gapRoot, 1, {0});
+    {
+        PersistentPieceStore gap(gapRoot, 4, 4, 4,
+            {StoreFile{0, 2}, StoreFile{3, 1}},
+            {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+        require(!gap.isVerified(0) && !gap.isCommitted(0),
+                "logical destination gap invalidates persisted true bit");
+    }
+    {
+        server1::policy::VerificationBitmap persisted(
+            1, gapRoot / ".verification-bitmap");
+        require(!persisted.get(0), "logical-gap invalidation is persisted");
+    }
+
+    const auto falseRoot = caseRoot / "false-bit";
+    writeFile(falseRoot / "0", "abcd");
+    seedBitmap(falseRoot, 1, {});
+    PersistentPieceStore falseBit(falseRoot, 4, 4, 4,
+        {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+    require(!falseBit.isVerified(0) && !falseBit.isCommitted(0)
+                && !falseBit.isAssembled(0),
+            "physical bytes never promote a persisted false bit");
+
+    const auto verifyOnlyRoot = caseRoot / "verify-before-commit";
+    {
+        PersistentPieceStore verifyOnly(verifyOnlyRoot, 4, 4, 4,
+            {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+        verifyOnly.stage(0, bytes("abcd"));
+        require(verifyOnly.verify(0).success && verifyOnly.isVerified(0)
+                    && !verifyOnly.isCommitted(0),
+                "hash verification alone is not a disk commit");
+    }
+    PersistentPieceStore verifyOnlyReopen(verifyOnlyRoot, 4, 4, 4,
+        {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+    require(!verifyOnlyReopen.isVerified(0) && !verifyOnlyReopen.isCommitted(0),
+            "verify-before-commit does not restore durable state");
+
+    const auto failedRoot = caseRoot / "failed-write";
+    {
+        PersistentPieceStore failed(failedRoot, 4, 4, 4,
+            {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+        failed.stage(0, bytes("abcd"));
+        require(failed.verify(0).success, "failed-write fixture verifies");
+        failed.failNextWrite("injected failure");
+        require(failed.commit(0, 1).state == CommitState::Error,
+                "injected write failure rejects commit");
+    }
+    PersistentPieceStore failedReopen(failedRoot, 4, 4, 4,
+        {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+    require(!failedReopen.isVerified(0) && !failedReopen.isCommitted(0),
+            "failed write does not restore durable state");
+
+    const auto stagedRoot = caseRoot / "staged-read";
+    writeFile(stagedRoot / "0", "WXYZ");
+    PersistentPieceStore staged(stagedRoot, 4, 4, 4,
+        {StoreFile{0, 4}}, {"81fe8bfe87576c3ecb22426f8e57847382917acf"});
+    staged.stage(0, bytes("abcd"));
+    require(staged.read(0).value() == bytes("abcd"),
+            "staged bytes remain the memory-first read source");
+
+    std::cout << "K06-F2 PASS\n";
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -228,8 +382,10 @@ int main(int argc, char **argv)
             caseK06_02(root);
         if (requested == "all" || requested == "K06-03")
             caseK06_03(root);
+        if (requested == "all" || requested == "K06-F2")
+            caseK06_F2(root);
         if (requested != "all" && requested != "K06-01" && requested != "K06-02"
-            && requested != "K06-03")
+            && requested != "K06-03" && requested != "K06-F2")
             throw std::runtime_error("unknown K06 case");
     } catch (const std::exception &error) {
         std::cerr << "K06 FAIL: " << error.what() << '\n';

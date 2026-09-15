@@ -1,0 +1,13 @@
+K06-F2 production TDD RED
+
+Command:
+cmake --build <scratch>/k06f2 --target server1_k06_persistent_store_test --parallel 1
+ctest --test-dir <scratch>/k06f2 -R "^K06-F2-persistent-store$" --output-on-failure
+
+Result: expected failure, exit 1.
+Observed assertion:
+K06 FAIL: valid persisted first piece restores verified and committed only
+
+The test was added and executed before PersistentPieceStore.cpp changed. The
+failure showed that the persisted true bit restored verified state but not the
+required committed state.

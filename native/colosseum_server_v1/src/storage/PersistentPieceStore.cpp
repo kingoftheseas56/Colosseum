@@ -44,20 +44,23 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
     verificationBitmap_.emplace(count, root_ / ".verification-bitmap");
     bool invalidated = false;
     for (std::size_t piece = 0; piece < count; ++piece) {
-        verified_[piece] = verificationBitmap_->get(piece);
-        if (!verified_[piece])
+        if (!verificationBitmap_->get(piece))
             continue;
         const auto byteStart = piece * pieceLength_;
         const auto byteEnd = byteStart + pieceSize(piece);
         std::vector<std::pair<std::size_t, std::size_t>> coverage;
-        bool destinationsExist = true;
+        bool physicalCoverage = true;
         for (std::size_t fileIndex = 0; fileIndex < files_.size(); ++fileIndex) {
             const auto &file = files_[fileIndex];
             const auto start = std::max(byteStart, file.offset);
             const auto end = std::min(byteEnd, file.offset + file.length);
             if (start < end) {
                 coverage.emplace_back(start - byteStart, end - byteStart);
-                destinationsExist = destinationsExist && std::filesystem::exists(destination(fileIndex));
+                std::error_code sizeError;
+                const auto size = std::filesystem::file_size(destination(fileIndex), sizeError);
+                physicalCoverage = physicalCoverage
+                    && !sizeError
+                    && size >= end - file.offset;
             }
         }
         std::sort(coverage.begin(), coverage.end());
@@ -67,11 +70,13 @@ PersistentPieceStore::PersistentPieceStore(std::filesystem::path root,
                 break;
             covered = std::max(covered, end);
         }
-        if (!destinationsExist || covered != pieceSize(piece)) {
-            verified_[piece] = false;
+        if (!physicalCoverage || covered != pieceSize(piece)) {
             verificationBitmap_->set(piece, false);
             invalidated = true;
+            continue;
         }
+        verified_[piece] = true;
+        committed_[piece] = true;
     }
     if (invalidated)
         verificationBitmap_->persist();
