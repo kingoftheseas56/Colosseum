@@ -1,0 +1,14 @@
+{
+  "schema": "colosseum-server1-wiring-request/v2",
+  "worker_id": "K11-A",
+  "parent_packet": "K11",
+  "base": "2e82d97f20399c7362fe4d204edd6643a4d13361",
+  "request": "INT-W3 may include the K11 packet and test manifests only after independent Sol K11 review, B-W3E review, and Agent 4 acceptance.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K11.cmake",
+    "native/colosseum_server_v1/tests/cmake/K11.cmake"
+  ],
+  "interface_changes": "Adds only the F10-authorized public include/server1/policy/EngineRegistry.h containing the minimal PIMPL TorrentEngine facade and EngineRegistry contract; no TorrentEngine.h is added.",
+  "gate": "K11-A candidate/test-reported; not self-accepted. Independent Sol K11 and B-W3E reviews plus Agent 4 acceptance remain required.",
+  "push": "Candidate commit is pushed only to sol/server1-w3-engine-v2-20260915; feature integration remains gated."
+}
