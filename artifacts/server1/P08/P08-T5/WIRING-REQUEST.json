@@ -1,0 +1,7 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "packet": "P08-T5",
+  "request": "Implement the generation-safe custom HAVE/upload mailbox in PeerPlugin and LibTorrent2Adapter, then prove live upload bytes, cancellation, limits, lifecycle and thread ownership.",
+  "dependency": "Independent Sol contract approval",
+  "status": "contract candidate only"
+}

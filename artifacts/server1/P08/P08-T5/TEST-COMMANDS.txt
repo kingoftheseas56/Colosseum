@@ -1,0 +1,9 @@
+pwsh -NoProfile -File artifacts/server1/P08/P08-T5/run_contract.ps1 -BuildDir artifacts/server1/P08/P08-T5-build-final
+python artifacts/server1/P08/P08-T5/verify_semantics.py native/colosseum_server_v1/include/server1/ports/TorrentTransport.h --mutations
+pwsh -NoProfile -File artifacts/server1/P08/P08-T5/run_legacy_contract.ps1 -BuildDir artifacts/server1/P08/P08-T5-legacy-build-3
+python scripts/check_public_paths.py
+
+Expected contract results: positive consumer PASS, 17/17 P08-T5 compile
+mutations rejected, 35/35 semantic mutations rejected, and 19/19 legacy P08
+mutations rejected. The production K10 aggregate remains expected RED until the
+separate upload implementation packet handles the appended action variants.

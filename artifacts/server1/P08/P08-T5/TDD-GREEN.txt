@@ -1,0 +1,13 @@
+P08-T5 GREEN observed on 2026-09-15.
+
+- Positive C++17/MSVC public consumer: PASS and executed.
+- P08-T5 compile-fail mutations: 17/17 rejected.
+- Semantic clauses: 35/35 present.
+- Semantic clause mutations: 35/35 rejected.
+- Legacy P08 contract mutations: 19/19 rejected; both positive consumers executed.
+- Public-path guard: PASS after staging the candidate.
+
+The wider K10 library is intentionally RED at this contract-only boundary. Its
+generic action visitor assumes every non-pause action has `peer`; the newly
+appended `AdvertisePieceAction` does not. K10-HAVE-UPLOAD owns that production
+visitor and the live upload implementation after independent contract approval.

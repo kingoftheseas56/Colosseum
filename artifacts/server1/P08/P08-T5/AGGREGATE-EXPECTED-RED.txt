@@ -1,0 +1,10 @@
+P08-T5 expected integration RED observed on 2026-09-15.
+
+Command, after loading the frozen MSVC amd64 environment:
+C:/Qt/Tools/CMake_64/bin/cmake.exe --build artifacts/server1/K11/K11-A/predecessor-build --config Release --target server1_k10_native_transport
+
+Expected first contract-integration failure:
+LibTorrent2Adapter.cpp(257): error C2039: 'peer': is not a member of 'server1::ports::AdvertisePieceAction'
+
+This is the requested contract-only stopping point. No PeerPlugin or adapter
+implementation is present. It does not claim the upload path builds or runs.

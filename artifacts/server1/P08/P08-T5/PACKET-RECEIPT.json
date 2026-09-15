@@ -1,0 +1,25 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "P08",
+  "worker": "P08-T5",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-have-upload-20260915",
+  "base": "9668b5aa9e441ebf9493a8212b0c4ba65a3c0e06",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/P08/P08-T5/PACKET-RECEIPT.json)",
+  "contract": "generation-safe custom HAVE/upload mailbox with exact ownership, admissibility, limits, lifecycle, threading, persistent-commit-only reads, and truthful counters",
+  "caps": {
+    "per_peer": 4,
+    "global": 20,
+    "basis": "four requests across the donor's five default upload slots; at most 320 KiB of block payload work"
+  },
+  "positive_compile_consumer": "PASS and executed",
+  "compile_fail_mutations": "17/17 rejected",
+  "semantic_mutations": "35/35 rejected",
+  "legacy_p08_mutations": "19/19 rejected",
+  "aggregate": "EXPECTED RED at the contract-only boundary: LibTorrent2Adapter action visitor has no AdvertisePieceAction case",
+  "scope": "TorrentTransport public header and P08-T5 packet-local contract evidence only; zero production cpp changes",
+  "merge_endpoint": "feature/colosseum-server-1.0 only after independent Sol contract and code approval plus live upload gates",
+  "review": "producer candidate; independent Sol contract review and Agent 4 acceptance pending",
+  "remote": "origin/sol/server1-w3-have-upload-20260915 must resolve to SELF after push",
+  "status": "test-authored; red-observed; contract-authored; directly-compiled; mutation-tested"
+}

@@ -1,0 +1,10 @@
+P08-T5 RED observed on 2026-09-15 from exact base 9668b5aa9e441ebf9493a8212b0c4ba65a3c0e06.
+
+Command:
+pwsh -NoProfile -File artifacts/server1/P08/P08-T5/run_contract.ps1 -BuildDir artifacts/server1/P08/P08-T5-red-build
+
+Expected first failure:
+contract_consumer.cpp(82): error C2065: 'UploadRequestId': undeclared identifier
+
+The consumer then also reported the missing upload ownership/actions/observations,
+variant alternatives, caps, and statistics. The contract did not exist.
