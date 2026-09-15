@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-k10-wire/v1",
+  "state": "PASS",
+  "source_run": "wire-20260915-065857539",
+  "peer": 77,
+  "piece": 0,
+  "offset": 0,
+  "length": 16384,
+  "requests": 1,
+  "exact": 1,
+  "unselected_peer_requests": 0,
+  "unowned": 0,
+  "queued": 1,
+  "framed": 1,
+  "replayed": 0,
+  "autonomous_mutations": 0
+}

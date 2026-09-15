@@ -3,6 +3,7 @@
   "worker_id": "INT-W3",
   "barrier": "B-W3D",
   "control_gate": "G-WIRE",
+  "evidence_root": "artifacts/server1/INT-W3/B-W3D-evidence",
   "date": "2026-09-15",
   "branch": "sol/server1-w3-transport-20260915",
   "integration_base": "60ecb9bbbf9c8798a0469a3e6fa608d7a22defb8",
@@ -26,7 +27,6 @@
     "libtorrent_archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
   },
   "verification": {
-    "build_dir": "artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb",
     "configure": "PASS",
     "build": "PASS; 77/77 steps",
     "inventory": "52 exact registered tests",
@@ -35,12 +35,18 @@
     "K08_focused": "PASS; 3/3",
     "K10_registered": "PASS; 10/10 in 82.15 seconds",
     "contract_and_combined_link": "PASS; P08-T contract plus INT-W3 production link smoke 2/2",
-    "P08_locked_seam": "PASS; controlled plugin/peer 1/1, controlled pre/post 0/1, unowned 0, lifecycle replay 0; artifacts/server1/P08A/raw/run-20260915-062702846",
+    "P08_locked_seam": "PASS; fresh focused run controlled plugin/peer 1/1, controlled pre/post 0/1, unowned 0, lifecycle replay 0; artifacts/server1/INT-W3/B-W3D-evidence/P08/result.json",
     "control_plan_mutation_tests": "PASS; 619/619",
     "control_plan_semantic_verification": "PASS; 1331/1331 checks, 57/57 frozen graph, 9/9 frozen authority inputs"
   },
   "wire_differential": {
-    "evidence": "artifacts/server1/K10/K10-A/raw/wire-20260915-062534658/result.json",
+    "evidence": "artifacts/server1/INT-W3/B-W3D-evidence/K10/result.json",
+    "raw_evidence": [
+      "artifacts/server1/INT-W3/B-W3D-evidence/K10/candidate.transcript",
+      "artifacts/server1/INT-W3/B-W3D-evidence/K10/peer-A-wire.log",
+      "artifacts/server1/INT-W3/B-W3D-evidence/K10/peer-B-wire.log",
+      "artifacts/server1/INT-W3/B-W3D-evidence/K10/dependency_identity.txt"
+    ],
     "selected_peer": 77,
     "piece": 0,
     "offset": 0,
@@ -56,17 +62,29 @@
   },
   "public_path_hygiene": {
     "baseline": "FAIL; 10 inherited findings across five lines in four tracked evidence/report files",
-    "repair": "Sanitized only the private absolute path and maintainer username tokens; guard logic and exclusions unchanged; exact LF bytes resealed in B-W3D-HASHES.json",
+    "repair": "Sanitized only the private absolute path and maintainer username tokens; guard logic and exclusions unchanged; exact candidate-commit Git blob bytes resealed in B-W3D-HASHES.json",
     "post_repair": "PASS; PUBLIC_PATH_GUARD_OK"
   },
   "integrity": {
     "manifest": "artifacts/server1/INT-W3/B-W3D-HASHES.json",
+    "manifest_target_commit": "a2e8fd0b02bbfb152f4d52a222b54ec6d01584ea",
     "frozen_torrent_transport_blob": "58a5c4df7c98677dc45315359af25027fd4a14fa",
     "frozen_torrent_transport_diff": "empty against 5ed22961 and integration base",
     "packet_production_changes_by_INT_W3": [],
     "vendor_changes": [],
     "K11_or_later_changes": []
   },
+  "tracked_p08_evidence": [
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/result.json",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/probe.transcript",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/dependency_identity.txt",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/control-peer-A-wire.log",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/control-peer-B-wire.log",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/controlled-peer-A-wire.log",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/controlled-peer-B-wire.log",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/lifecycle-peer-A-wire.log",
+    "artifacts/server1/INT-W3/B-W3D-evidence/P08/lifecycle-peer-B-wire.log"
+  ],
   "ownership": {
     "aggregate_files_mutated_by": "INT-W3 only",
     "registered_targets": [

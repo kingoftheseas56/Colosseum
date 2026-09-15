@@ -1,0 +1,12 @@
+LISTEN label=K10-B port=49611 mode=regular
+CONFIG hold_all=0 hold_after_offset=-1 release_file= duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:2337 info_hash=d15678c5f0fd359e4702d114fb0eb78936d20152 expected=d15678c5f0fd359e4702d114fb0eb78936d20152 info_hash_match=1
+BITFIELD_SENT pieces=2 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+REQUEST connection=1 piece=0 start=0 length=16384
+MESSAGE connection=1 id=1 bytes=0
+PIECE_SENT connection=1 piece=0 start=0 length=16384
+MESSAGE connection=1 id=4 bytes=4
+CLIENT_DISCONNECTED connection=1 error=ConnectionResetError

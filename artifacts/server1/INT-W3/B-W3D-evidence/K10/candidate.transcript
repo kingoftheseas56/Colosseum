@@ -1,0 +1,2 @@
+K10 OWNED_ADD peer=77 request=41/7/3 piece=0 offset=0 length=16384 queued=1
+K10-01 PASS linked_runtime=2.0.11.0 owned=41/7/3 peer=77 piece=0 offset=0 length=16384 queued=1 framed=1 autonomous_mutations=0 replay_rejected=1
