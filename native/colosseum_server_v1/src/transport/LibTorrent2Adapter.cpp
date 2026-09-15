@@ -1,7 +1,9 @@
 #include "server1/ports/TorrentTransport.h"
 
 #include <libtorrent/add_torrent_params.hpp>
+#include <libtorrent/alert_types.hpp>
 #include <libtorrent/extensions.hpp>
+#include <libtorrent/magnet_uri.hpp>
 #include <libtorrent/peer_connection.hpp>
 #include <libtorrent/peer_info.hpp>
 #include <libtorrent/piece_block.hpp>
@@ -52,6 +54,94 @@ std::shared_ptr<lt::torrent_plugin> makeProductionPeerPlugin(
 namespace {
 using namespace ports;
 
+V1InfoHash v1InfoHash(const lt::sha1_hash &hash)
+{
+    V1InfoHash result{};
+    std::copy_n(reinterpret_cast<const std::uint8_t *>(hash.data()), result.size(), result.begin());
+    return result;
+}
+
+V1InfoHash v1InfoHash(const lt::torrent_info &info)
+{
+    return v1InfoHash(info.info_hashes().v1);
+}
+
+std::string infoHashHex(const V1InfoHash &hash)
+{
+    static constexpr char digits[] = "0123456789abcdef";
+    std::string result;
+    result.reserve(hash.size() * 2);
+    for (const auto byte : hash) {
+        result.push_back(digits[byte >> 4]);
+        result.push_back(digits[byte & 0x0f]);
+    }
+    return result;
+}
+
+lt::add_torrent_params sourceParams(const TorrentOpenRequest &request)
+{
+    if (request.generation == 0) throw std::invalid_argument("engine generation must be non-zero");
+    if (request.savePath.empty()) throw std::invalid_argument("save path must not be empty");
+
+    lt::error_code error;
+    lt::add_torrent_params params;
+    if (std::holds_alternative<InfoHashSource>(request.source)) {
+        params = lt::parse_magnet_uri("magnet:?xt=urn:btih:" + infoHashHex(request.infoHash), error);
+    } else if (const auto *magnet = std::get_if<MagnetSource>(&request.source)) {
+        if (magnet->uri.empty()) throw std::invalid_argument("magnet URI must not be empty");
+        params = lt::parse_magnet_uri(magnet->uri, error);
+    } else {
+        const auto &bytes = std::get<MetainfoSource>(request.source).bytes;
+        if (bytes.empty()) throw std::invalid_argument("metainfo bytes must not be empty");
+        params.ti = std::make_shared<lt::torrent_info>(
+            reinterpret_cast<const char *>(bytes.data()), static_cast<int>(bytes.size()), error);
+    }
+    if (error) throw std::invalid_argument("invalid torrent source: " + error.message());
+
+    V1InfoHash actual{};
+    if (params.ti) actual = v1InfoHash(*params.ti);
+    else actual = v1InfoHash(params.info_hashes.v1);
+    if (actual != request.infoHash)
+        throw std::invalid_argument("torrent source v1 infohash mismatch");
+
+    params.save_path = request.savePath;
+    params.flags |= lt::torrent_flags::paused;
+    params.flags &= ~lt::torrent_flags::auto_managed;
+    return params;
+}
+
+class FailedTorrentTransport final : public TorrentTransport {
+public:
+    FailedTorrentTransport(EngineGeneration generation, V1InfoHash infoHash, std::string error)
+    {
+        observations_.push_back(SourceFailureObservation{
+            generation, std::move(infoHash), std::move(error), false});
+    }
+
+    bool submit(const TorrentAction &) override { return false; }
+    std::vector<TorrentObservation> poll() override
+    {
+        std::vector<TorrentObservation> result;
+        result.swap(observations_);
+        return result;
+    }
+    TransportStatistics statistics() const override { return {}; }
+    void close() override
+    {
+        if (closed_) return;
+        observations_.clear();
+        observations_.push_back(ClosedObservation{});
+        closed_ = true;
+    }
+
+protected:
+    bool applyAutonomySuppression() override { return false; }
+
+private:
+    std::vector<TorrentObservation> observations_;
+    bool closed_ = false;
+};
+
 struct OwnedRequest {
     RequestAction action;
     bool queuedToNative = false;
@@ -71,8 +161,11 @@ std::string endpointKey(const lt::tcp::endpoint &endpoint)
 
 class LibTorrent2Adapter final : public TorrentTransport {
 public:
-    LibTorrent2Adapter(const std::string &torrentPath, const std::string &savePath)
+    explicit LibTorrent2Adapter(const TorrentOpenRequest &request)
+        : generation_(request.generation), canonicalInfoHash_(request.infoHash)
     {
+        auto params = sourceParams(request);
+        if (params.ti) pieceCount_ = static_cast<std::uint32_t>(params.ti->num_pieces());
         lt::settings_pack settings;
         settings.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
         settings.set_bool(lt::settings_pack::enable_dht, false);
@@ -84,6 +177,8 @@ public:
         settings.set_int(lt::settings_pack::min_reconnect_time, 0);
         settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_disabled);
         settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_disabled);
+        settings.set_int(lt::settings_pack::alert_mask,
+                         static_cast<int>(lt::alert_category::error | lt::alert_category::status));
         session_ = std::make_unique<lt::session>(settings);
         session_->add_extension([this](const lt::torrent_handle &, lt::client_data_t) {
             return makeProductionPeerPlugin(
@@ -102,22 +197,17 @@ public:
                 [this] { tickDrain(); });
         });
 
-        lt::add_torrent_params params;
-        params.ti = std::make_shared<lt::torrent_info>(torrentPath);
-        pieceCount_ = static_cast<std::uint32_t>(params.ti->num_pieces());
-        std::filesystem::create_directories(savePath);
-        params.save_path = savePath;
-        params.flags |= lt::torrent_flags::paused;
-        params.flags &= ~lt::torrent_flags::auto_managed;
-        lt::error_code error;
-        torrent_ = session_->add_torrent(std::move(params), error);
-        if (error) throw std::runtime_error("libtorrent add_torrent: " + error.message());
+        std::filesystem::create_directories(request.savePath);
+        session_->async_add_torrent(std::move(params));
     }
 
     ~LibTorrent2Adapter() override { close(); }
 
     bool submit(const TorrentAction &action) override
     {
+        collectSourceAlerts();
+        if (const auto *connectAction = std::get_if<ConnectAction>(&action))
+            return connect(*connectAction);
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_ || !controlled_) return false;
         if (const auto *request = std::get_if<RequestAction>(&action)) {
@@ -154,6 +244,7 @@ public:
 
     std::vector<TorrentObservation> poll() override
     {
+        collectSourceAlerts();
         std::lock_guard<std::mutex> lock(mutex_);
         std::vector<TorrentObservation> result;
         while (!observations_.empty()) {
@@ -163,7 +254,11 @@ public:
     }
 
     TransportStatistics statistics() const override
-    { std::lock_guard<std::mutex> lock(mutex_); return stats_; }
+    {
+        const_cast<LibTorrent2Adapter *>(this)->collectSourceAlerts();
+        std::lock_guard<std::mutex> lock(mutex_);
+        return stats_;
+    }
 
     void close() override
     {
@@ -179,7 +274,14 @@ public:
             }
             stats_.ownedRequestsOutstanding = 0;
             pendingRequests_.clear(); pendingControl_.clear(); permits_.clear();
+            pendingConnects_.clear();
+            observations_.erase(std::remove_if(observations_.begin(), observations_.end(),
+                [](const auto &observation) {
+                    return std::holds_alternative<MetadataReadyObservation>(observation)
+                        || std::holds_alternative<SourceFailureObservation>(observation);
+                }), observations_.end());
         }
+        std::lock_guard<std::mutex> alertLock(alertMutex_);
         if (session_) {
             if (torrent_.is_valid()) session_->remove_torrent(torrent_);
             session_.reset();
@@ -191,17 +293,22 @@ public:
         if (!closedObserved_) { observations_.push_back(ClosedObservation{}); closedObserved_ = true; }
     }
 
-    bool connect(PeerHandle peer, const std::string &address, std::uint16_t port)
+    bool connect(const ConnectAction &action)
     {
         lt::error_code error;
-        const auto parsed = lt::make_address(address, error);
-        if (error) return false;
-        const lt::tcp::endpoint endpoint{parsed, port};
+        const auto parsed = lt::make_address(action.address, error);
+        if (error || action.port == 0) return false;
+        const lt::tcp::endpoint endpoint{parsed, action.port};
         lt::torrent_handle handle;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (closed_ || !controlled_ || peer == 0 || !torrent_.is_valid()) return false;
-            endpointPeers_[endpointKey(endpoint)] = peer;
+            if (closed_ || !controlled_ || action.generation != generation_ || action.peer == 0)
+                return false;
+            endpointPeers_[endpointKey(endpoint)] = action.peer;
+            if (!torrent_.is_valid()) {
+                pendingConnects_.push_back(action);
+                return true;
+            }
             handle = torrent_;
         }
         // A disconnect callback precedes libtorrent's final peer-list cleanup.
@@ -214,7 +321,7 @@ public:
         } catch (...) {
             std::lock_guard<std::mutex> lock(mutex_);
             const auto found = endpointPeers_.find(endpointKey(endpoint));
-            if (found != endpointPeers_.end() && found->second == peer) endpointPeers_.erase(found);
+            if (found != endpointPeers_.end() && found->second == action.peer) endpointPeers_.erase(found);
             return false;
         }
     }
@@ -280,16 +387,102 @@ public:
 protected:
     bool applyAutonomySuppression() override
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (closed_ || controlled_) return !closed_;
-        controlled_ = true;
-        std::vector<lt::download_priority_t> priorities(pieceCount_, lt::dont_download);
-        torrent_.prioritize_pieces(priorities);
-        torrent_.resume();
-        return true;
+        lt::torrent_handle handle;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_ || controlled_) return !closed_;
+            controlled_ = true;
+            handle = torrent_;
+        }
+        return !handle.is_valid() || suppressAutonomy(handle);
     }
 
 private:
+    bool suppressAutonomy(const lt::torrent_handle &handle)
+    {
+        try {
+            const auto info = handle.torrent_file();
+            if (info) {
+                std::vector<lt::download_priority_t> priorities(
+                    static_cast<std::size_t>(info->num_pieces()), lt::dont_download);
+                handle.prioritize_pieces(priorities);
+            }
+            handle.resume();
+            return true;
+        } catch (...) { return false; }
+    }
+
+    void collectSourceAlerts()
+    {
+        std::lock_guard<std::mutex> alertLock(alertMutex_);
+        if (!session_) return;
+        std::vector<lt::alert *> alerts;
+        session_->pop_alerts(&alerts);
+        for (const auto *alert : alerts) {
+            if (const auto *added = lt::alert_cast<lt::add_torrent_alert>(alert)) {
+                handleAdded(*added);
+            } else if (const auto *metadata = lt::alert_cast<lt::metadata_received_alert>(alert)) {
+                emitMetadataReady(metadata->handle.torrent_file());
+            }
+        }
+    }
+
+    void handleAdded(const lt::add_torrent_alert &alert)
+    {
+        if (alert.error) {
+            emitSourceFailure("libtorrent async_add_torrent: " + alert.error.message(), false);
+            return;
+        }
+        bool controlled = false;
+        std::vector<ConnectAction> connects;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_) return;
+            torrent_ = alert.handle;
+            controlled = controlled_;
+            connects.swap(pendingConnects_);
+        }
+        if (controlled && !suppressAutonomy(alert.handle)) {
+            emitSourceFailure("libtorrent autonomy suppression failed", false);
+            return;
+        }
+        const auto info = alert.params.ti ? alert.params.ti : alert.handle.torrent_file();
+        if (info) emitMetadataReady(info);
+        for (const auto &connectAction : connects) (void)connect(connectAction);
+    }
+
+    void emitMetadataReady(const std::shared_ptr<const lt::torrent_info> &info)
+    {
+        if (!info) return;
+        const auto actualHash = v1InfoHash(*info);
+        if (actualHash != canonicalInfoHash_) {
+            emitSourceFailure("libtorrent metadata v1 infohash mismatch", false);
+            return;
+        }
+        const auto section = info->info_section();
+        std::vector<std::uint8_t> bytes(section.begin(), section.end());
+        std::vector<std::string> trackers;
+        for (const auto &tracker : info->trackers()) trackers.push_back(tracker.url);
+        std::vector<std::string> urlSeeds;
+        for (const auto &seed : info->web_seeds()) urlSeeds.push_back(seed.url);
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_ || metadataReadyObserved_ || sourceFailed_) return;
+        pieceCount_ = static_cast<std::uint32_t>(info->num_pieces());
+        observations_.push_back(MetadataReadyObservation{
+            generation_, canonicalInfoHash_, std::move(bytes),
+            std::move(trackers), std::move(urlSeeds)});
+        metadataReadyObserved_ = true;
+    }
+
+    void emitSourceFailure(std::string error, bool retryable)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_ || sourceFailed_ || metadataReadyObserved_) return;
+        observations_.push_back(SourceFailureObservation{
+            generation_, canonicalInfoHash_, std::move(error), retryable});
+        sourceFailed_ = true;
+    }
+
     void requestDrainLocked()
     {
         drainRequested_ = true;
@@ -616,10 +809,14 @@ private:
     }
 
     mutable std::mutex mutex_;
+    std::mutex alertMutex_;
     std::unique_ptr<lt::session> session_;
     lt::torrent_handle torrent_;
     std::uint32_t pieceCount_ = 0;
+    EngineGeneration generation_ = 0;
+    V1InfoHash canonicalInfoHash_{};
     bool controlled_ = false, closed_ = false, closedObserved_ = false, drainRequested_ = false;
+    bool metadataReadyObserved_ = false, sourceFailed_ = false;
     std::uint64_t forbiddenAttempts_ = 0, guardedNativeTouches_ = 0;
     std::uint64_t autonomousNativeMutations_ = 0, ownedAddCount_ = 0;
     std::uint64_t framedCount_ = 0, staleDisconnectsIgnored_ = 0;
@@ -631,6 +828,7 @@ private:
     std::map<PeerHandle, std::set<std::uint32_t>> advertised_;
     std::set<PeerHandle> unchoked_;
     std::deque<RequestAction> pendingRequests_;
+    std::vector<ConnectAction> pendingConnects_;
     std::map<PeerHandle, std::deque<TorrentAction>> pendingControl_;
     std::vector<RequestAction> permits_, framedPending_, retired_;
     std::vector<OwnedRequest> active_;
@@ -643,15 +841,26 @@ private:
 std::unique_ptr<ports::TorrentTransport> makeLibTorrent2Adapter(
     const std::string &torrentPath, const std::string &savePath)
 {
-    try { return std::make_unique<LibTorrent2Adapter>(torrentPath, savePath); }
+    try {
+        std::ifstream input(torrentPath, std::ios::binary);
+        if (!input) return {};
+        std::vector<std::uint8_t> bytes{
+            std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+        lt::error_code error;
+        lt::torrent_info info(reinterpret_cast<const char *>(bytes.data()),
+                              static_cast<int>(bytes.size()), error);
+        if (error) return {};
+        return ports::openTorrentTransport(
+            ports::TorrentOpenRequest{1, v1InfoHash(info),
+                                      ports::MetainfoSource{std::move(bytes)}, savePath});
+    }
     catch (...) { return {}; }
 }
 
 bool connectPeer(ports::TorrentTransport &transport, ports::PeerHandle peer,
                  const std::string &address, std::uint16_t port)
 {
-    auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
-    return adapter && adapter->connect(peer, address, port);
+    return transport.submit(ports::ConnectAction{1, peer, address, port});
 }
 
 bool forbiddenCrossThreadNativeAccessIsRejected(ports::TorrentTransport &transport)
@@ -723,3 +932,19 @@ ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &transport,
     return adapter ? adapter->endpointOwner(address, port) : 0;
 }
 } // namespace server1::transport
+
+namespace server1::ports {
+std::unique_ptr<TorrentTransport>
+openTorrentTransport(const TorrentOpenRequest &request) noexcept
+{
+    try {
+        return std::make_unique<transport::LibTorrent2Adapter>(request);
+    } catch (const std::exception &error) {
+        return std::make_unique<transport::FailedTorrentTransport>(
+            request.generation, request.infoHash, error.what());
+    } catch (...) {
+        return std::make_unique<transport::FailedTorrentTransport>(
+            request.generation, request.infoHash, "unknown torrent source failure");
+    }
+}
+} // namespace server1::ports

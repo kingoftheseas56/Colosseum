@@ -1,9 +1,13 @@
 #include "server1/ports/TorrentTransport.h"
 
 #include <libtorrent/bencode.hpp>
+#include <libtorrent/alert_types.hpp>
 #include <libtorrent/create_torrent.hpp>
 #include <libtorrent/file_storage.hpp>
+#include <libtorrent/session.hpp>
+#include <libtorrent/settings_pack.hpp>
 #include <libtorrent/torrent_info.hpp>
+#include <libtorrent/torrent_flags.hpp>
 #include <libtorrent/version.hpp>
 
 #include <chrono>
@@ -66,6 +70,8 @@ void prepare(const fs::path &directory, char fill = 'K')
     storage.add_file("K10-wire.bin", 32768);
     lt::create_torrent creator(storage, 16384);
     lt::set_piece_hashes(creator, directory.string());
+    creator.add_tracker("http://tracker.invalid/announce");
+    creator.add_url_seed("http://seed.invalid/K10-wire.bin");
     std::vector<char> encoded;
     lt::bencode(std::back_inserter(encoded), creator.generate());
     std::ofstream torrent(directory / "K10-wire.torrent", std::ios::binary | std::ios::trunc);
@@ -77,6 +83,92 @@ void prepare(const fs::path &directory, char fill = 'K')
         << "linked_runtime_version=" << lt::version() << '\n'
         << "archive_sha256=a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30\n";
 }
+
+std::vector<std::uint8_t> readBytes(const fs::path &path)
+{
+    std::ifstream input(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+}
+
+V1InfoHash readInfoHash(const fs::path &directory)
+{
+    std::ifstream input(directory / "info_hash.txt");
+    std::string hex;
+    input >> hex;
+    expect(hex.size() == 40, "K10-E prepared v1 hash length mismatch");
+    V1InfoHash value{};
+    const auto nibble = [](char c) -> std::uint8_t {
+        if (c >= '0' && c <= '9') return static_cast<std::uint8_t>(c - '0');
+        if (c >= 'a' && c <= 'f') return static_cast<std::uint8_t>(10 + c - 'a');
+        fail("K10-E prepared v1 hash was not canonical lowercase hex");
+    };
+    for (std::size_t index = 0; index < value.size(); ++index)
+        value[index] = static_cast<std::uint8_t>((nibble(hex[index * 2]) << 4) | nibble(hex[index * 2 + 1]));
+    return value;
+}
+
+std::string infoHashHex(const V1InfoHash &hash)
+{
+    static constexpr char digits[] = "0123456789abcdef";
+    std::string result;
+    for (const auto byte : hash) {
+        result.push_back(digits[byte >> 4]);
+        result.push_back(digits[byte & 0x0f]);
+    }
+    return result;
+}
+
+class NativeMetadataSeeder final {
+public:
+    explicit NativeMetadataSeeder(const fs::path &directory)
+        : session_(settings())
+    {
+        bool listening = false;
+        const auto listenDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (!listening && std::chrono::steady_clock::now() < listenDeadline) {
+            session_.wait_for_alert(std::chrono::milliseconds(100));
+            std::vector<lt::alert *> alerts;
+            session_.pop_alerts(&alerts);
+            listening = std::any_of(alerts.begin(), alerts.end(), [](const lt::alert *alert) {
+                return lt::alert_cast<lt::listen_succeeded_alert>(alert) != nullptr;
+            });
+        }
+        expect(listening, "K10-E native metadata seeder listen barrier failed");
+        lt::add_torrent_params params;
+        params.ti = std::make_shared<lt::torrent_info>((directory / "K10-wire.torrent").string());
+        params.save_path = directory.string();
+        params.flags &= ~lt::torrent_flags::paused;
+        params.flags &= ~lt::torrent_flags::auto_managed;
+        params.flags |= lt::torrent_flags::seed_mode;
+        lt::error_code error;
+        handle_ = session_.add_torrent(std::move(params), error);
+        expect(!error && handle_.is_valid(), "K10-E native metadata seeder add failed");
+        port_ = session_.listen_port();
+        expect(port_ != 0, "K10-E native metadata seeder did not bind");
+    }
+
+    [[nodiscard]] std::uint16_t port() const { return port_; }
+
+private:
+    static lt::settings_pack settings()
+    {
+        lt::settings_pack result;
+        result.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
+        result.set_bool(lt::settings_pack::enable_dht, false);
+        result.set_bool(lt::settings_pack::enable_lsd, false);
+        result.set_bool(lt::settings_pack::enable_upnp, false);
+        result.set_bool(lt::settings_pack::enable_natpmp, false);
+        result.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_disabled);
+        result.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_disabled);
+        result.set_int(lt::settings_pack::alert_mask,
+                       static_cast<int>(lt::alert_category::error | lt::alert_category::status));
+        return result;
+    }
+
+    lt::session session_;
+    lt::torrent_handle handle_;
+    std::uint16_t port_ = 0;
+};
 
 std::vector<TorrentObservation> pollUntil(TorrentTransport &transport,
     const std::function<bool(const std::vector<TorrentObservation>&)> &done,
@@ -629,6 +721,158 @@ void caseThreadGuard(const fs::path &directory, int port)
     transport->close();
     std::cout << "K10-03 PASS established_native_thread=1 forbidden=2 native_touches=0 request=1\n";
 }
+
+void caseSourceFailure(const fs::path &directory)
+{
+    const TorrentOpenRequest invalid{301,
+        V1InfoHash{}, MagnetSource{"magnet:?xt=urn:btih:not-hex"},
+        (directory / "invalid-download").string()};
+    auto transport = server1::ports::openTorrentTransport(invalid);
+    expect(bool(transport), "K10-E invalid source factory threw or returned null");
+    const auto first = transport->poll();
+    expect(std::count_if(first.begin(), first.end(), [](const auto &item) {
+               const auto *failure = std::get_if<SourceFailureObservation>(&item);
+               return failure && failure->generation == 301 && !failure->retryable;
+           }) == 1, "K10-E invalid canonical hash did not emit one source-owned failure");
+    expect(transport->poll().empty(), "K10-E invalid source failure repeated");
+    transport->close();
+    std::cout << "K10-E INVALID PASS source_failures=1 throws=0\n";
+}
+
+void caseInvalidGeneration(const fs::path &directory)
+{
+    const TorrentOpenRequest invalid{0, V1InfoHash{}, InfoHashSource{},
+        (directory / "invalid-generation-download").string()};
+    auto transport = server1::ports::openTorrentTransport(invalid);
+    expect(bool(transport), "K10-E zero-generation factory returned null");
+    const auto observations = transport->poll();
+    expect(std::count_if(observations.begin(), observations.end(), [](const auto &item) {
+               const auto *failure = std::get_if<SourceFailureObservation>(&item);
+               return failure && failure->generation == 0
+                   && failure->error.find("generation") != std::string::npos;
+           }) == 1, "K10-E zero generation did not emit one source-owned failure");
+    transport->close();
+    std::cout << "K10-E GENERATION PASS source_failures=1 throws=0\n";
+}
+
+void caseCachedMetadata(const fs::path &directory)
+{
+    prepare(directory);
+    const auto hash = readInfoHash(directory);
+    const TorrentOpenRequest request{302, hash,
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "cached-download").string()};
+    auto transport = server1::ports::openTorrentTransport(request);
+    expect(bool(transport), "K10-E cached source factory failed");
+    const auto observations = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<MetadataReadyObservation>(item);
+        });
+    });
+    const auto readyCount = std::count_if(observations.begin(), observations.end(), [](const auto &item) {
+        return std::holds_alternative<MetadataReadyObservation>(item);
+    });
+    expect(readyCount == 1, "K10-E cached metadata did not queue exactly once");
+    const auto ready = std::find_if(observations.begin(), observations.end(), [](const auto &item) {
+        return std::holds_alternative<MetadataReadyObservation>(item);
+    });
+    const auto &metadata = std::get<MetadataReadyObservation>(*ready);
+    expect(metadata.generation == 302 && metadata.infoHash == hash
+               && !metadata.infoSection.empty()
+               && metadata.trackers == std::vector<std::string>{"http://tracker.invalid/announce"}
+               && metadata.urlSeeds == std::vector<std::string>{"http://seed.invalid/K10-wire.bin"},
+           "K10-E cached ready observation lost generation, info section, tracker, or URL seed");
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    expect(transport->poll().empty(), "K10-E cached metadata ready repeated");
+    transport->close();
+    std::cout << "K10-E CACHED PASS queued=1 ready=1 duplicate=0\n";
+}
+
+void caseHashMismatch(const fs::path &directory)
+{
+    prepare(directory);
+    const TorrentOpenRequest request{303,
+        V1InfoHash{},
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "mismatch-download").string()};
+    auto transport = server1::ports::openTorrentTransport(request);
+    expect(bool(transport), "K10-E mismatch source factory returned null");
+    const auto observations = transport->poll();
+    expect(std::count_if(observations.begin(), observations.end(), [](const auto &item) {
+               const auto *failure = std::get_if<SourceFailureObservation>(&item);
+               return failure && failure->generation == 303
+                   && failure->error.find("mismatch") != std::string::npos;
+           }) == 1, "K10-E metainfo hash mismatch did not emit one source failure");
+    transport->close();
+    std::cout << "K10-E MISMATCH PASS source_failures=1 throws=0\n";
+}
+
+void casePeerMetadata(const fs::path &directory, bool magnet)
+{
+    prepare(directory);
+    const auto hash = readInfoHash(directory);
+    NativeMetadataSeeder seeder(directory);
+    TorrentSource source = InfoHashSource{};
+    if (magnet) source = MagnetSource{"magnet:?xt=urn:btih:" + infoHashHex(hash)};
+    const EngineGeneration generation = magnet ? 305 : 304;
+    const TorrentOpenRequest request{generation, hash, std::move(source),
+        (directory / (magnet ? "magnet-download" : "hash-download")).string()};
+    auto transport = server1::ports::openTorrentTransport(request);
+    expect(bool(transport), "K10-E peer metadata factory failed");
+    expect(transport->configureAutonomy({}), "K10-E peer metadata control setup failed");
+    expect(transport->poll().empty(), "K10-E peer metadata was synthesized during construction");
+    expect(!transport->submit(ConnectAction{generation - 1, 177, "127.0.0.1", seeder.port()}),
+           "K10-E stale-generation ConnectAction was accepted");
+    expect(transport->submit(ConnectAction{generation, 177, "127.0.0.1", seeder.port()}),
+           "K10-E public ConnectAction was rejected");
+    const auto observations = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<MetadataReadyObservation>(item)
+                || std::holds_alternative<SourceFailureObservation>(item);
+        });
+    });
+    for (const auto &item : observations)
+        if (const auto *failure = std::get_if<SourceFailureObservation>(&item))
+            fail("K10-E peer metadata source failure: " + failure->error);
+    expect(std::count_if(observations.begin(), observations.end(), [](const auto &item) {
+               return std::holds_alternative<MetadataReadyObservation>(item);
+           }) == 1, "K10-E real libtorrent metadata was not delivered exactly once");
+    const auto ready = std::find_if(observations.begin(), observations.end(), [](const auto &item) {
+        return std::holds_alternative<MetadataReadyObservation>(item);
+    });
+    const auto &metadata = std::get<MetadataReadyObservation>(*ready);
+    expect(metadata.generation == generation && metadata.infoHash == hash
+               && !metadata.infoSection.empty(),
+           "K10-E real libtorrent metadata lost generation, hash, or info section");
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    expect(transport->poll().empty(), "K10-E real libtorrent metadata repeated");
+    transport->close();
+    std::cout << "K10-E " << (magnet ? "MAGNET" : "INFOHASH")
+              << " PASS public_connect=1 native_metadata=1 ready=1 duplicate=0\n";
+}
+
+void caseCloseSuppressesSource(const fs::path &directory)
+{
+    prepare(directory);
+    const TorrentOpenRequest request{306, readInfoHash(directory),
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "close-download").string()};
+    auto transport = server1::ports::openTorrentTransport(request);
+    expect(bool(transport), "K10-E close suppression factory failed");
+    transport->close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    const auto terminal = transport->poll();
+    expect(std::count_if(terminal.begin(), terminal.end(), [](const auto &item) {
+               return std::holds_alternative<ClosedObservation>(item);
+           }) == 1, "K10-E close observation missing");
+    expect(std::none_of(terminal.begin(), terminal.end(), [](const auto &item) {
+               return std::holds_alternative<MetadataReadyObservation>(item)
+                   || std::holds_alternative<SourceFailureObservation>(item);
+           }), "K10-E stale source effect escaped after close");
+    expect(!transport->submit(ConnectAction{306, 177, "127.0.0.1", 65530}),
+           "K10-E connect escaped after close");
+    std::cout << "K10-E CLOSE PASS stale_source_effects=0\n";
+}
 }
 
 int main(int argc, char **argv)
@@ -661,6 +905,27 @@ int main(int argc, char **argv)
     if (argc == 3 && std::string(argv[1]) == "K10-02") { caseLedger(argv[2]); return 0; }
     if (argc == 4 && std::string(argv[1]) == "--thread-guard") {
         caseThreadGuard(argv[2], std::stoi(argv[3])); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-invalid") {
+        caseSourceFailure(argv[2]); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-generation") {
+        caseInvalidGeneration(argv[2]); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-cached") {
+        caseCachedMetadata(argv[2]); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-mismatch") {
+        caseHashMismatch(argv[2]); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-infohash") {
+        casePeerMetadata(argv[2], false); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-magnet") {
+        casePeerMetadata(argv[2], true); return 0;
+    }
+    if (argc == 3 && std::string(argv[1]) == "--source-close") {
+        caseCloseSuppressesSource(argv[2]); return 0;
     }
     std::cerr << "usage: test_native_transport --prepare DIR | --wire DIR PORT_A PORT_B | --lifecycle DIR PORT_A PORT_B | --thread-guard DIR PORT | K10-02 DIR\n";
     return 2;

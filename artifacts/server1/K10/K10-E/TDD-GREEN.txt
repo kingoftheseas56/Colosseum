@@ -1,0 +1,22 @@
+K10-E TDD GREEN — 2026-09-15
+
+Final clean aggregate build and run:
+cmd.exe /d /s /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && set "CMAKE_BUILD_PARALLEL_LEVEL=1" && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts\server1\INT-W3\B-W3D-candidate-60ecb9bb && "C:\Qt\Tools\CMake_64\bin\ctest.exe" --test-dir artifacts\server1\INT-W3\B-W3D-candidate-60ecb9bb --output-on-failure'
+Exit: 0. 59/59 PASS in 95.99 seconds.
+K10 legacy: 10/10 PASS, 82.25 seconds.
+K10-E: 7/7 PASS, 7.56 seconds.
+P08-T contract: PASS.
+INT-W3 public consumer link: PASS.
+
+Separate predecessor exclusion run before final aggregate:
+ctest --test-dir artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb -E "^K10-E-" --output-on-failure
+Exit: 0. 52/52 PASS in 86.65 seconds.
+
+K10-E behavior covered by real libtorrent-native execution:
+- malformed magnet and zero generation become exactly one queued SourceFailureObservation;
+- metainfo/hash mismatch becomes exactly one queued SourceFailureObservation;
+- cached metainfo queues exactly one MetadataReadyObservation carrying info-section bytes,
+  tracker, URL seed, generation, and binary v1 identity;
+- bare infohash and magnet startup retrieve metadata from a real local libtorrent seeder;
+- peer connection uses only the public ConnectAction submit seam;
+- stale-generation connection is rejected and close suppresses later source effects.

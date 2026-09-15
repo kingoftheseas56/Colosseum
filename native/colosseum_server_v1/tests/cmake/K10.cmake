@@ -46,4 +46,11 @@ function(server1_register_k10_tests)
     COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_lifecycle.ps1"
       -BuildDir "$<TARGET_FILE_DIR:server1_k10_native_transport_test>" -PortA 49612 -PortB 49613)
   set_tests_properties(K10-02-native-transport-lifecycle PROPERTIES LABELS "server1;native;K10")
+  foreach(source_case IN ITEMS invalid generation cached mismatch infohash magnet close)
+    add_test(NAME K10-E-transport-source-${source_case}
+      COMMAND server1_k10_native_transport_test --source-${source_case}
+        "${CMAKE_CURRENT_BINARY_DIR}/K10-E-${source_case}")
+    set_tests_properties(K10-E-transport-source-${source_case} PROPERTIES
+      LABELS "server1;native;K10-E")
+  endforeach()
 endfunction()

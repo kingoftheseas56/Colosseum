@@ -1,0 +1,8 @@
+K10-E TDD RED — 2026-09-15
+
+After the seven public-source cases were added, the focused native target compiled the
+consumer but failed to link because server1::ports::openTorrentTransport was undefined.
+MSVC diagnostic: LNK2019 unresolved external symbol openTorrentTransport.
+Exit: 1.
+
+No production source implementation existed when this failure was observed.

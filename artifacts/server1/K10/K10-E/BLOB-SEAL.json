@@ -1,0 +1,16 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "f8619b065598e258f0a9d188ba815fa49cd447f0",
+  "blobs": {
+    "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp": "682b1cc25f526e365680ba04365f3530bfdd6103",
+    "native/colosseum_server_v1/tests/test_native_transport.cpp": "ec5ff669e350685c1227d6bef9403c710a876c14",
+    "native/colosseum_server_v1/tests/cmake/K10.cmake": "aac6fee922e89039c4188413a03b25bb43a58be9",
+    "artifacts/server1/K10/K10-E/TDD-RED.txt": "e825971bd54f2940de7d64080543528127f327d6",
+    "artifacts/server1/K10/K10-E/TDD-GREEN.txt": "cba4fe6f0cbd6d8fce2d0ef493984af13cd73c1c",
+    "artifacts/server1/K10/K10-E/DEBUG-TRACE.md": "c17e8929250ec943399d72a0ff4b1c2900477f7f",
+    "artifacts/server1/K10/K10-E/SOURCE-TRACE.md": "2be1bd9ad4577af81f5f64252ecc41f5dfc269ff",
+    "artifacts/server1/K10/K10-E/TEST-COMMANDS.txt": "b75fe05318cf26c61892e212bfbd81a9fc5a1d92",
+    "artifacts/server1/K10/K10-E/PACKET-RECEIPT.json": "c46e8f56e1c147c9a056f0be87fcf4ebcc309be5"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file"
+}

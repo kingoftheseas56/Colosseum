@@ -1,0 +1,16 @@
+Final aggregate build and all registered tests:
+cmd.exe /d /s /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && set "CMAKE_BUILD_PARALLEL_LEVEL=1" && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts\server1\INT-W3\B-W3D-candidate-60ecb9bb && "C:\Qt\Tools\CMake_64\bin\ctest.exe" --test-dir artifacts\server1\INT-W3\B-W3D-candidate-60ecb9bb --output-on-failure'
+Exit: 0. 59/59 PASS; K10 10/10; K10-E 7/7; P08-T 1/1; integration link 1/1.
+
+Hardened public contract and compile-fail mutations:
+pwsh -NoProfile -File artifacts/server1/P08/P08-T2/run_contract.ps1
+Exit: 0. Positive consumer PASS; 14/14 mutations rejected.
+
+Public-path guard:
+python tests/test_public_path_guard.py
+python scripts/check_public_paths.py
+Exit: 0. Four unittest cases PASS; PUBLIC_PATH_GUARD_OK.
+
+Note: `python -m pytest tests/test_public_path_guard.py -q` was attempted first and exited 1
+because pytest is not installed in this environment. The repository's unittest entrypoint then
+ran the same guard successfully.

@@ -1,0 +1,36 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K10",
+  "worker": "K10-E",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-source-20260915",
+  "base": "f8619b065598e258f0a9d188ba815fa49cd447f0",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K10/K10-E/PACKET-RECEIPT.json)",
+  "dependency": {
+    "libtorrent_version": "2.0.11.0",
+    "libtorrent_revision": "6e1587799",
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+  },
+  "cases": {
+    "invalid": "PASS; malformed magnet returns a transport and queues one source failure without throwing",
+    "generation": "PASS; generation zero returns a transport and queues one source failure",
+    "cached": "PASS; cached metainfo queues ready exactly once with info section, tracker, URL seed, generation, and binary v1 identity",
+    "mismatch": "PASS; metainfo whose hash differs from the required identity queues one source failure",
+    "infohash": "PASS; bare v1 infohash plus public ConnectAction retrieves metadata from a real local libtorrent seeder",
+    "magnet": "PASS; magnet startup retrieves metadata from a real local libtorrent seeder before one ready observation",
+    "close": "PASS; close removes queued/later source effects and rejects later connection control"
+  },
+  "verification": {
+    "aggregate": "59/59 PASS; 95.99 seconds",
+    "registered_k10": "10/10 PASS; 82.25 seconds",
+    "registered_k10_e": "7/7 PASS; 7.56 seconds",
+    "predecessor_excluding_k10_e": "52/52 PASS; 86.65 seconds",
+    "p08_t2_contract": "positive consumer PASS; 14/14 compile mutations rejected",
+    "public_path_guard": "four unittest cases PASS; PUBLIC_PATH_GUARD_OK",
+    "negative_mutation": "generation-zero check mutation failed K10-E generation; condition restored before final run"
+  },
+  "architecture": "Public binary v1 source request to async_add_torrent; add and metadata alerts queue generation-bound exactly-once observations; cached info section plus trackers and URL seeds are copied; ConnectAction is the only peer-connect control path; owned payload request firewall is unchanged.",
+  "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; implementation-authored; mutation-tested; native-tested; aggregate-tested; candidate-test-reported"
+}
