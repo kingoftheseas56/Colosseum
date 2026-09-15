@@ -1,5 +1,6 @@
 #include "server1/discovery/PeerSearch.h"
 #include "server1/policy/CircularPieceStore.h"
+#include "server1/policy/FileReader.h"
 #include "server1/policy/MetadataExchange.h"
 #include "server1/policy/PieceBuffer.h"
 #include "server1/policy/PieceStore.h"
@@ -10,7 +11,14 @@
 #include "server1/ports/TorrentTransport.h"
 
 #include <filesystem>
+#include <memory>
+#include <string>
 #include <type_traits>
+
+namespace server1::transport {
+std::unique_ptr<ports::TorrentTransport> makeLibTorrent2Adapter(
+    const std::string &torrentPath, const std::string &savePath);
+}
 
 namespace {
 class TransportConsumer final : public server1::ports::TorrentTransport {
@@ -55,6 +63,9 @@ int main()
     if (SwarmCaps::bufferFullness({}) != 0.0) return 6;
     TransportConsumer transport;
     if (!transport.configureAutonomy({})) return 7;
+    const auto fileReaderLength = &FileReader::length;
+    const auto nativeTransportFactory = &server1::transport::makeLibTorrent2Adapter;
+    if (fileReaderLength == nullptr || nativeTransportFactory == nullptr) return 11;
     static_assert(std::is_abstract_v<server1::ports::TorrentTransport>);
     return 0;
 }

@@ -28,6 +28,10 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K09.cmake")
 server1_register_k09_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K04.cmake")
 server1_register_k04_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K08.cmake")
+server1_register_k08_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K10.cmake")
+server1_register_k10_tests()
 
 add_executable(server1_p08_torrent_transport_contract_test
   "${CMAKE_CURRENT_SOURCE_DIR}/test_torrent_transport_contract.cpp")
@@ -50,7 +54,9 @@ target_link_libraries(server1_spine_contracts_link_test PRIVATE
   server1_k06_persistent_store
   server1_k07_circular_store
   server1_k09_peer_search
-  server1_p08_torrent_transport_contract)
+  server1_p08_torrent_transport_contract
+  server1_k08_file_reader
+  server1_k10_native_transport)
 target_compile_features(server1_spine_contracts_link_test PRIVATE cxx_std_17)
 target_compile_options(server1_spine_contracts_link_test PRIVATE
   "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")

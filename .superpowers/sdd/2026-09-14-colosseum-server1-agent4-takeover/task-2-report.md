@@ -22,11 +22,11 @@ independent Agent 4 review. This producer does not self-accept them.
 
 The implementation used the read-only Preflight plan at:
 
-C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json
+<maintainer-frozen-plan-dir>/PARALLEL-WORK-ITEMS.json
 
 The frozen source pack was:
 
-C:\Users\Suprabha\Downloads\Colosseum-Server-1.0-Execution-Plan-Pack-v2.1\Colosseum-Server-1.0-Execution-Plan-v2.1
+<maintainer-execution-plan-pack>/Colosseum-Server-1.0-Execution-Plan-v2.1
 
 All nine accepted package hashes matched the control addendum before mutation.
 The frozen server.js oracle was 6,676,503 bytes with SHA-256

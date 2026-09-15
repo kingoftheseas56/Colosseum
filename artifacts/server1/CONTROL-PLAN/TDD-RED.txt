@@ -2,7 +2,7 @@ Colosseum Server 1.0 Slice 1 semantic graph validator — TDD RED
 Date: 2026-09-14
 
 Command:
-$env:SERVER1_FROZEN_PLAN_DIR='C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel'
+$env:SERVER1_FROZEN_PLAN_DIR='<maintainer-frozen-plan-dir>'
 node --test artifacts/server1/CONTROL-PLAN/test-control-graph.mjs
 
 Exit: 1
