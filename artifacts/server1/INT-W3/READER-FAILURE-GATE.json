@@ -1,0 +1,57 @@
+{
+  "schema": "colosseum-server1-reader-failure-gate/v1",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-reader-failure-20260915",
+  "base": "a4890e19c8621fdc0d63028894c12ce3ad3fe1da",
+  "accepted_head": "798a4ff2fe42f0f1d1c960dae6c32586920cd511",
+  "inputs": {
+    "K08-F2-contract": [
+      "a5979b16cfacd7866dd2c1d01249acf22e97cbad",
+      "31c67a576af283723173644412504371ae62316b",
+      "fc739b277e13060b899a8e4ce9426539ba667997",
+      "798a4ff2fe42f0f1d1c960dae6c32586920cd511"
+    ]
+  },
+  "review_lineage": {
+    "contract": "Independent Sol APPROVE at 31c67a576af283723173644412504371ae62316b",
+    "production_initial": "Independent Sol REQUEST-CHANGES at fc739b277e13060b899a8e4ce9426539ba667997 for reentrant iterator invalidation",
+    "production_repair": "Independent Sol APPROVE at 798a4ff2fe42f0f1d1c960dae6c32586920cd511"
+  },
+  "accepted_gates": [
+    "K08-F2-CONTRACT"
+  ],
+  "integrated_workers": [
+    "K08-F2"
+  ],
+  "verification": {
+    "branch_and_remote": "PASS; local and origin review ref at 798a4ff2fe42f0f1d1c960dae6c32586920cd511 before ledger commit",
+    "ancestry": "PASS; a4890e19c8621fdc0d63028894c12ce3ad3fe1da is an ancestor of 798a4ff2fe42f0f1d1c960dae6c32586920cd511",
+    "candidate_cleanliness": "PASS; clean before ledger authoring and diff-check clean",
+    "committed_blob_seals": "PASS; K08-F2 21/21",
+    "public_path_guard": "PASS; four unittest cases and PUBLIC_PATH_GUARD_OK",
+    "K08-F2_contract": "PASS; positive consumer executed, 6/6 signature mutations and 25/25 semantic mutations rejected",
+    "K08-F2": "PASS; three consecutive focused repetitions",
+    "legacy_K08": "PASS; 3/3",
+    "combined_K08": "PASS; 4/4",
+    "proportionate_aggregate": "PASS; fresh Release build and 43/43 non-K10 tests",
+    "full_aggregate_observation": "Producer observed 58/60 because unchanged fixed-port K10 failure-drain and cancel-drain readiness lanes failed; K08-F2 changes no K10 files"
+  },
+  "scope": {
+    "production": [
+      "native/colosseum_server_v1/include/server1/policy/FileReader.h",
+      "native/colosseum_server_v1/src/policy/FileReader.cpp"
+    ],
+    "tests": [
+      "native/colosseum_server_v1/tests/test_file_reader.cpp",
+      "native/colosseum_server_v1/tests/cmake/K08.cmake"
+    ],
+    "boundary": "This acceptance supplies terminal FileReader failure delivery and callback-safe state detachment for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness.",
+    "B-W3E": "not formed; remains K11"
+  },
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15"
+  },
+  "status": "accepted-and-integrated"
+}

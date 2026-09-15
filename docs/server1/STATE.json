@@ -211,6 +211,8 @@
     "P08-T3": "Accepted and integrated at 2600bfe25faabd67cb008fda11c28ef626104f15 after independent Sol review APPROVE; its positive consumer passed and 15/15 compile-fail mutations were rejected.",
     "K10-F": "Accepted and integrated at 16265bdce33c15777f400c8af262c918c1edd557 after independent Sol review APPROVE; real-wire peer availability passed twice, K10-E 7/7 and legacy K10 10/10 passed.",
     "PEER-AVAILABILITY-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 16265bdce33c15777f400c8af262c918c1edd557. Public-path guard PASS, 23/23 committed blobs verified, P08-T3 positive consumer plus 15/15 mutation rejects, K10-F twice consecutively, K10-E 7/7, and legacy K10 10/10. P08-T3-CONTRACT and G-PEER-AVAILABILITY are accepted. B-W3E is not formed.",
+    "K08-F2": "Accepted and integrated at 798a4ff2fe42f0f1d1c960dae6c32586920cd511 after independent Sol contract APPROVE, production REQUEST-CHANGES, repair, and independent Sol re-review APPROVE; terminal failure and callback-safe detachment passed three focused repetitions and K08 4/4.",
+    "READER-FAILURE-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 798a4ff2fe42f0f1d1c960dae6c32586920cd511. Public-path guard PASS, 21/21 committed blobs verified, contract consumer PASS, 6/6 signature and 25/25 semantic mutations rejected, K08-F2 three consecutive passes, K08 4/4, and fresh non-K10 aggregate 43/43. K08-F2-CONTRACT is accepted. B-W3E is not formed.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -264,6 +266,7 @@
       "K10-E": "integrated",
       "P08-T3": "integrated",
       "K10-F": "integrated",
+      "K08-F2": "integrated",
       "INT-W1": "integrated",
       "INT-W2": "integrated",
       "INT-W3": "integrated"
@@ -286,7 +289,8 @@
       "P08-T2-CONTRACT": "accepted",
       "G-METADATA-SOURCE": "accepted",
       "P08-T3-CONTRACT": "accepted",
-      "G-PEER-AVAILABILITY": "accepted"
+      "G-PEER-AVAILABILITY": "accepted",
+      "K08-F2-CONTRACT": "accepted"
     },
     "releases": {
       "P05-A": "released",
@@ -311,6 +315,7 @@
       "K10-A": "60ecb9bbbf9c8798a0469a3e6fa608d7a22defb8",
       "P08-T2": "0cc1aa19c10155380b19008850b18acc5c79b043",
       "K10-E": "c19c50682269467d4348ce620dab4d59e275e6df",
+      "K08-F2": "798a4ff2fe42f0f1d1c960dae6c32586920cd511",
       "INT-W3": "fe28b51973a32385d472cac88f17853d26445c9a"
     },
     "integrated_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
@@ -498,5 +503,34 @@
     "receipt": "artifacts/server1/INT-W3/PEER-AVAILABILITY-GATE.json",
     "B-W3E": "not formed; remains K11",
     "scope_note": "This acceptance supplies generation-bound peer availability and stale-callback isolation for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
+  },
+  "slice3_reader_failure_acceptance": {
+    "status": "accepted",
+    "reviewed_head": "798a4ff2fe42f0f1d1c960dae6c32586920cd511",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integration_base": "a4890e19c8621fdc0d63028894c12ce3ad3fe1da",
+    "inputs": {
+      "K08-F2": [
+        "a5979b16cfacd7866dd2c1d01249acf22e97cbad",
+        "31c67a576af283723173644412504371ae62316b",
+        "fc739b277e13060b899a8e4ce9426539ba667997",
+        "798a4ff2fe42f0f1d1c960dae6c32586920cd511"
+      ]
+    },
+    "review_lineage": "Contract independently approved at 31c67a57; production at fc739b27 received REQUEST-CHANGES for reentrant iterator invalidation; repaired 798a4ff2 received independent Sol APPROVE.",
+    "agent4_fresh_verification": {
+      "public_path_guard": "PASS",
+      "committed_blob_hashes": "21/21 PASS",
+      "K08-F2_contract": "positive consumer PASS; 6/6 signature and 25/25 semantic mutations rejected",
+      "K08-F2": "3/3 consecutive PASS",
+      "K08": "4/4 PASS",
+      "aggregate": "fresh Release build; non-K10 43/43 PASS"
+    },
+    "accepted_gates": ["K08-F2-CONTRACT"],
+    "integrated_workers": ["K08-F2"],
+    "receipt": "artifacts/server1/INT-W3/READER-FAILURE-GATE.json",
+    "B-W3E": "not formed; remains K11",
+    "scope_note": "This acceptance supplies terminal FileReader failure delivery and callback-safe state detachment for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
   }
 }
