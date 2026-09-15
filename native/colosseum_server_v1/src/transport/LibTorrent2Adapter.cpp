@@ -201,6 +201,9 @@ public:
         settings.set_bool(lt::settings_pack::allow_multiple_connections_per_ip, true);
         settings.set_bool(lt::settings_pack::close_redundant_connections, false);
         settings.set_int(lt::settings_pack::min_reconnect_time, 0);
+        settings.set_int(lt::settings_pack::choking_algorithm,
+                         lt::settings_pack::fixed_slots_choker);
+        settings.set_int(lt::settings_pack::unchoke_slots_limit, 0);
         settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_disabled);
         settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_disabled);
         settings.set_int(lt::settings_pack::alert_mask,
@@ -324,10 +327,11 @@ public:
         if (const auto *choke = std::get_if<ChokeAction>(&action)) {
             if (choke->peer == 0) return false;
             if (choke->choked) {
+                desiredLocallyUnchoked_.erase(choke->peer);
                 locallyUnchoked_.erase(choke->peer);
                 cancelUploadsLocked(choke->peer, 0);
             } else {
-                locallyUnchoked_.insert(choke->peer);
+                desiredLocallyUnchoked_.insert(choke->peer);
             }
         }
         const auto peer = std::visit([](const auto &value) -> PeerHandle {
@@ -392,7 +396,8 @@ public:
         }
         std::lock_guard<std::mutex> lock(mutex_);
         peers_.clear(); advertised_.clear(); unchoked_.clear(); endpointPeers_.clear();
-        locallyUnchoked_.clear(); interestedPeers_.clear(); announcedLocalPieces_.clear();
+        locallyUnchoked_.clear(); desiredLocallyUnchoked_.clear();
+        interestedPeers_.clear(); announcedLocalPieces_.clear();
         localAdvertisedPieces_.clear(); activeUploads_.clear();
         lastDetachedIdentity_.clear(); peerIdentities_.clear();
         stats_.connectedPeers = 0; stats_.unchokedPeers = 0;
@@ -517,6 +522,33 @@ public:
 
     bool closeStarted() const
     { std::lock_guard<std::mutex> lock(mutex_); return closed_; }
+
+    bool holdUploadControl(bool held)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_ || !controlled_) return false;
+        uploadControlHeld_ = held;
+        if (!held) requestDrainLocked();
+        return true;
+    }
+
+    bool replayCurrentUploadRequest(PeerHandle peer, const BlockSpan &block)
+    {
+        ConnectionIdentity identity = 0;
+        std::uint64_t rejected = 0;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto found = peerIdentities_.find(peer);
+            if (found == peerIdentities_.end()) return false;
+            identity = found->second;
+            rejected = stats_.uploadRequestsRejected;
+        }
+        uploadRequest(peer, identity,
+                      {lt::piece_index_t(static_cast<int>(block.piece)),
+                       static_cast<int>(block.offset), static_cast<int>(block.length)});
+        std::lock_guard<std::mutex> lock(mutex_);
+        return stats_.uploadRequestsRejected > rejected;
+    }
 
     PeerHandle endpointOwner(const std::string &address, std::uint16_t port) const
     {
@@ -669,7 +701,7 @@ private:
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (closed_ || !drainRequested_) return;
+            if (closed_ || !drainRequested_ || uploadControlHeld_) return;
             drainRequested_ = false;
         }
         drainOnNetworkThread();
@@ -797,6 +829,7 @@ private:
                     advertised_.erase(peer);
                     unchoked_.erase(peer);
                     locallyUnchoked_.erase(peer);
+                    desiredLocallyUnchoked_.erase(peer);
                     interestedPeers_.erase(peer);
                     announcedLocalPieces_.erase(peer);
                     emitAvailabilityLocked(peer);
@@ -885,6 +918,7 @@ private:
         std::deque<TorrentAction> actions;
         {
             std::lock_guard<std::mutex> lock(mutex_);
+            if (uploadControlHeld_) return;
             actions.swap(pendingControl_[peer]);
         }
         for (const auto &action : actions) {
@@ -895,7 +929,17 @@ private:
             } else if (const auto *interest = std::get_if<InterestAction>(&action)) {
                 if (interest->interested) native->send_interested(); else native->send_not_interested();
             } else if (const auto *choke = std::get_if<ChokeAction>(&action)) {
-                if (choke->choked) native->send_choke(); else native->send_unchoke();
+                if (choke->choked) {
+                    native->send_choke();
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    if (isCurrentNativeLocked(peer, native)) locallyUnchoked_.erase(peer);
+                } else {
+                    native->send_unchoke();
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    if (!closed_ && isCurrentNativeLocked(peer, native)
+                        && desiredLocallyUnchoked_.count(peer) != 0)
+                        locallyUnchoked_.insert(peer);
+                }
             }
         }
     }
@@ -925,7 +969,6 @@ private:
                        const lt::peer_request &wire)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        nativeThread_ = std::this_thread::get_id();
         BlockSpan block;
         const bool validBlock = validUploadBlockLocked(wire, block);
         const auto peerCount = static_cast<std::uint32_t>(std::count_if(
@@ -957,7 +1000,6 @@ private:
                       const lt::peer_request &wire)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        nativeThread_ = std::this_thread::get_id();
         if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
             ++staleCallbacksIgnored_;
             return;
@@ -1123,6 +1165,7 @@ private:
             emitAvailabilityLocked(peer);
             unchoked_.erase(peer);
             locallyUnchoked_.erase(peer);
+            desiredLocallyUnchoked_.erase(peer);
             interestedPeers_.erase(peer);
             announcedLocalPieces_.erase(peer);
             pendingControl_.erase(peer);
@@ -1233,7 +1276,7 @@ private:
     EngineGeneration generation_ = 0;
     V1InfoHash canonicalInfoHash_{};
     bool controlled_ = false, closed_ = false, closedObserved_ = false, drainRequested_ = false;
-    bool metadataReadyObserved_ = false, sourceFailed_ = false;
+    bool metadataReadyObserved_ = false, sourceFailed_ = false, uploadControlHeld_ = false;
     std::uint64_t forbiddenAttempts_ = 0, guardedNativeTouches_ = 0;
     std::uint64_t autonomousNativeMutations_ = 0, ownedAddCount_ = 0;
     std::uint64_t framedCount_ = 0, staleDisconnectsIgnored_ = 0, staleCallbacksIgnored_ = 0;
@@ -1247,6 +1290,7 @@ private:
     std::map<PeerHandle, std::set<std::uint32_t>> announcedLocalPieces_;
     std::set<PeerHandle> unchoked_;
     std::set<PeerHandle> locallyUnchoked_;
+    std::set<PeerHandle> desiredLocallyUnchoked_;
     std::set<PeerHandle> interestedPeers_;
     std::deque<RequestAction> pendingRequests_;
     std::vector<ConnectAction> pendingConnects_;
@@ -1361,6 +1405,19 @@ bool closeHasStarted(const ports::TorrentTransport &transport)
 {
     const auto *adapter = dynamic_cast<const LibTorrent2Adapter *>(&transport);
     return adapter && adapter->closeStarted();
+}
+
+bool holdUploadControlDispatch(ports::TorrentTransport &transport, bool held)
+{
+    auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
+    return adapter && adapter->holdUploadControl(held);
+}
+
+bool replayCurrentUploadRequest(ports::TorrentTransport &transport, ports::PeerHandle peer,
+                                const ports::BlockSpan &block)
+{
+    auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
+    return adapter && adapter->replayCurrentUploadRequest(peer, block);
 }
 
 ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &transport,

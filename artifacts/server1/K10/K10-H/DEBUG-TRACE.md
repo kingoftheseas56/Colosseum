@@ -16,4 +16,17 @@ Self-review found that the adapter's early closed/uncontrolled gate rejected lat
 actions without incrementing `uploadActionsRejected`. The gate now counts advertise,
 response, and abort rejection there, and lifecycle verifies a late post-close abort.
 
+Independent review found that ChokeAction(false) changed `locallyUnchoked_` on the caller
+thread before the queued native `send_unchoke()` call. The repair separates desired state
+from applied state. Caller submission records only the desired transition; the applied set
+changes after the current connection's network-thread send call. Choke, detach, close, and
+connection replacement clear desired and applied state conservatively.
+
+The first pending-unchoke oracle mistook libtorrent's initial protocol UNCHOKE for the
+requested transition. The raw peer now waits for an explicit adapter CHOKE before submitting
+the held-window request. Because libtorrent may reject a request while wire-choked before the
+plugin callback, the test also replays the exact callback admission path for the current
+private connection identity. That replay makes removal of the applied gate deterministic;
+the raw peer independently proves CHOKE -> early REQUEST -> requested UNCHOKE -> retry order.
+
 [Agent 4 (Codex/Sol subagent), K10-H producer]

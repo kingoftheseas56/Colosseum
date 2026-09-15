@@ -13,4 +13,11 @@ The raw peer fixture had emitted a 19-byte peer ID, shifting the following bitfi
 byte into the handshake. Padding the fixture to the required 20-byte peer ID fixed
 the test oracle; no production behavior was weakened.
 
+Review repair RED at exact producer head 7abe3d1ab26529ca6200e010a2a9c3ad2ca50e90:
+the held-dispatch regression failed with `K10-H pre-dispatch request was not rejected`.
+The caller-side ChokeAction(false) path had already inserted the peer into the applied
+local-unchoke set before the network thread called send_unchoke. A compiled behavioral
+mutation that removes the repaired applied-state gate still fails with `K10-H pending
+unchoke admitted ownership before wire dispatch`, proving the regression detects the defect.
+
 [Agent 4 (Codex/Sol subagent), K10-H producer]

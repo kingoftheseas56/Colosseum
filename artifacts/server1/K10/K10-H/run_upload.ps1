@@ -31,6 +31,41 @@ try {
         throw 'K10-H feasibility raw HAVE/PIECE mismatch'
     }
 
+    $pending = Join-Path $run 'pending-unchoke'
+    & $exe --prepare $pending *> (Join-Path $run 'prepare-pending.transcript')
+    if ($LASTEXITCODE -ne 0) { throw "K10-H pending prepare failed: $LASTEXITCODE" }
+    $hash = (Get-Content -Raw -LiteralPath (Join-Path $pending 'info_hash.txt')).Trim()
+    $pendingWire = Join-Path $run 'pending-unchoke-wire.log'
+    $trigger = Join-Path $pending 'pre-dispatch-request.trigger'
+    $chokedMarker = Join-Path $pending 'explicit-choke.observed'
+    $preMarker = Join-Path $pending 'pre-wire-request.sent'
+    $pendingPeer = Start-Process python -ArgumentList @(
+        (Join-Path $PSScriptRoot 'upload_pending_peer.py'), '--port', '0', '--info-hash', $hash,
+        '--log', $pendingWire, '--trigger', $trigger,
+        '--choked-marker', $chokedMarker, '--pre-marker', $preMarker) -PassThru -WindowStyle Hidden
+    $peers += $pendingPeer
+    $deadline = (Get-Date).AddSeconds(5)
+    while ((Get-Date) -lt $deadline -and -not ((Test-Path $pendingWire) -and
+        (Select-String -Quiet -SimpleMatch 'LISTEN ' $pendingWire))) { Start-Sleep -Milliseconds 20 }
+    if (-not (Test-Path $pendingWire)) { throw 'K10-H pending listener missing' }
+    $pendingPort = [int](((@(Select-String -LiteralPath $pendingWire -Pattern '^LISTEN port=')[0]).Line -split '=')[1])
+    & $exe --upload-pending-unchoke $pending $pendingPort *> (Join-Path $run 'pending-unchoke.transcript')
+    if ($LASTEXITCODE -ne 0) {
+        Get-Content -LiteralPath (Join-Path $run 'pending-unchoke.transcript')
+        throw "K10-H pending unchoke case failed: $LASTEXITCODE"
+    }
+    Start-Sleep -Milliseconds 150
+    $pendingLines = @(Get-Content -LiteralPath $pendingWire)
+    $chokeIndex = [Array]::IndexOf($pendingLines, 'CHOKE_RECEIVED')
+    $preIndex = [Array]::IndexOf($pendingLines, 'PRE_WIRE_REQUEST_SENT piece=0 offset=0 length=16384')
+    $unchokeIndex = [Array]::IndexOf($pendingLines, 'UNCHOKE_RECEIVED')
+    $retryIndex = [Array]::IndexOf($pendingLines, 'POST_WIRE_RETRY_SENT piece=0 offset=0 length=16384')
+    if ($chokeIndex -lt 0 -or $preIndex -le $chokeIndex -or $unchokeIndex -le $preIndex `
+        -or $retryIndex -le $unchokeIndex `
+        -or (@(Select-String -LiteralPath $pendingWire -Pattern '^UNEXPECTED_PIECE').Count -ne 0)) {
+        throw 'K10-H pending unchoke raw ordering mismatch'
+    }
+
     $caps = Join-Path $run 'caps'
     & $exe --prepare-upload-caps $caps *> (Join-Path $run 'prepare-caps.transcript')
     if ($LASTEXITCODE -ne 0) { throw "K10-H caps prepare failed: $LASTEXITCODE" }
@@ -112,6 +147,7 @@ try {
 }
 
 Get-Content -LiteralPath (Join-Path $run 'feasibility.transcript')
+Get-Content -LiteralPath (Join-Path $run 'pending-unchoke.transcript')
 Get-Content -LiteralPath (Join-Path $run 'caps.transcript')
 Get-Content -LiteralPath (Join-Path $run 'lifecycle.transcript')
 Write-Output "K10-H upload real-wire gate PASS run=$run"

@@ -2,6 +2,7 @@
 cmake -S $REPO/native/colosseum_server_v1 -B $SCRATCH/k10-h-aggregate -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build $SCRATCH/k10-h-aggregate
 ctest --test-dir $SCRATCH/k10-h-aggregate --output-on-failure -j1
+ctest --test-dir $SCRATCH/k10-h-aggregate -R ^K10-H- --repeat until-fail:3 --output-on-failure -j1
 pwsh -NoProfile -File $REPO/artifacts/server1/K10/K10-H/run_upload.ps1 -BuildDir $SCRATCH/k10-h-aggregate/p03-tests
 pwsh -NoProfile -File $REPO/artifacts/server1/K10/K10-H/run_behavioral_mutations.ps1 -BuildRoot $SCRATCH/k10-h-mutations
 pwsh -NoProfile -File $REPO/artifacts/server1/P08/P08-T5/run_contract.ps1 -BuildDir $SCRATCH/p08-t5

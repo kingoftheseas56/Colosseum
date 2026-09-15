@@ -45,6 +45,9 @@ bool replayLastDetachedCallbacks(ports::TorrentTransport &, ports::PeerHandle,
 std::uint64_t staleCallbackIgnoredCount(const ports::TorrentTransport &);
 bool armReceiveCallbackBarrier(ports::TorrentTransport &, const std::string &, const std::string &);
 bool closeHasStarted(const ports::TorrentTransport &);
+bool holdUploadControlDispatch(ports::TorrentTransport &, bool);
+bool replayCurrentUploadRequest(ports::TorrentTransport &, ports::PeerHandle,
+                                const ports::BlockSpan &);
 ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &, const std::string &, std::uint16_t);
 }
 
@@ -1406,6 +1409,93 @@ void caseUploadLifecycle(const fs::path &directory, const std::vector<int> &port
     std::cout << "K10-H LIFECYCLE PASS choke=1 detach=1 close=1 stale_mailbox=1"
               << " late_action=reject piece_frames=0\n";
 }
+
+void caseUploadPendingUnchoke(const fs::path &directory, int port)
+{
+    constexpr EngineGeneration generation = 710;
+    constexpr PeerHandle peer = 601;
+    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+        generation, readInfoHash(directory),
+        MetainfoSource{readBytes(directory / "K10-wire.torrent")},
+        (directory / "pending-unchoke-download").string()});
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-H pending setup");
+    const auto metadata = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<MetadataReadyObservation>(item);
+        });
+    });
+    expect(!metadata.empty(), "K10-H pending metadata missing");
+    expect(transport->submit(AdvertisePieceAction{generation, 0}),
+           "K10-H pending advertisement rejected");
+    expect(transport->submit(ConnectAction{generation, peer, "127.0.0.1",
+                                           static_cast<std::uint16_t>(port)}),
+           "K10-H pending peer connect rejected");
+    const auto interested = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            const auto *state = std::get_if<PeerObservation>(&item);
+            return state && state->peer == 601 && state->interested;
+        });
+    });
+    expect(!interested.empty(), "K10-H pending interested state missing");
+    expect(transport->submit(ChokeAction{peer, true}),
+           "K10-H pending explicit choke rejected");
+    const auto chokeMarker = directory / "explicit-choke.observed";
+    const auto chokeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < chokeDeadline && !fs::exists(chokeMarker))
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(fs::exists(chokeMarker), "K10-H pending explicit wire choke missing");
+    expect(server1::transport::holdUploadControlDispatch(*transport, true),
+           "K10-H pending dispatch hold rejected");
+    expect(transport->submit(ChokeAction{peer, false}),
+           "K10-H pending unchoke submission rejected");
+    std::ofstream(directory / "pre-dispatch-request.trigger", std::ios::trunc).close();
+
+    const auto preMarker = directory / "pre-wire-request.sent";
+    const auto preDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < preDeadline && !fs::exists(preMarker))
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(fs::exists(preMarker), "K10-H pending pre-wire request missing");
+    expect(server1::transport::replayCurrentUploadRequest(
+               *transport, peer, BlockSpan{0, 0, 0, 16384}),
+           "K10-H pre-dispatch request was not rejected");
+    std::vector<TorrentObservation> beforeWire;
+    auto remaining = transport->poll();
+    beforeWire.insert(beforeWire.end(), std::make_move_iterator(remaining.begin()),
+                      std::make_move_iterator(remaining.end()));
+    expect(transport->statistics().uploadRequestsRejected >= 1,
+           "K10-H pre-dispatch rejection was not recorded");
+    expect(std::none_of(beforeWire.begin(), beforeWire.end(), [](const auto &item) {
+               return std::holds_alternative<UploadRequestObservation>(item);
+           }), "K10-H pending unchoke admitted ownership before wire dispatch");
+
+    expect(server1::transport::holdUploadControlDispatch(*transport, false),
+           "K10-H pending dispatch release rejected");
+    const auto afterWire = pollUntil(*transport, [](const auto &items) {
+        return std::any_of(items.begin(), items.end(), [](const auto &item) {
+            return std::holds_alternative<UploadRequestObservation>(item);
+        });
+    });
+    const auto request = std::find_if(afterWire.begin(), afterWire.end(), [](const auto &item) {
+        return std::holds_alternative<UploadRequestObservation>(item);
+    });
+    expect(request != afterWire.end(), "K10-H post-wire retry was not admitted");
+    const auto upload = std::get<UploadRequestObservation>(*request);
+    expect(upload.ownership.requestId != 0 && upload.ownership.generation == generation,
+           "K10-H post-wire retry ownership invalid");
+    expect(transport->submit(UploadAbortAction{upload.ownership, peer, upload.block}),
+           "K10-H pending-case abort rejected");
+    const auto abortDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < abortDeadline
+           && transport->statistics().uploadRequestsAborted != 1)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    const auto stats = transport->statistics();
+    expect(stats.uploadRequestsRejected >= 1 && stats.uploadRequestsAccepted == 1
+               && stats.uploadRequestsAborted == 1 && stats.ownedUploadsOutstanding == 0,
+           "K10-H pending unchoke accounting mismatch");
+    transport->close();
+    std::cout << "K10-H PENDING-UNCHOKE PASS pre_wire=rejected post_wire=admitted"
+              << " caller_native_calls=0\n";
+}
 }
 
 int main(int argc, char **argv)
@@ -1487,6 +1577,9 @@ int main(int argc, char **argv)
         std::vector<int> ports;
         for (int index = 3; index < argc; ++index) ports.push_back(std::stoi(argv[index]));
         caseUploadLifecycle(argv[2], ports); return 0;
+    }
+    if (argc == 4 && std::string(argv[1]) == "--upload-pending-unchoke") {
+        caseUploadPendingUnchoke(argv[2], std::stoi(argv[3])); return 0;
     }
     std::cerr << "usage: test_native_transport --prepare DIR | --wire DIR PORT_A PORT_B | --lifecycle DIR PORT_A PORT_B | --thread-guard DIR PORT | K10-02 DIR\n";
     return 2;

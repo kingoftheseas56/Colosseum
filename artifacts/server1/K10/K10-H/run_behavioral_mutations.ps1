@@ -27,7 +27,9 @@ $mutations = @(
     @{ Name='choke-terminal'; Pattern='\s+cancelUploadsLocked\(choke->peer, 0\);';
        Replacement=''; Signal='choke did not terminalize once' },
     @{ Name='payload-accounting'; Pattern='\s+stats_\.uploadPayloadBytesFramed \+= value\.payload\.size\(\);';
-       Replacement=''; Signal='upload feasibility accounting mismatch' }
+       Replacement=''; Signal='upload feasibility accounting mismatch' },
+    @{ Name='applied-unchoke-gate'; Pattern=' \|\| locallyUnchoked_\.count\(peer\) == 0';
+       Replacement=''; Signal='pending unchoke admitted ownership before wire dispatch' }
 )
 
 foreach ($mutation in $mutations) {

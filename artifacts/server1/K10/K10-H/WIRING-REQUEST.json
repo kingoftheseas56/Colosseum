@@ -4,5 +4,5 @@
   "branch": "sol/server1-w3-have-upload-20260915",
   "target": "feature/colosseum-server-1.0",
   "condition": "independent Sol code approval plus packet, aggregate, combined-link, public-path, seal, remote, and clean-tree gates",
-  "state": "pending independent review; do not integrate producer-only head"
+  "state": "review repair complete; pending independent re-review; do not integrate producer-only head"
 }

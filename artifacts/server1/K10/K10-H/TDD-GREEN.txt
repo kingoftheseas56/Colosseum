@@ -1,6 +1,6 @@
 K10-H TDD GREEN - 2026-09-15
 
-Live raw-wire scenarios: 3/3 PASS.
+Live raw-wire scenarios: 4/4 PASS, followed by three consecutive full-run repeats.
 - Feasibility: exact swallowed on_request/on_cancel path, nonzero monotonic retry
   ownership, 73-byte final tail, raw HAVE and PIECE frames, copied caller payload,
   network-tick framing, and exact counters.
@@ -10,9 +10,14 @@ Live raw-wire scenarios: 3/3 PASS.
   and emitted zero PIECE frames.
 - Lifecycle: choke, detach, and close each terminalized once; stale mailbox and late
   actions were rejected; no terminal race emitted a PIECE frame.
+- Applied unchoke: the peer observed an explicit CHOKE, sent a request after caller-side
+  unchoke submission while network dispatch was held, and received no ownership. After
+  the network thread called send_unchoke and the peer observed raw UNCHOKE, the retry was
+  admitted with one new nonzero ownership. No caller-thread native call occurred.
 
-Behavioral production mutations: 6/6 rejected on exact intended signals.
-Fresh full Release build: 66/66 steps.
+Behavioral production mutations: 7/7 rejected on exact intended signals, including removal
+of the applied-unchoke admission gate.
+Fresh full Release build: 77/77 steps.
 Fresh aggregate CTest: 64/64 PASS.
 K10/E/G/H native inventory: 19/19 PASS.
 P08-T5 compile mutations: 19/19 rejected.
