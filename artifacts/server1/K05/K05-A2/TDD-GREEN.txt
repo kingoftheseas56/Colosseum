@@ -1,0 +1,8 @@
+K05-A2 GREEN observed on 2026-09-15.
+
+- Positive C++17/MSVC public compile consumer: PASS.
+- Compile-fail mutations: 5/5 rejected.
+- Semantic clauses: 5/5 present.
+- Semantic mutations: 5/5 rejected.
+
+This is a declaration-only contract packet. EngineSwarmRegistry::peerCounts is intentionally not implemented or linked here.

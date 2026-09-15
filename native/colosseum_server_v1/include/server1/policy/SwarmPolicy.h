@@ -32,6 +32,11 @@ private:
 
 [[nodiscard]] std::string generatePeerIdentity(std::uint64_t seed);
 enum class PeerLifecycleState { Queued, Handshaking, Ready };
+struct PeerLifecycleCounts final {
+    std::size_t queued = 0;
+    std::size_t handshaking = 0;
+    std::size_t ready = 0;
+};
 enum class SwarmTransportActionType { Connect, Disconnect, Request, Cancel };
 struct SwarmTransportAction final {
     SwarmTransportActionType type = SwarmTransportActionType::Connect;
@@ -63,6 +68,11 @@ public:
     void advance(std::uint64_t nowMs);
     [[nodiscard]] std::optional<PeerLifecycleState> peerState(
         const std::string &infoHash, const std::string &peer) const;
+    // Returns no value when infoHash is absent or generation is not the
+    // registry's current generation. A current engine with no peers returns
+    // zero counts. Each peer contributes to exactly one lifecycle count.
+    [[nodiscard]] std::optional<PeerLifecycleCounts> peerCounts(
+        const std::string &infoHash, std::uint64_t generation) const noexcept;
     std::vector<SwarmTransportAction> takeActions();
 private:
     void purgeActions(const std::string &infoHash);

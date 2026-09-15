@@ -1,0 +1,10 @@
+K05-A2 RED observed on 2026-09-15 from exact base a3ffdc257453e47b3ffcbe71dad57d0958fea872.
+
+Command:
+pwsh -NoProfile -File artifacts/server1/K05/K05-A2/run_contract.ps1 -BuildDir artifacts/server1/K05/K05-A2-red-build
+
+Expected failure:
+contract_consumer.cpp(35): error C2653: 'PeerLifecycleCounts': is not a class or namespace name
+contract_consumer.cpp(38): error C2039: 'peerCounts': is not a member of 'server1::policy::EngineSwarmRegistry'
+
+The consumer failed because the requested public peer-count contract did not exist.

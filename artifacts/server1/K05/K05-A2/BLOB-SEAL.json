@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "a3ffdc257453e47b3ffcbe71dad57d0958fea872",
+  "blobs": {
+    "native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h": "473c15226f635683ba91f19faf463cfe6a39f2e4",
+    "artifacts/server1/K05/K05-A2/contract_consumer.cpp": "36516c09ce56ce4bafc496d925213385d87c085c",
+    "artifacts/server1/K05/K05-A2/run_contract.ps1": "fc058323ec96a3e854b3e13c86ac8f34b1ce91e1",
+    "artifacts/server1/K05/K05-A2/verify_semantics.py": "d6e5d599aaa1ef1f5f2075cea5141cf50588ebdc",
+    "artifacts/server1/K05/K05-A2/TDD-RED.txt": "158bfda3a874bebe1a7a501750facb1856d8861a",
+    "artifacts/server1/K05/K05-A2/TDD-GREEN.txt": "df4cba9c4c5c31ba9e4fcbb165f8651e9b4cb756",
+    "artifacts/server1/K05/K05-A2/SOURCE-TRACE.md": "7857f240064ba56d25731b82c9a29303600af4c6",
+    "artifacts/server1/K05/K05-A2/TEST-COMMANDS.txt": "fc76e41ecd4ae35ad38f97769cfef2ea3f7cd855",
+    "artifacts/server1/K05/K05-A2/WIRING-REQUEST.json": "2c817942d39b5fc622ce7a7731da5fc49f3e9614",
+    "artifacts/server1/K05/K05-A2/PACKET-RECEIPT.json": "448cff31776342897bfc7ee54b17cc90702211dd"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file"
+}

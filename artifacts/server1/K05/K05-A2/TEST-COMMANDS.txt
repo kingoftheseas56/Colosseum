@@ -1,0 +1,4 @@
+pwsh -NoProfile -File artifacts/server1/K05/K05-A2/run_contract.ps1 -BuildDir artifacts/server1/K05/K05-A2-build
+python artifacts/server1/K05/K05-A2/verify_semantics.py native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h --mutations
+cmake --build artifacts/server1/INT-W3/B-W3C-working --config Release --target server1_k05_swarm_metadata_test
+ctest --test-dir artifacts/server1/INT-W3/B-W3C-working -C Release -L K05 --output-on-failure

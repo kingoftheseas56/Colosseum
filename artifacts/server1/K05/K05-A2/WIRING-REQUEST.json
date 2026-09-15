@@ -1,0 +1,7 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "packet": "K05-A2",
+  "request": "Implement EngineSwarmRegistry::peerCounts against current generation-owned peer state.",
+  "dependency": "Independent Sol contract approval",
+  "status": "contract candidate only"
+}

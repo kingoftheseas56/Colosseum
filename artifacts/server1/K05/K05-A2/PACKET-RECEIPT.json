@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K05",
+  "worker": "K05-A2",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-pause-peercounts-20260915",
+  "base": "a3ffdc257453e47b3ffcbe71dad57d0958fea872",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K05/K05-A2/PACKET-RECEIPT.json)",
+  "contract": "generation-bound optional peer lifecycle counts; absent or stale returns nullopt; current empty returns zero counts; each peer counted exactly once",
+  "positive_compile_consumer": "PASS; compile-only because implementation is intentionally outside this packet",
+  "compile_fail_mutations": "5/5 rejected",
+  "semantic_mutations": "5/5 rejected",
+  "scope": "SwarmPolicy public header and packet-local contract evidence only; no production cpp change",
+  "merge_endpoint": "feature/colosseum-server-1.0 only after independent Sol contract and code approval plus gates",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; declaration-authored; directly-compiled; mutation-tested"
+}
