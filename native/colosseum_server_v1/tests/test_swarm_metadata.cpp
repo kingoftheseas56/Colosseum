@@ -24,6 +24,15 @@ void require(bool condition, std::string_view message)
         throw std::runtime_error(std::string(message));
 }
 
+void requireCounts(const std::optional<server1::policy::PeerLifecycleCounts> &counts,
+                   std::size_t queued, std::size_t handshaking, std::size_t ready,
+                   std::string_view message)
+{
+    require(counts && counts->queued == queued && counts->handshaking == handshaking
+                && counts->ready == ready,
+            message);
+}
+
 void caseK05_01()
 {
     MetadataExchange exchange("89c6c711b638a14f58d11e99b6ed1c131d7f8ab4");
@@ -162,6 +171,55 @@ void caseK05_03()
     std::cout << "K05-03 PASS\n";
 }
 
+void caseK05_A2()
+{
+    EngineSwarmRegistry registry;
+    require(!registry.peerCounts("missing", 1),
+            "absent engine must not look like a current empty engine");
+
+    registry.start("alpha", 10, 1);
+    requireCounts(registry.peerCounts("alpha", 10), 0, 0, 0,
+                  "current engine begins with exact zero lifecycle counts");
+    require(!registry.peerCounts("alpha", 9),
+            "stale generation must not expose current peer counts");
+
+    require(registry.queuePeer("alpha", "queued", 10), "queued peer setup");
+    requireCounts(registry.peerCounts("alpha", 10), 1, 0, 0,
+                  "queued peer contributes to queued only");
+    require(registry.queuePeer("alpha", "handshaking", 10)
+                && registry.connectPeer("alpha", "handshaking", 10, 100),
+            "handshaking peer setup");
+    requireCounts(registry.peerCounts("alpha", 10), 1, 1, 0,
+                  "handshaking transition moves exactly one peer");
+    require(registry.queuePeer("alpha", "ready", 10)
+                && registry.connectPeer("alpha", "ready", 10, 100)
+                && registry.completeHandshake("alpha", "ready", 10, "alpha"),
+            "ready peer setup");
+    requireCounts(registry.peerCounts("alpha", 10), 1, 1, 1,
+                  "each current peer contributes to one lifecycle state");
+
+    registry.start("beta", 20, 2);
+    require(registry.queuePeer("beta", "isolated", 20), "isolated peer setup");
+    requireCounts(registry.peerCounts("alpha", 10), 1, 1, 1,
+                  "alpha counts changed after beta start");
+    requireCounts(registry.peerCounts("beta", 20), 1, 0, 0,
+                  "beta counts leaked from alpha");
+
+    registry.advance(10100);
+    requireCounts(registry.peerCounts("alpha", 10), 1, 0, 1,
+                  "handshake timeout removes the exact handshaking peer");
+    registry.start("alpha", 11, 3);
+    require(!registry.peerCounts("alpha", 10),
+            "generation replacement exposed stale counts");
+    requireCounts(registry.peerCounts("alpha", 11), 0, 0, 0,
+                  "replacement generation did not start empty");
+    require(registry.stop("alpha") && !registry.peerCounts("alpha", 11),
+            "stop removes the peer-count owner");
+    requireCounts(registry.peerCounts("beta", 20), 1, 0, 0,
+                  "replacement and stop leaked across infohashes");
+    std::cout << "K05-A2 PASS absent/stale/empty/transitions/replacement/stop/isolation\n";
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -174,8 +232,10 @@ int main(int argc, char **argv)
             caseK05_02();
         if (requested == "all" || requested == "K05-03")
             caseK05_03();
+        if (requested == "all" || requested == "K05-A2")
+            caseK05_A2();
         if (requested != "all" && requested != "K05-01" && requested != "K05-02"
-            && requested != "K05-03")
+            && requested != "K05-03" && requested != "K05-A2")
             throw std::runtime_error("unknown K05 case");
     } catch (const std::exception &error) {
         std::cerr << "K05 FAIL: " << error.what() << '\n';

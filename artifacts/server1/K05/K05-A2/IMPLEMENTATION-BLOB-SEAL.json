@@ -1,0 +1,18 @@
+{
+  "schema": "colosseum-server1-blob-seal/v1",
+  "base": "28199ef9053619196e446bfb6c1c345c6c73695e",
+  "blobs": {
+    "native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h": "473c15226f635683ba91f19faf463cfe6a39f2e4",
+    "native/colosseum_server_v1/src/policy/SwarmPolicy.cpp": "2bc5823ed7cee381dae8f2e992db930bdcc0012b",
+    "native/colosseum_server_v1/tests/test_swarm_metadata.cpp": "c208c8638d025ca616c44de3afddaa725ae69f44",
+    "native/colosseum_server_v1/tests/cmake/K05.cmake": "5f1e8a2761a2e259b1ac555146dd77ccadd7401e",
+    "artifacts/server1/K05/K05-A2/CMakeLists.txt": "86a1938f8cddd0847db17f8c8985b9dbfcef5d61",
+    "artifacts/server1/K05/K05-A2/IMPLEMENTATION-RECEIPT.json": "3396c3d76e4d882d403a5b21096e2a217d083e4a",
+    "artifacts/server1/K05/K05-A2/IMPLEMENTATION-SOURCE-TRACE.md": "ecb826b0083ae02bf8033f2ce5186548b5f63733",
+    "artifacts/server1/K05/K05-A2/IMPLEMENTATION-TDD-GREEN.txt": "a52acecc4eed36daf4f11fd079f72f40c3ad6276",
+    "artifacts/server1/K05/K05-A2/IMPLEMENTATION-TDD-RED.txt": "96f16e07ac04aca82a99459182174e8047dd7af7",
+    "artifacts/server1/K05/K05-A2/IMPLEMENTATION-TEST-COMMANDS.txt": "0bd1b64333ecaef66f7554972664b41356d2c245",
+    "artifacts/server1/K05/K05-A2/run_behavioral_mutations.ps1": "5b407a360bd993e4d104fb0f3d528abaefbf8b6e"
+  },
+  "verification": "git cat-file blob <hash> must reproduce each recorded file; this seal intentionally excludes itself"
+}

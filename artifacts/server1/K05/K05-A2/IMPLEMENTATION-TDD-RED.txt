@@ -1,0 +1,6 @@
+K05-A2 IMPLEMENTATION TDD RED - 2026-09-15
+
+Contract-only head: 28199ef9053619196e446bfb6c1c345c6c73695e
+The packet-local consumer compiled against the approved declaration, then the focused native
+test failed to link with unresolved EngineSwarmRegistry::peerCounts. This proved the contract
+existed while the production query did not.

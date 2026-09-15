@@ -1,0 +1,11 @@
+K05-A2 IMPLEMENTATION TDD GREEN - 2026-09-15
+
+Focused K05-A2: PASS.
+Behavioral mutations: 4/4 rejected on exact intended signals.
+Lifecycle matrix: absent, stale, current-empty, queued, handshaking, ready, timeout removal,
+generation replacement, stop, and info-hash isolation all PASS.
+Legacy K05: 3/3 PASS inside the fresh aggregate.
+Fresh full Release build: 77/77 steps.
+Fresh aggregate CTest: 63/63 PASS.
+Combined public-contract link: PASS.
+Public-path guard: PASS.

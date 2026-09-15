@@ -95,6 +95,23 @@ void EngineSwarmRegistry::advance(std::uint64_t now)
 { for(auto &[h,e]:entries_){ for(auto p=e.peers.begin();p!=e.peers.end();){if(p->second.state==PeerLifecycleState::Handshaking&&now>=p->second.handshakeDeadlineMs){actions_.push_back({SwarmTransportActionType::Disconnect,h,p->first,e.generation,0,0,0,0,"handshake timeout"});p=e.peers.erase(p);}else ++p;} for(auto r=e.requests.begin();r!=e.requests.end();){if(now>=r->second.deadlineMs){const auto x=r->second;actions_.push_back({SwarmTransportActionType::Cancel,h,x.peer,e.generation,r->first,x.piece,x.offset,x.length,"request timeout"});r=e.requests.erase(r);}else ++r;}} }
 std::optional<PeerLifecycleState> EngineSwarmRegistry::peerState(const std::string &h,const std::string &p) const
 { auto i=entries_.find(h); if(i==entries_.end())return std::nullopt; auto q=i->second.peers.find(p); return q==i->second.peers.end()?std::nullopt:std::optional<PeerLifecycleState>(q->second.state); }
+std::optional<PeerLifecycleCounts> EngineSwarmRegistry::peerCounts(
+    const std::string &h, std::uint64_t generation) const noexcept
+{
+    const auto entry = entries_.find(h);
+    if (entry == entries_.end() || entry->second.generation != generation)
+        return std::nullopt;
+    PeerLifecycleCounts counts;
+    for (const auto &[peer, state] : entry->second.peers) {
+        (void)peer;
+        switch (state.state) {
+        case PeerLifecycleState::Queued: ++counts.queued; break;
+        case PeerLifecycleState::Handshaking: ++counts.handshaking; break;
+        case PeerLifecycleState::Ready: ++counts.ready; break;
+        }
+    }
+    return counts;
+}
 std::vector<SwarmTransportAction> EngineSwarmRegistry::takeActions(){std::vector<SwarmTransportAction> r; r.swap(actions_); return r;}
 void EngineSwarmRegistry::purgeActions(const std::string &infoHash)
 { actions_.erase(std::remove_if(actions_.begin(),actions_.end(),[&](const auto &action){return action.infoHash==infoHash;}),actions_.end()); }

@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "packet": "K05",
+  "worker": "K05-A2-implementation",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-pause-peercounts-20260915",
+  "base": "28199ef9053619196e446bfb6c1c345c6c73695e",
+  "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/K05/K05-A2/IMPLEMENTATION-RECEIPT.json)",
+  "behavior": "peerCounts returns nullopt for absent or stale ownership, exact zero counts for a current empty engine, and one exact queued, handshaking, or ready count per current peer",
+  "matrix": "absent; stale; current-empty; queued; handshaking; ready; timeout removal; generation replacement; stop; info-hash isolation",
+  "behavioral_mutations": "4/4 rejected: stale generation, queued count, handshaking count, ready count",
+  "regressions": "fresh full build 77/77; aggregate 63/63 including legacy K05 3/3 and K05-A2; combined link PASS; public path guard PASS",
+  "scope": "SwarmPolicy implementation, K05 native tests/CMake, and packet-local implementation evidence only",
+  "merge_endpoint": "feature/colosseum-server-1.0 only after independent Sol code approval and gates",
+  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "status": "test-authored; red-observed; production-authored; mutation-tested; aggregate-tested; unintegrated"
+}
