@@ -215,20 +215,34 @@ void UpdateService::loadPersisted()
         return;
     }
 
-    m_seenVersion = object.value(QStringLiteral("seenVersion")).toString();
-    m_failedVersion = object.value(QStringLiteral("failedVersion")).toString();
+    const QString persistedSeenVersion = object.value(QStringLiteral("seenVersion")).toString();
+    const QString persistedFailedVersion = object.value(QStringLiteral("failedVersion")).toString();
     const QByteArray manifestBytes = QByteArray::fromBase64(
         object.value(QStringLiteral("manifestBase64")).toString().toLatin1());
     const QByteArray signatureBytes = QByteArray::fromHex(
         object.value(QStringLiteral("signatureHex")).toString().toLatin1());
     QString error;
+    QString trustError;
     if (manifestBytes.isEmpty() || signatureBytes.isEmpty()
-        || !restoreManifest(manifestBytes, signatureBytes,
-                            stateFromName(object.value(QStringLiteral("state")).toString()),
-                            object.value(QStringLiteral("seenVersion")).toString().isEmpty()
-                                ? false : object.value(QStringLiteral("seenVersion")).toString()
-                                      == object.value(QStringLiteral("latestVersion")).toString(),
-                            &error)) {
+        || !verifyEd25519Raw(manifestBytes, signatureBytes, embeddedUpdatePublicKey(), &trustError)) {
+        loadSeedState();
+        return;
+    }
+
+    // Only an authenticated persisted manifest may restore the metadata that can
+    // suppress or mark a future offer. This matters across signing-key rotation:
+    // state written by the retired trust root must fail closed without poisoning
+    // the newly installed release's seen/failed version state.
+    m_seenVersion = persistedSeenVersion;
+    m_failedVersion = persistedFailedVersion;
+    if (!restoreManifest(manifestBytes, signatureBytes,
+                         stateFromName(object.value(QStringLiteral("state")).toString()),
+                         persistedSeenVersion.isEmpty()
+                             ? false : persistedSeenVersion
+                                   == object.value(QStringLiteral("latestVersion")).toString(),
+                         &error)) {
+        m_seenVersion.clear();
+        m_failedVersion.clear();
         loadSeedState();
         return;
     }

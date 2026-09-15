@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "update"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from generate_update_manifest import manifest_bytes, sign_raw  # noqa: E402
+from generate_update_manifest import (DER_PREFIX, cpp_header_key, manifest_bytes, sign_raw)  # noqa: E402
 from verify_update_release import verify, verify_signature  # noqa: E402
 from publish_app_release import publish_draft  # noqa: E402
 from generate_installed_chronicle import generate  # noqa: E402
@@ -46,6 +46,25 @@ class FakeGitHub:
 
 
 class UpdateReleaseToolingTests(unittest.TestCase):
+    def test_production_chronicle_matches_embedded_key_and_1_1_6(self):
+        manifest = ROOT / "resources/installed-chronicle/installed-manifest.json"
+        signature = ROOT / "resources/installed-chronicle/installed-manifest.json.sig"
+        with tempfile.TemporaryDirectory() as temp:
+            public_der = Path(temp) / "production.der"
+            public_der.write_bytes(
+                DER_PREFIX + cpp_header_key(ROOT / "native/update/UpdatePublicKey.h"))
+            verify_signature(manifest, signature, public_der)
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(data["version"], "1.1.6")
+            self.assertEqual(data["tag"], "v1.1.6")
+            self.assertEqual(len(data["highlights"]), 6)
+            mutated = Path(temp) / "mutated.json"
+            marker = b'"version":"1.1.6"'
+            self.assertEqual(manifest.read_bytes().count(marker), 1)
+            mutated.write_bytes(manifest.read_bytes().replace(marker, b'"version":"1.1.7"', 1))
+            with self.assertRaises(subprocess.CalledProcessError):
+                verify_signature(mutated, signature, public_der)
+
     def test_signed_chronicle_checkout_preserves_bytes_with_autocrlf(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -77,6 +96,11 @@ class UpdateReleaseToolingTests(unittest.TestCase):
             for relative in payloads:
                 (root / relative).unlink()
             git("checkout-index", "--force", "--all")
+            attrs = subprocess.check_output(
+                ["git", "-C", str(root), "check-attr", "diff", "--",
+                 "resources/installed-chronicle/installed-manifest.json.sig"],
+                text=True)
+            self.assertIn("diff: unset", attrs, "raw signature must be marked binary")
             for relative, payload in payloads.items():
                 with self.subTest(path=relative):
                     self.assertEqual((root / relative).read_bytes(), payload,

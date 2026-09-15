@@ -442,6 +442,44 @@ int main()
                     "no installed chronicle seed -> empty release at rest");
         }
 
+        // Trust-reset migration: a persisted manifest signed by the retired key is
+        // rejected, and its unauthenticated seen/failed metadata must not poison
+        // the newly installed 1.1.6 trust root.
+        {
+            QTemporaryDir staleRoot;
+            require(staleRoot.isValid(), "trust-reset stale cache temp root");
+            QFile stateFile(QDir(staleRoot.path()).filePath(QStringLiteral("service-state.json")));
+            require(stateFile.open(QIODevice::WriteOnly | QIODevice::Truncate),
+                    "trust-reset stale service state opens");
+            const QByteArray zeros(64, '\0');
+            const QByteArray staleState = QByteArrayLiteral(
+                "{\"schemaVersion\":1,\"state\":\"VerificationFailure\","
+                "\"latestVersion\":\"1.1.1\",\"seenVersion\":\"1.1.1\","
+                "\"failedVersion\":\"1.1.1\",\"manifestBase64\":\"bm90LXNpZ25lZA==\","
+                "\"signatureHex\":\"")
+                + zeros.toHex() + QByteArrayLiteral("\"}");
+            stateFile.write(staleState);
+            stateFile.close();
+
+            UpdateServiceHooks resetHooks;
+            resetHooks.nowMs = [&clock] { return clock; };
+            resetHooks.installedChronicleManifestPath = manifestPath;
+            resetHooks.installedChronicleSignaturePath = signaturePath;
+            resetHooks.installedChronicleArtworkRoot = artworkRoot;
+            resetHooks.checkLatest = [](const QString&, UpdateReleaseClient::Callback done) {
+                done(validResult(manifestFor("1.1.1")));
+            };
+            UpdateService reset(version("1.1.0"), staleRoot.path(), resetHooks);
+            require(reset.state() == UpdateService::Idle
+                        && reset.release().value(QStringLiteral("version")).toString()
+                               == QStringLiteral("1.1.0"),
+                    "trust reset falls back to the authenticated installed chronicle");
+            reset.checkNow();
+            require(reset.state() == UpdateService::Available && reset.updateAvailable()
+                        && reset.unseenUpdate() && reset.latestVersion() == QStringLiteral("1.1.1"),
+                    "rejected old-key cache cannot suppress a future valid update");
+        }
+
         // (a)(b) At rest, the installed chronicle's chapters render.
         // (c)(d)(f) Flip on Available, return on withdrawal, discrete signal.
         {
