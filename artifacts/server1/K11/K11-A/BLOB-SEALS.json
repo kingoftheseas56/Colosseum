@@ -1,0 +1,17 @@
+{
+  "schema": "colosseum-server1-blob-seals/v1",
+  "algorithm": "git blob oid plus filesystem SHA-256 before commit; each git blob oid must equal HEAD:path after commit",
+  "files": [
+    {"path":"native/colosseum_server_v1/include/server1/policy/EngineRegistry.h","blob":"e367dac1be577415c96bee7f154fb3ffabd2ddb3","sha256":"c6c695f3ec96e7abc2e38f28af97e109f5960089d15decc0c8f891b628b5b52e"},
+    {"path":"native/colosseum_server_v1/src/policy/TorrentEngine.cpp","blob":"9e0152c2ec03e711141184e4434f24182adffc32","sha256":"81607278d05facacb1103713f35d6a645a67c0e6db0b5e29e6b09cff76606b97"},
+    {"path":"native/colosseum_server_v1/src/policy/EngineRegistry.cpp","blob":"28e0d793acf2b3bca00d0c4bec54ce5846e330bd","sha256":"2ac401667adab8f4875f6484e7bb3f3f0aa2f5c17413964f22e845eff34fdcef"},
+    {"path":"native/colosseum_server_v1/tests/test_engine_registry.cpp","blob":"d0c2f2aa9f22c02a906a243aa96af8bfeb3cfedf","sha256":"6bd874ca8f9caccc75b1cdfae22e80cdc1a88f9a3032d7f48d26ac0f67a8797a"},
+    {"path":"native/colosseum_server_v1/cmake/packets/K11.cmake","blob":"22f0b400b9d2ac1d99c87dd23c0212a44db174ac","sha256":"f4250b7c01d200b2996c085170e694cc8e28018f068ef936155108293e8f8f51"},
+    {"path":"native/colosseum_server_v1/tests/cmake/K11.cmake","blob":"561a8e6414c0d709973dbda675707c7fa548155c","sha256":"3388bfddb1804c085843a720f43adcacd834d1ef39bf5b3b1e84c009daa6934a"},
+    {"path":"artifacts/server1/K11/K11-A/CMakeLists.txt","blob":"19a9f0a00c95c5d44fe85a8a15e1861ed7f2f9c3","sha256":"b4a0d7adef2b490546799b5305bc66bc7740d98bc8a9efe70dbce5fe4229d716"},
+    {"path":"artifacts/server1/K11/K11-A/WIRING-REQUEST.json","blob":"42e98e2ad5ea05336f295ff2838a3ebba7b95061","sha256":"2ca4d08dd7c9166eaeada9662d50e9f040f0278a1a36969ce6afeb19e2ca423a"},
+    {"path":"artifacts/server1/K11/K11-A/SOURCE-TRACE.md","blob":"f65af1a0d9fbed58e006ee44875b67554fc2c335","sha256":"59b9b85d1bd11ad1617805c2e8fb6100a7667d921f9483a631b9237a32cdc23b"},
+    {"path":"artifacts/server1/K11/K11-A/TEST-COMMANDS.txt","blob":"b536d1c8b70729ed6535ce2a38858ed830981ec2","sha256":"5612ffd9a4eeb0938c01ad22fdac6099d6b08525861b6bbdacd334c732d94976"},
+    {"path":"artifacts/server1/K11/K11-A/PACKET-RECEIPT.json","blob":"627eb782c10d15d96bdbb40ca7004c96bcdffe62","sha256":"fc2f8ed965ca64cc10efb7d844a3a2123dc4a8d3024b21704873309f48ebdfa3"}
+  ]
+}

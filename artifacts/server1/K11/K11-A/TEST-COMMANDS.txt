@@ -1,0 +1,22 @@
+RED (expected):
+cmake --build artifacts/server1/K11/K11-A/build --target server1_k11_engine_registry_test -j 1
+Result before production sources were wired: LNK2019 for EngineRegistry constructor, destructor, and create; LNK1120 (3 unresolved externals).
+
+Focused configure/build:
+cmake -S artifacts/server1/K11/K11-A -B artifacts/server1/K11/K11-A/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64
+cmake --build artifacts/server1/K11/K11-A/build --target server1_k11_engine_registry_test -j 1
+
+Focused verification:
+ctest --test-dir artifacts/server1/K11/K11-A/build -L K11 --output-on-failure
+Result: 3/3 passed (K11-01, K11-02, K11-03).
+
+Predecessor configure/build:
+cmake -S native/colosseum_server_v1 -B artifacts/server1/K11/K11-A/predecessor-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64
+cmake --build artifacts/server1/K11/K11-A/predecessor-build -j 1
+
+Predecessor verification:
+ctest --test-dir artifacts/server1/K11/K11-A/predecessor-build --output-on-failure -j 1
+Result: 59/59 passed in 88.19 seconds.
+
+Public guard:
+No TorrentEngine.h exists; the consumer includes server1/policy/EngineRegistry.h and links server1_k11_engine; no test includes a production cpp; aggregate CMakeLists.txt and docs/server1/STATE.json are unchanged.
