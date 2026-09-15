@@ -205,6 +205,9 @@
     "K08-A": "Accepted source commit 98d1bca9a0cb4045c3839dc3ee4dc9fde48283a5 is integrated through reviewed B-W3D head fe28b51973a32385d472cac88f17853d26445c9a; focused K08 is 3/3 and the production FileReader library is consumed by the combined link smoke.",
     "K10-A": "Accepted source commits 6eda76bc7a877fb5c0ffa2a476841eebe710241a and repair 60ecb9bbbf9c8798a0469a3e6fa608d7a22defb8 are integrated through reviewed B-W3D/G-WIRE head fe28b51973a32385d472cac88f17853d26445c9a; registered K10 is 10/10 and controlled-peer differential wire capture is one exact owned request with zero unowned requests.",
     "B-W3D": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head fe28b51973a32385d472cac88f17853d26445c9a after independent APPROVE. Producer aggregate 52/52 and repeat 156/156; Agent 4 fresh public-path guard PASS, committed-blob hashes 13/13, build no-op success, and aggregate 52/52 in 87.78 seconds. B-W3D and G-WIRE are accepted; INT-W3, K08-A, and K10-A are integrated through the reviewed head. No K11+ work is included.",
+    "P08-T2": "Accepted and integrated at 0cc1aa19c10155380b19008850b18acc5c79b043 after independent re-review APPROVE; public source identity and generation contract passed its positive consumer and 14/14 compile-fail mutations.",
+    "K10-E": "Accepted and integrated through c19c50682269467d4348ce620dab4d59e275e6df after facfb843b4ee28ea4b350169965f0d847c74f9a5 received REQUEST-CHANGES and the magnet metadata repair received independent re-review APPROVE; fresh K10-E 7/7 and legacy K10 10/10 passed.",
+    "SOURCE-TRANSPORT-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head c19c50682269467d4348ce620dab4d59e275e6df. Fresh aggregate 59/59, P08-T2 14/14 mutations rejected, public-path guard PASS, and 24/24 committed blobs verified. P08-T2-CONTRACT and G-METADATA-SOURCE are accepted. This enables K11 source lifecycle only; B-W3E is not formed.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -254,6 +257,8 @@
       "P08-T": "integrated",
       "K08-A": "integrated",
       "K10-A": "integrated",
+      "P08-T2": "integrated",
+      "K10-E": "integrated",
       "INT-W1": "integrated",
       "INT-W2": "integrated",
       "INT-W3": "integrated"
@@ -272,7 +277,9 @@
     },
     "control_gates": {
       "CONTROL-PLAN": "accepted",
-      "G-WIRE": "accepted"
+      "G-WIRE": "accepted",
+      "P08-T2-CONTRACT": "accepted",
+      "G-METADATA-SOURCE": "accepted"
     },
     "releases": {
       "P05-A": "released",
@@ -295,6 +302,8 @@
       "M00-A": "7f46291c6e4b7bb4fb37e9c408648e7071ef1882",
       "K08-A": "98d1bca9a0cb4045c3839dc3ee4dc9fde48283a5",
       "K10-A": "60ecb9bbbf9c8798a0469a3e6fa608d7a22defb8",
+      "P08-T2": "0cc1aa19c10155380b19008850b18acc5c79b043",
+      "K10-E": "c19c50682269467d4348ce620dab4d59e275e6df",
       "INT-W3": "fe28b51973a32385d472cac88f17853d26445c9a"
     },
     "integrated_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
@@ -424,5 +433,37 @@
     "accepted_gates": ["B-W3D", "G-WIRE"],
     "integrated_workers": ["INT-W3", "K08-A", "K10-A"],
     "scope_note": "Acceptance covers B-W3D/G-WIRE through reviewed head fe28b519 only. No K11+, H02, app integration, C00 composition, packaging, playback qualification, vendor, or frozen TorrentTransport contract change is included."
+  },
+  "slice3_source_transport_acceptance": {
+    "status": "accepted",
+    "reviewed_head": "c19c50682269467d4348ce620dab4d59e275e6df",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integration_base": "f8619b065598e258f0a9d188ba815fa49cd447f0",
+    "inputs": {
+      "P08-T2": [
+        "22a6bb95f65da7b878ac4f072f99e1fc42d739b8",
+        "0cc1aa19c10155380b19008850b18acc5c79b043"
+      ],
+      "K10-E": [
+        "facfb843b4ee28ea4b350169965f0d847c74f9a5",
+        "c19c50682269467d4348ce620dab4d59e275e6df"
+      ]
+    },
+    "review_lineage": "P08-T2 re-review APPROVE at 0cc1aa19; K10-E facfb843 REQUEST-CHANGES repaired by c19c506 and re-reviewed APPROVE.",
+    "agent4_fresh_verification": {
+      "public_path_guard": "PASS",
+      "committed_blob_hashes": "24/24 PASS",
+      "P08-T2_contract": "positive consumer PASS; 14/14 mutations rejected",
+      "build": "no-op success",
+      "K10": "10/10 PASS",
+      "K10-E": "7/7 PASS",
+      "aggregate": "59/59 PASS in 94.67 seconds"
+    },
+    "accepted_gates": ["P08-T2-CONTRACT", "G-METADATA-SOURCE"],
+    "integrated_workers": ["P08-T2", "K10-E"],
+    "receipt": "artifacts/server1/INT-W3/SOURCE-TRANSPORT-GATE.json",
+    "B-W3E": "not formed; remains K11",
+    "scope_note": "This acceptance enables K11 source lifecycle only. It does not accept or claim engine integration, torrent HTTP, playback, packaging, or release readiness."
   }
 }
