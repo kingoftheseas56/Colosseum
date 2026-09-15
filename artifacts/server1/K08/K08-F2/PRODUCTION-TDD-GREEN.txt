@@ -7,4 +7,8 @@ The implemented K08-F2 case proves six architecture groups:
 5. Synchronous completion from cancelRead cannot reenter detached state or deliver bytes.
 6. Source-read errors use the same transition, and sibling readers sharing source/scheduler remain isolated and reach ordered EOF.
 
-The focused case passed three consecutive executions. Legacy K08 passed 3/3 and combined K08 passed 4/4.
+The review repair adds two direct lifecycle boundaries: explicit `close()` and destruction both cancel two active reads whose source completes synchronously during cancellation. Both now finish without reentrant delivery or iterator invalidation, cancel each token once, and release their selections.
+
+A deterministic owner-lane case records the calling thread, proves refresh executes inline on it, delivers the source completion on the same lane, and immediately observes ordered bytes. The public contract requires callers and K11 to preserve that serialization; FileReader adds no hidden synchronization.
+
+The focused case passed three consecutive executions after the repair. Legacy K08 passed 3/3 and combined K08 passed 4/4.

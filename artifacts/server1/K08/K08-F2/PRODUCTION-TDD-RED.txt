@@ -3,3 +3,5 @@ Production tests were added before FileReader.cpp changed.
 Observed red: the K08 test executable failed to link because `FileReader::fail(std::string)` had no definition. MSVC reported the unresolved public member from `caseK08F2` and the build stopped.
 
 This was the expected missing-production failure, not a fixture or configuration error.
+
+Code-review repair red: explicit close and destructor cases used a source that completes synchronously from `cancelRead()`. Against production commit `fc739b27`, K08-F2 terminated with a segmentation fault. This reproduced iterator invalidation in the old range-loop over `activeReads` before the close-path implementation changed.

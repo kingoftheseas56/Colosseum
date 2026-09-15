@@ -24,6 +24,14 @@ CLAUSES = (
     "readers sharing the source or scheduler are untouched",
     "Calls after EOF",
     "close, or an earlier failure are no-ops",
+    "Threading contract: every FileReader public method",
+    "Refresh callback",
+    "FileReaderSource::Completion delivery must execute on the same",
+    "serialized owner lane",
+    "FileReader performs no internal cross-thread",
+    "K11 must marshal transport observations and store",
+    "completions to that owner lane before interacting with a reader",
+    "Explicit close and destruction detach owned state before cancelRead() or",
     "void fail(std::string error);",
 )
 

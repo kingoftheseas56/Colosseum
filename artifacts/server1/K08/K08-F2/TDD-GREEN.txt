@@ -2,7 +2,7 @@ Candidate contract verification:
 
 - Positive C++17/MSVC signature consumer: PASS.
 - Incorrect signature mutations: 6/6 rejected.
-- Required semantic-clause mutations: 17/17 rejected.
+- Required semantic-clause mutations: 25/25 rejected, including owner-lane and close/destructor clauses.
 - Existing K08 regression inventory: K08-01/02/03 = 3/3 PASS from a fresh build.
 - At the independently approved contract commit, FileReader.cpp was unchanged from base.
 
@@ -13,3 +13,5 @@ Production implementation verification:
 - Combined K08 inventory: 4/4 PASS.
 - Two live production negative controls: 2/2 rejected, followed by source restoration.
 - Proportionate non-K10 aggregate: 43/43 PASS, including the INT-W3 spine link.
+- Explicit close/destructor synchronous-cancel regression: PASS after reproducing a pre-repair segmentation fault.
+- Deterministic serialized-owner-lane boundary: PASS without runtime locks.

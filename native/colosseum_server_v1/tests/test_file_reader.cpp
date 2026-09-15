@@ -8,6 +8,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -411,6 +412,66 @@ void caseK08F2()
         expect(source.cancelCalls[token] == 1 && reader.pendingReads() == 0
                    && reader.takeData().empty(),
                "K08-F2 synchronous cancel completion is inert after ownership detaches");
+    }
+
+    // Break caught: close and destruction must detach their entire ownership
+    // ledger before cancelRead can synchronously complete a detached token.
+    {
+        ControlledPieceSource closeSource;
+        closeSource.pieces = {{0, bytes({5, 5, 5, 5})}, {1, bytes({6, 6, 6, 6})}};
+        closeSource.available = {0, 1};
+        closeSource.completeDuringCancel = true;
+        Scheduler closeScheduler(2);
+        FileReader closing(closeScheduler, closeSource,
+                           TorrentFile{"closing", "closing", 8, 0}, 4,
+                           options(0, 7, 0, 70));
+        closing.request(8);
+        const auto closeFirst = closeSource.pending[0].token;
+        const auto closeSecond = closeSource.pending[1].token;
+        closing.close();
+        expect(closeSource.cancelCalls[closeFirst] == 1
+                   && closeSource.cancelCalls[closeSecond] == 1
+                   && closing.pendingReads() == 0 && closing.takeData().empty()
+                   && closeScheduler.selections().empty(),
+               "K08-F2 explicit close is safe under synchronous cancel completion");
+
+        ControlledPieceSource destroySource;
+        destroySource.pieces = {{0, bytes({7, 7, 7, 7})}, {1, bytes({8, 8, 8, 8})}};
+        destroySource.available = {0, 1};
+        destroySource.completeDuringCancel = true;
+        Scheduler destroyScheduler(2);
+        auto destroying = std::make_unique<FileReader>(
+            destroyScheduler, destroySource, TorrentFile{"destroying", "destroying", 8, 0}, 4,
+            options(0, 7, 0, 71));
+        destroying->request(8);
+        const auto destroyFirst = destroySource.pending[0].token;
+        const auto destroySecond = destroySource.pending[1].token;
+        destroying.reset();
+        expect(destroySource.cancelCalls[destroyFirst] == 1
+                   && destroySource.cancelCalls[destroySecond] == 1
+                   && destroyScheduler.selections().empty(),
+               "K08-F2 destruction is safe under synchronous cancel completion");
+    }
+
+    // Break caught: the reader must not introduce a hidden dispatch lane between
+    // owner-lane demand, refresh, source completion, and immediate observation.
+    {
+        ControlledPieceSource source;
+        source.pieces = {{0, bytes({9, 8, 7, 6})}};
+        Scheduler scheduler(1);
+        const auto ownerLane = std::this_thread::get_id();
+        std::thread::id refreshLane;
+        FileReader reader(scheduler, source, TorrentFile{"lane", "lane", 4, 0}, 4,
+                          options(0, 3, 0, 72),
+                          [&refreshLane] { refreshLane = std::this_thread::get_id(); });
+        reader.request(4);
+        expect(refreshLane == ownerLane,
+               "K08-F2 refresh executes inline on the serialized owner lane");
+        source.available.insert(0);
+        reader.notifyPiece(0);
+        source.complete(0);
+        expect(flatten(reader.takeData()) == bytes({9, 8, 7, 6}),
+               "K08-F2 owner-lane source completion is immediately observable");
     }
 
     // Break caught: source-read errors use the same terminal transition, while a

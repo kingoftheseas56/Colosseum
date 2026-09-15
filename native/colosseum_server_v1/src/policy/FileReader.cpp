@@ -40,6 +40,11 @@ struct FileReader::State final {
         ByteBuffer bytes;
     };
 
+    struct DetachedOwnership final {
+        std::vector<std::uint64_t> tokens;
+        bool selection = false;
+    };
+
     Scheduler *scheduler = nullptr;
     FileReaderSource *source = nullptr;
     Refresh refresh;
@@ -70,6 +75,34 @@ struct FileReader::State final {
     bool closed = false;
     bool destroyed = false;
 
+    [[nodiscard]] DetachedOwnership detachOwnership()
+    {
+        DetachedOwnership detached;
+        detached.tokens.reserve(activeReads.size());
+        for (const auto &[token, piece] : activeReads) {
+            static_cast<void>(piece);
+            detached.tokens.push_back(token);
+        }
+        detached.selection = selectionActive;
+
+        activeReads.clear();
+        lockedPieces.clear();
+        completedReads.clear();
+        waitingPiece.reset();
+        selectionActive = false;
+        return detached;
+    }
+
+    void releaseDetached(DetachedOwnership detached)
+    {
+        for (const auto token : detached.tokens) {
+            static_cast<void>(source->cancelRead(token));
+        }
+        if (detached.selection) {
+            static_cast<void>(scheduler->deselect(selectionId));
+        }
+    }
+
     void terminalFailure(std::string reason)
     {
         if (closed || eof || error) {
@@ -81,25 +114,7 @@ struct FileReader::State final {
 
         error = std::move(reason);
         closed = true;
-        std::vector<std::uint64_t> detachedTokens;
-        detachedTokens.reserve(activeReads.size());
-        for (const auto &[token, piece] : activeReads) {
-            static_cast<void>(piece);
-            detachedTokens.push_back(token);
-        }
-        activeReads.clear();
-        lockedPieces.clear();
-        completedReads.clear();
-        waitingPiece.reset();
-
-        const bool detachSelection = selectionActive;
-        selectionActive = false;
-        for (const auto token : detachedTokens) {
-            static_cast<void>(source->cancelRead(token));
-        }
-        if (detachSelection) {
-            static_cast<void>(scheduler->deselect(selectionId));
-        }
+        releaseDetached(detachOwnership());
     }
 };
 
@@ -153,7 +168,8 @@ FileReader::FileReader(Scheduler &scheduler,
 
 FileReader::~FileReader()
 {
-    closeState(state_, true);
+    const auto state = state_;
+    closeState(state, true);
 }
 
 void FileReader::request(std::size_t bytes)
@@ -204,7 +220,8 @@ std::optional<std::string> FileReader::takeError()
 
 void FileReader::close()
 {
-    closeState(state_, false);
+    const auto state = state_;
+    closeState(state, false);
 }
 
 std::size_t FileReader::length() const noexcept { return state_->length; }
@@ -352,18 +369,7 @@ void FileReader::closeState(const std::shared_ptr<State> &state, bool destroyed)
         return;
     }
     state->closed = true;
-    for (const auto &[token, piece] : state->activeReads) {
-        static_cast<void>(piece);
-        static_cast<void>(state->source->cancelRead(token));
-    }
-    state->activeReads.clear();
-    state->lockedPieces.clear();
-    state->completedReads.clear();
-    state->waitingPiece.reset();
-    if (state->selectionActive) {
-        static_cast<void>(state->scheduler->deselect(state->selectionId));
-        state->selectionActive = false;
-    }
+    state->releaseDetached(state->detachOwnership());
 }
 
 } // namespace server1::policy

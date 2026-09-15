@@ -1,6 +1,6 @@
 pwsh -NoProfile -File artifacts/server1/K08/K08-F2/run_contract.ps1 -BuildDir <scratch>/K08-F2-contract
 
-Expected: positive consumer compiles; all 6 signature mutations and all 17 semantic-clause mutations are rejected.
+Expected: positive consumer compiles; all 6 signature mutations and all 25 semantic-clause mutations are rejected.
 
 cmake --build <existing-K08-build>
 ctest --test-dir <existing-K08-build> -C Debug --output-on-failure

@@ -1,6 +1,8 @@
-Two live production mutations were applied one at a time, built, observed failing, and restored with apply_patch:
+Two live production mutations were rerun after the close-path repair. Each was applied alone, built, observed failing, and restored with apply_patch:
 
 1. Replacing the atomic token allocation with constant token `1` made K08-F2 fail its exact-once cancellation assertion. This proves collisions cannot silently preserve sibling ownership.
 2. Replacing empty-input normalization with an early return made K08-F2 fail the exact fallback assertion.
 
 After restoration, the focused case passed three consecutive executions and combined K08 passed 4/4.
+
+The close/destructor regression itself is a third behavioral negative control: against `fc739b27`, synchronous completion during close-path cancellation produced a segmentation fault. The shared detach-before-release implementation removes that invalid iterator path.

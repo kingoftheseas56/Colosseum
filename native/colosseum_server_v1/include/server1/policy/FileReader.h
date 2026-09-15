@@ -41,6 +41,12 @@ class FileReader final {
 public:
     using Refresh = std::function<void()>;
 
+    // Threading contract: every FileReader public method, the Refresh callback,
+    // and FileReaderSource::Completion delivery must execute on the same
+    // serialized owner lane. FileReader performs no internal cross-thread
+    // synchronization. K11 must marshal transport observations and store
+    // completions to that owner lane before interacting with a reader.
+
     FileReader(Scheduler &scheduler,
                FileReaderSource &source,
                TorrentFile file,
@@ -70,6 +76,8 @@ public:
     void fail(std::string error);
     [[nodiscard]] std::vector<ByteBuffer> takeData();
     [[nodiscard]] std::optional<std::string> takeError();
+    // Explicit close and destruction detach owned state before cancelRead() or
+    // deselect() can reenter through a synchronous source completion.
     void close();
 
     [[nodiscard]] std::size_t length() const noexcept;

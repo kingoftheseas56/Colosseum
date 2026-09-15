@@ -35,4 +35,4 @@ foreach ($mutation in $mutations) {
 
 python (Join-Path $PSScriptRoot 'verify_semantics.py') $header --mutations
 if ($LASTEXITCODE -ne 0) { throw "K08-F2 semantic verification failed: $LASTEXITCODE" }
-Write-Output "K08-F2 PASS positive=1 signature_mutations=$($mutations.Count)/$($mutations.Count) semantic_mutations=17/17"
+Write-Output "K08-F2 PASS positive=1 signature_mutations=$($mutations.Count)/$($mutations.Count) semantic_mutations=25/25"
