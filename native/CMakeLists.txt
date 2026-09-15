@@ -34,6 +34,21 @@ if(NOT COLOSSEUM_NO_COMPILER_CACHE)
         set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
         set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
         message(STATUS "Compiler cache: sccache (${SCCACHE_PROGRAM})")
+        # sccache runs every cl.exe as its own short-lived process, so the mspdbsrv
+        # coordination behind /FS breaks and parallel compiles collide writing the one
+        # vc140.pdb that /Zi emits (fatal error C1041). Embed debug info in each object
+        # with /Z7 instead: there is no shared PDB to contend for, and sccache can only
+        # cache debug-info builds when the info lives in the object (a /Zi compile is
+        # uncacheable). Release has no /Zi, so this only touches Debug/RelWithDebInfo.
+        if(MSVC)
+            foreach(_dbg_flags
+                    CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELWITHDEBINFO
+                    CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+                if(${_dbg_flags} MATCHES "/Z[iI]")
+                    string(REGEX REPLACE "/Z[iI]" "/Z7" ${_dbg_flags} "${${_dbg_flags}}")
+                endif()
+            endforeach()
+        endif()
     else()
         message(STATUS "Compiler cache: sccache not found; building without compiler cache")
     endif()
