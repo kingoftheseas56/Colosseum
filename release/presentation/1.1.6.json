@@ -42,8 +42,8 @@
     {
       "kind": "milestone",
       "section": "RELEASE",
-      "title": "One version identity",
-      "body": "Executable metadata, updater network identity, release notes, and the Windows release workflow now converge on 1.1.6.",
+      "title": "One-time trust reset",
+      "body": "Colosseum 1.1.6 establishes a new update-signing trust root. Install this release manually once when coming from 1.1.5 or earlier; automatic updates resume normally from 1.1.6 onward.",
       "artwork_assets": []
     }
   ],

@@ -42,7 +42,7 @@ try {
     # Idle scenario (installed-release chronicle, Slice 4): runs on a SHIPPING
     # build (COLOSSEUM_UPDATE_TESTING unset) with no update fixture and no test
     # presentation state. The bundled production-signed chronicle in the qrc
-    # renders the installed 1.1.0 chapters at rest. This must NOT run under the
+    # renders the installed 1.1.6 chapters at rest. This must NOT run under the
     # test-key build (the production bundle verifies against the production key).
     if ($Scenario -eq "idle") {
         Remove-Item Env:COLOSSEUM_UPDATE_TESTING -ErrorAction SilentlyContinue

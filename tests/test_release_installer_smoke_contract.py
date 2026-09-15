@@ -20,6 +20,10 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
         presentation = load_presentation(ROOT / 'release/presentation/1.1.6.json', '1.1.6')
         self.assertEqual(presentation['title'], 'Colosseum 1.1.6')
         self.assertEqual(len(presentation['highlights']), 6)
+        notes = (ROOT / 'docs/release-notes/v1.1.6.md').read_text(encoding='utf-8').lower()
+        self.assertIn('manual', notes)
+        self.assertIn('1.1.5', notes)
+        self.assertIn('manual', presentation['highlights'][-1]['body'].lower())
 
     def test_installer_branding_is_product_named_and_iconed(self):
         installer = (ROOT / 'scripts/installer/colosseum.nsi').read_text(encoding='utf-8')

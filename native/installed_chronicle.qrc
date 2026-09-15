@@ -1,5 +1,5 @@
 <!DOCTYPE RCC><RCC version="1.0">
-<!-- Bundled installed-release chronicle for Colosseum 1.1.4. The signed manifest + signature
+<!-- Bundled installed-release chronicle for Colosseum 1.1.6. The signed manifest + signature
      are produced by scripts/update/generate_installed_chronicle.py with the production key.
      This release declares no dedicated chronicle artwork, so the gallery uses its built-in
      fallback stage. InstalledChronicle re-verifies the signature before presentation. -->
