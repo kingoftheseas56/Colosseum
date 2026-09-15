@@ -2,18 +2,19 @@
   "schema": "colosseum-server1-blob-seal/v1",
   "base": "a4890e19c8621fdc0d63028894c12ce3ad3fe1da",
   "blobs": {
-    "native/colosseum_server_v1/include/server1/policy/FileReader.h": "c45ef3797413d91f9f26172a697e0fce781c23e3",
+    "native/colosseum_server_v1/include/server1/policy/FileReader.h": "122b3ddcde3db98f508f65ac4cb9996cc68f1747",
     "artifacts/server1/K08/K08-F2/contract_consumer.cpp": "13cb6e20a35d505b70cd185dcf10a5444d99c318",
-    "artifacts/server1/K08/K08-F2/verify_semantics.py": "7b82dcb6241f3670f3cf142d0611bc7cabda2cdd",
-    "artifacts/server1/K08/K08-F2/run_contract.ps1": "10100614e386542896d37b17c909ae0a48812046",
-    "artifacts/server1/K08/K08-F2/TEST-COMMANDS.txt": "730b181a0708dd387c69b34c6621a00bc233bdcc",
-    "artifacts/server1/K08/K08-F2/SOURCE-TRACE.md": "d0fca7b25729cccedfdf8539277c2d33bc6c2deb",
+    "artifacts/server1/K08/K08-F2/verify_semantics.py": "6e400af5f436b7c08c98934eca1a910b2c793f2c",
+    "artifacts/server1/K08/K08-F2/run_contract.ps1": "cccce3b642d837115269033a54c0b43e0eb6ed68",
+    "artifacts/server1/K08/K08-F2/TEST-COMMANDS.txt": "7b02259518d7268cc65af19b59a69ba11a02935b",
+    "artifacts/server1/K08/K08-F2/SOURCE-TRACE.md": "96b73ed35620c73ad64c9f89d2d0bb8eb1a9ff8b",
     "artifacts/server1/K08/K08-F2/WIRING-REQUEST.json": "81f7b736c2b7529b5821d9392e14edc99468cd23",
-    "artifacts/server1/K08/K08-F2/PACKET-RECEIPT.json": "d49787fe617d4ffd21fb6ade24604f79000ebf56",
+    "artifacts/server1/K08/K08-F2/PACKET-RECEIPT.json": "ec7c2a7bb82e033c6e3517ea85f221cf3f98a7d3",
     "artifacts/server1/K08/K08-F2/TDD-RED.txt": "91485bbf14c723854fdeab980896b7bbad37825b",
-    "artifacts/server1/K08/K08-F2/TDD-GREEN.txt": "d4c6f03786e33b15a49edef47634e2d40b7c4320",
+    "artifacts/server1/K08/K08-F2/TDD-GREEN.txt": "1506351fa357ffe394ebeabe6263a37473c4bc49",
     "artifacts/server1/K08/K08-F2/DEBUG-TRACE.md": "50eb6e5d5c27dd300b9c0615e1ea9477c30f7d6e",
-    "artifacts/server1/K08/K08-F2/SELF-REVIEW.md": "5761250bdd857c97b8b0de0121ec93be4e641355"
+    "artifacts/server1/K08/K08-F2/SELF-REVIEW.md": "8507928404c2d37af9cf1ca486d8cd50577032f1",
+    "artifacts/server1/K08/K08-F2/REVIEW-REPAIR.md": "39144dd15beb336f1887a4d5dda169b68b2dc0e5"
   },
   "verification": "git cat-file blob <hash> must reproduce each recorded file"
 }

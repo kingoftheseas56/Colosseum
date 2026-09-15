@@ -56,12 +56,17 @@ public:
 
     void request(std::size_t bytes);
     void notifyPiece(std::size_t piece);
-    // Inject an external terminal failure. The first non-empty failure wins:
-    // it closes the reader, cancels live reads, clears pending/completed work,
-    // releases its scheduler selection, and makes the reason available exactly
-    // once through takeError(). Bytes already returned by takeData() or already
-    // queued for takeData() remain valid; late source completions are ignored.
-    // Empty reasons and calls after EOF, close, or an earlier failure are no-ops.
+    // Inject an external terminal failure. The first call while active wins; an
+    // empty input is normalized to the exact fallback "file reader failed".
+    // Failure detaches this reader's active tokens, waiting-piece state, locks,
+    // and scheduler selection before calling cancelRead() or deselect(). It then
+    // cancels each detached active read exactly once, discards out-of-order
+    // completions not yet queued for takeData(), and exposes the reason exactly
+    // once through takeError(). Bytes already queued for takeData() remain valid,
+    // and synchronous reentrant or late source completions cannot deliver bytes.
+    // Only this reader's tokens, locks, and selection are affected; sibling
+    // readers sharing the source or scheduler are untouched. Calls after EOF,
+    // close, or an earlier failure are no-ops.
     void fail(std::string error);
     [[nodiscard]] std::vector<ByteBuffer> takeData();
     [[nodiscard]] std::optional<std::string> takeError();

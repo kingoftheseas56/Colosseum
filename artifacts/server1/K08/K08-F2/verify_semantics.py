@@ -8,14 +8,22 @@ from pathlib import Path
 
 
 CLAUSES = (
-    "The first non-empty failure wins",
-    "it closes the reader, cancels live reads, clears pending/completed work",
-    "releases its scheduler selection",
-    "makes the reason available exactly",
+    "The first call while active wins",
+    'empty input is normalized to the exact fallback "file reader failed"',
+    "detaches this reader's active tokens, waiting-piece state, locks",
+    "scheduler selection before calling cancelRead() or deselect()",
+    "cancels each detached active read exactly once",
+    "discards out-of-order",
+    "completions not yet queued for takeData()",
+    "exposes the reason exactly",
     "once through takeError()",
-    "queued for takeData() remain valid",
-    "late source completions are ignored",
-    "Empty reasons and calls after EOF, close, or an earlier failure are no-ops",
+    "Bytes already queued for takeData() remain valid",
+    "synchronous reentrant or late source completions cannot deliver bytes",
+    "Only this reader's tokens, locks, and selection are affected",
+    "sibling",
+    "readers sharing the source or scheduler are untouched",
+    "Calls after EOF",
+    "close, or an earlier failure are no-ops",
     "void fail(std::string error);",
 )
 
