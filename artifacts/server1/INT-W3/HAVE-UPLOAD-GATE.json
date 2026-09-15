@@ -1,0 +1,62 @@
+{
+  "schema": "colosseum-server1-have-upload-gate/v1",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-have-upload-20260915",
+  "base": "9668b5aa9e441ebf9493a8212b0c4ba65a3c0e06",
+  "accepted_head": "c0361cc169d109022f661b1cbadab93ec6dab0bb",
+  "inputs": {
+    "P08-T5": [
+      "92ba8a977da0be22cbe299e389207b20c658632b",
+      "afdec249b85c690aa041a2de4458251306464ebd"
+    ],
+    "K10-H": [
+      "7abe3d1ab26529ca6200e010a2a9c3ad2ca50e90",
+      "6dfb4838a5b7c2d326e46ba92cde7499f46555f5",
+      "c0361cc169d109022f661b1cbadab93ec6dab0bb"
+    ]
+  },
+  "review_lineage": "Independent Sol contract and production review accepted the exact repaired head c0361cc169d109022f661b1cbadab93ec6dab0bb after the upload implementation repair rounds.",
+  "accepted_gates": [
+    "P08-T5-CONTRACT",
+    "G-HONEST-HAVE-UPLOAD"
+  ],
+  "integrated_workers": [
+    "P08-T5",
+    "K10-H"
+  ],
+  "verification": {
+    "branch_and_remote": "PASS; local and origin review ref both c0361cc169d109022f661b1cbadab93ec6dab0bb before ledger commit",
+    "ancestry": "PASS; 9668b5aa9e441ebf9493a8212b0c4ba65a3c0e06 is an ancestor of c0361cc169d109022f661b1cbadab93ec6dab0bb",
+    "candidate_cleanliness": "PASS; clean before ledger authoring and source diff-check clean",
+    "committed_blob_seals": "PASS; P08-T5 15/15 and K10-H 22/22, 37/37 total",
+    "public_path_guard": "PASS; PUBLIC_PATH_GUARD_OK",
+    "P08-T5_contract": "PASS; positive consumer, 19/19 compile-fail mutations, and 60/60 semantic mutations",
+    "legacy_P08_contract": "PASS; positive consumers and 19/19 P08/P08-T4 mutations",
+    "K10-H_live_wire": "PASS; four successive suite executions, each covering 4/4 feasibility, pending-unchoke, caps, and lifecycle scenarios",
+    "K10-H_behavioral_mutations": "PASS; 9/9 rejected",
+    "K10_family": "PASS; K10, K10-E, K10-F, K10-G, and K10-H inventory 19/19",
+    "combined_link": "PASS; INT-W3-spine-contracts-link 1/1",
+    "aggregate": "PASS; fresh MSVC Release configure, 77/77 build steps, and 64/64 tests"
+  },
+  "scope": {
+    "production": [
+      "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
+      "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp",
+      "native/colosseum_server_v1/src/transport/PeerPlugin.cpp"
+    ],
+    "tests": [
+      "native/colosseum_server_v1/tests/test_native_transport.cpp",
+      "native/colosseum_server_v1/tests/cmake/K10.cmake"
+    ],
+    "boundary": "This acceptance supplies generation-safe custom HAVE advertisement and intercepted upload request, cancel, abort, cap, lifecycle, and accounting behavior for the future K11 engine repair. It does not prove that K11 advertises only upstream durable commits.",
+    "upstream_commit_proof": "remains K11 responsibility",
+    "B-W3E": "not formed; remains K11"
+  },
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integrated_by": "[Agent 4 (Codex/Sol subagent), upload integration]"
+  },
+  "status": "accepted-and-integrated"
+}
