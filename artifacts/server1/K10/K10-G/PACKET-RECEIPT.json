@@ -13,6 +13,6 @@
   "regressions": "fresh full build 77/77; aggregate 63/63; K10-F 1/1; P08-T4 4/4 compile mutations; legacy P08 15/15; combined link PASS; public path guard PASS",
   "scope": "LibTorrent2Adapter, native transport tests/CMake, and packet-local K10-G evidence only",
   "merge_endpoint": "feature/colosseum-server-1.0 only after independent Sol code approval and gates",
-  "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
+  "review": "independent Sol requested one evidence-truth repair; stale K10-01 diagnostic generation corrected from 7 to 1; independent re-review and Agent 4 acceptance pending",
   "status": "test-authored; red-observed; production-authored; real-wire-tested; mutation-tested; aggregate-tested; unintegrated"
 }

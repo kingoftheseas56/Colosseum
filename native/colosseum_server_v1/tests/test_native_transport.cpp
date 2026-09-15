@@ -285,7 +285,7 @@ void caseWire(const fs::path &directory, int portA, int portB)
                return std::holds_alternative<ClosedObservation>(item);
            }) == 1, "K10-01 close must emit exactly once");
     std::cout << "K10-01 PASS linked_runtime=" << lt::version()
-              << " owned=41/7/3 peer=77 piece=0 offset=0 length=16384"
+              << " owned=41/1/3 peer=77 piece=0 offset=0 length=16384"
               << " queued=1 framed=1 autonomous_mutations=0 replay_rejected=1\n";
 }
 
