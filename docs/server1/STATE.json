@@ -208,6 +208,9 @@
     "P08-T2": "Accepted and integrated at 0cc1aa19c10155380b19008850b18acc5c79b043 after independent re-review APPROVE; public source identity and generation contract passed its positive consumer and 14/14 compile-fail mutations.",
     "K10-E": "Accepted and integrated through c19c50682269467d4348ce620dab4d59e275e6df after facfb843b4ee28ea4b350169965f0d847c74f9a5 received REQUEST-CHANGES and the magnet metadata repair received independent re-review APPROVE; fresh K10-E 7/7 and legacy K10 10/10 passed.",
     "SOURCE-TRANSPORT-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head c19c50682269467d4348ce620dab4d59e275e6df. Fresh aggregate 59/59, P08-T2 14/14 mutations rejected, public-path guard PASS, and 24/24 committed blobs verified. P08-T2-CONTRACT and G-METADATA-SOURCE are accepted. This enables K11 source lifecycle only; B-W3E is not formed.",
+    "P08-T3": "Accepted and integrated at 2600bfe25faabd67cb008fda11c28ef626104f15 after independent Sol review APPROVE; its positive consumer passed and 15/15 compile-fail mutations were rejected.",
+    "K10-F": "Accepted and integrated at 16265bdce33c15777f400c8af262c918c1edd557 after independent Sol review APPROVE; real-wire peer availability passed twice, K10-E 7/7 and legacy K10 10/10 passed.",
+    "PEER-AVAILABILITY-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 16265bdce33c15777f400c8af262c918c1edd557. Public-path guard PASS, 23/23 committed blobs verified, P08-T3 positive consumer plus 15/15 mutation rejects, K10-F twice consecutively, K10-E 7/7, and legacy K10 10/10. P08-T3-CONTRACT and G-PEER-AVAILABILITY are accepted. B-W3E is not formed.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -259,6 +262,8 @@
       "K10-A": "integrated",
       "P08-T2": "integrated",
       "K10-E": "integrated",
+      "P08-T3": "integrated",
+      "K10-F": "integrated",
       "INT-W1": "integrated",
       "INT-W2": "integrated",
       "INT-W3": "integrated"
@@ -279,7 +284,9 @@
       "CONTROL-PLAN": "accepted",
       "G-WIRE": "accepted",
       "P08-T2-CONTRACT": "accepted",
-      "G-METADATA-SOURCE": "accepted"
+      "G-METADATA-SOURCE": "accepted",
+      "P08-T3-CONTRACT": "accepted",
+      "G-PEER-AVAILABILITY": "accepted"
     },
     "releases": {
       "P05-A": "released",
@@ -465,5 +472,31 @@
     "receipt": "artifacts/server1/INT-W3/SOURCE-TRANSPORT-GATE.json",
     "B-W3E": "not formed; remains K11",
     "scope_note": "This acceptance enables K11 source lifecycle only. It does not accept or claim engine integration, torrent HTTP, playback, packaging, or release readiness."
+  },
+  "slice3_peer_availability_acceptance": {
+    "status": "accepted",
+    "reviewed_head": "16265bdce33c15777f400c8af262c918c1edd557",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integration_base": "2e82d97f20399c7362fe4d204edd6643a4d13361",
+    "inputs": {
+      "P08-T3": "2600bfe25faabd67cb008fda11c28ef626104f15",
+      "K10-F": "16265bdce33c15777f400c8af262c918c1edd557"
+    },
+    "review_lineage": "P08-T3 and K10-F received independent Sol APPROVE at their exact reviewed heads.",
+    "agent4_fresh_verification": {
+      "public_path_guard": "PASS",
+      "committed_blob_hashes": "23/23 PASS",
+      "P08-T3_contract": "positive consumer PASS; 15/15 mutations rejected",
+      "build": "no-op success",
+      "K10-F": "2/2 consecutive PASS",
+      "K10-E": "7/7 PASS",
+      "K10": "10/10 PASS in 84.85 seconds"
+    },
+    "accepted_gates": ["P08-T3-CONTRACT", "G-PEER-AVAILABILITY"],
+    "integrated_workers": ["P08-T3", "K10-F"],
+    "receipt": "artifacts/server1/INT-W3/PEER-AVAILABILITY-GATE.json",
+    "B-W3E": "not formed; remains K11",
+    "scope_note": "This acceptance supplies generation-bound peer availability and stale-callback isolation for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
   }
 }

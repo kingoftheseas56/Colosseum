@@ -1,0 +1,60 @@
+{
+  "schema": "colosseum-server1-peer-availability-gate/v1",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-transport-availability-20260915",
+  "base": "2e82d97f20399c7362fe4d204edd6643a4d13361",
+  "accepted_head": "16265bdce33c15777f400c8af262c918c1edd557",
+  "inputs": {
+    "P08-T3": "2600bfe25faabd67cb008fda11c28ef626104f15",
+    "K10-F": "16265bdce33c15777f400c8af262c918c1edd557"
+  },
+  "review_lineage": {
+    "P08-T3": {
+      "reviewed_head": "2600bfe25faabd67cb008fda11c28ef626104f15",
+      "independent_reviewer_result": "APPROVE"
+    },
+    "K10-F": {
+      "reviewed_head": "16265bdce33c15777f400c8af262c918c1edd557",
+      "independent_reviewer_result": "APPROVE"
+    }
+  },
+  "accepted_gates": [
+    "P08-T3-CONTRACT",
+    "G-PEER-AVAILABILITY"
+  ],
+  "integrated_workers": [
+    "P08-T3",
+    "K10-F"
+  ],
+  "verification": {
+    "branch_and_remote": "PASS; local and origin review ref at 16265bdce33c15777f400c8af262c918c1edd557 before ledger commit",
+    "ancestry": "PASS; 2e82d97f20399c7362fe4d204edd6643a4d13361 -> 2600bfe25faabd67cb008fda11c28ef626104f15 -> 16265bdce33c15777f400c8af262c918c1edd557",
+    "candidate_cleanliness": "PASS; clean before ledger authoring and diff-check clean",
+    "committed_blob_seals": "PASS; P08-T3 9/9 and K10-F 14/14, 23/23 total",
+    "public_path_guard": "PASS; four unittest cases and PUBLIC_PATH_GUARD_OK",
+    "P08-T3_contract": "PASS; positive consumer executed and 15/15 compile-fail mutations rejected",
+    "K10-F": "PASS; real-wire peer availability test passed twice consecutively",
+    "K10-E": "PASS; 7/7",
+    "legacy_K10": "PASS; 10/10 in 84.85 seconds",
+    "focused_build": "PASS; no work to do"
+  },
+  "scope": {
+    "production": [
+      "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
+      "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp",
+      "native/colosseum_server_v1/src/transport/PeerPlugin.cpp"
+    ],
+    "tests": [
+      "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp",
+      "native/colosseum_server_v1/tests/test_native_transport.cpp"
+    ],
+    "boundary": "This acceptance supplies generation-bound peer availability and stale-callback isolation for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness.",
+    "B-W3E": "not formed; remains K11"
+  },
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15"
+  },
+  "status": "accepted-and-integrated"
+}
