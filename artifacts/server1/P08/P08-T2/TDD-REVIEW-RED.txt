@@ -1,0 +1,4 @@
+Command: configured MSVC environment, then cmake --build artifacts/server1/INT-W3/B-W3D-candidate-60ecb9bb --target server1_p08_torrent_transport_contract_test
+Exit: 1
+Expected cause: V1InfoHash was absent and TorrentOpenRequest remained default constructible with a string identity.
+Meaning: the first successor contract allowed malformed or empty public identity and required the independent review repair.

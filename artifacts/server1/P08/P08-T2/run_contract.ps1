@@ -16,7 +16,10 @@ $include = Join-Path $repo 'native/colosseum_server_v1/include'
 New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
 
 $positive = Join-Path $BuildDir 'server1_p08_t2_contract.exe'
-& $compiler /nologo /std:c++17 /EHsc ('/I' + $include) $source ('/Fe:' + $positive)
+$positiveObject = Join-Path $BuildDir 'server1_p08_t2_contract.obj'
+$positiveArguments = @('/nologo', '/std:c++17', '/EHsc', ('/I' + $include), $source,
+    ('/Fo:' + $positiveObject), ('/Fe:' + $positive))
+& $compiler @positiveArguments
 if ($LASTEXITCODE -ne 0) { throw "P08-T2 positive compile failed: $LASTEXITCODE" }
 & $positive
 if ($LASTEXITCODE -ne 0) { throw "P08-T2 positive consumer failed: $LASTEXITCODE" }
@@ -25,7 +28,7 @@ $mutations = @(
     'P08_NEGATE_OWNERSHIP', 'P08_NEGATE_GENERATION', 'P08_NEGATE_EXACT_BLOCK',
     'P08_NEGATE_BLOCK_IDENTITY', 'P08_NEGATE_CANCELLATION', 'P08_NEGATE_OBSERVATION',
     'P08_NEGATE_STATISTICS', 'P08_NEGATE_AUTONOMY', 'P08_NEGATE_SOURCE_GENERATION',
-    'P08_NEGATE_OPEN_REQUEST', 'P08_NEGATE_CONNECT_ACTION', 'P08_NEGATE_METADATA_READY',
+    'P08_NEGATE_V1_INFO_HASH', 'P08_NEGATE_OPEN_REQUEST', 'P08_NEGATE_CONNECT_ACTION', 'P08_NEGATE_METADATA_READY',
     'P08_NEGATE_SOURCE_FAILURE'
 )
 foreach ($mutation in $mutations) {

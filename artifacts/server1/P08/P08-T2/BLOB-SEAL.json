@@ -2,11 +2,12 @@
   "schema": "colosseum-server1-blob-seal/v1",
   "base": "f8619b065598e258f0a9d188ba815fa49cd447f0",
   "blobs": {
-    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "e65aad3a5cd81574710a67821e9374ac5956564f",
-    "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp": "680b5202298026ad4d54a886a2f3637862b510e6",
-    "artifacts/server1/P08/P08-T2/run_contract.ps1": "500de0c524fc738f0dfc577c8f4b8dd52949dea9",
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h": "7608606c07c17203b06f03cbffd737b4db5c748a",
+    "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp": "9265d41079c2868417b17fb2205ff83347bddda6",
+    "artifacts/server1/P08/P08-T2/run_contract.ps1": "30e0084f09c3f6a0b49b339e60b67fed97f20f01",
     "artifacts/server1/P08/P08-T2/TDD-RED.txt": "458c37ad38fcaf22500e2a8873463749b93f4739",
-    "artifacts/server1/P08/P08-T2/TDD-GREEN.txt": "9fa6cff0702522b3a4fe84faabafbbc9e4e7aa00"
+    "artifacts/server1/P08/P08-T2/TDD-GREEN.txt": "af1d1abc80e38cf80f11b501e57033e79d9dd8ca",
+    "artifacts/server1/P08/P08-T2/TDD-REVIEW-RED.txt": "f23599355791db904ae0ac2cc3f441010dceaf64"
   },
   "verification": "git cat-file blob <hash> must reproduce each recorded file"
 }

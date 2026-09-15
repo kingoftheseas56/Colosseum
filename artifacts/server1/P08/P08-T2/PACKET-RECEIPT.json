@@ -7,11 +7,12 @@
   "base": "f8619b065598e258f0a9d188ba815fa49cd447f0",
   "commit": "SELF (resolve with git log --format=%H -1 -- artifacts/server1/P08/P08-T2/PACKET-RECEIPT.json)",
   "positive_compile_consumer": "PASS and executed",
-  "compile_fail_mutations": "13/13 PASS rejected",
-  "contract": "mandatory generation and canonical lowercase v1 infohash; mutually exclusive bare-infohash, magnet, or metainfo source; public ConnectAction; generation-bound metadata-ready and source-failure observations; public noexcept factory",
+  "compile_fail_mutations": "14/14 PASS rejected",
+  "contract": "non-default open request with mandatory generation and binary 20-byte v1 identity; mutually exclusive bare-infohash, magnet, or metainfo source; public ConnectAction; generation-bound metadata-ready and source-failure observations; public noexcept factory",
   "metadata_payload": "libtorrent torrent_info::info_section bytes with trackers and URL seeds carried separately; not a reconstructed full metainfo round-trip",
   "merge_endpoint": "fast-forward feature/colosseum-server-1.0 only after independent Sol review and Agent 4 acceptance",
   "scope": "accepted P08-T header and compile consumer plus packet-local evidence only",
   "review": "producer candidate; independent Sol review and Agent 4 acceptance pending",
-  "status": "test-authored; red-observed; contract-authored; directly-compiled; mutation-tested"
+  "review_repair": "independent review replaced unrestricted string identity with V1InfoHash and deleted TorrentOpenRequest default construction; K10 must validate generation and source consistency",
+  "status": "test-authored; red-observed; contract-authored; review-repaired; directly-compiled; mutation-tested"
 }

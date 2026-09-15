@@ -2,6 +2,6 @@ Positive command: artifacts/server1/P08/P08-T2/run_contract.ps1
 Positive compile/run exit: 0
 Output: P08-T PASS
 
-Compile-fail mutations: 13/13 rejected. The original eight request-plane mutations still reject missing ownership, generation, exact-block, block-ordinal, cancellation, observation, statistics, or autonomy members. Five successor mutations reject removal of EngineGeneration, TorrentOpenRequest, ConnectAction, MetadataReadyObservation, or SourceFailureObservation.
+Compile-fail mutations: 14/14 rejected. The original eight request-plane mutations still reject missing ownership, generation, exact-block, block-ordinal, cancellation, observation, statistics, or autonomy members. Six successor mutations reject removal of EngineGeneration, V1InfoHash, TorrentOpenRequest, ConnectAction, MetadataReadyObservation, or SourceFailureObservation.
 
-Contract behavior: TorrentOpenRequest always carries one canonical v1 infohash and one mutually exclusive source alternative. InfoHashSource means bare-infohash bootstrap. MagnetSource carries one magnet URI. MetainfoSource carries cached bytes. MetadataReadyObservation names the libtorrent info-section bytes honestly and carries trackers and URL seeds separately.
+Contract behavior: TorrentOpenRequest is not default constructible and always carries a generation, binary 20-byte v1 identity, one mutually exclusive source alternative, and save path. InfoHashSource means bare-infohash bootstrap. MagnetSource carries one magnet URI. MetainfoSource carries cached bytes. MetadataReadyObservation names the libtorrent info-section bytes honestly and carries trackers and URL seeds separately.

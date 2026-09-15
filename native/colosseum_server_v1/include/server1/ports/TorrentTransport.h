@@ -4,16 +4,19 @@
 #include "server1/discovery/PeerSearch.h"
 
 #include <cstdint>
+#include <array>
 #include <memory>
 #include <string>
 #include <variant>
 #include <vector>
+#include <utility>
 
 namespace server1::ports {
 
 inline constexpr std::uint32_t kWireBlockLength = 16384;
 using PeerHandle = std::uint64_t;
 using EngineGeneration = std::uint64_t;
+using V1InfoHash = std::array<std::uint8_t, 20>;
 
 struct InfoHashSource final {};
 
@@ -28,9 +31,20 @@ struct MetainfoSource final {
 using TorrentSource = std::variant<InfoHashSource, MagnetSource, MetainfoSource>;
 
 struct TorrentOpenRequest final {
-    EngineGeneration generation = 0;
-    std::string infoHash;
-    TorrentSource source = InfoHashSource{};
+    TorrentOpenRequest() = delete;
+    TorrentOpenRequest(EngineGeneration engineGeneration,
+                       V1InfoHash canonicalInfoHash,
+                       TorrentSource torrentSource,
+                       std::string destination)
+        : generation(engineGeneration),
+          infoHash(std::move(canonicalInfoHash)),
+          source(std::move(torrentSource)),
+          savePath(std::move(destination))
+    {}
+
+    EngineGeneration generation;
+    V1InfoHash infoHash;
+    TorrentSource source;
     std::string savePath;
 };
 
@@ -151,7 +165,7 @@ struct ClosedObservation final {};
 
 struct MetadataReadyObservation final {
     EngineGeneration generation = 0;
-    std::string canonicalInfoHash;
+    V1InfoHash infoHash{};
     std::vector<std::uint8_t> infoSection;
     std::vector<std::string> trackers;
     std::vector<std::string> urlSeeds;
@@ -159,7 +173,7 @@ struct MetadataReadyObservation final {
 
 struct SourceFailureObservation final {
     EngineGeneration generation = 0;
-    std::string canonicalInfoHash;
+    V1InfoHash infoHash{};
     std::string error;
     bool retryable = false;
 };
