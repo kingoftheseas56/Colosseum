@@ -213,6 +213,8 @@
     "PEER-AVAILABILITY-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 16265bdce33c15777f400c8af262c918c1edd557. Public-path guard PASS, 23/23 committed blobs verified, P08-T3 positive consumer plus 15/15 mutation rejects, K10-F twice consecutively, K10-E 7/7, and legacy K10 10/10. P08-T3-CONTRACT and G-PEER-AVAILABILITY are accepted. B-W3E is not formed.",
     "K08-F2": "Accepted and integrated at 798a4ff2fe42f0f1d1c960dae6c32586920cd511 after independent Sol contract APPROVE, production REQUEST-CHANGES, repair, and independent Sol re-review APPROVE; terminal failure and callback-safe detachment passed three focused repetitions and K08 4/4.",
     "READER-FAILURE-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 798a4ff2fe42f0f1d1c960dae6c32586920cd511. Public-path guard PASS, 21/21 committed blobs verified, contract consumer PASS, 6/6 signature and 25/25 semantic mutations rejected, K08-F2 three consecutive passes, K08 4/4, and fresh non-K10 aggregate 43/43. K08-F2-CONTRACT is accepted. B-W3E is not formed.",
+    "K06-F2": "Accepted and integrated at 5ed2d73403c6d52cf0c3b3e98e561a4882e91492 after independent Sol REQUEST-CHANGES at 9820b621 and re-review APPROVE; durable restored commit state, invalidation persistence, and fail-closed bitmap repair passed three focused repetitions, K03 3/3, combined K06 4/4, and 8/8 mutations.",
+    "STORE-RESTORE-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head 5ed2d73403c6d52cf0c3b3e98e561a4882e91492. Public-path guard PASS, 26/26 committed blobs verified, K06-F2 three consecutive passes, K03 3/3, legacy K06 3/3, combined K06 4/4, 8/8 exact mutations rejected, and fresh aggregate 61/61. K06-F2-DURABLE-COMMIT is accepted. B-W3E is not formed.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -267,6 +269,7 @@
       "P08-T3": "integrated",
       "K10-F": "integrated",
       "K08-F2": "integrated",
+      "K06-F2": "integrated",
       "INT-W1": "integrated",
       "INT-W2": "integrated",
       "INT-W3": "integrated"
@@ -290,7 +293,8 @@
       "G-METADATA-SOURCE": "accepted",
       "P08-T3-CONTRACT": "accepted",
       "G-PEER-AVAILABILITY": "accepted",
-      "K08-F2-CONTRACT": "accepted"
+      "K08-F2-CONTRACT": "accepted",
+      "K06-F2-DURABLE-COMMIT": "accepted"
     },
     "releases": {
       "P05-A": "released",
@@ -316,6 +320,7 @@
       "P08-T2": "0cc1aa19c10155380b19008850b18acc5c79b043",
       "K10-E": "c19c50682269467d4348ce620dab4d59e275e6df",
       "K08-F2": "798a4ff2fe42f0f1d1c960dae6c32586920cd511",
+      "K06-F2": "5ed2d73403c6d52cf0c3b3e98e561a4882e91492",
       "INT-W3": "fe28b51973a32385d472cac88f17853d26445c9a"
     },
     "integrated_sha": "260835ff2b52b11a169cf97493b9dbe49c7eb285",
@@ -532,5 +537,34 @@
     "receipt": "artifacts/server1/INT-W3/READER-FAILURE-GATE.json",
     "B-W3E": "not formed; remains K11",
     "scope_note": "This acceptance supplies terminal FileReader failure delivery and callback-safe state detachment for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
+  },
+  "slice3_store_restore_acceptance": {
+    "status": "accepted",
+    "reviewed_head": "5ed2d73403c6d52cf0c3b3e98e561a4882e91492",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integration_base": "2dc47a3ed6b5650b6b971d972f19f425b1b057e8",
+    "inputs": {
+      "K06-F2": [
+        "9820b621739fff8648650ee5184e981103d0ec77",
+        "5ed2d73403c6d52cf0c3b3e98e561a4882e91492"
+      ]
+    },
+    "review_lineage": "Initial production at 9820b621 received independent Sol REQUEST-CHANGES for silent bitmap repair failures; repaired 5ed2d734 received independent Sol re-review APPROVE.",
+    "agent4_fresh_verification": {
+      "public_path_guard": "PASS",
+      "committed_blob_hashes": "26/26 PASS",
+      "K06-F2": "3/3 consecutive PASS",
+      "K03": "3/3 PASS",
+      "legacy_K06": "3/3 PASS",
+      "combined_K06": "4/4 PASS",
+      "mutations": "8/8 rejected",
+      "aggregate": "fresh Release build; 61/61 PASS"
+    },
+    "accepted_gates": ["K06-F2-DURABLE-COMMIT"],
+    "integrated_workers": ["K06-F2"],
+    "receipt": "artifacts/server1/INT-W3/STORE-RESTORE-GATE.json",
+    "B-W3E": "not formed; remains K11",
+    "scope_note": "This acceptance supplies durable restored commit state and fail-closed bitmap repair for the future K11 engine repair. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
   }
 }

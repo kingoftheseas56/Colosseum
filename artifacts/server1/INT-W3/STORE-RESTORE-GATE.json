@@ -1,0 +1,55 @@
+{
+  "schema": "colosseum-server1-store-restore-gate/v1",
+  "date": "2026-09-15",
+  "branch": "sol/server1-w3-store-restored-commit-20260915",
+  "base": "2dc47a3ed6b5650b6b971d972f19f425b1b057e8",
+  "accepted_head": "5ed2d73403c6d52cf0c3b3e98e561a4882e91492",
+  "inputs": {
+    "K06-F2": [
+      "9820b621739fff8648650ee5184e981103d0ec77",
+      "5ed2d73403c6d52cf0c3b3e98e561a4882e91492"
+    ]
+  },
+  "review_lineage": {
+    "production_initial": "Independent Sol REQUEST-CHANGES at 9820b621739fff8648650ee5184e981103d0ec77 for silent VerificationBitmap repair failures",
+    "production_repair": "Independent Sol APPROVE at 5ed2d73403c6d52cf0c3b3e98e561a4882e91492"
+  },
+  "accepted_gates": [
+    "K06-F2-DURABLE-COMMIT"
+  ],
+  "integrated_workers": [
+    "K06-F2"
+  ],
+  "verification": {
+    "branch_and_remote": "PASS; local and origin review ref at 5ed2d73403c6d52cf0c3b3e98e561a4882e91492 before ledger commit",
+    "ancestry": "PASS; 2dc47a3ed6b5650b6b971d972f19f425b1b057e8 is an ancestor of 5ed2d73403c6d52cf0c3b3e98e561a4882e91492",
+    "candidate_cleanliness": "PASS; clean before ledger authoring and diff-check clean",
+    "committed_blob_seals": "PASS; K06-F2 26/26",
+    "public_path_guard": "PASS; four unittest cases and PUBLIC_PATH_GUARD_OK",
+    "K06-F2": "PASS; three consecutive focused repetitions",
+    "legacy_K06": "PASS; 3/3",
+    "combined_K06": "PASS; 4/4",
+    "K03": "PASS; 3/3",
+    "mutation_gate": "PASS; 8/8 exact mutants rejected",
+    "aggregate": "PASS; fresh Release build and 61/61 tests"
+  },
+  "scope": {
+    "production": [
+      "native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp",
+      "native/colosseum_server_v1/src/storage/VerificationBitmap.cpp"
+    ],
+    "tests": [
+      "native/colosseum_server_v1/tests/test_persistent_store.cpp",
+      "native/colosseum_server_v1/tests/cmake/K06.cmake"
+    ],
+    "boundary": "This acceptance restores durable committed state only after complete logical and physical coverage validation, persists invalidation, and fails closed when bitmap repair cannot be written. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness.",
+    "B-W3E": "not formed; remains K11"
+  },
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "accepted_on": "2026-09-15",
+    "integrated_by": "[Agent 4 (Codex/Sol subagent), K06-F2 integration]"
+  },
+  "status": "accepted-and-integrated"
+}
