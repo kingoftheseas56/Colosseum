@@ -50,13 +50,35 @@ def asset_files(installer: Path, manifest_dir: Path) -> list[Path]:
     return paths
 
 
+def find_release_by_tag(tag: str, token: str, transport=gh,
+                        *, want_draft: bool | None = None) -> dict | None:
+    """Return the release whose tag_name is `tag`, or None if there is none.
+
+    GitHub's /releases/tags/{tag} endpoint resolves only *published* releases: a
+    draft carries a tag_name but no git tag ref yet, so it 404s there and can only
+    be found by listing releases (which includes drafts for authenticated pushers).
+    Set want_draft to filter to just drafts (True) or just published (False)."""
+    page = 1
+    while True:
+        releases = transport(f"/repos/{APP_REPO}/releases?per_page=100&page={page}", token)
+        if not isinstance(releases, list) or not releases:
+            return None
+        for release in releases:
+            if release.get("tag_name") != tag:
+                continue
+            if want_draft is None or bool(release.get("draft", False)) == want_draft:
+                return release
+        if len(releases) < 100:
+            return None
+        page += 1
+
+
 def publish_draft(tag: str, installer: Path, manifest_dir: Path, token: str,
                   transport=gh, public_der: Path | None = None) -> dict:
     if not tag.startswith("v"):
         raise SystemExit("draft releases require a vX.Y.Z tag")
-    try:
-        release = transport(f"/repos/{APP_REPO}/releases/tags/{tag}", token)
-    except Exception:
+    release = find_release_by_tag(tag, token, transport)
+    if release is None:
         release = transport(f"/repos/{APP_REPO}/releases", token, method="POST", payload={
             "tag_name": tag,
             "name": tag,
@@ -96,7 +118,9 @@ def publish_draft(tag: str, installer: Path, manifest_dir: Path, token: str,
 
 
 def publish_verified_draft(tag: str, token: str, transport=gh) -> int:
-    release = transport(f"/repos/{APP_REPO}/releases/tags/{tag}", token)
+    release = find_release_by_tag(tag, token, transport)
+    if release is None:
+        raise SystemExit(f"no release found for {tag}")
     if not release.get("draft", False):
         raise SystemExit("refusing to publish a release that is not a draft")
     transport(f"/repos/{APP_REPO}/releases/{release['id']}", token, method="PATCH",
