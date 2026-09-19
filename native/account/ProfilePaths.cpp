@@ -126,6 +126,10 @@ QString ProfilePaths::syncMetaIniPath() const {
     return childPath(QStringLiteral("sync/meta.ini"));
 }
 
+QString ProfilePaths::stremioSyncStatePath() const {
+    return childPath(QStringLiteral("stremio-sync.json"));
+}
+
 QString ProfilePaths::cloudAttachmentReceiptPath() const {
     if (m_kind != Kind::Account)
         return QString();

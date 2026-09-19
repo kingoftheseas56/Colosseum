@@ -21,6 +21,7 @@ var syncAllowedCategories = map[string]int{
 	"watch_state":                 1,
 	"activity_fact":               1,
 	"explicit_content_preference": 1,
+	"stremio_link":                1,
 	"desired_download_intent":     1,
 }
 
@@ -44,7 +45,7 @@ var syncForbiddenFields = map[string]struct{}{
 	"searchhistory": {}, "savedstate": {}, "sessionstate": {},
 	"windowstate": {}, "windowgeometry": {}, "pipstate": {},
 	"caststate": {}, "roomstate": {},
-	"password": {}, "recoverykey": {}, "accesstoken": {},
+	"password": {}, "recoverykey": {}, "accesstoken": {}, "authkey": {},
 	"refreshtoken": {}, "authorization": {}, "cookie": {},
 	"cookies": {}, "apikey": {}, "clientsecret": {}, "secret": {},
 	"credential": {}, "credentials": {},
@@ -289,6 +290,23 @@ func validateExplicitContentPreferenceKey(key string) error {
 	return nil
 }
 
+func validateStremioLink(
+	key string,
+	object map[string]any,
+) error {
+	if key != "preferences/main-sync-provider" {
+		return fmt.Errorf("invalid_record_key")
+	}
+	if len(object) != 1 {
+		return fmt.Errorf("payload_field_not_allowed")
+	}
+	provider, ok := object["mainSyncProvider"].(string)
+	if !ok || provider != "stremio" {
+		return fmt.Errorf("payload_invalid")
+	}
+	return nil
+}
+
 // validateSyncRecordShape is the server admission seam shared by mutation
 // validation and focused contract tests. It mirrors the key and materialized
 // payload contracts of the shipping native adapters while retaining the
@@ -390,6 +408,8 @@ func validateSyncRecordShape(
 		return validateDesiredDownloadIntent(recordKey, object)
 	case "explicit_content_preference":
 		return validateExplicitContentPreference(recordKey, object)
+	case "stremio_link":
+		return validateStremioLink(recordKey, object)
 	default:
 		return fmt.Errorf("category_not_supported")
 	}
@@ -412,6 +432,11 @@ func validateCategoryRecordKey(category, recordKey string) error {
 		return nil
 	case "explicit_content_preference":
 		return validateExplicitContentPreferenceKey(recordKey)
+	case "stremio_link":
+		if recordKey != "preferences/main-sync-provider" {
+			return fmt.Errorf("invalid_record_key")
+		}
+		return nil
 	case "activity_fact":
 		parts := strings.Split(recordKey, "/")
 		if recordKey == "activity/reset" {

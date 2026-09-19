@@ -412,6 +412,7 @@ AccountRuntime::AccountRuntime(QObject *parent)
       m_syncEngine(
           &m_client,
           &m_syncRegistry),
+      m_stremioSync(),
       m_controller(
           &m_client,
           &m_credentialStore,
@@ -427,6 +428,21 @@ AccountRuntime::AccountRuntime(QObject *parent)
         &m_profileCoordinator);
     m_controller.setSyncEngine(
         &m_syncEngine);
+    m_stremioSync.setCredentialCallbacks(
+        [this](const QString &profileId, const QString &accountId, const QByteArray &authKey) {
+            return m_credentialStore.saveStremio(
+                StoredStremioCredential{profileId, accountId, authKey});
+        },
+        [this](const QString &profileId) {
+            return m_credentialStore.clearStremio(profileId);
+        },
+        [this](const QString &profileId, const QString &accountId)
+            -> std::optional<QByteArray> {
+            const auto credential = m_credentialStore.loadStremio(profileId, accountId);
+            if (!credential.has_value())
+                return std::nullopt;
+            return credential->authKey;
+        });
 
     connect(
         &m_profileStores,
@@ -450,7 +466,14 @@ AccountRuntime::AccountRuntime(QObject *parent)
                 }
             }
             clearCoreSyncAdapters();
+            m_stremioSync.deactivateProfile();
         });
+
+    connect(
+        &m_profileStores,
+        &ProfileStoreRuntime::storesChanged,
+        this,
+        [this]() { activateStremioProfile(); });
 
     connect(
         &m_controller,
@@ -611,6 +634,8 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::make_unique<
             ProfilePreferencesSyncAdapter>(
                 preferences);
+    auto stremioLinkAdapter =
+        std::make_unique<StremioLinkSyncAdapter>(preferences);
 
     SyncAdapterRegistryError registryError;
     if (!m_syncRegistry.registerAdapter(
@@ -711,12 +736,27 @@ bool AccountRuntime::installCoreSyncAdapters(
         return false;
     }
 
+    if (!m_syncRegistry.registerAdapter(
+            stremioLinkAdapter.get(),
+            &registryError)) {
+        m_syncRegistry.unregisterAdapter(QStringLiteral("explicit_content_preference"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("activity_fact"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        if (error)
+            *error = registryError.detail.isEmpty() ? registryError.code : registryError.detail;
+        return false;
+    }
+
     auto downloadIntentAdapter =
         std::make_unique<DownloadIntentSyncAdapter>(
             &m_downloadIntentStore);
     if (!m_syncRegistry.registerAdapter(
             downloadIntentAdapter.get(),
             &registryError)) {
+        m_syncRegistry.unregisterAdapter(QStringLiteral("stremio_link"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("explicit_content_preference"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
@@ -741,6 +781,8 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::move(activityAdapter);
     m_preferencesSyncAdapter =
         std::move(preferencesAdapter);
+    m_stremioLinkSyncAdapter =
+        std::move(stremioLinkAdapter);
     m_downloadIntentSyncAdapter =
         std::move(downloadIntentAdapter);
 
@@ -805,11 +847,13 @@ void AccountRuntime::clearCoreSyncAdapters() {
     m_syncRegistry.unregisterAdapter(
         QStringLiteral(
             "explicit_content_preference"));
+    m_syncRegistry.unregisterAdapter(QStringLiteral("stremio_link"));
     m_syncRegistry.unregisterAdapter(
         QStringLiteral("desired_download_intent"));
     m_downloadIntentStore.deactivate();
 
     m_preferencesSyncAdapter.reset();
+    m_stremioLinkSyncAdapter.reset();
     m_activitySyncAdapter.reset();
     m_historySyncAdapter.reset();
     m_progressSyncAdapter.reset();
@@ -1203,10 +1247,26 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
     engine->rootContext()->setContextProperty(
         QStringLiteral("AccountRecoveryPresenter"),
         &m_recoveryKeyPresenter);
+    engine->rootContext()->setContextProperty(
+        QStringLiteral("stremioSyncState"),
+        &m_stremioSync);
+
+    activateStremioProfile();
 
     m_qmlPrepared = true;
     if (m_lifecycleCoordinator.hasPendingDeletion())
         m_lifecycleCoordinator.resumePendingDeletion();
     else
         m_controller.restoreRememberedSession();
+}
+
+void AccountRuntime::activateStremioProfile() {
+    const ProfilePaths profile = m_profileStores.activeProfile();
+    const bool sealed = profile.kind() == ProfilePaths::Kind::Sealed;
+    QString ignored;
+    m_stremioSync.activateProfile(
+        profile.profileId(),
+        profile.stremioSyncStatePath(),
+        sealed,
+        &ignored);
 }

@@ -59,6 +59,22 @@ Window {
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
 
+    // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
+    // Lanista deliberately reads QQuickItem properties only; never expose credentials,
+    // identities, callback URLs, or configured addon state here.
+    Item {
+        objectName: "stremioSyncState"
+        visible: false
+        width: 0
+        height: 0
+        property var status: stremioSyncState.status
+        property var pendingCount: stremioSyncState.pendingCount
+        property var lastSuccessAt: stremioSyncState.lastSuccessAt
+        property var activeProfileId: stremioSyncState.activeProfileId
+        property var mergeComplete: stremioSyncState.mergeComplete
+        property var completedRun: stremioSyncState.completedRun
+    }
+
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
     // Shortcut objects below only deliver the physical chord into this registry-backed action.
     KeyboardRegistry {

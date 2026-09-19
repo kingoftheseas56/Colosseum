@@ -10,6 +10,7 @@
 #include "HistorySyncAdapter.h"
 #include "WatchStateSyncAdapter.h"
 #include "ProfilePreferencesSyncAdapter.h"
+#include "StremioLinkSyncAdapter.h"
 #include "CollectionSyncAdapter.h"
 #include "DownloadIntentStore.h"
 #include "DownloadIntentSyncAdapter.h"
@@ -22,6 +23,7 @@
 #include "ProfileStoreRuntime.h"
 #include "WindowsAccountCredentialStore.h"
 #include "WindowsAccountSensitiveClipboard.h"
+#include "stremio/StremioSync.h"
 
 #include <QObject>
 
@@ -60,6 +62,7 @@ private:
         QString *error = nullptr);
     void clearCoreSyncAdapters();
     void startOrResumeAccountAttachment();
+    void activateStremioProfile();
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
@@ -83,11 +86,14 @@ private:
         m_activitySyncAdapter;
     std::unique_ptr<ProfilePreferencesSyncAdapter>
         m_preferencesSyncAdapter;
+    std::unique_ptr<StremioLinkSyncAdapter>
+        m_stremioLinkSyncAdapter;
     DownloadIntentStore m_downloadIntentStore;
     std::unique_ptr<DownloadIntentSyncAdapter>
         m_downloadIntentSyncAdapter;
     LocalDownloads *m_downloadSource = nullptr;
     SyncEngine m_syncEngine;
+    StremioSync m_stremioSync;
     std::unique_ptr<AccountAttachmentCoordinator>
         m_attachmentCoordinator;
     AccountController m_controller;

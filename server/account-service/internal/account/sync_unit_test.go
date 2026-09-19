@@ -54,6 +54,9 @@ func TestSyncPolicyAllowsFrozenCategoriesThrough7B(t *testing.T) {
 	if err := validateSyncCategory("collection", 2); err == nil {
 		t.Fatal("unknown collection schema was accepted")
 	}
+	if err := validateSyncCategory("stremio_link", 1); err != nil {
+		t.Fatalf("stremio link marker rejected: %v", err)
+	}
 }
 
 func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
@@ -144,6 +147,19 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			key:      "preferences/explicit-content",
 			payload:  `{"showExplicit":true,"value":1}`,
 			wantErr:  "payload_field_not_allowed",
+		},
+		{
+			name:     "stremio link accepts only fixed marker",
+			category: "stremio_link",
+			key:      "preferences/main-sync-provider",
+			payload:  `{"mainSyncProvider":"stremio"}`,
+		},
+		{
+			name:     "stremio link rejects auth key",
+			category: "stremio_link",
+			key:      "preferences/main-sync-provider",
+			payload:  `{"mainSyncProvider":"stremio","authKey":"fixture"}`,
+			wantErr:  "forbidden_field",
 		},
 		{
 			name:     "server only category is explicitly unsupported",

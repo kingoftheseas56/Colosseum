@@ -215,6 +215,7 @@ add_executable(colosseum
     account/ProfilePaths.cpp
     account/ProfilePreferencesStore.cpp
     account/ProfilePreferencesSyncAdapter.cpp
+    account/StremioLinkSyncAdapter.cpp
     account/ProfileStoreRuntime.cpp
     account/ConsumptionHistoryBridge.cpp
     account/ProgressSyncAdapter.cpp
@@ -230,6 +231,9 @@ add_executable(colosseum
     account/TankobanReaderPreferencesCodec.cpp
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
+    stremio/StremioCodec.cpp
+    stremio/StremioState.cpp
+    stremio/StremioSync.cpp
     account/AccountAttachmentReceipt.h
     account/AccountAttachmentCoordinator.h
     account/WindowsAccountSensitiveClipboard.cpp
@@ -265,6 +269,7 @@ add_executable(colosseum
     account/ProfilePaths.h
     account/ProfilePreferencesStore.h
     account/ProfilePreferencesSyncAdapter.h
+    account/StremioLinkSyncAdapter.h
     account/ProfileStoreRuntime.h
     account/ConsumptionHistoryBridge.h
     account/ProgressSyncAdapter.h
@@ -282,6 +287,9 @@ add_executable(colosseum
     account/TankobanReaderPreferencesOwner.h
     account/TankobanReaderPreferencesSyncAdapter.h
     account/WindowsAccountCredentialStore.h
+    stremio/StremioCodec.h
+    stremio/StremioState.h
+    stremio/StremioSync.h
     account/WindowsAccountSensitiveClipboard.h
     update/UpdateVersion.cpp
     update/UpdateVersion.h

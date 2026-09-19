@@ -25,6 +25,35 @@ left untouched. On both launches Lanista matched `accountCenter.onlineAccount ==
 runtime proof for normal restart restoration on this machine, not a cross-device sync
 qualification.
 
+## Stremio secure connection foundation — Task 1 (2026-09-19)
+
+`colosseum.qttest.stremio_sync` is the registered deterministic native owner
+contract for the Task 1 connection foundation. Its tagged loopback fixture
+covers nonce-correlated forged, replayed and oversized callbacks; cancellation,
+late validation replies and A-to-B profile fencing; `getUser` identity validation;
+profile-keyed Credential Manager save/load isolation and vault failure; malformed
+journal pause; persistence before send; restart before send and after remote
+acknowledgement; bounded retry; and the non-secret `stremioSyncState` projection.
+It uses only a local fixture endpoint when `COLOSSEUM_APPDATA_TAG` is set.
+
+`colosseum.qttest.profile_preferences_sync` additionally proves the fixed
+`stremio_link` marker's export, remote put/delete round-trip, and rejection of
+credential- or URL-shaped payloads. `colosseum.qttest.sync_inventory` and
+`colosseum.qttest.sync_adapter_registry` cover the registry/firewall inventory;
+the account-service policy test admits only the fixed marker schema. There is no
+Task 1 connection UI, so no Qt Quick journey is registered; the native projection
+property contract is the deliberately small load/read smoke seam.
+
+Task 1 evidence is kept under `artifacts/stremio-sync/task-1/`. It proves the
+isolated foundation and not later library, addon, panel, or real-service work.
+The final narrow CTest matrix passed 3/3 (`account_attachment_runtime`, all 18
+Stremio cases, and `profile_preferences_sync`); the tagged Lanista session
+`20260920-014049-b7fdc49b` passed `ping`, tagged-root `get-state`, and the six
+safe projection fields. The final registered `-L unit` run passed every Task 1
+target but ended 140/147 because of pre-existing Reader2, capture, startup,
+Vault artwork/ffmpeg, manga-download, shell-back, and video-source failures;
+those categories were not changed by Task 1.
+
 ### Reader 2 Function 0007 gating update (2026-08-30)
 
 - `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.

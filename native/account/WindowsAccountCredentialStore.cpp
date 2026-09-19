@@ -18,6 +18,7 @@ namespace {
 constexpr auto kActiveTarget = "Brotherhood.Colosseum.Account.Active.v1";
 constexpr auto kPendingPrefix = "Brotherhood.Colosseum.Account.PendingRevoke.v1.";
 constexpr auto kDeletionPrefix = "Brotherhood.Colosseum.Account.PendingDeletion.v1.";
+constexpr auto kStremioPrefix = "Brotherhood.Colosseum.Stremio.Profile.v1.";
 
 // Isolated Lanista/test instances re-root every AppData store under
 // COLOSSEUM_APPDATA_TAG (main.cpp, ProgressStore/CollectionStore/
@@ -227,6 +228,49 @@ QString WindowsAccountCredentialStore::deletionTargetPrefix() {
         + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.');
 }
 
+QString WindowsAccountCredentialStore::stremioTargetName(const QString &profileId) {
+    if (!validStremioProfileId(profileId))
+        return QString();
+    const QString digest = QString::fromLatin1(QCryptographicHash::hash(
+        profileId.toUtf8(), QCryptographicHash::Sha256).toHex());
+    const QString taggedKey = taggedTargetKey();
+    if (taggedKey.isEmpty())
+        return QString::fromLatin1(kStremioPrefix) + digest;
+    return QString::fromLatin1(kStremioPrefix)
+        + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.') + digest;
+}
+
+std::optional<StoredStremioCredential> WindowsAccountCredentialStore::loadStremio(
+    const QString &profileId,
+    const QString &accountId) const {
+    if (!validStremioProfileId(profileId) || !validStremioAccountId(accountId))
+        return std::nullopt;
+    const auto blob = readGenericCredential(stremioTargetName(profileId));
+    if (!blob.has_value())
+        return std::nullopt;
+    const auto credential = decodeStremioCredential(*blob);
+    if (!credential.has_value() || credential->profileId != profileId
+        || credential->accountId != accountId) {
+        return std::nullopt;
+    }
+    return credential;
+}
+
+bool WindowsAccountCredentialStore::saveStremio(const StoredStremioCredential &credential) {
+    if (!validStremioProfileId(credential.profileId)
+        || !validStremioAccountId(credential.accountId)
+        || credential.authKey.isEmpty()) {
+        return false;
+    }
+    return writeGenericCredential(
+        stremioTargetName(credential.profileId), encodeStremioCredential(credential));
+}
+
+bool WindowsAccountCredentialStore::clearStremio(const QString &profileId) {
+    const QString target = stremioTargetName(profileId);
+    return !target.isEmpty() && deleteGenericCredential(target);
+}
+
 QByteArray WindowsAccountCredentialStore::encodeCredential(
     const StoredAccountCredential &credential) {
     QJsonObject object;
@@ -276,6 +320,57 @@ QString WindowsAccountCredentialStore::pendingTargetName(const QByteArray &refre
 
 QString WindowsAccountCredentialStore::deletionTargetName(const QString &requestId) {
     return deletionTargetPrefix() + requestId;
+}
+
+bool WindowsAccountCredentialStore::validStremioProfileId(const QString &profileId) {
+    const QString normalized = profileId.trimmed();
+    const QUuid parsed(normalized);
+    return normalized == QStringLiteral("local")
+        || (!parsed.isNull()
+            && normalized == parsed.toString(QUuid::WithoutBraces).toLower());
+}
+
+bool WindowsAccountCredentialStore::validStremioAccountId(const QString &accountId) {
+    const QString normalized = accountId.trimmed();
+    if (normalized.isEmpty() || normalized.size() > 256 || normalized != accountId)
+        return false;
+    for (const QChar character : normalized) {
+        if (character.isSpace() || character.unicode() < 0x20 || character.unicode() == 0x7f)
+            return false;
+    }
+    return true;
+}
+
+QByteArray WindowsAccountCredentialStore::encodeStremioCredential(
+    const StoredStremioCredential &credential) {
+    QJsonObject object;
+    object.insert(QStringLiteral("version"), 1);
+    object.insert(QStringLiteral("profile_id"), credential.profileId);
+    object.insert(QStringLiteral("account_id"), credential.accountId);
+    object.insert(QStringLiteral("auth_key"), QString::fromLatin1(
+        credential.authKey.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
+    return QJsonDocument(object).toJson(QJsonDocument::Compact);
+}
+
+std::optional<StoredStremioCredential> WindowsAccountCredentialStore::decodeStremioCredential(
+    const QByteArray &blob) {
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(blob, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        return std::nullopt;
+    const QJsonObject object = document.object();
+    StoredStremioCredential credential;
+    credential.profileId = object.value(QStringLiteral("profile_id")).toString();
+    credential.accountId = object.value(QStringLiteral("account_id")).toString();
+    credential.authKey = QByteArray::fromBase64(
+        object.value(QStringLiteral("auth_key")).toString().toLatin1(), QByteArray::Base64UrlEncoding);
+    if (object.size() != 4 || object.value(QStringLiteral("version")).toInt() != 1
+        || !validStremioProfileId(credential.profileId)
+        || !validStremioAccountId(credential.accountId)
+        || credential.authKey.isEmpty()) {
+        return std::nullopt;
+    }
+    return credential;
 }
 
 bool WindowsAccountCredentialStore::writeGenericCredential(

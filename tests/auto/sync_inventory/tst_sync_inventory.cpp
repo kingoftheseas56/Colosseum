@@ -20,6 +20,7 @@ QStringList approvedInventoryIds() {
         QStringLiteral("per_world_customization"),
         QStringLiteral("wallpaper_personalization"),
         QStringLiteral("explicit_content_preference"),
+        QStringLiteral("stremio_link"),
         QStringLiteral("other_durable_preferences"),
 
         QStringLiteral("tankoban_reading_position"),
@@ -367,6 +368,7 @@ confirmedSafeOrdinaryCategoriesCanPass() {
         QStringLiteral("continue_progress"),
         QStringLiteral("full_history"),
         QStringLiteral("explicit_content_preference"),
+        QStringLiteral("stremio_link"),
         QStringLiteral("theatre_track_preferences"),
         QStringLiteral("theatre_row_customization"),
         QStringLiteral("extension_roster")
@@ -524,6 +526,7 @@ void tst_sync_inventory::forbiddenFieldSentinels_data() {
         QStringLiteral("password"),
         QStringLiteral("recovery_key"),
         QStringLiteral("accessToken"),
+        QStringLiteral("authKey"),
         QStringLiteral("refresh_token"),
         QStringLiteral("Authorization"),
         QStringLiteral("cookie"),

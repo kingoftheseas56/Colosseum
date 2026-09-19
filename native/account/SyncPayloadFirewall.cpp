@@ -48,6 +48,7 @@ const QSet<QString> &forbiddenFields() {
         QStringLiteral("password"),
         QStringLiteral("recoverykey"),
         QStringLiteral("accesstoken"),
+        QStringLiteral("authkey"),
         QStringLiteral("refreshtoken"),
         QStringLiteral("authorization"),
         QStringLiteral("cookie"),
