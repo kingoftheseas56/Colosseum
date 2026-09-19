@@ -34,7 +34,10 @@ Window {
     // (fullscreen by default; developer-windowed if that was the last stable mode).
     visible: false
     flags: Qt.Window | Qt.FramelessWindowHint
-    color: "#05060a"
+    // Player 1.5 wid spike: while the immersive player is open in a wid boot, the window goes
+    // per-pixel transparent so mpv's native video window underneath shows through; every other
+    // surface paints its own opaque backgrounds, so nothing else changes visually.
+    color: (PlayerWidMode && win.immersiveSurfaceOpen) ? "transparent" : "#05060a"
     title: "Colosseum"
 
     property string currentSurface: "Home"

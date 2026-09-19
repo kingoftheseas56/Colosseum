@@ -825,6 +825,8 @@ add_executable(tst_vault_artwork
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
 target_include_directories(tst_vault_artwork PRIVATE
@@ -1057,6 +1059,8 @@ add_executable(tst_vault_forensics
     auto/vault/tst_vault_forensics.cpp
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
@@ -1131,6 +1135,8 @@ add_executable(http_header_channel_harness
     http_header_channel_harness.cpp
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
 target_include_directories(http_header_channel_harness PRIVATE
@@ -1158,6 +1164,8 @@ add_executable(tst_journey_play_video
     auto/player/tst_journey_play_video.cpp
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
 target_include_directories(tst_journey_play_video PRIVATE
@@ -1214,6 +1222,8 @@ add_executable(tst_window_set_state
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
@@ -1302,6 +1312,8 @@ add_executable(tst_player1_selftest_bridge
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MpvNativeVideoWindow.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"

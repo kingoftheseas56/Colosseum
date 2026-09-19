@@ -15,9 +15,43 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QtMath>
+#include <QEvent>
+#include <QQuickWindow>
+#include <QOpenGLFramebufferObject>
+#include <QOpenGLFunctions>
 
 #include "mpvproperties.h"
 #include "http_header_fields.h"
+
+namespace {
+// Player 1.5 wid mode: the item owns NO video — mpv paints the native window underneath the
+// translucent Qt window. The FBO still exists (QQuickFramebufferObject contract) but only
+// needs to clear to transparent; mpv's render context is never created, so mpv never enters
+// the Qt scene's frame budget at all.
+class EmptyPresentationRenderer : public QQuickFramebufferObject::Renderer {
+public:
+    void render() override
+    {
+        QOpenGLFunctions gl;
+        gl.initializeOpenGLFunctions();
+        gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        gl.glClear(GL_COLOR_BUFFER_BIT);
+    }
+    QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override
+    {
+        QOpenGLFramebufferObjectFormat format;
+        format.setAttachment(QOpenGLFramebufferObject::NoAttachment);
+        return new QOpenGLFramebufferObject(size, format);
+    }
+};
+} // namespace
+
+QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const
+{
+    if (widPresentationEnabled())
+        return new EmptyPresentationRenderer;
+    return MpvAbstractItem::createRenderer();
+}
 
 MpvItem::MpvItem(QQuickItem *parent)
     : MpvAbstractItem(parent)
@@ -90,10 +124,36 @@ MpvItem::MpvItem(QQuickItem *parent)
     getPropertyAsync(MpvProperties::self()->Volume, static_cast<int>(MpvItem::AsyncIds::GetVolume));
     m_gifTimer.setInterval(200);
     connect(&m_gifTimer, &QTimer::timeout, this, &MpvItem::gifCaptureFrame);
+
+    m_nativeSyncTimer.setSingleShot(true);
+    m_nativeSyncTimer.setInterval(16);
+    connect(&m_nativeSyncTimer, &QTimer::timeout, this, &MpvItem::syncNativeVideoWindow);
+
+    // Player 1.5 wid spike: PRESENTATION swap only (see class comment in mpvitem.h).
+    if (widPresentationEnabled()) {
+#ifdef Q_OS_WIN
+        if (m_nativeVideoWindow.create()) {
+            setProperty(QStringLiteral("wid"), static_cast<qint64>(m_nativeVideoWindow.wid()));
+            // mpvqt's controller pre-sets vo=libmpv; overridden here BEFORE the first load —
+            // with no render context ever created (createRenderer below), mpv picks its own
+            // native swapchain under the video window. hwdec auto (not copy-back auto-safe):
+            // gpu-next's D3D11 context takes d3d11va zero-copy.
+            setProperty(QStringLiteral("vo"), QStringLiteral("gpu-next"));
+            setProperty(QStringLiteral("hwdec"), QStringLiteral("auto"));
+            connect(this, &QQuickItem::windowChanged, this, &MpvItem::onWindowChanged);
+        } else {
+            qWarning("[player15] native video window creation failed; falling back to Qt presentation");
+        }
+#endif
+    }
+
+    armDropProbeIfRequested();
 }
 
 MpvItem::~MpvItem()
 {
+    // Drop-ruler evidence lands even when the app is closed mid-measure-window.
+    logDropProbeFinal();
     // App quitting mid-encode: our parented QProcess would otherwise be killed mid-write,
     // leaving a truncated .gif posing as a saved clip and an orphaned %TEMP% frames dir.
     if (m_gifEncoding && m_gifEncodeProc) {
@@ -105,6 +165,118 @@ MpvItem::~MpvItem()
             QFile::remove(m_gifEncodeOutPath);        // never leave a truncated gif posing as a saved clip
         cleanGifTemp();
     }
+}
+
+bool MpvItem::widPresentationEnabled()
+{
+    static const bool enabled = qEnvironmentVariableIsSet("COLOSSEUM_MPV_WID");
+    return enabled;
+}
+
+void MpvItem::onWindowChanged(QQuickWindow *window)
+{
+    if (!widPresentationEnabled())
+        return;
+    if (m_filteredWindow)
+        m_filteredWindow->removeEventFilter(this);
+    m_filteredWindow = window;
+    if (window) {
+        window->installEventFilter(this);
+        syncNativeVideoWindow();
+    }
+}
+
+bool MpvItem::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_filteredWindow && widPresentationEnabled()) {
+        switch (event->type()) {
+        case QEvent::Move:
+        case QEvent::Resize:
+        case QEvent::Expose:
+        case QEvent::Show:
+        case QEvent::WindowStateChange:
+        case QEvent::WinIdChange:
+        case QEvent::ScreenChangeInternal:
+            // Coalesced: window drags spam Move/Resize; one sync per frame is plenty.
+            m_nativeSyncTimer.start();
+            break;
+        default:
+            break;
+        }
+    }
+    return MpvAbstractItem::eventFilter(watched, event);
+}
+
+void MpvItem::syncNativeVideoWindow()
+{
+#ifdef Q_OS_WIN
+    if (!widPresentationEnabled() || !m_nativeVideoWindow.isValid() || !m_filteredWindow)
+        return;
+    const WId mainWinId = m_filteredWindow->winId();
+    if (!mainWinId)
+        return;
+    if (m_filteredWindow->windowState() & Qt::WindowMinimized) {
+        m_nativeVideoWindow.hide();
+        return;
+    }
+    m_nativeVideoWindow.placeUnder(
+        reinterpret_cast<MpvNativeWindowHandle>(static_cast<quintptr>(mainWinId)));
+#endif
+}
+
+void MpvItem::armDropProbeIfRequested()
+{
+    const QByteArray raw = qgetenv("COLOSSEUM_MPV_DROP_PROBE");
+    if (raw.isEmpty())
+        return;
+    const QList<QByteArray> parts = raw.split(',');
+    bool okW = false, okM = false;
+    const int warmup = parts.value(0).toInt(&okW);
+    const int measure = parts.value(1).toInt(&okM);
+    if (!okW || !okM || warmup < 0 || measure <= 0)
+        return;
+    m_dropProbeWarmupSecs = warmup;
+    m_dropProbeMeasureSecs = measure;
+    qWarning().noquote()
+        << QStringLiteral("[player15] drop probe armed warmup=%1 measure=%2 (async poll)").arg(warmup).arg(measure);
+    // ASYNC POLLING, not events and not sync getProperty: property-change delivery was dead
+    // in spike smokes (only the initial observation burst arrives; pos/dur never reach QML in
+    // isolated ABBA runs, wid or not) and sync getProperty() returned ErrorReturn on handles
+    // that were visibly playing, while the async reply path demonstrably works (the stats
+    // batch populates the card). The probe therefore polls time-pos via getPropertyAsync and
+    // samples the drop counters the same way. (2026-09-20 spike finding, needs its own
+    // investigation.)
+    m_dropProbePollTimer.setInterval(1000);
+    connect(&m_dropProbePollTimer, &QTimer::timeout, this, [this]() {
+        if (!m_dropProbeAnchored) {
+            getPropertyAsync(QStringLiteral("time-pos"),
+                             static_cast<int>(AsyncIds::ProbeTimePos));
+            return;
+        }
+        const qint64 elapsedMs = m_dropProbeAnchor.elapsed();
+        if (m_dropProbeStart < 0
+                && elapsedMs >= qint64(m_dropProbeWarmupSecs) * 1000) {
+            getPropertyAsync(QStringLiteral("frame-drop-count"),
+                             static_cast<int>(AsyncIds::ProbeDropStart));
+        }
+        if (elapsedMs >= qint64(m_dropProbeWarmupSecs + m_dropProbeMeasureSecs) * 1000) {
+            m_dropProbePollTimer.stop();
+            getPropertyAsync(QStringLiteral("frame-drop-count"),
+                             static_cast<int>(AsyncIds::ProbeDropFinal));
+        }
+    });
+    m_dropProbePollTimer.start();
+}
+
+void MpvItem::logDropProbeFinal(qint64 outputEndSample)
+{
+    if (m_dropProbeFinalLogged || m_dropProbeWarmupSecs < 0 || m_dropProbeStart < 0)
+        return;
+    m_dropProbeFinalLogged = true;
+    qWarning().noquote()
+        << QStringLiteral("MPV_DROP_PROBE RESULT {\"outputStart\":%1,\"outputEnd\":%2}")
+               .arg(m_dropProbeStart)
+               .arg(outputEndSample);
 }
 
 void MpvItem::setupConnections()
@@ -138,6 +310,16 @@ void MpvItem::setupConnections()
 
 void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
 {
+    // TEMP diagnostic (2026-09-20 spike): first 5 time-pos deliveries, with type + value.
+    if (m_diagEventLogCount < 5 && property == MpvProperties::self()->Position) {
+        ++m_diagEventLogCount;
+        qWarning().noquote()
+            << QStringLiteral("[player15] time-pos delivery %1: type=%2 valid=%3 value=%4")
+                   .arg(m_diagEventLogCount)
+                   .arg(QString::fromLatin1(value.typeName()),
+                        value.isValid() ? QStringLiteral("yes") : QStringLiteral("no"),
+                        value.toString());
+    }
     if (property == MpvProperties::self()->MediaTitle) {
         Q_EMIT mediaTitleChanged();
 
@@ -249,8 +431,28 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
 
 void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
 {
+    // Drop-probe async reads first (see armDropProbeIfRequested for why async).
+    const int probeReplyId = static_cast<int>(event.reply_userdata);
+    if (probeReplyId == static_cast<int>(AsyncIds::ProbeTimePos)) {
+        if (!m_dropProbeAnchored && data.canConvert<double>()
+                && data.toDouble() > 1.0) {
+            m_dropProbeAnchored = true;
+            m_dropProbeAnchor.start();
+            qWarning().noquote() << QStringLiteral("[player15] drop probe anchored at playback");
+        }
+        return;
+    }
+    if (probeReplyId == static_cast<int>(AsyncIds::ProbeDropStart)) {
+        if (m_dropProbeStart < 0)
+            m_dropProbeStart = data.toLongLong();
+        return;
+    }
+    if (probeReplyId == static_cast<int>(AsyncIds::ProbeDropFinal)) {
+        logDropProbeFinal(data.toLongLong());
+        return;
+    }
     // Stats batch replies encode their property index above the small enum ids.
-    const int replyId = static_cast<int>(event.reply_userdata);
+    const int replyId = probeReplyId;
     const int batchBase = static_cast<int>(AsyncIds::StatsBatch);
     if (replyId >= batchBase && replyId < batchBase + m_statsBatchProperties.size()) {
         m_statsBatchValues.insert(m_statsBatchProperties.at(replyId - batchBase), data);

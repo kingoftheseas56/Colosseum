@@ -2284,12 +2284,28 @@ Item {
 
     Timer {
         id: playbackStatsTimer
-        // 2s, not 1s: the cadence was halved when reads went async (2026-09-19). A bitrate
-        // figure does not age in a second, and every tick still wakes the card's bindings.
+        // TEMP spike diagnostic: sample the QML-visible player state 6s and 16s after load.
         interval: 2000
         repeat: true
         running: root.statsOverlayOpen && !root.starting
         onTriggered: root.refreshPlaybackStats()
+    }
+    Timer {
+        id: diagPosTimer
+        interval: 6000
+        repeat: true
+        running: false
+        property int samples: 0
+        onTriggered: {
+            samples += 1
+            console.log("[player15] diag sample " + samples
+                        + ": starting=" + root.starting
+                        + " pos=" + mpv.position
+                        + " dur=" + mpv.duration
+                        + " cache=" + mpv.cacheBufferingState)
+            if (samples >= 4)
+                diagPosTimer.stop()
+        }
     }
 
     // Ends-at ticker: keeps "Ends 11:42 PM" honest as time passes and on any pause/speed
@@ -3306,7 +3322,9 @@ Item {
 
     Theme { id: theme }
 
-    Rectangle { anchors.fill: parent; z: -1; color: "#000000" }
+    // Player 1.5 wid boot: transparent so the native mpv window beneath shows through; the
+    // loading screen, chrome scrims, and menus still paint OVER the video from the QML layer.
+    Rectangle { anchors.fill: parent; z: -1; color: PlayerWidMode ? "transparent" : "#000000" }
 
     // F9 seek thumbnails: hover state + the extraction seam (C++ owns ffmpeg/cache).
     property string hoverThumbUrl: ""
@@ -3497,6 +3515,8 @@ Item {
             root.starting = true
             root.statusMsg = "Buffering..."
             root.wakeChrome()
+            // TEMP spike diagnostic (2026-09-20): does position/duration ever reach QML?
+            diagPosTimer.restart()
             root.syncPowerInhibit()
             root.syncWatchPartyPlayerObservation()
         }

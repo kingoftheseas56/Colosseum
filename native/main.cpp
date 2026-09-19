@@ -503,6 +503,13 @@ int main(int argc, char *argv[]) {
     // Not compiled in: there is nothing to boot, and the old player is the only engine present.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
+    // Player 1.5 wid spike (2026-09-19): COLOSSEUM_MPV_WID=1 keeps the OpenGL boot (mpv needs
+    // no Qt render integration in this mode — it paints its own native window) but makes the
+    // UI window per-pixel translucent so the video underneath shows through wherever the QML
+    // scene paints nothing. Default off; PlayerWidMode is the QML gate for the same boot.
+    const bool playerWidMode = qEnvironmentVariableIsSet("COLOSSEUM_MPV_WID");
+    if (playerWidMode)
+        QQuickWindow::setDefaultAlphaBuffer(true);
     QtWebEngineQuick::initialize();
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
@@ -1686,6 +1693,10 @@ int main(int argc, char *argv[]) {
     // harness against a probe window that decoded without ever painting).
     engine.rootContext()->setContextProperty(QStringLiteral("DevAbbaClip"),
                                              qEnvironmentVariable("COLOSSEUM_ABBA_CLIP"));
+
+    // Player 1.5 wid spike: QML gate for the translucent-while-immersive window color and the
+    // player page background. Always defined; false unless COLOSSEUM_MPV_WID was set at boot.
+    engine.rootContext()->setContextProperty(QStringLiteral("PlayerWidMode"), playerWidMode);
 
     // Whether THIS PROCESS actually booted on D3D11 - a boot fact, not a build flag or a saved
     // setting. False in a stock build (nothing linked in) and false whenever COLOSSEUM_PLAYER2 was

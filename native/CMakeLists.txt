@@ -462,6 +462,8 @@ add_executable(colosseum
     player/livestore.h
     player/mpvitem.cpp
     player/mpvitem.h
+    player/MpvNativeVideoWindow.cpp
+    player/MpvNativeVideoWindow.h
     player/seekthumbnailer.cpp
     player/seekthumbnailer.h
     player/mpvproperties.h
@@ -1179,6 +1181,8 @@ add_executable(reader2_harness
     player/streamserver.h
     player/mpvitem.cpp
     player/mpvitem.h
+    player/MpvNativeVideoWindow.cpp
+    player/MpvNativeVideoWindow.h
 )
 target_include_directories(reader2_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_harness PRIVATE Qt6::Quick Qt6::Qml Qt6::Network Qt6::WebEngineQuick Qt6::WebChannel MpvQt::MpvQt)
@@ -2087,6 +2091,8 @@ add_executable(lanista_harness
     devtools/LanistaEventLog.h
     player/mpvitem.cpp
     player/mpvitem.h
+    player/MpvNativeVideoWindow.cpp
+    player/MpvNativeVideoWindow.h
     player/mpvproperties.h
     player/http_header_fields.h
     engine/VaultForensics.cpp

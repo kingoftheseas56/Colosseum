@@ -14,7 +14,12 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#ifdef Q_OS_WIN
+#include "MpvNativeVideoWindow.h"
+#endif
+
 class QProcess;
+class QQuickWindow;
 
 class MpvItem : public MpvAbstractItem
 {
@@ -22,6 +27,42 @@ class MpvItem : public MpvAbstractItem
 public:
     explicit MpvItem(QQuickItem *parent = nullptr);
     ~MpvItem() override;
+
+    // Player 1.5 wid spike (2026-09-19): COLOSSEUM_MPV_WID=1 swaps PRESENTATION ONLY.
+    // mpv renders into its own native window (vo=gpu-next + wid) composited under the
+    // translucent Qt window, instead of through mpvqt's OpenGL render context and the
+    // Qt scene graph. Default off; see docs/superpowers/plans/2026-09-19-player15-wid-spike.md.
+    static bool widPresentationEnabled();
+
+protected:
+    // wid mode never creates mpv's render context: the item paints nothing and the video
+    // lives in the native window below the Qt window. Base class behavior otherwise.
+    QQuickFramebufferObject::Renderer *createRenderer() const override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+    void onWindowChanged(QQuickWindow *window);
+    void syncNativeVideoWindow();
+    QQuickWindow *m_filteredWindow = nullptr;
+    QTimer m_nativeSyncTimer;   // coalesces move/resize bursts into one native reposition
+#ifdef Q_OS_WIN
+    MpvNativeVideoWindow m_nativeVideoWindow;
+#endif
+    // COLOSSEUM_MPV_DROP_PROBE=<warmupSecs>,<measureSecs> — restores the drop ruler's app
+    // arm: samples mpv's OUTPUT drop count once after warmup, prints the RESULT line after
+    // the measure window (or at destruction, whichever comes first). Diagnostic only.
+    void armDropProbeIfRequested();
+    void logDropProbeFinal(qint64 outputEndSample = -1);
+    int m_dropProbeWarmupSecs = -1;
+    int m_dropProbeMeasureSecs = -1;
+    qint64 m_dropProbeStart = -1;
+    bool m_dropProbeAnchored = false;
+    bool m_dropProbeFinalLogged = false;
+    QTimer m_dropProbePollTimer;
+    QElapsedTimer m_dropProbeAnchor;
+    int m_diagEventLogCount = 0;   // TEMP spike diagnostic
+
+public:
 
     enum class AsyncIds {
         None,
@@ -31,6 +72,12 @@ public:
         // Batch stats reads encode their property INDEX in the reply id: StatsBatch + i.
         // Kept far above the small ids so the switch in onAsyncReply stays clean.
         StatsBatch = 100,
+        // Drop-probe async reads (2026-09-20): sync getProperty() on these handles returned
+        // ErrorReturn in spike smokes while the async reply path demonstrably works (the
+        // stats batch populates the card), so the probe polls through async replies too.
+        ProbeTimePos = 200,
+        ProbeDropStart = 201,
+        ProbeDropFinal = 202,
     };
     Q_ENUM(AsyncIds)
 
