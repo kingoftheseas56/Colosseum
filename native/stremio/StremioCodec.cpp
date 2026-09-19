@@ -79,12 +79,13 @@ StremioLoopbackCallback StremioCodec::decodeLoopbackCallback(
 
 bool StremioCodec::isProductionEndpoint(const QUrl &endpoint) {
     if (!endpoint.isValid() || endpoint.scheme() != QStringLiteral("https")
-        || endpoint.host().isEmpty() || !endpoint.userInfo().isEmpty()) {
+        || endpoint.host().toLower() != QStringLiteral("api.strem.io")
+        || endpoint.path(QUrl::FullyEncoded) != QStringLiteral("/api")
+        || !endpoint.userInfo().isEmpty() || endpoint.hasQuery() || endpoint.hasFragment()
+        || (endpoint.port() != -1 && endpoint.port() != 443)) {
         return false;
     }
-    QHostAddress address;
-    const QString host = endpoint.host().toLower();
-    return !address.setAddress(host) && host != QStringLiteral("localhost");
+    return true;
 }
 
 bool StremioCodec::isTaggedLoopbackEndpoint(const QUrl &endpoint) {

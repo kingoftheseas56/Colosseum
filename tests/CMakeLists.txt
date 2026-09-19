@@ -1687,7 +1687,7 @@ add_executable(account_first_light
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 if(WIN32)
     target_link_libraries(account_first_light PRIVATE Advapi32 User32)
 endif()
@@ -1806,6 +1806,7 @@ target_include_directories(tst_account_attachment_runtime PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_account_attachment_runtime PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Network
     Qt6::Qml
     Qt6::Sql
@@ -1824,6 +1825,10 @@ add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
 add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -2875,6 +2880,7 @@ target_include_directories(tst_stremio_sync PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_stremio_sync PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Network
     Qt6::Test)
 if(WIN32)
@@ -2893,6 +2899,10 @@ add_custom_command(TARGET tst_stremio_sync POST_BUILD
 add_custom_command(TARGET tst_stremio_sync POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Network>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_stremio_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.stremio_sync
          COMMAND tst_stremio_sync)

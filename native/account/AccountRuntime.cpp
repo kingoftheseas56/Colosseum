@@ -443,6 +443,19 @@ AccountRuntime::AccountRuntime(QObject *parent)
                 return std::nullopt;
             return credential->authKey;
         });
+    connect(
+        &m_stremioSync,
+        &StremioSync::profileLinkValidated,
+        this,
+        [this](const QString &profileId) {
+            ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+            const bool currentProfile = preferences
+                && m_profileStores.activeProfile().profileId() == profileId;
+            const bool persisted = currentProfile
+                && preferences->setMainSyncProvider(QStringLiteral("stremio"));
+            m_stremioSync.setMarkerLinked(
+                persisted && preferences->mainSyncProvider() == QStringLiteral("stremio"));
+        });
 
     connect(
         &m_profileStores,
@@ -1252,6 +1265,7 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
         &m_stremioSync);
 
     activateStremioProfile();
+    m_stremioSync.activateTaggedFixture();
 
     m_qmlPrepared = true;
     if (m_lifecycleCoordinator.hasPendingDeletion())
@@ -1269,4 +1283,21 @@ void AccountRuntime::activateStremioProfile() {
         profile.stremioSyncStatePath(),
         sealed,
         &ignored);
+    if (m_stremioMarkerConnection)
+        disconnect(m_stremioMarkerConnection);
+    ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+    if (!preferences)
+        return;
+    m_stremioSync.setMarkerLinked(
+        preferences->mainSyncProvider() == QStringLiteral("stremio"));
+    m_stremioMarkerConnection = connect(
+        preferences,
+        &ProfilePreferencesStore::mainSyncProviderChanged,
+        this,
+        [this, preferences]() {
+            if (preferences != m_profileStores.preferencesStore())
+                return;
+            m_stremioSync.setMarkerLinked(
+                preferences->mainSyncProvider() == QStringLiteral("stremio"));
+        });
 }

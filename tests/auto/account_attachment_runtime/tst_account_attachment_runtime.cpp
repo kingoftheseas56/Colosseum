@@ -7,6 +7,9 @@
 #include "account/HistoryStore.h"
 #include "account/LegacyPersonalStateStorage.h"
 #include "account/ProfilePaths.h"
+#include "account/ProfilePreferencesStore.h"
+#include "account/ProfileStoreRuntime.h"
+#include "stremio/StremioSync.h"
 #include "ProgressStore.h"
 
 #include <QCoreApplication>
@@ -17,6 +20,8 @@
 #include <QJsonObject>
 #include <QNetworkInterface>
 #include <QStandardPaths>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
@@ -507,7 +512,34 @@ private slots:
     void createNewAccountAcceptsConcurrentHistoryMergeAfterCommit();
     void createNewAccountAcceptsCertifiedLwwSupersession();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
+    void stremioMarkerChangeUpdatesActiveRuntimeState();
 };
+
+void tst_account_attachment_runtime::
+stremioMarkerChangeUpdatesActiveRuntimeState() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-marker-runtime-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    QTRY_COMPARE(sync->status(), QStringLiteral("notConnected"));
+
+    ProfilePreferencesStore *preferences = runtime.profileStores()->preferencesStore();
+    QVERIFY(preferences);
+    QVERIFY(preferences->setMainSyncProvider(QStringLiteral("stremio")));
+    QTRY_COMPARE(sync->status(), QStringLiteral("reconnectRequired"));
+}
 
 void tst_account_attachment_runtime::
 createNewAccountAdoptionWaitsForAttachmentVerificationBeforeRetiringSource() {

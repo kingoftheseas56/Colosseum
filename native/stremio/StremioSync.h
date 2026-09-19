@@ -7,6 +7,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QPointer>
+#include <QSet>
 #include <QTcpServer>
 #include <QTimer>
 #include <QTcpSocket>
@@ -52,8 +53,12 @@ public:
         bool sealed,
         QString *error = nullptr);
     void deactivateProfile();
+    // Runtime projection fixture only. The exact tag is assigned by the isolated
+    // Task 1 Lanista session; no product or QML path can invoke it.
+    bool activateTaggedFixture();
     bool startBrowserAuthentication(QString *error = nullptr);
     void cancelAuthentication();
+    void setMarkerLinked(bool linked);
     void setCredentialCallbacks(
         std::function<bool(const QString &, const QString &, const QByteArray &)> save,
         std::function<bool(const QString &)> clear,
@@ -69,11 +74,18 @@ public:
 signals:
     void stateChanged();
     void browserLoginRequested(const QUrl &url);
+    void profileLinkValidated(const QString &profileId);
 
 private:
     struct ProfileBinding {
         QString profileId;
         quint64 generation = 0;
+    };
+
+    struct PendingPersistence {
+        ProfileBinding binding;
+        QString path;
+        StremioPersistentState state;
     };
 
     bool fixtureEndpointAllowed() const;
@@ -85,6 +97,7 @@ private:
         const ProfileBinding &binding,
         quint64 attempt);
     void persist(std::function<void(bool)> continuation = {});
+    void settlePersistence(quint64 generation, bool committed);
     void dispatchIntent(const QString &operationId, const ProfileBinding &binding);
     void handleIntentResult(
         const QString &operationId,
@@ -93,6 +106,9 @@ private:
         bool authenticationFailure);
     void removeSatisfiedIntent(const QString &operationId);
     bool bindingCurrent(const ProfileBinding &binding) const;
+    bool hasPendingPersistence(const ProfileBinding &binding) const;
+    bool hasPendingPersistenceForPath(const QString &path) const;
+    void updateConnectionStatus();
     StremioPendingIntent *intentFor(const QString &operationId);
     void setStatus(const QString &status);
     void finishRun();
@@ -104,6 +120,8 @@ private:
     QPointer<QTcpSocket> m_callbackSocket;
     QByteArray m_callbackBuffer;
     QPointer<QNetworkReply> m_identityReply;
+    QByteArray m_identityResponse;
+    bool m_identityResponseTooLarge = false;
     QTimer m_authTimeout;
     QTimer m_retryTimer;
     QString m_callbackPath;
@@ -114,6 +132,11 @@ private:
     quint64 m_completedRun = 0;
     QString m_status = QStringLiteral("notConnected");
     bool m_hasUsableCredential = false;
+    bool m_markerLinked = false;
+    bool m_dispatchAllowed = true;
     StremioPersistentState m_state;
     QHash<quint64, QList<std::function<void(bool)>>> m_persistContinuations;
+    QHash<quint64, PendingPersistence> m_pendingPersistences;
+    QHash<QString, StremioPersistentState> m_pendingStateByPath;
+    QSet<QString> m_inFlightOperations;
 };

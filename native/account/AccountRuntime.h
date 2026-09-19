@@ -98,5 +98,6 @@ private:
         m_attachmentCoordinator;
     AccountController m_controller;
     AccountLifecycleCoordinator m_lifecycleCoordinator;
+    QMetaObject::Connection m_stremioMarkerConnection;
     bool m_qmlPrepared = false;
 };
