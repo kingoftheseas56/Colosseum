@@ -33,6 +33,14 @@ void SeekThumbnailer::request(const QUrl &source, double timeSec)
 {
     if (source.isEmpty())
         return;
+    // Local files only. A thumbnail run is `ffmpeg -ss N -i <src> -frames:v 1`: over a torrent
+    // bridge URL the seek becomes a byte-range the swarm may not have yet, so ffmpeg sits for
+    // the full 10s stall window and gets killed — respawned on the next hover, killed again
+    // (Hemanth's session log, 2026-09-18: destroy-while-running every few minutes, each cycle
+    // pure CPU/process churn behind the film). The tooltip is timestamp-only for streams, the
+    // same silent fallback as a missing ffmpeg.
+    if (!source.isLocalFile())
+        return;
     if (source != m_source) {
         reset();
         m_source = source;

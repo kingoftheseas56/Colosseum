@@ -54,4 +54,25 @@ Assert-Contains $player "Subtitle track" `
 Assert-Contains $player '"label": "Playback stats", "kind": "stats"' `
     "Playback stats must live as an overflow-menu row (ToolsMenu retired 2026-07-08)."
 
+# Async stats contract (2026-09-19 drop-burst fix): periodic stats reads must NEVER block the
+# GUI thread on the mpv core. The card refreshes via one async batch; only rare one-off reads
+# (pause card quality line, mpvClean) may still use the sync bridge.
+Assert-Contains $mpvHeader "Q_INVOKABLE void requestPlaybackStatsAsync" `
+    "MpvItem must expose the async stats batch."
+Assert-Contains $mpvSource "void MpvItem::requestPlaybackStatsAsync" `
+    "MpvItem must implement the async stats batch."
+Assert-Contains $mpvSource "playbackStatsReady" `
+    "The batch must land as one aggregated playbackStatsReady signal."
+Assert-Contains $player "mpv.requestPlaybackStatsAsync" `
+    "refreshPlaybackStats must dispatch the async batch, not sync reads."
+Assert-Contains $player "function applyPlaybackStats" `
+    "PlayerPage must consume the aggregated stats map."
+Assert-Contains $player "onPlaybackStatsReady" `
+    "The mpv Connections block must route playbackStatsReady into applyPlaybackStats."
+Assert-Contains $player "interval: 2000" `
+    "The stats card refresh cadence is 2s (halved 2026-09-19)."
+if ($player -match '(?s)function refreshPlaybackStats\(\)\s*\{[^}]*mpvProperty') {
+    throw "refreshPlaybackStats must not call the sync mpvProperty bridge inside its body."
+}
+
 Write-Host "Player stats P0 parity contract checks passed."

@@ -249,6 +249,19 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
 
 void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
 {
+    // Stats batch replies encode their property index above the small enum ids.
+    const int replyId = static_cast<int>(event.reply_userdata);
+    const int batchBase = static_cast<int>(AsyncIds::StatsBatch);
+    if (replyId >= batchBase && replyId < batchBase + m_statsBatchProperties.size()) {
+        m_statsBatchValues.insert(m_statsBatchProperties.at(replyId - batchBase), data);
+        if (--m_statsBatchPending <= 0) {
+            m_statsBatchPending = 0;
+            Q_EMIT playbackStatsReady(m_statsBatchValues);
+            m_statsBatchValues.clear();
+            m_statsBatchProperties.clear();
+        }
+        return;
+    }
     switch (static_cast<AsyncIds>(event.reply_userdata)) {
     case AsyncIds::None:
     case AsyncIds::SetVolume:
@@ -414,6 +427,38 @@ QVariant MpvItem::mpvProperty(const QString &name)
     if (!allowedStatsProperties.contains(key))
         return QVariant();
     return getProperty(key);
+}
+
+void MpvItem::requestPlaybackStatsAsync()
+{
+    // The periodic stats-card batch. Same properties the card consumes via mpvProperty(),
+    // minus the two pause-card-only extras and minus `vo-drop-frame-count` (an mpv-invalid
+    // name the allowlist carries only for PlayerEngineP2 — see the comment above). Kept in
+    // deliberate lockstep with PlayerPage.applyPlaybackStats(): every key here must be a key
+    // that mapping consumes.
+    static const QStringList statsBatchProperties = {
+        QStringLiteral("video-bitrate"),
+        QStringLiteral("audio-bitrate"),
+        QStringLiteral("frame-drop-count"),
+        QStringLiteral("decoder-frame-drop-count"),
+        QStringLiteral("estimated-vf-fps"),
+        QStringLiteral("container-fps"),
+        QStringLiteral("video-codec"),
+        QStringLiteral("audio-codec"),
+        QStringLiteral("hwdec-current"),
+        QStringLiteral("cache-buffering-state"),
+        QStringLiteral("width"),
+        QStringLiteral("height"),
+    };
+    if (m_statsBatchPending > 0)
+        return;   // a batch is still landing; the next tick owns the fresher read
+    m_statsBatchProperties = statsBatchProperties;
+    m_statsBatchValues.clear();
+    m_statsBatchPending = statsBatchProperties.size();
+    for (int i = 0; i < statsBatchProperties.size(); ++i) {
+        getPropertyAsync(statsBatchProperties.at(i),
+                         static_cast<int>(AsyncIds::StatsBatch) + i);
+    }
 }
 
 QString MpvItem::captureFrame(const QString &title, const QString &subtitle)

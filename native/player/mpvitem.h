@@ -10,7 +10,9 @@
 #include <QElapsedTimer>
 #include <MpvAbstractItem>
 #include <QTimer>
+#include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
 class QProcess;
 
@@ -26,6 +28,9 @@ public:
         SetVolume,
         GetVolume,
         ExpandText,
+        // Batch stats reads encode their property INDEX in the reply id: StatsBatch + i.
+        // Kept far above the small ids so the switch in onAsyncReply stays clean.
+        StatsBatch = 100,
     };
     Q_ENUM(AsyncIds)
 
@@ -150,6 +155,15 @@ public:
     Q_INVOKABLE void setSubOption(const QString &key, const QVariant &value);
     Q_INVOKABLE void setAudioNormalization(const QString &mode);   // "off" | "light" | "full"
     Q_INVOKABLE QVariant mpvProperty(const QString &name);
+    // Ask for every stats-card property in one async batch. The GUI thread never waits on the
+    // mpv core: each read is dispatched via getPropertyAsync and the single aggregated map comes
+    // back as playbackStatsReady() once the whole batch has landed. mpvProperty() (sync) stays
+    // available for rare one-off reads (pause card, state line), but periodic consumers must use
+    // this path — on a stalling torrent feed the mpv core holds its lock in waves, and a 1 Hz
+    // sync read of ~14 properties was blocking the GUI thread in exactly those waves
+    // (2026-09-19 drop-burst diagnosis). Skips silently if a batch is already in flight; the
+    // next timer tick wins, so one slow batch can never queue up behind another.
+    Q_INVOKABLE void requestPlaybackStatsAsync();
     Q_INVOKABLE QString captureFrame(const QString &title = QString(), const QString &subtitle = QString());
     Q_INVOKABLE void revealCaptureFolder(const QString &path = QString());
     Q_INVOKABLE bool startGifRecording();
@@ -187,6 +201,9 @@ Q_SIGNALS:
     void playbackError(QString code, QString message);
     void videoReconfig();
     void decodedDimensionsChanged();
+    // One aggregated stats map (mpv property names as keys) per requestPlaybackStatsAsync()
+    // batch. Emitted once, only when every property of the batch has answered.
+    void playbackStatsReady(QVariantMap stats);
 
 private:
     void setupConnections();
@@ -208,6 +225,12 @@ private:
     // Throttles positionChanged only — the cached value above is ALWAYS current. A seek (a jump, not
     // a tick) still emits immediately so the bar never lags a scrub.
     QElapsedTimer m_positionEmitClock;
+    // In-flight async stats batch: reply id StatsBatch+i maps back to m_statsBatchProperties[i].
+    // m_statsBatchPending counts properties still unanswered; when it reaches zero the map is
+    // emitted as playbackStatsReady() and the batch slot frees for the next request.
+    QStringList m_statsBatchProperties;
+    QVariantMap m_statsBatchValues;
+    int m_statsBatchPending = 0;
     void onAsyncReply(const QVariant &data, mpv_event event);
     QString formatTime(const double time) const;
     QVariantList tracksForType(const QString &type) const;

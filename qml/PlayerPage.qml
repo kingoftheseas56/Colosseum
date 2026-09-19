@@ -407,10 +407,12 @@ Item {
     property string pauseHydratedId: ""                 // guards one hydrate per media
     readonly property string stateLineText: {
         if (root.starting || root.errored) return ""
-        // buffering: cache-buffering-state drops below 100 while the stream refills
-        var buf = mpv.mpvProperty("cache-buffering-state")
-        if (!mpv.pause && buf !== undefined && buf !== "" && Number(buf) < 100 && Number(buf) >= 0)
-            return "Buffering " + Number(buf).toFixed(0) + "%"
+        // buffering: cacheBufferingState is the OBSERVED property (kept current by mpv events),
+        // so this binding re-evaluates from memory. It used to call mpv.mpvProperty() — a
+        // blocking mpv-core read inside a binding (2026-09-19 drop-burst diagnosis).
+        var buf = mpv.cacheBufferingState
+        if (!mpv.pause && buf >= 0 && buf < 100)
+            return "Buffering " + buf.toFixed(0) + "%"
         if (mpv.pause) return "Paused"
         if (root.seeking) {
             var d = root.seekPreview - mpv.position
@@ -2282,9 +2284,11 @@ Item {
 
     Timer {
         id: playbackStatsTimer
-        interval: 1000
+        // 2s, not 1s: the cadence was halved when reads went async (2026-09-19). A bitrate
+        // figure does not age in a second, and every tick still wakes the card's bindings.
+        interval: 2000
         repeat: true
-        running: root.statsOverlayOpen
+        running: root.statsOverlayOpen && !root.starting
         onTriggered: root.refreshPlaybackStats()
     }
 
@@ -2306,6 +2310,8 @@ Item {
         // Chapter crossing rides here (not the direct onPositionChanged handler, which is
         // the loader-dismiss contract) so both fire independently every position tick.
         function onPositionChanged() { root.chapterCrossWatch() }
+        // Async stats batch lands here as one aggregated map (mpv property names as keys).
+        function onPlaybackStatsReady(raw) { root.applyPlaybackStats(raw) }
     }
 
 
@@ -2950,28 +2956,38 @@ Item {
         }
         return false
     }
+    // ASYNC (2026-09-19): this used to be ~14 synchronous mpvProperty() calls — each one a
+    // blocking round-trip into the mpv core on the GUI thread. On a torrent feed the core
+    // holds its lock in waves, and with the stats card open those reads blocked the GUI thread
+    // in bursts, costing 4-5 dropped frames every ~10s (measured, 2026-09-19 diagnosis). Now
+    // the read is one async batch: the values arrive via MpvItem.playbackStatsReady into
+    // applyPlaybackStats(), and the GUI thread never waits on the core.
     function refreshPlaybackStats() {
+        mpv.requestPlaybackStatsAsync()
+    }
+    function applyPlaybackStats(raw) {
+        var s = raw || ({})
         root.playbackStats = {
-            "videoBitrate": mpv.mpvProperty("video-bitrate"),
-            "audioBitrate": mpv.mpvProperty("audio-bitrate"),
+            "videoBitrate": s["video-bitrate"],
+            "audioBitrate": s["audio-bitrate"],
             // "decoder / output" — mpv's property naming is inverted from the plain reading:
             // `frame-drop-count` is the OUTPUT (VO) drop count and `decoder-frame-drop-count` is
             // the decoder's. This pair used to read frame-drop-count into the DECODER slot and
             // ask for a `vo-drop-frame-count` that mpv does not have, so the card showed the
             // output count under the decoder label and "NaN" under the output label (the invalid
             // property comes back as an ErrorReturn object, and Number(object) is NaN). Fixed
-            // 2026-07-29 to match native/player/mpvitem.cpp statsPayload(), which is the mapping
-            // the zero-drop gate measures against.
-            "frameDropDecoder": mpv.mpvProperty("decoder-frame-drop-count"),
-            "frameDropOutput": mpv.mpvProperty("frame-drop-count"),
-            "estimatedFps": mpv.mpvProperty("estimated-vf-fps"),
-            "containerFps": mpv.mpvProperty("container-fps"),
-            "videoCodec": mpv.mpvProperty("video-codec"),
-            "audioCodec": mpv.mpvProperty("audio-codec"),
-            "hwdec": mpv.mpvProperty("hwdec-current"),
-            "cacheBufferingState": mpv.mpvProperty("cache-buffering-state"),
-            "width": mpv.mpvProperty("width"),
-            "height": mpv.mpvProperty("height")
+            // 2026-07-29; the decoder/output mapping here must stay the one the zero-drop gate
+            // measures against.
+            "frameDropDecoder": s["decoder-frame-drop-count"],
+            "frameDropOutput": s["frame-drop-count"],
+            "estimatedFps": s["estimated-vf-fps"],
+            "containerFps": s["container-fps"],
+            "videoCodec": s["video-codec"],
+            "audioCodec": s["audio-codec"],
+            "hwdec": s["hwdec-current"],
+            "cacheBufferingState": s["cache-buffering-state"],
+            "width": s["width"],
+            "height": s["height"]
         }
         root.diagnosticFrameDropDecoder = Number(root.playbackStats.frameDropDecoder || 0)
         root.diagnosticFrameDropOutput = Number(root.playbackStats.frameDropOutput || 0)
