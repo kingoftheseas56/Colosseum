@@ -38,6 +38,8 @@ These references describe current repository tooling, but a passing isolated har
 
 ## Design, research, and historical material
 
+[Stremio Sync Design](stremio-sync-design.md) is the current product contract for Theatre's first external main-sync provider.
+
 The wider `docs/` tree contains research, mockups, plans, prototypes, archived decisions, and other supporting artifacts. Those files are useful evidence for how Colosseum evolved, but they are not all stable user documentation or current product contracts.
 
 When a design note conflicts with current source, tests, release notes, or an explicit current product boundary, use the current evidence.
