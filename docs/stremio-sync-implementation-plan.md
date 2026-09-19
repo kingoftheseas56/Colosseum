@@ -1,10 +1,14 @@
 # Stremio Sync implementation plan
 
-Status: Written and self-reviewed; ready for implementation-plan review, not yet user-approved. Implementation has not begun.
+Status: Approved by Hemanth for execution on 2026-09-19. Implementation is in progress.
 
 Contract: [Approved Stremio Sync Design](stremio-sync-design.md), unchanged.
 
 Inspection baseline: `d565df14` on `master`, 2026-09-19.
+
+Execution branch: `codex/stremio-sync`, created from plan commit `581172a5`.
+
+Merge endpoint: merge this branch into `master` only after Tasks 1-5, their focused reviews, repository gates, and runtime qualification pass. If that endpoint is abandoned, record a retire decision instead of leaving an active branch or worktree.
 
 Author: [Scoped helper (Codex / Astra), implementation planning].
 
