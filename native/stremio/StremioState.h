@@ -29,6 +29,7 @@ struct StremioPersistentState {
     QList<StremioPendingIntent> pendingIntents;
     qint64 lastSuccessAtMs = 0;
     bool firstMergeComplete = false;
+    bool reconnectRequired = false;
 };
 
 class StremioState final : public QObject {

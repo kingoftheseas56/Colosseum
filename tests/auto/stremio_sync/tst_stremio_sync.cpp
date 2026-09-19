@@ -19,6 +19,10 @@
 #include <algorithm>
 #include <utility>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 class ScopedEnvironmentVariable final {
 public:
     ScopedEnvironmentVariable(const char *name, const QByteArray &value)
@@ -153,6 +157,37 @@ bool sendRawLoopbackCallback(const QUrl &login, const QByteArray &request) {
     return socket.state() == QAbstractSocket::UnconnectedState;
 }
 
+#ifdef Q_OS_WIN
+class ScopedExclusiveFileLock final {
+public:
+    ~ScopedExclusiveFileLock() {
+        unlock();
+    }
+
+    bool lock(const QString &path) {
+        m_handle = CreateFileW(
+            reinterpret_cast<LPCWSTR>(path.utf16()),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+        return m_handle != INVALID_HANDLE_VALUE;
+    }
+
+    void unlock() {
+        if (m_handle == INVALID_HANDLE_VALUE)
+            return;
+        CloseHandle(m_handle);
+        m_handle = INVALID_HANDLE_VALUE;
+    }
+
+private:
+    HANDLE m_handle = INVALID_HANDLE_VALUE;
+};
+#endif
+
 class tst_stremio_sync final : public QObject {
     Q_OBJECT
 
@@ -175,9 +210,14 @@ private slots:
     void transientRetryBackoffIsBounded();
     void dispatchWaitsForDurableIntentAndKeepsOneInFlightSend();
     void rapidProfileReturnRetainsPendingIntentsAcrossAsyncWrites();
+    void returnedProfileWaitsForPriorJournalReceiptBeforeDispatch();
+    void returnedProfilePausesWhenPriorJournalWriteFails();
     void reconnectRejectsDifferentStremioAccountForExistingProfile();
     void authenticationFailureDisablesLaterIntentDispatch();
     void cancelledAuthPersistenceCannotCompleteReplacementAttempt();
+    void cancelledProvisionalCredentialCannotDispatchQueuedIntent();
+    void authenticationRejectionRemainsFencedAcrossProfileReturn();
+    void authenticationRejectionRemainsFencedAfterRestart();
     void markerOnlyProfileRequiresReconnectAndNeverDispatches();
     void markerArrivalAfterActivationUpdatesConnectionState();
     void markerWithMatchingCredentialActivatesSynced();
@@ -798,6 +838,89 @@ void tst_stremio_sync::rapidProfileReturnRetainsPendingIntentsAcrossAsyncWrites(
     QCOMPARE(persistedA->pendingIntents.at(1).desired.value(QStringLiteral("id")).toString(), QStringLiteral("a-second"));
 }
 
+void tst_stremio_sync::returnedProfileWaitsForPriorJournalReceiptBeforeDispatch() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString pathA = QDir(temp.path()).filePath(QStringLiteral("a/stremio-sync.json"));
+    const QString pathB = QDir(temp.path()).filePath(QStringLiteral("b/stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("profile-a");
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(pathA, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    int sends = 0;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &) -> std::optional<QByteArray> {
+        return QByteArrayLiteral("fixture-vault-key");
+    };
+    options.intentSender = [&sends](const StremioPendingIntent &, std::function<void(bool, bool)>) {
+        ++sends;
+    };
+
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), pathA, false));
+    QVERIFY(sync.queueIntent(QStringLiteral("library"), QJsonObject{{QStringLiteral("id"), QStringLiteral("a-return")}}));
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-b"), pathB, false));
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), pathA, false));
+
+    // The prior A write belongs to the old binding, but this reactivated A has
+    // adopted its snapshot. A retry cannot send until that snapshot's receipt.
+    sync.retryPendingNow();
+    QCOMPARE(sends, 0);
+    QTRY_COMPARE(sends, 1);
+}
+
+void tst_stremio_sync::returnedProfilePausesWhenPriorJournalWriteFails() {
+#ifndef Q_OS_WIN
+    QSKIP("The real QSaveFile replacement failure is exercised with a Windows exclusive handle.");
+#else
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString pathA = QDir(temp.path()).filePath(QStringLiteral("a/stremio-sync.json"));
+    const QString pathB = QDir(temp.path()).filePath(QStringLiteral("b/stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("profile-a");
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(pathA, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    int sends = 0;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &) -> std::optional<QByteArray> {
+        return QByteArrayLiteral("fixture-vault-key");
+    };
+    options.intentSender = [&sends](const StremioPendingIntent &, std::function<void(bool, bool)>) {
+        ++sends;
+    };
+
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), pathA, false));
+    ScopedExclusiveFileLock lock;
+    QVERIFY(lock.lock(pathA));
+    StremioState *state = sync.findChild<StremioState *>(QStringLiteral("stremioState"));
+    QVERIFY(state);
+    QSignalSpy failed(state, &StremioState::persistenceFailed);
+    QVERIFY(sync.queueIntent(QStringLiteral("library"), QJsonObject{{QStringLiteral("id"), QStringLiteral("a-failed-return")}}));
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-b"), pathB, false));
+    QTRY_COMPARE(failed.count(), 1);
+    lock.unlock();
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), pathA, false));
+
+    sync.retryPendingNow();
+    QCOMPARE(sends, 0);
+    QTRY_COMPARE(sync.status(), QStringLiteral("paused"));
+    QCOMPARE(sends, 0);
+#endif
+}
+
 void tst_stremio_sync::reconnectRejectsDifferentStremioAccountForExistingProfile() {
     ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-account-switch"));
     FixtureStremioApi api;
@@ -880,6 +1003,116 @@ void tst_stremio_sync::authenticationFailureDisablesLaterIntentDispatch() {
     QCOMPARE(sends, 1);
 }
 
+void tst_stremio_sync::authenticationRejectionRemainsFencedAcrossProfileReturn() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString pathA = QDir(temp.path()).filePath(QStringLiteral("a/stremio-sync.json"));
+    const QString pathB = QDir(temp.path()).filePath(QStringLiteral("b/stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("profile-a");
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("pending-a"),
+        QStringLiteral("library"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("movie-a")}}}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(pathA, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    QHash<QString, QByteArray> vault{{QStringLiteral("profile-a"), QByteArrayLiteral("fixture-vault-key")}};
+    int sends = 0;
+    std::function<void(bool, bool)> completion;
+    StremioSyncOptions options;
+    options.loadCredential = [&vault](const QString &profileId, const QString &) -> std::optional<QByteArray> {
+        const auto key = vault.constFind(profileId);
+        return key == vault.cend() ? std::nullopt : std::optional<QByteArray>(*key);
+    };
+    options.clearCredential = [&vault](const QString &profileId) {
+        vault.remove(profileId);
+        return true;
+    };
+    options.intentSender = [&sends, &completion](const StremioPendingIntent &, std::function<void(bool, bool)> complete) {
+        ++sends;
+        completion = std::move(complete);
+    };
+
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), pathA, false));
+    sync.retryPendingNow();
+    QCOMPARE(sends, 1);
+    QVERIFY(completion);
+    completion(false, true);
+    QCOMPARE(sync.status(), QStringLiteral("reconnectRequired"));
+
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-b"), pathB, false));
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), pathA, false));
+    sync.setMarkerLinked(true);
+    sync.retryPendingNow();
+    QCOMPARE(sync.status(), QStringLiteral("reconnectRequired"));
+    QCOMPARE(sends, 1);
+}
+
+void tst_stremio_sync::authenticationRejectionRemainsFencedAfterRestart() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("profile-a");
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("pending-a"),
+        QStringLiteral("library"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("movie-a")}}}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    int sends = 0;
+    std::function<void(bool, bool)> completion;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &) -> std::optional<QByteArray> {
+        return QByteArrayLiteral("vault-key-that-could-not-be-deleted");
+    };
+    options.clearCredential = [](const QString &) {
+        return false;
+    };
+    options.intentSender = [&sends, &completion](const StremioPendingIntent &, std::function<void(bool, bool)> complete) {
+        ++sends;
+        completion = std::move(complete);
+    };
+
+    {
+        StremioSync sync(options);
+        QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), path, false));
+        sync.retryPendingNow();
+        QCOMPARE(sends, 1);
+        QVERIFY(completion);
+        completion(false, true);
+        QTRY_COMPARE(sync.status(), QStringLiteral("reconnectRequired"));
+        StremioState inspector;
+        QTRY_VERIFY([&] {
+            const auto persisted = inspector.load(path);
+            return persisted.has_value()
+                && persisted->reconnectRequired
+                && persisted->pendingIntents.size() == 1
+                && persisted->pendingIntents.first().attempts == 0;
+        }());
+    }
+
+    StremioSync recovered(options);
+    QVERIFY(recovered.activateProfile(QStringLiteral("profile-a"), path, false));
+    recovered.setMarkerLinked(true);
+    recovered.retryPendingNow();
+    QCOMPARE(recovered.status(), QStringLiteral("reconnectRequired"));
+    QCOMPARE(sends, 1);
+}
+
 void tst_stremio_sync::cancelledAuthPersistenceCannotCompleteReplacementAttempt() {
     ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-auth-attempt-fence"));
     FixtureStremioApi api;
@@ -887,6 +1120,14 @@ void tst_stremio_sync::cancelledAuthPersistenceCannotCompleteReplacementAttempt(
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
     const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        StremioPersistentState empty;
+        empty.profileId = QStringLiteral("local");
+        writer.saveAsync(path, empty);
+        QTRY_COMPARE(committed.count(), 1);
+    }
 
     QUrl login;
     int vaultWrites = 0;
@@ -912,12 +1153,63 @@ void tst_stremio_sync::cancelledAuthPersistenceCannotCompleteReplacementAttempt(
     api.replyIdentity();
     QTRY_COMPARE(vaultWrites, 1);
     QVERIFY(sync.startBrowserAuthentication());
-    QTRY_VERIFY([&] {
-        QFile persisted(path);
-        return persisted.open(QIODevice::ReadOnly)
-            && persisted.readAll().contains(QByteArrayLiteral("\"accountId\":\"fixture-account\""));
-    }());
+    StremioState *state = sync.findChild<StremioState *>(QStringLiteral("stremioState"));
+    QVERIFY(state);
+    QString writeError;
+    QVERIFY(state->flush(&writeError));
+    QFile persisted(path);
+    QVERIFY(persisted.open(QIODevice::ReadOnly));
+    QVERIFY(!persisted.readAll().contains(QByteArrayLiteral("\"accountId\":\"fixture-account\"")));
     QCOMPARE(sync.status(), QStringLiteral("connecting"));
+    QCOMPARE(sync.completedRun(), quint64(0));
+}
+
+void tst_stremio_sync::cancelledProvisionalCredentialCannotDispatchQueuedIntent() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-provisional-cancel"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+
+    QUrl login;
+    int vaultWrites = 0;
+    int sends = 0;
+    StremioSync *syncPointer = nullptr;
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.browserOpener = [&login](const QUrl &url) { login = url; };
+    options.saveCredential = [&vaultWrites, &syncPointer](const QString &, const QString &, const QByteArray &) {
+        ++vaultWrites;
+        QTimer::singleShot(0, syncPointer, [syncPointer] {
+            syncPointer->cancelAuthentication();
+        });
+        return true;
+    };
+    options.intentSender = [&sends](const StremioPendingIntent &, std::function<void(bool, bool)>) {
+        ++sends;
+    };
+
+    StremioSync sync(options);
+    syncPointer = &sync;
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    QVERIFY(sync.startBrowserAuthentication());
+    QVERIFY(sync.queueIntent(QStringLiteral("library"), QJsonObject{{QStringLiteral("id"), QStringLiteral("cancelled-auth-work")}}));
+    QVERIFY(sendLoopbackCallback(login, QByteArrayLiteral("provisional-key")));
+    QTRY_VERIFY(!api.request().isEmpty());
+    api.replyIdentity();
+    QTRY_COMPARE(vaultWrites, 1);
+
+    StremioState *state = sync.findChild<StremioState *>(QStringLiteral("stremioState"));
+    QVERIFY(state);
+    QString writeError;
+    QVERIFY(state->flush(&writeError));
+    QTRY_VERIFY([&] {
+        const auto persisted = state->load(path);
+        return persisted.has_value() && persisted->pendingIntents.size() == 1;
+    }());
+    QCOMPARE(sends, 0);
     QCOMPARE(sync.completedRun(), quint64(0));
 }
 

@@ -101,9 +101,10 @@ bool StremioSync::activateProfile(
     m_state.bindingGeneration = m_bindingGeneration;
     m_hasUsableCredential = false;
     m_markerLinked = false;
-    m_dispatchAllowed = true;
+    m_dispatchAllowed = !m_state.reconnectRequired
+        && !m_failedPersistencePaths.contains(statePath);
     m_inFlightOperations.clear();
-    if (!m_state.accountId.isEmpty() && m_options.loadCredential) {
+    if (!m_state.reconnectRequired && !m_state.accountId.isEmpty() && m_options.loadCredential) {
         const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
         m_hasUsableCredential = credential.has_value() && !credential->isEmpty();
     }
@@ -187,6 +188,7 @@ bool StremioSync::startBrowserAuthentication(QString *error) {
 }
 
 void StremioSync::cancelAuthentication() {
+    retireProvisionalCredential();
     ++m_authAttempt;
     m_authTimeout.stop();
     m_callbackServer.close();
@@ -201,6 +203,25 @@ void StremioSync::cancelAuthentication() {
     }
     m_identityResponse.clear();
     m_identityResponseTooLarge = false;
+}
+
+void StremioSync::retireProvisionalCredential() {
+    if (!m_provisionalCredential.has_value())
+        return;
+
+    const ProvisionalCredential provisional = *m_provisionalCredential;
+    m_provisionalCredential.reset();
+    if (m_options.clearCredential)
+        m_options.clearCredential(provisional.binding.profileId);
+    if (!bindingCurrent(provisional.binding))
+        return;
+
+    m_hasUsableCredential = false;
+    m_dispatchAllowed = false;
+    m_retryTimer.stop();
+    m_state.reconnectRequired = true;
+    persist();
+    updateConnectionStatus();
 }
 
 void StremioSync::setMarkerLinked(bool linked) {
@@ -424,23 +445,39 @@ void StremioSync::validateAuthKey(
             }
             return;
         }
-        m_hasUsableCredential = true;
-        m_dispatchAllowed = true;
+        if (!bindingCurrent(binding) || attempt != m_authAttempt) {
+            if (m_options.clearCredential)
+                m_options.clearCredential(binding.profileId);
+            return;
+        }
+        m_provisionalCredential = ProvisionalCredential{binding, attempt};
+        m_hasUsableCredential = false;
+        m_dispatchAllowed = false;
         m_state.accountId = identity.accountId;
         m_state.displayName = identity.displayName;
         m_state.bindingGeneration = binding.generation;
+        m_state.reconnectRequired = false;
         persist([this, binding, attempt](bool committed) {
             const bool current = bindingCurrent(binding) && attempt == m_authAttempt;
             if (!committed || !current) {
+                const bool isProvisional = m_provisionalCredential.has_value()
+                    && m_provisionalCredential->binding.profileId == binding.profileId
+                    && m_provisionalCredential->binding.generation == binding.generation
+                    && m_provisionalCredential->attempt == attempt;
+                if (isProvisional)
+                    retireProvisionalCredential();
                 if (current) {
-                    if (m_options.clearCredential)
-                        m_options.clearCredential(binding.profileId);
                     m_hasUsableCredential = false;
+                    m_dispatchAllowed = false;
+                    m_state.reconnectRequired = true;
                     setStatus(QStringLiteral("notConnected"));
                     finishRun();
                 }
                 return;
             }
+            m_provisionalCredential.reset();
+            m_hasUsableCredential = true;
+            m_dispatchAllowed = true;
             m_authTimeout.stop();
             m_markerLinked = true;
             emit profileLinkValidated(binding.profileId);
@@ -468,6 +505,7 @@ void StremioSync::persist(std::function<void(bool)> continuation) {
 
 void StremioSync::settlePersistence(quint64 generation, bool committed) {
     const PendingPersistence pending = m_pendingPersistences.take(generation);
+    const bool activePath = !pending.path.isEmpty() && pending.path == m_statePath;
     if (!hasPendingPersistenceForPath(pending.path))
         m_pendingStateByPath.remove(pending.path);
     const QList<std::function<void(bool)>> continuations =
@@ -475,20 +513,22 @@ void StremioSync::settlePersistence(quint64 generation, bool committed) {
     for (const auto &continuation : continuations)
         continuation(committed);
     if (!committed) {
-        if (bindingCurrent(pending.binding)) {
+        m_failedPersistencePaths.insert(pending.path);
+        if (activePath) {
             m_dispatchAllowed = false;
             m_retryTimer.stop();
             setStatus(QStringLiteral("paused"));
         }
         return;
     }
-    if (bindingCurrent(pending.binding) && !hasPendingPersistence(pending.binding))
+    if (activePath && !hasPendingPersistenceForPath(pending.path))
         retryPendingNow();
 }
 
 void StremioSync::dispatchIntent(const QString &operationId, const ProfileBinding &binding) {
     if (!bindingCurrent(binding) || !m_dispatchAllowed || !m_hasUsableCredential
-        || !m_options.intentSender || hasPendingPersistence(binding))
+        || !m_options.intentSender || hasPendingPersistenceForPath(m_statePath)
+        || m_failedPersistencePaths.contains(m_statePath))
         return;
     StremioPendingIntent *intent = intentFor(operationId);
     if (!intent || intent->remoteAcknowledged || intent->attempts >= kMaximumRetries
@@ -526,6 +566,10 @@ void StremioSync::handleIntentResult(
         m_hasUsableCredential = false;
         m_dispatchAllowed = false;
         m_retryTimer.stop();
+        m_state.reconnectRequired = true;
+        if (m_options.clearCredential)
+            m_options.clearCredential(binding.profileId);
+        persist();
         setStatus(QStringLiteral("reconnectRequired"));
         return;
     }
@@ -562,16 +606,6 @@ bool StremioSync::bindingCurrent(const ProfileBinding &binding) const {
         && binding.generation == m_bindingGeneration;
 }
 
-bool StremioSync::hasPendingPersistence(const ProfileBinding &binding) const {
-    for (const PendingPersistence &pending : m_pendingPersistences) {
-        if (pending.binding.profileId == binding.profileId
-            && pending.binding.generation == binding.generation) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool StremioSync::hasPendingPersistenceForPath(const QString &path) const {
     for (const PendingPersistence &pending : m_pendingPersistences) {
         if (pending.path == path)
@@ -583,11 +617,15 @@ bool StremioSync::hasPendingPersistenceForPath(const QString &path) const {
 void StremioSync::updateConnectionStatus() {
     if (m_profileId.isEmpty())
         return;
+    if (m_failedPersistencePaths.contains(m_statePath)) {
+        setStatus(QStringLiteral("paused"));
+        return;
+    }
     if (m_state.accountId.isEmpty()) {
         setStatus(m_markerLinked ? QStringLiteral("reconnectRequired") : QStringLiteral("notConnected"));
         return;
     }
-    setStatus(m_markerLinked && m_hasUsableCredential && m_dispatchAllowed
+    setStatus(!m_state.reconnectRequired && m_markerLinked && m_hasUsableCredential && m_dispatchAllowed
         ? QStringLiteral("synced")
         : QStringLiteral("reconnectRequired"));
 }

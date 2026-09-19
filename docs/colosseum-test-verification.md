@@ -46,21 +46,25 @@ property contract is the deliberately small load/read smoke seam.
 
 Task 1 evidence is kept under `artifacts/stremio-sync/task-1/`. It proves the
 isolated foundation and not later library, addon, panel, or real-service work.
-The review-repair matrix expanded `colosseum.qttest.stremio_sync` to 34 native
-cases: durable/in-flight dispatch, A→B→A pending-state retention, returned
-identity mismatch, authentication retry fencing, strict official endpoint and
+The review-repair matrix expanded `colosseum.qttest.stremio_sync` to 39 native
+cases: durable/in-flight dispatch, path-scoped A→B→A receipt and failure
+fencing, returned identity mismatch, provisional-credential cancellation,
+durable rejection across reactivation/restart, strict official endpoint and
 bounded identity reply handling, progress coalescing, callback recovery,
-marker restoration, and delayed auth-attempt receipts. The affected CTest
-matrix passed `account_attachment_runtime`, `sync_adapter_registry`,
-`profile_preferences_sync`, and `sync_inventory`; the account-service Go policy
-suite passed its fixed-marker admission/rejection cases (database integration
-tests correctly skip with `TEST_DATABASE_URL` unset). The exact-tagged Lanista
-session `20260920-025516-701f136b` passed `ping`, tagged-root `get-state`, and
-all six safe projection fields for profile `stremio-task1-fixture` with terminal
-status `synced`. The registered `-L unit` run passed every Task 1 target but
-ended 140/147 because of pre-existing Reader2, capture, startup, Vault
-artwork/ffmpeg, manga-download, shell-back, and video-source failures; those
-categories were not changed by Task 1.
+marker restoration, and delayed auth-attempt receipts. Red receipts prove both
+the pre-repair gaps and two restored mutations that drop the persistence or
+rejection fences. The affected CTest matrix passed `account_attachment_runtime`,
+`sync_adapter_registry`, `profile_preferences_sync`, and `sync_inventory`; the
+account-service Go policy suite passed its fixed-marker admission/rejection
+cases (database integration tests correctly skip with `TEST_DATABASE_URL`
+unset). The exact-tagged Lanista session `20260920-034936-b0c7dbd9` passed
+`ping`, tagged-root `get-state`, and all six safe projection fields for profile
+`stremio-task1-fixture` with terminal status `synced`. The post-repair
+all-target build and focused 39-case target passed. The registered `-L unit`
+run passed every Task 1 target but ended 139/147 because of pre-existing
+Reader2, capture, startup, Vault artwork/ffmpeg, manga-download, shell-back,
+and video-source failures plus a timing-only core-sync silent-tick failure;
+those categories were not changed by Task 1.
 
 ### Reader 2 Function 0007 gating update (2026-08-30)
 

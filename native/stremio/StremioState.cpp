@@ -154,6 +154,7 @@ QJsonObject StremioState::encode(const StremioPersistentState &state) {
     result.insert(QStringLiteral("intentionalMembershipDifferences"), state.intentionalMembershipDifferences);
     result.insert(QStringLiteral("lastSuccessAtMs"), QString::number(state.lastSuccessAtMs));
     result.insert(QStringLiteral("firstMergeComplete"), state.firstMergeComplete);
+    result.insert(QStringLiteral("reconnectRequired"), state.reconnectRequired);
     QJsonArray intents;
     for (const StremioPendingIntent &intent : state.pendingIntents) {
         QJsonObject item;
@@ -201,6 +202,7 @@ std::optional<StremioPersistentState> StremioState::decode(
     result.intentionalMembershipDifferences = object.value(QStringLiteral("intentionalMembershipDifferences")).toArray();
     result.lastSuccessAtMs = lastSuccess;
     result.firstMergeComplete = object.value(QStringLiteral("firstMergeComplete")).toBool();
+    result.reconnectRequired = object.value(QStringLiteral("reconnectRequired")).toBool();
     for (const QJsonValue &value : object.value(QStringLiteral("pendingIntents")).toArray()) {
         if (!value.isObject()) {
             if (error)

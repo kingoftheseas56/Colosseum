@@ -88,6 +88,11 @@ private:
         StremioPersistentState state;
     };
 
+    struct ProvisionalCredential {
+        ProfileBinding binding;
+        quint64 attempt = 0;
+    };
+
     bool fixtureEndpointAllowed() const;
     bool endpointAllowed() const;
     void handleIncomingConnection();
@@ -106,8 +111,8 @@ private:
         bool authenticationFailure);
     void removeSatisfiedIntent(const QString &operationId);
     bool bindingCurrent(const ProfileBinding &binding) const;
-    bool hasPendingPersistence(const ProfileBinding &binding) const;
     bool hasPendingPersistenceForPath(const QString &path) const;
+    void retireProvisionalCredential();
     void updateConnectionStatus();
     StremioPendingIntent *intentFor(const QString &operationId);
     void setStatus(const QString &status);
@@ -134,9 +139,11 @@ private:
     bool m_hasUsableCredential = false;
     bool m_markerLinked = false;
     bool m_dispatchAllowed = true;
+    std::optional<ProvisionalCredential> m_provisionalCredential;
     StremioPersistentState m_state;
     QHash<quint64, QList<std::function<void(bool)>>> m_persistContinuations;
     QHash<quint64, PendingPersistence> m_pendingPersistences;
     QHash<QString, StremioPersistentState> m_pendingStateByPath;
+    QSet<QString> m_failedPersistencePaths;
     QSet<QString> m_inFlightOperations;
 };
