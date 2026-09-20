@@ -224,6 +224,10 @@ private slots:
     void markerOnlyProfileRequiresReconnectAndNeverDispatches();
     void markerArrivalAfterActivationUpdatesConnectionState();
     void markerWithMatchingCredentialActivatesSynced();
+    void visibleSyncCannotReportSyncedWithExhaustedOutbox();
+    void visibleSyncWaitsForOutboxDrainBeforeReportingSynced();
+    void visibleSyncWaitsForPullWhenOutboxDrainsFirst();
+    void explicitVisibleSyncRevivesExhaustedOutboxOnce();
     void disconnectFencesLateCallbacksAndRetiresProviderWork();
     void switchAccountRetiresOldBaselineBeforeOpeningReplacementLogin();
     void productionEndpointRejectsUnrelatedHttpsOrigin();
@@ -1412,6 +1416,206 @@ void tst_stremio_sync::markerWithMatchingCredentialActivatesSynced() {
     QCOMPARE(sync.status(), QStringLiteral("syncFailed"));
     QVERIFY(sync.beginVisibleSync());
     sync.finishVisibleSync(true, QStringLiteral("Sync complete"));
+}
+
+void tst_stremio_sync::visibleSyncCannotReportSyncedWithExhaustedOutbox() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("exhausted-visible-intent"),
+        QStringLiteral("fixture"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("movie-1")}},
+        false,
+        true,
+        5,
+        0}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    const quint64 priorRun = sync.completedRun();
+
+    QVERIFY(sync.beginVisibleSync());
+    sync.finishVisibleSync(true, QStringLiteral("Sync complete"));
+
+    QCOMPARE(sync.status(), QStringLiteral("syncFailed"));
+    QCOMPARE(sync.pendingCount(), 1);
+    QCOMPARE(sync.completedRun(), priorRun);
+}
+
+void tst_stremio_sync::visibleSyncWaitsForOutboxDrainBeforeReportingSynced() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("visible-pending-intent"),
+        QStringLiteral("fixture"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("movie-1")}},
+        false,
+        true,
+        0,
+        1000}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    qint64 now = 100;
+    int sends = 0;
+    std::function<void(bool, bool)> providerCompletion;
+    StremioSyncOptions options;
+    options.clock = [&now] { return now; };
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    options.intentSender = [&](const StremioPendingIntent &,
+                               std::function<void(bool, bool)> completion) {
+        ++sends;
+        providerCompletion = std::move(completion);
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    const quint64 priorRun = sync.completedRun();
+
+    QVERIFY(sync.beginVisibleSync());
+    sync.finishVisibleSync(true, QStringLiteral("Sync complete"));
+    QCOMPARE(sync.status(), QStringLiteral("syncing"));
+    QCOMPARE(sync.completedRun(), priorRun);
+    QVERIFY(sync.lastResultSummary().isEmpty());
+
+    now = 1000;
+    sync.retryPendingNow();
+    QTRY_COMPARE(sends, 1);
+    QVERIFY(providerCompletion);
+    providerCompletion(true, false);
+
+    QTRY_COMPARE(sync.pendingCount(), 0);
+    QTRY_COMPARE(sync.status(), QStringLiteral("synced"));
+    QCOMPARE(sync.completedRun(), priorRun + 1);
+    QCOMPARE(sync.lastResultSummary(), QStringLiteral("Sync complete"));
+}
+
+void tst_stremio_sync::visibleSyncWaitsForPullWhenOutboxDrainsFirst() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("fast-visible-intent"),
+        QStringLiteral("fixture"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("movie-1")}},
+        false,
+        true,
+        0,
+        0}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    int sends = 0;
+    std::function<void(bool, bool)> providerCompletion;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    options.intentSender = [&](const StremioPendingIntent &,
+                               std::function<void(bool, bool)> completion) {
+        ++sends;
+        providerCompletion = std::move(completion);
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QVERIFY(sync.beginVisibleSync());
+    QTRY_COMPARE(sends, 1);
+    QVERIFY(providerCompletion);
+    providerCompletion(true, false);
+
+    QTRY_COMPARE(sync.pendingCount(), 0);
+    QCOMPARE(sync.status(), QStringLiteral("syncing"));
+    QVERIFY(sync.lastResultSummary().isEmpty());
+
+    sync.finishVisibleSync(true, QStringLiteral("Sync complete"));
+    QCOMPARE(sync.status(), QStringLiteral("synced"));
+    QCOMPARE(sync.lastResultSummary(), QStringLiteral("Sync complete"));
+}
+
+void tst_stremio_sync::explicitVisibleSyncRevivesExhaustedOutboxOnce() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("manual-retry-intent"),
+        QStringLiteral("fixture"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("movie-1")}},
+        false,
+        true,
+        5,
+        0}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    int sends = 0;
+    int dispatchedAttempts = -1;
+    std::function<void(bool, bool)> providerCompletion;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    options.intentSender = [&](const StremioPendingIntent &intent,
+                               std::function<void(bool, bool)> completion) {
+        ++sends;
+        dispatchedAttempts = intent.attempts;
+        providerCompletion = std::move(completion);
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QCOMPARE(sends, 0);
+
+    QVERIFY(sync.beginVisibleSync(true));
+    sync.finishVisibleSync(true, QStringLiteral("Sync complete"));
+    QCOMPARE(sync.status(), QStringLiteral("syncing"));
+    QTRY_COMPARE(sends, 1);
+    QCOMPARE(dispatchedAttempts, 0);
+    QVERIFY(providerCompletion);
+    providerCompletion(true, false);
+
+    QTRY_COMPARE(sync.pendingCount(), 0);
+    QTRY_COMPARE(sync.status(), QStringLiteral("synced"));
+    QCOMPARE(sends, 1);
 }
 
 void tst_stremio_sync::disconnectFencesLateCallbacksAndRetiresProviderWork() {
@@ -3206,6 +3410,10 @@ void tst_stremio_sync::watchedEpisodeCodecIsBoundedAnchoredAndStable() {
         {QStringLiteral("kitsu:alpha:s2:e1"), 2, 1}};
     QSet<QString> watched{QStringLiteral("unchanged")};
     QString error;
+    QVERIFY2(StremioCodec::decodeWatchedEpisodes(
+        QString(), videos, &watched, &error), qPrintable(error));
+    QVERIFY(watched.isEmpty());
+
     // zlib([0b00001001]) with a full-length anchor: the special and the
     // final ordinary episode are watched. This literal does not reuse the
     // production encoder, so a bit-order or anchor-offset regression is red.
@@ -3496,6 +3704,79 @@ void tst_stremio_sync::theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMil
     QVERIFY(undatedProjection.watched);
     QCOMPARE(undatedProjection.watchActionAtMs, qint64(0));
     QVERIFY(!undatedProjection.hasHistory);
+
+    StremioLibraryItem untouchedSeries;
+    untouchedSeries.id = QStringLiteral("tt-empty-playback");
+    untouchedSeries.type = QStringLiteral("series");
+    untouchedSeries.libraryMember = true;
+    untouchedSeries.raw = QJsonObject{
+        {QStringLiteral("_id"), untouchedSeries.id},
+        {QStringLiteral("type"), untouchedSeries.type},
+        {QStringLiteral("name"), QStringLiteral("Untouched series")},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("video_id"), QString()},
+            {QStringLiteral("timeOffset"), 0},
+            {QStringLiteral("duration"), 0},
+            {QStringLiteral("lastWatched"), QString()},
+            {QStringLiteral("timeWatched"), 0},
+            {QStringLiteral("flaggedWatched"), 0},
+            {QStringLiteral("watched"), QString()}}}};
+    const StremioTheatreItemProjection untouchedProjection =
+        StremioCodec::projectTheatreItem(untouchedSeries);
+    QVERIFY2(untouchedProjection.valid, qPrintable(untouchedProjection.error));
+    QVERIFY(untouchedProjection.hasCollection);
+    QVERIFY(!untouchedProjection.hasProgress);
+    QVERIFY(!untouchedProjection.hasHistory);
+
+    StremioLibraryItem untouchedMovie;
+    untouchedMovie.id = QStringLiteral("tt-empty-movie");
+    untouchedMovie.type = QStringLiteral("movie");
+    untouchedMovie.libraryMember = true;
+    untouchedMovie.raw = QJsonObject{
+        {QStringLiteral("_id"), untouchedMovie.id},
+        {QStringLiteral("type"), untouchedMovie.type},
+        {QStringLiteral("name"), QStringLiteral("Untouched movie")},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("video_id"), untouchedMovie.id},
+            {QStringLiteral("timeOffset"), 0},
+            {QStringLiteral("duration"), 0},
+            {QStringLiteral("lastWatched"), QString()},
+            {QStringLiteral("flaggedWatched"), 0}}}};
+    const StremioTheatreItemProjection untouchedMovieProjection =
+        StremioCodec::projectTheatreItem(untouchedMovie);
+    QVERIFY2(untouchedMovieProjection.valid,
+             qPrintable(untouchedMovieProjection.error));
+    QVERIFY(untouchedMovieProjection.hasCollection);
+    QVERIFY(!untouchedMovieProjection.hasProgress);
+    QVERIFY(untouchedMovieProjection.hasWatchState);
+    QVERIFY(!untouchedMovieProjection.watched);
+    QCOMPARE(untouchedMovieProjection.watchActionAtMs, qint64(0));
+    QVERIFY(!untouchedMovieProjection.hasHistory);
+
+    StremioLibraryItem rootSeries = series;
+    rootSeries.id = QStringLiteral("kitsu:7240");
+    rootSeries.raw.insert(QStringLiteral("_id"), rootSeries.id);
+    rootSeries.raw.insert(QStringLiteral("state"), QJsonObject{
+        {QStringLiteral("video_id"), rootSeries.id},
+        {QStringLiteral("timeOffset"), 1118317},
+        {QStringLiteral("duration"), 6515092},
+        {QStringLiteral("lastWatched"), QStringLiteral("2025-12-21T14:03:03.000Z")}});
+    const StremioTheatreItemProjection rootSeriesProjection =
+        StremioCodec::projectTheatreItem(rootSeries);
+    QVERIFY2(rootSeriesProjection.valid, qPrintable(rootSeriesProjection.error));
+    QVERIFY(rootSeriesProjection.hasProgress);
+    QCOMPARE(rootSeriesProjection.progress.value(QStringLiteral("id")).toString(),
+             rootSeries.id);
+
+    StremioLibraryItem partialPlayback = untouchedSeries;
+    partialPlayback.raw.insert(QStringLiteral("state"), QJsonObject{
+        {QStringLiteral("video_id"), QString()},
+        {QStringLiteral("timeOffset"), 0},
+        {QStringLiteral("duration"), 10000}});
+    const StremioTheatreItemProjection partialProjection =
+        StremioCodec::projectTheatreItem(partialPlayback);
+    QVERIFY(!partialProjection.valid);
+    QVERIFY(!partialProjection.hasCollection);
 
     series.raw.insert(QStringLiteral("state"), QJsonObject{
         {QStringLiteral("video_id"), QStringLiteral("tt100")},

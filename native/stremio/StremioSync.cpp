@@ -481,7 +481,9 @@ void StremioSync::deactivateProfile() {
     m_inFlightOperations.clear();
     m_addonCollectionReconcileActive = false;
     m_visibleSyncActive = false;
+    m_visibleSyncPullComplete = false;
     m_lastResultSummary.clear();
+    m_pendingVisibleSyncSummary.clear();
     emit stateChanged();
 }
 
@@ -580,7 +582,9 @@ bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
     m_inFlightOperations.clear();
     m_addonCollectionReconcileActive = false;
     m_visibleSyncActive = false;
+    m_visibleSyncPullComplete = false;
     m_lastResultSummary.clear();
+    m_pendingVisibleSyncSummary.clear();
 
     cancelAuthentication();
     cancelEpisodeMetadataRequests();
@@ -644,16 +648,31 @@ bool StremioSync::switchAccount() {
     });
 }
 
-bool StremioSync::beginVisibleSync() {
+bool StremioSync::beginVisibleSync(bool reviveFailedIntents) {
     if (m_visibleSyncActive
         || (m_status != QLatin1String("synced")
             && m_status != QLatin1String("syncFailed"))
         || !linkedAccount() || !m_hasUsableCredential || !m_dispatchAllowed) {
         return false;
     }
+    bool revived = false;
+    if (reviveFailedIntents) {
+        const qint64 now = m_options.clock();
+        for (StremioPendingIntent &intent : m_state.pendingIntents) {
+            if (intent.remoteAcknowledged || intent.attempts < kMaximumRetries)
+                continue;
+            intent.attempts = 0;
+            intent.retryAtMs = now;
+            revived = true;
+        }
+    }
     m_visibleSyncActive = true;
+    m_visibleSyncPullComplete = false;
     m_lastResultSummary.clear();
+    m_pendingVisibleSyncSummary.clear();
     setStatus(QStringLiteral("syncing"));
+    if (revived)
+        persist();
     emit stateChanged();
     return true;
 }
@@ -661,7 +680,31 @@ bool StremioSync::beginVisibleSync() {
 void StremioSync::finishVisibleSync(bool succeeded, const QString &summary) {
     if (!m_visibleSyncActive)
         return;
+    if (succeeded && std::any_of(
+            m_state.pendingIntents.cbegin(),
+            m_state.pendingIntents.cend(),
+            [](const StremioPendingIntent &intent) {
+                return !intent.remoteAcknowledged
+                    && intent.attempts >= kMaximumRetries;
+            })) {
+        m_visibleSyncActive = false;
+        m_visibleSyncPullComplete = false;
+        m_pendingVisibleSyncSummary.clear();
+        m_lastResultSummary = QStringLiteral(
+            "Sync could not finish. Your Colosseum data was kept.");
+        setStatus(QStringLiteral("syncFailed"));
+        emit stateChanged();
+        return;
+    }
+    if (succeeded && !m_state.pendingIntents.isEmpty()) {
+        m_visibleSyncPullComplete = true;
+        m_pendingVisibleSyncSummary = summary;
+        emit stateChanged();
+        return;
+    }
     m_visibleSyncActive = false;
+    m_visibleSyncPullComplete = false;
+    m_pendingVisibleSyncSummary.clear();
     m_lastResultSummary = summary;
     if (succeeded) {
         setStatus(QStringLiteral("synced"));
@@ -670,6 +713,18 @@ void StremioSync::finishVisibleSync(bool succeeded, const QString &summary) {
         setStatus(QStringLiteral("syncFailed"));
         emit stateChanged();
     }
+}
+
+void StremioSync::completeVisibleSyncIfDrained() {
+    if (!m_visibleSyncActive || !m_visibleSyncPullComplete
+        || !m_state.pendingIntents.isEmpty())
+        return;
+    m_visibleSyncActive = false;
+    m_visibleSyncPullComplete = false;
+    m_lastResultSummary = m_pendingVisibleSyncSummary;
+    m_pendingVisibleSyncSummary.clear();
+    setStatus(QStringLiteral("synced"));
+    finishRun();
 }
 
 void StremioSync::retireProvisionalCredential() {
@@ -2331,6 +2386,13 @@ void StremioSync::handleIntentResult(
     }
     ++intent->attempts;
     if (intent->attempts >= kMaximumRetries) {
+        if (m_visibleSyncActive) {
+            m_visibleSyncActive = false;
+            m_visibleSyncPullComplete = false;
+            m_pendingVisibleSyncSummary.clear();
+            m_lastResultSummary = QStringLiteral(
+                "Sync could not finish. Your Colosseum data was kept.");
+        }
         setStatus(QStringLiteral("syncFailed"));
         persist();
         return;
@@ -2349,7 +2411,10 @@ void StremioSync::removeSatisfiedIntent(const QString &operationId) {
     for (qsizetype index = 0; index < m_state.pendingIntents.size(); ++index) {
         if (m_state.pendingIntents.at(index).operationId == operationId) {
             m_state.pendingIntents.removeAt(index);
-            persist();
+            persist([this](bool committed) {
+                if (committed)
+                    completeVisibleSyncIfDrained();
+            });
             emit stateChanged();
             return;
         }

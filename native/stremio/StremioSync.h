@@ -88,7 +88,7 @@ public:
     Q_INVOKABLE bool connectAccount();
     Q_INVOKABLE bool disconnectCurrentProfile();
     Q_INVOKABLE bool switchAccount();
-    bool beginVisibleSync();
+    bool beginVisibleSync(bool reviveFailedIntents = false);
     void finishVisibleSync(bool succeeded, const QString &summary);
     void setMarkerLinked(bool linked);
     void setCredentialCallbacks(
@@ -277,6 +277,7 @@ private:
     bool hasPendingPersistenceForPath(const QString &path) const;
     void retireProvisionalCredential();
     void updateConnectionStatus();
+    void completeVisibleSyncIfDrained();
     StremioPendingIntent *intentFor(const QString &operationId);
     void setStatus(const QString &status);
     void finishRun();
@@ -325,7 +326,9 @@ private:
     quint64 m_authAttempt = 0;
     quint64 m_completedRun = 0;
     QString m_lastResultSummary;
+    QString m_pendingVisibleSyncSummary;
     bool m_visibleSyncActive = false;
+    bool m_visibleSyncPullComplete = false;
     QString m_status = QStringLiteral("notConnected");
     bool m_hasUsableCredential = false;
     bool m_markerLinked = false;

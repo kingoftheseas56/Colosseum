@@ -682,6 +682,7 @@ private slots:
     void stremioLateOwnerReceiptCannotCrossProfileIncarnation();
     void stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact();
     void stremioRuntimeAppliesInboundSeriesWatchedThroughMetadataBridge();
+    void stremioRuntimeImportsSeriesWithEmptyWatchedSet();
     void stremioSeriesWithoutBoundAccountCompletesFailClosed();
     void stremioPendingSeriesWatchSurvivesMissingMapAndRestart();
     void stremioQmlMetadataFixtureProjectsIdentityOnlyToNative();
@@ -1032,6 +1033,53 @@ stremioRuntimeAppliesInboundSeriesWatchedThroughMetadataBridge() {
     QTRY_COMPARE(progress->get(QStringLiteral("video"), QStringLiteral("kitsu:runtime:s1:e2"))
                      .value(QStringLiteral("progress")).toDouble(), 1.0);
     QVERIFY(progress->get(QStringLiteral("video"), QStringLiteral("kitsu:runtime:s1:e1")).isEmpty());
+    QVERIFY(runtime.profileStores()->activityStore()->historyProjectionFacts().isEmpty());
+}
+
+void tst_account_attachment_runtime::
+stremioRuntimeImportsSeriesWithEmptyWatchedSet() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-series-empty-watched-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    QSignalSpy metadataRequested(sync, &StremioSync::episodeMetadataRequested);
+
+    StremioLibraryItem series;
+    series.id = QStringLiteral("tt-empty-watched");
+    series.type = QStringLiteral("series");
+    series.libraryMember = true;
+    series.raw = QJsonObject{{QStringLiteral("_id"), series.id},
+                             {QStringLiteral("type"), series.type},
+                             {QStringLiteral("name"), QStringLiteral("Empty watched series")},
+                             {QStringLiteral("state"), QJsonObject{
+                                 {QStringLiteral("watched"), QString()}}}};
+    bool called = false;
+    bool committed = false;
+    QString importError;
+    QVERIFY(runtime.applyStremioLibraryItem(
+        series, [&called, &committed, &importError](bool ok, const QString &errorText) {
+            called = true;
+            committed = ok;
+            importError = errorText;
+        }));
+
+    QTRY_VERIFY2(called, qPrintable(importError));
+    QVERIFY2(committed, qPrintable(importError));
+    QCOMPARE(metadataRequested.count(), 0);
+    QVERIFY(runtime.profileStores()->collectionStore()->has(
+        QStringLiteral("theatre"), series.id));
     QVERIFY(runtime.profileStores()->activityStore()->historyProjectionFacts().isEmpty());
 }
 

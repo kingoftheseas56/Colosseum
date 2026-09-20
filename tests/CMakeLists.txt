@@ -1674,6 +1674,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"

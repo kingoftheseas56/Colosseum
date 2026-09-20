@@ -17,6 +17,7 @@
 #include <QCryptographicHash>
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDebug>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -721,7 +722,7 @@ AccountRuntime::AccountRuntime(
 
     m_stremioPeriodicTimer.setInterval(15 * 60 * 1000);
     connect(&m_stremioPeriodicTimer, &QTimer::timeout,
-            this, [this] { syncStremioNow(); });
+            this, [this] { runStremioSync(false); });
     m_stremioPeriodicTimer.start();
     if (QGuiApplication *application = qobject_cast<QGuiApplication *>(
             QCoreApplication::instance())) {
@@ -733,7 +734,7 @@ AccountRuntime::AccountRuntime(
             const qint64 age = QDateTime::currentMSecsSinceEpoch()
                 - m_stremioSync.lastSuccessAt();
             if (age >= 5 * 60 * 1000)
-                syncStremioNow();
+                runStremioSync(false);
         });
     }
 
@@ -1627,11 +1628,13 @@ bool AccountRuntime::applyStremioLibraryItem(
     const QJsonValue watched = item.raw.value(QStringLiteral("state"))
         .toObject().value(QStringLiteral("watched"));
     if (item.type == QLatin1String("series")
-        && !watched.isUndefined() && !watched.isNull()) {
-        if (!watched.isString()) {
-            (*finish)(false, QStringLiteral("The Stremio series watched field is malformed."));
-            return false;
-        }
+        && !watched.isUndefined() && !watched.isNull()
+        && !watched.isString()) {
+        (*finish)(false, QStringLiteral("The Stremio series watched field is malformed."));
+        return false;
+    }
+    if (item.type == QLatin1String("series")
+        && watched.isString() && !watched.toString().isEmpty()) {
         const auto projection = episodePendingProjection(item, watched.toString());
         if (!projection.has_value()) {
             (*finish)(false, QStringLiteral("The Stremio series watch replay is malformed."));
@@ -1816,10 +1819,15 @@ void AccountRuntime::applyNextStremioLibraryItem(
     const StremioLibraryItem item = batch->items.at(batch->nextItem++);
     applyStremioLibraryItem(
         item,
-        [this, batch](bool committed, const QString &) {
+        [this, batch, item](bool committed, const QString &error) {
             batch->allCommitted = batch->allCommitted && committed;
-            if (committed)
+            if (committed) {
                 ++batch->committedItems;
+            } else {
+                qWarning().noquote()
+                    << "[stremio] provider import did not settle for"
+                    << item.id << ":" << error;
+            }
             // Provider rows are isolated: an unavailable metadata map is
             // private pending work, never a reason to stop the next valid
             // library record from reaching its canonical owner.
@@ -1828,7 +1836,11 @@ void AccountRuntime::applyNextStremioLibraryItem(
 }
 
 bool AccountRuntime::syncStremioNow() {
-    if (!m_stremioSync.beginVisibleSync())
+    return runStremioSync(true);
+}
+
+bool AccountRuntime::runStremioSync(bool reviveFailedIntents) {
+    if (!m_stremioSync.beginVisibleSync(reviveFailedIntents))
         return false;
     const QString profileId = m_profileStores.activeProfile().profileId();
     const quint64 incarnation = m_stremioProfileIncarnation;
@@ -2312,12 +2324,12 @@ void AccountRuntime::activateStremioProfile() {
             m_stremioSync.setMarkerLinked(linked);
             if (linked) {
                 scheduleStremioTheatreReconcile();
-                QTimer::singleShot(0, this, [this] { syncStremioNow(); });
+                QTimer::singleShot(0, this, [this] { runStremioSync(false); });
             }
         });
     if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
         scheduleStremioTheatreReconcile();
-        QTimer::singleShot(0, this, [this] { syncStremioNow(); });
+        QTimer::singleShot(0, this, [this] { runStremioSync(false); });
     }
 }
 

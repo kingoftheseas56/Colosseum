@@ -182,7 +182,9 @@ bool stremioActivityTime(const QJsonObject &state, qint64 *milliseconds) {
     if (!raw.isString())
         return false;
     const QString text = raw.toString();
-    if (text.isEmpty() || text.trimmed() != text || text.size() > 128)
+    if (text.isEmpty())
+        return true;
+    if (text.trimmed() != text || text.size() > 128)
         return false;
     const QDateTime parsed = QDateTime::fromString(text, Qt::ISODateWithMs);
     if (!parsed.isValid() || parsed.timeSpec() == Qt::LocalTime)
@@ -209,7 +211,7 @@ bool coherentStremioVideoId(const StremioLibraryItem &item, const QString &video
         return false;
     if (item.type == QLatin1String("movie"))
         return videoId == item.id;
-    return videoId != item.id && seriesRootForStremioVideo(videoId) == item.id;
+    return videoId == item.id || seriesRootForStremioVideo(videoId) == item.id;
 }
 
 QString displayTitleForStremioItem(const StremioLibraryItem &item) {
@@ -628,6 +630,13 @@ bool StremioCodec::decodeWatchedEpisodes(
         return watchedFailure(error, QStringLiteral("A Stremio watched output is required."));
     if (!validWatchedVideos(videos, error))
         return false;
+    // Stremio stores a valid "nothing watched yet" series state as an empty
+    // string. Treat it as an empty set so the first local watched episode can
+    // be merged and written instead of failing before datastorePut.
+    if (field.isEmpty()) {
+        watchedVideoIds->clear();
+        return true;
+    }
     const int payloadSeparator = field.lastIndexOf(QLatin1Char(':'));
     if (payloadSeparator <= 0)
         return watchedFailure(error, QStringLiteral("The Stremio watched field is malformed."));
@@ -773,17 +782,36 @@ StremioTheatreItemProjection StremioCodec::projectTheatreItem(
     if (stateValue.isObject()) {
         const QJsonObject state = stateValue.toObject();
         const QJsonValue videoValue = state.value(QStringLiteral("video_id"));
-        const bool hasPlaybackState = !videoValue.isUndefined()
-            || !state.value(QStringLiteral("timeOffset")).isUndefined()
-            || !state.value(QStringLiteral("duration")).isUndefined();
+        const QJsonValue offsetValue = state.value(QStringLiteral("timeOffset"));
+        const QJsonValue durationValue = state.value(QStringLiteral("duration"));
+        const auto absentOrZero = [](const QJsonValue &value) {
+            return value.isUndefined() || value.isNull()
+                || (value.isDouble() && std::isfinite(value.toDouble())
+                    && value.toDouble() == 0.0);
+        };
+        // Stremio materializes untouched playback with zero offset/duration
+        // and may retain either an empty or stale bounded video id. That is
+        // an absent checkpoint, not malformed progress; nonzero or partially
+        // populated variants remain rejected.
+        const bool emptyPlaybackState =
+            (videoValue.isUndefined() || videoValue.isNull()
+             || (videoValue.isString()
+                 && (videoValue.toString().isEmpty()
+                     || safeLibraryId(videoValue.toString()))))
+            && absentOrZero(offsetValue)
+            && absentOrZero(durationValue);
+        const bool hasPlaybackState = !emptyPlaybackState
+            && (!videoValue.isUndefined()
+                || !offsetValue.isUndefined()
+                || !durationValue.isUndefined());
         if (hasPlaybackState) {
             const QString videoId = videoValue.toString();
             qint64 offsetMs = 0;
             qint64 durationMs = 0;
             if (!videoValue.isString()
                 || !coherentStremioVideoId(item, videoId)
-                || !finiteMilliseconds(state.value(QStringLiteral("timeOffset")), &offsetMs, true)
-                || !finiteMilliseconds(state.value(QStringLiteral("duration")), &durationMs)
+                || !finiteMilliseconds(offsetValue, &offsetMs, true)
+                || !finiteMilliseconds(durationValue, &durationMs)
                 || offsetMs > durationMs) {
                 projected.error = QStringLiteral("The Stremio playback state is malformed.");
                 projected.collection.clear();

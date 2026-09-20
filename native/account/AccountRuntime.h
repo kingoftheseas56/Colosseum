@@ -119,6 +119,7 @@ private:
         const QString &profileId,
         quint64 incarnation,
         const QJsonArray &addons);
+    bool runStremioSync(bool reviveFailedIntents);
 
     AccountHttpTransport m_transport;
     AccountClient m_client;

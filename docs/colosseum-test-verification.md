@@ -124,6 +124,58 @@ and preserves the existing manual behavior. The focused Qt Quick test passed
 Qt Quick runner rebuilt cleanly. Red/green evidence is under
 `artifacts/stremio-sync/task-2/residual-final/`.
 
+## Stremio outbound recovery hardening (2026-09-20)
+
+The designated live account exposed a real provider edge case: an empty Stremio
+`series_watched` field is a valid empty watched set, but the codec rejected it as
+malformed before any write. The repair accepts the empty value and keeps malformed
+nonempty values rejected. Explicit **Sync now** may reset exhausted unacknowledged
+intents for one user-requested recovery run; passive startup, timer and app-active
+sync retain the retry ceiling. Visible status and its success summary now wait for
+the durable outbox removal to commit, and exhausted work reports `syncFailed`.
+
+The changes were driven through red/green Qt Test cases. The final Stremio target
+passed 75/75, including both completion orderings between the inbound/addon pass
+and durable outbox drain. The focused core-sync target passed 44/44, the account-attachment
+target passed, and the isolated Stremio panel QML target passed 6/6. The application
+rebuilt successfully. The full registered unit gate ended 140/147: all Stremio
+cases passed, while the seven failures were unrelated existing Reader2/startup,
+manga responsiveness, shell-back, video-source and one allocator-address profile-isolation
+assertion; the latter passed on its immediate isolated rerun. Read-only Lanista evidence
+from the rebuilt daily app showed `syncFailed` with three pending exhausted intents
+after passive startup, confirming that background retry did not revive them or claim
+success. One human **Sync now** action then drained all three intents, and a
+credential-safe provider readback confirmed all three remote watched fields were
+nonempty.
+
+That live pass exposed further valid Stremio defaults. Untouched rows carry zero
+offset/duration with an empty or retained video id, undated watch state may use an
+empty `lastWatched`, and a real series may carry progress at its root id. These shapes
+now import as absent or valid progress without weakening rejection of nonzero partial
+playback. Empty inbound series watched state falls through to the canonical library
+import without creating episode History. New red/green codec and account-runtime
+coverage passes in the complete Stremio and account-attachment targets.
+
+The final rebuilt daily app automatic sync reached `synced` and `pendingCount=0`,
+with `Sync complete · 85 library items · 19 addons`; a later passive run remained
+green at `completedRun=2`. No Stremio
+provider-import warning appeared in that session. The daily app was observed through
+read-only Lanista only; the explicit recovery click remained human-driven.
+
+The complete native build graph also passed after the legacy `account_first_light`
+target was brought back in line with `AccountRuntime` by linking its existing
+`ExtensionsStore` dependency. The final registered unit gate remained 140/147:
+every Stremio, account-attachment and core-sync test passed. The seven unrelated
+failures are the documented Reader2/startup, manga responsiveness, shell-back,
+video-source and transient profile-isolation gates; profile isolation passed alone.
+
+`[Sol (Codex), review] APPROVE — the focused hardening definition is met: real
+watched export/readback, explicit exhausted-work recovery, bounded passive retry,
+honest visible status, durable drain ordering, restart recovery and a complete live
+library/addon sync are proven. The separately recorded live provider-outage playback
+witness remains pending; deterministic playback isolation passes and the missing
+external witness does not weaken these repaired paths.`
+
 ### Reader 2 Function 0007 gating update (2026-08-30)
 
 - `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.
