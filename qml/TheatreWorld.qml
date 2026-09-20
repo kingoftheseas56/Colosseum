@@ -81,7 +81,7 @@ WorldPage {
                 continue                        // meta came back empty — no honest card
             var next = NextUp.nextEpisodeFromMeta(meta.videos, rec.entry.id)
             if (next)
-                out.push(NextUp.theatreCard(rec, next))
+                out.push(NextUp.theatreCard(rec, next, meta))
         }
         theatre.nextUpRows = out
     }

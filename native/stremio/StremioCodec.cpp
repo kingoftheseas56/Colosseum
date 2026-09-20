@@ -16,6 +16,7 @@ constexpr qsizetype kMaximumCallbackBytes = 16 * 1024;
 constexpr qsizetype kMaximumCredentialBytes = 4096;
 constexpr qsizetype kMaximumIdentityText = 256;
 constexpr qsizetype kMaximumLibraryIdText = 512;
+constexpr qsizetype kMaximumArtworkUrlText = 2048;
 constexpr int kMaximumLibraryBatchSize = 64;
 constexpr int kMaximumLibraryRows = 256;
 constexpr int kMaximumAddonRows = 64;
@@ -216,6 +217,28 @@ QString displayTitleForStremioItem(const StremioLibraryItem &item) {
     if (safeIdentityText(title))
         return title;
     return item.id;
+}
+
+QString posterForStremioItem(const StremioLibraryItem &item) {
+    const QJsonValue rawPoster = item.raw.value(QStringLiteral("poster"));
+    if (rawPoster.isString()) {
+        const QString text = rawPoster.toString();
+        const QUrl url(text, QUrl::StrictMode);
+        if (!text.isEmpty() && text.size() <= kMaximumArtworkUrlText
+            && text.trimmed() == text && url.isValid() && !url.isRelative()
+            && (url.scheme() == QLatin1String("https") || url.scheme() == QLatin1String("http"))
+            && !url.host().isEmpty() && url.userInfo().isEmpty()) {
+            return url.toString(QUrl::FullyEncoded);
+        }
+    }
+
+    if (!item.id.startsWith(QStringLiteral("tt")) || item.id.size() <= 2)
+        return {};
+    for (qsizetype i = 2; i < item.id.size(); ++i) {
+        if (!item.id.at(i).isDigit())
+            return {};
+    }
+    return QStringLiteral("https://live.metahub.space/poster/small/%1/img").arg(item.id);
 }
 }
 
@@ -733,12 +756,16 @@ StremioTheatreItemProjection StremioCodec::projectTheatreItem(
         return projected;
     }
 
+    const QString displayTitle = displayTitleForStremioItem(item);
+    const QString poster = posterForStremioItem(item);
     if (item.libraryMember) {
         projected.collection = {
             {QStringLiteral("world"), QStringLiteral("theatre")},
             {QStringLiteral("id"), item.id},
             {QStringLiteral("type"), item.type},
-            {QStringLiteral("title"), displayTitleForStremioItem(item)}};
+            {QStringLiteral("title"), displayTitle}};
+        if (!poster.isEmpty())
+            projected.collection.insert(QStringLiteral("cover"), poster);
         projected.hasCollection = true;
     }
 
@@ -768,10 +795,14 @@ StremioTheatreItemProjection StremioCodec::projectTheatreItem(
                     {QStringLiteral("kind"), QStringLiteral("video")},
                     {QStringLiteral("id"), videoId},
                     {QStringLiteral("libraryId"), item.id},
+                    {QStringLiteral("title"), displayTitle},
+                    {QStringLiteral("caption"), displayTitle},
                     {QStringLiteral("duration"), static_cast<double>(durationMs) / 1000.0},
                     {QStringLiteral("progress"), static_cast<double>(offsetMs) / durationMs},
                     {QStringLiteral("resume"), QVariantMap{
                         {QStringLiteral("position"), static_cast<double>(offsetMs) / 1000.0}}}};
+                if (!poster.isEmpty())
+                    projected.progress.insert(QStringLiteral("cover"), poster);
                 qint64 activityMs = 0;
                 if (!stremioActivityTime(state, &activityMs)) {
                     projected.error = QStringLiteral("The Stremio playback time is malformed.");

@@ -2581,3 +2581,22 @@ account was used.
 `[Sol (Codex), review] APPROVE — Tasks 1–5 satisfy the written Stremio contract at the
 available deterministic and assembled-app layers. No introduced regression, credential
 leak, Trakt/Nuvio surface or generalized provider framework remains in scope.`
+
+## Stremio synced-card metadata repair (2026-09-20)
+
+`tst_stremio_sync::theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMilliseconds`
+now proves Stremio title/poster projection into Collection and Progress, including the
+existing IMDb/Metahub poster fallback. The complete target passed 71/71.
+`tst_core_sync_adapters::stremioImporterRepairsPresentationWithoutReplacingNewerProgress`
+proves a repeat pull can fill missing title/caption/cover while preserving newer local
+progress, timestamp, resume position, and local-only path; the complete target passed 44/44.
+
+The registered `tst_next_up_metadata.qml` case proves a sparse watched-episode record renders
+the parent title and poster from Theatre's already-fetched series metadata. Its isolated Qt
+Quick run passed 3/3. The shared aggregate also passed this case but retained the pre-existing
+`tst_main_book_return.qml` unavailable-`Colosseum.Main` compile failure. The rebuilt assembled
+app launched on the daily profile and its automatic Stremio pull repaired the observed One
+Piece and Mind Field Collection records with real titles and covers.
+
+`[Sol (Codex), review] APPROVE — the visible metadata gap is repaired without changing provider
+conflict precedence, profile ownership, credentials, or watched-state semantics.`

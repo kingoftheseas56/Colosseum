@@ -53,6 +53,29 @@ bool stremioProgressWins(const QVariantMap &existing,
     return incomingAt > 0 && (currentAt <= 0 || incomingAt > currentAt);
 }
 
+QVariantMap repairMissingStremioPresentation(const QVariantMap &existing,
+                                             const QVariantMap &candidate,
+                                             bool *changed) {
+    QVariantMap repaired = existing;
+    bool repairedAny = false;
+    for (const QString &field : {
+             QStringLiteral("libraryId"),
+             QStringLiteral("title"),
+             QStringLiteral("caption"),
+             QStringLiteral("cover")}) {
+        if (!repaired.value(field).toString().trimmed().isEmpty())
+            continue;
+        const QString value = candidate.value(field).toString().trimmed();
+        if (value.isEmpty())
+            continue;
+        repaired.insert(field, value);
+        repairedAny = true;
+    }
+    if (changed)
+        *changed = repairedAny;
+    return repaired;
+}
+
 QJsonObject itemRedoProjection(const StremioTheatreItemProjection &projection) {
     return QJsonObject{
         {QStringLiteral("kind"), QStringLiteral("item")},
@@ -527,12 +550,17 @@ void StremioTheatreImporter::applyProgress(const std::shared_ptr<Pending> &pendi
     }
     const QString id = pending->projection.progress.value(QStringLiteral("id")).toString();
     const QVariantMap existing = m_progress->get(QStringLiteral("video"), id);
-    if (!stremioProgressWins(existing, pending->projection.progress)) {
-        applyWatchState(pending);
-        return;
+    QVariantMap incoming = pending->projection.progress;
+    if (!stremioProgressWins(existing, incoming)) {
+        bool repaired = false;
+        incoming = repairMissingStremioPresentation(existing, incoming, &repaired);
+        if (!repaired) {
+            applyWatchState(pending);
+            return;
+        }
     }
     const CoreStateSyncProjection projected =
-        CoreStateSyncProjection::progress(pending->projection.progress);
+        CoreStateSyncProjection::progress(incoming);
     if (projected.disposition != CoreStateSyncProjection::Disposition::Portable) {
         finish(pending, false, QStringLiteral("The Stremio progress projection is not portable."));
         return;

@@ -619,6 +619,7 @@ private slots:
     void resolvedWatchStateWinsEqualAndUnknownActionTies();
     void importedMovieWatchStateKeepsNonManualOwnerProvenanceAndActionTime();
     void stremioImporterAppliesCanonicalOwnersAfterDurableReceipts();
+    void stremioImporterRepairsPresentationWithoutReplacingNewerProgress();
     void stremioMovieWatchStateStaysSeparateFromHistory();
     void stremioImporterUsesRegistryAndFencesProfileSwitch();
     void stremioEpisodeImportUsesExactEpisodesAndRejectsAmbiguity();
@@ -1270,6 +1271,61 @@ void tst_core_sync_adapters::stremioImporterAppliesCanonicalOwnersAfterDurableRe
     QVERIFY2(waitForAsyncFlag(completed), qPrintable(completionError));
     QCOMPARE(progress.get(QStringLiteral("video"), itemId).value(
                  QStringLiteral("resume")).toMap().value(QStringLiteral("position")).toDouble(), 120.5);
+}
+
+void tst_core_sync_adapters::stremioImporterRepairsPresentationWithoutReplacingNewerProgress() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    CollectionStore collection(QDir(temp.path()).filePath(QStringLiteral("collection.ini")));
+    ProgressStore progress(QDir(temp.path()).filePath(QStringLiteral("progress.ini")));
+    HistoryStore history(QDir(temp.path()).filePath(QStringLiteral("history.ini")));
+
+    const QString itemId = QStringLiteral("tt1234567");
+    QVERIFY(progress.applySyncedEntry(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), itemId},
+        {QStringLiteral("progress"), 0.8},
+        {QStringLiteral("updatedAt"), qint64(2000000000000)},
+        {QStringLiteral("resume"), QVariantMap{
+            {QStringLiteral("localPath"), QStringLiteral("C:/private/newer.mkv")},
+            {QStringLiteral("position"), 240.0}}}}));
+    progress.flush();
+
+    StremioLibraryItem item;
+    item.id = itemId;
+    item.type = QStringLiteral("movie");
+    item.raw = QJsonObject{
+        {QStringLiteral("_id"), item.id},
+        {QStringLiteral("type"), item.type},
+        {QStringLiteral("name"), QStringLiteral("Provider Film")},
+        {QStringLiteral("poster"), QStringLiteral("https://images.example.test/provider-film.jpg")},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("video_id"), item.id},
+            {QStringLiteral("timeOffset"), 120500},
+            {QStringLiteral("duration"), 300000},
+            {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+
+    StremioTheatreImporter importer(&collection, &progress, &history);
+    importer.activate(QStringLiteral("profile-a"));
+    bool completed = false;
+    QString completionError;
+    QVERIFY(importer.apply(item, [&completed, &completionError](bool ok, const QString &error) {
+        completed = ok;
+        completionError = error;
+    }));
+    QVERIFY2(waitForAsyncFlag(completed), qPrintable(completionError));
+
+    const QVariantMap repaired = progress.get(QStringLiteral("video"), itemId);
+    QCOMPARE(repaired.value(QStringLiteral("progress")).toDouble(), 0.8);
+    QCOMPARE(repaired.value(QStringLiteral("updatedAt")).toLongLong(), qint64(2000000000000));
+    QCOMPARE(repaired.value(QStringLiteral("resume")).toMap().value(
+                 QStringLiteral("position")).toDouble(), 240.0);
+    QCOMPARE(repaired.value(QStringLiteral("resume")).toMap().value(
+                 QStringLiteral("localPath")).toString(), QStringLiteral("C:/private/newer.mkv"));
+    QCOMPARE(repaired.value(QStringLiteral("title")).toString(), QStringLiteral("Provider Film"));
+    QCOMPARE(repaired.value(QStringLiteral("caption")).toString(), QStringLiteral("Provider Film"));
+    QCOMPARE(repaired.value(QStringLiteral("cover")).toString(),
+             QStringLiteral("https://images.example.test/provider-film.jpg"));
 }
 
 void tst_core_sync_adapters::stremioMovieWatchStateStaysSeparateFromHistory() {

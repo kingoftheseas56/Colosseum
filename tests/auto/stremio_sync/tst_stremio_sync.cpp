@@ -3419,6 +3419,7 @@ void tst_stremio_sync::theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMil
         {QStringLiteral("_id"), series.id},
         {QStringLiteral("type"), series.type},
         {QStringLiteral("name"), QStringLiteral("Alpha")},
+        {QStringLiteral("poster"), QStringLiteral("https://images.example.test/alpha.jpg")},
         {QStringLiteral("state"), QJsonObject{
             {QStringLiteral("video_id"), QStringLiteral("kitsu:alpha:s0:e1")},
             {QStringLiteral("timeOffset"), 120500},
@@ -3434,9 +3435,16 @@ void tst_stremio_sync::theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMil
     QCOMPARE(projected.collection.value(QStringLiteral("world")).toString(), QStringLiteral("theatre"));
     QCOMPARE(projected.collection.value(QStringLiteral("id")).toString(), QStringLiteral("kitsu:alpha"));
     QCOMPARE(projected.collection.value(QStringLiteral("type")).toString(), QStringLiteral("series"));
+    QCOMPARE(projected.collection.value(QStringLiteral("title")).toString(), QStringLiteral("Alpha"));
+    QCOMPARE(projected.collection.value(QStringLiteral("cover")).toString(),
+             QStringLiteral("https://images.example.test/alpha.jpg"));
     QCOMPARE(projected.progress.value(QStringLiteral("id")).toString(), QStringLiteral("kitsu:alpha:s0:e1"));
     QCOMPARE(projected.progress.value(QStringLiteral("libraryId")).toString(), QStringLiteral("kitsu:alpha"));
     QCOMPARE(projected.progress.value(QStringLiteral("kind")).toString(), QStringLiteral("video"));
+    QCOMPARE(projected.progress.value(QStringLiteral("title")).toString(), QStringLiteral("Alpha"));
+    QCOMPARE(projected.progress.value(QStringLiteral("caption")).toString(), QStringLiteral("Alpha"));
+    QCOMPARE(projected.progress.value(QStringLiteral("cover")).toString(),
+             QStringLiteral("https://images.example.test/alpha.jpg"));
     QCOMPARE(projected.progress.value(QStringLiteral("duration")).toDouble(), 300.0);
     QCOMPARE(projected.progress.value(QStringLiteral("resume")).toMap().value(
                  QStringLiteral("position")).toDouble(), 120.5);
@@ -3466,6 +3474,9 @@ void tst_stremio_sync::theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMil
     QVERIFY(movieProjection.watched);
     QCOMPARE(movieProjection.watchActionAtMs, qint64(1735787045000));
     QCOMPARE(movieProjection.progress.value(QStringLiteral("id")).toString(), QStringLiteral("tt100"));
+    QCOMPARE(movieProjection.progress.value(QStringLiteral("title")).toString(), QStringLiteral("A Film"));
+    QCOMPARE(movieProjection.progress.value(QStringLiteral("cover")).toString(),
+             QStringLiteral("https://live.metahub.space/poster/small/tt100/img"));
     QCOMPARE(movieProjection.history.value(QStringLiteral("kind")).toString(), QStringLiteral("movie"));
     QCOMPARE(movieProjection.history.value(QStringLiteral("id")).toString(), QStringLiteral("tt100"));
     QCOMPARE(movieProjection.history.value(QStringLiteral("source")).toString(), QStringLiteral("stremio"));

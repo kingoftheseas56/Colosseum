@@ -66,9 +66,10 @@ function nextEpisodeFromMeta(videos, nowId) {
 
 // A finished show + its next episode -> a ContinueRow-shaped card. progress 0
 // (the tile is fresh); resume carries what the click handlers need.
-function theatreCard(finishedRec, next) {
+function theatreCard(finishedRec, next, meta) {
     var e = finishedRec.entry || ({});
-    var show = EB.showTitleFrom(e.title || e.caption || "");
+    meta = meta || ({});
+    var show = String(meta.name || meta.title || EB.showTitleFrom(e.title || e.caption || ""));
     return {
         "id": next.id,
         "kind": "video",
@@ -77,7 +78,7 @@ function theatreCard(finishedRec, next) {
         "caption": show,
         "sub": "S" + next.season + " · E" + next.num
                + (next.title ? " · " + next.title : ""),
-        "cover": e.cover || "",
+        "cover": meta.poster || meta.cover || e.cover || "",
         "c1": e.c1 || "#33445d", "c2": e.c2 || "#0c1118",
         "progress": 0,
         "resume": { "showId": finishedRec.show, "season": next.season,
