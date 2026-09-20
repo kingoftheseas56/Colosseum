@@ -261,6 +261,7 @@ private slots:
     void seriesReconcileQueuesOnlyResolvedExactEpisodes();
     void theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMilliseconds();
     void episodeMetadataBridgeBindsOneShotRepliesToActiveProfile();
+    void episodeMetadataBridgeAcceptsLongRunningSeries();
 };
 
 void tst_stremio_sync::callbackRejectsForgedReplayAndAmbiguousCredential() {
@@ -3586,6 +3587,53 @@ void tst_stremio_sync::episodeMetadataBridgeBindsOneShotRepliesToActiveProfile()
         QStringLiteral("kitsu:alpha"),
         validEpisodes));
     QVERIFY(staleCompletion);
+}
+
+void tst_stremio_sync::episodeMetadataBridgeAcceptsLongRunningSeries() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString statePath = QDir(temp.path()).filePath(QStringLiteral("stremio.json"));
+
+    StremioPersistentState state;
+    state.profileId = QStringLiteral("profile-a");
+    state.bindingGeneration = 1;
+    state.accountId = QStringLiteral("fixture-account");
+    StremioState writer;
+    QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+    writer.saveAsync(statePath, state);
+    QTRY_COMPARE(committed.count(), 1);
+
+    StremioSync sync;
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), statePath, false));
+    sync.setEpisodeMetadataBridgeReady(true);
+    QSignalSpy requested(&sync, &StremioSync::episodeMetadataRequested);
+    bool completed = false;
+    QList<StremioEpisodeIdentity> resolved;
+    QVERIFY(sync.requestEpisodeMetadata(
+        QStringLiteral("tt0388629"),
+        [&completed, &resolved](bool ok, QList<StremioEpisodeIdentity> episodes) {
+            completed = ok;
+            resolved = std::move(episodes);
+        }));
+    QTRY_COMPARE(requested.count(), 1);
+
+    QVariantList episodes;
+    episodes.reserve(1241);
+    for (int episode = 1; episode <= 1241; ++episode) {
+        episodes.append(QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("tt0388629:1:%1").arg(episode)},
+            {QStringLiteral("season"), 1},
+            {QStringLiteral("episode"), episode}});
+    }
+
+    QVERIFY(sync.submitEpisodeMetadata(
+        requested.at(0).at(0).toString(),
+        QStringLiteral("tt0388629"),
+        episodes));
+    QVERIFY(completed);
+    QCOMPARE(resolved.size(), 1241);
+    QCOMPARE(resolved.first().videoId, QStringLiteral("tt0388629:1:1"));
+    QCOMPARE(resolved.last().videoId, QStringLiteral("tt0388629:1:1241"));
 }
 
 QTEST_MAIN(tst_stremio_sync)

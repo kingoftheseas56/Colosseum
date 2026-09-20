@@ -26,7 +26,7 @@ constexpr int kMaximumLibraryRows = 256;
 constexpr int kMaximumAddonCollectionAttempts = 3;
 constexpr qsizetype kMaximumProviderRedoProjectionBytes = 16 * 1024;
 constexpr qsizetype kMaximumWatchedFieldBytes = 16 * 1024;
-constexpr int kMaximumEpisodeMetadataRows = 512;
+constexpr int kMaximumEpisodeMetadataRows = 4096;
 
 bool decodeSeriesWatchedDesired(
     const QJsonObject &desired,
@@ -777,7 +777,7 @@ bool StremioSync::submitEpisodeMetadata(
         || !bindingCurrent(request->binding)
         || request->accountId != m_state.accountId
         || metadataRootId != request->expectedRootId
-        || episodes.isEmpty() || episodes.size() > 512) {
+        || episodes.isEmpty() || episodes.size() > kMaximumEpisodeMetadataRows) {
         return false;
     }
     QList<StremioEpisodeIdentity> resolved;
