@@ -508,6 +508,13 @@ public:
         if (id.isEmpty()) return 0;
         return m_settings->value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
     }
+    Q_INVOKABLE qint64 watchedMarkActionAt(const QString &id) const {
+        if (id.isEmpty()) return 0;
+        bool ok = false;
+        const qint64 actionAtMs = m_settings->value(
+            watchedMarkActionKey(seriesRootId(id))).toLongLong(&ok);
+        return ok && actionAtMs > 0 ? actionAtMs : 0;
+    }
     Q_INVOKABLE bool watchedMarkIsManual(const QString &id) const {
         if (id.isEmpty()) return false;
         const QString watchedId = seriesRootId(id);

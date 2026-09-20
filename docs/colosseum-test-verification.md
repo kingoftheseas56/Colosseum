@@ -115,6 +115,15 @@ is unset. Sanitized red/green receipts and the Task 2 self-review are under
 `residual/f5-green-run.txt`, `residual/f3-composed-green-run.txt`, and
 `residual/full-unit-final.stdout.txt`.
 
+The follow-up watched-current repair carries only the bounded owner
+`actionAt` alongside the existing `{mark, manual}` projection. LibraryApi now
+keeps an acknowledged nonmanual provider mark across equal or missing times,
+lets only a strictly newer durable progress/completion action supersede it,
+and preserves the existing manual behavior. The focused Qt Quick test passed
+9/9 and the real importer/owner Qt Test passed 43/43; both the application and
+Qt Quick runner rebuilt cleanly. Red/green evidence is under
+`artifacts/stremio-sync/task-2/residual-final/`.
+
 ### Reader 2 Function 0007 gating update (2026-08-30)
 
 - `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.

@@ -4,10 +4,11 @@
 // ALL inputs are passed in (Progress/Collection/meta live in C++/QML, never here), so
 // this whole module is provable headless. Proven by tests/library_api_harness.qml.
 
-// watchState — the one truth-order: manual mark > current real activity > movie-auto > episode progress.
-// A cumulative History completion only wins a partial Continue record when the
-// completion is at least as recent. ctx = { progress: 0..1, mark: -1|0|1,
-// isSeries: bool, progressAt, completedAt }. An ONGOING series is never
+// watchState — manual marks retain their existing absolute precedence. A
+// nonmanual provider mark is an acknowledged current fact with its own action
+// time: only explicitly newer real activity can supersede it. ctx = {
+// progress: 0..1, mark: -1|0|1, markActionAt, isSeries: bool, progressAt,
+// completedAt }. An ONGOING series is never
 // auto-completed by episode %: buildRows feeds a series-aware progress here, but even
 // raw a series at ≥0.90 with no mark reads "unwatched" (not "watched") by design.
 function watchState(entry, ctx) {
@@ -15,6 +16,22 @@ function watchState(entry, ctx) {
     if (ctx.mark === 1 && ctx.markManual !== false) return "watched";
     if (ctx.mark === -1 && ctx.markManual !== false)
         return (ctx.progress > 0 && ctx.progress < 0.90) ? "progress" : "unwatched";
+
+    if ((ctx.mark === 1 || ctx.mark === -1) && ctx.markManual === false) {
+        var providerAt = Number(ctx.markActionAt || 0);
+        var providerTimeKnown = isFinite(providerAt) && providerAt > 0;
+        var progressAt = Number(ctx.progressAt || 0);
+        var completedAt = Number(ctx.completedAt || 0);
+        var newerPartial = ctx.progress > 0 && ctx.progress < 0.90
+                && providerTimeKnown && isFinite(progressAt) && progressAt > providerAt;
+        var newerCompletion = ctx.completed === true
+                && providerTimeKnown && isFinite(completedAt) && completedAt > providerAt;
+        if (newerPartial && (!newerCompletion || progressAt > completedAt)) return "progress";
+        if (newerCompletion) return "watched";
+        // Equal and unknown real times are stable: the provider's acknowledged
+        // current flag wins instead of inferring an arrival order.
+        return ctx.mark === 1 ? "watched" : "unwatched";
+    }
     if (ctx.completed === true) {
         var progressAt = Number(ctx.progressAt || 0);
         var completedAt = Number(ctx.completedAt || 0);
@@ -153,6 +170,8 @@ function buildRows(entries, progressList, markFn, completedFn, downloadedIds, no
                 ? Number(markState.mark || 0) : Number(markState || 0);
         var markManual = !(markState && typeof markState === "object")
                 || markState.manual !== false;
+        var markActionAt = (markState && typeof markState === "object")
+                ? Number(markState.actionAt || 0) : 0;
         var completion = completedFn ? completedFn(e) : false;
         var completed = completion === true
                 || (completion && Number(completion.completedAt || 0) > 0);
@@ -165,6 +184,7 @@ function buildRows(entries, progressList, markFn, completedFn, downloadedIds, no
             progress: stateProgress, mark: mark, completed: completed, isSeries: isSeries,
             progressAt: pm ? Number(pm.updatedAt || 0) : 0,
             markManual: markManual,
+            markActionAt: markActionAt,
             completedAt: completedAt
         });
         var notifOff = (payload.libNotif === false);

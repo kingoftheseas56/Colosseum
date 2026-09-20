@@ -617,7 +617,7 @@ private slots:
     void watchedActionTimestampPersistsAndRoundTrips();
     void watchedActionTimestampWinsOverTransportOrder();
     void resolvedWatchStateWinsEqualAndUnknownActionTies();
-    void importedMovieWatchStateKeepsNonManualOwnerProvenance();
+    void importedMovieWatchStateKeepsNonManualOwnerProvenanceAndActionTime();
     void stremioImporterAppliesCanonicalOwnersAfterDurableReceipts();
     void stremioMovieWatchStateStaysSeparateFromHistory();
     void stremioImporterUsesRegistryAndFencesProfileSwitch();
@@ -1151,7 +1151,7 @@ void tst_core_sync_adapters::resolvedWatchStateWinsEqualAndUnknownActionTies() {
     QCOMPARE(unknownB.watchedMark(id), -1);
 }
 
-void tst_core_sync_adapters::importedMovieWatchStateKeepsNonManualOwnerProvenance() {
+void tst_core_sync_adapters::importedMovieWatchStateKeepsNonManualOwnerProvenanceAndActionTime() {
     // The Stremio flag is a current provider fact, not a local Library
     // override. The owner retains that distinction alongside the cumulative
     // History completion so LibraryApi can compare its real action time.
@@ -1180,6 +1180,7 @@ void tst_core_sync_adapters::importedMovieWatchStateKeepsNonManualOwnerProvenanc
     QTRY_VERIFY2(finished, qPrintable(error));
     QCOMPARE(progress.watchedMark(item.id), 1);
     QVERIFY(!progress.watchedMarkIsManual(item.id));
+    QCOMPARE(progress.watchedMarkActionAt(item.id), qint64(1735787045000));
     QCOMPARE(history.get(QStringLiteral("movie"), item.id).value(
                  QStringLiteral("completedAt")).toLongLong(), qint64(1735787045000));
 

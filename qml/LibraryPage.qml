@@ -65,7 +65,8 @@ Item {
         return Api.buildRows(entries, plist,
             function (id) {
                 return ({ mark: Progress.watchedMark(id),
-                          manual: Progress.watchedMarkIsManual(id) })
+                          manual: Progress.watchedMarkIsManual(id),
+                          actionAt: Progress.watchedMarkActionAt(id) })
             },
             function (entry) {
                 if (!entry || entry.type === "series") return false
