@@ -8,6 +8,7 @@
 #include <QDesktopServices>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -229,6 +230,21 @@ private slots:
     void oversizedSocketRequestDoesNotPoisonNextCallback();
     void exactTaggedFixtureProjectsOnlySanitizedTerminalState();
     void stateProjectionContainsNoSecretProperty();
+    void libraryItemCodecBatchesPreservesPatchAndSeparatesMembership();
+    void libraryPullBatchesBoundedRowsAndIsolatesMalformedProviderData();
+    void explicitLibraryRemovalReadsFreshProviderRowAndPreservesFields();
+    void progressIntentReadsFreshProviderRowAndUsesMilliseconds();
+    void canonicalTheatreReconcileJournalsOnlySemanticProviderDifference();
+    void reconciledOwnerIntentCarriesItsDurableLocalReceipt();
+    void libraryAddAndWatchedPatchesReadBackBeforeBaselineSettlement();
+    void datastoreBusyDefersSecondDurableIntentWithoutRetryPenalty();
+    void olderProgressAcknowledgementCannotClearNewerGeneration();
+    void explicitReaddClearsOnlyLocalMembershipSuppression();
+    void watchedEpisodeCodecIsBoundedAnchoredAndStable();
+    void seriesWatchedSenderPreservesRemoteBitsAndReadsBack();
+    void seriesReconcileQueuesOnlyResolvedExactEpisodes();
+    void theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMilliseconds();
+    void episodeMetadataBridgeBindsOneShotRepliesToActiveProfile();
 };
 
 void tst_stremio_sync::callbackRejectsForgedReplayAndAmbiguousCredential() {
@@ -287,6 +303,19 @@ void tst_stremio_sync::journalRejectsMalformedDataWithoutReseeding() {
     QVERIFY(file.open(QIODevice::ReadOnly));
     QCOMPARE(file.readAll(), QByteArrayLiteral("{not-json"));
     file.close();
+
+    // Task 2 membership suppression is a durable safety fence. A partial
+    // entry must pause the profile rather than turn an arbitrary journal row
+    // into a passive provider delete/re-add decision.
+    StremioPersistentState valid;
+    valid.profileId = QStringLiteral("local");
+    valid.bindingGeneration = 1;
+    QJsonObject malformedDifference = StremioState::encode(valid);
+    malformedDifference.insert(
+        QStringLiteral("intentionalMembershipDifferences"),
+        QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("tt100")}}});
+    QVERIFY(!StremioState::decode(malformedDifference, &error).has_value());
+    QCOMPARE(error, QStringLiteral("The Stremio state file is malformed."));
 }
 
 void tst_stremio_sync::profileCredentialTargetsAreTagAndProfileIsolated() {
@@ -1414,6 +1443,1048 @@ void tst_stremio_sync::stateProjectionContainsNoSecretProperty() {
         QVERIFY(!name.contains(QStringLiteral("token")));
         QVERIFY(!name.contains(QStringLiteral("url")));
     }
+}
+
+void tst_stremio_sync::
+libraryItemCodecBatchesPreservesPatchAndSeparatesMembership() {
+    const QJsonArray meta{
+        QJsonArray{QStringLiteral("tt100"), QStringLiteral("1700000000000")},
+        QJsonArray{QStringLiteral("kitsu:alpha"), QStringLiteral("1700000000001")},
+        QJsonArray{QStringLiteral("tt100"), QStringLiteral("1700000000002")},
+        QJsonArray{QStringLiteral(""), QStringLiteral("bad")},
+        QJsonValue(QStringLiteral("malformed"))};
+    int malformedMetaRows = 0;
+    const QStringList ids = StremioCodec::decodeLibraryItemMeta(
+        meta, &malformedMetaRows);
+    QCOMPARE(ids, QStringList({QStringLiteral("tt100"), QStringLiteral("kitsu:alpha")}));
+    QCOMPARE(malformedMetaRows, 2);
+
+    const QJsonArray oversizedMeta{
+        QJsonArray{QStringLiteral("tt200"), QStringLiteral("1")},
+        QJsonArray{QStringLiteral("tt201"), QStringLiteral("2")},
+        QJsonArray{QStringLiteral("tt202"), QStringLiteral("3")}};
+    QCOMPARE(StremioCodec::decodeLibraryItemMeta(oversizedMeta, nullptr, 2),
+             QStringList({QStringLiteral("tt200"), QStringLiteral("tt201")}));
+
+    const QList<QStringList> batches = StremioCodec::boundedLibraryItemBatches(ids, 1);
+    QCOMPARE(batches.size(), 2);
+    QCOMPARE(batches.at(0), QStringList({QStringLiteral("tt100")}));
+    QCOMPARE(batches.at(1), QStringList({QStringLiteral("kitsu:alpha")}));
+
+    const QJsonArray rows{
+        QJsonObject{
+            {QStringLiteral("_id"), QStringLiteral("tt100")},
+            {QStringLiteral("type"), QStringLiteral("movie")},
+            {QStringLiteral("name"), QStringLiteral("A Film")},
+            {QStringLiteral("customTopLevel"), QStringLiteral("keep")},
+            {QStringLiteral("state"), QJsonObject{
+                {QStringLiteral("video_id"), QStringLiteral("tt100")},
+                {QStringLiteral("timeOffset"), 120000},
+                {QStringLiteral("duration"), 7200000},
+                {QStringLiteral("unknownState"), QStringLiteral("keep")}}}},
+        QJsonObject{
+            {QStringLiteral("_id"), QStringLiteral("tt101")},
+            {QStringLiteral("type"), QStringLiteral("movie")},
+            {QStringLiteral("temp"), true},
+            {QStringLiteral("state"), QJsonObject{
+                {QStringLiteral("video_id"), QStringLiteral("tt101")},
+                {QStringLiteral("timeOffset"), 1000},
+                {QStringLiteral("duration"), 10000}}}},
+        QJsonObject{
+            {QStringLiteral("_id"), QStringLiteral("tt102")},
+            {QStringLiteral("type"), QStringLiteral("series")},
+            {QStringLiteral("removed"), true}},
+        QJsonObject{{QStringLiteral("_id"), QStringLiteral("bad")},
+                    {QStringLiteral("type"), QStringLiteral("other")}},
+        QJsonValue(QStringLiteral("not-an-object"))};
+    const StremioLibraryItemDecode decoded =
+        StremioCodec::decodeLibraryItems(rows);
+    QCOMPARE(decoded.items.size(), 3);
+    QCOMPARE(decoded.malformedRows, 2);
+    QVERIFY(decoded.items.at(0).libraryMember);
+    QVERIFY(!decoded.items.at(1).libraryMember);
+    QVERIFY(decoded.items.at(1).temporary);
+    QVERIFY(!decoded.items.at(2).libraryMember);
+    QVERIFY(decoded.items.at(1).raw.value(QStringLiteral("state")).isObject());
+
+    QJsonObject merged;
+    QString error;
+    QVERIFY2(StremioCodec::mergeLibraryItemPatch(
+        decoded.items.at(0).raw,
+        QJsonObject{{QStringLiteral("removed"), true},
+                    {QStringLiteral("state"), QJsonObject{
+                        {QStringLiteral("timeOffset"), 240000}}}},
+        &merged,
+        &error), qPrintable(error));
+    QCOMPARE(merged.value(QStringLiteral("customTopLevel")).toString(), QStringLiteral("keep"));
+    QCOMPARE(merged.value(QStringLiteral("state")).toObject().value(
+        QStringLiteral("unknownState")).toString(), QStringLiteral("keep"));
+    QCOMPARE(merged.value(QStringLiteral("state")).toObject().value(
+        QStringLiteral("duration")).toInt(), 7200000);
+    QCOMPARE(merged.value(QStringLiteral("state")).toObject().value(
+        QStringLiteral("timeOffset")).toInt(), 240000);
+
+    const QList<StremioDatastoreRequest> requests =
+        StremioCodec::datastoreGetRequests(
+            QByteArrayLiteral("native-only-test-key"), ids, 1);
+    QCOMPARE(requests.size(), 2);
+    QCOMPARE(requests.at(0).method, QStringLiteral("datastoreGet"));
+    QCOMPARE(requests.at(0).payload.value(QStringLiteral("collection")).toString(),
+             QStringLiteral("libraryItem"));
+    QCOMPARE(requests.at(0).payload.value(QStringLiteral("ids")).toArray().size(), 1);
+
+    const StremioDatastoreRequest put = StremioCodec::datastorePutRequest(
+        QByteArrayLiteral("native-only-test-key"), merged);
+    QCOMPARE(put.method, QStringLiteral("datastorePut"));
+    QCOMPARE(put.payload.value(QStringLiteral("changes")).toArray().size(), 1);
+    QCOMPARE(put.payload.value(QStringLiteral("changes")).toArray().first().toObject(), merged);
+}
+
+void tst_stremio_sync::libraryPullBatchesBoundedRowsAndIsolatesMalformedProviderData() {
+    // This catches an unbounded `datastoreMeta` implementation or one corrupt
+    // provider row aborting an otherwise valid Theatre import pull.
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-datastore-pull"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    bool completed = false;
+    bool succeeded = false;
+    QList<StremioLibraryItem> pulled;
+    QVERIFY(sync.pullLibraryItems([&](bool ok, QList<StremioLibraryItem> items) {
+        completed = true;
+        succeeded = ok;
+        pulled = std::move(items);
+    }));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastoreMeta")));
+
+    QJsonArray meta;
+    for (int index = 0; index < 65; ++index)
+        meta.append(QJsonArray{QStringLiteral("tt%1").arg(100 + index), QString::number(index + 1)});
+    meta.append(QJsonValue(QStringLiteral("malformed-meta-row")));
+    const QByteArray metaBody = QJsonDocument(QJsonObject{{QStringLiteral("result"), meta}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(metaBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + metaBody);
+
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastoreGet")));
+    auto latestGetIds = [&api] {
+        const int requestStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/datastoreGet"));
+        const int bodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), requestStart) + 4;
+        return QJsonDocument::fromJson(api.request().mid(bodyStart))
+            .object().value(QStringLiteral("ids")).toArray();
+    };
+    QCOMPARE(latestGetIds().size(), 64);
+    const QByteArray firstGetBody = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{
+        QJsonObject{{QStringLiteral("_id"), QStringLiteral("tt100")},
+                    {QStringLiteral("type"), QStringLiteral("movie")},
+                    {QStringLiteral("state"), QJsonObject{}}},
+        QJsonValue(QStringLiteral("malformed-library-row"))}}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(firstGetBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + firstGetBody);
+
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 2);
+    QCOMPARE(latestGetIds().size(), 1);
+    const QByteArray secondGetBody = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{
+        QJsonObject{{QStringLiteral("_id"), QStringLiteral("tt164")},
+                    {QStringLiteral("type"), QStringLiteral("movie")},
+                    {QStringLiteral("state"), QJsonObject{}}}}}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(secondGetBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + secondGetBody);
+
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(pulled.size(), 2);
+    QCOMPARE(pulled.at(0).id, QStringLiteral("tt100"));
+    QCOMPARE(pulled.at(1).id, QStringLiteral("tt164"));
+    // A provider pull is only the first phase. AccountRuntime must now finish
+    // the durable owner/Neon sequence before the union baseline is published.
+    QVERIFY(!sync.mergeComplete());
+    bool mergeDurable = false;
+    QVERIFY(sync.completeFirstMerge([&mergeDurable](bool committed) { mergeDurable = committed; }));
+    QTRY_VERIFY(mergeDurable);
+    StremioState inspector;
+    const auto persisted = inspector.load(path);
+    QVERIFY(persisted.has_value());
+    QVERIFY(persisted->firstMergeComplete);
+}
+
+void tst_stremio_sync::explicitLibraryRemovalReadsFreshProviderRowAndPreservesFields() {
+    // This fails if the durable `library_remove` intent is only an in-memory
+    // sender seam: the real provider boundary must read a fresh datastore row
+    // before it sends a field-preserving removal patch.
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-datastore-remove"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    QString operationId;
+    QVERIFY(sync.queueExplicitLibraryRemoval(
+        QStringLiteral("tt100"), QStringLiteral("movie"), {}, &operationId));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastoreGet")));
+
+    const QJsonObject freshItem{
+        {QStringLiteral("_id"), QStringLiteral("tt100")},
+        {QStringLiteral("type"), QStringLiteral("movie")},
+        {QStringLiteral("name"), QStringLiteral("Keep this provider field")},
+        {QStringLiteral("temp"), true},
+        {QStringLiteral("state"), QJsonObject{{QStringLiteral("timeOffset"), 42000}}}};
+    const QByteArray getBody = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{freshItem}}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(getBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + getBody);
+
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastorePut")));
+    const int putStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/datastorePut"));
+    const int bodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), putStart) + 4;
+    QJsonParseError parseError;
+    const QJsonDocument put = QJsonDocument::fromJson(api.request().mid(bodyStart), &parseError);
+    QCOMPARE(parseError.error, QJsonParseError::NoError);
+    const QJsonObject changed = put.object().value(QStringLiteral("changes")).toArray().first().toObject();
+    QCOMPARE(changed.value(QStringLiteral("name")).toString(), QStringLiteral("Keep this provider field"));
+    QCOMPARE(changed.value(QStringLiteral("state")).toObject().value(QStringLiteral("timeOffset")).toInt(), 42000);
+    QVERIFY(changed.value(QStringLiteral("removed")).toBool());
+    QVERIFY(!changed.value(QStringLiteral("temp")).toBool());
+
+    QVERIFY(sync.acknowledgeLocalReceipt(operationId));
+    const QByteArray putBody = QByteArrayLiteral("{\"result\":true}");
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(putBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + putBody);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 2);
+    const QByteArray readBackBody = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{changed}}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(readBackBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + readBackBody);
+    QTRY_COMPARE(sync.pendingCount(), 0);
+}
+
+void tst_stremio_sync::progressIntentReadsFreshProviderRowAndUsesMilliseconds() {
+    // This catches a sender that emits seconds into Stremio's millisecond
+    // state, or overwrites provider-owned fields without a fresh read.
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-datastore-progress"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QString operationId;
+    QVERIFY(sync.queueIntent(
+        QStringLiteral("progress"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("tt200")},
+                    {QStringLiteral("libraryId"), QStringLiteral("tt200")},
+                    {QStringLiteral("positionSeconds"), 12.5},
+                    {QStringLiteral("durationSeconds"), 300.0},
+                    {QStringLiteral("updatedAt"), QStringLiteral("1735787045000")}},
+        &operationId));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastoreGet")));
+    const QJsonObject providerRow{
+        {QStringLiteral("_id"), QStringLiteral("tt200")},
+        {QStringLiteral("type"), QStringLiteral("movie")},
+        {QStringLiteral("name"), QStringLiteral("Keep provider name")},
+        {QStringLiteral("state"), QJsonObject{{QStringLiteral("custom"), QStringLiteral("keep")}}}};
+    const QByteArray getBody = QJsonDocument(QJsonObject{
+        {QStringLiteral("result"), QJsonArray{providerRow}}}).toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(getBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + getBody);
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastorePut")));
+    const int putStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/datastorePut"));
+    const int bodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), putStart) + 4;
+    const QJsonObject changed = QJsonDocument::fromJson(api.request().mid(bodyStart))
+        .object().value(QStringLiteral("changes")).toArray().first().toObject();
+    QCOMPARE(changed.value(QStringLiteral("name")).toString(), QStringLiteral("Keep provider name"));
+    QCOMPARE(changed.value(QStringLiteral("state")).toObject().value(QStringLiteral("timeOffset")).toInt(), 12500);
+    QCOMPARE(changed.value(QStringLiteral("state")).toObject().value(QStringLiteral("duration")).toInt(), 300000);
+    QCOMPARE(changed.value(QStringLiteral("state")).toObject().value(QStringLiteral("video_id")).toString(), QStringLiteral("tt200"));
+    QVERIFY(sync.acknowledgeLocalReceipt(operationId));
+    const QByteArray putBody = QByteArrayLiteral("{\"result\":true}");
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(putBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + putBody);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 2);
+    const QByteArray readBackBody = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{changed}}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(readBackBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + readBackBody);
+    QTRY_COMPARE(sync.pendingCount(), 0);
+}
+
+void tst_stremio_sync::canonicalTheatreReconcileJournalsOnlySemanticProviderDifference() {
+    // AccountRuntime supplies committed Theatre owner snapshots. This narrow
+    // native boundary must journal every distinct provider-relevant change
+    // once, while a remote-applied invalidation with the same semantic owner
+    // state remains a no-op rather than a Stremio echo.
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    StremioSync sync;
+    QVERIFY(sync.activateProfile(
+        QStringLiteral("local"),
+        QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json")),
+        false));
+
+    const QVariantList collection{
+        QVariantMap{{QStringLiteral("world"), QStringLiteral("theatre")},
+                    {QStringLiteral("id"), QStringLiteral("tt-reconcile")},
+                    {QStringLiteral("type"), QStringLiteral("movie")}}};
+    const QVariantList progress{
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("video")},
+                    {QStringLiteral("id"), QStringLiteral("tt-reconcile")},
+                    {QStringLiteral("duration"), 300.0},
+                    {QStringLiteral("resume"), QVariantMap{{QStringLiteral("position"), 12.5}}},
+                    {QStringLiteral("updatedAt"), 1735787045000LL}}};
+    const QHash<QString, int> watched{{QStringLiteral("tt-reconcile"), 1}};
+    const QHash<QString, qint64> watchedAt{{QStringLiteral("tt-reconcile"), 1735787046000LL}};
+
+    QVERIFY(sync.reconcileTheatreState(collection, progress, watched, watchedAt));
+    QTRY_COMPARE(sync.pendingCount(), 3);
+    QVERIFY(sync.reconcileTheatreState(collection, progress, watched, watchedAt));
+    QCOMPARE(sync.pendingCount(), 3);
+}
+
+void tst_stremio_sync::reconciledOwnerIntentCarriesItsDurableLocalReceipt() {
+    // AccountRuntime invokes reconciliation only after the canonical owner
+    // receipt. The private provider intent must carry that fact in its first
+    // durable journal write; no second caller acknowledgement exists here.
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    int sends = 0;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    options.intentSender = [&sends](const StremioPendingIntent &, auto completion) {
+        ++sends;
+        completion(true, false);
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    const QVariantList collection{
+        QVariantMap{{QStringLiteral("world"), QStringLiteral("theatre")},
+                    {QStringLiteral("id"), QStringLiteral("tt-owner-receipt")},
+                    {QStringLiteral("type"), QStringLiteral("movie")}}};
+    QVERIFY(sync.reconcileTheatreState(collection, {}, {}, {}));
+    QTRY_COMPARE(sends, 1);
+    QTRY_COMPARE(sync.pendingCount(), 0);
+}
+
+void tst_stremio_sync::libraryAddAndWatchedPatchesReadBackBeforeBaselineSettlement() {
+    // Library membership and a manual movie watch both use a fresh provider
+    // row, preserve its opaque fields, and settle their private baseline only
+    // after the provider readback. A synthetic success response is not enough.
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-add-watch-readback"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    QString addOperation;
+    QVERIFY(sync.queueIntent(QStringLiteral("library_add"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("tt-add-watch")},
+                    {QStringLiteral("type"), QStringLiteral("movie")}}, &addOperation));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastoreGet")));
+    const QJsonObject prior{{QStringLiteral("_id"), QStringLiteral("tt-add-watch")},
+                            {QStringLiteral("type"), QStringLiteral("movie")},
+                            {QStringLiteral("name"), QStringLiteral("Provider title")},
+                            {QStringLiteral("removed"), true},
+                            {QStringLiteral("temp"), true},
+                            {QStringLiteral("state"), QJsonObject{{QStringLiteral("custom"), QStringLiteral("keep")}}}};
+    const auto replyResult = [&api](const QJsonObject &row) {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{row}}})
+            .toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+            + QByteArray::number(body.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    replyResult(prior);
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastorePut")));
+    const int addPutStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/datastorePut"));
+    const int addBodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), addPutStart) + 4;
+    const QJsonObject added = QJsonDocument::fromJson(api.request().mid(addBodyStart))
+        .object().value(QStringLiteral("changes")).toArray().first().toObject();
+    QCOMPARE(added.value(QStringLiteral("name")).toString(), QStringLiteral("Provider title"));
+    QVERIFY(!added.value(QStringLiteral("removed")).toBool());
+    QVERIFY(!added.value(QStringLiteral("temp")).toBool());
+    const QByteArray putOk = QByteArrayLiteral("{\"result\":true}");
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(putOk.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + putOk);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 2);
+    replyResult(added);
+    QVERIFY(sync.acknowledgeLocalReceipt(addOperation));
+    QTRY_COMPARE(sync.pendingCount(), 0);
+
+    QString watchedOperation;
+    QVERIFY(sync.queueIntent(QStringLiteral("watched"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("tt-add-watch")},
+                    {QStringLiteral("type"), QStringLiteral("movie")},
+                    {QStringLiteral("watched"), true},
+                    {QStringLiteral("updatedAt"), QStringLiteral("1735787046000")}}, &watchedOperation));
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 3);
+    replyResult(added);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastorePut")), 2);
+    const int watchedPutStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/datastorePut"));
+    const int watchedBodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), watchedPutStart) + 4;
+    const QJsonObject watched = QJsonDocument::fromJson(api.request().mid(watchedBodyStart))
+        .object().value(QStringLiteral("changes")).toArray().first().toObject();
+    QCOMPARE(watched.value(QStringLiteral("state")).toObject().value(QStringLiteral("custom")).toString(), QStringLiteral("keep"));
+    QCOMPARE(watched.value(QStringLiteral("state")).toObject().value(QStringLiteral("flaggedWatched")).toInt(), 1);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(putOk.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + putOk);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 4);
+    replyResult(watched);
+    QVERIFY(sync.acknowledgeLocalReceipt(watchedOperation));
+    QTRY_COMPARE(sync.pendingCount(), 0);
+}
+
+void tst_stremio_sync::datastoreBusyDefersSecondDurableIntentWithoutRetryPenalty() {
+    // Two independent durable intents can become eligible in the same event
+    // turn. The datastore has one active reply by design; the second intent
+    // must wait for it, not consume a retry slot before a provider request.
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-datastore-busy"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    StremioPendingIntent library;
+    library.operationId = QStringLiteral("library-current");
+    library.kind = QStringLiteral("library_add");
+    library.desired = QJsonObject{{QStringLiteral("id"), QStringLiteral("tt-busy")},
+                                  {QStringLiteral("type"), QStringLiteral("movie")}};
+    library.localReceiptDurable = true;
+    StremioPendingIntent progress;
+    progress.operationId = QStringLiteral("progress-current");
+    progress.kind = QStringLiteral("progress");
+    progress.desired = QJsonObject{{QStringLiteral("id"), QStringLiteral("tt-busy")},
+                                   {QStringLiteral("libraryId"), QStringLiteral("tt-busy")},
+                                   {QStringLiteral("positionSeconds"), 20.0},
+                                   {QStringLiteral("durationSeconds"), 100.0},
+                                   {QStringLiteral("updatedAt"), QStringLiteral("1735787046000")}};
+    progress.localReceiptDurable = true;
+    existing.pendingIntents = {library, progress};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    sync.retryPendingNow();
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 1);
+
+    StremioState inspector;
+    const auto noBusyPenalty = [&] {
+        const auto persisted = inspector.load(path);
+        return persisted.has_value()
+            && persisted->pendingIntents.size() == 2
+            && persisted->pendingIntents.at(1).operationId == progress.operationId
+            && persisted->pendingIntents.at(1).attempts == 0;
+    };
+    QTRY_VERIFY(noBusyPenalty());
+
+    const QJsonObject current{{QStringLiteral("_id"), QStringLiteral("tt-busy")},
+                              {QStringLiteral("type"), QStringLiteral("movie")},
+                              {QStringLiteral("removed"), false},
+                              {QStringLiteral("temp"), false},
+                              {QStringLiteral("state"), QJsonObject{
+                                  {QStringLiteral("video_id"), QStringLiteral("tt-busy")},
+                                  {QStringLiteral("timeOffset"), 20000},
+                                  {QStringLiteral("duration"), 100000}}}};
+    const QByteArray body = QJsonDocument(QJsonObject{
+        {QStringLiteral("result"), QJsonArray{current}}}).toJson(QJsonDocument::Compact);
+    const QByteArray response = QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(body.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body;
+    api.replyRaw(response);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 2);
+}
+
+void tst_stremio_sync::olderProgressAcknowledgementCannotClearNewerGeneration() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    QList<std::function<void(bool, bool)>> completions;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    options.intentSender = [&completions](const StremioPendingIntent &, auto completion) {
+        completions.append(std::move(completion));
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    QString older;
+    QString newer;
+    QVERIFY(sync.queueIntent(QStringLiteral("progress"), QJsonObject{
+        {QStringLiteral("id"), QStringLiteral("tt-newer")},
+        {QStringLiteral("libraryId"), QStringLiteral("tt-newer")},
+        {QStringLiteral("positionSeconds"), 10.0},
+        {QStringLiteral("durationSeconds"), 100.0},
+        {QStringLiteral("updatedAt"), QStringLiteral("1735787045000")}}, &older));
+    QTRY_COMPARE(completions.size(), 1);
+    QVERIFY(sync.queueIntent(QStringLiteral("progress"), QJsonObject{
+        {QStringLiteral("id"), QStringLiteral("tt-newer")},
+        {QStringLiteral("libraryId"), QStringLiteral("tt-newer")},
+        {QStringLiteral("positionSeconds"), 20.0},
+        {QStringLiteral("durationSeconds"), 100.0},
+        {QStringLiteral("updatedAt"), QStringLiteral("1735787046000")}}, &newer));
+    QVERIFY(newer != older);
+    QTRY_COMPARE(completions.size(), 2);
+
+    completions.at(0)(true, false);
+    QVERIFY(sync.acknowledgeLocalReceipt(older));
+    QTRY_COMPARE(sync.pendingCount(), 1);
+    completions.at(1)(true, false);
+    QVERIFY(sync.acknowledgeLocalReceipt(newer));
+    QTRY_COMPARE(sync.pendingCount(), 0);
+}
+
+void tst_stremio_sync::explicitReaddClearsOnlyLocalMembershipSuppression() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioSync sync;
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+
+    bool suppressionCommitted = false;
+    QVERIFY(sync.recordLocalOnlyLibraryRemoval(
+        QStringLiteral("tt-explicit-readd"),
+        QStringLiteral("movie"),
+        [&suppressionCommitted](bool committed) {
+            suppressionCommitted = committed;
+        }));
+    QTRY_VERIFY(suppressionCommitted);
+    QVERIFY(sync.suppressesRemoteLibraryMembership(
+        QStringLiteral("tt-explicit-readd"),
+        QStringLiteral("movie")));
+
+    // The current Theatre membership exists only after a fresh explicit add.
+    // Reconciliation must turn that action into a new provider membership and
+    // retire the stale local-only suppression; it may not revive an inferred
+    // cross-service deletion.
+    QVERIFY(sync.reconcileTheatreState(
+        QVariantList{QVariantMap{
+            {QStringLiteral("world"), QStringLiteral("theatre")},
+            {QStringLiteral("id"), QStringLiteral("tt-explicit-readd")},
+            {QStringLiteral("type"), QStringLiteral("movie")}}},
+        {},
+        {},
+        {}));
+    QTRY_COMPARE(sync.pendingCount(), 1);
+    QVERIFY(!sync.suppressesRemoteLibraryMembership(
+        QStringLiteral("tt-explicit-readd"),
+        QStringLiteral("movie")));
+
+    StremioState inspector;
+    QTRY_VERIFY([&] {
+        const auto persisted = inspector.load(path);
+        return persisted.has_value()
+            && persisted->intentionalMembershipDifferences.isEmpty()
+            && persisted->pendingIntents.size() == 1;
+    }());
+    const auto persisted = inspector.load(path);
+    QVERIFY(persisted.has_value());
+    QCOMPARE(persisted->pendingIntents.first().kind, QStringLiteral("library_add"));
+
+    sync.deactivateProfile();
+    StremioSync reopened;
+    QVERIFY(reopened.activateProfile(QStringLiteral("local"), path, false));
+    QVERIFY(!reopened.suppressesRemoteLibraryMembership(
+        QStringLiteral("tt-explicit-readd"),
+        QStringLiteral("movie")));
+
+    StremioSync otherProfile;
+    QVERIFY(otherProfile.activateProfile(
+        QStringLiteral("other-profile"),
+        QDir(temp.path()).filePath(QStringLiteral("other-stremio-sync.json")),
+        false));
+    QVERIFY(!otherProfile.suppressesRemoteLibraryMembership(
+        QStringLiteral("tt-explicit-readd"),
+        QStringLiteral("movie")));
+}
+
+void tst_stremio_sync::watchedEpisodeCodecIsBoundedAnchoredAndStable() {
+    const QList<StremioEpisodeIdentity> videos{
+        {QStringLiteral("kitsu:alpha:s0:e1"), 0, 1},
+        {QStringLiteral("kitsu:alpha:s1:e1"), 1, 1},
+        {QStringLiteral("kitsu:alpha:s1:e2"), 1, 2},
+        {QStringLiteral("kitsu:alpha:s2:e1"), 2, 1}};
+    QSet<QString> watched{QStringLiteral("unchanged")};
+    QString error;
+    // zlib([0b00001001]) with a full-length anchor: the special and the
+    // final ordinary episode are watched. This literal does not reuse the
+    // production encoder, so a bit-order or anchor-offset regression is red.
+    QVERIFY2(StremioCodec::decodeWatchedEpisodes(
+        QStringLiteral("kitsu:alpha:s2:e1:4:eJzjBAAACgAK"),
+        videos,
+        &watched,
+        &error), qPrintable(error));
+    QCOMPARE(watched, QSet<QString>({
+        QStringLiteral("kitsu:alpha:s0:e1"),
+        QStringLiteral("kitsu:alpha:s2:e1")}));
+
+    QString encoded;
+    QVERIFY2(StremioCodec::encodeWatchedEpisodes(watched, videos, &encoded, &error),
+             qPrintable(error));
+    QVERIFY(encoded.startsWith(QStringLiteral("kitsu:alpha:s2:e1:4:")));
+    QSet<QString> roundTripped;
+    QVERIFY2(StremioCodec::decodeWatchedEpisodes(encoded, videos, &roundTripped, &error),
+             qPrintable(error));
+    QCOMPARE(roundTripped, watched);
+
+    const QSet<QString> before{QStringLiteral("keep-on-failure")};
+    watched = before;
+    QVERIFY(!StremioCodec::decodeWatchedEpisodes(
+        QStringLiteral("kitsu:alpha:s2:e1:4:not-base64"), videos, &watched, &error));
+    QCOMPARE(watched, before);
+
+    QList<StremioEpisodeIdentity> ambiguous = videos;
+    ambiguous.append(videos.first());
+    QVERIFY(!StremioCodec::decodeWatchedEpisodes(encoded, ambiguous, &watched, &error));
+    QCOMPARE(watched, before);
+
+    StremioLibraryItem movie;
+    movie.id = QStringLiteral("tt100");
+    movie.type = QStringLiteral("movie");
+    movie.raw = QJsonObject{{QStringLiteral("state"), QJsonObject{
+        {QStringLiteral("flaggedWatched"), 1}}}};
+    bool movieWatched = false;
+    QVERIFY(StremioCodec::movieFlaggedWatched(movie, &movieWatched));
+    QVERIFY(movieWatched);
+}
+
+void tst_stremio_sync::seriesWatchedSenderPreservesRemoteBitsAndReadsBack() {
+    // A completed local episode subset must be merged into the current
+    // provider bitfield. The sender may not clear an unrelated remote bit or
+    // replace provider state with an inferred series-root watch.
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-series-watched"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    const QList<StremioEpisodeIdentity> videos{
+        {QStringLiteral("kitsu:alpha:s0:e1"), 0, 1},
+        {QStringLiteral("kitsu:alpha:s1:e1"), 1, 1},
+        {QStringLiteral("kitsu:alpha:s1:e2"), 1, 2}};
+    QJsonArray episodeProjection;
+    for (const StremioEpisodeIdentity &video : videos) {
+        episodeProjection.append(QJsonObject{{QStringLiteral("id"), video.videoId},
+                                             {QStringLiteral("season"), video.season},
+                                             {QStringLiteral("episode"), video.episode}});
+    }
+    QString remoteWatched;
+    QString error;
+    QVERIFY2(StremioCodec::encodeWatchedEpisodes(
+                 QSet<QString>{QStringLiteral("kitsu:alpha:s1:e2")},
+                 videos, &remoteWatched, &error), qPrintable(error));
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    QString operationId;
+    QVERIFY(sync.queueIntent(QStringLiteral("series_watched"), QJsonObject{
+        {QStringLiteral("id"), QStringLiteral("kitsu:alpha")},
+        {QStringLiteral("type"), QStringLiteral("series")},
+        {QStringLiteral("episodeIds"), QJsonArray{QStringLiteral("kitsu:alpha:s1:e1")}},
+        {QStringLiteral("episodes"), episodeProjection}}, &operationId));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastoreGet")));
+
+    const QJsonObject fresh{
+        {QStringLiteral("_id"), QStringLiteral("kitsu:alpha")},
+        {QStringLiteral("type"), QStringLiteral("series")},
+        {QStringLiteral("name"), QStringLiteral("Provider title")},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("custom"), QStringLiteral("keep")},
+            {QStringLiteral("watched"), remoteWatched}}}};
+    const auto replyResult = [&api](const QJsonObject &row) {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"), QJsonArray{row}}})
+            .toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+            + QByteArray::number(body.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    replyResult(fresh);
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/datastorePut")));
+    const int putStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/datastorePut"));
+    const int bodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), putStart) + 4;
+    const QJsonObject changed = QJsonDocument::fromJson(api.request().mid(bodyStart))
+        .object().value(QStringLiteral("changes")).toArray().first().toObject();
+    const QJsonObject state = changed.value(QStringLiteral("state")).toObject();
+    QCOMPARE(state.value(QStringLiteral("custom")).toString(), QStringLiteral("keep"));
+    QVERIFY(!state.value(QStringLiteral("watched")).toString().isEmpty());
+    QSet<QString> mergedWatched;
+    QVERIFY2(StremioCodec::decodeWatchedEpisodes(
+                 state.value(QStringLiteral("watched")).toString(), videos, &mergedWatched, &error),
+             qPrintable(error));
+    QCOMPARE(mergedWatched, QSet<QString>({QStringLiteral("kitsu:alpha:s1:e1"),
+                                           QStringLiteral("kitsu:alpha:s1:e2")}));
+
+    const QByteArray putOk = QByteArrayLiteral("{\"result\":true}");
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(putOk.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + putOk);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 2);
+    replyResult(changed);
+    QVERIFY(sync.acknowledgeLocalReceipt(operationId));
+    QTRY_COMPARE(sync.pendingCount(), 0);
+}
+
+void tst_stremio_sync::seriesReconcileQueuesOnlyResolvedExactEpisodes() {
+    // A Theatre root watch mark and an incomplete episode subset have no
+    // provider bitfield meaning. Reconciliation waits for the bridge's full
+    // ordered map, then emits only completed exact episode identities.
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    QList<StremioPendingIntent> sent;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    options.intentSender = [&sent](const StremioPendingIntent &intent, auto completion) {
+        sent.append(intent);
+        completion(true, false);
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QSignalSpy requested(&sync, &StremioSync::episodeMetadataRequested);
+    connect(&sync, &StremioSync::episodeMetadataRequested,
+            &sync, [&sync](const QString &requestId, const QString &seriesId) {
+        QVERIFY(sync.submitEpisodeMetadata(requestId, seriesId, QVariantList{
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s0:e1")},
+                        {QStringLiteral("season"), 0}, {QStringLiteral("episode"), 1}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e1")},
+                        {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 1}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e2")},
+                        {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 2}}}));
+    });
+
+    const QVariantList collection{QVariantMap{
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("id"), QStringLiteral("kitsu:alpha")},
+        {QStringLiteral("type"), QStringLiteral("series")}}};
+    const QVariantList progress{
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("video")},
+                    {QStringLiteral("id"), QStringLiteral("kitsu:alpha")},
+                    {QStringLiteral("progress"), 1.0}},
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("video")},
+                    {QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e1")},
+                    {QStringLiteral("progress"), 1.0}},
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("video")},
+                    {QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e2")},
+                    {QStringLiteral("progress"), 0.4}}};
+    QVERIFY(sync.reconcileTheatreState(
+        collection, progress, QHash<QString, int>{{QStringLiteral("kitsu:alpha"), 1}}, {}));
+    QCOMPARE(requested.count(), 0);
+    sync.setEpisodeMetadataBridgeReady(true);
+    QTRY_COMPARE(requested.count(), 1);
+    QTRY_VERIFY(std::any_of(sent.cbegin(), sent.cend(), [](const StremioPendingIntent &intent) {
+        return intent.kind == QLatin1String("series_watched");
+    }));
+    const auto intent = std::find_if(sent.cbegin(), sent.cend(), [](const StremioPendingIntent &candidate) {
+        return candidate.kind == QLatin1String("series_watched");
+    });
+    QCOMPARE(intent->desired.value(QStringLiteral("episodeIds")).toArray(),
+             QJsonArray{QStringLiteral("kitsu:alpha:s1:e1")});
+    QCOMPARE(intent->desired.value(QStringLiteral("episodes")).toArray().size(), 3);
+}
+
+void tst_stremio_sync::theatreProjectionKeepsOpaqueEpisodeIdentityAndConvertsMilliseconds() {
+    StremioLibraryItem series;
+    series.id = QStringLiteral("kitsu:alpha");
+    series.type = QStringLiteral("series");
+    series.libraryMember = true;
+    series.raw = QJsonObject{
+        {QStringLiteral("_id"), series.id},
+        {QStringLiteral("type"), series.type},
+        {QStringLiteral("name"), QStringLiteral("Alpha")},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("video_id"), QStringLiteral("kitsu:alpha:s0:e1")},
+            {QStringLiteral("timeOffset"), 120500},
+            {QStringLiteral("duration"), 300000},
+            {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+
+    const StremioTheatreItemProjection projected =
+        StremioCodec::projectTheatreItem(series);
+    QVERIFY2(projected.valid, qPrintable(projected.error));
+    QVERIFY(projected.hasCollection);
+    QVERIFY(projected.hasProgress);
+    QVERIFY(!projected.hasHistory);
+    QCOMPARE(projected.collection.value(QStringLiteral("world")).toString(), QStringLiteral("theatre"));
+    QCOMPARE(projected.collection.value(QStringLiteral("id")).toString(), QStringLiteral("kitsu:alpha"));
+    QCOMPARE(projected.collection.value(QStringLiteral("type")).toString(), QStringLiteral("series"));
+    QCOMPARE(projected.progress.value(QStringLiteral("id")).toString(), QStringLiteral("kitsu:alpha:s0:e1"));
+    QCOMPARE(projected.progress.value(QStringLiteral("kind")).toString(), QStringLiteral("video"));
+    QCOMPARE(projected.progress.value(QStringLiteral("duration")).toDouble(), 300.0);
+    QCOMPARE(projected.progress.value(QStringLiteral("resume")).toMap().value(
+                 QStringLiteral("position")).toDouble(), 120.5);
+    QCOMPARE(projected.progress.value(QStringLiteral("updatedAt")).toLongLong(), qint64(1735787045000));
+
+    StremioLibraryItem movie;
+    movie.id = QStringLiteral("tt100");
+    movie.type = QStringLiteral("movie");
+    movie.temporary = true;
+    movie.raw = QJsonObject{
+        {QStringLiteral("_id"), movie.id},
+        {QStringLiteral("type"), movie.type},
+        {QStringLiteral("name"), QStringLiteral("A Film")},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("video_id"), movie.id},
+            {QStringLiteral("timeOffset"), 1000},
+            {QStringLiteral("duration"), 10000},
+            {QStringLiteral("flaggedWatched"), 1},
+            {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+    const StremioTheatreItemProjection movieProjection =
+        StremioCodec::projectTheatreItem(movie);
+    QVERIFY2(movieProjection.valid, qPrintable(movieProjection.error));
+    QVERIFY(!movieProjection.hasCollection);
+    QVERIFY(movieProjection.hasProgress);
+    QVERIFY(movieProjection.hasHistory);
+    QCOMPARE(movieProjection.progress.value(QStringLiteral("id")).toString(), QStringLiteral("tt100"));
+    QCOMPARE(movieProjection.history.value(QStringLiteral("kind")).toString(), QStringLiteral("movie"));
+    QCOMPARE(movieProjection.history.value(QStringLiteral("id")).toString(), QStringLiteral("tt100"));
+    QCOMPARE(movieProjection.history.value(QStringLiteral("source")).toString(), QStringLiteral("stremio"));
+    QCOMPARE(movieProjection.history.value(QStringLiteral("displayId")).toString(), QStringLiteral("tt100"));
+    QCOMPARE(movieProjection.history.value(QStringLiteral("displayTitle")).toString(), QStringLiteral("A Film"));
+    QCOMPARE(movieProjection.history.value(QStringLiteral("latestKnownAt")).toLongLong(), qint64(1735787045000));
+
+    series.raw.insert(QStringLiteral("state"), QJsonObject{
+        {QStringLiteral("video_id"), QStringLiteral("tt100")},
+        {QStringLiteral("timeOffset"), 1000},
+        {QStringLiteral("duration"), 10000}});
+    const StremioTheatreItemProjection malformed =
+        StremioCodec::projectTheatreItem(series);
+    QVERIFY(!malformed.valid);
+    QVERIFY(!malformed.hasCollection);
+    QVERIFY(!malformed.hasProgress);
+    QVERIFY(!malformed.hasHistory);
+}
+
+void tst_stremio_sync::episodeMetadataBridgeBindsOneShotRepliesToActiveProfile() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString profileAPath = QDir(temp.path()).filePath(QStringLiteral("a-stremio.json"));
+    const QString profileBPath = QDir(temp.path()).filePath(QStringLiteral("b-stremio.json"));
+    for (const auto &[profileId, path] : {
+             std::pair<QString, QString>{QStringLiteral("profile-a"), profileAPath},
+             std::pair<QString, QString>{QStringLiteral("profile-b"), profileBPath}}) {
+        StremioPersistentState state;
+        state.profileId = profileId;
+        state.bindingGeneration = 1;
+        state.accountId = QStringLiteral("fixture-account");
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, state);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    StremioSync sync;
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-a"), profileAPath, false));
+    sync.setEpisodeMetadataBridgeReady(true);
+    QSignalSpy requested(&sync, &StremioSync::episodeMetadataRequested);
+    bool completed = false;
+    QList<StremioEpisodeIdentity> resolved;
+    QVERIFY(sync.requestEpisodeMetadata(
+        QStringLiteral("kitsu:alpha"),
+        [&completed, &resolved](bool ok, QList<StremioEpisodeIdentity> episodes) {
+            completed = ok;
+            resolved = std::move(episodes);
+        }));
+    QTRY_COMPARE(requested.count(), 1);
+    const QString firstRequestId = requested.at(0).at(0).toString();
+    QCOMPARE(requested.at(0).at(1).toString(), QStringLiteral("kitsu:alpha"));
+
+    const QVariantList validEpisodes{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s0:e1")},
+                    {QStringLiteral("season"), 0},
+                    {QStringLiteral("episode"), 1}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e1")},
+                    {QStringLiteral("season"), 1},
+                    {QStringLiteral("episode"), 1}}};
+    QVERIFY(!sync.submitEpisodeMetadata(
+        firstRequestId,
+        QStringLiteral("kitsu:other"),
+        validEpisodes));
+    QVERIFY(!completed);
+    QVERIFY(sync.submitEpisodeMetadata(
+        firstRequestId,
+        QStringLiteral("kitsu:alpha"),
+        validEpisodes));
+    QVERIFY(completed);
+    QCOMPARE(resolved.size(), 2);
+    QCOMPARE(resolved.first().videoId, QStringLiteral("kitsu:alpha:s0:e1"));
+    QVERIFY(!sync.submitEpisodeMetadata(
+        firstRequestId,
+        QStringLiteral("kitsu:alpha"),
+        validEpisodes));
+
+    bool ambiguousCompletion = false;
+    QVERIFY(sync.requestEpisodeMetadata(
+        QStringLiteral("kitsu:alpha"),
+        [&ambiguousCompletion](bool, QList<StremioEpisodeIdentity>) {
+            ambiguousCompletion = true;
+        }));
+    QTRY_COMPARE(requested.count(), 2);
+    const QString ambiguousRequestId = requested.at(1).at(0).toString();
+    const QVariantList ambiguousEpisodes{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e1a")},
+                    {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 1}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e1b")},
+                    {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 1}}};
+    QVERIFY(!sync.submitEpisodeMetadata(
+        ambiguousRequestId, QStringLiteral("kitsu:alpha"), ambiguousEpisodes));
+    QVERIFY(!ambiguousCompletion);
+
+    bool staleCompletion = false;
+    QVERIFY(sync.requestEpisodeMetadata(
+        QStringLiteral("kitsu:alpha"),
+        [&staleCompletion](bool, QList<StremioEpisodeIdentity>) {
+            staleCompletion = true;
+        }));
+    QTRY_COMPARE(requested.count(), 3);
+    const QString staleRequestId = requested.at(2).at(0).toString();
+    QVERIFY(sync.activateProfile(QStringLiteral("profile-b"), profileBPath, false));
+    QVERIFY(!sync.submitEpisodeMetadata(
+        staleRequestId,
+        QStringLiteral("kitsu:alpha"),
+        validEpisodes));
+    QVERIFY(staleCompletion);
 }
 
 QTEST_MAIN(tst_stremio_sync)

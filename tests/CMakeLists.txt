@@ -1676,6 +1676,9 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
@@ -1767,6 +1770,9 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
@@ -2739,13 +2745,24 @@ add_executable(tst_core_sync_adapters
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c")
 target_include_directories(tst_core_sync_adapters PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_compile_definitions(tst_core_sync_adapters PRIVATE
     COLOSSEUM_PROGRESS_STORE_TESTING=1)
 target_link_libraries(tst_core_sync_adapters PRIVATE
     Qt6::Core
+    Qt6::Gui
+    Qt6::Network
     Qt6::Test)
 set_target_properties(tst_core_sync_adapters PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -2869,6 +2886,7 @@ add_executable(tst_stremio_sync
     auto/stremio_sync/tst_stremio_sync.cpp
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"

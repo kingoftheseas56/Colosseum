@@ -9,12 +9,15 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfileStoreRuntime.h"
+#include "stremio/StremioState.h"
+#include "stremio/StremioCodec.h"
 #include "stremio/StremioSync.h"
 #include "ProgressStore.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -513,6 +516,14 @@ private slots:
     void createNewAccountAcceptsCertifiedLwwSupersession();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
     void stremioMarkerChangeUpdatesActiveRuntimeState();
+    void stremioLocalOnlyOwnerReceiptJournalsRelayWithoutNeonEngine();
+    void stremioLateOwnerReceiptCannotCrossProfileIncarnation();
+    void stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact();
+    void stremioRuntimeAppliesInboundSeriesWatchedThroughMetadataBridge();
+    void stremioSeriesWithoutBoundAccountCompletesFailClosed();
+    void stremioPendingSeriesWatchSurvivesMissingMapAndRestart();
+    void stremioQmlMetadataFixtureProjectsIdentityOnlyToNative();
+    void stremioInactiveAccountEngineRetainsProviderRedo();
 };
 
 void tst_account_attachment_runtime::
@@ -539,6 +550,507 @@ stremioMarkerChangeUpdatesActiveRuntimeState() {
     QVERIFY(preferences);
     QVERIFY(preferences->setMainSyncProvider(QStringLiteral("stremio")));
     QTRY_COMPARE(sync->status(), QStringLiteral("reconnectRequired"));
+}
+
+void tst_account_attachment_runtime::
+stremioLocalOnlyOwnerReceiptJournalsRelayWithoutNeonEngine() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-local-owner-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    ProfilePreferencesStore *preferences = runtime.profileStores()->preferencesStore();
+    CollectionStore *collection = runtime.profileStores()->collectionStore();
+    ProgressStore *progress = runtime.profileStores()->progressStore();
+    QVERIFY(preferences && collection && progress);
+    QVERIFY(preferences->setMainSyncProvider(QStringLiteral("stremio")));
+    QVERIFY(collection->add(QStringLiteral("theatre"), QVariantMap{
+        {QStringLiteral("id"), QStringLiteral("tt-runtime-relay")},
+        {QStringLiteral("type"), QStringLiteral("movie")}}));
+    progress->recordSilent(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("tt-runtime-relay")},
+        {QStringLiteral("duration"), 300.0},
+        {QStringLiteral("resume"), QVariantMap{{QStringLiteral("position"), 12.5}}}});
+    progress->setWatchedMark(QStringLiteral("tt-runtime-relay"), true);
+
+    // The local-only profile has no active Neon engine. Its canonical owner
+    // still crosses the asynchronous ProgressDiskWriter receipt and creates
+    // private provider work; it is not discarded because account relay is off.
+    QTRY_COMPARE(sync->pendingCount(), 3);
+}
+
+void tst_account_attachment_runtime::
+stremioLateOwnerReceiptCannotCrossProfileIncarnation() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-incarnation-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    QVERIFY(runtime.profileStores()->preferencesStore()->setMainSyncProvider(QStringLiteral("stremio")));
+    QVERIFY(runtime.profileStores()->collectionStore()->add(QStringLiteral("theatre"), QVariantMap{
+        {QStringLiteral("id"), QStringLiteral("tt-old-incarnation")},
+        {QStringLiteral("type"), QStringLiteral("movie")}}));
+    runtime.profileStores()->progressStore()->recordSilent(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("tt-old-incarnation")},
+        {QStringLiteral("duration"), 60.0},
+        {QStringLiteral("resume"), QVariantMap{{QStringLiteral("position"), 3.0}}}});
+
+    // Do not wait for A's queued writer receipt. A new profile incarnation
+    // must fence that late callback before it can journal A's state into B.
+    const QString accountId = QStringLiteral("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+    const auto accountPaths = ProfilePaths::account(accountId);
+    QVERIFY(accountPaths.has_value());
+    QVERIFY(QDir().mkpath(accountPaths->profileRoot()));
+    QVERIFY2(runtime.profileStores()->activateAccountProfile(accountId, &error), qPrintable(error));
+    QTRY_COMPARE(sync->activeProfileId(), accountId);
+    QTest::qWait(100);
+    QCOMPARE(sync->pendingCount(), 0);
+}
+
+void tst_account_attachment_runtime::
+stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-redo-runtime-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    QString profileId;
+    QString statePath;
+    {
+        AccountRuntime interrupted;
+        QQmlApplicationEngine engine;
+        interrupted.prepareForQml(&engine);
+        QString error;
+        QVERIFY2(interrupted.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+        const ProfilePaths profile = interrupted.profileStores()->activeProfile();
+        profileId = profile.profileId();
+        statePath = profile.stremioSyncStatePath();
+
+        StremioPersistentState state;
+        state.profileId = profileId;
+        state.bindingGeneration = 1;
+        const QJsonObject projection{
+            {QStringLiteral("kind"), QStringLiteral("item")},
+            {QStringLiteral("hasCollection"), true},
+            {QStringLiteral("hasProgress"), false},
+            {QStringLiteral("hasHistory"), false},
+            {QStringLiteral("collection"), QJsonObject{
+                {QStringLiteral("world"), QStringLiteral("theatre")},
+                {QStringLiteral("id"), QStringLiteral("tt-runtime-redo")},
+                {QStringLiteral("type"), QStringLiteral("movie")},
+                {QStringLiteral("title"), QStringLiteral("Restart relay")}}},
+            {QStringLiteral("progress"), QJsonObject{}},
+            {QStringLiteral("history"), QJsonObject{}}};
+        const QJsonObject redo{
+            {QStringLiteral("operationId"), QStringLiteral("redo-runtime-op")},
+            {QStringLiteral("profileId"), profileId},
+            {QStringLiteral("accountId"), QString()},
+            {QStringLiteral("bindingGeneration"), QStringLiteral("1")},
+            {QStringLiteral("id"), QStringLiteral("tt-runtime-redo")},
+            {QStringLiteral("type"), QStringLiteral("movie")},
+            {QStringLiteral("libraryMember"), true},
+            {QStringLiteral("removed"), false},
+            {QStringLiteral("projection"), projection}};
+        state.importRedoReceipts = QJsonArray{redo};
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(statePath, state);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    AccountRuntime restarted;
+    QQmlApplicationEngine engine;
+    restarted.prepareForQml(&engine);
+    QString error;
+    QVERIFY2(restarted.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    QCOMPARE(sync->activeProfileId(), profileId);
+    QCOMPARE(sync->pendingProviderImports().size(), 1);
+    QTRY_VERIFY(restarted.profileStores()->collectionStore()->has(
+        QStringLiteral("theatre"),
+        QStringLiteral("tt-runtime-redo")));
+    QVERIFY(restarted.profileStores()->activityStore()->historyProjectionFacts().isEmpty());
+
+    StremioState inspector;
+    QTRY_VERIFY([&] {
+        const auto settled = inspector.load(statePath);
+        return settled.has_value() && settled->importRedoReceipts.isEmpty();
+    }());
+}
+
+void tst_account_attachment_runtime::
+stremioRuntimeAppliesInboundSeriesWatchedThroughMetadataBridge() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-series-runtime-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    QString profileId;
+    QString statePath;
+    {
+        AccountRuntime seeded;
+        QQmlApplicationEngine engine;
+        seeded.prepareForQml(&engine);
+        QString error;
+        QVERIFY2(seeded.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+        const ProfilePaths profile = seeded.profileStores()->activeProfile();
+        profileId = profile.profileId();
+        statePath = profile.stremioSyncStatePath();
+        StremioPersistentState state;
+        state.profileId = profileId;
+        state.bindingGeneration = 1;
+        state.accountId = QStringLiteral("fixture-account");
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(statePath, state);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    QVERIFY(runtime.profileStores()->preferencesStore()->setMainSyncProvider(QStringLiteral("stremio")));
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    sync->setEpisodeMetadataBridgeReady(true);
+    connect(sync, &StremioSync::episodeMetadataRequested,
+            sync, [sync](const QString &requestId, const QString &seriesId) {
+                QVERIFY(sync->submitEpisodeMetadata(requestId, seriesId, QVariantList{
+                    QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:runtime:s1:e1")},
+                                {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 1}},
+                    QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:runtime:s1:e2")},
+                                {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 2}}}));
+            });
+    const QList<StremioEpisodeIdentity> videos{
+        {QStringLiteral("kitsu:runtime:s1:e1"), 1, 1},
+        {QStringLiteral("kitsu:runtime:s1:e2"), 1, 2}};
+    QString encoded;
+    QString encodeError;
+    QVERIFY2(StremioCodec::encodeWatchedEpisodes(
+                 QSet<QString>{QStringLiteral("kitsu:runtime:s1:e2")}, videos, &encoded, &encodeError),
+             qPrintable(encodeError));
+    StremioLibraryItem series;
+    series.id = QStringLiteral("kitsu:runtime");
+    series.type = QStringLiteral("series");
+    series.libraryMember = true;
+    series.raw = QJsonObject{{QStringLiteral("_id"), series.id},
+                             {QStringLiteral("type"), series.type},
+                             {QStringLiteral("name"), QStringLiteral("Runtime series")},
+                             {QStringLiteral("state"), QJsonObject{{QStringLiteral("watched"), encoded}}}};
+    bool completed = false;
+    QString importError;
+    QVERIFY(runtime.applyStremioLibraryItem(
+        series, [&completed, &importError](bool committed, const QString &errorText) {
+            completed = committed;
+            importError = errorText;
+        }));
+    QTRY_VERIFY2(completed, qPrintable(importError));
+    ProgressStore *progress = runtime.profileStores()->progressStore();
+    QVERIFY(progress);
+    QTRY_COMPARE(progress->get(QStringLiteral("video"), QStringLiteral("kitsu:runtime:s1:e2"))
+                     .value(QStringLiteral("progress")).toDouble(), 1.0);
+    QVERIFY(progress->get(QStringLiteral("video"), QStringLiteral("kitsu:runtime:s1:e1")).isEmpty());
+    QVERIFY(runtime.profileStores()->activityStore()->historyProjectionFacts().isEmpty());
+}
+
+void tst_account_attachment_runtime::
+stremioSeriesWithoutBoundAccountCompletesFailClosed() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-series-no-account-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    QVERIFY(runtime.profileStores()->preferencesStore()->setMainSyncProvider(QStringLiteral("stremio")));
+    StremioLibraryItem series;
+    series.id = QStringLiteral("kitsu:no-account");
+    series.type = QStringLiteral("series");
+    series.libraryMember = true;
+    series.raw = QJsonObject{{QStringLiteral("_id"), series.id},
+                             {QStringLiteral("type"), series.type},
+                             {QStringLiteral("state"), QJsonObject{
+                                 {QStringLiteral("watched"), QStringLiteral("not-a-real-field")}}}};
+    bool called = false;
+    bool committed = true;
+    QVERIFY(runtime.applyStremioLibraryItem(
+        series, [&called, &committed](bool ok, const QString &) {
+            called = true;
+            committed = ok;
+        }));
+    QTRY_VERIFY(called);
+    QVERIFY(!committed);
+}
+
+void tst_account_attachment_runtime::
+stremioPendingSeriesWatchSurvivesMissingMapAndRestart() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-series-restart-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    const QList<StremioEpisodeIdentity> videos{
+        {QStringLiteral("kitsu:restart:s1:e1"), 1, 1},
+        {QStringLiteral("kitsu:restart:s1:e2"), 1, 2}};
+    QString encoded;
+    QString encodeError;
+    QVERIFY2(StremioCodec::encodeWatchedEpisodes(
+                 QSet<QString>{QStringLiteral("kitsu:restart:s1:e2")}, videos,
+                 &encoded, &encodeError), qPrintable(encodeError));
+    StremioLibraryItem series;
+    series.id = QStringLiteral("kitsu:restart");
+    series.type = QStringLiteral("series");
+    series.libraryMember = true;
+    series.raw = QJsonObject{{QStringLiteral("_id"), series.id},
+                             {QStringLiteral("type"), series.type},
+                             {QStringLiteral("name"), QStringLiteral("Restart series")},
+                             {QStringLiteral("state"), QJsonObject{{QStringLiteral("watched"), encoded}}}};
+    QString profileId;
+    QString statePath;
+    {
+        AccountRuntime seeded;
+        QQmlApplicationEngine engine;
+        seeded.prepareForQml(&engine);
+        QString error;
+        QVERIFY2(seeded.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+        const ProfilePaths profile = seeded.profileStores()->activeProfile();
+        profileId = profile.profileId();
+        statePath = profile.stremioSyncStatePath();
+        StremioPersistentState state;
+        state.profileId = profileId;
+        state.bindingGeneration = 1;
+        state.accountId = QStringLiteral("fixture-account");
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(statePath, state);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    {
+        AccountRuntime pending;
+        QQmlApplicationEngine engine;
+        pending.prepareForQml(&engine);
+        QString error;
+        QVERIFY2(pending.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+        QVERIFY(pending.profileStores()->preferencesStore()->setMainSyncProvider(QStringLiteral("stremio")));
+        StremioSync *sync = qobject_cast<StremioSync *>(
+            engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+        QVERIFY(sync);
+        sync->setEpisodeMetadataBridgeReady(true);
+        QSignalSpy requested(sync, &StremioSync::episodeMetadataRequested);
+        // The metadata request is deliberately unanswered: no guessed map and
+        // no partial completion may reach Progress.
+        QVERIFY(pending.applyStremioLibraryItem(series, {}));
+        QTRY_COMPARE(requested.count(), 1);
+        StremioLibraryItem unrelated;
+        unrelated.id = QStringLiteral("tt-unrelated-continuues");
+        unrelated.type = QStringLiteral("movie");
+        unrelated.libraryMember = true;
+        unrelated.raw = QJsonObject{{QStringLiteral("_id"), unrelated.id},
+                                    {QStringLiteral("type"), unrelated.type},
+                                    {QStringLiteral("name"), QStringLiteral("Unrelated")},
+                                    {QStringLiteral("state"), QJsonObject{}}};
+        bool unrelatedCommitted = false;
+        QVERIFY(pending.applyStremioLibraryItem(
+            unrelated, [&unrelatedCommitted](bool committed, const QString &) {
+                unrelatedCommitted = committed;
+            }));
+        QTRY_VERIFY(unrelatedCommitted);
+        QVERIFY(pending.profileStores()->collectionStore()->has(
+            QStringLiteral("theatre"), unrelated.id));
+        StremioState inspector;
+        QTRY_VERIFY([&] {
+            const auto state = inspector.load(statePath);
+            return state.has_value() && std::any_of(
+                state->importRedoReceipts.cbegin(), state->importRedoReceipts.cend(),
+                [](const QJsonValue &redo) {
+                    return redo.toObject().value(QStringLiteral("projection")).toObject()
+                        .value(QStringLiteral("kind")).toString() == QLatin1String("episode_pending");
+                });
+        }());
+        const auto persisted = inspector.load(statePath);
+        QVERIFY(persisted.has_value());
+        const QByteArray privateState = QJsonDocument(StremioState::encode(*persisted))
+            .toJson(QJsonDocument::Compact);
+        QVERIFY(!privateState.contains("authKey"));
+        QVERIFY(!privateState.contains("addon"));
+        QVERIFY(!privateState.contains("requestId"));
+    }
+
+    AccountRuntime restarted;
+    QQmlApplicationEngine engine;
+    restarted.prepareForQml(&engine);
+    QString error;
+    QVERIFY2(restarted.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    connect(sync, &StremioSync::episodeMetadataRequested,
+            sync, [sync](const QString &requestId, const QString &seriesId) {
+                QVERIFY(sync->submitEpisodeMetadata(requestId, seriesId, QVariantList{
+                    QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:restart:s1:e1")},
+                                {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 1}},
+                    QVariantMap{{QStringLiteral("id"), QStringLiteral("kitsu:restart:s1:e2")},
+                                {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 2}}}));
+            });
+    sync->setEpisodeMetadataBridgeReady(true);
+    QTRY_COMPARE(restarted.profileStores()->progressStore()->get(
+        QStringLiteral("video"), QStringLiteral("kitsu:restart:s1:e2"))
+                     .value(QStringLiteral("progress")).toDouble(), 1.0);
+    StremioState inspector;
+    QTRY_VERIFY([&] {
+        const auto settled = inspector.load(statePath);
+        return settled.has_value() && std::none_of(
+            settled->importRedoReceipts.cbegin(), settled->importRedoReceipts.cend(),
+            [](const QJsonValue &redo) {
+                return redo.toObject().value(QStringLiteral("projection")).toObject()
+                    .value(QStringLiteral("kind")).toString() == QLatin1String("episode_pending");
+            });
+    }());
+}
+
+void tst_account_attachment_runtime::
+stremioQmlMetadataFixtureProjectsIdentityOnlyToNative() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString statePath = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState state;
+    state.profileId = QStringLiteral("qml-profile");
+    state.bindingGeneration = 1;
+    state.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(statePath, state);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    StremioSync sync;
+    QVERIFY(sync.activateProfile(QStringLiteral("qml-profile"), statePath, false));
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("stremioSyncState"), &sync);
+    const QString fixture = QFINDTESTDATA("stremio_episode_metadata_fixture.qml");
+    QVERIFY2(!fixture.isEmpty(), "The QML metadata fixture is available to the runtime test.");
+    engine.load(QUrl::fromLocalFile(fixture));
+    QVERIFY(!engine.rootObjects().isEmpty());
+
+    bool completed = false;
+    QList<StremioEpisodeIdentity> resolved;
+    QVERIFY(sync.requestEpisodeMetadata(
+        QStringLiteral("kitsu:qml-fixture"),
+        [&completed, &resolved](bool ok, QList<StremioEpisodeIdentity> videos) {
+            completed = ok;
+            resolved = std::move(videos);
+        }));
+    QTRY_VERIFY(completed);
+    QCOMPARE(resolved.size(), 2);
+    QCOMPARE(resolved.at(0).videoId, QStringLiteral("kitsu:qml-fixture:s0:e1"));
+    QCOMPARE(resolved.at(1).season, 1);
+    QCOMPARE(resolved.at(1).episode, 1);
+}
+
+void tst_account_attachment_runtime::
+stremioInactiveAccountEngineRetainsProviderRedo() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-inactive-account-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+    const QString accountId = QStringLiteral("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+    const auto expectedProfile = ProfilePaths::account(accountId);
+    QVERIFY(expectedProfile.has_value());
+    QVERIFY(QDir().mkpath(expectedProfile->profileRoot()));
+
+    const QJsonObject projection{
+        {QStringLiteral("kind"), QStringLiteral("item")},
+        {QStringLiteral("hasCollection"), true},
+        {QStringLiteral("hasProgress"), false},
+        {QStringLiteral("hasHistory"), false},
+        {QStringLiteral("collection"), QJsonObject{
+            {QStringLiteral("world"), QStringLiteral("theatre")},
+            {QStringLiteral("id"), QStringLiteral("tt-account-engine-held")},
+            {QStringLiteral("type"), QStringLiteral("movie")},
+            {QStringLiteral("title"), QStringLiteral("Held for Neon")}}},
+        {QStringLiteral("progress"), QJsonObject{}},
+        {QStringLiteral("history"), QJsonObject{}}};
+    StremioPersistentState state;
+    state.profileId = accountId;
+    state.bindingGeneration = 1;
+    state.importRedoReceipts = QJsonArray{QJsonObject{
+        {QStringLiteral("operationId"), QStringLiteral("redo-inactive-account")},
+        {QStringLiteral("profileId"), accountId},
+        {QStringLiteral("accountId"), QString()},
+        {QStringLiteral("bindingGeneration"), QStringLiteral("1")},
+        {QStringLiteral("id"), QStringLiteral("tt-account-engine-held")},
+        {QStringLiteral("type"), QStringLiteral("movie")},
+        {QStringLiteral("libraryMember"), true},
+        {QStringLiteral("removed"), false},
+        {QStringLiteral("projection"), projection}}};
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(expectedProfile->stremioSyncStatePath(), state);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateAccountProfile(accountId, &error), qPrintable(error));
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    // The canonical owner may already be durable, but without an active Neon
+    // engine the provider redo cannot be settled. This differs from a
+    // local-only profile, where no Neon relay is owed.
+    QTRY_VERIFY(runtime.profileStores()->collectionStore()->has(
+        QStringLiteral("theatre"),
+        QStringLiteral("tt-account-engine-held")));
+    QCOMPARE(sync->pendingProviderImports().size(), 1);
 }
 
 void tst_account_attachment_runtime::

@@ -226,6 +226,7 @@ func validateFullHistory(
 	}
 	allowed := map[string]struct{}{
 		"kind": {}, "id": {}, "firstActivityAt": {}, "lastActivityAt": {}, "completedAt": {},
+		"source": {}, "displayId": {}, "displayTitle": {}, "latestKnownAt": {},
 	}
 	for field := range object {
 		if _, ok := allowed[field]; !ok {
@@ -246,6 +247,31 @@ func validateFullHistory(
 		if completedErr != nil || completed < first || completed > last {
 			return fmt.Errorf("payload_invalid")
 		}
+	}
+	hasStremioField := false
+	for _, field := range []string{"source", "displayId", "displayTitle", "latestKnownAt"} {
+		if _, present := object[field]; present {
+			hasStremioField = true
+			break
+		}
+	}
+	if !hasStremioField {
+		return nil
+	}
+
+	source, sourceOK := object["source"].(string)
+	displayID, displayIDOK := object["displayId"].(string)
+	displayTitle, displayTitleOK := object["displayTitle"].(string)
+	if !sourceOK || source != "stremio" ||
+		!displayIDOK || displayID == "" || displayID != strings.TrimSpace(displayID) ||
+		utf8.RuneCountInString(displayID) > 512 || isSyncFilesystemPath(displayID) ||
+		!displayTitleOK || displayTitle == "" || displayTitle != strings.TrimSpace(displayTitle) ||
+		utf8.RuneCountInString(displayTitle) > 1024 || isSyncFilesystemPath(displayTitle) {
+		return fmt.Errorf("payload_invalid")
+	}
+	latestKnownAt, latestErr := syncIntegerField(object, "latestKnownAt", true)
+	if latestErr != nil || latestKnownAt < first || latestKnownAt > last {
+		return fmt.Errorf("payload_invalid")
 	}
 	return nil
 }
@@ -391,8 +417,18 @@ func validateSyncRecordShape(
 				return err
 			}
 			mark, ok := syncIntegerNumber(object["mark"])
-			if !ok || (mark != -1 && mark != 1) || len(object) != 2 {
+			if !ok || (mark != -1 && mark != 1) || (len(object) != 2 && len(object) != 3) {
 				return fmt.Errorf("payload_invalid")
+			}
+			if rawActionAt, present := object["actionAtMs"]; present {
+				actionToken, stringValue := rawActionAt.(string)
+				if !stringValue {
+					return fmt.Errorf("payload_invalid")
+				}
+				actionAt, valid := parseSyncIntegerToken(actionToken)
+				if !valid || actionAt <= 0 {
+					return fmt.Errorf("payload_invalid")
+				}
 			}
 		} else {
 			if err := requiredSyncIdentity(object, "seriesId", value); err != nil {

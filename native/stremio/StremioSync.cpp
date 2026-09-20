@@ -10,6 +10,9 @@
 #include <QTcpSocket>
 #include <QUuid>
 
+#include <cmath>
+#include <limits>
+#include <memory>
 #include <utility>
 
 namespace {
@@ -17,6 +20,72 @@ constexpr int kMaximumRetries = 5;
 constexpr int kAuthTimeoutMs = 5 * 60 * 1000;
 constexpr qsizetype kMaximumCallbackBytes = 16 * 1024;
 constexpr qsizetype kMaximumIdentityResponseBytes = 64 * 1024;
+constexpr qsizetype kMaximumDatastoreResponseBytes = 1024 * 1024;
+constexpr int kMaximumLibraryRows = 256;
+constexpr qsizetype kMaximumProviderRedoProjectionBytes = 16 * 1024;
+constexpr qsizetype kMaximumWatchedFieldBytes = 16 * 1024;
+constexpr int kMaximumEpisodeMetadataRows = 512;
+
+bool decodeSeriesWatchedDesired(
+    const QJsonObject &desired,
+    QList<StremioEpisodeIdentity> *videos,
+    QSet<QString> *localWatched) {
+    if (!videos || !localWatched
+        || desired.value(QStringLiteral("type")).toString() != QLatin1String("series")) {
+        return false;
+    }
+    const QString seriesId = desired.value(QStringLiteral("id")).toString().trimmed();
+    const QJsonArray source = desired.value(QStringLiteral("episodes")).toArray();
+    const QJsonArray sourceWatched = desired.value(QStringLiteral("episodeIds")).toArray();
+    if (seriesId.isEmpty() || seriesId.size() > 512 || source.isEmpty()
+        || source.size() > kMaximumEpisodeMetadataRows || sourceWatched.isEmpty()
+        || sourceWatched.size() > source.size()) {
+        return false;
+    }
+    QList<StremioEpisodeIdentity> parsedVideos;
+    QSet<QString> knownIds;
+    QSet<QString> knownCoordinates;
+    parsedVideos.reserve(source.size());
+    for (const QJsonValue &value : source) {
+        if (!value.isObject())
+            return false;
+        const QJsonObject episode = value.toObject();
+        const QJsonValue season = episode.value(QStringLiteral("season"));
+        const QJsonValue number = episode.value(QStringLiteral("episode"));
+        const QString id = episode.value(QStringLiteral("id")).toString();
+        if (episode.size() != 3 || id.isEmpty() || id != id.trimmed() || id.size() > 512
+            || id.contains(QChar::Null) || id.contains(QChar::ReplacementCharacter)
+            || !season.isDouble() || !number.isDouble()
+            || !std::isfinite(season.toDouble()) || !std::isfinite(number.toDouble())
+            || std::floor(season.toDouble()) != season.toDouble()
+            || std::floor(number.toDouble()) != number.toDouble()
+            || season.toDouble() < 0 || number.toDouble() < 0
+            || season.toDouble() > 10000 || number.toDouble() > 100000) {
+            return false;
+        }
+        const StremioEpisodeIdentity identity{
+            id, static_cast<int>(season.toDouble()), static_cast<int>(number.toDouble())};
+        const QString coordinate = QString::number(identity.season)
+            + QLatin1Char(':') + QString::number(identity.episode);
+        if (knownIds.contains(id) || knownCoordinates.contains(coordinate)
+            || !StremioCodec::episodeBelongsToSeries(seriesId, identity))
+            return false;
+        knownIds.insert(id);
+        knownCoordinates.insert(coordinate);
+        parsedVideos.append(identity);
+    }
+    QSet<QString> parsedWatched;
+    for (const QJsonValue &value : sourceWatched) {
+        if (!value.isString() || !knownIds.contains(value.toString())
+            || parsedWatched.contains(value.toString())) {
+            return false;
+        }
+        parsedWatched.insert(value.toString());
+    }
+    *videos = std::move(parsedVideos);
+    *localWatched = std::move(parsedWatched);
+    return true;
+}
 
 QByteArray successPage() {
     return QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 92\r\nConnection: close\r\n\r\n<!doctype html><title>Colosseum</title><p>Sign-in complete. You can return to Colosseum.</p>");
@@ -25,7 +94,39 @@ QByteArray successPage() {
 QByteArray failurePage() {
     return QByteArrayLiteral("HTTP/1.1 400 Bad Request\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 89\r\nConnection: close\r\n\r\n<!doctype html><title>Colosseum</title><p>Sign-in could not be completed. Return to Colosseum.</p>");
 }
+
+std::optional<StremioProviderImportRedo> providerImportRedoFromJson(
+    const QJsonValue &value) {
+    if (!value.isObject())
+        return std::nullopt;
+    const QJsonObject object = value.toObject();
+    bool generationOk = false;
+    const quint64 generation = object.value(QStringLiteral("bindingGeneration"))
+        .toString().toULongLong(&generationOk);
+    const QJsonValue projection = object.value(QStringLiteral("projection"));
+    if (!generationOk || !projection.isObject())
+        return std::nullopt;
+    StremioProviderImportRedo redo;
+    redo.operationId = object.value(QStringLiteral("operationId")).toString();
+    redo.profileId = object.value(QStringLiteral("profileId")).toString();
+    redo.accountId = object.value(QStringLiteral("accountId")).toString();
+    redo.bindingGeneration = generation;
+    redo.id = object.value(QStringLiteral("id")).toString();
+    redo.type = object.value(QStringLiteral("type")).toString();
+    redo.libraryMember = object.value(QStringLiteral("libraryMember")).toBool();
+    redo.removed = object.value(QStringLiteral("removed")).toBool();
+    redo.projection = projection.toObject();
+    return redo;
 }
+}
+
+struct StremioSync::LibraryPull {
+    ProfileBinding binding;
+    QList<QStringList> batches;
+    qsizetype nextBatch = 0;
+    QList<StremioLibraryItem> items;
+    std::function<void(bool, QList<StremioLibraryItem>)> completion;
+};
 
 StremioSync::StremioSync(const StremioSyncOptions &options, QObject *parent)
     : QObject(parent),
@@ -115,6 +216,13 @@ bool StremioSync::activateProfile(
 
 void StremioSync::deactivateProfile() {
     cancelAuthentication();
+    cancelEpisodeMetadataRequests();
+    if (m_datastoreReply) {
+        m_datastoreReply->abort();
+        m_datastoreReply = nullptr;
+    }
+    m_datastoreResponse.clear();
+    m_datastoreResponseTooLarge = false;
     m_retryTimer.stop();
     ++m_bindingGeneration;
     m_profileId.clear();
@@ -241,16 +349,144 @@ void StremioSync::setCredentialCallbacks(
     m_options.loadCredential = std::move(load);
 }
 
+bool StremioSync::requestEpisodeMetadata(
+    const QString &seriesId,
+    EpisodeMetadataCompletion completion) {
+    const QString normalizedSeriesId = seriesId.trimmed();
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    if (!bindingCurrent(binding) || normalizedSeriesId.isEmpty()
+        || normalizedSeriesId.size() > 512 || m_state.accountId.isEmpty()) {
+        if (completion)
+            completion(false, {});
+        return false;
+    }
+    const QString requestId = QUuid::createUuid().toString(QUuid::WithoutBraces).toLower();
+    m_episodeMetadataRequests.insert(
+        requestId,
+        EpisodeMetadataRequest{
+            binding, m_state.accountId, normalizedSeriesId, std::move(completion), false});
+    QTimer::singleShot(10 * 1000, this, [this, requestId, binding] {
+        auto request = m_episodeMetadataRequests.find(requestId);
+        if (request == m_episodeMetadataRequests.end()
+            || request->binding.profileId != binding.profileId
+            || request->binding.generation != binding.generation) {
+            return;
+        }
+        EpisodeMetadataCompletion completion = std::move(request->completion);
+        m_episodeMetadataRequests.erase(request);
+        if (completion)
+            completion(false, {});
+    });
+    dispatchEpisodeMetadataRequest(requestId);
+    return true;
+}
+
+void StremioSync::setEpisodeMetadataBridgeReady(bool ready) {
+    m_episodeMetadataBridgeReady = ready;
+    if (!ready)
+        return;
+    const QStringList requestIds = m_episodeMetadataRequests.keys();
+    for (const QString &requestId : requestIds)
+        dispatchEpisodeMetadataRequest(requestId);
+}
+
+void StremioSync::dispatchEpisodeMetadataRequest(const QString &requestId) {
+    auto request = m_episodeMetadataRequests.find(requestId);
+    if (!m_episodeMetadataBridgeReady || request == m_episodeMetadataRequests.end()
+        || request->emitted || !bindingCurrent(request->binding)
+        || request->accountId != m_state.accountId) {
+        return;
+    }
+    request->emitted = true;
+    emit episodeMetadataRequested(requestId, request->expectedRootId);
+}
+
+bool StremioSync::submitEpisodeMetadata(
+    const QString &requestId,
+    const QString &metadataRootId,
+    const QVariantList &episodes) {
+    const auto request = m_episodeMetadataRequests.constFind(requestId);
+    if (request == m_episodeMetadataRequests.cend()
+        || !bindingCurrent(request->binding)
+        || request->accountId != m_state.accountId
+        || metadataRootId != request->expectedRootId
+        || episodes.isEmpty() || episodes.size() > 512) {
+        return false;
+    }
+    QList<StremioEpisodeIdentity> resolved;
+    resolved.reserve(episodes.size());
+    QSet<QString> ids;
+    QSet<QString> coordinates;
+    for (const QVariant &value : episodes) {
+        const QVariantMap episode = value.toMap();
+        const QString id = episode.value(QStringLiteral("id")).toString();
+        bool seasonOk = false;
+        bool numberOk = false;
+        const double seasonValue = episode.value(QStringLiteral("season")).toDouble(&seasonOk);
+        const double numberValue = episode.value(QStringLiteral("episode")).toDouble(&numberOk);
+        if (episode.size() != 3 || id.isEmpty() || id != id.trimmed() || id.size() > 512
+            || id.contains(QChar::Null) || id.contains(QChar::ReplacementCharacter)
+            || !seasonOk || !numberOk || !std::isfinite(seasonValue) || !std::isfinite(numberValue)
+            || std::floor(seasonValue) != seasonValue || std::floor(numberValue) != numberValue
+            || seasonValue < 0 || numberValue < 0 || seasonValue > 10000 || numberValue > 100000) {
+            return false;
+        }
+        const StremioEpisodeIdentity identity{
+            id, static_cast<int>(seasonValue), static_cast<int>(numberValue)};
+        const QString coordinate = QString::number(identity.season)
+            + QLatin1Char(':') + QString::number(identity.episode);
+        if (ids.contains(id) || coordinates.contains(coordinate)
+            || !StremioCodec::episodeBelongsToSeries(metadataRootId, identity)) {
+            return false;
+        }
+        ids.insert(id);
+        coordinates.insert(coordinate);
+        resolved.append(identity);
+    }
+    EpisodeMetadataCompletion completion = std::move(request->completion);
+    m_episodeMetadataRequests.remove(requestId);
+    if (completion)
+        completion(true, std::move(resolved));
+    return true;
+}
+
+void StremioSync::cancelEpisodeMetadataRequests() {
+    const QList<EpisodeMetadataRequest> requests = m_episodeMetadataRequests.values();
+    m_episodeMetadataRequests.clear();
+    for (const EpisodeMetadataRequest &request : requests) {
+        if (request.completion)
+            request.completion(false, {});
+    }
+}
+
 bool StremioSync::queueIntent(
     const QString &kind,
     const QJsonObject &desired,
     QString *operationId) {
+    return queueIntentInternal(kind, desired, operationId, false);
+}
+
+bool StremioSync::queueIntentInternal(
+    const QString &kind,
+    const QJsonObject &desired,
+    QString *operationId,
+    bool localReceiptDurable) {
     if (m_profileId.isEmpty() || kind.trimmed().isEmpty() || desired.isEmpty())
         return false;
+    if (kind == QLatin1String("series_watched")) {
+        QList<StremioEpisodeIdentity> videos;
+        QSet<QString> watched;
+        // Only a resolved complete metadata map may reach the durable private
+        // intent.  A partial local episode subset can set bits, never invent
+        // the order or clear an unknown remote episode.
+        if (!decodeSeriesWatchedDesired(desired, &videos, &watched))
+            return false;
+    }
     StremioPendingIntent intent;
     intent.operationId = QUuid::createUuid().toString(QUuid::WithoutBraces).toLower();
     intent.kind = kind.trimmed();
     intent.desired = desired;
+    intent.localReceiptDurable = localReceiptDurable;
     if (intent.kind == QStringLiteral("progress")) {
         const QString mediaId = desired.value(QStringLiteral("id")).toString();
         if (!mediaId.isEmpty()) {
@@ -284,6 +520,485 @@ bool StremioSync::queueIntent(
     });
     emit stateChanged();
     return true;
+}
+
+QString StremioSync::baselineKeyForIntent(
+    const QString &kind,
+    const QJsonObject &desired) {
+    const QString id = desired.value(QStringLiteral("id")).toString().trimmed();
+    if (id.isEmpty())
+        return {};
+    return kind + QLatin1Char(':') + id;
+}
+
+bool StremioSync::queueReconciledIntent(
+    const QString &kind,
+    const QJsonObject &desired) {
+    const QString baselineKey = baselineKeyForIntent(kind, desired);
+    if (baselineKey.isEmpty())
+        return false;
+    // A current canonical Theatre membership can only be a fresh explicit
+    // re-add after this profile chose local-only removal: passive Stremio
+    // imports are suppressed before they reach Collection. Retire exactly
+    // that private difference while journaling the new add; never treat a
+    // normal Collection tombstone as a provider delete.
+    const bool clearedSuppression = kind == QLatin1String("library_add")
+        && clearLocalOnlyMembershipSuppression(
+            desired.value(QStringLiteral("id")).toString(),
+            desired.value(QStringLiteral("type")).toString());
+    if (m_state.acknowledgedBaselines.value(baselineKey).toObject() == desired)
+    {
+        if (clearedSuppression)
+            persist();
+        return true;
+    }
+    for (const StremioPendingIntent &pending : std::as_const(m_state.pendingIntents)) {
+        if (pending.kind == kind && pending.desired == desired) {
+            if (clearedSuppression)
+                persist();
+            return true;
+        }
+    }
+    return queueIntentInternal(kind, desired, nullptr, true);
+}
+
+bool StremioSync::reconcileTheatreState(
+    const QVariantList &theatreCollection,
+    const QVariantList &progressEntries,
+    const QHash<QString, int> &watchedMarks,
+    const QHash<QString, qint64> &watchedActionAt) {
+    if (m_profileId.isEmpty())
+        return false;
+
+    QHash<QString, QString> typesById;
+    for (const QVariant &value : theatreCollection) {
+        const QVariantMap entry = value.toMap();
+        if (entry.value(QStringLiteral("world")).toString() != QLatin1String("theatre"))
+            continue;
+        const QString id = entry.value(QStringLiteral("id")).toString().trimmed();
+        const QString type = entry.value(QStringLiteral("type")).toString();
+        if (id.isEmpty() || id.size() > 512
+            || (type != QLatin1String("movie") && type != QLatin1String("series"))) {
+            continue;
+        }
+        typesById.insert(id, type);
+        if (!queueReconciledIntent(
+                QStringLiteral("library_add"),
+                QJsonObject{{QStringLiteral("id"), id},
+                            {QStringLiteral("type"), type}})) {
+            return false;
+        }
+    }
+
+    for (const QVariant &value : progressEntries) {
+        const QVariantMap entry = value.toMap();
+        if (entry.value(QStringLiteral("kind")).toString() != QLatin1String("video"))
+            continue;
+        const QString id = entry.value(QStringLiteral("id")).toString().trimmed();
+        if (!typesById.contains(id))
+            continue;
+        const QVariantMap resume = entry.value(QStringLiteral("resume")).toMap();
+        bool positionOk = false;
+        bool durationOk = false;
+        const double positionSeconds = resume.value(QStringLiteral("position")).toDouble(&positionOk);
+        const double durationSeconds = entry.value(QStringLiteral("duration")).toDouble(&durationOk);
+        const qint64 updatedAtMs = entry.value(QStringLiteral("updatedAt")).toLongLong();
+        if (!positionOk || !durationOk || !std::isfinite(positionSeconds) || !std::isfinite(durationSeconds)
+            || positionSeconds < 0.0 || durationSeconds <= 0.0 || updatedAtMs <= 0) {
+            continue;
+        }
+        if (!queueReconciledIntent(
+                QStringLiteral("progress"),
+                QJsonObject{{QStringLiteral("id"), id},
+                            {QStringLiteral("libraryId"), id},
+                            {QStringLiteral("positionSeconds"), positionSeconds},
+                            {QStringLiteral("durationSeconds"), durationSeconds},
+                            {QStringLiteral("updatedAt"), QString::number(updatedAtMs)}})) {
+            return false;
+        }
+    }
+
+    // A series-root mark has no Stremio bitfield meaning. Only exact
+    // completed episodes may be exported, and only after QML's existing
+    // Theatre reader has supplied a complete ordered map for this opaque
+    // series identity. A too-large local set is deliberately left pending for
+    // a later bounded reconciliation rather than truncating it into data loss.
+    QHash<QString, QSet<QString>> completedEpisodesBySeries;
+    QSet<QString> oversizedEpisodeSeries;
+    for (const QVariant &value : progressEntries) {
+        const QVariantMap entry = value.toMap();
+        if (entry.value(QStringLiteral("kind")).toString() != QLatin1String("video"))
+            continue;
+        bool progressOk = false;
+        const double progress = entry.value(QStringLiteral("progress")).toDouble(&progressOk);
+        const QString episodeId = entry.value(QStringLiteral("id")).toString().trimmed();
+        if (!progressOk || !std::isfinite(progress) || progress < 1.0 || episodeId.isEmpty())
+            continue;
+        for (auto type = typesById.constBegin(); type != typesById.constEnd(); ++type) {
+            if (type.value() != QLatin1String("series"))
+                continue;
+            const StremioEpisodeIdentity identity{episodeId, 0, 0};
+            if (!StremioCodec::episodeBelongsToSeries(type.key(), identity)
+                || oversizedEpisodeSeries.contains(type.key())) {
+                continue;
+            }
+            QSet<QString> &completed = completedEpisodesBySeries[type.key()];
+            if (!completed.contains(episodeId)
+                && completed.size() >= kMaximumEpisodeMetadataRows) {
+                completedEpisodesBySeries.remove(type.key());
+                oversizedEpisodeSeries.insert(type.key());
+                continue;
+            }
+            completed.insert(episodeId);
+        }
+    }
+    for (auto completed = completedEpisodesBySeries.constBegin();
+         completed != completedEpisodesBySeries.constEnd(); ++completed) {
+        if (completed.value().isEmpty() || oversizedEpisodeSeries.contains(completed.key()))
+            continue;
+        const QString seriesId = completed.key();
+        const QSet<QString> localEpisodeIds = completed.value();
+        requestEpisodeMetadata(seriesId,
+            [this, seriesId, localEpisodeIds](bool resolved,
+                                               QList<StremioEpisodeIdentity> videos) {
+                if (!resolved || videos.isEmpty()
+                    || videos.size() > kMaximumEpisodeMetadataRows) {
+                    return;
+                }
+                QSet<QString> knownIds;
+                QJsonArray orderedEpisodes;
+                for (const StremioEpisodeIdentity &video : videos) {
+                    if (knownIds.contains(video.videoId)
+                        || !StremioCodec::episodeBelongsToSeries(seriesId, video)) {
+                        return;
+                    }
+                    knownIds.insert(video.videoId);
+                    orderedEpisodes.append(QJsonObject{
+                        {QStringLiteral("id"), video.videoId},
+                        {QStringLiteral("season"), video.season},
+                        {QStringLiteral("episode"), video.episode}});
+                }
+                if (!knownIds.contains(localEpisodeIds))
+                    return;
+                QStringList sortedLocalIds = localEpisodeIds.values();
+                sortedLocalIds.sort();
+                QJsonArray localIds;
+                for (const QString &id : sortedLocalIds)
+                    localIds.append(id);
+                queueReconciledIntent(QStringLiteral("series_watched"), QJsonObject{
+                    {QStringLiteral("id"), seriesId},
+                    {QStringLiteral("type"), QStringLiteral("series")},
+                    {QStringLiteral("episodeIds"), localIds},
+                    {QStringLiteral("episodes"), orderedEpisodes}});
+            });
+    }
+
+    for (auto it = watchedMarks.constBegin(); it != watchedMarks.constEnd(); ++it) {
+        const QString id = it.key().trimmed();
+        // The Stremio movie watched bit is the only outbound watched shape
+        // available without an exact addon episode ordering. Series marks are
+        // intentionally left local rather than guessed into a bitfield.
+        if (typesById.value(id) != QLatin1String("movie")
+            || (it.value() != -1 && it.value() != 1)) {
+            continue;
+        }
+        const qint64 actionAtMs = watchedActionAt.value(id, 0);
+        if (actionAtMs <= 0)
+            continue;
+        if (!queueReconciledIntent(
+                QStringLiteral("watched"),
+                QJsonObject{{QStringLiteral("id"), id},
+                            {QStringLiteral("type"), QStringLiteral("movie")},
+                            {QStringLiteral("watched"), it.value() > 0},
+                            {QStringLiteral("updatedAt"), QString::number(actionAtMs)}})) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool StremioSync::pullLibraryItems(
+    std::function<void(bool, QList<StremioLibraryItem>)> completion) {
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    if (!bindingCurrent(binding) || !m_markerLinked || !m_hasUsableCredential
+        || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential
+        || m_datastoreReply) {
+        if (completion)
+            completion(false, {});
+        return false;
+    }
+    const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
+    const StremioDatastoreRequest meta = credential.has_value()
+        ? StremioCodec::datastoreMetaRequest(*credential)
+        : StremioDatastoreRequest{};
+    if (meta.method.isEmpty()) {
+        if (completion)
+            completion(false, {});
+        return false;
+    }
+    const auto pull = std::make_shared<LibraryPull>();
+    pull->binding = binding;
+    pull->completion = std::move(completion);
+    postDatastoreRequest(meta, binding,
+        [this, pull](bool succeeded, bool, QJsonValue result) {
+        if (!succeeded || !bindingCurrent(pull->binding)) {
+            finishLibraryPull(pull, false);
+            return;
+        }
+        pull->batches = StremioCodec::boundedLibraryItemBatches(
+            StremioCodec::decodeLibraryItemMeta(result, nullptr, kMaximumLibraryRows));
+        fetchNextLibraryBatch(pull);
+    });
+    return true;
+}
+
+void StremioSync::fetchNextLibraryBatch(const std::shared_ptr<LibraryPull> &pull) {
+    if (!bindingCurrent(pull->binding)) {
+        finishLibraryPull(pull, false);
+        return;
+    }
+    if (pull->nextBatch >= pull->batches.size()) {
+        finishLibraryPull(pull, true);
+        return;
+    }
+    if (!m_options.loadCredential) {
+        finishLibraryPull(pull, false);
+        return;
+    }
+    const auto credential = m_options.loadCredential(pull->binding.profileId, m_state.accountId);
+    if (!credential.has_value() || credential->isEmpty()) {
+        finishLibraryPull(pull, false);
+        return;
+    }
+    const QList<StremioDatastoreRequest> requests = StremioCodec::datastoreGetRequests(
+        *credential, pull->batches.at(pull->nextBatch), 64);
+    if (requests.size() != 1) {
+        finishLibraryPull(pull, false);
+        return;
+    }
+    ++pull->nextBatch;
+    postDatastoreRequest(requests.first(), pull->binding,
+        [this, pull](bool succeeded, bool, QJsonValue result) {
+        if (!succeeded || !bindingCurrent(pull->binding)) {
+            finishLibraryPull(pull, false);
+            return;
+        }
+        const int remaining = kMaximumLibraryRows - pull->items.size();
+        const StremioLibraryItemDecode decoded =
+            StremioCodec::decodeLibraryItems(result, qMax(remaining, 0));
+        for (const StremioLibraryItem &item : decoded.items)
+            pull->items.append(item);
+        fetchNextLibraryBatch(pull);
+    });
+}
+
+void StremioSync::finishLibraryPull(
+    const std::shared_ptr<LibraryPull> &pull,
+    bool succeeded) {
+    if (!pull || !pull->completion)
+        return;
+    const auto complete = [pull](bool committed) {
+        if (!pull->completion)
+            return;
+        const auto completion = std::move(pull->completion);
+        completion(committed, committed ? pull->items : QList<StremioLibraryItem>{});
+    };
+    if (!succeeded || !bindingCurrent(pull->binding)) {
+        complete(false);
+        return;
+    }
+    // The first pull is union-only: no absence is interpreted as a delete.
+    // Its baseline is committed by AccountRuntime only after the decoded rows
+    // have crossed durable canonical owners and their Neon checkpoint.
+    complete(true);
+}
+
+bool StremioSync::completeFirstMerge(std::function<void(bool)> completion) {
+    if (m_profileId.isEmpty()) {
+        if (completion)
+            completion(false);
+        return false;
+    }
+    if (m_state.firstMergeComplete) {
+        if (completion)
+            completion(true);
+        return true;
+    }
+    m_state.firstMergeComplete = true;
+    persist(std::move(completion));
+    emit stateChanged();
+    return true;
+}
+
+bool StremioSync::beginProviderImport(
+    const StremioLibraryItem &item,
+    const QJsonObject &projection,
+    std::function<void(bool, const QString &)> durableReceipt) {
+    const QString normalizedId = item.id.trimmed();
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    if (!bindingCurrent(binding) || normalizedId.isEmpty()
+        || (item.type != QLatin1String("movie") && item.type != QLatin1String("series"))
+        || projection.isEmpty()
+        || QJsonDocument(projection).toJson(QJsonDocument::Compact).size()
+            > kMaximumProviderRedoProjectionBytes) {
+        if (durableReceipt)
+            durableReceipt(false, {});
+        return false;
+    }
+    const QString receipt = QUuid::createUuid().toString(QUuid::WithoutBraces).toLower();
+    m_state.importRedoReceipts.append(QJsonObject{
+        {QStringLiteral("operationId"), receipt},
+        {QStringLiteral("profileId"), binding.profileId},
+        {QStringLiteral("accountId"), m_state.accountId},
+        {QStringLiteral("bindingGeneration"), QString::number(binding.generation)},
+        {QStringLiteral("id"), normalizedId},
+        {QStringLiteral("type"), item.type},
+        {QStringLiteral("libraryMember"), item.libraryMember},
+        {QStringLiteral("removed"), item.removed},
+        {QStringLiteral("projection"), projection}});
+    persist([this, binding, receipt, durableReceipt = std::move(durableReceipt)](bool committed) {
+        if (durableReceipt)
+            durableReceipt(committed && bindingCurrent(binding),
+                           committed && bindingCurrent(binding) ? receipt : QString());
+    });
+    emit stateChanged();
+    return true;
+}
+
+QList<StremioProviderImportRedo> StremioSync::pendingProviderImports() const {
+    QList<StremioProviderImportRedo> pending;
+    if (m_profileId.isEmpty())
+        return pending;
+    for (const QJsonValue &value : m_state.importRedoReceipts) {
+        const auto redo = providerImportRedoFromJson(value);
+        if (!redo.has_value()
+            || redo->profileId != m_profileId
+            || redo->accountId != m_state.accountId) {
+            continue;
+        }
+        pending.append(*redo);
+    }
+    return pending;
+}
+
+bool StremioSync::settleProviderImport(
+    const QString &receipt,
+    std::function<void(bool)> completion) {
+    const QString normalizedReceipt = receipt.trimmed();
+    if (normalizedReceipt.isEmpty() || m_profileId.isEmpty()) {
+        if (completion)
+            completion(false);
+        return false;
+    }
+    for (qsizetype index = 0; index < m_state.importRedoReceipts.size(); ++index) {
+        const QJsonValue value = m_state.importRedoReceipts.at(index);
+        if (!value.isObject()
+            || value.toObject().value(QStringLiteral("operationId")).toString() != normalizedReceipt) {
+            continue;
+        }
+        m_state.importRedoReceipts.removeAt(index);
+        persist(std::move(completion));
+        emit stateChanged();
+        return true;
+    }
+    if (completion)
+        completion(false);
+    return false;
+}
+
+bool StremioSync::queueExplicitLibraryRemoval(
+    const QString &id,
+    const QString &type,
+    std::function<void(bool)> journalReceipt,
+    QString *operationId) {
+    const QString normalizedId = id.trimmed();
+    if (m_profileId.isEmpty() || normalizedId.isEmpty()
+        || (type != QLatin1String("movie") && type != QLatin1String("series"))) {
+        if (journalReceipt)
+            journalReceipt(false);
+        return false;
+    }
+
+    StremioPendingIntent intent;
+    intent.operationId = QUuid::createUuid().toString(QUuid::WithoutBraces).toLower();
+    intent.kind = QStringLiteral("library_remove");
+    intent.desired = QJsonObject{
+        {QStringLiteral("id"), normalizedId},
+        {QStringLiteral("type"), type},
+        {QStringLiteral("removed"), true}};
+    // Until Stremio acknowledges the change, a passive provider pull still
+    // describes membership. Keep the intentional local/remote difference
+    // beside the pending operation so it cannot silently re-add the item.
+    upsertMembershipDifference(normalizedId, type, false, true, true);
+    m_state.pendingIntents.append(intent);
+    if (operationId)
+        *operationId = intent.operationId;
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    persist([this, operation = intent.operationId, binding,
+             journalReceipt = std::move(journalReceipt)](bool committed) mutable {
+        if (journalReceipt)
+            journalReceipt(committed);
+        if (committed)
+            dispatchIntent(operation, binding);
+    });
+    emit stateChanged();
+    return true;
+}
+
+bool StremioSync::recordLocalOnlyLibraryRemoval(
+    const QString &id,
+    const QString &type,
+    std::function<void(bool)> journalReceipt) {
+    const QString normalizedId = id.trimmed();
+    if (m_profileId.isEmpty() || normalizedId.isEmpty()
+        || (type != QLatin1String("movie") && type != QLatin1String("series"))) {
+        if (journalReceipt)
+            journalReceipt(false);
+        return false;
+    }
+    upsertMembershipDifference(normalizedId, type, false, true, false);
+    persist(std::move(journalReceipt));
+    emit stateChanged();
+    return true;
+}
+
+bool StremioSync::recordRemoteLibraryRemoval(
+    const QString &id,
+    const QString &type,
+    std::function<void(bool)> journalReceipt) {
+    const QString normalizedId = id.trimmed();
+    if (m_profileId.isEmpty() || normalizedId.isEmpty()
+        || (type != QLatin1String("movie") && type != QLatin1String("series"))) {
+        if (journalReceipt)
+            journalReceipt(false);
+        return false;
+    }
+    upsertMembershipDifference(normalizedId, type, true, false, false);
+    persist(std::move(journalReceipt));
+    emit stateChanged();
+    return true;
+}
+
+bool StremioSync::suppressesRemoteLibraryMembership(
+    const QString &id,
+    const QString &type) const {
+    const QString normalizedId = id.trimmed();
+    for (const QJsonValue &value : m_state.intentionalMembershipDifferences) {
+        if (!value.isObject())
+            continue;
+        const QJsonObject difference = value.toObject();
+        if (difference.value(QStringLiteral("id")).toString() != normalizedId
+            || difference.value(QStringLiteral("type")).toString() != type) {
+            continue;
+        }
+        // `false/true/false` is the only durable local-only removal state.
+        // An explicit dual removal (`false/false/true`) deliberately does not
+        // suppress a later provider-side re-add.
+        return !difference.value(QStringLiteral("localPresent")).toBool()
+            && difference.value(QStringLiteral("remotePresent")).toBool()
+            && !difference.value(QStringLiteral("explicitRemoteRemoval")).toBool();
+    }
+    return false;
 }
 
 bool StremioSync::acknowledgeLocalReceipt(const QString &operationId) {
@@ -527,8 +1242,14 @@ void StremioSync::settlePersistence(quint64 generation, bool committed) {
 
 void StremioSync::dispatchIntent(const QString &operationId, const ProfileBinding &binding) {
     if (!bindingCurrent(binding) || !m_dispatchAllowed || !m_hasUsableCredential
-        || !m_options.intentSender || hasPendingPersistenceForPath(m_statePath)
+        || hasPendingPersistenceForPath(m_statePath)
         || m_failedPersistencePaths.contains(m_statePath))
+        return;
+    // The datastore boundary permits one outstanding reply. A concurrent
+    // durable intent is still eligible; defer it until that reply settles
+    // rather than routing it through the failure/backoff path without ever
+    // making a provider request.
+    if (!m_options.intentSender && m_datastoreReply)
         return;
     StremioPendingIntent *intent = intentFor(operationId);
     if (!intent || intent->remoteAcknowledged || intent->attempts >= kMaximumRetries
@@ -536,8 +1257,331 @@ void StremioSync::dispatchIntent(const QString &operationId, const ProfileBindin
         return;
     const StremioPendingIntent copy = *intent;
     m_inFlightOperations.insert(operationId);
-    m_options.intentSender(copy, [this, operationId, binding](bool accepted, bool authenticationFailure) {
+    const auto complete = [this, operationId, binding](bool accepted, bool authenticationFailure) {
         handleIntentResult(operationId, binding, accepted, authenticationFailure);
+    };
+    if (m_options.intentSender) {
+        m_options.intentSender(copy, complete);
+        return;
+    }
+    sendIntentViaDatastore(copy, binding, complete);
+}
+
+void StremioSync::sendIntentViaDatastore(
+    const StremioPendingIntent &intent,
+    const ProfileBinding &binding,
+    std::function<void(bool, bool)> completion) {
+    const bool isLibraryRemoval = intent.kind == QLatin1String("library_remove");
+    const bool isLibraryAdd = intent.kind == QLatin1String("library_add");
+    const bool isProgress = intent.kind == QLatin1String("progress");
+    const bool isWatched = intent.kind == QLatin1String("watched");
+    const bool isSeriesWatched = intent.kind == QLatin1String("series_watched");
+    if ((!isLibraryRemoval && !isLibraryAdd && !isProgress && !isWatched && !isSeriesWatched)
+        || !bindingCurrent(binding) || !m_options.loadCredential) {
+        completion(false, false);
+        return;
+    }
+    const auto credential = m_options.loadCredential(binding.profileId, m_state.accountId);
+    if (!credential.has_value() || credential->isEmpty()) {
+        completion(false, true);
+        return;
+    }
+    const QString id = intent.desired.value(QStringLiteral("id")).toString().trimmed();
+    const QString libraryId = intent.desired.value(QStringLiteral("libraryId")).toString().trimmed();
+    const QString type = intent.desired.value(QStringLiteral("type")).toString();
+    const QList<StremioDatastoreRequest> gets =
+        StremioCodec::datastoreGetRequests(*credential, QStringList{libraryId.isEmpty() ? id : libraryId}, 1);
+    if (id.isEmpty() || gets.size() != 1) {
+        completion(false, false);
+        return;
+    }
+    postDatastoreRequest(gets.first(), binding,
+        [this, binding, id, libraryId, type, isLibraryRemoval, isLibraryAdd, isProgress, isWatched,
+         isSeriesWatched,
+         desired = intent.desired, completion = std::move(completion)](
+            bool fetched,
+            bool authenticationFailure,
+            QJsonValue result) mutable {
+        if (!fetched) {
+            completion(false, authenticationFailure);
+            return;
+        }
+        const StremioLibraryItemDecode decoded = StremioCodec::decodeLibraryItems(result, 1);
+        const QString expectedLibraryId = libraryId.isEmpty() ? id : libraryId;
+        QJsonObject existing;
+        if (decoded.items.size() == 1 && decoded.items.first().id == expectedLibraryId) {
+            existing = decoded.items.first().raw;
+        } else if (isLibraryAdd && decoded.items.isEmpty()
+                   && (type == QLatin1String("movie") || type == QLatin1String("series"))) {
+            // A new canonical Collection membership is an explicit add, not
+            // a provider delete inference. A missing provider row is the one
+            // case allowed to create the bounded libraryItem shell.
+            existing = QJsonObject{{QStringLiteral("_id"), expectedLibraryId},
+                                   {QStringLiteral("type"), type}};
+        } else {
+            completion(false, false);
+            return;
+        }
+        if ((isLibraryRemoval || isLibraryAdd || isWatched || isSeriesWatched)
+            && existing.value(QStringLiteral("type")).toString() != type) {
+            completion(false, false);
+            return;
+        }
+        QJsonObject patch;
+        QList<StremioEpisodeIdentity> seriesVideos;
+        QSet<QString> expectedSeriesWatched;
+        if (isLibraryRemoval) {
+            patch = QJsonObject{{QStringLiteral("removed"), true},
+                                {QStringLiteral("temp"), false}};
+        } else if (isLibraryAdd) {
+            patch = QJsonObject{{QStringLiteral("removed"), false},
+                                {QStringLiteral("temp"), false}};
+        } else if (isProgress) {
+            const QJsonValue positionValue = desired.value(QStringLiteral("positionSeconds"));
+            const QJsonValue durationValue = desired.value(QStringLiteral("durationSeconds"));
+            const QJsonValue updatedAtValue = desired.value(QStringLiteral("updatedAt"));
+            bool timestampOk = false;
+            const qint64 updatedAtMs = updatedAtValue.isString()
+                ? updatedAtValue.toString().toLongLong(&timestampOk)
+                : updatedAtValue.toVariant().toLongLong(&timestampOk);
+            const double positionSeconds = positionValue.toDouble(-1.0);
+            const double durationSeconds = durationValue.toDouble(-1.0);
+            constexpr double maximumSeconds =
+                static_cast<double>(std::numeric_limits<qint64>::max()) / 1000.0;
+            if (!std::isfinite(positionSeconds) || !std::isfinite(durationSeconds)
+                || positionSeconds < 0.0 || durationSeconds <= 0.0
+                || positionSeconds > maximumSeconds || durationSeconds > maximumSeconds
+                || !timestampOk || updatedAtMs <= 0) {
+                completion(false, false);
+                return;
+            }
+            patch = QJsonObject{{QStringLiteral("state"), QJsonObject{
+                {QStringLiteral("video_id"), id},
+                {QStringLiteral("timeOffset"), static_cast<qint64>(std::llround(positionSeconds * 1000.0))},
+                {QStringLiteral("duration"), static_cast<qint64>(std::llround(durationSeconds * 1000.0))},
+                {QStringLiteral("lastWatched"), QDateTime::fromMSecsSinceEpoch(
+                    updatedAtMs, Qt::UTC).toString(Qt::ISODateWithMs)}}}};
+        } else if (isWatched) {
+            bool timestampOk = false;
+            const QJsonValue updatedAtValue = desired.value(QStringLiteral("updatedAt"));
+            const qint64 updatedAtMs = updatedAtValue.isString()
+                ? updatedAtValue.toString().toLongLong(&timestampOk)
+                : updatedAtValue.toVariant().toLongLong(&timestampOk);
+            if (!desired.value(QStringLiteral("watched")).isBool()
+                || !timestampOk || updatedAtMs <= 0 || type != QLatin1String("movie")) {
+                completion(false, false);
+                return;
+            }
+            patch = QJsonObject{{QStringLiteral("state"), QJsonObject{
+                {QStringLiteral("flaggedWatched"), desired.value(QStringLiteral("watched")).toBool() ? 1 : 0},
+                {QStringLiteral("lastWatched"), QDateTime::fromMSecsSinceEpoch(
+                    updatedAtMs, Qt::UTC).toString(Qt::ISODateWithMs)}}}};
+        } else if (isSeriesWatched) {
+            QSet<QString> localWatched;
+            if (type != QLatin1String("series")
+                || !decodeSeriesWatchedDesired(desired, &seriesVideos, &localWatched)) {
+                completion(false, false);
+                return;
+            }
+            const QJsonObject currentState = existing.value(QStringLiteral("state")).toObject();
+            const QJsonValue existingWatched = currentState.value(QStringLiteral("watched"));
+            QSet<QString> remoteWatched;
+            QString decodeError;
+            if (!existingWatched.isUndefined() && !existingWatched.isNull()) {
+                if (!existingWatched.isString()
+                    || existingWatched.toString().size() > kMaximumWatchedFieldBytes
+                    || !StremioCodec::decodeWatchedEpisodes(
+                        existingWatched.toString(), seriesVideos, &remoteWatched, &decodeError)) {
+                    completion(false, false);
+                    return;
+                }
+            }
+            remoteWatched.unite(localWatched);
+            QString encoded;
+            if (!StremioCodec::encodeWatchedEpisodes(
+                    remoteWatched, seriesVideos, &encoded, &decodeError)) {
+                completion(false, false);
+                return;
+            }
+            expectedSeriesWatched = std::move(remoteWatched);
+            patch = QJsonObject{{QStringLiteral("state"), QJsonObject{
+                {QStringLiteral("watched"), encoded}}}};
+        }
+        QJsonObject merged;
+        QString error;
+        if (!StremioCodec::mergeLibraryItemPatch(
+                existing,
+                patch,
+                &merged,
+                &error)) {
+            completion(false, false);
+            return;
+        }
+        if (merged == existing) {
+            completion(true, false);
+            return;
+        }
+        const auto credential = m_options.loadCredential
+            ? m_options.loadCredential(binding.profileId, m_state.accountId)
+            : std::optional<QByteArray>{};
+        if (!bindingCurrent(binding) || !credential.has_value() || credential->isEmpty()) {
+            completion(false, true);
+            return;
+        }
+        const StremioDatastoreRequest put = StremioCodec::datastorePutRequest(*credential, merged);
+        if (put.method.isEmpty()) {
+            completion(false, false);
+            return;
+        }
+        const QString providerType = existing.value(QStringLiteral("type")).toString();
+        postDatastoreRequest(put, binding,
+            [this, binding, id, libraryId, providerType, isLibraryRemoval, isLibraryAdd, isProgress, isWatched,
+             isSeriesWatched, desired, seriesVideos, expectedSeriesWatched,
+             completion = std::move(completion)](
+                bool written,
+                bool writeAuthenticationFailure,
+                QJsonValue) mutable {
+            if (!written) {
+                completion(false, writeAuthenticationFailure);
+                return;
+            }
+            const auto credential = m_options.loadCredential
+                ? m_options.loadCredential(binding.profileId, m_state.accountId)
+                : std::optional<QByteArray>{};
+            const QString providerId = libraryId.isEmpty() ? id : libraryId;
+            const QList<StremioDatastoreRequest> gets = credential.has_value()
+                ? StremioCodec::datastoreGetRequests(*credential, QStringList{providerId}, 1)
+                : QList<StremioDatastoreRequest>{};
+            if (!bindingCurrent(binding) || gets.size() != 1) {
+                completion(false, !credential.has_value());
+                return;
+            }
+            postDatastoreRequest(gets.first(), binding,
+                [id, providerId, providerType, isLibraryRemoval, isLibraryAdd, isProgress, isWatched,
+                 isSeriesWatched, desired, seriesVideos, expectedSeriesWatched,
+                 completion = std::move(completion)](
+                    bool readBack,
+                    bool readBackAuthenticationFailure,
+                    QJsonValue result) mutable {
+                if (!readBack) {
+                    completion(false, readBackAuthenticationFailure);
+                    return;
+                }
+                const StremioLibraryItemDecode decoded = StremioCodec::decodeLibraryItems(result, 1);
+                if (decoded.items.size() != 1 || decoded.items.first().id != providerId
+                    || decoded.items.first().type != providerType) {
+                    completion(false, false);
+                    return;
+                }
+                const QJsonObject state = decoded.items.first().raw.value(QStringLiteral("state")).toObject();
+                bool matches = false;
+                if (isLibraryRemoval) {
+                    matches = decoded.items.first().raw.value(QStringLiteral("removed")).toBool()
+                        && !decoded.items.first().raw.value(QStringLiteral("temp")).toBool();
+                } else if (isLibraryAdd) {
+                    matches = !decoded.items.first().raw.value(QStringLiteral("removed")).toBool()
+                        && !decoded.items.first().raw.value(QStringLiteral("temp")).toBool();
+                } else if (isProgress) {
+                    const qint64 positionMs = static_cast<qint64>(std::llround(
+                        desired.value(QStringLiteral("positionSeconds")).toDouble() * 1000.0));
+                    const qint64 durationMs = static_cast<qint64>(std::llround(
+                        desired.value(QStringLiteral("durationSeconds")).toDouble() * 1000.0));
+                    matches = state.value(QStringLiteral("video_id")).toString() == id
+                        && state.value(QStringLiteral("timeOffset")).toInteger() == positionMs
+                        && state.value(QStringLiteral("duration")).toInteger() == durationMs;
+                } else if (isWatched) {
+                    matches = state.value(QStringLiteral("flaggedWatched")).toInteger()
+                        == (desired.value(QStringLiteral("watched")).toBool() ? 1 : 0);
+                } else if (isSeriesWatched) {
+                    QSet<QString> readBackWatched;
+                    QString decodeError;
+                    const QJsonValue watched = state.value(QStringLiteral("watched"));
+                    matches = watched.isString()
+                        && watched.toString().size() <= kMaximumWatchedFieldBytes
+                        && StremioCodec::decodeWatchedEpisodes(
+                            watched.toString(), seriesVideos, &readBackWatched, &decodeError)
+                        && readBackWatched.contains(expectedSeriesWatched);
+                }
+                completion(matches, false);
+            });
+        });
+    });
+}
+
+void StremioSync::postDatastoreRequest(
+    const StremioDatastoreRequest &request,
+    const ProfileBinding &binding,
+    std::function<void(bool, bool, QJsonValue)> completion) {
+    if (!bindingCurrent(binding) || !endpointAllowed() || request.method.isEmpty()
+        || request.payload.isEmpty() || m_datastoreReply) {
+        completion(false, false, {});
+        return;
+    }
+    QUrl endpoint = m_options.apiEndpoint;
+    QString path = endpoint.path();
+    if (!path.endsWith(QLatin1Char('/')))
+        path += QLatin1Char('/');
+    endpoint.setPath(path + request.method);
+    QNetworkRequest networkRequest(endpoint);
+    networkRequest.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    networkRequest.setAttribute(
+        QNetworkRequest::RedirectPolicyAttribute,
+        QNetworkRequest::ManualRedirectPolicy);
+    QNetworkReply *reply = m_network.post(
+        networkRequest, QJsonDocument(request.payload).toJson(QJsonDocument::Compact));
+    m_datastoreReply = reply;
+    m_datastoreResponse.clear();
+    m_datastoreResponseTooLarge = false;
+    connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
+        if (reply != m_datastoreReply)
+            return;
+        const QByteArray chunk = reply->read(kMaximumDatastoreResponseBytes + 1);
+        if (m_datastoreResponse.size() + chunk.size() > kMaximumDatastoreResponseBytes) {
+            m_datastoreResponse.clear();
+            m_datastoreResponseTooLarge = true;
+            reply->abort();
+            return;
+        }
+        m_datastoreResponse += chunk;
+    });
+    connect(reply, &QNetworkReply::finished, this,
+        [this, reply, binding, completion = std::move(completion)]() mutable {
+        const bool current = bindingCurrent(binding) && reply == m_datastoreReply;
+        if (!current) {
+            reply->deleteLater();
+            return;
+        }
+        const QNetworkReply::NetworkError networkError = reply->error();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const bool redirected = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid();
+        const QByteArray trailing = reply->isOpen() ? reply->readAll() : QByteArray();
+        if (!m_datastoreResponseTooLarge) {
+            if (m_datastoreResponse.size() + trailing.size() > kMaximumDatastoreResponseBytes) {
+                m_datastoreResponse.clear();
+                m_datastoreResponseTooLarge = true;
+            } else {
+                m_datastoreResponse += trailing;
+            }
+        }
+        QJsonParseError parseError;
+        const QJsonDocument body = QJsonDocument::fromJson(m_datastoreResponse, &parseError);
+        reply->deleteLater();
+        m_datastoreReply = nullptr;
+        m_datastoreResponse.clear();
+        const auto resumePending = [this, binding] {
+            if (bindingCurrent(binding))
+                retryPendingNow();
+        };
+        const bool authenticationFailure = status == 401 || status == 403;
+        if (networkError != QNetworkReply::NoError || redirected || m_datastoreResponseTooLarge
+            || parseError.error != QJsonParseError::NoError || !body.isObject()
+            || !body.object().contains(QStringLiteral("result"))) {
+            completion(false, authenticationFailure, {});
+            QTimer::singleShot(0, this, resumePending);
+            return;
+        }
+        completion(true, false, body.object().value(QStringLiteral("result")));
+        QTimer::singleShot(0, this, resumePending);
     });
 }
 
@@ -554,6 +1598,31 @@ void StremioSync::handleIntentResult(
         return;
     if (accepted) {
         intent->remoteAcknowledged = true;
+        if (intent->kind == QLatin1String("library_remove")) {
+            upsertMembershipDifference(
+                intent->desired.value(QStringLiteral("id")).toString(),
+                intent->desired.value(QStringLiteral("type")).toString(),
+                false,
+                false,
+                true);
+        }
+        const QString baselineKey = baselineKeyForIntent(intent->kind, intent->desired);
+        bool superseded = false;
+        if (!baselineKey.isEmpty()) {
+            for (const StremioPendingIntent &candidate : std::as_const(m_state.pendingIntents)) {
+                if (candidate.operationId == operationId || candidate.remoteAcknowledged
+                    || baselineKeyForIntent(candidate.kind, candidate.desired) != baselineKey) {
+                    continue;
+                }
+                // The newer operation remains authoritative until its own
+                // provider readback succeeds. An older in-flight acknowledgement
+                // may remove only itself; it must not publish an older baseline.
+                superseded = true;
+                break;
+            }
+            if (!superseded)
+                m_state.acknowledgedBaselines.insert(baselineKey, intent->desired);
+        }
         m_state.lastSuccessAtMs = m_options.clock();
         persist([this, operationId](bool committed) {
             if (committed)
@@ -648,4 +1717,49 @@ void StremioSync::setStatus(const QString &statusValue) {
 void StremioSync::finishRun() {
     ++m_completedRun;
     emit stateChanged();
+}
+
+void StremioSync::upsertMembershipDifference(
+    const QString &id,
+    const QString &type,
+    bool localPresent,
+    bool remotePresent,
+    bool explicitRemoteRemoval) {
+    QJsonObject difference{
+        {QStringLiteral("id"), id},
+        {QStringLiteral("type"), type},
+        {QStringLiteral("localPresent"), localPresent},
+        {QStringLiteral("remotePresent"), remotePresent},
+        {QStringLiteral("explicitRemoteRemoval"), explicitRemoteRemoval}};
+    for (qsizetype index = 0; index < m_state.intentionalMembershipDifferences.size(); ++index) {
+        const QJsonValue existing = m_state.intentionalMembershipDifferences.at(index);
+        if (existing.isObject()
+            && existing.toObject().value(QStringLiteral("id")).toString() == id) {
+            m_state.intentionalMembershipDifferences.replace(index, difference);
+            return;
+        }
+    }
+    m_state.intentionalMembershipDifferences.append(difference);
+}
+
+bool StremioSync::clearLocalOnlyMembershipSuppression(
+    const QString &id,
+    const QString &type) {
+    const QString normalizedId = id.trimmed();
+    for (qsizetype index = 0; index < m_state.intentionalMembershipDifferences.size(); ++index) {
+        const QJsonValue value = m_state.intentionalMembershipDifferences.at(index);
+        if (!value.isObject())
+            continue;
+        const QJsonObject difference = value.toObject();
+        if (difference.value(QStringLiteral("id")).toString() != normalizedId
+            || difference.value(QStringLiteral("type")).toString() != type
+            || difference.value(QStringLiteral("localPresent")).toBool()
+            || !difference.value(QStringLiteral("remotePresent")).toBool()
+            || difference.value(QStringLiteral("explicitRemoteRemoval")).toBool()) {
+            continue;
+        }
+        m_state.intentionalMembershipDifferences.removeAt(index);
+        return true;
+    }
+    return false;
 }

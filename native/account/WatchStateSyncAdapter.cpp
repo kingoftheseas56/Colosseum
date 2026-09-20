@@ -74,7 +74,8 @@ bool WatchStateSyncAdapter::validateRemote(
 
     const QJsonObject object = payload.toObject();
     if (watched) {
-        if (object.size() != 2 || object.value(QStringLiteral("id")).toString() != id
+        if ((object.size() != 2 && object.size() != 3)
+            || object.value(QStringLiteral("id")).toString() != id
             || !object.value(QStringLiteral("id")).isString()
             || !object.value(QStringLiteral("mark")).isDouble())
             return SyncAdapterValidation::fail(
@@ -85,6 +86,17 @@ bool WatchStateSyncAdapter::validateRemote(
             return SyncAdapterValidation::fail(
                 error, QStringLiteral("payload_invalid"),
                 QStringLiteral("A watched mark must be exactly -1 or 1."));
+        if (object.contains(QStringLiteral("actionAtMs"))) {
+            bool actionAtOk = false;
+            const qint64 actionAtMs = object.value(QStringLiteral("actionAtMs"))
+                .toString().toLongLong(&actionAtOk);
+            if (!object.value(QStringLiteral("actionAtMs")).isString()
+                || !actionAtOk || actionAtMs <= 0) {
+                return SyncAdapterValidation::fail(
+                    error, QStringLiteral("payload_invalid"),
+                    QStringLiteral("A watched action timestamp must be a positive integer string."));
+            }
+        }
         return true;
     }
     if (object.size() != 2 || object.value(QStringLiteral("seriesId")).toString() != seriesId
@@ -149,6 +161,8 @@ exportSnapshot(
 
     const QHash<QString, int> watched =
         m_store->syncWatchedMarks();
+    const QHash<QString, qint64> actionTimes =
+        m_store->syncWatchedMarkActionTimes();
     QStringList watchedIds = watched.keys();
     watchedIds.sort();
 
@@ -171,19 +185,13 @@ exportSnapshot(
             continue;
         }
 
-        snapshot->records.append(
-            SyncAdapterRecord{
-                recordKey,
-                QJsonObject{
-                    {
-                        QStringLiteral("id"),
-                        id
-                    },
-                    {
-                        QStringLiteral("mark"),
-                        mark
-                    }
-                }});
+        QJsonObject payload{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("mark"), mark}};
+        const qint64 actionAtMs = actionTimes.value(id);
+        if (actionAtMs > 0)
+            payload.insert(QStringLiteral("actionAtMs"), QString::number(actionAtMs));
+        snapshot->records.append(SyncAdapterRecord{recordKey, payload});
     }
 
     const QHash<QString, int> seasons =
@@ -295,7 +303,7 @@ applyRemote(
     const QJsonObject object = payload.toObject();
 
     if (watchedRecord) {
-        if (object.size() != 2
+        if ((object.size() != 2 && object.size() != 3)
             || !object.value(
                     QStringLiteral("id"))
                     .isString()
@@ -323,11 +331,25 @@ applyRemote(
                     "A watched mark must be exactly -1 or 1."));
         }
 
+        qint64 actionAtMs = 0;
+        if (object.contains(QStringLiteral("actionAtMs"))) {
+            bool actionAtOk = false;
+            actionAtMs = object.value(QStringLiteral("actionAtMs"))
+                .toString().toLongLong(&actionAtOk);
+            if (!object.value(QStringLiteral("actionAtMs")).isString()
+                || !actionAtOk || actionAtMs <= 0) {
+                return fail(
+                    error,
+                    QStringLiteral("A watched action timestamp must be a positive integer string."));
+            }
+        }
+
         m_applyingRemote = true;
         const bool applied =
             m_store->applySyncedWatchedMark(
                 id,
-                static_cast<int>(rawMark));
+                static_cast<int>(rawMark),
+                actionAtMs);
         m_applyingRemote = false;
 
         if (!applied) {

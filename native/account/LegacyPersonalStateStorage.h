@@ -15,6 +15,7 @@ struct PersonalStateSnapshot {
     QJsonObject progressEntries;
     QJsonObject progressLastSeason;
     QJsonObject progressWatchedMarks;
+    QJsonObject progressWatchedMarkActionTimes;
     QJsonObject collectionEntries;
     QJsonObject searchHistory;
     QJsonObject audioPairings;
@@ -24,6 +25,7 @@ struct PersonalStateSnapshot {
     bool isEmpty() const;
     QJsonObject toJson() const;
     QString semanticDigest() const;
+    QString legacySemanticDigestV2() const;
     QString legacySemanticDigestV1() const;
     bool matchesSemanticDigest(
         const QString &digest) const;

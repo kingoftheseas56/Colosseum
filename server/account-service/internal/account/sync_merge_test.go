@@ -160,6 +160,29 @@ func TestSyncMergeHistoryCompletionAndMetadata(t *testing.T) {
 	}
 }
 
+func TestSyncMergeHistoryKeepsStremioPresentationWhenNewerPeerIsLegacy(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"abababab-abab-4bab-8bab-abababababab", syncMergeDeviceA, "put", 100, 0,
+		`{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":3000,"completedAt":3000,"source":"stremio","displayId":"kitsu:alpha:s1:e0","displayTitle":"Pilot Special","latestKnownAt":3000}`)
+	incoming := syncMergeIncomingFixture(
+		"cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd", syncMergeDeviceB, "full_history", "put", 200, 0,
+		`{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":900,"lastActivityAt":4000,"completedAt":3000}`)
+
+	resolution, err := resolveMutableSync(current, true, incoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync() error = %v", err)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if payload["source"] != "stremio" ||
+		payload["displayId"] != "kitsu:alpha:s1:e0" ||
+		payload["displayTitle"] != "Pilot Special" {
+		t.Fatalf("legacy winner erased Stremio presentation: %#v", payload)
+	}
+	if got := syncMergeInt64(t, payload, "latestKnownAt"); got != 3000 {
+		t.Fatalf("latestKnownAt = %d, want 3000", got)
+	}
+}
+
 func TestSyncMergeHistoryDeleteBarrier(t *testing.T) {
 	putPayload := `{"kind":"episode","firstActivityAt":1000,"lastActivityAt":2000}`
 	tests := []struct {
@@ -253,6 +276,58 @@ func TestSyncMergeNonHistoryUsesHLC(t *testing.T) {
 	}
 	if unchanged.Changed || unchanged.WinnerDeviceID != syncMergeDeviceB {
 		t.Fatalf("device-ID tie break replaced newer current device: %+v", unchanged)
+	}
+}
+
+func TestSyncMergeTheatreProgressUsesRealActivityTime(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"10101010-1010-4010-8010-101010101010", syncMergeDeviceA, "put", 100, 0,
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.4,"updatedAt":5000}`)
+	olderArrival := syncMergeIncomingFixture(
+		"20202020-2020-4020-8020-202020202020", syncMergeDeviceB, "continue_progress", "put", 200, 0,
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.95,"watched":true,"updatedAt":3000}`)
+
+	resolution, err := resolveMutableSync(current, true, olderArrival)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(older arrival) error = %v", err)
+	}
+	if resolution.WinnerMutationID != olderArrival.MutationID || resolution.WinnerHLCPhysicalMS != 200 {
+		t.Fatalf("new envelope did not remain monotonic: %+v", resolution)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if got, ok := payload["progress"].(json.Number); !ok || got.String() != "0.4" {
+		t.Fatalf("older arrival overwrote newer partial progress: %#v", payload)
+	}
+	if got := syncMergeInt64(t, payload, "updatedAt"); got != 5000 {
+		t.Fatalf("updatedAt = %d, want 5000", got)
+	}
+
+	newerCompletion := olderArrival
+	newerCompletion.MutationID = "30303030-3030-4030-8030-303030303030"
+	newerCompletion.HLCPhysicalMS = 300
+	newerCompletion.Payload = json.RawMessage(
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.95,"watched":true,"updatedAt":6000}`)
+	completionResolution, err := resolveMutableSync(current, true, newerCompletion)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(newer completion) error = %v", err)
+	}
+	completionPayload := decodeSyncMergePayload(t, completionResolution.Payload)
+	if got, ok := completionPayload["progress"].(json.Number); !ok || got.String() != "0.95" || completionPayload["watched"] != true {
+		t.Fatalf("newer completion did not win: %#v", completionPayload)
+	}
+
+	equalActivity := olderArrival
+	equalActivity.MutationID = "40404040-4040-4040-8040-404040404040"
+	equalActivity.HLCPhysicalMS = 400
+	equalActivity.Payload = json.RawMessage(
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.1,"updatedAt":5000}`)
+	equalResolution, err := resolveMutableSync(current, true, equalActivity)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(equal activity) error = %v", err)
+	}
+	equalPayload := decodeSyncMergePayload(t, equalResolution.Payload)
+	if got, ok := equalPayload["progress"].(json.Number); !ok || got.String() != "0.4" {
+		t.Fatalf("equal activity oscillated instead of retaining acknowledged payload: %#v", equalPayload)
 	}
 }
 

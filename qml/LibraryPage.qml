@@ -67,7 +67,7 @@ Item {
             function (entry) {
                 if (!entry || entry.type === "series") return false
                 if (typeof ProfileHistory === "undefined" || !ProfileHistory) return false
-                return ProfileHistory.completed("movie", String(entry.id))
+                return ProfileHistory.get("movie", String(entry.id))
             },
             downloadedIds(), Date.now())
     }

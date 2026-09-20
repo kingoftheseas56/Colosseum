@@ -4,8 +4,10 @@
 // ALL inputs are passed in (Progress/Collection/meta live in C++/QML, never here), so
 // this whole module is provable headless. Proven by tests/library_api_harness.qml.
 
-// watchState — the one truth-order: manual mark > History completion > movie-auto > episode progress.
-// ctx = { progress: 0..1, mark: -1|0|1, isSeries: bool }. An ONGOING series is never
+// watchState — the one truth-order: manual mark > current real activity > movie-auto > episode progress.
+// A cumulative History completion only wins a partial Continue record when the
+// completion is at least as recent. ctx = { progress: 0..1, mark: -1|0|1,
+// isSeries: bool, progressAt, completedAt }. An ONGOING series is never
 // auto-completed by episode %: buildRows feeds a series-aware progress here, but even
 // raw a series at ≥0.90 with no mark reads "unwatched" (not "watched") by design.
 function watchState(entry, ctx) {
@@ -13,7 +15,14 @@ function watchState(entry, ctx) {
     if (ctx.mark === 1) return "watched";
     if (ctx.mark === -1)
         return (ctx.progress > 0 && ctx.progress < 0.90) ? "progress" : "unwatched";
-    if (ctx.completed === true) return "watched";
+    if (ctx.completed === true) {
+        var progressAt = Number(ctx.progressAt || 0);
+        var completedAt = Number(ctx.completedAt || 0);
+        var newerPartial = ctx.progress > 0 && ctx.progress < 0.90
+                && isFinite(progressAt) && isFinite(completedAt)
+                && progressAt > 0 && completedAt > 0 && progressAt > completedAt;
+        if (!newerPartial) return "watched";
+    }
     if (!ctx.isSeries && ctx.progress >= 0.90) return "watched";
     if (ctx.progress > 0 && ctx.progress < 0.90) return "progress";
     return "unwatched";
@@ -140,12 +149,18 @@ function buildRows(entries, progressList, markFn, completedFn, downloadedIds, no
         var lastWatchedAt = pm ? Number(pm.updatedAt || 0) : 0;
         if (!lastWatchedAt) lastWatchedAt = Number(e.addedAt || 0);
         var mark = markFn ? markFn(e.id) : 0;
-        var completed = completedFn ? completedFn(e) : false;
+        var completion = completedFn ? completedFn(e) : false;
+        var completed = completion === true
+                || (completion && Number(completion.completedAt || 0) > 0);
+        var completedAt = (completion && completion !== true)
+                ? Number(completion.completedAt || 0) : 0;
         // Ongoing series never auto-complete on episode %: feed the state calc an in-band
         // value so a caught-up show still reads "in progress" — raw progress stays for the bar.
         var stateProgress = (isSeries && rawProgress >= 0.90) ? 0.5 : rawProgress;
         var state = watchState(e, {
-            progress: stateProgress, mark: mark, completed: completed, isSeries: isSeries
+            progress: stateProgress, mark: mark, completed: completed, isSeries: isSeries,
+            progressAt: pm ? Number(pm.updatedAt || 0) : 0,
+            completedAt: completedAt
         });
         var notifOff = (payload.libNotif === false);
         var newCount = notifOff ? 0 : Math.max(0, Number(payload.libNewCount || 0));

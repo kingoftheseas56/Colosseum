@@ -110,6 +110,19 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			payload:  `{"kind":"episode","id":"show-1/e1","firstActivityAt":1000,"lastActivityAt":2000,"completedAt":2000}`,
 		},
 		{
+			name:     "history accepts stremio provenance and presentation",
+			category: "full_history",
+			key:      "history/ZXBpc29kZQ/a2l0c3U6YWxwaGE6czE6ZTA",
+			payload:  `{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":2000,"completedAt":2000,"source":"stremio","displayId":"kitsu:alpha:s1:e0","displayTitle":"Pilot Special","latestKnownAt":2000}`,
+		},
+		{
+			name:     "history rejects unsupported provenance date",
+			category: "full_history",
+			key:      "history/ZXBpc29kZQ/a2l0c3U6YWxwaGE6czE6ZTA",
+			payload:  `{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":2000,"source":"stremio","latestKnownAt":3000}`,
+			wantErr:  "payload_invalid",
+		},
+		{
 			name:     "history reset accepts generation barrier",
 			category: "full_history",
 			key:      "history/reset",
@@ -127,6 +140,12 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			category: "watch_state",
 			key:      "watch/mark/dHQ5MDA",
 			payload:  `{"id":"tt900","mark":1}`,
+		},
+		{
+			name:     "watched mark accepts real action timestamp",
+			category: "watch_state",
+			key:      "watch/mark/dHQ5MDA",
+			payload:  `{"id":"tt900","mark":1,"actionAtMs":"1700000000000"}`,
 		},
 		{
 			name:     "last season accepts portable identity",

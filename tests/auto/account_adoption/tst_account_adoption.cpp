@@ -56,6 +56,9 @@ PersonalStateSnapshot populatedSnapshot() {
     snapshot.progressWatchedMarks.insert(
         QStringLiteral("show-1"),
         -1);
+    snapshot.progressWatchedMarkActionTimes.insert(
+        QStringLiteral("show-1"),
+        1720000003000.0);
 
     QJsonObject collection;
     collection.insert(

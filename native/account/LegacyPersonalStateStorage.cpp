@@ -17,7 +17,7 @@
 #include <memory>
 
 namespace {
-constexpr int kSnapshotVersion = 2;
+constexpr int kSnapshotVersion = 3;
 
 bool jsonObjectValue(
     QSettings *settings,
@@ -141,18 +141,16 @@ void capturePrefix(
         QJsonValue value =
             QJsonValue::fromVariant(raw);
 
-        // The captured prefixes are integer domains (lastSeason, watched
-        // marks), but INI persistence is stringly-typed on disk while an
+        // These prefixes are integral domains (season, mark and action
+        // timestamp), but INI persistence is stringly typed on disk while an
         // in-memory QSettings session still holds the typed QVariant. A
-        // fresh re-open therefore yields "3" where the writer saw 3. The
-        // semantic digest must be representation-independent, so normalize
-        // clean integer spellings to numbers at the capture boundary.
+        // fresh re-open therefore yields a decimal string. Normalize through
+        // qint64 so an epoch-millisecond action time is not truncated to int.
         if (value.isString()) {
             bool ok = false;
-            const int number =
-                raw.toString().toInt(&ok);
+            const qint64 number = raw.toString().toLongLong(&ok);
             if (ok)
-                value = number;
+                value = static_cast<double>(number);
         }
 
         target->insert(suffix, value);
@@ -183,6 +181,7 @@ bool PersonalStateSnapshot::isEmpty() const {
     return progressEntries.isEmpty()
         && progressLastSeason.isEmpty()
         && progressWatchedMarks.isEmpty()
+        && progressWatchedMarkActionTimes.isEmpty()
         && collectionEntries.isEmpty()
         && searchHistory.isEmpty()
         && audioPairings.isEmpty()
@@ -204,6 +203,9 @@ QJsonObject PersonalStateSnapshot::toJson() const {
     object.insert(
         QStringLiteral("progress_watched_marks"),
         progressWatchedMarks);
+    object.insert(
+        QStringLiteral("progress_watched_mark_action_times"),
+        progressWatchedMarkActionTimes);
     object.insert(
         QStringLiteral("collection_entries"),
         collectionEntries);
@@ -231,6 +233,22 @@ QString PersonalStateSnapshot::semanticDigest() const {
             payload,
             QCryptographicHash::Sha256)
             .toHex());
+}
+
+QString PersonalStateSnapshot::legacySemanticDigestV2() const {
+    QJsonObject object;
+    object.insert(QStringLiteral("version"), 2);
+    object.insert(QStringLiteral("progress_entries"), progressEntries);
+    object.insert(QStringLiteral("progress_last_season"), progressLastSeason);
+    object.insert(QStringLiteral("progress_watched_marks"), progressWatchedMarks);
+    object.insert(QStringLiteral("collection_entries"), collectionEntries);
+    object.insert(QStringLiteral("search_history"), searchHistory);
+    object.insert(QStringLiteral("audio_pairings"), audioPairings);
+    object.insert(QStringLiteral("history_records"), historyRecords);
+    object.insert(QStringLiteral("show_explicit"), showExplicit);
+    const QByteArray payload = QJsonDocument(object).toJson(QJsonDocument::Compact);
+    return QString::fromLatin1(
+        QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex());
 }
 
 QString PersonalStateSnapshot::
@@ -284,7 +302,13 @@ matchesSemanticDigest(
     if (semanticDigest() == normalized)
         return true;
 
+    if (progressWatchedMarkActionTimes.isEmpty()
+        && legacySemanticDigestV2() == normalized) {
+        return true;
+    }
+
     return historyRecords.isEmpty()
+        && progressWatchedMarkActionTimes.isEmpty()
         && legacySemanticDigestV1()
             == normalized;
 }
@@ -298,8 +322,7 @@ PersonalStateSnapshot::fromJson(
             .value(
                 QStringLiteral("version"))
             .toInt();
-    if (version != 1
-        && version != kSnapshotVersion) {
+    if (version != 1 && version != 2 && version != kSnapshotVersion) {
         if (error) {
             *error = QStringLiteral(
                 "The personal-state snapshot version is unsupported.");
@@ -339,6 +362,16 @@ PersonalStateSnapshot::fromJson(
             &snapshot.audioPairings,
             error)) {
         return std::nullopt;
+    }
+
+    if (version >= 3) {
+        if (!snapshotObject(
+                object,
+                QStringLiteral("progress_watched_mark_action_times"),
+                &snapshot.progressWatchedMarkActionTimes,
+                error)) {
+            return std::nullopt;
+        }
     }
 
     if (version >= 2) {
@@ -630,6 +663,10 @@ LegacyPersonalStateStorage::capture(
         progress.get(),
         QStringLiteral("video/watchedMark"),
         &snapshot.progressWatchedMarks);
+    capturePrefix(
+        progress.get(),
+        QStringLiteral("video/watchedMarkActionAt"),
+        &snapshot.progressWatchedMarkActionTimes);
 
     if (!jsonObjectValue(
             collection.get(),
@@ -714,6 +751,8 @@ bool LegacyPersonalStateStorage::clearPersonalState(
         QStringLiteral("video/lastSeason"));
     progress->remove(
         QStringLiteral("video/watchedMark"));
+    progress->remove(
+        QStringLiteral("video/watchedMarkActionAt"));
 
     collection->remove(
         QStringLiteral("collection/entries"));
@@ -764,6 +803,8 @@ bool LegacyPersonalStateStorage::restorePersonalState(
         QStringLiteral("video/lastSeason"));
     progress->remove(
         QStringLiteral("video/watchedMark"));
+    progress->remove(
+        QStringLiteral("video/watchedMarkActionAt"));
 
     if (!snapshot.progressEntries.isEmpty()) {
         progress->setValue(
@@ -789,6 +830,15 @@ bool LegacyPersonalStateStorage::restorePersonalState(
         progress->setValue(
             QStringLiteral("video/watchedMark/")
                 + it.key(),
+            it.value().toVariant());
+    }
+
+    for (auto it =
+             snapshot.progressWatchedMarkActionTimes.constBegin();
+         it != snapshot.progressWatchedMarkActionTimes.constEnd();
+         ++it) {
+        progress->setValue(
+            QStringLiteral("video/watchedMarkActionAt/") + it.key(),
             it.value().toVariant());
     }
 

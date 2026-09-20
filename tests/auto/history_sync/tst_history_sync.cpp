@@ -496,6 +496,7 @@ private slots:
     void newerDeleteBeatsOlderOfflineActivity();
     void accountProfilesKeepHistorySeparated();
     void failedDeleteRestoresTombstoneState();
+    void stremioProvenanceRoundTripsAndSurvivesLegacyPartialMerge();
 };
 
 void tst_history_sync::
@@ -1484,6 +1485,84 @@ accountProfilesKeepHistorySeparated() {
                 QStringLiteral("movie"),
                 QStringLiteral("private-a"))
             .isEmpty());
+}
+
+void tst_history_sync::
+stremioProvenanceRoundTripsAndSurvivesLegacyPartialMerge() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    HistoryStore store(QDir(temp.path()).filePath(QStringLiteral("history.ini")));
+    HistorySyncAdapter adapter(&store);
+    QSignalSpy dirty(&store, &HistoryStore::syncDirty);
+
+    const QVariantMap imported{
+        {QStringLiteral("kind"), QStringLiteral("episode")},
+        {QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e0")},
+        {QStringLiteral("firstActivityAt"), qint64(1000)},
+        {QStringLiteral("lastActivityAt"), qint64(3000)},
+        {QStringLiteral("completedAt"), qint64(3000)},
+        {QStringLiteral("source"), QStringLiteral("stremio")},
+        {QStringLiteral("displayId"), QStringLiteral("kitsu:alpha:s1:e0")},
+        {QStringLiteral("displayTitle"), QStringLiteral("Pilot Special")},
+        {QStringLiteral("latestKnownAt"), qint64(3000)}};
+    const CoreStateSyncProjection projected =
+        CoreStateSyncProjection::history(imported);
+    QCOMPARE(projected.disposition, CoreStateSyncProjection::Disposition::Portable);
+
+    SyncAdapterValidationError validation;
+    QVERIFY2(adapter.validateRemote(
+        projected.recordKey,
+        SyncWireOperation::Put,
+        projected.payload,
+        1,
+        &validation), qPrintable(validation.detail));
+    QString error;
+    QVERIFY2(adapter.applyRemote(
+        projected.recordKey,
+        SyncWireOperation::Put,
+        projected.payload,
+        1,
+        &error), qPrintable(error));
+    QCOMPARE(dirty.count(), 0);
+
+    const QVariantMap stored = store.get(
+        QStringLiteral("episode"), QStringLiteral("kitsu:alpha:s1:e0"));
+    QCOMPARE(stored.value(QStringLiteral("source")).toString(), QStringLiteral("stremio"));
+    QCOMPARE(stored.value(QStringLiteral("displayId")).toString(), QStringLiteral("kitsu:alpha:s1:e0"));
+    QCOMPARE(stored.value(QStringLiteral("displayTitle")).toString(), QStringLiteral("Pilot Special"));
+    QCOMPARE(stored.value(QStringLiteral("latestKnownAt")).toLongLong(), qint64(3000));
+
+    // A legacy peer cannot erase Stremio attribution or its known date merely
+    // by contributing an older canonical interval.
+    const QVariantMap legacy{
+        {QStringLiteral("kind"), QStringLiteral("episode")},
+        {QStringLiteral("id"), QStringLiteral("kitsu:alpha:s1:e0")},
+        {QStringLiteral("firstActivityAt"), qint64(900)},
+        {QStringLiteral("lastActivityAt"), qint64(2000)},
+        {QStringLiteral("completedAt"), qint64(2000)}};
+    const CoreStateSyncProjection legacyProjected =
+        CoreStateSyncProjection::history(legacy);
+    QVERIFY2(adapter.applyRemote(
+        legacyProjected.recordKey,
+        SyncWireOperation::Put,
+        legacyProjected.payload,
+        1,
+        &error), qPrintable(error));
+    const QVariantMap merged = store.get(
+        QStringLiteral("episode"), QStringLiteral("kitsu:alpha:s1:e0"));
+    QCOMPARE(merged.value(QStringLiteral("source")).toString(), QStringLiteral("stremio"));
+    QCOMPARE(merged.value(QStringLiteral("displayTitle")).toString(), QStringLiteral("Pilot Special"));
+    QCOMPARE(merged.value(QStringLiteral("latestKnownAt")).toLongLong(), qint64(3000));
+
+    // Existing reset barriers remain authoritative over dated provider imports.
+    QVERIFY(store.clearSyncedAll(4000));
+    QVERIFY2(adapter.applyRemote(
+        projected.recordKey,
+        SyncWireOperation::Put,
+        projected.payload,
+        1,
+        &error), qPrintable(error));
+    QVERIFY(store.get(QStringLiteral("episode"), QStringLiteral("kitsu:alpha:s1:e0")).isEmpty());
 }
 
 QTEST_MAIN(tst_history_sync)

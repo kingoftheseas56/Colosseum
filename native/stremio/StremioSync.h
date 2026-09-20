@@ -11,8 +11,10 @@
 #include <QTcpServer>
 #include <QTimer>
 #include <QTcpSocket>
+#include <QVariantList>
 
 #include <functional>
+#include <memory>
 #include <optional>
 
 struct StremioSyncOptions {
@@ -24,6 +26,21 @@ struct StremioSyncOptions {
     std::function<void(const StremioPendingIntent &, std::function<void(bool, bool)>)> intentSender;
     std::function<qint64()> clock;
     bool allowTaggedLoopbackFixture = false;
+};
+
+// Private, bounded replay metadata for an inbound provider record. This is a
+// canonical Theatre projection rather than a Stremio datastore row: no
+// credential, addon URL, or transport envelope is retained across a crash.
+struct StremioProviderImportRedo {
+    QString operationId;
+    QString profileId;
+    QString accountId;
+    quint64 bindingGeneration = 0;
+    QString id;
+    QString type;
+    bool libraryMember = false;
+    bool removed = false;
+    QJsonObject projection;
 };
 
 class StremioSync final : public QObject {
@@ -68,13 +85,90 @@ public:
         const QString &kind,
         const QJsonObject &desired,
         QString *operationId = nullptr);
+    // AccountRuntime invokes this only after the Theatre owners report their
+    // own durable receipt. It receives canonical snapshots, not a provider
+    // envelope, and records only semantic provider differences in this
+    // profile's private journal. Remote notifications use the same method as
+    // invalidations; an unchanged snapshot therefore cannot create an echo.
+    bool reconcileTheatreState(
+        const QVariantList &theatreCollection,
+        const QVariantList &progressEntries,
+        const QHash<QString, int> &watchedMarks,
+        const QHash<QString, qint64> &watchedActionAt);
+    // Bounded native-only library pull. The decoded provider records remain
+    // behind the AccountRuntime importer boundary; neither credentials nor
+    // datastore envelopes enter QML or the ordinary Neon payload.
+    bool pullLibraryItems(
+        std::function<void(bool, QList<StremioLibraryItem>)> completion);
+    // AccountRuntime marks the first merge only after every imported owner
+    // and its Neon checkpoint have committed. A successful provider pull by
+    // itself is deliberately not a first-merge baseline.
+    bool completeFirstMerge(std::function<void(bool)> completion = {});
+    // The provider-import redo receipt reaches disk before canonical Theatre
+    // owners change. It is cleared only after their Neon checkpoint commits.
+    bool beginProviderImport(
+        const StremioLibraryItem &item,
+        const QJsonObject &projection,
+        std::function<void(bool, const QString &)> durableReceipt);
+    // AccountRuntime drains these only through StremioTheatreImporter while
+    // the captured profile/account remains active. They are never QML data.
+    QList<StremioProviderImportRedo> pendingProviderImports() const;
+    bool settleProviderImport(
+        const QString &receipt,
+        std::function<void(bool)> completion = {});
+    // Task 2's explicit cross-service removal is a named, durable operation;
+    // it is not inferred from an ordinary Collection tombstone. The receipt
+    // fires only after the private provider intent has reached disk, before a
+    // caller is permitted to remove the canonical Theatre entry.
+    bool queueExplicitLibraryRemoval(
+        const QString &id,
+        const QString &type,
+        std::function<void(bool)> journalReceipt,
+        QString *operationId = nullptr);
+    // Records the other explicit removal choice: local-only removal must
+    // suppress an unchanged provider membership on later passive pulls.
+    bool recordLocalOnlyLibraryRemoval(
+        const QString &id,
+        const QString &type,
+        std::function<void(bool)> journalReceipt = {});
+    // A passive Stremio deletion is not copied into Collection. Its inverse
+    // difference is nevertheless durable so a later relay cannot infer that
+    // Colosseum should recreate the provider item.
+    bool recordRemoteLibraryRemoval(
+        const QString &id,
+        const QString &type,
+        std::function<void(bool)> journalReceipt = {});
+    // A passive provider membership must not undo an intentional local-only
+    // removal. This native query exposes no credential or datastore data.
+    bool suppressesRemoteLibraryMembership(
+        const QString &id,
+        const QString &type) const;
     bool acknowledgeLocalReceipt(const QString &operationId);
     void retryPendingNow();
+
+    // Narrow native/QML metadata bridge for the one existing Theatre metadata
+    // reader. QML receives only an opaque request id and the expected series
+    // id; it can return only a bounded root plus ordered episode identities.
+    // The profile/account/binding fence and every completion stay native.
+    using EpisodeMetadataCompletion = std::function<void(
+        bool,
+        QList<StremioEpisodeIdentity>)>;
+    bool requestEpisodeMetadata(
+        const QString &seriesId,
+        EpisodeMetadataCompletion completion);
+    Q_INVOKABLE void setEpisodeMetadataBridgeReady(bool ready = true);
+    Q_INVOKABLE bool submitEpisodeMetadata(
+        const QString &requestId,
+        const QString &metadataRootId,
+        const QVariantList &episodes);
 
 signals:
     void stateChanged();
     void browserLoginRequested(const QUrl &url);
     void profileLinkValidated(const QString &profileId);
+    void episodeMetadataRequested(
+        const QString &requestId,
+        const QString &seriesId);
 
 private:
     struct ProfileBinding {
@@ -93,6 +187,16 @@ private:
         quint64 attempt = 0;
     };
 
+    struct EpisodeMetadataRequest {
+        ProfileBinding binding;
+        QString accountId;
+        QString expectedRootId;
+        EpisodeMetadataCompletion completion;
+        bool emitted = false;
+    };
+
+    struct LibraryPull;
+
     bool fixtureEndpointAllowed() const;
     bool endpointAllowed() const;
     void handleIncomingConnection();
@@ -104,6 +208,18 @@ private:
     void persist(std::function<void(bool)> continuation = {});
     void settlePersistence(quint64 generation, bool committed);
     void dispatchIntent(const QString &operationId, const ProfileBinding &binding);
+    void sendIntentViaDatastore(
+        const StremioPendingIntent &intent,
+        const ProfileBinding &binding,
+        std::function<void(bool, bool)> completion);
+    void postDatastoreRequest(
+        const StremioDatastoreRequest &request,
+        const ProfileBinding &binding,
+        std::function<void(bool, bool, QJsonValue)> completion);
+    void fetchNextLibraryBatch(const std::shared_ptr<LibraryPull> &pull);
+    void finishLibraryPull(
+        const std::shared_ptr<LibraryPull> &pull,
+        bool succeeded);
     void handleIntentResult(
         const QString &operationId,
         const ProfileBinding &binding,
@@ -111,12 +227,34 @@ private:
         bool authenticationFailure);
     void removeSatisfiedIntent(const QString &operationId);
     bool bindingCurrent(const ProfileBinding &binding) const;
+    void dispatchEpisodeMetadataRequest(const QString &requestId);
+    void cancelEpisodeMetadataRequests();
     bool hasPendingPersistenceForPath(const QString &path) const;
     void retireProvisionalCredential();
     void updateConnectionStatus();
     StremioPendingIntent *intentFor(const QString &operationId);
     void setStatus(const QString &status);
     void finishRun();
+    void upsertMembershipDifference(
+        const QString &id,
+        const QString &type,
+        bool localPresent,
+        bool remotePresent,
+        bool explicitRemoteRemoval);
+    bool clearLocalOnlyMembershipSuppression(
+        const QString &id,
+        const QString &type);
+    bool queueIntentInternal(
+        const QString &kind,
+        const QJsonObject &desired,
+        QString *operationId,
+        bool localReceiptDurable);
+    bool queueReconciledIntent(
+        const QString &kind,
+        const QJsonObject &desired);
+    static QString baselineKeyForIntent(
+        const QString &kind,
+        const QJsonObject &desired);
 
     StremioSyncOptions m_options;
     StremioState m_stateStore;
@@ -127,6 +265,9 @@ private:
     QPointer<QNetworkReply> m_identityReply;
     QByteArray m_identityResponse;
     bool m_identityResponseTooLarge = false;
+    QPointer<QNetworkReply> m_datastoreReply;
+    QByteArray m_datastoreResponse;
+    bool m_datastoreResponseTooLarge = false;
     QTimer m_authTimeout;
     QTimer m_retryTimer;
     QString m_callbackPath;
@@ -146,4 +287,6 @@ private:
     QHash<QString, StremioPersistentState> m_pendingStateByPath;
     QSet<QString> m_failedPersistencePaths;
     QSet<QString> m_inFlightOperations;
+    QHash<QString, EpisodeMetadataRequest> m_episodeMetadataRequests;
+    bool m_episodeMetadataBridgeReady = false;
 };

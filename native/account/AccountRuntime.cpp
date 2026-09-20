@@ -1,9 +1,11 @@
 #include "AccountRuntime.h"
 
 #include "ActivityStore.h"
+#include "CollectionStore.h"
 #include "AccountServiceEndpoint.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfilePreferencesStore.h"
+#include "ProgressStore.h"
 #include "DownloadIntentSyncAdapter.h"
 #include "watchparty/WatchPartyIdentity.h"
 
@@ -15,6 +17,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSet>
+#include <QTimer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
@@ -402,6 +405,87 @@ private:
 
 } // namespace
 
+struct AccountRuntime::StremioImportBatch {
+    QString profileId;
+    QList<StremioLibraryItem> items;
+    qsizetype nextItem = 0;
+};
+
+struct AccountRuntime::StremioRedoBatch {
+    QString profileId;
+    quint64 incarnation = 0;
+    QList<StremioProviderImportRedo> redos;
+    qsizetype nextRedo = 0;
+};
+
+namespace {
+constexpr qsizetype kMaximumStremioEpisodePendingBytes = 16 * 1024;
+
+std::optional<QJsonObject> episodePendingProjection(
+    const StremioLibraryItem &item,
+    const QString &encodedWatched) {
+    if (encodedWatched.isEmpty()
+        || encodedWatched.size() > kMaximumStremioEpisodePendingBytes) {
+        return std::nullopt;
+    }
+    const StremioTheatreItemProjection canonical = StremioCodec::projectTheatreItem(item);
+    if (!canonical.valid)
+        return std::nullopt;
+    const QJsonObject ownerProjection{
+        {QStringLiteral("kind"), QStringLiteral("item")},
+        {QStringLiteral("hasCollection"), canonical.hasCollection},
+        {QStringLiteral("hasProgress"), canonical.hasProgress},
+        {QStringLiteral("hasHistory"), canonical.hasHistory},
+        {QStringLiteral("collection"), QJsonObject::fromVariantMap(canonical.collection)},
+        {QStringLiteral("progress"), QJsonObject::fromVariantMap(canonical.progress)},
+        {QStringLiteral("history"), QJsonObject::fromVariantMap(canonical.history)}};
+    const QJsonObject pending{
+        {QStringLiteral("kind"), QStringLiteral("episode_pending")},
+        {QStringLiteral("watched"), encodedWatched},
+        {QStringLiteral("item"), ownerProjection}};
+    if (QJsonDocument(pending).toJson(QJsonDocument::Compact).size()
+        > kMaximumStremioEpisodePendingBytes) {
+        return std::nullopt;
+    }
+    return pending;
+}
+
+std::optional<StremioLibraryItem> itemFromEpisodePendingRedo(
+    const StremioProviderImportRedo &redo,
+    QString *encodedWatched) {
+    if (!encodedWatched || redo.type != QLatin1String("series")
+        || redo.projection.value(QStringLiteral("kind")).toString()
+            != QLatin1String("episode_pending")) {
+        return std::nullopt;
+    }
+    const QJsonValue watched = redo.projection.value(QStringLiteral("watched"));
+    const QJsonValue owner = redo.projection.value(QStringLiteral("item"));
+    if (!watched.isString() || watched.toString().isEmpty()
+        || watched.toString().size() > kMaximumStremioEpisodePendingBytes
+        || !owner.isObject()) {
+        return std::nullopt;
+    }
+    const QJsonObject ownerProjection = owner.toObject();
+    if (ownerProjection.value(QStringLiteral("kind")).toString() != QLatin1String("item"))
+        return std::nullopt;
+    StremioLibraryItem item;
+    item.id = redo.id;
+    item.type = redo.type;
+    item.libraryMember = redo.libraryMember;
+    item.removed = redo.removed;
+    QJsonObject raw{{QStringLiteral("_id"), item.id},
+                    {QStringLiteral("type"), item.type},
+                    {QStringLiteral("state"), QJsonObject{{QStringLiteral("watched"), watched}}}};
+    const QJsonObject collection = ownerProjection.value(QStringLiteral("collection")).toObject();
+    const QString title = collection.value(QStringLiteral("title")).toString();
+    if (!title.isEmpty())
+        raw.insert(QStringLiteral("name"), title);
+    item.raw = raw;
+    *encodedWatched = watched.toString();
+    return item;
+}
+} // namespace
+
 AccountRuntime::AccountRuntime(QObject *parent)
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
@@ -455,6 +539,34 @@ AccountRuntime::AccountRuntime(QObject *parent)
                 && preferences->setMainSyncProvider(QStringLiteral("stremio"));
             m_stremioSync.setMarkerLinked(
                 persisted && preferences->mainSyncProvider() == QStringLiteral("stremio"));
+            if (persisted)
+                refreshStremioLibrary();
+        });
+    m_stremioRegistryMutationConnection = connect(
+        &m_syncRegistry,
+        &SyncAdapterRegistry::localMutationAvailable,
+        this,
+        [this](const QString &categoryId, quint64) {
+            if (categoryId == QLatin1String("collection")
+                || categoryId == QLatin1String("continue_progress")
+                || categoryId == QLatin1String("watch_state")) {
+                scheduleStremioTheatreReconcile();
+            }
+        });
+    m_stremioRemoteAppliedConnection = connect(
+        &m_syncRegistry,
+        &SyncAdapterRegistry::remoteApplied,
+        this,
+        [this](const QString &categoryId, const QString &, quint64) {
+            if (categoryId == QLatin1String("collection")
+                || categoryId == QLatin1String("continue_progress")
+                || categoryId == QLatin1String("watch_state")) {
+                // A remote registry notification is an invalidation only. The
+                // deferred durable reread below decides whether its canonical
+                // Theatre state differs from the provider; it is never a new
+                // local action by itself.
+                scheduleStremioTheatreReconcile();
+            }
         });
 
     connect(
@@ -479,6 +591,11 @@ AccountRuntime::AccountRuntime(QObject *parent)
                 }
             }
             clearCoreSyncAdapters();
+            m_stremioTheatreImporter.reset();
+            ++m_stremioProfileIncarnation;
+            m_stremioActiveImportCount = 0;
+            m_stremioReconcileScheduled = false;
+            m_stremioReconcileDeferred = false;
             m_stremioSync.deactivateProfile();
         });
 
@@ -1274,15 +1391,425 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
         m_controller.restoreRememberedSession();
 }
 
+bool AccountRuntime::applyStremioLibraryItem(
+    const StremioLibraryItem &item,
+    StremioTheatreImporter::Completion completion) {
+    if (!m_stremioTheatreImporter) {
+        if (completion) {
+            completion(false,
+                       QStringLiteral("The active Stremio Theatre importer is unavailable."));
+        }
+        return false;
+    }
+    const QString profileId = m_profileStores.activeProfile().profileId();
+    const quint64 incarnation = m_stremioProfileIncarnation;
+    const auto settled = std::make_shared<bool>(false);
+    ++m_stremioActiveImportCount;
+    const auto finish = std::make_shared<StremioTheatreImporter::Completion>(
+        [this, profileId, incarnation, settled,
+         completion = std::move(completion)](bool committed, const QString &error) mutable {
+            if (*settled)
+                return;
+            *settled = true;
+            if (profileId == m_profileStores.activeProfile().profileId()
+                && incarnation == m_stremioProfileIncarnation
+                && m_stremioActiveImportCount > 0) {
+                --m_stremioActiveImportCount;
+                if (m_stremioActiveImportCount == 0 && m_stremioReconcileDeferred) {
+                    m_stremioReconcileDeferred = false;
+                    scheduleStremioTheatreReconcile();
+                }
+            }
+            if (completion)
+                completion(committed, error);
+        });
+    const QJsonValue watched = item.raw.value(QStringLiteral("state"))
+        .toObject().value(QStringLiteral("watched"));
+    if (item.type == QLatin1String("series")
+        && !watched.isUndefined() && !watched.isNull()) {
+        if (!watched.isString()) {
+            (*finish)(false, QStringLiteral("The Stremio series watched field is malformed."));
+            return false;
+        }
+        const auto projection = episodePendingProjection(item, watched.toString());
+        if (!projection.has_value()) {
+            (*finish)(false, QStringLiteral("The Stremio series watch replay is malformed."));
+            return false;
+        }
+        const bool started = m_stremioSync.beginProviderImport(
+            item,
+            *projection,
+            [this, item, encodedWatched = watched.toString(), profileId, incarnation, finish](
+                bool committed, const QString &receipt) {
+                if (!committed || receipt.isEmpty()
+                    || profileId != m_profileStores.activeProfile().profileId()
+                    || incarnation != m_stremioProfileIncarnation) {
+                    (*finish)(false,
+                              QStringLiteral("The Stremio series watch replay was not committed."));
+                    return;
+                }
+                if (!applyStremioSeriesWatchedAfterRedo(
+                        item, encodedWatched, receipt, *finish)) {
+                    (*finish)(false,
+                              QStringLiteral("The Stremio series watch replay could not start."));
+                }
+            });
+        if (!started && !*settled) {
+            (*finish)(false, QStringLiteral("The Stremio series watch replay could not start."));
+        }
+        return started;
+    }
+    const bool started = m_stremioTheatreImporter->apply(
+        item,
+        [finish](bool committed, const QString &error) {
+            (*finish)(committed, error);
+        });
+    if (!started && !*settled) {
+        (*finish)(false, QStringLiteral("The Stremio provider import could not start."));
+    }
+    return started;
+}
+
+bool AccountRuntime::applyStremioSeriesWatchedAfterRedo(
+    const StremioLibraryItem &item,
+    const QString &encodedWatched,
+    const QString &outerRedoReceipt,
+    StremioTheatreImporter::Completion completion) {
+    if (!m_stremioTheatreImporter || item.type != QLatin1String("series")
+        || encodedWatched.isEmpty() || outerRedoReceipt.isEmpty()) {
+        if (completion) {
+            completion(false,
+                       QStringLiteral("The Stremio series watch owners are unavailable."));
+        }
+        return false;
+    }
+    const QString profileId = m_profileStores.activeProfile().profileId();
+    const quint64 incarnation = m_stremioProfileIncarnation;
+    const bool started = m_stremioTheatreImporter->apply(
+        item,
+        [this, item, encodedWatched, outerRedoReceipt, profileId, incarnation,
+         completion = std::move(completion)](bool committed, const QString &error) mutable {
+            if (!committed || profileId != m_profileStores.activeProfile().profileId()
+                || incarnation != m_stremioProfileIncarnation) {
+                if (completion)
+                    completion(false, error.isEmpty()
+                                        ? QStringLiteral("The Stremio series owner did not commit.")
+                                        : error);
+                return;
+            }
+            if (!m_stremioSync.requestEpisodeMetadata(
+                    item.id,
+                    [this, item, encodedWatched, outerRedoReceipt, profileId, incarnation,
+                     completion = std::move(completion)](
+                        bool resolved, QList<StremioEpisodeIdentity> videos) mutable {
+                        if (!resolved || videos.isEmpty()
+                            || profileId != m_profileStores.activeProfile().profileId()
+                            || incarnation != m_stremioProfileIncarnation) {
+                            if (completion) {
+                                completion(false,
+                                           QStringLiteral("The Stremio episode metadata is unavailable."));
+                            }
+                            return;
+                        }
+                        if (!m_stremioTheatreImporter->applyWatchedEpisodes(
+                                item, encodedWatched, videos,
+                                [this, outerRedoReceipt, profileId, incarnation,
+                                 completion = std::move(completion)](
+                                    bool episodeCommitted, const QString &episodeError) mutable {
+                                    if (!episodeCommitted
+                                        || profileId != m_profileStores.activeProfile().profileId()
+                                        || incarnation != m_stremioProfileIncarnation) {
+                                        if (completion)
+                                            completion(false, episodeError);
+                                        return;
+                                    }
+                                    if (!m_stremioSync.settleProviderImport(
+                                            outerRedoReceipt,
+                                            [completion = std::move(completion)](bool settled) mutable {
+                                                if (completion) {
+                                                    completion(
+                                                        settled,
+                                                        settled ? QString()
+                                                                : QStringLiteral(
+                                                                    "The Stremio series watch replay could not settle."));
+                                                }
+                                            })) {
+                                        if (completion) {
+                                            completion(false,
+                                                       QStringLiteral(
+                                                           "The Stremio series watch replay could not settle."));
+                                        }
+                                    }
+                                })) {
+                            if (completion) {
+                                completion(false,
+                                           QStringLiteral("The Stremio episode import could not start."));
+                            }
+                        }
+                    })) {
+                if (completion) {
+                    completion(false,
+                               QStringLiteral("The Stremio episode metadata request could not start."));
+                }
+            }
+        });
+    if (!started && completion) {
+        completion(false, QStringLiteral("The Stremio series owner could not start."));
+    }
+    return started;
+}
+
+void AccountRuntime::refreshStremioLibrary() {
+    const QString profileId = m_profileStores.activeProfile().profileId();
+    if (profileId.isEmpty() || !m_stremioTheatreImporter)
+        return;
+    m_stremioSync.pullLibraryItems(
+        [this, profileId](bool succeeded, QList<StremioLibraryItem> items) {
+            if (!succeeded || profileId != m_profileStores.activeProfile().profileId())
+                return;
+            const auto batch = std::make_shared<StremioImportBatch>();
+            batch->profileId = profileId;
+            batch->items = std::move(items);
+            applyNextStremioLibraryItem(batch);
+        });
+}
+
+void AccountRuntime::applyNextStremioLibraryItem(
+    const std::shared_ptr<StremioImportBatch> &batch) {
+    if (!batch || batch->profileId != m_profileStores.activeProfile().profileId()
+        || !m_stremioTheatreImporter) {
+        return;
+    }
+    if (batch->nextItem >= batch->items.size()) {
+        // A missing or ambiguous episode map leaves its own durable redo for
+        // a later bridge/restart attempt. It must not falsely publish the
+        // first-merge baseline while that provider record remains unsettled.
+        if (m_stremioSync.pendingProviderImports().isEmpty())
+            m_stremioSync.completeFirstMerge();
+        return;
+    }
+    const StremioLibraryItem item = batch->items.at(batch->nextItem++);
+    applyStremioLibraryItem(
+        item,
+        [this, batch](bool, const QString &) {
+            // Provider rows are isolated: an unavailable metadata map is
+            // private pending work, never a reason to stop the next valid
+            // library record from reaching its canonical owner.
+            applyNextStremioLibraryItem(batch);
+        });
+}
+
+void AccountRuntime::replayPendingStremioProviderImports() {
+    if (!m_stremioTheatreImporter)
+        return;
+    const QList<StremioProviderImportRedo> redos = m_stremioSync.pendingProviderImports();
+    if (redos.isEmpty())
+        return;
+    const auto batch = std::make_shared<StremioRedoBatch>();
+    batch->profileId = m_profileStores.activeProfile().profileId();
+    batch->incarnation = m_stremioProfileIncarnation;
+    batch->redos = redos;
+    replayNextStremioProviderImport(batch);
+}
+
+void AccountRuntime::replayNextStremioProviderImport(
+    const std::shared_ptr<StremioRedoBatch> &batch) {
+    if (!batch || batch->profileId != m_profileStores.activeProfile().profileId()
+        || batch->incarnation != m_stremioProfileIncarnation
+        || !m_stremioTheatreImporter
+        || batch->nextRedo >= batch->redos.size()) {
+        return;
+    }
+    const StremioProviderImportRedo redo = batch->redos.at(batch->nextRedo++);
+    ++m_stremioActiveImportCount;
+    const auto settled = std::make_shared<bool>(false);
+    const auto replayCompletion = [this, batch, settled, operationId = redo.operationId](
+        bool committed, const QString &) {
+            if (*settled)
+                return;
+            *settled = true;
+            if (batch->profileId != m_profileStores.activeProfile().profileId()
+                || batch->incarnation != m_stremioProfileIncarnation) {
+                return;
+            }
+            if (m_stremioActiveImportCount > 0)
+                --m_stremioActiveImportCount;
+            if (!committed) {
+                // A nested series replay can settle a later inner redo before
+                // this captured batch reaches it. Skip only that already
+                // retired receipt; a still-pending malformed/missing map
+                // remains private work and does not block unrelated records.
+                const QList<StremioProviderImportRedo> pendingRedos =
+                    m_stremioSync.pendingProviderImports();
+                const bool stillPending = std::any_of(
+                    pendingRedos.cbegin(), pendingRedos.cend(),
+                    [&operationId](const StremioProviderImportRedo &candidate) {
+                        return candidate.operationId == operationId;
+                    });
+                if (!stillPending)
+                    replayNextStremioProviderImport(batch);
+                return;
+            }
+            replayNextStremioProviderImport(batch);
+        };
+    bool started = false;
+    if (redo.projection.value(QStringLiteral("kind")).toString()
+        == QLatin1String("episode_pending")) {
+        QString encodedWatched;
+        const auto item = itemFromEpisodePendingRedo(redo, &encodedWatched);
+        if (item.has_value()) {
+            started = applyStremioSeriesWatchedAfterRedo(
+                *item, encodedWatched, redo.operationId, replayCompletion);
+        }
+    } else {
+        started = m_stremioTheatreImporter->replayProviderImport(redo, replayCompletion);
+    }
+    if (!started && !*settled
+        && batch->profileId == m_profileStores.activeProfile().profileId()
+        && batch->incarnation == m_stremioProfileIncarnation
+        && m_stremioActiveImportCount > 0) {
+        --m_stremioActiveImportCount;
+    }
+}
+
+void AccountRuntime::scheduleStremioTheatreReconcile() {
+    const QString profileId = m_profileStores.activeProfile().profileId();
+    if (profileId.isEmpty() || !m_stremioTheatreImporter)
+        return;
+    if (m_stremioActiveImportCount > 0) {
+        m_stremioReconcileDeferred = true;
+        return;
+    }
+    if (m_stremioReconcileScheduled)
+        return;
+    const quint64 incarnation = m_stremioProfileIncarnation;
+    m_stremioReconcileScheduled = true;
+    QTimer::singleShot(0, this, [this, profileId, incarnation] {
+        m_stremioReconcileScheduled = false;
+        reconcileStremioTheatreState(profileId, incarnation);
+    });
+}
+
+void AccountRuntime::reconcileStremioTheatreState(
+    const QString &profileId,
+    quint64 incarnation) {
+    if (profileId != m_profileStores.activeProfile().profileId()
+        || incarnation != m_stremioProfileIncarnation
+        || m_stremioActiveImportCount > 0) {
+        return;
+    }
+    ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+    ProgressStore *progress = m_profileStores.progressStore();
+    if (!preferences || !progress
+        || preferences->mainSyncProvider() != QLatin1String("stremio")) {
+        return;
+    }
+    // `recordSilent` has no visual revision by design, but it still schedules
+    // a writer snapshot. This receipt is the required owner-durability fence;
+    // the GUI thread never blocks on a flush.
+    progress->requestDurableReceipt(
+        [this, profileId, incarnation](bool committed, const QString &) {
+            if (!committed
+                || profileId != m_profileStores.activeProfile().profileId()
+                || incarnation != m_stremioProfileIncarnation
+                || m_stremioActiveImportCount > 0) {
+                return;
+            }
+            ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+            CollectionStore *collection = m_profileStores.collectionStore();
+            ProgressStore *currentProgress = m_profileStores.progressStore();
+            if (!preferences || !collection || !currentProgress
+                || preferences->mainSyncProvider() != QLatin1String("stremio")) {
+                return;
+            }
+            m_stremioSync.reconcileTheatreState(
+                collection->items(QStringLiteral("theatre")),
+                currentProgress->syncEntries(),
+                currentProgress->syncWatchedMarks(),
+                currentProgress->syncWatchedMarkActionTimes());
+        });
+}
+
 void AccountRuntime::activateStremioProfile() {
     const ProfilePaths profile = m_profileStores.activeProfile();
+    ++m_stremioProfileIncarnation;
+    m_stremioActiveImportCount = 0;
+    m_stremioReconcileScheduled = false;
+    m_stremioReconcileDeferred = false;
     const bool sealed = profile.kind() == ProfilePaths::Kind::Sealed;
+    const bool explicitLocalOnly = profile.kind() == ProfilePaths::Kind::LocalOnly;
     QString ignored;
     m_stremioSync.activateProfile(
         profile.profileId(),
         profile.stremioSyncStatePath(),
         sealed,
         &ignored);
+    m_stremioTheatreImporter = std::make_unique<StremioTheatreImporter>(
+        m_profileStores.collectionStore(),
+        m_profileStores.progressStore(),
+        m_profileStores.historyStore(),
+        this);
+    m_stremioTheatreImporter->activate(profile.profileId());
+    // Local-only profiles have no ordinary account registry ownership. They
+    // still durably apply provider state through the real direct owners; an
+    // empty registry would incorrectly reject every replay/import before the
+    // profile can later seed Neon during adoption.
+    if (m_syncEngine.active())
+        m_stremioTheatreImporter->setSyncAdapterRegistry(&m_syncRegistry);
+    m_stremioTheatreImporter->setStremioSync(&m_stremioSync);
+    m_stremioTheatreImporter->setNeonCheckpoint(
+        [this, explicitLocalOnly](StremioTheatreImporter::Completion completion) {
+            if (!m_syncEngine.active()) {
+                if (explicitLocalOnly) {
+                    // Local-only canonical owners remain durable and become
+                    // ordinary-sync candidates later during account adoption.
+                    completion(true, {});
+                } else {
+                    // An account profile still owes its Neon relay. Keep the
+                    // private redo unsatisfied until the ordinary engine is
+                    // active; the owner state itself is never rolled back.
+                    completion(false, QStringLiteral("The account sync engine is inactive."));
+                }
+                return;
+            }
+            QString error;
+            if (!m_syncEngine.checkpointProviderImport(
+                    std::move(completion), &error)) {
+                // checkpointProviderImport invokes completion on every
+                // established failure path; this covers only a failed start
+                // whose callback could not be registered.
+            }
+        });
+    // A crash can leave a committed provider redo between its private journal
+    // receipt and the owner/Neon completion. Drain only this profile's
+    // captured incarnation through the same importer/checkpoint path; remote
+    // notifications remain invalidations and cannot create a second action.
+    replayPendingStremioProviderImports();
+    if (m_stremioProgressDirtyConnection)
+        disconnect(m_stremioProgressDirtyConnection);
+    if (m_stremioWatchStateConnection)
+        disconnect(m_stremioWatchStateConnection);
+    if (m_stremioCollectionDirtyConnection)
+        disconnect(m_stremioCollectionDirtyConnection);
+    if (ProgressStore *progress = m_profileStores.progressStore()) {
+        m_stremioProgressDirtyConnection = connect(
+            progress,
+            &ProgressStore::syncDirty,
+            this,
+            [this] { scheduleStremioTheatreReconcile(); });
+        m_stremioWatchStateConnection = connect(
+            progress,
+            &ProgressStore::watchStateChanged,
+            this,
+            [this] { scheduleStremioTheatreReconcile(); });
+    }
+    if (CollectionStore *collection = m_profileStores.collectionStore()) {
+        m_stremioCollectionDirtyConnection = connect(
+            collection,
+            &CollectionStore::syncDirty,
+            this,
+            [this] { scheduleStremioTheatreReconcile(); });
+    }
     if (m_stremioMarkerConnection)
         disconnect(m_stremioMarkerConnection);
     ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
@@ -1297,7 +1824,15 @@ void AccountRuntime::activateStremioProfile() {
         [this, preferences]() {
             if (preferences != m_profileStores.preferencesStore())
                 return;
-            m_stremioSync.setMarkerLinked(
-                preferences->mainSyncProvider() == QStringLiteral("stremio"));
+            const bool linked = preferences->mainSyncProvider() == QStringLiteral("stremio");
+            m_stremioSync.setMarkerLinked(linked);
+            if (linked) {
+                refreshStremioLibrary();
+                scheduleStremioTheatreReconcile();
+            }
         });
+    if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
+        refreshStremioLibrary();
+        scheduleStremioTheatreReconcile();
+    }
 }

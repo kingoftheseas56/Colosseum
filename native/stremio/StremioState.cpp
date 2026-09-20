@@ -40,6 +40,102 @@ bool validIntent(const StremioPendingIntent &intent) {
         && !intent.kind.trimmed().isEmpty()
         && intent.attempts >= 0;
 }
+
+bool validMembershipDifference(const QJsonValue &value) {
+    if (!value.isObject())
+        return false;
+    const QJsonObject object = value.toObject();
+    const QString id = object.value(QStringLiteral("id")).toString();
+    const QString type = object.value(QStringLiteral("type")).toString();
+    return object.size() == 5
+        && !id.isEmpty()
+        && id.trimmed() == id
+        && id.size() <= 512
+        && (type == QLatin1String("movie") || type == QLatin1String("series"))
+        && object.value(QStringLiteral("localPresent")).isBool()
+        && object.value(QStringLiteral("remotePresent")).isBool()
+        && object.value(QStringLiteral("explicitRemoteRemoval")).isBool();
+}
+
+bool validProviderRedoProjection(const QJsonValue &value) {
+    if (!value.isObject())
+        return false;
+    const QJsonObject projection = value.toObject();
+    const QString kind = projection.value(QStringLiteral("kind")).toString();
+    if (kind == QLatin1String("episode_pending")) {
+        const QJsonValue watched = projection.value(QStringLiteral("watched"));
+        const QJsonValue item = projection.value(QStringLiteral("item"));
+        if (projection.size() != 3 || !watched.isString() || watched.toString().isEmpty()
+            || watched.toString().size() > 16 * 1024 || !item.isObject()) {
+            return false;
+        }
+        // `item` is the same bounded canonical owner projection used by an
+        // ordinary provider redo. It reconstructs no datastore envelope and
+        // lets restart replay retain a watched field until metadata is ready.
+        return validProviderRedoProjection(item)
+            && item.toObject().value(QStringLiteral("kind")).toString() == QLatin1String("item")
+            && QJsonDocument(projection).toJson(QJsonDocument::Compact).size()
+                <= 16 * 1024;
+    }
+    if (kind == QLatin1String("episodes")) {
+        if (projection.size() != 2
+            || !projection.value(QStringLiteral("episodeIds")).isArray()
+            || projection.value(QStringLiteral("episodeIds")).toArray().size() > 512) {
+            return false;
+        }
+        for (const QJsonValue &id : projection.value(QStringLiteral("episodeIds")).toArray()) {
+            if (!id.isString() || id.toString().isEmpty()
+                || id.toString() != id.toString().trimmed() || id.toString().size() > 512) {
+                return false;
+            }
+        }
+        return QJsonDocument(projection).toJson(QJsonDocument::Compact).size()
+            <= 16 * 1024;
+    }
+    if (kind != QLatin1String("item")
+        || projection.size() != 7
+        || !projection.value(QStringLiteral("hasCollection")).isBool()
+        || !projection.value(QStringLiteral("hasProgress")).isBool()
+        || !projection.value(QStringLiteral("hasHistory")).isBool()
+        || !projection.value(QStringLiteral("collection")).isObject()
+        || !projection.value(QStringLiteral("progress")).isObject()
+        || !projection.value(QStringLiteral("history")).isObject()) {
+        return false;
+    }
+    // The persisted replay input is a bounded canonical projection, never a
+    // raw datastore response or request envelope. The owning importer shapes
+    // each nested object again before it reaches a canonical store.
+    return QJsonDocument(projection).toJson(QJsonDocument::Compact).size()
+        <= 16 * 1024;
+}
+
+bool validImportRedoReceipt(const QJsonValue &value) {
+    // Task 1's tagged fixture uses a legacy inert string receipt. Production
+    // Task 2 receipts are bounded objects with only opaque identity metadata;
+    // credentials and provider URLs are never journal fields.
+    if (value.isString())
+        return !value.toString().trimmed().isEmpty() && value.toString().size() <= 128;
+    if (!value.isObject())
+        return false;
+    const QJsonObject object = value.toObject();
+    const QString operationId = object.value(QStringLiteral("operationId")).toString();
+    const QString profileId = object.value(QStringLiteral("profileId")).toString();
+    const QString accountId = object.value(QStringLiteral("accountId")).toString();
+    bool generationOk = false;
+    const quint64 bindingGeneration = object.value(QStringLiteral("bindingGeneration"))
+        .toString().toULongLong(&generationOk);
+    const QString id = object.value(QStringLiteral("id")).toString();
+    const QString type = object.value(QStringLiteral("type")).toString();
+    return object.size() == 9 && !operationId.isEmpty() && operationId.size() <= 128
+        && !profileId.isEmpty() && profileId == profileId.trimmed() && profileId.size() <= 512
+        && accountId == accountId.trimmed() && accountId.size() <= 512
+        && generationOk && bindingGeneration > 0
+        && !id.isEmpty() && id.trimmed() == id && id.size() <= 512
+        && (type == QLatin1String("movie") || type == QLatin1String("series"))
+        && object.value(QStringLiteral("libraryMember")).isBool()
+        && object.value(QStringLiteral("removed")).isBool()
+        && validProviderRedoProjection(object.value(QStringLiteral("projection")));
+}
 }
 
 StremioState::StremioState(QObject *parent)
@@ -203,6 +299,29 @@ std::optional<StremioPersistentState> StremioState::decode(
     result.lastSuccessAtMs = lastSuccess;
     result.firstMergeComplete = object.value(QStringLiteral("firstMergeComplete")).toBool();
     result.reconnectRequired = object.value(QStringLiteral("reconnectRequired")).toBool();
+    for (const QJsonValue &difference : result.intentionalMembershipDifferences) {
+        if (!validMembershipDifference(difference)) {
+            if (error)
+                *error = QStringLiteral("The Stremio state file is malformed.");
+            return std::nullopt;
+        }
+    }
+    for (const QJsonValue &receipt : result.importRedoReceipts) {
+        if (!validImportRedoReceipt(receipt)) {
+            if (error)
+                *error = QStringLiteral("The Stremio state file is malformed.");
+            return std::nullopt;
+        }
+        if (receipt.isObject()) {
+            const QJsonObject redo = receipt.toObject();
+            if (redo.value(QStringLiteral("profileId")).toString() != result.profileId
+                || redo.value(QStringLiteral("accountId")).toString() != result.accountId) {
+                if (error)
+                    *error = QStringLiteral("The Stremio state file is malformed.");
+                return std::nullopt;
+            }
+        }
+    }
     for (const QJsonValue &value : object.value(QStringLiteral("pendingIntents")).toArray()) {
         if (!value.isObject()) {
             if (error)

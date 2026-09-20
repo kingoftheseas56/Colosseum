@@ -24,6 +24,7 @@
 #include "WindowsAccountCredentialStore.h"
 #include "WindowsAccountSensitiveClipboard.h"
 #include "stremio/StremioSync.h"
+#include "stremio/StremioTheatreImporter.h"
 
 #include <QObject>
 
@@ -48,6 +49,13 @@ public:
 
     void setDownloadSource(LocalDownloads *downloads);
 
+    // Native-only Stremio provider-import entry. Callers supply only decoded
+    // library items; credentials and request envelopes remain inside the
+    // transport layer and never cross into QML or the ordinary sync schema.
+    bool applyStremioLibraryItem(
+        const StremioLibraryItem &item,
+        StremioTheatreImporter::Completion completion = {});
+
     void prepareForQml(QQmlApplicationEngine *engine);
 
     // Narrow Watch Party identity seam — supplies signed-in username +
@@ -58,11 +66,29 @@ public:
     createWatchPartyAccountBridge();
 
 private:
+    struct StremioImportBatch;
+    struct StremioRedoBatch;
+
     bool installCoreSyncAdapters(
         QString *error = nullptr);
     void clearCoreSyncAdapters();
     void startOrResumeAccountAttachment();
     void activateStremioProfile();
+    void refreshStremioLibrary();
+    bool applyStremioSeriesWatchedAfterRedo(
+        const StremioLibraryItem &item,
+        const QString &encodedWatched,
+        const QString &outerRedoReceipt,
+        StremioTheatreImporter::Completion completion);
+    void applyNextStremioLibraryItem(
+        const std::shared_ptr<StremioImportBatch> &batch);
+    void replayPendingStremioProviderImports();
+    void replayNextStremioProviderImport(
+        const std::shared_ptr<StremioRedoBatch> &batch);
+    void scheduleStremioTheatreReconcile();
+    void reconcileStremioTheatreState(
+        const QString &profileId,
+        quint64 incarnation);
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
@@ -94,10 +120,20 @@ private:
     LocalDownloads *m_downloadSource = nullptr;
     SyncEngine m_syncEngine;
     StremioSync m_stremioSync;
+    std::unique_ptr<StremioTheatreImporter> m_stremioTheatreImporter;
     std::unique_ptr<AccountAttachmentCoordinator>
         m_attachmentCoordinator;
     AccountController m_controller;
     AccountLifecycleCoordinator m_lifecycleCoordinator;
     QMetaObject::Connection m_stremioMarkerConnection;
+    QMetaObject::Connection m_stremioRegistryMutationConnection;
+    QMetaObject::Connection m_stremioRemoteAppliedConnection;
+    QMetaObject::Connection m_stremioProgressDirtyConnection;
+    QMetaObject::Connection m_stremioWatchStateConnection;
+    QMetaObject::Connection m_stremioCollectionDirtyConnection;
+    quint64 m_stremioProfileIncarnation = 0;
+    quint64 m_stremioActiveImportCount = 0;
+    bool m_stremioReconcileScheduled = false;
+    bool m_stremioReconcileDeferred = false;
     bool m_qmlPrepared = false;
 };

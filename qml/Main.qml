@@ -75,6 +75,26 @@ Window {
         property var completedRun: stremioSyncState.completedRun
     }
 
+    // The existing Theatre metadata reader is the only QML participant in
+    // Stremio episode-state reconciliation. It receives a one-shot opaque
+    // request and returns an identity-only ordered episode map; the native
+    // owner retains profile/account fences, timeouts, compressed watched data,
+    // and all validation. This has no visual or user-control surface.
+    Connections {
+        target: (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
+        function onEpisodeMetadataRequested(requestId, seriesId) {
+            TheatreApi.loadMeta("series", seriesId, function(meta) {
+                var projection = TheatreApi.stremioEpisodeMetadataProjection(meta, seriesId)
+                stremioSyncState.submitEpisodeMetadata(
+                    requestId, projection.metadataRootId, projection.episodes)
+            })
+        }
+        Component.onCompleted: {
+            if (target)
+                target.setEpisodeMetadataBridgeReady(true)
+        }
+    }
+
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
     // Shortcut objects below only deliver the physical chord into this registry-backed action.
     KeyboardRegistry {

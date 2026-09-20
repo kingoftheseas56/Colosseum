@@ -23,6 +23,15 @@ Item {
                "no progress → unwatched");
             ok(Api.watchState({}, { mark: 0, completed: true, progress: 0, isSeries: false }) === "watched",
                "History completion survives Continue retirement");
+            ok(Api.watchState({}, { mark: 0, completed: true, completedAt: 3000,
+                                     progress: 0.4, progressAt: 5000, isSeries: false }) === "progress",
+               "newer partial progress beats older cumulative History completion");
+            ok(Api.watchState({}, { mark: 0, completed: true, completedAt: 5000,
+                                     progress: 0.4, progressAt: 3000, isSeries: false }) === "watched",
+               "newer completion beats older partial progress");
+            ok(Api.watchState({}, { mark: 0, completed: true,
+                                     progress: 0.4, progressAt: 5000, isSeries: false }) === "watched",
+               "missing completion time retains stable existing History precedence");
             ok(Api.watchState({}, { mark: -1, completed: true, progress: 0, isSeries: false }) === "unwatched",
                "manual unwatched still wins over automatic History completion");
             ok(Api.watchState({}, { mark: -1, progress: 0.4, isSeries: true }) === "progress",

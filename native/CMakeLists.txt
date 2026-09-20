@@ -232,6 +232,7 @@ add_executable(colosseum
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
     stremio/StremioCodec.cpp
+    stremio/StremioTheatreImporter.cpp
     stremio/StremioState.cpp
     stremio/StremioSync.cpp
     account/AccountAttachmentReceipt.h
@@ -288,6 +289,7 @@ add_executable(colosseum
     account/TankobanReaderPreferencesSyncAdapter.h
     account/WindowsAccountCredentialStore.h
     stremio/StremioCodec.h
+    stremio/StremioTheatreImporter.h
     stremio/StremioState.h
     stremio/StremioSync.h
     account/WindowsAccountSensitiveClipboard.h

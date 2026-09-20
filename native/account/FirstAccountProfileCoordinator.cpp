@@ -124,7 +124,8 @@ bool migratedProfileFilesPresent(
     const bool needsProgress =
         !source.progressEntries.isEmpty()
         || !source.progressLastSeason.isEmpty()
-        || !source.progressWatchedMarks.isEmpty();
+        || !source.progressWatchedMarks.isEmpty()
+        || !source.progressWatchedMarkActionTimes.isEmpty();
     if (needsProgress
         && !QFileInfo::exists(
             paths.progressIniPath())) {
@@ -302,12 +303,19 @@ PersonalStateSnapshot mergeSnapshots(
             merged.progressLastSeason.insert(it.key(), it.value());
     }
     for (auto it = local.progressWatchedMarks.constBegin();
-         it != local.progressWatchedMarks.constEnd();
-         ++it) {
-        const QJsonValue current =
-            merged.progressWatchedMarks.value(it.key());
-        if (!current.isDouble() || it.value().toDouble() > current.toDouble())
-            merged.progressWatchedMarks.insert(it.key(), it.value());
+         it != local.progressWatchedMarks.constEnd(); ++it) {
+        const qint64 localAt = local.progressWatchedMarkActionTimes
+            .value(it.key()).toInteger();
+        const qint64 currentAt = merged.progressWatchedMarkActionTimes
+            .value(it.key()).toInteger();
+        const bool missingCurrent = !merged.progressWatchedMarks.contains(it.key());
+        if (!missingCurrent && !(localAt > 0 && (currentAt <= 0 || localAt > currentAt)))
+            continue;
+        merged.progressWatchedMarks.insert(it.key(), it.value());
+        if (localAt > 0)
+            merged.progressWatchedMarkActionTimes.insert(it.key(), localAt);
+        else
+            merged.progressWatchedMarkActionTimes.remove(it.key());
     }
     merged.showExplicit = account.showExplicit || local.showExplicit;
     return merged;
@@ -2025,6 +2033,17 @@ verifyProfile(
                 error,
                 QStringLiteral(
                     "ProgressStore watched-mark readback failed."));
+        }
+    }
+
+    const QHash<QString, qint64> actionTimes =
+        progress.syncWatchedMarkActionTimes();
+    for (auto it = expected.progressWatchedMarkActionTimes.constBegin();
+         it != expected.progressWatchedMarkActionTimes.constEnd(); ++it) {
+        if (actionTimes.value(it.key()) != it.value().toInteger()) {
+            return setError(
+                error,
+                QStringLiteral("ProgressStore watched-mark action-time readback failed."));
         }
     }
 

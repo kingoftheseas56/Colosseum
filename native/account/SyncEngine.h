@@ -42,6 +42,15 @@ public:
         QString *error = nullptr);
 
     void requestImmediateSync();
+
+    // A provider import has already committed its canonical owner state but
+    // intentionally emitted no local-owner dirty signal. Reconcile that
+    // state into the ordinary Neon outbox and call completion only after the
+    // outbox/mirror checkpoint itself is durable. This is native-only: a
+    // provider can never write engine internals or bypass owner receipts.
+    bool checkpointProviderImport(
+        std::function<void(bool, const QString &)> completion = {},
+        QString *error = nullptr);
     // Explicit recovery path for a server capability/schema upgrade. A normal
     // scheduled sync keeps durable rejection markers in place; this operation
     // clears those markers once and lets the existing outbox retry.
