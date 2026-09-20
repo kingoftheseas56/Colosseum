@@ -75,6 +75,13 @@ public:
     bool activateTaggedFixture();
     bool startBrowserAuthentication(QString *error = nullptr);
     void cancelAuthentication();
+    // Explicit user disconnect. Fences every old callback, clears this
+    // device's vault entry and durably retires provider-only work while the
+    // canonical Colosseum owners remain untouched.
+    bool disconnectProfile(std::function<void(bool)> completion = {});
+    Q_INVOKABLE bool connectAccount();
+    Q_INVOKABLE bool disconnectCurrentProfile();
+    Q_INVOKABLE bool switchAccount();
     void setMarkerLinked(bool linked);
     void setCredentialCallbacks(
         std::function<bool(const QString &, const QString &, const QByteArray &)> save,
@@ -100,6 +107,24 @@ public:
     // datastore envelopes enter QML or the ordinary Neon payload.
     bool pullLibraryItems(
         std::function<void(bool, QList<StremioLibraryItem>)> completion);
+    // Reads the actual private addon collection. The decoded documents never
+    // cross into QML or Neon; AccountRuntime applies compatible rows through
+    // ExtensionsStore's durable receipt.
+    bool pullAddonCollection(
+        std::function<void(bool, QJsonArray)> completion);
+    // Fresh-read/rebase/whole-write/readback for the one Stremio addon
+    // collection. Input is already private provider-shaped data from the
+    // active ExtensionsStore owner; it never crosses QML or Neon.
+    bool reconcileAddonCollection(
+        const QJsonArray &localAddons,
+        std::function<void(bool, QJsonArray)> completion);
+    // Advances the local side of the addon baseline only after
+    // ExtensionsStore has durably applied the settled provider collection.
+    // The snapshot contains only provider-managed Theatre rows, so unrelated
+    // Stremio addons remain remote-only and can never be inferred as removals.
+    bool acknowledgeAddonCollectionOwner(
+        const QJsonArray &localAddons,
+        std::function<void(bool)> completion = {});
     // AccountRuntime marks the first merge only after every imported owner
     // and its Neon checkpoint have committed. A successful provider pull by
     // itself is deliberately not a first-merge baseline.
@@ -166,6 +191,7 @@ signals:
     void stateChanged();
     void browserLoginRequested(const QUrl &url);
     void profileLinkValidated(const QString &profileId);
+    void profileDisconnected(const QString &profileId);
     void episodeMetadataRequested(
         const QString &requestId,
         const QString &seriesId);
@@ -196,6 +222,7 @@ private:
     };
 
     struct LibraryPull;
+    struct AddonCollectionReconcile;
 
     bool fixtureEndpointAllowed() const;
     bool endpointAllowed() const;
@@ -220,6 +247,16 @@ private:
     void finishLibraryPull(
         const std::shared_ptr<LibraryPull> &pull,
         bool succeeded);
+    void fetchAddonCollectionForReconcile(
+        const std::shared_ptr<AddonCollectionReconcile> &reconcile);
+    void writeAddonCollectionForReconcile(
+        const std::shared_ptr<AddonCollectionReconcile> &reconcile);
+    void verifyAddonCollectionForReconcile(
+        const std::shared_ptr<AddonCollectionReconcile> &reconcile);
+    void finishAddonCollectionReconcile(
+        const std::shared_ptr<AddonCollectionReconcile> &reconcile,
+        bool succeeded,
+        const QJsonArray &settled = {});
     void handleIntentResult(
         const QString &operationId,
         const ProfileBinding &binding,
@@ -292,4 +329,5 @@ private:
     QSet<QString> m_inFlightOperations;
     QHash<QString, EpisodeMetadataRequest> m_episodeMetadataRequests;
     bool m_episodeMetadataBridgeReady = false;
+    bool m_addonCollectionReconcileActive = false;
 };

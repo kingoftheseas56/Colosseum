@@ -15,11 +15,115 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QPointer>
+#include <QSignalSpy>
 #include <QStandardPaths>
 #include <QStringList>
+#include <QTemporaryDir>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtTest>
+
+#include <functional>
+#include <type_traits>
+
+template <typename Store, typename = void>
+struct CanApplyTheatreRows : std::false_type {};
+
+template <typename Store>
+struct CanApplyTheatreRows<
+    Store,
+    std::void_t<decltype(std::declval<Store &>().applyTheatreRows(
+        std::declval<QVariantList>(),
+        std::function<void(bool, const QString &)>{}))>> : std::true_type {};
+
+template <typename Store>
+bool applyTheatreRows(
+    Store &store,
+    const QVariantList &rows,
+    std::function<void(bool, const QString &)> completion)
+{
+    if constexpr (CanApplyTheatreRows<Store>::value)
+        return store.applyTheatreRows(rows, std::move(completion));
+    Q_UNUSED(store);
+    Q_UNUSED(rows);
+    Q_UNUSED(completion);
+    return false;
+}
+
+class ManifestFixture final : public QObject
+{
+public:
+    explicit ManifestFixture(QObject *parent = nullptr)
+        : QObject(parent)
+    {
+        connect(&m_server, &QTcpServer::newConnection, this, [this] {
+            while (m_server.hasPendingConnections()) {
+                QTcpSocket *socket = m_server.nextPendingConnection();
+                connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
+                    socket->readAll();
+                    if (socket->property("fixtureRequestHandled").toBool())
+                        return;
+                    socket->setProperty("fixtureRequestHandled", true);
+                    if (m_holdResponses) {
+                        m_heldResponses.append(socket);
+                        return;
+                    }
+                    respond(socket);
+                });
+                connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+            }
+        });
+    }
+
+    bool listen()
+    {
+        return m_server.listen(QHostAddress::LocalHost);
+    }
+
+    QString configuredUrl(const QString &pathAndQuery) const
+    {
+        return QStringLiteral("http://127.0.0.1:%1%2")
+            .arg(m_server.serverPort())
+            .arg(pathAndQuery);
+    }
+
+    void holdResponses(bool hold) { m_holdResponses = hold; }
+    int heldRequestCount() const { return m_heldResponses.size(); }
+    void releaseHeldResponses()
+    {
+        m_holdResponses = false;
+        const QList<QPointer<QTcpSocket>> held = m_heldResponses;
+        m_heldResponses.clear();
+        for (const QPointer<QTcpSocket> &socket : held)
+            respond(socket.data());
+    }
+
+private:
+    static void respond(QTcpSocket *socket)
+    {
+        if (!socket)
+            return;
+        const QByteArray body = QByteArrayLiteral(
+            "{\"id\":\"fixture.same-manifest\",\"name\":\"Fixture addon\","
+            "\"resources\":[\"catalog\"],\"types\":[\"movie\"]}");
+        socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\n"
+                                         "Content-Type: application/json\r\n"
+                                         "Content-Length: ")
+                      + QByteArray::number(body.size())
+                      + QByteArrayLiteral("\r\nConnection: close\r\n\r\n")
+                      + body);
+        socket->disconnectFromHost();
+    }
+
+    QTcpServer m_server;
+    bool m_holdResponses = false;
+    QList<QPointer<QTcpSocket>> m_heldResponses;
+};
 
 class tst_extensions_first_run : public QObject
 {
@@ -46,6 +150,60 @@ class tst_extensions_first_run : public QObject
             if (v.toMap().value(QStringLiteral("id")).toString() == id)
                 return v.toMap();
         return {};
+    }
+    static QVariantMap findByTransportUrl(const QVariantList& items, const QString& transportUrl)
+    {
+        for (const QVariant& value : items) {
+            const QVariantMap row = value.toMap();
+            if (row.value(QStringLiteral("transportUrl")).toString() == transportUrl)
+                return row;
+        }
+        return {};
+    }
+    static int indexOfTransportUrl(const QVariantList& items, const QString& transportUrl)
+    {
+        for (int index = 0; index < items.size(); ++index) {
+            if (items.at(index).toMap().value(QStringLiteral("transportUrl")).toString()
+                == transportUrl) {
+                return index;
+            }
+        }
+        return -1;
+    }
+    static QVariantMap theatreFixture(const QString &transportUrl)
+    {
+        return QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("fixture.profile.theatre")},
+            {QStringLiteral("transportUrl"), transportUrl},
+            {QStringLiteral("installedAt"), qint64(1)},
+            {QStringLiteral("enabled"), true},
+            {QStringLiteral("core"), false},
+            {QStringLiteral("manifest"), QVariantMap{
+                {QStringLiteral("id"), QStringLiteral("fixture.profile.theatre")},
+                {QStringLiteral("name"), QStringLiteral("Profile Theatre fixture")},
+                {QStringLiteral("types"), QStringList{QStringLiteral("movie")}},
+                {QStringLiteral("resources"), QStringList{QStringLiteral("catalog")}}}}};
+    }
+    static QVariantMap theatreFixture(const QString &transportUrl,
+                                      const QString &id)
+    {
+        QVariantMap row = theatreFixture(transportUrl);
+        row.insert(QStringLiteral("id"), id);
+        QVariantMap manifest = row.value(QStringLiteral("manifest")).toMap();
+        manifest.insert(QStringLiteral("id"), id);
+        row.insert(QStringLiteral("manifest"), manifest);
+        return row;
+    }
+    static bool activateProfile(ExtensionsStore *store,
+                                const QString &profileId,
+                                const QString &path)
+    {
+        bool activated = false;
+        return QMetaObject::invokeMethod(store, "activateProfile",
+                                         Q_RETURN_ARG(bool, activated),
+                                         Q_ARG(QString, profileId),
+                                         Q_ARG(QString, path))
+            && activated;
     }
 
 private slots:
@@ -284,6 +442,388 @@ private slots:
                  QStringLiteral("https://example.test/user-state/manifest.json#fragment"));
         QCOMPARE(store.normalizeUrl(QStringLiteral("colosseum://house/source")),
                  QStringLiteral("colosseum://house/source"));
+    }
+
+    // Task 3: a configured Stremio instance is its normalized transport URL,
+    // not its manifest id. Reverting finishInstall to id replacement must make
+    // this fail by leaving one configured row instead of two.
+    void configured_instances_with_same_manifest_id_survive_independently()
+    {
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QSignalSpy finished(&store, &ExtensionsStore::installFinished);
+
+        const QString first = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Configured/manifest.json?Token=Alpha")));
+        const QString second = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Configured/manifest.json?Token=Beta")));
+        QVERIFY(first != second);
+
+        store.install(first);
+        QTRY_COMPARE(finished.count(), 1);
+        store.install(second);
+        QTRY_COMPARE(finished.count(), 2);
+
+        int matchingRows = 0;
+        for (const QVariant &value : store.installed()) {
+            const QVariantMap row = value.toMap();
+            if (row.value(QStringLiteral("id")).toString()
+                == QStringLiteral("fixture.same-manifest")) {
+                ++matchingRows;
+            }
+        }
+        QCOMPARE(matchingRows, 2);
+    }
+
+    // Task 3: the first real profile receives the recoverable legacy Theatre
+    // portion once. A later profile receives only house defaults, and changing
+    // back restores the original profile-local configured instance.
+    void legacy_theatre_configuration_migrates_once_to_its_active_profile()
+    {
+        QTemporaryDir profiles;
+        QVERIFY(profiles.isValid());
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QSignalSpy finished(&store, &ExtensionsStore::installFinished);
+        const QString privateInstance = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Private/manifest.json?UserToken=Alpha")));
+
+        store.install(privateInstance);
+        QTRY_COMPARE(finished.count(), 1);
+        QVERIFY(!findById(store.installed(), QStringLiteral("fixture.same-manifest")).isEmpty());
+
+        const QString profileA = profiles.filePath(QStringLiteral("a/extensions.json"));
+        const QString profileB = profiles.filePath(QStringLiteral("b/extensions.json"));
+        QVERIFY2(activateProfile(&store, QStringLiteral("profile-a"), profileA),
+                 "profile-scoped Theatre activation is missing");
+        QVERIFY(!findById(store.installed(), QStringLiteral("fixture.same-manifest")).isEmpty());
+
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-b"), profileB));
+        QVERIFY(findById(store.installed(), QStringLiteral("fixture.same-manifest")).isEmpty());
+
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-a"), profileA));
+        QVERIFY(!findById(store.installed(), QStringLiteral("fixture.same-manifest")).isEmpty());
+    }
+
+    // Task 3: extensions sharing a manifest id are different configured
+    // instances. The action must remove the requested transport URL only;
+    // swapping back to id-based removal removes the wrong/all instance.
+    void configured_instance_removal_targets_its_transport_url()
+    {
+        QTemporaryDir profiles;
+        QVERIFY(profiles.isValid());
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QSignalSpy finished(&store, &ExtensionsStore::installFinished);
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-a"),
+                                profiles.filePath(QStringLiteral("a/extensions.json"))));
+        const QString first = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Remove/manifest.json?Mode=First")));
+        const QString second = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Remove/manifest.json?Mode=Second")));
+
+        store.install(first);
+        QTRY_COMPARE(finished.count(), 1);
+        store.install(second);
+        QTRY_COMPARE(finished.count(), 2);
+
+        QVERIFY2(QMetaObject::invokeMethod(&store, "removeInstance",
+                                            Q_ARG(QString, first)),
+                 "exact configured-instance removal is missing");
+        QVERIFY(findByTransportUrl(store.installed(), first).isEmpty());
+        QVERIFY(!findByTransportUrl(store.installed(), second).isEmpty());
+    }
+
+    // Task 3: reorder has the same identity boundary as removal. A move by
+    // manifest id cannot select one configured URL when both share that id.
+    void configured_instance_reorder_targets_its_transport_url()
+    {
+        QTemporaryDir profiles;
+        QVERIFY(profiles.isValid());
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QSignalSpy finished(&store, &ExtensionsStore::installFinished);
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-a"),
+                                profiles.filePath(QStringLiteral("a/extensions.json"))));
+        const QString first = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Order/manifest.json?Mode=First")));
+        const QString second = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Order/manifest.json?Mode=Second")));
+
+        store.install(first);
+        QTRY_COMPARE(finished.count(), 1);
+        store.install(second);
+        QTRY_COMPARE(finished.count(), 2);
+        const int firstIndex = indexOfTransportUrl(store.installed(), first);
+        const int secondIndex = indexOfTransportUrl(store.installed(), second);
+        QVERIFY(firstIndex >= 0);
+        QVERIFY(secondIndex > firstIndex);
+
+        QVERIFY2(QMetaObject::invokeMethod(&store, "moveInstanceTo",
+                                            Q_ARG(QString, second),
+                                            Q_ARG(int, firstIndex)),
+                 "exact configured-instance reorder is missing");
+        QCOMPARE(indexOfTransportUrl(store.installed(), second), firstIndex);
+        QCOMPARE(indexOfTransportUrl(store.installed(), first), firstIndex + 1);
+    }
+
+    // Task 3: a duplicate manifest id must not make the enabled action mutate
+    // its sibling configured instance.
+    void configured_instance_toggle_targets_its_transport_url()
+    {
+        QTemporaryDir profiles;
+        QVERIFY(profiles.isValid());
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QSignalSpy finished(&store, &ExtensionsStore::installFinished);
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-a"),
+                                profiles.filePath(QStringLiteral("a/extensions.json"))));
+        const QString first = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Toggle/manifest.json?Mode=First")));
+        const QString second = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Toggle/manifest.json?Mode=Second")));
+
+        store.install(first);
+        QTRY_COMPARE(finished.count(), 1);
+        store.install(second);
+        QTRY_COMPARE(finished.count(), 2);
+        QVERIFY2(QMetaObject::invokeMethod(&store, "setEnabledInstance",
+                                            Q_ARG(QString, second), Q_ARG(bool, false)),
+                 "exact configured-instance toggle is missing");
+        QVERIFY(findByTransportUrl(store.installed(), first).value(QStringLiteral("enabled")).toBool());
+        QVERIFY(!findByTransportUrl(store.installed(), second).value(QStringLiteral("enabled")).toBool());
+    }
+    void profile_theatre_bulk_apply_receipt_follows_durable_commit()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        const QString profileId = QStringLiteral("task3-bulk-profile");
+        const QString indexPath = profile.filePath(QStringLiteral("installed.json"));
+        const QString transportUrl = QStringLiteral("https://fixture.test/Configured?Case=Alpha");
+
+        ExtensionsStore store(nullptr);
+        QVERIFY(activateProfile(&store, profileId, indexPath));
+        bool receiptReceived = false;
+        bool receiptCommitted = false;
+        bool durableAtReceipt = false;
+        QVERIFY2(applyTheatreRows(
+                     store,
+                     QVariantList{theatreFixture(transportUrl)},
+                     [&](bool committed, const QString &) {
+                         receiptReceived = true;
+                         receiptCommitted = committed;
+                         ExtensionsStore reopened(nullptr);
+                         durableAtReceipt = activateProfile(
+                             &reopened, profileId, indexPath)
+                             && !findByTransportUrl(reopened.installed(), transportUrl).isEmpty();
+                     }),
+                 "Task 3 bulk-receipt red: ExtensionsStore has no durable profile apply API.");
+        QTRY_VERIFY(receiptReceived);
+        QVERIFY(receiptCommitted);
+        QVERIFY(durableAtReceipt);
+    }
+    void failed_profile_theatre_bulk_apply_rolls_back_before_receipt()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        const QString profileId = QStringLiteral("task3-bulk-rollback");
+        const QString indexPath = profile.filePath(QStringLiteral("installed.json"));
+        const QString originalUrl = QStringLiteral("https://fixture.test/Configured?Case=Original");
+        const QString rejectedUrl = QStringLiteral("https://fixture.test/Configured?Case=Rejected");
+
+        ExtensionsStore store(nullptr);
+        QVERIFY(activateProfile(&store, profileId, indexPath));
+        bool initialReceipt = false;
+        QVERIFY(applyTheatreRows(
+            store,
+            QVariantList{theatreFixture(originalUrl)},
+            [&](bool committed, const QString &) { initialReceipt = committed; }));
+        QTRY_VERIFY(initialReceipt);
+
+        QVERIFY(QFile::remove(indexPath));
+        QVERIFY(QDir().mkpath(indexPath));
+        bool receiptReceived = false;
+        bool receiptCommitted = true;
+        QVERIFY(!applyTheatreRows(
+            store,
+            QVariantList{theatreFixture(rejectedUrl)},
+            [&](bool committed, const QString &) {
+                receiptReceived = true;
+                receiptCommitted = committed;
+            }));
+        QTRY_VERIFY(receiptReceived);
+        QVERIFY(!receiptCommitted);
+        QVERIFY(!findByTransportUrl(store.installed(), originalUrl).isEmpty());
+        QVERIFY(findByTransportUrl(store.installed(), rejectedUrl).isEmpty());
+    }
+
+    // Task 3: an explicit removal is a local owner mutation only after its
+    // profile-local QSaveFile commits. A failed write must retain the row so
+    // AccountRuntime cannot relay a removal that Theatre never durably owned.
+    void failed_profile_instance_removal_keeps_the_durable_owner_snapshot()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        const QString profileId = QStringLiteral("task3-instance-remove-rollback");
+        const QString indexPath = profile.filePath(QStringLiteral("installed.json"));
+        const QString transportUrl = QStringLiteral("https://fixture.test/Configured/manifest.json?Case=RemoveRollback");
+
+        ExtensionsStore store(nullptr);
+        QVERIFY(activateProfile(&store, profileId, indexPath));
+        bool initialReceipt = false;
+        QVERIFY(applyTheatreRows(
+            store,
+            QVariantList{theatreFixture(transportUrl)},
+            [&](bool committed, const QString &) { initialReceipt = committed; }));
+        QTRY_VERIFY(initialReceipt);
+        QSignalSpy changed(&store, &ExtensionsStore::changed);
+
+        QVERIFY(QFile::remove(indexPath));
+        QVERIFY(QDir().mkpath(indexPath));
+        QVERIFY2(QMetaObject::invokeMethod(&store, "removeInstance",
+                                            Q_ARG(QString, transportUrl)),
+                 "exact configured-instance removal is missing");
+
+        QVERIFY(!findByTransportUrl(store.installed(), transportUrl).isEmpty());
+        QCOMPARE(changed.count(), 0);
+    }
+
+    void failed_profile_install_does_not_publish_false_success()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        const QString profileId = QStringLiteral("task3-install-rollback");
+        const QString indexPath = profile.filePath(QStringLiteral("installed.json"));
+        ExtensionsStore store(&network);
+        QVERIFY(activateProfile(&store, profileId, indexPath));
+        const QString transportUrl = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Install/manifest.json?Case=Rollback")));
+        QVERIFY(QFile::remove(indexPath));
+        QVERIFY(QDir().mkpath(indexPath));
+        QSignalSpy installed(&store, &ExtensionsStore::installFinished);
+        QSignalSpy failed(&store, &ExtensionsStore::installFailed);
+
+        store.install(transportUrl);
+        QTRY_COMPARE(failed.count(), 1);
+        QCOMPARE(installed.count(), 0);
+        QVERIFY(findByTransportUrl(store.installed(), transportUrl).isEmpty());
+    }
+
+    // Task 3 red-first contract: provider membership is the managed suffix;
+    // omitted rows are explicit removals/order changes, while required local
+    // core capability and native/non-Theatre rows remain outside that set.
+    void stremio_membership_never_reseeds_core_or_native_rows()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        const QString profileId = QStringLiteral("task3-addon-owner");
+        const QString indexPath = profile.filePath(QStringLiteral("installed.json"));
+        ExtensionsStore store(nullptr);
+        QVERIFY(activateProfile(&store, profileId, indexPath));
+
+        const QVariantMap core = findById(
+            store.installed(), QStringLiteral("com.linvo.cinemeta"));
+        QVERIFY(!core.isEmpty());
+        QVERIFY(core.value(QStringLiteral("core")).toBool());
+        const QVariantMap native = findById(
+            store.installed(), QStringLiteral("colosseum.catalogue.vault"));
+        QVERIFY(!native.isEmpty());
+
+        const QVariantMap a = theatreFixture(
+            QStringLiteral("https://remote.test/a/manifest.json"),
+            QStringLiteral("fixture.remote.a"));
+        const QVariantMap b = theatreFixture(
+            QStringLiteral("https://remote.test/b/manifest.json"),
+            QStringLiteral("fixture.remote.b"));
+        const QVariantMap c = theatreFixture(
+            QStringLiteral("https://remote.test/c/manifest.json"),
+            QStringLiteral("fixture.remote.c"));
+        bool committed = false;
+        QVERIFY(applyTheatreRows(
+            store, QVariantList{a, b},
+            [&](bool ok, const QString &) { committed = ok; }));
+        QTRY_VERIFY(committed);
+        QCOMPARE(store.stremioRows().size(), 2);
+        QCOMPARE(store.stremioRows().at(0).toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("fixture.remote.a"));
+        QCOMPARE(store.stremioRows().at(1).toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("fixture.remote.b"));
+
+        committed = false;
+        QVERIFY(applyTheatreRows(
+            store, QVariantList{b},
+            [&](bool ok, const QString &) { committed = ok; }));
+        QTRY_VERIFY(committed);
+        QVERIFY(findByTransportUrl(store.installed(),
+                                   QStringLiteral("https://remote.test/a/manifest.json"))
+                .isEmpty());
+        QCOMPARE(store.stremioRows().size(), 1);
+
+        committed = false;
+        QVERIFY(applyTheatreRows(
+            store, QVariantList{c, b},
+            [&](bool ok, const QString &) { committed = ok; }));
+        QTRY_VERIFY(committed);
+        QCOMPARE(store.stremioRows().at(0).toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("fixture.remote.c"));
+        QCOMPARE(store.stremioRows().at(1).toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("fixture.remote.b"));
+        QVERIFY(!findById(store.installed(), QStringLiteral("com.linvo.cinemeta")).isEmpty());
+        QVERIFY(!findById(store.installed(), QStringLiteral("colosseum.catalogue.vault")).isEmpty());
+        for (const QVariant &value : store.stremioRows())
+            QVERIFY(!value.toMap().value(QStringLiteral("core")).toBool());
+    }
+
+    // Task 3: a manifest reply is a profile-scoped continuation. A reply that
+    // started under A must not publish its configured instance after B owns
+    // Theatre, even though both owners use the same native ExtensionsStore.
+    void stale_manifest_reply_cannot_publish_into_a_new_profile()
+    {
+        QTemporaryDir profiles;
+        QVERIFY(profiles.isValid());
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        fixture.holdResponses(true);
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QSignalSpy installed(&store, &ExtensionsStore::installFinished);
+
+        const QString profileA = profiles.filePath(QStringLiteral("a/extensions.json"));
+        const QString profileB = profiles.filePath(QStringLiteral("b/extensions.json"));
+        const QString instance = store.normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Late/manifest.json?Profile=A")));
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-a"), profileA));
+        store.install(instance);
+        QTRY_COMPARE(fixture.heldRequestCount(), 1);
+
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-b"), profileB));
+        fixture.releaseHeldResponses();
+        QTest::qWait(40);
+
+        QCOMPARE(installed.count(), 0);
+        QVERIFY(findByTransportUrl(store.installed(), instance).isEmpty());
+        QVERIFY(activateProfile(&store, QStringLiteral("profile-a"), profileA));
+        QVERIFY(findByTransportUrl(store.installed(), instance).isEmpty());
     }
 };
 

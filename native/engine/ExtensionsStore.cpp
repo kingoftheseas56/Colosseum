@@ -15,12 +15,55 @@
 #include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QSet>
 #include <QStandardPaths>
 #include <QUrl>
+
+#include <utility>
 
 namespace {
 constexpr int kManifestTimeoutMs = 12000;
 constexpr int kDescriptionCap = 400;
+constexpr int kMaxProfileTheatreRows = 64;
+constexpr int kMaxProfileTransportUrlLength = 2048;
+
+QStringList stringListValue(const QVariant &value)
+{
+    const QStringList direct = value.toStringList();
+    if (!direct.isEmpty())
+        return direct;
+    QStringList result;
+    for (const QVariant &entry : value.toList()) {
+        const QString text = entry.toString();
+        if (!text.isEmpty())
+            result.append(text);
+    }
+    return result;
+}
+
+QString transportIdentity(const QString &transportUrl)
+{
+    if (transportUrl.isEmpty() || transportUrl.size() > kMaxProfileTransportUrlLength
+        || transportUrl.trimmed() != transportUrl) {
+        return {};
+    }
+    const QUrl parsed(transportUrl, QUrl::StrictMode);
+    const QString scheme = parsed.scheme().toLower();
+    if (!parsed.isValid()
+        || (scheme != QLatin1String("http") && scheme != QLatin1String("https"))
+        || parsed.host().isEmpty() || !parsed.userInfo().isEmpty()
+        || parsed.hasFragment()) {
+        return {};
+    }
+    QString normalized = scheme + QStringLiteral("://") + parsed.host().toLower();
+    if (parsed.port() >= 0)
+        normalized += QStringLiteral(":%1").arg(parsed.port());
+    const QString path = parsed.path(QUrl::FullyEncoded);
+    normalized += path.isEmpty() ? QStringLiteral("/") : path;
+    if (parsed.hasQuery())
+        normalized += QLatin1Char('?') + parsed.query(QUrl::FullyEncoded);
+    return normalized;
+}
 // Generation of the house roster. 1 = the original four Theatre rows. 2 added the
 // Tankoban and Biblio catalogues and wells, so those two worlds stop being empty
 // tabs. 3 retired the WeebCentral/GetComics catalogue rows and emptied the house
@@ -43,6 +86,26 @@ ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
         seed();
     else if (m_defaultsVersion < kHouseDefaultsVersion)
         migrateDefaults();
+
+    m_globalItems = m_items;
+    // A migrated index must never re-publish its old Theatre rows while the
+    // profile runtime is still sealed. Older defaults migrations can add house
+    // rows back before this constructor reaches here, so remove them again and
+    // retain only the public template used for brand-new profiles.
+    if (m_legacyTheatreMigrated) {
+        if (m_theatreDefaults.isEmpty()) {
+            for (const QVariantMap &item : theatreRows(m_globalItems)) {
+                if (isSafeTheatreDefault(item))
+                    m_theatreDefaults.append(item);
+            }
+        }
+        m_globalItems = nonTheatreRows(m_globalItems);
+        m_items = m_globalItems;
+        saveGlobalIndex(m_globalItems,
+                        m_legacyTheatreMigrated,
+                        m_legacyTheatreMigrationProfileId,
+                        m_theatreDefaults);
+    }
 }
 
 // ---------------------------------------------------------------- persistence
@@ -69,24 +132,356 @@ void ExtensionsStore::loadIndex()
         if (!e.value(QStringLiteral("id")).toString().isEmpty())
             m_items.append(e);
     }
+    const QJsonObject migration = root.value(QStringLiteral("theatreProfileMigration")).toObject();
+    m_legacyTheatreMigrated = migration.value(QStringLiteral("version")).toInt() == 1
+        && migration.value(QStringLiteral("state")).toString() == QStringLiteral("committed")
+        && !migration.value(QStringLiteral("profileId")).toString().isEmpty();
+    m_legacyTheatreMigrationProfileId = migration.value(QStringLiteral("profileId")).toString();
+    for (const QJsonValue &value : root.value(QStringLiteral("theatreDefaults")).toArray()) {
+        const QVariantMap item = value.toObject().toVariantMap();
+        if (isSafeTheatreDefault(item))
+            m_theatreDefaults.append(item);
+    }
 }
 
-void ExtensionsStore::saveIndex() const
+bool ExtensionsStore::saveGlobalIndex(const QList<QVariantMap>& items,
+                                      bool legacyTheatreMigrated,
+                                      const QString& migrationProfileId,
+                                      const QList<QVariantMap>& theatreDefaults) const
 {
     QDir().mkpath(QFileInfo(indexPath()).absolutePath());
     QJsonArray arr;
-    for (const QVariantMap& e : m_items)
+    for (const QVariantMap& e : items)
         arr.append(QJsonObject::fromVariantMap(e));
     QJsonObject root;
     root.insert(QStringLiteral("v"), 1);
     root.insert(QStringLiteral("defaultsVersion"), kHouseDefaultsVersion);
     root.insert(QStringLiteral("extensions"), arr);
 
+    if (legacyTheatreMigrated) {
+        root.insert(QStringLiteral("theatreProfileMigration"), QJsonObject{
+            {QStringLiteral("version"), 1},
+            {QStringLiteral("state"), QStringLiteral("committed")},
+            {QStringLiteral("profileId"), migrationProfileId}});
+    }
+    QJsonArray defaults;
+    for (const QVariantMap &item : theatreDefaults)
+        defaults.append(QJsonObject::fromVariantMap(item));
+    root.insert(QStringLiteral("theatreDefaults"), defaults);
+
     QSaveFile f(indexPath());
     if (!f.open(QIODevice::WriteOnly))
+        return false;
+    if (f.write(QJsonDocument(root).toJson(QJsonDocument::Indented)) < 0)
+        return false;
+    return f.commit();
+}
+
+bool ExtensionsStore::saveProfileIndex(const QString& path,
+                                       const QString& profileId,
+                                       const QList<QVariantMap>& items)
+{
+    if (path.trimmed().isEmpty() || profileId.trimmed().isEmpty())
+        return false;
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QJsonArray rows;
+    for (const QVariantMap &item : items)
+        rows.append(QJsonObject::fromVariantMap(item));
+    const QJsonObject root{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("profileId"), profileId},
+        {QStringLiteral("extensions"), rows}};
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly))
+        return false;
+    if (f.write(QJsonDocument(root).toJson(QJsonDocument::Indented)) < 0)
+        return false;
+    return f.commit();
+}
+
+bool ExtensionsStore::loadProfileIndex(const QString& path,
+                                       const QString& profileId,
+                                       QList<QVariantMap>* items)
+{
+    if (!items || path.trimmed().isEmpty() || profileId.trimmed().isEmpty())
+        return false;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    const QJsonObject root = document.object();
+    if (root.value(QStringLiteral("version")).toInt() != 1
+        || root.value(QStringLiteral("profileId")).toString() != profileId
+        || !root.value(QStringLiteral("extensions")).isArray()
+        || root.value(QStringLiteral("extensions")).toArray().size()
+            > kMaxProfileTheatreRows) {
+        return false;
+    }
+    QList<QVariantMap> loaded;
+    QSet<QString> identities;
+    for (const QJsonValue &value : root.value(QStringLiteral("extensions")).toArray()) {
+        const QVariantMap item = value.toObject().toVariantMap();
+        const QString identity = transportIdentity(
+            item.value(QStringLiteral("transportUrl")).toString());
+        if (!isTheatreCompatible(item) || identity.isEmpty()
+            || identities.contains(identity)) {
+            return false;
+        }
+        identities.insert(identity);
+        loaded.append(item);
+    }
+    *items = loaded;
+    return true;
+}
+
+bool ExtensionsStore::isTheatreCompatible(const QVariantMap& item)
+{
+    const QString url = item.value(QStringLiteral("transportUrl")).toString();
+    if (transportIdentity(url).isEmpty()) {
+        return false;
+    }
+    const QStringList types = stringListValue(item.value(QStringLiteral("manifest")).toMap()
+        .value(QStringLiteral("types")));
+    return types.contains(QStringLiteral("movie"))
+        || types.contains(QStringLiteral("series"))
+        || types.contains(QStringLiteral("anime"));
+}
+
+bool ExtensionsStore::isSafeTheatreDefault(const QVariantMap& item)
+{
+    static const QSet<QString> safeUrls{
+        QStringLiteral("https://v3-cinemeta.strem.io/manifest.json"),
+        QStringLiteral("https://torrentio.strem.fun/manifest.json"),
+        QStringLiteral("https://addon.notorrent2.workers.dev/manifest.json"),
+        QStringLiteral("https://anime-kitsu.strem.fun/manifest.json"),
+        QStringLiteral("https://opensubtitles-v3.strem.io/manifest.json")};
+    return isTheatreCompatible(item)
+        && safeUrls.contains(item.value(QStringLiteral("transportUrl")).toString().toLower());
+}
+
+QList<QVariantMap> ExtensionsStore::theatreRows(const QList<QVariantMap>& items)
+{
+    QList<QVariantMap> result;
+    for (const QVariantMap &item : items) {
+        if (isTheatreCompatible(item))
+            result.append(item);
+    }
+    return result;
+}
+
+QList<QVariantMap> ExtensionsStore::nonTheatreRows(const QList<QVariantMap>& items)
+{
+    QList<QVariantMap> result;
+    for (const QVariantMap &item : items) {
+        if (!isTheatreCompatible(item))
+            result.append(item);
+    }
+    return result;
+}
+
+void ExtensionsStore::rebuildActiveItems()
+{
+    m_items = m_globalItems;
+    for (const QVariantMap &item : m_profileTheatreItems)
+        m_items.append(item);
+}
+
+bool ExtensionsStore::saveIndex()
+{
+    if (m_activeTheatreIndexPath.isEmpty()) {
+        if (!saveGlobalIndex(m_items,
+                             m_legacyTheatreMigrated,
+                             m_legacyTheatreMigrationProfileId,
+                             m_theatreDefaults)) {
+            return false;
+        }
+        m_globalItems = m_items;
+        return true;
+    }
+
+    const QList<QVariantMap> globalItems = nonTheatreRows(m_items);
+    const QList<QVariantMap> profileItems = theatreRows(m_items);
+    const bool globalChanged = globalItems != m_globalItems;
+    const bool profileChanged = profileItems != m_profileTheatreItems;
+    if (globalChanged && profileChanged)
+        return false;
+    if (profileChanged
+        && !saveProfileIndex(m_activeTheatreIndexPath, m_activeProfileId, profileItems)) {
+        return false;
+    }
+    if (globalChanged
+        && !saveGlobalIndex(globalItems,
+                            m_legacyTheatreMigrated,
+                            m_legacyTheatreMigrationProfileId,
+                            m_theatreDefaults)) {
+        return false;
+    }
+    if (globalChanged)
+        m_globalItems = globalItems;
+    if (profileChanged)
+        m_profileTheatreItems = profileItems;
+    return true;
+}
+
+bool ExtensionsStore::activateProfile(const QString& profileId,
+                                      const QString& theatreIndexPath)
+{
+    if (profileId.trimmed().isEmpty() || theatreIndexPath.trimmed().isEmpty())
+        return false;
+
+    const QString normalizedPath = QDir::cleanPath(
+        QFileInfo(theatreIndexPath).absoluteFilePath());
+    QList<QVariantMap> selected;
+    if (!m_legacyTheatreMigrated) {
+        const QList<QVariantMap> legacyTheatre = theatreRows(m_globalItems);
+        const QList<QVariantMap> migratedGlobal = nonTheatreRows(m_globalItems);
+        QList<QVariantMap> defaults;
+        for (const QVariantMap &item : legacyTheatre) {
+            if (isSafeTheatreDefault(item))
+                defaults.append(item);
+        }
+        if (defaults.isEmpty())
+            defaults = m_theatreDefaults;
+
+        QList<QVariantMap> existing;
+        if (loadProfileIndex(normalizedPath, profileId, &existing)) {
+            selected = existing;
+            for (const QVariantMap &item : legacyTheatre) {
+                bool present = false;
+                for (const QVariantMap &candidate : std::as_const(selected)) {
+                    if (candidate.value(QStringLiteral("transportUrl"))
+                        == item.value(QStringLiteral("transportUrl"))) {
+                        present = true;
+                        break;
+                    }
+                }
+                if (!present)
+                    selected.append(item);
+            }
+        } else {
+            selected = legacyTheatre;
+        }
+        if (!saveProfileIndex(normalizedPath, profileId, selected)
+            || !saveGlobalIndex(migratedGlobal, true, profileId, defaults)) {
+            return false;
+        }
+        m_globalItems = migratedGlobal;
+        m_theatreDefaults = defaults;
+        m_legacyTheatreMigrated = true;
+        m_legacyTheatreMigrationProfileId = profileId;
+    } else if (!loadProfileIndex(normalizedPath, profileId, &selected)) {
+        selected = m_theatreDefaults;
+        if (!saveProfileIndex(normalizedPath, profileId, selected))
+            return false;
+    }
+
+    if (selected.isEmpty()
+        && !loadProfileIndex(normalizedPath, profileId, &selected)) {
+        return false;
+    }
+    m_activeProfileId = profileId;
+    m_activeTheatreIndexPath = normalizedPath;
+    m_profileTheatreItems = selected;
+    ++m_profileGeneration;
+    m_previewCache.clear();
+    rebuildActiveItems();
+    bump();
+    return true;
+}
+
+void ExtensionsStore::deactivateProfile()
+{
+    if (m_activeTheatreIndexPath.isEmpty())
         return;
-    f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
-    f.commit();
+    m_activeProfileId.clear();
+    m_activeTheatreIndexPath.clear();
+    m_profileTheatreItems.clear();
+    ++m_profileGeneration;
+    m_previewCache.clear();
+    m_items = m_globalItems;
+    bump();
+}
+
+QVariantList ExtensionsStore::stremioRows() const
+{
+    QVariantList result;
+    if (m_activeProfileId.isEmpty() || m_activeTheatreIndexPath.isEmpty())
+        return result;
+    for (const QVariantMap &item : m_profileTheatreItems) {
+        if (!item.value(QStringLiteral("core")).toBool()
+            && isTheatreCompatible(item)) {
+            result.append(item);
+        }
+    }
+    return result;
+}
+
+bool ExtensionsStore::applyTheatreRows(
+    const QVariantList &rows,
+    TheatreRowsCompletion completion)
+{
+    const auto fail = [&completion](const QString &message) {
+        if (completion)
+            completion(false, message);
+        return false;
+    };
+    if (m_activeProfileId.isEmpty() || m_activeTheatreIndexPath.isEmpty()) {
+        return fail(QStringLiteral("No active profile owns Theatre extensions."));
+    }
+    if (rows.size() > kMaxProfileTheatreRows) {
+        return fail(QStringLiteral("The Theatre extension list is too large."));
+    }
+
+    QList<QVariantMap> next;
+    QSet<QString> seenTransportUrls;
+    for (const QVariant &value : rows) {
+        const QVariantMap row = value.toMap();
+        const QString transportUrl = row.value(QStringLiteral("transportUrl")).toString();
+        const QString identity = transportIdentity(transportUrl);
+        if (!isTheatreCompatible(row)
+            || identity.isEmpty()
+            || row.value(QStringLiteral("core")).toBool()
+            || seenTransportUrls.contains(identity)) {
+            return fail(QStringLiteral("The Theatre extension list is invalid."));
+        }
+        seenTransportUrls.insert(identity);
+        next.append(row);
+    }
+
+    // Core Theatre rows are required local capability. The provider collection
+    // carries only user-managed membership, so a successful remote readback
+    // must never remove Cinemeta or another locked native row. Keep each core
+    // row at its prior relative slot and let remote order fill the remaining
+    // positions around it.
+    QList<QVariantMap> withCore;
+    qsizetype nextManaged = 0;
+    for (const QVariantMap &current : std::as_const(m_profileTheatreItems)) {
+        if (current.value(QStringLiteral("core")).toBool()) {
+            withCore.append(current);
+        } else if (nextManaged < next.size()) {
+            withCore.append(next.at(nextManaged++));
+        }
+    }
+    while (nextManaged < next.size())
+        withCore.append(next.at(nextManaged++));
+
+    if (withCore == m_profileTheatreItems) {
+        if (completion)
+            completion(true, QString());
+        return true;
+    }
+
+    // Commit before exposing a changed owner snapshot. On failure neither the
+    // active rows nor its private provider baseline can observe the candidate.
+    if (!saveProfileIndex(m_activeTheatreIndexPath, m_activeProfileId, withCore)) {
+        return fail(QStringLiteral("The Theatre extension list could not be saved."));
+    }
+    m_profileTheatreItems = withCore;
+    rebuildActiveItems();
+    bump();
+    if (completion)
+        completion(true, QString());
+    return true;
 }
 
 void ExtensionsStore::bump()
@@ -392,6 +787,20 @@ int ExtensionsStore::indexOfId(const QString& id) const
     return -1;
 }
 
+int ExtensionsStore::indexOfTransportUrl(const QString& transportUrl) const
+{
+    const QString identity = transportIdentity(transportUrl);
+    if (identity.isEmpty())
+        return -1;
+    for (int i = 0; i < m_items.size(); ++i) {
+        if (transportIdentity(m_items.at(i).value(
+                QStringLiteral("transportUrl")).toString()) == identity) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 bool ExtensionsStore::isInstalled(const QString& urlOrId) const
 {
     const QString url = normalizeUrl(urlOrId);
@@ -438,8 +847,24 @@ void ExtensionsStore::remove(const QString& id)
     const int i = indexOfId(id);
     if (i < 0 || m_items.at(i).value(QStringLiteral("core")).toBool())
         return;                                  // core rows cannot leave
-    m_items.removeAt(i);
-    saveIndex();
+    const QVariantMap removed = m_items.takeAt(i);
+    if (!saveIndex()) {
+        m_items.insert(i, removed);
+        return;
+    }
+    bump();
+}
+
+void ExtensionsStore::removeInstance(const QString& transportUrl)
+{
+    const int i = indexOfTransportUrl(transportUrl);
+    if (i < 0 || m_items.at(i).value(QStringLiteral("core")).toBool())
+        return;
+    const QVariantMap removed = m_items.takeAt(i);
+    if (!saveIndex()) {
+        m_items.insert(i, removed);
+        return;
+    }
     bump();
 }
 
@@ -451,7 +876,10 @@ void ExtensionsStore::setEnabled(const QString& id, bool on)
     if (m_items.at(i).value(QStringLiteral("enabled")).toBool() == on)
         return;
     m_items[i].insert(QStringLiteral("enabled"), on);
-    saveIndex();
+    if (!saveIndex()) {
+        m_items[i].insert(QStringLiteral("enabled"), !on);
+        return;
+    }
     bump();
 }
 
@@ -479,7 +907,41 @@ void ExtensionsStore::moveTo(const QString& id, int index)
     if (i == j)
         return;
     m_items.move(i, j);
-    saveIndex();
+    if (!saveIndex()) {
+        m_items.move(j, i);
+        return;
+    }
+    bump();
+}
+
+void ExtensionsStore::setEnabledInstance(const QString& transportUrl, bool on)
+{
+    const int i = indexOfTransportUrl(transportUrl);
+    if (i < 0 || m_items.at(i).value(QStringLiteral("core")).toBool()
+        || m_items.at(i).value(QStringLiteral("enabled")).toBool() == on) {
+        return;
+    }
+    m_items[i].insert(QStringLiteral("enabled"), on);
+    if (!saveIndex()) {
+        m_items[i].insert(QStringLiteral("enabled"), !on);
+        return;
+    }
+    bump();
+}
+
+void ExtensionsStore::moveInstanceTo(const QString& transportUrl, int index)
+{
+    const int i = indexOfTransportUrl(transportUrl);
+    if (i < 0 || m_items.at(i).value(QStringLiteral("core")).toBool())
+        return;
+    const int j = qBound(0, index, int(m_items.size()) - 1);
+    if (i == j)
+        return;
+    m_items.move(i, j);
+    if (!saveIndex()) {
+        m_items.move(j, i);
+        return;
+    }
     bump();
 }
 
@@ -613,6 +1075,11 @@ void ExtensionsStore::setShowExplicit(bool v)
 
 void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstall)
 {
+    // A configured addon belongs to whichever profile owned Theatre when the
+    // request started. Network completion is never authority to mutate a
+    // later profile (including A -> B -> A after a fresh activation).
+    const quint64 requestProfileGeneration = m_profileGeneration;
+    const QString requestProfileId = m_activeProfileId;
     QNetworkRequest req{ QUrl(transportUrl) };
     req.setRawHeader("Accept", "application/json");
     req.setTransferTimeout(kManifestTimeoutMs);
@@ -621,8 +1088,13 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
 
     QNetworkReply* reply = m_nam->get(req);
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, transportUrl, thenInstall]() {
+            [this, reply, transportUrl, thenInstall,
+             requestProfileGeneration, requestProfileId]() {
         reply->deleteLater();
+        if (requestProfileGeneration != m_profileGeneration
+            || requestProfileId != m_activeProfileId) {
+            return;
+        }
         auto fail = [this, transportUrl, thenInstall](const QString& reason) {
             if (thenInstall)
                 emit installFailed(transportUrl, reason);
@@ -689,6 +1161,7 @@ void ExtensionsStore::install(const QString& rawUrl)
 void ExtensionsStore::finishInstall(const QString& transportUrl, const QVariantMap& slim)
 {
     const QString id = slim.value(QStringLiteral("id")).toString();
+    const QList<QVariantMap> previousItems = m_items;
 
     QVariantMap entry;
     entry.insert(QStringLiteral("id"), id);
@@ -698,7 +1171,10 @@ void ExtensionsStore::finishInstall(const QString& transportUrl, const QVariantM
     entry.insert(QStringLiteral("core"), false);
     entry.insert(QStringLiteral("manifest"), slim);
 
-    const int existing = indexOfId(id);
+    // A configured Stremio instance is the transport URL, not the manifest
+    // identifier. One addon can legitimately expose different configuration at
+    // two URLs; replacing by id loses one of those private device-local rows.
+    const int existing = indexOfTransportUrl(transportUrl);
     if (existing >= 0) {
         // same id = update in place (keeps its position, its core flag and its switch)
         entry.insert(QStringLiteral("core"),
@@ -709,7 +1185,12 @@ void ExtensionsStore::finishInstall(const QString& transportUrl, const QVariantM
     } else {
         m_items.append(entry);
     }
-    saveIndex();
+    if (!saveIndex()) {
+        m_items = previousItems;
+        emit installFailed(transportUrl,
+                           QStringLiteral("The extension could not be saved."));
+        return;
+    }
     bump();
     emit installFinished(id, slim.value(QStringLiteral("name")).toString());
 }

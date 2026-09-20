@@ -172,6 +172,22 @@ for (const id of ['colosseum.catalogue.vault', 'colosseum.catalogue.anilist', 'c
 eq(wellsIn(applyMoveTo(shipped(), 'colosseum.catalogue.vault', 12), 'tankoban'),
    wellsIn(shipped(), 'tankoban'), 'moveTo on a core row is a no-op in the store');
 
+console.log('\nconfigured Theatre instances are addressed by transport URL, never manifest id');
+{
+  const firstUrl = 'https://fixture.test/manifest.json?Config=First';
+  const secondUrl = 'https://fixture.test/manifest.json?Config=Second';
+  const configured = [
+    { id: 'fixture.same-manifest', transportUrl: firstUrl, core: false,
+      manifest: { resources: ['stream'], types: ['movie'] } },
+    { id: 'fixture.same-manifest', transportUrl: secondUrl, core: false,
+      manifest: { resources: ['stream'], types: ['movie'] } }
+  ];
+  const move = mod.moveDestination(configured, 'theatre', secondUrl, -1);
+  eq(move && move.transportUrl, secondUrl,
+     'second configured URL receives its own move destination');
+  eq(move && move.index, 0, 'second configured URL moves before first URL');
+}
+
 console.log('\nrefusals that must not throw');
 eq(mod.moveDestination(shipped(), 'tankoban', 'no.such.id', -1), null, 'unknown id');
 eq(mod.moveDestination(shipped(), 'tankoban', 'colosseum.well.libgen', 1), null, 'well from another world');

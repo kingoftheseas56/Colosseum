@@ -9,6 +9,7 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfileStoreRuntime.h"
+#include "engine/ExtensionsStore.h"
 #include "stremio/StremioState.h"
 #include "stremio/StremioCodec.h"
 #include "stremio/StremioSync.h"
@@ -22,6 +23,7 @@
 #include <QHash>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
 #include <QNetworkInterface>
 #include <QStandardPaths>
 #include <QQmlApplicationEngine>
@@ -32,6 +34,7 @@
 #include <QtTest>
 
 #include <algorithm>
+#include <type_traits>
 #include <utility>
 
 namespace {
@@ -40,6 +43,27 @@ constexpr auto kAccountId =
     "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 constexpr auto kDeviceId =
     "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+template <typename Runtime, typename = void>
+struct CanBindExtensionsStore : std::false_type {};
+
+template <typename Runtime>
+struct CanBindExtensionsStore<
+    Runtime,
+    std::void_t<decltype(std::declval<Runtime &>().setExtensionsStore(
+        static_cast<ExtensionsStore *>(nullptr)))>> : std::true_type {};
+
+template <typename Runtime>
+bool bindExtensionsStore(Runtime &runtime, ExtensionsStore *extensions)
+{
+    if constexpr (CanBindExtensionsStore<Runtime>::value) {
+        runtime.setExtensionsStore(extensions);
+        return true;
+    }
+    Q_UNUSED(runtime);
+    Q_UNUSED(extensions);
+    return false;
+}
 
 class ScopedEnvironmentVariable {
 public:
@@ -662,7 +686,51 @@ private slots:
     void stremioQmlMetadataFixtureProjectsIdentityOnlyToNative();
     void stremioInactiveAccountEngineRetainsProviderRedo();
     void stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho();
+    void extensionsOwnerFollowsTheActiveProfile();
 };
+
+void tst_account_attachment_runtime::extensionsOwnerFollowsTheActiveProfile()
+{
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("task3-extension-owner-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Task3"));
+    QCoreApplication::setApplicationName(
+        QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    QNetworkAccessManager network;
+    ExtensionsStore extensions(&network);
+    AccountRuntime runtime;
+    QVERIFY2(bindExtensionsStore(runtime, &extensions),
+             "Task 3 owner red: AccountRuntime cannot bind ExtensionsStore.");
+
+    QString error;
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error),
+             qPrintable(error));
+    const QString localProfileId = runtime.profileStores()->activeProfile().profileId();
+    QTRY_COMPARE(extensions.activeProfileId(), localProfileId);
+
+    const auto accountPaths = ProfilePaths::account(
+        QString::fromLatin1(kAccountId));
+    QVERIFY(accountPaths.has_value());
+    QVERIFY(QDir().mkpath(accountPaths->profileRoot()));
+    QVERIFY2(runtime.profileStores()->activateAccountProfile(
+                 QString::fromLatin1(kAccountId), &error),
+             qPrintable(error));
+    QTRY_COMPARE(extensions.activeProfileId(),
+                 QString::fromLatin1(kAccountId));
+
+    QVERIFY2(runtime.profileStores()->sealAccountProfile(
+                 QString::fromLatin1(kAccountId), &error),
+             qPrintable(error));
+    QVERIFY(extensions.activeProfileId().isEmpty());
+
+    QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error),
+             qPrintable(error));
+    QTRY_COMPARE(extensions.activeProfileId(), localProfileId);
+}
 
 void tst_account_attachment_runtime::
 stremioMarkerChangeUpdatesActiveRuntimeState() {

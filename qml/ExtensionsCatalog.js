@@ -360,7 +360,14 @@ function _crossingCost(list, lo, hi, mover) {
     return cost;
 }
 
-function moveDestination(list, world, id, delta) {
+function _matchesConfiguredInstance(entry, key) {
+    if (!entry) return false;
+    var transportUrl = String(entry.transportUrl || "");
+    return transportUrl.length ? transportUrl === String(key || "")
+                                : String(entry.id || "") === String(key || "");
+}
+
+function moveDestination(list, world, instanceKey, delta) {
     if (!list || !list.length || !delta) return null;
 
     var wells = [];
@@ -369,17 +376,17 @@ function moveDestination(list, world, id, delta) {
 
     var from = -1;
     for (var w = 0; w < wells.length; w++)
-        if (wells[w].id === id) { from = w; break; }
+        if (_matchesConfiguredInstance(wells[w], instanceKey)) { from = w; break; }
     if (from < 0) return null;
 
     var to = from + delta;
     if (to < 0 || to >= wells.length) return null;     // first or last in its own world
 
     // The two rows to be swapped, at their positions in the stored array.
-    var ia = -1, ib = -1, otherId = wells[to].id;
+    var ia = -1, ib = -1;
     for (var k = 0; k < list.length; k++) {
-        if (list[k].id === id) ia = k;
-        if (list[k].id === otherId) ib = k;
+        if (_matchesConfiguredInstance(list[k], instanceKey)) ia = k;
+        if (_matchesConfiguredInstance(list[k], wells[to].transportUrl || wells[to].id)) ib = k;
     }
     if (ia < 0 || ib < 0) return null;
 
@@ -388,8 +395,9 @@ function moveDestination(list, world, id, delta) {
     var costOther   = _crossingCost(list, lo, hi, list[ib]);
 
     // Move the clicked row unless moving its neighbour genuinely disturbs less.
-    return costOther < costClicked ? { id: otherId, index: ia }
-                                   : { id: id,      index: ib };
+    var mover = costOther < costClicked ? list[ib] : list[ia];
+    return { id: mover.id, transportUrl: mover.transportUrl || "",
+             index: costOther < costClicked ? ia : ib };
 }
 
 function _kindLine(manifest, categories, id) {

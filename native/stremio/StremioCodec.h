@@ -47,6 +47,15 @@ struct StremioDatastoreRequest {
     QJsonObject payload;
 };
 
+// Addon collection entries remain opaque provider documents. The codec
+// validates only their bounded transport identity and known container fields,
+// retaining every other field for a later fresh-read/rebase write.
+struct StremioAddonCollectionDecode {
+    QJsonArray addons;
+    int malformedRows = 0;
+    bool containerValid = false;
+};
+
 // Video order is supplied by the existing Theatre/addon metadata reader. The
 // Stremio watched bitfield has no safe meaning without that exact order.
 struct StremioEpisodeIdentity {
@@ -117,6 +126,15 @@ QList<StremioDatastoreRequest> datastoreGetRequests(
 StremioDatastoreRequest datastorePutRequest(
     const QByteArray &authKey,
     const QJsonObject &change);
+
+QString normalizedAddonTransportUrl(const QString &transportUrl);
+StremioDatastoreRequest addonCollectionGetRequest(const QByteArray &authKey);
+StremioDatastoreRequest addonCollectionSetRequest(
+    const QByteArray &authKey,
+    const QJsonArray &addons);
+StremioAddonCollectionDecode decodeAddonCollection(
+    const QJsonValue &result,
+    int maximumRows = 64);
 
 // The per-series watched value is an anchored, zlib-compressed bitfield. A
 // malformed or ambiguous field fails closed and leaves the caller's existing

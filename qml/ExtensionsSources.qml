@@ -72,6 +72,9 @@ Item {
         return out;
     }
     function nameOf(e) { return (e && e.manifest && e.manifest.name) || (e && e.id) || "" }
+    function instanceKey(entry) {
+        return String((entry && (entry.transportUrl || entry.id)) || "")
+    }
     function hit(e) {
         return !query.length || nameOf(e).toLowerCase().indexOf(query.toLowerCase()) !== -1;
     }
@@ -84,15 +87,24 @@ Item {
         for (var i = 0; i < ws.length; i++) {
             if (ws[i] === world) continue;
             var rank = 0, w = wellsFor(ws[i]);
-            for (var k = 0; k < w.length; k++) if (w[k].id === entry.id) { rank = k + 1; break; }
+            for (var k = 0; k < w.length; k++) if (instanceKey(w[k]) === instanceKey(entry)) { rank = k + 1; break; }
             var ord = rank === 1 ? "1st" : rank === 2 ? "2nd" : rank === 3 ? "3rd" : rank + "th";
             return "Also in " + (worldTitles[ws[i]] || ws[i]) + " · " + ord;
         }
         return "";
     }
-    function moveWell(id, delta, world) {
-        var m = Catalog.moveDestination(installedList, world, id, delta);
-        if (m) Extensions.moveTo(m.id, m.index);
+    function moveWell(entry, delta, world) {
+        var key = instanceKey(entry);
+        var m = Catalog.moveDestination(installedList, world, key, delta);
+        if (!m) return;
+        if (String(m.transportUrl || "").length) Extensions.moveInstanceTo(m.transportUrl, m.index);
+        else Extensions.moveTo(m.id, m.index);
+    }
+    function setEntryEnabled(entry, enabled) {
+        if (!entry) return;
+        var url = String(entry.transportUrl || "");
+        if (/^https?:\/\//i.test(url)) Extensions.setEnabledInstance(url, enabled);
+        else Extensions.setEnabled(entry.id, enabled);
     }
 
     Column {
@@ -315,16 +327,16 @@ Item {
                             if (!row.isWell) return 0;
                             var w = root.wellsFor(section.modelData.key);
                             for (var i = 0; i < w.length; i++)
-                                if (w[i].id === row.modelData.id) return i + 1;
+                                if (root.instanceKey(w[i]) === root.instanceKey(row.modelData)) return i + 1;
                             return 0;
                         }
                         readonly property string tie: root.tieFor(row.modelData, section.modelData.key)
                         readonly property bool canUp:
                             row.isWell && Catalog.moveDestination(
-                                root.installedList, section.modelData.key, row.modelData.id, -1) !== null
+                                root.installedList, section.modelData.key, root.instanceKey(row.modelData), -1) !== null
                         readonly property bool canDown:
                             row.isWell && Catalog.moveDestination(
-                                root.installedList, section.modelData.key, row.modelData.id, 1) !== null
+                                root.installedList, section.modelData.key, root.instanceKey(row.modelData), 1) !== null
 
                         Text {
                             visible: row.startsGroup && row.groupTitle !== ""
@@ -376,14 +388,14 @@ Item {
                                         id: upMa; anchors.fill: parent; anchors.margins: -9
                                         hoverEnabled: true; enabled: row.canUp
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.moveWell(row.modelData.id, -1,
+                                        onClicked: root.moveWell(row.modelData, -1,
                                                                  section.modelData.key)
                                     }
                                     KeyboardAction {
                                         anchors.fill: parent; anchors.margins: -9
                                         pointerEnabled: false; enabled: row.canUp
                                         accessibleName: "Move " + root.nameOf(row.modelData) + " earlier in " + section.modelData.title
-                                        onTriggered: root.moveWell(row.modelData.id, -1, section.modelData.key)
+                                        onTriggered: root.moveWell(row.modelData, -1, section.modelData.key)
                                     }
                                 }
                                 Text {
@@ -394,14 +406,14 @@ Item {
                                         id: downMa; anchors.fill: parent; anchors.margins: -9
                                         hoverEnabled: true; enabled: row.canDown
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.moveWell(row.modelData.id, 1,
+                                        onClicked: root.moveWell(row.modelData, 1,
                                                                  section.modelData.key)
                                     }
                                     KeyboardAction {
                                         anchors.fill: parent; anchors.margins: -9
                                         pointerEnabled: false; enabled: row.canDown
                                         accessibleName: "Move " + root.nameOf(row.modelData) + " later in " + section.modelData.title
-                                        onTriggered: root.moveWell(row.modelData.id, 1, section.modelData.key)
+                                        onTriggered: root.moveWell(row.modelData, 1, section.modelData.key)
                                     }
                                 }
                             }
@@ -468,13 +480,13 @@ Item {
                                         enabled: !row.isCore
                                         cursorShape: row.isCore ? Qt.ArrowCursor
                                                                 : Qt.PointingHandCursor
-                                        onClicked: Extensions.setEnabled(row.modelData.id, !row.isOn)
+                                        onClicked: root.setEntryEnabled(row.modelData, !row.isOn)
                                     }
                                     KeyboardAction {
                                         anchors.fill: parent; anchors.margins: -11
                                         pointerEnabled: false; enabled: !row.isCore
                                         accessibleName: (row.isOn ? "Disable " : "Enable ") + root.nameOf(row.modelData)
-                                        onTriggered: Extensions.setEnabled(row.modelData.id, !row.isOn)
+                                        onTriggered: root.setEntryEnabled(row.modelData, !row.isOn)
                                     }
                                 }
                                 Text {

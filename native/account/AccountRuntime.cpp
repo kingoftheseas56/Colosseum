@@ -3,6 +3,7 @@
 #include "ActivityStore.h"
 #include "CollectionStore.h"
 #include "AccountServiceEndpoint.h"
+#include "engine/ExtensionsStore.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfilePreferencesStore.h"
 #include "ProgressStore.h"
@@ -11,6 +12,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
 #include <QCryptographicHash>
 #include <QHash>
 #include <QJsonArray>
@@ -24,6 +26,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace {
 
@@ -489,6 +492,103 @@ std::optional<StremioLibraryItem> itemFromEpisodePendingRedo(
     *canonicalProjection = ownerProjection;
     return item;
 }
+
+QString addonTransportIdentity(const QJsonObject &document)
+{
+    return StremioCodec::normalizedAddonTransportUrl(
+        document.value(QStringLiteral("transportUrl")).toString());
+}
+
+bool theatreAddonDocument(const QJsonObject &document)
+{
+    const QString transportUrl = document.value(QStringLiteral("transportUrl"))
+        .toString();
+    if (!transportUrl.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)
+        && !transportUrl.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)) {
+        return false;
+    }
+    const QJsonArray types = document.value(QStringLiteral("manifest"))
+        .toObject().value(QStringLiteral("types")).toArray();
+    for (const QJsonValue &type : types) {
+        const QString name = type.toString();
+        if (name == QLatin1String("movie")
+            || name == QLatin1String("series")
+            || name == QLatin1String("anime")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QJsonArray stremioAddonDocuments(const QVariantList &rows)
+{
+    QJsonArray documents;
+    for (const QVariant &value : rows) {
+        const QVariantMap row = value.toMap();
+        const QString transportUrl = row.value(QStringLiteral("transportUrl"))
+            .toString();
+        if (transportUrl.isEmpty())
+            continue;
+        QJsonObject document = QJsonObject::fromVariantMap(row);
+        document.remove(QStringLiteral("id"));
+        document.remove(QStringLiteral("installedAt"));
+        document.remove(QStringLiteral("enabled"));
+        document.remove(QStringLiteral("core"));
+        document.insert(QStringLiteral("transportUrl"), transportUrl);
+        if (!document.contains(QStringLiteral("transportName"))) {
+            const QString name = row.value(QStringLiteral("manifest")).toMap()
+                .value(QStringLiteral("name")).toString();
+            if (!name.isEmpty())
+                document.insert(QStringLiteral("transportName"), name);
+        }
+        if (theatreAddonDocument(document))
+            documents.append(document);
+    }
+    return documents;
+}
+
+QVariantList localRowsForStremioAddons(
+    const QJsonArray &addons,
+    const QVariantList &existing)
+{
+    QHash<QString, QVariantMap> existingByIdentity;
+    for (const QVariant &value : existing) {
+        const QVariantMap row = value.toMap();
+        const QString identity = StremioCodec::normalizedAddonTransportUrl(
+            row.value(QStringLiteral("transportUrl")).toString());
+        if (!identity.isEmpty() && !existingByIdentity.contains(identity))
+            existingByIdentity.insert(identity, row);
+    }
+
+    QVariantList rows;
+    for (const QJsonValue &value : addons) {
+        if (!value.isObject())
+            continue;
+        const QJsonObject document = value.toObject();
+        if (!theatreAddonDocument(document))
+            continue;
+        const QString identity = addonTransportIdentity(document);
+        if (identity.isEmpty())
+            continue;
+        QVariantMap row = document.toVariantMap();
+        const auto prior = existingByIdentity.constFind(identity);
+        const QVariantMap old = prior == existingByIdentity.cend()
+            ? QVariantMap{}
+            : prior.value();
+        const QVariantMap manifest = row.value(QStringLiteral("manifest")).toMap();
+        const QString fallbackId = manifest.value(QStringLiteral("id")).toString();
+        row.insert(QStringLiteral("id"), old.value(QStringLiteral("id"),
+                                                   fallbackId.isEmpty()
+                                                       ? identity
+                                                       : fallbackId));
+        row.insert(QStringLiteral("installedAt"), old.value(
+            QStringLiteral("installedAt"), QDateTime::currentSecsSinceEpoch()));
+        row.insert(QStringLiteral("enabled"), old.value(QStringLiteral("enabled"), true));
+        row.insert(QStringLiteral("core"), false);
+        rows.append(row);
+    }
+    return rows;
+}
 } // namespace
 
 AccountRuntime::AccountRuntime(QObject *parent)
@@ -502,7 +602,27 @@ AccountRuntime::AccountRuntime(
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
       m_recoveryKeyPresenter(&m_sensitiveClipboard),
-      m_profileCoordinator(&m_profileStores),
+      m_profileCoordinator(
+          &m_profileStores,
+          QString(),
+          StremioCredentialAdoptionCallbacks{
+              [this](const QString &profileId, const QString &accountId)
+                  -> std::optional<QByteArray> {
+                  const auto credential = m_credentialStore.loadStremio(
+                      profileId, accountId);
+                  return credential.has_value()
+                      ? std::optional<QByteArray>(credential->authKey)
+                      : std::nullopt;
+              },
+              [this](const QString &profileId,
+                     const QString &accountId,
+                     const QByteArray &authKey) {
+                  return m_credentialStore.saveStremio(
+                      StoredStremioCredential{profileId, accountId, authKey});
+              },
+              [this](const QString &profileId) {
+                  return m_credentialStore.clearStremio(profileId);
+              }}),
       m_syncRegistry(),
       m_syncEngine(
           &m_client,
@@ -550,8 +670,22 @@ AccountRuntime::AccountRuntime(
                 && preferences->setMainSyncProvider(QStringLiteral("stremio"));
             m_stremioSync.setMarkerLinked(
                 persisted && preferences->mainSyncProvider() == QStringLiteral("stremio"));
-            if (persisted)
+            if (persisted) {
                 refreshStremioLibrary();
+                scheduleStremioAddonReconcile();
+            }
+        });
+    connect(
+        &m_stremioSync,
+        &StremioSync::profileDisconnected,
+        this,
+        [this](const QString &profileId) {
+            ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+            if (!preferences
+                || m_profileStores.activeProfile().profileId() != profileId) {
+                return;
+            }
+            preferences->setMainSyncProvider(QString());
         });
     m_stremioRegistryMutationConnection = connect(
         &m_syncRegistry,
@@ -607,14 +741,22 @@ AccountRuntime::AccountRuntime(
             m_stremioActiveImportCount = 0;
             m_stremioReconcileScheduled = false;
             m_stremioReconcileDeferred = false;
+            m_stremioAddonReconcileScheduled = false;
+            m_stremioAddonApplyInProgress = false;
+            m_stremioAddonReconcileDeferred = false;
             m_stremioSync.deactivateProfile();
+            if (m_extensionsStore)
+                m_extensionsStore->deactivateProfile();
         });
 
     connect(
         &m_profileStores,
         &ProfileStoreRuntime::storesChanged,
         this,
-        [this]() { activateStremioProfile(); });
+        [this]() {
+            activateExtensionsProfile();
+            activateStremioProfile();
+        });
 
     connect(
         &m_controller,
@@ -1360,6 +1502,21 @@ AccountController *AccountRuntime::controller() {
     return &m_controller;
 }
 
+void AccountRuntime::setExtensionsStore(ExtensionsStore *extensions) {
+    if (m_extensionsChangedConnection)
+        disconnect(m_extensionsChangedConnection);
+    m_extensionsStore = extensions;
+    if (m_extensionsStore) {
+        m_extensionsChangedConnection = connect(
+            m_extensionsStore,
+            &ExtensionsStore::changed,
+            this,
+            [this] { scheduleStremioAddonReconcile(); });
+    }
+    activateExtensionsProfile();
+    scheduleStremioAddonReconcile();
+}
+
 AccountRecoveryKeyPresenter *
 AccountRuntime::recoveryKeyPresenter() {
     return &m_recoveryKeyPresenter;
@@ -1755,12 +1912,138 @@ void AccountRuntime::reconcileStremioTheatreState(
         });
 }
 
+void AccountRuntime::scheduleStremioAddonReconcile()
+{
+    const QString profileId = m_profileStores.activeProfile().profileId();
+    ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+    if (!m_extensionsStore || profileId.isEmpty() || !preferences
+        || preferences->mainSyncProvider() != QLatin1String("stremio")) {
+        return;
+    }
+    if (m_stremioAddonApplyInProgress) {
+        m_stremioAddonReconcileDeferred = true;
+        return;
+    }
+    if (m_stremioAddonReconcileScheduled)
+        return;
+    const quint64 incarnation = m_stremioProfileIncarnation;
+    m_stremioAddonReconcileScheduled = true;
+    QTimer::singleShot(0, this, [this, profileId, incarnation] {
+        m_stremioAddonReconcileScheduled = false;
+        reconcileStremioAddonCollection(profileId, incarnation);
+    });
+}
+
+void AccountRuntime::reconcileStremioAddonCollection(
+    const QString &profileId,
+    quint64 incarnation)
+{
+    if (!m_extensionsStore
+        || profileId != m_profileStores.activeProfile().profileId()
+        || incarnation != m_stremioProfileIncarnation) {
+        return;
+    }
+    const int ownerRevision = m_extensionsStore->revision();
+    const QJsonArray local = stremioAddonDocuments(m_extensionsStore->stremioRows());
+    const bool started = m_stremioSync.reconcileAddonCollection(
+        local,
+        [this, profileId, incarnation, ownerRevision](bool succeeded,
+                                                       QJsonArray settled) {
+            if (profileId != m_profileStores.activeProfile().profileId()
+                || incarnation != m_stremioProfileIncarnation) {
+                return;
+            }
+            if (!succeeded)
+                return;
+            if (!m_extensionsStore
+                || ownerRevision != m_extensionsStore->revision()) {
+                // A local action won the race while the provider round trip
+                // was in flight. Never overwrite it with an older readback.
+                scheduleStremioAddonReconcile();
+                return;
+            }
+            applyStremioAddonCollection(profileId, incarnation, settled);
+        });
+    if (!started
+        && profileId == m_profileStores.activeProfile().profileId()
+        && incarnation == m_stremioProfileIncarnation
+        && m_stremioSync.status() == QLatin1String("synced")) {
+        // A same-profile local mutation can arrive while another addon round
+        // owns the single datastore reply. Retry only while the binding is
+        // connected; disconnected profiles wait for the next reconnect marker
+        // instead of spinning a timer against an unavailable provider.
+        QTimer::singleShot(100, this, [this] { scheduleStremioAddonReconcile(); });
+    }
+}
+
+void AccountRuntime::applyStremioAddonCollection(
+    const QString &profileId,
+    quint64 incarnation,
+    const QJsonArray &addons)
+{
+    if (!m_extensionsStore
+        || profileId != m_profileStores.activeProfile().profileId()
+        || incarnation != m_stremioProfileIncarnation) {
+        return;
+    }
+    const QVariantList rows = localRowsForStremioAddons(
+        addons, m_extensionsStore->stremioRows());
+    m_stremioAddonApplyInProgress = true;
+    const bool started = m_extensionsStore->applyTheatreRows(
+        rows,
+        [this, profileId, incarnation](bool committed, const QString &) {
+            if (profileId != m_profileStores.activeProfile().profileId()
+                || incarnation != m_stremioProfileIncarnation) {
+                return;
+            }
+            if (!committed || !m_extensionsStore) {
+                m_stremioAddonApplyInProgress = false;
+                QTimer::singleShot(100, this, [this] {
+                    scheduleStremioAddonReconcile();
+                });
+                return;
+            }
+            const QJsonArray local = stremioAddonDocuments(
+                m_extensionsStore->stremioRows());
+            const bool acknowledgementStarted =
+                m_stremioSync.acknowledgeAddonCollectionOwner(
+                    local,
+                    [this, profileId, incarnation](bool acknowledged) {
+                        if (profileId != m_profileStores.activeProfile().profileId()
+                            || incarnation != m_stremioProfileIncarnation) {
+                            return;
+                        }
+                        m_stremioAddonApplyInProgress = false;
+                        const bool deferred = std::exchange(
+                            m_stremioAddonReconcileDeferred, false);
+                        if (deferred) {
+                            scheduleStremioAddonReconcile();
+                        } else if (!acknowledged) {
+                            QTimer::singleShot(100, this, [this] {
+                                scheduleStremioAddonReconcile();
+                            });
+                        }
+                    });
+            if (!acknowledgementStarted) {
+                m_stremioAddonApplyInProgress = false;
+                QTimer::singleShot(100, this, [this] {
+                    scheduleStremioAddonReconcile();
+                });
+            }
+        });
+    if (!started)
+        m_stremioAddonApplyInProgress = false;
+}
+
 void AccountRuntime::activateStremioProfile() {
     const ProfilePaths profile = m_profileStores.activeProfile();
     ++m_stremioProfileIncarnation;
     m_stremioActiveImportCount = 0;
     m_stremioReconcileScheduled = false;
     m_stremioReconcileDeferred = false;
+    m_stremioAddonReconcileScheduled = false;
+    m_stremioAddonApplyInProgress = false;
+    m_stremioAddonReconcileDeferred = false;
     const bool sealed = profile.kind() == ProfilePaths::Kind::Sealed;
     const bool explicitLocalOnly = profile.kind() == ProfilePaths::Kind::LocalOnly;
     QString ignored;
@@ -1854,10 +2137,27 @@ void AccountRuntime::activateStremioProfile() {
             if (linked) {
                 refreshStremioLibrary();
                 scheduleStremioTheatreReconcile();
+                scheduleStremioAddonReconcile();
             }
         });
     if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
         refreshStremioLibrary();
         scheduleStremioTheatreReconcile();
+        scheduleStremioAddonReconcile();
     }
+}
+
+void AccountRuntime::activateExtensionsProfile() {
+    if (!m_extensionsStore)
+        return;
+    const ProfilePaths profile = m_profileStores.activeProfile();
+    if (profile.kind() == ProfilePaths::Kind::Sealed
+        || profile.profileRoot().isEmpty()) {
+        m_extensionsStore->deactivateProfile();
+        return;
+    }
+    const QString theatreIndexPath = QDir::cleanPath(
+        profile.profileRoot() + QStringLiteral("/extensions/installed.json"));
+    if (!m_extensionsStore->activateProfile(profile.profileId(), theatreIndexPath))
+        m_extensionsStore->deactivateProfile();
 }

@@ -10,6 +10,7 @@
 #include <QTcpSocket>
 #include <QUuid>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -22,6 +23,7 @@ constexpr qsizetype kMaximumCallbackBytes = 16 * 1024;
 constexpr qsizetype kMaximumIdentityResponseBytes = 64 * 1024;
 constexpr qsizetype kMaximumDatastoreResponseBytes = 1024 * 1024;
 constexpr int kMaximumLibraryRows = 256;
+constexpr int kMaximumAddonCollectionAttempts = 3;
 constexpr qsizetype kMaximumProviderRedoProjectionBytes = 16 * 1024;
 constexpr qsizetype kMaximumWatchedFieldBytes = 16 * 1024;
 constexpr int kMaximumEpisodeMetadataRows = 512;
@@ -123,6 +125,199 @@ bool desiredActivity(const QJsonObject &desired, qint64 *milliseconds) {
     return true;
 }
 
+QString addonTransportIdentity(const QJsonValue &value) {
+    if (!value.isObject())
+        return {};
+    return StremioCodec::normalizedAddonTransportUrl(
+        value.toObject().value(QStringLiteral("transportUrl")).toString());
+}
+
+QJsonArray deduplicatedAddonUnion(const QJsonArray &remote, const QJsonArray &local) {
+    QJsonArray merged;
+    QSet<QString> seen;
+    const auto append = [&merged, &seen](const QJsonArray &source) {
+        for (const QJsonValue &value : source) {
+            const QString identity = addonTransportIdentity(value);
+            if (identity.isEmpty() || seen.contains(identity))
+                continue;
+            seen.insert(identity);
+            merged.append(value);
+        }
+    };
+    append(remote);
+    append(local);
+    return merged;
+}
+
+QJsonObject mergeAddonConfiguration(const QJsonObject &remote,
+                                    const QJsonObject &local) {
+    // A local install/remove/reorder operation may only change the provider
+    // fields Colosseum owns. Keep every other field returned by Stremio so a
+    // concurrent client or a future provider version is not erased by a
+    // whole-document write.
+    QJsonObject merged = remote;
+    for (const QString &key : {QStringLiteral("transportUrl"),
+                               QStringLiteral("transportName"),
+                               QStringLiteral("manifest"),
+                               QStringLiteral("flags")}) {
+        if (local.contains(key))
+            merged.insert(key, local.value(key));
+    }
+    return merged;
+}
+
+QJsonArray addonCollectionDeltaReconcile(const QJsonArray &remote,
+                                         const QJsonArray &baselineRemote,
+                                         const QJsonArray &baselineLocal,
+                                         const QJsonArray &local) {
+    QHash<QString, QJsonObject> remoteByIdentity;
+    QHash<QString, QJsonObject> baselineLocalByIdentity;
+    QHash<QString, QJsonObject> localByIdentity;
+    QStringList remoteOrder;
+    QStringList baselineLocalOrder;
+    QStringList localOrder;
+
+    const auto index = [](const QJsonArray &source,
+                          QHash<QString, QJsonObject> *byIdentity,
+                          QStringList *order) {
+        for (const QJsonValue &value : source) {
+            if (!value.isObject())
+                continue;
+            const QString identity = addonTransportIdentity(value);
+            if (identity.isEmpty() || byIdentity->contains(identity))
+                continue;
+            byIdentity->insert(identity, value.toObject());
+            order->append(identity);
+        }
+    };
+    index(remote, &remoteByIdentity, &remoteOrder);
+    index(baselineLocal, &baselineLocalByIdentity, &baselineLocalOrder);
+    index(local, &localByIdentity, &localOrder);
+
+    QSet<QString> explicitlyRemoved;
+    for (const QString &identity : baselineLocalOrder) {
+        if (!localByIdentity.contains(identity))
+            explicitlyRemoved.insert(identity);
+    }
+
+    QSet<QString> explicitlyChanged;
+    QSet<QString> explicitlyAdded;
+    for (const QString &identity : localOrder) {
+        if (!baselineLocalByIdentity.contains(identity)) {
+            explicitlyAdded.insert(identity);
+        } else if (baselineLocalByIdentity.value(identity) != localByIdentity.value(identity)) {
+            explicitlyChanged.insert(identity);
+        }
+    }
+
+    QStringList baselineSurvivorOrder;
+    for (const QString &identity : baselineLocalOrder) {
+        if (localByIdentity.contains(identity))
+            baselineSurvivorOrder.append(identity);
+    }
+    QStringList currentManagedOrder;
+    for (const QString &identity : localOrder) {
+        if (baselineLocalByIdentity.contains(identity))
+            currentManagedOrder.append(identity);
+    }
+    bool orderChanged = baselineSurvivorOrder != currentManagedOrder;
+    if (!orderChanged) {
+        // A newly installed row inserted before an existing baseline row is
+        // also an explicit order change, even though the baseline-only
+        // subsequence above is unchanged.
+        int lastBaselinePosition = -1;
+        for (const QString &identity : localOrder) {
+            if (!baselineLocalByIdentity.contains(identity))
+                continue;
+            const int position = localOrder.indexOf(identity);
+            if (position < lastBaselinePosition) {
+                orderChanged = true;
+                break;
+            }
+            lastBaselinePosition = position;
+        }
+        if (!orderChanged) {
+            const int firstAdded = std::find_if(localOrder.cbegin(), localOrder.cend(),
+                [&baselineLocalByIdentity](const QString &identity) {
+                    return !baselineLocalByIdentity.contains(identity);
+                }) - localOrder.cbegin();
+            if (firstAdded >= 0 && firstAdded < localOrder.size()) {
+                for (int i = firstAdded + 1; i < localOrder.size(); ++i) {
+                    if (baselineLocalByIdentity.contains(localOrder.at(i))) {
+                        orderChanged = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    const auto remoteRowFor = [&remoteByIdentity, &localByIdentity, &explicitlyChanged](
+                                  const QString &identity) {
+        if (!remoteByIdentity.contains(identity))
+            return localByIdentity.value(identity);
+        if (explicitlyChanged.contains(identity))
+            return mergeAddonConfiguration(remoteByIdentity.value(identity),
+                                           localByIdentity.value(identity));
+        return remoteByIdentity.value(identity);
+    };
+
+    QJsonArray desired;
+    QSet<QString> emitted;
+    if (orderChanged) {
+        // Keep remote-only entries intact, then let the active local owner
+        // express its deliberate order. This is the stable rebase for a
+        // local reorder: unknown remote rows survive and local rows become
+        // the managed suffix in their current order.
+        for (const QString &identity : remoteOrder) {
+            if (explicitlyRemoved.contains(identity) || localByIdentity.contains(identity))
+                continue;
+            desired.append(remoteByIdentity.value(identity));
+            emitted.insert(identity);
+        }
+        for (const QString &identity : localOrder) {
+            if (emitted.contains(identity))
+                continue;
+            if (!remoteByIdentity.contains(identity)
+                && !explicitlyAdded.contains(identity)
+                && !explicitlyChanged.contains(identity)) {
+                continue;
+            }
+            desired.append(remoteRowFor(identity));
+            emitted.insert(identity);
+        }
+        return desired;
+    }
+
+    // No local reorder: preserve the fresh remote order, apply only explicit
+    // removals/updates, then append new local rows in local order.
+    for (const QString &identity : remoteOrder) {
+        if (explicitlyRemoved.contains(identity))
+            continue;
+        desired.append(remoteRowFor(identity));
+        emitted.insert(identity);
+    }
+    for (const QString &identity : localOrder) {
+        if (emitted.contains(identity))
+            continue;
+        if (!explicitlyAdded.contains(identity)
+            && !explicitlyChanged.contains(identity)) {
+            continue;
+        }
+        desired.append(localByIdentity.value(identity));
+        emitted.insert(identity);
+    }
+    return desired;
+}
+
+bool addonCollectionSetAccepted(const QJsonValue &result) {
+    if (result.isBool())
+        return result.toBool();
+    return result.isObject()
+        && result.toObject().value(QStringLiteral("success")).isBool()
+        && result.toObject().value(QStringLiteral("success")).toBool();
+}
+
 QByteArray successPage() {
     return QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 92\r\nConnection: close\r\n\r\n<!doctype html><title>Colosseum</title><p>Sign-in complete. You can return to Colosseum.</p>");
 }
@@ -162,6 +357,14 @@ struct StremioSync::LibraryPull {
     qsizetype nextBatch = 0;
     QList<StremioLibraryItem> items;
     std::function<void(bool, QList<StremioLibraryItem>)> completion;
+};
+
+struct StremioSync::AddonCollectionReconcile {
+    ProfileBinding binding;
+    QJsonArray local;
+    QJsonArray desired;
+    int attempts = 0;
+    std::function<void(bool, QJsonArray)> completion;
 };
 
 StremioSync::StremioSync(const StremioSyncOptions &options, QObject *parent)
@@ -271,6 +474,7 @@ void StremioSync::deactivateProfile() {
     m_markerLinked = false;
     m_dispatchAllowed = false;
     m_inFlightOperations.clear();
+    m_addonCollectionReconcileActive = false;
     emit stateChanged();
 }
 
@@ -350,6 +554,85 @@ void StremioSync::cancelAuthentication() {
     }
     m_identityResponse.clear();
     m_identityResponseTooLarge = false;
+}
+
+bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
+    if (m_profileId.isEmpty() || m_statePath.isEmpty()) {
+        if (completion)
+            completion(false);
+        return false;
+    }
+
+    const QString profileId = m_profileId;
+    const QString accountId = m_state.accountId;
+
+    // Retire the binding before aborting any reply: QNetworkReply::abort may
+    // emit finished synchronously on this thread. Every cancellation callback
+    // must therefore already observe a stale generation.
+    ++m_bindingGeneration;
+    m_inFlightOperations.clear();
+    m_addonCollectionReconcileActive = false;
+
+    cancelAuthentication();
+    cancelEpisodeMetadataRequests();
+    if (m_datastoreReply) {
+        m_datastoreReply->abort();
+        m_datastoreReply = nullptr;
+    }
+    m_datastoreResponse.clear();
+    m_datastoreResponseTooLarge = false;
+    m_retryTimer.stop();
+
+    bool credentialCleared = m_options.clearCredential
+        && m_options.clearCredential(profileId);
+    if (!credentialCleared && m_options.loadCredential && !accountId.isEmpty()) {
+        credentialCleared = !m_options.loadCredential(profileId, accountId).has_value();
+    }
+    if (!credentialCleared) {
+        updateConnectionStatus();
+        if (completion)
+            completion(false);
+        return false;
+    }
+
+    m_state = {};
+    m_state.profileId = profileId;
+    m_state.bindingGeneration = m_bindingGeneration;
+    m_hasUsableCredential = false;
+    m_markerLinked = false;
+    m_dispatchAllowed = false;
+    m_failedPersistencePaths.remove(m_statePath);
+    updateConnectionStatus();
+    emit stateChanged();
+
+    const ProfileBinding binding{profileId, m_bindingGeneration};
+    persist([this, binding, profileId, completion = std::move(completion)](bool committed) mutable {
+        const bool succeeded = committed && bindingCurrent(binding);
+        if (succeeded) {
+            emit profileDisconnected(profileId);
+            finishRun();
+        }
+        if (completion)
+            completion(succeeded);
+    });
+    return true;
+}
+
+bool StremioSync::connectAccount() {
+    return startBrowserAuthentication();
+}
+
+bool StremioSync::disconnectCurrentProfile() {
+    return disconnectProfile();
+}
+
+bool StremioSync::switchAccount() {
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    return disconnectProfile([this, binding](bool succeeded) {
+        if (!succeeded || binding.profileId != m_profileId)
+            return;
+        startBrowserAuthentication();
+    });
 }
 
 void StremioSync::retireProvisionalCredential() {
@@ -823,6 +1106,266 @@ bool StremioSync::pullLibraryItems(
         fetchNextLibraryBatch(pull);
     });
     return true;
+}
+
+bool StremioSync::pullAddonCollection(
+    std::function<void(bool, QJsonArray)> completion) {
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    if (!bindingCurrent(binding) || !m_markerLinked || !m_hasUsableCredential
+        || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential
+        || m_datastoreReply) {
+        if (completion)
+            completion(false, {});
+        return false;
+    }
+    const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
+    const StremioDatastoreRequest request = credential.has_value()
+        ? StremioCodec::addonCollectionGetRequest(*credential)
+        : StremioDatastoreRequest{};
+    if (request.method.isEmpty()) {
+        if (completion)
+            completion(false, {});
+        return false;
+    }
+    postDatastoreRequest(request, binding,
+        [this, binding, completion = std::move(completion)](
+            bool succeeded,
+            bool,
+            QJsonValue result) mutable {
+        if (!succeeded || !bindingCurrent(binding)) {
+            if (completion)
+                completion(false, {});
+            return;
+        }
+        const StremioAddonCollectionDecode decoded =
+            StremioCodec::decodeAddonCollection(result);
+        if (completion)
+            completion(decoded.containerValid,
+                       decoded.containerValid ? decoded.addons : QJsonArray{});
+    });
+    return true;
+}
+
+bool StremioSync::reconcileAddonCollection(
+    const QJsonArray &localAddons,
+    std::function<void(bool, QJsonArray)> completion) {
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const StremioAddonCollectionDecode decodedLocal =
+        StremioCodec::decodeAddonCollection(
+            QJsonObject{{QStringLiteral("addons"), localAddons}});
+    if (!bindingCurrent(binding) || !m_markerLinked || !m_hasUsableCredential
+        || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential
+        || m_addonCollectionReconcileActive
+        || decodedLocal.addons.size() != localAddons.size()) {
+        if (completion)
+            completion(false, {});
+        return false;
+    }
+
+    const auto reconcile = std::make_shared<AddonCollectionReconcile>();
+    reconcile->binding = binding;
+    reconcile->local = decodedLocal.addons;
+    reconcile->completion = std::move(completion);
+    m_addonCollectionReconcileActive = true;
+    // The local owner has already committed its rows. Persist the exact,
+    // bounded desired owner snapshot before any provider read/write so an app
+    // exit cannot turn a deliberate addon action into a guessed deletion.
+    m_state.acknowledgedBaselines.insert(
+        QStringLiteral("addonCollectionPending"),
+        QJsonObject{{QStringLiteral("local"), reconcile->local}});
+    persist([this, reconcile](bool committed) {
+        if (!committed || !bindingCurrent(reconcile->binding)) {
+            finishAddonCollectionReconcile(reconcile, false);
+            return;
+        }
+        fetchAddonCollectionForReconcile(reconcile);
+    });
+    return true;
+}
+
+bool StremioSync::acknowledgeAddonCollectionOwner(
+    const QJsonArray &localAddons,
+    std::function<void(bool)> completion) {
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const StremioAddonCollectionDecode local = StremioCodec::decodeAddonCollection(
+        QJsonObject{{QStringLiteral("addons"), localAddons}});
+    const QJsonObject prior = m_state.acknowledgedBaselines.value(
+        QStringLiteral("addonCollection")).toObject();
+    const QJsonValue remoteValue = prior.value(QStringLiteral("remote"));
+    if (!bindingCurrent(binding) || !local.containerValid
+        || local.addons.size() != localAddons.size() || !remoteValue.isArray()) {
+        if (completion)
+            completion(false);
+        return false;
+    }
+
+    QSet<QString> remoteIdentities;
+    for (const QJsonValue &value : remoteValue.toArray())
+        remoteIdentities.insert(addonTransportIdentity(value));
+    for (const QJsonValue &value : local.addons) {
+        const QString identity = addonTransportIdentity(value);
+        if (identity.isEmpty() || !remoteIdentities.contains(identity)) {
+            if (completion)
+                completion(false);
+            return false;
+        }
+    }
+
+    QJsonObject baseline = prior;
+    baseline.insert(QStringLiteral("local"), local.addons);
+    m_state.acknowledgedBaselines.insert(QStringLiteral("addonCollection"), baseline);
+    persist([this, binding, completion = std::move(completion)](bool committed) mutable {
+        if (completion)
+            completion(committed && bindingCurrent(binding));
+    });
+    return true;
+}
+
+void StremioSync::fetchAddonCollectionForReconcile(
+    const std::shared_ptr<AddonCollectionReconcile> &reconcile) {
+    if (!reconcile || !bindingCurrent(reconcile->binding) || !m_options.loadCredential) {
+        finishAddonCollectionReconcile(reconcile, false);
+        return;
+    }
+    const auto credential = m_options.loadCredential(
+        reconcile->binding.profileId, m_state.accountId);
+    const StremioDatastoreRequest request = credential.has_value()
+        ? StremioCodec::addonCollectionGetRequest(*credential)
+        : StremioDatastoreRequest{};
+    if (request.method.isEmpty()) {
+        finishAddonCollectionReconcile(reconcile, false);
+        return;
+    }
+    postDatastoreRequest(request, reconcile->binding,
+        [this, reconcile](bool succeeded, bool, QJsonValue result) {
+        if (!succeeded || !bindingCurrent(reconcile->binding)) {
+            finishAddonCollectionReconcile(reconcile, false);
+            return;
+        }
+        const StremioAddonCollectionDecode remote =
+            StremioCodec::decodeAddonCollection(result);
+        if (!remote.containerValid) {
+            finishAddonCollectionReconcile(reconcile, false);
+            return;
+        }
+        const QJsonObject baseline = m_state.acknowledgedBaselines.value(
+            QStringLiteral("addonCollection")).toObject();
+        const QJsonValue baselineRemoteValue = baseline.value(QStringLiteral("remote"));
+        const QJsonValue baselineLocalValue = baseline.value(QStringLiteral("local"));
+        const bool hasBaseline = baselineRemoteValue.isArray()
+            && baselineLocalValue.isArray();
+        reconcile->desired = hasBaseline
+            ? addonCollectionDeltaReconcile(remote.addons,
+                                            baselineRemoteValue.toArray(),
+                                            baselineLocalValue.toArray(),
+                                            reconcile->local)
+            : deduplicatedAddonUnion(remote.addons, reconcile->local);
+        if (reconcile->desired == remote.addons) {
+            finishAddonCollectionReconcile(reconcile, true, remote.addons);
+            return;
+        }
+        writeAddonCollectionForReconcile(reconcile);
+    });
+}
+
+void StremioSync::writeAddonCollectionForReconcile(
+    const std::shared_ptr<AddonCollectionReconcile> &reconcile) {
+    if (!reconcile || !bindingCurrent(reconcile->binding) || !m_options.loadCredential) {
+        finishAddonCollectionReconcile(reconcile, false);
+        return;
+    }
+    const auto credential = m_options.loadCredential(
+        reconcile->binding.profileId, m_state.accountId);
+    const StremioDatastoreRequest request = credential.has_value()
+        ? StremioCodec::addonCollectionSetRequest(*credential, reconcile->desired)
+        : StremioDatastoreRequest{};
+    if (request.method.isEmpty()) {
+        finishAddonCollectionReconcile(reconcile, false);
+        return;
+    }
+    postDatastoreRequest(request, reconcile->binding,
+        [this, reconcile](bool succeeded, bool, QJsonValue result) {
+        if (!succeeded || !addonCollectionSetAccepted(result)
+            || !bindingCurrent(reconcile->binding)) {
+            finishAddonCollectionReconcile(reconcile, false);
+            return;
+        }
+        verifyAddonCollectionForReconcile(reconcile);
+    });
+}
+
+void StremioSync::verifyAddonCollectionForReconcile(
+    const std::shared_ptr<AddonCollectionReconcile> &reconcile) {
+    if (!reconcile || !bindingCurrent(reconcile->binding) || !m_options.loadCredential) {
+        finishAddonCollectionReconcile(reconcile, false);
+        return;
+    }
+    const auto credential = m_options.loadCredential(
+        reconcile->binding.profileId, m_state.accountId);
+    const StremioDatastoreRequest request = credential.has_value()
+        ? StremioCodec::addonCollectionGetRequest(*credential)
+        : StremioDatastoreRequest{};
+    if (request.method.isEmpty()) {
+        finishAddonCollectionReconcile(reconcile, false);
+        return;
+    }
+    postDatastoreRequest(request, reconcile->binding,
+        [this, reconcile](bool succeeded, bool, QJsonValue result) {
+        if (!succeeded || !bindingCurrent(reconcile->binding)) {
+            finishAddonCollectionReconcile(reconcile, false);
+            return;
+        }
+        const StremioAddonCollectionDecode readBack =
+            StremioCodec::decodeAddonCollection(result);
+        if (!readBack.containerValid) {
+            finishAddonCollectionReconcile(reconcile, false);
+            return;
+        }
+        if (readBack.addons != reconcile->desired) {
+            ++reconcile->attempts;
+            if (reconcile->attempts >= kMaximumAddonCollectionAttempts) {
+                finishAddonCollectionReconcile(reconcile, false);
+                return;
+            }
+            // Stremio provides no compare-and-swap for whole collections.
+            // Treat a mismatched readback as a concurrent mutation and rebase
+            // on a new provider GET; never retry the stale body directly.
+            fetchAddonCollectionForReconcile(reconcile);
+            return;
+        }
+        finishAddonCollectionReconcile(reconcile, true, readBack.addons);
+    });
+}
+
+void StremioSync::finishAddonCollectionReconcile(
+    const std::shared_ptr<AddonCollectionReconcile> &reconcile,
+    bool succeeded,
+    const QJsonArray &settled) {
+    if (!reconcile)
+        return;
+    const auto complete = [reconcile](bool committed, const QJsonArray &addons) {
+        if (!reconcile->completion)
+            return;
+        const auto completion = std::move(reconcile->completion);
+        completion(committed, committed ? addons : QJsonArray{});
+    };
+    if (!succeeded || !bindingCurrent(reconcile->binding)) {
+        if (bindingCurrent(reconcile->binding))
+            m_addonCollectionReconcileActive = false;
+        complete(false, {});
+        return;
+    }
+    m_state.acknowledgedBaselines.insert(
+        QStringLiteral("addonCollection"),
+        QJsonObject{{QStringLiteral("remote"), settled},
+                    {QStringLiteral("local"), reconcile->local}});
+    m_state.acknowledgedBaselines.remove(QStringLiteral("addonCollectionPending"));
+    m_state.lastSuccessAtMs = m_options.clock();
+    persist([this, reconcile, settled, complete](bool committed) mutable {
+        if (bindingCurrent(reconcile->binding))
+            m_addonCollectionReconcileActive = false;
+        complete(committed && bindingCurrent(reconcile->binding), settled);
+    });
 }
 
 void StremioSync::fetchNextLibraryBatch(const std::shared_ptr<LibraryPull> &pull) {

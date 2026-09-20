@@ -224,6 +224,8 @@ private slots:
     void markerOnlyProfileRequiresReconnectAndNeverDispatches();
     void markerArrivalAfterActivationUpdatesConnectionState();
     void markerWithMatchingCredentialActivatesSynced();
+    void disconnectFencesLateCallbacksAndRetiresProviderWork();
+    void switchAccountRetiresOldBaselineBeforeOpeningReplacementLogin();
     void productionEndpointRejectsUnrelatedHttpsOrigin();
     void identityRedirectCannotValidateCredential();
     void oversizedIdentityResponseCannotValidateCredential();
@@ -233,6 +235,13 @@ private slots:
     void exactTaggedFixtureProjectsOnlySanitizedTerminalState();
     void stateProjectionContainsNoSecretProperty();
     void libraryItemCodecBatchesPreservesPatchAndSeparatesMembership();
+    void addonCollectionCodecPreservesInstancesAndUnknownFields();
+    void addonCollectionPullUsesBoundedNativeGetAndIsolatesMalformedRows();
+    void firstAddonCollectionMergeReadsWritesAndVerifiesRemoteOrder();
+    void addonCollectionPostBaselineAppliesExplicitRemovalAndReorder();
+    void addonCollectionPreservesConcurrentRemoteRemovalAndReorder();
+    void addonCollectionReadbackConflictRebasesAgainstFreshRemoteState();
+    void addonCollectionConflictRetryIsBoundedAndRetainsDurableIntent();
     void libraryPullBatchesBoundedRowsAndIsolatesMalformedProviderData();
     void explicitLibraryRemovalReadsFreshProviderRowAndPreservesFields();
     void progressIntentReadsFreshProviderRowAndUsesMilliseconds();
@@ -1387,6 +1396,153 @@ void tst_stremio_sync::markerWithMatchingCredentialActivatesSynced() {
     QCOMPARE(sync.status(), QStringLiteral("synced"));
 }
 
+void tst_stremio_sync::disconnectFencesLateCallbacksAndRetiresProviderWork() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.displayName = QStringLiteral("Fixture Viewer");
+    existing.acknowledgedBaselines.insert(
+        QStringLiteral("addonCollection"), QJsonObject{{QStringLiteral("remote"), QJsonArray{}}});
+    existing.importRedoReceipts = QJsonArray{QStringLiteral("fixture-redo")};
+    existing.intentionalMembershipDifferences = QJsonArray{QJsonObject{
+        {QStringLiteral("id"), QStringLiteral("tt-fixture")},
+        {QStringLiteral("type"), QStringLiteral("movie")},
+        {QStringLiteral("localPresent"), true},
+        {QStringLiteral("remotePresent"), false},
+        {QStringLiteral("explicitRemoteRemoval"), false}}};
+    existing.pendingIntents = {StremioPendingIntent{
+        QStringLiteral("pending-a"),
+        QStringLiteral("library"),
+        QJsonObject{{QStringLiteral("id"), QStringLiteral("tt-fixture")}}}};
+    existing.firstMergeComplete = true;
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    QHash<QString, QByteArray> vault{{QStringLiteral("local"),
+                                      QByteArrayLiteral("fixture-vault-key")}};
+    std::function<void(bool, bool)> lateCompletion;
+    int sends = 0;
+    StremioSyncOptions options;
+    options.loadCredential = [&vault](const QString &profileId, const QString &)
+        -> std::optional<QByteArray> {
+        const auto found = vault.constFind(profileId);
+        return found == vault.cend() ? std::nullopt
+                                     : std::optional<QByteArray>(*found);
+    };
+    options.clearCredential = [&vault](const QString &profileId) {
+        vault.remove(profileId);
+        return true;
+    };
+    options.intentSender = [&sends, &lateCompletion](
+        const StremioPendingIntent &, std::function<void(bool, bool)> completion) {
+        ++sends;
+        lateCompletion = std::move(completion);
+    };
+
+    StremioSync sync(options);
+    QSignalSpy disconnected(&sync, &StremioSync::profileDisconnected);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    sync.retryPendingNow();
+    QCOMPARE(sends, 1);
+    QVERIFY(lateCompletion);
+
+    bool completed = false;
+    bool succeeded = false;
+    QVERIFY(sync.disconnectProfile([&](bool result) {
+        completed = true;
+        succeeded = result;
+    }));
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(disconnected.count(), 1);
+    QCOMPARE(disconnected.first().first().toString(), QStringLiteral("local"));
+    QVERIFY(vault.isEmpty());
+    QCOMPARE(sync.status(), QStringLiteral("notConnected"));
+    QCOMPARE(sync.pendingCount(), 0);
+
+    lateCompletion(true, true);
+    QCoreApplication::processEvents();
+    QCOMPARE(sync.pendingCount(), 0);
+    QCOMPARE(sync.status(), QStringLiteral("notConnected"));
+
+    StremioState inspector;
+    QTRY_VERIFY([&] {
+        const auto state = inspector.load(path);
+        return state.has_value()
+            && state->profileId == QLatin1String("local")
+            && state->accountId.isEmpty()
+            && state->displayName.isEmpty()
+            && state->acknowledgedBaselines.isEmpty()
+            && state->importRedoReceipts.isEmpty()
+            && state->intentionalMembershipDifferences.isEmpty()
+            && state->pendingIntents.isEmpty()
+            && !state->firstMergeComplete
+            && !state->reconnectRequired;
+    }());
+}
+
+void tst_stremio_sync::switchAccountRetiresOldBaselineBeforeOpeningReplacementLogin() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.bindingGeneration = 1;
+    existing.accountId = QStringLiteral("old-account");
+    existing.firstMergeComplete = true;
+    existing.acknowledgedBaselines.insert(
+        QStringLiteral("addonCollection"),
+        QJsonObject{{QStringLiteral("remote"), QJsonArray{}},
+                    {QStringLiteral("local"), QJsonArray{}}});
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    QHash<QString, QByteArray> vault{{QStringLiteral("local"),
+                                      QByteArrayLiteral("old-secret")}};
+    QUrl opened;
+    StremioSyncOptions options;
+    options.loadCredential = [&vault](const QString &profileId, const QString &)
+        -> std::optional<QByteArray> {
+        const auto found = vault.constFind(profileId);
+        return found == vault.cend() ? std::nullopt
+                                     : std::optional<QByteArray>(*found);
+    };
+    options.clearCredential = [&vault](const QString &profileId) {
+        vault.remove(profileId);
+        return true;
+    };
+    options.browserOpener = [&opened](const QUrl &url) { opened = url; };
+
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QVERIFY(sync.switchAccount());
+    QTRY_VERIFY(opened.isValid());
+    QCOMPARE(opened.host(), QStringLiteral("www.stremio.com"));
+    QCOMPARE(sync.status(), QStringLiteral("connecting"));
+    QVERIFY(vault.isEmpty());
+
+    StremioState inspector;
+    const auto retired = inspector.load(path);
+    QVERIFY(retired.has_value());
+    QVERIFY(retired->accountId.isEmpty());
+    QVERIFY(retired->acknowledgedBaselines.isEmpty());
+    QVERIFY(!retired->firstMergeComplete);
+    sync.cancelAuthentication();
+}
+
 void tst_stremio_sync::productionEndpointRejectsUnrelatedHttpsOrigin() {
     QVERIFY(!StremioCodec::isProductionEndpoint(QUrl(QStringLiteral("https://example.invalid/api"))));
     QVERIFY(!StremioCodec::isProductionEndpoint(QUrl(QStringLiteral("https://api.strem.io/elsewhere"))));
@@ -1632,6 +1788,532 @@ libraryItemCodecBatchesPreservesPatchAndSeparatesMembership() {
     QCOMPARE(put.method, QStringLiteral("datastorePut"));
     QCOMPARE(put.payload.value(QStringLiteral("changes")).toArray().size(), 1);
     QCOMPARE(put.payload.value(QStringLiteral("changes")).toArray().first().toObject(), merged);
+}
+
+void tst_stremio_sync::addonCollectionCodecPreservesInstancesAndUnknownFields() {
+    const QByteArray key = QByteArrayLiteral("native-only-addon-key");
+    const StremioDatastoreRequest get = StremioCodec::addonCollectionGetRequest(key);
+    QCOMPARE(get.method, QStringLiteral("addonCollectionGet"));
+    QCOMPARE(get.payload.value(QStringLiteral("authKey")).toString(),
+             QStringLiteral("native-only-addon-key"));
+    QCOMPARE(get.payload.value(QStringLiteral("type")).toString(), QStringLiteral("user"));
+    QVERIFY(!get.payload.value(QStringLiteral("update")).toBool(true));
+
+    const QJsonObject remoteFirst{
+        {QStringLiteral("transportUrl"),
+         QStringLiteral("https://REMOTE.example/Configured?Token=CaseSensitive")},
+        {QStringLiteral("transportName"), QStringLiteral("Remote configured addon")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("id"), QStringLiteral("same.id")},
+                                                   {QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("flags"), QJsonObject{{QStringLiteral("enabled"), true}}},
+        {QStringLiteral("providerOnly"), QJsonObject{{QStringLiteral("survive"), 7}}}};
+    const QJsonObject remoteSecond{
+        {QStringLiteral("transportUrl"),
+         QStringLiteral("https://remote.example/Configured?Token=DifferentCase")},
+        {QStringLiteral("transportName"), QStringLiteral("Second configured instance")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("id"), QStringLiteral("same.id")},
+                                                   {QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("flags"), QJsonObject{{QStringLiteral("enabled"), false}}}};
+    const QJsonArray wire{remoteFirst, remoteSecond,
+                          QJsonObject{{QStringLiteral("transportUrl"), QStringLiteral("javascript:bad")}}};
+    const StremioAddonCollectionDecode decoded = StremioCodec::decodeAddonCollection(
+        QJsonObject{{QStringLiteral("addons"), wire}});
+    QVERIFY(decoded.containerValid);
+    QCOMPARE(decoded.addons.size(), 2);
+    QCOMPARE(decoded.malformedRows, 1);
+    QCOMPARE(decoded.addons.first().toObject().value(QStringLiteral("providerOnly"))
+                 .toObject().value(QStringLiteral("survive")).toInt(), 7);
+    QCOMPARE(StremioCodec::normalizedAddonTransportUrl(
+                 remoteFirst.value(QStringLiteral("transportUrl")).toString()),
+             QStringLiteral("https://remote.example/Configured?Token=CaseSensitive"));
+    QCOMPARE(StremioCodec::normalizedAddonTransportUrl(
+                 remoteSecond.value(QStringLiteral("transportUrl")).toString()),
+             QStringLiteral("https://remote.example/Configured?Token=DifferentCase"));
+
+    const StremioDatastoreRequest set = StremioCodec::addonCollectionSetRequest(key, decoded.addons);
+    QCOMPARE(set.method, QStringLiteral("addonCollectionSet"));
+    QCOMPARE(set.payload.value(QStringLiteral("type")).toString(), QStringLiteral("user"));
+    QCOMPARE(set.payload.value(QStringLiteral("addons")).toArray(), decoded.addons);
+    QVERIFY(StremioCodec::addonCollectionSetRequest(
+                 key, QJsonArray{QJsonObject{{QStringLiteral("transportUrl"),
+                                               QStringLiteral("javascript:bad")}}})
+                 .method.isEmpty());
+    QVERIFY(!StremioCodec::decodeAddonCollection(
+                 QJsonObject{{QStringLiteral("unexpected"), true}})
+                 .containerValid);
+}
+
+void tst_stremio_sync::addonCollectionPullUsesBoundedNativeGetAndIsolatesMalformedRows() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("task3-addon-pull"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState persisted;
+    persisted.profileId = QStringLiteral("local");
+    persisted.bindingGeneration = 1;
+    persisted.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, persisted);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    bool completed = false;
+    bool succeeded = false;
+    QJsonArray received;
+    QVERIFY(sync.pullAddonCollection([&](bool ok, QJsonArray addons) {
+        completed = true;
+        succeeded = ok;
+        received = std::move(addons);
+    }));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/addonCollectionGet")));
+    QVERIFY(api.request().contains(QByteArrayLiteral("\"type\":\"user\"")));
+    QVERIFY(api.request().contains(QByteArrayLiteral("\"update\":false")));
+
+    const QJsonObject valid{
+        {QStringLiteral("transportUrl"), QStringLiteral("https://fixture.test/Configured?Case=Keep")},
+        {QStringLiteral("transportName"), QStringLiteral("Fixture")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("providerOnly"), QStringLiteral("retained")}};
+    const QJsonArray wire{
+        valid,
+        QJsonObject{{QStringLiteral("transportUrl"), QStringLiteral("file://bad")}}};
+    const QJsonObject result{{QStringLiteral("addons"), wire}};
+    const QByteArray body = QJsonDocument(
+        QJsonObject{{QStringLiteral("result"), result}}).toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                 + QByteArray::number(body.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(received, QJsonArray{valid});
+}
+
+void tst_stremio_sync::firstAddonCollectionMergeReadsWritesAndVerifiesRemoteOrder() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("task3-addon-first-merge"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState persisted;
+    persisted.profileId = QStringLiteral("local");
+    persisted.bindingGeneration = 1;
+    persisted.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, persisted);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    const QJsonObject remote{
+        {QStringLiteral("transportUrl"), QStringLiteral("https://remote.test/Configured?Keep=Remote")},
+        {QStringLiteral("transportName"), QStringLiteral("Remote first")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("flags"), QJsonObject{{QStringLiteral("official"), true}}},
+        {QStringLiteral("providerOnly"), QStringLiteral("must-survive")}};
+    const QJsonObject local{
+        {QStringLiteral("transportUrl"), QStringLiteral("https://local.test/Configured?Keep=Local")},
+        {QStringLiteral("transportName"), QStringLiteral("Local appended")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("flags"), QJsonObject{{QStringLiteral("official"), false}}}};
+    const QJsonArray expected{remote, local};
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+
+    bool completed = false;
+    bool succeeded = false;
+    QJsonArray settled;
+    QVERIFY(sync.reconcileAddonCollection(QJsonArray{local}, [&](bool ok, QJsonArray addons) {
+        completed = true;
+        succeeded = ok;
+        settled = std::move(addons);
+    }));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/addonCollectionGet")));
+    const QJsonObject remoteResult{{QStringLiteral("addons"), QJsonArray{remote}}};
+    const QByteArray remoteBody = QJsonDocument(
+        QJsonObject{{QStringLiteral("result"), remoteResult}}).toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                 + QByteArray::number(remoteBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + remoteBody);
+
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/addonCollectionSet")));
+    const int setStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/addonCollectionSet"));
+    const QByteArray setBody = api.request().mid(setStart);
+    QVERIFY(setBody.contains(QJsonDocument(expected).toJson(QJsonDocument::Compact)));
+    const QByteArray setResult = QJsonDocument(QJsonObject{{QStringLiteral("result"), true}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                 + QByteArray::number(setResult.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + setResult);
+
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 2);
+    const QJsonObject readBackResult{{QStringLiteral("addons"), expected}};
+    const QByteArray readBackBody = QJsonDocument(
+        QJsonObject{{QStringLiteral("result"), readBackResult}}).toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                 + QByteArray::number(readBackBody.size()) + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + readBackBody);
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(settled, expected);
+}
+
+void tst_stremio_sync::addonCollectionPostBaselineAppliesExplicitRemovalAndReorder() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("task3-addon-post-baseline"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    const auto addon = [](const QString &url, const QString &name) {
+        return QJsonObject{
+            {QStringLiteral("transportUrl"), url},
+            {QStringLiteral("transportName"), name},
+            {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+            {QStringLiteral("flags"), QJsonObject{{QStringLiteral("official"), false}}}};
+    };
+    const QJsonObject remote = addon(
+        QStringLiteral("https://remote.test/Configured?Case=Remote"), QStringLiteral("Remote"));
+    const QJsonObject a = addon(
+        QStringLiteral("https://local.test/Configured?Case=A"), QStringLiteral("A"));
+    const QJsonObject b = addon(
+        QStringLiteral("https://local.test/Configured?Case=B"), QStringLiteral("B"));
+    const QJsonObject c = addon(
+        QStringLiteral("https://local.test/Configured?Case=C"), QStringLiteral("C"));
+    const QJsonObject d = addon(
+        QStringLiteral("https://local.test/Configured?Case=D"), QStringLiteral("D"));
+    const QJsonArray baselineLocal{a, b, c};
+    const QJsonArray baselineRemote{remote, a, b, c};
+    const QJsonArray currentLocal{c, b, d};
+    const QJsonArray expected{remote, c, b, d};
+    StremioPersistentState persisted;
+    persisted.profileId = QStringLiteral("local");
+    persisted.bindingGeneration = 1;
+    persisted.accountId = QStringLiteral("fixture-account");
+    persisted.acknowledgedBaselines.insert(
+        QStringLiteral("addonCollection"),
+        QJsonObject{{QStringLiteral("remote"), baselineRemote},
+                    {QStringLiteral("local"), baselineLocal}});
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, persisted);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    bool completed = false;
+    bool succeeded = false;
+    QJsonArray settled;
+    QVERIFY(sync.reconcileAddonCollection(currentLocal, [&](bool ok, QJsonArray addons) {
+        completed = true;
+        succeeded = ok;
+        settled = std::move(addons);
+    }));
+    const auto replyAddons = [&api](const QJsonArray &addons) {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"),
+            QJsonObject{{QStringLiteral("addons"), addons}}}}).toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                     + QByteArray::number(body.size())
+                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    const auto replySet = [&api] {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"), true}})
+            .toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                     + QByteArray::number(body.size())
+                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 1);
+    replyAddons(baselineRemote);
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionSet")), 1);
+    const int setStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/addonCollectionSet"));
+    QVERIFY(api.request().mid(setStart).contains(
+        QJsonDocument(expected).toJson(QJsonDocument::Compact)));
+    replySet();
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 2);
+    replyAddons(expected);
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(settled, expected);
+}
+
+void tst_stremio_sync::addonCollectionPreservesConcurrentRemoteRemovalAndReorder() {
+    ScopedEnvironmentVariable tag(
+        "COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("task3-addon-remote-delta"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    const auto addon = [](const QString &name) {
+        return QJsonObject{
+            {QStringLiteral("transportUrl"),
+             QStringLiteral("https://remote.test/%1/manifest.json").arg(name)},
+            {QStringLiteral("transportName"), name},
+            {QStringLiteral("manifest"), QJsonObject{
+                {QStringLiteral("id"), QStringLiteral("fixture.%1").arg(name)},
+                {QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}}};
+    };
+    const QJsonObject a = addon(QStringLiteral("a"));
+    const QJsonObject b = addon(QStringLiteral("b"));
+    const QJsonObject c = addon(QStringLiteral("c"));
+    const QJsonObject remoteOnly{
+        {QStringLiteral("transportUrl"), QStringLiteral("https://remote.test/channel/manifest.json")},
+        {QStringLiteral("transportName"), QStringLiteral("remote-only")},
+        {QStringLiteral("manifest"), QJsonObject{
+            {QStringLiteral("id"), QStringLiteral("fixture.channel")},
+            {QStringLiteral("types"), QJsonArray{QStringLiteral("channel")}}}}};
+    const QJsonArray baselineLocal{a, b, c};
+    const QJsonArray baselineRemote{remoteOnly, a, b, c};
+    const QJsonArray freshRemote{remoteOnly, b, a};
+    const QJsonArray settledLocal{b, a};
+    StremioPersistentState persisted;
+    persisted.profileId = QStringLiteral("local");
+    persisted.bindingGeneration = 1;
+    persisted.accountId = QStringLiteral("fixture-account");
+    persisted.acknowledgedBaselines.insert(
+        QStringLiteral("addonCollection"),
+        QJsonObject{{QStringLiteral("remote"), baselineRemote},
+                    {QStringLiteral("local"), baselineLocal}});
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, persisted);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    bool completed = false;
+    bool succeeded = false;
+    QJsonArray settled;
+    QVERIFY(sync.reconcileAddonCollection(baselineLocal, [&](bool ok, QJsonArray addons) {
+        completed = true;
+        succeeded = ok;
+        settled = std::move(addons);
+    }));
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 1);
+    const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"),
+        QJsonObject{{QStringLiteral("addons"), freshRemote}}}})
+        .toJson(QJsonDocument::Compact);
+    api.replyRaw(QByteArrayLiteral(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+        + QByteArray::number(body.size())
+        + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(settled, freshRemote);
+    QCOMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionSet")), 0);
+
+    bool ownerAcknowledged = false;
+    QVERIFY(sync.acknowledgeAddonCollectionOwner(
+        settledLocal,
+        [&](bool committed) { ownerAcknowledged = committed; }));
+    QTRY_VERIFY(ownerAcknowledged);
+
+    StremioState inspector;
+    const auto after = inspector.load(path);
+    QVERIFY(after.has_value());
+    const QJsonObject acknowledged = after->acknowledgedBaselines.value(
+        QStringLiteral("addonCollection")).toObject();
+    QCOMPARE(acknowledged.value(QStringLiteral("remote")).toArray(), freshRemote);
+    QCOMPARE(acknowledged.value(QStringLiteral("local")).toArray(), settledLocal);
+}
+
+void tst_stremio_sync::addonCollectionReadbackConflictRebasesAgainstFreshRemoteState() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("task3-addon-conflict"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState persisted;
+    persisted.profileId = QStringLiteral("local");
+    persisted.bindingGeneration = 1;
+    persisted.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, persisted);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+
+    const auto addon = [](const QString &url, const QString &name) {
+        return QJsonObject{
+            {QStringLiteral("transportUrl"), url},
+            {QStringLiteral("transportName"), name},
+            {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+            {QStringLiteral("flags"), QJsonObject{{QStringLiteral("official"), false}}}};
+    };
+    const QJsonObject remote = addon(
+        QStringLiteral("https://remote.test/Configured?Case=Remote"), QStringLiteral("Remote"));
+    const QJsonObject concurrent = addon(
+        QStringLiteral("https://remote.test/Configured?Case=Concurrent"), QStringLiteral("Concurrent"));
+    const QJsonObject local = addon(
+        QStringLiteral("https://local.test/Configured?Case=Local"), QStringLiteral("Local"));
+    const QJsonArray rebased{remote, concurrent, local};
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    bool completed = false;
+    bool succeeded = false;
+    QJsonArray settled;
+    QVERIFY(sync.reconcileAddonCollection(QJsonArray{local}, [&](bool ok, QJsonArray addons) {
+        completed = true;
+        succeeded = ok;
+        settled = std::move(addons);
+    }));
+
+    const auto replyAddons = [&api](const QJsonArray &addons) {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"),
+            QJsonObject{{QStringLiteral("addons"), addons}}}}).toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                     + QByteArray::number(body.size())
+                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    const auto replySet = [&api] {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"), true}})
+            .toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                     + QByteArray::number(body.size())
+                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 1);
+    replyAddons(QJsonArray{remote});
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionSet")), 1);
+    replySet();
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 2);
+    // A different device appends this entry between our write and readback.
+    // A failure/ack here would drop it; only a new fresh GET and rebase is safe.
+    replyAddons(QJsonArray{remote, concurrent});
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 3);
+    replyAddons(QJsonArray{remote, concurrent});
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionSet")), 2);
+    const int secondSetStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/addonCollectionSet"));
+    QVERIFY(api.request().mid(secondSetStart).contains(
+        QJsonDocument(rebased).toJson(QJsonDocument::Compact)));
+    replySet();
+    QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 4);
+    replyAddons(rebased);
+    QTRY_VERIFY(completed);
+    QVERIFY(succeeded);
+    QCOMPARE(settled, rebased);
+}
+
+void tst_stremio_sync::addonCollectionConflictRetryIsBoundedAndRetainsDurableIntent() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("task3-addon-conflict-bound"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState persisted;
+    persisted.profileId = QStringLiteral("local");
+    persisted.bindingGeneration = 1;
+    persisted.accountId = QStringLiteral("fixture-account");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, persisted);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    const QJsonObject remote{
+        {QStringLiteral("transportUrl"), QStringLiteral("https://remote.test/Configured?Case=Base")},
+        {QStringLiteral("transportName"), QStringLiteral("Remote")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("flags"), QJsonObject{{QStringLiteral("official"), false}}}};
+    const QJsonObject local{
+        {QStringLiteral("transportUrl"), QStringLiteral("https://local.test/Configured?Case=Local")},
+        {QStringLiteral("transportName"), QStringLiteral("Local")},
+        {QStringLiteral("manifest"), QJsonObject{{QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}},
+        {QStringLiteral("flags"), QJsonObject{{QStringLiteral("official"), false}}}};
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &)
+        -> std::optional<QByteArray> { return QByteArrayLiteral("fixture-vault-key"); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    bool completed = false;
+    bool succeeded = true;
+    QVERIFY(sync.reconcileAddonCollection(QJsonArray{local}, [&](bool ok, QJsonArray) {
+        completed = true;
+        succeeded = ok;
+    }));
+    const auto replyAddons = [&api](const QJsonArray &addons) {
+        const QJsonObject result{{QStringLiteral("addons"), addons}};
+        const QByteArray body = QJsonDocument(
+            QJsonObject{{QStringLiteral("result"), result}}).toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                     + QByteArray::number(body.size())
+                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    const auto replySet = [&api] {
+        const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("result"), true}})
+            .toJson(QJsonDocument::Compact);
+        api.replyRaw(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                     + QByteArray::number(body.size())
+                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+    };
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 1 + attempt * 2);
+        replyAddons(QJsonArray{remote});
+        QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionSet")), 1 + attempt);
+        replySet();
+        QTRY_COMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 2 + attempt * 2);
+        // The provider continues to discard the local entry: do not claim a
+        // write succeeded, and do not retry without a finite bound.
+        replyAddons(QJsonArray{remote});
+    }
+    QTRY_VERIFY(completed);
+    QVERIFY(!succeeded);
+    QCOMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionSet")), 3);
+    QCOMPARE(api.request().count(QByteArrayLiteral("POST /api/addonCollectionGet")), 6);
+    StremioState inspector;
+    const auto persistedAfterFailure = inspector.load(path);
+    QVERIFY(persistedAfterFailure.has_value());
+    QVERIFY(persistedAfterFailure->acknowledgedBaselines.contains(
+        QStringLiteral("addonCollectionPending")));
+    QVERIFY(!persistedAfterFailure->acknowledgedBaselines.contains(
+        QStringLiteral("addonCollection")));
 }
 
 void tst_stremio_sync::libraryPullBatchesBoundedRowsAndIsolatesMalformedProviderData() {

@@ -26,6 +26,8 @@
 #include <QSet>
 #include <QUuid>
 
+#include <utility>
+
 namespace {
 bool equalMap(
     const QVariantMap &left,
@@ -153,6 +155,17 @@ bool migratedProfileFilesPresent(
     if (!source.historyRecords.isEmpty()
         && !QFileInfo::exists(
             paths.historyIniPath())) {
+        return false;
+    }
+
+    if (!source.stremioState.isEmpty()
+        && !QFileInfo::exists(paths.stremioSyncStatePath())) {
+        return false;
+    }
+
+    if (!source.theatreExtensions.isEmpty()
+        && !QFileInfo::exists(QDir(paths.profileRoot()).filePath(
+            QStringLiteral("extensions/installed.json")))) {
         return false;
     }
 
@@ -318,6 +331,15 @@ PersonalStateSnapshot mergeSnapshots(
             merged.progressWatchedMarkActionTimes.remove(it.key());
     }
     merged.showExplicit = account.showExplicit || local.showExplicit;
+    if (local.mainSyncProvider == QLatin1String("stremio")) {
+        merged.mainSyncProvider = local.mainSyncProvider;
+        merged.stremioState = local.stremioState;
+        merged.theatreExtensions = local.theatreExtensions;
+    } else {
+        merged.mainSyncProvider = account.mainSyncProvider;
+        merged.stremioState = account.stremioState;
+        merged.theatreExtensions = account.theatreExtensions;
+    }
     return merged;
 }
 
@@ -428,9 +450,11 @@ bool migrationSourceHasActivity(
 FirstAccountProfileCoordinator::
 FirstAccountProfileCoordinator(
     ProfileStoreRuntime *profileRuntime,
-    const QString &appDataRoot)
+    const QString &appDataRoot,
+    StremioCredentialAdoptionCallbacks stremioCredentials)
     : m_profileRuntime(profileRuntime),
-      m_appDataRoot(appDataRoot) {
+      m_appDataRoot(appDataRoot),
+      m_stremioCredentials(std::move(stremioCredentials)) {
     Q_ASSERT(m_profileRuntime);
 }
 
@@ -479,6 +503,16 @@ prepareCreatedAccount(
             error,
             QStringLiteral(
                 "A profile already exists for the newly created account."));
+    }
+
+    bool explicitProfile = false;
+    QString sourceError;
+    const auto sourceStorage = currentMigrationSource(
+        &explicitProfile, &sourceError);
+    if (!sourceStorage.has_value() && !sourceError.isEmpty())
+        return setError(error, sourceError);
+    if (sourceStorage.has_value() && explicitProfile) {
+        return runLocalOnlyAdoption(*paths, *sourceStorage, error);
     }
 
     return runFreshAdoption(*paths, error);
@@ -1015,6 +1049,18 @@ runLocalOnlyAdoption(
             sourceStorage,
             activitySourceDigest,
             &activityBackupDigest,
+            error)) {
+        return false;
+    }
+
+    // Record the exact local-only source before it is retired. This is both
+    // the ordinary Neon attachment fence and the identity proof used by the
+    // device-private Stremio credential handoff during activation.
+    if (!ensureAttachmentReceipt(
+            paths,
+            ProfilePaths::Kind::LocalOnly,
+            *source,
+            activitySourceDigest,
             error)) {
         return false;
     }
@@ -2537,10 +2583,90 @@ restoreLegacyAndRollback(
 bool FirstAccountProfileCoordinator::activate(
     const ProfilePaths &paths,
     QString *error) {
+    if (!transferStremioCredential(paths, error))
+        return false;
     return m_profileRuntime
         ->activateAccountProfile(
             paths.profileId(),
             error);
+}
+
+bool FirstAccountProfileCoordinator::transferStremioCredential(
+    const ProfilePaths &paths,
+    QString *error) {
+    if (!m_stremioCredentials.load || !m_stremioCredentials.save
+        || !m_stremioCredentials.clear) {
+        return true;
+    }
+
+    const auto storage = LegacyPersonalStateStorage::forProfile(paths, error);
+    if (!storage.has_value())
+        return false;
+    const auto state = storage->capture(error);
+    if (!state.has_value())
+        return false;
+    if (state->mainSyncProvider != QLatin1String("stremio")
+        || state->stremioState.isEmpty()) {
+        return true;
+    }
+
+    const QString providerAccountId = state->stremioState
+        .value(QStringLiteral("accountId")).toString().trimmed();
+    if (providerAccountId.isEmpty()) {
+        return setError(error,
+                        QStringLiteral("The adopted Stremio identity is invalid."));
+    }
+
+    const AccountAttachmentReceipt::ReadResult receipt =
+        AccountAttachmentReceipt::read(paths);
+    if (receipt.status == AccountAttachmentReceipt::ReadStatus::Missing)
+        return true;
+    if (receipt.status == AccountAttachmentReceipt::ReadStatus::Invalid
+        || receipt.data.accountId != paths.profileId()) {
+        return setError(error,
+                        QStringLiteral("The Stremio credential adoption receipt is invalid."));
+    }
+    if (receipt.data.sourceKind
+        != AccountAttachmentReceipt::sourceKindLocalOnly()) {
+        return true;
+    }
+
+    const QString sourceProfileId = receipt.data.sourceProfileId.trimmed();
+    if (sourceProfileId.isEmpty() || sourceProfileId == paths.profileId()) {
+        return setError(error,
+                        QStringLiteral("The Stremio credential adoption source is invalid."));
+    }
+
+    const auto source = m_stremioCredentials.load(sourceProfileId,
+                                                   providerAccountId);
+    const auto target = m_stremioCredentials.load(paths.profileId(),
+                                                   providerAccountId);
+    if (target.has_value()) {
+        if (target->isEmpty() || (source.has_value() && *source != *target)) {
+            return setError(error,
+                            QStringLiteral("The destination Stremio credential does not match the adoption source."));
+        }
+    } else if (source.has_value()) {
+        if (source->isEmpty()
+            || !m_stremioCredentials.save(paths.profileId(),
+                                          providerAccountId,
+                                          *source)) {
+            return setError(error,
+                            QStringLiteral("The Stremio credential could not be transferred safely."));
+        }
+        const auto verified = m_stremioCredentials.load(paths.profileId(),
+                                                         providerAccountId);
+        if (!verified.has_value() || *verified != *source) {
+            return setError(error,
+                            QStringLiteral("The transferred Stremio credential could not be verified."));
+        }
+    }
+
+    if (source.has_value() && !m_stremioCredentials.clear(sourceProfileId)) {
+        return setError(error,
+                        QStringLiteral("The source Stremio credential could not be retired after transfer."));
+    }
+    return true;
 }
 
 // --- Activity-ledger adoption (CPP-PORT-CONTRACT §17) -----------------------

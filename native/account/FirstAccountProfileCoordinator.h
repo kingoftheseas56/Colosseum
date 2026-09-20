@@ -7,17 +7,26 @@
 #include "ProfilePaths.h"
 
 #include <QSet>
+#include <QByteArray>
 #include <QString>
 
+#include <functional>
 #include <optional>
 
 class ProfileStoreRuntime;
+
+struct StremioCredentialAdoptionCallbacks {
+    std::function<std::optional<QByteArray>(const QString &, const QString &)> load;
+    std::function<bool(const QString &, const QString &, const QByteArray &)> save;
+    std::function<bool(const QString &)> clear;
+};
 
 class FirstAccountProfileCoordinator final {
 public:
     explicit FirstAccountProfileCoordinator(
         ProfileStoreRuntime *profileRuntime,
-        const QString &appDataRoot = QString());
+        const QString &appDataRoot = QString(),
+        StremioCredentialAdoptionCallbacks stremioCredentials = {});
 
     bool prepareCreatedAccount(
         const QString &accountId,
@@ -195,6 +204,10 @@ private:
         const ProfilePaths &paths,
         QString *error);
 
+    bool transferStremioCredential(
+        const ProfilePaths &paths,
+        QString *error);
+
     std::optional<bool> legacyPersonalStateClaimed(
         QString *error) const;
 
@@ -218,5 +231,6 @@ private:
 
     ProfileStoreRuntime *m_profileRuntime = nullptr;
     QString m_appDataRoot;
+    StremioCredentialAdoptionCallbacks m_stremioCredentials;
     QSet<QString> m_quarantinedThisProcess;
 };

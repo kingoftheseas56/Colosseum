@@ -1804,6 +1804,8 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"

@@ -93,20 +93,32 @@ Item {
     // and require a second press — an unnamed one-click removal would silently empty a
     // world the user wasn't looking at.
     property string pendingRemoveId: ""
+    function instanceKey(entry) {
+        return String((entry && (entry.transportUrl || entry.id)) || "")
+    }
+    function setEntryEnabled(entry, enabled) {
+        if (!entry) return
+        var url = String(entry.transportUrl || "")
+        if (/^https?:\/\//i.test(url)) Extensions.setEnabledInstance(url, enabled)
+        else Extensions.setEnabled(entry.id, enabled)
+    }
     function askRemove(entry) {
         var ws = Catalog.worldsFor(entry);
         var name = (entry.manifest && entry.manifest.name) || entry.id;
-        if (ws.length > 1 && pendingRemoveId !== entry.id) {
+        var key = instanceKey(entry);
+        if (ws.length > 1 && pendingRemoveId !== key) {
             var names = [];
             for (var i = 0; i < ws.length; i++) names.push(worldTitles[ws[i]] || ws[i]);
-            pendingRemoveId = entry.id;
+            pendingRemoveId = key;
             notice = name + " feeds " + names.join(" and ")
                    + ". Removing it takes it out of both — press Remove again to confirm.";
             noticeTimer.restart();
             return;
         }
         pendingRemoveId = "";
-        Extensions.remove(entry.id);
+        var url = String(entry.transportUrl || "");
+        if (/^https?:\/\//i.test(url)) Extensions.removeInstance(url);
+        else Extensions.remove(entry.id);
     }
     // Reorder a well within the world the user is actually looking at. The arrows are
     // world-relative and the stored array is global, so the destination has to be resolved
@@ -114,9 +126,11 @@ Item {
     // ±1 both failed to move Tankoban and silently reordered Biblio.
     // moveDestination returns { id, index } or null — `id` is not always the clicked row,
     // because a swap may be cheaper to perform by moving its neighbour instead.
-    function moveWell(id, delta) {
-        var m = Catalog.moveDestination(installedList, world, id, delta);
-        if (m) Extensions.moveTo(m.id, m.index);
+    function moveWell(entry, delta) {
+        var m = Catalog.moveDestination(installedList, world, instanceKey(entry), delta);
+        if (!m) return;
+        if (String(m.transportUrl || "").length) Extensions.moveInstanceTo(m.transportUrl, m.index);
+        else Extensions.moveTo(m.id, m.index);
     }
     // A world's rank for a well is its index among that world's wells — which is how one
     // stored row ranks 4th in Tankoban and 2nd in Biblio without storing a rank at all.
@@ -124,7 +138,7 @@ Item {
         var w = installedIn(world), n = 0;
         for (var i = 0; i < w.length; i++) {
             if (Catalog.isWell(w[i])) n++;
-            if (w[i].id === entry.id) return n;
+            if (root.instanceKey(w[i]) === root.instanceKey(entry)) return n;
         }
         return 0;
     }
@@ -174,8 +188,10 @@ Item {
     // from the curated data, because the curated rails carry no `core` field at all —
     // which is how the featured slab came to print "built-in" over a removable add-on.
     function coreOf(item) {
-        for (var i = 0; i < installedList.length; i++)
-            if (installedList[i].id === item.id) return installedList[i].core === true;
+        for (var i = 0; i < installedList.length; i++) {
+            if (installedList[i].transportUrl === item.transportUrl)
+                return installedList[i].core === true;
+        }
         return false;
     }
     function hit(name) {
@@ -1057,10 +1073,10 @@ Item {
                                     // the old arrows were always lit and silently did nothing.
                                     readonly property bool canMoveUp:
                                         !irow.isCatalogue && Catalog.moveDestination(
-                                            root.installedList, root.world, irow.modelData.id, -1) !== null
+                                            root.installedList, root.world, root.instanceKey(irow.modelData), -1) !== null
                                     readonly property bool canMoveDown:
                                         !irow.isCatalogue && Catalog.moveDestination(
-                                            root.installedList, root.world, irow.modelData.id, 1) !== null
+                                            root.installedList, root.world, root.instanceKey(irow.modelData), 1) !== null
                                     // A house well lives in-app and has no web page to open, so it
                                     // gets Settings; a remote addon keeps Configure ↗ (stage 4 builds
                                     // the sheet — until then only remote rows offer anything).
@@ -1094,10 +1110,10 @@ Item {
                                         if (!(event.modifiers & Qt.ControlModifier)
                                                 || !(event.modifiers & Qt.ShiftModifier)) return;
                                         if (event.key === Qt.Key_Up && irow.canMoveUp) {
-                                            root.moveWell(irow.modelData.id, -1);
+                                            root.moveWell(irow.modelData, -1);
                                             event.accepted = true;
                                         } else if (event.key === Qt.Key_Down && irow.canMoveDown) {
-                                            root.moveWell(irow.modelData.id, 1);
+                                            root.moveWell(irow.modelData, 1);
                                             event.accepted = true;
                                         }
                                     }
@@ -1167,7 +1183,7 @@ Item {
                                                 MouseArea { id: upMa; anchors.fill: parent; hoverEnabled: true
                                                             enabled: irow.canMoveUp
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.moveWell(irow.modelData.id, -1) }
+                                                            onClicked: root.moveWell(irow.modelData, -1) }
                                             }
                                             Text {
                                                 text: "▼"; font.pixelSize: 10
@@ -1176,7 +1192,7 @@ Item {
                                                 MouseArea { id: downMa; anchors.fill: parent; hoverEnabled: true
                                                             enabled: irow.canMoveDown
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.moveWell(irow.modelData.id, 1) }
+                                                            onClicked: root.moveWell(irow.modelData, 1) }
                                             }
                                         }
 
@@ -1252,7 +1268,7 @@ Item {
                                                     accessibleName: (irow.isOn ? "Disable " : "Enable ")
                                                         + (irow.manifest.name || irow.modelData.id)
                                                     focusRadius: 11
-                                                    onTriggered: Extensions.setEnabled(irow.modelData.id, !irow.isOn)
+                                                    onTriggered: root.setEntryEnabled(irow.modelData, !irow.isOn)
                                                 }
                                             }
                                             Text {

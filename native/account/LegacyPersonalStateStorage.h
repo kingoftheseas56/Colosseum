@@ -2,6 +2,7 @@
 
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QSettings>
 #include <QString>
@@ -21,10 +22,16 @@ struct PersonalStateSnapshot {
     QJsonObject audioPairings;
     QJsonObject historyRecords;
     bool showExplicit = false;
+    QString mainSyncProvider;
+    // Device-private Stremio continuity. These fields only ride the local
+    // adoption backup/staging path; ordinary Neon adapters never see them.
+    QJsonObject stremioState;
+    QJsonArray theatreExtensions;
 
     bool isEmpty() const;
     QJsonObject toJson() const;
     QString semanticDigest() const;
+    QString legacySemanticDigestV3() const;
     QString legacySemanticDigestV2() const;
     QString legacySemanticDigestV1() const;
     bool matchesSemanticDigest(
@@ -99,7 +106,9 @@ private:
         const Location &audioPairing,
         const Location &preferences,
         const Location &history,
-        const QString &activityDbPath);
+        const QString &activityDbPath,
+        const QString &profileRoot = QString(),
+        const QString &profileId = QString());
 
     static std::unique_ptr<QSettings> open(
         const Location &location);
@@ -119,4 +128,6 @@ private:
     Location m_preferences;
     Location m_history;
     QString m_activityDbPath;
+    QString m_profileRoot;
+    QString m_profileId;
 };

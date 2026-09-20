@@ -2480,3 +2480,50 @@ disposable app session with `COLOSSEUM_WORLD_WARMER=0`.
 - `colosseum.qml` aggregate on this tree: adoption-owned cases green in every run; remaining reds
   are the documented pre-existing destruction case plus environment-sensitive Account/Update
   click-target cases (non-deterministic on this desktop; arc 31 evidence 62b).
+
+## Stremio Sync Task 3 — profile addons and account continuity (2026-09-20)
+
+Written DoD: `docs/stremio-sync-implementation-plan.md`, Task 3 completion criterion.
+Work reviewed: the Task 3 working-tree diff on `codex/stremio-sync`.
+
+- MET — Exact addon semantics: `StremioCodec` uses the required GET/SET payloads; the native
+  reconcile path serializes whole writes, rebases explicit local deltas on a fresh GET, verifies
+  readback, preserves unknown fields and bounds conflicts. Tests cover first merge, local
+  removal/reorder, concurrent remote addition/removal/reorder, malformed containers and bounded
+  mismatch retry.
+- MET — Production owner and profile isolation: `ExtensionsStore` owns Theatre rows per active
+  profile, migrates legacy rows once, preserves house defaults for new profiles, commits before
+  publishing, fences stale manifest replies and targets configured instances by normalized
+  transport URL. Core/native and non-Theatre rows remain outside provider membership.
+- MET — Durable baseline safety: the remote baseline advances only after verified provider
+  readback; the managed-local baseline advances only after `ExtensionsStore` durably applies the
+  settled collection. Remote-only addons cannot be inferred as local removals.
+- MET — Adoption isolation: the existing adoption snapshot/receipt/rollback path carries the
+  marker, watched action timestamps, private Stremio journal and profile addon store. The vault
+  transfer verifies the destination before source retirement and resumes idempotently after a
+  failed save. Normal Neon adapter manifests remain unchanged.
+- MET — Disconnect and account switch: the journal generation is retired before reply aborts,
+  device credentials and provider-only work are cleared, canonical stores/addons remain, and a
+  replacement login begins only after the old addon baseline is durably retired.
+- MET — Interrupted migration: focused adoption tests prove source preservation on vault failure,
+  successful retry, destination profile rebinding and local source retirement only after the
+  verified handoff.
+
+Self-review found and fixed four pre-commit defects: false install success after a failed profile
+save, malformed collection containers being treated as empty, disconnect fencing occurring after
+reply abort, and unchanged local addons resurrecting concurrent remote removals. No Trakt, Nuvio,
+provider registry, category toggles or generalized provider framework entered the diff.
+
+Verification: the production `colosseum` target linked successfully. Focused CTest passed 4/4:
+`colosseum.extensions_first_run`, `colosseum.qttest.stremio_sync`,
+`colosseum.qttest.account_adoption`, and `colosseum.qttest.account_shared_pc`. The extension reorder
+Node harness passed completely and `git diff --check` reported no errors. The attachment runtime
+suite passed 17/18; its sole failure is the pre-existing host provisioning gap where the isolated
+test executable cannot load the `QtQuick` module. Every non-QML attachment/runtime case, including
+the new profile-owner case, passed.
+
+Status: **Test-reported.** Task 5 retains the tagged Lanista and official-account runtime
+qualification; no runtime-validation claim is made here.
+
+`[Sol (Codex), review] APPROVE — Task 3 meets its written completion criterion with the known
+QtQuick host-provisioning failure isolated and unchanged.`

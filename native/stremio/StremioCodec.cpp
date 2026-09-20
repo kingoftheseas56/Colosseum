@@ -18,6 +18,10 @@ constexpr qsizetype kMaximumIdentityText = 256;
 constexpr qsizetype kMaximumLibraryIdText = 512;
 constexpr int kMaximumLibraryBatchSize = 64;
 constexpr int kMaximumLibraryRows = 256;
+constexpr int kMaximumAddonRows = 64;
+constexpr qsizetype kMaximumAddonUrlText = 2048;
+constexpr qsizetype kMaximumAddonNameText = 256;
+constexpr qsizetype kMaximumAddonDocumentBytes = 32 * 1024;
 constexpr int kMaximumWatchedVideos = 4096;
 constexpr qsizetype kMaximumWatchedCompressedBytes = 16 * 1024;
 constexpr qsizetype kMaximumWatchedRawBytes = 8 * 1024;
@@ -74,6 +78,27 @@ QJsonObject datastoreBase(const QByteArray &authKey) {
     return QJsonObject{
         {QStringLiteral("authKey"), QString::fromUtf8(authKey)},
         {QStringLiteral("collection"), QStringLiteral("libraryItem")}};
+}
+
+bool validAddonDocument(const QJsonObject &addon) {
+    const QJsonValue transportValue = addon.value(QStringLiteral("transportUrl"));
+    if (!transportValue.isString()
+        || StremioCodec::normalizedAddonTransportUrl(transportValue.toString()).isEmpty()) {
+        return false;
+    }
+    const QJsonValue name = addon.value(QStringLiteral("transportName"));
+    if (!name.isUndefined()
+        && (!name.isString() || name.toString().size() > kMaximumAddonNameText)) {
+        return false;
+    }
+    const QJsonValue manifest = addon.value(QStringLiteral("manifest"));
+    if (!manifest.isUndefined() && !manifest.isObject())
+        return false;
+    const QJsonValue flags = addon.value(QStringLiteral("flags"));
+    if (!flags.isUndefined() && !flags.isObject())
+        return false;
+    return QJsonDocument(addon).toJson(QJsonDocument::Compact).size()
+        <= kMaximumAddonDocumentBytes;
 }
 
 bool watchedFailure(QString *error, const QString &message) {
@@ -488,6 +513,87 @@ StremioDatastoreRequest StremioCodec::datastorePutRequest(
     QJsonObject payload = base;
     payload.insert(QStringLiteral("changes"), QJsonArray{change});
     return StremioDatastoreRequest{QStringLiteral("datastorePut"), payload};
+}
+
+QString StremioCodec::normalizedAddonTransportUrl(const QString &transportUrl) {
+    if (transportUrl.isEmpty() || transportUrl.size() > kMaximumAddonUrlText
+        || transportUrl.trimmed() != transportUrl) {
+        return {};
+    }
+    const QUrl parsed(transportUrl, QUrl::StrictMode);
+    const QString scheme = parsed.scheme().toLower();
+    if (!parsed.isValid()
+        || (scheme != QLatin1String("http") && scheme != QLatin1String("https"))
+        || parsed.host().isEmpty() || !parsed.userInfo().isEmpty()
+        || parsed.hasFragment()) {
+        return {};
+    }
+    QString normalized = scheme + QStringLiteral("://") + parsed.host().toLower();
+    if (parsed.port() >= 0)
+        normalized += QStringLiteral(":%1").arg(parsed.port());
+    const QString path = parsed.path(QUrl::FullyEncoded);
+    normalized += path.isEmpty() ? QStringLiteral("/") : path;
+    if (parsed.hasQuery())
+        normalized += QLatin1Char('?') + parsed.query(QUrl::FullyEncoded);
+    return normalized;
+}
+
+StremioDatastoreRequest StremioCodec::addonCollectionGetRequest(const QByteArray &authKey) {
+    if (!safeCredential(authKey))
+        return {};
+    return StremioDatastoreRequest{
+        QStringLiteral("addonCollectionGet"),
+        QJsonObject{{QStringLiteral("authKey"), QString::fromUtf8(authKey)},
+                    {QStringLiteral("type"), QStringLiteral("user")},
+                    {QStringLiteral("update"), false}}};
+}
+
+StremioDatastoreRequest StremioCodec::addonCollectionSetRequest(
+    const QByteArray &authKey,
+    const QJsonArray &addons) {
+    if (!safeCredential(authKey) || addons.size() > kMaximumAddonRows)
+        return {};
+    for (const QJsonValue &value : addons) {
+        if (!value.isObject() || !validAddonDocument(value.toObject()))
+            return {};
+    }
+    return StremioDatastoreRequest{
+        QStringLiteral("addonCollectionSet"),
+        QJsonObject{{QStringLiteral("authKey"), QString::fromUtf8(authKey)},
+                    {QStringLiteral("type"), QStringLiteral("user")},
+                    {QStringLiteral("addons"), addons}}};
+}
+
+StremioAddonCollectionDecode StremioCodec::decodeAddonCollection(
+    const QJsonValue &result,
+    int maximumRows) {
+    StremioAddonCollectionDecode decoded;
+    const int limit = qBound(1, maximumRows, kMaximumAddonRows);
+    QJsonArray rows;
+    if (result.isArray()) {
+        rows = result.toArray();
+    } else if (result.isObject()) {
+        const QJsonValue addons = result.toObject().value(QStringLiteral("addons"));
+        if (!addons.isArray()) {
+            decoded.malformedRows = 1;
+            return decoded;
+        }
+        rows = addons.toArray();
+    } else {
+        decoded.malformedRows = 1;
+        return decoded;
+    }
+    decoded.containerValid = true;
+    for (const QJsonValue &value : rows) {
+        if (decoded.addons.size() >= limit)
+            break;
+        if (!value.isObject() || !validAddonDocument(value.toObject())) {
+            ++decoded.malformedRows;
+            continue;
+        }
+        decoded.addons.append(value);
+    }
+    return decoded;
 }
 
 bool StremioCodec::decodeWatchedEpisodes(

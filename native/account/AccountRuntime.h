@@ -26,12 +26,14 @@
 #include "stremio/StremioSync.h"
 #include "stremio/StremioTheatreImporter.h"
 
+#include <QJsonArray>
 #include <QObject>
 
 #include <memory>
 
 class QQmlApplicationEngine;
 class LocalDownloads;
+class ExtensionsStore;
 
 namespace Colosseum::WatchParty {
 class IWatchPartyAccountBridge;
@@ -54,6 +56,9 @@ public:
     ProfileStoreRuntime *profileStores();
 
     void setDownloadSource(LocalDownloads *downloads);
+    // ExtensionsStore retains its manifest/native responsibilities. This
+    // runtime supplies only active-profile lifetime for Theatre-compatible rows.
+    void setExtensionsStore(ExtensionsStore *extensions);
 
     // Native-only Stremio provider-import entry. Callers supply only decoded
     // library items; credentials and request envelopes remain inside the
@@ -80,6 +85,7 @@ private:
     void clearCoreSyncAdapters();
     void startOrResumeAccountAttachment();
     void activateStremioProfile();
+    void activateExtensionsProfile();
     void refreshStremioLibrary();
     bool applyStremioSeriesWatchedAfterRedo(
         const StremioLibraryItem &item,
@@ -96,6 +102,14 @@ private:
     void reconcileStremioTheatreState(
         const QString &profileId,
         quint64 incarnation);
+    void scheduleStremioAddonReconcile();
+    void reconcileStremioAddonCollection(
+        const QString &profileId,
+        quint64 incarnation);
+    void applyStremioAddonCollection(
+        const QString &profileId,
+        quint64 incarnation,
+        const QJsonArray &addons);
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
@@ -125,6 +139,7 @@ private:
     std::unique_ptr<DownloadIntentSyncAdapter>
         m_downloadIntentSyncAdapter;
     LocalDownloads *m_downloadSource = nullptr;
+    ExtensionsStore *m_extensionsStore = nullptr;
     SyncEngine m_syncEngine;
     StremioSync m_stremioSync;
     std::unique_ptr<StremioTheatreImporter> m_stremioTheatreImporter;
@@ -138,9 +153,13 @@ private:
     QMetaObject::Connection m_stremioProgressDirtyConnection;
     QMetaObject::Connection m_stremioWatchStateConnection;
     QMetaObject::Connection m_stremioCollectionDirtyConnection;
+    QMetaObject::Connection m_extensionsChangedConnection;
     quint64 m_stremioProfileIncarnation = 0;
     quint64 m_stremioActiveImportCount = 0;
     bool m_stremioReconcileScheduled = false;
     bool m_stremioReconcileDeferred = false;
+    bool m_stremioAddonReconcileScheduled = false;
+    bool m_stremioAddonApplyInProgress = false;
+    bool m_stremioAddonReconcileDeferred = false;
     bool m_qmlPrepared = false;
 };
