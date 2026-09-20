@@ -2641,30 +2641,30 @@ bool FirstAccountProfileCoordinator::transferStremioCredential(
                                                    providerAccountId);
     const auto target = m_stremioCredentials.load(paths.profileId(),
                                                    providerAccountId);
-    if (target.has_value()) {
-        if (target->isEmpty() || (source.has_value() && *source != *target)) {
-            return setError(error,
-                            QStringLiteral("The destination Stremio credential does not match the adoption source."));
-        }
-    } else if (source.has_value()) {
-        if (source->isEmpty()
-            || !m_stremioCredentials.save(paths.profileId(),
-                                          providerAccountId,
-                                          *source)) {
+    if (source.has_value()) {
+        if (source->isEmpty()) {
             return setError(error,
                             QStringLiteral("The Stremio credential could not be transferred safely."));
         }
-        const auto verified = m_stremioCredentials.load(paths.profileId(),
-                                                         providerAccountId);
-        if (!verified.has_value() || *verified != *source) {
-            return setError(error,
-                            QStringLiteral("The transferred Stremio credential could not be verified."));
+        if (!target.has_value() || *source != *target) {
+            if (!m_stremioCredentials.save(paths.profileId(),
+                                           providerAccountId,
+                                           *source)) {
+                return setError(error,
+                                QStringLiteral("The Stremio credential could not be transferred safely."));
+            }
+            const auto verified = m_stremioCredentials.load(paths.profileId(),
+                                                             providerAccountId);
+            if (!verified.has_value() || *verified != *source) {
+                return setError(error,
+                                QStringLiteral("The transferred Stremio credential could not be verified."));
+            }
         }
-    }
 
-    if (source.has_value() && !m_stremioCredentials.clear(sourceProfileId)) {
-        return setError(error,
-                        QStringLiteral("The source Stremio credential could not be retired after transfer."));
+        if (!m_stremioCredentials.clear(sourceProfileId)) {
+            return setError(error,
+                            QStringLiteral("The source Stremio credential could not be retired after transfer."));
+        }
     }
     return true;
 }
