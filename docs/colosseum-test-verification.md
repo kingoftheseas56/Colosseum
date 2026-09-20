@@ -88,16 +88,32 @@ series root, and ordered episode identity tuples to native code; no credential,
 provider request, addon URL, or compressed watched payload crosses QML. Task 2
 adds no UI journey, so Lanista is deliberately not a Task 2 gate.
 
-The final focused CTest matrix passed 5/5 registered targets; the affected
-sync/privacy/consumption matrix passed 7/7. The focused QML bridge and
-watch-time suites passed 4/4 and 5/5. `go test ./...` and both the application
-and all-target builds passed. The final `ctest -L unit` run ended 139/147: the
-eight failures are pre-existing Reader2 runtime, capture runner, startup
-deferral/responsiveness, Vault artwork, manga-download responsiveness,
+The final residual convergence repair keeps a passive remote library removal as
+a durable inverse difference, applies Core-selected equal/unknown watched ties
+without allowing an older real action to win, carries the series library root
+alongside an exact episode video identity, preserves imported-current versus
+manual watched provenance for LibraryApi, and treats an equal-time provider
+row as the acknowledged current state. The composed two-account journey proves
+Stremio import through AccountRuntime and Core replication reaches the second
+owner with a root-only provider lookup, exact episode identity, drained outbox,
+and zero provider echo across repeat and restart.
+
+Fresh residual gates: `stremio_sync` passed 61/61; `core_sync_adapters` passed
+43/43; the composed runtime fixture passed 3/3; and the affected native CTest
+matrix (`account_attachment_runtime`, `account_adoption`,
+`core_sync_adapters`, `history_sync`, and `stremio_sync`) passed 5/5. The
+aggregate Qt Quick run retained its existing unrelated failures (640 passed,
+15 failed, 3 skipped), while the Task 2 `LibraryApiWatchTime` and
+`StremioEpisodeMetadataBridge` cases passed. `go test ./...` and both the
+application and all-target builds passed. The final `ctest -L unit` run ended
+139/147: the eight failures are pre-existing Reader2 runtime, capture runner,
+startup deferral/responsiveness, Vault artwork, manga-download responsiveness,
 shell-back arbitration, and video-source handoff contracts; none is a Task 2
 target. Disposable database integration was not run because `TEST_DATABASE_URL`
 is unset. Sanitized red/green receipts and the Task 2 self-review are under
-`artifacts/stremio-sync/task-2/`.
+`artifacts/stremio-sync/task-2/`, including `residual/f1-red-run.txt` through
+`residual/f5-green-run.txt`, `residual/f3-composed-green-run.txt`, and
+`residual/full-unit-final.stdout.txt`.
 
 ### Reader 2 Function 0007 gating update (2026-08-30)
 

@@ -42,4 +42,20 @@ TestCase {
             }),
             "watched")
     }
+
+    function test_importedCurrentWatchYieldsToNewerPartialButManualDoesNot() {
+        var imported = {
+            mark: 1,
+            markManual: false,
+            completed: true,
+            completedAt: 1000,
+            progress: 0.4,
+            progressAt: 2000,
+            isSeries: false
+        }
+        compare(LibraryApi.watchState({}, imported), "progress")
+
+        imported.markManual = true
+        compare(LibraryApi.watchState({}, imported), "watched")
+    }
 }

@@ -611,7 +611,8 @@ void StremioTheatreImporter::applyWatchState(
         mutation.operation = SyncWireOperation::Put;
         QJsonObject payload{
             {QStringLiteral("id"), id},
-            {QStringLiteral("mark"), mark}};
+            {QStringLiteral("mark"), mark},
+            {QStringLiteral("manual"), false}};
         if (actionAtMs > 0)
             payload.insert(QStringLiteral("actionAtMs"), QString::number(actionAtMs));
         mutation.payload = payload;

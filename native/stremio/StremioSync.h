@@ -244,6 +244,9 @@ private:
     bool clearLocalOnlyMembershipSuppression(
         const QString &id,
         const QString &type);
+    bool suppressesInferredLibraryAddition(
+        const QString &id,
+        const QString &type) const;
     bool queueIntentInternal(
         const QString &kind,
         const QJsonObject &desired,

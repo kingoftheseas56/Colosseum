@@ -74,7 +74,7 @@ bool WatchStateSyncAdapter::validateRemote(
 
     const QJsonObject object = payload.toObject();
     if (watched) {
-        if ((object.size() != 2 && object.size() != 3)
+        if ((object.size() != 2 && object.size() != 3 && object.size() != 4)
             || object.value(QStringLiteral("id")).toString() != id
             || !object.value(QStringLiteral("id")).isString()
             || !object.value(QStringLiteral("mark")).isDouble())
@@ -96,6 +96,12 @@ bool WatchStateSyncAdapter::validateRemote(
                     error, QStringLiteral("payload_invalid"),
                     QStringLiteral("A watched action timestamp must be a positive integer string."));
             }
+        }
+        if (object.contains(QStringLiteral("manual"))
+            && !object.value(QStringLiteral("manual")).isBool()) {
+            return SyncAdapterValidation::fail(
+                error, QStringLiteral("payload_invalid"),
+                QStringLiteral("A watched manual-state flag must be boolean."));
         }
         return true;
     }
@@ -163,6 +169,8 @@ exportSnapshot(
         m_store->syncWatchedMarks();
     const QHash<QString, qint64> actionTimes =
         m_store->syncWatchedMarkActionTimes();
+    const QHash<QString, bool> manualStates =
+        m_store->syncWatchedMarkManualStates();
     QStringList watchedIds = watched.keys();
     watchedIds.sort();
 
@@ -191,6 +199,8 @@ exportSnapshot(
         const qint64 actionAtMs = actionTimes.value(id);
         if (actionAtMs > 0)
             payload.insert(QStringLiteral("actionAtMs"), QString::number(actionAtMs));
+        if (!manualStates.value(id, true))
+            payload.insert(QStringLiteral("manual"), false);
         snapshot->records.append(SyncAdapterRecord{recordKey, payload});
     }
 
@@ -303,7 +313,7 @@ applyRemote(
     const QJsonObject object = payload.toObject();
 
     if (watchedRecord) {
-        if ((object.size() != 2 && object.size() != 3)
+        if ((object.size() != 2 && object.size() != 3 && object.size() != 4)
             || !object.value(
                     QStringLiteral("id"))
                     .isString()
@@ -343,13 +353,24 @@ applyRemote(
                     QStringLiteral("A watched action timestamp must be a positive integer string."));
             }
         }
+        bool manual = true;
+        if (object.contains(QStringLiteral("manual"))) {
+            if (!object.value(QStringLiteral("manual")).isBool()) {
+                return fail(
+                    error,
+                    QStringLiteral("A watched manual-state flag must be boolean."));
+            }
+            manual = object.value(QStringLiteral("manual")).toBool();
+        }
 
         m_applyingRemote = true;
         const bool applied =
             m_store->applySyncedWatchedMark(
                 id,
                 static_cast<int>(rawMark),
-                actionAtMs);
+                actionAtMs,
+                true,
+                manual);
         m_applyingRemote = false;
 
         if (!applied) {

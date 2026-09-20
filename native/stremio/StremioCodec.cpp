@@ -661,6 +661,7 @@ StremioTheatreItemProjection StremioCodec::projectTheatreItem(
                 projected.progress = {
                     {QStringLiteral("kind"), QStringLiteral("video")},
                     {QStringLiteral("id"), videoId},
+                    {QStringLiteral("libraryId"), item.id},
                     {QStringLiteral("duration"), static_cast<double>(durationMs) / 1000.0},
                     {QStringLiteral("progress"), static_cast<double>(offsetMs) / durationMs},
                     {QStringLiteral("resume"), QVariantMap{

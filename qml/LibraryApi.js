@@ -12,8 +12,8 @@
 // raw a series at ≥0.90 with no mark reads "unwatched" (not "watched") by design.
 function watchState(entry, ctx) {
     ctx = ctx || {};
-    if (ctx.mark === 1) return "watched";
-    if (ctx.mark === -1)
+    if (ctx.mark === 1 && ctx.markManual !== false) return "watched";
+    if (ctx.mark === -1 && ctx.markManual !== false)
         return (ctx.progress > 0 && ctx.progress < 0.90) ? "progress" : "unwatched";
     if (ctx.completed === true) {
         var progressAt = Number(ctx.progressAt || 0);
@@ -148,7 +148,11 @@ function buildRows(entries, progressList, markFn, completedFn, downloadedIds, no
         if (isNaN(rawProgress)) rawProgress = 0;
         var lastWatchedAt = pm ? Number(pm.updatedAt || 0) : 0;
         if (!lastWatchedAt) lastWatchedAt = Number(e.addedAt || 0);
-        var mark = markFn ? markFn(e.id) : 0;
+        var markState = markFn ? markFn(e.id) : 0;
+        var mark = (markState && typeof markState === "object")
+                ? Number(markState.mark || 0) : Number(markState || 0);
+        var markManual = !(markState && typeof markState === "object")
+                || markState.manual !== false;
         var completion = completedFn ? completedFn(e) : false;
         var completed = completion === true
                 || (completion && Number(completion.completedAt || 0) > 0);
@@ -160,6 +164,7 @@ function buildRows(entries, progressList, markFn, completedFn, downloadedIds, no
         var state = watchState(e, {
             progress: stateProgress, mark: mark, completed: completed, isSeries: isSeries,
             progressAt: pm ? Number(pm.updatedAt || 0) : 0,
+            markManual: markManual,
             completedAt: completedAt
         });
         var notifOff = (payload.libNotif === false);

@@ -593,6 +593,15 @@ bool StremioSync::queueReconciledIntent(
     const QString baselineKey = baselineKeyForIntent(kind, desired);
     if (baselineKey.isEmpty())
         return false;
+    // A durable provider removal deliberately leaves Collection untouched.
+    // Its inverse difference is not a local add command, so a later owner
+    // reread (including after restart) must not put the row back remotely.
+    if (kind == QLatin1String("library_add")
+        && suppressesInferredLibraryAddition(
+            desired.value(QStringLiteral("id")).toString(),
+            desired.value(QStringLiteral("type")).toString())) {
+        return true;
+    }
     // A current canonical Theatre membership can only be a fresh explicit
     // re-add after this profile chose local-only removal: passive Stremio
     // imports are suppressed before they reach Collection. Retire exactly
@@ -1420,7 +1429,7 @@ void StremioSync::sendIntentViaDatastore(
             // observed more recently.  Successful retirement leaves the
             // fresh provider value for the normal inbound/readback path and
             // prevents a stale retry from clobbering it.
-            if (*providerUpdatedAtMs > desiredUpdatedAtMs) {
+            if (*providerUpdatedAtMs >= desiredUpdatedAtMs) {
                 completion(true, false);
                 return;
             }
@@ -1859,6 +1868,24 @@ bool StremioSync::clearLocalOnlyMembershipSuppression(
         }
         m_state.intentionalMembershipDifferences.removeAt(index);
         return true;
+    }
+    return false;
+}
+
+bool StremioSync::suppressesInferredLibraryAddition(
+    const QString &id,
+    const QString &type) const {
+    const QString normalizedId = id.trimmed();
+    for (const QJsonValue &value : m_state.intentionalMembershipDifferences) {
+        if (!value.isObject())
+            continue;
+        const QJsonObject difference = value.toObject();
+        if (difference.value(QStringLiteral("id")).toString() != normalizedId
+            || difference.value(QStringLiteral("type")).toString() != type) {
+            continue;
+        }
+        return difference.value(QStringLiteral("localPresent")).toBool()
+            && !difference.value(QStringLiteral("remotePresent")).toBool();
     }
     return false;
 }

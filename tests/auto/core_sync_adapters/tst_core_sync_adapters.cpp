@@ -616,6 +616,8 @@ private slots:
     void watchStateAdapterRoundTripsPortableState();
     void watchedActionTimestampPersistsAndRoundTrips();
     void watchedActionTimestampWinsOverTransportOrder();
+    void resolvedWatchStateWinsEqualAndUnknownActionTies();
+    void importedMovieWatchStateKeepsNonManualOwnerProvenance();
     void stremioImporterAppliesCanonicalOwnersAfterDurableReceipts();
     void stremioMovieWatchStateStaysSeparateFromHistory();
     void stremioImporterUsesRegistryAndFencesProfileSwitch();
@@ -1110,6 +1112,79 @@ watchStateAdapterRoundTripsPortableState() {
     QCOMPARE(
         target.lastSeason(QStringLiteral("tt900")),
         -1);
+}
+
+void tst_core_sync_adapters::resolvedWatchStateWinsEqualAndUnknownActionTies() {
+    // A Core/Neon record has already resolved its HLC/action-time winner.
+    // Arrival order at the losing owner must not retain a contradictory mark.
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString id = QStringLiteral("tt-resolved-watch-tie");
+    const QString recordKey = CoreStateSyncProjection::watchedMarkKey(id);
+    const QJsonObject timedWinner{
+        {QStringLiteral("id"), id},
+        {QStringLiteral("mark"), -1},
+        {QStringLiteral("actionAtMs"), QStringLiteral("5000")}};
+    const QJsonObject unknownWinner{
+        {QStringLiteral("id"), id},
+        {QStringLiteral("mark"), -1}};
+
+    ProgressStore timedA(QDir(temp.path()).filePath(QStringLiteral("timed-a.ini")));
+    ProgressStore timedB(QDir(temp.path()).filePath(QStringLiteral("timed-b.ini")));
+    QVERIFY(timedA.applySyncedWatchedMark(id, 1, 5000));
+    QVERIFY(timedB.applySyncedWatchedMark(id, -1, 5000));
+    WatchStateSyncAdapter timedAdapter(&timedA);
+    QString error;
+    QVERIFY2(timedAdapter.applyRemote(recordKey, SyncWireOperation::Put,
+                                      timedWinner, 1, &error), qPrintable(error));
+    QCOMPARE(timedA.watchedMark(id), -1);
+    QCOMPARE(timedB.watchedMark(id), -1);
+
+    ProgressStore unknownA(QDir(temp.path()).filePath(QStringLiteral("unknown-a.ini")));
+    ProgressStore unknownB(QDir(temp.path()).filePath(QStringLiteral("unknown-b.ini")));
+    QVERIFY(unknownA.applySyncedWatchedMark(id, 1));
+    QVERIFY(unknownB.applySyncedWatchedMark(id, -1));
+    WatchStateSyncAdapter unknownAdapter(&unknownA);
+    QVERIFY2(unknownAdapter.applyRemote(recordKey, SyncWireOperation::Put,
+                                        unknownWinner, 1, &error), qPrintable(error));
+    QCOMPARE(unknownA.watchedMark(id), -1);
+    QCOMPARE(unknownB.watchedMark(id), -1);
+}
+
+void tst_core_sync_adapters::importedMovieWatchStateKeepsNonManualOwnerProvenance() {
+    // The Stremio flag is a current provider fact, not a local Library
+    // override. The owner retains that distinction alongside the cumulative
+    // History completion so LibraryApi can compare its real action time.
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    CollectionStore collection(QDir(temp.path()).filePath(QStringLiteral("collection.ini")));
+    ProgressStore progress(QDir(temp.path()).filePath(QStringLiteral("progress.ini")));
+    HistoryStore history(QDir(temp.path()).filePath(QStringLiteral("history.ini")));
+    StremioTheatreImporter importer(&collection, &progress, &history);
+    importer.activate(QStringLiteral("profile-a"));
+    StremioLibraryItem item;
+    item.id = QStringLiteral("tt-provider-current");
+    item.type = QStringLiteral("movie");
+    item.raw = QJsonObject{{QStringLiteral("_id"), item.id},
+                           {QStringLiteral("type"), item.type},
+                           {QStringLiteral("state"), QJsonObject{
+                               {QStringLiteral("flaggedWatched"), 1},
+                               {QStringLiteral("lastWatched"),
+                                QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+    bool finished = false;
+    QString error;
+    QVERIFY(importer.apply(item, [&finished, &error](bool committed, const QString &message) {
+        finished = committed;
+        error = message;
+    }));
+    QTRY_VERIFY2(finished, qPrintable(error));
+    QCOMPARE(progress.watchedMark(item.id), 1);
+    QVERIFY(!progress.watchedMarkIsManual(item.id));
+    QCOMPARE(history.get(QStringLiteral("movie"), item.id).value(
+                 QStringLiteral("completedAt")).toLongLong(), qint64(1735787045000));
+
+    progress.setWatchedMark(item.id, true);
+    QVERIFY(progress.watchedMarkIsManual(item.id));
 }
 
 void tst_core_sync_adapters::stremioImporterAppliesCanonicalOwnersAfterDurableReceipts() {
@@ -1922,12 +1997,13 @@ watchedActionTimestampWinsOverTransportOrder() {
     apply(-1, 3000);
     QCOMPARE(progress.watchedMark(id), -1);
 
-    // Unknown legacy action times and equal real times are deterministic
-    // ties: keep the already materialized state rather than inventing order.
+    // An unknown legacy action cannot manufacture an order over a known
+    // action. An equal real action is a Core-resolved tie, so the remote
+    // winner replaces the contradictory local materialization.
     apply(1, 0);
     QCOMPARE(progress.watchedMark(id), -1);
     apply(1, 3000);
-    QCOMPARE(progress.watchedMark(id), -1);
+    QCOMPARE(progress.watchedMark(id), 1);
 
     QString error;
     QVERIFY2(adapter.applyRemote(

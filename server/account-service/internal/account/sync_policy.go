@@ -417,7 +417,7 @@ func validateSyncRecordShape(
 				return err
 			}
 			mark, ok := syncIntegerNumber(object["mark"])
-			if !ok || (mark != -1 && mark != 1) || (len(object) != 2 && len(object) != 3) {
+			if !ok || (mark != -1 && mark != 1) || (len(object) != 2 && len(object) != 3 && len(object) != 4) {
 				return fmt.Errorf("payload_invalid")
 			}
 			if rawActionAt, present := object["actionAtMs"]; present {
@@ -427,6 +427,11 @@ func validateSyncRecordShape(
 				}
 				actionAt, valid := parseSyncIntegerToken(actionToken)
 				if !valid || actionAt <= 0 {
+					return fmt.Errorf("payload_invalid")
+				}
+			}
+			if rawManual, present := object["manual"]; present {
+				if _, ok := rawManual.(bool); !ok {
 					return fmt.Errorf("payload_invalid")
 				}
 			}

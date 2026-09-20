@@ -310,6 +310,14 @@ public:
         return out;
     }
 
+    QHash<QString, bool> syncWatchedMarkManualStates() const {
+        const QHash<QString, int> marks = syncWatchedMarks();
+        QHash<QString, bool> out;
+        for (auto it = marks.constBegin(); it != marks.constEnd(); ++it)
+            out.insert(it.key(), watchedMarkIsManual(it.key()));
+        return out;
+    }
+
     QHash<QString, int> syncLastSeasons() const {
         const QString prefix =
             QStringLiteral("video/lastSeason/");
@@ -500,17 +508,28 @@ public:
         if (id.isEmpty()) return 0;
         return m_settings->value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
     }
+    Q_INVOKABLE bool watchedMarkIsManual(const QString &id) const {
+        if (id.isEmpty()) return false;
+        const QString watchedId = seriesRootId(id);
+        if (!m_settings->contains(QStringLiteral("video/watchedMark/") + watchedId))
+            return false;
+        // Existing user marks predate provenance and remain manual. Only a
+        // provider-imported current state writes an explicit false value.
+        return m_settings->value(watchedMarkManualKey(watchedId), true).toBool();
+    }
     Q_INVOKABLE void setWatchedMark(const QString &id, bool watched) {
         if (id.isEmpty() || !healthy()) return;
         const QString watchedId = seriesRootId(id);
         const QString key = QStringLiteral("video/watchedMark/") + watchedId;
         const int mark = watched ? 1 : -1;
-        if (m_settings->value(key, 0).toInt() == mark)
+        if (m_settings->value(key, 0).toInt() == mark
+            && watchedMarkIsManual(watchedId))
             return;
         if (syncWatchMarkSettings(
                 watchedId,
                 mark,
-                QDateTime::currentMSecsSinceEpoch())) {
+                QDateTime::currentMSecsSinceEpoch(),
+                true)) {
             bump();
             emit watchStateChanged();
         }
@@ -530,7 +549,9 @@ public:
     bool applySyncedWatchedMark(
         const QString &id,
         int mark,
-        qint64 actionAtMs = 0) {
+        qint64 actionAtMs = 0,
+        bool resolvedRemoteWinner = false,
+        bool manual = false) {
         if (!healthy()
             || id.isEmpty()
             || (mark != -1 && mark != 1)
@@ -556,18 +577,22 @@ public:
         // ping-pong write. Deletes remain a separate, authoritative reset.
         if (ok && (current == -1 || current == 1)) {
             if (currentActionOk && currentActionAtMs > 0) {
-                if (actionAtMs == 0 || actionAtMs <= currentActionAtMs)
+                // A selected Core record settles an equal action-time (or
+                // legacy unknown-time) tie, but it must not let an older
+                // real action undo the owner state already made durable.
+                if (actionAtMs == 0 || actionAtMs < currentActionAtMs
+                    || (!resolvedRemoteWinner && actionAtMs == currentActionAtMs))
                     return true;
-            } else if (actionAtMs == 0) {
+            } else if (actionAtMs == 0 && !resolvedRemoteWinner) {
                 return true;
             }
         }
-        if (ok && current == mark
+        if (!resolvedRemoteWinner && ok && current == mark
             && ((actionAtMs > 0 && currentActionOk && currentActionAtMs == actionAtMs)
                 || (actionAtMs == 0 && !currentActionOk)))
             return true;
 
-        if (!syncWatchMarkSettings(watchedId, mark, actionAtMs))
+        if (!syncWatchMarkSettings(watchedId, mark, actionAtMs, manual))
             return false;
         bump();
         return true;
@@ -809,10 +834,15 @@ private:
         return QStringLiteral("video/watchedMarkActionAt/") + id;
     }
 
+    static QString watchedMarkManualKey(const QString &id) {
+        return QStringLiteral("video/watchedMarkManual/") + id;
+    }
+
     bool syncWatchMarkSettings(
         const QString &id,
         int mark,
-        qint64 actionAtMs) {
+        qint64 actionAtMs,
+        bool manual) {
         if (!m_settings || id.isEmpty() || (mark != -1 && mark != 1)
             || actionAtMs < 0) {
             return false;
@@ -828,16 +858,20 @@ private:
 
         const QString markKey = QStringLiteral("video/watchedMark/") + id;
         const QString actionKey = watchedMarkActionKey(id);
+        const QString manualKey = watchedMarkManualKey(id);
         const bool hadMark = m_settings->contains(markKey);
         const QVariant previousMark = m_settings->value(markKey);
         const bool hadAction = m_settings->contains(actionKey);
         const QVariant previousAction = m_settings->value(actionKey);
+        const bool hadManual = m_settings->contains(manualKey);
+        const QVariant previousManual = m_settings->value(manualKey);
 
         m_settings->setValue(markKey, mark);
         if (actionAtMs > 0)
             m_settings->setValue(actionKey, actionAtMs);
         else
             m_settings->remove(actionKey);
+        m_settings->setValue(manualKey, manual);
         m_settings->sync();
         if (m_settings->status() == QSettings::NoError)
             return true;
@@ -850,6 +884,10 @@ private:
             m_settings->setValue(actionKey, previousAction);
         else
             m_settings->remove(actionKey);
+        if (hadManual)
+            m_settings->setValue(manualKey, previousManual);
+        else
+            m_settings->remove(manualKey);
         m_settings->sync();
         handleWriterFailure(
             QStringLiteral("The watched/last-season owner could not be committed."));
@@ -870,13 +908,17 @@ private:
 
         const QString markKey = QStringLiteral("video/watchedMark/") + id;
         const QString actionKey = watchedMarkActionKey(id);
+        const QString manualKey = watchedMarkManualKey(id);
         const bool hadMark = m_settings->contains(markKey);
         const QVariant previousMark = m_settings->value(markKey);
         const bool hadAction = m_settings->contains(actionKey);
         const QVariant previousAction = m_settings->value(actionKey);
+        const bool hadManual = m_settings->contains(manualKey);
+        const QVariant previousManual = m_settings->value(manualKey);
 
         m_settings->remove(markKey);
         m_settings->remove(actionKey);
+        m_settings->remove(manualKey);
         m_settings->sync();
         if (m_settings->status() == QSettings::NoError)
             return true;
@@ -885,6 +927,8 @@ private:
             m_settings->setValue(markKey, previousMark);
         if (hadAction)
             m_settings->setValue(actionKey, previousAction);
+        if (hadManual)
+            m_settings->setValue(manualKey, previousManual);
         m_settings->sync();
         handleWriterFailure(
             QStringLiteral("The watched/last-season owner could not be committed."));

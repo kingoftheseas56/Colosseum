@@ -63,7 +63,10 @@ Item {
         var entries = Collection.items("theatre")
         var plist = Progress.recent("video", 0)
         return Api.buildRows(entries, plist,
-            function (id) { return Progress.watchedMark(id) },
+            function (id) {
+                return ({ mark: Progress.watchedMark(id),
+                          manual: Progress.watchedMarkIsManual(id) })
+            },
             function (entry) {
                 if (!entry || entry.type === "series") return false
                 if (typeof ProfileHistory === "undefined" || !ProfileHistory) return false

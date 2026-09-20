@@ -578,6 +578,15 @@ public:
                     const QByteArray firstLine = buffer.left(headerEnd)
                         .left(buffer.left(headerEnd).indexOf("\r\n"));
                     m_requests.append(firstLine);
+                    if (firstLine.startsWith("POST /api/datastoreGet ")) {
+                        const QJsonDocument request = QJsonDocument::fromJson(
+                            buffer.mid(headerEnd + 4));
+                        for (const QJsonValue &id : request.object().value(
+                                 QStringLiteral("ids")).toArray()) {
+                            if (id.isString())
+                                m_getIds.append(id.toString());
+                        }
+                    }
                     const QByteArray body = QJsonDocument(QJsonObject{
                         {QStringLiteral("result"), m_result}})
                         .toJson(QJsonDocument::Compact);
@@ -622,12 +631,14 @@ public:
             return line.startsWith("POST /api/datastoreGet ");
         });
     }
+    QStringList getIds() const { return m_getIds; }
 
 private:
     QTcpServer m_server;
     QHash<QTcpSocket *, QByteArray> m_buffers;
     QJsonValue m_result;
     QList<QByteArray> m_requests;
+    QStringList m_getIds;
 };
 
 }
@@ -1081,6 +1092,10 @@ stremioPendingSeriesWatchSurvivesMissingMapAndRestart() {
         QStringLiteral("video"), QStringLiteral("kitsu:restart:s1:e1"))
                      .value(QStringLiteral("resume")).toMap()
                      .value(QStringLiteral("position")).toDouble(), 120.0);
+    QCOMPARE(restarted.profileStores()->progressStore()->get(
+                 QStringLiteral("video"), QStringLiteral("kitsu:restart:s1:e1"))
+                 .value(QStringLiteral("libraryId")).toString(),
+             QStringLiteral("kitsu:restart"));
     QTRY_COMPARE(restarted.profileStores()->progressStore()->get(
         QStringLiteral("video"), QStringLiteral("kitsu:restart:s1:e2"))
                      .value(QStringLiteral("progress")).toDouble(), 1.0);
@@ -1358,6 +1373,112 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
     // prior provider/current readback completes.  It must retire after the
     // readback without emitting a PUT; an immediate empty outbox is not the
     // crash-safe contract.
+    QTRY_COMPARE(syncB->pendingCount(), 0);
+    QCOMPARE(datastore.putCount(), 0);
+
+    // Repeat the complete relay with a series row. Its provider item is the
+    // series root, while its current playback state is one exact episode.
+    // Both account runtimes resolve the bounded metadata map through the
+    // existing bridge; no test invokes StremioSync reconciliation directly.
+    const QList<StremioEpisodeIdentity> seriesVideos{
+        {QStringLiteral("kitsu:runtime-series:s0:e1"), 0, 1},
+        {QStringLiteral("kitsu:runtime-series:s1:e1"), 1, 1}};
+    QString encodedWatched;
+    QString encodeError;
+    QVERIFY2(StremioCodec::encodeWatchedEpisodes(
+                 QSet<QString>{QStringLiteral("kitsu:runtime-series:s1:e1")},
+                 seriesVideos, &encodedWatched, &encodeError), qPrintable(encodeError));
+    const auto resolveSeriesMetadata = [&seriesVideos](StremioSync *sync) {
+        QVERIFY(sync);
+        sync->setEpisodeMetadataBridgeReady(true);
+        QObject::connect(sync, &StremioSync::episodeMetadataRequested,
+                         sync, [sync, seriesVideos](const QString &requestId, const QString &seriesId) {
+            QVERIFY(sync->submitEpisodeMetadata(requestId, seriesId, QVariantList{
+                QVariantMap{{QStringLiteral("id"), seriesVideos.at(0).videoId},
+                            {QStringLiteral("season"), seriesVideos.at(0).season},
+                            {QStringLiteral("episode"), seriesVideos.at(0).episode}},
+                QVariantMap{{QStringLiteral("id"), seriesVideos.at(1).videoId},
+                            {QStringLiteral("season"), seriesVideos.at(1).season},
+                            {QStringLiteral("episode"), seriesVideos.at(1).episode}}}));
+        });
+    };
+    resolveSeriesMetadata(syncA);
+    resolveSeriesMetadata(syncB);
+
+    const QString seriesId = QStringLiteral("kitsu:runtime-series");
+    const QString exactVideoId = seriesVideos.first().videoId;
+    const QJsonObject seriesState{
+        {QStringLiteral("watched"), encodedWatched},
+        {QStringLiteral("video_id"), exactVideoId},
+        {QStringLiteral("timeOffset"), 120000},
+        {QStringLiteral("duration"), 300000},
+        {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}};
+    const QJsonObject seriesProviderRow{
+        {QStringLiteral("_id"), seriesId},
+        {QStringLiteral("type"), QStringLiteral("series")},
+        {QStringLiteral("removed"), false},
+        {QStringLiteral("temp"), false},
+        {QStringLiteral("state"), seriesState}};
+    datastore.setResult(QJsonArray{seriesProviderRow});
+    StremioLibraryItem inboundSeries;
+    inboundSeries.id = seriesId;
+    inboundSeries.type = QStringLiteral("series");
+    inboundSeries.libraryMember = true;
+    inboundSeries.raw = seriesProviderRow;
+    bool seriesImported = false;
+    QString seriesImportError;
+    QVERIFY(runtimeA.applyStremioLibraryItem(
+        inboundSeries, [&seriesImported, &seriesImportError](bool committed, const QString &message) {
+            seriesImported = committed;
+            seriesImportError = message;
+        }));
+    QTRY_VERIFY2(seriesImported, qPrintable(seriesImportError));
+    QTRY_VERIFY(accountService.corePushCount() > 1);
+
+    const int seriesGetsBefore = datastore.getCount();
+    const int seriesIdsBefore = datastore.getIds().size();
+    bProgress->recordSilent(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("series-relay-trigger")},
+        {QStringLiteral("progress"), 0.1}});
+    QTRY_VERIFY_WITH_TIMEOUT(runtimeB.profileStores()->collectionStore()->has(
+        QStringLiteral("theatre"), seriesId), 20000);
+    QTRY_COMPARE(bProgress->get(QStringLiteral("video"), exactVideoId).value(
+                     QStringLiteral("resume")).toMap().value(
+                     QStringLiteral("position")).toDouble(), 120.0);
+    QCOMPARE(bProgress->get(QStringLiteral("video"), exactVideoId).value(
+                 QStringLiteral("libraryId")).toString(), seriesId);
+    QTRY_COMPARE(bProgress->get(QStringLiteral("video"), seriesVideos.at(1).videoId).value(
+                     QStringLiteral("progress")).toDouble(), 1.0);
+    QTRY_VERIFY(datastore.getCount() > seriesGetsBefore);
+    QTRY_VERIFY(datastore.getIds().size() > seriesIdsBefore);
+    const QStringList seriesGetIds = datastore.getIds();
+    for (qsizetype index = seriesIdsBefore; index < seriesGetIds.size(); ++index)
+        QCOMPARE(seriesGetIds.at(index), seriesId);
+    QCOMPARE(datastore.putCount(), 0);
+    QTRY_COMPARE(syncB->pendingCount(), 0);
+
+    const int repeatedSeriesGets = datastore.getCount();
+    bProgress->recordSilent(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("series-relay-repeat")},
+        {QStringLiteral("progress"), 0.2}});
+    bool repeatDurable = false;
+    QVERIFY(bProgress->requestDurableReceipt(
+        [&repeatDurable](bool committed, const QString &) { repeatDurable = committed; }));
+    QTRY_VERIFY(repeatDurable);
+    // The same canonical state is already baseline-settled. The observer
+    // invalidation is allowed to reread owners, but it must not manufacture a
+    // new provider operation (and this semantic no-op has no GET to perform).
+    QCOMPARE(datastore.getCount(), repeatedSeriesGets);
+    QTRY_COMPARE(syncB->pendingCount(), 0);
+    QCOMPARE(datastore.putCount(), 0);
+
+    syncB->deactivateProfile();
+    QVERIFY(syncB->activateProfile(
+        bProfile.profileId(), bProfile.stremioSyncStatePath(), false));
+    syncB->setMarkerLinked(true);
+    QTRY_COMPARE(syncB->status(), QStringLiteral("synced"));
     QTRY_COMPARE(syncB->pendingCount(), 0);
     QCOMPARE(datastore.putCount(), 0);
 
