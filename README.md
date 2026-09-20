@@ -252,6 +252,11 @@ media files, window state, search history, and the raw Your Colosseum activity l
 The Data & privacy page can clear local search history and activity history; its policy switches,
 data export, and account-deletion flow do not yet have authoritative service wiring.
 
+Theatre also has optional [Stremio Sync](docs/stremio-sync.md), available with or without a
+Colosseum account. It safely merges library, progress, watched state and compatible addons through
+Stremio's official browser sign-in. Credentials and configured addon data stay device-local;
+imported Stremio History never inflates Your Colosseum viewing statistics.
+
 The account service endpoint is configurable rather than hard-coded into the public desktop source:
 a build sets it with `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>`, and the
 `COLOSSEUM_ACCOUNT_SERVICE_URL` environment variable overrides it at runtime. The published 1.1.5

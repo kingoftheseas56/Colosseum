@@ -2551,3 +2551,33 @@ recorded in the Lanista ledger and its manifest.
 `[Sol (Codex), review] APPROVE — Task 4 meets its written completion criterion. The
 accountless legacy-profile defect found by the runtime journey was repaired at the
 existing private-store/adoption seam and is covered at native and assembled-app layers.`
+
+## Stremio Sync Task 5 — final qualification (2026-09-20)
+
+The final source-built qualification used a fresh short-path Ninja directory because the
+normal worktree path exceeds MSVC's object-file path limit for the full test graph. All 115
+native executable targets behind the 147 registered `unit` tests compiled successfully.
+With the documented Qt, MpvQt and libmpv runtime directories available, the full gate ended
+**137/147**. Every Stremio, account attachment/adoption/shared-PC, sync engine/adapter,
+History, profile-preference and extension target passed. The ten remaining failures are
+outside the Stremio diff: Reader2 runtime, comic pack fixture creation, capture output,
+startup deferral/responsiveness, Vault image/artwork and ffmpeg provisioning, manga cleanup,
+shell-back arbitration, and video-source handoff. The Stremio target's first aggregate run
+had one 250 ms timeout miss; the isolated rerun and the final full gate both passed.
+
+The final `colosseum.qml` aggregate ended **657 passed, 13 failed, 3 skipped**. Every Stremio
+panel, episode bridge, History/Stats, removal and top-bar case passed. The remaining QML
+failures stay in the documented AccountDataPrivacy, unavailable Player module, OnePiece
+atlas-capture and Player2-construction categories. The Theatre extension reorder harness
+also passed completely.
+
+`go test ./...` passed across the account service, including the changed sync-policy and
+semantic-merge cases. `TEST_DATABASE_URL` was absent, so disposable-Postgres integration
+remains unrun rather than inferred green. The tagged Lanista sessions and visual evidence
+are recorded in the runtime ledger. Official browser authentication remains a separate
+witnessed check because no designated Stremio test account was supplied; no personal
+account was used.
+
+`[Sol (Codex), review] APPROVE — Tasks 1–5 satisfy the written Stremio contract at the
+available deterministic and assembled-app layers. No introduced regression, credential
+leak, Trakt/Nuvio surface or generalized provider framework remains in scope.`
