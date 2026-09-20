@@ -227,6 +227,24 @@ public:
         return m_loadError.isEmpty() ? m_persistenceError : m_loadError;
     }
 
+    // Non-blocking local-owner receipt. Callers that need to hand an already
+    // mutated Continue record to another durable subsystem use this instead
+    // of `flush()`: it follows the existing writer FIFO and calls back only
+    // when the latest in-memory snapshot is the one QSettings has committed.
+    bool requestDurableReceipt(RemoteCommitCallback callback) {
+        if (!healthy()) {
+            if (callback)
+                callback(false, persistenceError());
+            return false;
+        }
+        const quint64 requestId = m_nextRemoteRequest++;
+        const QVariantHash snapshot = snapshotHash();
+        m_pendingLocalReceipts.insert(requestId, snapshot);
+        m_localReceiptCallbacks.insert(requestId, std::move(callback));
+        postLocalReceiptSnapshot(requestId, snapshot);
+        return true;
+    }
+
 #ifdef COLOSSEUM_PROGRESS_STORE_TESTING
     // Test-only failure injection for the infrequent QSettings-owned
     // watched/last-season path. Continue writes remain on the normal writer.
@@ -269,6 +287,34 @@ public:
                 out.insert(id, mark);
         }
 
+        return out;
+    }
+
+    QHash<QString, qint64> syncWatchedMarkActionTimes() const {
+        const QString prefix =
+            QStringLiteral("video/watchedMarkActionAt/");
+        QHash<QString, qint64> out;
+
+        const QStringList keys = m_settings->allKeys();
+        for (const QString &key : keys) {
+            if (!key.startsWith(prefix))
+                continue;
+
+            const QString id = key.mid(prefix.size());
+            bool ok = false;
+            const qint64 actionAtMs = m_settings->value(key).toLongLong(&ok);
+            if (!id.isEmpty() && ok && actionAtMs > 0)
+                out.insert(id, actionAtMs);
+        }
+
+        return out;
+    }
+
+    QHash<QString, bool> syncWatchedMarkManualStates() const {
+        const QHash<QString, int> marks = syncWatchedMarks();
+        QHash<QString, bool> out;
+        for (auto it = marks.constBegin(); it != marks.constEnd(); ++it)
+            out.insert(it.key(), watchedMarkIsManual(it.key()));
         return out;
     }
 
@@ -385,15 +431,12 @@ public:
         }
         if (doomed.isEmpty())
             return;
-        const QString watchedKey = QStringLiteral("video/watchedMark/")
-            + seriesRootId(id);
+        const QString watchedId = seriesRootId(id);
+        const QString watchedKey = QStringLiteral("video/watchedMark/") + watchedId;
         const bool hadWatchedMark = m_settings->contains(watchedKey);
         bool watchedMarkRemoved = true;
         if (hadWatchedMark) {
-            watchedMarkRemoved = syncWatchSetting(
-                watchedKey,
-                QVariant(),
-                true);
+            watchedMarkRemoved = removeWatchMarkSettings(watchedId);
             if (!watchedMarkRemoved)
                 return;
         }
@@ -465,25 +508,46 @@ public:
         if (id.isEmpty()) return 0;
         return m_settings->value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
     }
+    Q_INVOKABLE qint64 watchedMarkActionAt(const QString &id) const {
+        if (id.isEmpty()) return 0;
+        bool ok = false;
+        const qint64 actionAtMs = m_settings->value(
+            watchedMarkActionKey(seriesRootId(id))).toLongLong(&ok);
+        return ok && actionAtMs > 0 ? actionAtMs : 0;
+    }
+    Q_INVOKABLE bool watchedMarkIsManual(const QString &id) const {
+        if (id.isEmpty()) return false;
+        const QString watchedId = seriesRootId(id);
+        if (!m_settings->contains(QStringLiteral("video/watchedMark/") + watchedId))
+            return false;
+        // Existing user marks predate provenance and remain manual. Only a
+        // provider-imported current state writes an explicit false value.
+        return m_settings->value(watchedMarkManualKey(watchedId), true).toBool();
+    }
     Q_INVOKABLE void setWatchedMark(const QString &id, bool watched) {
         if (id.isEmpty() || !healthy()) return;
-        const QString key =
-            QStringLiteral("video/watchedMark/") + seriesRootId(id);
+        const QString watchedId = seriesRootId(id);
+        const QString key = QStringLiteral("video/watchedMark/") + watchedId;
         const int mark = watched ? 1 : -1;
-        if (m_settings->value(key, 0).toInt() == mark)
+        if (m_settings->value(key, 0).toInt() == mark
+            && watchedMarkIsManual(watchedId))
             return;
-        if (syncWatchSetting(key, mark, false)) {
+        if (syncWatchMarkSettings(
+                watchedId,
+                mark,
+                QDateTime::currentMSecsSinceEpoch(),
+                true)) {
             bump();
             emit watchStateChanged();
         }
     }
     Q_INVOKABLE void clearWatchedMark(const QString &id) {
         if (id.isEmpty() || !healthy()) return;
-        const QString key =
-            QStringLiteral("video/watchedMark/") + seriesRootId(id);
+        const QString watchedId = seriesRootId(id);
+        const QString key = QStringLiteral("video/watchedMark/") + watchedId;
         if (!m_settings->contains(key))
             return;
-        if (syncWatchSetting(key, QVariant(), true)) {
+        if (removeWatchMarkSettings(watchedId)) {
             bump();
             emit watchStateChanged();
         }
@@ -491,24 +555,51 @@ public:
 
     bool applySyncedWatchedMark(
         const QString &id,
-        int mark) {
+        int mark,
+        qint64 actionAtMs = 0,
+        bool resolvedRemoteWinner = false,
+        bool manual = false) {
         if (!healthy()
             || id.isEmpty()
-            || (mark != -1 && mark != 1)) {
+            || (mark != -1 && mark != 1)
+            || actionAtMs < 0) {
             return false;
         }
 
-        const QString key =
-            QStringLiteral("video/watchedMark/")
-            + seriesRootId(id);
+        const QString watchedId = seriesRootId(id);
+        const QString key = QStringLiteral("video/watchedMark/") + watchedId;
 
         bool ok = false;
         const int current =
             m_settings->value(key).toInt(&ok);
-        if (ok && current == mark)
+        bool currentActionOk = false;
+        const qint64 currentActionAtMs = m_settings->value(
+            watchedMarkActionKey(watchedId)).toLongLong(&currentActionOk);
+
+        // Watch state is an ordinary mutable sync record, but its payload
+        // carries the real user action time. A newer arrival/HLC must not
+        // reverse a later watched decision, and a legacy record with no
+        // action time cannot manufacture an order over a known action. Equal
+        // action times are a stable tie so two devices converge without a
+        // ping-pong write. Deletes remain a separate, authoritative reset.
+        if (ok && (current == -1 || current == 1)) {
+            if (currentActionOk && currentActionAtMs > 0) {
+                // A selected Core record settles an equal action-time (or
+                // legacy unknown-time) tie, but it must not let an older
+                // real action undo the owner state already made durable.
+                if (actionAtMs == 0 || actionAtMs < currentActionAtMs
+                    || (!resolvedRemoteWinner && actionAtMs == currentActionAtMs))
+                    return true;
+            } else if (actionAtMs == 0 && !resolvedRemoteWinner) {
+                return true;
+            }
+        }
+        if (!resolvedRemoteWinner && ok && current == mark
+            && ((actionAtMs > 0 && currentActionOk && currentActionAtMs == actionAtMs)
+                || (actionAtMs == 0 && !currentActionOk)))
             return true;
 
-        if (!syncWatchSetting(key, mark, false))
+        if (!syncWatchMarkSettings(watchedId, mark, actionAtMs, manual))
             return false;
         bump();
         return true;
@@ -519,16 +610,16 @@ public:
         if (!healthy() || id.isEmpty())
             return false;
 
-        const QString key =
-            QStringLiteral("video/watchedMark/")
-            + seriesRootId(id);
-        if (!m_settings->contains(key))
+        const QString watchedId = seriesRootId(id);
+        const QString key = QStringLiteral("video/watchedMark/") + watchedId;
+        if (!m_settings->contains(key)
+            && !m_settings->contains(watchedMarkActionKey(watchedId)))
             return true;
 
         bool ok = false;
         const int current =
             m_settings->value(key).toInt(&ok);
-        if (!syncWatchSetting(key, QVariant(), true))
+        if (!removeWatchMarkSettings(watchedId))
             return false;
 
         if (ok && (current == -1 || current == 1))
@@ -746,6 +837,111 @@ private:
         return kind + QStringLiteral("\x1f") + id;   // unit-separator: safe joiner
     }
 
+    static QString watchedMarkActionKey(const QString &id) {
+        return QStringLiteral("video/watchedMarkActionAt/") + id;
+    }
+
+    static QString watchedMarkManualKey(const QString &id) {
+        return QStringLiteral("video/watchedMarkManual/") + id;
+    }
+
+    bool syncWatchMarkSettings(
+        const QString &id,
+        int mark,
+        qint64 actionAtMs,
+        bool manual) {
+        if (!m_settings || id.isEmpty() || (mark != -1 && mark != 1)
+            || actionAtMs < 0) {
+            return false;
+        }
+
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+        if (m_forceWatchStatePersistenceFailure) {
+            handleWriterFailure(
+                QStringLiteral("The watched/last-season owner could not be committed."));
+            return false;
+        }
+#endif
+
+        const QString markKey = QStringLiteral("video/watchedMark/") + id;
+        const QString actionKey = watchedMarkActionKey(id);
+        const QString manualKey = watchedMarkManualKey(id);
+        const bool hadMark = m_settings->contains(markKey);
+        const QVariant previousMark = m_settings->value(markKey);
+        const bool hadAction = m_settings->contains(actionKey);
+        const QVariant previousAction = m_settings->value(actionKey);
+        const bool hadManual = m_settings->contains(manualKey);
+        const QVariant previousManual = m_settings->value(manualKey);
+
+        m_settings->setValue(markKey, mark);
+        if (actionAtMs > 0)
+            m_settings->setValue(actionKey, actionAtMs);
+        else
+            m_settings->remove(actionKey);
+        m_settings->setValue(manualKey, manual);
+        m_settings->sync();
+        if (m_settings->status() == QSettings::NoError)
+            return true;
+
+        if (hadMark)
+            m_settings->setValue(markKey, previousMark);
+        else
+            m_settings->remove(markKey);
+        if (hadAction)
+            m_settings->setValue(actionKey, previousAction);
+        else
+            m_settings->remove(actionKey);
+        if (hadManual)
+            m_settings->setValue(manualKey, previousManual);
+        else
+            m_settings->remove(manualKey);
+        m_settings->sync();
+        handleWriterFailure(
+            QStringLiteral("The watched/last-season owner could not be committed."));
+        return false;
+    }
+
+    bool removeWatchMarkSettings(const QString &id) {
+        if (!m_settings || id.isEmpty())
+            return false;
+
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+        if (m_forceWatchStatePersistenceFailure) {
+            handleWriterFailure(
+                QStringLiteral("The watched/last-season owner could not be committed."));
+            return false;
+        }
+#endif
+
+        const QString markKey = QStringLiteral("video/watchedMark/") + id;
+        const QString actionKey = watchedMarkActionKey(id);
+        const QString manualKey = watchedMarkManualKey(id);
+        const bool hadMark = m_settings->contains(markKey);
+        const QVariant previousMark = m_settings->value(markKey);
+        const bool hadAction = m_settings->contains(actionKey);
+        const QVariant previousAction = m_settings->value(actionKey);
+        const bool hadManual = m_settings->contains(manualKey);
+        const QVariant previousManual = m_settings->value(manualKey);
+
+        m_settings->remove(markKey);
+        m_settings->remove(actionKey);
+        m_settings->remove(manualKey);
+        m_settings->sync();
+        if (m_settings->status() == QSettings::NoError)
+            return true;
+
+        if (hadMark)
+            m_settings->setValue(markKey, previousMark);
+        if (hadAction)
+            m_settings->setValue(actionKey, previousAction);
+        if (hadManual)
+            m_settings->setValue(manualKey, previousManual);
+        m_settings->sync();
+        handleWriterFailure(
+            QStringLiteral("The watched/last-season owner could not be committed."));
+        return false;
+    }
+
     bool syncWatchSetting(const QString &key, const QVariant &value,
                           bool remove) {
         if (!m_settings)
@@ -842,6 +1038,26 @@ private:
                 QStringLiteral("The Continue/progress writer could not queue the owner snapshot."));
     }
 
+    void postLocalReceiptSnapshot(quint64 requestId, const QVariantHash &snapshot) {
+        if (!m_writer || !m_writerThread.isRunning()) {
+            handleWriterSnapshotFinished(
+                requestId, false,
+                QStringLiteral("The Continue/progress writer is unavailable."));
+            return;
+        }
+        const bool queued = QMetaObject::invokeMethod(
+            m_writer,
+            "writeSnapshotWithReceipt",
+            Qt::QueuedConnection,
+            Q_ARG(quint64, requestId),
+            Q_ARG(QVariantHash, snapshot));
+        if (!queued) {
+            handleWriterSnapshotFinished(
+                requestId, false,
+                QStringLiteral("The Continue/progress writer could not queue the owner snapshot."));
+        }
+    }
+
     void handleWriterFailure(const QString &error) {
         if (m_persistenceError == error)
             return;
@@ -918,7 +1134,36 @@ private:
 
     void handleWriterSnapshotFinished(quint64 requestId, bool committed,
                                       const QString &error) {
-        handleRemoteSnapshotFinished(requestId, committed, error);
+        if (m_pendingRemote.contains(requestId)) {
+            handleRemoteSnapshotFinished(requestId, committed, error);
+            return;
+        }
+        auto it = m_pendingLocalReceipts.find(requestId);
+        if (it == m_pendingLocalReceipts.end())
+            return;
+        QVariantHash snapshot = it.value();
+        m_pendingLocalReceipts.erase(it);
+        const RemoteCommitCallback callback = m_localReceiptCallbacks.take(requestId);
+        if (!committed) {
+            handleWriterFailure(error);
+            if (callback)
+                callback(false, persistenceError());
+            return;
+        }
+        if (!healthy()) {
+            if (callback)
+                callback(false, persistenceError());
+            return;
+        }
+        const QVariantHash current = snapshotHash();
+        if (snapshot != current) {
+            m_pendingLocalReceipts.insert(requestId, current);
+            m_localReceiptCallbacks.insert(requestId, callback);
+            postLocalReceiptSnapshot(requestId, current);
+            return;
+        }
+        if (callback)
+            callback(true, QString());
     }
 
     // Move the writer onto its thread and arrange a final synchronous flush at shutdown so the
@@ -1051,6 +1296,8 @@ private:
     QString m_persistenceError;
     quint64 m_nextRemoteRequest = 1;
     QHash<quint64, PendingRemote> m_pendingRemote;
+    QHash<quint64, QVariantHash> m_pendingLocalReceipts;
+    QHash<quint64, RemoteCommitCallback> m_localReceiptCallbacks;
     ProgressDiskWriter *m_writer = nullptr;
     QThread m_writerThread;
 #ifdef COLOSSEUM_PROGRESS_STORE_TESTING

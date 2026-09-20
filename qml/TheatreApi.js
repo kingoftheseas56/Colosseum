@@ -291,6 +291,32 @@ function loadMeta(type, id, done) {
     });
 }
 
+// The Stremio native owner can resolve its compressed watched field only with
+// the existing Theatre episode ordering.  Keep this as a deliberately tiny
+// projection: no title, artwork, description, addon data, or response body
+// crosses into the native sync boundary.  The native recipient owns every
+// bound and identity check, including cross-provider/anime pivots.
+function stremioEpisodeMetadataProjection(meta, expectedSeriesId) {
+    var projection = { metadataRootId: "", episodes: [] };
+    var expected = String(expectedSeriesId || "").trim();
+    if (!meta || typeof meta.id !== "string")
+        return projection;
+    projection.metadataRootId = meta.id;
+    if (!expected || projection.metadataRootId !== expected || !Array.isArray(meta.videos))
+        return projection;
+    for (var index = 0; index < meta.videos.length; ++index) {
+        var video = meta.videos[index];
+        // Preserve the returned ordering and let the native owner fail closed
+        // on every malformed scalar, duplicate, root mismatch, or over-limit.
+        projection.episodes.push({
+            id: video ? video.id : "",
+            season: video ? video.season : undefined,
+            episode: video ? video.episode : undefined
+        });
+    }
+    return projection;
+}
+
 function tone(index) {
     return palette[index % palette.length];
 }

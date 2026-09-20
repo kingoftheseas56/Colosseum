@@ -85,7 +85,10 @@ Rectangle {
     property var yourColosseumHighlights:
         AccountActivityFormat.formatHighlights(colosseumProjection.highlights)
     property var yourColosseumRecentActivity:
-        AccountActivityFormat.formatRecentActivity(colosseumProjection.recentActivity)
+        AccountActivityFormat.formatRecentActivityWithStremio(
+            colosseumProjection.recentActivity,
+            (typeof ProfileHistory !== "undefined" && ProfileHistory)
+                ? (ProfileHistory.revision, ProfileHistory.records()) : [])
     property bool yourColosseumPreviousMonthEnabled:
         AccountActivityFormat.previousMonthEnabled(colosseumMonthKey, colosseumEarliestMonthKey)
     property bool yourColosseumNextMonthEnabled:

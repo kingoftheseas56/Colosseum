@@ -126,6 +126,21 @@ const QList<SyncOwnershipEntry> &entries() {
             QStringLiteral("Live ContentPreferences.qml remains the QML explicit-content surface; cumulative production authority is ProfilePreferencesStore and 7C adds its production sync adapter.")
         },
         SyncOwnershipEntry{
+            QStringLiteral("stremio_link"),
+            SyncDisposition::Syncable,
+            SyncOwnerStatus::Confirmed,
+            true,
+            QStringList{QStringLiteral("main_sync_provider")},
+            QStringLiteral("native/account/ProfilePreferencesStore.*"),
+            QStringLiteral("ProfileStoreRuntime -> ProfilePreferencesStore -> StremioLinkSyncAdapter"),
+            QStringLiteral("mainSyncProvider"),
+            QStringLiteral("setMainSyncProvider / applySyncedMainSyncProvider"),
+            QStringLiteral("stremioLinkDirty()"),
+            46,
+            QStringLiteral(""),
+            QStringLiteral("The only portable Stremio value is the fixed non-secret mainSyncProvider marker. Account identity, credentials and configured addon URLs stay device-local.")
+        },
+        SyncOwnershipEntry{
             QStringLiteral("other_durable_preferences"),
             SyncDisposition::Syncable,
             SyncOwnerStatus::Partial,

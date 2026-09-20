@@ -1,0 +1,58 @@
+{
+  "name": "stremio-task1-fixture-projection",
+  "comment": "Task 1's isolated tagged fixture has no connect control and never injects a credential or endpoint. It proves only the named safe projection's exact terminal state after the fixture's own acknowledged record and receipt are settled.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated Stremio fixture session answers",
+      "expect": [
+        { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+        { "path": "gates.read", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "fixture session has its own tagged roots",
+      "expect": [
+        { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest-stremio-task1-fixture" },
+        { "path": "cacheRoot", "op": "contains", "value": "Colosseum-dltest-stremio-task1-fixture" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "application QML is loaded",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "fixture projects the exact completed Stremio state without secret fields",
+      "payload": {
+        "object": "stremioSyncState",
+        "props": [
+          "status",
+          "pendingCount",
+          "lastSuccessAt",
+          "activeProfileId",
+          "mergeComplete",
+          "completedRun"
+        ]
+      },
+      "expect": [
+        { "path": "props.status", "op": "==", "value": "synced" },
+        { "path": "props.pendingCount", "op": "==", "value": 0 },
+        { "path": "props.lastSuccessAt", "op": "==", "value": 1 },
+        { "path": "props.activeProfileId", "op": "==", "value": "stremio-task1-fixture" },
+        { "path": "props.mergeComplete", "op": "==", "value": true },
+        { "path": "props.completedRun", "op": "==", "value": 1 }
+      ]
+    }
+  ]
+}

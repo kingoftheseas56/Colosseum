@@ -26,6 +26,7 @@ WorldPage {
     // Library tab (Stage 2) — the ⋮ menu's Resume / Mark-watched bubble up to Main's handlers.
     signal libraryResumeRequested(var entry)
     signal libraryMarkWatchedRequested(var entry, bool watched)
+    signal libraryRemovalRequested(var entry)
     // Next Up direct play — the exact TheatreSeries.playRequested shape, wired in Main
     // to the same openMovieSession door (spec 2026-07-18, Jellyfin library inheritance).
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
@@ -273,7 +274,7 @@ WorldPage {
         onDetailRequested: (e) => theatre.collectionOpenRequested(e)
         onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.forget("video", String(e.id)) }
         onMarkWatchedRequested: (e, w) => theatre.libraryMarkWatchedRequested(e, w)
-        onRemoveRequested: (e) => { if (typeof Collection !== "undefined") Collection.remove("theatre", String(e.id)) }
+        onRemoveRequested: (e) => theatre.libraryRemovalRequested(e)
     }
 
     // ── See-all overlay: parented to the world root (NOT the scrolling board) so it floats

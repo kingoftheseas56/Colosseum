@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 )
 
 type syncMergeCurrent struct {
@@ -57,10 +59,155 @@ func resolveMutableSync(
 	if !found {
 		return resolveIncomingWithoutCurrent(incoming)
 	}
+	if incoming.Category == "continue_progress" {
+		return resolveTheatreProgressSync(current, incoming)
+	}
+	if incoming.Category == "watch_state" && strings.HasPrefix(incoming.RecordKey, "watch/mark/") {
+		return resolveWatchStateSync(current, incoming)
+	}
 	if incoming.Category != "full_history" {
 		return resolveSyncLWW(current, incoming)
 	}
 	return resolveHistorySync(current, incoming)
+}
+
+// Theatre video progress is the only ordinary mutable record whose payload
+// represents a real viewing action. Its `updatedAt` is therefore compared
+// before transport/HLC arrival order. The selected payload is deliberately
+// written under a newer incoming envelope when required so sequence remains
+// monotonic without allowing an older playback position to replace it.
+func resolveTheatreProgressSync(
+	current syncMergeCurrent,
+	incoming parsedSyncMutation,
+) (syncResolution, error) {
+	if current.Operation != "put" || incoming.Operation != "put" {
+		return resolveSyncLWW(current, incoming)
+	}
+	currentActivity, currentTheatre := theatreProgressActivity(current.Payload)
+	incomingActivity, incomingTheatre := theatreProgressActivity(incoming.Payload)
+	if !currentTheatre || !incomingTheatre {
+		return resolveSyncLWW(current, incoming)
+	}
+
+	incomingNewer := syncIncomingIsNewer(current, incoming)
+	if incomingActivity > currentActivity {
+		// The newer real action must materialize even when it arrived beneath
+		// the current HLC envelope. Preserve that envelope and advance the
+		// server sequence: clients treat the later sequence as a semantic
+		// payload update at the same ordering HLC.
+		if !incomingNewer {
+			return syncResolutionFromCurrent(
+				current,
+				cloneSyncMergePayload(incoming.Payload),
+				true), nil
+		}
+		return syncResolutionFromIncoming(
+			incoming,
+			cloneSyncMergePayload(incoming.Payload),
+			true), nil
+	}
+	if !incomingNewer {
+		return syncResolutionFromCurrent(
+			current,
+			cloneSyncMergePayload(current.Payload),
+			false), nil
+	}
+	return syncResolutionFromIncoming(
+		incoming,
+		cloneSyncMergePayload(current.Payload),
+		true), nil
+}
+
+func theatreProgressActivity(payload json.RawMessage) (int64, bool) {
+	object, err := decodeSyncObject(payload)
+	if err != nil {
+		return 0, false
+	}
+	kind, kindOK := object["kind"].(string)
+	id, idOK := object["id"].(string)
+	activity, activityOK := syncIntegerNumber(object["updatedAt"])
+	if !kindOK || kind != "video" || !idOK || strings.TrimSpace(id) == "" ||
+		!activityOK || activity <= 0 {
+		return 0, false
+	}
+	return activity, true
+}
+
+// Watched/unwatched is a current-state decision, not cumulative History. A
+// real action time wins over arrival order, while the selected payload may be
+// materialized beneath a monotonic HLC envelope. Deletes deliberately remain
+// ordinary barriers so privacy/reset semantics are unchanged.
+func resolveWatchStateSync(
+	current syncMergeCurrent,
+	incoming parsedSyncMutation,
+) (syncResolution, error) {
+	if current.Operation != "put" || incoming.Operation != "put" {
+		return resolveSyncLWW(current, incoming)
+	}
+	currentAction, currentHasAction, currentValid := watchStateAction(current.Payload)
+	incomingAction, incomingHasAction, incomingValid := watchStateAction(incoming.Payload)
+	if !currentValid || !incomingValid {
+		return resolveSyncLWW(current, incoming)
+	}
+
+	incomingNewer := syncIncomingIsNewer(current, incoming)
+	if incomingHasAction && (!currentHasAction || incomingAction > currentAction) {
+		if !incomingNewer {
+			return syncResolutionFromCurrent(
+				current,
+				cloneSyncMergePayload(incoming.Payload),
+				true), nil
+		}
+		return syncResolutionFromIncoming(
+			incoming,
+			cloneSyncMergePayload(incoming.Payload),
+			true), nil
+	}
+
+	// A known action beats an unknown legacy timestamp, and equal real action
+	// times are a stable tie. When transport order advances we still publish
+	// the monotonic envelope, carrying the settled payload forward.
+	if currentHasAction {
+		if !incomingNewer {
+			return syncResolutionFromCurrent(
+				current,
+				cloneSyncMergePayload(current.Payload),
+				false), nil
+		}
+		return syncResolutionFromIncoming(
+			incoming,
+			cloneSyncMergePayload(current.Payload),
+			true), nil
+	}
+
+	// Two legacy unknown-time decisions retain the established deterministic
+	// HLC/device tie-break rather than inventing an action chronology.
+	return resolveSyncLWW(current, incoming)
+}
+
+func watchStateAction(payload json.RawMessage) (action int64, hasAction bool, valid bool) {
+	object, err := decodeSyncObject(payload)
+	if err != nil {
+		return 0, false, false
+	}
+	id, idOK := object["id"].(string)
+	mark, markOK := syncIntegerNumber(object["mark"])
+	if !idOK || strings.TrimSpace(id) == "" || !markOK || (mark != -1 && mark != 1) {
+		return 0, false, false
+	}
+	rawAction, present := object["actionAtMs"]
+	if !present {
+		return 0, false, true
+	}
+	actionText, actionOK := rawAction.(string)
+	if !actionOK {
+		return 0, false, false
+	}
+	action, actionOK = parseSyncIntegerToken(actionText)
+	if !actionOK || action <= 0 {
+		return 0, false, false
+	}
+	return action, true, true
 }
 
 type syncActivityResetPayload struct {
@@ -271,6 +418,11 @@ func mergeHistorySyncPuts(
 		lastActivityAt:  maxSyncTimestamp(currentHistory.lastActivityAt, incomingHistory.lastActivityAt),
 		completedAt:     minPositiveSyncTimestamp(currentHistory.completedAt, incomingHistory.completedAt),
 	}
+	mergeStremioHistoryPresentation(
+		&merged,
+		currentHistory.object,
+		incomingHistory.object,
+		incomingNewer)
 	mergedPayload, err := canonicalSyncHistoryPayload(merged)
 	if err != nil {
 		return syncResolution{}, err
@@ -287,6 +439,57 @@ func mergeHistorySyncPuts(
 	}
 	return syncResolutionFromCurrent(
 		current, mergedPayload, changed), nil
+}
+
+func mergeStremioHistoryPresentation(
+	merged *syncHistoryPayload,
+	current, incoming map[string]any,
+	incomingNewer bool,
+) {
+	if merged == nil {
+		return
+	}
+	currentDisplayID, currentTitle, currentLatest, currentOK := stremioHistoryPresentation(current)
+	incomingDisplayID, incomingTitle, incomingLatest, incomingOK := stremioHistoryPresentation(incoming)
+	if !currentOK && !incomingOK {
+		return
+	}
+
+	displayID, displayTitle, latestKnownAt := currentDisplayID, currentTitle, currentLatest
+	if incomingOK && (!currentOK || incomingLatest > currentLatest ||
+		(incomingLatest == currentLatest && incomingNewer)) {
+		displayID, displayTitle, latestKnownAt = incomingDisplayID, incomingTitle, incomingLatest
+	}
+	if latestKnownAt < merged.firstActivityAt || latestKnownAt > merged.lastActivityAt {
+		return
+	}
+	merged.object["source"] = "stremio"
+	merged.object["displayId"] = displayID
+	merged.object["displayTitle"] = displayTitle
+	merged.object["latestKnownAt"] = json.Number(strconv.FormatInt(latestKnownAt, 10))
+}
+
+func stremioHistoryPresentation(object map[string]any) (
+	displayID, displayTitle string,
+	latestKnownAt int64,
+	ok bool,
+) {
+	if object["source"] != "stremio" {
+		return "", "", 0, false
+	}
+	displayID, displayIDOK := object["displayId"].(string)
+	displayTitle, displayTitleOK := object["displayTitle"].(string)
+	if !displayIDOK || displayID == "" || displayID != strings.TrimSpace(displayID) ||
+		utf8.RuneCountInString(displayID) > 512 || isSyncFilesystemPath(displayID) ||
+		!displayTitleOK || displayTitle == "" || displayTitle != strings.TrimSpace(displayTitle) ||
+		utf8.RuneCountInString(displayTitle) > 1024 || isSyncFilesystemPath(displayTitle) {
+		return "", "", 0, false
+	}
+	latestKnownAt, err := syncHistoryTimestamp(object, "latestKnownAt", true)
+	if err != nil {
+		return "", "", 0, false
+	}
+	return displayID, displayTitle, latestKnownAt, true
 }
 
 func syncIncomingIsNewer(

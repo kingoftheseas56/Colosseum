@@ -10,6 +10,7 @@ import "TheatreFacts.js" as TheatreFacts
 
 Item {
     id: page
+    signal libraryRemovalRequested(var entry)
     objectName: "theatreSeriesPage"
     property Item backdrop
     property var itemData: ({})
@@ -1215,6 +1216,7 @@ Item {
                         LibraryButton {
                             world: "theatre"
                             entry: page.collectionEntry()
+                            onRemoveRequested: (entry) => page.libraryRemovalRequested(entry)
                         }
                         // Notify-about-new-episodes toggle (spec §4.5) — only for SAVED series.
                         // Flips payload.libNotif; a silenced series stops badging + counting.

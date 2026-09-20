@@ -25,6 +25,105 @@ left untouched. On both launches Lanista matched `accountCenter.onlineAccount ==
 runtime proof for normal restart restoration on this machine, not a cross-device sync
 qualification.
 
+## Stremio secure connection foundation — Task 1 (2026-09-19)
+
+`colosseum.qttest.stremio_sync` is the registered deterministic native owner
+contract for the Task 1 connection foundation. Its tagged loopback fixture
+covers nonce-correlated forged, replayed and oversized callbacks; cancellation,
+late validation replies and A-to-B profile fencing; `getUser` identity validation;
+profile-keyed Credential Manager save/load isolation and vault failure; malformed
+journal pause; persistence before send; restart before send and after remote
+acknowledgement; bounded retry; and the non-secret `stremioSyncState` projection.
+It uses only a local fixture endpoint when `COLOSSEUM_APPDATA_TAG` is set.
+
+`colosseum.qttest.profile_preferences_sync` additionally proves the fixed
+`stremio_link` marker's export, remote put/delete round-trip, and rejection of
+credential- or URL-shaped payloads. `colosseum.qttest.sync_inventory` and
+`colosseum.qttest.sync_adapter_registry` cover the registry/firewall inventory;
+the account-service policy test admits only the fixed marker schema. There is no
+Task 1 connection UI, so no Qt Quick journey is registered; the native projection
+property contract is the deliberately small load/read smoke seam.
+
+Task 1 evidence is kept under `artifacts/stremio-sync/task-1/`. It proves the
+isolated foundation and not later library, addon, panel, or real-service work.
+The review-repair matrix expanded `colosseum.qttest.stremio_sync` to 39 native
+cases: durable/in-flight dispatch, path-scoped A→B→A receipt and failure
+fencing, returned identity mismatch, provisional-credential cancellation,
+durable rejection across reactivation/restart, strict official endpoint and
+bounded identity reply handling, progress coalescing, callback recovery,
+marker restoration, and delayed auth-attempt receipts. Red receipts prove both
+the pre-repair gaps and two restored mutations that drop the persistence or
+rejection fences. The affected CTest matrix passed `account_attachment_runtime`,
+`sync_adapter_registry`, `profile_preferences_sync`, and `sync_inventory`; the
+account-service Go policy suite passed its fixed-marker admission/rejection
+cases (database integration tests correctly skip with `TEST_DATABASE_URL`
+unset). The exact-tagged Lanista session `20260920-034936-b0c7dbd9` passed
+`ping`, tagged-root `get-state`, and all six safe projection fields for profile
+`stremio-task1-fixture` with terminal status `synced`. The post-repair
+all-target build and focused 39-case target passed. The registered `-L unit`
+run passed every Task 1 target but ended 139/147 because of pre-existing
+Reader2, capture, startup, Vault artwork/ffmpeg, manga-download, shell-back,
+and video-source failures plus a timing-only core-sync silent-tick failure;
+those categories were not changed by Task 1.
+
+## Stremio media convergence — Task 2 (2026-09-20)
+
+Task 2 extends the existing Stremio owner without a provider framework or a
+visible surface. `colosseum.qttest.stremio_sync` proves bounded `libraryItem`
+meta/get/put codec behavior, malformed-row isolation, replaceable-progress
+handling, first-merge and removal/re-add semantics, fresh-provider readback,
+ordered watched episode patches, owner-durable import and retry fencing. It
+also proves that marker restoration resumes a durable recovered intent and
+rearams its persisted bounded backoff deadline without sending while unlinked.
+`colosseum.qttest.core_sync_adapters`,
+`account_attachment_runtime`, `account_adoption`, and `history_sync` cover
+profile/incarnation fences, replay before owner application, owner-before-Neon
+checkpoint ordering, history provenance/privacy, native activity-time ordering,
+and no-echo two-replica convergence.
+
+The nonvisual Qt Quick bridge is exercised by
+`tst_stremio_episode_metadata_bridge.qml` (4 checks) and
+`tst_library_api_watch_time.qml` (5 checks). It passes only a request id,
+series root, and ordered episode identity tuples to native code; no credential,
+provider request, addon URL, or compressed watched payload crosses QML. Task 2
+adds no UI journey, so Lanista is deliberately not a Task 2 gate.
+
+The final residual convergence repair keeps a passive remote library removal as
+a durable inverse difference, applies Core-selected equal/unknown watched ties
+without allowing an older real action to win, carries the series library root
+alongside an exact episode video identity, preserves imported-current versus
+manual watched provenance for LibraryApi, and treats an equal-time provider
+row as the acknowledged current state. The composed two-account journey proves
+Stremio import through AccountRuntime and Core replication reaches the second
+owner with a root-only provider lookup, exact episode identity, drained outbox,
+and zero provider echo across repeat and restart.
+
+Fresh residual gates: `stremio_sync` passed 61/61; `core_sync_adapters` passed
+43/43; the composed runtime fixture passed 3/3; and the affected native CTest
+matrix (`account_attachment_runtime`, `account_adoption`,
+`core_sync_adapters`, `history_sync`, and `stremio_sync`) passed 5/5. The
+aggregate Qt Quick run retained its existing unrelated failures (640 passed,
+15 failed, 3 skipped), while the Task 2 `LibraryApiWatchTime` and
+`StremioEpisodeMetadataBridge` cases passed. `go test ./...` and both the
+application and all-target builds passed. The final `ctest -L unit` run ended
+139/147: the eight failures are pre-existing Reader2 runtime, capture runner,
+startup deferral/responsiveness, Vault artwork, manga-download responsiveness,
+shell-back arbitration, and video-source handoff contracts; none is a Task 2
+target. Disposable database integration was not run because `TEST_DATABASE_URL`
+is unset. Sanitized red/green receipts and the Task 2 self-review are under
+`artifacts/stremio-sync/task-2/`, including `residual/f1-red-run.txt` through
+`residual/f5-green-run.txt`, `residual/f3-composed-green-run.txt`, and
+`residual/full-unit-final.stdout.txt`.
+
+The follow-up watched-current repair carries only the bounded owner
+`actionAt` alongside the existing `{mark, manual}` projection. LibraryApi now
+keeps an acknowledged nonmanual provider mark across equal or missing times,
+lets only a strictly newer durable progress/completion action supersede it,
+and preserves the existing manual behavior. The focused Qt Quick test passed
+9/9 and the real importer/owner Qt Test passed 43/43; both the application and
+Qt Quick runner rebuilt cleanly. Red/green evidence is under
+`artifacts/stremio-sync/task-2/residual-final/`.
+
 ### Reader 2 Function 0007 gating update (2026-08-30)
 
 - `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.
@@ -2381,3 +2480,104 @@ disposable app session with `COLOSSEUM_WORLD_WARMER=0`.
 - `colosseum.qml` aggregate on this tree: adoption-owned cases green in every run; remaining reds
   are the documented pre-existing destruction case plus environment-sensitive Account/Update
   click-target cases (non-deterministic on this desktop; arc 31 evidence 62b).
+
+## Stremio Sync Task 3 — profile addons and account continuity (2026-09-20)
+
+Written DoD: `docs/stremio-sync-implementation-plan.md`, Task 3 completion criterion.
+Work reviewed: the Task 3 working-tree diff on `codex/stremio-sync`.
+
+- MET — Exact addon semantics: `StremioCodec` uses the required GET/SET payloads; the native
+  reconcile path serializes whole writes, rebases explicit local deltas on a fresh GET, verifies
+  readback, preserves unknown fields and bounds conflicts. Tests cover first merge, local
+  removal/reorder, concurrent remote addition/removal/reorder, malformed containers and bounded
+  mismatch retry.
+- MET — Production owner and profile isolation: `ExtensionsStore` owns Theatre rows per active
+  profile, migrates legacy rows once, preserves house defaults for new profiles, commits before
+  publishing, fences stale manifest replies and targets configured instances by normalized
+  transport URL. Core/native and non-Theatre rows remain outside provider membership.
+- MET — Durable baseline safety: the remote baseline advances only after verified provider
+  readback; the managed-local baseline advances only after `ExtensionsStore` durably applies the
+  settled collection. Remote-only addons cannot be inferred as local removals.
+- MET — Adoption isolation: the existing adoption snapshot/receipt/rollback path carries the
+  marker, watched action timestamps, private Stremio journal and profile addon store. The vault
+  transfer verifies the destination before source retirement and resumes idempotently after a
+  failed save. Normal Neon adapter manifests remain unchanged.
+- MET — Disconnect and account switch: the journal generation is retired before reply aborts,
+  device credentials and provider-only work are cleared, canonical stores/addons remain, and a
+  replacement login begins only after the old addon baseline is durably retired.
+- MET — Interrupted migration: focused adoption tests prove source preservation on vault failure,
+  successful retry, destination profile rebinding and local source retirement only after the
+  verified handoff.
+
+Self-review found and fixed four pre-commit defects: false install success after a failed profile
+save, malformed collection containers being treated as empty, disconnect fencing occurring after
+reply abort, and unchanged local addons resurrecting concurrent remote removals. No Trakt, Nuvio,
+provider registry, category toggles or generalized provider framework entered the diff.
+
+Verification: the production `colosseum` target linked successfully. Focused CTest passed 4/4:
+`colosseum.extensions_first_run`, `colosseum.qttest.stremio_sync`,
+`colosseum.qttest.account_adoption`, and `colosseum.qttest.account_shared_pc`. The extension reorder
+Node harness passed completely and `git diff --check` reported no errors. The attachment runtime
+suite passed 17/18; its sole failure is the pre-existing host provisioning gap where the isolated
+test executable cannot load the `QtQuick` module. Every non-QML attachment/runtime case, including
+the new profile-owner case, passed.
+
+Status: **Test-reported.** Task 5 retains the tagged Lanista and official-account runtime
+qualification; no runtime-validation claim is made here.
+
+`[Sol (Codex), review] APPROVE — Task 3 meets its written completion criterion with the known
+QtQuick host-provisioning failure isolated and unchanged.`
+
+## Stremio Sync Task 4 — Theatre controls and History presentation (2026-09-20)
+
+Task 4 adds the user-facing Stremio door without changing Colosseum identity or
+introducing a provider framework. `tst_stremio_sync_panel.qml`,
+`tst_theatre_removal_dialog.qml`, the extended top-bar navigation suite, and the
+extended account-activity suite cover the six panel states, official asset path,
+Theatre-only visibility, focus/escape, both explicit removal choices, labelled and
+deduplicated Stremio History, and the Stats exclusion. `colosseum.qttest.stremio_sync`
+proves that visible completion is published only after committed work and that failure
+can retry. `account_attachment_runtime` and `account_adoption` cover the real accountless
+legacy/local owners, private addon root, profile fencing, and credential continuity into
+the first Neon profile.
+
+The aggregate Qt Quick run ended 655 passed, 14 failed, 3 skipped, improving the recorded
+Task 2 baseline of 630 passed, 15 failed, 3 skipped. All new Task 4 cases passed; the
+remaining failures stay within the previously recorded account-click, atlas-capture,
+Player2 construction, Tankoyomi layout, and update-gallery categories. The focused native
+Stremio, adoption and attachment targets passed. The assembled-app runtime journey is
+recorded in the Lanista ledger and its manifest.
+
+`[Sol (Codex), review] APPROVE — Task 4 meets its written completion criterion. The
+accountless legacy-profile defect found by the runtime journey was repaired at the
+existing private-store/adoption seam and is covered at native and assembled-app layers.`
+
+## Stremio Sync Task 5 — final qualification (2026-09-20)
+
+The final source-built qualification used a fresh short-path Ninja directory because the
+normal worktree path exceeds MSVC's object-file path limit for the full test graph. All 115
+native executable targets behind the 147 registered `unit` tests compiled successfully.
+With the documented Qt, MpvQt and libmpv runtime directories available, the full gate ended
+**137/147**. Every Stremio, account attachment/adoption/shared-PC, sync engine/adapter,
+History, profile-preference and extension target passed. The ten remaining failures are
+outside the Stremio diff: Reader2 runtime, comic pack fixture creation, capture output,
+startup deferral/responsiveness, Vault image/artwork and ffmpeg provisioning, manga cleanup,
+shell-back arbitration, and video-source handoff. The Stremio target's first aggregate run
+had one 250 ms timeout miss; the isolated rerun and the final full gate both passed.
+
+The final `colosseum.qml` aggregate ended **657 passed, 13 failed, 3 skipped**. Every Stremio
+panel, episode bridge, History/Stats, removal and top-bar case passed. The remaining QML
+failures stay in the documented AccountDataPrivacy, unavailable Player module, OnePiece
+atlas-capture and Player2-construction categories. The Theatre extension reorder harness
+also passed completely.
+
+`go test ./...` passed across the account service, including the changed sync-policy and
+semantic-merge cases. `TEST_DATABASE_URL` was absent, so disposable-Postgres integration
+remains unrun rather than inferred green. The tagged Lanista sessions and visual evidence
+are recorded in the runtime ledger. Official browser authentication remains a separate
+witnessed check because no designated Stremio test account was supplied; no personal
+account was used.
+
+`[Sol (Codex), review] APPROVE — Tasks 1–5 satisfy the written Stremio contract at the
+available deterministic and assembled-app layers. No introduced regression, credential
+leak, Trakt/Nuvio surface or generalized provider framework remains in scope.`

@@ -38,12 +38,14 @@ public:
     bool rememberSearchHistory() const;
     bool keepActivityHistory() const;
     bool syncActivityHistory() const;
+    QString mainSyncProvider() const;
 
     void setShowExplicit(
         bool showExplicit);
     Q_INVOKABLE void setRememberSearchHistory(bool enabled);
     Q_INVOKABLE void setKeepActivityHistory(bool enabled);
     Q_INVOKABLE void setSyncActivityHistory(bool enabled);
+    bool setMainSyncProvider(const QString &provider);
 
     // Native remote-apply seam. Persists and notifies the shell, but does not
     // manufacture a new local sync mutation.
@@ -51,18 +53,25 @@ public:
         bool showExplicit);
 
     bool clearSyncedShowExplicit();
+    bool applySyncedMainSyncProvider(const QString &provider);
+    bool clearSyncedMainSyncProvider();
 
 signals:
     void showExplicitChanged();
     void rememberSearchHistoryChanged();
     void keepActivityHistoryChanged();
     void syncActivityHistoryChanged();
+    void mainSyncProviderChanged();
     void changed();
     void syncDirty();
+    void stremioLinkDirty();
 
 private:
     bool commitShowExplicit(
         bool showExplicit,
+        bool localMutation);
+    bool commitMainSyncProvider(
+        const QString &provider,
         bool localMutation);
 
     void load();
@@ -73,5 +82,6 @@ private:
     bool m_rememberSearchHistory = true;
     bool m_keepActivityHistory = true;
     bool m_syncActivityHistory = true;
+    QString m_mainSyncProvider;
     int m_revision = 0;
 };

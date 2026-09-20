@@ -59,6 +59,67 @@ Window {
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
 
+    // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
+    // Lanista deliberately reads QQuickItem properties only; never expose credentials,
+    // provider account ids, callback URLs, or configured addon state here.
+    Item {
+        objectName: "stremioSyncState"
+        visible: false
+        width: 0
+        height: 0
+        property var status: stremioSyncState.status
+        property var pendingCount: stremioSyncState.pendingCount
+        property var lastSuccessAt: stremioSyncState.lastSuccessAt
+        property var activeProfileId: stremioSyncState.activeProfileId
+        property var mergeComplete: stremioSyncState.mergeComplete
+        property var completedRun: stremioSyncState.completedRun
+        property var accountDisplayName: stremioSyncState.accountDisplayName
+        property var lastResultSummary: stremioSyncState.lastResultSummary
+        property var linkedAccount: stremioSyncState.linkedAccount
+    }
+
+    function theatreWorldItem() {
+        for (let i = 0; i < worldRepeater.count; ++i) {
+            const loader = worldRepeater.itemAt(i)
+            if (loader && loader.mode === "Theatre" && loader.item)
+                return loader.item
+        }
+        return null
+    }
+    function openStremioSyncPanel() {
+        stremioPanel.shown = true
+    }
+    function closeStremioSyncPanel() {
+        stremioPanel.shown = false
+        const theatreWorld = win.theatreWorldItem()
+        if (theatreWorld)
+            Qt.callLater(function() { theatreWorld.focusStremioButton() })
+    }
+    function requestTheatreRemoval(entry) {
+        theatreRemoval.entry = entry
+        theatreRemoval.shown = true
+    }
+
+    // The existing Theatre metadata reader is the only QML participant in
+    // Stremio episode-state reconciliation. It receives a one-shot opaque
+    // request and returns an identity-only ordered episode map; the native
+    // owner retains profile/account fences, timeouts, compressed watched data,
+    // and all validation. This has no visual or user-control surface.
+    Connections {
+        target: (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
+        function onEpisodeMetadataRequested(requestId, seriesId) {
+            TheatreApi.loadMeta("series", seriesId, function(meta) {
+                var projection = TheatreApi.stremioEpisodeMetadataProjection(meta, seriesId)
+                stremioSyncState.submitEpisodeMetadata(
+                    requestId, projection.metadataRootId, projection.episodes)
+            })
+        }
+        Component.onCompleted: {
+            if (target)
+                target.setEpisodeMetadataBridgeReady(true)
+        }
+    }
+
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
     // Shortcut objects below only deliver the physical chord into this registry-backed action.
     KeyboardRegistry {
@@ -3336,6 +3397,7 @@ Window {
         anchors.fill: parent
         property string current: ""                      // "" = home; else the visible mode
         Repeater {
+            id: worldRepeater
             model: openModes
             delegate: Loader {
                 required property string mode
@@ -3424,6 +3486,8 @@ Window {
                         if (tgiSignal) tgiSignal.connect(win.openTheatreGenreIndex)
                     }
                     item.searchClicked.connect(win.openSearch)
+                    if (item.stremioClicked) item.stremioClicked.connect(win.openStremioSyncPanel)
+                    if (item.libraryRemovalRequested) item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
                     if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
                     item.powerClicked.connect(function() { Qt.quit() })
@@ -3825,6 +3889,30 @@ Window {
             item.playLocalRequested.connect(win.openLocalVideoSession)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
+            item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
+        }
+    }
+
+    StremioSyncPanel {
+        id: stremioPanel
+        objectName: "stremioSyncOverlay"
+        anchors.fill: parent
+        z: 960
+        syncState: typeof stremioSyncState !== "undefined" ? stremioSyncState : null
+        actions: typeof StremioActions !== "undefined" ? StremioActions : null
+        onCloseRequested: win.closeStremioSyncPanel()
+    }
+
+    TheatreRemovalDialog {
+        id: theatreRemoval
+        objectName: "theatreRemovalOverlay"
+        anchors.fill: parent
+        z: 961
+        syncState: typeof stremioSyncState !== "undefined" ? stremioSyncState : null
+        actions: typeof StremioActions !== "undefined" ? StremioActions : null
+        onCloseRequested: {
+            shown = false
+            entry = null
         }
     }
 

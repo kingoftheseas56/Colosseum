@@ -1,6 +1,7 @@
 package account
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -456,8 +457,21 @@ func (s *Service) pushOneSyncMutation(
 			if err != nil {
 				return SyncPushResult{}, fmt.Errorf("encrypt materialized History payload: %w", err)
 			}
-		} else {
+		} else if bytes.Equal(resolution.Payload, parsed.CanonicalPayload) {
 			materializedCipher = ciphertext
+		} else {
+			// Semantic Theatre progress merging can retain a current payload
+			// beneath a newer incoming HLC envelope. The journal/current rows
+			// must encrypt the resolved payload rather than the losing request
+			// body, or a later pull decrypts the wrong viewing state.
+			materializedCipher, err = s.syncCipher.Seal(
+				auth.Account.ID,
+				parsed.Category,
+				parsed.RecordKey,
+				resolution.Payload)
+			if err != nil {
+				return SyncPushResult{}, fmt.Errorf("encrypt materialized sync payload: %w", err)
+			}
 		}
 	}
 

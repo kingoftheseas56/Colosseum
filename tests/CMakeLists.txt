@@ -1651,6 +1651,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
@@ -1672,6 +1674,15 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
@@ -1679,7 +1690,7 @@ add_executable(account_first_light
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 if(WIN32)
     target_link_libraries(account_first_light PRIVATE Advapi32 User32)
 endif()
@@ -1755,6 +1766,17 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
@@ -1782,6 +1804,8 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
@@ -1790,6 +1814,7 @@ target_include_directories(tst_account_attachment_runtime PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_account_attachment_runtime PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Network
     Qt6::Qml
     Qt6::Sql
@@ -1808,6 +1833,10 @@ add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
 add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -2718,13 +2747,24 @@ add_executable(tst_core_sync_adapters
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c")
 target_include_directories(tst_core_sync_adapters PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_compile_definitions(tst_core_sync_adapters PRIVATE
     COLOSSEUM_PROGRESS_STORE_TESTING=1)
 target_link_libraries(tst_core_sync_adapters PRIVATE
     Qt6::Core
+    Qt6::Gui
+    Qt6::Network
     Qt6::Test)
 set_target_properties(tst_core_sync_adapters PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -2844,6 +2884,53 @@ set_tests_properties(colosseum.qttest.sync_category_policy PROPERTIES
 
 
 # ── Profile-owned explicit-content preference sync (Bundle 8C, Slice 14C) ──
+add_executable(tst_stremio_sync
+    auto/stremio_sync/tst_stremio_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h")
+target_include_directories(tst_stremio_sync PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_stremio_sync PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Network
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_stremio_sync PRIVATE Advapi32)
+endif()
+set_target_properties(tst_stremio_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_stremio_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_stremio_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Core>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_stremio_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Network>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_stremio_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.stremio_sync
+         COMMAND tst_stremio_sync)
+set_tests_properties(colosseum.qttest.stremio_sync PROPERTIES
+    LABELS "unit;qttest;stremio;sync;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)
+
 add_executable(tst_profile_preferences_sync
     auto/profile_preferences_sync/tst_profile_preferences_sync.cpp
     "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
@@ -2855,6 +2942,8 @@ add_executable(tst_profile_preferences_sync
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"

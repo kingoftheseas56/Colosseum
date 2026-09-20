@@ -15,6 +15,12 @@ bool pendingTargetMatches(const QString &prefix, const QString &target);
 
 }
 
+struct StoredStremioCredential {
+    QString profileId;
+    QString accountId;
+    QByteArray authKey;
+};
+
 class WindowsAccountCredentialStore final : public AccountCredentialStore {
 public:
     bool isAvailable() const override;
@@ -34,12 +40,23 @@ public:
     static QString activeTargetName();
     static QString pendingTargetPrefix();
     static QString deletionTargetPrefix();
+    static QString stremioTargetName(const QString &profileId);
+
+    std::optional<StoredStremioCredential> loadStremio(
+        const QString &profileId,
+        const QString &accountId) const;
+    bool saveStremio(const StoredStremioCredential &credential);
+    bool clearStremio(const QString &profileId);
 
 private:
     static QByteArray encodeCredential(const StoredAccountCredential &credential);
     static std::optional<StoredAccountCredential> decodeCredential(const QByteArray &blob);
     static QString pendingTargetName(const QByteArray &refreshToken);
     static QString deletionTargetName(const QString &requestId);
+    static bool validStremioProfileId(const QString &profileId);
+    static bool validStremioAccountId(const QString &accountId);
+    static QByteArray encodeStremioCredential(const StoredStremioCredential &credential);
+    static std::optional<StoredStremioCredential> decodeStremioCredential(const QByteArray &blob);
 
     static bool writeGenericCredential(const QString &target, const QByteArray &blob);
     static std::optional<QByteArray> readGenericCredential(const QString &target);

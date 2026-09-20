@@ -212,6 +212,25 @@ inline bool core(
     }
 
     if (category == QLatin1String("full_history")) {
+        const QSet<QString> allowed{
+            QStringLiteral("kind"),
+            QStringLiteral("id"),
+            QStringLiteral("firstActivityAt"),
+            QStringLiteral("lastActivityAt"),
+            QStringLiteral("completedAt"),
+            QStringLiteral("source"),
+            QStringLiteral("displayId"),
+            QStringLiteral("displayTitle"),
+            QStringLiteral("latestKnownAt")};
+        for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+            if (!allowed.contains(it.key())) {
+                return fail(
+                    error,
+                    QStringLiteral("payload_invalid"),
+                    QStringLiteral("The History payload contains an unsupported field."),
+                    it.key());
+            }
+        }
         qint64 first = 0;
         qint64 last = 0;
         if (!integer(object, QStringLiteral("firstActivityAt"), &first, true, error)
@@ -231,6 +250,48 @@ inline bool core(
                     error,
                     QStringLiteral("payload_invalid"),
                     QStringLiteral("The completed history timestamp is invalid."));
+            }
+        }
+
+        const bool hasStremioField = object.contains(QStringLiteral("source"))
+            || object.contains(QStringLiteral("displayId"))
+            || object.contains(QStringLiteral("displayTitle"))
+            || object.contains(QStringLiteral("latestKnownAt"));
+        if (hasStremioField) {
+            const QJsonValue source = object.value(QStringLiteral("source"));
+            const QJsonValue displayId = object.value(QStringLiteral("displayId"));
+            const QJsonValue displayTitle = object.value(QStringLiteral("displayTitle"));
+            if (!source.isString()
+                || source.toString() != QLatin1String("stremio")
+                || !displayId.isString()
+                || displayId.toString().trimmed().isEmpty()
+                || displayId.toString() != displayId.toString().trimmed()
+                || displayId.toString().size() > 512
+                || SyncPayloadFirewall::isFilesystemPathValue(displayId.toString())
+                || !displayTitle.isString()
+                || displayTitle.toString().trimmed().isEmpty()
+                || displayTitle.toString() != displayTitle.toString().trimmed()
+                || displayTitle.toString().size() > 1024
+                || SyncPayloadFirewall::isFilesystemPathValue(displayTitle.toString())) {
+                return fail(
+                    error,
+                    QStringLiteral("payload_invalid"),
+                    QStringLiteral("The Stremio History presentation fields are invalid."));
+            }
+            qint64 latestKnownAt = 0;
+            if (!integer(
+                    object,
+                    QStringLiteral("latestKnownAt"),
+                    &latestKnownAt,
+                    true,
+                    error)
+                || latestKnownAt < first
+                || latestKnownAt > last) {
+                return fail(
+                    error,
+                    QStringLiteral("payload_invalid"),
+                    QStringLiteral("The Stremio History date is invalid."),
+                    QStringLiteral("latestKnownAt"));
             }
         }
     }

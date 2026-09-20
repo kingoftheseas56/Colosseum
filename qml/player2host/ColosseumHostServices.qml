@@ -531,9 +531,14 @@ QtObject {
         var remain = Math.max(0, duration - position)
         var meta = host._episodeMeta()
         var epPrefix = meta.isEpisode ? ("S" + meta.season + " · E" + meta.episode + " · ") : ""
+        var exactVideoId = String(mediaId)
+        var libraryItemId = host.subStreamType === "series"
+                          ? EpisodeBrowser.seriesRootId(exactVideoId)
+                          : exactVideoId
 
         var entry = {
-            "id": String(mediaId),
+            "id": exactVideoId,
+            "libraryId": libraryItemId,
             "kind": "video",
             "caption": host.mediaTitle,
             "title": host.mediaTitle,
@@ -541,6 +546,7 @@ QtObject {
             "cover": host.mediaArt,
             "c1": "#33445d", "c2": "#0c1118",
             "progress": frac,
+            "duration": Number(duration),
             "resume": { "infoHash": host.mediaResumeHash,
                         "fileIdx": host.mediaResumeFileIdx,
                         "localPath": host.mediaLocalPath,

@@ -4,13 +4,17 @@
 
 #include "ProfileStoreRuntime.h"
 
+#include <utility>
+
 SharedPcProfileCoordinator::SharedPcProfileCoordinator(
     ProfileStoreRuntime *profileRuntime,
-    const QString &appDataRoot)
+    const QString &appDataRoot,
+    StremioCredentialAdoptionCallbacks stremioCredentials)
     : m_profileRuntime(profileRuntime),
       m_firstAccount(
           profileRuntime,
-          appDataRoot) {
+          appDataRoot,
+          std::move(stremioCredentials)) {
     Q_ASSERT(m_profileRuntime);
 }
 

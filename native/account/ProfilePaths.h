@@ -37,6 +37,7 @@ public:
     QString syncStatePath() const;
     QString syncOutboxPath() const;
     QString syncMetaIniPath() const;
+    QString stremioSyncStatePath() const;
 
     QString cloudAttachmentReceiptPath() const;
     QString accountReplacementBackupRoot() const;

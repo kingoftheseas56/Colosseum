@@ -1669,3 +1669,37 @@ transcripts) under `Colosseum/artifacts/arc21-adoption/closing/` (gitignored, on
 The others — `Implemented, verification pending` · `Bridge blocked` · `Verification failed` ·
 `Plan contradicted` · `Test-reported` — are honest intermediate states, not failures of nerve.
 A green unit suite is `Test-reported`, never `Runtime-validated`.
+
+## Stremio Sync Task 4 runtime journey (2026-09-20)
+
+`tests/lanista_scenarios/stremio_task4_theatre_panel.json` is the disposable,
+Drive-gated accountless journey. It dismisses onboarding, enters Theatre, resolves the
+uniquely named visible Stremio icon, opens the same-window panel, reads the non-secret
+`stremioSyncState` projection, captures the panel, and closes without launching an
+external browser. Session `20260920-165353-6a1412f8` passed 12/12 against the production
+composition with `activeProfileId=legacy`, `status=notConnected`, no linked account and
+no pending work. The capture is `artifacts/lanista-sessions/20260920-165353-6a1412f8/seq110-1.png`.
+
+The first diagnostic session exposed `activeProfileId=""` and `status=unavailable` after
+the real accountless choice. That red proved the default legacy-local profile had no
+device-private Stremio path. The repaired green session above proves the same unchanged
+journey now binds that profile and its addon owner without a Colosseum account. External
+Stremio browser authentication remains a Task 5 witnessed check; Lanista does not operate
+or qualify the external browser.
+
+## Stremio Sync Task 5 final runtime qualification (2026-09-20)
+
+Fresh session `20260920-173932-f06e4001` passed the exact tagged fixture projection 4/4:
+isolated roots, loaded production QML and the six-field terminal `synced` projection with no
+secret surface. Fresh Drive-gated session `20260920-174008-25a92f16` passed the accountless
+Theatre panel journey 12/12, including onboarding, Theatre-only icon discovery, panel open,
+`notConnected` state, capture, close and return to Theatre without starting authentication.
+Its reviewed capture is
+`artifacts/lanista-sessions/20260920-174008-25a92f16/seq110-1.png`.
+
+The capture shows the official Stremio mark between Search and Device, the focused
+same-window panel and the expected accountless Connect action. A scan of both manifests,
+logs and captures found no credential, callback URL, configured addon URL or synthetic
+fixture secret. This runtime proof covers the local application boundary. Official Stremio
+browser login and a live provider-outage playback witness remain external witnessed checks;
+no designated test account was supplied and Lanista does not control the external browser.

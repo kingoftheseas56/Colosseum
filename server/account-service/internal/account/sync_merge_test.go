@@ -160,6 +160,29 @@ func TestSyncMergeHistoryCompletionAndMetadata(t *testing.T) {
 	}
 }
 
+func TestSyncMergeHistoryKeepsStremioPresentationWhenNewerPeerIsLegacy(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"abababab-abab-4bab-8bab-abababababab", syncMergeDeviceA, "put", 100, 0,
+		`{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":3000,"completedAt":3000,"source":"stremio","displayId":"kitsu:alpha:s1:e0","displayTitle":"Pilot Special","latestKnownAt":3000}`)
+	incoming := syncMergeIncomingFixture(
+		"cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd", syncMergeDeviceB, "full_history", "put", 200, 0,
+		`{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":900,"lastActivityAt":4000,"completedAt":3000}`)
+
+	resolution, err := resolveMutableSync(current, true, incoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync() error = %v", err)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if payload["source"] != "stremio" ||
+		payload["displayId"] != "kitsu:alpha:s1:e0" ||
+		payload["displayTitle"] != "Pilot Special" {
+		t.Fatalf("legacy winner erased Stremio presentation: %#v", payload)
+	}
+	if got := syncMergeInt64(t, payload, "latestKnownAt"); got != 3000 {
+		t.Fatalf("latestKnownAt = %d, want 3000", got)
+	}
+}
+
 func TestSyncMergeHistoryDeleteBarrier(t *testing.T) {
 	putPayload := `{"kind":"episode","firstActivityAt":1000,"lastActivityAt":2000}`
 	tests := []struct {
@@ -253,6 +276,177 @@ func TestSyncMergeNonHistoryUsesHLC(t *testing.T) {
 	}
 	if unchanged.Changed || unchanged.WinnerDeviceID != syncMergeDeviceB {
 		t.Fatalf("device-ID tie break replaced newer current device: %+v", unchanged)
+	}
+}
+
+func TestSyncMergeTheatreProgressUsesRealActivityTime(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"10101010-1010-4010-8010-101010101010", syncMergeDeviceA, "put", 100, 0,
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.4,"updatedAt":5000}`)
+	olderArrival := syncMergeIncomingFixture(
+		"20202020-2020-4020-8020-202020202020", syncMergeDeviceB, "continue_progress", "put", 200, 0,
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.95,"watched":true,"updatedAt":3000}`)
+
+	resolution, err := resolveMutableSync(current, true, olderArrival)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(older arrival) error = %v", err)
+	}
+	if resolution.WinnerMutationID != olderArrival.MutationID || resolution.WinnerHLCPhysicalMS != 200 {
+		t.Fatalf("new envelope did not remain monotonic: %+v", resolution)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if got, ok := payload["progress"].(json.Number); !ok || got.String() != "0.4" {
+		t.Fatalf("older arrival overwrote newer partial progress: %#v", payload)
+	}
+	if got := syncMergeInt64(t, payload, "updatedAt"); got != 5000 {
+		t.Fatalf("updatedAt = %d, want 5000", got)
+	}
+
+	newerCompletion := olderArrival
+	newerCompletion.MutationID = "30303030-3030-4030-8030-303030303030"
+	newerCompletion.HLCPhysicalMS = 300
+	newerCompletion.Payload = json.RawMessage(
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.95,"watched":true,"updatedAt":6000}`)
+	completionResolution, err := resolveMutableSync(current, true, newerCompletion)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(newer completion) error = %v", err)
+	}
+	completionPayload := decodeSyncMergePayload(t, completionResolution.Payload)
+	if got, ok := completionPayload["progress"].(json.Number); !ok || got.String() != "0.95" || completionPayload["watched"] != true {
+		t.Fatalf("newer completion did not win: %#v", completionPayload)
+	}
+
+	equalActivity := olderArrival
+	equalActivity.MutationID = "40404040-4040-4040-8040-404040404040"
+	equalActivity.HLCPhysicalMS = 400
+	equalActivity.Payload = json.RawMessage(
+		`{"kind":"video","id":"kitsu:alpha:s1:e0","progress":0.1,"updatedAt":5000}`)
+	equalResolution, err := resolveMutableSync(current, true, equalActivity)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(equal activity) error = %v", err)
+	}
+	equalPayload := decodeSyncMergePayload(t, equalResolution.Payload)
+	if got, ok := equalPayload["progress"].(json.Number); !ok || got.String() != "0.4" {
+		t.Fatalf("equal activity oscillated instead of retaining acknowledged payload: %#v", equalPayload)
+	}
+}
+
+func TestSyncMergeTheatreProgressMaterializesNewestActivityUnderMonotonicEnvelope(t *testing.T) {
+	// This must fail if a lower-HLC mutation with a newer real viewing action
+	// is treated as an ordinary stale arrival. The payload must advance while
+	// retaining the already-monotonic envelope so pull consumers can observe
+	// the materialized server sequence without regressing HLC.
+	current := syncMergeCurrentFixture(
+		"50505050-5050-4050-8050-505050505050", syncMergeDeviceA, "put", 500, 2,
+		`{"kind":"video","id":"tt-activity-envelope","progress":0.20,"updatedAt":1000}`)
+	newerActivityLowerHLC := syncMergeIncomingFixture(
+		"60606060-6060-4060-8060-606060606060", syncMergeDeviceB, "continue_progress", "put", 100, 0,
+		`{"kind":"video","id":"tt-activity-envelope","progress":0.65,"updatedAt":2000}`)
+
+	resolution, err := resolveMutableSync(current, true, newerActivityLowerHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(newer activity) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != current.MutationID ||
+		resolution.WinnerHLCPhysicalMS != current.HLCPhysicalMS ||
+		resolution.WinnerHLCCounter != current.HLCCounter {
+		t.Fatalf("newer activity did not retain the monotonic current envelope: %+v", resolution)
+	}
+	newerPayload := decodeSyncMergePayload(t, resolution.Payload)
+	if got, ok := newerPayload["progress"].(json.Number); !ok || got.String() != "0.65" ||
+		syncMergeInt64(t, newerPayload, "updatedAt") != 2000 {
+		t.Fatalf("newer real activity was not materialized: %#v", newerPayload)
+	}
+
+	olderActivityHigherHLC := syncMergeIncomingFixture(
+		"70707070-7070-4070-8070-707070707070", syncMergeDeviceB, "continue_progress", "put", 600, 0,
+		`{"kind":"video","id":"tt-activity-envelope","progress":0.05,"updatedAt":500}`)
+	resolution, err = resolveMutableSync(current, true, olderActivityHigherHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(older activity) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != olderActivityHigherHLC.MutationID ||
+		resolution.WinnerHLCPhysicalMS != olderActivityHigherHLC.HLCPhysicalMS {
+		t.Fatalf("higher HLC did not retain its monotonic envelope: %+v", resolution)
+	}
+	olderPayload := decodeSyncMergePayload(t, resolution.Payload)
+	if got, ok := olderPayload["progress"].(json.Number); !ok || got.String() != "0.20" ||
+		syncMergeInt64(t, olderPayload, "updatedAt") != 1000 {
+		t.Fatalf("older real activity overwrote the materialized payload: %#v", olderPayload)
+	}
+}
+
+func TestSyncMergeWatchStateUsesActionTimeWithinMonotonicEnvelope(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"51515151-5151-4515-8515-515151515151", syncMergeDeviceA, "put", 200, 0,
+		`{"id":"tt-watch","mark":1,"actionAtMs":"2000"}`)
+	newerActionLowerHLC := syncMergeIncomingFixture(
+		"52525252-5252-4525-8525-525252525252", syncMergeDeviceB, "watch_state", "put", 100, 0,
+		`{"id":"tt-watch","mark":-1,"actionAtMs":"3000"}`)
+	newerActionLowerHLC.RecordKey = "watch/mark/dHQtd2F0Y2g"
+
+	resolution, err := resolveMutableSync(current, true, newerActionLowerHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(newer action) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != current.MutationID ||
+		resolution.WinnerHLCPhysicalMS != current.HLCPhysicalMS {
+		t.Fatalf("newer action resolution = %+v, want current monotonic envelope", resolution)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if got := syncMergeInt64(t, payload, "mark"); got != -1 {
+		t.Fatalf("newer action mark = %d, want -1", got)
+	}
+	if payload["actionAtMs"] != "3000" {
+		t.Fatalf("newer action timestamp = %#v, want 3000", payload["actionAtMs"])
+	}
+
+	materialized := current
+	materialized.Payload = resolution.Payload
+	olderActionHigherHLC := newerActionLowerHLC
+	olderActionHigherHLC.MutationID = "53535353-5353-4535-8535-535353535353"
+	olderActionHigherHLC.HLCPhysicalMS = 300
+	olderActionHigherHLC.Payload = json.RawMessage(
+		`{"id":"tt-watch","mark":1,"actionAtMs":"1000"}`)
+	resolution, err = resolveMutableSync(materialized, true, olderActionHigherHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(older action) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != olderActionHigherHLC.MutationID {
+		t.Fatalf("older action resolution = %+v, want newer transport envelope", resolution)
+	}
+	payload = decodeSyncMergePayload(t, resolution.Payload)
+	if got := syncMergeInt64(t, payload, "mark"); got != -1 || payload["actionAtMs"] != "3000" {
+		t.Fatalf("older action replaced current state: %#v", payload)
+	}
+
+	materialized = syncMergeCurrentFixture(
+		resolution.WinnerMutationID, resolution.WinnerDeviceID, resolution.Operation,
+		resolution.WinnerHLCPhysicalMS, resolution.WinnerHLCCounter, string(resolution.Payload))
+	unknownHigherHLC := olderActionHigherHLC
+	unknownHigherHLC.MutationID = "54545454-5454-4545-8545-545454545454"
+	unknownHigherHLC.HLCPhysicalMS = 400
+	unknownHigherHLC.Payload = json.RawMessage(`{"id":"tt-watch","mark":1}`)
+	resolution, err = resolveMutableSync(materialized, true, unknownHigherHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(unknown action) error = %v", err)
+	}
+	payload = decodeSyncMergePayload(t, resolution.Payload)
+	if got := syncMergeInt64(t, payload, "mark"); got != -1 || payload["actionAtMs"] != "3000" {
+		t.Fatalf("unknown action changed deterministic tie: %#v", payload)
+	}
+
+	deleteIncoming := unknownHigherHLC
+	deleteIncoming.MutationID = "55555555-5555-4555-8555-555555555555"
+	deleteIncoming.HLCPhysicalMS = 500
+	deleteIncoming.Operation = "delete"
+	deleteIncoming.Payload = nil
+	resolution, err = resolveMutableSync(materialized, true, deleteIncoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(delete) error = %v", err)
+	}
+	if !resolution.Changed || resolution.Operation != "delete" || resolution.WinnerMutationID != deleteIncoming.MutationID {
+		t.Fatalf("delete barrier resolution = %+v", resolution)
 	}
 }
 

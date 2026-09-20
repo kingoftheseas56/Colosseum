@@ -1710,6 +1710,7 @@ int main(int argc, char *argv[]) {
     // closed by construction.
     auto *accountRuntime = new AccountRuntime(&app);
     accountRuntime->setDownloadSource(localDownloads);
+    accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
     // Reader2 private JSON follows the same profile lifecycle as the account-owned
     // stores. The runtime emits storesAboutToChange before destroying the old owner;

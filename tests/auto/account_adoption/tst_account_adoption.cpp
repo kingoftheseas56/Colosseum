@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -56,6 +57,9 @@ PersonalStateSnapshot populatedSnapshot() {
     snapshot.progressWatchedMarks.insert(
         QStringLiteral("show-1"),
         -1);
+    snapshot.progressWatchedMarkActionTimes.insert(
+        QStringLiteral("show-1"),
+        1720000003000.0);
 
     QJsonObject collection;
     collection.insert(
@@ -337,6 +341,9 @@ private slots:
     void explicitLocalQuarantineIgnoresUnrelatedLegacyState();
     void explicitLocalPreparingAdoptionResumesFromLocalSource();
     void retryFailsClosedWhenCompetingSourceUnreadable();
+    void explicitLocalAdoptionCarriesStremioPrivateState();
+    void legacyAccountlessAdoptionCarriesStremioCredential();
+    void stremioCredentialTransferRetriesBeforeSourceRetirement();
 };
 
 void tst_account_adoption::
@@ -2035,6 +2042,227 @@ retryFailsClosedWhenCompetingSourceUnreadable() {
     QVERIFY2(retry.has_value(), qPrintable(error));
     QCOMPARE(retry->state(), ProfileAdoption::State::RetryPending);
     QVERIFY(!retry->snapshot().sourceKindRecorded);
+}
+
+void tst_account_adoption::
+explicitLocalAdoptionCarriesStremioPrivateState() {
+    AdoptionFixture fixture;
+    const ProfilePaths paths = fixture.accountPaths();
+    const ProfilePaths localPaths = ProfilePaths::localOnly(fixture.appDataRoot);
+    QString error;
+    const auto localStorage = LegacyPersonalStateStorage::forProfile(localPaths, &error);
+    QVERIFY2(localStorage.has_value(), qPrintable(error));
+
+    PersonalStateSnapshot source = populatedSnapshot();
+    source.mainSyncProvider = QStringLiteral("stremio");
+    source.stremioState = QJsonObject{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("profileId"), localPaths.profileId()},
+        {QStringLiteral("bindingGeneration"), QStringLiteral("7")},
+        {QStringLiteral("accountId"), QStringLiteral("stremio-account-a")},
+        {QStringLiteral("displayName"), QStringLiteral("Fixture Viewer")},
+        {QStringLiteral("acknowledgedBaselines"), QJsonObject{}},
+        {QStringLiteral("importRedoReceipts"), QJsonArray{}},
+        {QStringLiteral("intentionalMembershipDifferences"), QJsonArray{}},
+        {QStringLiteral("lastSuccessAtMs"), QStringLiteral("1720000040000")},
+        {QStringLiteral("firstMergeComplete"), true},
+        {QStringLiteral("reconnectRequired"), false},
+        {QStringLiteral("pendingIntents"), QJsonArray{}}};
+    source.theatreExtensions = QJsonArray{QJsonObject{
+        {QStringLiteral("id"), QStringLiteral("fixture.addon")},
+        {QStringLiteral("transportUrl"), QStringLiteral("https://fixture.invalid/Private/manifest.json?Token=Case")},
+        {QStringLiteral("enabled"), true},
+        {QStringLiteral("core"), false},
+        {QStringLiteral("manifest"), QJsonObject{
+            {QStringLiteral("id"), QStringLiteral("fixture.addon")},
+            {QStringLiteral("name"), QStringLiteral("Fixture Addon")},
+            {QStringLiteral("types"), QJsonArray{QStringLiteral("movie")}}}}}};
+    QVERIFY2(localStorage->restorePersonalState(source, &error), qPrintable(error));
+    const auto restoredSource = localStorage->capture(&error);
+    QVERIFY2(restoredSource.has_value(), qPrintable(error));
+    QCOMPARE(restoredSource->mainSyncProvider, QStringLiteral("stremio"));
+    QVERIFY(restoredSource->stremioState.value(QStringLiteral("profileId")).toString().isEmpty());
+    QCOMPARE(restoredSource->stremioState.value(QStringLiteral("accountId")).toString(),
+             QStringLiteral("stremio-account-a"));
+    QCOMPARE(restoredSource->theatreExtensions, source.theatreExtensions);
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    QVERIFY2(runtime.activateLocalOnlyProfile(&error), qPrintable(error));
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+    QVERIFY2(coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error),
+             qPrintable(error));
+
+    const auto accountStorage = LegacyPersonalStateStorage::forProfile(paths, &error);
+    QVERIFY2(accountStorage.has_value(), qPrintable(error));
+    const auto adopted = accountStorage->capture(&error);
+    QVERIFY2(adopted.has_value(), qPrintable(error));
+    QCOMPARE(adopted->mainSyncProvider, QStringLiteral("stremio"));
+    QVERIFY(adopted->stremioState.value(QStringLiteral("profileId")).toString().isEmpty());
+    QCOMPARE(adopted->stremioState.value(QStringLiteral("accountId")).toString(),
+             QStringLiteral("stremio-account-a"));
+    QCOMPARE(adopted->theatreExtensions, source.theatreExtensions);
+    QFile adoptedJournal(paths.stremioSyncStatePath());
+    QVERIFY(adoptedJournal.open(QIODevice::ReadOnly));
+    const QJsonDocument adoptedJournalDocument = QJsonDocument::fromJson(
+        adoptedJournal.readAll());
+    QVERIFY(adoptedJournalDocument.isObject());
+    QCOMPARE(adoptedJournalDocument.object().value(QStringLiteral("profileId")).toString(),
+             paths.profileId());
+
+    const auto cleared = localStorage->capture(&error);
+    QVERIFY2(cleared.has_value(), qPrintable(error));
+    QVERIFY(cleared->mainSyncProvider.isEmpty());
+    QVERIFY(cleared->stremioState.isEmpty());
+    QVERIFY(cleared->theatreExtensions.isEmpty());
+}
+
+void tst_account_adoption::
+legacyAccountlessAdoptionCarriesStremioCredential() {
+    AdoptionFixture fixture;
+    const ProfilePaths paths = fixture.accountPaths();
+    QString error;
+
+    PersonalStateSnapshot source = populatedSnapshot();
+    source.mainSyncProvider = QStringLiteral("stremio");
+    source.stremioState = QJsonObject{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("profileId"), QStringLiteral("legacy")},
+        {QStringLiteral("bindingGeneration"), QStringLiteral("1")},
+        {QStringLiteral("accountId"), QStringLiteral("stremio-account-a")},
+        {QStringLiteral("displayName"), QStringLiteral("Fixture Viewer")},
+        {QStringLiteral("acknowledgedBaselines"), QJsonObject{}},
+        {QStringLiteral("importRedoReceipts"), QJsonArray{}},
+        {QStringLiteral("intentionalMembershipDifferences"), QJsonArray{}},
+        {QStringLiteral("lastSuccessAtMs"), QStringLiteral("1720000040000")},
+        {QStringLiteral("firstMergeComplete"), true},
+        {QStringLiteral("reconnectRequired"), false},
+        {QStringLiteral("pendingIntents"), QJsonArray{}}};
+    QVERIFY2(fixture.legacy.restorePersonalState(source, &error), qPrintable(error));
+
+    const auto key = [](const QString &profileId, const QString &accountId) {
+        return profileId + QLatin1Char('|') + accountId;
+    };
+    QHash<QString, QByteArray> vault;
+    vault.insert(key(QStringLiteral("legacy"), QStringLiteral("stremio-account-a")),
+                 QByteArrayLiteral("fixture-secret"));
+    StremioCredentialAdoptionCallbacks callbacks{
+        [&vault, &key](const QString &profileId, const QString &accountId)
+            -> std::optional<QByteArray> {
+            const auto found = vault.constFind(key(profileId, accountId));
+            return found == vault.cend() ? std::nullopt
+                                         : std::optional<QByteArray>(*found);
+        },
+        [&vault, &key](const QString &profileId,
+                       const QString &accountId,
+                       const QByteArray &authKey) {
+            vault.insert(key(profileId, accountId), authKey);
+            return true;
+        },
+        [&vault](const QString &profileId) {
+            const QString prefix = profileId + QLatin1Char('|');
+            for (auto it = vault.begin(); it != vault.end();) {
+                if (it.key().startsWith(prefix))
+                    it = vault.erase(it);
+                else
+                    ++it;
+            }
+            return true;
+        }};
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot, callbacks);
+    QVERIFY2(coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error),
+             qPrintable(error));
+    QVERIFY(!vault.contains(key(QStringLiteral("legacy"),
+                                QStringLiteral("stremio-account-a"))));
+    QCOMPARE(vault.value(key(paths.profileId(), QStringLiteral("stremio-account-a"))),
+             QByteArrayLiteral("fixture-secret"));
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Account);
+}
+
+void tst_account_adoption::
+stremioCredentialTransferRetriesBeforeSourceRetirement() {
+    AdoptionFixture fixture;
+    const ProfilePaths paths = fixture.accountPaths();
+    const ProfilePaths localPaths = ProfilePaths::localOnly(fixture.appDataRoot);
+    QString error;
+    const auto localStorage = LegacyPersonalStateStorage::forProfile(localPaths, &error);
+    QVERIFY2(localStorage.has_value(), qPrintable(error));
+
+    PersonalStateSnapshot source = populatedSnapshot();
+    source.mainSyncProvider = QStringLiteral("stremio");
+    source.stremioState = QJsonObject{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("profileId"), localPaths.profileId()},
+        {QStringLiteral("bindingGeneration"), QStringLiteral("1")},
+        {QStringLiteral("accountId"), QStringLiteral("stremio-account-a")},
+        {QStringLiteral("displayName"), QStringLiteral("Fixture Viewer")},
+        {QStringLiteral("acknowledgedBaselines"), QJsonObject{}},
+        {QStringLiteral("importRedoReceipts"), QJsonArray{}},
+        {QStringLiteral("intentionalMembershipDifferences"), QJsonArray{}},
+        {QStringLiteral("lastSuccessAtMs"), QStringLiteral("1720000040000")},
+        {QStringLiteral("firstMergeComplete"), true},
+        {QStringLiteral("reconnectRequired"), false},
+        {QStringLiteral("pendingIntents"), QJsonArray{}}};
+    QVERIFY2(localStorage->restorePersonalState(source, &error), qPrintable(error));
+
+    const auto key = [](const QString &profileId, const QString &accountId) {
+        return profileId + QLatin1Char('|') + accountId;
+    };
+    QHash<QString, QByteArray> vault;
+    vault.insert(key(localPaths.profileId(), QStringLiteral("stremio-account-a")),
+                 QByteArrayLiteral("fixture-secret"));
+    bool allowSave = false;
+    int clearCalls = 0;
+    StremioCredentialAdoptionCallbacks callbacks{
+        [&vault, &key](const QString &profileId, const QString &accountId)
+            -> std::optional<QByteArray> {
+            const auto found = vault.constFind(key(profileId, accountId));
+            return found == vault.cend()
+                ? std::nullopt
+                : std::optional<QByteArray>(*found);
+        },
+        [&vault, &key, &allowSave](const QString &profileId,
+                                   const QString &accountId,
+                                   const QByteArray &authKey) {
+            if (!allowSave)
+                return false;
+            vault.insert(key(profileId, accountId), authKey);
+            return true;
+        },
+        [&vault, &clearCalls](const QString &profileId) {
+            ++clearCalls;
+            const QString prefix = profileId + QLatin1Char('|');
+            for (auto it = vault.begin(); it != vault.end();) {
+                if (it.key().startsWith(prefix))
+                    it = vault.erase(it);
+                else
+                    ++it;
+            }
+            return true;
+        }};
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    QVERIFY2(runtime.activateLocalOnlyProfile(&error), qPrintable(error));
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot, callbacks);
+    QVERIFY(!coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error));
+    QVERIFY(error.contains(QStringLiteral("credential")));
+    QCOMPARE(clearCalls, 0);
+    QVERIFY(vault.contains(key(localPaths.profileId(),
+                               QStringLiteral("stremio-account-a"))));
+    QVERIFY(!vault.contains(key(paths.profileId(),
+                                QStringLiteral("stremio-account-a"))));
+
+    allowSave = true;
+    error.clear();
+    QVERIFY2(coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error),
+             qPrintable(error));
+    QCOMPARE(clearCalls, 1);
+    QVERIFY(!vault.contains(key(localPaths.profileId(),
+                                QStringLiteral("stremio-account-a"))));
+    QCOMPARE(vault.value(key(paths.profileId(), QStringLiteral("stremio-account-a"))),
+             QByteArrayLiteral("fixture-secret"));
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Account);
 }
 
 QTEST_MAIN(tst_account_adoption)

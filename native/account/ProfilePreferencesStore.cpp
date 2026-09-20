@@ -10,6 +10,7 @@ constexpr auto kShowExplicitKey =
 constexpr auto kRememberSearchHistoryKey = "privacy/rememberSearchHistory";
 constexpr auto kKeepActivityHistoryKey = "privacy/keepActivityHistory";
 constexpr auto kSyncActivityHistoryKey = "privacy/syncActivityHistory";
+constexpr auto kMainSyncProviderKey = "sync/mainSyncProvider";
 }
 
 ProfilePreferencesStore::
@@ -57,6 +58,7 @@ revision() const {
 bool ProfilePreferencesStore::rememberSearchHistory() const { return m_rememberSearchHistory; }
 bool ProfilePreferencesStore::keepActivityHistory() const { return m_keepActivityHistory; }
 bool ProfilePreferencesStore::syncActivityHistory() const { return m_syncActivityHistory; }
+QString ProfilePreferencesStore::mainSyncProvider() const { return m_mainSyncProvider; }
 
 void ProfilePreferencesStore::
 setShowExplicit(
@@ -105,6 +107,10 @@ void ProfilePreferencesStore::setSyncActivityHistory(bool enabled) {
     emit changed();
 }
 
+bool ProfilePreferencesStore::setMainSyncProvider(const QString &provider) {
+    return commitMainSyncProvider(provider, true);
+}
+
 bool ProfilePreferencesStore::
 applySyncedShowExplicit(
     bool showExplicitValue) {
@@ -142,6 +148,14 @@ clearSyncedShowExplicit() {
 
     emit changed();
     return true;
+}
+
+bool ProfilePreferencesStore::applySyncedMainSyncProvider(const QString &provider) {
+    return commitMainSyncProvider(provider, false);
+}
+
+bool ProfilePreferencesStore::clearSyncedMainSyncProvider() {
+    return commitMainSyncProvider(QString(), false);
 }
 
 bool ProfilePreferencesStore::
@@ -184,6 +198,30 @@ commitShowExplicit(
     return true;
 }
 
+bool ProfilePreferencesStore::commitMainSyncProvider(
+    const QString &provider,
+    bool localMutation) {
+    const QString normalized = provider.trimmed().toLower();
+    if (!normalized.isEmpty() && normalized != QStringLiteral("stremio"))
+        return false;
+    if (m_mainSyncProvider == normalized)
+        return true;
+    if (normalized.isEmpty())
+        m_settings->remove(QString::fromLatin1(kMainSyncProviderKey));
+    else
+        m_settings->setValue(QString::fromLatin1(kMainSyncProviderKey), normalized);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError)
+        return false;
+    m_mainSyncProvider = normalized;
+    ++m_revision;
+    emit mainSyncProviderChanged();
+    emit changed();
+    if (localMutation)
+        emit stremioLinkDirty();
+    return true;
+}
+
 void ProfilePreferencesStore::load() {
     m_hasShowExplicitValue =
         m_settings->contains(
@@ -200,4 +238,6 @@ void ProfilePreferencesStore::load() {
     m_rememberSearchHistory = m_settings->value(QString::fromLatin1(kRememberSearchHistoryKey), true).toBool();
     m_keepActivityHistory = m_settings->value(QString::fromLatin1(kKeepActivityHistoryKey), true).toBool();
     m_syncActivityHistory = m_settings->value(QString::fromLatin1(kSyncActivityHistoryKey), true).toBool();
+    const QString provider = m_settings->value(QString::fromLatin1(kMainSyncProviderKey)).toString().trimmed().toLower();
+    m_mainSyncProvider = provider == QStringLiteral("stremio") ? provider : QString();
 }

@@ -1,0 +1,120 @@
+{
+  "name": "stremio-task4-theatre-panel",
+  "comment": "Disposable in-app proof that the official Stremio door exists only in Theatre, sits in the retained top bar, and opens the focused native sync panel without touching a real account.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated driven session answers",
+      "expect": [
+        { "path": "gates.drive", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash is gone",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "choose the supported local profile path",
+      "payload": { "target": "accountWelcomeContinueLocal" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local accountless shell is ready",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter Theatre",
+      "payload": { "target": "modePill_Theatre" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Theatre-only Stremio door is visible",
+      "payload": {
+        "object": "topBarStremioButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the focused Stremio Sync panel",
+      "payload": { "target": "topBarStremioButton" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "sync panel is visible",
+      "payload": {
+        "object": "stremioSyncPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "panel exposes the accountless connect state",
+      "payload": {
+        "object": "stremioSyncState",
+        "props": ["activeProfileId", "status", "linkedAccount", "pendingCount"]
+      },
+      "expect": [
+        { "path": "props.activeProfileId", "op": "==", "value": "legacy" },
+        { "path": "props.status", "op": "==", "value": "notConnected" },
+        { "path": "props.linkedAccount", "op": "==", "value": false },
+        { "path": "props.pendingCount", "op": "==", "value": 0 }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "capture the Theatre Stremio panel",
+      "payload": { "grab": { "target": "window" } },
+      "expect": [
+        { "path": "grabPath", "op": "exists" }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "close without starting external authentication",
+      "payload": { "target": "stremioCancelAction" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "panel closes back to Theatre",
+      "payload": {
+        "object": "stremioSyncPanel",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    }
+  ]
+}

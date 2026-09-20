@@ -5,6 +5,7 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfilePreferencesSyncAdapter.h"
+#include "account/StremioLinkSyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
 #include "account/SyncEngine.h"
 #include "account/SyncProtocol.h"
@@ -374,6 +375,7 @@ private slots:
     void untouchedDefaultDoesNotMaterializeLocalChoice();
     void explicitFalseIsStillARealChoice();
     void adapterExportsCanonicalFixedRecord();
+    void stremioMarkerUsesItsOwnFixedRecordAndNeverCarriesCredentials();
     void deleteResetsToDefaultWithoutEcho();
     void qmlFacadeReactsOnceToRemoteOwnerChange();
     void twoReplicasConvergeExplicitPreference();
@@ -568,6 +570,64 @@ adapterExportsCanonicalFixedRecord() {
                     "showExplicit"))
             .toBool(),
         true);
+}
+
+void tst_profile_preferences_sync::
+stremioMarkerUsesItsOwnFixedRecordAndNeverCarriesCredentials() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    ProfilePreferencesStore store(
+        QDir(temp.path()).filePath(QStringLiteral("preferences.ini")));
+    QSignalSpy explicitDirty(&store, &ProfilePreferencesStore::syncDirty);
+    QSignalSpy markerDirty(&store, &ProfilePreferencesStore::stremioLinkDirty);
+
+    QVERIFY(store.setMainSyncProvider(QStringLiteral("stremio")));
+    QCOMPARE(explicitDirty.count(), 0);
+    QCOMPARE(markerDirty.count(), 1);
+
+    StremioLinkSyncAdapter adapter(&store);
+    SyncAdapterExport snapshot;
+    QVERIFY(adapter.exportSnapshot(&snapshot));
+    QCOMPARE(snapshot.records.size(), 1);
+    QCOMPARE(snapshot.records.first().recordKey,
+             StremioLinkSyncAdapter::fixedRecordKey());
+    const QJsonObject payload = snapshot.records.first().payload.toObject();
+    const QJsonObject expectedPayload{
+        {QStringLiteral("mainSyncProvider"), QStringLiteral("stremio")}};
+    QCOMPARE(payload, expectedPayload);
+    QVERIFY(!payload.contains(QStringLiteral("authKey")));
+
+    QVERIFY(adapter.applyRemote(
+        StremioLinkSyncAdapter::fixedRecordKey(),
+        SyncWireOperation::Put,
+        expectedPayload,
+        adapter.schemaVersion()));
+    QCOMPARE(store.mainSyncProvider(), QStringLiteral("stremio"));
+
+    const QJsonObject secretBearingPayload{
+        {QStringLiteral("mainSyncProvider"), QStringLiteral("stremio")},
+        {QStringLiteral("authKey"), QStringLiteral("fixture-secret")}};
+    QVERIFY(!adapter.validateRemote(
+        StremioLinkSyncAdapter::fixedRecordKey(),
+        SyncWireOperation::Put,
+        secretBearingPayload,
+        adapter.schemaVersion()));
+    const QJsonObject urlBearingPayload{
+        {QStringLiteral("mainSyncProvider"), QStringLiteral("stremio")},
+        {QStringLiteral("transportUrl"), QStringLiteral("https://fixture.invalid/private")}};
+    QVERIFY(!adapter.validateRemote(
+        StremioLinkSyncAdapter::fixedRecordKey(),
+        SyncWireOperation::Put,
+        urlBearingPayload,
+        adapter.schemaVersion()));
+    QCOMPARE(store.mainSyncProvider(), QStringLiteral("stremio"));
+
+    QVERIFY(adapter.applyRemote(
+        StremioLinkSyncAdapter::fixedRecordKey(),
+        SyncWireOperation::Delete,
+        {},
+        adapter.schemaVersion()));
+    QVERIFY(store.mainSyncProvider().isEmpty());
 }
 
 void tst_profile_preferences_sync::

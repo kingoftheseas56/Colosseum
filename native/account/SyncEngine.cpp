@@ -577,6 +577,56 @@ void SyncEngine::requestImmediateSync() {
     maybeRunNetwork();
 }
 
+bool SyncEngine::checkpointProviderImport(
+    std::function<void(bool, const QString &)> completion,
+    QString *error) {
+    if (!m_active) {
+        if (error)
+            *error = QStringLiteral("The Neon sync engine is inactive.");
+        if (completion)
+            completion(false, error ? *error : QStringLiteral("The Neon sync engine is inactive."));
+        return false;
+    }
+    if (m_state == State::Blocked) {
+        if (error)
+            *error = m_lastErrorMessage.isEmpty()
+                ? QStringLiteral("The Neon sync engine is blocked.")
+                : m_lastErrorMessage;
+        if (completion)
+            completion(false, error ? *error : QStringLiteral("The Neon sync engine is blocked."));
+        return false;
+    }
+
+    QString reconcileError;
+    if (!reconcileAllAdapters(&reconcileError)) {
+        if (error)
+            *error = reconcileError;
+        if (completion)
+            completion(false, reconcileError);
+        return false;
+    }
+
+    const quint64 profileGeneration = m_profileGeneration;
+    if (persistState(
+            [this, profileGeneration, completion = std::move(completion)](
+                bool committed, const QString &message) mutable {
+                if (!m_active || profileGeneration != m_profileGeneration) {
+                    if (completion) {
+                        completion(false,
+                                   QStringLiteral("The provider import belongs to an inactive profile."));
+                    }
+                    return;
+                }
+                if (completion)
+                    completion(committed, message);
+            }) == 0) {
+        if (error)
+            *error = QStringLiteral("The Neon provider-import checkpoint could not start.");
+        return false;
+    }
+    return true;
+}
+
 void SyncEngine::retryRejectedMutations() {
     if (!m_active)
         return;

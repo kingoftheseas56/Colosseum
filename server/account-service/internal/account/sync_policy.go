@@ -21,6 +21,7 @@ var syncAllowedCategories = map[string]int{
 	"watch_state":                 1,
 	"activity_fact":               1,
 	"explicit_content_preference": 1,
+	"stremio_link":                1,
 	"desired_download_intent":     1,
 }
 
@@ -44,7 +45,7 @@ var syncForbiddenFields = map[string]struct{}{
 	"searchhistory": {}, "savedstate": {}, "sessionstate": {},
 	"windowstate": {}, "windowgeometry": {}, "pipstate": {},
 	"caststate": {}, "roomstate": {},
-	"password": {}, "recoverykey": {}, "accesstoken": {},
+	"password": {}, "recoverykey": {}, "accesstoken": {}, "authkey": {},
 	"refreshtoken": {}, "authorization": {}, "cookie": {},
 	"cookies": {}, "apikey": {}, "clientsecret": {}, "secret": {},
 	"credential": {}, "credentials": {},
@@ -225,6 +226,7 @@ func validateFullHistory(
 	}
 	allowed := map[string]struct{}{
 		"kind": {}, "id": {}, "firstActivityAt": {}, "lastActivityAt": {}, "completedAt": {},
+		"source": {}, "displayId": {}, "displayTitle": {}, "latestKnownAt": {},
 	}
 	for field := range object {
 		if _, ok := allowed[field]; !ok {
@@ -245,6 +247,31 @@ func validateFullHistory(
 		if completedErr != nil || completed < first || completed > last {
 			return fmt.Errorf("payload_invalid")
 		}
+	}
+	hasStremioField := false
+	for _, field := range []string{"source", "displayId", "displayTitle", "latestKnownAt"} {
+		if _, present := object[field]; present {
+			hasStremioField = true
+			break
+		}
+	}
+	if !hasStremioField {
+		return nil
+	}
+
+	source, sourceOK := object["source"].(string)
+	displayID, displayIDOK := object["displayId"].(string)
+	displayTitle, displayTitleOK := object["displayTitle"].(string)
+	if !sourceOK || source != "stremio" ||
+		!displayIDOK || displayID == "" || displayID != strings.TrimSpace(displayID) ||
+		utf8.RuneCountInString(displayID) > 512 || isSyncFilesystemPath(displayID) ||
+		!displayTitleOK || displayTitle == "" || displayTitle != strings.TrimSpace(displayTitle) ||
+		utf8.RuneCountInString(displayTitle) > 1024 || isSyncFilesystemPath(displayTitle) {
+		return fmt.Errorf("payload_invalid")
+	}
+	latestKnownAt, latestErr := syncIntegerField(object, "latestKnownAt", true)
+	if latestErr != nil || latestKnownAt < first || latestKnownAt > last {
+		return fmt.Errorf("payload_invalid")
 	}
 	return nil
 }
@@ -285,6 +312,23 @@ func validateExplicitContentPreference(
 func validateExplicitContentPreferenceKey(key string) error {
 	if key != "preferences/explicit-content" {
 		return fmt.Errorf("invalid_record_key")
+	}
+	return nil
+}
+
+func validateStremioLink(
+	key string,
+	object map[string]any,
+) error {
+	if key != "preferences/main-sync-provider" {
+		return fmt.Errorf("invalid_record_key")
+	}
+	if len(object) != 1 {
+		return fmt.Errorf("payload_field_not_allowed")
+	}
+	provider, ok := object["mainSyncProvider"].(string)
+	if !ok || provider != "stremio" {
+		return fmt.Errorf("payload_invalid")
 	}
 	return nil
 }
@@ -373,8 +417,23 @@ func validateSyncRecordShape(
 				return err
 			}
 			mark, ok := syncIntegerNumber(object["mark"])
-			if !ok || (mark != -1 && mark != 1) || len(object) != 2 {
+			if !ok || (mark != -1 && mark != 1) || (len(object) != 2 && len(object) != 3 && len(object) != 4) {
 				return fmt.Errorf("payload_invalid")
+			}
+			if rawActionAt, present := object["actionAtMs"]; present {
+				actionToken, stringValue := rawActionAt.(string)
+				if !stringValue {
+					return fmt.Errorf("payload_invalid")
+				}
+				actionAt, valid := parseSyncIntegerToken(actionToken)
+				if !valid || actionAt <= 0 {
+					return fmt.Errorf("payload_invalid")
+				}
+			}
+			if rawManual, present := object["manual"]; present {
+				if _, ok := rawManual.(bool); !ok {
+					return fmt.Errorf("payload_invalid")
+				}
 			}
 		} else {
 			if err := requiredSyncIdentity(object, "seriesId", value); err != nil {
@@ -390,6 +449,8 @@ func validateSyncRecordShape(
 		return validateDesiredDownloadIntent(recordKey, object)
 	case "explicit_content_preference":
 		return validateExplicitContentPreference(recordKey, object)
+	case "stremio_link":
+		return validateStremioLink(recordKey, object)
 	default:
 		return fmt.Errorf("category_not_supported")
 	}
@@ -412,6 +473,11 @@ func validateCategoryRecordKey(category, recordKey string) error {
 		return nil
 	case "explicit_content_preference":
 		return validateExplicitContentPreferenceKey(recordKey)
+	case "stremio_link":
+		if recordKey != "preferences/main-sync-provider" {
+			return fmt.Errorf("invalid_record_key")
+		}
+		return nil
 	case "activity_fact":
 		parts := strings.Split(recordKey, "/")
 		if recordKey == "activity/reset" {

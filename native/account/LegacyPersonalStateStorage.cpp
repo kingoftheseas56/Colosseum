@@ -9,7 +9,9 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonParseError>
 #include <QMetaType>
+#include <QSaveFile>
 #include <QVariant>
 #include <QSettings>
 #include <QStandardPaths>
@@ -17,7 +19,79 @@
 #include <memory>
 
 namespace {
-constexpr int kSnapshotVersion = 2;
+constexpr int kSnapshotVersion = 4;
+constexpr qsizetype kMaximumPrivateStateBytes = 1024 * 1024;
+constexpr qsizetype kMaximumTheatreExtensions = 512;
+
+QString stremioStatePath(const QString &profileRoot) {
+    return profileRoot.isEmpty()
+        ? QString()
+        : QDir(profileRoot).filePath(QStringLiteral("stremio-sync.json"));
+}
+
+QString theatreExtensionsPath(const QString &profileRoot) {
+    return profileRoot.isEmpty()
+        ? QString()
+        : QDir(profileRoot).filePath(QStringLiteral("extensions/installed.json"));
+}
+
+bool readJsonFile(const QString &path, QJsonObject *object, QString *error) {
+    *object = QJsonObject();
+    if (path.isEmpty() || !QFileInfo::exists(path))
+        return true;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (error)
+            *error = QStringLiteral("Could not open device-private profile state.");
+        return false;
+    }
+    const QByteArray payload = file.read(kMaximumPrivateStateBytes + 1);
+    if (payload.size() > kMaximumPrivateStateBytes) {
+        if (error)
+            *error = QStringLiteral("Device-private profile state is too large.");
+        return false;
+    }
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(payload, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        if (error)
+            *error = QStringLiteral("Device-private profile state is malformed.");
+        return false;
+    }
+    *object = document.object();
+    return true;
+}
+
+bool writeJsonFile(const QString &path, const QJsonObject &object, QString *error) {
+    if (path.isEmpty() || !QDir().mkpath(QFileInfo(path).absolutePath())) {
+        if (error)
+            *error = QStringLiteral("Could not prepare device-private profile state.");
+        return false;
+    }
+    const QByteArray payload = QJsonDocument(object).toJson(QJsonDocument::Compact);
+    if (payload.size() > kMaximumPrivateStateBytes) {
+        if (error)
+            *error = QStringLiteral("Device-private profile state is too large.");
+        return false;
+    }
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly)
+        || file.write(payload) != payload.size()
+        || !file.commit()) {
+        if (error)
+            *error = QStringLiteral("Could not commit device-private profile state.");
+        return false;
+    }
+    return true;
+}
+
+bool removePrivateFile(const QString &path, QString *error) {
+    if (path.isEmpty() || !QFileInfo::exists(path) || QFile::remove(path))
+        return true;
+    if (error)
+        *error = QStringLiteral("Could not retire device-private profile state.");
+    return false;
+}
 
 bool jsonObjectValue(
     QSettings *settings,
@@ -141,18 +215,16 @@ void capturePrefix(
         QJsonValue value =
             QJsonValue::fromVariant(raw);
 
-        // The captured prefixes are integer domains (lastSeason, watched
-        // marks), but INI persistence is stringly-typed on disk while an
+        // These prefixes are integral domains (season, mark and action
+        // timestamp), but INI persistence is stringly typed on disk while an
         // in-memory QSettings session still holds the typed QVariant. A
-        // fresh re-open therefore yields "3" where the writer saw 3. The
-        // semantic digest must be representation-independent, so normalize
-        // clean integer spellings to numbers at the capture boundary.
+        // fresh re-open therefore yields a decimal string. Normalize through
+        // qint64 so an epoch-millisecond action time is not truncated to int.
         if (value.isString()) {
             bool ok = false;
-            const int number =
-                raw.toString().toInt(&ok);
+            const qint64 number = raw.toString().toLongLong(&ok);
             if (ok)
-                value = number;
+                value = static_cast<double>(number);
         }
 
         target->insert(suffix, value);
@@ -183,11 +255,15 @@ bool PersonalStateSnapshot::isEmpty() const {
     return progressEntries.isEmpty()
         && progressLastSeason.isEmpty()
         && progressWatchedMarks.isEmpty()
+        && progressWatchedMarkActionTimes.isEmpty()
         && collectionEntries.isEmpty()
         && searchHistory.isEmpty()
         && audioPairings.isEmpty()
         && historyRecords.isEmpty()
-        && !showExplicit;
+        && !showExplicit
+        && mainSyncProvider.isEmpty()
+        && stremioState.isEmpty()
+        && theatreExtensions.isEmpty();
 }
 
 QJsonObject PersonalStateSnapshot::toJson() const {
@@ -205,6 +281,9 @@ QJsonObject PersonalStateSnapshot::toJson() const {
         QStringLiteral("progress_watched_marks"),
         progressWatchedMarks);
     object.insert(
+        QStringLiteral("progress_watched_mark_action_times"),
+        progressWatchedMarkActionTimes);
+    object.insert(
         QStringLiteral("collection_entries"),
         collectionEntries);
     object.insert(
@@ -219,6 +298,9 @@ QJsonObject PersonalStateSnapshot::toJson() const {
     object.insert(
         QStringLiteral("show_explicit"),
         showExplicit);
+    object.insert(QStringLiteral("main_sync_provider"), mainSyncProvider);
+    object.insert(QStringLiteral("stremio_state"), stremioState);
+    object.insert(QStringLiteral("theatre_extensions"), theatreExtensions);
     return object;
 }
 
@@ -231,6 +313,40 @@ QString PersonalStateSnapshot::semanticDigest() const {
             payload,
             QCryptographicHash::Sha256)
             .toHex());
+}
+
+QString PersonalStateSnapshot::legacySemanticDigestV3() const {
+    QJsonObject object;
+    object.insert(QStringLiteral("version"), 3);
+    object.insert(QStringLiteral("progress_entries"), progressEntries);
+    object.insert(QStringLiteral("progress_last_season"), progressLastSeason);
+    object.insert(QStringLiteral("progress_watched_marks"), progressWatchedMarks);
+    object.insert(QStringLiteral("progress_watched_mark_action_times"),
+                  progressWatchedMarkActionTimes);
+    object.insert(QStringLiteral("collection_entries"), collectionEntries);
+    object.insert(QStringLiteral("search_history"), searchHistory);
+    object.insert(QStringLiteral("audio_pairings"), audioPairings);
+    object.insert(QStringLiteral("history_records"), historyRecords);
+    object.insert(QStringLiteral("show_explicit"), showExplicit);
+    return QString::fromLatin1(QCryptographicHash::hash(
+        QJsonDocument(object).toJson(QJsonDocument::Compact),
+        QCryptographicHash::Sha256).toHex());
+}
+
+QString PersonalStateSnapshot::legacySemanticDigestV2() const {
+    QJsonObject object;
+    object.insert(QStringLiteral("version"), 2);
+    object.insert(QStringLiteral("progress_entries"), progressEntries);
+    object.insert(QStringLiteral("progress_last_season"), progressLastSeason);
+    object.insert(QStringLiteral("progress_watched_marks"), progressWatchedMarks);
+    object.insert(QStringLiteral("collection_entries"), collectionEntries);
+    object.insert(QStringLiteral("search_history"), searchHistory);
+    object.insert(QStringLiteral("audio_pairings"), audioPairings);
+    object.insert(QStringLiteral("history_records"), historyRecords);
+    object.insert(QStringLiteral("show_explicit"), showExplicit);
+    const QByteArray payload = QJsonDocument(object).toJson(QJsonDocument::Compact);
+    return QString::fromLatin1(
+        QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex());
 }
 
 QString PersonalStateSnapshot::
@@ -284,7 +400,18 @@ matchesSemanticDigest(
     if (semanticDigest() == normalized)
         return true;
 
+    if (mainSyncProvider.isEmpty() && stremioState.isEmpty()
+        && theatreExtensions.isEmpty() && legacySemanticDigestV3() == normalized) {
+        return true;
+    }
+
+    if (progressWatchedMarkActionTimes.isEmpty()
+        && legacySemanticDigestV2() == normalized) {
+        return true;
+    }
+
     return historyRecords.isEmpty()
+        && progressWatchedMarkActionTimes.isEmpty()
         && legacySemanticDigestV1()
             == normalized;
 }
@@ -298,8 +425,7 @@ PersonalStateSnapshot::fromJson(
             .value(
                 QStringLiteral("version"))
             .toInt();
-    if (version != 1
-        && version != kSnapshotVersion) {
+    if (version < 1 || version > kSnapshotVersion) {
         if (error) {
             *error = QStringLiteral(
                 "The personal-state snapshot version is unsupported.");
@@ -341,6 +467,16 @@ PersonalStateSnapshot::fromJson(
         return std::nullopt;
     }
 
+    if (version >= 3) {
+        if (!snapshotObject(
+                object,
+                QStringLiteral("progress_watched_mark_action_times"),
+                &snapshot.progressWatchedMarkActionTimes,
+                error)) {
+            return std::nullopt;
+        }
+    }
+
     if (version >= 2) {
         if (!snapshotObject(
                 object,
@@ -366,6 +502,22 @@ PersonalStateSnapshot::fromJson(
 
     snapshot.showExplicit =
         showExplicit.toBool();
+    if (version >= 4) {
+        const QJsonValue provider = object.value(QStringLiteral("main_sync_provider"));
+        const QJsonValue stremio = object.value(QStringLiteral("stremio_state"));
+        const QJsonValue extensions = object.value(QStringLiteral("theatre_extensions"));
+        if (!provider.isString() || !stremio.isObject() || !extensions.isArray()
+            || (provider.toString() != QLatin1String("stremio")
+                && !provider.toString().isEmpty())
+            || extensions.toArray().size() > kMaximumTheatreExtensions) {
+            if (error)
+                *error = QStringLiteral("The device-private adoption snapshot is invalid.");
+            return std::nullopt;
+        }
+        snapshot.mainSyncProvider = provider.toString();
+        snapshot.stremioState = stremio.toObject();
+        snapshot.theatreExtensions = extensions.toArray();
+    }
     return snapshot;
 }
 
@@ -442,7 +594,9 @@ LegacyPersonalStateStorage::forCurrentInstallation() {
         audioPairing,
         preferences,
         history,
-        activityDbPath);
+        activityDbPath,
+        QDir(activityRoot).filePath(QStringLiteral("profiles/legacy")),
+        QStringLiteral("legacy"));
 }
 
 LegacyPersonalStateStorage
@@ -500,7 +654,9 @@ LegacyPersonalStateStorage::isolated(
         audioPairing,
         preferences,
         history,
-        activityDbPath);
+        activityDbPath,
+        QDir(base).filePath(QStringLiteral("profiles/legacy")),
+        QStringLiteral("legacy"));
 }
 
 std::optional<LegacyPersonalStateStorage>
@@ -587,7 +743,9 @@ LegacyPersonalStateStorage::forProfileRoot(
         audioPairing,
         preferences,
         history,
-        activityDbPath);
+        activityDbPath,
+        root,
+        paths.profileId());
 }
 
 std::optional<PersonalStateSnapshot>
@@ -630,6 +788,10 @@ LegacyPersonalStateStorage::capture(
         progress.get(),
         QStringLiteral("video/watchedMark"),
         &snapshot.progressWatchedMarks);
+    capturePrefix(
+        progress.get(),
+        QStringLiteral("video/watchedMarkActionAt"),
+        &snapshot.progressWatchedMarkActionTimes);
 
     if (!jsonObjectValue(
             collection.get(),
@@ -684,6 +846,64 @@ LegacyPersonalStateStorage::capture(
                 false)
             .toBool();
 
+    const QString provider = preferences
+        ->value(QStringLiteral("sync/mainSyncProvider"))
+        .toString()
+        .trimmed();
+    snapshot.mainSyncProvider = provider == QLatin1String("stremio")
+        ? provider
+        : QString();
+
+    if (!m_profileRoot.isEmpty()) {
+        QJsonObject stremio;
+        if (!readJsonFile(stremioStatePath(m_profileRoot), &stremio, error))
+            return std::nullopt;
+        if (!stremio.isEmpty()) {
+            if (stremio.value(QStringLiteral("version")).toInt() != 1
+                || stremio.value(QStringLiteral("profileId")).toString() != m_profileId
+                || stremio.value(QStringLiteral("accountId")).toString().trimmed().isEmpty()
+                || !stremio.value(QStringLiteral("acknowledgedBaselines")).isObject()
+                || !stremio.value(QStringLiteral("importRedoReceipts")).isArray()
+                || !stremio.value(QStringLiteral("intentionalMembershipDifferences")).isArray()
+                || !stremio.value(QStringLiteral("pendingIntents")).isArray()) {
+                setError(error, QStringLiteral("The device-private Stremio journal is invalid."));
+                return std::nullopt;
+            }
+            // Profile ids identify the current on-disk binding, not the
+            // private provider state itself. Adoption rebinds them to the
+            // verified destination, so omit them from the semantic snapshot.
+            stremio.insert(QStringLiteral("profileId"), QString());
+            QJsonArray redos;
+            for (const QJsonValue &value : stremio.value(
+                     QStringLiteral("importRedoReceipts")).toArray()) {
+                if (!value.isObject()) {
+                    redos.append(value);
+                    continue;
+                }
+                QJsonObject redo = value.toObject();
+                redo.insert(QStringLiteral("profileId"), QString());
+                redos.append(redo);
+            }
+            stremio.insert(QStringLiteral("importRedoReceipts"), redos);
+            snapshot.stremioState = stremio;
+        }
+
+        QJsonObject extensions;
+        if (!readJsonFile(theatreExtensionsPath(m_profileRoot), &extensions, error))
+            return std::nullopt;
+        if (!extensions.isEmpty()) {
+            const QJsonValue rows = extensions.value(QStringLiteral("extensions"));
+            if (extensions.value(QStringLiteral("version")).toInt() != 1
+                || extensions.value(QStringLiteral("profileId")).toString() != m_profileId
+                || !rows.isArray()
+                || rows.toArray().size() > kMaximumTheatreExtensions) {
+                setError(error, QStringLiteral("The private Theatre extension store is invalid."));
+                return std::nullopt;
+            }
+            snapshot.theatreExtensions = rows.toArray();
+        }
+    }
+
     return snapshot;
 }
 
@@ -714,6 +934,8 @@ bool LegacyPersonalStateStorage::clearPersonalState(
         QStringLiteral("video/lastSeason"));
     progress->remove(
         QStringLiteral("video/watchedMark"));
+    progress->remove(
+        QStringLiteral("video/watchedMarkActionAt"));
 
     collection->remove(
         QStringLiteral("collection/entries"));
@@ -725,15 +947,21 @@ bool LegacyPersonalStateStorage::clearPersonalState(
         QStringLiteral("audiobook/pairings"));
     preferences->remove(
         QStringLiteral("content/showExplicit"));
+    preferences->remove(
+        QStringLiteral("sync/mainSyncProvider"));
     history->remove(
         QStringLiteral("history/records"));
 
-    return sync(progress.get(), error)
+    const bool settingsCommitted = sync(progress.get(), error)
         && sync(collection.get(), error)
         && sync(searchHistory.get(), error)
         && sync(audioPairing.get(), error)
         && sync(preferences.get(), error)
         && sync(history.get(), error);
+    if (!settingsCommitted)
+        return false;
+    return removePrivateFile(stremioStatePath(m_profileRoot), error)
+        && removePrivateFile(theatreExtensionsPath(m_profileRoot), error);
 }
 
 bool LegacyPersonalStateStorage::restorePersonalState(
@@ -764,6 +992,8 @@ bool LegacyPersonalStateStorage::restorePersonalState(
         QStringLiteral("video/lastSeason"));
     progress->remove(
         QStringLiteral("video/watchedMark"));
+    progress->remove(
+        QStringLiteral("video/watchedMarkActionAt"));
 
     if (!snapshot.progressEntries.isEmpty()) {
         progress->setValue(
@@ -789,6 +1019,15 @@ bool LegacyPersonalStateStorage::restorePersonalState(
         progress->setValue(
             QStringLiteral("video/watchedMark/")
                 + it.key(),
+            it.value().toVariant());
+    }
+
+    for (auto it =
+             snapshot.progressWatchedMarkActionTimes.constBegin();
+         it != snapshot.progressWatchedMarkActionTimes.constEnd();
+         ++it) {
+        progress->setValue(
+            QStringLiteral("video/watchedMarkActionAt/") + it.key(),
             it.value().toVariant());
     }
 
@@ -825,6 +1064,12 @@ bool LegacyPersonalStateStorage::restorePersonalState(
     preferences->setValue(
         QStringLiteral("content/showExplicit"),
         snapshot.showExplicit);
+    if (snapshot.mainSyncProvider.isEmpty()) {
+        preferences->remove(QStringLiteral("sync/mainSyncProvider"));
+    } else {
+        preferences->setValue(QStringLiteral("sync/mainSyncProvider"),
+                              snapshot.mainSyncProvider);
+    }
 
     history->remove(
         QStringLiteral("history/records"));
@@ -835,12 +1080,51 @@ bool LegacyPersonalStateStorage::restorePersonalState(
                 .toJson(QJsonDocument::Compact));
     }
 
-    return sync(progress.get(), error)
+    const bool settingsCommitted = sync(progress.get(), error)
         && sync(collection.get(), error)
         && sync(searchHistory.get(), error)
         && sync(audioPairing.get(), error)
         && sync(preferences.get(), error)
         && sync(history.get(), error);
+    if (!settingsCommitted)
+        return false;
+
+    if (!m_profileRoot.isEmpty()) {
+        if (snapshot.stremioState.isEmpty()) {
+            if (!removePrivateFile(stremioStatePath(m_profileRoot), error))
+                return false;
+        } else {
+            QJsonObject state = snapshot.stremioState;
+            state.insert(QStringLiteral("profileId"), m_profileId);
+            QJsonArray redos;
+            for (const QJsonValue &value : state.value(
+                     QStringLiteral("importRedoReceipts")).toArray()) {
+                if (!value.isObject()) {
+                    redos.append(value);
+                    continue;
+                }
+                QJsonObject redo = value.toObject();
+                redo.insert(QStringLiteral("profileId"), m_profileId);
+                redos.append(redo);
+            }
+            state.insert(QStringLiteral("importRedoReceipts"), redos);
+            if (!writeJsonFile(stremioStatePath(m_profileRoot), state, error))
+                return false;
+        }
+
+        if (snapshot.theatreExtensions.isEmpty()) {
+            if (!removePrivateFile(theatreExtensionsPath(m_profileRoot), error))
+                return false;
+        } else {
+            const QJsonObject extensions{
+                {QStringLiteral("version"), 1},
+                {QStringLiteral("profileId"), m_profileId},
+                {QStringLiteral("extensions"), snapshot.theatreExtensions}};
+            if (!writeJsonFile(theatreExtensionsPath(m_profileRoot), extensions, error))
+                return false;
+        }
+    }
+    return true;
 }
 
 bool LegacyPersonalStateStorage::progressUsesExplicitIni() const {
@@ -891,6 +1175,14 @@ QString LegacyPersonalStateStorage::historyIniPath() const {
     return m_history.iniPath;
 }
 
+QString LegacyPersonalStateStorage::devicePrivateProfileRoot() const {
+    return m_profileRoot;
+}
+
+QString LegacyPersonalStateStorage::devicePrivateStremioStatePath() const {
+    return stremioStatePath(m_profileRoot);
+}
+
 QString LegacyPersonalStateStorage::activityDbPath() const {
     return m_activityDbPath;
 }
@@ -902,14 +1194,18 @@ LegacyPersonalStateStorage::LegacyPersonalStateStorage(
     const Location &audioPairing,
     const Location &preferences,
     const Location &history,
-    const QString &activityDbPath)
+    const QString &activityDbPath,
+    const QString &profileRoot,
+    const QString &profileId)
     : m_progress(progress),
       m_collection(collection),
       m_searchHistory(searchHistory),
       m_audioPairing(audioPairing),
       m_preferences(preferences),
       m_history(history),
-      m_activityDbPath(activityDbPath) {}
+      m_activityDbPath(activityDbPath),
+      m_profileRoot(profileRoot),
+      m_profileId(profileId) {}
 
 std::unique_ptr<QSettings>
 LegacyPersonalStateStorage::open(

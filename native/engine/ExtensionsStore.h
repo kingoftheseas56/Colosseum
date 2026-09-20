@@ -28,6 +28,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
+
 class QNetworkAccessManager;
 class QJsonObject;
 
@@ -43,6 +45,8 @@ class ExtensionsStore : public QObject
     Q_PROPERTY(bool showExplicit READ showExplicit WRITE setShowExplicit NOTIFY showExplicitChanged)
 
 public:
+    using TheatreRowsCompletion = std::function<void(bool, const QString &)>;
+
     explicit ExtensionsStore(QNetworkAccessManager* nam, QObject* parent = nullptr);
 
     int revision() const { return m_revision; }
@@ -55,6 +59,13 @@ public:
 
     // True if a transportUrl (any form) or manifest id is already carried.
     Q_INVOKABLE bool isInstalled(const QString& urlOrId) const;
+
+    // Theatre-compatible configured addons belong to the active Colosseum
+    // profile. The path comes from ProfilePaths, never QML. Native and
+    // non-Theatre rows remain in the existing device-local index.
+    Q_INVOKABLE bool activateProfile(const QString& profileId, const QString& theatreIndexPath);
+    Q_INVOKABLE void deactivateProfile();
+    QString activeProfileId() const { return m_activeProfileId; }
 
     // The bundled universe payload for an installed universe extension. C++ owns this read
     // because Qt blocks XMLHttpRequest on file:// by default (QML_XHR_ALLOW_FILE_READ) —
@@ -72,11 +83,26 @@ public:
     Q_INVOKABLE void install(const QString& rawUrl);
 
     Q_INVOKABLE void remove(const QString& id);          // core rows refuse
+    // A configured Stremio instance is selected by its normalized transport
+    // URL. This keeps distinct configurations of one manifest independently
+    // removable without exposing the URL anywhere beyond native/QML actions.
+    Q_INVOKABLE void removeInstance(const QString& transportUrl);
     Q_INVOKABLE void setEnabled(const QString& id, bool on);  // core rows refuse
+    Q_INVOKABLE void setEnabledInstance(const QString& transportUrl, bool on);
     // Absolute reorder. NOT ±steps: a world-relative arrow press is not a global
     // neighbour swap, so QML resolves the destination (it owns world derivation) and
     // this just performs it. Core rows refuse — catalogues are never ranked.
     Q_INVOKABLE void moveTo(const QString& id, int index);
+    Q_INVOKABLE void moveInstanceTo(const QString& transportUrl, int index);
+
+    // Native provider/import boundary: its completion runs only after the
+    // profile-local QSaveFile commit. This keeps Stremio's private baseline
+    // from advancing ahead of the Theatre owner.
+    // Core/native Theatre rows are intentionally omitted: they are required
+    // local capability, not synchronized provider membership.
+    QVariantList stremioRows() const;
+    bool applyTheatreRows(const QVariantList &rows,
+                          TheatreRowsCompletion completion = {});
 
     // "stremio://host/manifest.json" → "https://host/manifest.json";
     // bare host/path gets "/manifest.json" appended. Exposed for the sheet's echo.
@@ -92,13 +118,29 @@ signals:
 
 private:
     void loadIndex();
-    void saveIndex() const;
+    bool saveIndex();
+    bool saveGlobalIndex(const QList<QVariantMap>& items,
+                         bool legacyTheatreMigrated,
+                         const QString& migrationProfileId,
+                         const QList<QVariantMap>& theatreDefaults) const;
+    static bool saveProfileIndex(const QString& path,
+                                 const QString& profileId,
+                                 const QList<QVariantMap>& items);
+    static bool loadProfileIndex(const QString& path,
+                                 const QString& profileId,
+                                 QList<QVariantMap>* items);
+    static bool isTheatreCompatible(const QVariantMap& item);
+    static bool isSafeTheatreDefault(const QVariantMap& item);
+    static QList<QVariantMap> theatreRows(const QList<QVariantMap>& items);
+    static QList<QVariantMap> nonTheatreRows(const QList<QVariantMap>& items);
+    void rebuildActiveItems();
     void seed();                       // first run: every house catalogue + well
     void migrateDefaults();            // existing install: add house rows a newer
                                        // defaults version introduced, once only
     bool appendHouseDefaults(bool onlyMissing);   // true if anything added or refreshed
     void bump();
     int  indexOfId(const QString& id) const;
+    int  indexOfTransportUrl(const QString& transportUrl) const;
     QString indexPath() const;         // <appdata>/extensions/installed.json
 
     void fetchManifest(const QString& transportUrl, bool thenInstall);
@@ -108,6 +150,9 @@ private:
 
     QNetworkAccessManager* m_nam = nullptr;
     QList<QVariantMap> m_items;                 // ordered — array order IS ask-order
+    QList<QVariantMap> m_globalItems;
+    QList<QVariantMap> m_profileTheatreItems;
+    QList<QVariantMap> m_theatreDefaults;
     QHash<QString, QVariantMap> m_previewCache; // transportUrl → slim manifest
     int m_revision = 0;
     bool m_showExplicit = false;   // conservative default; Main.qml binds the real preference
@@ -116,4 +161,9 @@ private:
     // Bumping kHouseDefaultsVersion adds the new rows once, and never again — so a
     // row the user deliberately removed does not come back.
     int m_defaultsVersion = 0;
+    QString m_activeProfileId;
+    QString m_activeTheatreIndexPath;
+    QString m_legacyTheatreMigrationProfileId;
+    quint64 m_profileGeneration = 0;
+    bool m_legacyTheatreMigrated = false;
 };

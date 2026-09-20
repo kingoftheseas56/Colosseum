@@ -23,13 +23,79 @@ constexpr auto kHistoryResetGenerationKey =
     "history/resetGeneration";
 constexpr auto kHistoryResetBarrierKey =
     "history/resetBarrierAtMs";
+constexpr auto kStremioSource = "stremio";
+constexpr int kStremioDisplayIdentityLimit = 512;
+constexpr int kStremioDisplayTitleLimit = 1024;
+
+bool strictPositiveIntegerVariant(
+    const QVariant &value,
+    qint64 *result,
+    bool allowZero = false);
+
+bool validStremioDisplayString(const QVariant &value, int limit, QString *result) {
+    if (value.metaType().id() != QMetaType::QString)
+        return false;
+    const QString normalized = value.toString().trimmed();
+    if (normalized.isEmpty() || normalized.size() > limit)
+        return false;
+    if (result)
+        *result = normalized;
+    return true;
+}
+
+bool copyStremioPresentation(
+    const QVariantMap &metadata,
+    QVariantMap *record,
+    qint64 firstActivityAt,
+    qint64 lastActivityAt) {
+    if (!record)
+        return false;
+
+    const bool hasStremioField = metadata.contains(QStringLiteral("source"))
+        || metadata.contains(QStringLiteral("displayId"))
+        || metadata.contains(QStringLiteral("displayTitle"))
+        || metadata.contains(QStringLiteral("latestKnownAt"));
+    if (!hasStremioField)
+        return true;
+
+    if (metadata.value(QStringLiteral("source")).toString().trimmed()
+            != QLatin1String(kStremioSource)) {
+        return false;
+    }
+
+    QString displayId;
+    QString displayTitle;
+    qint64 latestKnownAt = 0;
+    if (!validStremioDisplayString(
+            metadata.value(QStringLiteral("displayId")),
+            kStremioDisplayIdentityLimit,
+            &displayId)
+        || !validStremioDisplayString(
+            metadata.value(QStringLiteral("displayTitle")),
+            kStremioDisplayTitleLimit,
+            &displayTitle)
+        || !strictPositiveIntegerVariant(
+               metadata.value(QStringLiteral("latestKnownAt")),
+               &latestKnownAt)
+        || latestKnownAt < firstActivityAt
+        || latestKnownAt > lastActivityAt) {
+        return false;
+    }
+
+    record->insert(QStringLiteral("source"), QLatin1String(kStremioSource));
+    record->insert(QStringLiteral("displayId"), displayId);
+    record->insert(QStringLiteral("displayTitle"), displayTitle);
+    record->insert(QStringLiteral("latestKnownAt"), latestKnownAt);
+    return true;
+}
 
 QVariantMap canonicalRecord(
     const QString &kind,
     const QString &id,
     qint64 firstActivityAt,
     qint64 lastActivityAt,
-    qint64 completedAt) {
+    qint64 completedAt,
+    const QVariantMap &metadata = {}) {
     QVariantMap record;
     record.insert(
         QStringLiteral("kind"),
@@ -50,13 +116,21 @@ QVariantMap canonicalRecord(
             completedAt);
     }
 
+    if (!copyStremioPresentation(
+            metadata,
+            &record,
+            firstActivityAt,
+            lastActivityAt)) {
+        return QVariantMap();
+    }
+
     return record;
 }
 
 bool strictPositiveIntegerVariant(
     const QVariant &value,
     qint64 *result,
-    bool allowZero = false) {
+    bool allowZero) {
     if (!value.isValid())
         return false;
 
@@ -249,7 +323,8 @@ bool HistoryStore::recordActivityRange(const QString &kind, const QString &id,
         normalizedKind, normalizedId,
         existingFirst > 0 ? qMin(existingFirst, firstActivityAtMs) : firstActivityAtMs,
         qMax(existingLast, lastActivityAtMs),
-        current.value(QStringLiteral("completedAt")).toLongLong());
+        current.value(QStringLiteral("completedAt")).toLongLong(),
+        current);
     if (current == normalized && !tombstoneCleared)
         return true;
     QVariantMap next = m_records;
@@ -351,7 +426,8 @@ bool HistoryStore::recordActivity(
             normalizedId,
             firstActivityAt,
             lastActivityAt,
-            completedAt);
+            completedAt,
+            current);
 
     if (current == normalized && !tombstoneCleared)
         return true;
@@ -435,7 +511,8 @@ bool HistoryStore::markCompleted(
             lastActivityAt,
             current.value(QStringLiteral("completedAt")).toLongLong() > 0
                 ? qMin(current.value(QStringLiteral("completedAt")).toLongLong(), completedAtMs)
-                : completedAtMs);
+                : completedAtMs,
+            current);
 
     if (current == normalized && !tombstoneCleared)
         return true;
@@ -670,13 +747,16 @@ bool HistoryStore::normalizeRecord(
         return false;
     }
 
-    *normalized =
-        canonicalRecord(
-            kind,
-            id,
-            firstActivityAt,
-            lastActivityAt,
-            completedAt);
+    const QVariantMap canonical = canonicalRecord(
+        kind,
+        id,
+        firstActivityAt,
+        lastActivityAt,
+        completedAt,
+        input);
+    if (canonical.isEmpty())
+        return false;
+    *normalized = canonical;
     return true;
 }
 
@@ -993,7 +1073,21 @@ QVariantMap HistoryStore::mergeRecords(const QVariantMap &left,
         return left;
     if (completion > 0)
         completion = qBound(first, completion, last);
-    return canonicalRecord(kind, id, first, last, completion);
+    const QVariantMap &preferred = rightLast > leftLast ? right : left;
+    const QVariantMap &fallback = &preferred == &left ? right : left;
+    QVariantMap metadata = preferred;
+    if (!metadata.contains(QStringLiteral("source"))
+        && fallback.contains(QStringLiteral("source"))) {
+        metadata = fallback;
+    }
+    const QVariantMap merged = canonicalRecord(
+        kind,
+        id,
+        first,
+        last,
+        completion,
+        metadata);
+    return merged.isEmpty() ? left : merged;
 }
 
 bool HistoryStore::blockedByTombstone(const QVariantMap &record) const {

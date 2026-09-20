@@ -146,6 +146,24 @@
       ]
     },
     {
+      "id": "stremio_link",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/account/ProfilePreferencesStore.*",
+      "cumulative_owner": "ProfileStoreRuntime -> ProfilePreferencesStore -> StremioLinkSyncAdapter",
+      "read_seam": "mainSyncProvider",
+      "write_seam": "setMainSyncProvider / applySyncedMainSyncProvider",
+      "change_seam": "stremioLinkDirty()",
+      "future_slice": 46,
+      "note": "Only the fixed non-secret mainSyncProvider marker may enter Neon. Stremio credentials, account identity and configured addon URLs remain device-local.",
+      "denial_code": "",
+      "inspection_base_commit": "7d109a2597a7bb20e56e034774bf25ba255141f3",
+      "fields": [
+        "main_sync_provider"
+      ]
+    },
+    {
       "id": "other_durable_preferences",
       "disposition": "syncable",
       "owner_status": "partial",

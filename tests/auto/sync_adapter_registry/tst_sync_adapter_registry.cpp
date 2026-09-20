@@ -252,6 +252,7 @@ QStringList contractRegisterableCategories() {
         QStringLiteral("activity_fact"),
         QStringLiteral(
             "explicit_content_preference"),
+        QStringLiteral("stremio_link"),
         QStringLiteral(
             "theatre_track_preferences"),
         QStringLiteral(
