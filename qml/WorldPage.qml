@@ -95,12 +95,15 @@ Item {
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
+    signal stremioClicked()
     signal settingsClicked()
     signal accountClicked(real anchorRight, real anchorBottom) // topbar account control -> anchored flyout
     signal wallpaperClicked()
     signal fullscreenClicked()               // topbar fullscreen toggle → host flips the shell (same door as F11)
     signal minimizeClicked()
     signal powerClicked()
+
+    function focusStremioButton() { topbar.focusStremioButton() }
 
     Theme { id: theme }
 
@@ -118,6 +121,7 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
+        onStremioClicked: world.stremioClicked()
         onSettingsClicked: world.settingsClicked()
         onAccountClicked: (anchorRight, anchorBottom) =>
             world.accountClicked(anchorRight, anchorBottom)

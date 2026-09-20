@@ -38,6 +38,7 @@ Item {
     signal mediumSelected(string medium)
     signal homeRequested()
     signal searchClicked()
+    signal stremioClicked()
     signal settingsClicked()
     signal wallpaperClicked()
     signal accountClicked(real anchorRight, real anchorBottom)
@@ -77,6 +78,10 @@ Item {
         bar.clock = h12 + ":" + (m < 10 ? "0" + m : m)
         bar.ampm = h < 12 ? "AM" : "PM"
         bar.date = Qt.formatDate(now, "dddd, MMMM d")
+    }
+    function focusStremioButton() {
+        if (stremioButton.visible)
+            stremioInput.forceActiveFocus(Qt.PopupFocusReason)
     }
     Timer {
         interval: 1000; running: bar.lifecycleActive; repeat: true; triggeredOnStart: true
@@ -225,6 +230,44 @@ Item {
             accessibleName: "Search"
             onClicked: bar.searchClicked()
             visible: bar.activeMedium !== ""
+        }
+        // Theatre's provider door. The official artwork remains untouched;
+        // only the small external badge communicates an actionable state.
+        Item {
+            id: stremioButton
+            // Retained worlds each own a TopBar. Name only Theatre's copy so
+            // accessibility/automation never resolves a hidden sibling.
+            objectName: bar.activeMedium === "Theatre" ? "topBarStremioButton" : ""
+            width: 22; height: 22
+            visible: bar.activeMedium === "Theatre" && bar.lifecycleActive
+            opacity: stremioInput.interactionActive ? 1.0 : 0.92
+            Image {
+                objectName: "topBarStremioOfficialAsset"
+                anchors.fill: parent
+                source: "../assets/icons/stremio-official.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+            }
+            Rectangle {
+                objectName: "topBarStremioAttentionBadge"
+                visible: typeof stremioSyncState !== "undefined"
+                    && stremioSyncState
+                    && (stremioSyncState.status === "reconnectRequired"
+                        || stremioSyncState.status === "syncFailed")
+                anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                width: 8; height: 8; radius: 4
+                color: theme.gold
+                border.width: 1; border.color: "#15151a"
+            }
+            KeyboardAction {
+                id: stremioInput
+                objectName: "topBarStremioInput"
+                anchors.fill: parent
+                accessibleName: qsTr("Stremio Sync")
+                focusRadius: 6
+                onTriggered: bar.stremioClicked()
+            }
         }
         // Update — home only. Takes search's throne; the silver badge signals an
         // available release (pulse on unseen, steady once seen).

@@ -408,6 +408,11 @@ qint64 StremioSync::lastSuccessAt() const { return m_state.lastSuccessAtMs; }
 QString StremioSync::activeProfileId() const { return m_profileId; }
 bool StremioSync::mergeComplete() const { return m_state.firstMergeComplete; }
 quint64 StremioSync::completedRun() const { return m_completedRun; }
+QString StremioSync::accountDisplayName() const { return m_state.displayName; }
+QString StremioSync::lastResultSummary() const { return m_lastResultSummary; }
+bool StremioSync::linkedAccount() const {
+    return m_markerLinked && !m_state.accountId.isEmpty();
+}
 
 bool StremioSync::activateProfile(
     const QString &profileId,
@@ -475,6 +480,8 @@ void StremioSync::deactivateProfile() {
     m_dispatchAllowed = false;
     m_inFlightOperations.clear();
     m_addonCollectionReconcileActive = false;
+    m_visibleSyncActive = false;
+    m_lastResultSummary.clear();
     emit stateChanged();
 }
 
@@ -572,6 +579,8 @@ bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
     ++m_bindingGeneration;
     m_inFlightOperations.clear();
     m_addonCollectionReconcileActive = false;
+    m_visibleSyncActive = false;
+    m_lastResultSummary.clear();
 
     cancelAuthentication();
     cancelEpisodeMetadataRequests();
@@ -633,6 +642,34 @@ bool StremioSync::switchAccount() {
             return;
         startBrowserAuthentication();
     });
+}
+
+bool StremioSync::beginVisibleSync() {
+    if (m_visibleSyncActive
+        || (m_status != QLatin1String("synced")
+            && m_status != QLatin1String("syncFailed"))
+        || !linkedAccount() || !m_hasUsableCredential || !m_dispatchAllowed) {
+        return false;
+    }
+    m_visibleSyncActive = true;
+    m_lastResultSummary.clear();
+    setStatus(QStringLiteral("syncing"));
+    emit stateChanged();
+    return true;
+}
+
+void StremioSync::finishVisibleSync(bool succeeded, const QString &summary) {
+    if (!m_visibleSyncActive)
+        return;
+    m_visibleSyncActive = false;
+    m_lastResultSummary = summary;
+    if (succeeded) {
+        setStatus(QStringLiteral("synced"));
+        finishRun();
+    } else {
+        setStatus(QStringLiteral("syncFailed"));
+        emit stateChanged();
+    }
 }
 
 void StremioSync::retireProvisionalCredential() {

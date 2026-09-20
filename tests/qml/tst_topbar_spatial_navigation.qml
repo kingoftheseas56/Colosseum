@@ -25,6 +25,7 @@ TestCase {
     }
 
     SignalSpy { id: boundarySpy; target: bar; signalName: "boundaryArrowRequested" }
+    SignalSpy { id: stremioSpy; target: bar; signalName: "stremioClicked" }
 
     function findChild(root, objectName) {
         if (!root) return null
@@ -52,7 +53,41 @@ TestCase {
     function init() {
         testWindow.requestActivate()
         boundarySpy.clear()
+        stremioSpy.clear()
+        bar.activeMedium = ""
+        bar.lifecycleActive = true
         wait(20)
+    }
+
+    function test_stremio_is_theatre_only_and_between_search_and_account() {
+        bar.activeMedium = "Theatre"
+        wait(0)
+        var stremio = findChild(bar, "topBarStremioButton")
+        var search = findChild(bar, "topBarSearch")
+        var account = findChild(bar, "colosseumTopbarAccountButton")
+        verify(stremio !== null)
+        var asset = findChild(stremio, "topBarStremioOfficialAsset")
+        verify(asset !== null)
+        verify(String(asset.source).indexOf("assets/icons/stremio-official.svg") >= 0)
+        bar.activeMedium = "Biblio"
+        compare(stremio.visible, false)
+        bar.activeMedium = "Tankoban"
+        compare(stremio.visible, false)
+        bar.activeMedium = "Theatre"
+        wait(0)
+        compare(stremio.visible, true)
+        compare(search.parent, stremio.parent)
+        compare(stremio.parent, account.parent)
+        var siblings = search.parent.children
+        verify(siblings.indexOf(search) < siblings.indexOf(stremio))
+        verify(siblings.indexOf(stremio) < siblings.indexOf(account))
+        var face = focusableFace(stremio)
+        verify(face !== null)
+        face.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Return)
+        compare(stremioSpy.count, 1)
+        bar.lifecycleActive = false
+        compare(stremio.visible, false)
     }
 
     function test_right_moves_between_visible_mode_pills() {

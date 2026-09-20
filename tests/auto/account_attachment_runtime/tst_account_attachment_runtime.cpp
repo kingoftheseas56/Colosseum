@@ -676,6 +676,7 @@ private slots:
     void createNewAccountAcceptsConcurrentHistoryMergeAfterCommit();
     void createNewAccountAcceptsCertifiedLwwSupersession();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
+    void stremioLegacyAccountlessProfileCanConnect();
     void stremioMarkerChangeUpdatesActiveRuntimeState();
     void stremioLocalOnlyOwnerReceiptJournalsRelayWithoutNeonEngine();
     void stremioLateOwnerReceiptCannotCrossProfileIncarnation();
@@ -688,6 +689,46 @@ private slots:
     void stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho();
     void extensionsOwnerFollowsTheActiveProfile();
 };
+
+void tst_account_attachment_runtime::
+stremioLegacyAccountlessProfileCanConnect() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-legacy-accountless-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(
+        QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    QNetworkAccessManager network;
+    ExtensionsStore extensions(&network);
+    AccountRuntime runtime;
+    QVERIFY2(bindExtensionsStore(runtime, &extensions),
+             "AccountRuntime cannot bind the Theatre extension owner.");
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    StremioSync *sync = qobject_cast<StremioSync *>(
+        engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState"))
+            .value<QObject *>());
+    QVERIFY(sync);
+
+    runtime.controller()->continueWithoutAccount();
+    QTRY_COMPARE(runtime.profileStores()->activeProfile().kind(),
+                 ProfilePaths::Kind::LegacyLocal);
+    QTRY_COMPARE(sync->activeProfileId(), QStringLiteral("legacy"));
+    QTRY_COMPARE(sync->status(), QStringLiteral("notConnected"));
+    QTRY_COMPARE(extensions.activeProfileId(), QStringLiteral("legacy"));
+    const QString privateExtensionIndex = QDir(
+        runtime.profileStores()->legacyStorage().devicePrivateProfileRoot())
+            .filePath(QStringLiteral("extensions/installed.json"));
+    const QString globalExtensionIndex = QDir(
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+            .filePath(QStringLiteral("extensions/installed.json"));
+    QVERIFY(QFileInfo::exists(privateExtensionIndex));
+    QVERIFY(QDir::cleanPath(privateExtensionIndex)
+            != QDir::cleanPath(globalExtensionIndex));
+}
 
 void tst_account_attachment_runtime::extensionsOwnerFollowsTheActiveProfile()
 {

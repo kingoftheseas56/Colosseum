@@ -1379,6 +1379,7 @@ void tst_stremio_sync::markerWithMatchingCredentialActivatesSynced() {
     StremioPersistentState existing;
     existing.profileId = QStringLiteral("local");
     existing.accountId = QStringLiteral("fixture-account");
+    existing.displayName = QStringLiteral("Fixture Viewer");
     {
         StremioState writer;
         QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
@@ -1394,6 +1395,22 @@ void tst_stremio_sync::markerWithMatchingCredentialActivatesSynced() {
     QCOMPARE(sync.status(), QStringLiteral("reconnectRequired"));
     sync.setMarkerLinked(true);
     QCOMPARE(sync.status(), QStringLiteral("synced"));
+    QVERIFY(sync.linkedAccount());
+    QCOMPARE(sync.accountDisplayName(), QStringLiteral("Fixture Viewer"));
+    const quint64 priorRun = sync.completedRun();
+    QVERIFY(sync.beginVisibleSync());
+    QCOMPARE(sync.status(), QStringLiteral("syncing"));
+    QVERIFY(!sync.beginVisibleSync());
+    sync.finishVisibleSync(true, QStringLiteral("Sync complete · 2 library items · 3 addons"));
+    QCOMPARE(sync.status(), QStringLiteral("synced"));
+    QCOMPARE(sync.completedRun(), priorRun + 1);
+    QCOMPARE(sync.lastResultSummary(),
+             QStringLiteral("Sync complete · 2 library items · 3 addons"));
+    QVERIFY(sync.beginVisibleSync());
+    sync.finishVisibleSync(false, QStringLiteral("Sync could not finish."));
+    QCOMPARE(sync.status(), QStringLiteral("syncFailed"));
+    QVERIFY(sync.beginVisibleSync());
+    sync.finishVisibleSync(true, QStringLiteral("Sync complete"));
 }
 
 void tst_stremio_sync::disconnectFencesLateCallbacksAndRetiresProviderWork() {
@@ -1687,6 +1704,9 @@ void tst_stremio_sync::stateProjectionContainsNoSecretProperty() {
     QVERIFY(names.contains(QStringLiteral("activeprofileid")));
     QVERIFY(names.contains(QStringLiteral("mergecomplete")));
     QVERIFY(names.contains(QStringLiteral("completedrun")));
+    QVERIFY(names.contains(QStringLiteral("accountdisplayname")));
+    QVERIFY(names.contains(QStringLiteral("lastresultsummary")));
+    QVERIFY(names.contains(QStringLiteral("linkedaccount")));
     for (const QString &name : std::as_const(names)) {
         QVERIFY(!name.contains(QStringLiteral("auth")));
         QVERIFY(!name.contains(QStringLiteral("secret")));

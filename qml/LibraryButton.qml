@@ -8,12 +8,14 @@ Rectangle {
     id: lib
     property string world: ""
     property var entry: null
+    signal removeRequested(var entry)
     readonly property bool saved: (Collection.revision,
         entry && entry.id ? Collection.has(world, String(entry.id)) : false)
 
     function toggleLibrary() {
         if (!lib.entry || !lib.entry.id) return
-        if (lib.saved) Collection.remove(lib.world, String(lib.entry.id))
+        if (lib.saved && lib.world === "theatre") lib.removeRequested(lib.entry)
+        else if (lib.saved) Collection.remove(lib.world, String(lib.entry.id))
         else Collection.add(lib.world, lib.entry)
     }
 

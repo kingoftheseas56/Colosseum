@@ -334,3 +334,50 @@ function formatRecentActivity(rows) {
         return []
     return rows.map(formatActivityRow)
 }
+
+// Stremio imports are History presentation only. They join the visible feed
+// after projectMonth() has finished, so they cannot add watch time, active
+// days, completions, or any other Monthly Portrait metric.
+function formatRecentActivityWithStremio(rows, historyRecords) {
+    var formatted = formatRecentActivity(rows)
+    var merged = []
+    for (var i = 0; i < formatted.length; ++i) {
+        var local = formatted[i]
+        local._sortAt = rows[i] && rows[i].localDate ? String(rows[i].localDate) : ""
+        merged.push(local)
+    }
+    if (!Array.isArray(historyRecords))
+        return merged.map(stripSortKey)
+
+    var latestByDisplayId = ({})
+    for (var j = 0; j < historyRecords.length; ++j) {
+        var record = historyRecords[j]
+        if (!record || record.source !== "stremio" || !record.displayId
+                || !record.displayTitle || Number(record.latestKnownAt || 0) <= 0)
+            continue
+        var identity = String(record.displayId)
+        var previous = latestByDisplayId[identity]
+        if (!previous || Number(record.latestKnownAt) > Number(previous.latestKnownAt))
+            latestByDisplayId[identity] = record
+    }
+    for (var key in latestByDisplayId) {
+        var imported = latestByDisplayId[key]
+        var when = new Date(Number(imported.latestKnownAt))
+        var localDate = Qt.formatDate(when, "yyyy-MM-dd")
+        merged.push({
+            "date": shortDateText(localDate),
+            "title": String(imported.displayTitle),
+            "meta": "Watched on Stremio",
+            "world": "Stremio",
+            "_sortAt": localDate
+        })
+    }
+    merged.sort(function(left, right) {
+        return String(right._sortAt || "").localeCompare(String(left._sortAt || ""))
+    })
+    return merged.map(stripSortKey)
+}
+
+function stripSortKey(row) {
+    return { "date": row.date, "title": row.title, "meta": row.meta, "world": row.world }
+}

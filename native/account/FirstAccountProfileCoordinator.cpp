@@ -2626,8 +2626,8 @@ bool FirstAccountProfileCoordinator::transferStremioCredential(
         return setError(error,
                         QStringLiteral("The Stremio credential adoption receipt is invalid."));
     }
-    if (receipt.data.sourceKind
-        != AccountAttachmentReceipt::sourceKindLocalOnly()) {
+    if (receipt.data.sourceKind != AccountAttachmentReceipt::sourceKindLocalOnly()
+        && receipt.data.sourceKind != AccountAttachmentReceipt::sourceKindLegacyLocal()) {
         return true;
     }
 

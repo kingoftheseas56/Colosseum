@@ -594,7 +594,9 @@ LegacyPersonalStateStorage::forCurrentInstallation() {
         audioPairing,
         preferences,
         history,
-        activityDbPath);
+        activityDbPath,
+        QDir(activityRoot).filePath(QStringLiteral("profiles/legacy")),
+        QStringLiteral("legacy"));
 }
 
 LegacyPersonalStateStorage
@@ -652,7 +654,9 @@ LegacyPersonalStateStorage::isolated(
         audioPairing,
         preferences,
         history,
-        activityDbPath);
+        activityDbPath,
+        QDir(base).filePath(QStringLiteral("profiles/legacy")),
+        QStringLiteral("legacy"));
 }
 
 std::optional<LegacyPersonalStateStorage>
@@ -1169,6 +1173,14 @@ QString LegacyPersonalStateStorage::preferencesIniPath() const {
 
 QString LegacyPersonalStateStorage::historyIniPath() const {
     return m_history.iniPath;
+}
+
+QString LegacyPersonalStateStorage::devicePrivateProfileRoot() const {
+    return m_profileRoot;
+}
+
+QString LegacyPersonalStateStorage::devicePrivateStremioStatePath() const {
+    return stremioStatePath(m_profileRoot);
 }
 
 QString LegacyPersonalStateStorage::activityDbPath() const {

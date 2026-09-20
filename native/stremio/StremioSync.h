@@ -51,6 +51,9 @@ class StremioSync final : public QObject {
     Q_PROPERTY(QString activeProfileId READ activeProfileId NOTIFY stateChanged)
     Q_PROPERTY(bool mergeComplete READ mergeComplete NOTIFY stateChanged)
     Q_PROPERTY(quint64 completedRun READ completedRun NOTIFY stateChanged)
+    Q_PROPERTY(QString accountDisplayName READ accountDisplayName NOTIFY stateChanged)
+    Q_PROPERTY(QString lastResultSummary READ lastResultSummary NOTIFY stateChanged)
+    Q_PROPERTY(bool linkedAccount READ linkedAccount NOTIFY stateChanged)
 
 public:
     explicit StremioSync(
@@ -63,6 +66,9 @@ public:
     QString activeProfileId() const;
     bool mergeComplete() const;
     quint64 completedRun() const;
+    QString accountDisplayName() const;
+    QString lastResultSummary() const;
+    bool linkedAccount() const;
 
     bool activateProfile(
         const QString &profileId,
@@ -82,6 +88,8 @@ public:
     Q_INVOKABLE bool connectAccount();
     Q_INVOKABLE bool disconnectCurrentProfile();
     Q_INVOKABLE bool switchAccount();
+    bool beginVisibleSync();
+    void finishVisibleSync(bool succeeded, const QString &summary);
     void setMarkerLinked(bool linked);
     void setCredentialCallbacks(
         std::function<bool(const QString &, const QString &, const QByteArray &)> save,
@@ -316,6 +324,8 @@ private:
     quint64 m_bindingGeneration = 0;
     quint64 m_authAttempt = 0;
     quint64 m_completedRun = 0;
+    QString m_lastResultSummary;
+    bool m_visibleSyncActive = false;
     QString m_status = QStringLiteral("notConnected");
     bool m_hasUsableCredential = false;
     bool m_markerLinked = false;

@@ -1669,3 +1669,20 @@ transcripts) under `Colosseum/artifacts/arc21-adoption/closing/` (gitignored, on
 The others — `Implemented, verification pending` · `Bridge blocked` · `Verification failed` ·
 `Plan contradicted` · `Test-reported` — are honest intermediate states, not failures of nerve.
 A green unit suite is `Test-reported`, never `Runtime-validated`.
+
+## Stremio Sync Task 4 runtime journey (2026-09-20)
+
+`tests/lanista_scenarios/stremio_task4_theatre_panel.json` is the disposable,
+Drive-gated accountless journey. It dismisses onboarding, enters Theatre, resolves the
+uniquely named visible Stremio icon, opens the same-window panel, reads the non-secret
+`stremioSyncState` projection, captures the panel, and closes without launching an
+external browser. Session `20260920-165353-6a1412f8` passed 12/12 against the production
+composition with `activeProfileId=legacy`, `status=notConnected`, no linked account and
+no pending work. The capture is `artifacts/lanista-sessions/20260920-165353-6a1412f8/seq110-1.png`.
+
+The first diagnostic session exposed `activeProfileId=""` and `status=unavailable` after
+the real accountless choice. That red proved the default legacy-local profile had no
+device-private Stremio path. The repaired green session above proves the same unchanged
+journey now binds that profile and its addon owner without a Colosseum account. External
+Stremio browser authentication remains a Task 5 witnessed check; Lanista does not operate
+or qualify the external browser.

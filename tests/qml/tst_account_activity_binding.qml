@@ -297,6 +297,21 @@ TestCase {
         compare(Format.formatRecentActivity(null).length, 0)
     }
 
+    function test_stremio_history_is_labelled_deduplicated_and_not_a_metric_input() {
+        var rows = Format.formatRecentActivityWithStremio([
+            { "localDate": "2026-08-16", "title": "Local", "world": "theatre", "verb": "watched" }
+        ], [
+            { "source": "stremio", "displayId": "tt1", "displayTitle": "Old", "latestKnownAt": 1787000000000 },
+            { "source": "stremio", "displayId": "tt1", "displayTitle": "Newest", "latestKnownAt": 1787200000000 },
+            { "source": "other", "displayId": "tt2", "displayTitle": "Ignored", "latestKnownAt": 1787300000000 }
+        ])
+        compare(rows.length, 2)
+        compare(rows[0].title, "Newest")
+        compare(rows[0].world, "Stremio")
+        compare(rows[0].meta, "Watched on Stremio")
+        compare(rows[1].title, "Local")
+    }
+
     // ---- empty projection -> em-dash defaults (section 23/25) ------------------------------
 
     function test_empty_projection_formats_to_dashes_and_empty_arrays() {

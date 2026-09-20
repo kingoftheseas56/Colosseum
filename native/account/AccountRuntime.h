@@ -28,6 +28,8 @@
 
 #include <QJsonArray>
 #include <QObject>
+#include <QTimer>
+#include <functional>
 
 #include <memory>
 
@@ -69,6 +71,12 @@ public:
 
     void prepareForQml(QQmlApplicationEngine *engine);
 
+    Q_INVOKABLE bool syncStremioNow();
+    Q_INVOKABLE bool removeTheatreItem(
+        const QString &id,
+        const QString &type,
+        bool alsoStremio);
+
     // Narrow Watch Party identity seam — supplies signed-in username +
     // current bearer to the Watch Party WSS boundary only; never exposed to
     // QML; invite delivery fail-closed until the account service exposes a
@@ -86,7 +94,8 @@ private:
     void startOrResumeAccountAttachment();
     void activateStremioProfile();
     void activateExtensionsProfile();
-    void refreshStremioLibrary();
+    void refreshStremioLibrary(
+        std::function<void(bool, int)> completion = {});
     bool applyStremioSeriesWatchedAfterRedo(
         const StremioLibraryItem &item,
         const QString &encodedWatched,
@@ -162,4 +171,6 @@ private:
     bool m_stremioAddonApplyInProgress = false;
     bool m_stremioAddonReconcileDeferred = false;
     bool m_qmlPrepared = false;
+    quint64 m_visibleSyncGeneration = 0;
+    QTimer m_stremioPeriodicTimer;
 };

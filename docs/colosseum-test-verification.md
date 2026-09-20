@@ -2527,3 +2527,27 @@ qualification; no runtime-validation claim is made here.
 
 `[Sol (Codex), review] APPROVE — Task 3 meets its written completion criterion with the known
 QtQuick host-provisioning failure isolated and unchanged.`
+
+## Stremio Sync Task 4 — Theatre controls and History presentation (2026-09-20)
+
+Task 4 adds the user-facing Stremio door without changing Colosseum identity or
+introducing a provider framework. `tst_stremio_sync_panel.qml`,
+`tst_theatre_removal_dialog.qml`, the extended top-bar navigation suite, and the
+extended account-activity suite cover the six panel states, official asset path,
+Theatre-only visibility, focus/escape, both explicit removal choices, labelled and
+deduplicated Stremio History, and the Stats exclusion. `colosseum.qttest.stremio_sync`
+proves that visible completion is published only after committed work and that failure
+can retry. `account_attachment_runtime` and `account_adoption` cover the real accountless
+legacy/local owners, private addon root, profile fencing, and credential continuity into
+the first Neon profile.
+
+The aggregate Qt Quick run ended 655 passed, 14 failed, 3 skipped, improving the recorded
+Task 2 baseline of 630 passed, 15 failed, 3 skipped. All new Task 4 cases passed; the
+remaining failures stay within the previously recorded account-click, atlas-capture,
+Player2 construction, Tankoyomi layout, and update-gallery categories. The focused native
+Stremio, adoption and attachment targets passed. The assembled-app runtime journey is
+recorded in the Lanista ledger and its manifest.
+
+`[Sol (Codex), review] APPROVE — Task 4 meets its written completion criterion. The
+accountless legacy-profile defect found by the runtime journey was repaired at the
+existing private-store/adoption seam and is covered at native and assembled-app layers.`

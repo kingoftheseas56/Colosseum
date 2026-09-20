@@ -78,6 +78,8 @@ public:
     QString audioPairingIniPath() const;
     QString preferencesIniPath() const;
     QString historyIniPath() const;
+    QString devicePrivateProfileRoot() const;
+    QString devicePrivateStremioStatePath() const;
 
     // The durable activity.sqlite path for this storage location — always an
     // explicit file path (SQLite has no registry-backed equivalent of the
