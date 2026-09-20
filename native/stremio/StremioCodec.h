@@ -10,6 +10,7 @@
 #include <QStringList>
 #include <QUrl>
 #include <QVariantMap>
+#include <QtGlobal>
 
 struct StremioLoopbackCallback {
     bool accepted = false;
@@ -61,6 +62,11 @@ struct StremioTheatreItemProjection {
     bool hasCollection = false;
     bool hasProgress = false;
     bool hasHistory = false;
+    // Movie watched/unwatched is current state. It intentionally remains
+    // separate from cumulative History, whose dated records are additive.
+    bool hasWatchState = false;
+    bool watched = false;
+    qint64 watchActionAtMs = 0;
     QVariantMap collection;
     QVariantMap progress;
     QVariantMap history;

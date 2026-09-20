@@ -45,6 +45,13 @@ public:
     bool replayProviderImport(
         const StremioProviderImportRedo &redo,
         Completion completion);
+    // Replays the bounded canonical owner projection embedded in an
+    // AccountRuntime episode-pending redo. The outer redo already exists, so
+    // this deliberately does not create or settle a second provider receipt.
+    bool applyCanonicalProjectionAfterRedo(
+        const StremioLibraryItem &item,
+        const QJsonObject &projection,
+        Completion completion);
     bool applyWatchedEpisodes(
         const StremioLibraryItem &series,
         const QString &encodedWatched,
@@ -67,6 +74,7 @@ private:
     void applyAfterRedo(const std::shared_ptr<Pending> &pending);
     void applyCollection(const std::shared_ptr<Pending> &pending);
     void applyProgress(const std::shared_ptr<Pending> &pending);
+    void applyWatchState(const std::shared_ptr<Pending> &pending);
     void applyHistory(const std::shared_ptr<Pending> &pending);
     void applyWatchedAfterRedo(const std::shared_ptr<EpisodePending> &pending);
     void applyNextWatchedEpisode(const std::shared_ptr<EpisodePending> &pending);

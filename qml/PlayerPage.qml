@@ -2100,8 +2100,16 @@ Item {
         var m = root.parseSubtitleMeta()
         var epPrefix = (m.type === "series" && m.season !== undefined && m.episode !== undefined)
                        ? ("S" + m.season + " · E" + m.episode + " · ") : ""
+        var exactVideoId = String(root.mediaId)
+        var libraryItemId = root.subStreamType === "series"
+                          ? EpisodeBrowser.seriesRootId(exactVideoId)
+                          : exactVideoId
         var entry = {
-            "id": root.mediaId,
+            // The Resume row remains keyed by the exact movie/episode.  The
+            // Stremio adapter uses libraryId separately to patch the series
+            // libraryItem without collapsing the episode identity.
+            "id": exactVideoId,
+            "libraryId": libraryItemId,
             "kind": "video",
             "caption": root.mediaTitle,
             "title": root.mediaTitle,
@@ -2109,6 +2117,7 @@ Item {
             "cover": root.mediaArt,
             "c1": "#33445d", "c2": "#0c1118",
             "progress": frac,
+            "duration": mpv.duration,
             "resume": { "infoHash": root.mediaResumeHash,
                         "fileIdx": root.mediaResumeFileIdx,
                         "localPath": root.mediaLocalPath,

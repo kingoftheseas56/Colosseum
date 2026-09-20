@@ -19,6 +19,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkInterface>
@@ -29,6 +30,9 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <algorithm>
+#include <utility>
 
 namespace {
 
@@ -118,6 +122,14 @@ public:
         for (const QJsonArray &batch : m_uploadedMutations)
             count += batch.size();
         return count;
+    }
+
+    void enableCoreReplication() {
+        m_coreReplicationEnabled = true;
+    }
+
+    int corePushCount() const {
+        return m_corePushCount;
     }
 
 private:
@@ -250,8 +262,10 @@ private:
                 {QStringLiteral("id"), QString::fromLatin1(kAccountId)},
                 {QStringLiteral("username"), QStringLiteral("f03-user")},
                 {QStringLiteral("protect_new_device_signins"), false}};
-            QJsonObject device{
-                {QStringLiteral("id"), QString::fromLatin1(kDeviceId)}};
+            const QString deviceId = m_createRequestCount == 1
+                ? QString::fromLatin1(kDeviceId)
+                : QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+            QJsonObject device{{QStringLiteral("id"), deviceId}};
             QJsonObject session{
                 {QStringLiteral("account"), account},
                 {QStringLiteral("device"), device},
@@ -273,6 +287,29 @@ private:
 
         if (method == QByteArrayLiteral("GET")
             && path.startsWith(QStringLiteral("/v1/sync/pull?after="))) {
+            if (m_coreReplicationEnabled) {
+                bool cursorOk = false;
+                const QString cursorText = path.mid(
+                    QStringLiteral("/v1/sync/pull?after=").size()).section(
+                        QLatin1Char('&'), 0, 0);
+                const quint64 cursor = cursorText.toULongLong(&cursorOk);
+                if (!cursorOk) {
+                    send(socket, 400, QJsonObject{});
+                    return;
+                }
+                QJsonArray entries;
+                for (const QJsonObject &entry : std::as_const(m_coreJournal)) {
+                    const quint64 sequence = entry.value(QStringLiteral("server_seq"))
+                        .toString().toULongLong();
+                    if (sequence > cursor)
+                        entries.append(entry);
+                }
+                send(socket, 200, QJsonObject{
+                    {QStringLiteral("server_time_ms"), QStringLiteral("1")},
+                    {QStringLiteral("entries"), entries},
+                    {QStringLiteral("has_more"), false}});
+                return;
+            }
             send(
                 socket,
                 200,
@@ -296,15 +333,27 @@ private:
             for (const QJsonValue &value : mutations) {
                 if (!value.isObject())
                     continue;
+                const QJsonObject mutation = value.toObject();
+                const quint64 sequence = m_coreReplicationEnabled
+                    ? m_nextCoreServerSeq++
+                    : 1;
+                if (m_coreReplicationEnabled) {
+                    m_coreJournal.append(QJsonObject{
+                        {QStringLiteral("server_seq"), QString::number(sequence)},
+                        {QStringLiteral("won"), true},
+                        {QStringLiteral("mutation"), mutation}});
+                }
                 results.append(QJsonObject{
                     {QStringLiteral("mutation_id"),
-                     value.toObject().value(
+                     mutation.value(
                          QStringLiteral("mutation_id"))},
                     {QStringLiteral("accepted"), true},
                     {QStringLiteral("server_seq"),
-                     QStringLiteral("1")},
+                     QString::number(sequence)},
                     {QStringLiteral("won"), true}});
             }
+            if (m_coreReplicationEnabled)
+                ++m_corePushCount;
             send(
                 socket,
                 200,
@@ -502,6 +551,83 @@ private:
     qint64 m_concurrentHistoryLastActivity = 0;
     bool m_certifiedLwwSupersession = false;
     int m_createRequestCount = 0;
+    bool m_coreReplicationEnabled = false;
+    int m_corePushCount = 0;
+    quint64 m_nextCoreServerSeq = 1;
+    QList<QJsonObject> m_coreJournal;
+};
+
+// Bounded native-only datastore fixture for the composed runtime relay. It
+// returns one canonical row and records method paths; no credential or raw
+// request body is projected into QML or an account-sync record.
+class LoopbackStremioDatastore final : public QObject {
+public:
+    LoopbackStremioDatastore() {
+        connect(&m_server, &QTcpServer::newConnection, this, [this] {
+            while (m_server.hasPendingConnections()) {
+                QTcpSocket *socket = m_server.nextPendingConnection();
+                if (!socket)
+                    continue;
+                m_buffers.insert(socket, {});
+                connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
+                    QByteArray &buffer = m_buffers[socket];
+                    buffer.append(socket->readAll());
+                    const qsizetype headerEnd = buffer.indexOf("\r\n\r\n");
+                    if (headerEnd < 0)
+                        return;
+                    const QByteArray firstLine = buffer.left(headerEnd)
+                        .left(buffer.left(headerEnd).indexOf("\r\n"));
+                    m_requests.append(firstLine);
+                    const QByteArray body = QJsonDocument(QJsonObject{
+                        {QStringLiteral("result"), m_result}})
+                        .toJson(QJsonDocument::Compact);
+                    socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
+                        + QByteArray::number(body.size())
+                        + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
+                    socket->disconnectFromHost();
+                });
+                connect(socket, &QTcpSocket::disconnected, this, [this, socket] {
+                    m_buffers.remove(socket);
+                    socket->deleteLater();
+                });
+            }
+        });
+    }
+
+    ~LoopbackStremioDatastore() override {
+        m_server.close();
+        const QList<QTcpSocket *> sockets = m_buffers.keys();
+        for (QTcpSocket *socket : sockets) {
+            if (!socket)
+                continue;
+            QObject::disconnect(socket, nullptr, this, nullptr);
+            socket->abort();
+            delete socket;
+        }
+        m_buffers.clear();
+    }
+
+    bool listen() { return m_server.listen(QHostAddress::LocalHost, 0); }
+    QUrl endpoint() const {
+        return QUrl(QStringLiteral("http://127.0.0.1:%1/api").arg(m_server.serverPort()));
+    }
+    void setResult(const QJsonValue &result) { m_result = result; }
+    int putCount() const {
+        return std::count_if(m_requests.cbegin(), m_requests.cend(), [](const QByteArray &line) {
+            return line.startsWith("POST /api/datastorePut ");
+        });
+    }
+    int getCount() const {
+        return std::count_if(m_requests.cbegin(), m_requests.cend(), [](const QByteArray &line) {
+            return line.startsWith("POST /api/datastoreGet ");
+        });
+    }
+
+private:
+    QTcpServer m_server;
+    QHash<QTcpSocket *, QByteArray> m_buffers;
+    QJsonValue m_result;
+    QList<QByteArray> m_requests;
 };
 
 }
@@ -524,6 +650,7 @@ private slots:
     void stremioPendingSeriesWatchSurvivesMissingMapAndRestart();
     void stremioQmlMetadataFixtureProjectsIdentityOnlyToNative();
     void stremioInactiveAccountEngineRetainsProviderRedo();
+    void stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho();
 };
 
 void tst_account_attachment_runtime::
@@ -847,9 +974,15 @@ stremioPendingSeriesWatchSurvivesMissingMapAndRestart() {
     series.raw = QJsonObject{{QStringLiteral("_id"), series.id},
                              {QStringLiteral("type"), series.type},
                              {QStringLiteral("name"), QStringLiteral("Restart series")},
-                             {QStringLiteral("state"), QJsonObject{{QStringLiteral("watched"), encoded}}}};
+                             {QStringLiteral("state"), QJsonObject{
+                                 {QStringLiteral("watched"), encoded},
+                                 {QStringLiteral("video_id"), QStringLiteral("kitsu:restart:s1:e1")},
+                                 {QStringLiteral("timeOffset"), 120000},
+                                 {QStringLiteral("duration"), 300000},
+                                 {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
     QString profileId;
     QString statePath;
+    QString progressPath;
     {
         AccountRuntime seeded;
         QQmlApplicationEngine engine;
@@ -859,6 +992,7 @@ stremioPendingSeriesWatchSurvivesMissingMapAndRestart() {
         const ProfilePaths profile = seeded.profileStores()->activeProfile();
         profileId = profile.profileId();
         statePath = profile.stremioSyncStatePath();
+        progressPath = profile.progressIniPath();
         StremioPersistentState state;
         state.profileId = profileId;
         state.bindingGeneration = 1;
@@ -919,6 +1053,11 @@ stremioPendingSeriesWatchSurvivesMissingMapAndRestart() {
         QVERIFY(!privateState.contains("requestId"));
     }
 
+    // Model the durable outer redo surviving a crash before the owner file is
+    // available to the replacement runtime. The saved canonical projection,
+    // not a provider repull or a leftover Continue row, must restore it.
+    QVERIFY(QFile::remove(progressPath));
+
     AccountRuntime restarted;
     QQmlApplicationEngine engine;
     restarted.prepareForQml(&engine);
@@ -936,6 +1075,12 @@ stremioPendingSeriesWatchSurvivesMissingMapAndRestart() {
                                 {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 2}}}));
             });
     sync->setEpisodeMetadataBridgeReady(true);
+    // The crash replay owns this saved canonical partial state. It must land
+    // before watched-bit resolution and must not need a fresh provider pull.
+    QTRY_COMPARE(restarted.profileStores()->progressStore()->get(
+        QStringLiteral("video"), QStringLiteral("kitsu:restart:s1:e1"))
+                     .value(QStringLiteral("resume")).toMap()
+                     .value(QStringLiteral("position")).toDouble(), 120.0);
     QTRY_COMPARE(restarted.profileStores()->progressStore()->get(
         QStringLiteral("video"), QStringLiteral("kitsu:restart:s1:e2"))
                      .value(QStringLiteral("progress")).toDouble(), 1.0);
@@ -1051,6 +1196,179 @@ stremioInactiveAccountEngineRetainsProviderRedo() {
         QStringLiteral("theatre"),
         QStringLiteral("tt-account-engine-held")));
     QCOMPARE(sync->pendingProviderImports().size(), 1);
+}
+
+void tst_account_attachment_runtime::
+stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    ScopedEnvironmentVariable restoreEndpoint("COLOSSEUM_ACCOUNT_SERVICE_URL");
+    QStandardPaths::setTestModeEnabled(true);
+    const QString previousApplication = QCoreApplication::applicationName();
+    const QByteArray tag = QByteArrayLiteral("stremio-runtime-relay-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+
+    LoopbackAccountService accountService;
+    QString error;
+    QVERIFY2(accountService.listen(&error), qPrintable(error));
+    accountService.enableCoreReplication();
+    qputenv("COLOSSEUM_ACCOUNT_SERVICE_URL",
+            QStringLiteral("http://127.0.0.1:%1").arg(accountService.port()).toLatin1());
+
+    LoopbackStremioDatastore datastore;
+    QVERIFY(datastore.listen());
+    datastore.setResult(QJsonArray{QJsonObject{
+        {QStringLiteral("_id"), QStringLiteral("tt-runtime-two-device")},
+        {QStringLiteral("type"), QStringLiteral("movie")},
+        {QStringLiteral("removed"), false},
+        {QStringLiteral("temp"), false},
+        {QStringLiteral("state"), QJsonObject{
+            {QStringLiteral("video_id"), QStringLiteral("tt-runtime-two-device")},
+            {QStringLiteral("timeOffset"), 120000},
+            {QStringLiteral("duration"), 300000},
+            {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}}});
+
+    StremioSyncOptions stremioOptions;
+    stremioOptions.apiEndpoint = datastore.endpoint();
+    stremioOptions.allowTaggedLoopbackFixture = true;
+
+    const auto provisionStremio = [](AccountRuntime &runtime,
+                                     QQmlApplicationEngine &engine,
+                                     StremioSync **out) {
+        QVERIFY(out);
+        const ProfilePaths profile = runtime.profileStores()->activeProfile();
+        QVERIFY(profile.kind() == ProfilePaths::Kind::Account);
+        StremioPersistentState state;
+        state.profileId = profile.profileId();
+        state.bindingGeneration = 1;
+        state.accountId = QStringLiteral("runtime-stremio-account");
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(profile.stremioSyncStatePath(), state);
+        QTRY_COMPARE(committed.count(), 1);
+        // AccountRuntime owns the production vault callback; seed its
+        // tag-isolated credential rather than bypassing that boundary with a
+        // test lambda.
+        WindowsAccountCredentialStore vault;
+        QVERIFY(vault.saveStremio(StoredStremioCredential{
+            profile.profileId(), state.accountId, QByteArrayLiteral("runtime-fixture-key")}));
+        StremioSync *sync = qobject_cast<StremioSync *>(
+            engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+        QVERIFY(sync);
+        QVERIFY(sync->activateProfile(profile.profileId(), profile.stremioSyncStatePath(), false));
+        ProfilePreferencesStore *preferences = runtime.profileStores()->preferencesStore();
+        QVERIFY(preferences);
+        QVERIFY(preferences->setMainSyncProvider(QStringLiteral("stremio")));
+        sync->setMarkerLinked(true);
+        *out = sync;
+    };
+
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio-Relay"));
+    qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-a"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-runtime-relay-a-%1")
+                                             .arg(QString::fromLatin1(tag)));
+    AccountRuntime runtimeA(stremioOptions);
+    QQmlApplicationEngine engineA;
+    runtimeA.prepareForQml(&engineA);
+    QSignalSpy profileReadyA(runtimeA.controller(), &AccountController::accountProfileReadyForSync);
+    runtimeA.controller()->createAccount(
+        QStringLiteral("runtime-relay-a"), QStringLiteral("correct horse battery staple 884"));
+    QTRY_COMPARE(profileReadyA.count(), 1);
+    StremioSync *syncA = nullptr;
+    provisionStremio(runtimeA, engineA, &syncA);
+    QVERIFY(syncA);
+    const ProfilePaths aProfile = runtimeA.profileStores()->activeProfile();
+
+    qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-b"));
+    QCoreApplication::setApplicationName(QStringLiteral("Colosseum-runtime-relay-b-%1")
+                                             .arg(QString::fromLatin1(tag)));
+    AccountRuntime runtimeB(stremioOptions);
+    QQmlApplicationEngine engineB;
+    runtimeB.prepareForQml(&engineB);
+    QSignalSpy profileReadyB(runtimeB.controller(), &AccountController::accountProfileReadyForSync);
+    runtimeB.controller()->createAccount(
+        QStringLiteral("runtime-relay-b"), QStringLiteral("correct horse battery staple 884"));
+    QTRY_COMPARE(profileReadyB.count(), 1);
+    StremioSync *syncB = nullptr;
+    provisionStremio(runtimeB, engineB, &syncB);
+    QVERIFY(syncB);
+    const ProfilePaths bProfile = runtimeB.profileStores()->activeProfile();
+    Q_UNUSED(syncA);
+    QCOMPARE(syncB->status(), QStringLiteral("synced"));
+
+    StremioLibraryItem inbound;
+    inbound.id = QStringLiteral("tt-runtime-two-device");
+    inbound.type = QStringLiteral("movie");
+    inbound.libraryMember = true;
+    inbound.raw = QJsonObject{{QStringLiteral("_id"), inbound.id},
+                              {QStringLiteral("type"), inbound.type},
+                              {QStringLiteral("name"), QStringLiteral("Relay movie")},
+                              {QStringLiteral("state"), QJsonObject{
+                                  {QStringLiteral("video_id"), inbound.id},
+                                  {QStringLiteral("timeOffset"), 120000},
+                                  {QStringLiteral("duration"), 300000},
+                                  {QStringLiteral("lastWatched"),
+                                   QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+    bool imported = false;
+    QString importError;
+    QVERIFY(runtimeA.applyStremioLibraryItem(
+        inbound, [&imported, &importError](bool committed, const QString &message) {
+            imported = committed;
+            importError = message;
+        }));
+    QTRY_VERIFY2(imported, qPrintable(importError));
+    QTRY_VERIFY(accountService.corePushCount() > 0);
+
+    // B's normal local owner notification causes its active account engine to
+    // pull A's entry. No test calls StremioSync::reconcileTheatreState on B.
+    ProgressStore *bProgress = runtimeB.profileStores()->progressStore();
+    QVERIFY(bProgress);
+    bProgress->recordSilent(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("local-trigger")},
+        {QStringLiteral("progress"), 0.1}});
+    QTRY_VERIFY_WITH_TIMEOUT(runtimeB.profileStores()->collectionStore()->has(
+        QStringLiteral("theatre"), inbound.id), 20000);
+    QTRY_COMPARE(runtimeB.profileStores()->progressStore()->get(
+        QStringLiteral("video"), inbound.id).value(QStringLiteral("progress")).toDouble(), 0.4);
+    QTRY_VERIFY(datastore.getCount() > 0);
+    QCOMPARE(datastore.putCount(), 0);
+
+    // A repeated observer invalidation still reads provider-current state but
+    // cannot manufacture an echo write.
+    bProgress->recordSilent(QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("local-trigger-repeat")},
+        {QStringLiteral("progress"), 0.2}});
+    QTRY_VERIFY(datastore.getCount() > 1);
+    QCOMPARE(datastore.putCount(), 0);
+
+    // Reload B's private provider state as a restart would. The preceding
+    // repeated observer invalidation already proved the actual GET/readback
+    // path. A private-state reload does not itself manufacture an owner
+    // invalidation, so its contract is instead a usable restored binding
+    // with no echo write. Tying this check to a coalesced, unrelated silent
+    // tick raced the unrelated adapter timer and did not describe a product
+    // guarantee.
+    syncB->deactivateProfile();
+    QVERIFY(syncB->activateProfile(
+        bProfile.profileId(), bProfile.stremioSyncStatePath(), false));
+    syncB->setMarkerLinked(true);
+    QTRY_COMPARE(syncB->status(), QStringLiteral("synced"));
+    // Restart may intentionally reload an already-durable intent while its
+    // prior provider/current readback completes.  It must retire after the
+    // readback without emitting a PUT; an immediate empty outbox is not the
+    // crash-safe contract.
+    QTRY_COMPARE(syncB->pendingCount(), 0);
+    QCOMPARE(datastore.putCount(), 0);
+
+    // The Windows credential target is globally visible outside its profile
+    // directory, so remove both unique tagged fixture credentials explicitly.
+    WindowsAccountCredentialStore vault;
+    qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-a"));
+    QVERIFY(vault.clearStremio(aProfile.profileId()));
+    qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-b"));
+    QVERIFY(vault.clearStremio(bProfile.profileId()));
+    QCoreApplication::setApplicationName(previousApplication);
 }
 
 void tst_account_attachment_runtime::

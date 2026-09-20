@@ -331,6 +331,125 @@ func TestSyncMergeTheatreProgressUsesRealActivityTime(t *testing.T) {
 	}
 }
 
+func TestSyncMergeTheatreProgressMaterializesNewestActivityUnderMonotonicEnvelope(t *testing.T) {
+	// This must fail if a lower-HLC mutation with a newer real viewing action
+	// is treated as an ordinary stale arrival. The payload must advance while
+	// retaining the already-monotonic envelope so pull consumers can observe
+	// the materialized server sequence without regressing HLC.
+	current := syncMergeCurrentFixture(
+		"50505050-5050-4050-8050-505050505050", syncMergeDeviceA, "put", 500, 2,
+		`{"kind":"video","id":"tt-activity-envelope","progress":0.20,"updatedAt":1000}`)
+	newerActivityLowerHLC := syncMergeIncomingFixture(
+		"60606060-6060-4060-8060-606060606060", syncMergeDeviceB, "continue_progress", "put", 100, 0,
+		`{"kind":"video","id":"tt-activity-envelope","progress":0.65,"updatedAt":2000}`)
+
+	resolution, err := resolveMutableSync(current, true, newerActivityLowerHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(newer activity) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != current.MutationID ||
+		resolution.WinnerHLCPhysicalMS != current.HLCPhysicalMS ||
+		resolution.WinnerHLCCounter != current.HLCCounter {
+		t.Fatalf("newer activity did not retain the monotonic current envelope: %+v", resolution)
+	}
+	newerPayload := decodeSyncMergePayload(t, resolution.Payload)
+	if got, ok := newerPayload["progress"].(json.Number); !ok || got.String() != "0.65" ||
+		syncMergeInt64(t, newerPayload, "updatedAt") != 2000 {
+		t.Fatalf("newer real activity was not materialized: %#v", newerPayload)
+	}
+
+	olderActivityHigherHLC := syncMergeIncomingFixture(
+		"70707070-7070-4070-8070-707070707070", syncMergeDeviceB, "continue_progress", "put", 600, 0,
+		`{"kind":"video","id":"tt-activity-envelope","progress":0.05,"updatedAt":500}`)
+	resolution, err = resolveMutableSync(current, true, olderActivityHigherHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(older activity) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != olderActivityHigherHLC.MutationID ||
+		resolution.WinnerHLCPhysicalMS != olderActivityHigherHLC.HLCPhysicalMS {
+		t.Fatalf("higher HLC did not retain its monotonic envelope: %+v", resolution)
+	}
+	olderPayload := decodeSyncMergePayload(t, resolution.Payload)
+	if got, ok := olderPayload["progress"].(json.Number); !ok || got.String() != "0.20" ||
+		syncMergeInt64(t, olderPayload, "updatedAt") != 1000 {
+		t.Fatalf("older real activity overwrote the materialized payload: %#v", olderPayload)
+	}
+}
+
+func TestSyncMergeWatchStateUsesActionTimeWithinMonotonicEnvelope(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"51515151-5151-4515-8515-515151515151", syncMergeDeviceA, "put", 200, 0,
+		`{"id":"tt-watch","mark":1,"actionAtMs":"2000"}`)
+	newerActionLowerHLC := syncMergeIncomingFixture(
+		"52525252-5252-4525-8525-525252525252", syncMergeDeviceB, "watch_state", "put", 100, 0,
+		`{"id":"tt-watch","mark":-1,"actionAtMs":"3000"}`)
+	newerActionLowerHLC.RecordKey = "watch/mark/dHQtd2F0Y2g"
+
+	resolution, err := resolveMutableSync(current, true, newerActionLowerHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(newer action) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != current.MutationID ||
+		resolution.WinnerHLCPhysicalMS != current.HLCPhysicalMS {
+		t.Fatalf("newer action resolution = %+v, want current monotonic envelope", resolution)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if got := syncMergeInt64(t, payload, "mark"); got != -1 {
+		t.Fatalf("newer action mark = %d, want -1", got)
+	}
+	if payload["actionAtMs"] != "3000" {
+		t.Fatalf("newer action timestamp = %#v, want 3000", payload["actionAtMs"])
+	}
+
+	materialized := current
+	materialized.Payload = resolution.Payload
+	olderActionHigherHLC := newerActionLowerHLC
+	olderActionHigherHLC.MutationID = "53535353-5353-4535-8535-535353535353"
+	olderActionHigherHLC.HLCPhysicalMS = 300
+	olderActionHigherHLC.Payload = json.RawMessage(
+		`{"id":"tt-watch","mark":1,"actionAtMs":"1000"}`)
+	resolution, err = resolveMutableSync(materialized, true, olderActionHigherHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(older action) error = %v", err)
+	}
+	if !resolution.Changed || resolution.WinnerMutationID != olderActionHigherHLC.MutationID {
+		t.Fatalf("older action resolution = %+v, want newer transport envelope", resolution)
+	}
+	payload = decodeSyncMergePayload(t, resolution.Payload)
+	if got := syncMergeInt64(t, payload, "mark"); got != -1 || payload["actionAtMs"] != "3000" {
+		t.Fatalf("older action replaced current state: %#v", payload)
+	}
+
+	materialized = syncMergeCurrentFixture(
+		resolution.WinnerMutationID, resolution.WinnerDeviceID, resolution.Operation,
+		resolution.WinnerHLCPhysicalMS, resolution.WinnerHLCCounter, string(resolution.Payload))
+	unknownHigherHLC := olderActionHigherHLC
+	unknownHigherHLC.MutationID = "54545454-5454-4545-8545-545454545454"
+	unknownHigherHLC.HLCPhysicalMS = 400
+	unknownHigherHLC.Payload = json.RawMessage(`{"id":"tt-watch","mark":1}`)
+	resolution, err = resolveMutableSync(materialized, true, unknownHigherHLC)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(unknown action) error = %v", err)
+	}
+	payload = decodeSyncMergePayload(t, resolution.Payload)
+	if got := syncMergeInt64(t, payload, "mark"); got != -1 || payload["actionAtMs"] != "3000" {
+		t.Fatalf("unknown action changed deterministic tie: %#v", payload)
+	}
+
+	deleteIncoming := unknownHigherHLC
+	deleteIncoming.MutationID = "55555555-5555-4555-8555-555555555555"
+	deleteIncoming.HLCPhysicalMS = 500
+	deleteIncoming.Operation = "delete"
+	deleteIncoming.Payload = nil
+	resolution, err = resolveMutableSync(materialized, true, deleteIncoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(delete) error = %v", err)
+	}
+	if !resolution.Changed || resolution.Operation != "delete" || resolution.WinnerMutationID != deleteIncoming.MutationID {
+		t.Fatalf("delete barrier resolution = %+v", resolution)
+	}
+}
+
 func TestSyncMergeHistoryCanonicalJSONDeterministic(t *testing.T) {
 	current := syncMergeCurrentFixture(
 		"30000000-0000-4000-8000-000000000001", syncMergeDeviceB, "put", 200, 0,

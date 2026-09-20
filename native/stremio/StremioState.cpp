@@ -93,7 +93,7 @@ bool validProviderRedoProjection(const QJsonValue &value) {
             <= 16 * 1024;
     }
     if (kind != QLatin1String("item")
-        || projection.size() != 7
+        || (projection.size() != 7 && projection.size() != 10)
         || !projection.value(QStringLiteral("hasCollection")).isBool()
         || !projection.value(QStringLiteral("hasProgress")).isBool()
         || !projection.value(QStringLiteral("hasHistory")).isBool()
@@ -101,6 +101,22 @@ bool validProviderRedoProjection(const QJsonValue &value) {
         || !projection.value(QStringLiteral("progress")).isObject()
         || !projection.value(QStringLiteral("history")).isObject()) {
         return false;
+    }
+    // Legacy seven-key projections predate current movie watch state. New
+    // projections retain only a bounded canonical action time, never raw
+    // provider state, so their crash replay applies the same owner fact.
+    if (projection.size() == 10) {
+        const QJsonValue hasWatchState = projection.value(QStringLiteral("hasWatchState"));
+        const QJsonValue watched = projection.value(QStringLiteral("watched"));
+        const QJsonValue action = projection.value(QStringLiteral("watchActionAtMs"));
+        bool actionOk = false;
+        const qint64 actionAtMs = action.toString().toLongLong(&actionOk);
+        if (!hasWatchState.isBool() || !watched.isBool() || !action.isString()
+            || !actionOk || actionAtMs < 0
+            || QString::number(actionAtMs) != action.toString()
+            || (!hasWatchState.toBool() && (watched.toBool() || actionAtMs != 0))) {
+            return false;
+        }
     }
     // The persisted replay input is a bounded canonical projection, never a
     // raw datastore response or request envelope. The owning importer shapes

@@ -42,6 +42,12 @@ class AccountRuntime final : public QObject {
 
 public:
     explicit AccountRuntime(QObject *parent = nullptr);
+    // Native composition seam: production takes the default official Stremio
+    // options, while isolated runtime tests can supply the same bounded
+    // loopback option object used by StremioSync itself. No option crosses QML.
+    explicit AccountRuntime(
+        const StremioSyncOptions &stremioOptions,
+        QObject *parent = nullptr);
 
     AccountController *controller();
     AccountRecoveryKeyPresenter *recoveryKeyPresenter();
@@ -79,6 +85,7 @@ private:
         const StremioLibraryItem &item,
         const QString &encodedWatched,
         const QString &outerRedoReceipt,
+        const QJsonObject &canonicalProjection,
         StremioTheatreImporter::Completion completion);
     void applyNextStremioLibraryItem(
         const std::shared_ptr<StremioImportBatch> &batch);

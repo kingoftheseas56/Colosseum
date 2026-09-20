@@ -679,19 +679,17 @@ StremioTheatreItemProjection StremioCodec::projectTheatreItem(
             }
         }
 
-        bool movieWatched = false;
+        // `flaggedWatched` owns current movie watched/unwatched state. It is
+        // distinct from the cumulative History record below: an explicit
+        // zero can clear the current state, while an undated watched flag is
+        // still valid but must never invent a History timestamp.
+        const QJsonValue flaggedWatched = state.value(QStringLiteral("flaggedWatched"));
         if (item.type == QLatin1String("movie")
-            && !movieFlaggedWatched(item, &movieWatched)) {
-                projected.error = QStringLiteral("The Stremio watched state is malformed.");
-                projected.collection.clear();
-                projected.progress.clear();
-                projected.hasCollection = false;
-                projected.hasProgress = false;
-                return projected;
-        }
-        qint64 activityMs = 0;
-        if (movieWatched) {
-            if (!stremioActivityTime(state, &activityMs) || activityMs <= 0) {
+            && !flaggedWatched.isUndefined() && !flaggedWatched.isNull()) {
+            bool movieWatched = false;
+            qint64 activityMs = 0;
+            if (!movieFlaggedWatched(item, &movieWatched)
+                || !stremioActivityTime(state, &activityMs)) {
                 projected.error = QStringLiteral("The Stremio watched time is missing or malformed.");
                 projected.collection.clear();
                 projected.progress.clear();
@@ -699,17 +697,22 @@ StremioTheatreItemProjection StremioCodec::projectTheatreItem(
                 projected.hasProgress = false;
                 return projected;
             }
-            projected.history = {
-                {QStringLiteral("kind"), QStringLiteral("movie")},
-                {QStringLiteral("id"), item.id},
-                {QStringLiteral("firstActivityAt"), activityMs},
-                {QStringLiteral("lastActivityAt"), activityMs},
-                {QStringLiteral("completedAt"), activityMs},
-                {QStringLiteral("source"), QStringLiteral("stremio")},
-                {QStringLiteral("displayId"), item.id},
-                {QStringLiteral("displayTitle"), displayTitleForStremioItem(item)},
-                {QStringLiteral("latestKnownAt"), activityMs}};
-            projected.hasHistory = true;
+            projected.hasWatchState = true;
+            projected.watched = movieWatched;
+            projected.watchActionAtMs = activityMs;
+            if (movieWatched && activityMs > 0) {
+                projected.history = {
+                    {QStringLiteral("kind"), QStringLiteral("movie")},
+                    {QStringLiteral("id"), item.id},
+                    {QStringLiteral("firstActivityAt"), activityMs},
+                    {QStringLiteral("lastActivityAt"), activityMs},
+                    {QStringLiteral("completedAt"), activityMs},
+                    {QStringLiteral("source"), QStringLiteral("stremio")},
+                    {QStringLiteral("displayId"), item.id},
+                    {QStringLiteral("displayTitle"), displayTitleForStremioItem(item)},
+                    {QStringLiteral("latestKnownAt"), activityMs}};
+                projected.hasHistory = true;
+            }
         }
     }
 

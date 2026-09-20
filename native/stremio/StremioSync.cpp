@@ -87,6 +87,42 @@ bool decodeSeriesWatchedDesired(
     return true;
 }
 
+// A datastore GET is the provider-side conflict boundary.  Missing activity
+// is valid legacy provider data, while a malformed timestamp is not a safe
+// basis for replacing state with a retry.
+std::optional<qint64> providerLastWatchedActivity(const QJsonObject &item) {
+    const QJsonValue raw = item.value(QStringLiteral("state"))
+                               .toObject()
+                               .value(QStringLiteral("lastWatched"));
+    if (raw.isUndefined() || raw.isNull())
+        return qint64{0};
+    if (!raw.isString())
+        return std::nullopt;
+    const QString text = raw.toString();
+    if (text.isEmpty() || text.trimmed() != text || text.size() > 128)
+        return std::nullopt;
+    const QDateTime parsed = QDateTime::fromString(text, Qt::ISODateWithMs);
+    if (!parsed.isValid() || parsed.timeSpec() == Qt::LocalTime
+        || parsed.toMSecsSinceEpoch() <= 0) {
+        return std::nullopt;
+    }
+    return parsed.toMSecsSinceEpoch();
+}
+
+bool desiredActivity(const QJsonObject &desired, qint64 *milliseconds) {
+    if (!milliseconds)
+        return false;
+    const QJsonValue value = desired.value(QStringLiteral("updatedAt"));
+    bool ok = false;
+    const qint64 parsed = value.isString()
+        ? value.toString().toLongLong(&ok)
+        : value.toVariant().toLongLong(&ok);
+    if (!ok || parsed <= 0)
+        return false;
+    *milliseconds = parsed;
+    return true;
+}
+
 QByteArray successPage() {
     return QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 92\r\nConnection: close\r\n\r\n<!doctype html><title>Colosseum</title><p>Sign-in complete. You can return to Colosseum.</p>");
 }
@@ -149,7 +185,10 @@ StremioSync::StremioSync(const StremioSyncOptions &options, QObject *parent)
         setStatus(QStringLiteral("notConnected"));
         finishRun();
     });
-    connect(&m_retryTimer, &QTimer::timeout, this, &StremioSync::retryPendingNow);
+    connect(&m_retryTimer, &QTimer::timeout, this, [this] {
+        if (m_markerLinked)
+            retryPendingNow();
+    });
     connect(&m_stateStore, &StremioState::persistenceCommitted,
             this, [this](quint64 generation) {
                 settlePersistence(generation, true);
@@ -336,8 +375,16 @@ void StremioSync::setMarkerLinked(bool linked) {
     if (m_markerLinked == linked)
         return;
     m_markerLinked = linked;
-    if (!m_profileId.isEmpty())
+    if (!m_profileId.isEmpty()) {
         updateConnectionStatus();
+        if (linked) {
+            const ProfileBinding binding{m_profileId, m_bindingGeneration};
+            QTimer::singleShot(0, this, [this, binding] {
+                if (m_markerLinked && bindingCurrent(binding))
+                    retryPendingNow();
+            });
+        }
+    }
 }
 
 void StremioSync::setCredentialCallbacks(
@@ -528,6 +575,15 @@ QString StremioSync::baselineKeyForIntent(
     const QString id = desired.value(QStringLiteral("id")).toString().trimmed();
     if (id.isEmpty())
         return {};
+    // Membership is one two-valued provider fact.  Keeping add and remove
+    // under separate baselines would let an acknowledged old add suppress a
+    // later explicit re-add after a completed removal.
+    if (kind == QLatin1String("library_add") || kind == QLatin1String("library_remove")) {
+        const QString type = desired.value(QStringLiteral("type")).toString();
+        if (type != QLatin1String("movie") && type != QLatin1String("series"))
+            return {};
+        return QStringLiteral("library_membership:") + type + QLatin1Char(':') + id;
+    }
     return kind + QLatin1Char(':') + id;
 }
 
@@ -595,8 +651,16 @@ bool StremioSync::reconcileTheatreState(
         if (entry.value(QStringLiteral("kind")).toString() != QLatin1String("video"))
             continue;
         const QString id = entry.value(QStringLiteral("id")).toString().trimmed();
-        if (!typesById.contains(id))
+        // Continue records describe the exact video being played.  Collection
+        // membership is intentionally independent: an episode writes against
+        // its provider root, and an uncollected playback may still reconcile
+        // an existing provider row without inventing a library add.
+        const QString libraryId = entry.value(QStringLiteral("libraryId")).toString().trimmed();
+        const QString providerLibraryId = libraryId.isEmpty() ? id : libraryId;
+        if (id.isEmpty() || providerLibraryId.isEmpty() || id.size() > 512
+            || providerLibraryId.size() > 512) {
             continue;
+        }
         const QVariantMap resume = entry.value(QStringLiteral("resume")).toMap();
         bool positionOk = false;
         bool durationOk = false;
@@ -610,7 +674,7 @@ bool StremioSync::reconcileTheatreState(
         if (!queueReconciledIntent(
                 QStringLiteral("progress"),
                 QJsonObject{{QStringLiteral("id"), id},
-                            {QStringLiteral("libraryId"), id},
+                            {QStringLiteral("libraryId"), providerLibraryId},
                             {QStringLiteral("positionSeconds"), positionSeconds},
                             {QStringLiteral("durationSeconds"), durationSeconds},
                             {QStringLiteral("updatedAt"), QString::number(updatedAtMs)}})) {
@@ -632,7 +696,7 @@ bool StremioSync::reconcileTheatreState(
         bool progressOk = false;
         const double progress = entry.value(QStringLiteral("progress")).toDouble(&progressOk);
         const QString episodeId = entry.value(QStringLiteral("id")).toString().trimmed();
-        if (!progressOk || !std::isfinite(progress) || progress < 1.0 || episodeId.isEmpty())
+        if (!progressOk || !std::isfinite(progress) || progress < 0.90 || episodeId.isEmpty())
             continue;
         for (auto type = typesById.constBegin(); type != typesById.constEnd(); ++type) {
             if (type.value() != QLatin1String("series"))
@@ -991,12 +1055,13 @@ bool StremioSync::suppressesRemoteLibraryMembership(
             || difference.value(QStringLiteral("type")).toString() != type) {
             continue;
         }
-        // `false/true/false` is the only durable local-only removal state.
-        // An explicit dual removal (`false/false/true`) deliberately does not
-        // suppress a later provider-side re-add.
+        // `false/true/*` means the local removal is durable while the remote
+        // member is still present. This includes an explicit dual removal
+        // awaiting its provider acknowledgement; a passive pull in that
+        // window must not recreate Collection. Once the remote receipt moves
+        // it to false/false, a genuine later provider re-add is eligible.
         return !difference.value(QStringLiteral("localPresent")).toBool()
-            && difference.value(QStringLiteral("remotePresent")).toBool()
-            && !difference.value(QStringLiteral("explicitRemoteRemoval")).toBool();
+            && difference.value(QStringLiteral("remotePresent")).toBool();
     }
     return false;
 }
@@ -1019,9 +1084,26 @@ void StremioSync::retryPendingNow() {
     if (!bindingCurrent(binding))
         return;
     const qint64 now = m_options.clock();
+    qint64 nextRetryAtMs = 0;
     for (const StremioPendingIntent &intent : std::as_const(m_state.pendingIntents)) {
-        if (!intent.remoteAcknowledged && intent.attempts < kMaximumRetries && intent.retryAtMs <= now)
+        if (intent.remoteAcknowledged || intent.attempts >= kMaximumRetries)
+            continue;
+        if (intent.retryAtMs <= now) {
             dispatchIntent(intent.operationId, binding);
+            continue;
+        }
+        if (m_markerLinked
+            && (nextRetryAtMs == 0 || intent.retryAtMs < nextRetryAtMs)) {
+            nextRetryAtMs = intent.retryAtMs;
+        }
+    }
+    // A restart restores the durable deadline but not QTimer's process-local
+    // schedule.  Re-arm only marker-linked work and bound each sleep to the
+    // existing maximum retry cadence so malformed/far-future timestamps can
+    // neither dispatch unlinked work nor overflow the timer interval.
+    if (m_markerLinked && nextRetryAtMs > now && !m_retryTimer.isActive()) {
+        const qint64 delay = qMin<qint64>(60 * 1000, nextRetryAtMs - now);
+        m_retryTimer.start(static_cast<int>(qMax<qint64>(1, delay)));
     }
 }
 
@@ -1326,6 +1408,22 @@ void StremioSync::sendIntentViaDatastore(
             && existing.value(QStringLiteral("type")).toString() != type) {
             completion(false, false);
             return;
+        }
+        if (isProgress || isWatched) {
+            qint64 desiredUpdatedAtMs = 0;
+            const std::optional<qint64> providerUpdatedAtMs = providerLastWatchedActivity(existing);
+            if (!desiredActivity(desired, &desiredUpdatedAtMs) || !providerUpdatedAtMs.has_value()) {
+                completion(false, false);
+                return;
+            }
+            // Never make a queued local retry win over a state Stremio has
+            // observed more recently.  Successful retirement leaves the
+            // fresh provider value for the normal inbound/readback path and
+            // prevents a stale retry from clobbering it.
+            if (*providerUpdatedAtMs > desiredUpdatedAtMs) {
+                completion(true, false);
+                return;
+            }
         }
         QJsonObject patch;
         QList<StremioEpisodeIdentity> seriesVideos;
@@ -1734,7 +1832,8 @@ void StremioSync::upsertMembershipDifference(
     for (qsizetype index = 0; index < m_state.intentionalMembershipDifferences.size(); ++index) {
         const QJsonValue existing = m_state.intentionalMembershipDifferences.at(index);
         if (existing.isObject()
-            && existing.toObject().value(QStringLiteral("id")).toString() == id) {
+            && existing.toObject().value(QStringLiteral("id")).toString() == id
+            && existing.toObject().value(QStringLiteral("type")).toString() == type) {
             m_state.intentionalMembershipDifferences.replace(index, difference);
             return;
         }

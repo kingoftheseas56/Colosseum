@@ -547,6 +547,21 @@ public:
         bool currentActionOk = false;
         const qint64 currentActionAtMs = m_settings->value(
             watchedMarkActionKey(watchedId)).toLongLong(&currentActionOk);
+
+        // Watch state is an ordinary mutable sync record, but its payload
+        // carries the real user action time. A newer arrival/HLC must not
+        // reverse a later watched decision, and a legacy record with no
+        // action time cannot manufacture an order over a known action. Equal
+        // action times are a stable tie so two devices converge without a
+        // ping-pong write. Deletes remain a separate, authoritative reset.
+        if (ok && (current == -1 || current == 1)) {
+            if (currentActionOk && currentActionAtMs > 0) {
+                if (actionAtMs == 0 || actionAtMs <= currentActionAtMs)
+                    return true;
+            } else if (actionAtMs == 0) {
+                return true;
+            }
+        }
         if (ok && current == mark
             && ((actionAtMs > 0 && currentActionOk && currentActionAtMs == actionAtMs)
                 || (actionAtMs == 0 && !currentActionOk)))

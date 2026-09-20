@@ -59,6 +59,9 @@ QJsonObject itemRedoProjection(const StremioTheatreItemProjection &projection) {
         {QStringLiteral("hasCollection"), projection.hasCollection},
         {QStringLiteral("hasProgress"), projection.hasProgress},
         {QStringLiteral("hasHistory"), projection.hasHistory},
+        {QStringLiteral("hasWatchState"), projection.hasWatchState},
+        {QStringLiteral("watched"), projection.watched},
+        {QStringLiteral("watchActionAtMs"), QString::number(projection.watchActionAtMs)},
         {QStringLiteral("collection"), QJsonObject::fromVariantMap(projection.collection)},
         {QStringLiteral("progress"), QJsonObject::fromVariantMap(projection.progress)},
         {QStringLiteral("history"), QJsonObject::fromVariantMap(projection.history)}};
@@ -67,7 +70,7 @@ QJsonObject itemRedoProjection(const StremioTheatreItemProjection &projection) {
 std::optional<StremioTheatreItemProjection> itemProjectionFromRedo(
     const QJsonObject &redo) {
     if (redo.value(QStringLiteral("kind")).toString() != QLatin1String("item")
-        || redo.size() != 7
+        || (redo.size() != 7 && redo.size() != 10)
         || !redo.value(QStringLiteral("hasCollection")).isBool()
         || !redo.value(QStringLiteral("hasProgress")).isBool()
         || !redo.value(QStringLiteral("hasHistory")).isBool()
@@ -84,6 +87,24 @@ std::optional<StremioTheatreItemProjection> itemProjectionFromRedo(
     projection.collection = redo.value(QStringLiteral("collection")).toObject().toVariantMap();
     projection.progress = redo.value(QStringLiteral("progress")).toObject().toVariantMap();
     projection.history = redo.value(QStringLiteral("history")).toObject().toVariantMap();
+    // Seven-key projections predate movie current watch state and remain
+    // replayable. New projections carry a canonical bounded timestamp string.
+    if (redo.size() == 10) {
+        const QJsonValue hasWatch = redo.value(QStringLiteral("hasWatchState"));
+        const QJsonValue watched = redo.value(QStringLiteral("watched"));
+        const QJsonValue action = redo.value(QStringLiteral("watchActionAtMs"));
+        bool actionOk = false;
+        const qint64 actionAtMs = action.toString().toLongLong(&actionOk);
+        if (!hasWatch.isBool() || !watched.isBool() || !action.isString()
+            || !actionOk || actionAtMs < 0
+            || QString::number(actionAtMs) != action.toString()
+            || (!hasWatch.toBool() && (watched.toBool() || actionAtMs != 0))) {
+            return std::nullopt;
+        }
+        projection.hasWatchState = hasWatch.toBool();
+        projection.watched = watched.toBool();
+        projection.watchActionAtMs = actionAtMs;
+    }
     return projection;
 }
 
@@ -257,6 +278,27 @@ bool StremioTheatreImporter::replayProviderImport(
     item.removed = redo.removed;
     const auto pending = std::make_shared<Pending>(
         Pending{binding, item, *projection, redo.operationId, std::move(completion)});
+    applyAfterRedo(pending);
+    return true;
+}
+
+bool StremioTheatreImporter::applyCanonicalProjectionAfterRedo(
+    const StremioLibraryItem &item,
+    const QJsonObject &projection,
+    Completion completion) {
+    if (!m_collection || !m_progress || !m_history || m_binding.profileId.isEmpty()) {
+        if (completion)
+            completion(false, QStringLiteral("The active Theatre owners are unavailable."));
+        return false;
+    }
+    const auto parsed = itemProjectionFromRedo(projection);
+    if (!parsed.has_value()) {
+        if (completion)
+            completion(false, QStringLiteral("The Stremio episode owner redo is malformed."));
+        return false;
+    }
+    const auto pending = std::make_shared<Pending>(
+        Pending{m_binding, item, *parsed, {}, std::move(completion)});
     applyAfterRedo(pending);
     return true;
 }
@@ -480,13 +522,13 @@ void StremioTheatreImporter::applyProgress(const std::shared_ptr<Pending> &pendi
         return;
     }
     if (!pending->projection.hasProgress) {
-        applyHistory(pending);
+        applyWatchState(pending);
         return;
     }
     const QString id = pending->projection.progress.value(QStringLiteral("id")).toString();
     const QVariantMap existing = m_progress->get(QStringLiteral("video"), id);
     if (!stremioProgressWins(existing, pending->projection.progress)) {
-        applyHistory(pending);
+        applyWatchState(pending);
         return;
     }
     const CoreStateSyncProjection projected =
@@ -518,7 +560,7 @@ void StremioTheatreImporter::applyProgress(const std::shared_ptr<Pending> &pendi
                                      result.detail.isEmpty() ? result.code : result.detail);
                         return;
                     }
-                    self->applyHistory(pending);
+                    self->applyWatchState(pending);
                 },
                 &error)) {
             finish(pending, false, error.detail.isEmpty() ? error.code : error.detail);
@@ -537,10 +579,67 @@ void StremioTheatreImporter::applyProgress(const std::shared_ptr<Pending> &pendi
                     self->finish(pending, false, error);
                     return;
                 }
-                self->applyHistory(pending);
+                self->applyWatchState(pending);
             })) {
         finish(pending, false, m_progress->persistenceError());
     }
+}
+
+void StremioTheatreImporter::applyWatchState(
+    const std::shared_ptr<Pending> &pending) {
+    if (!bindingCurrent(pending->binding)) {
+        finish(pending, false, QStringLiteral("The Stremio import belongs to an inactive profile."));
+        return;
+    }
+    if (!pending->projection.hasWatchState) {
+        applyHistory(pending);
+        return;
+    }
+
+    const QString id = pending->item.id;
+    const int mark = pending->projection.watched ? 1 : -1;
+    const qint64 actionAtMs = pending->projection.watchActionAtMs;
+    if (m_registry) {
+        if (!m_registry->contains(QStringLiteral("watch_state"))) {
+            finish(pending, false, QStringLiteral("The active watch-state sync owner is unavailable."));
+            return;
+        }
+        SyncAdapterMutation mutation;
+        mutation.categoryId = QStringLiteral("watch_state");
+        mutation.recordKey = CoreStateSyncProjection::watchedMarkKey(id);
+        mutation.schemaVersion = 1;
+        mutation.operation = SyncWireOperation::Put;
+        QJsonObject payload{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("mark"), mark}};
+        if (actionAtMs > 0)
+            payload.insert(QStringLiteral("actionAtMs"), QString::number(actionAtMs));
+        mutation.payload = payload;
+        SyncAdapterRegistryError error;
+        QPointer<StremioTheatreImporter> self(this);
+        if (!m_registry->applyRemoteAsync(
+                mutation,
+                [self, pending](const SyncAdapterRegistryError &result) {
+                    if (!self)
+                        return;
+                    if (!result.isEmpty()) {
+                        self->finish(pending, false,
+                                     result.detail.isEmpty() ? result.code : result.detail);
+                        return;
+                    }
+                    self->applyHistory(pending);
+                },
+                &error)) {
+            finish(pending, false, error.detail.isEmpty() ? error.code : error.detail);
+        }
+        return;
+    }
+
+    if (!m_progress->applySyncedWatchedMark(id, mark, actionAtMs)) {
+        finish(pending, false, m_progress->persistenceError());
+        return;
+    }
+    applyHistory(pending);
 }
 
 void StremioTheatreImporter::applyHistory(const std::shared_ptr<Pending> &pending) {

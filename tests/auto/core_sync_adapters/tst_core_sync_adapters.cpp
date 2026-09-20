@@ -615,7 +615,9 @@ private slots:
     void progressForgetWatchRemovalFailureDoesNotPublishDelete();
     void watchStateAdapterRoundTripsPortableState();
     void watchedActionTimestampPersistsAndRoundTrips();
+    void watchedActionTimestampWinsOverTransportOrder();
     void stremioImporterAppliesCanonicalOwnersAfterDurableReceipts();
+    void stremioMovieWatchStateStaysSeparateFromHistory();
     void stremioImporterUsesRegistryAndFencesProfileSwitch();
     void stremioEpisodeImportUsesExactEpisodesAndRejectsAmbiguity();
     void stremioExplicitDualRemovalJournalsBeforeLocalDelete();
@@ -1194,6 +1196,65 @@ void tst_core_sync_adapters::stremioImporterAppliesCanonicalOwnersAfterDurableRe
                  QStringLiteral("resume")).toMap().value(QStringLiteral("position")).toDouble(), 120.5);
 }
 
+void tst_core_sync_adapters::stremioMovieWatchStateStaysSeparateFromHistory() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    CollectionStore collection(QDir(temp.path()).filePath(QStringLiteral("collection.ini")));
+    ProgressStore progress(QDir(temp.path()).filePath(QStringLiteral("progress.ini")));
+    HistoryStore history(QDir(temp.path()).filePath(QStringLiteral("history.ini")));
+    StremioTheatreImporter importer(&collection, &progress, &history);
+    importer.activate(QStringLiteral("profile-a"));
+
+    StremioLibraryItem movie;
+    movie.id = QStringLiteral("tt-current-watch");
+    movie.type = QStringLiteral("movie");
+    movie.raw = QJsonObject{{QStringLiteral("_id"), movie.id},
+                            {QStringLiteral("type"), movie.type},
+                            {QStringLiteral("state"), QJsonObject{
+                                {QStringLiteral("flaggedWatched"), 1},
+                                {QStringLiteral("lastWatched"),
+                                 QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+    bool completed = false;
+    QString error;
+    QVERIFY(importer.apply(movie, [&completed, &error](bool committed, const QString &message) {
+        completed = committed;
+        error = message;
+    }));
+    QVERIFY2(waitForAsyncFlag(completed), qPrintable(error));
+    QCOMPARE(progress.watchedMark(movie.id), 1);
+    QVERIFY(!history.get(QStringLiteral("movie"), movie.id).isEmpty());
+
+    // A newer explicit unwatch changes the current movie state while the
+    // cumulative completion record remains a separate owner.
+    movie.raw.insert(QStringLiteral("state"), QJsonObject{
+        {QStringLiteral("flaggedWatched"), 0},
+        {QStringLiteral("lastWatched"), QStringLiteral("2025-01-03T03:04:05.000Z")}});
+    completed = false;
+    QVERIFY(importer.apply(movie, [&completed, &error](bool committed, const QString &message) {
+        completed = committed;
+        error = message;
+    }));
+    QVERIFY2(waitForAsyncFlag(completed), qPrintable(error));
+    QCOMPARE(progress.watchedMark(movie.id), -1);
+    QVERIFY(!history.get(QStringLiteral("movie"), movie.id).isEmpty());
+
+    // A legitimate watched state without a provider date must not synthesize
+    // a History event, but remains valid current state.
+    StremioLibraryItem undated = movie;
+    undated.id = QStringLiteral("tt-undated-watch");
+    undated.raw.insert(QStringLiteral("_id"), undated.id);
+    undated.raw.insert(QStringLiteral("state"), QJsonObject{
+        {QStringLiteral("flaggedWatched"), 1}});
+    completed = false;
+    QVERIFY(importer.apply(undated, [&completed, &error](bool committed, const QString &message) {
+        completed = committed;
+        error = message;
+    }));
+    QVERIFY2(waitForAsyncFlag(completed), qPrintable(error));
+    QCOMPARE(progress.watchedMark(undated.id), 1);
+    QVERIFY(history.get(QStringLiteral("movie"), undated.id).isEmpty());
+}
+
 void tst_core_sync_adapters::stremioImporterUsesRegistryAndFencesProfileSwitch() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
@@ -1388,6 +1449,25 @@ void tst_core_sync_adapters::stremioExplicitDualRemovalJournalsBeforeLocalDelete
     QVERIFY(!collection.has(QStringLiteral("theatre"), id));
     QCOMPARE(sync.pendingCount(), 1);
     QVERIFY(progress.get(QStringLiteral("video"), id).isEmpty());
+
+    // The private explicit-removal intent is durable but Stremio has not yet
+    // acknowledged it. A passive provider membership must not resurrect the
+    // local Collection row during that retry window.
+    importer.setStremioSync(&sync);
+    StremioLibraryItem passiveMember;
+    passiveMember.id = id;
+    passiveMember.type = QStringLiteral("series");
+    passiveMember.libraryMember = true;
+    passiveMember.raw = QJsonObject{{QStringLiteral("_id"), id},
+                                    {QStringLiteral("type"), QStringLiteral("series")},
+                                    {QStringLiteral("state"), QJsonObject{}}};
+    completed = false;
+    QVERIFY(importer.apply(passiveMember, [&completed, &error](bool ok, const QString &message) {
+        completed = ok;
+        error = message;
+    }));
+    QVERIFY2(waitForAsyncFlag(completed), qPrintable(error));
+    QVERIFY(!collection.has(QStringLiteral("theatre"), id));
 }
 
 void tst_core_sync_adapters::stremioRemoteRemovalPersistsInverseDifferenceWithoutDeletingLocal() {
@@ -1798,6 +1878,65 @@ watchedActionTimestampPersistsAndRoundTrips() {
     QVERIFY2(legacyAdapter.exportSnapshot(&legacySnapshot, &error), qPrintable(error));
     QCOMPARE(legacySnapshot.records.size(), 1);
     QVERIFY(!legacySnapshot.records.first().payload.toObject().contains(QStringLiteral("actionAtMs")));
+}
+
+void tst_core_sync_adapters::
+watchedActionTimestampWinsOverTransportOrder() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore progress(
+        QDir(temp.path()).filePath(QStringLiteral("watch-action-order.ini")));
+    WatchStateSyncAdapter adapter(&progress);
+    const QString id = QStringLiteral("tt-action-order:s1:e4");
+    const QString recordKey =
+        CoreStateSyncProjection::watchedMarkKey(QStringLiteral("tt-action-order"));
+
+    auto apply = [&](int mark, qint64 actionAtMs) {
+        QJsonObject payload{
+            {QStringLiteral("id"), QStringLiteral("tt-action-order")},
+            {QStringLiteral("mark"), mark}};
+        if (actionAtMs > 0) {
+            payload.insert(
+                QStringLiteral("actionAtMs"),
+                QString::number(actionAtMs));
+        }
+        QString error;
+        QVERIFY2(adapter.applyRemote(
+            recordKey,
+            SyncWireOperation::Put,
+            payload,
+            1,
+            &error), qPrintable(error));
+    };
+
+    apply(1, 2000);
+    QCOMPARE(progress.watchedMark(id), 1);
+
+    // A later transport envelope with an older real action cannot undo a
+    // watched decision. This is intentionally exercised through the owner,
+    // not a merge helper, because all remote imports share this path.
+    apply(-1, 1000);
+    QCOMPARE(progress.watchedMark(id), 1);
+
+    apply(-1, 3000);
+    QCOMPARE(progress.watchedMark(id), -1);
+
+    // Unknown legacy action times and equal real times are deterministic
+    // ties: keep the already materialized state rather than inventing order.
+    apply(1, 0);
+    QCOMPARE(progress.watchedMark(id), -1);
+    apply(1, 3000);
+    QCOMPARE(progress.watchedMark(id), -1);
+
+    QString error;
+    QVERIFY2(adapter.applyRemote(
+        recordKey,
+        SyncWireOperation::Delete,
+        QJsonValue(),
+        1,
+        &error), qPrintable(error));
+    QCOMPARE(progress.watchedMark(id), 0);
 }
 
 void tst_core_sync_adapters::

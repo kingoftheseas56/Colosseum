@@ -436,6 +436,9 @@ std::optional<QJsonObject> episodePendingProjection(
         {QStringLiteral("hasCollection"), canonical.hasCollection},
         {QStringLiteral("hasProgress"), canonical.hasProgress},
         {QStringLiteral("hasHistory"), canonical.hasHistory},
+        {QStringLiteral("hasWatchState"), canonical.hasWatchState},
+        {QStringLiteral("watched"), canonical.watched},
+        {QStringLiteral("watchActionAtMs"), QString::number(canonical.watchActionAtMs)},
         {QStringLiteral("collection"), QJsonObject::fromVariantMap(canonical.collection)},
         {QStringLiteral("progress"), QJsonObject::fromVariantMap(canonical.progress)},
         {QStringLiteral("history"), QJsonObject::fromVariantMap(canonical.history)}};
@@ -452,8 +455,9 @@ std::optional<QJsonObject> episodePendingProjection(
 
 std::optional<StremioLibraryItem> itemFromEpisodePendingRedo(
     const StremioProviderImportRedo &redo,
-    QString *encodedWatched) {
-    if (!encodedWatched || redo.type != QLatin1String("series")
+    QString *encodedWatched,
+    QJsonObject *canonicalProjection) {
+    if (!encodedWatched || !canonicalProjection || redo.type != QLatin1String("series")
         || redo.projection.value(QStringLiteral("kind")).toString()
             != QLatin1String("episode_pending")) {
         return std::nullopt;
@@ -482,11 +486,18 @@ std::optional<StremioLibraryItem> itemFromEpisodePendingRedo(
         raw.insert(QStringLiteral("name"), title);
     item.raw = raw;
     *encodedWatched = watched.toString();
+    *canonicalProjection = ownerProjection;
     return item;
 }
 } // namespace
 
 AccountRuntime::AccountRuntime(QObject *parent)
+    : AccountRuntime(StremioSyncOptions{}, parent) {
+}
+
+AccountRuntime::AccountRuntime(
+    const StremioSyncOptions &stremioOptions,
+    QObject *parent)
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
@@ -496,7 +507,7 @@ AccountRuntime::AccountRuntime(QObject *parent)
       m_syncEngine(
           &m_client,
           &m_syncRegistry),
-      m_stremioSync(),
+      m_stremioSync(stremioOptions),
       m_controller(
           &m_client,
           &m_credentialStore,
@@ -915,6 +926,13 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::move(stremioLinkAdapter);
     m_downloadIntentSyncAdapter =
         std::move(downloadIntentAdapter);
+
+    // Account profile activation creates the importer before account-session
+    // setup starts the ordinary engine. Bind the now-complete registry here
+    // so provider imports use the same remote-applied fences and local
+    // mutation observation as every other account owner.
+    if (m_stremioTheatreImporter)
+        m_stremioTheatreImporter->setSyncAdapterRegistry(&m_syncRegistry);
 
     const auto activityHistorySyncEnabled = [preferences]() {
         return preferences->syncActivityHistory()
@@ -1449,7 +1467,7 @@ bool AccountRuntime::applyStremioLibraryItem(
                     return;
                 }
                 if (!applyStremioSeriesWatchedAfterRedo(
-                        item, encodedWatched, receipt, *finish)) {
+                        item, encodedWatched, receipt, {}, *finish)) {
                     (*finish)(false,
                               QStringLiteral("The Stremio series watch replay could not start."));
                 }
@@ -1474,6 +1492,7 @@ bool AccountRuntime::applyStremioSeriesWatchedAfterRedo(
     const StremioLibraryItem &item,
     const QString &encodedWatched,
     const QString &outerRedoReceipt,
+    const QJsonObject &canonicalProjection,
     StremioTheatreImporter::Completion completion) {
     if (!m_stremioTheatreImporter || item.type != QLatin1String("series")
         || encodedWatched.isEmpty() || outerRedoReceipt.isEmpty()) {
@@ -1485,8 +1504,7 @@ bool AccountRuntime::applyStremioSeriesWatchedAfterRedo(
     }
     const QString profileId = m_profileStores.activeProfile().profileId();
     const quint64 incarnation = m_stremioProfileIncarnation;
-    const bool started = m_stremioTheatreImporter->apply(
-        item,
+    const auto afterCanonicalOwners =
         [this, item, encodedWatched, outerRedoReceipt, profileId, incarnation,
          completion = std::move(completion)](bool committed, const QString &error) mutable {
             if (!committed || profileId != m_profileStores.activeProfile().profileId()
@@ -1552,7 +1570,11 @@ bool AccountRuntime::applyStremioSeriesWatchedAfterRedo(
                                QStringLiteral("The Stremio episode metadata request could not start."));
                 }
             }
-        });
+        };
+    const bool started = canonicalProjection.isEmpty()
+        ? m_stremioTheatreImporter->apply(item, afterCanonicalOwners)
+        : m_stremioTheatreImporter->applyCanonicalProjectionAfterRedo(
+            item, canonicalProjection, afterCanonicalOwners);
     if (!started && completion) {
         completion(false, QStringLiteral("The Stremio series owner could not start."));
     }
@@ -1656,10 +1678,13 @@ void AccountRuntime::replayNextStremioProviderImport(
     if (redo.projection.value(QStringLiteral("kind")).toString()
         == QLatin1String("episode_pending")) {
         QString encodedWatched;
-        const auto item = itemFromEpisodePendingRedo(redo, &encodedWatched);
+        QJsonObject canonicalProjection;
+        const auto item = itemFromEpisodePendingRedo(
+            redo, &encodedWatched, &canonicalProjection);
         if (item.has_value()) {
             started = applyStremioSeriesWatchedAfterRedo(
-                *item, encodedWatched, redo.operationId, replayCompletion);
+                *item, encodedWatched, redo.operationId,
+                canonicalProjection, replayCompletion);
         }
     } else {
         started = m_stremioTheatreImporter->replayProviderImport(redo, replayCompletion);

@@ -69,11 +69,13 @@ those categories were not changed by Task 1.
 ## Stremio media convergence — Task 2 (2026-09-20)
 
 Task 2 extends the existing Stremio owner without a provider framework or a
-visible surface. `colosseum.qttest.stremio_sync` (54 native checks) proves
-bounded `libraryItem` meta/get/put codec behavior, malformed-row isolation,
-replaceable-progress handling, first-merge and removal/re-add semantics,
-fresh-provider readback, ordered watched episode patches, owner-durable import
-and retry fencing. `colosseum.qttest.core_sync_adapters`,
+visible surface. `colosseum.qttest.stremio_sync` proves bounded `libraryItem`
+meta/get/put codec behavior, malformed-row isolation, replaceable-progress
+handling, first-merge and removal/re-add semantics, fresh-provider readback,
+ordered watched episode patches, owner-durable import and retry fencing. It
+also proves that marker restoration resumes a durable recovered intent and
+rearams its persisted bounded backoff deadline without sending while unlinked.
+`colosseum.qttest.core_sync_adapters`,
 `account_attachment_runtime`, `account_adoption`, and `history_sync` cover
 profile/incarnation fences, replay before owner application, owner-before-Neon
 checkpoint ordering, history provenance/privacy, native activity-time ordering,
@@ -87,14 +89,15 @@ provider request, addon URL, or compressed watched payload crosses QML. Task 2
 adds no UI journey, so Lanista is deliberately not a Task 2 gate.
 
 The final focused CTest matrix passed 5/5 registered targets; the affected
-sync/privacy/consumption matrix passed 7/7. `go test ./internal/account` and
-both the application and all-target builds passed. The full `ctest -L unit`
-run ended 141/149: the eight failures are pre-existing Reader2 runtime,
-capture runner, startup deferral/responsiveness, Vault artwork, manga-download
-responsiveness, shell-back arbitration, and video-source handoff contracts;
-none is a Task 2 target. Disposable database integration was not run because
-`TEST_DATABASE_URL` is unset. Sanitized red/green receipts and the Task 2
-self-review are under `artifacts/stremio-sync/task-2/`.
+sync/privacy/consumption matrix passed 7/7. The focused QML bridge and
+watch-time suites passed 4/4 and 5/5. `go test ./...` and both the application
+and all-target builds passed. The final `ctest -L unit` run ended 139/147: the
+eight failures are pre-existing Reader2 runtime, capture runner, startup
+deferral/responsiveness, Vault artwork, manga-download responsiveness,
+shell-back arbitration, and video-source handoff contracts; none is a Task 2
+target. Disposable database integration was not run because `TEST_DATABASE_URL`
+is unset. Sanitized red/green receipts and the Task 2 self-review are under
+`artifacts/stremio-sync/task-2/`.
 
 ### Reader 2 Function 0007 gating update (2026-08-30)
 
