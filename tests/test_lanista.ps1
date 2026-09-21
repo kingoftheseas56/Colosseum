@@ -16,7 +16,7 @@ function Assert-Contains([string]$text, [string]$needle, [string]$msg) {
 
 $server = Read-RepoFile "native/devtools/LanistaServer.cpp"
 $mainc  = Read-RepoFile "native/main.cpp"
-Assert-Contains $mainc  "new LanistaServer" "the bridge must be constructed in main"
+Assert-Contains $mainc  "LanistaServer lanistaServerStorage(&engine, &app);" "the bridge must be constructed in main"
 Assert-Contains $server "DRIVE_DISABLED" "driving must be gated"
 Assert-Contains $server "WRITE_DISABLED" "mutation must be gated"
 Assert-Contains $server "COLOSSEUM_LANISTA_PIPE" "the pipe name must be overridable"
