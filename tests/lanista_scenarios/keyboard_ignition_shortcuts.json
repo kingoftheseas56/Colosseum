@@ -4,7 +4,7 @@
   "steps": [
     { "cmd": "ping", "label": "isolated drive session answers",
       "expect": [
-        { "path": "schema", "op": "matches", "value": "^colosseum\.dev\.v1" },
+        { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
         { "path": "gates.drive", "op": "==", "value": "true" }
       ] },
     { "cmd": "ui-wait-for", "label": "boot splash leaves",
