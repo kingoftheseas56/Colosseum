@@ -19,7 +19,7 @@ Item {
     property bool showFocusFrame: true
     property real focusRadius: 10
     property real focusInset: -2
-    property color focusColor: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.72)
+    property color focusColor: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.28)
     property int cursorShape: Qt.PointingHandCursor
 
     readonly property bool hovered: hover.hovered
@@ -91,15 +91,29 @@ Item {
         onTapped: action.requestContext(Qt.MouseFocusReason)
     }
 
+    // Keyboard focus should read as a quiet aura, not a selection plate.
+    // Keep the paint outside the control so labels/icons stay visually untouched.
     Rectangle {
         anchors.fill: parent
-        anchors.margins: action.focusInset
-        radius: action.focusRadius
+        anchors.margins: action.focusInset - 5
+        radius: action.focusRadius + 4
         visible: action.showFocusFrame && action.activeFocus
         color: "transparent"
-        border.width: 2
-        border.color: action.focusColor
+        border.width: 3
+        border.color: Qt.rgba(action.focusColor.r, action.focusColor.g,
+                              action.focusColor.b, action.focusColor.a * 0.32)
         z: 10000
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: action.focusInset - 2
+        radius: action.focusRadius + 1
+        visible: action.showFocusFrame && action.activeFocus
+        color: "transparent"
+        border.width: 1
+        border.color: action.focusColor
+        z: 10001
     }
 
     Accessible.role: Accessible.Button
