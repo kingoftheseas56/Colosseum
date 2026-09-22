@@ -1,0 +1,16 @@
+{
+  "schema": "colosseum-server1-blob-seals/v2",
+  "algorithm": "staged git blob oid and pre-commit working-file SHA-256; each blob must equal committed HEAD:path",
+  "files": [
+    {"path":"native/colosseum_server_v1/include/server1/policy/EngineRegistry.h","blob":"542abe9b7e707e1bd25254f9341a2ee5f7d41477","sha256":"c5572880957aec16f2443a0136a8b3a5d551a37345c99d4efe8f34dd98304565"},
+    {"path":"native/colosseum_server_v1/src/policy/EngineRegistry.cpp","blob":"fd65495e02444fd65f90647602333a31bbe7d147","sha256":"b9023c91a967130ddf56d614ffab10a24f88a6c8a76e7da3c79d2a02cc78a9eb"},
+    {"path":"native/colosseum_server_v1/src/policy/TorrentEngine.cpp","blob":"ecc37c19865280ee9c977cf88e6554a7165df163","sha256":"77c93995d98ab0b291f15fc41ab04d0af2c8f576aef7e6c9ec5075b8967926b6"},
+    {"path":"native/colosseum_server_v1/tests/test_engine_registry.cpp","blob":"2419efae920aca23559be0d0f706f1a86a19cbd5","sha256":"a3aa9c7f9fe15a3195e04e1d9cbbdd7c2ed51edda7fec4c28edd90a1f749efbc"},
+    {"path":"native/colosseum_server_v1/cmake/packets/K11.cmake","blob":"f272b65c0fcbdc15e974a4317de5af06b23fa0a9","sha256":"72cb8accc65ec8f7f05fae4110f91c34d6861833e78eb9ae6ec34e142b96a6d7"},
+    {"path":"native/colosseum_server_v1/tests/cmake/K11.cmake","blob":"561a8e6414c0d709973dbda675707c7fa548155c","sha256":"afd54a2c40a42d5721a85458bc9b59e636fb7c2eb98c2946ce83a1c8c72af7b7"},
+    {"path":"artifacts/server1/K11/K11-A/CMakeLists.txt","blob":"2bac7ad36da71ea1b0f5c4a5bba13ce8c8d99fda","sha256":"dd0839b1a2f84b31e324ceaf9fb541368918f11525e93d7917d3a9359d566bd7"},
+    {"path":"artifacts/server1/K11/K11-A/aggregate/CMakeLists.txt","blob":"ae4ebc971fe9f226df929f92fad3ff3439f9056a","sha256":"3bc9c61c1fe277e420161262d475d5e4e69af987617fb3af004d64ffe95d0d74"},
+    {"path":"artifacts/server1/K11/K11-A/run_oracle.js","blob":"bef9a6ca0d7858f16c564ccf28c7da8b4001a616","sha256":"0b04e04a5b2713902e0bc368ca8a18d2fe8c7b76236f5f8af014e18abb4cf767"},
+    {"path":"artifacts/server1/K11/K11-A/raw/comparison.json","blob":"53868efab4fda5aa4954dd4daeb390c196c9c92e","sha256":"c8e3847889c7ae994d8e30912588526d522c2cc457457b6b183a88d92d196649"}
+  ]
+}

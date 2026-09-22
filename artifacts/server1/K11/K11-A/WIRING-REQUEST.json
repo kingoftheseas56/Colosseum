@@ -1,15 +1,40 @@
 {
-  "schema": "colosseum-server1-wiring-request/v3",
+  "schema": "colosseum-server1-wiring-request/v4",
   "worker_id": "K11-A",
   "parent_packet": "K11",
+  "producer": "[Agent (Claude), K11-A repair producer]",
   "accepted_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
+  "rejected_candidate": "81abb58d512d61b42fa0f7fdc376446fbf5831d5",
   "branch": "sol/server1-w3-engine-v3-20260915",
-  "request": "Fast-forward this candidate to feature/colosseum-server-1.0 only after independent Sol K11 code/oracle review, later B-W3E aggregate review, and Agent 4 acceptance.",
+  "barrier": "B-W3E",
+  "integration_owner": "INT-W3",
+  "request": "After Agent 4 independently reviews the repaired K11 candidate, INT-W3 forms B-W3E by integrating the candidate onto feature/colosseum-server-1.0 and registering K11 in the aggregate.",
+  "aggregate_edits_requested": [
+    {
+      "file": "native/colosseum_server_v1/CMakeLists.txt",
+      "edit": "After K10 registration (K05 must already be registered), add include(\"${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/K11.cmake\") and server1_register_k11_packet()."
+    },
+    {
+      "file": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "edit": "Include tests/cmake/K11.cmake and call server1_register_k11_tests(), registering K11-01-engine-registry, K11-02-engine-registry and K11-03-engine-registry with labels server1;native;K11."
+    },
+    {
+      "file": "docs/server1/STATE.json",
+      "edit": "Record K11-A as integrated only after B-W3E acceptance."
+    }
+  ],
   "owned_manifest_files": [
     "native/colosseum_server_v1/cmake/packets/K11.cmake",
     "native/colosseum_server_v1/tests/cmake/K11.cmake"
   ],
-  "interface_changes": "Adds only F10-authorized include/server1/policy/EngineRegistry.h; no TorrentEngine.h is added.",
-  "aggregate_probe": "Artifact-local aggregate/CMakeLists.txt composes the unchanged accepted aggregate with K11 only for candidate verification.",
-  "gate": "K11-v3 producer-ready and test-reported; no integration or independent acceptance is claimed."
+  "link_dependencies": "server1_k11_engine links server1_k01_metadata, server1_k02_piece_buffer, server1_k04_scheduler_actions, server1_k05_swarm_metadata (new in v4, for M814 rechoke via SwarmPolicy), server1_k10_native_transport, server1_k08_file_reader, server1_k06_persistent_store, server1_k07_circular_store, server1_k09_peer_search.",
+  "interface_changes": "include/server1/policy/EngineRegistry.h (K11-authored F10 surface, not previously accepted) gains additive members only: EngineRegistryConfig::trace, EngineTrace, EnginePeerDiscovery, TorrentEngine::peerSearchRunning/peerSearchStats/peerDiscovery/discoverPeer, and a documented threading contract. No accepted predecessor header changes. TorrentEngine::connectSourcePeer now reports admission to the work lane rather than the transport's synchronous verdict.",
+  "aggregate_probe": "Artifact-local aggregate/CMakeLists.txt adds K11 on top of the unchanged accepted aggregate for candidate verification only.",
+  "shared_files_untouched": [
+    "native/colosseum_server_v1/CMakeLists.txt",
+    "native/colosseum_server_v1/tests/CMakeLists.txt",
+    "docs/server1/STATE.json",
+    "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h"
+  ],
+  "gate": "Producer-ready candidate. No integration, B-W3E acceptance or K12/H01 work is claimed."
 }

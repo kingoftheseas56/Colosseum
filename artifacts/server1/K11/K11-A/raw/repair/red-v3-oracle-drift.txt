@@ -1,0 +1,8 @@
+v3 candidate 81abb58d with TorrentEngine.cpp repeat(500)->repeat(750) drift
+v3-drift K11-01 exit 0
+v3-drift K11-02 exit 0
+v3-drift K11-03 exit 0
+v3 run_oracle.js on drifted candidate exit 0
+v3 verdicts {'parity': True, 'candidateParity': True, 'm814CandidateParity': True} timerCancelled True
+repaired run_oracle.js on the same drifted v3 candidate exit 1
+Error: candidate trace missing K11-M172-NATIVE-RAW 

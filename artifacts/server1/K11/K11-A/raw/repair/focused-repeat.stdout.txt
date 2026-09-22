@@ -1,0 +1,29 @@
+Internal ctest changing into directory: C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K11/K11-A/repair-build
+Test project C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K11/K11-A/repair-build
+    Start 1: K11-01-engine-registry
+    Test #1: K11-01-engine-registry ...........   Passed    0.05 sec
+    Start 1: K11-01-engine-registry
+    Test #1: K11-01-engine-registry ...........   Passed    0.05 sec
+    Start 1: K11-01-engine-registry
+1/3 Test #1: K11-01-engine-registry ...........   Passed    0.05 sec
+    Start 2: K11-02-engine-registry
+    Test #2: K11-02-engine-registry ...........   Passed    0.10 sec
+    Start 2: K11-02-engine-registry
+    Test #2: K11-02-engine-registry ...........   Passed    0.10 sec
+    Start 2: K11-02-engine-registry
+2/3 Test #2: K11-02-engine-registry ...........   Passed    0.10 sec
+    Start 3: K11-03-engine-registry
+    Test #3: K11-03-engine-registry ...........   Passed    0.31 sec
+    Start 3: K11-03-engine-registry
+    Test #3: K11-03-engine-registry ...........   Passed    0.30 sec
+    Start 3: K11-03-engine-registry
+3/3 Test #3: K11-03-engine-registry ...........   Passed    0.30 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Label Time Summary:
+K11        =   0.44 sec*proc (3 tests)
+native     =   0.44 sec*proc (3 tests)
+server1    =   0.44 sec*proc (3 tests)
+
+Total Test time (real) =   1.36 sec

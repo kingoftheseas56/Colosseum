@@ -1,27 +1,43 @@
-K11-v3 commands/results (2026-09-16)
-Producer: [Agent 4 (Codex/Sol subagent), K11-v3 producer]
+K11-v4 repair commands/results (2026-09-22/23)
+Producer: [Agent (Claude), K11-A repair producer]
+Base: accepted b28e2dfe8562a5f942d569ab981d97a0530113bf; rejected candidate 81abb58d512d61b42fa0f7fdc376446fbf5831d5.
+Toolchain: MSVC 14.44 (vcvars64), Qt 6.11.1 msvc2022_64, CMake 3.30 + Ninja from C:/Qt/Tools, node 22, Python 3.11.
+All paths below are relative to the worktree root unless absolute.
 
-Lineage: branch sol/server1-w3-engine-v3-20260915 at accepted base b28e2dfe8562a5f942d569ab981d97a0530113bf; rejected 5cb920010ef3f53a49b629bf3564b011663b03aa scaffold replayed as a20fcd011704ece4d1ee045d8c286ffad0f56747.
+Build helper (per build dir): vcvars64 && cmake -S <src> -B <build> -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe && cmake --build <build> --target <target>
 
-Focused build:
-C:/Qt/Tools/CMake_64/bin/cmake.exe -S artifacts/server1/K11/K11-A -B artifacts/server1/K11/K11-A/v3-red-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64
-C:/Qt/Tools/CMake_64/bin/cmake.exe --build artifacts/server1/K11/K11-A/v3-red-build --target server1_k11_engine_registry_test -j 1
-Result: green.
+RED on unmodified v3 production code (regressions added first):
+  build artifacts/server1/K11/K11-A -> repair-build, target server1_k11_engine_registry_test: exit 0
+  repair-build/server1_k11_engine_registry_test.exe R1 -> exit 1 "K11-LANE metadata install/restore scan ran on the app lane while the work lane was fenced"   raw/repair/red-v3-R1.*
+  ... R2 -> exit 1 "K11-DESTROY destruction invoked an unfinished create callback on the destroying thread"   raw/repair/red-v3-R2.*
+  ... R3 -> exit 1 "K11-TIMER repeat timer started before ontorrent/metadata"   raw/repair/red-v3-R3.*
+  R4 against v3 API -> build exit 1, C2039 discoverPeer/peerDiscovery/peerSearchRunning/peerSearchStats not members   raw/repair/red-v3-R4.build.txt
+  v3 K11-01/02/03 on the same binary -> exit 0 (v3 tests did not cover the findings)   raw/repair/red-v3-K11-0*.stdout.txt
+  Findings 5/6 RED: v3 tree at 81abb58d with TorrentEngine repeat(500)->repeat(750), built in a scratch copy:
+    v3 K11-01/02/03 exit 0; v3 run_oracle.js on the drifted candidate exit 0 with parity/candidateParity/m814CandidateParity all true.
+    Repaired run_oracle.js on the same binary exit 1 (no observed raw trace).   raw/repair/red-v3-oracle-drift.txt
+  v3 run_oracle.js hard-codes resumeCount: 2 and a constant m814SourceProjection; v3 test prints fixed K11-CANDIDATE-TRACE strings. Archived at raw/v3-rejected/run_oracle.js.
 
-Focused repeat:
-C:/Qt/Tools/CMake_64/bin/ctest.exe --test-dir artifacts/server1/K11/K11-A/v3-red-build -L K11 --repeat until-fail:3 --output-on-failure
-Result: 9/9 passed.
+GREEN:
+  focused: ctest --test-dir artifacts/server1/K11/K11-A/repair-build -L K11 --repeat until-fail:3 --output-on-failure -> exit 0, 3/3 x3 = 9/9   raw/repair/focused-repeat.*
+  stress: 30 x (K11-01, K11-02, K11-03) direct runs -> 90/90 pass (before the final test strengthening; final binary re-verified by focused repeat, mutation baseline and combined run).
+  regressions: server1_k11_engine_registry_test.exe R1..R5 -> exit 0 each (also executed inside K11-01/02/03).
 
-Oracle: node artifacts/server1/K11/K11-A/run_oracle.js
-Result: exit 0; exact bundle/factories, corrupt negatives, M172 parity, controlled M814/native --trace parity.
+Differential:
+  node artifacts/server1/K11/K11-A/run_oracle.js -> exit 0; match=true, differences=[], controls 24/24 detected, corrupt bundle and factory rejected.   raw/comparison.json, raw/*-raw.json, raw/*-projection.json, raw/repair/oracle-final.*
 
-Inventory: fresh native aggregate ctest -N = 64. Old 63 build lacked accepted K10-H. Artifact combined wrapper ctest -N = 67: K11-01/02/03 plus all 64 base tests. Combined build = 82/82 targets.
+Mutations:
+  python artifacts/server1/K11/K11-A/run_mutations.py -> exit 0, 19/19 killed, both sources restored by SHA-256.   raw/repair/MUTATION-RESULTS.json, raw/repair/mutation-run-final.*, raw/repair/mutants/
+  First run 16/19 (three test gaps, fixed in tests only): raw/repair/mutation-run-1-with-survivors.stdout.txt
 
-Combined run:
-C:/Qt/Tools/CMake_64/bin/ctest.exe --test-dir artifacts/server1/K11/K11-A/v3-combined-build --output-on-failure -j 1
-First run: 66/67; K10-G real-wire peer readiness timed out at connected=0, unchoked=0. Isolated K10-G rerun passed 1/1 in 18.17s.
-Fresh complete rerun: 67/67 passed in 200.77s, including K10 10/10, K10-E 7/7, K10-G, K10-H, P08, INT-W3 link, and K11 3/3.
+Aggregate:
+  base inventory: configure native/colosseum_server_v1 -> repair-base-build; ctest -N = 64   raw/repair/inventory-base.txt
+  combined: build artifacts/server1/K11/K11-A/aggregate -> repair-combined-build (all): exit 0, 82/82 targets   raw/repair/combined-build.txt
+  combined inventory: ctest -N = 67 (64 accepted + K11-01/02/03)   raw/repair/inventory-combined.txt
+  first combined run: exit 8, 56/67; the 11 K10 real-wire tests were Not Run because pwsh was not on PATH in this shell ("Could not find executable pwsh").   raw/repair/combined-67-no-pwsh.*
+  rerun with PowerShell 7.5.3 (vcpkg tools copy) prepended to PATH: ctest --test-dir repair-combined-build --output-on-failure -j 1 -> exit 0, 67/67 in 146.26 s   raw/repair/combined-67.*
+  K11 verbose in combined build: every sub-check PASS line present   raw/repair/combined-k11-verbose.txt
 
-Mutations: 11/11 meaningful kills; see MUTATIONS.md and raw/mutant logs.
-
-Public/diff guard: public header consumer/link PASS; production cpp includes from tests = 0; TorrentEngine.h absent; aggregate CMake and docs/server1/STATE.json unchanged.
+Hygiene:
+  python scripts/check_public_paths.py -> PUBLIC_PATH_GUARD_OK (run on the staged candidate before commit).
+  Aggregate CMake, tests CMake and docs/server1/STATE.json unchanged (git diff empty for those paths).

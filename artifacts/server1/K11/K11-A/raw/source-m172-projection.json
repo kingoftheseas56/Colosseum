@@ -1,0 +1,148 @@
+{
+  "constructions": 2,
+  "resumeCount": 3,
+  "timeline": [
+    [
+      "Create",
+      2
+    ],
+    [
+      "Created"
+    ],
+    [
+      "Create",
+      1
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "callback",
+      "C2"
+    ],
+    [
+      "callback",
+      "C1"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "Create",
+      3
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "callback",
+      "C3"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "Destroyed"
+    ],
+    [
+      "remove-callback"
+    ],
+    [
+      "Create",
+      4
+    ],
+    [
+      "Created"
+    ]
+  ],
+  "createOptions": [
+    {
+      "marker": 2,
+      "stream": null,
+      "torrent": null,
+      "path": "<cache-path>",
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:<hash>"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "idAtEmit": false
+    },
+    {
+      "marker": 1,
+      "stream": "<stream>",
+      "torrent": "<stream>",
+      "path": "<cache-path>",
+      "peerSearch": {
+        "sources": [
+          "dht:custom"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "idAtEmit": false
+    },
+    {
+      "marker": 3,
+      "stream": null,
+      "torrent": null,
+      "path": "<cache-path>",
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:<hash>"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "idAtEmit": false
+    },
+    {
+      "marker": 4,
+      "stream": null,
+      "torrent": null,
+      "path": "<cache-path>",
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:<hash>"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "idAtEmit": false
+    }
+  ],
+  "ids": {
+    "count": 4,
+    "distinct": 4,
+    "allStrings": true
+  },
+  "finalOptions": {
+    "marker": 3,
+    "path": "<cache-path>",
+    "peerSearch": {
+      "min": 40,
+      "max": 200,
+      "sources": [
+        "dht:<hash>"
+      ]
+    },
+    "id": true
+  },
+  "peerSearchSources": [
+    "dht:<hash>"
+  ]
+}

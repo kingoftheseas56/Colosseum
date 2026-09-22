@@ -1,0 +1,5 @@
+(node:17684) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error: candidate failed 1: K11-02 M814 teardown did not cancel the timer once
+
+    at C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K11\K11-A\run_oracle.js:569:15

@@ -1,16 +1,15 @@
-# K11-v3 producer self-review
+# K11-v4 producer self-review
 
-Reviewer: `[Agent 4 (Codex/Sol subagent), K11-v3 producer self-review]`. This is not independent acceptance.
+Reviewer: `[Agent (Claude), K11-A repair producer self-review]`. This is not independent acceptance.
 
-- MET — Scope: only three authorized production files, K11 test/manifests, and K11-A artifacts change. Aggregate CMake, STATE, precursor headers, and rejected v2 history remain untouched.
-- MET — Registry: canonical identity, alias-before-hook, async idempotence, shallow merge, fallback path, fresh ids, exact event order, cached next-turn, and remove/destroy/missing semantics are tested.
-- MET — Lifetime: shared core, weak posted work, separate deferred lanes with inline rejection, real/injected timer cancellation, throw-after-continuation zero construction, and callback remove/destroy reentrancy are tested.
-- MET — Pump: reader demand crosses SchedulerActionContract and K10; verification wire coordinates map privately to virtual buffers; stale ownership is rejected; retry is fresh; corruption resets its group.
-- MET — Storage/read: exact out-of-order 524289-byte group stays invisible before commit, then reaches readers. Persistent upload checks commit; circular upload aborts; restored commits advertise one verification piece.
-- MET — Availability/caps/search: verification availability expands to virtual pieces; stale snapshots are ignored; peer state, pause/caps, options, clock, and timer ticks use accepted contracts.
-- MET — Isolation: premetadata creates/readers share E1; another infohash isolates transport, store, scheduler, settings, readers, and timer.
-- MET — Oracle: exact M172 and controlled M814 match native normalized traces; committed-only divergence is explicit.
-- MET — Verification: focused 9/9; mutants 11/11; fresh combined inventory 67; final combined 67/67 after recorded K10-G rerun.
-- MET — Public consumer: test includes `EngineRegistry.h`, links K11, includes no cpp, and no TorrentEngine.h exists.
+- MET: Scope. Changed production files are `EngineRegistry.h`, `EngineRegistry.cpp`, `TorrentEngine.cpp`; plus `test_engine_registry.cpp`, `cmake/packets/K11.cmake` (adds K05 link) and K11-A artifacts. No aggregate CMake, STATE, accepted predecessor header, FileReader or transport change.
+- MET: Finding 1. Fenced-lane regressions prove metadata install, restore scan, verify/commit, cache reads, upload reads and transport open/connect never complete while the work lane is held, and the app lane returns in under 1 s during a blocked transport open. Inline and app-thread executors are refused.
+- MET: Finding 2. Terminal completions are ledgered; destruction from a foreign thread posts through callbackExecutor, decided Removed survives a fenced close, late close completions are no-ops, and remove races (before open, during install, during commit) terminate once with no late HAVE, data or Ready.
+- MET: Finding 3. 10000 ms interval from ontorrent, rechoke unchoke on tick, one cancellation, zero effective post-close ticks.
+- MET: Finding 4. Drain, dedup, malformed rejection, min/max with and without a swarm cap, swarm pause/resume, stale-generation isolation, blocking connects on the work lane.
+- MET: Findings 5/6. Observational raw traces on both sides, shared normalizer, disclosed divergence explicit, 24 drift controls, v3 oracle blindness demonstrated.
+- MET: Safety. Committed-only upload and visibility proven against the staged-bytes case the K06 store can otherwise serve.
+- RISK: Registry-owned worker threads are detached when their last reference drops on themselves; a process exiting mid-close can abandon a libtorrent session teardown.
+- RISK: Default (no executor) dispatch-mode destruction from a foreign thread abandons terminal callbacks by contract.
 
-PRODUCER READY — Independent Sol code/oracle review, B-W3E review, Agent 4 acceptance, and feature integration remain open.
+PRODUCER READY. Agent 4 review and B-W3E formation remain open.

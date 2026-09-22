@@ -1,0 +1,1 @@
+K11-PEERS create/resume did not resume the swarm and peer search

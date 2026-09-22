@@ -1,0 +1,25 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v3",
+  "worker_id": "K11-A",
+  "producer": "[Agent 4 (Codex/Sol subagent), K11-v3 producer]",
+  "accepted_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
+  "rejected_scaffold": "5cb920010ef3f53a49b629bf3564b011663b03aa",
+  "lineage_commit": "a20fcd011704ece4d1ee045d8c286ffad0f56747",
+  "branch": "sol/server1-w3-engine-v3-20260915",
+  "scope": "F10 EngineRegistry/TorrentEngine facade, causal scheduler-transport-store-reader pump, K11 tests/manifests, and K11-A evidence only",
+  "tdd": {
+    "red": "The inherited v2 scaffold linked but failed readiness: no causal pump, synthetic timer ownership, unsafe callback lifetime, and no M814 behavior differential.",
+    "green": "K11 focused tests pass 9/9 across three runs; 11/11 behavioral mutants are killed."
+  },
+  "verification": {
+    "focused_repeat": "9/9 passed",
+    "fresh_base_inventory": "64 tests",
+    "fresh_combined_inventory": "67 tests (64 base plus K11-01/02/03)",
+    "fresh_combined": "67/67 passed after one recorded K10-G timing failure and isolated green rerun",
+    "oracle": "M172 and behavioral M814 normalized candidate projections match; zero unexplained differences",
+    "public_header_link": "PASS",
+    "aggregate_cmake_unchanged": true,
+    "state_unchanged": true
+  },
+  "integration_status": "candidate only; independent Sol code/oracle review, later B-W3E review, and Agent 4 acceptance remain open"
+}

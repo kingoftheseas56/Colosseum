@@ -1,0 +1,144 @@
+{
+  "hash": "0123456789abcdef0123456789abcdef01234567",
+  "stream": "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+  "cacheRoot": "<cache-root>",
+  "constructions": 2,
+  "resumeCount": 3,
+  "timeline": [
+    [
+      "Create",
+      2
+    ],
+    [
+      "Created"
+    ],
+    [
+      "Create",
+      1
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "callback",
+      "C2"
+    ],
+    [
+      "callback",
+      "C1"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "Create",
+      3
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "callback",
+      "C3"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "Destroyed"
+    ],
+    [
+      "remove-callback"
+    ],
+    [
+      "Create",
+      4
+    ],
+    [
+      "Created"
+    ]
+  ],
+  "createOptions": [
+    {
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:0123456789abcdef0123456789abcdef01234567"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "marker": 2,
+      "path": "<cache-root>\\0123456789abcdef0123456789abcdef01234567"
+    },
+    {
+      "peerSearch": {
+        "sources": [
+          "dht:custom"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "torrent": "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+      "path": "<cache-root>\\0123456789abcdef0123456789abcdef01234567",
+      "marker": 1,
+      "stream": "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567"
+    },
+    {
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:0123456789abcdef0123456789abcdef01234567"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "path": "<cache-root>\\0123456789abcdef0123456789abcdef01234567",
+      "marker": 3
+    },
+    {
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:0123456789abcdef0123456789abcdef01234567"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "marker": 4,
+      "path": "<cache-root>\\0123456789abcdef0123456789abcdef01234567"
+    }
+  ],
+  "ids": [
+    "-TS0008-oracle-1",
+    "-TS0008-oracle-2",
+    "-TS0008-oracle-3",
+    "-TS0008-oracle-4"
+  ],
+  "finalOptions": {
+    "peerSearch": {
+      "min": 40,
+      "max": 200,
+      "sources": [
+        "dht:0123456789abcdef0123456789abcdef01234567"
+      ]
+    },
+    "dht": false,
+    "tracker": false,
+    "path": "<cache-root>\\0123456789abcdef0123456789abcdef01234567",
+    "marker": 3,
+    "id": "-TS0008-oracle-3"
+  },
+  "peerSearchSources": [
+    "dht:0123456789abcdef0123456789abcdef01234567"
+  ]
+}

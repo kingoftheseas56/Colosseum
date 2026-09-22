@@ -1,0 +1,2 @@
+K11-CANDIDATE-TRACE {"constructions":1,"events":["Create","Created","Create","ScopedReady","Ready","ScopedReady","Ready"],"createMarkers":[2,1],"callbacks":["C2","C1"],"resumeCount":2}
+K11-01 registry/hooks/options PASS

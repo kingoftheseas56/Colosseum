@@ -1,0 +1,15 @@
+{
+  "schema": "colosseum-server1-wiring-request/v3",
+  "worker_id": "K11-A",
+  "parent_packet": "K11",
+  "accepted_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
+  "branch": "sol/server1-w3-engine-v3-20260915",
+  "request": "Fast-forward this candidate to feature/colosseum-server-1.0 only after independent Sol K11 code/oracle review, later B-W3E aggregate review, and Agent 4 acceptance.",
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K11.cmake",
+    "native/colosseum_server_v1/tests/cmake/K11.cmake"
+  ],
+  "interface_changes": "Adds only F10-authorized include/server1/policy/EngineRegistry.h; no TorrentEngine.h is added.",
+  "aggregate_probe": "Artifact-local aggregate/CMakeLists.txt composes the unchanged accepted aggregate with K11 only for candidate verification.",
+  "gate": "K11-v3 producer-ready and test-reported; no integration or independent acceptance is claimed."
+}

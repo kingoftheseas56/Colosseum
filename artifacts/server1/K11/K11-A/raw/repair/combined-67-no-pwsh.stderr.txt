@@ -1,0 +1,12 @@
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Unable to find executable: pwsh
+Errors while running CTest

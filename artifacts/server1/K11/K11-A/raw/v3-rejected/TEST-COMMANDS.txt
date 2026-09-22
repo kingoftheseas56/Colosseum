@@ -1,0 +1,27 @@
+K11-v3 commands/results (2026-09-16)
+Producer: [Agent 4 (Codex/Sol subagent), K11-v3 producer]
+
+Lineage: branch sol/server1-w3-engine-v3-20260915 at accepted base b28e2dfe8562a5f942d569ab981d97a0530113bf; rejected 5cb920010ef3f53a49b629bf3564b011663b03aa scaffold replayed as a20fcd011704ece4d1ee045d8c286ffad0f56747.
+
+Focused build:
+C:/Qt/Tools/CMake_64/bin/cmake.exe -S artifacts/server1/K11/K11-A -B artifacts/server1/K11/K11-A/v3-red-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64
+C:/Qt/Tools/CMake_64/bin/cmake.exe --build artifacts/server1/K11/K11-A/v3-red-build --target server1_k11_engine_registry_test -j 1
+Result: green.
+
+Focused repeat:
+C:/Qt/Tools/CMake_64/bin/ctest.exe --test-dir artifacts/server1/K11/K11-A/v3-red-build -L K11 --repeat until-fail:3 --output-on-failure
+Result: 9/9 passed.
+
+Oracle: node artifacts/server1/K11/K11-A/run_oracle.js
+Result: exit 0; exact bundle/factories, corrupt negatives, M172 parity, controlled M814/native --trace parity.
+
+Inventory: fresh native aggregate ctest -N = 64. Old 63 build lacked accepted K10-H. Artifact combined wrapper ctest -N = 67: K11-01/02/03 plus all 64 base tests. Combined build = 82/82 targets.
+
+Combined run:
+C:/Qt/Tools/CMake_64/bin/ctest.exe --test-dir artifacts/server1/K11/K11-A/v3-combined-build --output-on-failure -j 1
+First run: 66/67; K10-G real-wire peer readiness timed out at connected=0, unchoked=0. Isolated K10-G rerun passed 1/1 in 18.17s.
+Fresh complete rerun: 67/67 passed in 200.77s, including K10 10/10, K10-E 7/7, K10-G, K10-H, P08, INT-W3 link, and K11 3/3.
+
+Mutations: 11/11 meaningful kills; see MUTATIONS.md and raw/mutant logs.
+
+Public/diff guard: public header consumer/link PASS; production cpp includes from tests = 0; TorrentEngine.h absent; aggregate CMake and docs/server1/STATE.json unchanged.

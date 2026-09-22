@@ -1,0 +1,104 @@
+{
+  "match": true,
+  "differences": [],
+  "controls": [
+    [
+      "native request offset",
+      true
+    ],
+    [
+      "native request count",
+      true
+    ],
+    [
+      "native retry removed",
+      true
+    ],
+    [
+      "native timer interval 500",
+      true
+    ],
+    [
+      "native post-close tick",
+      true
+    ],
+    [
+      "native timer never cancelled",
+      true
+    ],
+    [
+      "native HAVE dropped",
+      true
+    ],
+    [
+      "native precommit visibility",
+      true
+    ],
+    [
+      "native commit before verify",
+      true
+    ],
+    [
+      "native upload byte",
+      true
+    ],
+    [
+      "native rechoke missing",
+      true
+    ],
+    [
+      "native store close missing",
+      true
+    ],
+    [
+      "native callback order",
+      true
+    ],
+    [
+      "native resume count",
+      true
+    ],
+    [
+      "native stream alias lost",
+      true
+    ],
+    [
+      "native falsy path kept",
+      true
+    ],
+    [
+      "native deep merge",
+      true
+    ],
+    [
+      "native id before emit",
+      true
+    ],
+    [
+      "native reused id",
+      true
+    ],
+    [
+      "native extra construction",
+      true
+    ],
+    [
+      "native created missing",
+      true
+    ],
+    [
+      "source precommit visibility hidden",
+      true
+    ],
+    [
+      "source request order",
+      true
+    ],
+    [
+      "source resume count",
+      true
+    ]
+  ],
+  "corruptOracleRejected": true,
+  "corruptFactoryRejected": true
+}

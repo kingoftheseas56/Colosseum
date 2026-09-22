@@ -1,16 +1,101 @@
 {
-  "schema": "colosseum-server1-blob-seals/v2",
-  "algorithm": "staged git blob oid and pre-commit working-file SHA-256; each blob must equal committed HEAD:path",
+  "schema": "colosseum-server1-blob-seals/v3",
+  "algorithm": "staged git blob oid and SHA-256 of `git cat-file blob` bytes; each blob must equal committed HEAD:path",
   "files": [
-    {"path":"native/colosseum_server_v1/include/server1/policy/EngineRegistry.h","blob":"542abe9b7e707e1bd25254f9341a2ee5f7d41477","sha256":"c5572880957aec16f2443a0136a8b3a5d551a37345c99d4efe8f34dd98304565"},
-    {"path":"native/colosseum_server_v1/src/policy/EngineRegistry.cpp","blob":"fd65495e02444fd65f90647602333a31bbe7d147","sha256":"b9023c91a967130ddf56d614ffab10a24f88a6c8a76e7da3c79d2a02cc78a9eb"},
-    {"path":"native/colosseum_server_v1/src/policy/TorrentEngine.cpp","blob":"ecc37c19865280ee9c977cf88e6554a7165df163","sha256":"77c93995d98ab0b291f15fc41ab04d0af2c8f576aef7e6c9ec5075b8967926b6"},
-    {"path":"native/colosseum_server_v1/tests/test_engine_registry.cpp","blob":"2419efae920aca23559be0d0f706f1a86a19cbd5","sha256":"a3aa9c7f9fe15a3195e04e1d9cbbdd7c2ed51edda7fec4c28edd90a1f749efbc"},
-    {"path":"native/colosseum_server_v1/cmake/packets/K11.cmake","blob":"f272b65c0fcbdc15e974a4317de5af06b23fa0a9","sha256":"72cb8accc65ec8f7f05fae4110f91c34d6861833e78eb9ae6ec34e142b96a6d7"},
-    {"path":"native/colosseum_server_v1/tests/cmake/K11.cmake","blob":"561a8e6414c0d709973dbda675707c7fa548155c","sha256":"afd54a2c40a42d5721a85458bc9b59e636fb7c2eb98c2946ce83a1c8c72af7b7"},
-    {"path":"artifacts/server1/K11/K11-A/CMakeLists.txt","blob":"2bac7ad36da71ea1b0f5c4a5bba13ce8c8d99fda","sha256":"dd0839b1a2f84b31e324ceaf9fb541368918f11525e93d7917d3a9359d566bd7"},
-    {"path":"artifacts/server1/K11/K11-A/aggregate/CMakeLists.txt","blob":"ae4ebc971fe9f226df929f92fad3ff3439f9056a","sha256":"3bc9c61c1fe277e420161262d475d5e4e69af987617fb3af004d64ffe95d0d74"},
-    {"path":"artifacts/server1/K11/K11-A/run_oracle.js","blob":"bef9a6ca0d7858f16c564ccf28c7da8b4001a616","sha256":"0b04e04a5b2713902e0bc368ca8a18d2fe8c7b76236f5f8af014e18abb4cf767"},
-    {"path":"artifacts/server1/K11/K11-A/raw/comparison.json","blob":"53868efab4fda5aa4954dd4daeb390c196c9c92e","sha256":"c8e3847889c7ae994d8e30912588526d522c2cc457457b6b183a88d92d196649"}
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/EngineRegistry.h",
+      "blob": "c17c7ea8a1378a3ee74d329d7722d8f81c42bc3b",
+      "sha256": "58e8b6ff1bc374e857e2a68ed3ca6e20ef52c1e6aada383961289b98fa041511"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/EngineRegistry.cpp",
+      "blob": "7dd05f4e7614982ad711d8fd187760dd79fd518f",
+      "sha256": "bc5d8f3c8e2946ccbe04c6530bef57b90f12f8c76e189c144d5bbe2adf3908d6"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/TorrentEngine.cpp",
+      "blob": "0b34c008946c625410b2a469c1718513d15da516",
+      "sha256": "d5828becd2962b39a7032084d8b9082979cff7741413248f521c9811a41cf75b"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_engine_registry.cpp",
+      "blob": "f97cf09698a49634983bdf4825fad2d2ee9aabb0",
+      "sha256": "eb2bc87cff129d97fd763b8b229cee4c3ad3e317bdcd1bcb1bf90e263a410ce8"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K11.cmake",
+      "blob": "ccaadd6d3525ba2a26d58524ce211a2962fe7e73",
+      "sha256": "9b8349f62179368e179a016d27bf22f74605b1a32295d3ad1bf4cb1fde0aff71"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K11.cmake",
+      "blob": "561a8e6414c0d709973dbda675707c7fa548155c",
+      "sha256": "3388bfddb1804c085843a720f43adcacd834d1ef39bf5b3b1e84c009daa6934a"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/CMakeLists.txt",
+      "blob": "b7bbe5471c5ceb87342277ba59634df37c080dec",
+      "sha256": "a7817148bb3c677e745117e7e2800609db17e18a6a73a093cdb4613d53d9c833"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/aggregate/CMakeLists.txt",
+      "blob": "ae4ebc971fe9f226df929f92fad3ff3439f9056a",
+      "sha256": "3bc9c61c1fe277e420161262d475d5e4e69af987617fb3af004d64ffe95d0d74"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/run_oracle.js",
+      "blob": "ef9ced2a010ed9dbde47f3ef6e6495b83cfe806e",
+      "sha256": "f161ed15ffeb94296a42bccf4346710d4218907de126d88fbaef6bda33f74bfa"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/run_mutations.py",
+      "blob": "dac5a813e103e5dad67056f843f3a4c1bb5cfc7e",
+      "sha256": "d08be8d93d420916b5f06171918418c84ed7ee690f0ec06cda7512c57487d1ea"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/comparison.json",
+      "blob": "88658bba469c1f4996a3ec3b14f8463152ad5935",
+      "sha256": "1e9d178ce7f69fbda17714af0d868f3131a731650701c1a74337862e52c114f0"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/source-m172-raw.json",
+      "blob": "197602526dd3e2ca224ccf668a2c71f55316504a",
+      "sha256": "ad9a1c91d6339b9d43426cc5fdd90075aaf9d91f374215b15a491697a7c19486"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/source-m814-raw.json",
+      "blob": "b3152227350b5cae0012c9b0719201fec6e8af4e",
+      "sha256": "57836d5105c9e94fa95d77fb404ad27457ced3d497a89f3ed72712170ceda871"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/native-m172-raw.json",
+      "blob": "7ff0682950cf66ae52574c4be6965714857f45a5",
+      "sha256": "fe8ff3e071d4f86aba346e2a4cfd8b97b55232139d84ed43cf288cf513ac605b"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/native-m814-raw.json",
+      "blob": "722a1354416e0d6481f6d01e3112ba2f90db62d7",
+      "sha256": "db78de6d651745485a3971813c29109452dc29211ede064d8546696d7c586e7e"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/repair/MUTATION-RESULTS.json",
+      "blob": "190374cf7457d6478e6fbf64a8f79111eae4a9ea",
+      "sha256": "8e92218788b8872da5771359a58a54b09e32b7b3f50a8bec34281539e570ed8e"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/repair/combined-67.stdout.txt",
+      "blob": "9e47275c4374762c0439b04a2f4e522c950c16ae",
+      "sha256": "41c79e12c5fb7e8b0f93eaa8e0804ac00baabce8f55581b5ada6cfc99ed659ec"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/WIRING-REQUEST.json",
+      "blob": "27853959f9b84c0385daf751d9c25a10886e3ff0",
+      "sha256": "75bd43398f6f8c93d6eef0db6b71361c74ebf70767bd0c49e1d60e5183f5de90"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/PACKET-RECEIPT.json",
+      "blob": "9d9caf20fa16e1cfd6a7a776232a354c252c225a",
+      "sha256": "4657751f22f82ed18bbd3d0bbda86605cb0c45326c03f23906bd0401794c1333"
+    }
   ]
 }

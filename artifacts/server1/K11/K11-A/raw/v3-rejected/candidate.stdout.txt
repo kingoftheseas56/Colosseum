@@ -1,0 +1,4 @@
+K11-CANDIDATE-TRACE {"constructions":1,"events":["Create","Created","Create","ScopedReady","Ready","ScopedReady","Ready"],"createMarkers":[2,1],"callbacks":["C2","C1"],"resumeCount":2}
+K11-01 registry/hooks/options PASS
+K11-M814-CANDIDATE-TRACE {"selectedVirtualPiece":1,"verificationPieceLength":1048576,"virtualPieceLength":524288,"requestCount":34,"selectedRequest":[0,524288,1],"retryRequest":[0,524288,1],"lastFullBlock":[0,507904,16384],"causalOrder":["request","retry","request","write-partial","verify-incomplete","write-group","verify-success","commit","have","download-visible","notify","upload-read","upload-result","timer-cancel"],"upload":[200],"timerCancelled":true}
+K11-02 metadata/reuse/readers PASS

@@ -1,0 +1,1 @@
+K11-PEERS wire event without a swarm cap did not apply max hysteresis

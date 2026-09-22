@@ -8,541 +8,2561 @@
     "M172": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486",
     "M814": "05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e"
   },
-  "normalized172": {
-    "constructions": 1,
-    "events": [
-      "Create",
-      "Created",
-      "Create",
-      "ScopedReady",
-      "Ready",
-      "ScopedReady",
-      "Ready"
-    ],
-    "createMarkers": [
-      2,
-      1
-    ],
-    "callbacks": [
-      "C2",
-      "C1"
-    ],
-    "resumeCount": 2
-  },
-  "normalized814": {
-    "selectedVirtualPiece": 1,
-    "verificationPieceLength": 1048576,
-    "virtualPieceLength": 524288,
-    "requestCount": 34,
-    "firstRequest": [
-      0,
-      524288,
-      1
-    ],
-    "retryRequest": [
-      0,
-      524288,
-      1
-    ],
-    "finalRequest": [
-      0,
-      507904,
-      16384
-    ],
-    "pipeline": [
-      [
-        "retry",
-        0
+  "disclosedSourceDivergences": [
+    {
+      "kind": "source-precommit-visible",
+      "piece": 1
+    }
+  ],
+  "normalizationRules": [
+    "M172 hash and cache root are tokenized; paths equal to <cache-root>/<hash> become <cache-path>.",
+    "M172 ids compare by count, distinctness and -TS0008- prefix; values are generator-specific.",
+    "M814 source 'verified' per-piece events are implied by commit and dropped; commit end becomes exclusive.",
+    "M814 incomplete verification drops the group range on both sides.",
+    "M814 visibility: source 'download' events and native committed reader reads; a visible event before its group commit is a divergence.",
+    "M814 source selection notify callbacks and native reader delivery both project to notified=true.",
+    "M814 peer handles are tokenized in first-seen order.",
+    "M814 timer cancel is compared by count and position, not interleaved with teardown."
+  ],
+  "match": true,
+  "differences": [],
+  "projections": {
+    "source172": {
+      "constructions": 2,
+      "resumeCount": 3,
+      "timeline": [
+        [
+          "Create",
+          2
+        ],
+        [
+          "Created"
+        ],
+        [
+          "Create",
+          1
+        ],
+        [
+          "ScopedReady"
+        ],
+        [
+          "callback",
+          "C2"
+        ],
+        [
+          "callback",
+          "C1"
+        ],
+        [
+          "Ready"
+        ],
+        [
+          "ScopedReady"
+        ],
+        [
+          "Ready"
+        ],
+        [
+          "Create",
+          3
+        ],
+        [
+          "ScopedReady"
+        ],
+        [
+          "callback",
+          "C3"
+        ],
+        [
+          "Ready"
+        ],
+        [
+          "Destroyed"
+        ],
+        [
+          "remove-callback"
+        ],
+        [
+          "Create",
+          4
+        ],
+        [
+          "Created"
+        ]
       ],
-      [
-        "write",
-        1,
-        1
-      ],
-      [
-        "verify",
-        1
-      ],
-      [
-        "download",
-        1,
-        1
-      ],
-      [
-        "write",
-        0,
-        524288
-      ],
-      [
-        "verify",
-        0
-      ],
-      [
-        "commit",
-        0,
-        1
-      ],
-      [
-        "verified",
-        0
-      ],
-      [
-        "verified",
-        1
-      ],
-      [
-        "have",
-        0
-      ],
-      [
-        "download",
-        0,
-        524288
-      ],
-      [
-        "notify"
-      ],
-      [
-        "notify"
-      ],
-      [
-        "read",
-        1
-      ],
-      [
-        "upload-result",
+      "createOptions": [
         {
-          "bytes": [
-            200
-          ]
+          "marker": 2,
+          "stream": null,
+          "torrent": null,
+          "path": "<cache-path>",
+          "peerSearch": {
+            "min": 40,
+            "max": 200,
+            "sources": [
+              "dht:<hash>"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        },
+        {
+          "marker": 1,
+          "stream": "<stream>",
+          "torrent": "<stream>",
+          "path": "<cache-path>",
+          "peerSearch": {
+            "sources": [
+              "dht:custom"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        },
+        {
+          "marker": 3,
+          "stream": null,
+          "torrent": null,
+          "path": "<cache-path>",
+          "peerSearch": {
+            "min": 40,
+            "max": 200,
+            "sources": [
+              "dht:<hash>"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        },
+        {
+          "marker": 4,
+          "stream": null,
+          "torrent": null,
+          "path": "<cache-path>",
+          "peerSearch": {
+            "min": 40,
+            "max": 200,
+            "sources": [
+              "dht:<hash>"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
         }
       ],
-      [
-        "swarm-destroy"
-      ],
-      [
-        "store-close"
-      ],
-      [
-        "destroyed"
-      ]
-    ],
-    "upload": {
-      "bytes": [
-        200
+      "ids": {
+        "count": 4,
+        "distinct": 4,
+        "allStrings": true
+      },
+      "finalOptions": {
+        "marker": 3,
+        "path": "<cache-path>",
+        "peerSearch": {
+          "min": 40,
+          "max": 200,
+          "sources": [
+            "dht:<hash>"
+          ]
+        },
+        "id": true
+      },
+      "peerSearchSources": [
+        "dht:<hash>"
       ]
     },
-    "timer": [
-      [
-        "start",
-        1,
-        10000
+    "native172": {
+      "constructions": 2,
+      "resumeCount": 3,
+      "timeline": [
+        [
+          "Create",
+          2
+        ],
+        [
+          "Created"
+        ],
+        [
+          "Create",
+          1
+        ],
+        [
+          "ScopedReady"
+        ],
+        [
+          "callback",
+          "C2"
+        ],
+        [
+          "callback",
+          "C1"
+        ],
+        [
+          "Ready"
+        ],
+        [
+          "ScopedReady"
+        ],
+        [
+          "Ready"
+        ],
+        [
+          "Create",
+          3
+        ],
+        [
+          "ScopedReady"
+        ],
+        [
+          "callback",
+          "C3"
+        ],
+        [
+          "Ready"
+        ],
+        [
+          "Destroyed"
+        ],
+        [
+          "remove-callback"
+        ],
+        [
+          "Create",
+          4
+        ],
+        [
+          "Created"
+        ]
       ],
-      [
-        "cancel",
-        1
+      "createOptions": [
+        {
+          "marker": 2,
+          "stream": null,
+          "torrent": null,
+          "path": "<cache-path>",
+          "peerSearch": {
+            "min": 40,
+            "max": 200,
+            "sources": [
+              "dht:<hash>"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        },
+        {
+          "marker": 1,
+          "stream": "<stream>",
+          "torrent": "<stream>",
+          "path": "<cache-path>",
+          "peerSearch": {
+            "sources": [
+              "dht:custom"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        },
+        {
+          "marker": 3,
+          "stream": null,
+          "torrent": null,
+          "path": "<cache-path>",
+          "peerSearch": {
+            "min": 40,
+            "max": 200,
+            "sources": [
+              "dht:<hash>"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        },
+        {
+          "marker": 4,
+          "stream": null,
+          "torrent": null,
+          "path": "<cache-path>",
+          "peerSearch": {
+            "min": 40,
+            "max": 200,
+            "sources": [
+              "dht:<hash>"
+            ]
+          },
+          "dht": false,
+          "tracker": false,
+          "idAtEmit": false
+        }
+      ],
+      "ids": {
+        "count": 4,
+        "distinct": 4,
+        "allStrings": true
+      },
+      "finalOptions": {
+        "marker": 3,
+        "path": "<cache-path>",
+        "peerSearch": {
+          "min": 40,
+          "max": 200,
+          "sources": [
+            "dht:<hash>"
+          ]
+        },
+        "id": true
+      },
+      "peerSearchSources": [
+        "dht:<hash>"
       ]
-    ]
-  },
-  "candidateTrace": {
-    "constructions": 1,
-    "events": [
-      "Create",
-      "Created",
-      "Create",
-      "ScopedReady",
-      "Ready",
-      "ScopedReady",
-      "Ready"
-    ],
-    "createMarkers": [
-      2,
-      1
-    ],
-    "callbacks": [
-      "C2",
-      "C1"
-    ],
-    "resumeCount": 2
-  },
-  "m814SourceProjection": {
-    "selectedVirtualPiece": 1,
-    "verificationPieceLength": 1048576,
-    "virtualPieceLength": 524288,
-    "requestCount": 34,
-    "selectedRequest": [
-      0,
-      524288,
-      1
-    ],
-    "retryRequest": [
-      0,
-      524288,
-      1
-    ],
-    "lastFullBlock": [
-      0,
-      507904,
-      16384
-    ],
-    "causalOrder": [
-      "request",
-      "retry",
-      "request",
-      "write-partial",
-      "verify-incomplete",
-      "write-group",
-      "verify-success",
-      "commit",
-      "have",
-      "download-visible",
-      "notify",
-      "upload-read",
-      "upload-result",
-      "timer-cancel"
-    ],
-    "upload": [
-      200
-    ],
-    "timerCancelled": true
-  },
-  "m814CandidateTrace": {
-    "selectedVirtualPiece": 1,
-    "verificationPieceLength": 1048576,
-    "virtualPieceLength": 524288,
-    "requestCount": 34,
-    "selectedRequest": [
-      0,
-      524288,
-      1
-    ],
-    "retryRequest": [
-      0,
-      524288,
-      1
-    ],
-    "lastFullBlock": [
-      0,
-      507904,
-      16384
-    ],
-    "causalOrder": [
-      "request",
-      "retry",
-      "request",
-      "write-partial",
-      "verify-incomplete",
-      "write-group",
-      "verify-success",
-      "commit",
-      "have",
-      "download-visible",
-      "notify",
-      "upload-read",
-      "upload-result",
-      "timer-cancel"
-    ],
-    "upload": [
-      200
-    ],
-    "timerCancelled": true
-  },
-  "parity": true,
-  "candidateParity": true,
-  "m814CandidateParity": true,
-  "corruptOracleRejected": true,
-  "corruptFactoryRejected": true,
-  "m814Export": "function",
-  "raw814": [
-    [
-      "swarm-pause"
-    ],
-    [
-      "swarm-resume"
-    ],
-    [
-      "selected",
-      1
-    ],
-    [
-      "wire-request",
-      0,
-      524288,
-      1
-    ],
-    [
-      "retry",
-      0
-    ],
-    [
-      "wire-request",
-      0,
-      524288,
-      1
-    ],
-    [
-      "write",
-      1,
-      1
-    ],
-    [
-      "verify",
-      1
-    ],
-    [
-      "download",
-      1,
-      1
-    ],
-    [
-      "wire-request",
-      0,
-      0,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      16384,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      32768,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      49152,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      65536,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      81920,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      98304,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      114688,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      131072,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      147456,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      163840,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      180224,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      196608,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      212992,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      229376,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      245760,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      262144,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      278528,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      294912,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      311296,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      327680,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      344064,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      360448,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      376832,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      393216,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      409600,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      425984,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      442368,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      458752,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      475136,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      491520,
-      16384
-    ],
-    [
-      "wire-request",
-      0,
-      507904,
-      16384
-    ],
-    [
-      "write",
-      0,
-      524288
-    ],
-    [
-      "verify",
-      0
-    ],
-    [
-      "commit",
-      0,
-      1
-    ],
-    [
-      "verified",
-      0
-    ],
-    [
-      "verified",
-      1
-    ],
-    [
-      "have",
-      0
-    ],
-    [
-      "download",
-      0,
-      524288
-    ],
-    [
-      "notify"
-    ],
-    [
-      "notify"
-    ],
-    [
-      "read",
-      1
-    ],
-    [
-      "upload-result",
-      {
+    },
+    "source814": {
+      "geometry": {
+        "verificationPieceLength": 1048576,
+        "virtualPieceLength": 524288,
+        "virtualPieces": 2
+      },
+      "requests": {
+        "count": 34,
+        "sequence": [
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            0,
+            16384
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            32768,
+            16384
+          ],
+          [
+            0,
+            49152,
+            16384
+          ],
+          [
+            0,
+            65536,
+            16384
+          ],
+          [
+            0,
+            81920,
+            16384
+          ],
+          [
+            0,
+            98304,
+            16384
+          ],
+          [
+            0,
+            114688,
+            16384
+          ],
+          [
+            0,
+            131072,
+            16384
+          ],
+          [
+            0,
+            147456,
+            16384
+          ],
+          [
+            0,
+            163840,
+            16384
+          ],
+          [
+            0,
+            180224,
+            16384
+          ],
+          [
+            0,
+            196608,
+            16384
+          ],
+          [
+            0,
+            212992,
+            16384
+          ],
+          [
+            0,
+            229376,
+            16384
+          ],
+          [
+            0,
+            245760,
+            16384
+          ],
+          [
+            0,
+            262144,
+            16384
+          ],
+          [
+            0,
+            278528,
+            16384
+          ],
+          [
+            0,
+            294912,
+            16384
+          ],
+          [
+            0,
+            311296,
+            16384
+          ],
+          [
+            0,
+            327680,
+            16384
+          ],
+          [
+            0,
+            344064,
+            16384
+          ],
+          [
+            0,
+            360448,
+            16384
+          ],
+          [
+            0,
+            376832,
+            16384
+          ],
+          [
+            0,
+            393216,
+            16384
+          ],
+          [
+            0,
+            409600,
+            16384
+          ],
+          [
+            0,
+            425984,
+            16384
+          ],
+          [
+            0,
+            442368,
+            16384
+          ],
+          [
+            0,
+            458752,
+            16384
+          ],
+          [
+            0,
+            475136,
+            16384
+          ],
+          [
+            0,
+            491520,
+            16384
+          ],
+          [
+            0,
+            507904,
+            16384
+          ]
+        ],
+        "firstVirtualPiece": 1,
+        "failedThenRetried": true
+      },
+      "storage": [
+        [
+          "stage",
+          1,
+          1
+        ],
+        [
+          "verify",
+          1,
+          "incomplete"
+        ],
+        [
+          "stage",
+          0,
+          524288
+        ],
+        [
+          "verify",
+          0,
+          "success",
+          0,
+          2
+        ],
+        [
+          "commit",
+          0,
+          2
+        ]
+      ],
+      "have": [
+        0
+      ],
+      "visibleAfterCommit": [
+        0,
+        1
+      ],
+      "notified": true,
+      "rechoke": [
+        [
+          "unchoke",
+          "<peer0>"
+        ]
+      ],
+      "uploadRead": [
+        1
+      ],
+      "upload": {
+        "piece": 0,
+        "offset": 524288,
+        "length": 1,
         "bytes": [
           200
         ]
+      },
+      "timer": {
+        "intervals": [
+          10000
+        ],
+        "cancels": 1,
+        "ticksWhileActive": 1,
+        "ticksAfterCancel": 0,
+        "refusedAfterCancel": 2,
+        "startedAfterMetadata": true
+      },
+      "teardown": [
+        "transport-close",
+        "store-close",
+        "destroyed"
+      ],
+      "divergences": [
+        {
+          "kind": "source-precommit-visible",
+          "piece": 1
+        }
+      ]
+    },
+    "native814": {
+      "geometry": {
+        "verificationPieceLength": 1048576,
+        "virtualPieceLength": 524288,
+        "virtualPieces": 2
+      },
+      "requests": {
+        "count": 34,
+        "sequence": [
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            0,
+            16384
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            32768,
+            16384
+          ],
+          [
+            0,
+            49152,
+            16384
+          ],
+          [
+            0,
+            65536,
+            16384
+          ],
+          [
+            0,
+            81920,
+            16384
+          ],
+          [
+            0,
+            98304,
+            16384
+          ],
+          [
+            0,
+            114688,
+            16384
+          ],
+          [
+            0,
+            131072,
+            16384
+          ],
+          [
+            0,
+            147456,
+            16384
+          ],
+          [
+            0,
+            163840,
+            16384
+          ],
+          [
+            0,
+            180224,
+            16384
+          ],
+          [
+            0,
+            196608,
+            16384
+          ],
+          [
+            0,
+            212992,
+            16384
+          ],
+          [
+            0,
+            229376,
+            16384
+          ],
+          [
+            0,
+            245760,
+            16384
+          ],
+          [
+            0,
+            262144,
+            16384
+          ],
+          [
+            0,
+            278528,
+            16384
+          ],
+          [
+            0,
+            294912,
+            16384
+          ],
+          [
+            0,
+            311296,
+            16384
+          ],
+          [
+            0,
+            327680,
+            16384
+          ],
+          [
+            0,
+            344064,
+            16384
+          ],
+          [
+            0,
+            360448,
+            16384
+          ],
+          [
+            0,
+            376832,
+            16384
+          ],
+          [
+            0,
+            393216,
+            16384
+          ],
+          [
+            0,
+            409600,
+            16384
+          ],
+          [
+            0,
+            425984,
+            16384
+          ],
+          [
+            0,
+            442368,
+            16384
+          ],
+          [
+            0,
+            458752,
+            16384
+          ],
+          [
+            0,
+            475136,
+            16384
+          ],
+          [
+            0,
+            491520,
+            16384
+          ],
+          [
+            0,
+            507904,
+            16384
+          ]
+        ],
+        "firstVirtualPiece": 1,
+        "failedThenRetried": true
+      },
+      "storage": [
+        [
+          "stage",
+          1,
+          1
+        ],
+        [
+          "verify",
+          1,
+          "incomplete"
+        ],
+        [
+          "stage",
+          0,
+          524288
+        ],
+        [
+          "verify",
+          0,
+          "success",
+          0,
+          2
+        ],
+        [
+          "commit",
+          0,
+          2
+        ]
+      ],
+      "have": [
+        0
+      ],
+      "visibleAfterCommit": [
+        0,
+        1
+      ],
+      "notified": true,
+      "rechoke": [
+        [
+          "unchoke",
+          "<peer0>"
+        ]
+      ],
+      "uploadRead": [
+        1
+      ],
+      "upload": {
+        "piece": 0,
+        "offset": 524288,
+        "length": 1,
+        "bytes": [
+          200
+        ]
+      },
+      "timer": {
+        "intervals": [
+          10000
+        ],
+        "cancels": 1,
+        "ticksWhileActive": 1,
+        "ticksAfterCancel": 0,
+        "refusedAfterCancel": 2,
+        "startedAfterMetadata": true
+      },
+      "teardown": [
+        "transport-close",
+        "store-close",
+        "destroyed"
+      ],
+      "divergences": []
+    }
+  },
+  "controls": [
+    {
+      "name": "native request offset",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.requests.sequence",
+        "source": [
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            0,
+            16384
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            32768,
+            16384
+          ],
+          [
+            0,
+            49152,
+            16384
+          ],
+          [
+            0,
+            65536,
+            16384
+          ],
+          [
+            0,
+            81920,
+            16384
+          ],
+          [
+            0,
+            98304,
+            16384
+          ],
+          [
+            0,
+            114688,
+            16384
+          ],
+          [
+            0,
+            131072,
+            16384
+          ],
+          [
+            0,
+            147456,
+            16384
+          ],
+          [
+            0,
+            163840,
+            16384
+          ],
+          [
+            0,
+            180224,
+            16384
+          ],
+          [
+            0,
+            196608,
+            16384
+          ],
+          [
+            0,
+            212992,
+            16384
+          ],
+          [
+            0,
+            229376,
+            16384
+          ],
+          [
+            0,
+            245760,
+            16384
+          ],
+          [
+            0,
+            262144,
+            16384
+          ],
+          [
+            0,
+            278528,
+            16384
+          ],
+          [
+            0,
+            294912,
+            16384
+          ],
+          [
+            0,
+            311296,
+            16384
+          ],
+          [
+            0,
+            327680,
+            16384
+          ],
+          [
+            0,
+            344064,
+            16384
+          ],
+          [
+            0,
+            360448,
+            16384
+          ],
+          [
+            0,
+            376832,
+            16384
+          ],
+          [
+            0,
+            393216,
+            16384
+          ],
+          [
+            0,
+            409600,
+            16384
+          ],
+          [
+            0,
+            425984,
+            16384
+          ],
+          [
+            0,
+            442368,
+            16384
+          ],
+          [
+            0,
+            458752,
+            16384
+          ],
+          [
+            0,
+            475136,
+            16384
+          ],
+          [
+            0,
+            491520,
+            16384
+          ],
+          [
+            0,
+            507904,
+            16384
+          ]
+        ],
+        "native": [
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            32768,
+            16384
+          ],
+          [
+            0,
+            49152,
+            16384
+          ],
+          [
+            0,
+            65536,
+            16384
+          ],
+          [
+            0,
+            81920,
+            16384
+          ],
+          [
+            0,
+            98304,
+            16384
+          ],
+          [
+            0,
+            114688,
+            16384
+          ],
+          [
+            0,
+            131072,
+            16384
+          ],
+          [
+            0,
+            147456,
+            16384
+          ],
+          [
+            0,
+            163840,
+            16384
+          ],
+          [
+            0,
+            180224,
+            16384
+          ],
+          [
+            0,
+            196608,
+            16384
+          ],
+          [
+            0,
+            212992,
+            16384
+          ],
+          [
+            0,
+            229376,
+            16384
+          ],
+          [
+            0,
+            245760,
+            16384
+          ],
+          [
+            0,
+            262144,
+            16384
+          ],
+          [
+            0,
+            278528,
+            16384
+          ],
+          [
+            0,
+            294912,
+            16384
+          ],
+          [
+            0,
+            311296,
+            16384
+          ],
+          [
+            0,
+            327680,
+            16384
+          ],
+          [
+            0,
+            344064,
+            16384
+          ],
+          [
+            0,
+            360448,
+            16384
+          ],
+          [
+            0,
+            376832,
+            16384
+          ],
+          [
+            0,
+            393216,
+            16384
+          ],
+          [
+            0,
+            409600,
+            16384
+          ],
+          [
+            0,
+            425984,
+            16384
+          ],
+          [
+            0,
+            442368,
+            16384
+          ],
+          [
+            0,
+            458752,
+            16384
+          ],
+          [
+            0,
+            475136,
+            16384
+          ],
+          [
+            0,
+            491520,
+            16384
+          ],
+          [
+            0,
+            507904,
+            16384
+          ]
+        ]
       }
-    ],
-    [
-      "swarm-destroy"
-    ],
-    [
-      "store-close"
-    ],
-    [
-      "destroyed"
-    ]
-  ]
+    },
+    {
+      "name": "native request count",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.requests.count",
+        "source": 34,
+        "native": 33
+      }
+    },
+    {
+      "name": "native retry removed",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.requests.failedThenRetried",
+        "source": true,
+        "native": false
+      }
+    },
+    {
+      "name": "native timer interval 500",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.timer.intervals",
+        "source": [
+          10000
+        ],
+        "native": [
+          500
+        ]
+      }
+    },
+    {
+      "name": "native post-close tick",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.timer.ticksAfterCancel",
+        "source": 0,
+        "native": 1
+      }
+    },
+    {
+      "name": "native timer never cancelled",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.timer.cancels",
+        "source": 1,
+        "native": 0
+      }
+    },
+    {
+      "name": "native HAVE dropped",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.have",
+        "source": [
+          0
+        ],
+        "native": []
+      }
+    },
+    {
+      "name": "native precommit visibility",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.nativeDivergences",
+        "source": [
+          {
+            "kind": "native-precommit-visible",
+            "piece": 1
+          }
+        ],
+        "native": []
+      }
+    },
+    {
+      "name": "native commit before verify",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.storage",
+        "source": [
+          [
+            "stage",
+            1,
+            1
+          ],
+          [
+            "verify",
+            1,
+            "incomplete"
+          ],
+          [
+            "stage",
+            0,
+            524288
+          ],
+          [
+            "verify",
+            0,
+            "success",
+            0,
+            2
+          ],
+          [
+            "commit",
+            0,
+            2
+          ]
+        ],
+        "native": [
+          [
+            "stage",
+            1,
+            1
+          ],
+          [
+            "verify",
+            1,
+            "incomplete"
+          ],
+          [
+            "stage",
+            0,
+            524288
+          ],
+          [
+            "commit",
+            0,
+            2
+          ],
+          [
+            "verify",
+            0,
+            "success",
+            0,
+            2
+          ]
+        ]
+      }
+    },
+    {
+      "name": "native upload byte",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.upload.bytes",
+        "source": [
+          200
+        ],
+        "native": [
+          65
+        ]
+      }
+    },
+    {
+      "name": "native rechoke missing",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.rechoke",
+        "source": [
+          [
+            "unchoke",
+            "<peer0>"
+          ]
+        ],
+        "native": []
+      }
+    },
+    {
+      "name": "native store close missing",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.teardown",
+        "source": [
+          "transport-close",
+          "store-close",
+          "destroyed"
+        ],
+        "native": [
+          "transport-close",
+          "destroyed"
+        ]
+      }
+    },
+    {
+      "name": "native callback order",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.timeline",
+        "source": [
+          [
+            "Create",
+            2
+          ],
+          [
+            "Created"
+          ],
+          [
+            "Create",
+            1
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C2"
+          ],
+          [
+            "callback",
+            "C1"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Create",
+            3
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C3"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Destroyed"
+          ],
+          [
+            "remove-callback"
+          ],
+          [
+            "Create",
+            4
+          ],
+          [
+            "Created"
+          ]
+        ],
+        "native": [
+          [
+            "Create",
+            2
+          ],
+          [
+            "Created"
+          ],
+          [
+            "Create",
+            1
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C1"
+          ],
+          [
+            "callback",
+            "C2"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Create",
+            3
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C3"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Destroyed"
+          ],
+          [
+            "remove-callback"
+          ],
+          [
+            "Create",
+            4
+          ],
+          [
+            "Created"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "native resume count",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.resumeCount",
+        "source": 3,
+        "native": 2
+      }
+    },
+    {
+      "name": "native stream alias lost",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.createOptions",
+        "source": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ],
+        "native": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "native falsy path kept",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.createOptions",
+        "source": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ],
+        "native": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": false,
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "native deep merge",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.createOptions",
+        "source": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ],
+        "native": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ],
+              "min": 40
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "native id before emit",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.createOptions",
+        "source": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ],
+        "native": [
+          {
+            "marker": 2,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": true
+          },
+          {
+            "marker": 1,
+            "stream": "<stream>",
+            "torrent": "<stream>",
+            "path": "<cache-path>",
+            "peerSearch": {
+              "sources": [
+                "dht:custom"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 3,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          },
+          {
+            "marker": 4,
+            "stream": null,
+            "torrent": null,
+            "path": "<cache-path>",
+            "peerSearch": {
+              "min": 40,
+              "max": 200,
+              "sources": [
+                "dht:<hash>"
+              ]
+            },
+            "dht": false,
+            "tracker": false,
+            "idAtEmit": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "native reused id",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.ids.distinct",
+        "source": 4,
+        "native": 3
+      }
+    },
+    {
+      "name": "native extra construction",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.constructions",
+        "source": 2,
+        "native": 3
+      }
+    },
+    {
+      "name": "native created missing",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.timeline",
+        "source": [
+          [
+            "Create",
+            2
+          ],
+          [
+            "Created"
+          ],
+          [
+            "Create",
+            1
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C2"
+          ],
+          [
+            "callback",
+            "C1"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Create",
+            3
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C3"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Destroyed"
+          ],
+          [
+            "remove-callback"
+          ],
+          [
+            "Create",
+            4
+          ],
+          [
+            "Created"
+          ]
+        ],
+        "native": [
+          [
+            "Create",
+            2
+          ],
+          [
+            "Create",
+            1
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C2"
+          ],
+          [
+            "callback",
+            "C1"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Create",
+            3
+          ],
+          [
+            "ScopedReady"
+          ],
+          [
+            "callback",
+            "C3"
+          ],
+          [
+            "Ready"
+          ],
+          [
+            "Destroyed"
+          ],
+          [
+            "remove-callback"
+          ],
+          [
+            "Create",
+            4
+          ]
+        ]
+      }
+    },
+    {
+      "name": "source precommit visibility hidden",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.visibleAfterCommit",
+        "source": [
+          0
+        ],
+        "native": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "source request order",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m814.requests.sequence",
+        "source": [
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            32768,
+            16384
+          ],
+          [
+            0,
+            49152,
+            16384
+          ],
+          [
+            0,
+            65536,
+            16384
+          ],
+          [
+            0,
+            81920,
+            16384
+          ],
+          [
+            0,
+            98304,
+            16384
+          ],
+          [
+            0,
+            114688,
+            16384
+          ],
+          [
+            0,
+            131072,
+            16384
+          ],
+          [
+            0,
+            147456,
+            16384
+          ],
+          [
+            0,
+            163840,
+            16384
+          ],
+          [
+            0,
+            180224,
+            16384
+          ],
+          [
+            0,
+            196608,
+            16384
+          ],
+          [
+            0,
+            212992,
+            16384
+          ],
+          [
+            0,
+            229376,
+            16384
+          ],
+          [
+            0,
+            245760,
+            16384
+          ],
+          [
+            0,
+            262144,
+            16384
+          ],
+          [
+            0,
+            278528,
+            16384
+          ],
+          [
+            0,
+            294912,
+            16384
+          ],
+          [
+            0,
+            311296,
+            16384
+          ],
+          [
+            0,
+            327680,
+            16384
+          ],
+          [
+            0,
+            344064,
+            16384
+          ],
+          [
+            0,
+            360448,
+            16384
+          ],
+          [
+            0,
+            376832,
+            16384
+          ],
+          [
+            0,
+            393216,
+            16384
+          ],
+          [
+            0,
+            409600,
+            16384
+          ],
+          [
+            0,
+            425984,
+            16384
+          ],
+          [
+            0,
+            442368,
+            16384
+          ],
+          [
+            0,
+            458752,
+            16384
+          ],
+          [
+            0,
+            475136,
+            16384
+          ],
+          [
+            0,
+            491520,
+            16384
+          ],
+          [
+            0,
+            507904,
+            16384
+          ]
+        ],
+        "native": [
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            524288,
+            1
+          ],
+          [
+            0,
+            0,
+            16384
+          ],
+          [
+            0,
+            16384,
+            16384
+          ],
+          [
+            0,
+            32768,
+            16384
+          ],
+          [
+            0,
+            49152,
+            16384
+          ],
+          [
+            0,
+            65536,
+            16384
+          ],
+          [
+            0,
+            81920,
+            16384
+          ],
+          [
+            0,
+            98304,
+            16384
+          ],
+          [
+            0,
+            114688,
+            16384
+          ],
+          [
+            0,
+            131072,
+            16384
+          ],
+          [
+            0,
+            147456,
+            16384
+          ],
+          [
+            0,
+            163840,
+            16384
+          ],
+          [
+            0,
+            180224,
+            16384
+          ],
+          [
+            0,
+            196608,
+            16384
+          ],
+          [
+            0,
+            212992,
+            16384
+          ],
+          [
+            0,
+            229376,
+            16384
+          ],
+          [
+            0,
+            245760,
+            16384
+          ],
+          [
+            0,
+            262144,
+            16384
+          ],
+          [
+            0,
+            278528,
+            16384
+          ],
+          [
+            0,
+            294912,
+            16384
+          ],
+          [
+            0,
+            311296,
+            16384
+          ],
+          [
+            0,
+            327680,
+            16384
+          ],
+          [
+            0,
+            344064,
+            16384
+          ],
+          [
+            0,
+            360448,
+            16384
+          ],
+          [
+            0,
+            376832,
+            16384
+          ],
+          [
+            0,
+            393216,
+            16384
+          ],
+          [
+            0,
+            409600,
+            16384
+          ],
+          [
+            0,
+            425984,
+            16384
+          ],
+          [
+            0,
+            442368,
+            16384
+          ],
+          [
+            0,
+            458752,
+            16384
+          ],
+          [
+            0,
+            475136,
+            16384
+          ],
+          [
+            0,
+            491520,
+            16384
+          ],
+          [
+            0,
+            507904,
+            16384
+          ]
+        ]
+      }
+    },
+    {
+      "name": "source resume count",
+      "detected": true,
+      "firstDifference": {
+        "path": "$.m172.resumeCount",
+        "source": 4,
+        "native": 3
+      }
+    }
+  ],
+  "controlsDetected": true,
+  "corruptOracleRejected": true,
+  "corruptFactoryRejected": true
 }

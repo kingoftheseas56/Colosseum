@@ -1,0 +1,20 @@
+{"id": "strand-runs-inline-on-app-lane", "finding": "1", "build": 0, "checks": {"R1": 1, "K11-02": 1}, "killed": true}
+{"id": "destruction-delivers-on-destroying-thread", "finding": "2", "build": 0, "checks": {"R2": 1}, "killed": true}
+{"id": "destruction-rewrites-decided-removal", "finding": "2", "build": 0, "checks": {"R2": 1}, "killed": true}
+{"id": "timer-interval-500", "finding": "3", "build": 0, "checks": {"R3": 1, "oracle": 2}, "killed": true}
+{"id": "timer-never-cancelled", "finding": "3", "build": 0, "checks": {"R3": 1, "K11-02": 1, "oracle": 1}, "killed": true}
+{"id": "timer-ticks-after-close", "finding": "3", "build": 0, "checks": {"R3": 0, "oracle": 2}, "killed": true}
+{"id": "timer-tick-without-rechoke", "finding": "3", "build": 0, "checks": {"R3": 1, "oracle": 2}, "killed": true}
+{"id": "peer-adds-never-drained", "finding": "4", "build": 0, "checks": {"R4": 1}, "killed": true}
+{"id": "malformed-port-accepted", "finding": "4", "build": 0, "checks": {"R4": 1}, "killed": true}
+{"id": "closed-generation-still-connects", "finding": "4", "build": 0, "checks": {"R4": 1}, "killed": true}
+{"id": "wire-event-skips-peer-search", "finding": "4", "build": 0, "checks": {"R4": 1}, "killed": true}
+{"id": "staged-bytes-uploadable", "finding": "upload", "build": 0, "checks": {"R5": 1, "K11-02": 1}, "killed": true}
+{"id": "staged-piece-marked-visible", "finding": "upload", "build": 0, "checks": {"R5": 1, "K11-02": 1, "oracle": 0}, "killed": true}
+{"id": "scheduler-decision-discarded", "finding": "scheduler", "build": 0, "checks": {"K11-02": 1}, "killed": true}
+{"id": "stale-generation-block-accepted", "finding": "generation", "build": 0, "checks": {"K11-02": 1}, "killed": true}
+{"id": "callbacks-after-global-ready", "finding": "5", "build": 0, "checks": {"oracle": 2}, "killed": true}
+{"id": "create-event-carries-id", "finding": "5", "build": 0, "checks": {"oracle": 2}, "killed": true}
+{"id": "reuse-rebinds-swarm-cap", "finding": "5", "build": 0, "checks": {"K11-01": 1}, "killed": true}
+{"id": "create-does-not-resume-swarm", "finding": "5", "build": 0, "checks": {"K11-01": 1, "R4": 1}, "killed": true}
+{"killed": 19, "total": 19, "sourcesRestored": {"TorrentEngine.cpp": true, "EngineRegistry.cpp": true}}

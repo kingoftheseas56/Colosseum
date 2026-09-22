@@ -1,0 +1,144 @@
+{
+  "hash": "c45005c56ca5df84ec316c21ba981e4849ed7f5f",
+  "stream": "magnet:?xt=urn:btih:C45005C56CA5DF84EC316C21BA981E4849ED7F5F",
+  "cacheRoot": "<cache-root>",
+  "constructions": 2,
+  "resumeCount": 3,
+  "timeline": [
+    [
+      "Create",
+      2
+    ],
+    [
+      "Created"
+    ],
+    [
+      "Create",
+      1
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "callback",
+      "C2"
+    ],
+    [
+      "callback",
+      "C1"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "Create",
+      3
+    ],
+    [
+      "ScopedReady"
+    ],
+    [
+      "callback",
+      "C3"
+    ],
+    [
+      "Ready"
+    ],
+    [
+      "Destroyed"
+    ],
+    [
+      "remove-callback"
+    ],
+    [
+      "Create",
+      4
+    ],
+    [
+      "Created"
+    ]
+  ],
+  "createOptions": [
+    {
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "marker": 2,
+      "path": "<cache-root>\\c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+    },
+    {
+      "peerSearch": {
+        "sources": [
+          "dht:custom"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "stream": "magnet:?xt=urn:btih:C45005C56CA5DF84EC316C21BA981E4849ED7F5F",
+      "marker": 1,
+      "path": "<cache-root>\\c45005c56ca5df84ec316c21ba981e4849ed7f5f",
+      "torrent": "magnet:?xt=urn:btih:C45005C56CA5DF84EC316C21BA981E4849ED7F5F"
+    },
+    {
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "marker": 3,
+      "path": "<cache-root>\\c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+    },
+    {
+      "peerSearch": {
+        "min": 40,
+        "max": 200,
+        "sources": [
+          "dht:c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "marker": 4,
+      "path": "<cache-root>\\c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+    }
+  ],
+  "ids": [
+    "-TS0008-native-2",
+    "-TS0008-native-1",
+    "-TS0008-native-3",
+    "-TS0008-native-4"
+  ],
+  "finalOptions": {
+    "peerSearch": {
+      "min": 40,
+      "max": 200,
+      "sources": [
+        "dht:c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+      ]
+    },
+    "dht": false,
+    "tracker": false,
+    "marker": 3,
+    "path": "<cache-root>\\c45005c56ca5df84ec316c21ba981e4849ed7f5f",
+    "id": "-TS0008-native-3"
+  },
+  "peerSearchSources": [
+    "dht:c45005c56ca5df84ec316c21ba981e4849ed7f5f"
+  ]
+}

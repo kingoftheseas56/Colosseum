@@ -10,6 +10,7 @@ function(server1_register_k11_packet)
     server1_k01_metadata
     server1_k02_piece_buffer
     server1_k04_scheduler_actions
+    server1_k05_swarm_metadata
     server1_k10_native_transport
     server1_k08_file_reader
     server1_k06_persistent_store

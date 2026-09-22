@@ -1,0 +1,58 @@
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+[1/2] Building CXX object CMakeFiles\server1_k11_engine_registry_test.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp.obj
+FAILED: CMakeFiles/server1_k11_engine_registry_test.dir/C_/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1/tests/test_engine_registry.cpp.obj 
+C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe  /nologo /TP -DBOOST_ALL_NO_LIB -DHAS_LIBTORRENT=1 -DQT_CORE_LIB -DQT_NO_DEBUG -DTORRENT_USE_OPENSSL -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN32_WINNT=0x0A00 -D_WIN64 -IC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include -IC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K11\K11-A\..\..\..\..\native\colosseum_server_v1\include -IC:\tools\libtorrent-2.0-msvc\include -IC:\tools\boost-1.84.0 -IC:\tools\openssl-msvc\include -external:IC:\Qt\6.11.1\msvc2022_64\include\QtCore -external:IC:\Qt\6.11.1\msvc2022_64\include -external:IC:\Qt\6.11.1\msvc2022_64\mkspecs\win32-msvc -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD /EHsc -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\server1_k11_engine_registry_test.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp.obj /FdCMakeFiles\server1_k11_engine_registry_test.dir\ /FS -c C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(687): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(689): error C2039: 'peerSearchStats': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(689): error C2737: 'stats': const object must be initialized
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(690): error C3536: 'stats': cannot be used before it is initialized
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(690): error C2109: subscript requires array or pointer type
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(691): error C2109: subscript requires array or pointer type
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(694): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(694): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(698): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(704): error C2039: 'peerDiscovery': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(704): error C2737: 'discovery': const object must be initialized
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(705): error C3536: 'discovery': cannot be used before it is initialized
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(706): error C2039: 'peerSearchStats': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(707): error C2039: 'peerSearchStats': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(708): error C2039: 'peerSearchStats': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(718): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(721): error C2039: 'peerDiscovery': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(725): error C2039: 'peerDiscovery': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(725): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(730): error C2039: 'peerDiscovery': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(730): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(741): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(743): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(749): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(754): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(758): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(771): error C2039: 'peerSearchRunning': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(772): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp(777): error C2039: 'discoverPeer': is not a member of 'server1::policy::TorrentEngine'
+C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\cmake\packets\..\..\include\server1/policy/EngineRegistry.h(93): note: see declaration of 'server1::policy::TorrentEngine'
+ninja: build stopped: subcommand failed.

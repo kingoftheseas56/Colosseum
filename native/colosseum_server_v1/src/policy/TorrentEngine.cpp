@@ -7,11 +7,13 @@
 #include "server1/policy/Scheduler.h"
 #include "server1/policy/SchedulerActions.h"
 #include "server1/policy/SwarmCaps.h"
+#include "server1/policy/SwarmPolicy.h"
 #include "server1/policy/TorrentMetadata.h"
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <limits>
 #include <map>
@@ -23,6 +25,13 @@
 
 namespace server1::policy {
 namespace {
+
+// M814 starts its repeating rechoke interval in ontorrent with
+// setInterval(..., 1e4) and clears it in destroy.
+constexpr std::uint64_t kRechokeIntervalMs = 10000;
+// Engine-allocated handles for discovered peers stay clear of caller-owned
+// connectSourcePeer handles.
+constexpr ports::PeerHandle kFirstDiscoveredPeer = ports::PeerHandle{1} << 32U;
 
 class DefaultRepeatTimer final : public EngineTimer {
 public:
@@ -77,29 +86,34 @@ private:
 
 std::atomic<std::uint64_t> DefaultRepeatTimer::nextId_{1};
 
-class ReaderStore : public FileReaderSource {
+struct StageResult final {
+    bool complete = false;
+    bool success = false;
+    bool advertise = false;
+    std::size_t start = 0;
+    std::size_t endExclusive = 0;
+    std::string error;
+    bool retryable = false;
+    std::vector<std::size_t> evicted;
+};
+
+// Work-lane only. The app lane never touches a StoreBackend; it keeps a
+// committed-piece mirror that changes only when a commit result returns.
+class StoreBackend {
 public:
-    struct Commit final {
-        bool complete = false;
-        bool success = false;
-        bool advertise = false;
-        std::size_t start = 0;
-        std::size_t endExclusive = 0;
-        std::string error;
-        bool retryable = false;
-    };
-    ~ReaderStore() override = default;
-    virtual Commit stage(std::size_t piece, ByteBuffer bytes, std::uint64_t nowMs) = 0;
+    virtual ~StoreBackend() = default;
+    virtual StageResult stage(std::size_t piece, ByteBuffer bytes, std::uint64_t nowMs) = 0;
+    virtual std::optional<ByteBuffer> read(std::size_t piece, std::uint64_t nowMs,
+                                           std::string *error) = 0;
+    // Only durably committed persistent bytes may be uploaded.
+    virtual std::optional<ByteBuffer> uploadRead(std::size_t piece) = 0;
     [[nodiscard]] virtual std::vector<std::size_t> restored(std::size_t count) const = 0;
-    [[nodiscard]] virtual std::optional<ByteBuffer> upload(std::size_t piece) = 0;
-    [[nodiscard]] virtual bool uploadsAllowed() const noexcept = 0;
     virtual void close() = 0;
 };
 
-class PersistentReaderStore final : public ReaderStore {
+class PersistentBackend final : public StoreBackend {
 public:
-    PersistentReaderStore(std::filesystem::path root,
-                          const TorrentMetadata &metadata)
+    PersistentBackend(std::filesystem::path root, const TorrentMetadata &metadata)
         : store_(std::move(root),
                  static_cast<std::size_t>(metadata.geometry().virtualPieceLength()),
                  static_cast<std::size_t>(metadata.length()),
@@ -108,35 +122,38 @@ public:
                  metadata.pieces())
     {}
 
-    bool hasPiece(std::size_t piece) const override
-    {
-        return store_.isCommitted(piece);
-    }
-
-    void readPiece(std::uint64_t token,
-                   std::size_t piece,
-                   Completion completion) override
-    {
-        std::string error;
-        auto bytes = store_.read(piece, &error);
-        completion(token, piece, bytes.value_or(ByteBuffer{}),
-                   bytes ? std::string{} : std::move(error));
-    }
-
-    bool cancelRead(std::uint64_t) override { return false; }
-    Commit stage(std::size_t piece, ByteBuffer bytes, std::uint64_t) override
+    StageResult stage(std::size_t piece, ByteBuffer bytes, std::uint64_t) override
     {
         store_.stage(piece, std::move(bytes));
         const auto verified = store_.verify(piece);
+        StageResult result;
+        result.start = verified.start;
+        result.endExclusive = verified.endExclusive;
         if (!verified.complete)
-            return {false, false, false, verified.start, verified.endExclusive, {}};
-        if (!verified.success)
-            return {true, false, false, verified.start, verified.endExclusive,
-                    "SHA-1 verification failed", true};
+            return result;
+        result.complete = true;
+        if (!verified.success) {
+            result.error = "SHA-1 verification failed";
+            result.retryable = true;
+            return result;
+        }
         const auto committed = store_.commit(verified.start, verified.endExclusive);
-        return {true, committed.state == CommitState::Committed,
-                committed.state == CommitState::Committed && !committed.noNotifyHave,
-                verified.start, verified.endExclusive, committed.error};
+        result.success = committed.state == CommitState::Committed;
+        result.advertise = result.success && !committed.noNotifyHave;
+        result.error = committed.error;
+        return result;
+    }
+    std::optional<ByteBuffer> read(std::size_t piece, std::uint64_t, std::string *error) override
+    {
+        if (!store_.isCommitted(piece)) {
+            if (error) *error = "piece is not committed";
+            return std::nullopt;
+        }
+        return store_.read(piece, error);
+    }
+    std::optional<ByteBuffer> uploadRead(std::size_t piece) override
+    {
+        return store_.isCommitted(piece) ? store_.read(piece) : std::nullopt;
     }
     std::vector<std::size_t> restored(std::size_t count) const override
     {
@@ -145,11 +162,6 @@ public:
             if (store_.isCommitted(piece)) result.push_back(piece);
         return result;
     }
-    std::optional<ByteBuffer> upload(std::size_t piece) override
-    {
-        return store_.isCommitted(piece) ? store_.read(piece) : std::nullopt;
-    }
-    bool uploadsAllowed() const noexcept override { return true; }
     void close() override { store_.close(); }
 
 private:
@@ -157,107 +169,103 @@ private:
     {
         std::vector<StoreFile> result;
         result.reserve(files.size());
-        for (const auto &file : files) {
+        for (const auto &file : files)
             result.push_back({static_cast<std::size_t>(file.offset),
                               static_cast<std::size_t>(file.length)});
-        }
         return result;
     }
 
     PersistentPieceStore store_;
 };
 
-class CircularReaderStore final : public ReaderStore {
+class CircularBackend final : public StoreBackend {
 public:
-    CircularReaderStore(std::filesystem::path root,
-                        std::size_t sizeBytes,
-                        std::size_t pieceLength,
-                        const TorrentMetadata &metadata)
+    CircularBackend(std::filesystem::path root,
+                    std::size_t sizeBytes,
+                    std::size_t pieceLength,
+                    TorrentMetadata metadata)
         : store_(std::move(root), CircularStoreMode::Memory,
                  std::max(sizeBytes, pieceLength), pieceLength)
-        , metadata_(metadata)
+        , metadata_(std::move(metadata))
     {}
 
-    bool hasPiece(std::size_t piece) const override
+    StageResult stage(std::size_t piece, ByteBuffer bytes, std::uint64_t nowMs) override
     {
-        return committed_.count(piece) != 0;
-    }
-
-    void readPiece(std::uint64_t token,
-                   std::size_t piece,
-                   Completion completion) override
-    {
-        auto bytes = committed_.count(piece) ? store_.read(piece, nowMs_) : std::nullopt;
-        completion(token, piece, bytes.value_or(ByteBuffer{}),
-                   bytes ? std::string{} : "piece is unavailable");
-    }
-
-    bool cancelRead(std::uint64_t) override { return false; }
-    Commit stage(std::size_t piece, ByteBuffer bytes, std::uint64_t nowMs) override
-    {
-        nowMs_ = nowMs;
+        StageResult result;
         const auto written = store_.write(piece, std::move(bytes), {}, {}, nowMs);
-        if (!written.success)
-            return {true, false, false, piece, piece + 1, written.error};
-        if (written.resetPiece) committed_.erase(*written.resetPiece);
+        if (!written.success) {
+            result.complete = true;
+            result.start = piece;
+            result.endExclusive = piece + 1;
+            result.error = written.error;
+            return result;
+        }
+        if (written.resetPiece) {
+            committed_.erase(*written.resetPiece);
+            staged_.erase(*written.resetPiece);
+            result.evicted.push_back(*written.resetPiece);
+        }
         const auto &coordinate = metadata_.geometry().virtualPieces().at(piece);
         const auto verification = coordinate.verificationIndex.value;
-        const auto &verificationCoordinate = metadata_.geometry().verificationPieces().at(verification);
+        const auto &verificationCoordinate =
+            metadata_.geometry().verificationPieces().at(verification);
         const auto virtualLength = metadata_.geometry().virtualPieceLength();
-        const auto start = static_cast<std::size_t>(verificationCoordinate.offset / virtualLength);
-        const auto endExclusive = static_cast<std::size_t>(
+        result.start = static_cast<std::size_t>(verificationCoordinate.offset / virtualLength);
+        result.endExclusive = static_cast<std::size_t>(
             (verificationCoordinate.offset + verificationCoordinate.length + virtualLength - 1)
             / virtualLength);
         staged_.insert(piece);
-        for (std::size_t item = start; item < endExclusive; ++item)
-            if (item != piece && staged_.count(item) == 0)
-                return {false, false, false, start, endExclusive, {}};
-        const auto committed = store_.commit(start, endExclusive - 1,
+        for (std::size_t item = result.start; item < result.endExclusive; ++item)
+            if (staged_.count(item) == 0)
+                return result;
+        result.complete = true;
+        const auto committed = store_.commit(result.start, result.endExclusive - 1,
                                              metadata_.pieces().at(verification));
         if (!committed.success) {
-            for (std::size_t item = start; item < endExclusive; ++item) {
+            for (std::size_t item = result.start; item < result.endExclusive; ++item) {
                 staged_.erase(item);
                 committed_.erase(item);
             }
-            return {true, false, false, start, endExclusive, committed.error, true};
+            result.error = committed.error;
+            result.retryable = true;
+            return result;
         }
-        for (std::size_t item = start; item < endExclusive; ++item) {
+        for (std::size_t item = result.start; item < result.endExclusive; ++item) {
             committed_.insert(item);
             staged_.erase(item);
         }
-        return {true, true, false, start, endExclusive, {}};
+        result.success = true;
+        return result;
     }
+    std::optional<ByteBuffer> read(std::size_t piece, std::uint64_t nowMs,
+                                   std::string *error) override
+    {
+        auto bytes = committed_.count(piece) ? store_.read(piece, nowMs) : std::nullopt;
+        if (!bytes && error) *error = "piece is unavailable";
+        return bytes;
+    }
+    std::optional<ByteBuffer> uploadRead(std::size_t) override { return std::nullopt; }
     std::vector<std::size_t> restored(std::size_t) const override { return {}; }
-    std::optional<ByteBuffer> upload(std::size_t) override { return std::nullopt; }
-    bool uploadsAllowed() const noexcept override { return false; }
     void close() override { store_.close(); }
 
 private:
-    mutable CircularPieceStore store_;
-    const TorrentMetadata &metadata_;
-    mutable std::uint64_t nowMs_ = 0;
+    CircularPieceStore store_;
+    TorrentMetadata metadata_;
     std::set<std::size_t> staged_;
     std::set<std::size_t> committed_;
 };
 
-std::size_t optionSize(const Value &options,
-                       std::string_view key,
-                       std::size_t fallback)
+std::size_t optionSize(const Value &options, std::string_view key, std::size_t fallback)
 {
     const auto *value = options.find(key);
     if (!value)
         return fallback;
-    const auto checked = checkedSize(*value, std::numeric_limits<std::size_t>::max());
-    return checked.value_or(fallback);
+    return checkedSize(*value, std::numeric_limits<std::size_t>::max()).value_or(fallback);
 }
 
-std::optional<double> optionNumber(const Value &options,
-                                   std::string_view objectKey,
-                                   std::string_view key)
+std::optional<double> optionNumber(const Value &object, std::string_view key)
 {
-    const auto *object = options.find(objectKey);
-    if (!object || object->kind() != Value::Kind::Object) return std::nullopt;
-    const auto *value = object->find(key);
+    const auto *value = object.find(key);
     if (!value || value->kind() != Value::Kind::Number) return std::nullopt;
     return value->asNumber();
 }
@@ -277,8 +285,7 @@ std::vector<std::string> configuredPeerSources(const Value &options)
     return result;
 }
 
-std::optional<std::size_t> configuredBound(const Value &options,
-                                           std::string_view key)
+std::optional<std::size_t> configuredBound(const Value &options, std::string_view key)
 {
     const auto *peerSearch = options.find("peerSearch");
     if (!peerSearch || peerSearch->kind() != Value::Kind::Object)
@@ -287,6 +294,26 @@ std::optional<std::size_t> configuredBound(const Value &options,
     if (!value)
         return std::nullopt;
     return checkedSize(*value, std::numeric_limits<std::size_t>::max());
+}
+
+// M814: rechokeSlots = uploads === false || uploads === 0 ? 0 : +uploads || 5.
+std::size_t uploadSlots(const Value &options)
+{
+    const auto *uploads = options.find("uploads");
+    if (!uploads)
+        return 5;
+    if (uploads->kind() == Value::Kind::Boolean && !uploads->asBoolean())
+        return 0;
+    if (uploads->kind() == Value::Kind::Number && uploads->asNumber() == 0)
+        return 0;
+    const auto number = jsNumber(*uploads);
+    if (std::isnan(number) || number == 0)
+        return 5;
+    if (number < 0)
+        return 0;
+    if (number > 1024)
+        return 1024;
+    return static_cast<std::size_t>(std::ceil(number));
 }
 
 std::string hashHex(const ports::V1InfoHash &hash)
@@ -301,73 +328,601 @@ std::string hashHex(const ports::V1InfoHash &hash)
     return result;
 }
 
+bool validIpv4(const std::string &host)
+{
+    std::size_t octets = 0;
+    std::size_t position = 0;
+    while (position <= host.size()) {
+        const auto dot = host.find('.', position);
+        const auto part = host.substr(position, dot == std::string::npos ? std::string::npos
+                                                                          : dot - position);
+        if (part.empty() || part.size() > 3
+            || !std::all_of(part.begin(), part.end(), [](char c) { return c >= '0' && c <= '9'; })
+            || std::stoi(part) > 255)
+            return false;
+        ++octets;
+        if (dot == std::string::npos) break;
+        position = dot + 1;
+    }
+    return octets == 4;
+}
+
+bool validIpv6(const std::string &host)
+{
+    return !host.empty() && host.size() <= 45
+        && std::count(host.begin(), host.end(), ':') >= 2
+        && std::all_of(host.begin(), host.end(), [](char c) {
+               return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+                   || (c >= 'A' && c <= 'F') || c == ':' || c == '.';
+           });
+}
+
+// M612 sources emit "host:port" (IPv6 hosts may be bracketed). Anything that is
+// not a literal address with a port in 1..65535 is rejected before it can reach
+// the transport.
+std::optional<std::pair<std::string, std::uint16_t>> parsePeerAddress(const std::string &address)
+{
+    std::string host;
+    std::string port;
+    if (!address.empty() && address.front() == '[') {
+        const auto close = address.find(']');
+        if (close == std::string::npos || close + 1 >= address.size() || address[close + 1] != ':')
+            return std::nullopt;
+        host = address.substr(1, close - 1);
+        port = address.substr(close + 2);
+        if (!validIpv6(host)) return std::nullopt;
+    } else {
+        const auto colon = address.rfind(':');
+        if (colon == std::string::npos) return std::nullopt;
+        host = address.substr(0, colon);
+        port = address.substr(colon + 1);
+        if (!validIpv4(host) && !validIpv6(host)) return std::nullopt;
+    }
+    if (port.empty() || port.size() > 5
+        || !std::all_of(port.begin(), port.end(), [](char c) { return c >= '0' && c <= '9'; }))
+        return std::nullopt;
+    const auto number = std::stoul(port);
+    if (number == 0 || number > 65535) return std::nullopt;
+    return std::make_pair(host, static_cast<std::uint16_t>(number));
+}
+
+// Work-lane state. Only tasks on the engine's serialized work lane touch the
+// transport handle and store here; the app lane reads only `closing`.
+struct WorkState final {
+    std::shared_ptr<ports::TorrentTransport> transport;
+    std::unique_ptr<StoreBackend> store;
+    std::atomic_bool closing{false};
+};
+
+struct TraceSink final {
+    EngineTraceCallback callback;
+    std::string sourceKey;
+    ports::EngineGeneration generation = 0;
+
+    void operator()(std::string kind, std::uint64_t piece = 0, std::uint64_t start = 0,
+                    std::uint64_t end = 0, std::uint64_t length = 0) const
+    {
+        if (callback)
+            callback({sourceKey, generation, std::move(kind), piece, start, end, length,
+                      std::this_thread::get_id()});
+    }
+};
+
 } // namespace
 
 struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::Impl> {
+    class ReaderSource final : public FileReaderSource {
+    public:
+        explicit ReaderSource(Impl &owner) : owner_(owner) {}
+        bool hasPiece(std::size_t piece) const override
+        {
+            return owner_.committed.count(piece) != 0;
+        }
+        void readPiece(std::uint64_t token, std::size_t piece, Completion completion) override
+        {
+            owner_.postRead(token, piece, std::move(completion));
+        }
+        bool cancelRead(std::uint64_t) override { return false; }
+
+    private:
+        Impl &owner_;
+    };
+
     std::string sourceKey;
     ports::EngineGeneration generation = 0;
     Value options = Value::object({});
+    Value creationOptions = Value::object({});
     std::filesystem::path cachePath;
-    std::unique_ptr<ports::TorrentTransport> transport;
+    ports::V1InfoHash infoHash{};
+    ports::TorrentSource source;
+    EngineTransportFactory transportFactory;
+    EnginePost workPost;
+    EnginePost appPost;
+    EngineRepeat repeat;
+    EngineClock clock;
+    TraceSink trace;
+    std::function<void()> onReady;
+    std::function<void()> onFailed;
+    std::shared_ptr<WorkState> work = std::make_shared<WorkState>();
+
+    std::shared_ptr<ports::TorrentTransport> transport;
     std::optional<TorrentMetadata> metadata;
     std::unique_ptr<Scheduler> scheduler;
     std::unique_ptr<SchedulerActionContract> schedulerActions;
-    std::unique_ptr<ReaderStore> store;
+    std::unique_ptr<ReaderSource> readerSource;
     std::unique_ptr<discovery::PeerSearch> peerSearch;
+    std::unique_ptr<SwarmPolicy> rechoke;
+    std::optional<SwarmCapOptions> swarmCap;
     std::shared_ptr<EngineTimer> timer;
-    EnginePost workPost;
-    EngineClock clock;
     std::vector<std::weak_ptr<FileReader>> readers;
     std::map<std::size_t, std::unique_ptr<PieceBuffer>> pieceBuffers;
     std::map<std::uint64_t, RequestIdentity> activeRequests;
     std::map<ports::PeerHandle, std::vector<bool>> available;
+    std::map<ports::PeerHandle, std::vector<std::uint32_t>> advertisedByPeer;
     std::map<ports::PeerHandle, ports::PeerObservation> peers;
+    std::map<ports::PeerHandle, std::uint64_t> peerDownloaded;
     std::set<std::size_t> demandedPieces;
+    std::set<std::size_t> committed;
+    std::set<std::size_t> staging;
     std::set<std::size_t> advertisedVerificationPieces;
     std::set<ports::PeerHandle> interestedPeers;
+    std::vector<ports::TorrentObservation> deferred;
+    std::vector<ports::ConnectAction> pendingConnects;
+    std::map<std::string, ports::PeerHandle> discoveredAddresses;
+    std::set<ports::PeerHandle> queuedPeers;
+    ports::PeerHandle nextPeerHandle = kFirstDiscoveredPeer;
+    EnginePeerDiscovery discovery;
     std::optional<bool> submittedPause;
+    bool swarmPaused = false;
     std::string sourceError;
     std::size_t resumeCount = 0;
+    std::size_t slots = 5;
+    bool metadataPending = false;
     bool ready = false;
     bool failed = false;
     bool closed = false;
     bool circular = false;
 
-    void tick()
+    [[nodiscard]] std::uint64_t now() const { return clock(); }
+
+    void post(EngineContinuation task)
+    {
+        if (workPost) static_cast<void>(workPost(std::move(task)));
+    }
+
+    // Returns a task that re-enters this engine on the app lane.
+    template <typename Function>
+    EngineContinuation onApp(Function function)
+    {
+        std::weak_ptr<Impl> weak = weak_from_this();
+        return [weak, function = std::move(function)]() mutable {
+            if (const auto self = weak.lock()) function(*self);
+        };
+    }
+
+    void toApp(EngineContinuation task) const
+    {
+        if (appPost) static_cast<void>(appPost(std::move(task)));
+    }
+
+    void start()
+    {
+        const auto *cap = creationOptions.find("swarmCap");
+        if (cap && jsTruthy(*cap) && cap->kind() == Value::Kind::Object) {
+            SwarmCapOptions parsed;
+            parsed.maxSpeed = optionNumber(*cap, "maxSpeed");
+            parsed.maxBuffer = optionNumber(*cap, "maxBuffer");
+            if (const auto min = optionNumber(*cap, "minPeers"); min && *min >= 0)
+                parsed.minPeers = static_cast<std::size_t>(*min);
+            swarmCap = parsed;
+        }
+        slots = uploadSlots(creationOptions);
+        const auto *peerSearchOption = creationOptions.find("peerSearch");
+        if (peerSearchOption && jsTruthy(*peerSearchOption)) {
+            // M172 uses the parsed torrent's announce list when the torrent option
+            // carries one; magnets and bare hashes use the configured sources.
+            std::vector<std::string> announce;
+            if (const auto *metainfo = std::get_if<ports::MetainfoSource>(&source)) {
+                if (auto parsed = TorrentMetadata::parse(metainfo->bytes, nullptr))
+                    announce = parsed->announce();
+            }
+            peerSearch = std::make_unique<discovery::PeerSearch>(
+                discovery::PeerSearch::selectSources(announce, configuredPeerSources(creationOptions),
+                                                     sourceKey),
+                configuredBound(creationOptions, "min"), configuredBound(creationOptions, "max"),
+                now());
+        }
+
+        const ports::TorrentOpenRequest request(generation, infoHash, source, cachePath.string());
+        auto state = work;
+        auto factory = transportFactory;
+        auto sink = trace;
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto app = appPost;
+        post([state, factory, request, sink, weak, app]() {
+            if (state->closing.load()) return;
+            std::shared_ptr<ports::TorrentTransport> opened;
+            std::string error;
+            try {
+                auto created = factory ? factory(request) : ports::openTorrentTransport(request);
+                if (!created) {
+                    error = "torrent transport could not be opened";
+                } else if (!created->configureAutonomy(discovery::AutonomyPolicy{})) {
+                    created->close();
+                    error = "torrent transport rejected external scheduler ownership";
+                } else {
+                    opened = std::move(created);
+                }
+            } catch (const std::exception &exception) {
+                error = exception.what();
+            }
+            sink("open");
+            state->transport = opened;
+            if (app) static_cast<void>(app([weak, opened, error] {
+                if (const auto self = weak.lock()) self->attach(opened, error);
+            }));
+        });
+    }
+
+    void attach(const std::shared_ptr<ports::TorrentTransport> &opened, const std::string &error)
     {
         if (closed) return;
-        const auto now = clock ? clock() : 0;
-        if (scheduler && transport) {
-            const auto stats = transport->statistics();
-            SwarmCapOptions caps;
-            caps.maxSpeed = optionNumber(options, "swarmCap", "maxSpeed");
-            caps.maxBuffer = optionNumber(options, "swarmCap", "maxBuffer");
-            if (const auto min = optionNumber(options, "swarmCap", "minPeers");
-                min && *min >= 0)
-                caps.minPeers = static_cast<std::size_t>(*min);
-            std::vector<BufferSelection> selections;
+        if (!opened) {
+            fail(error);
+            return;
+        }
+        transport = opened;
+        if (submittedPause.value_or(false) != swarmPaused)
+            setSwarmPaused(swarmPaused);
+        auto queued = std::move(pendingConnects);
+        pendingConnects.clear();
+        for (auto &action : queued)
+            submitConnect(std::move(action));
+    }
+
+    void fail(const std::string &message)
+    {
+        if (closed || ready || failed) return;
+        failed = true;
+        sourceError = message.empty() ? "torrent source failed" : message;
+        if (onFailed) onFailed();
+    }
+
+    void pollTransport()
+    {
+        if (closed || !transport) return;
+        if (ready) {
+            pruneCanceledRequests();
+            pumpRequests();
+        }
+        for (auto &observation : transport->poll()) {
+            if (closed) return;
+            route(std::move(observation));
+        }
+        if (peerSearch && !closed && !peerSearch->closed()) {
+            peerSearch->tick(now());
+            drainPeerAdds();
+        }
+    }
+
+    void route(ports::TorrentObservation observation)
+    {
+        if (const auto *metadataReady = std::get_if<ports::MetadataReadyObservation>(&observation)) {
+            acceptMetadata(*metadataReady);
+        } else if (const auto *failure = std::get_if<ports::SourceFailureObservation>(&observation)) {
+            if (!ready && failure->generation == generation
+                && hashHex(failure->infoHash) == sourceKey)
+                fail(failure->error);
+        } else if (std::holds_alternative<ports::ClosedObservation>(observation)) {
+            if (!ready) fail("torrent transport closed before metadata");
+        } else if (const auto *peer = std::get_if<ports::PeerObservation>(&observation)) {
+            acceptPeer(*peer);
+        } else if (failed) {
+            return;
+        } else if (!ready) {
+            deferred.push_back(std::move(observation));
+        } else {
+            acceptRuntime(observation);
+        }
+    }
+
+    void acceptMetadata(const ports::MetadataReadyObservation &observation)
+    {
+        if (closed || ready || failed || metadataPending
+            || observation.generation != generation
+            || hashHex(observation.infoHash) != sourceKey)
+            return;
+        metadataPending = true;
+        ByteBuffer torrent{'d', '4', ':', 'i', 'n', 'f', 'o'};
+        torrent.insert(torrent.end(), observation.infoSection.begin(),
+                       observation.infoSection.end());
+        torrent.push_back('e');
+        auto state = work;
+        auto sink = trace;
+        auto key = sourceKey;
+        auto construction = creationOptions;
+        auto root = cachePath;
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto app = appPost;
+        post([state, torrent = std::move(torrent), sink, key, construction, root, weak, app]() {
+            if (state->closing.load()) return;
+            const auto deliver = [&](EngineContinuation task) {
+                if (app) static_cast<void>(app(std::move(task)));
+            };
+            std::string error;
+            auto parsed = TorrentMetadata::parse(torrent, &error);
+            if (!parsed || parsed->infoHash() != key) {
+                const auto message = parsed ? std::string("metadata info hash mismatch") : error;
+                deliver([weak, message] {
+                    if (const auto self = weak.lock()) self->installFailed(message);
+                });
+                return;
+            }
+            try {
+                const auto pieceLength =
+                    static_cast<std::size_t>(parsed->geometry().virtualPieceLength());
+                const auto *circularOption = construction.find("circularBuffer");
+                const bool circular = circularOption && jsTruthy(*circularOption);
+                std::unique_ptr<StoreBackend> store;
+                if (circular) {
+                    const auto *bufferOption = construction.find("buffer");
+                    if (!bufferOption || !jsTruthy(*bufferOption))
+                        throw std::runtime_error("circularBuffer can only be used with buffer");
+                    store = std::make_unique<CircularBackend>(
+                        root, optionSize(construction, "buffer", pieceLength * 4U), pieceLength,
+                        *parsed);
+                } else {
+                    store = std::make_unique<PersistentBackend>(root, *parsed);
+                }
+                auto restored = store->restored(parsed->geometry().virtualPieces().size());
+                sink("metadata-install", 0, 0, parsed->geometry().virtualPieces().size());
+                sink("restore", 0, 0, 0, restored.size());
+                state->store = std::move(store);
+                deliver([weak, metadata = std::move(*parsed), restored = std::move(restored),
+                         circular]() mutable {
+                    if (const auto self = weak.lock())
+                        self->install(std::move(metadata), std::move(restored), circular);
+                });
+            } catch (const std::exception &exception) {
+                const std::string message = exception.what();
+                deliver([weak, message] {
+                    if (const auto self = weak.lock()) self->installFailed(message);
+                });
+            }
+        });
+    }
+
+    void installFailed(const std::string &message)
+    {
+        metadataPending = false;
+        fail(message);
+    }
+
+    void install(TorrentMetadata installed, std::vector<std::size_t> restored, bool isCircular)
+    {
+        metadataPending = false;
+        if (closed || failed || ready) return;
+        metadata = std::move(installed);
+        const auto pieces = metadata->geometry().virtualPieces().size();
+        scheduler = std::make_unique<Scheduler>(pieces);
+        schedulerActions = std::make_unique<SchedulerActionContract>();
+        readerSource = std::make_unique<ReaderSource>(*this);
+        circular = isCircular;
+        rechoke = std::make_unique<SwarmPolicy>(0, slots);
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto app = appPost;
+        auto tick = [weak, app] {
+            if (app) static_cast<void>(app([weak] {
+                if (const auto self = weak.lock()) self->rechokeTick();
+            }));
+        };
+        try {
+            timer = repeat ? repeat(kRechokeIntervalMs, std::move(tick))
+                           : std::make_shared<DefaultRepeatTimer>(kRechokeIntervalMs, std::move(tick));
+        } catch (const std::exception &exception) {
+            fail(exception.what());
+            return;
+        }
+        if (!timer) {
+            fail("engine repeat timer could not be created");
+            return;
+        }
+        trace("timer-start", 0, 0, 0, kRechokeIntervalMs);
+        ready = true;
+        for (const auto &[peer, observation] : peers) {
+            static_cast<void>(observation);
+            rechokeUpsert(peer);
+        }
+        for (const auto piece : restored) {
+            committed.insert(piece);
+            notifyCommitted(piece, piece + 1, !circular);
+        }
+        if (onReady) onReady();
+        auto replay = std::move(deferred);
+        deferred.clear();
+        for (const auto &observation : replay) {
+            if (closed) return;
+            acceptRuntime(observation);
+        }
+        pumpRequests();
+    }
+
+    void acceptPeer(const ports::PeerObservation &observation)
+    {
+        const bool newWire = peers.find(observation.peer) == peers.end();
+        peers[observation.peer] = observation;
+        if (queuedPeers.erase(observation.peer) != 0)
+            discovery.queued = queuedPeers.size();
+        rechokeUpsert(observation.peer);
+        if (newWire) {
+            // M612's update and M172's swarm-cap updater both listen on "wire",
+            // in that registration order.
+            peerSearchUpdate();
+            updateSwarmCap();
+        }
+        if (ready) pumpRequests();
+    }
+
+    void acceptRuntime(const ports::TorrentObservation &observation)
+    {
+        if (closed || !ready) return;
+        if (const auto *availability = std::get_if<ports::AvailablePiecesObservation>(&observation)) {
+            acceptAvailability(*availability);
+        } else if (const auto *block = std::get_if<ports::BlockObservation>(&observation)) {
+            acceptBlock(*block);
+        } else if (const auto *failure = std::get_if<ports::FailureObservation>(&observation)) {
+            acceptFailure(*failure);
+        } else if (const auto *upload = std::get_if<ports::UploadRequestObservation>(&observation)) {
+            acceptUpload(*upload);
+        }
+    }
+
+    void acceptAvailability(const ports::AvailablePiecesObservation &observation)
+    {
+        if (observation.generation != generation) return;
+        auto &snapshot = available[observation.peer];
+        snapshot.assign(metadata->geometry().virtualPieces().size(), false);
+        auto &advertised = advertisedByPeer[observation.peer];
+        advertised.clear();
+        for (const auto piece : observation.pieces) {
+            if (piece >= metadata->geometry().verificationPieces().size()) continue;
+            advertised.push_back(piece);
+            for (const auto &coordinate : metadata->geometry().virtualPieces())
+                if (coordinate.verificationIndex.value == piece)
+                    snapshot[coordinate.piece.value] = true;
+        }
+        rechokeUpsert(observation.peer);
+        pumpRequests();
+    }
+
+    // M814 checkseeder compares the wire bitfield (verification pieces) with the
+    // engine piece count (virtual pieces); a virtualized torrent never marks a
+    // peer as a seeder.
+    [[nodiscard]] bool isSeeder(ports::PeerHandle peer) const
+    {
+        if (!metadata) return false;
+        const auto found = advertisedByPeer.find(peer);
+        const auto verificationCount = metadata->geometry().verificationPieces().size();
+        return found != advertisedByPeer.end()
+            && verificationCount == metadata->geometry().virtualPieces().size()
+            && found->second.size() == verificationCount;
+    }
+
+    void rechokeUpsert(ports::PeerHandle peer)
+    {
+        if (!rechoke) return;
+        const auto observed = peers.find(peer);
+        if (observed == peers.end()) return;
+        PeerState state;
+        state.id = std::to_string(peer);
+        try {
+            state.amChoking = rechoke->peer(state.id).amChoking;
+        } catch (const std::out_of_range &) {
+            state.amChoking = true;
+        }
+        state.peerChoking = observed->second.choking;
+        state.amInterested = observed->second.interested;
+        state.isSeeder = isSeeder(peer);
+        state.downloadSpeed = static_cast<std::uint64_t>(
+            std::max(0.0, observed->second.downloadBytesPerSecond));
+        state.uploadSpeed = static_cast<std::uint64_t>(
+            std::max(0.0, observed->second.uploadBytesPerSecond));
+        state.salt = peer;
+        rechoke->addPeer(std::move(state));
+    }
+
+    void rechokeTick()
+    {
+        if (closed) {
+            trace("timer-tick-ignored");
+            return;
+        }
+        trace("timer-tick");
+        if (!rechoke || !transport) return;
+        for (const auto &action : rechoke->rechoke(now())) {
+            const auto peer = static_cast<ports::PeerHandle>(std::stoull(action.peerId));
+            static_cast<void>(transport->submit(ports::ChokeAction{peer, action.choke}));
+        }
+    }
+
+    void peerSearchUpdate()
+    {
+        if (peerSearch && !peerSearch->closed())
+            peerSearch->onSwarmState(queuedPeers.size(), swarmPaused, now());
+    }
+
+    void updateSwarmCap()
+    {
+        if (!swarmCap || !transport || closed) return;
+        const auto stats = transport->statistics();
+        std::vector<BufferSelection> selections;
+        if (scheduler)
             for (const auto &selection : scheduler->selections())
                 selections.push_back({selection.from, selection.offset,
                                       selection.readFrom, selection.selectTo});
-            const auto *swarmCap = options.find("swarmCap");
-            const bool paused = swarmCap && jsTruthy(*swarmCap)
-                && SwarmCaps::shouldPause(stats.unchokedPeers,
-                                          stats.downloadBytesPerSecond,
-                                          selections, caps);
-            if (!submittedPause || *submittedPause != paused) {
-                if (transport->submit(ports::PauseAction{generation, paused}))
-                    submittedPause = paused;
+        setSwarmPaused(SwarmCaps::shouldPause(stats.unchokedPeers, stats.downloadBytesPerSecond,
+                                              selections, *swarmCap));
+    }
+
+    void setSwarmPaused(bool paused)
+    {
+        if (closed) return;
+        swarmPaused = paused;
+        if (transport && submittedPause.value_or(false) != paused
+            && transport->submit(ports::PauseAction{generation, paused}))
+            submittedPause = paused;
+        // pws emits "pause"/"resume"; M612 listens on both.
+        peerSearchUpdate();
+    }
+
+    void drainPeerAdds()
+    {
+        if (!peerSearch) return;
+        for (auto &address : peerSearch->takePeerAdds()) {
+            const auto parsed = parsePeerAddress(address);
+            if (!parsed) {
+                ++discovery.malformedRejected;
+                continue;
             }
+            const auto key = parsed->first + "|" + std::to_string(parsed->second);
+            if (discoveredAddresses.count(key) != 0) {
+                ++discovery.duplicatesSuppressed;
+                continue;
+            }
+            const auto peer = nextPeerHandle++;
+            discoveredAddresses.emplace(key, peer);
+            queuedPeers.insert(peer);
+            discovery.queued = queuedPeers.size();
+            submitConnect(ports::ConnectAction{generation, peer, parsed->first, parsed->second});
         }
-        if (peerSearch) {
-            const auto stats = transport ? transport->statistics()
-                                         : ports::TransportStatistics{};
-            peerSearch->onSwarmState(stats.connectedPeers, stats.paused, now);
-            peerSearch->tick(now);
+    }
+
+    void submitConnect(ports::ConnectAction action)
+    {
+        if (closed) return;
+        if (!transport) {
+            pendingConnects.push_back(std::move(action));
+            return;
         }
-        pruneCanceledRequests();
-        processSchedulerEvents();
-        pumpRequests();
+        ++discovery.connectsSubmitted;
+        auto state = work;
+        auto sink = trace;
+        auto rejected = onApp([peer = action.peer](Impl &self) { self.connectRejected(peer); });
+        auto app = appPost;
+        // ConnectAction blocks on a native event-loop barrier, so it is peer work.
+        post([state, action = std::move(action), sink, rejected, app]() {
+            if (state->closing.load() || !state->transport) return;
+            const bool accepted = state->transport->submit(action);
+            sink("connect", action.peer, action.port, accepted ? 1 : 0);
+            if (!accepted && app) static_cast<void>(app(rejected));
+        });
+    }
+
+    void connectRejected(ports::PeerHandle peer)
+    {
+        ++discovery.connectsRejected;
+        if (queuedPeers.erase(peer) != 0)
+            discovery.queued = queuedPeers.size();
     }
 
     void processSchedulerEvents()
@@ -412,67 +967,87 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         return result;
     }
 
+    [[nodiscard]] std::size_t outstandingFor(ports::PeerHandle peer) const
+    {
+        return static_cast<std::size_t>(std::count_if(activeRequests.begin(), activeRequests.end(),
+            [peer](const auto &entry) { return entry.second.peer == peer; }));
+    }
+
+    [[nodiscard]] std::uint64_t downloadedFrom(ports::PeerHandle peer) const
+    {
+        std::uint64_t result = 0;
+        if (const auto found = peerDownloaded.find(peer); found != peerDownloaded.end())
+            result = found->second;
+        if (const auto found = peers.find(peer); found != peers.end())
+            result = std::max(result, found->second.downloadedBytes);
+        return result;
+    }
+
+    // M814 onupdatewire: a wire that has downloaded nothing issues one request
+    // from the end of the selections; afterwards it fills its per-wire budget.
     void pumpRequests()
     {
         if (closed || !ready || !scheduler || !schedulerActions || !transport || !metadata)
             return;
         processSchedulerEvents();
+        const auto unchoked = std::max<std::size_t>(1, transport->statistics().unchokedPeers);
         for (const auto &[peer, pieces] : available) {
             const auto state = peers.find(peer);
             if (state != peers.end() && state->second.choking)
                 continue;
             auto eligible = pieces;
             for (std::size_t piece = 0; piece < eligible.size(); ++piece)
-                eligible[piece] = eligible[piece] && demandedPieces.count(piece) != 0;
-            auto selected = scheduler->choosePiece(eligible,
-                                                   transport->statistics().downloadedBytes,
-                                                   true);
-            while (selected) {
-            const auto &coordinate = metadata->geometry().virtualPieces().at(*selected);
-            auto &buffer = pieceBuffers[*selected];
-            if (!buffer)
-                buffer = std::make_unique<PieceBuffer>(static_cast<std::size_t>(coordinate.length),
-                                                       generation);
-            const auto block = buffer->reserve();
-            if (block == PieceBuffer::kNoReservation) {
-                eligible[*selected] = false;
-                selected = scheduler->choosePiece(eligible,
-                                                  transport->statistics().downloadedBytes,
-                                                  true);
-                continue;
-            }
-            const auto selection = std::find_if(scheduler->selections().begin(),
-                                                scheduler->selections().end(),
-                [&](const auto &entry) { return *selected >= entry.from && *selected <= entry.to; });
-            if (selection == scheduler->selections().end()) {
-                buffer->cancel(static_cast<std::size_t>(block));
-                break;
-            }
-            const NormalRequestCandidate candidate{
-                selection->id, generation, *selected, static_cast<std::size_t>(block),
-                buffer->offset(static_cast<std::size_t>(block)),
-                buffer->size(static_cast<std::size_t>(block)), true, false};
+                eligible[piece] = eligible[piece] && demandedPieces.count(piece) != 0
+                    && staging.count(piece) == 0;
             const auto peerState = state == peers.end() ? ports::PeerObservation{} : state->second;
-            const RequestDecisionContext context{
-                peer, generation, std::max<std::size_t>(1, transport->statistics().unchokedPeers),
-                activeRequests.size(), peerState.downloadBytesPerSecond};
-            auto actions = schedulerActions->decide(context, {candidate}, {});
-            if (actions.empty()) {
-                buffer->cancel(static_cast<std::size_t>(block));
-                break;
-            }
-            for (const auto &action : actions) {
-                const auto wire = wireAction(action);
-                if (!wire || !transport->submit(*wire)) {
-                    schedulerActions->finish(action.request.requestId, generation,
-                                             RequestOutcome::Failed);
-                    buffer->cancel(action.request.block);
+            while (!closed) {
+                const auto outstanding = outstandingFor(peer);
+                const auto selected = scheduler->choosePiece(eligible, downloadedFrom(peer),
+                                                             outstanding == 0);
+                if (!selected) break;
+                const auto &coordinate = metadata->geometry().virtualPieces().at(*selected);
+                auto &buffer = pieceBuffers[*selected];
+                if (!buffer)
+                    buffer = std::make_unique<PieceBuffer>(
+                        static_cast<std::size_t>(coordinate.length), generation);
+                const auto block = buffer->reserve();
+                if (block == PieceBuffer::kNoReservation) {
+                    eligible[*selected] = false;
                     continue;
                 }
-                if (action.type == SchedulerActionType::Request)
-                    activeRequests.emplace(action.request.requestId, action.request);
-            }
-            break;
+                const auto selection = std::find_if(
+                    scheduler->selections().begin(), scheduler->selections().end(),
+                    [&](const auto &entry) { return *selected >= entry.from && *selected <= entry.to; });
+                if (selection == scheduler->selections().end()) {
+                    buffer->cancel(static_cast<std::size_t>(block));
+                    break;
+                }
+                const NormalRequestCandidate candidate{
+                    selection->id, generation, *selected, static_cast<std::size_t>(block),
+                    buffer->offset(static_cast<std::size_t>(block)),
+                    buffer->size(static_cast<std::size_t>(block)), true, false};
+                const RequestDecisionContext context{peer, generation, unchoked, outstanding,
+                                                     peerState.downloadBytesPerSecond};
+                const auto actions = schedulerActions->decide(context, {candidate}, {});
+                if (actions.empty()) {
+                    buffer->cancel(static_cast<std::size_t>(block));
+                    break;
+                }
+                bool submitted = false;
+                for (const auto &action : actions) {
+                    const auto wire = wireAction(action);
+                    if (!wire || !transport->submit(*wire)) {
+                        schedulerActions->finish(action.request.requestId, generation,
+                                                 RequestOutcome::Failed);
+                        buffer->cancel(action.request.block);
+                        continue;
+                    }
+                    if (action.type == SchedulerActionType::Request) {
+                        activeRequests.emplace(action.request.requestId, action.request);
+                        submitted = true;
+                    }
+                }
+                if (!submitted) break;
             }
         }
     }
@@ -510,6 +1085,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             }
             for (auto &weakReader : readers)
                 if (auto reader = weakReader.lock()) reader->notifyPiece(piece);
+            if (closed) return;
         }
         scheduler->collectGarbage();
         processSchedulerEvents();
@@ -517,14 +1093,14 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
 
     void demand(const std::shared_ptr<FileReader> &reader)
     {
-        if (!reader || !store) return;
+        if (!reader || !metadata || closed) return;
         for (std::size_t piece = reader->startPiece(); piece <= reader->endPiece(); ++piece) {
-            if (!store->hasPiece(piece)) {
+            if (committed.count(piece) == 0) {
                 const auto verification = metadata->geometry().virtualPieces().at(piece)
                                               .verificationIndex.value;
                 for (const auto &coordinate : metadata->geometry().virtualPieces())
                     if (coordinate.verificationIndex.value == verification
-                        && !store->hasPiece(coordinate.piece.value))
+                        && committed.count(coordinate.piece.value) == 0)
                         demandedPieces.insert(coordinate.piece.value);
                 break;
             }
@@ -532,21 +1108,47 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         pumpRequests();
     }
 
+    void postRead(std::uint64_t token, std::size_t piece, FileReaderSource::Completion completion)
+    {
+        if (closed) return;
+        auto state = work;
+        auto sink = trace;
+        auto clockCopy = clock;
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto app = appPost;
+        post([state, token, piece, completion = std::move(completion), sink, clockCopy, weak,
+              app]() mutable {
+            if (state->closing.load() || !state->store) return;
+            std::string error;
+            auto bytes = state->store->read(piece, clockCopy(), &error);
+            sink("read", piece, 0, 0, bytes ? bytes->size() : 0);
+            if (app) static_cast<void>(app([weak, token, piece, completion = std::move(completion),
+                                            bytes = std::move(bytes), error]() mutable {
+                const auto self = weak.lock();
+                if (!self || self->closed) return;
+                completion(token, piece, bytes.value_or(ByteBuffer{}),
+                           bytes ? std::string{} : error);
+            }));
+        });
+    }
+
     void acceptBlock(const ports::BlockObservation &observation)
     {
         const auto found = activeRequests.find(observation.ownership.requestId);
         if (found == activeRequests.end()) return;
         const auto request = found->second;
+        const auto expected = wireBlock(request);
         if (observation.ownership.generation != generation
             || observation.ownership.selectionId != request.selectionId
             || observation.peer != request.peer
-            || observation.block.piece != wireBlock(request).piece
-            || observation.block.blockOrdinal != wireBlock(request).blockOrdinal
-            || observation.block.offset != wireBlock(request).offset
-            || observation.block.length != wireBlock(request).length)
+            || observation.block.piece != expected.piece
+            || observation.block.blockOrdinal != expected.blockOrdinal
+            || observation.block.offset != expected.offset
+            || observation.block.length != expected.length)
             return;
         activeRequests.erase(found);
         schedulerActions->finish(request.requestId, generation, RequestOutcome::Completed);
+        peerDownloaded[observation.peer] += observation.payload.size();
         auto &buffer = pieceBuffers.at(request.piece);
         if (!buffer->set(generation, request.block, observation.payload)) {
             pumpRequests();
@@ -557,16 +1159,58 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             pumpRequests();
             return;
         }
-        const auto committed = store->stage(request.piece, std::move(*bytes),
-                                            clock ? clock() : 0);
-        if (!committed.complete) {
+        staging.insert(request.piece);
+        postStage(request.piece, std::move(*bytes));
+        pumpRequests();
+    }
+
+    void postStage(std::size_t piece, ByteBuffer bytes)
+    {
+        auto state = work;
+        auto sink = trace;
+        auto clockCopy = clock;
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto app = appPost;
+        post([state, piece, bytes = std::move(bytes), sink, clockCopy, weak, app]() mutable {
+            if (state->closing.load() || !state->store) return;
+            const auto length = bytes.size();
+            const auto result = state->store->stage(piece, std::move(bytes), clockCopy());
+            sink("stage", piece, 0, 0, length);
+            if (!result.complete)
+                sink("verify-incomplete", piece, result.start, result.endExclusive);
+            else if (!result.success && result.retryable)
+                sink("verify-failure", piece, result.start, result.endExclusive);
+            else
+                sink("verify-success", piece, result.start, result.endExclusive);
+            if (result.success)
+                sink("commit", piece, result.start, result.endExclusive);
+            if (app) static_cast<void>(app([weak, piece, result] {
+                if (const auto self = weak.lock()) self->stageResult(piece, result);
+            }));
+        });
+    }
+
+    void stageResult(std::size_t piece, const StageResult &result)
+    {
+        if (closed || !ready) return;
+        for (const auto evicted : result.evicted) {
+            committed.erase(evicted);
+            if (evicted < metadata->geometry().virtualPieces().size())
+                scheduler->resetPiece(evicted);
+            pieceBuffers.erase(evicted);
+        }
+        if (!result.complete) {
+            static_cast<void>(piece);
             pumpRequests();
             return;
         }
-        if (!committed.success) {
+        for (std::size_t item = result.start; item < result.endExclusive; ++item)
+            staging.erase(item);
+        staging.erase(piece);
+        if (!result.success) {
             for (auto current = activeRequests.begin(); current != activeRequests.end();) {
-                if (current->second.piece < committed.start
-                    || current->second.piece >= committed.endExclusive) {
+                if (current->second.piece < result.start
+                    || current->second.piece >= result.endExclusive) {
                     ++current;
                     continue;
                 }
@@ -577,14 +1221,14 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 current = activeRequests.erase(current);
             }
             const auto reset = schedulerActions->invalidateGroup(
-                committed.start, committed.endExclusive, generation);
-            for (const auto piece : reset) {
-                scheduler->resetPiece(piece);
-                pieceBuffers.erase(piece);
+                result.start, result.endExclusive, generation);
+            for (const auto item : reset) {
+                scheduler->resetPiece(item);
+                pieceBuffers.erase(item);
             }
-            if (!committed.retryable) {
-                const auto reason = committed.error.empty() ? "piece store commit failed"
-                                                            : committed.error;
+            if (!result.retryable) {
+                const auto reason = result.error.empty() ? "piece store commit failed"
+                                                         : result.error;
                 for (auto &weakReader : readers)
                     if (auto reader = weakReader.lock()) reader->fail(reason);
                 return;
@@ -592,7 +1236,12 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             pumpRequests();
             return;
         }
-        notifyCommitted(committed.start, committed.endExclusive, committed.advertise);
+        for (std::size_t item = result.start; item < result.endExclusive; ++item)
+            committed.insert(item);
+        notifyCommitted(result.start, result.endExclusive, result.advertise);
+        if (closed) return;
+        // M172 binds the swarm-cap updater to the engine "download" event.
+        updateSwarmCap();
         pumpRequests();
     }
 
@@ -601,13 +1250,14 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         const auto found = activeRequests.find(observation.ownership.requestId);
         if (found == activeRequests.end()) return;
         const auto request = found->second;
+        const auto expected = wireBlock(request);
         if (observation.ownership.generation != generation
             || observation.ownership.selectionId != request.selectionId
             || observation.peer != request.peer
-            || observation.block.piece != wireBlock(request).piece
-            || observation.block.blockOrdinal != wireBlock(request).blockOrdinal
-            || observation.block.offset != wireBlock(request).offset
-            || observation.block.length != wireBlock(request).length)
+            || observation.block.piece != expected.piece
+            || observation.block.blockOrdinal != expected.blockOrdinal
+            || observation.block.offset != expected.offset
+            || observation.block.length != expected.length)
             return;
         activeRequests.erase(found);
         schedulerActions->finish(request.requestId, generation, RequestOutcome::Failed);
@@ -623,21 +1273,25 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         pumpRequests();
     }
 
+    void abortUpload(const ports::UploadRequestObservation &observation)
+    {
+        static_cast<void>(transport->submit(ports::UploadAbortAction{
+            observation.ownership, observation.peer, observation.block}));
+    }
+
     void acceptUpload(const ports::UploadRequestObservation &observation)
     {
-        if (observation.ownership.generation != generation || !transport || !store || !metadata)
+        if (observation.ownership.generation != generation || !transport || !metadata)
             return;
         if (observation.block.piece >= metadata->geometry().verificationPieces().size()) {
-            static_cast<void>(transport->submit(ports::UploadAbortAction{
-                observation.ownership, observation.peer, observation.block}));
+            abortUpload(observation);
             return;
         }
         const auto &verification = metadata->geometry().verificationPieces().at(
             observation.block.piece);
         if (observation.block.offset > verification.length
             || observation.block.length > verification.length - observation.block.offset) {
-            static_cast<void>(transport->submit(ports::UploadAbortAction{
-                observation.ownership, observation.peer, observation.block}));
+            abortUpload(observation);
             return;
         }
         const auto global = verification.offset + observation.block.offset;
@@ -645,19 +1299,89 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         const auto virtualPiece = static_cast<std::size_t>(global / virtualLength);
         const auto offset = static_cast<std::size_t>(global % virtualLength);
         const auto length = static_cast<std::size_t>(observation.block.length);
-        auto bytes = virtualPiece < metadata->geometry().virtualPieces().size()
-                && store->uploadsAllowed()
-            ? store->upload(virtualPiece)
-                                             : std::nullopt;
-        if (!bytes || offset > bytes->size() || length > bytes->size() - offset) {
-            static_cast<void>(transport->submit(ports::UploadAbortAction{
-                observation.ownership, observation.peer, observation.block}));
+        // Circular-cache bytes and uncommitted persistent bytes are never served.
+        if (circular || virtualPiece >= metadata->geometry().virtualPieces().size()
+            || committed.count(virtualPiece) == 0) {
+            abortUpload(observation);
             return;
         }
-        ByteBuffer payload(bytes->begin() + static_cast<std::ptrdiff_t>(offset),
-                           bytes->begin() + static_cast<std::ptrdiff_t>(offset + length));
-        static_cast<void>(transport->submit(ports::UploadResponseAction{
-            observation.ownership, observation.peer, observation.block, std::move(payload)}));
+        auto state = work;
+        auto sink = trace;
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto app = appPost;
+        post([state, observation, virtualPiece, offset, length, sink, weak, app]() {
+            if (state->closing.load() || !state->store) return;
+            auto bytes = state->store->uploadRead(virtualPiece);
+            sink("upload-read", virtualPiece, offset, offset + length, bytes ? bytes->size() : 0);
+            if (app) static_cast<void>(app([weak, observation, offset, length,
+                                            bytes = std::move(bytes)] {
+                const auto self = weak.lock();
+                if (!self || self->closed || !self->transport) return;
+                if (!bytes || offset > bytes->size() || length > bytes->size() - offset) {
+                    self->abortUpload(observation);
+                    return;
+                }
+                ByteBuffer payload(bytes->begin() + static_cast<std::ptrdiff_t>(offset),
+                                   bytes->begin() + static_cast<std::ptrdiff_t>(offset + length));
+                static_cast<void>(self->transport->submit(ports::UploadResponseAction{
+                    observation.ownership, observation.peer, observation.block,
+                    std::move(payload)}));
+            }));
+        });
+    }
+
+    void resume(Value effective)
+    {
+        if (closed) return;
+        options = std::move(effective);
+        ++resumeCount;
+        // M172 createEngine calls e.swarm.resume() on every create.
+        setSwarmPaused(false);
+    }
+
+    void close(std::function<void()> onClosed)
+    {
+        if (closed) return;
+        closed = true;
+        work->closing.store(true);
+        if (timer) {
+            timer->cancel();
+            trace("timer-cancel");
+            timer.reset();
+        }
+        if (schedulerActions) {
+            for (const auto &[id, request] : activeRequests) {
+                static_cast<void>(id);
+                schedulerActions->finish(request.requestId, generation, RequestOutcome::Canceled);
+            }
+        }
+        activeRequests.clear();
+        for (auto &weakReader : readers)
+            if (auto reader = weakReader.lock()) reader->close();
+        readers.clear();
+        if (peerSearch) peerSearch->close();
+        pendingConnects.clear();
+        queuedPeers.clear();
+        discovery.queued = 0;
+        transport.reset();
+        deferred.clear();
+        auto state = work;
+        auto sink = trace;
+        auto app = appPost;
+        // M814 destroy: swarm.destroy, clearInterval, store.close(cb).
+        post([state, sink, app, onClosed = std::move(onClosed)]() {
+            if (state->transport) {
+                state->transport->close();
+                sink("transport-close");
+            }
+            if (state->store) {
+                state->store->close();
+                sink("store-close");
+            }
+            state->store.reset();
+            state->transport.reset();
+            if (onClosed && app) static_cast<void>(app(onClosed));
+        });
     }
 };
 
@@ -667,48 +1391,33 @@ TorrentEngine::TorrentEngine(std::shared_ptr<Impl> impl)
 
 TorrentEngine::~TorrentEngine()
 {
-    close();
+    if (impl_) impl_->close({});
 }
 
-std::shared_ptr<TorrentEngine>
-EngineRegistry::makeEngine(std::string sourceKey,
-                           ports::EngineGeneration generation,
-                           Value options,
-                           std::filesystem::path cachePath,
-                           std::unique_ptr<ports::TorrentTransport> transport,
-                           EnginePost workPost,
-                           EngineRepeat repeat,
-                           EngineClock clock)
+std::shared_ptr<TorrentEngine> TorrentEngine::make(Wiring wiring)
 {
-    if (!transport || !transport->configureAutonomy(discovery::AutonomyPolicy{}))
-        throw std::runtime_error("torrent transport rejected external scheduler ownership");
-    auto impl = std::make_shared<TorrentEngine::Impl>();
-    impl->sourceKey = std::move(sourceKey);
-    impl->generation = generation;
-    impl->options = std::move(options);
-    impl->cachePath = std::move(cachePath);
-    impl->transport = std::move(transport);
-    impl->workPost = std::move(workPost);
-    impl->clock = clock ? std::move(clock) : EngineClock([] {
+    auto impl = std::make_shared<Impl>();
+    impl->sourceKey = std::move(wiring.sourceKey);
+    impl->generation = wiring.generation;
+    impl->options = wiring.options;
+    impl->creationOptions = std::move(wiring.options);
+    impl->cachePath = std::move(wiring.cachePath);
+    impl->infoHash = wiring.infoHash;
+    impl->source = std::move(wiring.source);
+    impl->transportFactory = std::move(wiring.transportFactory);
+    impl->workPost = std::move(wiring.workPost);
+    impl->appPost = std::move(wiring.appPost);
+    impl->repeat = std::move(wiring.repeat);
+    impl->clock = wiring.clock ? std::move(wiring.clock) : EngineClock([] {
         return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()).count());
     });
-    std::weak_ptr<TorrentEngine::Impl> weakImpl = impl;
-    auto tick = [weakImpl] {
-        if (const auto locked = weakImpl.lock()) {
-            auto task = [weakImpl] {
-                if (const auto owner = weakImpl.lock()) owner->tick();
-            };
-            if (!locked->workPost || !locked->workPost(std::move(task))) {
-                // A rejected executor never runs work inline on the timer lane.
-            }
-        }
-    };
-    impl->timer = repeat ? repeat(500, std::move(tick))
-                         : std::make_shared<DefaultRepeatTimer>(500, std::move(tick));
-    if (!impl->timer)
-        throw std::runtime_error("engine repeat timer could not be created");
-    return std::shared_ptr<TorrentEngine>(new TorrentEngine(std::move(impl)));
+    impl->trace = TraceSink{std::move(wiring.trace), impl->sourceKey, impl->generation};
+    impl->onReady = std::move(wiring.onReady);
+    impl->onFailed = std::move(wiring.onFailed);
+    std::shared_ptr<TorrentEngine> engine(new TorrentEngine(impl));
+    impl->start();
+    return engine;
 }
 
 std::string TorrentEngine::sourceKey() const { return impl_->sourceKey; }
@@ -739,13 +1448,23 @@ std::size_t TorrentEngine::selectionCount() const noexcept
 }
 bool TorrentEngine::hasPersistentStore() const noexcept
 {
-    return impl_->store && !impl_->circular;
+    return impl_->ready && !impl_->circular;
 }
 bool TorrentEngine::hasCircularStore() const noexcept
 {
-    return impl_->store && impl_->circular;
+    return impl_->ready && impl_->circular;
 }
 bool TorrentEngine::hasPeerSearch() const noexcept { return !!impl_->peerSearch; }
+bool TorrentEngine::peerSearchRunning() const noexcept
+{
+    return impl_->peerSearch && !impl_->peerSearch->closed() && impl_->peerSearch->isRunning();
+}
+std::vector<discovery::PeerSourceStats> TorrentEngine::peerSearchStats() const
+{
+    return impl_->peerSearch ? impl_->peerSearch->stats()
+                             : std::vector<discovery::PeerSourceStats>{};
+}
+EnginePeerDiscovery TorrentEngine::peerDiscovery() const noexcept { return impl_->discovery; }
 std::uint64_t TorrentEngine::timerOwner() const noexcept
 {
     return impl_->timer ? impl_->timer->id() : 0;
@@ -759,7 +1478,8 @@ ports::TransportStatistics TorrentEngine::transportStatistics() const
 std::shared_ptr<FileReader>
 TorrentEngine::createReader(std::size_t fileIndex, FileReadOptions options)
 {
-    if (!impl_->ready || impl_->closed || !impl_->metadata || !impl_->scheduler || !impl_->store)
+    if (!impl_->ready || impl_->closed || !impl_->metadata || !impl_->scheduler
+        || !impl_->readerSource)
         throw std::logic_error("torrent engine is not ready");
     if (fileIndex >= impl_->metadata->files().size())
         throw std::out_of_range("torrent file index is outside metadata");
@@ -768,7 +1488,7 @@ TorrentEngine::createReader(std::size_t fileIndex, FileReadOptions options)
     std::weak_ptr<Impl> weakImpl = impl_;
     auto weakReader = std::make_shared<std::weak_ptr<FileReader>>();
     auto reader = std::make_shared<FileReader>(
-        *impl_->scheduler, *impl_->store, impl_->metadata->files()[fileIndex],
+        *impl_->scheduler, *impl_->readerSource, impl_->metadata->files()[fileIndex],
         static_cast<std::size_t>(impl_->metadata->geometry().virtualPieceLength()),
         std::move(options), [weakImpl, weakReader] {
             if (const auto locked = weakImpl.lock()) {
@@ -787,160 +1507,37 @@ bool TorrentEngine::connectSourcePeer(ports::PeerHandle peer,
                                       std::string address,
                                       std::uint16_t port)
 {
-    return !impl_->closed && impl_->transport
-        && impl_->transport->submit(ports::ConnectAction{
-            impl_->generation, peer, std::move(address), port});
+    if (impl_->closed || peer == 0 || port == 0 || address.empty())
+        return false;
+    impl_->queuedPeers.insert(peer);
+    impl_->discovery.queued = impl_->queuedPeers.size();
+    impl_->submitConnect(ports::ConnectAction{impl_->generation, peer, std::move(address), port});
+    return true;
+}
+
+bool TorrentEngine::discoverPeer(std::size_t sourceIndex, std::string address)
+{
+    if (impl_->closed || !impl_->peerSearch || impl_->peerSearch->closed()
+        || sourceIndex >= impl_->peerSearch->stats().size())
+        return false;
+    impl_->peerSearch->emitPeer(sourceIndex, std::move(address));
+    impl_->drainPeerAdds();
+    return true;
 }
 
 void TorrentEngine::resume(Value options)
 {
-    if (impl_->closed)
-        return;
-    impl_->options = std::move(options);
-    ++impl_->resumeCount;
+    impl_->resume(std::move(options));
 }
 
-std::vector<ports::TorrentObservation> TorrentEngine::pollTransport()
+void TorrentEngine::pollTransport()
 {
-    if (impl_ && impl_->ready) {
-        impl_->pruneCanceledRequests();
-        impl_->pumpRequests();
-    }
-    return impl_->closed || !impl_->transport
-        ? std::vector<ports::TorrentObservation>{}
-        : impl_->transport->poll();
+    impl_->pollTransport();
 }
 
-bool TorrentEngine::acceptMetadata(const ports::MetadataReadyObservation &metadata,
-                                   std::string *error)
+void TorrentEngine::close(std::function<void()> onClosed)
 {
-    if (impl_->closed || impl_->ready || impl_->failed
-        || metadata.generation != impl_->generation
-        || hashHex(metadata.infoHash) != impl_->sourceKey) {
-        return false;
-    }
-
-    ByteBuffer torrent{'d', '4', ':', 'i', 'n', 'f', 'o'};
-    torrent.insert(torrent.end(), metadata.infoSection.begin(), metadata.infoSection.end());
-    torrent.push_back('e');
-    std::string parseError;
-    auto parsed = TorrentMetadata::parse(torrent, &parseError);
-    if (!parsed || parsed->infoHash() != impl_->sourceKey) {
-        impl_->failed = true;
-        impl_->sourceError = parsed ? "metadata info hash mismatch" : std::move(parseError);
-        if (error)
-            *error = impl_->sourceError;
-        return false;
-    }
-
-    try {
-        impl_->metadata = std::move(*parsed);
-        const auto pieceLength = static_cast<std::size_t>(impl_->metadata->geometry().virtualPieceLength());
-        impl_->scheduler = std::make_unique<Scheduler>(impl_->metadata->geometry().virtualPieces().size());
-        impl_->schedulerActions = std::make_unique<SchedulerActionContract>();
-        const auto *circularOption = impl_->options.find("circularBuffer");
-        impl_->circular = circularOption && jsTruthy(*circularOption);
-        if (impl_->circular) {
-            const auto *bufferOption = impl_->options.find("buffer");
-            if (!bufferOption || !jsTruthy(*bufferOption))
-                throw std::runtime_error("circularBuffer can only be used with buffer");
-            impl_->store = std::make_unique<CircularReaderStore>(
-                impl_->cachePath, optionSize(impl_->options, "buffer", pieceLength * 4U),
-                pieceLength, *impl_->metadata);
-        } else {
-            impl_->store = std::make_unique<PersistentReaderStore>(impl_->cachePath, *impl_->metadata);
-        }
-
-        const auto *peerSearchOption = impl_->options.find("peerSearch");
-        if (peerSearchOption && jsTruthy(*peerSearchOption)) {
-            auto sources = discovery::PeerSearch::selectSources(
-                metadata.trackers, configuredPeerSources(impl_->options), impl_->sourceKey);
-            impl_->peerSearch = std::make_unique<discovery::PeerSearch>(
-                std::move(sources), configuredBound(impl_->options, "min"),
-                configuredBound(impl_->options, "max"), 0);
-        }
-        impl_->ready = true;
-        for (const auto piece : impl_->store->restored(
-                 impl_->metadata->geometry().virtualPieces().size()))
-            impl_->notifyCommitted(piece, piece + 1, !impl_->circular);
-        return true;
-    } catch (const std::exception &exception) {
-        impl_->failed = true;
-        impl_->sourceError = exception.what();
-        if (error)
-            *error = impl_->sourceError;
-        return false;
-    }
-}
-
-void TorrentEngine::acceptSourceFailure(const ports::SourceFailureObservation &failure)
-{
-    if (impl_->closed || impl_->ready || impl_->failed
-        || failure.generation != impl_->generation
-        || hashHex(failure.infoHash) != impl_->sourceKey) {
-        return;
-    }
-    impl_->failed = true;
-    impl_->sourceError = failure.error.empty() ? "torrent source failed" : failure.error;
-}
-
-void TorrentEngine::acceptRuntimeObservation(const ports::TorrentObservation &observation)
-{
-    if (impl_->closed || !impl_->ready)
-        return;
-    if (const auto *available = std::get_if<ports::AvailablePiecesObservation>(&observation)) {
-        if (available->generation != impl_->generation) return;
-        auto &snapshot = impl_->available[available->peer];
-        snapshot.assign(impl_->metadata->geometry().virtualPieces().size(), false);
-        for (const auto piece : available->pieces) {
-            if (piece >= impl_->metadata->geometry().verificationPieces().size()) continue;
-            for (const auto &coordinate : impl_->metadata->geometry().virtualPieces())
-                if (coordinate.verificationIndex.value == piece)
-                    snapshot[coordinate.piece.value] = true;
-        }
-        impl_->pumpRequests();
-    } else if (const auto *peer = std::get_if<ports::PeerObservation>(&observation)) {
-        impl_->peers[peer->peer] = *peer;
-        impl_->pumpRequests();
-    } else if (const auto *block = std::get_if<ports::BlockObservation>(&observation)) {
-        impl_->acceptBlock(*block);
-    } else if (const auto *failure = std::get_if<ports::FailureObservation>(&observation)) {
-        impl_->acceptFailure(*failure);
-    } else if (const auto *upload = std::get_if<ports::UploadRequestObservation>(&observation)) {
-        impl_->acceptUpload(*upload);
-    }
-}
-
-void TorrentEngine::close()
-{
-    if (!impl_ || impl_->closed)
-        return;
-    impl_->closed = true;
-    if (impl_->timer) impl_->timer->cancel();
-    if (impl_->schedulerActions) {
-        for (const auto &[id, request] : impl_->activeRequests) {
-            static_cast<void>(id);
-            impl_->schedulerActions->finish(request.requestId, impl_->generation,
-                                            RequestOutcome::Canceled);
-        }
-        impl_->activeRequests.clear();
-    }
-    for (auto &weakReader : impl_->readers)
-        if (auto reader = weakReader.lock())
-            reader->close();
-    impl_->readers.clear();
-    if (impl_->transport)
-        impl_->transport->close();
-    if (impl_->peerSearch)
-        impl_->peerSearch->close();
-    if (impl_->store)
-        impl_->store->close();
-    impl_->peerSearch.reset();
-    impl_->timer.reset();
-    impl_->schedulerActions.reset();
-    impl_->store.reset();
-    impl_->scheduler.reset();
-    impl_->transport.reset();
+    impl_->close(std::move(onClosed));
 }
 
 } // namespace server1::policy

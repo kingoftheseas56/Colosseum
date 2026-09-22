@@ -1,0 +1,1 @@
+K11-LANE metadata install/restore scan ran on the app lane while the work lane was fenced

@@ -1,25 +1,31 @@
 {
-  "schema": "colosseum-server1-packet-receipt/v3",
+  "schema": "colosseum-server1-packet-receipt/v4",
   "worker_id": "K11-A",
-  "producer": "[Agent 4 (Codex/Sol subagent), K11-v3 producer]",
+  "producer": "[Agent (Claude), K11-A repair producer]",
   "accepted_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
-  "rejected_scaffold": "5cb920010ef3f53a49b629bf3564b011663b03aa",
-  "lineage_commit": "a20fcd011704ece4d1ee045d8c286ffad0f56747",
+  "rejected_candidate": "81abb58d512d61b42fa0f7fdc376446fbf5831d5",
+  "historical_rejection": "5cb920010ef3f53a49b629bf3564b011663b03aa",
   "branch": "sol/server1-w3-engine-v3-20260915",
-  "scope": "F10 EngineRegistry/TorrentEngine facade, causal scheduler-transport-store-reader pump, K11 tests/manifests, and K11-A evidence only",
-  "tdd": {
-    "red": "The inherited v2 scaffold linked but failed readiness: no causal pump, synthetic timer ownership, unsafe callback lifetime, and no M814 behavior differential.",
-    "green": "K11 focused tests pass 9/9 across three runs; 11/11 behavioral mutants are killed."
+  "scope": "Repair of the six REQUEST-CHANGES findings against K11-v3: F10 EngineRegistry/TorrentEngine lanes and lifetime, M814 rechoke timer, M612 discovery drain, observational M172/M814 differential; K11 tests, manifests and K11-A evidence only",
+  "findings": {
+    "1-app-lane": "repaired: per-engine serialized work lane for transport open/connect/close, metadata install and restore scan, stage/verify/commit, cache and upload reads, store close; never the app thread",
+    "2-destruction": "repaired: terminal ledger; destruction posts through callbackExecutor, delivers decided outcomes exactly once, never on a foreign destroying thread",
+    "3-timer": "repaired: 10000 ms M814 rechoke interval started in ontorrent, SwarmPolicy rechoke tick, cancelled once, inert after close",
+    "4-peer-search": "repaired: discoverPeer -> takePeerAdds drain -> validated, deduplicated, generation-owned ConnectAction on the work lane; min/max, pause/resume and stale-generation isolation tested",
+    "5-m172-fixture": "repaired: real M172 factory exercised with stream alias, falsy path fallback, shallow merge, fresh ids, measured resume count, remove/recreate",
+    "6-native-traces": "repaired: native traces recorded from runtime observations; one normalizer for both sides; 24 drift controls detected; disclosed precommit divergence explicit"
   },
   "verification": {
-    "focused_repeat": "9/9 passed",
-    "fresh_base_inventory": "64 tests",
-    "fresh_combined_inventory": "67 tests (64 base plus K11-01/02/03)",
-    "fresh_combined": "67/67 passed after one recorded K10-G timing failure and isolated green rerun",
-    "oracle": "M172 and behavioral M814 normalized candidate projections match; zero unexplained differences",
-    "public_header_link": "PASS",
+    "focused_repeat": "9/9",
+    "stress": "90/90 direct case runs",
+    "oracle": "match, 0 differences, 24/24 controls, corrupt bundle/factory rejected",
+    "mutations": "19/19 killed (first run 16/19; three test gaps closed)",
+    "base_inventory": 64,
+    "combined_inventory": 67,
+    "combined": "67/67 after rerun with pwsh on PATH; first run 56/67 with 11 K10 tests Not Run (pwsh absent)",
+    "public_paths": "PUBLIC_PATH_GUARD_OK",
     "aggregate_cmake_unchanged": true,
     "state_unchanged": true
   },
-  "integration_status": "candidate only; independent Sol code/oracle review, later B-W3E review, and Agent 4 acceptance remain open"
+  "integration_status": "candidate only; Agent 4 independent review and B-W3E formation remain open"
 }
