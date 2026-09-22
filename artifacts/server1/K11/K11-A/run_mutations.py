@@ -22,7 +22,8 @@ SRC = ROOT / "native" / "colosseum_server_v1" / "src" / "policy"
 ENGINE = SRC / "TorrentEngine.cpp"
 REGISTRY = SRC / "EngineRegistry.cpp"
 BUILD = HERE / "mutant-build"
-RAW = HERE / "raw" / "repair" / "mutants"
+OUT = HERE / "raw" / os.environ.get("K11_MUTATION_OUT", "repair")
+RAW = OUT / "mutants"
 VCVARS = os.environ.get(
     "K11_VCVARS",
     r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat")
@@ -103,10 +104,12 @@ MUTANTS = [
      ["R4"]),
     ("staged-bytes-uploadable", "upload",
      [(ENGINE, "        if (circular || virtualPiece >= metadata->geometry().virtualPieces().size()\n"
-               "            || committed.count(virtualPiece) == 0) {",
+               "            || !realPieceCommitted(observation.block.piece)) {",
        "        if (circular || virtualPiece >= metadata->geometry().virtualPieces().size()) {"),
-      (ENGINE, "return store_.isCommitted(piece) ? store_.read(piece) : std::nullopt;",
-       "return store_.read(piece);")],
+      (ENGINE, "        for (std::size_t item = groupStart; item < groupEnd; ++item)\n"
+               "            if (!store_.isCommitted(item)) return std::nullopt;\n"
+               "        return store_.isCommitted(piece) ? store_.read(piece) : std::nullopt;",
+       "        return store_.read(piece);")],
      ["R5", "K11-02"]),
     ("staged-piece-marked-visible", "upload",
      [(ENGINE, "        if (!result.complete) {\n            static_cast<void>(piece);",
@@ -139,6 +142,29 @@ MUTANTS = [
                "        setSwarmPaused(false);\n",
        "")],
      ["K11-01", "R4"]),
+    ("advertise-without-group-completeness", "partial-restore",
+     [(ENGINE, "                if (realPieceCommitted(verification)\n"
+               "                    && advertisedVerificationPieces.insert(verification).second)",
+       "                if (advertisedVerificationPieces.insert(verification).second)")],
+     ["R6", "K11-02"]),
+    ("upload-without-group-completeness", "partial-restore",
+     [(ENGINE, "            || !realPieceCommitted(observation.block.piece)) {",
+       "            || committed.count(virtualPiece) == 0) {"),
+      (ENGINE, "        for (std::size_t item = groupStart; item < groupEnd; ++item)\n"
+               "            if (!store_.isCommitted(item)) return std::nullopt;\n", "")],
+     ["R6"]),
+    ("restored-survivor-not-restaged", "partial-restore",
+     [(ENGINE, "if (!verified.complete && restageRestored(",
+       "if (!verified.complete && false && restageRestored(")],
+     ["R6"]),
+    ("group-completion-selection-disabled", "partial-restore",
+     [(ENGINE, "        if (!scheduler || groupSelections.count(verification) != 0) return;",
+       "        if (!scheduler || true) return;")],
+     ["R6"]),
+    ("failed-group-stays-visible", "partial-restore",
+     [(ENGINE, "                committed.erase(item);\n                demandedPieces.insert(item);",
+       "                demandedPieces.insert(item);")],
+     ["R6"]),
 ]
 
 
@@ -213,7 +239,7 @@ def main() -> int:
                "killed": sum(1 for item in results if item["killed"]),
                "total": len(results),
                "sourcesRestored": {path.name: sha(path) == hashes[path] for path in hashes}}
-    (HERE / "raw" / "repair" / "MUTATION-RESULTS.json").write_text(
+    (OUT / "MUTATION-RESULTS.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"killed": summary["killed"], "total": summary["total"],
                       "sourcesRestored": summary["sourcesRestored"]}))

@@ -1,0 +1,1 @@
+K11-DESTROY finalize lost or rewrote a removal decided before destruction

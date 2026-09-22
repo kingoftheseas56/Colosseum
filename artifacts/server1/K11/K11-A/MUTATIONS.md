@@ -28,4 +28,18 @@ Producer: `[Agent (Claude), K11-A repair producer]`.
 
 The first full run (`raw/repair/mutation-run-1-with-survivors.stdout.txt`) killed 16/19. Three survivors exposed test gaps, not engine defects: R2's close could finish before destruction (fixed by fencing the work lane), R4's swarm-cap updater also triggers the M612 update so the wire-listener mutant was equivalent there (fixed with a no-swarm-cap hysteresis case), and the work-lane `isCommitted` guard masked the staged-visibility mutant (fixed with a reader starting inside the staged piece). All three are killed in the final run.
 
+## Round 2 (partial restore)
+
+`K11_MUTATION_OUT=repair2 python run_mutations.py`: 24/24 killed on the first run, sources restored (`raw/repair2/MUTATION-RESULTS.json`, `raw/repair2/mutation-run.stdout.txt`, `raw/repair2/mutants/`). New mutants, each killed by R6 (`regressionPartialRestore`):
+
+| Mutant | Killing checks |
+|---|---|
+| advertise-without-group-completeness | R6, K11-02 |
+| upload-without-group-completeness | R6 |
+| restored-survivor-not-restaged | R6 |
+| group-completion-selection-disabled | R6 |
+| failed-group-stays-visible | R6 |
+
+`staged-bytes-uploadable` now removes the app-lane real-piece guard and both work-lane guards.
+
 Differential-level controls (`raw/comparison.json` `controls`): 24 single-fact alterations of the native or source raw log, each detected by the comparison.

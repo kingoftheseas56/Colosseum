@@ -1,0 +1,9 @@
+1: K11-DESTROY exactly-once terminal delivery PASS
+1: K11-01 registry/hooks/options PASS
+2: K11-LANE app lane never ran peer or disk work PASS
+2: K11-STAGED committed-only advertise/upload PASS
+2: K11-PARTIAL group-complete advertise/upload PASS
+2: K11-02 metadata/reuse/readers PASS
+3: K11-TIMER M814 rechoke interval/cancel/post-close PASS
+3: K11-PEERS discovery to ConnectAction PASS
+3: K11-03 generations/isolation/source/production PASS

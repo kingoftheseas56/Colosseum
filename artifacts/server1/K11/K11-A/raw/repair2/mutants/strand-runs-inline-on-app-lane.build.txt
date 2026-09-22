@@ -1,0 +1,7 @@
+[1/5] Building CXX object CMakeFiles\server1_k11_engine.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\src\policy\EngineRegistry.cpp.obj
+[2/5] Building CXX object CMakeFiles\server1_k11_engine.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\src\policy\TorrentEngine.cpp.obj
+[3/5] Linking CXX static library server1_k11_engine.lib
+[4/5] Building CXX object CMakeFiles\server1_k11_engine_registry_test.dir\C_\b\Colosseum-Server-1.0-sol\INT-W2-repaired\native\colosseum_server_v1\tests\test_engine_registry.cpp.obj
+[5/5] Linking CXX executable server1_k11_engine_registry_test.exe
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.

@@ -27,5 +27,24 @@
     "aggregate_cmake_unchanged": true,
     "state_unchanged": true
   },
-  "integration_status": "candidate only; Agent 4 independent review and B-W3E formation remain open"
+  "integration_status": "candidate only; Agent 4 independent review and B-W3E formation remain open",
+  "round2": {
+    "trigger": "Agent 4 REQUEST-CHANGES on 0194b7ff: partial persistent restore advertised an incomplete real verification piece",
+    "fix": "restored set recorded before advertisement; HAVE and upload require every virtual component committed; restored survivors restaged from disk so K06 can re-verify the group; failed groups dropped from the mirror and re-demanded; engine-owned group-completion selection for readers whose selection starts inside a group",
+    "red": [
+      "R6 exit 1: advertised a real piece whose virtual component was not restored",
+      "R6 exit 1 after guard only: recommitted group never completed (K06 verify needs survivor staged)",
+      "R6 corrupt-survivor exit 1 before group selection: requests=2 tail=0 have=0"
+    ],
+    "verification": {
+      "focused_repeat": "9/9",
+      "k06": "4/4",
+      "oracle": "match, 0 differences, 24/24 controls, raw evidence unchanged",
+      "mutations": "24/24 killed",
+      "base_inventory": 64,
+      "combined_inventory": 67,
+      "combined": "67/67 on run 2; run 1 65/67 with K10 real-wire peer-readiness flakes (K10 unchanged)",
+      "k06_production_changed": false
+    }
+  }
 }

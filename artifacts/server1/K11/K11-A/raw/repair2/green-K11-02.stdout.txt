@@ -1,0 +1,3 @@
+K11-LANE app lane never ran peer or disk work PASS
+K11-STAGED committed-only advertise/upload PASS
+K11-PARTIAL corrupt survivor was not reset, refetched and advertised once

@@ -1,0 +1,9 @@
+K10 real-wire flake triage (binaries unchanged; K10 sources/scripts identical to HEAD; K10 tests do not link K11)
+Full combined run 1 (raw/repair2/combined-67.*): exit 8, 65/67; K10-02 sequential-wire and K10-G failed at
+  "peer readiness failed connected=0 unchoked=0" with the controlled peer LISTENing on its fixed port.
+Isolated rerun of the two (raw/repair2/combined-k10-isolated-rerun.stdout.txt): both failed again.
+Three further repeats of sequential-wire, have-wire, K10-G:
+  round 1: sequential Passed 10.01s, have-wire ***Failed 8.92s, K10-G Passed 13.23s
+  round 2: Passed 8.77s / Passed 8.12s / Passed 13.23s
+  round 3: Passed 8.40s / Passed 7.74s / Passed 12.49s
+v3 recorded the same K10-G readiness timeout (raw/v3-rejected/TEST-COMMANDS.txt).

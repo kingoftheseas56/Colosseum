@@ -1,0 +1,1 @@
+K11-02 removal did not close transport and timer exactly once

@@ -105,8 +105,10 @@ public:
     virtual StageResult stage(std::size_t piece, ByteBuffer bytes, std::uint64_t nowMs) = 0;
     virtual std::optional<ByteBuffer> read(std::size_t piece, std::uint64_t nowMs,
                                            std::string *error) = 0;
-    // Only durably committed persistent bytes may be uploaded.
-    virtual std::optional<ByteBuffer> uploadRead(std::size_t piece) = 0;
+    // Only durably committed persistent bytes may be uploaded, and only when
+    // every virtual component [groupStart, groupEnd) of the real piece is committed.
+    virtual std::optional<ByteBuffer> uploadRead(std::size_t piece, std::size_t groupStart,
+                                                 std::size_t groupEnd) = 0;
     [[nodiscard]] virtual std::vector<std::size_t> restored(std::size_t count) const = 0;
     virtual void close() = 0;
 };
@@ -125,7 +127,9 @@ public:
     StageResult stage(std::size_t piece, ByteBuffer bytes, std::uint64_t) override
     {
         store_.stage(piece, std::move(bytes));
-        const auto verified = store_.verify(piece);
+        auto verified = store_.verify(piece);
+        if (!verified.complete && restageRestored(piece, verified.start, verified.endExclusive))
+            verified = store_.verify(piece);
         StageResult result;
         result.start = verified.start;
         result.endExclusive = verified.endExclusive;
@@ -143,6 +147,25 @@ public:
         result.error = committed.error;
         return result;
     }
+    // K06 verifies only fully staged groups, and restore leaves surviving
+    // components committed but unstaged. When those survivors are the only
+    // missing members, stage their durable bytes so the whole real piece is
+    // re-hashed and re-committed as one group. Returns whether any were staged.
+    bool restageRestored(std::size_t piece, std::size_t start, std::size_t endExclusive)
+    {
+        std::vector<std::pair<std::size_t, ByteBuffer>> survivors;
+        for (std::size_t item = start; item < endExclusive; ++item) {
+            if (item == piece || store_.isAssembled(item)) continue;
+            if (!store_.isCommitted(item)) return false;
+            auto bytes = store_.read(item);
+            if (!bytes) return false;
+            survivors.emplace_back(item, std::move(*bytes));
+        }
+        for (auto &[item, bytes] : survivors)
+            store_.stage(item, std::move(bytes));
+        return !survivors.empty();
+    }
+
     std::optional<ByteBuffer> read(std::size_t piece, std::uint64_t, std::string *error) override
     {
         if (!store_.isCommitted(piece)) {
@@ -151,8 +174,11 @@ public:
         }
         return store_.read(piece, error);
     }
-    std::optional<ByteBuffer> uploadRead(std::size_t piece) override
+    std::optional<ByteBuffer> uploadRead(std::size_t piece, std::size_t groupStart,
+                                         std::size_t groupEnd) override
     {
+        for (std::size_t item = groupStart; item < groupEnd; ++item)
+            if (!store_.isCommitted(item)) return std::nullopt;
         return store_.isCommitted(piece) ? store_.read(piece) : std::nullopt;
     }
     std::vector<std::size_t> restored(std::size_t count) const override
@@ -244,7 +270,10 @@ public:
         if (!bytes && error) *error = "piece is unavailable";
         return bytes;
     }
-    std::optional<ByteBuffer> uploadRead(std::size_t) override { return std::nullopt; }
+    std::optional<ByteBuffer> uploadRead(std::size_t, std::size_t, std::size_t) override
+    {
+        return std::nullopt;
+    }
     std::vector<std::size_t> restored(std::size_t) const override { return {}; }
     void close() override { store_.close(); }
 
@@ -465,6 +494,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     std::set<std::size_t> committed;
     std::set<std::size_t> staging;
     std::set<std::size_t> advertisedVerificationPieces;
+    std::map<std::size_t, SelectionId> groupSelections;
     std::set<ports::PeerHandle> interestedPeers;
     std::vector<ports::TorrentObservation> deferred;
     std::vector<ports::ConnectAction> pendingConnects;
@@ -733,10 +763,12 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             static_cast<void>(observation);
             rechokeUpsert(peer);
         }
-        for (const auto piece : restored) {
-            committed.insert(piece);
+        // K06 restores virtual pieces one by one. Record every restored piece
+        // before any advertisement decision so a real piece is advertised only
+        // when all of its virtual components survived.
+        committed.insert(restored.begin(), restored.end());
+        for (const auto piece : restored)
             notifyCommitted(piece, piece + 1, !circular);
-        }
         if (onReady) onReady();
         auto replay = std::move(deferred);
         deferred.clear();
@@ -1071,15 +1103,69 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         }
     }
 
+    // Virtual pieces [first, second) that make up one real verification piece.
+    [[nodiscard]] std::pair<std::size_t, std::size_t> realPieceGroup(std::size_t verification) const
+    {
+        const auto &coordinate = metadata->geometry().verificationPieces().at(verification);
+        const auto virtualLength = metadata->geometry().virtualPieceLength();
+        return {static_cast<std::size_t>(coordinate.offset / virtualLength),
+                static_cast<std::size_t>((coordinate.offset + coordinate.length + virtualLength - 1)
+                                         / virtualLength)};
+    }
+
+    // P08-T5/K10-H: a real piece is advertised or served only when every virtual
+    // component is durably committed.
+    [[nodiscard]] bool realPieceCommitted(std::size_t verification) const
+    {
+        const auto [start, end] = realPieceGroup(verification);
+        for (std::size_t piece = start; piece < end; ++piece)
+            if (committed.count(piece) == 0) return false;
+        return start < end;
+    }
+
+    // Committed-only visibility makes a reader depend on its whole real piece,
+    // while its scheduler selection may start or end inside the group (M846
+    // selects virtual pieces; M814 reads a written piece before its group
+    // commits). Missing group members outside every selection get one
+    // engine-owned selection, released when the real piece commits.
+    void ensureGroupSelection(std::size_t verification)
+    {
+        if (!scheduler || groupSelections.count(verification) != 0) return;
+        const auto [start, end] = realPieceGroup(verification);
+        for (std::size_t piece = start; piece < end; ++piece) {
+            if (committed.count(piece) != 0) continue;
+            const bool covered = std::any_of(
+                scheduler->selections().begin(), scheduler->selections().end(),
+                [piece](const auto &selection) {
+                    return piece >= selection.from + selection.offset && piece <= selection.selectTo;
+                });
+            if (!covered) {
+                groupSelections[verification] =
+                    scheduler->select(start, end - 1, Value::boolean(true));
+                return;
+            }
+        }
+    }
+
+    void releaseGroupSelection(std::size_t verification)
+    {
+        const auto found = groupSelections.find(verification);
+        if (found == groupSelections.end()) return;
+        static_cast<void>(scheduler->deselect(found->second));
+        groupSelections.erase(found);
+    }
+
     void notifyCommitted(std::size_t start, std::size_t endExclusive, bool advertise)
     {
         for (std::size_t piece = start; piece < endExclusive; ++piece) {
             demandedPieces.erase(piece);
             scheduler->markPieceComplete(piece);
+            const auto verification = metadata->geometry().virtualPieces().at(piece)
+                                          .verificationIndex.value;
+            if (realPieceCommitted(verification)) releaseGroupSelection(verification);
             if (advertise) {
-                const auto verification = metadata->geometry().virtualPieces().at(piece)
-                                              .verificationIndex.value;
-                if (advertisedVerificationPieces.insert(verification).second)
+                if (realPieceCommitted(verification)
+                    && advertisedVerificationPieces.insert(verification).second)
                     static_cast<void>(transport->submit(ports::AdvertisePieceAction{
                         generation, static_cast<std::uint32_t>(verification)}));
             }
@@ -1102,6 +1188,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                     if (coordinate.verificationIndex.value == verification
                         && committed.count(coordinate.piece.value) == 0)
                         demandedPieces.insert(coordinate.piece.value);
+                ensureGroupSelection(verification);
                 break;
             }
         }
@@ -1208,6 +1295,15 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             staging.erase(item);
         staging.erase(piece);
         if (!result.success) {
+            // K06 resets the whole group on a failed verify, including restaged
+            // survivors, so none of it stays visible and all of it is fetched again.
+            for (std::size_t item = result.start; item < result.endExclusive; ++item) {
+                committed.erase(item);
+                demandedPieces.insert(item);
+            }
+            if (result.start < result.endExclusive)
+                ensureGroupSelection(metadata->geometry().virtualPieces().at(result.start)
+                                         .verificationIndex.value);
             for (auto current = activeRequests.begin(); current != activeRequests.end();) {
                 if (current->second.piece < result.start
                     || current->second.piece >= result.endExclusive) {
@@ -1301,7 +1397,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         const auto length = static_cast<std::size_t>(observation.block.length);
         // Circular-cache bytes and uncommitted persistent bytes are never served.
         if (circular || virtualPiece >= metadata->geometry().virtualPieces().size()
-            || committed.count(virtualPiece) == 0) {
+            || !realPieceCommitted(observation.block.piece)) {
             abortUpload(observation);
             return;
         }
@@ -1309,9 +1405,10 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         auto sink = trace;
         std::weak_ptr<Impl> weak = weak_from_this();
         auto app = appPost;
-        post([state, observation, virtualPiece, offset, length, sink, weak, app]() {
+        const auto group = realPieceGroup(observation.block.piece);
+        post([state, observation, virtualPiece, group, offset, length, sink, weak, app]() {
             if (state->closing.load() || !state->store) return;
-            auto bytes = state->store->uploadRead(virtualPiece);
+            auto bytes = state->store->uploadRead(virtualPiece, group.first, group.second);
             sink("upload-read", virtualPiece, offset, offset + length, bytes ? bytes->size() : 0);
             if (app) static_cast<void>(app([weak, observation, offset, length,
                                             bytes = std::move(bytes)] {

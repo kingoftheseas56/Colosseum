@@ -1,0 +1,1 @@
+K11-STAGED a reader inside the staged piece read or failed before commit

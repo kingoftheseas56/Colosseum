@@ -1,0 +1,19 @@
+Internal ctest changing into directory: C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K11/K11-A/repair-combined-build
+Test project C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K11/K11-A/repair-combined-build
+    Start 27: K06-01-persistent-store
+1/4 Test #27: K06-01-persistent-store ..........   Passed    0.11 sec
+    Start 28: K06-02-persistent-store
+2/4 Test #28: K06-02-persistent-store ..........   Passed    0.05 sec
+    Start 29: K06-03-persistent-store
+3/4 Test #29: K06-03-persistent-store ..........   Passed    0.07 sec
+    Start 30: K06-F2-persistent-store
+4/4 Test #30: K06-F2-persistent-store ..........   Passed    0.14 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Label Time Summary:
+K06        =   0.36 sec*proc (4 tests)
+server1    =   0.36 sec*proc (4 tests)
+unit       =   0.36 sec*proc (4 tests)
+
+Total Test time (real) =   0.38 sec

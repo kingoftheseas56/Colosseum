@@ -41,3 +41,19 @@ Aggregate:
 Hygiene:
   python scripts/check_public_paths.py -> PUBLIC_PATH_GUARD_OK (run on the staged candidate before commit).
   Aggregate CMake, tests CMake and docs/server1/STATE.json unchanged (git diff empty for those paths).
+
+Round 2: partial-restore repair (2026-09-23), after Agent 4 REQUEST-CHANGES on 0194b7ff
+RED (production code at 0194b7ff, regression R6 added):
+  repair-build/server1_k11_engine_registry_test.exe R6 -> exit 1 "K11-PARTIAL advertised a real piece whose virtual component was not restored"   raw/repair2/red-R6.*
+  after the advertise/upload group guard only: R6 -> exit 1 "K11-PARTIAL recommitted group did not become readable and advertised exactly once" (K06 verify needs the restored survivor staged)   raw/repair2/red-R6-after-advertise-guard.*
+  after survivor restage, before group-completion selection: R6 corrupt-survivor cycle -> exit 1 "requests=2 tail=0 have=0"   raw/repair2/red-R6-corrupt-survivor-before-group-selection.txt
+GREEN:
+  R6 x3 direct -> exit 0; R1..R5 and K11-01/02/03 direct -> exit 0
+  focused: ctest --test-dir repair-build -L K11 --repeat until-fail:3 -> exit 0, 9/9   raw/repair2/focused-repeat.stdout.txt
+  K06: ctest --test-dir repair-combined-build -R K06- -> exit 0, 4/4   raw/repair2/k06-restore.stdout.txt
+  oracle: node run_oracle.js -> exit 0, match, 0 differences, 24/24 controls, corrupt bundle/factory rejected; regenerated raw evidence byte-identical to committed files   raw/repair2/oracle.*
+  mutations: K11_MUTATION_OUT=repair2 python run_mutations.py -> 24/24 killed, sources restored   raw/repair2/MUTATION-RESULTS.json
+  aggregate: build aggregate -> repair-combined-build (all) exit 0; inventories base 64, combined 67   raw/repair2/combined-build.txt, inventory-*.txt
+  combined run 1 (pwsh = PowerShell 7.5.3 from the vcpkg tools copy, prepended to PATH): exit 8, 65/67; K10-02 sequential-wire and K10-G failed at controlled-peer readiness (connected=0)   raw/repair2/combined-67-run1-k10-flake.*
+  K10 triage: isolated rerun failed both; three repeats then passed except one have-wire failure; K10 unchanged and does not link K11   raw/repair2/combined-k10-*.txt
+  combined run 2: exit 0, 67/67 in 157.50 s   raw/repair2/combined-67.*

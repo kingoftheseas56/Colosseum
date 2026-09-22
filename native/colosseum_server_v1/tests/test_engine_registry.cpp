@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <deque>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -1452,6 +1453,173 @@ void regressionCommittedOnly()
     std::cout << "K11-STAGED committed-only advertise/upload PASS\n";
 }
 
+// A real verification piece is advertised or served only when every virtual
+// component is durably committed. K06 restores virtual pieces one by one, so a
+// truncated backing file can keep virtual piece 0 of a group and drop piece 1.
+void regressionPartialRestore()
+{
+    constexpr std::size_t length = 524289;
+    constexpr std::size_t virtualLength = 524288;
+    Bytes payload(length, 65);
+    payload.back() = 200;
+    const auto torrent = dataFixture("partial.bin", {{"partial.bin", 524289}}, payload, 1048576);
+    const auto root = uniqueRoot("k11-partial");
+    LaneWorker worker;
+    FakeFactory factory;
+    EngineRegistryConfig config;
+    config.cacheRoot = root;
+    config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
+    config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    EngineRegistry registry(std::move(config));
+    const Value quiet = Value::object({{"peerSearch", Value::boolean(false)}});
+    const auto answerAll = [&](const std::shared_ptr<FakeState> &state, std::size_t &answered) {
+        const auto requests = actionsOf<RequestAction>(state);
+        for (; answered < requests.size(); ++answered) {
+            const auto &request = requests[answered];
+            observe(state, BlockObservation{request.ownership, request.peer, request.block,
+                Bytes(payload.begin() + request.block.offset,
+                      payload.begin() + request.block.offset + request.block.length),
+                false, false});
+        }
+    };
+
+    registry.create({torrent.hash, quiet});
+    settle(registry, worker);
+    const auto first = factory.at(0);
+    ready(first, torrent);
+    settle(registry, worker);
+    auto engine = registry.get(torrent.hash);
+    auto reader = engine->createReader(0);
+    observe(first, AvailablePiecesObservation{engine->generation(), 81, {0}});
+    observe(first, PeerObservation{81, false, true, 1.0, 0.0, 0, 0});
+    reader->request(length);
+    std::size_t answered = 0;
+    Bytes delivered;
+    for (int round = 0; round < 40 && delivered.size() < length; ++round) {
+        settle(registry, worker, 2);
+        answerAll(first, answered);
+        for (const auto &chunk : reader->takeData())
+            delivered.insert(delivered.end(), chunk.begin(), chunk.end());
+    }
+    expect(delivered == payload && countActions<AdvertisePieceAction>(first) == 1,
+           "K11-PARTIAL initial group was not committed and advertised once");
+    registry.remove(torrent.hash);
+    settle(registry, worker);
+
+    // Keep virtual piece 0 and invalidate virtual piece 1 of real piece 0.
+    const auto backing = root / torrent.hash / "0";
+    expect(std::filesystem::file_size(backing) == length,
+           "K11-PARTIAL backing file was not written");
+    std::filesystem::resize_file(backing, virtualLength);
+
+    registry.create({torrent.hash, quiet});
+    settle(registry, worker);
+    const auto second = factory.at(1);
+    ready(second, torrent);
+    settle(registry, worker);
+    engine = registry.get(torrent.hash);
+    expect(engine && engine->ready(), "K11-PARTIAL recreated engine did not become ready");
+    expect(countActions<AdvertisePieceAction>(second) == 0,
+           "K11-PARTIAL advertised a real piece whose virtual component was not restored");
+
+    FileReadOptions head;
+    head.end = virtualLength - 1;
+    auto headReader = engine->createReader(0, head);
+    headReader->request(virtualLength);
+    settle(registry, worker);
+    Bytes headBytes;
+    for (const auto &chunk : headReader->takeData())
+        headBytes.insert(headBytes.end(), chunk.begin(), chunk.end());
+    expect(headBytes == Bytes(payload.begin(), payload.begin() + virtualLength),
+           "K11-PARTIAL restored virtual piece 0 was not individually readable");
+
+    observe(second, AvailablePiecesObservation{engine->generation(), 82, {0}});
+    observe(second, PeerObservation{82, false, true, 1.0, 0.0, 0, 0});
+    observe(second, UploadRequestObservation{UploadOwnership{1, engine->generation()}, 82,
+                                             BlockSpan{0, 0, 0, 16384}});
+    settle(registry, worker);
+    expect(countActions<UploadResponseAction>(second) == 0
+               && countActions<UploadAbortAction>(second) == 1,
+           "K11-PARTIAL served bytes of an incomplete real piece");
+
+    FileReadOptions tail;
+    tail.start = virtualLength;
+    auto tailReader = engine->createReader(0, tail);
+    tailReader->request(1);
+    std::size_t reAnswered = 0;
+    Bytes tailBytes;
+    for (int round = 0; round < 40 && tailBytes.empty(); ++round) {
+        settle(registry, worker, 2);
+        answerAll(second, reAnswered);
+        for (const auto &chunk : tailReader->takeData())
+            tailBytes.insert(tailBytes.end(), chunk.begin(), chunk.end());
+    }
+    const auto requests = actionsOf<RequestAction>(second);
+    expect(!requests.empty() && std::all_of(requests.begin(), requests.end(), [](const auto &item) {
+               return item.block.offset == 524288 && item.block.length == 1;
+           }),
+           "K11-PARTIAL re-download requested more than the missing virtual component");
+    expect(tailBytes == Bytes{200} && countActions<AdvertisePieceAction>(second) == 1,
+           "K11-PARTIAL recommitted group did not become readable and advertised exactly once");
+    observe(second, UploadRequestObservation{UploadOwnership{2, engine->generation()}, 82,
+                                             BlockSpan{0, 0, 0, 16384}});
+    observe(second, UploadRequestObservation{UploadOwnership{3, engine->generation()}, 82,
+                                             BlockSpan{0, 32, 524288, 1}});
+    settle(registry, worker);
+    const auto uploads = actionsOf<UploadResponseAction>(second);
+    expect(uploads.size() == 2 && uploads[0].payload == Bytes(16384, 65)
+               && uploads[1].payload == Bytes{200}
+               && countActions<AdvertisePieceAction>(second) == 1,
+           "K11-PARTIAL recommitted real piece was not served exactly");
+
+    // A surviving component whose durable bytes are corrupt fails the group
+    // hash when restaged: the whole real piece is reset and fetched again.
+    registry.remove(torrent.hash);
+    settle(registry, worker);
+    {
+        std::fstream corrupt(backing, std::ios::binary | std::ios::in | std::ios::out);
+        corrupt.seekp(0);
+        corrupt.put('X');
+    }
+    std::filesystem::resize_file(backing, virtualLength);
+    registry.create({torrent.hash, quiet});
+    settle(registry, worker);
+    const auto third = factory.at(2);
+    ready(third, torrent);
+    settle(registry, worker);
+    engine = registry.get(torrent.hash);
+    expect(countActions<AdvertisePieceAction>(third) == 0,
+           "K11-PARTIAL advertised a partially restored real piece after corruption");
+    observe(third, AvailablePiecesObservation{engine->generation(), 83, {0}});
+    observe(third, PeerObservation{83, false, true, 1.0, 0.0, 0, 0});
+    auto corruptTail = engine->createReader(0, tail);
+    corruptTail->request(1);
+    std::size_t thirdAnswered = 0;
+    Bytes corruptTailBytes;
+    for (int round = 0; round < 60 && corruptTailBytes.empty(); ++round) {
+        settle(registry, worker, 2);
+        answerAll(third, thirdAnswered);
+        for (const auto &chunk : corruptTail->takeData())
+            corruptTailBytes.insert(corruptTailBytes.end(), chunk.begin(), chunk.end());
+    }
+    const auto refetched = actionsOf<RequestAction>(third);
+    expect(std::any_of(refetched.begin(), refetched.end(), [](const auto &item) {
+               return item.block.offset == 0;
+           }) && corruptTailBytes == Bytes{200}
+               && countActions<AdvertisePieceAction>(third) == 1,
+           "K11-PARTIAL corrupt survivor was not reset, refetched and advertised once: requests="
+               + std::to_string(refetched.size()) + " tail=" + std::to_string(corruptTailBytes.size())
+               + " have=" + std::to_string(countActions<AdvertisePieceAction>(third))
+               + " error=" + corruptTail->takeError().value_or("none"));
+    observe(third, UploadRequestObservation{UploadOwnership{1, engine->generation()}, 83,
+                                            BlockSpan{0, 0, 0, 16384}});
+    settle(registry, worker);
+    const auto repaired = actionsOf<UploadResponseAction>(third);
+    expect(repaired.size() == 1 && repaired[0].payload == Bytes(16384, 65),
+           "K11-PARTIAL served corrupt survivor bytes after the group was repaired");
+    std::cout << "K11-PARTIAL group-complete advertise/upload PASS\n";
+}
+
 void runK1102()
 {
     const Bytes causalBytes{'A','B','C','D','E','F','G','H','I','J','K','L'};
@@ -1680,6 +1848,7 @@ void runK1102()
     static_cast<void>(runM814Scenario());
     regressionAppLane();
     regressionCommittedOnly();
+    regressionPartialRestore();
     std::cout << "K11-02 metadata/reuse/readers PASS\n";
 }
 
@@ -1917,6 +2086,7 @@ int main(int argc, char **argv)
         else if (id == "R3") regressionTimer();
         else if (id == "R4") regressionPeerSearch();
         else if (id == "R5") regressionCommittedOnly();
+        else if (id == "R6") regressionPartialRestore();
         else throw std::runtime_error("unknown K11 case: " + id);
         return EXIT_SUCCESS;
     } catch (const std::exception &error) {

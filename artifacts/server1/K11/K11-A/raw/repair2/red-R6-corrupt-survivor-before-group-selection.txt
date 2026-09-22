@@ -1,0 +1,6 @@
+Intermediate RED, transcribed from the session console (binary rebuilt after the step-B restage fix,
+before ensureGroupSelection existed):
+  repair-build/server1_k11_engine_registry_test.exe R6 -> exit 1
+  K11-PARTIAL corrupt survivor was not reset, refetched and advertised once: requests=2 tail=0 have=0 error=none
+Cause: after the restaged corrupt survivor failed the group hash, K06 reset the whole group, but the tail
+reader's scheduler selection covered only virtual piece 1, so virtual piece 0 was never requested.

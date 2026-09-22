@@ -1,5 +1,6 @@
 {
   "schema": "colosseum-server1-blob-seals/v3",
+  "round": 2,
   "algorithm": "staged git blob oid and SHA-256 of `git cat-file blob` bytes; each blob must equal committed HEAD:path",
   "files": [
     {
@@ -14,13 +15,13 @@
     },
     {
       "path": "native/colosseum_server_v1/src/policy/TorrentEngine.cpp",
-      "blob": "0b34c008946c625410b2a469c1718513d15da516",
-      "sha256": "d5828becd2962b39a7032084d8b9082979cff7741413248f521c9811a41cf75b"
+      "blob": "5f5a2c57aa71d86f0db58ef56ff01c6e9245d90f",
+      "sha256": "fb2e242710d927a082dff79dad61bc8a6b890976e07767a2d00369c6256ca0d4"
     },
     {
       "path": "native/colosseum_server_v1/tests/test_engine_registry.cpp",
-      "blob": "f97cf09698a49634983bdf4825fad2d2ee9aabb0",
-      "sha256": "eb2bc87cff129d97fd763b8b229cee4c3ad3e317bdcd1bcb1bf90e263a410ce8"
+      "blob": "8913fea4d3dbcc1eed7768f21ddda03cdf2e2fff",
+      "sha256": "7068cb12745d6d2afe8e72e6e0e1abf2ea3931a6692a393e2a8df21541991c12"
     },
     {
       "path": "native/colosseum_server_v1/cmake/packets/K11.cmake",
@@ -49,8 +50,8 @@
     },
     {
       "path": "artifacts/server1/K11/K11-A/run_mutations.py",
-      "blob": "dac5a813e103e5dad67056f843f3a4c1bb5cfc7e",
-      "sha256": "d08be8d93d420916b5f06171918418c84ed7ee690f0ec06cda7512c57487d1ea"
+      "blob": "b6366a36efa8beac5f43e295e21a9ffe73ff2c85",
+      "sha256": "536c07bde5c6137e55dca4167dfd1a1e385ac57c965c6b00eb018a092a20f0d6"
     },
     {
       "path": "artifacts/server1/K11/K11-A/raw/comparison.json",
@@ -78,14 +79,19 @@
       "sha256": "db78de6d651745485a3971813c29109452dc29211ede064d8546696d7c586e7e"
     },
     {
-      "path": "artifacts/server1/K11/K11-A/raw/repair/MUTATION-RESULTS.json",
-      "blob": "190374cf7457d6478e6fbf64a8f79111eae4a9ea",
-      "sha256": "8e92218788b8872da5771359a58a54b09e32b7b3f50a8bec34281539e570ed8e"
+      "path": "artifacts/server1/K11/K11-A/raw/repair2/MUTATION-RESULTS.json",
+      "blob": "055a28ccbe11b892feca8163194a864278bc425b",
+      "sha256": "ca982c44e73c5a7c92963d3616cd5c89f86b094329e419b41915af04520d1812"
     },
     {
-      "path": "artifacts/server1/K11/K11-A/raw/repair/combined-67.stdout.txt",
-      "blob": "9e47275c4374762c0439b04a2f4e522c950c16ae",
-      "sha256": "41c79e12c5fb7e8b0f93eaa8e0804ac00baabce8f55581b5ada6cfc99ed659ec"
+      "path": "artifacts/server1/K11/K11-A/raw/repair2/combined-67.stdout.txt",
+      "blob": "fb100cfe89d2604c578b0fa1366b15d742e3e6db",
+      "sha256": "4fb1e8c73ee1c07b01f0432f39f7cbb797fa4c651759e28cfb0e241a76338129"
+    },
+    {
+      "path": "artifacts/server1/K11/K11-A/raw/repair2/red-R6.stderr.txt",
+      "blob": "66b44e7895cce1ba9ed96a7b676cd1ddb33ffa40",
+      "sha256": "1d21dad448a9e2f27efeb5045f1693bf6f8166df9dc1a9c3e24504527186dfed"
     },
     {
       "path": "artifacts/server1/K11/K11-A/WIRING-REQUEST.json",
@@ -94,8 +100,8 @@
     },
     {
       "path": "artifacts/server1/K11/K11-A/PACKET-RECEIPT.json",
-      "blob": "9d9caf20fa16e1cfd6a7a776232a354c252c225a",
-      "sha256": "4657751f22f82ed18bbd3d0bbda86605cb0c45326c03f23906bd0401794c1333"
+      "blob": "6c4f1b0af9daeb4a37a023395b6378659117ba8b",
+      "sha256": "451d2a098bc067a6959b412bd8355d7d70c573c110cba5875772f6050566c2ad"
     }
   ]
 }

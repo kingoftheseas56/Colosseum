@@ -35,6 +35,14 @@ Producer: `[Agent (Claude), K11-A repair producer]`. This is producer evidence, 
 | Upload `wire.on("request")` → `store.read` → slice | M814 | `acceptUpload`: committed persistent only, work-lane `uploadRead` |
 | `PeerSearch` source `peer` event → `swarm.add(addr)`; `update` on `wire`/`wire-disconnect`/`resume`/`pause` | M612 | `discoverPeer` → `drainPeerAdds` → generation-owned `ConnectAction` on the work lane; `peerSearchUpdate` on new wire and pause changes |
 
+## Real-piece completeness (round 2)
+
+P08-T5/K10-H: a real verification piece is advertised (HAVE) or uploaded only when every virtual component is durably committed. K06 restores virtual pieces individually, so a truncated backing file can keep one component and drop another. K11 records the whole restored set before any advertisement decision (`install`), advertises through `realPieceCommitted`, checks the same condition before admitting an upload and again on the work lane (`uploadRead` over the group range). A surviving component stays individually readable because K06 reports it committed.
+
+K06 verifies only fully staged groups, and restore leaves survivors committed but unstaged. When a re-downloaded component leaves only restored survivors missing, `PersistentBackend::restageRestored` stages their durable bytes so the whole real piece is re-hashed and re-committed as one group. A corrupt survivor fails that hash; K06 resets the group and K11 drops it from the committed mirror and re-demands it.
+
+Committed-only visibility makes a reader depend on its whole real piece, but its scheduler selection may start inside the group (M846 selects virtual pieces; source M814 reads a written piece before its group commits). K11 adds one engine-owned scheduler selection for missing group members outside every selection and releases it when the real piece commits. No K06 production code changed.
+
 ## Lanes
 
 The app lane runs registry state, events, callbacks, scheduler decisions, FileReader interaction and mailbox `poll`/`submit`. The per-engine serialized work lane runs every blocking peer or disk operation: transport open (libtorrent session creation), `ConnectAction` (a synchronous native event-loop barrier), transport close, metadata install with the persistent restore scan, stage/verify/commit, cache and upload reads, and store close. An injected `workExecutor` is used only when it defers work off the app thread; inline or app-thread execution falls back to a registry-owned worker.

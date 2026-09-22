@@ -1,0 +1,34 @@
+Internal ctest changing into directory: C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K11/K11-A/repair-combined-build
+Test project C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/artifacts/server1/K11/K11-A/repair-combined-build
+    Start 49: K10-02-native-transport-sequential-wire
+1/2 Test #49: K10-02-native-transport-sequential-wire ...***Failed    9.63 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\run_sequential.ps1:17[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  17 | [0m . EXITCODE -ne 0) { [36;1mthrow "K10 sequential case failed: $LASTEXITCODE"[0m }[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 sequential case failed: 1[0m
+
+    Start 64: K10-G-transport-pause-generation
+2/2 Test #64: K10-G-transport-pause-generation ..........***Failed   12.10 sec
+K10-G active peer peer readiness failed connected=0 unchoked=0
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-G\run_pause.ps1:40[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  40 | [0m         [36;1mthrow "K10-G pause case failed: $LASTEXITCODE"[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10-G pause case failed: 1[0m
+
+
+0% tests passed, 2 tests failed out of 2
+
+Label Time Summary:
+K10        =   9.63 sec*proc (1 test)
+K10-G      =  12.10 sec*proc (1 test)
+native     =  21.73 sec*proc (2 tests)
+server1    =  21.73 sec*proc (2 tests)
+
+Total Test time (real) =  21.78 sec
+
+The following tests FAILED:
+	 49 - K10-02-native-transport-sequential-wire (Failed)
+	 64 - K10-G-transport-pause-generation (Failed)
+Errors while running CTest
