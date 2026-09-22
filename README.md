@@ -48,13 +48,15 @@ Those parts share Home, Continue, Collection, Downloads, settings, and open sess
 
 ## What's in 1.1.6
 
-1.1.6 concentrates on keyboard control and reliability, with more background work moved off the UI thread.
+The 1.1.6 release window spans 224 commits and 775 changed files across account and sync, Tankoyomi, keyboard navigation, Universe pages, responsiveness, platform support, and release engineering.
 
-- Arrow-key navigation now follows the visible layout across the shell, worlds, catalogues, account pages, settings, readers, and player controls. Enter activates, Escape backs out one level, and Tab remains available as a secondary way to move focus.
-- Tankoyomi Chapter Mode now keeps multilingual provider settings, routes languages more safely, and falls back between sources more carefully. Metadata and image requests also have better IPv4 fallback when IPv6 routing is broken.
-- Remembered account sessions, refresh locking, recovery approvals, and cross-device profile, activity, history, and recovery state are more reliable.
-- More recurring work runs away from the main interface thread, hidden worlds do less background work, and Theatre can recover the bundled Stremio runtime after a failed start.
-- The Windows installer remains the stable release artifact. Linux is still on its separate beta and source-build track.
+- Accounts and sync now cover portable profile sync, canonical current-state merges, history and activity replication, attachment sync and recovery, remembered-session persistence, safer profile adoption, duplicate-instance protection, and stricter recovery and replay handling.
+- Tankoyomi Chapter Mode gained persistent multilingual provider configuration, region-safe language routing, tighter source matching and fallback limits, bounded provider and page-image transport, real-image validation, and IPv4 fallback for broken IPv6 routes.
+- Keyboard navigation now works across the shell, worlds, catalogues, account pages, settings, readers, and player controls. Spatial arrow navigation continues through scrollable and virtualized content, keeps overlays contained, and restores focus more reliably when you return to a surface.
+- Custom Universe pages for the DC Animated Universe, One Piece East Blue, Star Wars, and Cosmere were added or restored and wired into the shell.
+- Responsiveness work moved recurring jobs away from the GUI thread, reduced hidden-world activity, tightened background scheduling, refreshed the QML manifest before source launches, and made Theatre recover from a failed bundled Stremio runtime start.
+- Linux received another beta-stabilization pass, including shutdown, locale-stable CBZ ordering, and CI fixes. The release window also added the macOS source-build guide. The published installer remains the Windows artifact.
+- The release pipeline now binds updater identity to the application version, builds the Windows installer from an exact trusted commit, fingerprints the result, and runs fresh install, boot, runtime-file, uninstall, clang-tidy, AddressSanitizer, and release-contract checks.
 
 Full release notes: [docs/release-notes/v1.1.6.md](docs/release-notes/v1.1.6.md).
 
@@ -89,11 +91,15 @@ Full release notes: [docs/release-notes/v1.1.6.md](docs/release-notes/v1.1.6.md)
 | **Biblio** | ebooks and audiobooks | Apple Books + Open Library discovery, LibGen, AudioBookBay |
 | **Theatre** | movies, shows, anime | Cinemeta + offline IMDb catalogue, Jikan/AniList/Kitsu; installed Stremio extensions |
 
+## Universes
+
+Colosseum has custom Universe pages for franchises that cross media. The 1.1.6 release window added or restored routes for the DC Animated Universe, One Piece East Blue, Star Wars, and Cosmere. One Piece uses its East Blue atlas, Star Wars has a galaxy view, Cosmere opens into the Cognitive Atlas, and DCAU has its own portal-driven page.
+
 ## Vault
 
 Vault is Colosseum's library for local files. It is separate from Downloads: Vault indexes folders you choose, while Downloads tracks media acquired by Colosseum's own backends.
 
-The Vault entry stays on Home even before you add a folder. Once you add roots, Colosseum scans them in place and watches confirmed roots for changes. Missing or disconnected roots stay visible as `away` instead of silently disappearing. The Browse view has recent arrivals, folder navigation, search, filters, and identity correction for files that were matched badly.
+The Vault entry stays on Home even before you add a folder. Once you add roots, Colosseum scans them in place and watches confirmed roots for changes. Missing or disconnected roots stay visible as `away`. The Browse view has recent arrivals, folder navigation, search, filters, and identity correction for files that were matched badly.
 
 Artwork comes from the media when possible. Books and comics can reuse embedded covers, recognized movies and shows can use locally cached posters, and local video can get persistent ffmpeg frame grabs. Once artwork has been acquired, Vault can keep showing it offline.
 
@@ -212,14 +218,14 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 - The calendar implementation exists in the repository but has no live navigation route.
 - Player 2 is opt-in and Windows/D3D11-oriented. MpvQt/libmpv remains the default.
 - Vinyl is visible as a coming-soon world and is not implemented yet.
-- Catalogue databases such as `data/comics_catalog.db`, `data/mal_catalog.db`, `data/tankoban_catalog.db`, and `data/imdb_catalog.db` are deployment artifacts rather than normal Git source. Source builds prefer local copies and otherwise use the catalogue vault to fetch published databases into AppData.
+- Catalogue databases such as `data/comics_catalog.db`, `data/mal_catalog.db`, `data/tankoban_catalog.db`, and `data/imdb_catalog.db` are deployment artifacts and stay out of normal Git source. Source builds prefer local copies and otherwise use the catalogue vault to fetch published databases into AppData.
 - Casting and live TV/DVR are still under development.
 
 ## How the project is built
 
-Transport is shared where it makes sense, while each medium keeps its own rules. Collection and progress are separate concepts. Vault keeps identity and metadata for local files without taking ownership of those files. Matching is conservative, so an uncertain result is left alone instead of opening the wrong work.
+Transport is shared where it makes sense, while each medium keeps its own rules. Collection and progress are separate concepts. Vault keeps identity and metadata for local files without taking ownership of those files. Matching is conservative, so uncertain results are left alone.
 
-The UI should show real empty states and fallbacks instead of inventing content. Vault's Browse card layout is adapted from Jellyfin's library view: poster grids, near-square corners, centered one-line titles, dim fact lines, circular corner indicators, hover reveal, and 16:9 episode cards.
+The UI uses real empty states and fallbacks. Vault's Browse card layout is adapted from Jellyfin's library view: poster grids, near-square corners, centered one-line titles, dim fact lines, circular corner indicators, hover reveal, and 16:9 episode cards.
 
 ## Repository layout
 
