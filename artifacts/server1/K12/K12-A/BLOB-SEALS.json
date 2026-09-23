@@ -1,0 +1,30 @@
+{
+  "schema": "colosseum-server1-k12-blob-seals/v1",
+  "algorithm": "sha256 over exact git cat-file blob <candidate_commit>:<path> bytes",
+  "base": "5b03cfbf6d4f6487bf991a7af834e6d1a3a176ef",
+  "candidate_commit": "e023c7bed532a8cbc7f1f52c9ee5f4451c2ec974",
+  "files": [
+    {"path": "artifacts/server1/K12/K12-A/MERGE-ENDPOINT.md", "blob": "5e7bf765f2d70f807d0b7a37759f799ba05005c7", "bytes": 954, "sha256": "c53c65e3af8170b8e7e5d7a4eb2f71900b226c9e41443745e75c6969e13044a9"},
+    {"path": "artifacts/server1/K12/K12-A/PACKET-RECEIPT.json", "blob": "29f8e8d63c456c8fc9d543895a547eb83b418c8e", "bytes": 5568, "sha256": "7cd516faa57c47808d0ba156f3e9ff2b929ff3203c54fc08285141612f4599ac"},
+    {"path": "artifacts/server1/K12/K12-A/SOURCE-TRACE.md", "blob": "703d32f92cbd7f131e2357cb3b37a5aa28269ede", "bytes": 10774, "sha256": "1e43dd26fefb46b7394a0647166734acd202e2ad54d95a825219de8e1261fbc9"},
+    {"path": "artifacts/server1/K12/K12-A/TEST-COMMANDS.txt", "blob": "32d4abcf8d379e291e9b39cbcb4a8b72c4fa492e", "bytes": 3455, "sha256": "760c55360fbddea62f119f7e601b76fbf7b2a0e273e764204de1f9838b7b8b34"},
+    {"path": "artifacts/server1/K12/K12-A/WIRING-REQUEST.json", "blob": "d1b80dfccf8bbd5b969b04a29959a811d1c1e8cc", "bytes": 5290, "sha256": "22fe75192361de3a8ae93a8a15d45127850865ee912309edb77f792f89f0e9db"},
+    {"path": "artifacts/server1/K12/K12-A/aggregate/CMakeLists.txt", "blob": "e8f8d6a826044728fdbd2512332e0b6994ca4aaa", "bytes": 799, "sha256": "667cdc2eb92150896d7d7c0d1ee185a108f1396e447730ce461b8432764e39f1"},
+    {"path": "artifacts/server1/K12/K12-A/cases/K12.json", "blob": "0c3c281da1f528a48e87c59f9baf723bb4e5adf7", "bytes": 15279, "sha256": "c186753ab6dda02b9793953a01dae5ca898f4c7e4bb264ed638a6fc5e14b187a"},
+    {"path": "artifacts/server1/K12/K12-A/raw/comparison.json", "blob": "0dd5054654775b580f7714ab29985efe1b12167f", "bytes": 3755, "sha256": "a148b3fa0b7c621a1f082d772e6b09f21e68741e3417f49a367562d432686d49"},
+    {"path": "artifacts/server1/K12/K12-A/raw/gates/summary.txt", "blob": "615a9e9ed1cbf9fc22b2a1d82aa3a61061429491", "bytes": 701, "sha256": "b46cdead1e24da115ac4cc81b2ed92c9dc65b4da0a3eb045eb4f84b5bf23934c"},
+    {"path": "artifacts/server1/K12/K12-A/raw/mutations/MUTATION-RESULTS.json", "blob": "20bd246b9bc6ec68bbe0ac9c8a45e3bdcf78a1ad", "bytes": 2659, "sha256": "50b2979bca3c262c8243b0da43bf2fecca9303451549b3e6d34c3650289df47a"},
+    {"path": "artifacts/server1/K12/K12-A/raw/native-outputs.json", "blob": "d15812a51f069e1d5b37f112cc7a5839b2b54f7c", "bytes": 67630, "sha256": "8210a89da424c97615987ee2b333dc66c67e7ae3ec43131a687093d340a2a9e5"},
+    {"path": "artifacts/server1/K12/K12-A/raw/source-outputs.json", "blob": "9ecbc203e5e9deea2d74c18caaefc3cfa7bdf926", "bytes": 67772, "sha256": "42f1071fe6362d91aad7f72abbe6591c03b03d0fc8ba76c8a89f37b7032832c5"},
+    {"path": "artifacts/server1/K12/K12-A/run_mutations.py", "blob": "e1ccce0bee84ae90208319903cd6e2c345953ef9", "bytes": 8659, "sha256": "95100343a014f7c5624077c398c8ee82105c7744a48dedbd82d8e15468a3ca55"},
+    {"path": "artifacts/server1/K12/K12-A/run_oracle.js", "blob": "3ee45089b5131dbe73b1cd286add5b72348c36e3", "bytes": 23424, "sha256": "bf23f06f85204b956c61f489e168f7bc521ec88c4f89c52742b01de03b0030c1"},
+    {"path": "native/colosseum_server_v1/cmake/packets/K12.cmake", "blob": "777efc5343c77eeffb4fbf31eddf017a6ab9ac79", "bytes": 677, "sha256": "0eccf524b67021cdfccb61726da0e3874b3d503df5110a7a92ebd90e7a4c05f6"},
+    {"path": "native/colosseum_server_v1/include/server1/policy/EngineLifecycle.h", "blob": "5dbd378b8535d06c055c1c535f9124be78058185", "bytes": 11067, "sha256": "34f9974b706ea2e8e76aebf978a041affc2f85967253cc77b15e09cc10f3bc28"},
+    {"path": "native/colosseum_server_v1/include/server1/policy/FileSelection.h", "blob": "860514ebf2018b518419414357a9f4786f768db5", "bytes": 2915, "sha256": "5fa5bf49e1805671d2754dfbeef25c2c312aaab4359697ea55c5a9da87afc021"},
+    {"path": "native/colosseum_server_v1/src/policy/EngineCounters.cpp", "blob": "a51db22a7c066f21f8b0108e3987c61a1edf85c3", "bytes": 20787, "sha256": "d67c3ed5f11c31f650adcae20a73eae92c63023670963dddd8eed9ae1a5151a4"},
+    {"path": "native/colosseum_server_v1/src/policy/EngineStatistics.cpp", "blob": "395dedc582a5bd6cdf874d188bf8d840d8422a6c", "bytes": 8768, "sha256": "c79d6957da88cf3413edc5c55a4d70bdcd8c391535319a81954fa636feeaafe7"},
+    {"path": "native/colosseum_server_v1/src/policy/FileSelection.cpp", "blob": "eae834e581938f0140b9fbb2a7972816c3e046df", "bytes": 37599, "sha256": "02046b21649713f5b654b5e523c02d6d26820fad76099a7700ddfc42e6223e71"},
+    {"path": "native/colosseum_server_v1/tests/cmake/K12.cmake", "blob": "b38961900face0c8363c72ab3ada17f8475436f7", "bytes": 1123, "sha256": "2e339064bb6ae5c5afafd1c3a550493be4a403fa655d4fe3acc544bb7b5a07d1"},
+    {"path": "native/colosseum_server_v1/tests/test_enginefs_lifecycle.cpp", "blob": "1bc8d1793e831d3684a4ca2a2788dbe9ecf174ad", "bytes": 41156, "sha256": "97b50b24bc48de7ec4d33ee3b6d5436327eb062c8241723a9b31ad23ffe1683d"}
+  ]
+}
