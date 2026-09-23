@@ -29,19 +29,31 @@ def run(coro):
 
 
 class FakeWindows:
-    def __init__(self) -> None:
-        self.window = WindowInfo(101, "Colosseum", 100, 200, 900, 800)
-        self.foreground = 101
+    def __init__(
+        self,
+        *,
+        windows: list[WindowInfo] | None = None,
+        pids: dict[int, int] | None = None,
+    ) -> None:
+        self.windows = windows or [WindowInfo(101, "Colosseum", 100, 200, 900, 800)]
+        self.pids = pids or {self.windows[0].hwnd: 1111}
+        self.foreground = self.windows[0].hwnd
 
     def list_matching(self):
-        return [self.window]
+        return list(self.windows)
 
     def resolve_unique(self):
-        return self.window
+        assert len(self.windows) == 1
+        return self.windows[0]
 
     def get(self, hwnd):
-        assert hwnd == 101
-        return self.window
+        for window in self.windows:
+            if window.hwnd == hwnd:
+                return window
+        raise AssertionError(f"unknown hwnd {hwnd}")
+
+    def process_id(self, hwnd):
+        return self.pids[hwnd]
 
     def foreground_hwnd(self):
         return self.foreground
@@ -90,13 +102,30 @@ class FakeCursorTouch:
         yield FakeSession(self)
 
 
-def controller(tmp_path):
+def controller(tmp_path, *, windows=None, pids=None, repo_root=None):
     return ColosseumDesktopController(
         runtime_root=tmp_path,
-        windows=FakeWindows(),
+        repo_root=repo_root or tmp_path,
+        windows=FakeWindows(windows=windows, pids=pids),
         cursortouch=FakeCursorTouch(),
         image_cropper=lambda screenshot, _window: screenshot,
     )
+
+
+def write_run_receipt(repo_root: Path, *, pid: int) -> str:
+    run_id = "run_" + "a" * 32
+    receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_text(
+        json.dumps({
+            "schema": "colosseum.harness.run.v1",
+            "runId": run_id,
+            "repo": {"root": str(repo_root.resolve())},
+            "runtime": {"pid": pid},
+        }),
+        encoding="utf-8",
+    )
+    return run_id
 
 
 def test_scoped_tree_excludes_background_windows() -> None:
@@ -123,6 +152,88 @@ def test_claim_conflict_and_release(tmp_path: Path) -> None:
         second.claim("controller-b")
     assert raised.value.code == "RESOURCE_BUSY"
     assert first.release("controller-a")["released"] is True
+
+
+def test_unbound_claim_does_not_require_repo_root(monkeypatch, tmp_path: Path) -> None:
+    def fail_repo_root():
+        raise AssertionError("repo root should not be resolved for unbound claim")
+
+    monkeypatch.setattr(
+        "colosseum_agent_bridge.desktop_control.default_repo_root",
+        fail_repo_root,
+    )
+    control = ColosseumDesktopController(
+        runtime_root=tmp_path / "runtime",
+        windows=FakeWindows(),
+        cursortouch=FakeCursorTouch(),
+        image_cropper=lambda screenshot, _window: screenshot,
+    )
+
+    claimed = control.claim("controller-a")
+
+    assert claimed["hwnd"] == 101
+    assert "runId" not in claimed
+    assert "pid" not in claimed
+
+
+def test_unbound_reclaim_clears_previous_run_binding(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_id = write_run_receipt(repo_root, pid=1111)
+    control = controller(tmp_path / "runtime", repo_root=repo_root)
+
+    control.claim("controller-a", run_id=run_id)
+    rebound = control.claim("controller-a")
+
+    assert "runId" not in rebound
+    assert "pid" not in rebound
+    lease = control.lease.status()
+    assert "runId" not in lease
+    assert "pid" not in lease
+
+
+def test_run_bound_claim_pins_colosseum_window_owned_by_recorded_pid(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_id = write_run_receipt(repo_root, pid=4242)
+    windows = [
+        WindowInfo(101, "Colosseum", 100, 200, 900, 800),
+        WindowInfo(202, "Colosseum", 200, 250, 1000, 850),
+    ]
+    control = controller(
+        tmp_path / "runtime",
+        windows=windows,
+        pids={101: 1111, 202: 4242},
+        repo_root=repo_root,
+    )
+
+    claimed = control.claim("controller-a", run_id=run_id)
+
+    assert claimed["hwnd"] == 202
+    assert claimed["runId"] == run_id
+    assert claimed["pid"] == 4242
+    lease = control.lease.status()
+    assert lease["hwnd"] == 202
+    assert lease["runId"] == run_id
+    assert lease["pid"] == 4242
+
+
+def test_run_bound_claim_rejects_colosseum_window_from_other_pid(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_id = write_run_receipt(repo_root, pid=4242)
+    control = controller(
+        tmp_path / "runtime",
+        pids={101: 1111},
+        repo_root=repo_root,
+    )
+
+    with pytest.raises(DesktopControlError) as raised:
+        control.claim("controller-a", run_id=run_id)
+
+    assert raised.value.code == "COLOSSEUM_WINDOW_PID_MISMATCH"
+    assert raised.value.details["expectedPid"] == 4242
+    assert control.lease.status() is None
 
 
 def test_click_is_window_relative_and_blocks_until_visual_confirmation(

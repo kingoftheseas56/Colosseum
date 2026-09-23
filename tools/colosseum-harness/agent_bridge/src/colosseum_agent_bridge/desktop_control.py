@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 import uuid
 from io import BytesIO
@@ -35,6 +36,19 @@ class DesktopControlError(RuntimeError):
 def default_runtime_root() -> Path:
     base = os.environ.get("LOCALAPPDATA") or os.environ.get("TEMP") or tempfile.gettempdir()
     return Path(base) / "PreflightAgentRuntime" / "tools"
+
+
+def default_repo_root() -> Path:
+    configured = os.environ.get("COLOSSEUM_ROOT")
+    if configured:
+        return Path(configured).expanduser().resolve()
+    for candidate in Path(__file__).resolve().parents:
+        if (candidate / "native" / "CMakeLists.txt").is_file() and (candidate / "qml").is_dir():
+            return candidate
+    raise DesktopControlError(
+        "COLOSSEUM_ROOT_NOT_FOUND",
+        "could not resolve the Colosseum repository root for run-bound desktop control",
+    )
 
 
 def _utc_now() -> str:
@@ -97,11 +111,13 @@ class ColosseumDesktopController:
         self,
         *,
         runtime_root: Path | None = None,
+        repo_root: Path | None = None,
         windows: Win32WindowApi | None = None,
         cursortouch: CursorTouchClient | None = None,
         image_cropper: Callable[[ScreenshotEvidence, WindowInfo], ScreenshotEvidence] | None = None,
     ) -> None:
         self.runtime_root = Path(runtime_root or default_runtime_root())
+        self.repo_root = Path(repo_root).resolve() if repo_root is not None else None
         self.windows = windows or Win32WindowApi()
         self.cursortouch = cursortouch or CursorTouchClient()
         self.image_cropper = image_cropper or _crop_to_window
@@ -157,18 +173,94 @@ class ColosseumDesktopController:
             ],
         }
 
-    def claim(self, controller_id: str, *, ttl_seconds: int = 300) -> dict[str, Any]:
+    def _run_pid(self, run_id: str) -> int:
+        repo_root = self.repo_root or default_repo_root()
+        repo_root = repo_root.resolve()
+        self.repo_root = repo_root
+        if not re.fullmatch(r"run_[0-9a-f]{32}", run_id):
+            raise DesktopControlError("RUN_ID_INVALID", f"invalid run id: {run_id}")
+        receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
         try:
-            window = self.windows.resolve_unique()
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise DesktopControlError(
+                "RUN_RECEIPT_INVALID",
+                f"cannot read run receipt: {receipt_path}",
+            ) from exc
+        if (
+            not isinstance(receipt, dict)
+            or receipt.get("schema") != "colosseum.harness.run.v1"
+            or receipt.get("runId") != run_id
+            or Path(str(receipt.get("repo", {}).get("root", ""))).resolve() != repo_root
+        ):
+            raise DesktopControlError(
+                "RUN_RECEIPT_INVALID",
+                f"run receipt identity does not match this Colosseum checkout: {receipt_path}",
+            )
+        runtime = receipt.get("runtime")
+        pid = runtime.get("pid") if isinstance(runtime, dict) else None
+        if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+            raise DesktopControlError(
+                "RUN_RUNTIME_NOT_BOUND",
+                f"run has no bound Lanista runtime PID: {run_id}",
+            )
+        return pid
+
+    def _resolve_window_for_pid(self, expected_pid: int) -> WindowInfo:
+        matches = self.windows.list_matching()
+        if not matches:
+            raise DesktopControlError(
+                "COLOSSEUM_WINDOW_NOT_FOUND",
+                "no visible top-level Colosseum window was found",
+                retryable=True,
+            )
+        observed: list[dict[str, int]] = []
+        owned: list[WindowInfo] = []
+        for window in matches:
+            pid = self.windows.process_id(window.hwnd)
+            observed.append({"hwnd": window.hwnd, "pid": pid})
+            if pid == expected_pid:
+                owned.append(window)
+        if not owned:
+            raise DesktopControlError(
+                "COLOSSEUM_WINDOW_PID_MISMATCH",
+                "visible Colosseum window does not belong to the run's recorded PID",
+                retryable=True,
+                details={"expectedPid": expected_pid, "windows": observed},
+            )
+        if len(owned) != 1:
+            raise DesktopControlError(
+                "COLOSSEUM_WINDOW_AMBIGUOUS",
+                "multiple visible Colosseum windows belong to the run's recorded PID",
+                details={"expectedPid": expected_pid, "windows": [item.hwnd for item in owned]},
+            )
+        return owned[0]
+
+    def claim(
+        self,
+        controller_id: str,
+        *,
+        ttl_seconds: int = 300,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            expected_pid = self._run_pid(run_id) if run_id is not None else None
+            window = (
+                self._resolve_window_for_pid(expected_pid)
+                if expected_pid is not None
+                else self.windows.resolve_unique()
+            )
             record = self.lease.acquire(
                 controller_id,
                 ttl_seconds=ttl_seconds,
                 hwnd=window.hwnd,
                 title=window.title,
+                run_id=run_id,
+                pid=expected_pid,
             )
         except BaseException as exc:
             raise self._translate_error(exc) from exc
-        return {
+        result = {
             "claimed": True,
             "controllerId": controller_id,
             "hwnd": window.hwnd,
@@ -178,6 +270,10 @@ class ColosseumDesktopController:
             "expiresAt": record["expiresAt"],
             "sharedLease": "PreflightAgentRuntime/tools/locks/desktop-raw-input.lease",
         }
+        if run_id is not None:
+            result["runId"] = run_id
+            result["pid"] = expected_pid
+        return result
 
     def _owned_window(self, controller_id: str) -> tuple[dict[str, Any], WindowInfo]:
         record = self.lease.assert_owner(controller_id)

@@ -132,6 +132,8 @@ class DesktopLeaseManager:
         ttl_seconds: int,
         hwnd: int,
         title: str,
+        run_id: str | None = None,
+        pid: int | None = None,
     ) -> dict[str, Any]:
         controller = controller.strip()
         if not controller:
@@ -140,6 +142,11 @@ class DesktopLeaseManager:
             raise DesktopLeaseError(
                 "INVALID_ARGUMENT",
                 "ttl_seconds must be between 30 and 900",
+            )
+        if run_id is not None and (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0):
+            raise DesktopLeaseError(
+                "INVALID_ARGUMENT",
+                "run-bound desktop lease requires a positive pid",
             )
         self.locks_root.mkdir(parents=True, exist_ok=True)
 
@@ -159,6 +166,12 @@ class DesktopLeaseManager:
                     current["expiresAt"] = _iso(self._now() + timedelta(seconds=ttl_seconds))
                     current["hwnd"] = int(hwnd)
                     current["title"] = title
+                    if run_id is not None:
+                        current["runId"] = run_id
+                        current["pid"] = int(pid)
+                    else:
+                        current.pop("runId", None)
+                        current.pop("pid", None)
                     return self._write(current)
                 raise DesktopLeaseError(
                     "RESOURCE_BUSY",
@@ -178,6 +191,9 @@ class DesktopLeaseManager:
                 "title": title,
                 "pendingActionId": None,
             }
+            if run_id is not None:
+                record["runId"] = run_id
+                record["pid"] = int(pid)
             try:
                 self.record_path.write_text(
                     json.dumps(record, sort_keys=True) + "\n",

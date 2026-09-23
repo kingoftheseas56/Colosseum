@@ -14,10 +14,14 @@ def run(coro):
 
 
 class FakeController:
+    def __init__(self):
+        self.last_claim = None
+
     def status(self):
         return {"windows": [{"hwnd": 101}], "lease": None}
 
-    def claim(self, controller_id, *, ttl_seconds=120):
+    def claim(self, controller_id, *, ttl_seconds=120, run_id=None):
+        self.last_claim = (controller_id, ttl_seconds, run_id)
         return {"claimed": True, "controllerId": controller_id, "hwnd": 101}
 
     async def observe(self, controller_id):
@@ -88,6 +92,25 @@ def test_desktop_server_exposes_only_guarded_surface() -> None:
     }
 
 
+def test_desktop_claim_forwards_optional_run_id_without_adding_a_tool() -> None:
+    controller = FakeController()
+
+    async def scenario():
+        async with Client(build_desktop_server(controller)) as client:
+            return await client.call_tool(
+                "colosseum_desktop_claim",
+                {
+                    "controller_id": "controller-a",
+                    "ttl_seconds": 300,
+                    "run_id": "run_" + "a" * 32,
+                },
+            )
+
+    result = run(scenario())
+    assert result.is_error is False
+    assert controller.last_claim == ("controller-a", 300, "run_" + "a" * 32)
+
+
 def test_action_returns_json_summary_plus_screenshot_image() -> None:
     async def scenario():
         async with Client(build_desktop_server(FakeController())) as client:
@@ -110,7 +133,7 @@ def test_action_returns_json_summary_plus_screenshot_image() -> None:
 
 def test_control_error_is_structured_tool_error() -> None:
     class Broken(FakeController):
-        def claim(self, controller_id, *, ttl_seconds=120):
+        def claim(self, controller_id, *, ttl_seconds=120, run_id=None):
             raise DesktopControlError(
                 "RESOURCE_BUSY",
                 "desktop already leased",

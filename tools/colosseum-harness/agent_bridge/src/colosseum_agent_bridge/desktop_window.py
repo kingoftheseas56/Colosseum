@@ -196,6 +196,25 @@ class Win32WindowApi:
             bottom=int(rect.bottom),
         )
 
+    def process_id(self, hwnd: int) -> int:
+        if not self.user32.IsWindow(hwnd):
+            raise DesktopLeaseError(
+                "PINNED_WINDOW_GONE",
+                "the Colosseum HWND no longer exists",
+                retryable=True,
+                details={"hwnd": int(hwnd)},
+            )
+        pid = wintypes.DWORD()
+        thread_id = self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if not thread_id or not pid.value:
+            raise DesktopLeaseError(
+                "WINDOW_PROCESS_UNAVAILABLE",
+                "could not resolve the process that owns the Colosseum window",
+                retryable=True,
+                details={"hwnd": int(hwnd)},
+            )
+        return int(pid.value)
+
     def foreground_hwnd(self) -> int:
         return int(self.user32.GetForegroundWindow() or 0)
 

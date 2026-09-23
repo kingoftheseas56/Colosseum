@@ -67,12 +67,14 @@ def build_desktop_server(controller: ColosseumDesktopController) -> MCPServer:
     async def colosseum_desktop_claim(
         controller_id: str,
         ttl_seconds: int = 300,
+        run_id: str | None = None,
     ) -> dict[str, Any]:
-        """Claim exclusive Colosseum desktop control and pin the unique Colosseum HWND."""
+        """Claim Colosseum desktop control; run_id pins the HWND to that run's recorded PID."""
         try:
             return controller.claim(
                 controller_id,
                 ttl_seconds=ttl_seconds,
+                run_id=run_id,
             )
         except DesktopControlError as exc:
             raise _tool_error(exc) from exc
