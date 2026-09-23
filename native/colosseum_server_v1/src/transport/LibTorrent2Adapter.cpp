@@ -115,6 +115,10 @@ lt::add_torrent_params sourceParams(const TorrentOpenRequest &request)
     params.save_path = request.savePath;
     params.flags |= lt::torrent_flags::paused;
     params.flags &= ~lt::torrent_flags::auto_managed;
+    // Infohash and magnet sources gain metadata after suppressAutonomy() has
+    // run, so every piece must already default to dont_download when it
+    // arrives; the source requests nothing until a selection exists.
+    params.flags |= lt::torrent_flags::default_dont_download;
     return params;
 }
 
@@ -196,6 +200,10 @@ public:
         settings.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
         settings.set_bool(lt::settings_pack::enable_dht, false);
         settings.set_bool(lt::settings_pack::enable_lsd, false);
+        // The source swarm dials TCP only: M814 builds it with utp:false, so
+        // M818 never takes its utp.connect branch. libtorrent otherwise dials
+        // uTP first and reaches a TCP-only peer only after the uTP timeout.
+        settings.set_bool(lt::settings_pack::enable_outgoing_utp, false);
         settings.set_bool(lt::settings_pack::enable_upnp, false);
         settings.set_bool(lt::settings_pack::enable_natpmp, false);
         settings.set_bool(lt::settings_pack::allow_multiple_connections_per_ip, true);
@@ -474,6 +482,25 @@ public:
     std::uint64_t guardedNativeTouchCount() const { std::lock_guard<std::mutex> lock(mutex_); return guardedNativeTouches_; }
     std::uint64_t staleDisconnectCount() const { std::lock_guard<std::mutex> lock(mutex_); return staleDisconnectsIgnored_; }
     std::uint64_t staleCallbackCount() const { std::lock_guard<std::mutex> lock(mutex_); return staleCallbacksIgnored_; }
+    // Returns SIZE_MAX when the native state cannot be read, so a caller
+    // expecting zero cannot pass without inspecting real priorities.
+    std::size_t wantedPieceCount() const
+    {
+        constexpr auto unreadable = std::numeric_limits<std::size_t>::max();
+        lt::torrent_handle handle;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            handle = torrent_;
+        }
+        if (!handle.is_valid()) return unreadable;
+        try {
+            if (!handle.torrent_file()) return unreadable;
+            const auto priorities = handle.get_piece_priorities();
+            if (priorities.empty()) return unreadable;
+            return static_cast<std::size_t>(std::count_if(priorities.begin(), priorities.end(),
+                [](lt::download_priority_t priority) { return priority != lt::dont_download; }));
+        } catch (...) { return unreadable; }
+    }
 
     bool replayLastDetached(PeerHandle peer)
     {
@@ -1365,6 +1392,12 @@ std::uint64_t autonomousNativeMutationCount(const ports::TorrentTransport &trans
 {
     const auto *adapter = dynamic_cast<const LibTorrent2Adapter *>(&transport);
     return adapter ? adapter->autonomousMutationCount() : 0;
+}
+
+std::size_t nativeWantedPieceCount(const ports::TorrentTransport &transport)
+{
+    const auto *adapter = dynamic_cast<const LibTorrent2Adapter *>(&transport);
+    return adapter ? adapter->wantedPieceCount() : 0;
 }
 
 std::uint64_t forbiddenNativeAttemptCount(const ports::TorrentTransport &transport)

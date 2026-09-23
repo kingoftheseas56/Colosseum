@@ -1,0 +1,1 @@
+K10-E MAGNET PASS public_connect=1 native_metadata=1 ready=1 duplicate=0

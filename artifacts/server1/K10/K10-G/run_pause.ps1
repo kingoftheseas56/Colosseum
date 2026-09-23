@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '../K10-A/controlled_peer_startup.ps1')
 $exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
 $run = Join-Path $PSScriptRoot ('raw/pause-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
@@ -14,25 +15,16 @@ $hash = (Get-Content -Raw -LiteralPath (Join-Path $run 'info_hash.txt')).Trim()
 $peerScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../K10-A/controlled_peer.py')).Path
 $wireA = Join-Path $run 'active-wire.log'
 $wireB = Join-Path $run 'deferred-wire.log'
-$peerA = Start-Process -FilePath python -ArgumentList @(
+$peerA = Start-ControlledPeer -Log $wireA -Arguments @(
     $peerScript, '--port', [string]$PortA, '--info-hash', $hash,
-    '--log', $wireA, '--pieces', '0,1', '--byte', 'P', '--peer-tag', 'active') `
-    -PassThru -WindowStyle Hidden
-$peerB = Start-Process -FilePath python -ArgumentList @(
+    '--log', $wireA, '--pieces', '0,1', '--byte', 'P', '--peer-tag', 'active')
+$peerB = Start-ControlledPeer -Log $wireB -Arguments @(
     $peerScript, '--port', [string]$PortB, '--info-hash', $hash,
-    '--log', $wireB, '--pieces', '0,1', '--byte', 'P', '--peer-tag', 'deferred') `
-    -PassThru -WindowStyle Hidden
+    '--log', $wireB, '--pieces', '0,1', '--byte', 'P', '--peer-tag', 'deferred')
 try {
-    $deadline = (Get-Date).AddSeconds(5)
-    while ((Get-Date) -lt $deadline) {
-        $listeningA = (Test-Path $wireA) -and (Select-String -Quiet -SimpleMatch 'LISTEN ' $wireA)
-        $listeningB = (Test-Path $wireB) -and (Select-String -Quiet -SimpleMatch 'LISTEN ' $wireB)
-        if ($listeningA -and $listeningB) { break }
-        Start-Sleep -Milliseconds 20
-    }
-    if (-not ($listeningA -and $listeningB)) {
-        throw 'K10-G peer listeners did not start'
-    }
+    Wait-ControlledPeers -Case 'K10-G' -Peers @($peerA, $peerB) -Logs @($wireA, $wireB)
+    $PortA = Get-ControlledPeerPort $wireA
+    $PortB = Get-ControlledPeerPort $wireB
     $candidateTranscript = Join-Path $run 'candidate.transcript'
     & $exe --pause $run $PortA $PortB *> $candidateTranscript
     if ($LASTEXITCODE -ne 0) {
@@ -47,6 +39,7 @@ try {
     }
 }
 
+Assert-NoUtpDial -Case 'K10-G' -Logs @($wireA, $wireB)
 $activeHandshakes = @(Select-String -LiteralPath $wireA -Pattern '^HANDSHAKE ').Count
 $deferredHandshakes = @(Select-String -LiteralPath $wireB -Pattern '^HANDSHAKE ').Count
 $activeRequests = @(Select-String -LiteralPath $wireA -Pattern '^REQUEST .*piece=0 start=0 length=16384$').Count

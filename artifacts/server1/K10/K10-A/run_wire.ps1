@@ -1,5 +1,6 @@
 param([string]$BuildDir = (Join-Path $PSScriptRoot 'build'), [int]$PortA = 49410, [int]$PortB = 49411)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'controlled_peer_startup.ps1')
 $exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
 if (-not (Test-Path -LiteralPath $exe)) { throw "K10 executable missing: $exe" }
 $run = Join-Path $PSScriptRoot ('raw/wire-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
@@ -14,16 +15,10 @@ $argsA = @($peerScript,'--port',[string]$PortA,'--label','K10-A','--info-hash',$
   '--log',$wireA,'--piece-length','16384','--file-length','32768','--first-byte','K','--second-byte','K','--delay-ms','25')
 $argsB = @($peerScript,'--port',[string]$PortB,'--label','K10-B','--info-hash',$hash,
   '--log',$wireB,'--piece-length','16384','--file-length','32768','--first-byte','K','--second-byte','K','--delay-ms','25')
-$peerA = Start-Process -FilePath python -ArgumentList $argsA -PassThru -WindowStyle Hidden
-$peerB = Start-Process -FilePath python -ArgumentList $argsB -PassThru -WindowStyle Hidden
+$peerA = Start-ControlledPeer -Log $wireA -Arguments $argsA
+$peerB = Start-ControlledPeer -Log $wireB -Arguments $argsB
 try {
-  $deadline = (Get-Date).AddSeconds(5)
-  while ((Get-Date) -lt $deadline) {
-    if ((Test-Path $wireA) -and (Test-Path $wireB) -and
-        (Select-String -Quiet -SimpleMatch 'LISTEN ' $wireA) -and
-        (Select-String -Quiet -SimpleMatch 'LISTEN ' $wireB)) { break }
-    Start-Sleep -Milliseconds 20
-  }
+  Wait-ControlledPeers -Case 'K10 wire' -Peers @($peerA, $peerB) -Logs @($wireA, $wireB)
   & $exe --wire $run $PortA $PortB *> (Join-Path $run 'candidate.transcript')
   if ($LASTEXITCODE -ne 0) { throw "K10 wire case failed: $LASTEXITCODE" }
 } finally {

@@ -3,6 +3,7 @@ import binascii
 import os
 import socket
 import struct
+import sys
 import threading
 import time
 
@@ -138,13 +139,57 @@ class ControlledPeer:
                 with open(self.args.disconnect_marker, "w", encoding="utf-8") as marker:
                     marker.write("disconnected\n")
 
-    def serve(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+    def watch_udp(self, probe):
+        # The source swarm dials TCP only (M814 passes utp:false to M818), so
+        # any datagram on the peer's port is a uTP dial the source never makes.
+        while True:
+            try:
+                data, address = probe.recvfrom(2048)
+            except OSError:
+                continue
+            self.log(f"UDP_DATAGRAM bytes={len(data)} remote={address[0]}:{address[1]}")
+
+    @staticmethod
+    def bind_pair(port):
+        # A TCP listener plus a UDP probe on the same port number.
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        stage = "tcp"
+        try:
             server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server.bind(("127.0.0.1", self.args.port))
+            server.bind(("127.0.0.1", port))
+            stage = "udp"
+            probe.bind(("127.0.0.1", server.getsockname()[1]))
+            return server, probe
+        except OSError as error:
+            server.close()
+            probe.close()
+            raise OSError(f"{stage} {error}") from error
+
+    def serve(self):
+        # Windows reserves blocks of ports at run time, so a fixed port can be
+        # unusable. Fall back to an OS-chosen port; runners read the actual
+        # port from the LISTEN line.
+        try:
+            server, probe = self.bind_pair(self.args.port)
+        except OSError as error:
+            self.log(f"PORT_UNAVAILABLE port={self.args.port} error={error}")
+            server = probe = None
+            for _ in range(20):
+                try:
+                    server, probe = self.bind_pair(0)
+                    break
+                except OSError as retry:
+                    error = retry
+            if server is None:
+                self.log(f"BIND_FAILED port={self.args.port} error={error}")
+                sys.exit(2)
+        port = server.getsockname()[1]
+        with server, probe:
             server.listen(8)
             server.settimeout(0.2)
-            self.log(f"LISTEN port={self.args.port}")
+            threading.Thread(target=self.watch_udp, args=(probe,), daemon=True).start()
+            self.log(f"LISTEN port={port}")
             while True:
                 try:
                     conn, address = server.accept()

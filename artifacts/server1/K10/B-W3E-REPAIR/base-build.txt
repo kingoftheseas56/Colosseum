@@ -1,0 +1,103 @@
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Configuring done (6.9s)
+-- Generating done (0.3s)
+-- Build files have been written to: C:/b/server1-bw3e-k10-base-build
+[1/82] Building CXX object CMakeFiles\server1_k09_peer_search.dir\src\discovery\DhtSource.cpp.obj
+[2/82] Building CXX object CMakeFiles\server1_k09_peer_search.dir\src\policy\SwarmCaps.cpp.obj
+[3/82] Building CXX object CMakeFiles\server1_k09_peer_search.dir\src\discovery\TrackerSource.cpp.obj
+[4/82] Building CXX object CMakeFiles\server1_k02_piece_buffer.dir\src\policy\PieceBuffer.cpp.obj
+[5/82] Building CXX object CMakeFiles\server1_k09_peer_search.dir\src\discovery\PeerSearch.cpp.obj
+[6/82] Linking CXX static library server1_k02_piece_buffer.lib
+[7/82] Building CXX object CMakeFiles\server1_k01_metadata.dir\src\policy\VirtualPieceMap.cpp.obj
+[8/82] Building CXX object CMakeFiles\server1_k03_scheduler_selections.dir\src\policy\SchedulerSelections.cpp.obj
+[9/82] Linking CXX static library server1_k09_peer_search.lib
+[10/82] Building CXX object CMakeFiles\server1_k00_policy.dir\src\policy\Value.cpp.obj
+[11/82] Building CXX object CMakeFiles\server1_k04_scheduler_actions.dir\src\policy\SchedulerHotswap.cpp.obj
+[12/82] Building CXX object CMakeFiles\server1_k04_scheduler_actions.dir\src\policy\SchedulerRequests.cpp.obj
+[13/82] Building CXX object CMakeFiles\server1_k00_policy.dir\src\policy\JsConversions.cpp.obj
+[14/82] Linking CXX static library server1_k00_policy.lib
+[15/82] Building CXX object CMakeFiles\server1_k08_file_reader.dir\src\policy\FileReader.cpp.obj
+[16/82] Linking CXX static library server1_k03_scheduler_selections.lib
+[17/82] Building CXX object CMakeFiles\server1_k01_metadata.dir\src\policy\TorrentMetadata.cpp.obj
+[18/82] Building CXX object CMakeFiles\server1_k05_swarm_metadata.dir\src\policy\MetadataExchange.cpp.obj
+[19/82] Building CXX object CMakeFiles\server1_k06_persistent_store.dir\src\storage\VerificationBitmap.cpp.obj
+[20/82] Linking CXX static library server1_k01_metadata.lib
+[21/82] Building CXX object CMakeFiles\server1_k10_native_transport.dir\src\transport\ActionLedger.cpp.obj
+[22/82] Building CXX object CMakeFiles\server1_k05_swarm_metadata.dir\src\policy\SwarmPolicy.cpp.obj
+[23/82] Building CXX object CMakeFiles\server1_k06_persistent_store.dir\src\storage\PersistentPieceStore.cpp.obj
+[24/82] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\src\settings\SettingsStore.cpp.obj
+[25/82] Building CXX object CMakeFiles\server1_k07_circular_store.dir\src\storage\CircularPieceStore.cpp.obj
+[26/82] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\src\platform\DiskSpace.cpp.obj
+[27/82] Linking CXX static library server1_k05_swarm_metadata.lib
+[28/82] Linking CXX static library server1_k06_persistent_store.lib
+[29/82] Linking CXX static library server1_k07_circular_store.lib
+[30/82] Linking CXX static library server1_k04_scheduler_actions.lib
+[31/82] Linking CXX static library server1_k08_file_reader.lib
+[32/82] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\Router.cpp.obj
+[33/82] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\RequestParsing.cpp.obj
+[34/82] Building CXX object CMakeFiles\server1_k13_settings_cache.dir\src\settings\CachePolicy.cpp.obj
+[35/82] Building CXX object CMakeFiles\server1_h00_http.dir\src\http\Connection.cpp.obj
+[36/82] Linking CXX static library server1_k13_settings_cache.lib
+[37/82] Linking CXX static library server1_h00_http.lib
+[38/82] Building CXX object CMakeFiles\server1_k00_js_semantics.dir\tests\test_js_semantics.cpp.obj
+[39/82] Building CXX object CMakeFiles\server1_k01_metadata_geometry.dir\tests\test_metadata_geometry.cpp.obj
+[40/82] Building CXX object CMakeFiles\server1_host.dir\host\main.cpp.obj
+[41/82] Building CXX object CMakeFiles\server1_k11_engine.dir\src\policy\EngineRegistry.cpp.obj
+[42/82] Building CXX object p03-tests\CMakeFiles\server1_k02_piece_buffer_test.dir\test_piece_buffer.cpp.obj
+[43/82] Building CXX object CMakeFiles\server1_m00_process.dir\src\media\ExecutableLocator.cpp.obj
+[44/82] Building CXX object p03-tests\CMakeFiles\server1_k03_scheduler_selections_test.dir\test_scheduler_selections.cpp.obj
+[45/82] Building CXX object p03-tests\CMakeFiles\server1_k05_swarm_metadata_test.dir\test_swarm_metadata.cpp.obj
+[46/82] Building CXX object CMakeFiles\server1_m00_process.dir\src\media\ProcessDriver.cpp.obj
+[47/82] Linking CXX static library server1_m00_process.lib
+[48/82] Building CXX object CMakeFiles\server1_k11_engine.dir\src\policy\TorrentEngine.cpp.obj
+[49/82] Building CXX object p03-tests\CMakeFiles\server1_k13_settings_cache_test.dir\test_settings_cache.cpp.obj
+[50/82] Building CXX object p03-tests\CMakeFiles\server1_k04_scheduler_actions_test.dir\test_scheduler_requests.cpp.obj
+[51/82] Building CXX object p03-tests\CMakeFiles\server1_k07_circular_store_test.dir\test_circular_store.cpp.obj
+[52/82] Building CXX object p03-tests\CMakeFiles\server1_k09_peer_search_test.dir\test_peer_search.cpp.obj
+[53/82] Building CXX object p03-tests\CMakeFiles\server1_k06_persistent_store_test.dir\test_persistent_store.cpp.obj
+[54/82] Building CXX object CMakeFiles\server1_k10_native_transport.dir\src\transport\PeerPlugin.cpp.obj
+[55/82] Linking CXX executable server1_host.exe
+[56/82] Linking CXX executable server1_k00_js_semantics.exe
+[57/82] Linking CXX executable server1_k01_metadata_geometry.exe
+[58/82] Linking CXX executable p03-tests\server1_k13_settings_cache_test.exe
+[59/82] Linking CXX executable p03-tests\server1_k02_piece_buffer_test.exe
+[60/82] Building CXX object p03-tests\CMakeFiles\server1_h00_http_contract.dir\test_http_contract.cpp.obj
+[61/82] Linking CXX executable p03-tests\server1_k05_swarm_metadata_test.exe
+[62/82] Linking CXX executable p03-tests\server1_k06_persistent_store_test.exe
+[63/82] Linking CXX executable p03-tests\server1_h00_http_contract.exe
+[64/82] Linking CXX executable p03-tests\server1_k03_scheduler_selections_test.exe
+[65/82] Building CXX object p03-tests\CMakeFiles\server1_k08_file_reader_test.dir\test_file_reader.cpp.obj
+[66/82] Linking CXX executable p03-tests\server1_k07_circular_store_test.exe
+[67/82] Linking CXX executable p03-tests\server1_k09_peer_search_test.exe
+[68/82] Linking CXX executable p03-tests\server1_k04_scheduler_actions_test.exe
+[69/82] Linking CXX executable p03-tests\server1_k08_file_reader_test.exe
+[70/82] Building CXX object CMakeFiles\server1_m00_process_tests.dir\tests\test_process_driver.cpp.obj
+[71/82] Building CXX object p03-tests\CMakeFiles\server1_p08_torrent_transport_contract_test.dir\test_torrent_transport_contract.cpp.obj
+[72/82] Linking CXX executable server1_m00_process_tests.exe
+[73/82] Linking CXX executable p03-tests\server1_p08_torrent_transport_contract_test.exe
+[74/82] Building CXX object p03-tests\CMakeFiles\server1_spine_contracts_link_test.dir\test_spine_contracts.cpp.obj
+[75/82] Building CXX object CMakeFiles\server1_k10_native_transport.dir\src\transport\LibTorrent2Adapter.cpp.obj
+[76/82] Linking CXX static library server1_k10_native_transport.lib
+[77/82] Linking CXX static library server1_k11_engine.lib
+[78/82] Linking CXX executable p03-tests\server1_spine_contracts_link_test.exe
+[79/82] Building CXX object p03-tests\CMakeFiles\server1_k11_engine_registry_test.dir\test_engine_registry.cpp.obj
+[80/82] Linking CXX executable p03-tests\server1_k11_engine_registry_test.exe
+[81/82] Building CXX object p03-tests\CMakeFiles\server1_k10_native_transport_test.dir\test_native_transport.cpp.obj
+[82/82] Linking CXX executable p03-tests\server1_k10_native_transport_test.exe

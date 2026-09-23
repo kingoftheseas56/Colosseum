@@ -1,0 +1,18 @@
+K10-E infohash pass=100 fail=0
+K10-E magnet pass=100 fail=0
+K10 label run 1 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 2 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 3 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 4 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 5 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 6 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 7 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 8 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 9 exit 0 100% tests passed, 0 tests failed out of 19
+K10 label run 10 exit 0 100% tests passed, 0 tests failed out of 19
+aggregate run 1 exit 0 100% tests passed, 0 tests failed out of 67
+aggregate run 2 exit 0 100% tests passed, 0 tests failed out of 67
+aggregate run 3 exit 0 100% tests passed, 0 tests failed out of 67
+aggregate run 4 exit 0 100% tests passed, 0 tests failed out of 67
+aggregate run 5 exit 0 100% tests passed, 0 tests failed out of 67
+DONE

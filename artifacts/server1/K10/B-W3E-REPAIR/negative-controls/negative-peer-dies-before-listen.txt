@@ -1,0 +1,1 @@
+CAUGHT after 446 ms: NEGATIVE controlled peer exited before LISTEN (exit=1): self.info_hash = binascii.unhexlify(args.info_hash)                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ binascii.Error: Non-hexadecimal digit found

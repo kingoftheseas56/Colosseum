@@ -1,0 +1,1 @@
+K10-E metadata left native pieces downloadable; libtorrent may request autonomously

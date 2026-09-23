@@ -1,0 +1,94 @@
+{
+  "schema": "colosseum-server1-repair-receipt/v1",
+  "packet": "K10 (predecessor repair for B-W3E)",
+  "producer": "[Agent (Claude), K10 repair producer]",
+  "requested_by": "[Agent 4 (Codex), stream mode] REQUEST-CHANGES on B-W3E candidate 29543f94ce56f70d6f1431062642198a60aa2e7a, 2026-09-23",
+  "date": "2026-09-23",
+  "branch": "sol/server1-w3-engine-v3-20260915",
+  "input_head": "29543f94ce56f70d6f1431062642198a60aa2e7a",
+  "source_trace": "artifacts/server1/K10/B-W3E-REPAIR/SOURCE-TRACE.md",
+  "frozen_source_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "changed_files": {
+    "production": [
+      "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp: enable_outgoing_utp=false; torrent_flags::default_dont_download in sourceParams; wantedPieceCount test hook"
+    ],
+    "tests": [
+      "native/colosseum_server_v1/tests/test_native_transport.cpp: K10-E asserts nativeWantedPieceCount==0 after metadata; clearer late-observation message"
+    ],
+    "harness": [
+      "artifacts/server1/K10/K10-A/controlled_peer.py: UDP probe (UDP_DATAGRAM), PORT_UNAVAILABLE fallback, BIND_FAILED",
+      "artifacts/server1/K10/K10-A/controlled_peer_startup.ps1 (new): Start-ControlledPeer, Wait-ControlledPeers, Get-ControlledPeerPort, Assert-NoUtpDial",
+      "artifacts/server1/K10/K10-A/run_{cancel_drain,failure_drain,have,reuse,sequential,submit_ready,thread_guard}.ps1: helpers, actual port, no-uTP assertion",
+      "artifacts/server1/K10/K10-A/run_{wire,lifecycle}.ps1: startup check only (P08 tiny_peer)",
+      "artifacts/server1/K10/K10-G/run_pause.ps1: helpers, actual ports, no-uTP assertion"
+    ],
+    "unchanged": [
+      "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h (blob 11ebfd13fc04cebc3c89969461941ecd90daac07)",
+      "native/colosseum_server_v1/tests/cmake/K10.cmake and cmake/packets/K10.cmake",
+      "artifacts/server1/P08/**",
+      "all 5 s readiness deadlines"
+    ]
+  },
+  "findings": {
+    "readiness_flake": {
+      "cause": "libtorrent dials uTP first; TCP-only controlled peers are reached only after the ~3.05 s uTP timeout plus a ~1.03 s tick, landing at ~4.6 s or ~5.1 s against 5 s deadlines",
+      "source_validation": "M814 lines 72453-72457 build the swarm with utp:!1; M818 72836 defaults utp false, 72885 opens a uTP server only if utp, 72932-72934 dials net.connect otherwise. The source dials TCP only.",
+      "repair": "enable_outgoing_utp=false (source parity); deadlines unchanged",
+      "red": "hardened runners vs unfixed build C:/b/server1-bw3e-k10-base-build: 8/8 fail in both runs; first run 7 via the uTP-datagram assertion and K10-G via readiness (red/red-utp-base.txt); final scripts 6 via the uTP assertion, sequential-wire and K10-G via the readiness deadline the uTP delay causes (red/red-utp-base-final-scripts.txt)",
+      "green": "final build: K10 label 190/190 across 10 runs; zero UDP_DATAGRAM lines"
+    },
+    "K10_E_source_infohash": {
+      "cause": "metadata sources never received dont_download: suppressAutonomy() runs at add time before metadata exists; after metadata libtorrent's picker could request, the write firewall blocked it and emitted FailureObservation 'unowned request reached write firewall' (seen via the diagnostic build, k10e-base-diag/run-73.txt, run-95.txt)",
+      "base_rate": "direct base binary 96/100 (k10e-base/); diagnostic build 98/100",
+      "repair": "lt::torrent_flags::default_dont_download in sourceParams (locked 2.0.11 torrent_flags.hpp:294)",
+      "red": "new assertion nativeWantedPieceCount==0 fails 6/6 (infohash x3, magnet x3) on C:/b/server1-bw3e-k10-red-build (hook present, flag absent); red/red-K10-E-*.txt",
+      "green": "final build: infohash 100/100, magnet 100/100"
+    },
+    "K10_H_caps_once": {
+      "evidence": "failing run K10-H/raw/upload-20260923-132205130: peer 0 received its first adapter byte (HAVE piece=0) ~18 s after start, at the instant of failure; the connection was late and admission logic behaved correctly",
+      "assessment": "consistent with uTP-first dialing under heavy concurrent load; not reproduced; not proven",
+      "post_repair": "15/15 K10-H passes on the final build; duration 20.8-33.1 s vs 47.5-65.4 s before"
+    },
+    "controlled_peer_startup": {
+      "repair": "fail fast with cause on early exit or missing LISTEN; fixed-port fallback; runners use the bound port",
+      "negative_controls": {
+        "reserved_port_49700_before_fallback": "fails in 3.1 s: BIND_FAILED port=49700 [WinError 10013] (negative-controls/negative-excluded-port-before-fallback.txt)",
+        "reserved_port_49700_after_fallback": "PORT_UNAVAILABLE ... tcp [WinError 10013]; LISTEN port=5246; case PASS (negative-controls/negative-excluded-port-fallback.txt)",
+        "peer_dies_before_listen": "caught in 446 ms with the peer's own Python error (negative-controls/negative-peer-dies-before-listen.txt)"
+      },
+      "round1_harness_failure": "stability round 1 K10 run 4: live-reuse peer BIND_FAILED on 49813 with WinError 10013 (stability-round1/bind-failure/); led to the fallback"
+    }
+  },
+  "builds": {
+    "base_unfixed": {"path": "C:/b/server1-bw3e-k10-base-build", "source": "29543f94", "log": "base-build.txt", "result": "82/82"},
+    "red_hook_without_flag": {"path": "C:/b/server1-bw3e-k10-red-build", "target": "server1_k10_native_transport_test", "log": "red/red-build.txt"},
+    "round1_repair": {"path": "C:/b/server1-bw3e-k10-repair-build", "note": "before the hook sentinel change; stability-round1 only"},
+    "final": {"path": "C:/b/server1-bw3e-final-build", "log": "final-build.txt", "result": "fresh 82/82"}
+  },
+  "commands": {
+    "configure": "vcvars64 (VS 2022 Community) && cmake -S C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1 -B C:/b/server1-bw3e-final-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe",
+    "build": "cmake --build C:/b/server1-bw3e-final-build",
+    "k10e": "C:/b/server1-bw3e-final-build/p03-tests/server1_k10_native_transport_test.exe --source-{infohash,magnet} <fresh dir>, 100 times each",
+    "k10": "ctest --test-dir C:/b/server1-bw3e-final-build -L K10 --output-on-failure -j 1, 10 times",
+    "aggregate": "ctest --test-dir C:/b/server1-bw3e-final-build --output-on-failure -j 1, 5 times",
+    "path": "PowerShell 7.5.4 (C:/vcpkg/downloads/tools/powershell-core-7.5.4-windows) and C:/Qt/Tools/CMake_64/bin prepended; Qt bin NOT on PATH"
+  },
+  "final_gates": {
+    "K10_E": "infohash 100/100, magnet 100/100",
+    "K10_label": "10/10 runs, 190/190 executions",
+    "aggregate": "5/5 runs, 335/335 executions; 67.4-80.4 s per run (was 153.6-171.8 s)",
+    "raw": "artifacts/server1/K10/B-W3E-REPAIR/final-gates/"
+  },
+  "stability_history": {
+    "round1": "repair build before fallback and hook sentinel: K10-E 200/200, K10 label 189/190 (harness bind failure), aggregate 335/335; stability-round1/",
+    "round2": "stopped after its RED step to rebuild with the hook sentinel; RED 8/8 recorded in red/red-utp-base-final-scripts.txt",
+    "final": "all green, as above"
+  },
+  "remaining_risks": [
+    "Incoming uTP remains enabled although the source opens no uTP server; no K10 test exercises inbound uTP.",
+    "run_wire.ps1 and run_lifecycle.ps1 use P08 tiny_peer.py on fixed ports without fallback; a runtime port reservation now fails fast with the cause but still fails.",
+    "The single K10-H caps failure was not reproduced; its link to uTP-first dialing is supported, not proven.",
+    "default_dont_download is applied to metainfo sources too; suppressAutonomy() already set dont_download for them, so behaviour is unchanged, confirmed by the K10 and aggregate gates."
+  ],
+  "status": "repair committed on the candidate branch; pending Agent 4 review with B-W3E"
+}

@@ -1,0 +1,14 @@
+DIAG 1790153481517 listen_succeeded: successfully listening on [TCP] 127.0.0.1:5647
+DIAG 1790153481518 listen_succeeded: successfully listening on [uTP] 127.0.0.1:5647
+DIAG 1790153481518 torrent_added: d15678c5f0fd359e4702d114fb0eb78936d20152 added
+DIAG 1790153481518 state_changed: d15678c5f0fd359e4702d114fb0eb78936d20152: state changed to: dl metadata
+DIAG 1790153481518 add_torrent: added torrent: d15678c5f0fd359e4702d114fb0eb78936d20152
+DIAG 1790153481532 torrent_resumed: d15678c5f0fd359e4702d114fb0eb78936d20152 resumed
+DIAG 1790153482033 peer_connect: d15678c5f0fd359e4702d114fb0eb78936d20152 peer [ 127.0.0.1:5642 client: Unknown ] outgoing connection to peer (uTP)
+DIAG 1790153482033 metadata_received: K10-wire.bin metadata successfully received
+DIAG 1790153482038 state_changed: K10-wire.bin: state changed to: checking (r)
+DIAG 1790153482296 state_changed: K10-wire.bin: state changed to: downloading
+DIAG 1790153482296 torrent_checked: K10-wire.bin checked
+DIAG late observation index=2 Failure unowned request reached write firewall
+DIAG late observation index=2 Failure unowned request reached write firewall
+K10-E real libtorrent metadata repeated

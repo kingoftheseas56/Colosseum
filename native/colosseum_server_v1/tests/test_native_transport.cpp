@@ -36,6 +36,7 @@ bool forbiddenCrossThreadNativeAccessIsRejected(ports::TorrentTransport &);
 std::uint64_t framedRequestCount(const ports::TorrentTransport &);
 std::uint64_t ownedNativeAddCount(const ports::TorrentTransport &);
 std::uint64_t autonomousNativeMutationCount(const ports::TorrentTransport &);
+std::size_t nativeWantedPieceCount(const ports::TorrentTransport &);
 std::uint64_t forbiddenNativeAttemptCount(const ports::TorrentTransport &);
 std::uint64_t guardedNativeTouchCount(const ports::TorrentTransport &);
 std::uint64_t staleDisconnectIgnoredCount(const ports::TorrentTransport &);
@@ -1095,8 +1096,11 @@ void casePeerMetadata(const fs::path &directory, bool magnet)
         expect(metadata.urlSeeds == std::vector<std::string>{magnetUrlSeed},
                "K10-E magnet ready observation did not carry normalized live URL seeds");
     }
+    expect(server1::transport::nativeWantedPieceCount(*transport) == 0,
+           "K10-E metadata left native pieces downloadable; libtorrent may request autonomously");
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
-    expect(transport->poll().empty(), "K10-E real libtorrent metadata repeated");
+    expect(transport->poll().empty(),
+           "K10-E observation after metadata readiness (repeated metadata or blocked native request)");
     transport->close();
     std::cout << "K10-E " << (magnet ? "MAGNET" : "INFOHASH")
               << " PASS public_connect=1 native_metadata=1 ready=1 duplicate=0\n";

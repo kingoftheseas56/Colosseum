@@ -4,6 +4,7 @@ param(
   [int]$SurvivingPort = 49816
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'controlled_peer_startup.ps1')
 $exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
 $run = Join-Path $PSScriptRoot ('raw/failure-drain-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
@@ -12,18 +13,17 @@ if ($LASTEXITCODE -ne 0) { throw "K10 failure-drain prepare failed: $LASTEXITCOD
 $hash = (Get-Content -Raw -LiteralPath (Join-Path $run 'info_hash.txt')).Trim()
 $failingWire = Join-Path $run 'failing-peer-wire.log'
 $survivingWire = Join-Path $run 'surviving-peer-wire.log'
-$failing = Start-Process -FilePath python -ArgumentList @(
+$failing = Start-ControlledPeer -Log $failingWire -Arguments @(
   (Join-Path $PSScriptRoot 'controlled_peer.py'),'--port',[string]$FailingPort,
   '--info-hash',$hash,'--log',$failingWire,'--pieces','0','--peer-tag','fail',
-  '--disconnect-on-request') -PassThru -WindowStyle Hidden
-$surviving = Start-Process -FilePath python -ArgumentList @(
+  '--disconnect-on-request')
+$surviving = Start-ControlledPeer -Log $survivingWire -Arguments @(
   (Join-Path $PSScriptRoot 'controlled_peer.py'),'--port',[string]$SurvivingPort,
-  '--info-hash',$hash,'--log',$survivingWire,'--pieces','1','--peer-tag','survive') -PassThru -WindowStyle Hidden
+  '--info-hash',$hash,'--log',$survivingWire,'--pieces','1','--peer-tag','survive')
 try {
-  $deadline = (Get-Date).AddSeconds(5)
-  while ((Get-Date) -lt $deadline -and -not (
-      (Test-Path $failingWire) -and (Select-String -Quiet -SimpleMatch 'LISTEN ' $failingWire) -and
-      (Test-Path $survivingWire) -and (Select-String -Quiet -SimpleMatch 'LISTEN ' $survivingWire))) { Start-Sleep -Milliseconds 20 }
+  Wait-ControlledPeers -Case 'K10 failure-drain' -Peers @($failing, $surviving) -Logs @($failingWire, $survivingWire)
+  $FailingPort = Get-ControlledPeerPort $failingWire
+  $SurvivingPort = Get-ControlledPeerPort $survivingWire
   & $exe --failure-drain $run $FailingPort $SurvivingPort *> (Join-Path $run 'candidate.transcript')
   if ($LASTEXITCODE -ne 0) { throw "K10 failure-drain case failed: $LASTEXITCODE" }
 } finally {
@@ -31,6 +31,7 @@ try {
     if ($peer -and -not $peer.HasExited) { Stop-Process -Id $peer.Id -Force -ErrorAction SilentlyContinue }
   }
 }
+Assert-NoUtpDial -Case 'K10 failure-drain' -Logs @($failingWire, $survivingWire)
 $failingRequests = @(Select-String -LiteralPath $failingWire -Pattern '^REQUEST ' | ForEach-Object Line)
 $survivingRequests = @(Select-String -LiteralPath $survivingWire -Pattern '^REQUEST ' | ForEach-Object Line)
 if ($failingRequests.Count -ne 1 -or $failingRequests[0] -notmatch 'piece=0 start=0 length=16384$') {

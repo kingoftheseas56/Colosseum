@@ -1,0 +1,6 @@
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:31[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  31 | [0m .             [36;1mthrow "$Case controlled peer exited before LISTEN (exit=$[0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 sequential controlled peer exited before LISTEN (exit=2): BIND_FAILED port=49700 error=[WinError 10013] An[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1mattempt was made to access a socket in a way forbidden by its access permissions[0m

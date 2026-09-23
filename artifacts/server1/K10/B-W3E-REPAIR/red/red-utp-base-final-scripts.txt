@@ -1,0 +1,94 @@
+Internal ctest changing into directory: C:/b/server1-bw3e-k10-base-build
+Test project C:/b/server1-bw3e-k10-base-build
+    Start 45: K10-01-native-transport-submit-after-ready
+1/8 Test #45: K10-01-native-transport-submit-after-ready ...***Failed    9.85 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:47[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  47 | [0m             [36;1mthrow "$Case transport dialed a controlled peer over uTP [0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 submit-after-ready transport dialed a controlled peer over uTP (1 UDP datagrams in peer-wire.log); the[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1msource swarm dials TCP only[0m
+
+    Start 46: K10-02-native-transport-sequential-wire
+2/8 Test #46: K10-02-native-transport-sequential-wire ......***Failed    9.76 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\run_sequential.ps1:18[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  18 | [0m . EXITCODE -ne 0) { [36;1mthrow "K10 sequential case failed: $LASTEXITCODE"[0m }[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 sequential case failed: 1[0m
+
+    Start 47: K10-02-native-transport-have-wire
+3/8 Test #47: K10-02-native-transport-have-wire ............***Failed    8.19 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:47[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  47 | [0m             [36;1mthrow "$Case transport dialed a controlled peer over uTP [0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 HAVE transport dialed a controlled peer over uTP (1 UDP datagrams in peer-wire.log); the source swarm dials[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1mTCP only[0m
+
+    Start 48: K10-02-native-transport-live-reuse
+4/8 Test #48: K10-02-native-transport-live-reuse ...........***Failed    8.50 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:47[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  47 | [0m             [36;1mthrow "$Case transport dialed a controlled peer over uTP [0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 live reuse transport dialed a controlled peer over uTP (1 UDP datagrams in peer-wire.log); the source swarm[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1mdials TCP only[0m
+
+    Start 49: K10-02-native-transport-failure-drain
+5/8 Test #49: K10-02-native-transport-failure-drain ........***Failed    8.41 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:47[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  47 | [0m             [36;1mthrow "$Case transport dialed a controlled peer over uTP [0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 failure-drain transport dialed a controlled peer over uTP (1 UDP datagrams in failing-peer-wire.log); the[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1msource swarm dials TCP only[0m
+
+    Start 50: K10-02-native-transport-cancel-drain
+6/8 Test #50: K10-02-native-transport-cancel-drain .........***Failed    8.28 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:47[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  47 | [0m             [36;1mthrow "$Case transport dialed a controlled peer over uTP [0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 cancel-drain transport dialed a controlled peer over uTP (1 UDP datagrams in peer-wire.log); the source[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1mswarm dials TCP only[0m
+
+    Start 52: K10-03-native-transport
+7/8 Test #52: K10-03-native-transport ......................***Failed    8.02 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\controlled_peer_startup.ps1:47[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  47 | [0m             [36;1mthrow "$Case transport dialed a controlled peer over uTP [0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 thread guard transport dialed a controlled peer over uTP (1 UDP datagrams in peer-wire.log); the source[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1mswarm dials TCP only[0m
+
+    Start 61: K10-G-transport-pause-generation
+8/8 Test #61: K10-G-transport-pause-generation .............***Failed    9.82 sec
+K10-G active peer peer readiness failed connected=0 unchoked=0
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-G\run_pause.ps1:32[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  32 | [0m         [36;1mthrow "K10-G pause case failed: $LASTEXITCODE"[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10-G pause case failed: 1[0m
+
+
+0% tests passed, 8 tests failed out of 8
+
+Label Time Summary:
+K10        =  60.99 sec*proc (7 tests)
+K10-G      =   9.82 sec*proc (1 test)
+native     =  70.81 sec*proc (8 tests)
+server1    =  70.81 sec*proc (8 tests)
+
+Total Test time (real) =  71.00 sec
+
+The following tests FAILED:
+	 45 - K10-01-native-transport-submit-after-ready (Failed)
+	 46 - K10-02-native-transport-sequential-wire (Failed)
+	 47 - K10-02-native-transport-have-wire (Failed)
+	 48 - K10-02-native-transport-live-reuse (Failed)
+	 49 - K10-02-native-transport-failure-drain (Failed)
+	 50 - K10-02-native-transport-cancel-drain (Failed)
+	 52 - K10-03-native-transport (Failed)
+	 61 - K10-G-transport-pause-generation (Failed)
+Errors while running CTest

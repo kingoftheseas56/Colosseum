@@ -1,0 +1,52 @@
+Internal ctest changing into directory: C:/b/server1-bw3e-k10-repair-build
+Test project C:/b/server1-bw3e-k10-repair-build
+      Start 44: K10-01-native-transport-real-wire
+ 1/19 Test #44: K10-01-native-transport-real-wire ............   Passed    4.78 sec
+      Start 45: K10-01-native-transport-submit-after-ready
+ 2/19 Test #45: K10-01-native-transport-submit-after-ready ...   Passed    7.07 sec
+      Start 46: K10-02-native-transport-sequential-wire
+ 3/19 Test #46: K10-02-native-transport-sequential-wire ......   Passed    8.94 sec
+      Start 47: K10-02-native-transport-have-wire
+ 4/19 Test #47: K10-02-native-transport-have-wire ............   Passed    7.48 sec
+      Start 48: K10-02-native-transport-live-reuse
+ 5/19 Test #48: K10-02-native-transport-live-reuse ...........   Passed    7.96 sec
+      Start 49: K10-02-native-transport-failure-drain
+ 6/19 Test #49: K10-02-native-transport-failure-drain ........   Passed    6.57 sec
+      Start 50: K10-02-native-transport-cancel-drain
+ 7/19 Test #50: K10-02-native-transport-cancel-drain .........   Passed    5.39 sec
+      Start 51: K10-02-native-transport
+ 8/19 Test #51: K10-02-native-transport ......................   Passed    1.96 sec
+      Start 52: K10-03-native-transport
+ 9/19 Test #52: K10-03-native-transport ......................   Passed    8.23 sec
+      Start 53: K10-02-native-transport-lifecycle
+10/19 Test #53: K10-02-native-transport-lifecycle ............   Passed   19.18 sec
+      Start 54: K10-E-transport-source-invalid
+11/19 Test #54: K10-E-transport-source-invalid ...............   Passed    0.08 sec
+      Start 55: K10-E-transport-source-generation
+12/19 Test #55: K10-E-transport-source-generation ............   Passed    0.08 sec
+      Start 56: K10-E-transport-source-cached
+13/19 Test #56: K10-E-transport-source-cached ................   Passed    0.50 sec
+      Start 57: K10-E-transport-source-mismatch
+14/19 Test #57: K10-E-transport-source-mismatch ..............   Passed    0.14 sec
+      Start 58: K10-E-transport-source-infohash
+15/19 Test #58: K10-E-transport-source-infohash ..............   Passed    0.99 sec
+      Start 59: K10-E-transport-source-magnet
+16/19 Test #59: K10-E-transport-source-magnet ................   Passed    1.10 sec
+      Start 60: K10-E-transport-source-close
+17/19 Test #60: K10-E-transport-source-close .................   Passed    0.54 sec
+      Start 61: K10-G-transport-pause-generation
+18/19 Test #61: K10-G-transport-pause-generation .............   Passed    5.85 sec
+      Start 62: K10-H-transport-upload-real-wire
+19/19 Test #62: K10-H-transport-upload-real-wire .............   Passed   43.02 sec
+
+100% tests passed, 0 tests failed out of 19
+
+Label Time Summary:
+K10        =  77.58 sec*proc (10 tests)
+K10-E      =   3.42 sec*proc (7 tests)
+K10-G      =   5.85 sec*proc (1 test)
+K10-H      =  43.02 sec*proc (1 test)
+native     = 129.87 sec*proc (19 tests)
+server1    = 129.87 sec*proc (19 tests)
+
+Total Test time (real) = 129.99 sec
