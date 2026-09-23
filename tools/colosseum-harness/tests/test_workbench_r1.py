@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import subprocess
@@ -593,6 +594,123 @@ class WorkbenchR1Tests(unittest.TestCase):
         self.assertEqual(packet["domains"][0]["owners"][0]["name"], "RatingsOwner")
         self.assertEqual(packet["activeArcs"][0]["id"], "49")
         self.assertIn("Windows runtime proof required.", packet["knownConstraints"])
+
+    def test_context_for_task_record_run_writes_reloadable_receipt(self) -> None:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        owner = src / "owner.cpp"
+        owner.write_text("// owner\n", encoding="utf-8")
+        check = self.root / "tests" / "test_alpha.py"
+        check.write_text("print('ok')\n", encoding="utf-8")
+        self.commit_fixture()
+        map_path = Path(self.tmp.name) / "run-map.json"
+        self._write_semantic_map(
+            map_path,
+            [{
+                "id": "alpha",
+                "display_name": "Alpha",
+                "aliases": ["alpha"],
+                "source_roots": ["src"],
+                "entry_points": ["src/owner.cpp"],
+                "owners": [{"path": "src/owner.cpp"}],
+                "ctests": [],
+                "checks": ["tests/test_alpha.py"],
+                "lanista_scenarios": [],
+                "context": [],
+                "platform_constraints": [],
+                "relations": [],
+            }],
+            ["src", "tests"],
+        )
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "--map", str(map_path),
+            "context-for-task",
+            "Fix alpha",
+            "--path", "src/owner.cpp",
+            "--record-run",
+        ])
+        payload = cli.dispatch(ns)
+
+        run_id = payload["data"]["runId"]
+        receipt_path = Path(payload["data"]["receiptPath"])
+        self.assertRegex(run_id, r"^run_[0-9a-f]{32}$")
+        self.assertEqual(
+            receipt_path,
+            self.root / "artifacts" / "harness-runs" / run_id / "run.json",
+        )
+        receipt = cli.load_run_receipt(receipt_path)
+        self.assertEqual(receipt["schema"], "colosseum.harness.run.v1")
+        self.assertEqual(receipt["runId"], run_id)
+        self.assertEqual(receipt["task"], "Fix alpha")
+        self.assertEqual(receipt["repo"]["root"], str(self.root.resolve()))
+        self.assertEqual(receipt["repo"]["head"], cli.repo_snapshot(self.root)["head"])
+        self.assertEqual(receipt["paths"], ["src/owner.cpp"])
+        self.assertEqual(
+            receipt["source"][0],
+            {
+                "path": "src/owner.cpp",
+                "exists": True,
+                "sha256": hashlib.sha256(owner.read_bytes()).hexdigest(),
+                "sizeBytes": owner.stat().st_size,
+            },
+        )
+        self.assertEqual(
+            [item["selector"] for item in receipt["verification"]["selectedChecks"]],
+            ["tests/test_alpha.py"],
+        )
+        self.assertIsNone(receipt["build"])
+        self.assertIsNone(receipt["runtime"])
+        self.assertEqual(receipt["desktopEvidence"], [])
+        self.assertIsNone(receipt["result"])
+        self.assertFalse(receipt["completionReady"])
+
+    def test_context_for_task_record_run_requires_explicit_paths(self) -> None:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+        map_path = Path(self.tmp.name) / "run-scope-map.json"
+        self._write_semantic_map(
+            map_path,
+            [{
+                "id": "alpha", "aliases": ["alpha"], "source_roots": ["src"],
+                "entry_points": ["src/owner.cpp"], "owners": [{"path": "src/owner.cpp"}],
+                "ctests": [], "checks": [], "lanista_scenarios": [], "context": [],
+                "platform_constraints": [], "relations": [],
+            }],
+            ["src"],
+        )
+
+        plain = cli.context_for_task(self.root, str(map_path), "alpha")
+        self.assertEqual(plain["domains"][0]["id"], "alpha")
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root), "--map", str(map_path),
+            "context-for-task", "alpha", "--record-run",
+        ])
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+        self.assertEqual(raised.exception.code, "RUN_SCOPE_REQUIRED")
+
+    def test_context_for_task_record_run_refuses_directory_scope(self) -> None:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+        map_path = Path(self.tmp.name) / "run-directory-map.json"
+        self._write_semantic_map(map_path, [], ["src"])
+
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.create_run_receipt(self.root, "alpha", ["src"], str(map_path), [], [])
+        self.assertEqual(raised.exception.code, "RUN_SCOPE_NOT_FILE")
 
     def test_context_for_task_reads_bounded_mapped_preflight_authority(self) -> None:
         (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")

@@ -64,9 +64,15 @@ Task context requires a fresh semantic working-tree fingerprint:
 
 ```powershell
 python run.py --root $root --map $map context-for-task "Fix ratings opening" --path native/account/RatingsReviewsController.cpp
+python run.py --root $root --map $map context-for-task "Fix ratings opening" --path native/account/RatingsReviewsController.cpp --record-run
 ```
 
 A legacy map without semantic freshness metadata remains usable for the original inspection surfaces, but `context-for-task` fails closed with `MAP_STALE` / freshness `UNKNOWN` rather than presenting old architecture as current truth.
+
+`--record-run` requires at least one explicit file `--path`. It writes one small
+`artifacts\harness-runs\<runId>\run.json` receipt containing the task, exact
+repo/file state and selected existing checks, with build/runtime/desktop/result
+slots left empty for later evidence. `artifacts/` remains ignored by Git.
 
 CTest resolution:
 
