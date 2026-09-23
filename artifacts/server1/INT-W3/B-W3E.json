@@ -126,7 +126,7 @@
   ],
   "push": "sol/server1-w3-engine-v3-20260915 pushed to origin; feature/colosseum-server-1.0 and master untouched",
   "official_feature_checkout": "C:/b/Colosseum-Server-1.0 at b28e2dfe with docs/build/linux.md, macos.md, windows.md still deleted (untouched)",
-  "status": "candidate revision 3; test-reported; pending Agent 4 independent B-W3E review (includes the K10 repair)",
+  "status": "accepted",
   "scope_note": "B-W3E candidate only. Not accepted. No K12, H01, H02, app integration, packaging, playback, frozen TorrentTransport change, official feature, or master change.",
   "revision_2": {
     "integration_sha": "049769013956f07e2f9484084d472ce3978a0917",
@@ -138,5 +138,14 @@
       "integration_ownership": "MET",
       "source_parity": "PARTIAL: inbound uTP enabled and untested; nativeWantedPieceCount returned 0 for a non-adapter"
     }
-  }
+  },
+  "acceptance": {
+    "verdict": "ACCEPT",
+    "accepted_by": "[Agent 4 (Codex), stream mode]",
+    "date": "2026-09-23",
+    "reviewed_head": "76989101e79febdfeafd15e55dc35166a9bf3def",
+    "independent_reviewer_result": "APPROVE",
+    "scope": "K11 composition gate and K10 predecessor repair; not full-server parity or playback"
+  },
+  "review": "accepted by Agent 4 after independent approval of revision 3"
 }
