@@ -296,6 +296,138 @@ def bind_run_session(root: Path, run_id: str, session_path: Path | str) -> tuple
     return receipt, receipt_path
 
 
+def _persisted_verify_check(result: dict[str, Any]) -> dict[str, Any]:
+    persisted = {
+        key: result[key]
+        for key in (
+            "selector",
+            "kind",
+            "name",
+            "selectedTests",
+            "argv",
+            "exitCode",
+        )
+        if key in result
+    }
+    for stream in ("stdout", "stderr"):
+        value = result.get(stream, "")
+        if not isinstance(value, str):
+            value = str(value)
+        encoded = value.encode("utf-8", errors="replace")
+        persisted[f"{stream}Bytes"] = len(encoded)
+        persisted[f"{stream}Sha256"] = hashlib.sha256(encoded).hexdigest()
+        persisted[f"{stream}Tail"] = value[-4000:]
+    return persisted
+
+
+def verify_run_receipt(
+    root: Path,
+    run_id: str,
+    *,
+    dry_run: bool,
+) -> dict[str, Any]:
+    receipt_path = _run_receipt_path(root, run_id)
+    receipt = load_run_receipt(receipt_path)
+    if receipt.get("runId") != run_id or receipt.get("repo", {}).get("root") != str(root.resolve()):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt identity mismatch: {receipt_path}")
+
+    paths = receipt.get("paths")
+    if not isinstance(paths, list):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt has no valid paths: {receipt_path}")
+    scope = {
+        "kind": "run-receipt",
+        "paths": normalize_repo_paths(paths, "run path"),
+    }
+
+    verification = receipt.get("verification")
+    if not isinstance(verification, dict):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt has no verification block: {receipt_path}")
+    frozen = verification.get("selectedChecks")
+    if not isinstance(frozen, list) or not frozen:
+        raise HarnessError(
+            "RUN_VERIFICATION_NOT_SELECTED",
+            f"Run has no frozen verification checks: {run_id}",
+        )
+    warnings = verification.get("warnings", [])
+    if not isinstance(warnings, list) or any(not isinstance(item, str) for item in warnings):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt warnings are invalid: {receipt_path}")
+
+    plan: list[dict[str, Any]] = []
+    selected: list[dict[str, Any]] = []
+    for spec in frozen:
+        if not isinstance(spec, dict) or not isinstance(spec.get("selector"), str):
+            raise HarnessError("RUN_RECEIPT_INVALID", f"Run has an invalid frozen check: {receipt_path}")
+        selector = spec["selector"]
+        item = resolve_test(root, selector)
+        expected_kind = spec.get("kind")
+        expected_name = spec.get("name")
+        expected_tests = spec.get("selectedTests")
+        drift = (
+            (expected_kind is not None and expected_kind != item.get("kind"))
+            or (expected_name is not None and expected_name != item.get("name"))
+            or (
+                isinstance(expected_tests, list)
+                and expected_tests != item.get("selectedTests", [])
+            )
+        )
+        if drift:
+            raise HarnessError(
+                "RUN_VERIFY_CHECK_DRIFT",
+                f"Frozen verification check no longer resolves to the same test: {selector}",
+                {
+                    "frozen": spec,
+                    "current": {
+                        "kind": item.get("kind"),
+                        "name": item.get("name"),
+                        "selectedTests": item.get("selectedTests", []),
+                    },
+                },
+            )
+        item["selector"] = selector
+        plan.append(item)
+        selected.append(dict(spec))
+
+    results: list[dict[str, Any]] = []
+    ok = True
+    for item in plan:
+        data = execute(root, item, dry_run)
+        results.append(data)
+        ok = ok and data.get("exitCode", 0) == 0
+
+    verification_result = {
+        "ok": ok,
+        "scope": scope,
+        "selectedChecks": selected,
+        "checks": [_persisted_verify_check(item) for item in results],
+        "warnings": list(warnings),
+    }
+    if not dry_run:
+        result = receipt.get("result")
+        if result is None:
+            result = {}
+        if not isinstance(result, dict):
+            raise HarnessError("RUN_RECEIPT_INVALID", f"Run result slot is invalid: {receipt_path}")
+        result["verification"] = verification_result
+        receipt["result"] = result
+        receipt["completionReady"] = False
+        _write_run_receipt(receipt_path, receipt)
+
+    return envelope(
+        "verify",
+        root,
+        ok=ok,
+        data={
+            "dryRun": dry_run,
+            "scope": scope,
+            "completionReady": False,
+            "selectedChecks": selected,
+            "checks": results,
+        },
+        warnings=list(warnings),
+        evidence=[{"kind": "verification-scope", **scope}],
+    )
+
+
 def envelope(
     command: str, root: Path, *, ok: bool = True,
     data: Any = None, evidence: list[Any] | None = None,
@@ -1607,6 +1739,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify_p = sub.add_parser("verify", parents=[common], add_help=True)
     verify_p.add_argument("--path", dest="paths", action="append")
+    verify_p.add_argument("--run-id")
     add_execution_mode(verify_p)
     return parser
 
@@ -1796,7 +1929,15 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
             evidence=[{"kind": "lanista-scenario", "path": journey["path"]}],
         )
     if command == "verify":
+        run_id = getattr(ns, "run_id", None)
         requested_paths = getattr(ns, "paths", None)
+        if run_id is not None:
+            if requested_paths is not None:
+                raise HarnessError(
+                    "RUN_VERIFY_SCOPE_FIXED",
+                    "--run-id uses the verification scope frozen in run.json; do not pass --path.",
+                )
+            return verify_run_receipt(root, run_id, dry_run=ns.dry_run)
         plan, warnings = verify_plan(
             root,
             getattr(ns, "map", None),

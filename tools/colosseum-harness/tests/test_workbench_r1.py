@@ -811,6 +811,137 @@ class WorkbenchR1Tests(unittest.TestCase):
         self.assertEqual(raised.exception.code, "RUN_RUNTIME_ALREADY_BOUND")
         self.assertEqual(cli.load_run_receipt(receipt_path)["runtime"], first_runtime)
 
+    def _make_run_for_verify(self) -> tuple[dict[str, object], Path]:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        alpha = self.root / "tests" / "test_alpha.py"
+        alpha.write_text("print('alpha-frozen')\n", encoding="utf-8")
+        beta = self.root / "tests" / "test_beta.py"
+        beta.write_text("raise SystemExit(17)\n", encoding="utf-8")
+        self.commit_fixture()
+
+        map_path = Path(self.tmp.name) / "verify-run-map.json"
+        map_path.write_text("{}\n", encoding="utf-8")
+        selected = [{
+            "selector": "tests/test_alpha.py",
+            "kind": "script",
+            "name": "test_alpha",
+            "selectedTests": ["tests/test_alpha.py"],
+        }]
+        receipt, receipt_path = cli.create_run_receipt(
+            self.root,
+            "Verify alpha",
+            ["src/owner.cpp"],
+            str(map_path),
+            selected,
+            ["frozen warning"],
+        )
+        # This would be selected by a fresh dirty-tree verify, but must not
+        # affect a run whose verification selection was already frozen.
+        beta.write_text("raise SystemExit(23)\n", encoding="utf-8")
+        return receipt, receipt_path
+
+    def test_run_bound_verify_executes_only_frozen_checks_and_records_result(self) -> None:
+        receipt, receipt_path = self._make_run_for_verify()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "verify",
+            "--run-id", str(receipt["runId"]),
+            "--run",
+        ])
+        payload = cli.dispatch(ns)
+
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["data"]["completionReady"])
+        self.assertEqual(
+            [item["selector"] for item in payload["data"]["selectedChecks"]],
+            ["tests/test_alpha.py"],
+        )
+        self.assertEqual(len(payload["data"]["checks"]), 1)
+        self.assertEqual(payload["data"]["checks"][0]["exitCode"], 0)
+        self.assertIn("alpha-frozen", payload["data"]["checks"][0]["stdout"])
+
+        updated = cli.load_run_receipt(receipt_path)
+        self.assertFalse(updated["completionReady"])
+        self.assertIsInstance(updated["result"], dict)
+        recorded = updated["result"]["verification"]
+        self.assertTrue(recorded["ok"])
+        self.assertEqual(recorded["scope"], {
+            "kind": "run-receipt",
+            "paths": ["src/owner.cpp"],
+        })
+        self.assertEqual(
+            [item["selector"] for item in recorded["selectedChecks"]],
+            ["tests/test_alpha.py"],
+        )
+        self.assertEqual(recorded["checks"][0]["exitCode"], 0)
+        self.assertEqual(recorded["warnings"], ["frozen warning"])
+
+    def test_run_bound_verify_dry_run_does_not_record_result(self) -> None:
+        receipt, receipt_path = self._make_run_for_verify()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "verify",
+            "--run-id", str(receipt["runId"]),
+            "--dry-run",
+        ])
+        payload = cli.dispatch(ns)
+
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["data"]["dryRun"])
+        self.assertFalse(payload["data"]["completionReady"])
+        self.assertNotIn("exitCode", payload["data"]["checks"][0])
+        self.assertIsNone(cli.load_run_receipt(receipt_path)["result"])
+
+    def test_run_bound_verify_rejects_new_explicit_paths(self) -> None:
+        receipt, _receipt_path = self._make_run_for_verify()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "verify",
+            "--run-id", str(receipt["runId"]),
+            "--path", "tests/test_beta.py",
+            "--run",
+        ])
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+
+        self.assertEqual(raised.exception.code, "RUN_VERIFY_SCOPE_FIXED")
+
+    def test_run_bound_verify_persists_bounded_hashed_output(self) -> None:
+        receipt, receipt_path = self._make_run_for_verify()
+        (self.root / "tests" / "test_alpha.py").write_text(
+            "import sys\n"
+            "print('x' * 20000)\n"
+            "print('y' * 10000, file=sys.stderr)\n",
+            encoding="utf-8",
+        )
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "verify",
+            "--run-id", str(receipt["runId"]),
+            "--run",
+        ])
+        cli.dispatch(ns)
+
+        recorded = cli.load_run_receipt(receipt_path)["result"]["verification"]["checks"][0]
+        self.assertNotIn("stdout", recorded)
+        self.assertNotIn("stderr", recorded)
+        self.assertGreater(recorded["stdoutBytes"], 20000)
+        self.assertGreater(recorded["stderrBytes"], 10000)
+        self.assertRegex(recorded["stdoutSha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(recorded["stderrSha256"], r"^[0-9a-f]{64}$")
+        self.assertLessEqual(len(recorded["stdoutTail"]), 4000)
+        self.assertLessEqual(len(recorded["stderrTail"]), 4000)
+        self.assertTrue(recorded["stdoutTail"].rstrip().endswith("x" * 100))
+        self.assertTrue(recorded["stderrTail"].rstrip().endswith("y" * 100))
+
     def test_context_for_task_reads_bounded_mapped_preflight_authority(self) -> None:
         (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
         (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")

@@ -96,11 +96,20 @@ Verification inference:
 ```powershell
 python run.py --root $root --map $map verify --dry-run
 python run.py --root $root --map $map verify --path native/account/RatingsReviewsController.cpp --dry-run
+python run.py --root $root verify --run-id <runId> --dry-run
+python run.py --root $root verify --run-id <runId> --run
 ```
 
 Without `--path`, verification keeps the original broad dirty-tree behavior for compatibility. Repeated `--path` arguments create a task-scoped verification boundary so unrelated concurrent dirt is excluded. Scoped map routing requires freshness `FRESH`; stale or legacy map intelligence is ignored instead of borrowed.
 
 When checks are inferred, the result lists each selected check and the changed path/domain reason that selected it. Machine output also exposes `completionReady`; dry-run planning never sets it true.
+
+`verify --run-id` does not infer a new scope. It executes only the selectors frozen
+when that run receipt was created, and rejects an additional `--path`. A dry-run
+previews those checks without mutating the receipt. `--run` stores the verification
+result under `run.json.result.verification` while keeping `completionReady=false`.
+The live response keeps full stdout/stderr; the small receipt stores exit codes,
+output byte counts and SHA-256s, plus bounded 4,000-character output tails.
 ## Honest failure states
 
 Unknown or moved path:
