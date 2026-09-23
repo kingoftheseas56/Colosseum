@@ -200,10 +200,12 @@ public:
         settings.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
         settings.set_bool(lt::settings_pack::enable_dht, false);
         settings.set_bool(lt::settings_pack::enable_lsd, false);
-        // The source swarm dials TCP only: M814 builds it with utp:false, so
-        // M818 never takes its utp.connect branch. libtorrent otherwise dials
-        // uTP first and reaches a TCP-only peer only after the uTP timeout.
+        // The source swarm is TCP only: M814 builds it with utp:false, so M818
+        // never takes its utp.connect branch or opens a uTP server. libtorrent
+        // otherwise dials uTP first, reaching a TCP-only peer only after the
+        // uTP timeout, and accepts inbound uTP.
         settings.set_bool(lt::settings_pack::enable_outgoing_utp, false);
+        settings.set_bool(lt::settings_pack::enable_incoming_utp, false);
         settings.set_bool(lt::settings_pack::enable_upnp, false);
         settings.set_bool(lt::settings_pack::enable_natpmp, false);
         settings.set_bool(lt::settings_pack::allow_multiple_connections_per_ip, true);
@@ -500,6 +502,13 @@ public:
             return static_cast<std::size_t>(std::count_if(priorities.begin(), priorities.end(),
                 [](lt::download_priority_t priority) { return priority != lt::dont_download; }));
         } catch (...) { return unreadable; }
+    }
+    // Returns 0 when no listener can be read; callers require a real port.
+    int listenPort()
+    {
+        std::lock_guard<std::mutex> alertLock(alertMutex_);
+        if (!session_) return 0;
+        try { return session_->listen_port(); } catch (...) { return 0; }
     }
 
     bool replayLastDetached(PeerHandle peer)
@@ -1397,7 +1406,13 @@ std::uint64_t autonomousNativeMutationCount(const ports::TorrentTransport &trans
 std::size_t nativeWantedPieceCount(const ports::TorrentTransport &transport)
 {
     const auto *adapter = dynamic_cast<const LibTorrent2Adapter *>(&transport);
-    return adapter ? adapter->wantedPieceCount() : 0;
+    return adapter ? adapter->wantedPieceCount() : std::numeric_limits<std::size_t>::max();
+}
+
+int nativeListenPort(ports::TorrentTransport &transport)
+{
+    auto *adapter = dynamic_cast<LibTorrent2Adapter *>(&transport);
+    return adapter ? adapter->listenPort() : 0;
 }
 
 std::uint64_t forbiddenNativeAttemptCount(const ports::TorrentTransport &transport)

@@ -1,0 +1,1 @@
+K10-02 PASS inbound-utp tcp_accept=1 SUMMARY syns=3 utp_state_replies=0 datagrams=0 run=C:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\raw\inbound-utp-20260923-162018689

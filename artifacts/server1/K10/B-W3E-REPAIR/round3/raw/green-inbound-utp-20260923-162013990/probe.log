@@ -1,0 +1,5 @@
+TCP_ACCEPTED port=11466
+UTP_SYN_SENT attempt=1
+UTP_SYN_SENT attempt=2
+UTP_SYN_SENT attempt=3
+SUMMARY syns=3 utp_state_replies=0 datagrams=0

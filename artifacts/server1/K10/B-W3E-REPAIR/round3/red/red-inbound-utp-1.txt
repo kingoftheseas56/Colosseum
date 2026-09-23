@@ -1,0 +1,6 @@
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\run_inbound_utp.ps1:40[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  40 | [0m   [36;1mthrow "K10 inbound uTP SYN was answered; the source opens no uTP li[0m .[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 inbound uTP SYN was answered; the source opens no uTP listener: SUMMARY syns=3 utp_state_replies=2[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1mdatagrams=2[0m

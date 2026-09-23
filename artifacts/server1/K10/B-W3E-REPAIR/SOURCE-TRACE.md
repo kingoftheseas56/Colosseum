@@ -20,7 +20,16 @@ The adapter never overrode this. A TCP-only peer is therefore reached only after
 
 **Repair.** `LibTorrent2Adapter` sets `enable_outgoing_utp=false`, so the transport dials TCP only, like M818 under M814.
 
-**Not changed.** Incoming uTP stays enabled, although the source opens no uTP server (72885). No K10 test exercises inbound uTP, so that divergence is disclosed rather than repaired here.
+**Round 3 (Agent 4 REQUEST-CHANGES on `2fa51bc7`).** Incoming uTP is now disabled too (`enable_incoming_utp=false`), because the source opens no uTP server (72885). In libtorrent 2.0.14, `utp_socket_manager.cpp:187` returns before creating a stream when `enable_incoming_utp` is off, so an inbound `ST_SYN` is dropped silently.
+
+New test `K10-02-native-transport-inbound-utp` (`run_inbound_utp.ps1`, `utp_probe.py`, test mode `--inbound-utp-serve`):
+
+- **Positive control.** A TCP connect to the adapter's listen port is accepted.
+- **Negative control.** Three BEP 29 `ST_SYN` packets go to the same port, and the test counts `ST_STATE` replies.
+- **RED on the unfixed adapter:** 3/3 runs fail with 2 `ST_STATE` replies each.
+- **GREEN:** 0 replies, and TCP is still accepted.
+
+The probe runs out of process. An in-process Boost.Asio probe was tried first, but including `libtorrent/socket.hpp` and `io_context.hpp` in the test file made the existing `prepare()` crash (exit 139) even with the new case unused, so that approach was dropped.
 
 ## 2. The source requests nothing until a selection exists
 
@@ -56,4 +65,8 @@ Supporting measurement: K10-H took 47.5-65.4 s in 15 base executions and 20.8-33
 
 ## Test hook
 
-`server1::transport::nativeWantedPieceCount(const TorrentTransport&)` is added in the same style as the existing test hooks, such as `autonomousNativeMutationCount`. It counts native pieces whose priority is not `dont_download`, and returns `SIZE_MAX` when the handle, metadata, or priorities cannot be read, so the K10-E check cannot pass vacuously. No port or frozen header changes. `TorrentTransport.h` blob `11ebfd13` is unchanged.
+`server1::transport::nativeWantedPieceCount(const TorrentTransport&)` is added in the same style as the existing test hooks, such as `autonomousNativeMutationCount`. It counts native pieces whose priority is not `dont_download`. It returns `SIZE_MAX` when the handle, metadata, or priorities cannot be read, and, since round 3, also when the transport is not the native adapter. The K10-E check therefore cannot pass vacuously.
+
+`nativeListenPort` (round 3) returns 0 on a non-adapter or when the port is unreadable, and callers require a positive port.
+
+`K10-E-transport-source-invalid` now asserts both hooks fail closed on the non-native `FailedTorrentTransport`. With the round-2 wrapper restored temporarily (`: 0`), it fails 3/3. No port or frozen header changes. `TorrentTransport.h` blob `11ebfd13` is unchanged.

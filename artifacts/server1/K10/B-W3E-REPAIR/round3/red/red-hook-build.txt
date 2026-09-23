@@ -1,0 +1,9 @@
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+-- Configuring done (1.4s)
+-- Generating done (0.4s)
+-- Build files have been written to: C:/b/server1-bw3e-inutp-red-build
+[1/4] Building CXX object p03-tests\CMakeFiles\server1_k10_native_transport_test.dir\test_native_transport.cpp.obj
+[2/4] Building CXX object CMakeFiles\server1_k10_native_transport.dir\src\transport\LibTorrent2Adapter.cpp.obj
+[3/4] Linking CXX static library server1_k10_native_transport.lib
+[4/4] Linking CXX executable p03-tests\server1_k10_native_transport_test.exe

@@ -1,0 +1,7 @@
+TCP_ACCEPTED port=4532
+UTP_SYN_SENT attempt=1
+UDP_REPLY bytes=20 type=2 version=1
+UTP_SYN_SENT attempt=2
+UTP_SYN_SENT attempt=3
+UDP_REPLY bytes=20 type=2 version=1
+SUMMARY syns=3 utp_state_replies=2 datagrams=2

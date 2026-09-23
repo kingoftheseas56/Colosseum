@@ -1,0 +1,1 @@
+K10-E test hooks did not fail closed on a non-native transport

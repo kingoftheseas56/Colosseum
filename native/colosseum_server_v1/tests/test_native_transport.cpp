@@ -19,6 +19,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -37,6 +38,7 @@ std::uint64_t framedRequestCount(const ports::TorrentTransport &);
 std::uint64_t ownedNativeAddCount(const ports::TorrentTransport &);
 std::uint64_t autonomousNativeMutationCount(const ports::TorrentTransport &);
 std::size_t nativeWantedPieceCount(const ports::TorrentTransport &);
+int nativeListenPort(ports::TorrentTransport &);
 std::uint64_t forbiddenNativeAttemptCount(const ports::TorrentTransport &);
 std::uint64_t guardedNativeTouchCount(const ports::TorrentTransport &);
 std::uint64_t staleDisconnectIgnoredCount(const ports::TorrentTransport &);
@@ -977,6 +979,11 @@ void caseSourceFailure(const fs::path &directory)
                return failure && failure->generation == 301 && !failure->retryable;
            }) == 1, "K10-E invalid canonical hash did not emit one source-owned failure");
     expect(transport->poll().empty(), "K10-E invalid source failure repeated");
+    // The test hooks must fail closed on a transport that is not the native adapter.
+    expect(server1::transport::nativeWantedPieceCount(*transport)
+               == std::numeric_limits<std::size_t>::max()
+               && server1::transport::nativeListenPort(*transport) == 0,
+           "K10-E test hooks did not fail closed on a non-native transport");
     transport->close();
     std::cout << "K10-E INVALID PASS source_failures=1 throws=0\n";
 }
@@ -1127,6 +1134,41 @@ void caseCloseSuppressesSource(const fs::path &directory)
     expect(!transport->submit(ConnectAction{306, 177, "127.0.0.1", 65530}),
            "K10-E connect escaped after close");
     std::cout << "K10-E CLOSE PASS stale_source_effects=0\n";
+}
+
+// The source swarm opens only a TCP peer listener (M818 creates a uTP server
+// only when utp is set, and M814 sets utp:false). This mode keeps one adapter
+// listening so run_inbound_utp.ps1 can probe it from outside the process.
+void caseInboundUtpServe(const fs::path &directory, const fs::path &portFile,
+                         const fs::path &stopFile)
+{
+    prepare(directory);
+    auto transport = server1::transport::makeLibTorrent2Adapter(
+        (directory / "K10-wire.torrent").string(), (directory / "inbound-download").string());
+    expect(bool(transport) && transport->configureAutonomy({}), "K10-02 inbound uTP setup");
+    int port = 0;
+    const auto listenDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < listenDeadline) {
+        (void)transport->poll();
+        port = server1::transport::nativeListenPort(*transport);
+        if (port > 0) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    expect(port > 0, "K10-02 inbound uTP native listen port unavailable");
+    {
+        std::ofstream output(portFile.string() + ".tmp");
+        output << port << "\n";
+    }
+    fs::rename(portFile.string() + ".tmp", portFile);
+    const auto stopDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (!fs::exists(stopFile)) {
+        expect(std::chrono::steady_clock::now() < stopDeadline,
+               "K10-02 inbound uTP probe never finished");
+        (void)transport->poll();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    transport->close();
+    std::cout << "K10-02 INBOUND-UTP-SERVE PASS port=" << port << "\n";
 }
 
 void caseUploadFeasibility(const fs::path &directory, int port)
@@ -1620,6 +1662,9 @@ int main(int argc, char **argv)
     }
     if (argc == 3 && std::string(argv[1]) == "--source-magnet") {
         casePeerMetadata(argv[2], true); return 0;
+    }
+    if (argc == 5 && std::string(argv[1]) == "--inbound-utp-serve") {
+        caseInboundUtpServe(argv[2], argv[3], argv[4]); return 0;
     }
     if (argc == 3 && std::string(argv[1]) == "--source-close") {
         caseCloseSuppressesSource(argv[2]); return 0;
