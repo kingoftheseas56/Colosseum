@@ -6,6 +6,11 @@ native/build*/
 
 # Dev scratch: smoke screenshots, diagnostic logs, click scripts
 tools/
+# Keep root-level scratch ignored, but track the Colosseum Harness source.
+!/tools/
+/tools/*
+!/tools/colosseum-harness/
+!/tools/colosseum-harness/**
 # ...but native/tools/ is lanista's CLI SOURCE (lanista.cpp, LanistaHash.*), not scratch.
 # The unanchored tools/ rule above also matches native/tools/ — carve it back in so
 # the CLI source can be tracked normally.
