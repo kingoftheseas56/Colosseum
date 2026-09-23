@@ -1,0 +1,28 @@
+{
+  "schema": "colosseum-server1-b-w3e-hashes/v1",
+  "algorithm": "sha256 over exact git cat-file blob <candidate_commit>:<path> bytes",
+  "integration_base": "7bb7971b4c6e00c57dd84114261dda1ee66eea0d",
+  "candidate_commit": "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
+  "files": [
+    {"path": "docs/server1/STATE.json", "blob": "a33c32088ef9e1bd1cc292f3eccd1a7f9b682e46", "bytes": 36429, "sha256": "27e91294a512be357a038a3e664de90521ca46427c3b6085c67516cec880fcc0"},
+    {"path": "native/colosseum_server_v1/CMakeLists.txt", "blob": "bbe956f4997f9b6de5964e176e78d61c86988a68", "bytes": 3814, "sha256": "8c8a46de4150c639771c5227df67cd2787855ac4a8969bcbf7299a2ee27c3a59"},
+    {"path": "native/colosseum_server_v1/tests/CMakeLists.txt", "blob": "2b08eeb282936d3c2f0715a16778332d1995df7b", "bytes": 3408, "sha256": "ba1f9163c1c7d6b44f2816e2058073cecdd6f360695375661340cdda7f43f66f"},
+    {"path": "native/colosseum_server_v1/tests/test_spine_contracts.cpp", "blob": "c61f2412a8830841eb793a067efd7b4351d85365", "bytes": 3458, "sha256": "8967815016f6d92c6c3c6718fbd13e86afab50bdc7fc7e1a3fcdf8e6b36fbb41"},
+    {"path": "native/colosseum_server_v1/cmake/packets/K11.cmake", "blob": "ccaadd6d3525ba2a26d58524ce211a2962fe7e73", "bytes": 830, "sha256": "9b8349f62179368e179a016d27bf22f74605b1a32295d3ad1bf4cb1fde0aff71"},
+    {"path": "native/colosseum_server_v1/tests/cmake/K11.cmake", "blob": "561a8e6414c0d709973dbda675707c7fa548155c", "bytes": 757, "sha256": "3388bfddb1804c085843a720f43adcacd834d1ef39bf5b3b1e84c009daa6934a"},
+    {"path": "native/colosseum_server_v1/include/server1/policy/EngineRegistry.h", "blob": "c17c7ea8a1378a3ee74d329d7722d8f81c42bc3b", "bytes": 9252, "sha256": "58e8b6ff1bc374e857e2a68ed3ca6e20ef52c1e6aada383961289b98fa041511"},
+    {"path": "native/colosseum_server_v1/src/policy/EngineRegistry.cpp", "blob": "7dd05f4e7614982ad711d8fd187760dd79fd518f", "bytes": 29240, "sha256": "bc5d8f3c8e2946ccbe04c6530bef57b90f12f8c76e189c144d5bbe2adf3908d6"},
+    {"path": "native/colosseum_server_v1/src/policy/TorrentEngine.cpp", "blob": "5f5a2c57aa71d86f0db58ef56ff01c6e9245d90f", "bytes": 68654, "sha256": "fb2e242710d927a082dff79dad61bc8a6b890976e07767a2d00369c6256ca0d4"},
+    {"path": "native/colosseum_server_v1/tests/test_engine_registry.cpp", "blob": "8913fea4d3dbcc1eed7768f21ddda03cdf2e2fff", "bytes": 99817, "sha256": "7068cb12745d6d2afe8e72e6e0e1abf2ea3931a6692a393e2a8df21541991c12"},
+    {"path": "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h", "blob": "11ebfd13fc04cebc3c89969461941ecd90daac07", "bytes": 13684, "sha256": "14f32053b952280499a8de0c65798a3bbd4d1dc86baf68ce3b3f1f4742774779"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/k10-flake/K10-FLAKE-ANALYSIS.md", "blob": "7b7aa9e0d0dc76cb8a0c826f67fd8c058b2c9334", "bytes": 6023, "sha256": "ea56a8d86a3bd5adf2c6c9c064d10467037e948a7e4358475e1647592a968641"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/k10-flake/diag-adapter.patch", "blob": "9575637ebc1ac15e769a65d1c6709e2b98de9ad2", "bytes": 2299, "sha256": "00066118fd9a936bd42457c743342ceb0047e4345cebca127477445a356e1e18"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/inventory.txt", "blob": "6c633b87cb7b98d19865c13f171e13cd9b315bce", "bytes": 2639, "sha256": "92bf4fed62cec9b65f671519d7009186f94dfbff36ffeef2e07db35f4845f893"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/aggregate-run2.stdout.txt", "blob": "cfef40907c50baf01b74a0a642bcea83b2efc3e6", "bytes": 9362, "sha256": "29be7cf455af1d19a0825ee79af9c4ea09c6d5e566e89aa9a0230a58e2a1baf3"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/aggregate-repeat-1.stdout.txt", "blob": "dcb55b5554b1c4130acdc465af3b9f216dc7cb7a", "bytes": 9362, "sha256": "106dc1a54a49243838233c0ce06f191870ca904f6902e0a0c0b71448e97a8902"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/aggregate-repeat-2.stdout.txt", "blob": "760fa179fc574b4d77b040b6c80158f14322d51f", "bytes": 11198, "sha256": "05c039428771106201a4a384bdee5a9c0993ec1ee01c8546fd723c876a19a9af"},
+    {"path": "artifacts/server1/INT-W3/B-W3E-evidence/aggregate-repeat-3.stdout.txt", "blob": "fb54bb7c35c7a57b583b93514da184bdae530ff8", "bytes": 10674, "sha256": "7192f3f589a3f77062a50da4c9884f0196ee962af8375d78412ef07b544a3bdf"}
+  ],
+  "frozen_torrent_transport_blob": "11ebfd13fc04cebc3c89969461941ecd90daac07",
+  "frozen_torrent_transport_diff": "empty against accepted base b28e2dfe"
+}
