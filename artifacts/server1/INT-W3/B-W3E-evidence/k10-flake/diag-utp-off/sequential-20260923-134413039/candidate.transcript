@@ -1,0 +1,78 @@
+DIAG 1790151253627 listen_succeeded: successfully listening on [TCP] 127.0.0.1:3968
+DIAG 1790151253627 listen_succeeded: successfully listening on [uTP] 127.0.0.1:3968
+DIAG 1790151253627 torrent_added: K10-wire.bin added
+DIAG 1790151253627 torrent_log: K10-wire.bin: creating torrent: K10-wire.bin max-uploads: 16777215 max-connections: 16777215 upload-limit: -1 download-limit: -1 flags: apply-ip-filter paused update-subscribe  save-path: C:\b\_k10diag\artifacts\server1\K10\K10-A\raw\sequential-20260923-134413039\sequential-download
+DIAG 1790151253627 torrent_log: K10-wire.bin: init torrent: K10-wire.bin
+DIAG 1790151253627 torrent_log: K10-wire.bin: init, async_check_files
+DIAG 1790151253627 add_torrent: added torrent: K10-wire.bin
+DIAG 1790151253629 torrent_log: K10-wire.bin: fastresume data accepted
+DIAG 1790151253629 state_changed: K10-wire.bin: state changed to: downloading
+DIAG 1790151253629 torrent_log: K10-wire.bin: set_state() 3
+DIAG 1790151253629 torrent_checked: K10-wire.bin checked
+DIAG 1790151253629 torrent_log: K10-wire.bin: *** UPDATE LIST [ torrent_want_tick : 1 ]
+DIAG 1790151253629 torrent_log: K10-wire.bin: start_announcing(), paused
+DIAG 1790151253629 torrent_log: K10-wire.bin: resolving web seed: "seed.invalid" http://seed.invalid/K10-wire.bin
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** UPDATE LIST [ torrent_want_tick : 0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** UPDATE_PEER_INTEREST [ finished: 1 was_finished 0 ]
+DIAG 1790151253643 state_changed: K10-wire.bin: state changed to: finished
+DIAG 1790151253643 torrent_finished: K10-wire.bin torrent finished downloading
+DIAG 1790151253643 torrent_log: K10-wire.bin: set_state() 4
+DIAG 1790151253643 torrent_resumed: K10-wire.bin resumed
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** UPDATE LIST [ torrent_want_tick : 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** announce: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker:  (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [  i->tier: 0 tier: 2147483647 working: 1 limit: 0 can: 1 sent: 0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: ==> TRACKER REQUEST "http://tracker.invalid/announce" event:  abort: 0 ssl: 0000000000000000 port: 3968 ssl-port: 0 fails: 0 upd: 0 ep: 127.0.0.1:3968
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** QUEUE_TRACKER_REQUEST [ listen_port: 3968 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: ==> TRACKER_REQUEST [ url: http://tracker.invalid/announce?info_hash=%d1Vx%c5%f0%fd5%9eG%02%d1%14%fb%0e%b7%896%d2%01R&peer_id=-LT20B0-9mp.bt*Vl*p!&port=3968&uploaded=0&downloaded=0&left=32768&corrupt=0&key=27926A56&event=paused&numwant=200&compact=1&no_peer_id=1&redundant=0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker:  (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [  i->tier: 0 tier: 2147483647 working: 1 limit: 0 can: 1 sent: 0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: ==> TRACKER REQUEST "http://tracker.invalid/announce" event:  abort: 0 ssl: 0000000000000000 port: 3968 ssl-port: 0 fails: 0 upd: 0 ep: 127.0.0.1:3968
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** QUEUE_TRACKER_REQUEST [ listen_port: 3968 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: ==> TRACKER_REQUEST [ url: http://tracker.invalid/announce?info_hash=%fb%a7%1a%82w%a1%87%9ePWN%dbU%d5%bb%c2%f7%11wh&peer_id=-LT20B0-9mp.bt*Vl*p!&port=3968&uploaded=0&downloaded=0&left=32768&corrupt=0&key=27926A56&event=paused&numwant=200&compact=1&no_peer_id=1&redundant=0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** update_tracker_timer: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 1 fails: 0 limit: 0 upd: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 1 fails: 0 limit: 0 upd: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** update tracker timer: before_now: 0 none_eligible: 1 m_waiting_tracker: 0 next_announce_in: 60
+DIAG 1790151253643 cache_flushed: K10-wire.bin
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** UPDATE LIST [ torrent_want_peers_finished : 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: completed resolve: http://seed.invalid/K10-wire.bin
+DIAG 1790151253643 url_seed: K10-wire.bin url seed (http://seed.invalid/K10-wire.bin) failed: No such host is known
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** HOSTNAME LOOKUP FAILED: http://seed.invalid/K10-wire.bin: (11001) No such host is known
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker error: (11001) No such host is known [sock_read] 
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** increment tracker fail count [ep: 127.0.0.1:3968 url: http://tracker.invalid/announce 1]
+DIAG 1790151253643 tracker_error: K10-wire.bin (http://tracker.invalid/announce)[127.0.0.1:3968] v2 No such host is known "" (1)
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** announce: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker:  (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [  i->tier: 0 tier: 2147483647 working: 1 limit: 0 can: 0 sent: 0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker:  (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [  i->tier: 0 tier: 2147483647 working: 0 limit: 0 can: 0 sent: 0 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** update_tracker_timer: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 1 fails: 0 limit: 0 upd: 1 ]
+DIAG 1790151253643 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 0 fails: 1 limit: 0 upd: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update tracker timer: before_now: 0 none_eligible: 0 m_waiting_tracker: 1 next_announce_in: 17
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update_tracker_timer: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 1 fails: 0 limit: 0 upd: 1 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 0 fails: 1 limit: 0 upd: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update tracker timer: before_now: 0 none_eligible: 0 m_waiting_tracker: 2 next_announce_in: 17
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker error: (11001) No such host is known [sock_read] 
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** increment tracker fail count [ep: 127.0.0.1:3968 url: http://tracker.invalid/announce 1]
+DIAG 1790151253644 tracker_error: K10-wire.bin (http://tracker.invalid/announce)[127.0.0.1:3968] v1 No such host is known "" (1)
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** announce: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker:  (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [  i->tier: 0 tier: 2147483647 working: 0 limit: 0 can: 0 sent: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker:  (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [  i->tier: 0 tier: 2147483647 working: 0 limit: 0 can: 0 sent: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update_tracker_timer: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 0 fails: 1 limit: 0 upd: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 0 fails: 1 limit: 0 upd: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update tracker timer: before_now: 0 none_eligible: 0 m_waiting_tracker: 2 next_announce_in: 17
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update_tracker_timer: [ announce_to_all_tiers: 0 announce_to_all_trackers: 0 num_trackers: 1 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 0 fails: 1 limit: 0 upd: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** tracker: (0) [ep: 127.0.0.1:3968 ] "http://tracker.invalid/announce" [ found: 0 i->tier: 0 tier: 2147483647 working: 0 fails: 1 limit: 0 upd: 0 ]
+DIAG 1790151253644 torrent_log: K10-wire.bin: *** update tracker timer: before_now: 0 none_eligible: 0 m_waiting_tracker: 2 next_announce_in: 17
+DIAG 1790151254143 torrent_log: K10-wire.bin: *** UPDATE LIST [ torrent_want_peers_finished : 0 ]
+DIAG 1790151254143 peer_connect: K10-wire.bin peer [ 127.0.0.1:49851 client: Unknown ] outgoing connection to peer (TCP)
+K10 OWNED_ADD peer=77 request=71/1/1 piece=0 offset=0 length=16384 queued=1
+DIAG 1790151255157 torrent_log: K10-wire.bin: *** PIECE_FINISHED [ p: 0 | chk: passed | size: 16384 ]
+DIAG 1790151255157 torrent_log: K10-wire.bin: PIECE_PASSED (0) (num_have: 0)
+DIAG 1790151255157 torrent_log: K10-wire.bin: we_have(0) (num_have: 1)
+K10 OWNED_ADD peer=77 request=72/1/1 piece=1 offset=0 length=16384 queued=1
+DIAG 1790151256162 torrent_log: K10-wire.bin: *** PIECE_FINISHED [ p: 1 | chk: passed | size: 16384 ]
+DIAG 1790151256162 torrent_log: K10-wire.bin: PIECE_PASSED (1) (num_have: 1)
+DIAG 1790151256162 torrent_log: K10-wire.bin: we_have(1) (num_have: 2)
+K10-02 SEQUENTIAL PASS requests=2 head_retry=1 queued=2 framed=2

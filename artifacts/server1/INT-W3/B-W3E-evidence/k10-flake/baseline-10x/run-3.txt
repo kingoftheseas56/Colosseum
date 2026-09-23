@@ -1,0 +1,76 @@
+Internal ctest changing into directory: C:/b/_bw3e-build
+Test project C:/b/_bw3e-build
+      Start 44: K10-01-native-transport-real-wire
+ 1/19 Test #44: K10-01-native-transport-real-wire ............   Passed    9.50 sec
+      Start 45: K10-01-native-transport-submit-after-ready
+ 2/19 Test #45: K10-01-native-transport-submit-after-ready ...   Passed    7.90 sec
+      Start 46: K10-02-native-transport-sequential-wire
+ 3/19 Test #46: K10-02-native-transport-sequential-wire ......   Passed    8.31 sec
+      Start 47: K10-02-native-transport-have-wire
+ 4/19 Test #47: K10-02-native-transport-have-wire ............***Failed    8.06 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\run_have.ps1:18[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  18 | [0m . ($LASTEXITCODE -ne 0) { [36;1mthrow "K10 HAVE case failed: $LASTEXITCODE"[0m }[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 HAVE case failed: 1[0m
+
+      Start 48: K10-02-native-transport-live-reuse
+ 5/19 Test #48: K10-02-native-transport-live-reuse ...........***Failed    8.10 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\run_reuse.ps1:19[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  19 | [0m . EXITCODE -ne 0) { [36;1mthrow "K10 live reuse case failed: $LASTEXITCODE"[0m }[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 live reuse case failed: 1[0m
+
+      Start 49: K10-02-native-transport-failure-drain
+ 6/19 Test #49: K10-02-native-transport-failure-drain ........   Passed    7.86 sec
+      Start 50: K10-02-native-transport-cancel-drain
+ 7/19 Test #50: K10-02-native-transport-cancel-drain .........   Passed    8.96 sec
+      Start 51: K10-02-native-transport
+ 8/19 Test #51: K10-02-native-transport ......................   Passed    1.47 sec
+      Start 52: K10-03-native-transport
+ 9/19 Test #52: K10-03-native-transport ......................***Failed    7.56 sec
+[31;1mException: [0mC:\b\Colosseum-Server-1.0-sol\INT-W2-repaired\artifacts\server1\K10\K10-A\run_thread_guard.ps1:17[0m
+[31;1m[0m[36;1mLine |[0m
+[31;1m[0m[36;1m[36;1m  17 | [0m . ITCODE -ne 0) { [36;1mthrow "K10 thread guard case failed: $LASTEXITCODE"[0m }[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mK10 thread guard case failed: 1[0m
+
+      Start 53: K10-02-native-transport-lifecycle
+10/19 Test #53: K10-02-native-transport-lifecycle ............   Passed   10.12 sec
+      Start 54: K10-E-transport-source-invalid
+11/19 Test #54: K10-E-transport-source-invalid ...............   Passed    0.07 sec
+      Start 55: K10-E-transport-source-generation
+12/19 Test #55: K10-E-transport-source-generation ............   Passed    0.07 sec
+      Start 56: K10-E-transport-source-cached
+13/19 Test #56: K10-E-transport-source-cached ................   Passed    0.46 sec
+      Start 57: K10-E-transport-source-mismatch
+14/19 Test #57: K10-E-transport-source-mismatch ..............   Passed    0.10 sec
+      Start 58: K10-E-transport-source-infohash
+15/19 Test #58: K10-E-transport-source-infohash ..............   Passed    3.98 sec
+      Start 59: K10-E-transport-source-magnet
+16/19 Test #59: K10-E-transport-source-magnet ................   Passed    3.56 sec
+      Start 60: K10-E-transport-source-close
+17/19 Test #60: K10-E-transport-source-close .................   Passed    0.53 sec
+      Start 61: K10-G-transport-pause-generation
+18/19 Test #61: K10-G-transport-pause-generation .............   Passed   14.14 sec
+      Start 62: K10-H-transport-upload-real-wire
+19/19 Test #62: K10-H-transport-upload-real-wire .............   Passed   65.17 sec
+
+84% tests passed, 3 tests failed out of 19
+
+Label Time Summary:
+K10        =  77.83 sec*proc (10 tests)
+K10-E      =   8.77 sec*proc (7 tests)
+K10-G      =  14.14 sec*proc (1 test)
+K10-H      =  65.17 sec*proc (1 test)
+native     = 165.92 sec*proc (19 tests)
+server1    = 165.92 sec*proc (19 tests)
+
+Total Test time (real) = 166.00 sec
+
+The following tests FAILED:
+	 47 - K10-02-native-transport-have-wire (Failed)
+	 48 - K10-02-native-transport-live-reuse (Failed)
+	 52 - K10-03-native-transport (Failed)
+Errors while running CTest

@@ -1,0 +1,21 @@
+iter 1 exit 0 13:39:08
+iter 2 exit 0 13:39:17
+iter 3 exit 1 13:39:26
+iter 4 exit 0 13:39:36
+iter 5 exit 1 13:39:43
+iter 6 exit 0 13:39:52
+iter 7 exit 0 13:40:00
+iter 8 exit 0 13:40:09
+iter 9 exit 0 13:40:17
+iter 10 exit 0 13:40:26
+iter 11 exit 0 13:40:35
+iter 12 exit 0 13:40:44
+iter 13 exit 1 13:40:53
+iter 14 exit 0 13:41:02
+iter 15 exit 0 13:41:11
+iter 16 exit 0 13:41:20
+iter 17 exit 0 13:41:29
+iter 18 exit 0 13:41:37
+iter 19 exit 0 13:41:45
+iter 20 exit 0 13:41:53
+DONE

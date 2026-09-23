@@ -32,6 +32,13 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K08.cmake")
 server1_register_k08_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K10.cmake")
 server1_register_k10_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K11.cmake")
+server1_register_k11_tests()
+# K11 links K06, which needs Qt6Core.dll at run time; the K11 manifest does not
+# prepend it, so INT-W3 supplies the same PATH rule K06 uses.
+set_tests_properties(K11-01-engine-registry K11-02-engine-registry
+  K11-03-engine-registry PROPERTIES
+  ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 
 add_executable(server1_p08_torrent_transport_contract_test
   "${CMAKE_CURRENT_SOURCE_DIR}/test_torrent_transport_contract.cpp")
@@ -56,7 +63,8 @@ target_link_libraries(server1_spine_contracts_link_test PRIVATE
   server1_k09_peer_search
   server1_p08_torrent_transport_contract
   server1_k08_file_reader
-  server1_k10_native_transport)
+  server1_k10_native_transport
+  server1_k11_engine)
 target_compile_features(server1_spine_contracts_link_test PRIVATE cxx_std_17)
 target_compile_options(server1_spine_contracts_link_test PRIVATE
   "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")

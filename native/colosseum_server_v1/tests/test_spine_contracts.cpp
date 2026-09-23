@@ -1,5 +1,6 @@
 #include "server1/discovery/PeerSearch.h"
 #include "server1/policy/CircularPieceStore.h"
+#include "server1/policy/EngineRegistry.h"
 #include "server1/policy/FileReader.h"
 #include "server1/policy/MetadataExchange.h"
 #include "server1/policy/PieceBuffer.h"
@@ -66,6 +67,9 @@ int main()
     const auto fileReaderLength = &FileReader::length;
     const auto nativeTransportFactory = &server1::transport::makeLibTorrent2Adapter;
     if (fileReaderLength == nullptr || nativeTransportFactory == nullptr) return 11;
+    const auto engineRegistryCreate = &EngineRegistry::create;
+    const auto engineDiscoverPeer = &TorrentEngine::discoverPeer;
+    if (engineRegistryCreate == nullptr || engineDiscoverPeer == nullptr) return 12;
     static_assert(std::is_abstract_v<server1::ports::TorrentTransport>);
     return 0;
 }

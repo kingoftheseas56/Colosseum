@@ -1,0 +1,6 @@
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+-- Configuring done (1.2s)
+-- Generating done (0.3s)
+-- Build files have been written to: C:/b/_bw3e-build
+ninja: no work to do.
