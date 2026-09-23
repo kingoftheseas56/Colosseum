@@ -2,97 +2,90 @@
   "schema": "colosseum-server1-barrier-receipt/v2",
   "worker_id": "INT-W3",
   "barrier": "B-W3E",
+  "revision": 2,
   "criterion": "EngineRegistry composition accepted.",
   "producer": "[Agent (Claude), INT-W3 B-W3E assembler]",
-  "evidence_root": "artifacts/server1/INT-W3/B-W3E-evidence",
   "date": "2026-09-23",
   "branch": "sol/server1-w3-engine-v3-20260915",
   "accepted_feature_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
-  "integration_base": "7bb7971b4c6e00c57dd84114261dda1ee66eea0d",
-  "integration_sha": "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
+  "integration_sha": "049769013956f07e2f9484084d472ce3978a0917",
   "predecessor_barrier": "B-W3D (accepted, plus accepted Slice 3 gates through HAVE-UPLOAD-GATE at b28e2dfe)",
-  "ordered_inputs": {
-    "K11-A": [
-      "a20fcd011704ece4d1ee045d8c286ffad0f56747",
-      "81abb58d512d61b42fa0f7fdc376446fbf5831d5",
-      "d115f80117a37992e45749e8897f7d3891024e6e",
-      "0194b7ffa131ea51eab86616e83189741c09e891",
-      "173f9a98c9951f67a4faaf2b2aba9c7e76126bab",
-      "7bb7971b4c6e00c57dd84114261dda1ee66eea0d"
-    ],
-    "K11_review": "APPROVE by Agent 4 (Codex) at exact head 7bb7971b, including a fresh rebuilt K11 run (relayed by Hemanth 2026-09-23)",
-    "merge_result": "linear; K11 branch descends from b28e2dfe, fast-forwardable onto feature/colosseum-server-1.0; INT-W3 commit added on top"
+  "revision_1": {
+    "integration_sha": "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
+    "receipt_head": "29543f94ce56f70d6f1431062642198a60aa2e7a",
+    "verdict": "REQUEST-CHANGES by [Agent 4 (Codex), stream mode]",
+    "criteria": {
+      "accepted_inputs_and_ownership": "MET",
+      "build_and_K11_composition": "MET",
+      "integrity_and_hygiene": "MET",
+      "reproducible_gate_evidence": "PARTIAL: receipt used <build> placeholders",
+      "passing_predecessor_regressions": "NOT-MET: six K10 failures across two aggregate repeats"
+    },
+    "evidence": "artifacts/server1/INT-W3/B-W3E-evidence (kept unchanged)"
   },
+  "ordered_inputs": [
+    {"what": "K11-A", "commits": ["a20fcd011704ece4d1ee045d8c286ffad0f56747", "81abb58d512d61b42fa0f7fdc376446fbf5831d5", "d115f80117a37992e45749e8897f7d3891024e6e", "0194b7ffa131ea51eab86616e83189741c09e891", "173f9a98c9951f67a4faaf2b2aba9c7e76126bab", "7bb7971b4c6e00c57dd84114261dda1ee66eea0d"], "review": "APPROVE by Agent 4 at 7bb7971b"},
+    {"what": "INT-W3 wiring (revision 1)", "commits": ["74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6", "29543f94ce56f70d6f1431062642198a60aa2e7a"]},
+    {"what": "K10 predecessor repair", "commits": ["6b7e3e92d7309dc4456108e3371c97d95cb1fb65"], "receipt": "artifacts/server1/K10/B-W3E-REPAIR/REPAIR-RECEIPT.json", "review": "pending Agent 4"},
+    {"what": "INT-W3 STATE revision 2", "commits": ["049769013956f07e2f9484084d472ce3978a0917"]}
+  ],
+  "merge_result": "linear on b28e2dfe; fast-forwardable onto feature/colosseum-server-1.0",
   "shared_file_diff": {
-    "native/colosseum_server_v1/CMakeLists.txt": "after K10 registration: include cmake/packets/K11.cmake; server1_register_k11_packet()",
-    "native/colosseum_server_v1/tests/CMakeLists.txt": "include cmake/K11.cmake; server1_register_k11_tests(); ENVIRONMENT_MODIFICATION PATH prepend of Qt6::Core dir for K11-01/02/03 (same rule as K06); server1_k11_engine added to server1_spine_contracts_link_test",
-    "native/colosseum_server_v1/tests/test_spine_contracts.cpp": "INT-W3 link smoke references EngineRegistry::create and TorrentEngine::discoverPeer (same pattern B-W3D used for K08/K10)",
-    "docs/server1/STATE.json": "execution_notes K11-A and B-W3E, candidate_states entries, slice3_b_w3e_candidate section; nothing marked accepted"
+    "native/colosseum_server_v1/CMakeLists.txt": "K11 packet registration after K10 (revision 1, unchanged)",
+    "native/colosseum_server_v1/tests/CMakeLists.txt": "K11 tests, Qt PATH rule for K11, server1_k11_engine in the spine link smoke (revision 1, unchanged)",
+    "native/colosseum_server_v1/tests/test_spine_contracts.cpp": "links EngineRegistry::create and TorrentEngine::discoverPeer (revision 1, unchanged)",
+    "docs/server1/STATE.json": "B-W3E revision 2 and K10 repair recorded as candidates; nothing marked accepted"
   },
   "collision_review": {
-    "K11_input_files_outside_K11": "none; b28e2dfe..7bb7971b touches only K11 production, tests, manifests, and artifacts/server1/K11",
     "frozen_torrent_transport_blob": "11ebfd13fc04cebc3c89969461941ecd90daac07, unchanged from b28e2dfe",
-    "K10_sources_scripts_manifests": "unchanged from b28e2dfe (empty diff)",
-    "packet_production_changes_by_INT_W3": [],
+    "K10_repair_scope": "LibTorrent2Adapter.cpp (two session/add flags plus one test hook), test_native_transport.cpp (K10-E assertion), K10-A/K10-G runner harness; K10.cmake unchanged; P08 unchanged",
     "vendor_changes": [],
     "K12_H01_or_later_changes": []
   },
   "toolchain": {
     "cmake": "C:/Qt/Tools/CMake_64/bin/cmake.exe",
     "ctest": "C:/Qt/Tools/CMake_64/bin/ctest.exe",
-    "generator": "Ninja",
-    "compiler": "MSVC 19.44.35227.0 x64 (VS 2022 Community vcvars64)",
-    "language": "C++17",
-    "qt": "6.11.1 msvc2022_64",
+    "ninja": "C:/Qt/Tools/Ninja/ninja.exe",
+    "compiler": "MSVC 19.44.35227.0 x64 via C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat",
+    "qt": "C:/Qt/6.11.1/msvc2022_64",
     "libtorrent": "2.0.11 locked (docs/server1/DEPENDENCY-LOCK.json)",
-    "pwsh": "PowerShell 7.5.4 from the local vcpkg tools copy, prepended to PATH for K10 real-wire runners"
+    "pwsh": "C:/vcpkg/downloads/tools/powershell-core-7.5.4-windows/pwsh.exe, prepended to PATH; Qt bin not on PATH",
+    "python": "Python 3.11 (controlled peers)"
   },
   "commands": {
-    "configure": "cmake -S native/colosseum_server_v1 -B <build> -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe",
-    "build": "cmake --build <build>",
-    "inventory": "ctest --test-dir <build> -N",
-    "aggregate": "ctest --test-dir <build> --output-on-failure -j 1",
-    "k10_baseline": "10 x ctest --test-dir <build> -L K10 --output-on-failure -j 1",
-    "note": "<build> was a fresh directory outside the worktree; Qt bin was NOT on the shell PATH, so the K11 PATH rule is exercised"
+    "configure": "cmake -S C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1 -B C:/b/server1-bw3e-final-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe",
+    "build": "cmake --build C:/b/server1-bw3e-final-build",
+    "inventory": "ctest --test-dir C:/b/server1-bw3e-final-build -N",
+    "aggregate": "ctest --test-dir C:/b/server1-bw3e-final-build --output-on-failure -j 1 (5 consecutive runs)",
+    "k10": "ctest --test-dir C:/b/server1-bw3e-final-build -L K10 --output-on-failure -j 1 (10 consecutive runs)",
+    "k10e": "C:/b/server1-bw3e-final-build/p03-tests/server1_k10_native_transport_test.exe --source-infohash|--source-magnet <fresh dir> (100 each)",
+    "guard": "python scripts/check_public_paths.py"
   },
   "verification": {
-    "configure": "PASS",
-    "build": "PASS; fresh 82/82 steps (evidence build-fresh.txt); no-op rebuild at the committed tree",
-    "inventory": "67 exact registered tests (64 accepted + K11-01/02/03)",
-    "aggregate_run1": "RED 64/67: K11-01/02/03 exit 0xc0000135, Qt6Core.dll not on PATH; K11 test manifest omits the PATH rule K06 has (aggregate-run1-red-k11-qt-dll.stdout.txt)",
-    "aggregate_run2_after_path_rule": "PASS 67/67 in 153.62 s",
-    "aggregate_repeat": [
-      "1: PASS 67/67 in 160.47 s",
-      "2: 64/67 - K10-01 submit-after-ready, K10-02 sequential-wire, K10-G pause-generation",
-      "3: 64/67 - K10-03 thread-guard, K10-E source-infohash, K10-G pause-generation"
-    ],
-    "post_repair_totals": "262/268 executions; non-K10 192/192; K11 12/12; K10 70/76",
-    "public_path_guard": "PUBLIC_PATH_GUARD_OK on the staged candidate",
-    "committed_blob_hashes": "artifacts/server1/INT-W3/B-W3E-HASHES.json (18 blobs at 74af5791)"
+    "build": "fresh 82/82 at the repair sources; no-op rebuild before commit (artifacts/server1/K10/B-W3E-REPAIR/final-build.txt)",
+    "inventory": "67 (64 accepted + K11-01/02/03)",
+    "aggregate": "5/5 runs, 335/335 executions, 67.4-80.4 s per run",
+    "K10_label": "10/10 runs, 190/190 executions",
+    "K10_E_metadata": "infohash 100/100, magnet 100/100",
+    "K11": "15/15 across the five aggregate runs",
+    "no_uTP_dials": "0 UDP_DATAGRAM lines across 150 final-gate controlled-peer runs",
+    "public_path_guard": "PUBLIC_PATH_GUARD_OK",
+    "committed_blob_hashes": "artifacts/server1/INT-W3/B-W3E-HASHES.json (30 blobs at 04976901)",
+    "raw": "artifacts/server1/K10/B-W3E-REPAIR/final-gates/"
   },
-  "unresolved_failures": {
-    "K10_real_wire_readiness_flake": {
-      "tests": ["K10-01 submit-after-ready", "K10-02 sequential-wire", "K10-02 have-wire", "K10-02 live-reuse", "K10-02 failure-drain", "K10-03 thread-guard", "K10-G pause-generation"],
-      "signature": "controlled peer logs LISTEN, no HANDSHAKE; peer readiness failed connected=0 unchoked=0 at the 5 s deadline",
-      "root_cause": "libtorrent assumes uTP support (torrent_peer supports_utp=true) and dials uTP first; the TCP-only controlled peer never answers, the uTP attempt times out after ~3.05 s, and TCP follows ~1.03 s later, landing at ~4.6 s (pass) or ~5.1 s (fail) depending on the connect-tick phase of the first attempt",
-      "proof": "diag uTP on 17/20 pass with TCP at 4550-4631 ms, 3/20 fail with first attempt at ~1020 ms; causal control enable_outgoing_utp=false 20/20 pass with TCP at 513-530 ms",
-      "baseline_rate": "10 x K10 label: 5 green, 5 red (runs 3-4 under accidental concurrent diagnostic load)",
-      "pre_existing": "yes; K10 unchanged since accepted b28e2dfe and K10 binaries do not link K11; same signature recorded in K11 repair2 and v3 evidence",
-      "owner": "K10-A / K10-G / K10-H packet owners; not repaired by INT-W3",
-      "analysis": "artifacts/server1/INT-W3/B-W3E-evidence/k10-flake/K10-FLAKE-ANALYSIS.md"
-    },
-    "K10_E_source_infohash_once": "assertion at test_native_transport.cpp:1099 fails on any observation 250 ms after metadata; one occurrence; not root-caused",
-    "K10_H_caps_once": "per-peer admission cap mismatch, one occurrence under concurrent load; not root-caused",
-    "environment_hazard": "K10 fixed ports sit in the dynamic band where Windows reserves 100-port blocks (currently 49669-49768, 49869-49968); a reserved port yields the same connected=0 signature because runners do not verify LISTEN"
+  "K10_failure_accounting": {
+    "readiness_timeouts": "root-caused: uTP-first dial vs 5 s deadline; source dials TCP only (M814 utp:false); repaired by enable_outgoing_utp=false; RED 8/8 on the unfixed build",
+    "K10_E_source_infohash": "root-caused: metadata sources never got dont_download, and a blocked autonomous request surfaced as an unowned-request failure; repaired by default_dont_download; RED 6/6; base 96/100 to final 200/200",
+    "K10_H_caps_once": "late peer-0 connection (~18 s) under load; consistent with uTP-first dialing, not reproduced, not proven; 15/15 after repair",
+    "harness_bind_failure": "found during stability round 1 (WinError 10013 on fixed port 49813); repaired by fallback to an OS-chosen port"
   },
-  "decision_for_agent4": "Whether B-W3E can accept K11 composition with the pre-existing K10 real-wire flake open, or whether a K10 repair (test-only 5 s deadline raise, or production enable_outgoing_utp=false for source-parity TCP dialing) must land first. The production option changes accepted transport behaviour and connect latency, so it is not chosen here.",
-  "ownership": {
-    "aggregate_files_mutated_by": "INT-W3 only",
-    "registered_targets": ["server1_k11_engine", "server1_k11_engine_registry_test"],
-    "registered_tests": ["K11-01-engine-registry", "K11-02-engine-registry", "K11-03-engine-registry"]
-  },
+  "unresolved": [
+    "Incoming uTP remains enabled (source opens no uTP server); untested and disclosed.",
+    "P08 tiny_peer runners (K10-01 wire, K10-02 lifecycle) keep fixed ports without fallback; a reservation fails fast with the cause.",
+    "The K10-H caps link to uTP-first dialing is supported, not proven."
+  ],
   "push": "sol/server1-w3-engine-v3-20260915 pushed to origin; feature/colosseum-server-1.0 and master untouched",
-  "official_feature_checkout": "C:/b/Colosseum-Server-1.0 at b28e2dfe with the three user-owned deletions docs/build/linux.md, macos.md, windows.md preserved (untouched)",
-  "status": "candidate; test-reported with open K10 flake; pending Agent 4 independent B-W3E review",
-  "scope_note": "B-W3E candidate only. Not accepted. No K12, H01, H02, app integration, packaging, playback, K10 change, frozen TorrentTransport change, official feature, or master change."
+  "official_feature_checkout": "C:/b/Colosseum-Server-1.0 at b28e2dfe with docs/build/linux.md, macos.md, windows.md still deleted (untouched)",
+  "status": "candidate revision 2; test-reported; pending Agent 4 independent B-W3E review (includes the K10 repair)",
+  "scope_note": "B-W3E candidate only. Not accepted. No K12, H01, H02, app integration, packaging, playback, frozen TorrentTransport change, official feature, or master change."
 }
