@@ -223,7 +223,8 @@
     "K10-H": "Accepted and integrated at repaired head c0361cc169d109022f661b1cbadab93ec6dab0bb after independent Sol review; live custom HAVE/upload behavior passed four successive 4/4 wire-suite executions and 9/9 behavioral mutations.",
     "HAVE-UPLOAD-GATE": "ACCEPT by [Agent 4 (Codex), stream mode] on 2026-09-15 for exact reviewed head c0361cc169d109022f661b1cbadab93ec6dab0bb. Public-path guard PASS, 37/37 committed blobs verified, P08-T5 19/19 compile and 60/60 semantic mutations, legacy P08/P08-T4 19/19, K10-H four successive 4/4 live-wire suite executions, K10-H mutations 9/9, K10 family 19/19, combined link PASS, and fresh Release aggregate 64/64. P08-T5-CONTRACT and G-HONEST-HAVE-UPLOAD are accepted. Upstream durable-commit advertisement proof remains K11 responsibility; B-W3E is not formed.",
     "K11-A": "K11-A approved by [Agent 4 (Codex)] at exact reviewed head 7bb7971b4c6e00c57dd84114261dda1ee66eea0d (round-2 repair over accepted base b28e2dfe), including a fresh rebuilt K11 run. INT-W3 registered K11 in the aggregate for the B-W3E candidate; focused K11 3/3 in every aggregate execution.",
-    "B-W3E": "Candidate integration only, formed by [Agent (Claude), INT-W3 B-W3E assembler] on 2026-09-23 on top of 7bb7971b. Aggregate registers K11 packet and tests, adds server1_k11_engine to the INT-W3 spine link smoke, and supplies the Qt PATH rule the K11 test manifest omits (first aggregate run failed K11 0xc0000135 without it). Fresh build 82/82; inventory 67; aggregate 67/67 twice, then 64/67 twice; every failure is in accepted, unchanged K10 real-wire tests. Root cause of the K10 readiness flake: libtorrent uTP-first connect to TCP-only controlled peer plus a fixed 5 s readiness deadline (artifacts/server1/INT-W3/B-W3E-evidence/k10-flake/K10-FLAKE-ANALYSIS.md). Independent Agent 4 review and a K10 repair decision remain required.",
+    "B-W3E": "Candidate revision 2 by [Agent (Claude), INT-W3 B-W3E assembler] on 2026-09-23. Revision 1 (29543f94) was REQUEST-CHANGES by [Agent 4 (Codex)]: K10 predecessor regressions failed intermittently (64/67 twice). K10 repair 6b7e3e92 dials TCP only (source M814 utp:false) and gives metadata sources default_dont_download; controlled-peer startup now fails fast and falls back from reserved ports. Final build C:/b/server1-bw3e-final-build: fresh 82/82; K10-E 200/200; K10 label 190/190; aggregate 5 runs 335/335. Independent Agent 4 review remains required.",
+    "K10-B-W3E-REPAIR": "K10 predecessor repair 6b7e3e92 requested by Agent 4 for B-W3E: enable_outgoing_utp=false, torrent_flags::default_dont_download, nativeWantedPieceCount test hook, controlled-peer startup hardening. RED runners 8/8 and K10-E 6/6 on unfixed builds; evidence artifacts/server1/K10/B-W3E-REPAIR. Pending Agent 4 review.",
     "K02-A": "Fix Round 1 candidate adds reservation ownership and rejects cancel-before-reserve, duplicate cancel, and delivered cancel; test-reported pending Agent 4 re-review.",
     "K05-A": "Fix Round 2 candidate purges all queued connect/request/cancel/disconnect actions on generation replacement and stop, in addition to the linked lifecycle contract; test-reported pending Agent 4 re-review.",
     "K06-A": "Fix Round 3 candidate proves a later failure in a two-piece commit persists no bitmap bit and both pieces reopen unverified; test-reported pending Agent 4 re-review.",
@@ -419,13 +420,14 @@
       "K04-A": "test-reported-pending-review",
       "P08-T": "aggregate-compiled-and-mutation-tested-pending-agent4-review",
       "K11-A": "agent4-approved-at-7bb7971b-aggregate-integrated-in-B-W3E-candidate",
-      "INT-W3": "B-W3E-candidate-test-reported-with-open-K10-flake-pending-agent4-review"
+      "INT-W3": "B-W3E-candidate-revision-2-test-reported-pending-agent4-review",
+      "K10-B-W3E-REPAIR": "repair-test-reported-pending-agent4-review"
     },
     "barriers": {
       "B-W3A": "candidate-pending-agent4-review",
       "B-W3B": "candidate-pending-agent4-review",
       "B-W3C": "candidate-aggregate-verified-pending-agent4-review",
-      "B-W3E": "candidate-aggregate-verified-open-K10-real-wire-flake-pending-agent4-review"
+      "B-W3E": "candidate-revision-2-aggregate-stable-pending-agent4-review"
     },
     "control_gates": {
       "P08-T-CONTRACT": "candidate-pending-agent4-review"
@@ -665,34 +667,34 @@
     "scope_note": "This acceptance supplies honest custom HAVE and upload transport behavior for K11. It does not accept engine integration, torrent HTTP, playback, packaging, or release readiness."
   },
   "slice3_b_w3e_candidate": {
-    "status": "candidate-test-reported-pending-agent4-review",
+    "status": "candidate-revision-2-test-reported-pending-agent4-review",
     "branch": "sol/server1-w3-engine-v3-20260915",
     "accepted_feature_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
-    "integration_base": "7bb7971b4c6e00c57dd84114261dda1ee66eea0d",
+    "revision_1": {
+      "integration_sha": "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
+      "receipt_head": "29543f94ce56f70d6f1431062642198a60aa2e7a",
+      "verdict": "REQUEST-CHANGES by Agent 4: K10 predecessor regressions intermittent (64/67 twice); receipt used <build> placeholders"
+    },
     "inputs": {
-      "K11-A": [
-        "a20fcd011704ece4d1ee045d8c286ffad0f56747",
-        "81abb58d512d61b42fa0f7fdc376446fbf5831d5",
-        "d115f80117a37992e45749e8897f7d3891024e6e",
-        "173f9a98c9951f67a4faaf2b2aba9c7e76126bab",
-        "7bb7971b4c6e00c57dd84114261dda1ee66eea0d"
-      ]
+      "K11-A": "7bb7971b4c6e00c57dd84114261dda1ee66eea0d (Agent 4 APPROVE)",
+      "INT-W3_wiring": "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
+      "K10_repair": "6b7e3e92d7309dc4456108e3371c97d95cb1fb65"
     },
-    "K11_review": "approved by Agent 4 at 7bb7971b",
-    "build": "fresh MSVC 19.44/C++17/libtorrent 2.0.11 Release aggregate; 82/82 steps",
+    "build": {
+      "path": "C:/b/server1-bw3e-final-build",
+      "result": "fresh 82/82; no-op rebuild at 6b7e3e92"
+    },
     "inventory": 67,
-    "ctest": {
-      "run1": "64/67; K11-01/02/03 exit 0xc0000135 (Qt6Core.dll not on PATH); repaired by INT-W3 PATH rule",
-      "run2": "67/67",
-      "repeat1": "67/67",
-      "repeat2": "64/67 (K10-01 submit-after-ready, K10-02 sequential-wire, K10-G)",
-      "repeat3": "64/67 (K10-03, K10-E source-infohash, K10-G)"
+    "final_gates": {
+      "K10_E": "infohash 100/100, magnet 100/100",
+      "K10_label": "10 runs, 190/190",
+      "aggregate": "5 runs, 335/335"
     },
-    "non_K10_tests": "192/192 across the four post-repair aggregate executions",
-    "K11": "12/12 across the four post-repair aggregate executions",
-    "K10_flake": "root-caused: uTP-first connect to TCP-only controlled peer lands TCP at ~4.6 s or ~5.1 s against a 5 s readiness deadline; outgoing-uTP-off causal control 20/20; K10 sources unchanged since b28e2dfe; repair belongs to K10 owner",
-    "evidence_root": "artifacts/server1/INT-W3/B-W3E-evidence",
+    "evidence": [
+      "artifacts/server1/K10/B-W3E-REPAIR",
+      "artifacts/server1/INT-W3/B-W3E-evidence"
+    ],
     "receipt": "artifacts/server1/INT-W3/B-W3E.json",
-    "scope_note": "B-W3E candidate only. No K12, H01, H02, app integration, packaging, playback, K10 production/test change, frozen TorrentTransport change, or official feature/master change is claimed."
+    "scope_note": "B-W3E candidate only. Not accepted. No K12, H01, H02, app integration, packaging, playback, frozen TorrentTransport change, official feature, or master change."
   }
 }
