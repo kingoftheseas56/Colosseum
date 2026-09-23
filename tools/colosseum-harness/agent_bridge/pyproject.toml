@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.29,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "colosseum-agent-bridge"
+version = "0.0.2"
+description = "Provider-neutral MCP bridge for the Colosseum harness"
+requires-python = ">=3.11"
+dependencies = ["mcp==2.2.0", "Pillow>=11,<13"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.4,<9"]
+
+[project.scripts]
+colosseum-agent-bridge = "colosseum_agent_bridge.__main__:main"
+colosseum-desktop-bridge = "colosseum_agent_bridge.desktop_main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/colosseum_agent_bridge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

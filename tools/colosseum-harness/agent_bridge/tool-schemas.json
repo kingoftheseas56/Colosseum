@@ -1,0 +1,194 @@
+{
+  "sdk": "mcp==2.2.0",
+  "source": "generated from MCPServer registration",
+  "tools": [
+    {
+      "description": "Return bounded fresh Colosseum context for one engineering task.",
+      "inputSchema": {
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain"
+          },
+          "paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Paths"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "title": "colosseum_context_for_taskArguments",
+        "type": "object"
+      },
+      "name": "colosseum_context_for_task",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_context_for_taskDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Inspect a Colosseum domain or path through the underlying harness.",
+      "inputSchema": {
+        "properties": {
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "colosseum_inspectArguments",
+        "type": "object"
+      },
+      "name": "colosseum_inspect",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_inspectDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Resolve or run one existing Colosseum journey.",
+      "inputSchema": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "colosseum_journeyArguments",
+        "type": "object"
+      },
+      "name": "colosseum_journey",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_journeyDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Enumerate existing Colosseum Lanista/runtime journeys.",
+      "inputSchema": {
+        "properties": {},
+        "title": "colosseum_journeysArguments",
+        "type": "object"
+      },
+      "name": "colosseum_journeys",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_journeysDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Return current Colosseum repository/build/harness status.",
+      "inputSchema": {
+        "properties": {},
+        "title": "colosseum_statusArguments",
+        "type": "object"
+      },
+      "name": "colosseum_status",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_statusDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Resolve or run an existing Colosseum test surface.",
+      "inputSchema": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "selector": {
+            "title": "Selector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "title": "colosseum_testArguments",
+        "type": "object"
+      },
+      "name": "colosseum_test",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_testDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Propose or run the Colosseum verification surface chosen by the harness.",
+      "inputSchema": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Paths"
+          }
+        },
+        "title": "colosseum_verifyArguments",
+        "type": "object"
+      },
+      "name": "colosseum_verify",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "colosseum_verifyDictOutput",
+        "type": "object"
+      }
+    }
+  ]
+}
