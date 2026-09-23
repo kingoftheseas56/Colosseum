@@ -136,6 +136,7 @@ def create_run_receipt(
     map_path: str,
     selected_checks: list[dict[str, Any]],
     warnings: list[str],
+    selected_journeys: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], Path]:
     normalized_paths = normalize_repo_paths(paths, "run path")
     if not normalized_paths:
@@ -166,6 +167,7 @@ def create_run_receipt(
         },
         "verification": {
             "selectedChecks": selected_checks,
+            "selectedJourneys": list(selected_journeys or []),
             "warnings": list(warnings),
         },
         "build": None,
@@ -296,13 +298,15 @@ def bind_run_session(root: Path, run_id: str, session_path: Path | str) -> tuple
     return receipt, receipt_path
 
 
-def _persisted_verify_check(result: dict[str, Any]) -> dict[str, Any]:
+def _persisted_execution_result(result: dict[str, Any]) -> dict[str, Any]:
     persisted = {
         key: result[key]
         for key in (
             "selector",
             "kind",
             "name",
+            "path",
+            "mode",
             "selectedTests",
             "argv",
             "exitCode",
@@ -398,7 +402,7 @@ def verify_run_receipt(
         "ok": ok,
         "scope": scope,
         "selectedChecks": selected,
-        "checks": [_persisted_verify_check(item) for item in results],
+        "checks": [_persisted_execution_result(item) for item in results],
         "warnings": list(warnings),
     }
     if not dry_run:
@@ -425,6 +429,121 @@ def verify_run_receipt(
         },
         warnings=list(warnings),
         evidence=[{"kind": "verification-scope", **scope}],
+    )
+
+
+def journey_run_receipt(
+    root: Path,
+    run_id: str,
+    *,
+    dry_run: bool,
+) -> dict[str, Any]:
+    receipt_path = _run_receipt_path(root, run_id)
+    receipt = load_run_receipt(receipt_path)
+    if receipt.get("runId") != run_id or receipt.get("repo", {}).get("root") != str(root.resolve()):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt identity mismatch: {receipt_path}")
+
+    verification = receipt.get("verification")
+    if not isinstance(verification, dict):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt has no verification block: {receipt_path}")
+    frozen = verification.get("selectedJourneys")
+    if not isinstance(frozen, list) or not frozen:
+        raise HarnessError(
+            "RUN_JOURNEY_NOT_SELECTED",
+            f"Run has no frozen Lanista journey: {run_id}",
+        )
+    if len(frozen) != 1:
+        raise HarnessError(
+            "RUN_JOURNEY_AMBIGUOUS",
+            f"Run has {len(frozen)} frozen Lanista journeys; choose exactly one before execution.",
+            frozen,
+        )
+    spec = frozen[0]
+    if not isinstance(spec, dict) or not isinstance(spec.get("selector"), str):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run has an invalid frozen journey: {receipt_path}")
+
+    selector = spec["selector"]
+    journey = resolve_journey(root, selector)
+    if (
+        (spec.get("name") is not None and spec.get("name") != journey.get("name"))
+        or (spec.get("path") is not None and spec.get("path") != journey.get("path"))
+    ):
+        raise HarnessError(
+            "RUN_JOURNEY_DRIFT",
+            f"Frozen Lanista journey no longer resolves to the same scenario: {selector}",
+            {
+                "frozen": spec,
+                "current": {
+                    "name": journey.get("name"),
+                    "path": journey.get("path"),
+                },
+            },
+        )
+
+    runtime = receipt.get("runtime")
+    if not isinstance(runtime, dict):
+        raise HarnessError("RUN_RUNTIME_NOT_BOUND", f"Run has no bound Lanista runtime: {run_id}")
+    session_id = runtime.get("sessionId")
+    pipe = runtime.get("pipe")
+    if (
+        runtime.get("source") != "lanista-session-manifest"
+        or not isinstance(session_id, str)
+        or not session_id.strip()
+        or not isinstance(pipe, str)
+        or pipe != f"ColosseumLanista-{session_id}"
+    ):
+        raise HarnessError(
+            "RUN_RUNTIME_NOT_BOUND",
+            f"Run has no valid bound Lanista session/pipe: {run_id}",
+        )
+
+    argv = journey_argv(
+        root,
+        journey,
+        mode="attached",
+        drive=False,
+        seed=None,
+        ready_ms=None,
+        pipe=pipe,
+    )
+    item = {
+        "kind": "journey",
+        **journey,
+        "selector": selector,
+        "mode": "attached",
+        "argv": argv,
+    }
+    data = execute(root, item, dry_run)
+    ok = data.get("exitCode", 0) == 0
+    if not dry_run:
+        result = receipt.get("result")
+        if result is None:
+            result = {}
+        if not isinstance(result, dict):
+            raise HarnessError("RUN_RECEIPT_INVALID", f"Run result slot is invalid: {receipt_path}")
+        result["journey"] = {
+            "ok": ok,
+            "sessionId": session_id,
+            "pipe": pipe,
+            "selector": selector,
+            "path": journey["path"],
+            "execution": _persisted_execution_result(data),
+        }
+        receipt["result"] = result
+        receipt["completionReady"] = False
+        _write_run_receipt(receipt_path, receipt)
+
+    data = dict(data)
+    data["runId"] = run_id
+    data["sessionId"] = session_id
+    data["pipe"] = pipe
+    data["completionReady"] = False
+    return envelope(
+        "journey",
+        root,
+        ok=ok,
+        data=data,
+        evidence=[{"kind": "lanista-scenario", "path": journey["path"]}],
     )
 
 
@@ -1729,7 +1848,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("journeys", parents=[common], add_help=True)
     journey_p = sub.add_parser("journey", parents=[common], add_help=True)
-    journey_p.add_argument("selector")
+    journey_p.add_argument("selector", nargs="?")
+    journey_p.add_argument("--run-id")
     journey_p.add_argument("--mode", choices=("session", "attached"), default="session")
     journey_p.add_argument("--drive", action="store_true")
     journey_p.add_argument("--seed")
@@ -1837,8 +1957,29 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
                 }
                 for item in plan
             ]
+            selected_journeys: list[dict[str, Any]] = []
+            seen_journeys: set[str] = set()
+            for verification_item in data.get("verification", []):
+                if not isinstance(verification_item, dict) or verification_item.get("kind") != "journey":
+                    continue
+                selector = verification_item.get("selector")
+                if not isinstance(selector, str) or selector.casefold() in seen_journeys:
+                    continue
+                resolved_journey = resolve_journey(root, selector)
+                seen_journeys.add(selector.casefold())
+                selected_journeys.append({
+                    "selector": selector,
+                    "name": resolved_journey["name"],
+                    "path": resolved_journey["path"],
+                })
             receipt, receipt_path = create_run_receipt(
-                root, ns.task, requested_paths, data["map"], selected_checks, run_warnings
+                root,
+                ns.task,
+                requested_paths,
+                data["map"],
+                selected_checks,
+                run_warnings,
+                selected_journeys=selected_journeys,
             )
             data["runId"] = receipt["runId"]
             data["receiptPath"] = str(receipt_path)
@@ -1905,6 +2046,19 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
             }],
         )
     if command == "journey":
+        run_id = getattr(ns, "run_id", None)
+        if run_id is not None:
+            if ns.selector is not None or ns.pipe is not None or ns.seed is not None or ns.ready_ms is not None or ns.drive:
+                raise HarnessError(
+                    "RUN_JOURNEY_SCOPE_FIXED",
+                    "--run-id uses the frozen journey and bound pipe in run.json; do not pass selector/session overrides.",
+                )
+            return journey_run_receipt(root, run_id, dry_run=ns.dry_run)
+        if ns.selector is None:
+            raise HarnessError(
+                "JOURNEY_SELECTOR_REQUIRED",
+                "journey requires a selector unless --run-id supplies a frozen journey.",
+            )
         journey = resolve_journey(root, ns.selector)
         argv = journey_argv(
             root, journey, mode=ns.mode, drive=ns.drive,

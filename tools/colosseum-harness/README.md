@@ -80,6 +80,15 @@ runtime slot from Lanista. A desktop claim made with that `run_id` appends the
 existing observation PNG paths and action-receipt JSON paths to `desktopEvidence`;
 it does not copy or redesign those evidence files. `artifacts/` remains ignored by Git.
 
+Run the journey frozen into a recorded run against its already-bound Lanista session:
+
+```powershell
+python run.py --root $root journey --run-id RUN_ID --dry-run
+python run.py --root $root journey --run-id RUN_ID --run
+```
+
+`journey --run-id` uses only the journey frozen when the run receipt was created and the receipt's bound Lanista pipe. It forces attached mode, rejects fresh selector or session overrides, stores bounded output under `run.json.result.journey` without replacing `result.verification`, and keeps `completionReady=false`. Dry-run does not mutate the receipt.
+
 CTest resolution:
 
 ```powershell

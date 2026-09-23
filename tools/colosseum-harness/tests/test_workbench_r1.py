@@ -942,6 +942,185 @@ class WorkbenchR1Tests(unittest.TestCase):
         self.assertTrue(recorded["stdoutTail"].rstrip().endswith("x" * 100))
         self.assertTrue(recorded["stderrTail"].rstrip().endswith("y" * 100))
 
+    def _make_run_for_journey(self) -> tuple[dict[str, object], Path]:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+
+        scenario_dir = self.root / "tests" / "lanista_scenarios"
+        scenario_dir.mkdir(parents=True)
+        scenario_path = scenario_dir / "alpha_journey.json"
+        scenario_path.write_text(
+            json.dumps({"name": "alpha_journey", "steps": [{"cmd": "ping"}]}),
+            encoding="utf-8",
+        )
+        map_path = Path(self.tmp.name) / "journey-run-map.json"
+        map_path.write_text("{}\n", encoding="utf-8")
+        selected_journeys = [{
+            "selector": "alpha_journey",
+            "name": "alpha_journey",
+            "path": "tests/lanista_scenarios/alpha_journey.json",
+        }]
+        receipt, receipt_path = cli.create_run_receipt(
+            self.root,
+            "Journey alpha",
+            ["src/owner.cpp"],
+            str(map_path),
+            [],
+            [],
+            selected_journeys=selected_journeys,
+        )
+        receipt["runtime"] = {
+            "source": "lanista-session-manifest",
+            "sessionId": "20260924-020000-feedface",
+            "pipe": "ColosseumLanista-20260924-020000-feedface",
+        }
+        receipt["result"] = {"verification": {"ok": True}}
+        cli._write_run_receipt(receipt_path, receipt)
+        return receipt, receipt_path
+
+    def test_context_for_task_record_run_freezes_mapped_journey(self) -> None:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        (self.root / "tests" / "test_alpha.py").write_text("print('ok')\n", encoding="utf-8")
+        scenario_dir = self.root / "tests" / "lanista_scenarios"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "alpha_journey.json").write_text(
+            json.dumps({"name": "alpha_journey", "steps": [{"cmd": "ping"}]}),
+            encoding="utf-8",
+        )
+        self.commit_fixture()
+        map_path = Path(self.tmp.name) / "journey-context-map.json"
+        self._write_semantic_map(
+            map_path,
+            [{
+                "id": "alpha",
+                "aliases": ["alpha"],
+                "source_roots": ["src"],
+                "entry_points": ["src/owner.cpp"],
+                "owners": [{"path": "src/owner.cpp"}],
+                "ctests": [],
+                "checks": ["tests/test_alpha.py"],
+                "lanista_scenarios": ["alpha_journey"],
+                "context": [],
+                "platform_constraints": [],
+                "relations": [],
+            }],
+            ["src", "tests"],
+        )
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "--map", str(map_path),
+            "context-for-task", "alpha",
+            "--path", "src/owner.cpp",
+            "--record-run",
+        ])
+        payload = cli.dispatch(ns)
+        receipt = cli.load_run_receipt(Path(payload["data"]["receiptPath"]))
+
+        self.assertEqual(receipt["verification"]["selectedJourneys"], [{
+            "selector": "alpha_journey",
+            "name": "alpha_journey",
+            "path": "tests/lanista_scenarios/alpha_journey.json",
+        }])
+
+    def test_run_bound_journey_uses_bound_pipe_and_records_bounded_result(self) -> None:
+        receipt, receipt_path = self._make_run_for_journey()
+        seen: dict[str, object] = {}
+
+        def fake_execute(root, item, dry_run):
+            seen["item"] = item
+            seen["dryRun"] = dry_run
+            return {
+                **item,
+                "dryRun": False,
+                "exitCode": 0,
+                "stdout": "journey-ok\n",
+                "stderr": "",
+            }
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "journey",
+            "--run-id", str(receipt["runId"]),
+            "--run",
+        ])
+        with mock.patch.object(cli, "execute", side_effect=fake_execute):
+            payload = cli.dispatch(ns)
+
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["data"]["completionReady"])
+        item = seen["item"]
+        self.assertEqual(item["mode"], "attached")
+        self.assertEqual(
+            item["argv"][1:3],
+            ["--pipe", "ColosseumLanista-20260924-020000-feedface"],
+        )
+        self.assertEqual(item["argv"][-2:], [
+            "run", "tests/lanista_scenarios/alpha_journey.json",
+        ])
+        updated = cli.load_run_receipt(receipt_path)
+        self.assertTrue(updated["result"]["verification"]["ok"])
+        recorded = updated["result"]["journey"]
+        self.assertTrue(recorded["ok"])
+        self.assertEqual(recorded["sessionId"], "20260924-020000-feedface")
+        self.assertEqual(recorded["pipe"], "ColosseumLanista-20260924-020000-feedface")
+        self.assertEqual(recorded["execution"]["exitCode"], 0)
+        self.assertEqual(recorded["execution"]["stdoutTail"], "journey-ok\n")
+        self.assertNotIn("stdout", recorded["execution"])
+        self.assertFalse(updated["completionReady"])
+
+    def test_run_bound_journey_dry_run_does_not_record_result(self) -> None:
+        receipt, receipt_path = self._make_run_for_journey()
+        before = cli.load_run_receipt(receipt_path)["result"]
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "journey",
+            "--run-id", str(receipt["runId"]),
+            "--dry-run",
+        ])
+        payload = cli.dispatch(ns)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["data"]["dryRun"])
+        self.assertEqual(cli.load_run_receipt(receipt_path)["result"], before)
+
+    def test_run_bound_journey_rejects_selector_override(self) -> None:
+        receipt, _receipt_path = self._make_run_for_journey()
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "journey", "alpha_journey",
+            "--run-id", str(receipt["runId"]),
+            "--run",
+        ])
+
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+
+        self.assertEqual(raised.exception.code, "RUN_JOURNEY_SCOPE_FIXED")
+
+    def test_run_bound_journey_requires_bound_runtime(self) -> None:
+        receipt, receipt_path = self._make_run_for_journey()
+        receipt["runtime"] = None
+        cli._write_run_receipt(receipt_path, receipt)
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "journey",
+            "--run-id", str(receipt["runId"]),
+            "--run",
+        ])
+
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+
+        self.assertEqual(raised.exception.code, "RUN_RUNTIME_NOT_BOUND")
+
     def test_context_for_task_reads_bounded_mapped_preflight_authority(self) -> None:
         (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
         (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
