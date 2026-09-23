@@ -13,7 +13,7 @@ It does not replace Git, CMake, CTest, Lanista, Preflight, a coding agent, or Co
 
 It deliberately does not provide an editor, debugger, terminal emulator, Git client, GUI, AI agent, generic plugin system, daemon, telemetry, database, or network service.
 
-The local CLI remains the authority. The MCP bridge is only a bounded adapter over the same seven semantic operations.
+The local CLI remains the authority. The MCP bridge stays bounded to the seven semantic operations; run-receipt binding remains host-local CLI work and is not exposed as another MCP tool.
 ## Commands
 
 The CLI exposes:
@@ -25,6 +25,10 @@ The CLI exposes:
 - `journeys`
 - `journey <name>`
 - `verify`
+
+Host-local receipt maintenance additionally exposes:
+
+- `bind-session --run-id <runId> --session <session.json>`
 
 Machine-readable output is available with `--json`. JSON output is deterministic and ASCII-safe.
 

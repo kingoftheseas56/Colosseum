@@ -712,6 +712,105 @@ class WorkbenchR1Tests(unittest.TestCase):
             cli.create_run_receipt(self.root, "alpha", ["src"], str(map_path), [], [])
         self.assertEqual(raised.exception.code, "RUN_SCOPE_NOT_FILE")
 
+    def _make_run_and_session(self) -> tuple[dict[str, object], Path, Path]:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        owner = src / "owner.cpp"
+        owner.write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+
+        map_path = Path(self.tmp.name) / "bind-session-map.json"
+        map_path.write_text("{}\n", encoding="utf-8")
+        receipt, receipt_path = cli.create_run_receipt(
+            self.root, "alpha", ["src/owner.cpp"], str(map_path), [], []
+        )
+
+        session_dir = self.root / "artifacts" / "lanista-sessions" / "fixture-session"
+        session_dir.mkdir(parents=True)
+        session_path = session_dir / "session.json"
+        manifest = {
+            "schema": "colosseum.session.v1",
+            "sessionId": "20260924-015700-deadbeef",
+            "tag": "fixture-session",
+            "pipe": "ColosseumLanista-20260924-015700-deadbeef",
+            "exe": "C:/fixture/colosseum.exe",
+            "exeSha256": "a" * 64,
+            "pid": 4242,
+            "appDataRoot": "C:/fixture/Colosseum-dltest-fixture-session",
+            "cacheRoot": "C:/cache/Colosseum-dltest-fixture-session",
+        }
+        session_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return receipt, receipt_path, session_path
+
+    def test_bind_session_copies_lanista_identity_into_run_receipt(self) -> None:
+        receipt, receipt_path, session_path = self._make_run_and_session()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "bind-session",
+            "--run-id", str(receipt["runId"]),
+            "--session", str(session_path),
+        ])
+        payload = cli.dispatch(ns)
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["runId"], receipt["runId"])
+        runtime = cli.load_run_receipt(receipt_path)["runtime"]
+        self.assertEqual(runtime["source"], "lanista-session-manifest")
+        self.assertEqual(runtime["manifestPath"], str(session_path.resolve()))
+        self.assertNotIn("manifestSha256", runtime)
+        self.assertEqual(runtime["sessionId"], "20260924-015700-deadbeef")
+        self.assertEqual(runtime["tag"], "fixture-session")
+        self.assertEqual(runtime["exe"], "C:/fixture/colosseum.exe")
+        self.assertEqual(runtime["exeSha256"], "a" * 64)
+        self.assertEqual(runtime["pid"], 4242)
+        self.assertEqual(runtime["pipe"], "ColosseumLanista-20260924-015700-deadbeef")
+        self.assertEqual(
+            runtime["appDataRoot"],
+            "C:/fixture/Colosseum-dltest-fixture-session",
+        )
+        self.assertEqual(
+            runtime["cacheRoot"],
+            "C:/cache/Colosseum-dltest-fixture-session",
+        )
+        self.assertFalse(cli.load_run_receipt(receipt_path)["completionReady"])
+
+    def test_bind_session_rejects_invalid_lanista_manifest(self) -> None:
+        receipt, _receipt_path, session_path = self._make_run_and_session()
+        broken = json.loads(session_path.read_text(encoding="utf-8"))
+        broken["schema"] = "not-lanista"
+        session_path.write_text(json.dumps(broken), encoding="utf-8")
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "bind-session",
+            "--run-id", str(receipt["runId"]),
+            "--session", str(session_path),
+        ])
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+
+        self.assertEqual(raised.exception.code, "LANISTA_SESSION_INVALID")
+
+    def test_bind_session_refuses_overwriting_existing_runtime_identity(self) -> None:
+        receipt, receipt_path, session_path = self._make_run_and_session()
+        args = [
+            "--root", str(self.root),
+            "bind-session",
+            "--run-id", str(receipt["runId"]),
+            "--session", str(session_path),
+        ]
+
+        cli.dispatch(cli.build_parser().parse_args(args))
+        first_runtime = cli.load_run_receipt(receipt_path)["runtime"]
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(cli.build_parser().parse_args(args))
+
+        self.assertEqual(raised.exception.code, "RUN_RUNTIME_ALREADY_BOUND")
+        self.assertEqual(cli.load_run_receipt(receipt_path)["runtime"], first_runtime)
+
     def test_context_for_task_reads_bounded_mapped_preflight_authority(self) -> None:
         (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
         (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")

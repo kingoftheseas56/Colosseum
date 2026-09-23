@@ -192,6 +192,110 @@ def load_run_receipt(path: Path | str) -> dict[str, Any]:
     return value
 
 
+def _run_receipt_path(root: Path, run_id: str) -> Path:
+    if not re.fullmatch(r"run_[0-9a-f]{32}", run_id):
+        raise HarnessError("RUN_ID_INVALID", f"Invalid run id: {run_id}")
+    return root / "artifacts" / "harness-runs" / run_id / "run.json"
+
+
+def _write_run_receipt(path: Path, receipt: dict[str, Any]) -> None:
+    temp = path.with_name(f".run.{uuid.uuid4().hex}.tmp")
+    try:
+        with temp.open("x", encoding="utf-8", newline="\n") as stream:
+            json.dump(receipt, stream, ensure_ascii=False, indent=2, sort_keys=True)
+            stream.write("\n")
+        os.replace(temp, path)
+    finally:
+        try:
+            temp.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def load_lanista_session_manifest(path: Path | str) -> tuple[dict[str, Any], Path]:
+    manifest_path = Path(path).expanduser().resolve()
+    try:
+        raw = manifest_path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HarnessError(
+            "LANISTA_SESSION_INVALID",
+            f"Cannot read Lanista session manifest: {manifest_path}",
+        ) from exc
+    if not isinstance(value, dict) or value.get("schema") != "colosseum.session.v1":
+        raise HarnessError(
+            "LANISTA_SESSION_INVALID",
+            f"Not a Colosseum Lanista v1 session manifest: {manifest_path}",
+        )
+
+    required_strings = (
+        "sessionId", "tag", "pipe", "exe", "exeSha256", "appDataRoot", "cacheRoot",
+    )
+    for key in required_strings:
+        if not isinstance(value.get(key), str) or not value[key].strip():
+            raise HarnessError(
+                "LANISTA_SESSION_INVALID",
+                f"Lanista session manifest has no valid {key}: {manifest_path}",
+            )
+    pid = value.get("pid")
+    valid_pid = (
+        isinstance(pid, int) and not isinstance(pid, bool) and pid > 0
+    ) or (
+        isinstance(pid, float) and pid.is_integer() and pid > 0
+    )
+    if not valid_pid:
+        raise HarnessError(
+            "LANISTA_SESSION_INVALID",
+            f"Lanista session manifest has no valid pid: {manifest_path}",
+        )
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", value["exeSha256"]):
+        raise HarnessError(
+            "LANISTA_SESSION_INVALID",
+            f"Lanista session manifest has no valid exeSha256: {manifest_path}",
+        )
+    if value["pipe"] != f"ColosseumLanista-{value['sessionId']}":
+        raise HarnessError(
+            "LANISTA_SESSION_INVALID",
+            f"Lanista session pipe does not match its session id: {manifest_path}",
+        )
+    marker = f"Colosseum-dltest-{value['tag']}"
+    if marker not in value["appDataRoot"] or marker not in value["cacheRoot"]:
+        raise HarnessError(
+            "LANISTA_SESSION_INVALID",
+            f"Lanista session isolation roots do not match its tag: {manifest_path}",
+        )
+    return value, manifest_path
+
+
+def bind_run_session(root: Path, run_id: str, session_path: Path | str) -> tuple[dict[str, Any], Path]:
+    receipt_path = _run_receipt_path(root, run_id)
+    receipt = load_run_receipt(receipt_path)
+    if receipt.get("runId") != run_id or receipt.get("repo", {}).get("root") != str(root.resolve()):
+        raise HarnessError("RUN_RECEIPT_INVALID", f"Run receipt identity mismatch: {receipt_path}")
+    if receipt.get("runtime") is not None:
+        raise HarnessError(
+            "RUN_RUNTIME_ALREADY_BOUND",
+            f"Run already has runtime identity: {run_id}",
+        )
+
+    manifest, resolved_session_path = load_lanista_session_manifest(session_path)
+    receipt["runtime"] = {
+        "source": "lanista-session-manifest",
+        "manifestPath": str(resolved_session_path),
+        "sessionId": manifest["sessionId"],
+        "tag": manifest["tag"],
+        "exe": manifest["exe"],
+        "exeSha256": manifest["exeSha256"].lower(),
+        "pid": int(manifest["pid"]),
+        "pipe": manifest["pipe"],
+        "appDataRoot": manifest["appDataRoot"],
+        "cacheRoot": manifest["cacheRoot"],
+    }
+    receipt["completionReady"] = False
+    _write_run_receipt(receipt_path, receipt)
+    return receipt, receipt_path
+
+
 def envelope(
     command: str, root: Path, *, ok: bool = True,
     data: Any = None, evidence: list[Any] | None = None,
@@ -1483,6 +1587,10 @@ def build_parser() -> argparse.ArgumentParser:
     context_p.add_argument("--domain")
     context_p.add_argument("--record-run", action="store_true")
 
+    bind_p = sub.add_parser("bind-session", parents=[common], add_help=True)
+    bind_p.add_argument("--run-id", required=True)
+    bind_p.add_argument("--session", required=True)
+
     test_p = sub.add_parser("test", parents=[common], add_help=True)
     test_p.add_argument("selector")
     add_execution_mode(test_p)
@@ -1610,6 +1718,22 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
                 "path": data.get("map"),
                 "freshness": data.get("freshness"),
                 "domains": [item.get("id") for item in data.get("domains", [])],
+            }],
+        )
+    if command == "bind-session":
+        receipt, receipt_path = bind_run_session(root, ns.run_id, ns.session)
+        return envelope(
+            command,
+            root,
+            data={
+                "runId": receipt["runId"],
+                "receiptPath": str(receipt_path),
+                "runtime": receipt["runtime"],
+                "completionReady": receipt["completionReady"],
+            },
+            evidence=[{
+                "kind": "lanista-session-manifest",
+                "path": receipt["runtime"]["manifestPath"],
             }],
         )
     if command == "test":
