@@ -1,0 +1,118 @@
+{
+ "mutants": 21,
+ "killed": 21,
+ "results": [
+  {
+   "mutant": "counter-unknown-decrement-ignored",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "counter-negative-cancels-timer",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "stream-timeout-read-at-construction",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "source-default-timeouts",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "idle-uses-engine-timeout",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "engine-counter-before-stream-counter",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "progress-counts-file-pieces-only",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "cache-events-not-once-per-file",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "keep-ignores-slice-limit",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "keep-resolves-on-first-removal",
+   "file": "EngineCounters.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "upload-speed-corrected",
+   "file": "EngineStatistics.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "file-stats-natural-key-order",
+   "file": "EngineStatistics.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "wires-kept-with-index",
+   "file": "EngineStatistics.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "lenient-file-index",
+   "file": "EngineStatistics.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "number-17-digits",
+   "file": "EngineStatistics.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "falsy-alternative-stops-search",
+   "file": "FileSelection.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "guess-loose-season-equality",
+   "file": "FileSelection.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "media-extension-literal-dot",
+   "file": "FileSelection.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "m304-constructor-not-excluded",
+   "file": "FileSelection.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "m304-stamp-split-not-reversed",
+   "file": "FileSelection.cpp",
+   "state": "killed"
+  },
+  {
+   "mutant": "m304-episode-lookbehind-dropped",
+   "file": "FileSelection.cpp",
+   "state": "killed"
+  }
+ ],
+ "sourcesRestored": true,
+ "restoredGreen": true,
+ "sourceSha256": {
+  "EngineStatistics.cpp": "c79d6957da88cf3413edc5c55a4d70bdcd8c391535319a81954fa636feeaafe7",
+  "EngineCounters.cpp": "d67c3ed5f11c31f650adcae20a73eae92c63023670963dddd8eed9ae1a5151a4",
+  "FileSelection.cpp": "02046b21649713f5b654b5e523c02d6d26820fad76099a7700ddfc42e6223e71"
+ }
+}

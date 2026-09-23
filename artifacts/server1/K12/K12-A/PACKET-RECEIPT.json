@@ -1,0 +1,75 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "worker_id": "K12-A",
+  "parent_packet": "K12",
+  "producer": "[Agent (Claude), K12-A producer]",
+  "date": "2026-09-23",
+  "branch": "sol/server1-w3-k12-lifecycle-20260923",
+  "base": "5b03cfbf6d4f6487bf991a7af834e6d1a3a176ef",
+  "merge_endpoint": "artifacts/server1/K12/K12-A/MERGE-ENDPOINT.md (B-W3F via INT-W3 after Agent 4 approval)",
+  "source": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "modules": {
+      "M172": {"lines": "18110-18500", "sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486"},
+      "M662": {"lines": "62017-62032", "sha256": "fb3f3872c39d5587bf694679581f4a7d0a497a86b0fc21ad3d02c884de94ad26"},
+      "M663": {"lines": "62032-62053", "sha256": "4953bf2e5b17300fc3e5d51f2c874b1e24ba18e3076a36f2cbfdcba9dd90288d"},
+      "M664": {"lines": "62053-62065", "sha256": "e770c8eec9cac4a2509806bc6c26288c7188c5fcbcaeee1327199d5eddb46458"},
+      "M304": {"lines": "27805-27908", "sha256": "83b3a52ffac8663b219db8e4e85de77182fbb8cf7412bfe27978fd0968793c0a", "why": "dependency of M663"},
+      "M80": {"lines": "10600-10617", "sha256": "de77a63d6333c32ae8911f2acc43595ae76a87137d31857d6bd41bb5f33089d8", "why": "fileMustInclude evaluation"},
+      "M564": {"lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569", "why": "entrypoint timeout overrides at L46884"}
+    },
+    "trace": "artifacts/server1/K12/K12-A/SOURCE-TRACE.md"
+  },
+  "changed_files": {
+    "owned": [
+      "native/colosseum_server_v1/src/policy/EngineCounters.cpp",
+      "native/colosseum_server_v1/src/policy/EngineStatistics.cpp",
+      "native/colosseum_server_v1/src/policy/FileSelection.cpp",
+      "native/colosseum_server_v1/tests/test_enginefs_lifecycle.cpp",
+      "native/colosseum_server_v1/cmake/packets/K12.cmake",
+      "native/colosseum_server_v1/tests/cmake/K12.cmake"
+    ],
+    "authored_headers_disclosed": [
+      "native/colosseum_server_v1/include/server1/policy/EngineLifecycle.h",
+      "native/colosseum_server_v1/include/server1/policy/FileSelection.h"
+    ],
+    "evidence": "artifacts/server1/K12/K12-A/**",
+    "forbidden_shared_files_touched": [],
+    "accepted_sources_touched": []
+  },
+  "interfaces": {
+    "consumed": "EngineRegistryContract (EngineRegistry::list/exists/get/remove/dispatch, TorrentEngine::selectionCount, EngineEvent, EngineTimer)",
+    "produced": "EngineLifecycleContract (EngineLifecycle.h, FileSelection.h)",
+    "no_change": "No accepted header, frozen port, K11 source, aggregate CMake, STATE, app file or H01 file changed."
+  },
+  "cases": {
+    "K12-01": {"state": "differentially-qualified", "evidence": "22 source/native exact (6 M662 counter, 16 lifecycle) + teardown, unknown-engine, registry-catalog checks"},
+    "K12-02": {"state": "differentially-qualified", "evidence": "5 source/native exact (4 stats route scenarios over the real M100 router, JS number formatting) + uploadSpeed quirk check"},
+    "K12-03": {"state": "differentially-qualified", "evidence": "20 source/native exact (11 GuessFileIdx, 86 parse-video-name paths, 8 option variants, 7 keepConcurrency/removal) + JsRegExp checks"},
+    "note": "differentially-qualified at packet level; not integrated until INT-W3 forms B-W3F"
+  },
+  "verification": {
+    "differential": "node run_oracle.js --native <exe>: exit 0, 47/47 cases exact, 47/47 drift controls detected, corrupt bundle and corrupt factory rejected",
+    "red_absent": "test object without the K12 library: LNK1120, 34 unresolved externals",
+    "red_mutations": "21/21 mutants killed; sources SHA-256 restored; restored build green",
+    "focused": "K12-01/02/03 3/3, and 3/3 x3 repeat",
+    "combined": "inventory 71; three consecutive runs 71/71 (110.89 s, 142.10 s, 148.36 s)",
+    "public_path_guard": "PUBLIC_PATH_GUARD_OK",
+    "commands": "artifacts/server1/K12/K12-A/TEST-COMMANDS.txt"
+  },
+  "raw_artifacts": [
+    "raw/source-outputs.json", "raw/native-outputs.json", "raw/comparison.json", "raw/oracle.stdout.txt",
+    "raw/red/absent-candidate-link.txt", "raw/mutations/MUTATION-RESULTS.json", "raw/gates/summary.txt",
+    "raw/gates/focused-verbose.txt", "raw/gates/focused-repeat.txt", "raw/gates/combined-1.txt",
+    "raw/gates/combined-2.txt", "raw/gates/combined-3.txt", "raw/gates/inventory-combined.txt"
+  ],
+  "open_risks": [
+    "Live composition: TorrentEngine exposes neither the lifecycle surface (torrent view, committed bitfield, per-piece commit notification, buffer, store dest, whole-file select) nor several statistics fields (name, per-wire records, unique, connectionTries, swarmConnections, selections, piece geometry), nor a swarm pause. These are itemized in WIRING-REQUEST.json; nothing is zero-filled.",
+    "EngineRegistry::list() is sorted; creation order needs EngineEvents forwarded to RegistryEngineCatalog::observe().",
+    "User fileMustInclude patterns run on std::regex ECMAScript: JS-only constructs are treated as invalid, 'm' is a no-op, and regex-engine exhaustion counts as no match instead of M80's 500 ms timeout.",
+    "Through RegistryEngineCatalog a second removal during a pending destroy is a no-op (K11 erases at once); the source destroys twice.",
+    "K00 jsonStringify is not JSON.stringify for non-integral numbers; K12 uses its own serializer and does not change K00."
+  ],
+  "wiring_request": "artifacts/server1/K12/K12-A/WIRING-REQUEST.json",
+  "status": "K12-A READY FOR AGENT 4 REVIEW; not self-accepted; B-W3F not formed; H01 not started"
+}

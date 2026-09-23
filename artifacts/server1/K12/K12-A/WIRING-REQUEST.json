@@ -1,0 +1,76 @@
+{
+  "schema": "colosseum-server1-wiring-request/v4",
+  "worker_id": "K12-A",
+  "parent_packet": "K12",
+  "producer": "[Agent (Claude), K12-A producer]",
+  "accepted_base": "5b03cfbf6d4f6487bf991a7af834e6d1a3a176ef",
+  "branch": "sol/server1-w3-k12-lifecycle-20260923",
+  "barrier": "B-W3F",
+  "integration_owner": "INT-W3",
+  "request": "After Agent 4 independently approves K12-A, INT-W3 forms B-W3F by integrating the candidate onto feature/colosseum-server-1.0 and registering K12 in the aggregate.",
+  "aggregate_edits_requested": [
+    {
+      "file": "native/colosseum_server_v1/CMakeLists.txt",
+      "edit": "After the K11 registration, add include(\"${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/K12.cmake\") and server1_register_k12_packet()."
+    },
+    {
+      "file": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "edit": "Include tests/cmake/K12.cmake and call server1_register_k12_tests(), which registers K12-01/02/03-enginefs-lifecycle with labels server1;native;K12 and its own Qt PATH rule. Expected inventory 68 -> 71. Optionally add server1_k12_lifecycle to server1_spine_contracts_link_test."
+    },
+    {
+      "file": "docs/server1/STATE.json",
+      "edit": "Record K12-A as integrated only after B-W3F acceptance."
+    }
+  ],
+  "owned_manifest_files": [
+    "native/colosseum_server_v1/cmake/packets/K12.cmake",
+    "native/colosseum_server_v1/tests/cmake/K12.cmake"
+  ],
+  "link_dependencies": "server1_k12_lifecycle links server1_k00_policy (Value, JsConversions) and server1_k11_engine (EngineRegistry for RegistryEngineCatalog, EngineTimer).",
+  "interface_changes": {
+    "authored_headers": [
+      "include/server1/policy/EngineLifecycle.h (EngineLifecycleContract: EngineCounter, EngineLifecycle, EngineCatalog, RegistryEngineCatalog, LifecycleEngine, EngineStatsSnapshot, serializeEngineStatistics, serializeAllEngineStatistics, jsNumberToString, jsJsonStringify)",
+      "include/server1/policy/FileSelection.h (parseVideoName, guessFileIdx, JsRegExp, matchFileMustInclude, createRouteSelection)"
+    ],
+    "note": "New headers only, following the K11 precedent of an authored policy header outside owned_files. No accepted predecessor header, frozen port, K11 source, aggregate file or STATE is changed."
+  },
+  "composition_seam_requests": {
+    "why": "K12 is complete against controlled engines and the real EngineRegistry. Connecting it to live TorrentEngine instances for H01/C00 needs engine data that TorrentEngine does not expose. These are requests to the K11 owner through INT-W3, not changes made here; no field is filled with zero.",
+    "lifecycle_engine_surface": [
+      "torrent view once metadata is installed: pieceLength, verificationLen or realPieceLength, files with offset and length",
+      "havePiece(piece): the committed-piece bitfield (committed-only, as K10-H/K11 require)",
+      "a piece-committed notification per piece (the source's engine 'verify' event), delivered on the app lane",
+      "buffer(): whether the engine runs the circular store (e.buffer)",
+      "storeDest(fileIndex): the persistent store's destination path (e.store.getDest)",
+      "select(from, to): an engine-owned whole-file background selection with priority false"
+    ],
+    "statistics_fields": {
+      "available_today": [
+        "infoHash (sourceKey)",
+        "files (TorrentEngine::files(), serialized as {path,name,length,offset} plus __cacheEvents from EngineLifecycle::cacheEventsEmitted)",
+        "downloaded, uploaded, downloadSpeed (TransportStatistics)",
+        "swarmPaused (TransportStatistics::paused)",
+        "queued (EnginePeerDiscovery::queued)",
+        "sources and peerSearchRunning (peerSearchStats, peerSearchRunning; lastStarted must become an ISO-8601 Date string and be absent before the first run)",
+        "opts (TorrentEngine::options())",
+        "swarmSize (options.connections || options.size || 100)"
+      ],
+      "missing": [
+        "name (torrent name)",
+        "per-wire records: peerChoking, outstanding request count, peerAddress, amInterested, isSeeder, download and upload speed",
+        "unique (distinct known peers, swarm._peers)",
+        "connectionTries (swarm.tries)",
+        "swarmConnections (connecting plus connected sockets)",
+        "selections (the selection objects as JSON)",
+        "pieceLength and the committed bitfield for per-file streamProgress"
+      ]
+    },
+    "swarm_pause": "M564 wires engine-idle to EngineFS.settings(hash, {swarm: 'PAUSE'}). TorrentEngine has no public pause; K10-G provides pause at the transport.",
+    "creation_order": "EngineRegistry::list() iterates a std::map (sorted). The composer must forward every EngineEvent to RegistryEngineCatalog::observe(), or K11 may return creation order."
+  },
+  "observations_outside_k12": [
+    "K00 jsonStringify formats numbers with setprecision(17) (0.1 -> 0.10000000000000001), which is not JSON.stringify. K12 uses its own jsJsonStringify and does not change K00.",
+    "EngineRegistry::remove erases the entry immediately, so a second removal during a pending destroy is a no-op; the source destroys twice and emits engine-destroyed twice (SOURCE-TRACE ledger item 9)."
+  ],
+  "gate": "Producer-ready candidate. No integration, B-W3F formation or acceptance, and no H01 work is claimed."
+}

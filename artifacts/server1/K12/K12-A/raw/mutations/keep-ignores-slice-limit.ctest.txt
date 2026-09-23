@@ -1,0 +1,25 @@
+Internal ctest changing into directory: C:/b/server1-k12-build
+Test project C:/b/server1-k12-build
+    Start 1: K12-01-enginefs-lifecycle
+1/3 Test #1: K12-01-enginefs-lifecycle ........   Passed    0.46 sec
+    Start 2: K12-02-enginefs-lifecycle
+2/3 Test #2: K12-02-enginefs-lifecycle ........   Passed    0.10 sec
+    Start 3: K12-03-enginefs-lifecycle
+3/3 Test #3: K12-03-enginefs-lifecycle ........***Failed    0.10 sec
+source: [[0,"resolved","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","x"],[0,"destroy","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],[0,"engine-destroyed","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],[0,"engine-destroyed:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],[0,"resolved","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",1.5],[0,"remaining","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]]
+native: [[0,"destroy","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],[0,"engine-destroyed","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],[0,"engine-destroyed:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],[0,"resolved","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","x"],[0,"resolved","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",1.5],[0,"remaining","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]]
+FAIL K12-03 differs from the source for K06-nan-limit
+
+
+67% tests passed, 1 tests failed out of 3
+
+Label Time Summary:
+K12        =   0.66 sec*proc (3 tests)
+native     =   0.66 sec*proc (3 tests)
+server1    =   0.66 sec*proc (3 tests)
+
+Total Test time (real) =   0.69 sec
+
+The following tests FAILED:
+	  3 - K12-03-enginefs-lifecycle (Failed)
+Errors while running CTest

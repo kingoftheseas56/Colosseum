@@ -1,0 +1,5 @@
+[1/3] Building CXX object CMakeFiles\server1_k12_lifecycle.dir\C_\b\Colosseum-Server-1.0-sol\K12-A\native\colosseum_server_v1\src\policy\EngineCounters.cpp.obj
+[2/3] Linking CXX static library server1_k12_lifecycle.lib
+[3/3] Linking CXX executable server1_k12_enginefs_lifecycle_test.exe
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.

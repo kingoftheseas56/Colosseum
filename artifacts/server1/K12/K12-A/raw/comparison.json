@@ -1,0 +1,208 @@
+{
+ "schema": "colosseum-server1-k12-differential/v1",
+ "bundleHash": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+ "factoryHashes": {
+  "M80": "de77a63d6333c32ae8911f2acc43595ae76a87137d31857d6bd41bb5f33089d8",
+  "M100": "f8b0b1ae8bd44fb66d27bb0572420c8e60f3454e849346404c5bf27df4cd7806",
+  "M172": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486",
+  "M304": "83b3a52ffac8663b219db8e4e85de77182fbb8cf7412bfe27978fd0968793c0a",
+  "M662": "fb3f3872c39d5587bf694679581f4a7d0a497a86b0fc21ad3d02c884de94ad26",
+  "M663": "4953bf2e5b17300fc3e5d51f2c874b1e24ba18e3076a36f2cbfdcba9dd90288d"
+ },
+ "cases": 47,
+ "match": true,
+ "differences": [],
+ "controlsDetected": "47/47",
+ "controls": [
+  {
+   "id": "M662-open-close-expiry",
+   "detected": true
+  },
+  {
+   "id": "M662-reopen-cancels",
+   "detected": true
+  },
+  {
+   "id": "M662-close-before-open-wedges",
+   "detected": true
+  },
+  {
+   "id": "M662-double-close-still-fires",
+   "detected": true
+  },
+  {
+   "id": "M662-zero-without-timer",
+   "detected": true
+  },
+  {
+   "id": "M662-independent-ids",
+   "detected": true
+  },
+  {
+   "id": "L01-open-close-expiry",
+   "detected": true
+  },
+  {
+   "id": "L02-reopen-before-expiry",
+   "detected": true
+  },
+  {
+   "id": "L03-reopen-after-expiry",
+   "detected": true
+  },
+  {
+   "id": "L04-two-readers-one-file",
+   "detected": true
+  },
+  {
+   "id": "L05-two-files-one-engine",
+   "detected": true
+  },
+  {
+   "id": "L06-duplicate-finish-close",
+   "detected": true
+  },
+  {
+   "id": "L07-cached-at-open",
+   "detected": true
+  },
+  {
+   "id": "L08-verify-to-cached",
+   "detected": true
+  },
+  {
+   "id": "L09-cross-boundary-progress",
+   "detected": true
+  },
+  {
+   "id": "L10-removed-before-timers",
+   "detected": true
+  },
+  {
+   "id": "L11-stream-timeout-read-at-zero",
+   "detected": true
+  },
+  {
+   "id": "L12-buffer-engine-no-select",
+   "detected": true
+  },
+  {
+   "id": "L13-verification-ratio",
+   "detected": true
+  },
+  {
+   "id": "L14-open-before-metadata",
+   "detected": true
+  },
+  {
+   "id": "L15-remove-twice-pending",
+   "detected": true
+  },
+  {
+   "id": "L16-remove-unknown-immediate",
+   "detected": true
+  },
+  {
+   "id": "K01-remove-idle-others",
+   "detected": true
+  },
+  {
+   "id": "K02-no-limit",
+   "detected": true
+  },
+  {
+   "id": "K03-active-selections-retained",
+   "detected": true
+  },
+  {
+   "id": "K04-uppercase-hash-and-string-limit",
+   "detected": true
+  },
+  {
+   "id": "K05-resolves-on-last-index",
+   "detected": true
+  },
+  {
+   "id": "K06-nan-limit",
+   "detected": true
+  },
+  {
+   "id": "K07-slice-limits-removal",
+   "detected": true
+  },
+  {
+   "id": "S01-full-engine",
+   "detected": true
+  },
+  {
+   "id": "S02-no-torrent",
+   "detected": true
+  },
+  {
+   "id": "S03-empty-and-zero-length",
+   "detected": true
+  },
+  {
+   "id": "S04-create-selection",
+   "detected": true
+  },
+  {
+   "id": "G01-episode",
+   "detected": true
+  },
+  {
+   "id": "G02-largest-when-no-series",
+   "detected": true
+  },
+  {
+   "id": "G03-string-season-strict-equality",
+   "detected": true
+  },
+  {
+   "id": "G04-missing-episode",
+   "detected": true
+  },
+  {
+   "id": "G05-no-media",
+   "detected": true
+  },
+  {
+   "id": "G06-dot-any-extension",
+   "detected": true
+  },
+  {
+   "id": "G07-false-series",
+   "detected": true
+  },
+  {
+   "id": "G08-null-series",
+   "detected": true
+  },
+  {
+   "id": "G09-tie-keeps-first",
+   "detected": true
+  },
+  {
+   "id": "G10-multi-episode",
+   "detected": true
+  },
+  {
+   "id": "G11-xstamp",
+   "detected": true
+  },
+  {
+   "id": "N-numbers",
+   "detected": true
+  },
+  {
+   "id": "V-names",
+   "detected": true
+  },
+  {
+   "id": "V-options",
+   "detected": true
+  }
+ ],
+ "corruptBundleRejected": true,
+ "corruptFactoryRejected": true
+}

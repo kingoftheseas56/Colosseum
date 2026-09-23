@@ -1,0 +1,5 @@
+@echo off
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul
+cd /d C:\b\server1-k12-build
+link /nologo /machine:x64 /INCREMENTAL:NO /subsystem:console /OUT:<tmp>\k12-red-absent.exe "CMakeFiles\server1_k12_enginefs_lifecycle_test.dir\C_\b\Colosseum-Server-1.0-sol\K12-A\native\colosseum_server_v1\tests\test_enginefs_lifecycle.cpp.obj" precursor\server1_k11_engine.lib precursor\server1_k01_metadata.lib precursor\server1_k04_scheduler_actions.lib precursor\server1_k05_swarm_metadata.lib precursor\server1_k10_native_transport.lib C:\tools\libtorrent-2.0-msvc\lib\torrent-rasterbar.lib C:\tools\openssl-msvc\lib\libssl.lib C:\tools\openssl-msvc\lib\libcrypto.lib ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib precursor\server1_k08_file_reader.lib precursor\server1_k03_scheduler_selections.lib precursor\server1_k00_policy.lib precursor\server1_k06_persistent_store.lib precursor\server1_k02_piece_buffer.lib precursor\server1_k07_circular_store.lib C:\Qt\6.11.1\msvc2022_64\lib\Qt6Core.lib mpr.lib userenv.lib precursor\server1_k09_peer_search.lib kernel32.lib user32.lib advapi32.lib
+exit /b %ERRORLEVEL%

@@ -1,0 +1,25 @@
+Internal ctest changing into directory: C:/b/server1-k12-build
+Test project C:/b/server1-k12-build
+    Start 1: K12-01-enginefs-lifecycle
+1/3 Test #1: K12-01-enginefs-lifecycle ........   Passed    0.41 sec
+    Start 2: K12-02-enginefs-lifecycle
+2/3 Test #2: K12-02-enginefs-lifecycle ........***Failed    0.10 sec
+source: [["GET","/A/stats.json",{"status":200,"body":"{\"infoHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"name\":\"Show Pack\",\"peers\":3,\"unchoked\":2,\"queued\":4,\"unique\":7,\"connectionTries\":12,\"swarmPaused\":false,\"swarmConnections\":2,\"swarmSize\":100,\"selections\":[{\"from\":0,\"to\":2,\"offset\":0,\"priority\":1}],\"wires\":[{\"requests\":3,\"address\":\"1.2.3.4:6881\",\"amInterested\":true,\"isSeeder\":false,\"downSpeed\":1234.5678,\"upSpeed\":0.1},{\"requests\":0,\"amInterested\":false,\"isSeeder\":true,\"downSpeed\":1e+21,\"upSpeed\":1e-7}],\"files\":[{\"path\":\"Show/a.mk
+native: [["GET","/A/stats.json",{"status":200,"body":"{\"infoHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"name\":\"Show Pack\",\"peers\":3,\"unchoked\":2,\"queued\":4,\"unique\":7,\"connectionTries\":12,\"swarmPaused\":false,\"swarmConnections\":2,\"swarmSize\":100,\"selections\":[{\"from\":0,\"to\":2,\"offset\":0,\"priority\":1}],\"wires\":[{\"requests\":3,\"address\":\"1.2.3.4:6881\",\"amInterested\":true,\"isSeeder\":false,\"downSpeed\":1234.5678,\"upSpeed\":0.1},{\"requests\":0,\"amInterested\":false,\"isSeeder\":true,\"downSpeed\":1e+21,\"upSpeed\":1e-7}],\"files\":[{\"path\":\"Show/a.mk
+FAIL K12-02 differs from the source for S01-full-engine
+
+    Start 3: K12-03-enginefs-lifecycle
+3/3 Test #3: K12-03-enginefs-lifecycle ........   Passed    0.10 sec
+
+67% tests passed, 1 tests failed out of 3
+
+Label Time Summary:
+K12        =   0.61 sec*proc (3 tests)
+native     =   0.61 sec*proc (3 tests)
+server1    =   0.61 sec*proc (3 tests)
+
+Total Test time (real) =   0.64 sec
+
+The following tests FAILED:
+	  2 - K12-02-enginefs-lifecycle (Failed)
+Errors while running CTest

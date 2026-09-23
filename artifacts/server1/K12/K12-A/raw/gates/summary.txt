@@ -1,0 +1,10 @@
+k12 build exit 0 ninja: no work to do.
+combined build exit 0 [5/5] Linking CXX executable server1_k12_enginefs_lifecycle_test.exe
+oracle exit 0 cases=47 match=true differences=0 controls=47/47 corruptBundle=true corruptFactory=true
+focused verbose exit 0 100% tests passed, 0 tests failed out of 3
+focused repeat3 exit 0 100% tests passed, 0 tests failed out of 3
+inventory Total Tests: 71
+combined run 1 exit 0 100% tests passed, 0 tests failed out of 71 Total Test time (real) = 110.89 sec
+combined run 2 exit 0 100% tests passed, 0 tests failed out of 71 Total Test time (real) = 142.10 sec
+combined run 3 exit 0 100% tests passed, 0 tests failed out of 71 Total Test time (real) = 148.36 sec
+DONE

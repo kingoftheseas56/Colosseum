@@ -1,0 +1,46 @@
+K12-A commands and results (2026-09-23)
+Producer: [Agent (Claude), K12-A producer]
+Worktree: C:/b/Colosseum-Server-1.0-sol/K12-A   Branch: sol/server1-w3-k12-lifecycle-20260923   Base: 5b03cfbf (accepted B-W3E)
+Toolchain: MSVC 19.44 via "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat";
+  CMake/ctest C:/Qt/Tools/CMake_64/bin; Ninja C:/Qt/Tools/Ninja/ninja.exe; Qt C:/Qt/6.11.1/msvc2022_64;
+  PowerShell 7.5.4 (C:/vcpkg/downloads/tools/powershell-core-7.5.4-windows) prepended for K10 real-wire runners;
+  Node v24.14.0; Python 3.11.
+
+Configure (packet-local aggregate = accepted aggregate + K12):
+  cmake -S artifacts/server1/K12/K12-A/aggregate -B <dir> -G Ninja -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe
+  focused dir  C:/b/server1-k12-build            (target server1_k12_enginefs_lifecycle_test)
+  combined dir C:/b/server1-k12-combined-build   (all targets)
+
+Source oracle (real M172/M662/M663/M304/M80/M100 factories):
+  node run_oracle.js --source-only                   -> source cases=47 (exploration run)
+  node run_oracle.js --native C:/b/server1-k12-build/server1_k12_enginefs_lifecycle_test.exe
+    (Qt bin on PATH)                                 -> exit 0: cases=47 match=true differences=0
+                                                        controls=47/47 corruptBundle=true corruptFactory=true
+    raw/source-outputs.json, raw/native-outputs.json, raw/comparison.json, raw/oracle.stdout.txt
+
+RED:
+  absent candidate: link the K12 test object without server1_k12_lifecycle.lib
+    -> LNK1120: 34 unresolved externals (every K12 contract symbol)   raw/red/absent-candidate-link.{cmd,txt}
+  wrong candidates: python run_mutations.py C:/b/server1-k12-build
+    -> exit 0: 21/21 mutants killed by the focused K12 ctest cases; sources restored by SHA-256; restored build green
+    raw/mutations/MUTATION-RESULTS.json, raw/mutations/<mutant>.{build,ctest}.txt
+  Development RED observed before GREEN (not re-executable, recorded honestly):
+    first differential: 12/46 mismatches (a dangling range-for over a temporary in the test harness emptied
+    every file list); first controls 45/46 (an alteration rule left "[]" unchanged; replaced by a semantic drift).
+
+GREEN (raw/gates/):
+  k12 build (no-op), combined build 88/88 then K12 relinked after the mutation restore   gates/*-build.txt
+  ctest --test-dir C:/b/server1-k12-build -L K12 -V -j 1                -> exit 0, 3/3  gates/focused-verbose.txt
+      K12-01 source/native exact 22 + TEARDOWN, UNKNOWN-ENGINE, REGISTRY-CATALOG
+      K12-02 source/native exact 5  + UPLOAD-SPEED-QUIRK
+      K12-03 source/native exact 20 + REGEX
+  ctest --test-dir C:/b/server1-k12-build -L K12 --repeat until-fail:3   -> exit 0, 3/3 x3  gates/focused-repeat.txt
+  ctest --test-dir C:/b/server1-k12-combined-build -N                    -> 71 (68 accepted + K12-01/02/03)
+  ctest --test-dir C:/b/server1-k12-combined-build --output-on-failure -j 1, three consecutive runs
+      -> exit 0 71/71 (110.89 s), exit 0 71/71 (142.10 s), exit 0 71/71 (148.36 s)   gates/combined-{1,2,3}.txt
+      includes K11-01/02/03, K10 (20, incl. inbound-utp), K06, K08, P08-T, INT-W3 link, and every accepted test.
+
+Hygiene:
+  python scripts/check_public_paths.py -> PUBLIC_PATH_GUARD_OK (staged candidate)
+  The absent-candidate link log had a private temp path; it is replaced by <tmp>.
