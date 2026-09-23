@@ -1,0 +1,11 @@
+{
+  "name": "colosseum-streaming-surface",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/smoke.cjs",
+    "check": "node --check catalog.js && node --check preview-data.js && node --check app.js && npm test"
+  },
+  "devDependencies": {
+    "linkedom": "0.18.12"
+  }
+}
