@@ -243,15 +243,23 @@ def test_run_bound_observe_appends_existing_screenshot_path_to_run_receipt(
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     run_id = write_run_receipt(repo_root, pid=1111)
+    receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
+    before = json.loads(receipt_path.read_text(encoding="utf-8"))
+    before["completionReady"] = True
+    before["completionBlockers"] = []
+    receipt_path.write_text(json.dumps(before), encoding="utf-8")
     control = controller(tmp_path / "runtime", repo_root=repo_root)
     control.claim("controller-a", run_id=run_id)
 
     summary, _screenshot = run(control.observe("controller-a"))
 
-    receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     screenshot_path = summary["state"]["screenshotPath"]
     assert receipt["desktopEvidence"] == [screenshot_path]
+    assert receipt["completionReady"] is False
+    assert [item["code"] for item in receipt["completionBlockers"]] == [
+        "RUN_COMPLETION_REEVALUATION_REQUIRED"
+    ]
     assert Path(screenshot_path).is_file()
 
 

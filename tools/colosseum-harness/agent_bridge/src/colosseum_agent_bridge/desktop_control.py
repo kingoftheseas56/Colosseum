@@ -241,6 +241,11 @@ class ColosseumDesktopController:
         if normalized in evidence:
             return
         evidence.append(normalized)
+        receipt["completionReady"] = False
+        receipt["completionBlockers"] = [{
+            "code": "RUN_COMPLETION_REEVALUATION_REQUIRED",
+            "message": "Desktop evidence changed; rerun the existing run-bound completion gate.",
+        }]
 
         temp = receipt_path.with_name(f".run.{uuid.uuid4().hex}.tmp")
         try:

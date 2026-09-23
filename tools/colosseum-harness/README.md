@@ -87,7 +87,7 @@ python run.py --root $root journey --run-id RUN_ID --dry-run
 python run.py --root $root journey --run-id RUN_ID --run
 ```
 
-`journey --run-id` uses only the journey frozen when the run receipt was created and the receipt's bound Lanista pipe. It forces attached mode, rejects fresh selector or session overrides, stores bounded output under `run.json.result.journey` without replacing `result.verification`, and keeps `completionReady=false`. Dry-run does not mutate the receipt.
+`journey --run-id` uses only the journey frozen when the run receipt was created and the receipt's bound Lanista pipe. It forces attached mode, rejects fresh selector or session overrides, and stores bounded output under `run.json.result.journey` without replacing `result.verification`. Dry-run does not mutate the receipt. Real execution re-evaluates the existing completion gate from receipt evidence.
 
 CTest resolution:
 
@@ -116,9 +116,20 @@ When checks are inferred, the result lists each selected check and the changed p
 `verify --run-id` does not infer a new scope. It executes only the selectors frozen
 when that run receipt was created, and rejects an additional `--path`. A dry-run
 previews those checks without mutating the receipt. `--run` stores the verification
-result under `run.json.result.verification` while keeping `completionReady=false`.
-The live response keeps full stdout/stderr; the small receipt stores exit codes,
-output byte counts and SHA-256s, plus bounded 4,000-character output tails.
+result under `run.json.result.verification` and evaluates the same small completion
+gate used by run-bound journey results.
+
+`completionReady=true` requires a valid task/source receipt, a complete bound Lanista
+runtime, at least one existing desktop evidence item with no pending, uncertain,
+rejected, failed, missing, or changed action evidence, every frozen verification check
+passing, and exactly one frozen Lanista journey passing against that bound session/pipe.
+Otherwise the receipt remains
+false and `completionBlockers` records explicit `RUN_*` blocker codes. Attaching new
+desktop evidence invalidates a previously-ready receipt until the existing run-bound
+gate is evaluated again. No `--finish`, teardown lifecycle, second verifier, or new MCP
+tool is involved. The live response keeps full stdout/stderr; persisted execution output
+remains bounded to exit codes, byte counts, SHA-256s, and 4,000-character tails.
+
 ## Honest failure states
 
 Unknown or moved path:

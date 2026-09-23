@@ -1121,6 +1121,174 @@ class WorkbenchR1Tests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, "RUN_RUNTIME_NOT_BOUND")
 
+    def _make_completion_gate_run(self) -> tuple[dict[str, object], Path]:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        test_path = self.root / "tests" / "test_alpha.py"
+        test_path.write_text("print('alpha-ready')\n", encoding="utf-8")
+        scenario_dir = self.root / "tests" / "lanista_scenarios"
+        scenario_dir.mkdir(parents=True)
+        scenario_path = scenario_dir / "alpha_journey.json"
+        scenario_path.write_text(
+            json.dumps({"name": "alpha_journey", "steps": [{"cmd": "ping"}]}),
+            encoding="utf-8",
+        )
+        self.commit_fixture()
+
+        map_path = Path(self.tmp.name) / "completion-run-map.json"
+        map_path.write_text("{}\n", encoding="utf-8")
+        selected_checks = [{
+            "selector": "tests/test_alpha.py",
+            "kind": "script",
+            "name": "test_alpha",
+            "selectedTests": ["tests/test_alpha.py"],
+        }]
+        selected_journeys = [{
+            "selector": "alpha_journey",
+            "name": "alpha_journey",
+            "path": "tests/lanista_scenarios/alpha_journey.json",
+        }]
+        receipt, receipt_path = cli.create_run_receipt(
+            self.root,
+            "Complete alpha",
+            ["src/owner.cpp"],
+            str(map_path),
+            selected_checks,
+            [],
+            selected_journeys=selected_journeys,
+        )
+        session_id = "20260924-040000-c0ffee42"
+        receipt["runtime"] = {
+            "source": "lanista-session-manifest",
+            "manifestPath": str((Path(self.tmp.name) / "session.json").resolve()),
+            "sessionId": session_id,
+            "tag": "completion-fixture",
+            "exe": "C:/fixture/colosseum.exe",
+            "exeSha256": "b" * 64,
+            "pid": 4242,
+            "pipe": f"ColosseumLanista-{session_id}",
+            "appDataRoot": "C:/fixture/Colosseum-dltest-completion-fixture",
+            "cacheRoot": "C:/cache/Colosseum-dltest-completion-fixture",
+        }
+        screenshot = self.root / "artifacts" / "desktop" / "final.png"
+        screenshot.parent.mkdir(parents=True)
+        screenshot.write_bytes(b"png")
+        receipt["desktopEvidence"] = [str(screenshot.resolve())]
+        receipt["result"] = {
+            "journey": {
+                "ok": True,
+                "sessionId": session_id,
+                "pipe": f"ColosseumLanista-{session_id}",
+                "selector": "alpha_journey",
+                "path": "tests/lanista_scenarios/alpha_journey.json",
+                "execution": {"exitCode": 0},
+            },
+        }
+        cli._write_run_receipt(receipt_path, receipt)
+        return receipt, receipt_path
+
+    def test_run_bound_verify_sets_completion_ready_from_existing_receipt_evidence(self) -> None:
+        receipt, receipt_path = self._make_completion_gate_run()
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "verify",
+            "--run-id", str(receipt["runId"]),
+            "--run",
+        ])
+
+        payload = cli.dispatch(ns)
+
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["data"]["completionReady"])
+        self.assertEqual(payload["data"]["completionBlockers"], [])
+        updated = cli.load_run_receipt(receipt_path)
+        self.assertTrue(updated["completionReady"])
+        self.assertEqual(updated["completionBlockers"], [])
+
+    def test_run_completion_gate_reports_exact_missing_evidence_classes(self) -> None:
+        receipt, receipt_path = self._make_completion_gate_run()
+        receipt["task"] = ""
+        receipt["source"] = []
+        receipt["runtime"] = None
+        receipt["desktopEvidence"] = []
+        receipt["result"] = None
+        cli._write_run_receipt(receipt_path, receipt)
+
+        blockers = cli.run_completion_blockers(receipt)
+        codes = [item["code"] for item in blockers]
+
+        self.assertIn("RUN_RECEIPT_INCOMPLETE", codes)
+        self.assertIn("RUN_RUNTIME_NOT_BOUND", codes)
+        self.assertIn("RUN_DESKTOP_EVIDENCE_MISSING", codes)
+        self.assertIn("RUN_VERIFICATION_INCOMPLETE", codes)
+        self.assertIn("RUN_JOURNEY_INCOMPLETE", codes)
+
+    def test_run_completion_gate_blocks_unconfirmed_desktop_actions(self) -> None:
+        receipt, _receipt_path = self._make_completion_gate_run()
+        states = {
+            "PENDING_VISUAL_REVIEW": "RUN_DESKTOP_ACTION_PENDING",
+            "VISUAL_OUTCOME_UNCERTAIN": "RUN_DESKTOP_ACTION_UNCERTAIN",
+            "VISUALLY_REJECTED": "RUN_DESKTOP_ACTION_REJECTED",
+        }
+        for state, expected_code in states.items():
+            with self.subTest(state=state):
+                action = self.root / "artifacts" / "desktop" / f"{state}.json"
+                action.write_text(json.dumps({
+                    "verificationState": state,
+                    "visualVerdict": {
+                        "PENDING_VISUAL_REVIEW": None,
+                        "VISUAL_OUTCOME_UNCERTAIN": "uncertain",
+                        "VISUALLY_REJECTED": "fail",
+                    }[state],
+                }), encoding="utf-8")
+                candidate = dict(receipt)
+                candidate["desktopEvidence"] = [str(action.resolve())]
+
+                codes = [item["code"] for item in cli.run_completion_blockers(candidate)]
+
+                self.assertIn(expected_code, codes)
+
+    def test_run_completion_gate_blocks_failed_or_missing_confirmed_action_evidence(self) -> None:
+        receipt, _receipt_path = self._make_completion_gate_run()
+        screenshot = Path(receipt["desktopEvidence"][0])
+        screenshot_sha = hashlib.sha256(screenshot.read_bytes()).hexdigest().upper()
+        action = self.root / "artifacts" / "desktop" / "confirmed-action.json"
+
+        def write_action(*, tool_error, after_path: Path) -> None:
+            action.write_text(json.dumps({
+                "verificationState": "VISUALLY_CONFIRMED",
+                "visualVerdict": "pass",
+                "toolError": tool_error,
+                "before": {
+                    "screenshotPath": str(screenshot.resolve()),
+                    "screenshotSha256": screenshot_sha,
+                    "screenshotBytes": screenshot.stat().st_size,
+                },
+                "after": {
+                    "screenshotPath": str(after_path.resolve()),
+                    "screenshotSha256": screenshot_sha,
+                    "screenshotBytes": screenshot.stat().st_size,
+                },
+            }), encoding="utf-8")
+
+        write_action(tool_error={"code": "CLICK_FAILED"}, after_path=screenshot)
+        candidate = dict(receipt)
+        candidate["desktopEvidence"] = [str(action.resolve())]
+        codes = [item["code"] for item in cli.run_completion_blockers(candidate)]
+        self.assertIn("RUN_DESKTOP_ACTION_FAILED", codes)
+
+        missing = self.root / "artifacts" / "desktop" / "missing.png"
+        write_action(tool_error=None, after_path=missing)
+        codes = [item["code"] for item in cli.run_completion_blockers(candidate)]
+        self.assertIn("RUN_DESKTOP_EVIDENCE_INVALID", codes)
+
+        write_action(tool_error=None, after_path=screenshot)
+        codes = [item["code"] for item in cli.run_completion_blockers(candidate)]
+        self.assertFalse(any(code.startswith("RUN_DESKTOP_") for code in codes))
+
     def test_context_for_task_reads_bounded_mapped_preflight_authority(self) -> None:
         (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
         (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
