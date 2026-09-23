@@ -75,8 +75,10 @@ A legacy map without semantic freshness metadata remains usable for the original
 
 `--record-run` requires at least one explicit file `--path`. It writes one small
 `artifacts\harness-runs\<runId>\run.json` receipt containing the task, exact
-repo/file state and selected existing checks, with build/runtime/desktop/result
-slots left empty for later evidence. `artifacts/` remains ignored by Git.
+repo/file state and selected existing checks. `bind-session` fills the existing
+runtime slot from Lanista. A desktop claim made with that `run_id` appends the
+existing observation PNG paths and action-receipt JSON paths to `desktopEvidence`;
+it does not copy or redesign those evidence files. `artifacts/` remains ignored by Git.
 
 CTest resolution:
 

@@ -122,6 +122,7 @@ def write_run_receipt(repo_root: Path, *, pid: int) -> str:
             "runId": run_id,
             "repo": {"root": str(repo_root.resolve())},
             "runtime": {"pid": pid},
+            "desktopEvidence": [],
         }),
         encoding="utf-8",
     )
@@ -234,6 +235,57 @@ def test_run_bound_claim_rejects_colosseum_window_from_other_pid(tmp_path: Path)
     assert raised.value.code == "COLOSSEUM_WINDOW_PID_MISMATCH"
     assert raised.value.details["expectedPid"] == 4242
     assert control.lease.status() is None
+
+
+def test_run_bound_observe_appends_existing_screenshot_path_to_run_receipt(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_id = write_run_receipt(repo_root, pid=1111)
+    control = controller(tmp_path / "runtime", repo_root=repo_root)
+    control.claim("controller-a", run_id=run_id)
+
+    summary, _screenshot = run(control.observe("controller-a"))
+
+    receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    screenshot_path = summary["state"]["screenshotPath"]
+    assert receipt["desktopEvidence"] == [screenshot_path]
+    assert Path(screenshot_path).is_file()
+
+
+def test_run_bound_action_appends_existing_action_receipt_path_to_run_receipt(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_id = write_run_receipt(repo_root, pid=1111)
+    control = controller(tmp_path / "runtime", repo_root=repo_root)
+    control.claim("controller-a", run_id=run_id)
+
+    summary, _screenshot = run(
+        control.click("controller-a", x=20, y=30, expect_text="Theatre")
+    )
+
+    receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["desktopEvidence"] == [summary["receiptPath"]]
+    assert Path(summary["receiptPath"]).is_file()
+
+
+def test_unbound_desktop_evidence_does_not_mutate_run_receipt(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_id = write_run_receipt(repo_root, pid=1111)
+    receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
+    before = receipt_path.read_bytes()
+    control = controller(tmp_path / "runtime", repo_root=repo_root)
+    control.claim("controller-a")
+
+    run(control.observe("controller-a"))
+
+    assert receipt_path.read_bytes() == before
 
 
 def test_click_is_window_relative_and_blocks_until_visual_confirmation(

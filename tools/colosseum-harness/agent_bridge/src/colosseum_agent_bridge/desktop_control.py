@@ -206,6 +206,54 @@ class ColosseumDesktopController:
             )
         return pid
 
+    def _append_run_evidence(self, lease_record: dict[str, Any], evidence_path: str) -> None:
+        run_id = lease_record.get("runId")
+        if not isinstance(run_id, str) or not run_id:
+            return
+        repo_root = self.repo_root or default_repo_root()
+        repo_root = repo_root.resolve()
+        self.repo_root = repo_root
+        receipt_path = repo_root / "artifacts" / "harness-runs" / run_id / "run.json"
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise DesktopControlError(
+                "RUN_RECEIPT_INVALID",
+                f"cannot read run receipt while attaching desktop evidence: {receipt_path}",
+            ) from exc
+        if (
+            not isinstance(receipt, dict)
+            or receipt.get("schema") != "colosseum.harness.run.v1"
+            or receipt.get("runId") != run_id
+            or Path(str(receipt.get("repo", {}).get("root", ""))).resolve() != repo_root
+        ):
+            raise DesktopControlError(
+                "RUN_RECEIPT_INVALID",
+                f"run receipt identity does not match this Colosseum checkout: {receipt_path}",
+            )
+        evidence = receipt.get("desktopEvidence")
+        if not isinstance(evidence, list) or any(not isinstance(item, str) for item in evidence):
+            raise DesktopControlError(
+                "RUN_RECEIPT_INVALID",
+                f"run receipt desktopEvidence is not a list of paths: {receipt_path}",
+            )
+        normalized = str(Path(evidence_path).resolve())
+        if normalized in evidence:
+            return
+        evidence.append(normalized)
+
+        temp = receipt_path.with_name(f".run.{uuid.uuid4().hex}.tmp")
+        try:
+            with temp.open("x", encoding="utf-8", newline="\n") as stream:
+                json.dump(receipt, stream, ensure_ascii=False, indent=2, sort_keys=True)
+                stream.write("\n")
+            os.replace(temp, receipt_path)
+        finally:
+            try:
+                temp.unlink()
+            except FileNotFoundError:
+                pass
+
     def _resolve_window_for_pid(self, expected_pid: int) -> WindowInfo:
         matches = self.windows.list_matching()
         if not matches:
@@ -358,7 +406,7 @@ class ColosseumDesktopController:
     ) -> tuple[dict[str, Any], ScreenshotEvidence]:
         try:
             with self.lease.operation_lock(controller_id):
-                _, window = self._ensure_ready(
+                record, window = self._ensure_ready(
                     controller_id,
                     require_no_pending=False,
                 )
@@ -370,6 +418,7 @@ class ColosseumDesktopController:
                         "current",
                         window,
                     )
+                self._append_run_evidence(record, state["screenshotPath"])
                 return {
                     "controllerId": controller_id,
                     "verificationState": "OBSERVATION",
@@ -390,7 +439,7 @@ class ColosseumDesktopController:
         action_id = uuid.uuid4().hex
         try:
             with self.lease.operation_lock(controller_id):
-                _, window = self._ensure_ready(
+                record, window = self._ensure_ready(
                     controller_id,
                     require_no_pending=True,
                 )
@@ -454,11 +503,17 @@ class ColosseumDesktopController:
                     json.dumps(receipt, indent=2, ensure_ascii=True) + "\n",
                     encoding="utf-8",
                 )
-                self.lease.update(
+                record = self.lease.update(
                     controller_id,
                     pendingActionId=action_id,
                 )
                 receipt["receiptPath"] = str(receipt_path)
+                try:
+                    self._append_run_evidence(record, str(receipt_path))
+                except DesktopControlError as exc:
+                    exc.details.setdefault("actionId", action_id)
+                    exc.details.setdefault("receiptPath", str(receipt_path))
+                    raise
                 return receipt, after_image
         except BaseException as exc:
             raise self._translate_error(exc) from exc
