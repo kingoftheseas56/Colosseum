@@ -2,13 +2,13 @@
   "schema": "colosseum-server1-barrier-receipt/v2",
   "worker_id": "INT-W3",
   "barrier": "B-W3E",
-  "revision": 2,
+  "revision": 3,
   "criterion": "EngineRegistry composition accepted.",
   "producer": "[Agent (Claude), INT-W3 B-W3E assembler]",
   "date": "2026-09-23",
   "branch": "sol/server1-w3-engine-v3-20260915",
   "accepted_feature_base": "b28e2dfe8562a5f942d569ab981d97a0530113bf",
-  "integration_sha": "049769013956f07e2f9484084d472ce3978a0917",
+  "integration_sha": "5bd9e3e222724d708d970e90f5d21a431f72d3e3",
   "predecessor_barrier": "B-W3D (accepted, plus accepted Slice 3 gates through HAVE-UPLOAD-GATE at b28e2dfe)",
   "revision_1": {
     "integration_sha": "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
@@ -24,21 +24,58 @@
     "evidence": "artifacts/server1/INT-W3/B-W3E-evidence (kept unchanged)"
   },
   "ordered_inputs": [
-    {"what": "K11-A", "commits": ["a20fcd011704ece4d1ee045d8c286ffad0f56747", "81abb58d512d61b42fa0f7fdc376446fbf5831d5", "d115f80117a37992e45749e8897f7d3891024e6e", "0194b7ffa131ea51eab86616e83189741c09e891", "173f9a98c9951f67a4faaf2b2aba9c7e76126bab", "7bb7971b4c6e00c57dd84114261dda1ee66eea0d"], "review": "APPROVE by Agent 4 at 7bb7971b"},
-    {"what": "INT-W3 wiring (revision 1)", "commits": ["74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6", "29543f94ce56f70d6f1431062642198a60aa2e7a"]},
-    {"what": "K10 predecessor repair", "commits": ["6b7e3e92d7309dc4456108e3371c97d95cb1fb65"], "receipt": "artifacts/server1/K10/B-W3E-REPAIR/REPAIR-RECEIPT.json", "review": "pending Agent 4"},
-    {"what": "INT-W3 STATE revision 2", "commits": ["049769013956f07e2f9484084d472ce3978a0917"]}
+    {
+      "what": "K11-A",
+      "commits": [
+        "a20fcd011704ece4d1ee045d8c286ffad0f56747",
+        "81abb58d512d61b42fa0f7fdc376446fbf5831d5",
+        "d115f80117a37992e45749e8897f7d3891024e6e",
+        "0194b7ffa131ea51eab86616e83189741c09e891",
+        "173f9a98c9951f67a4faaf2b2aba9c7e76126bab",
+        "7bb7971b4c6e00c57dd84114261dda1ee66eea0d"
+      ],
+      "review": "APPROVE by Agent 4 at 7bb7971b"
+    },
+    {
+      "what": "INT-W3 wiring (revision 1)",
+      "commits": [
+        "74af57916aeb1b4b9c8169ca6e4ecb0d4cd152c6",
+        "29543f94ce56f70d6f1431062642198a60aa2e7a"
+      ]
+    },
+    {
+      "what": "K10 predecessor repair",
+      "commits": [
+        "6b7e3e92d7309dc4456108e3371c97d95cb1fb65",
+        "dfdbac3e90a171a6ba7163ee9bbe64e96fb6a20d"
+      ],
+      "receipt": "artifacts/server1/K10/B-W3E-REPAIR/REPAIR-RECEIPT.json",
+      "review": "pending Agent 4"
+    },
+    {
+      "what": "INT-W3 STATE and receipt revision 2",
+      "commits": [
+        "049769013956f07e2f9484084d472ce3978a0917",
+        "2fa51bc79a4a664870783ef5ecb8649273c93f4f"
+      ]
+    },
+    {
+      "what": "INT-W3 STATE revision 3",
+      "commits": [
+        "5bd9e3e222724d708d970e90f5d21a431f72d3e3"
+      ]
+    }
   ],
   "merge_result": "linear on b28e2dfe; fast-forwardable onto feature/colosseum-server-1.0",
   "shared_file_diff": {
     "native/colosseum_server_v1/CMakeLists.txt": "K11 packet registration after K10 (revision 1, unchanged)",
     "native/colosseum_server_v1/tests/CMakeLists.txt": "K11 tests, Qt PATH rule for K11, server1_k11_engine in the spine link smoke (revision 1, unchanged)",
     "native/colosseum_server_v1/tests/test_spine_contracts.cpp": "links EngineRegistry::create and TorrentEngine::discoverPeer (revision 1, unchanged)",
-    "docs/server1/STATE.json": "B-W3E revision 2 and K10 repair recorded as candidates; nothing marked accepted"
+    "docs/server1/STATE.json": "B-W3E revision 3 and K10 repair recorded as candidates; nothing marked accepted"
   },
   "collision_review": {
     "frozen_torrent_transport_blob": "11ebfd13fc04cebc3c89969461941ecd90daac07, unchanged from b28e2dfe",
-    "K10_repair_scope": "LibTorrent2Adapter.cpp (two session/add flags plus one test hook), test_native_transport.cpp (K10-E assertion), K10-A/K10-G runner harness; K10.cmake unchanged; P08 unchanged",
+    "K10_repair_scope": "LibTorrent2Adapter.cpp (outgoing and incoming uTP off, default_dont_download, two fail-closed test hooks), test_native_transport.cpp (K10-E assertions, --inbound-utp-serve mode), tests/cmake/K10.cmake (one new test), K10-A/K10-G runner harness and utp_probe.py; cmake/packets/K10.cmake and P08 unchanged",
     "vendor_changes": [],
     "K12_H01_or_later_changes": []
   },
@@ -53,39 +90,53 @@
     "python": "Python 3.11 (controlled peers)"
   },
   "commands": {
-    "configure": "cmake -S C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1 -B C:/b/server1-bw3e-final-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe",
-    "build": "cmake --build C:/b/server1-bw3e-final-build",
-    "inventory": "ctest --test-dir C:/b/server1-bw3e-final-build -N",
-    "aggregate": "ctest --test-dir C:/b/server1-bw3e-final-build --output-on-failure -j 1 (5 consecutive runs)",
-    "k10": "ctest --test-dir C:/b/server1-bw3e-final-build -L K10 --output-on-failure -j 1 (10 consecutive runs)",
-    "k10e": "C:/b/server1-bw3e-final-build/p03-tests/server1_k10_native_transport_test.exe --source-infohash|--source-magnet <fresh dir> (100 each)",
-    "guard": "python scripts/check_public_paths.py"
+    "configure": "cmake -S C:/b/Colosseum-Server-1.0-sol/INT-W2-repaired/native/colosseum_server_v1 -B C:/b/server1-bw3e-final2-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 -DCMAKE_MAKE_PROGRAM=C:/Qt/Tools/Ninja/ninja.exe",
+    "build": "cmake --build C:/b/server1-bw3e-final2-build",
+    "inventory": "ctest --test-dir C:/b/server1-bw3e-final2-build -N",
+    "aggregate": "ctest --test-dir C:/b/server1-bw3e-final2-build --output-on-failure -j 1 (5 consecutive runs)",
+    "k10": "ctest --test-dir C:/b/server1-bw3e-final2-build -L K10 --output-on-failure -j 1 (10 consecutive runs)",
+    "k10e": "C:/b/server1-bw3e-final2-build/p03-tests/server1_k10_native_transport_test.exe --source-infohash|--source-magnet|--source-invalid <fresh dir> (100 each)",
+    "guard": "python scripts/check_public_paths.py",
+    "inbound_utp": "pwsh -NoProfile -File artifacts/server1/K10/K10-A/run_inbound_utp.ps1 -BuildDir C:/b/server1-bw3e-final2-build/p03-tests (20 consecutive runs)"
   },
   "verification": {
-    "build": "fresh 82/82 at the repair sources; no-op rebuild before commit (artifacts/server1/K10/B-W3E-REPAIR/final-build.txt)",
-    "inventory": "67 (64 accepted + K11-01/02/03)",
-    "aggregate": "5/5 runs, 335/335 executions, 67.4-80.4 s per run",
-    "K10_label": "10/10 runs, 190/190 executions",
-    "K10_E_metadata": "infohash 100/100, magnet 100/100",
+    "build": "fresh 82/82 at dfdbac3e sources; no-op rebuild before commit (artifacts/server1/K10/B-W3E-REPAIR/round3/final-build.txt)",
+    "inventory": "68 (64 accepted + K11-01/02/03 + K10-02-native-transport-inbound-utp)",
+    "aggregate": "5/5 runs, 340/340 executions, 74.8-106.1 s per run",
+    "K10_label": "10/10 runs, 200/200 executions",
+    "inbound_utp": "20/20 direct plus 15 inside K10/aggregate runs: TCP accepted, zero ST_STATE replies",
+    "K10_E": "infohash 100/100, magnet 100/100, invalid 100/100 (fail-closed hook assertion)",
     "K11": "15/15 across the five aggregate runs",
-    "no_uTP_dials": "0 UDP_DATAGRAM lines across 150 final-gate controlled-peer runs",
+    "no_uTP_dials": "0 UDP_DATAGRAM lines in controlled-peer logs",
     "public_path_guard": "PUBLIC_PATH_GUARD_OK",
-    "committed_blob_hashes": "artifacts/server1/INT-W3/B-W3E-HASHES.json (30 blobs at 04976901)",
-    "raw": "artifacts/server1/K10/B-W3E-REPAIR/final-gates/"
+    "committed_blob_hashes": "artifacts/server1/INT-W3/B-W3E-HASHES.json (34 blobs at 5bd9e3e2)",
+    "raw": "artifacts/server1/K10/B-W3E-REPAIR/round3/final-gates/"
   },
   "K10_failure_accounting": {
-    "readiness_timeouts": "root-caused: uTP-first dial vs 5 s deadline; source dials TCP only (M814 utp:false); repaired by enable_outgoing_utp=false; RED 8/8 on the unfixed build",
+    "readiness_timeouts": "root-caused: uTP-first dial vs 5 s deadline; source is TCP only (M814 utp:false); repaired by enable_outgoing_utp=false; RED 8/8 on the unfixed build",
     "K10_E_source_infohash": "root-caused: metadata sources never got dont_download, and a blocked autonomous request surfaced as an unowned-request failure; repaired by default_dont_download; RED 6/6; base 96/100 to final 200/200",
-    "K10_H_caps_once": "late peer-0 connection (~18 s) under load; consistent with uTP-first dialing, not reproduced, not proven; 15/15 after repair",
-    "harness_bind_failure": "found during stability round 1 (WinError 10013 on fixed port 49813); repaired by fallback to an OS-chosen port"
+    "K10_H_caps_once": "not conclusively attributed: late peer-0 connection (~18 s) under load, consistent with uTP-first dialing, not reproduced; 15/15 in round 2 and 15/15 in round 3",
+    "harness_bind_failure": "found during stability round 1 (WinError 10013 on fixed port 49813); repaired by fallback to an OS-chosen port",
+    "inbound_uTP_parity": "source opens only a TCP listener (M818 72885); repaired by enable_incoming_utp=false; RED 3/3 (SYN answered), GREEN 20/20",
+    "fail_open_hook": "nativeWantedPieceCount returned 0 for a non-adapter; now SIZE_MAX, nativeListenPort 0; RED 3/3 with the old wrapper"
   },
   "unresolved": [
-    "Incoming uTP remains enabled (source opens no uTP server); untested and disclosed.",
-    "P08 tiny_peer runners (K10-01 wire, K10-02 lifecycle) keep fixed ports without fallback; a reservation fails fast with the cause.",
-    "The K10-H caps link to uTP-first dialing is supported, not proven."
+    "The pre-repair K10-H caps failure remains not conclusively attributed.",
+    "P08 tiny_peer runners (K10-01 wire, K10-02 lifecycle) keep fixed ports without fallback; a reservation fails fast with the cause."
   ],
   "push": "sol/server1-w3-engine-v3-20260915 pushed to origin; feature/colosseum-server-1.0 and master untouched",
   "official_feature_checkout": "C:/b/Colosseum-Server-1.0 at b28e2dfe with docs/build/linux.md, macos.md, windows.md still deleted (untouched)",
-  "status": "candidate revision 2; test-reported; pending Agent 4 independent B-W3E review (includes the K10 repair)",
-  "scope_note": "B-W3E candidate only. Not accepted. No K12, H01, H02, app integration, packaging, playback, frozen TorrentTransport change, official feature, or master change."
+  "status": "candidate revision 3; test-reported; pending Agent 4 independent B-W3E review (includes the K10 repair)",
+  "scope_note": "B-W3E candidate only. Not accepted. No K12, H01, H02, app integration, packaging, playback, frozen TorrentTransport change, official feature, or master change.",
+  "revision_2": {
+    "integration_sha": "049769013956f07e2f9484084d472ce3978a0917",
+    "receipt_head": "2fa51bc79a4a664870783ef5ecb8649273c93f4f",
+    "verdict": "REQUEST-CHANGES by [Agent 4 (Codex), stream mode]",
+    "criteria": {
+      "K10_repair_evidence": "MET",
+      "independent_gate": "MET: no-op rebuild, 67/67, 30/30 seals, public-path guard",
+      "integration_ownership": "MET",
+      "source_parity": "PARTIAL: inbound uTP enabled and untested; nativeWantedPieceCount returned 0 for a non-adapter"
+    }
+  }
 }
