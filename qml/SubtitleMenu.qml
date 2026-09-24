@@ -599,14 +599,16 @@ Item {
                             font.pixelSize: 14
                             elide: Text.ElideRight
                         }
-                        indicator: Text {
+                        indicator: PlayerIcon {
                             anchors.right: parent.right
-                            anchors.rightMargin: 11
+                            anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "v"
-                            color: theme.inkDimmer
-                            font.family: theme.hud
-                            font.pixelSize: 14
+                            width: 16
+                            height: 16
+                            iconSize: 13
+                            kind: "chevronRight"
+                            rotation: 90
+                            ink: theme.inkDimmer
                         }
                         background: Rectangle {
                             radius: 11
@@ -892,6 +894,16 @@ Item {
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
+                FooterButton {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18
+                    y: 13
+                    width: 88
+                    height: 30
+                    text: "Reset"
+                    icon: "reset"
+                    onClicked: menu.resetAppearance()
+                }
                 Text {
                     x: 18
                     y: 42
@@ -903,7 +915,7 @@ Item {
 
                 Text {
                     x: 18
-                    y: 78
+                    y: 72
                     text: "FONT"
                     color: theme.inkDimmer
                     font.family: theme.hud
@@ -914,7 +926,7 @@ Item {
                 Text {
                     anchors.right: parent.right
                     anchors.rightMargin: 18
-                    y: 78
+                    y: 72
                     text: subtitleStylePrefs.fontFamily
                     color: theme.inkDim
                     font.family: theme.hud
@@ -923,7 +935,7 @@ Item {
                 Controls.ComboBox {
                     id: fontPicker
                     x: 18
-                    y: 98
+                    y: 90
                     width: parent.width - 36
                     height: 38
                     model: menu.fontFamilies
@@ -944,14 +956,16 @@ Item {
                         font.pixelSize: 13
                         elide: Text.ElideRight
                     }
-                    indicator: Text {
+                    indicator: PlayerIcon {
                         anchors.right: parent.right
-                        anchors.rightMargin: 10
+                        anchors.rightMargin: 9
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "v"
-                        color: theme.inkDimmer
-                        font.family: theme.hud
-                        font.pixelSize: 14
+                        width: 16
+                        height: 16
+                        iconSize: 13
+                        kind: "chevronRight"
+                        rotation: 90
+                        ink: theme.inkDimmer
                     }
                     background: Rectangle {
                         radius: 10
@@ -964,7 +978,7 @@ Item {
                 StyleSlider {
                     id: sizeSlider
                     x: 18
-                    y: 153
+                    y: 139
                     width: parent.width - 36
                     label: "SIZE"
                     valueText: Math.round(subtitleStylePrefs.scale * 100) + "%"
@@ -980,7 +994,7 @@ Item {
 
                 Text {
                     x: 18
-                    y: 216
+                    y: 202
                     text: "TEXT COLOR"
                     color: theme.inkDimmer
                     font.family: theme.hud
@@ -991,7 +1005,7 @@ Item {
                 Swatches {
                     id: textSwatches
                     x: 18
-                    y: 235
+                    y: 219
                     width: parent.width - 36
                     label: ""
                     selected: subtitleStylePrefs.textColor
@@ -1005,7 +1019,7 @@ Item {
                 StyleSlider {
                     id: outlineSlider
                     x: 18
-                    y: 285
+                    y: 262
                     width: parent.width - 36
                     label: "OUTLINE"
                     valueText: Number(subtitleStylePrefs.outlineSize).toFixed(1)
@@ -1022,7 +1036,7 @@ Item {
                 StyleSlider {
                     id: positionSlider
                     x: 18
-                    y: 347
+                    y: 323
                     width: parent.width - 36
                     label: "VERTICAL POSITION"
                     valueText: String(subtitleStylePrefs.position)
@@ -1039,9 +1053,9 @@ Item {
                 Rectangle {
                     id: preview
                     x: 18
-                    y: 410
+                    y: 388
                     width: parent.width - 36
-                    height: 62
+                    height: 46
                     radius: 12
                     color: Qt.rgba(0, 0, 0, 0.28)
                     border.width: 1
@@ -1053,21 +1067,10 @@ Item {
                         text: "Subtitle preview"
                         color: subtitleStylePrefs.textColor
                         font.family: subtitleStylePrefs.fontFamily
-                        font.pixelSize: Math.max(12, 19 * subtitleStylePrefs.scale)
+                        font.pixelSize: Math.max(12, 16 * subtitleStylePrefs.scale)
                         style: Text.Outline
                         styleColor: subtitleStylePrefs.outlineColor
                     }
-                }
-
-                FooterButton {
-                    x: 18
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 14
-                    width: parent.width - 36
-                    height: 34
-                    text: "Reset appearance"
-                    icon: "reset"
-                    onClicked: menu.resetAppearance()
                 }
             }
         }
