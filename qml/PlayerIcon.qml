@@ -46,6 +46,11 @@ Item {
         case "audio":          return "languages"          // audio track
         case "subtitle":       return "captions"           // Lucide 0.460 has no 'subtitles'
         case "speed":          return "gauge"              // playback speed
+        case "search":         return "search"
+        case "folder":         return "folder-open"
+        case "reset":          return "rotate-ccw"
+        case "chevronLeft":    return "chevron-left"
+        case "chevronRight":   return "chevron-right"
         default:
             console.warn("PlayerIcon: unmapped kind '" + k + "' -> circle-alert")
             return "circle-alert"

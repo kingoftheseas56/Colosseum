@@ -18,6 +18,18 @@ Window {
         { id: "2", label: "Spanish", lang: "spa", external: false }
     ]
 
+    QtObject {
+        id: fakePlayer
+        property string lastKey: ""
+        property var lastValue: null
+        property int callCount: 0
+        function setSubOption(key, value) {
+            lastKey = key
+            lastValue = value
+            callCount++
+        }
+    }
+
     Loader {
         id: ld
         source: "../qml/SubtitleMenu.qml"
@@ -35,6 +47,7 @@ Window {
             if (!m) { console.log("HARNESS FAIL: no SubtitleMenu item"); Qt.exit(5); return }
             m.tracks = win.demoTracks
             m.selectedId = "1"
+            m.player = fakePlayer
 
             // instrument the outward signals
             var trackPicks = 0, offPicks = 0, onlinePicks = 0
@@ -87,7 +100,22 @@ Window {
             m.selectedId = "7"   // the freshly added subtitle becomes the selected track
             check(m.panelOpen === false, "online pick closes once a new track is confirmed selected")
 
-            // ---- 7. closing the panel clears any lingering pending + error ----
+            // ---- 7. subtitle appearance reaches the live mpv option bridge ----
+            fakePlayer.callCount = 0
+            m.setStyleOption("sub-font", "Verdana")
+            check(fakePlayer.callCount === 1, "font change must call player.setSubOption once")
+            check(fakePlayer.lastKey === "sub-font", "font change must target mpv sub-font")
+            check(String(fakePlayer.lastValue) === "Verdana", "font change must carry the selected family")
+
+            // ---- 8. closing the panel clears transient drawer/search state ----
+            m.panelOpen = true
+            m.searching = true
+            m.appearanceOpen = true
+            m.panelOpen = false
+            check(m.searching === false, "closing the panel must reset search mode")
+            check(m.appearanceOpen === false, "closing the panel must reset appearance drawer")
+
+            // ---- 9. closing the panel clears any lingering pending + error ----
             m.panelOpen = true
             m.pickTrack("2")
             m.panelOpen = false

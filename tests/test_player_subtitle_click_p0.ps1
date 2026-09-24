@@ -37,4 +37,14 @@ if ($sub -match "trackPicked\(String\(modelData\.id\)\);\s*\r?\n\s*menu\.panelOp
 Assert-Contains $sub "function pickTrack"   "SubtitleMenu must route row picks through the confirm-before-close pickTrack()."
 Assert-Contains $sub "function failPending" "SubtitleMenu must surface a visible error when a selection fails or times out."
 
+# ---- 4. REDESIGN: font bridge + compact SVG controls ----
+Assert-Contains $sub "property var player: null" "SubtitleMenu must accept the live mpv player for appearance changes."
+Assert-Contains $sub 'setSubOption("sub-font"' "Subtitle font selection must flow through mpv sub-font."
+Assert-Contains $sub "fontFamilies" "Subtitle appearance drawer must expose font choices."
+Assert-Contains $sub "component CompactIconButton" "Subtitle sync must use the compact icon control."
+Assert-Contains $sub "PlayerIcon" "Subtitle footer and sync actions must render SVG-backed PlayerIcon glyphs."
+Assert-Contains $player "player: mpv" "PlayerPage must bind SubtitleMenu to the live mpv item."
+Assert-Contains $player "panelWidth: 760" "Subtitle popover must use the approved wide mock geometry."
+Assert-Contains $player "panelHeight: 520" "Subtitle popover must use the approved tall mock geometry."
+
 Write-Host "Player subtitle click-through + confirm-before-close checks passed."

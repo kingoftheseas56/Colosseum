@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtCore
 import QtQuick.Dialogs
+import QtQuick.Controls as Controls
 import "Subtitles.js" as Subtitles
 import "SubtitleGroups.js" as SubtitleGroups
 import "PlayerFocusContainment.js" as FocusContainment
@@ -12,6 +14,7 @@ Item {
     height: faceChip.height
 
     property bool panelOpen: false
+    property var player: null
     property var tracks: []
     property alias delegateModel: menu.tracks
     property string selectedId: ""
@@ -20,8 +23,8 @@ Item {
     property string chipValue: ""      // native chrome: live value shown on the chip face
     property bool loading: false
     property int count: (tracks || []).length
-    property int panelWidth: 500
-    property int panelHeight: 400
+    property int panelWidth: 760
+    property int panelHeight: 520
     property string icon: ""
     property string title: ""
     property string emptyText: ""
@@ -37,6 +40,12 @@ Item {
     property string source: "all"
     property bool hi: true
     property bool forced: false
+    property string filterMode: "all"
+    property bool appearanceOpen: false
+    property var fontFamilies: {
+        var families = Qt.fontFamilies()
+        return families && families.length ? families : ["Arial", "Segoe UI", "Verdana", "Tahoma", "Georgia"]
+    }
     property bool searching: false
     property bool searchLoading: false
     property var searchResults: null
@@ -57,16 +66,67 @@ Item {
     readonly property bool pending: pendingId.length > 0 || pendingOff || pendingOnline
 
     readonly property var groups: SubtitleGroups.groupByLanguage(tracks)
-    readonly property var visibleTracks: SubtitleGroups.filterTracks(tracks, {
-        "lang": lang,
-        "source": source === "all" ? undefined : source,
-        "hi": hi,
-        "forced": forced
-    })
+    readonly property var visibleTracks: filteredTracks()
     readonly property int allCount: (tracks || []).length
     readonly property int embeddedCount: countSource(false)
     readonly property int externalCount: countSource(true)
     property var focusReturnItem: null
+    function filteredTracks() {
+        var rows = SubtitleGroups.filterTracks(tracks, {
+            "lang": lang,
+            "source": source === "all" ? undefined : source,
+            "hi": true,
+            "forced": false
+        })
+        if (filterMode === "hi")
+            return rows.filter(function(track) { return !!track.hearingImpaired })
+        if (filterMode === "forced")
+            return rows.filter(function(track) { return !!track.forced })
+        return rows
+    }
+
+    Settings {
+        id: subtitleStylePrefs
+        category: "subtitleStyle"
+        property string fontFamily: "Arial"
+        property real scale: 1.0
+        property string textColor: "#FFFFFF"
+        property real outlineSize: 2.0
+        property string outlineColor: "#000000"
+        property int position: 94
+        property string assOverride: "scale"
+        property bool customized: false
+    }
+
+    function setStyleOption(key, value) {
+        subtitleStylePrefs.customized = true
+        if (menu.player && menu.player.setSubOption)
+            menu.player.setSubOption(key, value)
+    }
+    function applyStyle() {
+        if (!menu.player || !menu.player.setSubOption || !subtitleStylePrefs.customized)
+            return
+        menu.player.setSubOption("sub-font", subtitleStylePrefs.fontFamily)
+        menu.player.setSubOption("sub-scale", subtitleStylePrefs.scale)
+        menu.player.setSubOption("sub-color", subtitleStylePrefs.textColor)
+        menu.player.setSubOption("sub-border-size", subtitleStylePrefs.outlineSize)
+        menu.player.setSubOption("sub-border-color", subtitleStylePrefs.outlineColor)
+        menu.player.setSubOption("sub-pos", subtitleStylePrefs.position)
+        menu.player.setSubOption("sub-ass-override", subtitleStylePrefs.assOverride)
+    }
+    function resetAppearance() {
+        subtitleStylePrefs.fontFamily = "Arial"
+        subtitleStylePrefs.scale = 1.0
+        subtitleStylePrefs.textColor = "#FFFFFF"
+        subtitleStylePrefs.outlineSize = 2.0
+        subtitleStylePrefs.outlineColor = "#000000"
+        subtitleStylePrefs.position = 94
+        subtitleStylePrefs.assOverride = "scale"
+        subtitleStylePrefs.customized = true
+        applyStyle()
+    }
+    onPlayerChanged: applyStyle()
+    Component.onCompleted: applyStyle()
     function restoreFocus() {
         var target = menu.focusReturnItem; menu.focusReturnItem = null
         Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
@@ -130,6 +190,33 @@ Item {
         if (track.default)
             parts.push("Default");
         return parts.join(" · ");
+    }
+
+    function languageOptions() {
+        var out = [{ "key": "__all__", "label": "All languages", "count": allCount }]
+        for (var i = 0; i < groups.length; ++i) {
+            var g = groups[i]
+            out.push({ "key": g.key, "label": g.label + " · " + g.count, "count": g.count })
+        }
+        return out
+    }
+    function languageIndex() {
+        var opts = languageOptions()
+        for (var i = 0; i < opts.length; ++i)
+            if (opts[i].key === lang)
+                return i
+        return 0
+    }
+    function toggleSubtitleState() {
+        if (active) {
+            pickOff()
+            return
+        }
+        if (!tracks || !tracks.length)
+            return
+        var candidate = visibleTracks.length ? visibleTracks[0] : tracks[0]
+        if (candidate && candidate.id !== undefined)
+            pickTrack(String(candidate.id))
     }
 
     function runSearch() {
@@ -210,6 +297,8 @@ Item {
     onPanelOpenChanged: {
         if (!panelOpen) {
             clearPending(); pendingTimer.stop(); selectionError = ""
+            menu.searching = false
+            menu.appearanceOpen = false
             if (menu.focusReturnItem) menu.restoreFocus()
             return
         }
@@ -283,470 +372,691 @@ Item {
 
     Rectangle {
         id: panel
-        // Hosted on the full-screen chrome layer when wired, so every row stays clickable.
         parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
         z: menu.overlayParent ? 40 : 30
-        width: 500
-        height: 400
+        width: menu.panelWidth
+        height: menu.panelHeight
         onVisibleChanged: if (visible) menu.positionPanel(panel)
-        radius: 14
-        // Native chrome (spec 2026-07-08): house popover surface.
-        color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+        radius: 22
+        color: Qt.rgba(10 / 255, 12 / 255, 17 / 255, 0.96)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.14)
         clip: true
         focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) { menu.panelOpen = false; event.accepted = true }
-            else if (event.key === Qt.Key_Down) event.accepted = menu.movePanelFocus(true)
+            if (event.key === Qt.Key_Escape) {
+                if (menu.appearanceOpen) menu.appearanceOpen = false
+                else if (menu.searching) menu.searching = false
+                else menu.panelOpen = false
+                event.accepted = true
+            } else if (event.key === Qt.Key_Down) event.accepted = menu.movePanelFocus(true)
             else if (event.key === Qt.Key_Up) event.accepted = menu.movePanelFocus(false)
         }
         Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, true) }
         Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, false) }
 
-        // Absorb background clicks: the panel body must never fall through to the player's
-        // fullscreen catcher (which would dismiss the menu). Parity spec 2026-07-06 F2.
         MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: {} }
 
-        Text {
-            id: title
-            x: 16
-            y: 15
-            text: "Subtitles"
-            color: theme.ink
-            font.family: theme.hud
-            font.pixelSize: 14
-            font.weight: Font.DemiBold
-        }
-        Text {
-            anchors.left: title.right
-            anchors.leftMargin: 8
-            anchors.verticalCenter: title.verticalCenter
-            text: menu.allCount
-            color: theme.inkDimmer
-            font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 12
-        }
-        Text {
-            id: autoStatus
-            visible: menu.showAutoStatus || menu.selectionError.length > 0
-            anchors.left: title.right
-            anchors.leftMargin: 48
-            anchors.right: styleButton.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: title.verticalCenter
-            text: menu.selectionError.length > 0 ? menu.selectionError : menu.autoStatusText
-            color: menu.selectionError.length > 0 ? "#ff8a8a" : theme.inkDimmer
-            font.family: theme.hud
-            font.pixelSize: 11
-            elide: Text.ElideRight
-            horizontalAlignment: Text.AlignRight
-        }
-        HeaderButton {
-            id: styleButton
-            anchors.right: closeButton.left
-            anchors.rightMargin: 2
-            anchors.top: parent.top
-            anchors.topMargin: 7
-            icon: "sliders"
-            onClicked: menu.styleRequested()
-        }
-        HeaderButton {
-            id: closeButton
+        Item {
+            id: header
+            anchors.left: parent.left
             anchors.right: parent.right
-            anchors.rightMargin: 8
             anchors.top: parent.top
-            anchors.topMargin: 7
-            icon: "x"
-            onClicked: menu.panelOpen = false
-        }
-        Rectangle {
-            x: 0
-            y: 50
-            width: parent.width
-            height: 1
-            color: Qt.rgba(1, 1, 1, 0.08)
-        }
+            height: 72
 
-        Rectangle {
-            id: aside
-            x: 0
-            y: 51
-            width: 128
-            height: parent.height - y
-            color: Qt.rgba(1, 1, 1, 0.025)
-            Rectangle {
-                anchors.right: parent.right
-                width: 1
-                height: parent.height
-                color: Qt.rgba(1, 1, 1, 0.08)
+            Text {
+                id: title
+                anchors.left: parent.left
+                anchors.leftMargin: 22
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Subtitles"
+                color: theme.ink
+                font.family: theme.hud
+                font.pixelSize: 19
+                font.weight: Font.DemiBold
             }
-            Flickable {
-                anchors.fill: parent
-                anchors.margins: 8
-                contentWidth: width
-                contentHeight: asideColumn.height
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                Column {
-                    id: asideColumn
-                    width: parent.width
-                    spacing: 3
-
-                    AsideItem {
-                        width: parent.width
-                        text: menu.active ? "On" : "Off"
-                        selected: menu.active
-                        radio: true
-                        countText: ""
-                        onClicked: menu.pickOff()
-                    }
-                    Text {
-                        width: parent.width
-                        topPadding: 8
-                        leftPadding: 4
-                        text: "LANGUAGES"
-                        color: theme.inkDimmer
-                        font.family: theme.hud
-                        font.pixelSize: 10
-                        font.weight: Font.Bold
-                        font.letterSpacing: 1.6
-                    }
-                    Column {
-                        id: languageCollection
-                        width: parent.width
-                        readonly property bool hasAll: menu.groups.length > 1
-                        readonly property int choiceCount: menu.groups.length + (hasAll ? 1 : 0)
-                        property int keyboardIndex: 0
-                        focusPolicy: choiceCount > 0 ? Qt.TabFocus : Qt.NoFocus
-                        function activate(index) {
-                            if (index < 0 || index >= choiceCount) return
-                            if (hasAll && index === 0) menu.lang = "__all__"
-                            else { var gi = index - (hasAll ? 1 : 0); if (gi >= 0 && gi < menu.groups.length) menu.lang = menu.groups[gi].key }
-                        }
-                        Keys.onPressed: function(event) {
-                            if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
-                                var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
-                                if (next >= 0 && next < choiceCount) { keyboardIndex = next; event.accepted = true }
-                            } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
-                            else if (event.key === Qt.Key_End) { keyboardIndex = choiceCount - 1; event.accepted = true }
-                            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { activate(keyboardIndex); event.accepted = true }
-                        }
-                        AsideItem {
-                            visible: languageCollection.hasAll
-                            width: parent.width
-                            text: "All"
-                            selected: menu.lang === "__all__"
-                            countText: ""
-                            iconText: "Aa"
-                            keyboardEnabled: false
-                            keyboardHighlighted: languageCollection.activeFocus && languageCollection.keyboardIndex === 0
-                            onClicked: menu.lang = "__all__"
-                        }
-                        Repeater {
-                            model: menu.groups
-                            delegate: AsideItem {
-                                required property int index
-                                required property var modelData
-                                width: languageCollection.width
-                                text: modelData.label
-                                selected: menu.lang === modelData.key
-                                countText: modelData.count
-                                keyboardEnabled: false
-                                keyboardHighlighted: languageCollection.activeFocus && languageCollection.keyboardIndex === index + (languageCollection.hasAll ? 1 : 0)
-                                onClicked: menu.lang = modelData.key
-                            }
-                        }
-                    }
+            Text {
+                anchors.left: title.right
+                anchors.leftMargin: 8
+                anchors.verticalCenter: title.verticalCenter
+                text: menu.allCount
+                color: theme.inkDimmer
+                font.family: theme.hud
+                font.features: ({ "tnum": 1 })
+                font.pixelSize: 13
+            }
+            Text {
+                id: autoStatus
+                visible: menu.showAutoStatus || menu.selectionError.length > 0
+                anchors.right: searchButton.left
+                anchors.rightMargin: 10
+                anchors.verticalCenter: title.verticalCenter
+                width: Math.min(260, implicitWidth)
+                text: menu.selectionError.length > 0 ? menu.selectionError : menu.autoStatusText
+                color: menu.selectionError.length > 0 ? "#ff8a8a" : theme.inkDimmer
+                font.family: theme.hud
+                font.pixelSize: 12
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignRight
+            }
+            HeaderButton {
+                id: searchButton
+                anchors.right: styleButton.left
+                anchors.rightMargin: 4
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "search"
+                active: menu.searching
+                accessibleName: "Find more subtitles"
+                onClicked: {
+                    menu.appearanceOpen = false
+                    menu.searching = !menu.searching
+                    if (menu.searching) menu.searchError = ""
                 }
+            }
+            HeaderButton {
+                id: styleButton
+                anchors.right: closeButton.left
+                anchors.rightMargin: 4
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "fit"
+                active: menu.appearanceOpen
+                accessibleName: "Subtitle appearance"
+                onClicked: {
+                    menu.searching = false
+                    menu.appearanceOpen = !menu.appearanceOpen
+                }
+            }
+            HeaderButton {
+                id: closeButton
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "cancel"
+                accessibleName: "Close subtitles"
+                onClicked: menu.panelOpen = false
+            }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.08)
             }
         }
 
         Item {
-            id: pane
-            x: 128
-            y: 51
-            width: parent.width - x
-            height: parent.height - y
+            id: body
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: header.bottom
+            anchors.bottom: parent.bottom
 
             Item {
-                visible: !menu.searching
-                anchors.fill: parent
+                id: mainPane
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: menu.appearanceOpen ? parent.width - 280 : parent.width
 
-                Row {
-                    id: tabs
-                    x: 12
-                    y: 8
-                    width: parent.width - 24
-                    height: 27
-                    spacing: 6
+                Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+                Item {
+                    id: tracksPage
+                    anchors.fill: parent
+                    visible: !menu.searching
+
                     Row {
-                        id: sourceStrip
-                        property int keyboardIndex: menu.source === "embedded" ? 1 : menu.source === "external" ? 2 : 0
-                        spacing: 6
-                        focusPolicy: menu.panelOpen ? Qt.TabFocus : Qt.NoFocus
-                        function enabledAt(index) { return index === 0 || (index === 1 ? menu.embeddedCount > 0 : menu.externalCount > 0) }
-                        function activate(index) { if (!enabledAt(index)) return; menu.source = index === 0 ? "all" : index === 1 ? "embedded" : "external" }
-                        function step(delta) {
-                            var next = keyboardIndex + delta
-                            while (next >= 0 && next < 3 && !enabledAt(next)) next += delta
-                            if (next >= 0 && next < 3) { keyboardIndex = next; return true }
-                            return false
+                        id: toolbar
+                        x: 20
+                        y: 18
+                        width: parent.width - 40
+                        height: 36
+                        spacing: 10
+
+                        ToggleButton {
+                            active: menu.active
+                            enabled: menu.allCount > 0 || menu.active
+                            onClicked: menu.toggleSubtitleState()
                         }
-                        Keys.onPressed: function(event) {
-                            if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) event.accepted = step(event.key === Qt.Key_Left ? -1 : 1)
-                            else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
-                            else if (event.key === Qt.Key_End) { keyboardIndex = menu.externalCount > 0 ? 2 : menu.embeddedCount > 0 ? 1 : 0; event.accepted = true }
-                            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { activate(keyboardIndex); event.accepted = true }
+
+                        Row {
+                            id: sourceStrip
+                            spacing: 4
+                            height: 36
+                            property int keyboardIndex: menu.source === "embedded" ? 1 : menu.source === "external" ? 2 : 0
+                            focusPolicy: menu.panelOpen ? Qt.TabFocus : Qt.NoFocus
+                            function enabledAt(index) { return index === 0 || (index === 1 ? menu.embeddedCount > 0 : menu.externalCount > 0) }
+                            function activate(index) {
+                                if (!enabledAt(index)) return
+                                menu.source = index === 0 ? "all" : index === 1 ? "embedded" : "external"
+                            }
+                            function step(delta) {
+                                var next = keyboardIndex + delta
+                                while (next >= 0 && next < 3 && !enabledAt(next)) next += delta
+                                if (next >= 0 && next < 3) { keyboardIndex = next; return true }
+                                return false
+                            }
+                            Keys.onPressed: function(event) {
+                                if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+                                    event.accepted = step(event.key === Qt.Key_Left ? -1 : 1)
+                                else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                                else if (event.key === Qt.Key_End) { keyboardIndex = menu.externalCount > 0 ? 2 : menu.embeddedCount > 0 ? 1 : 0; event.accepted = true }
+                                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { activate(keyboardIndex); event.accepted = true }
+                            }
+
+                            SegmentButton {
+                                text: "All " + menu.allCount
+                                selected: menu.source === "all"
+                                keyboardEnabled: false
+                                keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 0
+                                onClicked: menu.source = "all"
+                            }
+                            SegmentButton {
+                                text: "Embedded " + menu.embeddedCount
+                                selected: menu.source === "embedded"
+                                enabled: menu.embeddedCount > 0
+                                keyboardEnabled: false
+                                keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 1
+                                onClicked: menu.source = "embedded"
+                            }
+                            SegmentButton {
+                                text: "External " + menu.externalCount
+                                selected: menu.source === "external"
+                                enabled: menu.externalCount > 0
+                                keyboardEnabled: false
+                                keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 2
+                                onClicked: menu.source = "external"
+                            }
                         }
-                        TabPill { text: "All " + menu.allCount; selected: menu.source === "all"; keyboardEnabled: false; keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 0; onClicked: menu.source = "all" }
-                        TabPill { text: "Embedded " + menu.embeddedCount; selected: menu.source === "embedded"; enabled: menu.embeddedCount > 0; keyboardEnabled: false; keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 1; onClicked: menu.source = "embedded" }
-                        TabPill { text: "External " + menu.externalCount; selected: menu.source === "external"; enabled: menu.externalCount > 0; keyboardEnabled: false; keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 2; onClicked: menu.source = "external" }
+
+                        Item { width: Math.max(0, toolbar.width - 78 - sourceStrip.width - languageCollection.width - 20); height: 1 }
+
+                        Controls.ComboBox {
+                            id: languageCollection
+                            width: 142
+                            height: 36
+                            model: menu.languageOptions()
+                            textRole: "label"
+                            currentIndex: menu.languageIndex()
+                            font.family: theme.hud
+                            font.pixelSize: 14
+                            onActivated: function(index) {
+                                var row = menu.languageOptions()[index]
+                                if (row) menu.lang = row.key
+                            }
+                            contentItem: Text {
+                                leftPadding: 12
+                                rightPadding: 28
+                                verticalAlignment: Text.AlignVCenter
+                                text: languageCollection.displayText
+                                color: theme.inkDim
+                                font.family: theme.hud
+                                font.pixelSize: 14
+                                elide: Text.ElideRight
+                            }
+                            indicator: Text {
+                                anchors.right: parent.right
+                                anchors.rightMargin: 11
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "v"
+                                color: theme.inkDimmer
+                                font.family: theme.hud
+                                font.pixelSize: 14
+                            }
+                            background: Rectangle {
+                                radius: 11
+                                color: Qt.rgba(1, 1, 1, 0.055)
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                            }
+                        }
                     }
-                    Item { width: Math.max(0, tabs.width - sourceStrip.width - 106); height: 1 }
-                    TabPill { text: "HI"; selected: menu.hi; compact: true; onClicked: menu.hi = !menu.hi }
-                    TabPill { text: "Forced"; selected: menu.forced; compact: true; onClicked: menu.forced = !menu.forced }
+
+                    Row {
+                        id: filters
+                        x: 20
+                        y: 79
+                        height: 32
+                        spacing: 7
+
+                        FilterPill { text: "All"; selected: menu.filterMode === "all"; onClicked: menu.filterMode = "all" }
+                        FilterPill { text: "HI / SDH"; selected: menu.filterMode === "hi"; onClicked: menu.filterMode = menu.filterMode === "hi" ? "all" : "hi" }
+                        FilterPill { text: "Forced"; selected: menu.filterMode === "forced"; onClicked: menu.filterMode = menu.filterMode === "forced" ? "all" : "forced" }
+                    }
+
+                    ListView {
+                        id: variants
+                        x: 20
+                        y: 126
+                        width: parent.width - 40
+                        height: Math.max(40, footer.y - y - 8)
+                        clip: true
+                        spacing: 6
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: menu.visibleTracks
+                        focusPolicy: menu.panelOpen && count > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: function(event) { variantKeyboard.handle(event) }
+                        delegate: VariantRow {
+                            required property var modelData
+                            width: variants.width
+                            track: modelData
+                            selected: String(modelData.id) === menu.selectedId || modelData.selected === true
+                            pending: menu.pendingId.length > 0 && String(modelData.id) === menu.pendingId
+                            keyboardEnabled: false
+                            onClicked: menu.pickTrack(String(modelData.id))
+                        }
+                    }
+                    KeyboardCollectionController {
+                        id: variantKeyboard
+                        view: variants
+                        orientation: "vertical"
+                        count: variants.count
+                        onActivated: function(index) {
+                            if (index >= 0 && index < menu.visibleTracks.length)
+                                menu.pickTrack(String(menu.visibleTracks[index].id))
+                        }
+                    }
+
+                    Text {
+                        visible: menu.visibleTracks.length === 0
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 184
+                        width: parent.width - 80
+                        text: menu.loading ? "Finding subtitles..." : "No tracks match these filters."
+                        color: theme.inkDimmer
+                        font.family: theme.hud
+                        font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Row {
+                        id: footer
+                        anchors.left: parent.left
+                        anchors.leftMargin: 20
+                        anchors.right: parent.right
+                        anchors.rightMargin: 20
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 13
+                        height: 36
+                        spacing: 10
+
+                        FooterButton {
+                            width: 132
+                            text: "Find more"
+                            icon: "search"
+                            onClicked: {
+                                menu.appearanceOpen = false
+                                menu.searching = true
+                                menu.searchError = ""
+                            }
+                        }
+                        FooterButton {
+                            width: 116
+                            text: "Load file"
+                            icon: "folder"
+                            onClicked: subtitleDialog.open()
+                        }
+                    }
                 }
+
+                Item {
+                    id: searchPage
+                    anchors.fill: parent
+                    visible: menu.searching
+
+                    Row {
+                        id: searchHead
+                        x: 20
+                        y: 20
+                        width: parent.width - 40
+                        height: 38
+                        spacing: 8
+
+                        Rectangle {
+                            width: parent.width - 86
+                            height: 38
+                            radius: 11
+                            color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.05)
+                            border.width: 1
+                            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.28)
+                            Text {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 12
+                                anchors.right: parent.right
+                                anchors.rightMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: menu.searchId.length ? ("IMDb " + menu.searchId) : "Online search needs a matched title"
+                                color: menu.searchId.length ? theme.ink : theme.inkDimmer
+                                font.family: theme.hud
+                                font.pixelSize: 14
+                                elide: Text.ElideRight
+                            }
+                        }
+                        Rectangle {
+                            width: 78
+                            height: 38
+                            radius: 11
+                            color: menu.searchId.length ? theme.gold : Qt.rgba(1, 1, 1, 0.07)
+                            opacity: menu.searchLoading ? 0.7 : 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: menu.searchLoading ? "..." : "Search"
+                                color: menu.searchId.length ? "#111111" : theme.inkDimmer
+                                font.family: theme.hud
+                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: menu.searchId.length > 0 && !menu.searchLoading
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: menu.runSearch()
+                            }
+                            KeyboardAction {
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: menu.searchId.length > 0 && !menu.searchLoading
+                                accessibleName: "Search subtitles"
+                                onTriggered: menu.runSearch()
+                            }
+                        }
+                    }
+
+                    ListView {
+                        id: searchList
+                        x: 20
+                        y: 76
+                        width: parent.width - 40
+                        height: Math.max(40, searchFooter.y - y - 8)
+                        clip: true
+                        spacing: 6
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: menu.searchResults || []
+                        focusPolicy: menu.panelOpen && count > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: function(event) { searchKeyboard.handle(event) }
+                        delegate: VariantRow {
+                            required property var modelData
+                            width: searchList.width
+                            track: ({
+                                "id": modelData.id || modelData.url,
+                                "label": modelData.title || modelData.label || "OpenSubtitles",
+                                "lang": modelData.lang || "",
+                                "tech": "OpenSubtitles \u00B7 fetched",
+                                "external": true,
+                                "tag": ""
+                            })
+                            selected: false
+                            pending: menu.pendingOnline
+                            keyboardEnabled: false
+                            onClicked: menu.pickOnline(modelData.url, modelData.title || modelData.label || "OpenSubtitles", modelData.lang || "")
+                        }
+                    }
+                    KeyboardCollectionController {
+                        id: searchKeyboard
+                        view: searchList
+                        orientation: "vertical"
+                        count: searchList.count
+                        onActivated: function(index) {
+                            var row = (menu.searchResults || [])[index]
+                            if (!row) return
+                            menu.pickOnline(row.url, row.title || row.label || "OpenSubtitles", row.lang || "")
+                        }
+                    }
+
+                    Text {
+                        visible: !menu.searchId.length || menu.searchResults === null || (menu.searchResults && menu.searchResults.length === 0)
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 150
+                        width: parent.width - 80
+                        text: !menu.searchId.length ? "Online search needs a matched title (IMDb id). Use Load file instead."
+                             : menu.searchResults === null ? "Press Search to find subtitles online."
+                             : "No subtitles found."
+                        color: theme.inkDimmer
+                        font.family: theme.hud
+                        font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                    }
+
+                    FooterButton {
+                        id: searchFooter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 20
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 13
+                        width: 146
+                        text: "Back to tracks"
+                        icon: "back"
+                        onClicked: menu.searching = false
+                    }
+                }
+
+                DelayRow {
+                    id: delayRow
+                    visible: !menu.appearanceOpen
+                    anchors.right: parent.right
+                    anchors.rightMargin: 20
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 13
+                    value: menu.delay
+                    onStep: function(delta) {
+                        menu.delaySet(Math.round((menu.delay + delta) * 100) / 100)
+                        menu.delayStep(delta)
+                    }
+                    onReset: {
+                        menu.delaySet(0)
+                        menu.resetDelay()
+                    }
+                }
+            }
+
+            Rectangle {
+                id: appearanceDrawer
+                visible: menu.appearanceOpen
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                width: 280
+                color: Qt.rgba(5 / 255, 7 / 255, 10 / 255, 0.72)
+                border.width: 0
+
                 Rectangle {
-                    x: 0
-                    y: 43
-                    width: parent.width
-                    height: 1
+                    anchors.left: parent.left
+                    width: 1
+                    height: parent.height
                     color: Qt.rgba(1, 1, 1, 0.08)
                 }
-                ListView {
-                    id: variants
-                    x: 8
-                    y: 52
-                    width: parent.width - 16
-                    height: parent.height - y - 82
-                    clip: true
-                    spacing: 4
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: menu.visibleTracks
-                    focusPolicy: menu.panelOpen && count > 0 ? Qt.TabFocus : Qt.NoFocus
-                    Keys.onPressed: function(event) { variantKeyboard.handle(event) }
-                    delegate: VariantRow {
-                        required property var modelData
-                        width: variants.width
-                        track: modelData
-                        selected: String(modelData.id) === menu.selectedId || modelData.selected === true
-                        pending: menu.pendingId.length > 0 && String(modelData.id) === menu.pendingId
-                        keyboardEnabled: false
-                        onClicked: menu.pickTrack(String(modelData.id))
-                    }
-                }
-                KeyboardCollectionController {
-                    id: variantKeyboard
-                    view: variants
-                    orientation: "vertical"
-                    count: variants.count
-                    onActivated: function(index) { if (index >= 0 && index < menu.visibleTracks.length) menu.pickTrack(String(menu.visibleTracks[index].id)) }
+
+                Text {
+                    id: appearanceTitle
+                    x: 18
+                    y: 18
+                    text: "Appearance"
+                    color: theme.ink
+                    font.family: theme.hud
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
                 }
                 Text {
-                    visible: menu.visibleTracks.length === 0
-                    x: 20
-                    y: 94
-                    width: parent.width - 40
-                    text: menu.loading ? "Finding subtitles..." : "No tracks match these filters. Try toggling HI/SDH or Forced."
+                    x: 18
+                    y: 42
+                    text: "Changes apply live and persist."
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 13
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
+                    font.pixelSize: 11
                 }
 
-                Row {
-                    id: footer
-                    anchors.left: parent.left
+                Text {
+                    x: 18
+                    y: 78
+                    text: "FONT"
+                    color: theme.inkDimmer
+                    font.family: theme.hud
+                    font.pixelSize: 10
+                    font.weight: Font.Bold
+                    font.letterSpacing: 1.2
+                }
+                Text {
                     anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: delayRow.height
+                    anchors.rightMargin: 18
+                    y: 78
+                    text: subtitleStylePrefs.fontFamily
+                    color: theme.inkDim
+                    font.family: theme.hud
+                    font.pixelSize: 11
+                }
+                Controls.ComboBox {
+                    id: fontPicker
+                    x: 18
+                    y: 98
+                    width: parent.width - 36
                     height: 38
-                    FooterButton {
-                        width: parent.width - 112
-                        text: "Find more subtitles"
-                        icon: "search"
-                        onClicked: {
-                            menu.searching = true;
-                            menu.searchError = "";
-                        }
-                    }
-                    Rectangle { width: 1; height: parent.height; color: Qt.rgba(1, 1, 1, 0.08) }
-                    FooterButton {
-                        width: 111
-                        text: "Load file"
-                        icon: "folder"
-                        onClicked: subtitleDialog.open()
-                    }
-                }
-            }
-
-            Item {
-                visible: menu.searching
-                anchors.fill: parent
-
-                Row {
-                    id: searchHead
-                    x: 12
-                    y: 10
-                    width: parent.width - 24
-                    height: 34
-                    spacing: 8
-                    Rectangle {
-                        width: parent.width - 52
-                        height: 34
-                        radius: 8
-                        color: Qt.rgba(1, 1, 1, 0.07)
-                        border.width: 1
-                        border.color: Qt.rgba(1, 1, 1, 0.09)
-                        Text {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: menu.searchId.length ? ("IMDb " + menu.searchId) : "Search OpenSubtitles..."
-                            color: menu.searchId.length ? theme.ink : theme.inkDimmer
-                            font.family: theme.hud
-                            font.pixelSize: 13
-                            elide: Text.ElideRight
-                        }
-                    }
-                    Rectangle {
-                        width: 44
-                        height: 34
-                        radius: 8
-                        color: menu.searchId.length ? theme.gold : Qt.rgba(1, 1, 1, 0.07)
-                        opacity: menu.searchLoading ? 0.7 : 1
-                        Text {
-                            anchors.centerIn: parent
-                            text: menu.searchLoading ? "..." : "Go"
-                            color: menu.searchId.length ? "#111111" : theme.inkDimmer
-                            font.family: theme.hud
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            enabled: menu.searchId.length > 0 && !menu.searchLoading
-                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: menu.runSearch()
-                        }
-                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: menu.searchId.length > 0 && !menu.searchLoading; accessibleName: "Search subtitles"; onTriggered: menu.runSearch() }
-                    }
-                }
-
-                ListView {
-                    id: searchList
-                    x: 8
-                    y: 54
-                    width: parent.width - 16
-                    height: parent.height - y - 44
-                    clip: true
-                    spacing: 4
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: menu.searchResults || []
-                    focusPolicy: menu.panelOpen && count > 0 ? Qt.TabFocus : Qt.NoFocus
-                    Keys.onPressed: function(event) { searchKeyboard.handle(event) }
-                    delegate: Rectangle {
-                        id: resultRow
-                        required property int index
-                        required property var modelData
-                        width: searchList.width
-                        height: (index === 0 || SubtitleGroups.langKey(modelData) !== SubtitleGroups.langKey(menu.searchResults[index - 1])) ? 62 : 42
-                        radius: 8
-                        color: resultMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
-
-                        Text {
-                            visible: resultRow.index === 0 || SubtitleGroups.langKey(resultRow.modelData) !== SubtitleGroups.langKey(menu.searchResults[resultRow.index - 1])
-                            x: 4
-                            y: 2
-                            text: resultRow.modelData.label + " · " + menu.groupCount(resultRow.modelData.lang)
-                            color: theme.inkDimmer
-                            font.family: theme.hud
-                            font.pixelSize: 10
-                            font.weight: Font.Bold
-                            font.letterSpacing: 1.6
-                        }
-                        Text {
-                            x: 10
-                            y: parent.height - 35
-                            width: parent.width - 20
-                            text: resultRow.modelData.title || resultRow.modelData.label || "OpenSubtitles"
-                            color: theme.ink
-                            font.family: theme.hud
-                            font.pixelSize: 12
-                            font.weight: Font.Medium
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            x: 10
-                            y: parent.height - 18
-                            width: parent.width - 20
-                            text: String(resultRow.modelData.lang || "UNKNOWN").toUpperCase() + " · " + (resultRow.modelData.downloads || 0) + " dl"
-                            color: theme.inkDimmer
-                            font.family: theme.hud
-                            font.pixelSize: 10
-                            font.letterSpacing: 0.6
-                        }
-                        MouseArea {
-                            id: resultMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: menu.pickOnline(resultRow.modelData.url, resultRow.modelData.title || resultRow.modelData.label || "OpenSubtitles", resultRow.modelData.lang || "")
-                        }
-                    }
-                }
-                KeyboardCollectionController {
-                    id: searchKeyboard
-                    view: searchList
-                    orientation: "vertical"
-                    count: searchList.count
+                    model: menu.fontFamilies
+                    currentIndex: Math.max(0, menu.fontFamilies.indexOf(subtitleStylePrefs.fontFamily))
+                    font.family: theme.hud
+                    font.pixelSize: 13
                     onActivated: function(index) {
-                        var row = (menu.searchResults || [])[index]; if (!row) return
-                        menu.pickOnline(row.url, row.title || row.label || "OpenSubtitles", row.lang || "")
+                        subtitleStylePrefs.fontFamily = menu.fontFamilies[index]
+                        menu.setStyleOption("sub-font", subtitleStylePrefs.fontFamily)
+                    }
+                    contentItem: Text {
+                        leftPadding: 10
+                        rightPadding: 26
+                        verticalAlignment: Text.AlignVCenter
+                        text: fontPicker.displayText
+                        color: theme.ink
+                        font.family: subtitleStylePrefs.fontFamily
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                    }
+                    indicator: Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "v"
+                        color: theme.inkDimmer
+                        font.family: theme.hud
+                        font.pixelSize: 14
+                    }
+                    background: Rectangle {
+                        radius: 10
+                        color: Qt.rgba(1, 1, 1, 0.055)
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
                     }
                 }
+
+                StyleSlider {
+                    id: sizeSlider
+                    x: 18
+                    y: 153
+                    width: parent.width - 36
+                    label: "SIZE"
+                    valueText: Math.round(subtitleStylePrefs.scale * 100) + "%"
+                    from: 0.5
+                    to: 2.0
+                    stepSize: 0.1
+                    value: subtitleStylePrefs.scale
+                    onMoved: function(v) {
+                        subtitleStylePrefs.scale = v
+                        menu.setStyleOption("sub-scale", v)
+                    }
+                }
+
                 Text {
-                    visible: !menu.searchId.length || menu.searchResults === null || (menu.searchResults && menu.searchResults.length === 0)
-                    x: 20
-                    y: 96
-                    width: parent.width - 40
-                    text: !menu.searchId.length ? "Online search needs a matched title (IMDb id). Use Load file instead."
-                         : menu.searchResults === null ? "Press search to find subtitles online."
-                         : "No subtitles found."
+                    x: 18
+                    y: 216
+                    text: "TEXT COLOR"
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 13
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
+                    font.pixelSize: 10
+                    font.weight: Font.Bold
+                    font.letterSpacing: 1.2
                 }
-                FooterButton {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: delayRow.height
-                    height: 38
-                    text: "Back to tracks"
-                    icon: "back"
-                    onClicked: menu.searching = false
+                Swatches {
+                    id: textSwatches
+                    x: 18
+                    y: 235
+                    width: parent.width - 36
+                    label: ""
+                    selected: subtitleStylePrefs.textColor
+                    colors: ["#FFFFFF", "#F0C44A", "#EDE7D1", "#9FE7FF"]
+                    onPicked: function(color) {
+                        subtitleStylePrefs.textColor = color
+                        menu.setStyleOption("sub-color", color)
+                    }
                 }
-            }
 
-            DelayRow {
-                id: delayRow
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                value: menu.delay
-                onStep: function(delta) {
-                    menu.delaySet(Math.round((menu.delay + delta) * 100) / 100);
-                    menu.delayStep(delta);
+                StyleSlider {
+                    id: outlineSlider
+                    x: 18
+                    y: 285
+                    width: parent.width - 36
+                    label: "OUTLINE"
+                    valueText: Number(subtitleStylePrefs.outlineSize).toFixed(1)
+                    from: 0
+                    to: 6
+                    stepSize: 0.5
+                    value: subtitleStylePrefs.outlineSize
+                    onMoved: function(v) {
+                        subtitleStylePrefs.outlineSize = v
+                        menu.setStyleOption("sub-border-size", v)
+                    }
                 }
-                onReset: {
-                    menu.delaySet(0);
-                    menu.resetDelay();
+
+                StyleSlider {
+                    id: positionSlider
+                    x: 18
+                    y: 347
+                    width: parent.width - 36
+                    label: "VERTICAL POSITION"
+                    valueText: String(subtitleStylePrefs.position)
+                    from: 0
+                    to: 100
+                    stepSize: 1
+                    value: subtitleStylePrefs.position
+                    onMoved: function(v) {
+                        subtitleStylePrefs.position = Math.round(v)
+                        menu.setStyleOption("sub-pos", subtitleStylePrefs.position)
+                    }
+                }
+
+                Rectangle {
+                    id: preview
+                    x: 18
+                    y: 410
+                    width: parent.width - 36
+                    height: 62
+                    radius: 12
+                    color: Qt.rgba(0, 0, 0, 0.28)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.08)
+                    clip: true
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Subtitle preview"
+                        color: subtitleStylePrefs.textColor
+                        font.family: subtitleStylePrefs.fontFamily
+                        font.pixelSize: Math.max(12, 19 * subtitleStylePrefs.scale)
+                        style: Text.Outline
+                        styleColor: subtitleStylePrefs.outlineColor
+                    }
+                }
+
+                FooterButton {
+                    x: 18
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 14
+                    width: parent.width - 36
+                    height: 34
+                    text: "Reset appearance"
+                    icon: "reset"
+                    onClicked: menu.resetAppearance()
                 }
             }
         }
@@ -771,22 +1081,26 @@ Item {
     component HeaderButton: Item {
         id: button
         property string icon: ""
+        property bool active: false
+        property string accessibleName: ""
         signal clicked()
-        width: 36
-        height: 36
+        width: 38
+        height: 38
         Rectangle {
             anchors.fill: parent
-            radius: 18
-            color: mouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+            radius: 12
+            color: button.active ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.12)
+                                 : mouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+            border.width: button.active ? 1 : 0
+            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.26)
         }
-        Text {
+        PlayerIcon {
             anchors.centerIn: parent
-            text: button.icon === "x" ? "x" : "≡"
-            color: mouse.containsMouse ? theme.ink : theme.inkDim
-            rotation: button.icon === "sliders" ? 90 : 0
-            font.family: theme.hud
-            font.pixelSize: button.icon === "x" ? 16 : 18
-            font.weight: Font.DemiBold
+            width: 20
+            height: 20
+            kind: button.icon
+            ink: button.active ? theme.gold : mouse.containsMouse ? theme.ink : theme.inkDim
+            accessibleName: button.accessibleName
         }
         MouseArea {
             id: mouse
@@ -795,115 +1109,259 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.icon === "x" ? "Close subtitles" : "Subtitle appearance"; onTriggered: button.clicked() }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: button.accessibleName
+            onTriggered: button.clicked()
+        }
     }
 
-    component AsideItem: Rectangle {
-        id: item
+    component ToggleButton: Rectangle {
+        id: button
+        property bool active: false
+        signal clicked()
+        width: 78
+        height: 36
+        radius: 11
+        color: toggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.075) : Qt.rgba(1, 1, 1, 0.055)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.08)
+        opacity: enabled ? 1 : 0.45
+        Row {
+            anchors.centerIn: parent
+            spacing: 9
+            Rectangle {
+                width: 18
+                height: 18
+                radius: 9
+                color: button.active ? theme.gold : Qt.rgba(1, 1, 1, 0.16)
+                Text {
+                    anchors.centerIn: parent
+                    text: button.active ? "\u2713" : ""
+                    color: "#111111"
+                    font.family: theme.hud
+                    font.pixelSize: 12
+                    font.weight: Font.Bold
+                }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: button.active ? "On" : "Off"
+                color: button.active ? theme.ink : theme.inkDimmer
+                font.family: theme.hud
+                font.pixelSize: 14
+                font.weight: Font.Medium
+            }
+        }
+        MouseArea {
+            id: toggleMouse
+            anchors.fill: parent
+            enabled: button.enabled
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: button.clicked()
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: button.enabled
+            accessibleName: button.active ? "Turn subtitles off" : "Turn subtitles on"
+            onTriggered: button.clicked()
+        }
+    }
+
+    component SegmentButton: Rectangle {
+        id: button
         property string text: ""
-        property string countText: ""
-        property string iconText: ""
         property bool selected: false
-        property bool radio: false
         property bool keyboardEnabled: true
         property bool keyboardHighlighted: false
         signal clicked()
-        height: 32
-        radius: 8
-        color: selected ? Qt.rgba(1, 1, 1, 0.10) : itemMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
-        border.width: (selected || keyboardHighlighted) ? (keyboardHighlighted ? 2 : 1) : 0
-        border.color: keyboardHighlighted ? theme.gold : Qt.rgba(1, 1, 1, 0.11)
-        Rectangle {
-            visible: item.radio || item.iconText === ""
-            x: 8
-            y: 8
-            width: item.radio ? 16 : 18
-            height: item.radio ? 16 : 13
-            radius: item.radio ? 8 : 2
-            color: item.radio && item.selected ? theme.gold : Qt.rgba(1, 1, 1, 0.13)
-            Text {
-                anchors.centerIn: parent
-                text: item.radio && item.selected ? "✓" : ""
-                color: "#111111"
-                font.family: theme.hud
-                font.pixelSize: 10
-                font.weight: Font.Bold
-            }
-        }
+        width: Math.max(74, label.implicitWidth + 22)
+        height: 36
+        radius: 9
+        color: button.selected ? Qt.rgba(1, 1, 1, 0.09)
+                               : segmentMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
+        border.width: button.keyboardHighlighted ? 2 : 0
+        border.color: theme.gold
+        opacity: enabled ? 1 : 0.42
         Text {
-            visible: item.iconText !== ""
-            x: 8
-            width: 20
-            anchors.verticalCenter: parent.verticalCenter
-            text: item.iconText
-            color: theme.inkDim
+            id: label
+            anchors.centerIn: parent
+            text: button.text
+            color: button.selected ? theme.ink : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-        }
-        Text {
-            x: 34
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - 52
-            text: item.text
-            color: item.selected ? theme.ink : theme.inkDim
-            font.family: theme.hud
-            font.pixelSize: 12
-            font.weight: item.selected ? Font.DemiBold : Font.Medium
-            elide: Text.ElideRight
-        }
-        Text {
-            visible: item.countText !== ""
-            anchors.right: parent.right
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: item.countText
-            color: theme.inkDimmer
-            font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 10
+            font.pixelSize: 14
+            font.weight: Font.Medium
         }
         MouseArea {
-            id: itemMouse
+            id: segmentMouse
             anchors.fill: parent
+            enabled: button.enabled
             hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: item.clicked()
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: item.keyboardEnabled; accessibleName: item.text; onTriggered: item.clicked() }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: button.enabled && button.keyboardEnabled
+            accessibleName: button.text
+            onTriggered: button.clicked()
+        }
     }
 
-    component TabPill: Rectangle {
+    component FilterPill: Rectangle {
         id: pill
         property string text: ""
         property bool selected: false
-        property bool compact: false
-        property bool keyboardEnabled: true
-        property bool keyboardHighlighted: false
         signal clicked()
-        width: compact ? 48 : Math.max(72, label.implicitWidth + 20)
-        height: 24
-        radius: 12
-        color: selected ? theme.gold : Qt.rgba(1, 1, 1, 0.08)
-        border.width: keyboardHighlighted ? 2 : 0
-        border.color: theme.gold
-        opacity: enabled ? 1 : 0.4
+        width: Math.max(52, label.implicitWidth + 22)
+        height: 32
+        radius: 16
+        color: pill.selected ? theme.gold
+                             : filterMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.025)
+        border.width: pill.selected ? 0 : 1
+        border.color: Qt.rgba(1, 1, 1, 0.08)
         Text {
             id: label
             anchors.centerIn: parent
             text: pill.text
-            color: pill.selected ? "#111111" : theme.inkDim
+            color: pill.selected ? "#171306" : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 11
+            font.pixelSize: 12
             font.weight: pill.selected ? Font.DemiBold : Font.Medium
         }
         MouseArea {
+            id: filterMouse
             anchors.fill: parent
-            enabled: pill.enabled
             hoverEnabled: true
-            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            cursorShape: Qt.PointingHandCursor
             onClicked: pill.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: pill.enabled && pill.keyboardEnabled; accessibleName: pill.text; onTriggered: pill.clicked() }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: pill.text
+            onTriggered: pill.clicked()
+        }
+    }
+
+    component StyleSlider: Item {
+        id: control
+        property string label: ""
+        property string valueText: ""
+        property real from: 0
+        property real to: 1
+        property real stepSize: 0.1
+        property real value: 0
+        signal moved(real value)
+        height: 54
+
+        Text {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            text: control.label
+            color: theme.inkDimmer
+            font.family: theme.hud
+            font.pixelSize: 10
+            font.weight: Font.Bold
+            font.letterSpacing: 1.2
+        }
+        Text {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            text: control.valueText
+            color: theme.inkDim
+            font.family: theme.hud
+            font.pixelSize: 11
+        }
+        Controls.Slider {
+            id: slider
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 30
+            from: control.from
+            to: control.to
+            stepSize: control.stepSize
+            value: control.value
+            onMoved: control.moved(value)
+            background: Rectangle {
+                x: slider.leftPadding
+                y: slider.topPadding + slider.availableHeight / 2 - height / 2
+                width: slider.availableWidth
+                height: 3
+                radius: 2
+                color: Qt.rgba(1, 1, 1, 0.12)
+                Rectangle {
+                    width: slider.visualPosition * parent.width
+                    height: parent.height
+                    radius: parent.radius
+                    color: theme.gold
+                }
+            }
+            handle: Rectangle {
+                x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+                y: slider.topPadding + slider.availableHeight / 2 - height / 2
+                width: 14
+                height: 14
+                radius: 7
+                color: theme.ink
+                border.width: 2
+                border.color: theme.gold
+            }
+        }
+    }
+
+    component Swatches: Item {
+        id: swatches
+        property string label: ""
+        property string selected: ""
+        property var colors: []
+        property int keyboardIndex: Math.max(0, colors.map(function(c) { return String(c).toLowerCase() }).indexOf(String(selected).toLowerCase()))
+        signal picked(string color)
+        focusPolicy: menu.panelOpen && colors.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                var next = keyboardIndex + (event.key === Qt.Key_Left ? -1 : 1)
+                if (next >= 0 && next < colors.length) { keyboardIndex = next; event.accepted = true }
+            } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+            else if (event.key === Qt.Key_End) { keyboardIndex = colors.length - 1; event.accepted = true }
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                swatches.picked(String(colors[keyboardIndex])); event.accepted = true
+            }
+        }
+        height: 34
+        Row {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
+            Repeater {
+                model: swatches.colors
+                delegate: Rectangle {
+                    id: dot
+                    required property int index
+                    required property string modelData
+                    width: 28
+                    height: 28
+                    radius: 8
+                    color: modelData
+                    border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
+                                  || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
+                    border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
+                                  || swatches.selected.toLowerCase() === modelData.toLowerCase()
+                                  ? theme.gold : Qt.rgba(1, 1, 1, 0.18)
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: swatches.picked(dot.modelData)
+                    }
+                }
+            }
+        }
     }
 
     component VariantRow: Rectangle {
@@ -913,62 +1371,81 @@ Item {
         property bool pending: false
         property bool keyboardEnabled: true
         signal clicked()
-        height: 54
-        radius: 8
-        color: selected ? Qt.rgba(1, 1, 1, 0.10) : rowMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
-        border.width: selected ? 1 : 0
-        border.color: Qt.rgba(1, 1, 1, 0.11)
+        height: 66
+        radius: 14
+        color: row.selected ? Qt.rgba(1, 1, 1, 0.07)
+                            : rowMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.045) : "transparent"
+        border.width: row.selected ? 1 : 0
+        border.color: Qt.rgba(1, 1, 1, 0.10)
+
         Rectangle {
-            x: 10
-            y: 11
-            width: 16
-            height: 16
-            radius: 8
-            color: row.selected ? theme.gold : row.pending ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.45) : Qt.rgba(1, 1, 1, 0.12)
+            x: 18
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20
+            height: 20
+            radius: 10
+            color: row.selected ? theme.gold
+                                : row.pending ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.45)
+                                              : Qt.rgba(1, 1, 1, 0.12)
             Text {
                 anchors.centerIn: parent
-                text: row.selected ? "✓" : row.pending ? "…" : ""
+                text: row.selected ? "\u2713" : row.pending ? "..." : ""
                 color: "#111111"
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: 11
                 font.weight: Font.Bold
             }
         }
+
         Text {
-            x: 36
-            y: 8
-            width: parent.width - 48 - (subRowTag.visible ? subRowTag.width + 10 : 0)
+            x: 68
+            y: 13
+            width: parent.width - 96 - (subRowTag.visible ? subRowTag.width + 12 : 0)
             text: menu.rowLabel(row.track)
             color: theme.ink
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: 14
             font.weight: Font.DemiBold
             elide: Text.ElideRight
         }
-        // Tier 2: one salient tag (SDH / Default / Forced), right-aligned lettering.
-        Text {
+
+        Rectangle {
             id: subRowTag
-            anchors.right: parent.right
-            anchors.rightMargin: 14
-            y: 9
             visible: !!(row.track.tag && String(row.track.tag).length)
-            text: String(row.track.tag || "").toUpperCase()
-            color: theme.inkDimmer
-            font.family: theme.hud
-            font.pixelSize: 9
-            font.letterSpacing: 1.5
+            anchors.right: parent.right
+            anchors.rightMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            width: tagText.implicitWidth + 16
+            height: 28
+            radius: 14
+            color: String(row.track.tag || "").toLowerCase() === "default"
+                   ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.08) : "transparent"
+            border.width: 1
+            border.color: String(row.track.tag || "").toLowerCase() === "default"
+                          ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.22)
+                          : Qt.rgba(1, 1, 1, 0.08)
+            Text {
+                id: tagText
+                anchors.centerIn: parent
+                text: String(row.track.tag || "")
+                color: String(row.track.tag || "").toLowerCase() === "default" ? theme.gold : theme.inkDimmer
+                font.family: theme.hud
+                font.pixelSize: 10
+            }
         }
+
         Text {
-            x: 36
-            y: 28
-            width: parent.width - 48
+            x: 68
+            y: 37
+            width: parent.width - 96
             text: menu.rowMeta(row.track)
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 10
-            font.letterSpacing: 0.6
+            font.pixelSize: 11
+            font.letterSpacing: 0.2
             elide: Text.ElideRight
         }
+
         MouseArea {
             id: rowMouse
             anchors.fill: parent
@@ -976,7 +1453,13 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: row.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: row.keyboardEnabled; accessibleName: menu.rowLabel(row.track); onTriggered: row.clicked() }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: row.keyboardEnabled
+            accessibleName: menu.rowLabel(row.track)
+            onTriggered: row.clicked()
+        }
     }
 
     component FooterButton: Rectangle {
@@ -984,25 +1467,30 @@ Item {
         property string text: ""
         property string icon: ""
         signal clicked()
-        height: 38
+        height: 36
+        radius: 10
         color: footerMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.08)
+
         Row {
             anchors.centerIn: parent
-            spacing: 6
-            Text {
+            spacing: 8
+            PlayerIcon {
                 anchors.verticalCenter: parent.verticalCenter
-                text: button.icon === "search" ? "⌕" : button.icon === "folder" ? "□" : "<"
-                color: theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
+                width: 16
+                height: 16
+                iconSize: 15
+                kind: button.icon
+                ink: footerMouse.containsMouse ? theme.ink : theme.inkDim
+                accessibleName: button.text
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: button.text
-                color: theme.inkDim
+                color: footerMouse.containsMouse ? theme.ink : theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: 14
                 font.weight: Font.Medium
             }
         }
@@ -1013,114 +1501,124 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: button.text
+            onTriggered: button.clicked()
+        }
     }
 
-    component DelayRow: Rectangle {
+    component DelayRow: Item {
         id: delayControl
         property real value: 0
         signal step(real delta)
         signal reset()
-        height: 44
-        color: "transparent"
-        Rectangle {
-            anchors.top: parent.top
-            width: parent.width
-            height: 1
-            color: Qt.rgba(1, 1, 1, 0.08)
-        }
+        width: 210
+        height: 36
+
         Row {
-            anchors.fill: parent
-            anchors.leftMargin: 14
-            anchors.rightMargin: 12
-            spacing: 6
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 9
+
             Text {
-                width: 116
                 anchors.verticalCenter: parent.verticalCenter
                 text: "SYNC"
                 color: theme.inkDimmer
                 font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
-                font.letterSpacing: 1.4
+                font.letterSpacing: 1.1
             }
-            StepButton { text: "-0.1"; onClicked: delayControl.step(-0.1) }
-            Text {
-                width: 58
-                anchors.verticalCenter: parent.verticalCenter
-                text: menu.fmtSigned(delayControl.value)
-                color: theme.ink
-                font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-            }
-            StepButton { text: "+0.1"; onClicked: delayControl.step(0.1) }
-            StepButton {
-                visible: Math.abs(delayControl.value) > 0.0001
-                width: 32
-                text: "0"
-                onClicked: delayControl.reset()
+
+            Rectangle {
+                width: 128
+                height: 34
+                radius: 10
+                color: Qt.rgba(1, 1, 1, 0.035)
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 2
+
+                    CompactIconButton {
+                        icon: "chevronLeft"
+                        accessibleName: "Move subtitles earlier by 0.1 seconds"
+                        onClicked: delayControl.step(-0.1)
+                    }
+
+                    Rectangle {
+                        width: 58
+                        height: 28
+                        radius: 7
+                        color: delayValueMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
+                        Text {
+                            anchors.centerIn: parent
+                            text: menu.fmtSigned(delayControl.value)
+                            color: theme.ink
+                            font.family: theme.hud
+                            font.features: ({ "tnum": 1 })
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                        }
+                        MouseArea {
+                            id: delayValueMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: delayControl.reset()
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Reset subtitle sync"
+                            onTriggered: delayControl.reset()
+                        }
+                    }
+
+                    CompactIconButton {
+                        icon: "chevronRight"
+                        accessibleName: "Move subtitles later by 0.1 seconds"
+                        onClicked: delayControl.step(0.1)
+                    }
+                }
             }
         }
     }
 
-    component StepButton: Rectangle {
+    component CompactIconButton: Rectangle {
         id: button
-        property string text: ""
+        property string icon: ""
+        property string accessibleName: ""
         signal clicked()
-        width: 44
-        height: 24
-        radius: 6
-        color: stepMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
-        border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.10)
-        Text {
+        width: 28
+        height: 28
+        radius: 8
+        color: compactMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.075) : "transparent"
+
+        PlayerIcon {
             anchors.centerIn: parent
-            text: button.text
-            color: theme.inkDim
-            font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
+            width: 14
+            height: 14
+            iconSize: 14
+            kind: button.icon
+            ink: compactMouse.containsMouse ? theme.ink : theme.inkDimmer
+            accessibleName: button.accessibleName
         }
         MouseArea {
-            id: stepMouse
+            id: compactMouse
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
-    }
-
-    component IconGlyph: Canvas {
-        id: glyph
-        property string kind: ""
-        property color ink: theme.ink
-        antialiasing: true
-        onKindChanged: requestPaint()
-        onInkChanged: requestPaint()
-        onPaint: {
-            var ctx = getContext("2d");
-            var w = width;
-            var h = height;
-            var s = Math.min(w, h);
-            var cx = w / 2;
-            var cy = h / 2;
-            ctx.clearRect(0, 0, w, h);
-            ctx.strokeStyle = ink;
-            ctx.lineWidth = Math.max(1.6, s / 15);
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            function line(x1, y1, x2, y2) {
-                ctx.beginPath();
-                ctx.moveTo(cx + x1 * s, cy + y1 * s);
-                ctx.lineTo(cx + x2 * s, cy + y2 * s);
-                ctx.stroke();
-            }
-            ctx.strokeRect(cx - 0.31 * s, cy - 0.21 * s, 0.62 * s, 0.42 * s);
-            line(-0.20, 0.02, -0.02, 0.02);
-            line(0.08, 0.02, 0.22, 0.02);
-            line(-0.20, 0.14, 0.20, 0.14);
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: button.accessibleName
+            onTriggered: button.clicked()
         }
     }
+
 }

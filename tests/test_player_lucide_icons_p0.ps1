@@ -33,7 +33,7 @@ $svgs = @(
   'arrow-left','rotate-ccw','rotate-cw','skip-back','skip-forward','play','pause',
   'maximize','minimize','minus','x','volume-2','volume-x',
   'replace','download','circle-check','triangle-alert','sliders-horizontal',
-  'list-video','languages','captions','gauge','circle-alert'
+  'list-video','languages','captions','gauge','search','folder-open','chevron-left','chevron-right','circle-alert'
 )
 foreach ($name in $svgs) {
     Assert-File (Join-Path $iconsDir "$name.svg") "Mapped Lucide asset missing: $name.svg"
@@ -62,7 +62,8 @@ Assert-Contains $siTxt 'Text'                  "PlayerSeekIcon must render the n
 $semanticMap = @(
   @('stream','replace'), @('fit','sliders-horizontal'), @('audio','languages'),
   @('download','download'), @('check','circle-check'), @('warning','triangle-alert'),
-  @('speed','gauge'), @('subtitle','captions'), @('episodes','list-video')
+  @('speed','gauge'), @('subtitle','captions'), @('episodes','list-video'),
+  @('search','search'), @('folder','folder-open'), @('chevronLeft','chevron-left'), @('chevronRight','chevron-right')
 )
 foreach ($m in $semanticMap) {
     Assert-Matches $piTxt ('case "' + $m[0] + '":\s*return "' + $m[1] + '"') "PlayerIcon must map '$($m[0])' -> '$($m[1])' (semantic audit)."

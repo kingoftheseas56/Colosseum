@@ -10,14 +10,18 @@ function Assert-NotContains($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
 
-# Bug: the footer ("Find more subtitles" / "Load file") and the "Back to tracks"
-# button anchored their bottom to delayRow.top, but delayRow is not their sibling
-# (it's a child of the pane; they are grandchildren via an inner Item). QML drops
-# the invalid anchor, collapsing the footer onto the top filter tabs = text bleed.
+# The redesigned footer keeps Find/Load and compact Sync on the same baseline.
+# No cross-parent anchor is allowed, and Sync stays right-aligned inside mainPane.
 
 Assert-NotContains $sub "anchors.bottom: delayRow.top" `
-    "Footer must not anchor to delayRow (not a sibling) - that invalid anchor caused the overlap."
-Assert-Contains $sub "anchors.bottomMargin: delayRow.height" `
-    "Footer must sit above the delay row using its height as a bottom margin."
+    "Footer must not anchor to delayRow across parent boundaries."
+Assert-Contains $sub "anchors.bottomMargin: 13" `
+    "Footer and compact Sync must share the same bottom inset."
+Assert-Contains $sub "id: delayRow" `
+    "Subtitle menu must retain the compact sync control."
+Assert-Contains $sub 'icon: "chevronLeft"' `
+    "Compact sync must use a left SVG chevron."
+Assert-Contains $sub 'icon: "chevronRight"' `
+    "Compact sync must use a right SVG chevron."
 
 Write-Host "Subtitle menu footer layout contract checks passed."

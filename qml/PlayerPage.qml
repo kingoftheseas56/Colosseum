@@ -5725,6 +5725,7 @@ Item {
                         id: subMenu
                         anchors.verticalCenter: parent.verticalCenter
                         overlayParent: chrome
+                        player: mpv
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
                             subMenu.panelOpen = !wasOpen
@@ -5735,8 +5736,8 @@ Item {
                         chipValue: root.subsChipValue
                         // Combined: embedded/loaded mpv tracks + online subs (OpenSubtitles).
                         count: root.subRows.length
-                        panelWidth: 380
-                        panelHeight: Math.min(360, 124 + Math.max(1, root.subRows.length) * 48 + 42)
+                        panelWidth: 760
+                        panelHeight: 520
                         delegateModel: root.subRows
                         selectedId: mpv.subtitleTrack
                         searchType: root.subtitleSearchMeta.type

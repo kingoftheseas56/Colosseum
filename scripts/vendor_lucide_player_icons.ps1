@@ -21,7 +21,7 @@ $icons = @(
   # toolbar actions (semantic audit 2026-07-19): switch-source, download states, picture,
   # episodes, audio(=languages), subtitles(=captions; Lucide has no 'subtitles'), speed
   'replace','download','circle-check','triangle-alert','sliders-horizontal',
-  'list-video','languages','captions','gauge',
+  'list-video','languages','captions','gauge','search','folder-open','chevron-left','chevron-right',
   # library page menu (stage 2): details(=info), watched mark + Discover watched-eye
   'info','eye','eye-off',
   # manga series library action
