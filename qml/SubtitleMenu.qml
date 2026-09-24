@@ -420,7 +420,7 @@ Item {
             Text {
                 anchors.left: title.right
                 anchors.leftMargin: 8
-                anchors.verticalCenter: title.verticalCenter
+                anchors.baseline: title.baseline
                 text: menu.allCount
                 color: theme.inkDimmer
                 font.family: theme.hud
@@ -429,13 +429,13 @@ Item {
             }
             Text {
                 id: autoStatus
-                visible: menu.showAutoStatus || menu.selectionError.length > 0
+                visible: menu.selectionError.length > 0
                 anchors.right: searchButton.left
-                anchors.rightMargin: 10
-                anchors.verticalCenter: title.verticalCenter
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
                 width: Math.min(260, implicitWidth)
-                text: menu.selectionError.length > 0 ? menu.selectionError : menu.autoStatusText
-                color: menu.selectionError.length > 0 ? "#ff8a8a" : theme.inkDimmer
+                text: menu.selectionError
+                color: "#ff8a8a"
                 font.family: theme.hud
                 font.pixelSize: 12
                 elide: Text.ElideRight
@@ -444,7 +444,7 @@ Item {
             HeaderButton {
                 id: searchButton
                 anchors.right: styleButton.left
-                anchors.rightMargin: 4
+                anchors.rightMargin: 7
                 anchors.verticalCenter: parent.verticalCenter
                 icon: "search"
                 active: menu.searching
@@ -458,7 +458,7 @@ Item {
             HeaderButton {
                 id: styleButton
                 anchors.right: closeButton.left
-                anchors.rightMargin: 4
+                anchors.rightMargin: 7
                 anchors.verticalCenter: parent.verticalCenter
                 icon: "fit"
                 active: menu.appearanceOpen
@@ -471,7 +471,7 @@ Item {
             HeaderButton {
                 id: closeButton
                 anchors.right: parent.right
-                anchors.rightMargin: 16
+                anchors.rightMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
                 icon: "cancel"
                 accessibleName: "Close subtitles"
@@ -571,47 +571,48 @@ Item {
                                 onClicked: menu.source = "external"
                             }
                         }
+                    }
 
-                        Item { width: Math.max(0, toolbar.width - 78 - sourceStrip.width - languageCollection.width - 20); height: 1 }
-
-                        Controls.ComboBox {
-                            id: languageCollection
-                            width: 142
-                            height: 36
-                            model: menu.languageOptions()
-                            textRole: "label"
-                            currentIndex: menu.languageIndex()
+                    Controls.ComboBox {
+                        id: languageCollection
+                        anchors.right: parent.right
+                        anchors.rightMargin: 20
+                        y: 77
+                        width: 142
+                        height: 36
+                        model: menu.languageOptions()
+                        textRole: "label"
+                        currentIndex: menu.languageIndex()
+                        font.family: theme.hud
+                        font.pixelSize: 14
+                        onActivated: function(index) {
+                            var row = menu.languageOptions()[index]
+                            if (row) menu.lang = row.key
+                        }
+                        contentItem: Text {
+                            leftPadding: 12
+                            rightPadding: 28
+                            verticalAlignment: Text.AlignVCenter
+                            text: languageCollection.displayText
+                            color: theme.inkDim
                             font.family: theme.hud
                             font.pixelSize: 14
-                            onActivated: function(index) {
-                                var row = menu.languageOptions()[index]
-                                if (row) menu.lang = row.key
-                            }
-                            contentItem: Text {
-                                leftPadding: 12
-                                rightPadding: 28
-                                verticalAlignment: Text.AlignVCenter
-                                text: languageCollection.displayText
-                                color: theme.inkDim
-                                font.family: theme.hud
-                                font.pixelSize: 14
-                                elide: Text.ElideRight
-                            }
-                            indicator: Text {
-                                anchors.right: parent.right
-                                anchors.rightMargin: 11
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "v"
-                                color: theme.inkDimmer
-                                font.family: theme.hud
-                                font.pixelSize: 14
-                            }
-                            background: Rectangle {
-                                radius: 11
-                                color: Qt.rgba(1, 1, 1, 0.055)
-                                border.width: 1
-                                border.color: Qt.rgba(1, 1, 1, 0.08)
-                            }
+                            elide: Text.ElideRight
+                        }
+                        indicator: Text {
+                            anchors.right: parent.right
+                            anchors.rightMargin: 11
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "v"
+                            color: theme.inkDimmer
+                            font.family: theme.hud
+                            font.pixelSize: 14
+                        }
+                        background: Rectangle {
+                            radius: 11
+                            color: Qt.rgba(1, 1, 1, 0.055)
+                            border.width: 1
+                            border.color: Qt.rgba(1, 1, 1, 0.08)
                         }
                     }
 
@@ -673,32 +674,42 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
-                    Row {
+                    Rectangle {
                         id: footer
                         anchors.left: parent.left
                         anchors.leftMargin: 20
-                        anchors.right: parent.right
-                        anchors.rightMargin: 20
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 13
-                        height: 36
-                        spacing: 10
+                        width: Math.min(320, parent.width - 40)
+                        height: 48
+                        radius: 13
+                        color: Qt.rgba(1, 1, 1, 0.025)
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.07)
 
-                        FooterButton {
-                            width: 132
-                            text: "Find more"
-                            icon: "search"
-                            onClicked: {
-                                menu.appearanceOpen = false
-                                menu.searching = true
-                                menu.searchError = ""
+                        Row {
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            spacing: 6
+
+                            FooterButton {
+                                width: (parent.width - 6) / 2
+                                height: parent.height
+                                text: "Find more"
+                                icon: "search"
+                                onClicked: {
+                                    menu.appearanceOpen = false
+                                    menu.searching = true
+                                    menu.searchError = ""
+                                }
                             }
-                        }
-                        FooterButton {
-                            width: 116
-                            text: "Load file"
-                            icon: "folder"
-                            onClicked: subtitleDialog.open()
+                            FooterButton {
+                                width: (parent.width - 6) / 2
+                                height: parent.height
+                                text: "Load file"
+                                icon: "folder"
+                                onClicked: subtitleDialog.open()
+                            }
                         }
                     }
                 }
@@ -1084,15 +1095,17 @@ Item {
         property bool active: false
         property string accessibleName: ""
         signal clicked()
-        width: 38
-        height: 38
+        width: 44
+        height: 44
         Rectangle {
             anchors.fill: parent
-            radius: 12
-            color: button.active ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.12)
-                                 : mouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-            border.width: button.active ? 1 : 0
-            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.26)
+            radius: 14
+            color: button.active ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
+                                 : mouse.containsMouse ? Qt.rgba(1, 1, 1, 0.10)
+                                                       : Qt.rgba(1, 1, 1, 0.045)
+            border.width: 1
+            border.color: button.active ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.30)
+                                        : Qt.rgba(1, 1, 1, 0.055)
         }
         PlayerIcon {
             anchors.centerIn: parent
