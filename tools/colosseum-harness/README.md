@@ -14,6 +14,22 @@ It does not replace Git, CMake, CTest, Lanista, Preflight, a coding agent, or Co
 It deliberately does not provide an editor, debugger, terminal emulator, Git client, GUI, AI agent, generic plugin system, daemon, telemetry, database, or network service.
 
 The local CLI remains the authority. The MCP bridge stays bounded to the seven semantic operations; run-receipt binding remains host-local CLI work and is not exposed as another MCP tool.
+
+## Internal layout
+
+`colosseum_cli.py` is the compatibility facade and command dispatcher. The implementation is split under `harness/` without changing the CLI or MCP contract:
+
+- `repo.py` — repository/root/process primitives and response envelopes.
+- `intelligence.py` — map loading, routing, semantic freshness, and inspection.
+- `verification.py` — test discovery, execution, and verification planning.
+- `journeys.py` — Lanista scenario discovery and argv construction.
+- `receipts.py` — run-receipt creation, persistence, and session binding.
+- `evidence.py` — bounded execution evidence and completion gating.
+- `context.py` — task-context and Preflight authority collection.
+- `cli.py` — parser and output-format helpers.
+
+The split is intentionally internal. Existing callers may continue importing `colosseum_cli`; the facade re-exports the established helper surface used by current tests and integrations.
+
 ## Commands
 
 The CLI exposes:
