@@ -310,7 +310,7 @@ class WorkbenchR1Tests(unittest.TestCase):
                 "head": head,
                 "branch": "master",
                 "semantic_worktree": {
-                    "algorithm": "sha256-git-semantic-v1",
+                    "algorithm": "sha256-git-semantic-v2",
                     "watch_scopes": watch_scopes,
                     "fingerprint": cli.semantic_worktree_fingerprint(
                         self.root, watch_scopes
@@ -343,6 +343,85 @@ class WorkbenchR1Tests(unittest.TestCase):
 
         owner.write_text("// owner\n", encoding="utf-8")
         (src / "new-owner.cpp").write_text("// new\n", encoding="utf-8")
+        self.assertEqual(
+            cli.map_freshness(self.root, doc)["state"], "WORKTREE_DRIFT"
+        )
+
+    def test_semantic_v2_head_move_outside_watch_scope_stays_fresh(self) -> None:
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+        doc = self._write_semantic_map(
+            Path(self.tmp.name) / "head-move-map.json",
+            [],
+            ["src"],
+        )
+        basis_head = doc["repo_basis"]["head"]
+
+        (self.root / "unrelated.txt").write_text(
+            "outside watched architecture\n", encoding="utf-8"
+        )
+        self.commit_fixture()
+        freshness = cli.map_freshness(self.root, doc)
+
+        self.assertNotEqual(cli.repo_snapshot(self.root)["head"], basis_head)
+        self.assertEqual(freshness["state"], "FRESH")
+        self.assertTrue(freshness["authoritative"])
+        self.assertTrue(freshness["headMoved"])
+
+    def test_semantic_v2_detects_committed_change_inside_watch_scope(self) -> None:
+        src = self.root / "src"
+        src.mkdir()
+        owner = src / "owner.cpp"
+        owner.write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+        doc = self._write_semantic_map(
+            Path(self.tmp.name) / "committed-drift-map.json",
+            [],
+            ["src"],
+        )
+
+        owner.write_text("// changed and committed\n", encoding="utf-8")
+        self.commit_fixture()
+        freshness = cli.map_freshness(self.root, doc)
+
+        self.assertEqual(freshness["state"], "WORKTREE_DRIFT")
+        self.assertFalse(freshness["authoritative"])
+        self.assertTrue(freshness["headMoved"])
+
+    def test_semantic_v1_replays_basis_head_after_unrelated_head_move(self) -> None:
+        src = self.root / "src"
+        src.mkdir()
+        owner = src / "owner.cpp"
+        owner.write_text("// owner\n", encoding="utf-8")
+        self.commit_fixture()
+        head = cli.repo_snapshot(self.root)["head"]
+        doc = {
+            "map_id": "legacy-semantic",
+            "repo_basis": {
+                "head": head,
+                "branch": "master",
+                "semantic_worktree": {
+                    "algorithm": "sha256-git-semantic-v1",
+                    "watch_scopes": ["src"],
+                    "fingerprint": cli.semantic_worktree_fingerprint(
+                        self.root, ["src"], "sha256-git-semantic-v1"
+                    ),
+                },
+            },
+            "domains": [],
+        }
+
+        (self.root / "unrelated.txt").write_text("new head\n", encoding="utf-8")
+        self.commit_fixture()
+        freshness = cli.map_freshness(self.root, doc)
+
+        self.assertEqual(freshness["state"], "FRESH")
+        self.assertTrue(freshness["authoritative"])
+        self.assertTrue(freshness["headMoved"])
+
+        owner.write_text("// watched drift\n", encoding="utf-8")
         self.assertEqual(
             cli.map_freshness(self.root, doc)["state"], "WORKTREE_DRIFT"
         )
@@ -426,6 +505,44 @@ class WorkbenchR1Tests(unittest.TestCase):
             ["test_alpha", "test_beta"],
         )
         self.assertTrue(any("unioned" in warning for warning in warnings))
+
+    def test_task_scoped_verify_uses_v2_map_after_unrelated_head_move(self) -> None:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        owner = src / "owner.cpp"
+        owner.write_text("// owner\n", encoding="utf-8")
+        check = self.root / "tests" / "test_alpha.py"
+        check.write_text("print('a')\n", encoding="utf-8")
+        self.commit_fixture()
+
+        map_path = Path(self.tmp.name) / "head-move-verify-map.json"
+        self._write_semantic_map(
+            map_path,
+            [{
+                "id": "alpha",
+                "aliases": [],
+                "source_roots": ["src/owner.cpp"],
+                "entry_points": ["src/owner.cpp"],
+                "owners": [{"path": "src/owner.cpp"}],
+                "ctests": [],
+                "checks": ["tests/test_alpha.py"],
+                "lanista_scenarios": [],
+                "relations": [],
+            }],
+            ["src", "tests/test_alpha.py"],
+        )
+
+        (self.root / "unrelated.txt").write_text("new head\n", encoding="utf-8")
+        self.commit_fixture()
+
+        plan, warnings = cli.verify_plan(
+            self.root, str(map_path), paths=["src/owner.cpp"]
+        )
+
+        self.assertEqual([item["name"] for item in plan], ["test_alpha"])
+        self.assertFalse(any("Map ignored" in warning for warning in warnings))
 
     def test_task_scoped_verify_ignores_unrelated_dirty_domain(self) -> None:
         (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")

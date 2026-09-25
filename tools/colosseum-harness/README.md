@@ -71,7 +71,7 @@ python run.py --root $root --map $map context-for-task "Fix ratings opening" --p
 python run.py --root $root --map $map context-for-task "Fix ratings opening" --path native/account/RatingsReviewsController.cpp --record-run
 ```
 
-A legacy map without semantic freshness metadata remains usable for the original inspection surfaces, but `context-for-task` fails closed with `MAP_STALE` / freshness `UNKNOWN` rather than presenting old architecture as current truth.
+A legacy map without semantic freshness metadata remains usable for the original inspection surfaces, but `context-for-task` fails closed with `MAP_STALE` / freshness `UNKNOWN` rather than presenting old architecture as current truth. Semantic freshness is watch-scope based: moving Git HEAD by itself does not stale a semantic map, while a watched file add/change/delete/rename still does. Existing semantic-v1 maps replay their recorded basis HEAD inside the fingerprint so they gain the head-neutral behavior without a map rewrite; semantic-v2 is content-only and remains available for future map refreshes.
 
 `--record-run` requires at least one explicit file `--path`. It writes one small
 `artifacts\harness-runs\<runId>\run.json` receipt containing the task, exact

@@ -138,8 +138,14 @@ def validate_map(
         if not isinstance(semantic, dict):
             err("repo_basis.semantic_worktree must be an object")
         else:
-            if semantic.get("algorithm") != "sha256-git-semantic-v1":
-                err("repo_basis.semantic_worktree.algorithm must be sha256-git-semantic-v1")
+            if semantic.get("algorithm") not in {
+                "sha256-git-semantic-v1",
+                "sha256-git-semantic-v2",
+            }:
+                err(
+                    "repo_basis.semantic_worktree.algorithm must be "
+                    "sha256-git-semantic-v1 or sha256-git-semantic-v2"
+                )
             watch_scopes = semantic.get("watch_scopes")
             if not isinstance(watch_scopes, list) or not watch_scopes:
                 err("repo_basis.semantic_worktree.watch_scopes must be a non-empty array")
@@ -165,7 +171,21 @@ def validate_map(
             err(f"cannot inspect git basis: {exc}")
         else:
             if actual_head != basis.get("head"):
-                err(f"repo basis HEAD mismatch: map={basis.get('head')} current={actual_head}")
+                algorithm = (
+                    semantic.get("algorithm")
+                    if isinstance(semantic, dict)
+                    else None
+                )
+                if algorithm in {
+                    "sha256-git-semantic-v1",
+                    "sha256-git-semantic-v2",
+                }:
+                    warnings.append(
+                        "repo basis HEAD moved under semantic freshness: "
+                        f"map={basis.get('head')} current={actual_head}"
+                    )
+                else:
+                    err(f"repo basis HEAD mismatch: map={basis.get('head')} current={actual_head}")
             if actual_branch and actual_branch != basis.get("branch"):
                 err(f"repo basis branch mismatch: map={basis.get('branch')} current={actual_branch}")
 

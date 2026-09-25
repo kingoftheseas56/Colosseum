@@ -998,14 +998,22 @@ def map_basis(doc: dict[str, Any]) -> tuple[str | None, str | None]:
 
 
 def inspect_map(
-    doc: dict[str, Any], target: str, current_head: str | None = None,
+    doc: dict[str, Any],
+    target: str,
+    current_head: str | None = None,
+    freshness_state: str | None = None,
 ) -> dict[str, Any]:
     selector = target.strip()
     query_alias = selector.casefold()
     query_path = norm(selector)
     entries = list(map_entries(doc))
     basis_head, basis_branch = map_basis(doc)
-    stale = None if current_head is None or basis_head is None else current_head != basis_head
+    stale = (
+        freshness_state != "FRESH"
+        if freshness_state is not None
+        else None if current_head is None or basis_head is None
+        else current_head != basis_head
+    )
 
     id_matches = [
         (source, entry) for source, entry in entries
@@ -1446,13 +1454,70 @@ def normalize_repo_paths(values: list[str], label: str = "path") -> list[str]:
     return out
 
 
-def semantic_worktree_fingerprint(root: Path, watch_scopes: list[str]) -> str:
+def semantic_worktree_fingerprint(
+    root: Path,
+    watch_scopes: list[str],
+    algorithm: str = "sha256-git-semantic-v2",
+    head_override: str | None = None,
+) -> str:
     scopes = sorted(
         normalize_repo_paths(watch_scopes, "watch scope"),
         key=str.casefold,
     )
     if not scopes:
         raise HarnessError("MAP_INVALID", "semantic_worktree.watch_scopes must not be empty.")
+
+    if algorithm == "sha256-git-semantic-v2":
+        proc = subprocess.run(
+            [
+                "git", "-C", str(root), "ls-files", "-co", "--exclude-standard", "-z",
+                "--", *scopes,
+            ],
+            capture_output=True,
+            check=False,
+        )
+        if proc.returncode:
+            raise HarnessError(
+                "GIT_ERROR",
+                "Cannot compute semantic working-tree fingerprint.",
+                proc.stderr.decode("utf-8", errors="replace").strip(),
+            )
+
+        paths = sorted(
+            {
+                part.decode("utf-8", errors="surrogateescape").replace("\\", "/").strip("/")
+                for part in proc.stdout.split(b"\0")
+                if part
+            },
+            key=str.casefold,
+        )
+        content: dict[str, str | None] = {}
+        for normalized in paths:
+            candidate = root / Path(normalized)
+            content[normalized] = (
+                hashlib.sha256(candidate.read_bytes()).hexdigest()
+                if candidate.is_file()
+                else None
+            )
+
+        payload = {
+            "algorithm": algorithm,
+            "scopes": scopes,
+            "content": content,
+        }
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    if algorithm != "sha256-git-semantic-v1":
+        raise HarnessError(
+            "MAP_INVALID",
+            f"Unsupported semantic_worktree algorithm: {algorithm}",
+        )
 
     proc = subprocess.run(
         [
@@ -1488,8 +1553,8 @@ def semantic_worktree_fingerprint(root: Path, watch_scopes: list[str]) -> str:
             content_hashes[normalized] = hashlib.sha256(candidate.read_bytes()).hexdigest()
 
     payload = {
-        "algorithm": "sha256-git-semantic-v1",
-        "head": git(root, "rev-parse", "HEAD"),
+        "algorithm": algorithm,
+        "head": head_override or git(root, "rev-parse", "HEAD"),
         "scopes": scopes,
         "records": records,
         "content": content_hashes,
@@ -1506,20 +1571,19 @@ def map_freshness(root: Path, doc: dict[str, Any]) -> dict[str, Any]:
 
     basis_head = basis.get("head")
     basis_branch = basis.get("branch")
-    if basis_head != snapshot["head"] or (
-        isinstance(basis_branch, str) and basis_branch and basis_branch != snapshot["branch"]
-    ):
-        return {
-            "state": "HEAD_DRIFT",
-            "authoritative": False,
-            "basisHead": basis_head,
-            "currentHead": snapshot["head"],
-            "basisBranch": basis_branch,
-            "currentBranch": snapshot["branch"],
-        }
-
     semantic = basis.get("semantic_worktree")
     if not isinstance(semantic, dict):
+        if basis_head != snapshot["head"] or (
+            isinstance(basis_branch, str) and basis_branch and basis_branch != snapshot["branch"]
+        ):
+            return {
+                "state": "HEAD_DRIFT",
+                "authoritative": False,
+                "basisHead": basis_head,
+                "currentHead": snapshot["head"],
+                "basisBranch": basis_branch,
+                "currentBranch": snapshot["branch"],
+            }
         return {
             "state": "UNKNOWN",
             "authoritative": False,
@@ -1527,11 +1591,22 @@ def map_freshness(root: Path, doc: dict[str, Any]) -> dict[str, Any]:
             "currentHead": snapshot["head"],
             "reason": "Map has no semantic working-tree fingerprint.",
         }
+
     algorithm = semantic.get("algorithm")
+    if isinstance(basis_branch, str) and basis_branch and basis_branch != snapshot["branch"]:
+        return {
+            "state": "BRANCH_DRIFT",
+            "authoritative": False,
+            "basisHead": basis_head,
+            "currentHead": snapshot["head"],
+            "basisBranch": basis_branch,
+            "currentBranch": snapshot["branch"],
+        }
+
     scopes = semantic.get("watch_scopes")
     expected = semantic.get("fingerprint")
     if (
-        algorithm != "sha256-git-semantic-v1"
+        algorithm not in {"sha256-git-semantic-v1", "sha256-git-semantic-v2"}
         or not isinstance(scopes, list)
         or not all(isinstance(value, str) for value in scopes)
         or not isinstance(expected, str)
@@ -1543,7 +1618,16 @@ def map_freshness(root: Path, doc: dict[str, Any]) -> dict[str, Any]:
             "reason": "semantic_worktree configuration is invalid.",
         }
 
-    actual = semantic_worktree_fingerprint(root, scopes)
+    actual = semantic_worktree_fingerprint(
+        root,
+        scopes,
+        algorithm,
+        head_override=(
+            basis_head
+            if algorithm == "sha256-git-semantic-v1" and isinstance(basis_head, str)
+            else None
+        ),
+    )
     state = "FRESH" if actual.casefold() == expected.casefold() else "WORKTREE_DRIFT"
     return {
         "state": state,
@@ -1554,6 +1638,7 @@ def map_freshness(root: Path, doc: dict[str, Any]) -> dict[str, Any]:
         "actualFingerprint": actual,
         "basisHead": basis_head,
         "currentHead": snapshot["head"],
+        "headMoved": basis_head != snapshot["head"],
     }
 
 
@@ -1601,20 +1686,41 @@ def verify_plan(
         try:
             _, doc = load_map(map_path)
             basis_head, _basis_branch = map_basis(doc)
-            freshness = map_freshness(root, doc) if explicit_scope else None
-            if explicit_scope and freshness is not None and freshness.get("state") != "FRESH":
+            basis = doc.get("repo_basis")
+            semantic = basis.get("semantic_worktree") if isinstance(basis, dict) else None
+            freshness = (
+                map_freshness(root, doc)
+                if explicit_scope or isinstance(semantic, dict)
+                else None
+            )
+            if freshness is not None and freshness.get("state") != "FRESH":
+                scope_label = "scoped " if explicit_scope else ""
                 warnings.append(
-                    "Map ignored for scoped verify: freshness is "
+                    f"Map ignored for {scope_label}verify: freshness is "
                     f"{freshness.get('state')} rather than FRESH."
                 )
-            elif basis_head is not None and basis_head != snapshot["head"]:
+            elif (
+                not explicit_scope
+                and freshness is None
+                and basis_head is not None
+                and basis_head != snapshot["head"]
+            ):
                 warnings.append(
                     f"Map ignored for verify: stale basis {basis_head} != live HEAD {snapshot['head']}."
                 )
             else:
                 for path in paths:
                     try:
-                        resolved = inspect_map(doc, path, current_head=snapshot["head"])
+                        resolved = inspect_map(
+                            doc,
+                            path,
+                            current_head=snapshot["head"],
+                            freshness_state=(
+                                freshness.get("state")
+                                if isinstance(freshness, dict)
+                                else None
+                            ),
+                        )
                     except HarnessError as exc:
                         warnings.append(f"No mapped verification for {path!r}: {exc.message}")
                         continue
@@ -1933,7 +2039,12 @@ def context_for_task(
         existing["reasons"].append(reason)
 
     if domain:
-        resolved = inspect_map(doc, domain, current_head=repo_snapshot(root)["head"])
+        resolved = inspect_map(
+            doc,
+            domain,
+            current_head=repo_snapshot(root)["head"],
+            freshness_state=str(freshness.get("state")),
+        )
         entry = resolved.get("domain")
         if not isinstance(entry, dict):
             raise HarnessError(
@@ -1946,7 +2057,12 @@ def context_for_task(
     explicit_paths = normalize_repo_paths(paths or [], "task path")
     for path in explicit_paths:
         try:
-            resolved = inspect_map(doc, path, current_head=repo_snapshot(root)["head"])
+            resolved = inspect_map(
+                doc,
+                path,
+                current_head=repo_snapshot(root)["head"],
+                freshness_state=str(freshness.get("state")),
+            )
         except HarnessError:
             unresolved_paths.append(path)
             continue
@@ -2172,7 +2288,12 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
         map_path, doc = load_map(getattr(ns, "map", None))
         current_head = repo_snapshot(root)["head"]
         freshness = map_freshness(root, doc)
-        match = inspect_map(doc, ns.target, current_head=current_head)
+        match = inspect_map(
+            doc,
+            ns.target,
+            current_head=current_head,
+            freshness_state=str(freshness.get("state")),
+        )
         warnings = []
         if freshness.get("state") != "FRESH":
             warnings.append(
