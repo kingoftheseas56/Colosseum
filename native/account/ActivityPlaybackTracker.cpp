@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 
 #include <algorithm>
+#include <atomic>
 
 namespace {
 
@@ -21,6 +22,7 @@ constexpr qint64 kFlushTargetMs = 10000;
 constexpr qint64 kActivationGateMs = 10000;
 // §8 "Video guarded 90-percent completion".
 constexpr double kCompletionThreshold = 0.9;
+std::atomic<quint64> g_activityPlaybackGeneration{0};
 
 bool usesGuarded90(const QString &kind) {
     return kind == QLatin1String("movie") || kind == QLatin1String("episode");
@@ -87,6 +89,17 @@ void ActivityPlaybackTracker::setSink(ActivityStore *sink) {
     emit sinkChanged();
 }
 
+quint64 ActivityPlaybackTracker::lifecycleScopeGeneration() const {
+    return m_lifecycleScopeGeneration;
+}
+
+void ActivityPlaybackTracker::setLifecycleScopeGeneration(quint64 generation) {
+    if (m_lifecycleScopeGeneration == generation)
+        return;
+    m_lifecycleScopeGeneration = generation;
+    emit lifecycleScopeGenerationChanged();
+}
+
 void ActivityPlaybackTracker::setMonotonicClock(MonotonicClockFn fn) {
     m_monotonicClockFn = fn ? std::move(fn) : MonotonicClockFn(defaultMonotonicMs);
 }
@@ -115,9 +128,22 @@ void ActivityPlaybackTracker::begin(const QVariantMap &identity, const QString &
     if (m_active)
         endSessionInternal(); // identity/session change mid-stream — end the old one first (§25 fail closed)
 
+    m_playbackGeneration = g_activityPlaybackGeneration.fetch_add(
+        1, std::memory_order_relaxed) + 1;
+    if (m_playbackGeneration == 0)
+        m_playbackGeneration = g_activityPlaybackGeneration.fetch_add(
+            1, std::memory_order_relaxed) + 1;
+    m_capturedScopeGeneration = m_lifecycleScopeGeneration;
+    m_transitionSequence = 0;
     m_identity = normalizeIdentity(identity);
     m_kind = m_identity.value(QStringLiteral("kind")).toString();
     m_sessionId = sessionId;
+    m_lastPositionMs = 0;
+    m_lastDurationMs = 0;
+    m_playingKnown = false;
+    m_playing = false;
+    m_lifecycleStarted = false;
+    m_localCompletionPersisted = false;
     m_active = true;
     m_haveBaseline = false;
     m_openInterval = OpenInterval();
@@ -167,6 +193,9 @@ void ActivityPlaybackTracker::sample(qint64 positionMs, qint64 durationMs, qint6
                                       bool consuming) {
     if (!m_active)
         return;
+
+    m_lastPositionMs = positionMs;
+    m_lastDurationMs = durationMs;
 
     const qint64 nowMono = monotonicNow();
     const qint64 nowWall = wallNow();
@@ -288,23 +317,69 @@ void ActivityPlaybackTracker::submitChunk(const QVariantMap &fact, qint64 qualif
         m_sink->recordPlaybackDelta(fact);
 }
 
-void ActivityPlaybackTracker::emitCompletion(const QString &reason, qint64 atMs,
+bool ActivityPlaybackTracker::emitCompletion(const QString &reason, qint64 atMs,
                                                int utcOffsetMinutes) {
     if (!m_sink)
-        return;
+        return false;
 
     QVariantMap fact = m_identity;
     fact.insert(QStringLiteral("sessionId"), m_sessionId);
     fact.insert(QStringLiteral("utcOffsetMinutes"), qint64(utcOffsetMinutes));
     fact.insert(QStringLiteral("atMs"), atMs);
     fact.insert(QStringLiteral("reason"), reason);
-    m_sink->recordCompletion(fact);
+    const bool persisted = m_sink->recordCompletion(fact);
+    m_localCompletionPersisted = m_localCompletionPersisted || persisted;
+    return persisted;
+}
+
+void ActivityPlaybackTracker::emitPlaybackLifecycle(const QString &action,
+                                                      bool completedLocally) {
+    ++m_transitionSequence;
+    QVariantMap event;
+    event.insert(QStringLiteral("action"), action);
+    event.insert(QStringLiteral("identity"), m_identity);
+    event.insert(QStringLiteral("sessionId"), m_sessionId);
+    event.insert(QStringLiteral("playbackGeneration"), QVariant::fromValue(m_playbackGeneration));
+    event.insert(QStringLiteral("scopeGeneration"),
+                 QVariant::fromValue(m_capturedScopeGeneration));
+    event.insert(QStringLiteral("transitionSequence"),
+                 QVariant::fromValue(m_transitionSequence));
+    event.insert(QStringLiteral("positionMs"), m_lastPositionMs);
+    event.insert(QStringLiteral("durationMs"), m_lastDurationMs);
+    event.insert(QStringLiteral("completedLocally"), completedLocally);
+    emit playbackLifecycleChanged(event);
+}
+
+void ActivityPlaybackTracker::playbackStateChanged(bool playing,
+                                                     qint64 positionMs,
+                                                     qint64 durationMs) {
+    if (!m_active)
+        return;
+
+    m_lastPositionMs = positionMs;
+    m_lastDurationMs = durationMs;
+    if (m_playingKnown && m_playing == playing)
+        return;
+
+    const bool wasPlaying = m_playingKnown && m_playing;
+    m_playingKnown = true;
+    m_playing = playing;
+    if (playing) {
+        const QString action = m_lifecycleStarted
+            ? QStringLiteral("resume") : QStringLiteral("start");
+        m_lifecycleStarted = true;
+        emitPlaybackLifecycle(action);
+    } else if (wasPlaying && m_lifecycleStarted) {
+        emitPlaybackLifecycle(QStringLiteral("pause"));
+    }
 }
 
 void ActivityPlaybackTracker::discontinuity(qint64 positionMs, qint64 durationMs, qint64 rateMilli) {
     if (!m_active)
         return;
 
+    m_lastPositionMs = positionMs;
+    m_lastDurationMs = durationMs;
     closeOpenInterval();
     const qint64 nowMono = monotonicNow();
     const int nowOffset = utcOffsetNow();
@@ -321,16 +396,22 @@ void ActivityPlaybackTracker::discontinuity(qint64 positionMs, qint64 durationMs
     }
 }
 
-void ActivityPlaybackTracker::naturalEof() {
+void ActivityPlaybackTracker::naturalEof(qint64 positionMs, qint64 durationMs) {
     if (!m_active)
         return;
 
+    if (positionMs >= 0)
+        m_lastPositionMs = positionMs;
+    if (durationMs >= 0)
+        m_lastDurationMs = durationMs;
     closeOpenInterval();
     emitCompletion(QStringLiteral("eof"), wallNow(), utcOffsetNow());
 }
 
-void ActivityPlaybackTracker::endSessionInternal() {
+void ActivityPlaybackTracker::endSessionInternal(bool emitTrackerClose) {
     closeOpenInterval();
+    if (emitTrackerClose && m_lifecycleStarted)
+        emitPlaybackLifecycle(QStringLiteral("close"), m_localCompletionPersisted);
     if (!m_gateCrossed) {
         // §8: "session ends below 10 seconds -> discard buffered activity."
         m_pendingBuffer.clear();
@@ -338,6 +419,10 @@ void ActivityPlaybackTracker::endSessionInternal() {
     }
     m_active = false;
     m_haveBaseline = false;
+    m_playingKnown = false;
+    m_playing = false;
+    m_lifecycleStarted = false;
+    m_localCompletionPersisted = false;
     m_gateCrossed = false;
     m_gateAccumulatedMs = 0;
     m_pendingBuffer.clear();
@@ -345,8 +430,27 @@ void ActivityPlaybackTracker::endSessionInternal() {
     m_openInterval = OpenInterval();
 }
 
-void ActivityPlaybackTracker::endSession() {
+void ActivityPlaybackTracker::endSession(qint64 positionMs, qint64 durationMs) {
     if (!m_active)
         return;
+    if (positionMs >= 0)
+        m_lastPositionMs = positionMs;
+    if (durationMs >= 0)
+        m_lastDurationMs = durationMs;
     endSessionInternal();
+}
+
+void ActivityPlaybackTracker::endSessionForProfileDeactivation(
+    qint64 positionMs, qint64 durationMs) {
+    if (!m_active)
+        return;
+    if (positionMs >= 0)
+        m_lastPositionMs = positionMs;
+    if (durationMs >= 0)
+        m_lastDurationMs = durationMs;
+    endSessionInternal(false);
+}
+
+bool ActivityPlaybackTracker::localCompletionPersisted() const {
+    return m_localCompletionPersisted;
 }

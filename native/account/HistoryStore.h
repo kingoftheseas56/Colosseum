@@ -56,6 +56,19 @@ public:
         const QString &id,
         qint64 completedAtMs);
 
+    // ProgressStore crosses the native completion threshold without creating
+    // an Activity event. A same-tick Activity event ID or same-session token,
+    // when present, links both projections without changing portable History.
+    bool markProgressCompleted(
+        const QString &kind,
+        const QString &id,
+        qint64 completedAtMs,
+        const QString &activityEventId = QString(),
+        const QString &activitySessionId = QString());
+    bool trackerEvidenceHealthy(QString *error = nullptr) const;
+    QVariantList trackerLocalCompletionFacts() const;
+    QVariantMap trackerLocalCompletionFact(const QString &eventId) const;
+
     // Explicit user history deletion. Removing Continue/progress does not call
     // this method.
     Q_INVOKABLE bool remove(
@@ -94,10 +107,12 @@ public:
 signals:
     void changed();
     void syncDirty();
+    void trackerLocalCompletionCommitted(const QVariantMap &fact);
 
 private:
     struct OwnerState {
         QVariantMap records;
+        QVariantMap trackerLocalCompletions;
         QHash<QString, qint64> tombstones;
         qint64 resetGeneration = 0;
         qint64 resetBarrierAtMs = 0;
@@ -127,6 +142,14 @@ private:
 
     bool saveRecords(
         const QVariantMap &records) const;
+    bool markCompletedInternal(
+        const QString &kind,
+        const QString &id,
+        qint64 completedAtMs,
+        bool fromProgress,
+        const QString &activityEventId = QString(),
+        const QString &activitySessionId = QString());
+    void removeTrackerCompletions(const QString &kind, const QString &id);
 
     static qint64 recordFirst(
         const QVariantMap &record);
@@ -148,9 +171,11 @@ private:
 
     std::unique_ptr<QSettings> m_settings;
     QVariantMap m_records;
+    QVariantMap m_trackerLocalCompletions;
     QHash<QString, qint64> m_tombstones;
     qint64 m_resetGeneration = 0;
     qint64 m_resetBarrierAtMs = 0;
     QString m_loadError;
+    QString m_trackerEvidenceError;
     int m_revision = 0;
 };

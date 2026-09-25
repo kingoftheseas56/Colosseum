@@ -21,12 +21,17 @@ struct StremioCredentialAdoptionCallbacks {
     std::function<bool(const QString &)> clear;
 };
 
+struct TrackerPrivateAdoptionCallbacks {
+    std::function<bool(const ProfilePaths &, const ProfilePaths &, QString *)> handoff;
+};
+
 class FirstAccountProfileCoordinator final {
 public:
     explicit FirstAccountProfileCoordinator(
         ProfileStoreRuntime *profileRuntime,
         const QString &appDataRoot = QString(),
-        StremioCredentialAdoptionCallbacks stremioCredentials = {});
+        StremioCredentialAdoptionCallbacks stremioCredentials = {},
+        TrackerPrivateAdoptionCallbacks trackerPrivate = {});
 
     bool prepareCreatedAccount(
         const QString &accountId,
@@ -63,6 +68,12 @@ private:
         const LegacyPersonalStateStorage &sourceStorage,
         ProfilePaths::Kind sourceKind,
         QString *error);
+
+    bool handoffTrackerPrivateState(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        ProfilePaths::Kind sourceKind,
+        QString *error) const;
 
     std::optional<LegacyPersonalStateStorage> currentMigrationSource(
         bool *explicitProfile,
@@ -232,5 +243,6 @@ private:
     ProfileStoreRuntime *m_profileRuntime = nullptr;
     QString m_appDataRoot;
     StremioCredentialAdoptionCallbacks m_stremioCredentials;
+    TrackerPrivateAdoptionCallbacks m_trackerPrivate;
     QSet<QString> m_quarantinedThisProcess;
 };

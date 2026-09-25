@@ -228,6 +228,7 @@ private slots:
     void portableSyncFactsExportOnlySyncableSortedAndDeterministic();
     void portableSyncFactsSanitizeMachineLocalCover();
     void applySyncedPortableFactImportsAndProjects();
+    void deliveryOriginIsDurableAndOutsidePortableActivityFacts();
     void applySyncedPortableFactIdempotentAgainstRicherLocalPresentation();
     void applySyncedPortableFactConflictDoesNotMutate();
     void applySyncedPortableFactRejectsMalformedBeforeMutation();
@@ -598,6 +599,54 @@ void tst_activity_store::applySyncedPortableFactImportsAndProjects() {
     QVERIFY2(error.isEmpty(), qPrintable(error));
     QCOMPARE(imported, portable);
     QCOMPARE(imported.at(2).value(QStringLiteral("reason")).toString(), QStringLiteral("eof"));
+}
+
+void tst_activity_store::deliveryOriginIsDurableAndOutsidePortableActivityFacts() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("activity.sqlite"));
+    const QVariantMap local = completionFact(
+        QStringLiteral("s-local"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:x"), QStringLiteral("movie:x"), QStringLiteral("Movie X"),
+        localMs(2026, 9, 1, 20, 0, 0), QStringLiteral("eof"), 330,
+        QStringLiteral("local-completion"));
+    const QVariantMap remote = completionFact(
+        QStringLiteral("s-remote"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:y"), QStringLiteral("movie:y"), QStringLiteral("Movie Y"),
+        localMs(2026, 9, 2, 20, 0, 0), QStringLiteral("eof"), 330,
+        QStringLiteral("remote-completion"));
+    QVariantMap portableRemote = remote;
+    portableRemote.insert(QStringLiteral("v"), 1);
+    portableRemote.insert(QStringLiteral("type"), QStringLiteral("media_completed"));
+
+    {
+        ActivityStore store(path);
+        QVERIFY(store.recordCompletion(local));
+        QString error;
+        QVERIFY2(store.applySyncedPortableFact(portableRemote, &error), qPrintable(error));
+        const QList<QVariantMap> facts = store.historyProjectionFacts();
+        QCOMPARE(facts.size(), 2);
+        QMap<QString, QString> origins;
+        for (const QVariantMap &fact : facts)
+            origins.insert(fact.value(QStringLiteral("eventId")).toString(),
+                           fact.value(QStringLiteral("_trackerOrigin")).toString());
+        QCOMPARE(origins.value(QStringLiteral("local-completion")), QStringLiteral("native_local"));
+        QCOMPARE(origins.value(QStringLiteral("remote-completion")), QStringLiteral("account_sync"));
+        for (const QVariantMap &portable : store.portableSyncFacts())
+            QVERIFY(!portable.contains(QStringLiteral("_trackerOrigin")));
+    }
+
+    {
+        ActivityStore reopened(path);
+        const QList<QVariantMap> facts = reopened.historyProjectionFacts();
+        QCOMPARE(facts.size(), 2);
+        QCOMPARE(facts.at(0).value(QStringLiteral("_trackerOrigin")).toString(),
+                 QStringLiteral("native_local"));
+        QCOMPARE(facts.at(1).value(QStringLiteral("_trackerOrigin")).toString(),
+                 QStringLiteral("account_sync"));
+        QVERIFY(reopened.clearAll());
+        QVERIFY(reopened.historyProjectionFacts().isEmpty());
+    }
 }
 
 void tst_activity_store::applySyncedPortableFactIdempotentAgainstRicherLocalPresentation() {

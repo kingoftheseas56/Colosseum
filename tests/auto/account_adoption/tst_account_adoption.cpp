@@ -8,6 +8,10 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfileStoreRuntime.h"
 
+#include "trackers/TrackerConnectionStore.h"
+#include "trackers/TrackerMappingStore.h"
+#include "trackers/TrackerScrobbleRuntime.h"
+#include "trackers/TrackerScrobbleStore.h"
 #include "ProgressStore.h"
 
 #include <QDir>
@@ -20,6 +24,9 @@
 #include <QSaveFile>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QSignalSpy>
 #include <QtTest>
 
 namespace {
@@ -322,6 +329,7 @@ private slots:
     void ordinarySignInMergesExistingAccountWithLocalOnlyState();
     void activeAccountSessionMergesLaterLocalOnlyState();
     void rememberedAccountSessionMergesLaterLocalOnlyState();
+    void coldStartTrackerOnlyLocalOnlyProfileRetriesPrivateHandoff();
     void continueLocalBeforeAdoptionKeepsLegacyAuthority();
     void continueLocalAfterAdoptionUsesDedicatedLocalProfile();
     void corruptRestartPreservesAccountAndEvidence();
@@ -345,6 +353,7 @@ private slots:
     void legacyAccountlessAdoptionCarriesStremioCredential();
     void stremioCredentialTransferReplacesStaleDestinationForSameAccount();
     void stremioCredentialTransferRetriesBeforeSourceRetirement();
+    void migrationSuspensionStopsWhenTrackerCloseCannotBePersisted();
 };
 
 void tst_account_adoption::
@@ -2335,6 +2344,131 @@ stremioCredentialTransferRetriesBeforeSourceRetirement() {
              QByteArrayLiteral("fixture-secret"));
     QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Account);
 }
+
+void tst_account_adoption::
+coldStartTrackerOnlyLocalOnlyProfileRetriesPrivateHandoff() {
+    AdoptionFixture fixture;
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    int handoffCalls = 0;
+    QString handedOffSourceId;
+    QString handedOffDestinationId;
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot,
+        {},
+        TrackerPrivateAdoptionCallbacks{
+            [&](const ProfilePaths &source,
+                const ProfilePaths &destination,
+                QString *handoffError) {
+                ++handoffCalls;
+                handedOffSourceId = source.profileId();
+                handedOffDestinationId = destination.profileId();
+                if (handoffCalls == 1) {
+                    if (handoffError)
+                        *handoffError = QStringLiteral(
+                            "Simulated tracker credential transfer failure.");
+                    return false;
+                }
+                return true;
+            }});
+
+    QString error;
+    const ProfilePaths local = ProfilePaths::localOnly(fixture.appDataRoot);
+    TrackerConnectionStore localConnections(local);
+    QVERIFY(localConnections.upsert({TrackerProviderId::Simkl, QStringLiteral("local-account"),
+        1, 1000, TrackerProviderCapability::ReadHistory,
+        TrackerConnectionState::Connected}));
+
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(!coordinator.prepareAccountSession(
+        QString::fromLatin1(kAccountA), &error));
+    QCOMPARE(handoffCalls, 1);
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::LocalOnly);
+    QCOMPARE(localConnections.connection(TrackerProviderId::Simkl)->state,
+             TrackerConnectionState::Connected);
+    auto pendingAdoption = ProfileAdoption::open(fixture.accountPaths(), &error);
+    QVERIFY2(pendingAdoption.has_value(), qPrintable(error));
+    QCOMPARE(pendingAdoption->state(), ProfileAdoption::State::Promoted);
+
+    error.clear();
+    QVERIFY2(coordinator.prepareAccountSession(
+                 QString::fromLatin1(kAccountA), &error),
+             qPrintable(error));
+    QCOMPARE(handoffCalls, 2);
+    QCOMPARE(handedOffSourceId, local.profileId());
+    QCOMPARE(handedOffDestinationId, fixture.accountPaths().profileId());
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Account);
+}
+
+
+void tst_account_adoption::
+migrationSuspensionStopsWhenTrackerCloseCannotBePersisted() {
+    AdoptionFixture fixture;
+    const ProfilePaths local = ProfilePaths::localOnly(fixture.appDataRoot);
+    TrackerConnectionStore connections(local);
+    QVERIFY(connections.upsert({
+        TrackerProviderId::Simkl,
+        QStringLiteral("simkl-account"),
+        1,
+        1000,
+        TrackerProviderCapability::Scrobble,
+        TrackerConnectionState::Connected}));
+    TrackerMappingStore mappings(local);
+    QVERIFY(mappings.upsert(
+        {TrackerProviderId::Simkl, QStringLiteral("simkl-account"), QStringLiteral("123")},
+        {QStringLiteral("movie:fixture"), QStringLiteral("movie"),
+         QStringLiteral("fixture"), QStringLiteral("Fixture Movie")},
+        TrackerMappingProvenance::UserConfirmed));
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    QString error;
+    QVERIFY2(runtime.activateLocalOnlyProfile(&error), qPrintable(error));
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    auto *trackers = qobject_cast<TrackerScrobbleRuntime *>(
+        engine.rootContext()->contextProperty(QStringLiteral("ProfileTrackers"))
+            .value<QObject *>());
+    QVERIFY(trackers);
+    QVERIFY(trackers->setLivePlaybackTrackingEnabled(QStringLiteral("simkl"), true));
+
+    trackers->observePlaybackLifecycle({
+        {QStringLiteral("scopeGeneration"), QVariant::fromValue(
+             trackers->playbackScopeGeneration())},
+        {QStringLiteral("playbackGeneration"), 1},
+        {QStringLiteral("transitionSequence"), 1},
+        {QStringLiteral("sessionId"), QStringLiteral("migration-session")},
+        {QStringLiteral("action"), QStringLiteral("start")},
+        {QStringLiteral("positionMs"), 10'000},
+        {QStringLiteral("durationMs"), 100'000},
+        {QStringLiteral("identity"), QVariantMap{
+             {QStringLiteral("source"), QStringLiteral("theatre-player")},
+             {QStringLiteral("world"), QStringLiteral("theatre")},
+             {QStringLiteral("kind"), QStringLiteral("movie")},
+             {QStringLiteral("itemKey"), QStringLiteral("fixture")}}}});
+    QVERIFY(!trackers->store()->intents().isEmpty());
+    QCOMPARE(trackers->store()->intents().first().playbackSessionId,
+             QStringLiteral("migration-session"));
+
+    const QString scrobblePath = TrackerScrobbleStore::storagePath(local);
+    QVERIFY(QFile::remove(scrobblePath));
+    QVERIFY(QDir().mkpath(scrobblePath));
+
+    QSignalSpy aboutToChange(&runtime, &ProfileStoreRuntime::storesAboutToChange);
+    QSignalSpy deactivationRequested(
+        &runtime, &ProfileStoreRuntime::profileDeactivationRequested);
+    QSignalSpy deactivationCommitted(
+        &runtime, &ProfileStoreRuntime::profileDeactivationCommitted);
+    QVERIFY(!runtime.suspendPersonalStoresForMigration(&error));
+    QVERIFY(!error.isEmpty());
+    QCOMPARE(aboutToChange.count(), 0);
+    QCOMPARE(deactivationRequested.count(), 1);
+    QCOMPARE(deactivationCommitted.count(), 0);
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::LocalOnly);
+    QVERIFY(runtime.progressStore());
+    QVERIFY(runtime.activityStore());
+    QVERIFY(QDir(scrobblePath).removeRecursively());
+}
+
 
 QTEST_MAIN(tst_account_adoption)
 #include "tst_account_adoption.moc"

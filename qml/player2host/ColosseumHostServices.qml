@@ -520,7 +520,8 @@ QtObject {
     // 8. Progress. The real ProgressStore, with production's guards and entry shape verbatim
     //    (qml/PlayerPage.qml:1768) so both players write Continue-Watching rows the same way.
     // ---------------------------------------------------------------------------------------------
-    function reportProgress(mediaId, position, duration, silent) {
+    function reportProgress(mediaId, position, duration, silent, activityEventId,
+                            activitySessionId) {
         if (!mediaId || String(mediaId) === "" || duration <= 0 || position <= 0)
             return
         // Anti-clutter floor: an accidental few-second open never leaves a Continue card behind.
@@ -554,6 +555,10 @@ QtObject {
                         "subId": host.subStreamId,
                         "position": position }
         }
+        if (activityEventId)
+            entry["_trackerActivityEventId"] = String(activityEventId)
+        if (activitySessionId)
+            entry["_trackerActivitySessionId"] = String(activitySessionId)
         if (silent)
             Progress.recordSilent(entry)
         else

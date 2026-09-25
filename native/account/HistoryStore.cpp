@@ -4,6 +4,8 @@
 
 #include "SyncPayloadFirewall.h"
 
+#include <QCryptographicHash>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDateTime>
@@ -23,9 +25,46 @@ constexpr auto kHistoryResetGenerationKey =
     "history/resetGeneration";
 constexpr auto kHistoryResetBarrierKey =
     "history/resetBarrierAtMs";
+constexpr auto kHistoryTrackerLocalCompletionsKey =
+    "history/trackerLocalCompletions";
 constexpr auto kStremioSource = "stremio";
 constexpr int kStremioDisplayIdentityLimit = 512;
 constexpr int kStremioDisplayTitleLimit = 1024;
+
+bool validTrackerActivityEventId(const QString &eventId) {
+    if (eventId.isEmpty() || eventId.size() > 128 || eventId.trimmed() != eventId)
+        return false;
+    for (const QChar ch : eventId) {
+        if (!ch.isLetterOrNumber() && ch != QLatin1Char('-')
+            && ch != QLatin1Char('_') && ch != QLatin1Char('.'))
+            return false;
+    }
+    return true;
+}
+
+bool validTrackerActivitySessionId(const QString &sessionId) {
+    if (sessionId.isEmpty() || sessionId.size() > 128 || sessionId.trimmed() != sessionId)
+        return false;
+    for (const QChar ch : sessionId) {
+        if (!ch.isLetterOrNumber() && ch != QLatin1Char('-')
+            && ch != QLatin1Char('_') && ch != QLatin1Char('.'))
+            return false;
+    }
+    return true;
+}
+
+QString trackerProgressCompletionId(const QString &kind, const QString &id, qint64 atMs,
+                                    const QString &activityEventId = QString(),
+                                    const QString &activitySessionId = QString()) {
+    QString material = kind + QChar(0x1f) + id + QChar(0x1f) + QString::number(atMs);
+    if (!activityEventId.isEmpty())
+        material += QChar(0x1f) + activityEventId;
+    if (!activitySessionId.isEmpty())
+        material += QChar(0x1f) + activitySessionId;
+    return QStringLiteral("history-progress-")
+        + QString::fromLatin1(QCryptographicHash::hash(
+              material.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
 
 bool strictPositiveIntegerVariant(
     const QVariant &value,
@@ -301,6 +340,30 @@ bool HistoryStore::completed(const QString &kind, const QString &id) const {
     return get(kind, id).value(QStringLiteral("completedAt")).toLongLong() > 0;
 }
 
+bool HistoryStore::trackerEvidenceHealthy(QString *error) const {
+    if (error)
+        *error = m_trackerEvidenceError;
+    return m_trackerEvidenceError.isEmpty();
+}
+
+QVariantList HistoryStore::trackerLocalCompletionFacts() const {
+    QVariantList facts;
+    if (!trackerEvidenceHealthy())
+        return facts;
+    QStringList ids = m_trackerLocalCompletions.keys();
+    ids.sort();
+    facts.reserve(ids.size());
+    for (const QString &id : ids)
+        facts.append(m_trackerLocalCompletions.value(id));
+    return facts;
+}
+
+QVariantMap HistoryStore::trackerLocalCompletionFact(const QString &eventId) const {
+    if (!trackerEvidenceHealthy())
+        return {};
+    return m_trackerLocalCompletions.value(eventId).toMap();
+}
+
 bool HistoryStore::recordActivityRange(const QString &kind, const QString &id,
                                        qint64 firstActivityAtMs, qint64 lastActivityAtMs) {
     const QString normalizedKind = kind.trimmed();
@@ -337,6 +400,7 @@ bool HistoryStore::clearAll() {
     const OwnerState previous = ownerState();
     for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
         rememberTombstone(it.key(), barrier);
+    m_trackerLocalCompletions.clear();
     ++m_resetGeneration;
     m_resetBarrierAtMs = qMax(m_resetBarrierAtMs, barrier);
     return commit(QVariantMap(), true, previous);
@@ -349,6 +413,7 @@ bool HistoryStore::clearSyncedAll(qint64 barrierAtMs) {
     const OwnerState previous = ownerState();
     for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
         rememberTombstone(it.key(), barrier);
+    m_trackerLocalCompletions.clear();
     m_resetBarrierAtMs = qMax(m_resetBarrierAtMs, barrier);
     return commit(QVariantMap(), false, previous);
 }
@@ -446,6 +511,26 @@ bool HistoryStore::markCompleted(
     const QString &kind,
     const QString &id,
     qint64 completedAtMs) {
+    return markCompletedInternal(kind, id, completedAtMs, false);
+}
+
+bool HistoryStore::markProgressCompleted(
+    const QString &kind,
+    const QString &id,
+    qint64 completedAtMs,
+    const QString &activityEventId,
+    const QString &activitySessionId) {
+    return markCompletedInternal(kind, id, completedAtMs, true,
+                                 activityEventId, activitySessionId);
+}
+
+bool HistoryStore::markCompletedInternal(
+    const QString &kind,
+    const QString &id,
+    qint64 completedAtMs,
+    bool fromProgress,
+    const QString &activityEventId,
+    const QString &activitySessionId) {
     const QString normalizedKind =
         kind.trimmed();
     const QString normalizedId =
@@ -514,17 +599,51 @@ bool HistoryStore::markCompleted(
                 : completedAtMs,
             current);
 
-    if (current == normalized && !tombstoneCleared)
+    QVariantMap trackerFact;
+    bool trackerFactAdded = false;
+    if (fromProgress && trackerEvidenceHealthy()) {
+        const QString validActivityEventId = validTrackerActivityEventId(activityEventId)
+            ? activityEventId : QString();
+        const QString validActivitySessionId = validTrackerActivitySessionId(activitySessionId)
+            ? activitySessionId : QString();
+        const QString eventId = trackerProgressCompletionId(
+            normalizedKind, normalizedId, completedAtMs, validActivityEventId,
+            validActivitySessionId);
+        if (!m_trackerLocalCompletions.contains(eventId)) {
+            trackerFact = {{QStringLiteral("eventId"), eventId},
+                           {QStringLiteral("kind"), normalizedKind},
+                           {QStringLiteral("id"), normalizedId},
+                           {QStringLiteral("atMs"), completedAtMs}};
+            if (!validActivityEventId.isEmpty())
+                trackerFact.insert(QStringLiteral("activityEventId"), validActivityEventId);
+            if (!validActivitySessionId.isEmpty())
+                trackerFact.insert(QStringLiteral("activitySessionId"), validActivitySessionId);
+            m_trackerLocalCompletions.insert(eventId, trackerFact);
+            trackerFactAdded = true;
+        }
+    }
+
+    if (current == normalized && !tombstoneCleared) {
+        if (trackerFactAdded) {
+            if (!saveRecords(m_records)) {
+                restoreOwnerState(previous);
+                saveRecords(previous.records);
+                return false;
+            }
+            emit trackerLocalCompletionCommitted(trackerFact);
+        }
         return true;
+    }
 
     next.insert(
         key,
         normalized);
 
-    return commit(
-        next,
-        true,
-        previous);
+    if (!commit(next, true, previous))
+        return false;
+    if (trackerFactAdded)
+        emit trackerLocalCompletionCommitted(trackerFact);
+    return true;
 }
 
 bool HistoryStore::remove(
@@ -545,6 +664,7 @@ bool HistoryStore::remove(
     const QString key = recordKey(normalizedKind, normalizedId);
     QVariantMap next = m_records;
     next.remove(key);
+    removeTrackerCompletions(normalizedKind, normalizedId);
     rememberTombstone(key, QDateTime::currentMSecsSinceEpoch());
 
     return commit(
@@ -638,6 +758,7 @@ bool HistoryStore::applySyncedReset(
 
     for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
         rememberTombstone(it.key(), effectiveBarrier);
+    m_trackerLocalCompletions.clear();
     m_resetGeneration = qMax(m_resetGeneration, generation);
     m_resetBarrierAtMs = effectiveBarrier;
     return commit(QVariantMap(), false, previous);
@@ -661,6 +782,7 @@ bool HistoryStore::removeSyncedRecord(
     const QString key = recordKey(normalizedKind, normalizedId);
     QVariantMap next = m_records;
     next.remove(key);
+    removeTrackerCompletions(normalizedKind, normalizedId);
     rememberTombstone(key, QDateTime::currentMSecsSinceEpoch());
 
     return commit(
@@ -780,13 +902,16 @@ bool HistoryStore::validIdentity(
 
 void HistoryStore::load() {
     m_records.clear();
+    m_trackerLocalCompletions.clear();
     m_tombstones.clear();
     m_resetGeneration = 0;
     m_resetBarrierAtMs = 0;
     m_loadError.clear();
+    m_trackerEvidenceError.clear();
 
     const auto fail = [this](const QString &message) {
         m_records.clear();
+        m_trackerLocalCompletions.clear();
         m_tombstones.clear();
         m_resetGeneration = 0;
         m_resetBarrierAtMs = 0;
@@ -865,10 +990,63 @@ void HistoryStore::load() {
         }
     }
 
+    const auto failTrackerEvidence = [this](const QString &message) {
+        if (m_trackerEvidenceError.isEmpty())
+            m_trackerEvidenceError = message;
+        m_trackerLocalCompletions.clear();
+    };
+    const QString trackerFactsKey =
+        QString::fromLatin1(kHistoryTrackerLocalCompletionsKey);
+    if (m_settings->contains(trackerFactsKey)) {
+        const QByteArray trackerPayload = m_settings->value(trackerFactsKey).toByteArray();
+        QJsonParseError trackerParseError;
+        const QJsonDocument trackerDocument = QJsonDocument::fromJson(
+            trackerPayload, &trackerParseError);
+        if (trackerPayload.isEmpty()
+            || trackerParseError.error != QJsonParseError::NoError
+            || !trackerDocument.isObject()) {
+            failTrackerEvidence(QStringLiteral("The History tracker witness is malformed."));
+        } else {
+            const QJsonObject trackerObject = trackerDocument.object();
+            for (auto it = trackerObject.constBegin(); it != trackerObject.constEnd(); ++it) {
+                if (!it.value().isObject()) {
+                    failTrackerEvidence(QStringLiteral("A History tracker witness is malformed."));
+                    break;
+                }
+                const QJsonObject fact = it.value().toObject();
+                const QString eventId = fact.value(QStringLiteral("eventId")).toString();
+                const QString kind = fact.value(QStringLiteral("kind")).toString();
+                const QString id = fact.value(QStringLiteral("id")).toString();
+                const bool hasActivityEventId = fact.contains(QStringLiteral("activityEventId"));
+                const QString activityEventId = fact.value(QStringLiteral("activityEventId")).toString();
+                const bool hasActivitySessionId = fact.contains(QStringLiteral("activitySessionId"));
+                const QString activitySessionId = fact.value(QStringLiteral("activitySessionId")).toString();
+                qint64 atMs = 0;
+                const int expectedSize = 4 + (hasActivityEventId ? 1 : 0)
+                    + (hasActivitySessionId ? 1 : 0);
+                if (fact.size() != expectedSize || eventId != it.key()
+                    || !validIdentity(kind, id)
+                    || !strictPositiveJsonInteger(fact.value(QStringLiteral("atMs")), &atMs)
+                    || (hasActivityEventId && !validTrackerActivityEventId(activityEventId))
+                    || (hasActivitySessionId
+                        && !validTrackerActivitySessionId(activitySessionId))
+                    || eventId != trackerProgressCompletionId(
+                        kind, id, atMs, activityEventId, activitySessionId)) {
+                    failTrackerEvidence(QStringLiteral("A History tracker witness has invalid identity."));
+                    break;
+                }
+                m_trackerLocalCompletions.insert(eventId, fact.toVariantMap());
+            }
+        }
+    }
+
     const QString recordsKey =
         QString::fromLatin1(kHistoryRecordsKey);
-    if (!m_settings->contains(recordsKey))
+    if (!m_settings->contains(recordsKey)) {
+        if (!m_trackerLocalCompletions.isEmpty())
+            failTrackerEvidence(QStringLiteral("A History tracker witness has no canonical History record."));
         return;
+    }
 
     const QByteArray payload = m_settings->value(recordsKey).toByteArray();
     if (payload.isEmpty()) {
@@ -947,11 +1125,24 @@ void HistoryStore::load() {
         }
         m_records.insert(recordKey(kind, id), normalized);
     }
+
+    for (auto it = m_trackerLocalCompletions.constBegin();
+         it != m_trackerLocalCompletions.constEnd(); ++it) {
+        const QVariantMap fact = it.value().toMap();
+        const QVariantMap record = m_records.value(recordKey(
+            fact.value(QStringLiteral("kind")).toString(),
+            fact.value(QStringLiteral("id")).toString())).toMap();
+        if (record.value(QStringLiteral("completedAt")).toLongLong() <= 0) {
+            failTrackerEvidence(QStringLiteral("A History tracker witness has no canonical completion."));
+            break;
+        }
+    }
 }
 
 HistoryStore::OwnerState HistoryStore::ownerState() const {
     OwnerState state;
     state.records = m_records;
+    state.trackerLocalCompletions = m_trackerLocalCompletions;
     state.tombstones = m_tombstones;
     state.resetGeneration = m_resetGeneration;
     state.resetBarrierAtMs = m_resetBarrierAtMs;
@@ -960,6 +1151,7 @@ HistoryStore::OwnerState HistoryStore::ownerState() const {
 
 void HistoryStore::restoreOwnerState(const OwnerState &state) {
     m_records = state.records;
+    m_trackerLocalCompletions = state.trackerLocalCompletions;
     m_tombstones = state.tombstones;
     m_resetGeneration = state.resetGeneration;
     m_resetBarrierAtMs = state.resetBarrierAtMs;
@@ -1033,6 +1225,22 @@ bool HistoryStore::saveRecords(
         QString::fromLatin1(kHistoryResetBarrierKey),
         m_resetBarrierAtMs);
 
+    // Tracker provenance is a private additive witness, not canonical History
+    // data and never part of syncEntries(). Keep it in the same QSettings
+    // commit as the History mutation for crash-gap recovery.
+    if (trackerEvidenceHealthy()) {
+        QJsonObject trackerFacts;
+        QStringList factIds = m_trackerLocalCompletions.keys();
+        factIds.sort();
+        for (const QString &factId : factIds) {
+            trackerFacts.insert(factId, QJsonObject::fromVariantMap(
+                m_trackerLocalCompletions.value(factId).toMap()));
+        }
+        m_settings->setValue(
+            QString::fromLatin1(kHistoryTrackerLocalCompletionsKey),
+            QJsonDocument(trackerFacts).toJson(QJsonDocument::Compact));
+    }
+
     m_settings->sync();
     return m_settings->status()
         == QSettings::NoError;
@@ -1048,6 +1256,19 @@ qint64 HistoryStore::recordLast(const QVariantMap &record) {
 
 qint64 HistoryStore::recordCompletion(const QVariantMap &record) {
     return record.value(QStringLiteral("completedAt")).toLongLong();
+}
+
+void HistoryStore::removeTrackerCompletions(const QString &kind, const QString &id) {
+    for (auto it = m_trackerLocalCompletions.begin();
+         it != m_trackerLocalCompletions.end();) {
+        const QVariantMap fact = it.value().toMap();
+        if (fact.value(QStringLiteral("kind")).toString() == kind
+            && fact.value(QStringLiteral("id")).toString() == id) {
+            it = m_trackerLocalCompletions.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 QVariantMap HistoryStore::mergeRecords(const QVariantMap &left,

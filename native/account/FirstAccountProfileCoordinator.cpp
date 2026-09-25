@@ -6,6 +6,8 @@
 #include "AccountAttachmentReceipt.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfilePreferencesStore.h"
+#include "trackers/TrackerCredentialVault.h"
+#include "trackers/TrackerLifecycleCoordinator.h"
 #include "ProfileStoreRuntime.h"
 #include "SyncStateStore.h"
 
@@ -17,6 +19,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QDateTime>
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
@@ -451,11 +454,27 @@ FirstAccountProfileCoordinator::
 FirstAccountProfileCoordinator(
     ProfileStoreRuntime *profileRuntime,
     const QString &appDataRoot,
-    StremioCredentialAdoptionCallbacks stremioCredentials)
+    StremioCredentialAdoptionCallbacks stremioCredentials,
+    TrackerPrivateAdoptionCallbacks trackerPrivate)
     : m_profileRuntime(profileRuntime),
       m_appDataRoot(appDataRoot),
-      m_stremioCredentials(std::move(stremioCredentials)) {
+      m_stremioCredentials(std::move(stremioCredentials)),
+      m_trackerPrivate(std::move(trackerPrivate)) {
     Q_ASSERT(m_profileRuntime);
+    if (!m_trackerPrivate.handoff) {
+        m_trackerPrivate.handoff = [](
+                                        const ProfilePaths &source,
+                                        const ProfilePaths &destination,
+                                        QString *error) {
+            WindowsTrackerCredentialVault vault;
+            return TrackerLifecycleCoordinator::adoptPrivateState(
+                source,
+                destination,
+                vault,
+                QDateTime::currentMSecsSinceEpoch(),
+                error);
+        };
+    }
 }
 
 bool FirstAccountProfileCoordinator::
@@ -612,7 +631,14 @@ prepareAccountSession(
             migrationSourceHasActivity(
                 m_profileRuntime,
                 *sourceStorage);
-        if (!source->isEmpty() || hasActivity) {
+        bool hasTrackerPrivateState = false;
+        if (explicitProfile
+            && !TrackerLifecycleCoordinator::hasPrivateState(
+                ProfilePaths::localOnly(paths->appDataRoot()),
+                &hasTrackerPrivateState, error)) {
+            return false;
+        }
+        if (!source->isEmpty() || hasActivity || hasTrackerPrivateState) {
             if (!QFileInfo::exists(paths->profileRoot())) {
                 if (explicitProfile)
                     return runLocalOnlyAdoption(
@@ -715,8 +741,8 @@ prepareLocalOnly(
         return true;
     }
 
-    m_profileRuntime
-        ->suspendPersonalStoresForMigration();
+    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+        return false;
 
     if (*claimed) {
         return m_profileRuntime
@@ -742,13 +768,22 @@ currentMigrationSource(
     const ProfilePaths localPaths =
         ProfilePaths::localOnly(m_appDataRoot);
 
+    bool hasLocalTrackerState = false;
+    QString trackerStateError;
+    if (!TrackerLifecycleCoordinator::hasPrivateState(
+            localPaths, &hasLocalTrackerState, &trackerStateError)) {
+        if (error)
+            *error = trackerStateError;
+        return std::nullopt;
+    }
+
     QString localError;
     const auto localStorage =
         LegacyPersonalStateStorage::forProfile(
             localPaths,
             &localError);
     if (!localStorage.has_value()) {
-        if (active.kind() == ProfilePaths::Kind::LocalOnly) {
+        if (active.kind() == ProfilePaths::Kind::LocalOnly || hasLocalTrackerState) {
             if (error)
                 *error = localError;
             return std::nullopt;
@@ -758,7 +793,7 @@ currentMigrationSource(
         const auto local =
             localStorage->capture(&captureError);
         if (!local.has_value()) {
-            if (active.kind() == ProfilePaths::Kind::LocalOnly) {
+            if (active.kind() == ProfilePaths::Kind::LocalOnly || hasLocalTrackerState) {
                 if (error)
                     *error = captureError;
                 return std::nullopt;
@@ -767,7 +802,8 @@ currentMigrationSource(
                    || !local->isEmpty()
                    || migrationSourceHasActivity(
                        m_profileRuntime,
-                       *localStorage)) {
+                       *localStorage)
+                   || hasLocalTrackerState) {
             if (explicitProfile)
                 *explicitProfile = true;
             return localStorage;
@@ -966,6 +1002,30 @@ clearMigrationSource(
     return true;
 }
 
+bool FirstAccountProfileCoordinator::handoffTrackerPrivateState(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    ProfilePaths::Kind sourceKind,
+    QString *error) const {
+    if (sourceKind != ProfilePaths::Kind::LocalOnly)
+        return true;
+
+    const ProfilePaths source = ProfilePaths::localOnly(paths.appDataRoot());
+    if (QDir::cleanPath(sourceStorage.devicePrivateProfileRoot())
+        != QDir::cleanPath(source.profileRoot())) {
+        return setError(error, QStringLiteral(
+            "Tracker adoption source does not match the LocalOnly profile."));
+    }
+    bool hasPrivateState = false;
+    if (!TrackerLifecycleCoordinator::hasPrivateState(source, &hasPrivateState, error))
+        return false;
+    if (!hasPrivateState)
+        return true;
+    if (!m_trackerPrivate.handoff)
+        return setError(error, QStringLiteral("Tracker-private adoption is not available."));
+    return m_trackerPrivate.handoff(source, paths, error);
+}
+
 bool FirstAccountProfileCoordinator::
 runLocalOnlyAdoption(
     const ProfilePaths &paths,
@@ -1065,7 +1125,14 @@ runLocalOnlyAdoption(
         return false;
     }
 
-    m_profileRuntime->suspendPersonalStoresForMigration();
+    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+        return false;
+    if (!handoffTrackerPrivateState(paths, sourceStorage,
+            ProfilePaths::Kind::LocalOnly, error)) {
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+
     if (!clearMigrationSource(
             sourceStorage,
             true,
@@ -1155,7 +1222,8 @@ mergeExistingAccount(
         }
     }
 
-    m_profileRuntime->suspendPersonalStoresForMigration();
+    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+        return false;
     if (!targetStorage->restorePersonalState(merged, error)) {
         sourceStorage.restorePersonalState(*source, nullptr);
         m_profileRuntime->activateLocalOnlyProfile(nullptr);
@@ -1199,6 +1267,12 @@ mergeExistingAccount(
         sourceStorage.restorePersonalState(*source, nullptr);
         m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return setError(error, verifyError);
+    }
+
+    if (!handoffTrackerPrivateState(paths, sourceStorage, sourceKind, error)) {
+        sourceStorage.restorePersonalState(*source, nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
     }
 
     const QString activitySourceDigest =
@@ -1811,8 +1885,13 @@ finishPromotedAdoption(
         }
     }
 
-    m_profileRuntime
-        ->suspendPersonalStoresForMigration();
+    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+        return false;
+    if (!handoffTrackerPrivateState(paths, sourceStorage, sourceKind, error)) {
+        if (sourceKind == ProfilePaths::Kind::LocalOnly)
+            m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
     if (!adoption.commitForAttachment(error))
         return false;
 
@@ -2047,7 +2126,7 @@ verifyProfile(
         if (kind.isEmpty()
             || id.isEmpty()
             || !equalMap(
-                progress.get(kind, id),
+                progress.deliveryEntry(kind, id),
                 record)) {
             return setError(
                 error,
@@ -2496,8 +2575,8 @@ restoreLegacyAndRollback(
     ProfileAdoption *adoption,
     const PersonalStateSnapshot &snapshot,
     QString *error) {
-    m_profileRuntime
-        ->suspendPersonalStoresForMigration();
+    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+        return false;
 
     QString restoreError;
     if (!restoreLegacyActivityFromBackup(

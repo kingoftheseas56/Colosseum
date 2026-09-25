@@ -166,6 +166,7 @@ private slots:
     void stallWithNoAdvancementAddsZero();
     void gapOverThirtySecondsDiscarded();
     void subTenSecondSessionDiscardsAll();
+    void profileDeactivationFlushesActivityWithoutTrackerClose();
     void gateCrossingPersistsOriginalBufferedTimestamps();
     void speedChangeSplitsEventsWithCorrectRatePerEvent();
     void utcOffsetChangeSplitsAndDiscardsBridge();
@@ -396,6 +397,40 @@ void tst_activity_playback_tracker::subTenSecondSessionDiscardsAll() {
     QCOMPARE(projection.value(QStringLiteral("watchSeconds")).toInt(), 0);
     QCOMPARE(projection.value(QStringLiteral("activeDays")).toInt(), 0);
     QCOMPARE(store.earliestActivityMonth(), QString());
+}
+
+void tst_activity_playback_tracker::profileDeactivationFlushesActivityWithoutTrackerClose() {
+    ActivityStore store;
+    ActivityPlaybackTracker tracker;
+    FakeClock clock(localMs(2026, 8, 15, 10, 0, 0), 330);
+    wireClock(tracker, clock);
+    tracker.setSink(&store);
+    QSignalSpy lifecycle(&tracker, &ActivityPlaybackTracker::playbackLifecycleChanged);
+
+    tracker.begin(identity(QStringLiteral("theatre"), QStringLiteral("movie"),
+                           QStringLiteral("theatre:deactivation"),
+                           QStringLiteral("movie:deactivation"),
+                           QStringLiteral("Deactivation")),
+                  QStringLiteral("session-profile-deactivation"));
+    tracker.playbackStateChanged(true, 0, 600000);
+    QCOMPARE(lifecycle.count(), 1); // start only
+    tracker.sample(0, 600000, 1000, true);
+    clock.advance(5000);
+    tracker.sample(5000, 600000, 1000, true);
+    clock.advance(5000);
+    tracker.sample(10000, 600000, 1000, true);
+
+    tracker.endSessionForProfileDeactivation(10000, 600000);
+    QCOMPARE(lifecycle.count(), 1); // tracker close is owned by the earlier durable phase
+    QCOMPARE(store.projectMonth(QStringLiteral("2026-08"))
+                 .value(QStringLiteral("watchSeconds")).toInt(), 10);
+
+    clock.advance(5000);
+    tracker.sample(15000, 600000, 1000, true); // ended Activity session cannot add more
+    tracker.endSession(); // a later ordinary end is a no-op
+    QCOMPARE(lifecycle.count(), 1);
+    QCOMPARE(store.projectMonth(QStringLiteral("2026-08"))
+                 .value(QStringLiteral("watchSeconds")).toInt(), 10);
 }
 
 void tst_activity_playback_tracker::gateCrossingPersistsOriginalBufferedTimestamps() {

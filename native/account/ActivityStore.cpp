@@ -21,10 +21,11 @@
 
 namespace {
 
-// Schema v1 exactly per CPP-PORT-CONTRACT.md §5. A DB stamped higher than
+// Event schema remains contract v1; DB shape v2 adds local delivery provenance.
+// A DB stamped higher than
 // this was created by a newer schema owner and is refused (fail closed),
 // never silently downgraded — same discipline as VaultIndex::ensureSchema().
-constexpr int kActivitySchemaVersion = 1;
+constexpr int kActivitySchemaVersion = 2;
 
 QString generatedUuid() {
     return QUuid::createUuid().toString(QUuid::WithoutBraces).toLower();
@@ -248,6 +249,17 @@ bool ActivityStore::ensureSchema() {
     }
     create.finish();
 
+    QSqlQuery origins(m_db);
+    if (!origins.exec(QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS activity_event_origin ("
+            " event_id TEXT PRIMARY KEY,"
+            " origin TEXT NOT NULL CHECK(origin IN ('native_local','account_sync')))"))) {
+        m_openError = origins.lastError().text();
+        m_db.rollback();
+        return false;
+    }
+    origins.finish();
+
     // Recommended indexes, §5.
     static const QStringList indexStatements{
         QStringLiteral("CREATE INDEX IF NOT EXISTS idx_activity_type_start "
@@ -352,7 +364,8 @@ QString ActivityStore::newSessionId() const {
     return generatedUuid();
 }
 
-bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact) {
+bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact,
+                               bool fromAccountSync) {
     if (!m_retentionEnabled)
         return true;
     if (!healthy()) {
@@ -414,6 +427,20 @@ bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact) {
         return false;
     }
 
+    QSqlQuery origin(m_db);
+    origin.prepare(QStringLiteral(
+        "INSERT INTO activity_event_origin(event_id, origin) VALUES(?, ?)"));
+    origin.addBindValue(eventId);
+    origin.addBindValue(fromAccountSync ? QStringLiteral("account_sync")
+                                        : QStringLiteral("native_local"));
+    if (!origin.exec()) {
+        const QString error = origin.lastError().text();
+        m_db.rollback();
+        emit integrityError(QStringLiteral("db_error"), error);
+        return false;
+    }
+    origin.finish();
+
     if (!m_db.commit()) {
         const QString error = m_db.lastError().text();
         m_db.rollback();
@@ -433,7 +460,10 @@ QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
         return facts;
 
     QSqlQuery query(m_db);
-    if (!query.exec(QStringLiteral("SELECT canonical_json FROM events")))
+    if (!query.exec(QStringLiteral(
+            "SELECT events.canonical_json, activity_event_origin.origin "
+            "FROM events LEFT JOIN activity_event_origin "
+            "ON activity_event_origin.event_id = events.event_id")))
         return facts;
     while (query.next()) {
         const QJsonDocument document =
@@ -443,7 +473,11 @@ QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
         const QJsonObject event = document.object();
         try {
             ActivityProjector::validateEvent(event);
-            facts.append(event.toVariantMap());
+            QVariantMap projected = event.toVariantMap();
+            projected.insert(QStringLiteral("_trackerOrigin"),
+                query.value(1).isNull() ? QStringLiteral("unknown")
+                                        : query.value(1).toString());
+            facts.append(projected);
         } catch (const ActivityProjector::ValidationError &) {
             continue;
         }
@@ -464,6 +498,43 @@ QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
             < right.value(QStringLiteral("eventId")).toString();
     });
     return facts;
+}
+
+QVariantMap ActivityStore::historyProjectionFact(const QString &eventId) const {
+    if (!healthy() || eventId.isEmpty())
+        return {};
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral(
+        "SELECT events.canonical_json, activity_event_origin.origin "
+        "FROM events LEFT JOIN activity_event_origin "
+        "ON activity_event_origin.event_id = events.event_id "
+        "WHERE events.event_id = ?"));
+    query.addBindValue(eventId);
+    if (!query.exec()) {
+        query.finish();
+        return {};
+    }
+    if (!query.next()) {
+        query.finish();
+        return {};
+    }
+    const QJsonDocument document = QJsonDocument::fromJson(query.value(0).toString().toUtf8());
+    if (!document.isObject()) {
+        query.finish();
+        return {};
+    }
+    const QJsonObject event = document.object();
+    try {
+        ActivityProjector::validateEvent(event);
+    } catch (const ActivityProjector::ValidationError &) {
+        query.finish();
+        return {};
+    }
+    QVariantMap projected = event.toVariantMap();
+    projected.insert(QStringLiteral("_trackerOrigin"),
+        query.value(1).isNull() ? QStringLiteral("unknown") : query.value(1).toString());
+    query.finish();
+    return projected;
 }
 
 QList<QVariantMap> ActivityStore::portableSyncFacts(QString *error) const {
@@ -585,7 +656,7 @@ bool ActivityStore::applySyncedPortableFact(const QVariantMap &fact, QString *er
     }
     existing.finish();
 
-    if (!insertFact(type, portable.toVariantMap()))
+    if (!insertFact(type, portable.toVariantMap(), true))
         return setStaticError(error, QStringLiteral("activity_event_import_failed"));
     return true;
 }
@@ -688,6 +759,13 @@ bool ActivityStore::applySyncedReset(quint64 generation, qint64 resetAtMs,
     const qint64 effectiveResetAt = qMax(m_resetAtMs, resetAtMs);
     if (!m_db.transaction())
         return setStaticError(error, QStringLiteral("db_error"));
+    QSqlQuery clearOrigins(m_db);
+    if (!clearOrigins.exec(QStringLiteral("DELETE FROM activity_event_origin"))) {
+        const QString detail = clearOrigins.lastError().text();
+        m_db.rollback();
+        return setStaticError(error, detail);
+    }
+    clearOrigins.finish();
     QSqlQuery clear(m_db);
     if (!clear.exec(QStringLiteral("DELETE FROM events"))) {
         const QString detail = clear.lastError().text();
@@ -855,6 +933,15 @@ bool ActivityStore::clearAll() {
         emit integrityError(QStringLiteral("db_error"), m_db.lastError().text());
         return false;
     }
+
+    QSqlQuery clearOrigins(m_db);
+    if (!clearOrigins.exec(QStringLiteral("DELETE FROM activity_event_origin"))) {
+        const QString error = clearOrigins.lastError().text();
+        m_db.rollback();
+        emit integrityError(QStringLiteral("db_error"), error);
+        return false;
+    }
+    clearOrigins.finish();
 
     QSqlQuery query(m_db);
     if (!query.exec(QStringLiteral("DELETE FROM events"))) {

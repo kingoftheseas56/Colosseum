@@ -6,6 +6,20 @@
 
 #include <QVariantMap>
 
+namespace {
+
+bool compatibleVideoCompletionKinds(const QString &left, const QString &right)
+{
+    const auto isVideoKind = [](const QString &kind) {
+        return kind == QLatin1String("video")
+            || kind == QLatin1String("movie")
+            || kind == QLatin1String("episode");
+    };
+    return left == right || (isVideoKind(left) && isVideoKind(right));
+}
+
+} // namespace
+
 ConsumptionHistoryBridge::ConsumptionHistoryBridge(ActivityStore *activity,
                                                    ProgressStore *progress,
                                                    HistoryStore *history,
@@ -29,8 +43,10 @@ ConsumptionHistoryBridge::ConsumptionHistoryBridge(ActivityStore *activity,
     }
     if (m_progress) {
         connect(m_progress, &ProgressStore::completionCrossed, this,
-                [this](const QString &kind, const QString &id, qint64 at) {
-                    if (projectProgressCompletion(kind, id, at))
+                [this](const QString &kind, const QString &id, qint64 at,
+                       const QString &activityEventId, const QString &activitySessionId) {
+                    if (projectProgressCompletion(kind, id, at,
+                                                  activityEventId, activitySessionId))
                         return;
                     emit projectionError(QStringLiteral("Progress completion could not enter History."));
                 }, Qt::DirectConnection);
@@ -57,10 +73,30 @@ bool ConsumptionHistoryBridge::projectActivityFact(const QVariantMap &event) {
 }
 
 bool ConsumptionHistoryBridge::projectProgressCompletion(const QString &kind, const QString &id,
-                                                          qint64 completedAtMs) {
+                                                          qint64 completedAtMs,
+                                                          const QString &activityEventId,
+                                                          const QString &activitySessionId) {
     if (m_activity && !m_activity->retentionEnabled())
         return true;
-    return m_history && m_history->markCompleted(kind, id, completedAtMs);
+    QString verifiedActivityEventId;
+    QString verifiedActivitySessionId = activitySessionId;
+    if (m_activity && !activityEventId.isEmpty()) {
+        const QVariantMap event = m_activity->historyProjectionFact(activityEventId);
+        if (event.value(QStringLiteral("type")).toString() == QLatin1String("media_completed")
+            && compatibleVideoCompletionKinds(
+                event.value(QStringLiteral("kind")).toString(), kind)
+            && event.value(QStringLiteral("itemKey")).toString() == id
+            && event.value(QStringLiteral("_trackerOrigin")).toString()
+                == QLatin1String("native_local")) {
+            verifiedActivityEventId = activityEventId;
+            if (!verifiedActivitySessionId.isEmpty()
+                && verifiedActivitySessionId
+                    != event.value(QStringLiteral("sessionId")).toString())
+                verifiedActivitySessionId.clear();
+        }
+    }
+    return m_history && m_history->markProgressCompleted(
+        kind, id, completedAtMs, verifiedActivityEventId, verifiedActivitySessionId);
 }
 
 bool ConsumptionHistoryBridge::replayExisting(QString *error) {

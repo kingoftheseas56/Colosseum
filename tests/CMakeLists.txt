@@ -126,6 +126,72 @@ set(CMAKE_AUTOMOC ON)
 # built and registered until parity review retires it (ledger, migration
 # policy).
 set(COLOSSEUM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+# ProfileStoreRuntime owns the tracker delivery, scrobble, and progress-import
+# runtimes in production. Keep focused profile/account test executables
+# link-complete without pulling Arc 35 into a separate shared test library
+# (the delivery test uses its own fault-injection build of these sources).
+function(colosseum_add_tracker_delivery_runtime_sources target)
+    target_sources(${target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCanonicalDeliverySource.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCanonicalDeliverySource.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.h")
+endfunction()
+
+function(colosseum_add_tracker_sync_center_sources target)
+    target_sources(${target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.h"
+        "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.h")
+endfunction()
 add_executable(tst_window_state_policy
     auto/window/tst_window_state_policy.cpp
     "${COLOSSEUM_NATIVE_DIR}/player/windowstatepolicy.cpp"
@@ -1388,8 +1454,10 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 # offscreen gate.
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
+colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
+target_include_directories(colosseum_qml_tests PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
-    PRIVATE Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
 set_target_properties(colosseum_qml_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1420,6 +1488,14 @@ set_tests_properties(colosseum.qml PROPERTIES
     LABELS "qml;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
+
+add_test(NAME colosseum.qml.tracker_sync_center
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/tracker_sync_center")
+set_tests_properties(colosseum.qml.tracker_sync_center PROPERTIES
+    LABELS "qml;windows;tracker;sync-center"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
 
 # Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
 add_test(NAME colosseum.comicreader_sync_resume
@@ -3461,3 +3537,328 @@ set_tests_properties(colosseum.qttest.keyboard_key_events PROPERTIES
     LABELS "unit;qttest;keyboard"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+
+# Arc 35 Slice 1: profile-private tracker connection foundation. The target is
+# intentionally native-only: no provider adapter, QML surface, or network stack
+# is present at this boundary.
+add_executable(tst_tracker_connection_foundation
+    auto/tracker_connection_foundation/tst_tracker_connection_foundation.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerRuntime.h")
+target_include_directories(tst_tracker_connection_foundation PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_connection_foundation PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_tracker_connection_foundation PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET tst_tracker_connection_foundation POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_connection_foundation>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_connection_foundation
+         COMMAND tst_tracker_connection_foundation)
+set_tests_properties(colosseum.qttest.tracker_connection_foundation PROPERTIES
+    LABELS "unit;qttest;tracker;connections"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 35 Slice 7: local tracker lifecycle ordering and profile isolation. The
+# test uses deterministic vault and callback fakes; it has no provider transport.
+add_executable(tst_tracker_lifecycle
+    auto/tracker_lifecycle/tst_tracker_lifecycle.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h")
+target_include_directories(tst_tracker_lifecycle PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_lifecycle PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_tracker_lifecycle PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_lifecycle PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_lifecycle POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_lifecycle>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_lifecycle
+         COMMAND tst_tracker_lifecycle)
+set_tests_properties(colosseum.qttest.tracker_lifecycle PROPERTIES
+    LABELS "unit;qttest;tracker;lifecycle"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 35 Slice 2: native SIMKL authentication and secure-vault boundary. No
+# provider account, live network, browser page, or QML credential path is used.
+add_executable(tst_tracker_auth
+    auto/tracker_auth/tst_tracker_auth.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklAuth.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklAuth.h")
+target_include_directories(tst_tracker_auth PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_auth PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Test)
+set_target_properties(tst_tracker_auth PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_auth PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_auth POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE:Qt6::Gui>"
+                "$<TARGET_FILE_DIR:tst_tracker_auth>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_auth
+         COMMAND tst_tracker_auth)
+set_tests_properties(colosseum.qttest.tracker_auth PROPERTIES
+    LABELS "unit;qttest;tracker;auth;simkl"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 35 Slice 3: exact provider mapping and tracker-only imported History
+# evidence. This is deliberately separate from the native witnessed-History
+# and Activity owners.
+add_executable(tst_tracker_history_evidence
+    auto/tracker_history_evidence/tst_tracker_history_evidence.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h")
+target_include_directories(tst_tracker_history_evidence PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_history_evidence PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_tracker_history_evidence PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET tst_tracker_history_evidence POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_history_evidence>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_history_evidence
+         COMMAND tst_tracker_history_evidence)
+set_tests_properties(colosseum.qttest.tracker_history_evidence PROPERTIES
+    LABELS "unit;qttest;tracker;mapping;history"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 35 Slice 4: durable preview/confirmation import journal. It has no
+# provider transport or QML surface; later slices bind these real records to
+# adapters and the approved review UI.
+add_executable(tst_tracker_import_preview
+    auto/tracker_import_preview/tst_tracker_import_preview.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+target_include_directories(tst_tracker_import_preview PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_tracker_import_preview PRIVATE
+    COLOSSEUM_TRACKER_IMPORT_TESTING=1
+    COLOSSEUM_PROGRESS_STORE_TESTING=1)
+target_link_libraries(tst_tracker_import_preview PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_tracker_import_preview PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET tst_tracker_import_preview POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_import_preview>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_import_preview
+         COMMAND tst_tracker_import_preview)
+set_tests_properties(colosseum.qttest.tracker_import_preview PROPERTIES
+    LABELS "unit;qttest;tracker;import;conflict;recovery"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 35 Slice 5: consented export and crash-safe tracker delivery journal.
+add_executable(tst_tracker_delivery
+    auto/tracker_delivery/tst_tracker_delivery.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerScrobbleRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCanonicalDeliverySource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCanonicalDeliverySource.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerDeliveryRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityPlaybackTracker.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityPlaybackTracker.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+target_include_directories(tst_tracker_delivery PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_tracker_delivery PRIVATE
+    COLOSSEUM_TRACKER_DELIVERY_TESTING=1)
+target_link_libraries(tst_tracker_delivery PRIVATE
+    Qt6::Core
+    Qt6::Sql
+    Qt6::Test)
+set_target_properties(tst_tracker_delivery PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET tst_tracker_delivery POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Sql>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_delivery>"
+        VERBATIM)
+    add_custom_command(TARGET tst_tracker_delivery POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+                "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_delivery
+         COMMAND tst_tracker_delivery)
+set_tests_properties(colosseum.qttest.tracker_delivery PROPERTIES
+    LABELS "unit;qttest;tracker;export;delivery;recovery"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 35 Slice 8/11: safe Connections projections, coverage currentness, and
+# profile-private tracker state. No Arc 49 operation ownership.
+add_executable(tst_tracker_sync_center
+    auto/tracker_sync_center/tst_tracker_sync_center.cpp)
+colosseum_add_tracker_sync_center_sources(tst_tracker_sync_center)
+target_sources(tst_tracker_sync_center PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionService.h")
+target_include_directories(tst_tracker_sync_center PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_tracker_sync_center PRIVATE
+    COLOSSEUM_TRACKER_IMPORT_TESTING=1
+    COLOSSEUM_TRACKER_MAPPING_TESTING=1
+    COLOSSEUM_PROGRESS_STORE_TESTING=1)
+target_link_libraries(tst_tracker_sync_center PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_tracker_sync_center PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET tst_tracker_sync_center POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_sync_center>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_sync_center
+         COMMAND tst_tracker_sync_center)
+set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
+    LABELS "unit;qttest;tracker;sync-center"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+foreach(_tracker_profile_target IN ITEMS
+        account_first_light
+        tst_privacy_policy
+        tst_account_attachment_runtime
+        tst_account_adoption
+        tst_account_shared_pc
+        tst_profile_activity_isolation
+        )
+    colosseum_add_tracker_delivery_runtime_sources(${_tracker_profile_target})
+endforeach()

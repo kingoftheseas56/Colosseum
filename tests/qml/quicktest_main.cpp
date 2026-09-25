@@ -21,10 +21,23 @@
 #include <QtQml/qqml.h>
 
 #include <QCoreApplication>
+#include <QQmlContext>
+#include <QQmlEngine>
 #include <QObject>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QVariantMap>
+
+#include "account/ProfilePaths.h"
+#include "trackers/TrackerConnectionStore.h"
+#include "trackers/TrackerDeliveryStore.h"
+#include "trackers/TrackerImportStore.h"
+#include "trackers/TrackerMappingStore.h"
+#include "trackers/TrackerScrobbleStore.h"
+#include "trackers/TrackerSyncCenterModel.h"
+#include "trackers/TrackerSyncSettingsStore.h"
+
+#include <memory>
 
 // TEST-ONLY seam for the real Player2Shell. The production tracker is deliberately not linked
 // into the shared QML runner; this type only makes the shell's existing calls loadable and inert.
@@ -32,20 +45,36 @@ class TestActivityPlaybackTracker : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QObject *sink READ sink WRITE setSink)
+    Q_PROPERTY(quint64 lifecycleScopeGeneration READ lifecycleScopeGeneration
+                   WRITE setLifecycleScopeGeneration)
 public:
     explicit TestActivityPlaybackTracker(QObject *parent = nullptr) : QObject(parent) {}
 
     QObject *sink() const { return m_sink; }
     void setSink(QObject *sink) { m_sink = sink; }
+    quint64 lifecycleScopeGeneration() const { return m_lifecycleScopeGeneration; }
+    void setLifecycleScopeGeneration(quint64 generation)
+    {
+        m_lifecycleScopeGeneration = generation;
+    }
 
     Q_INVOKABLE void begin(const QVariantMap &, const QString &) {}
     Q_INVOKABLE void sample(qint64, qint64, qint64, bool) {}
     Q_INVOKABLE void discontinuity(qint64, qint64, qint64) {}
     Q_INVOKABLE void naturalEof() {}
+    Q_INVOKABLE void naturalEof(qint64, qint64) {}
     Q_INVOKABLE void endSession() {}
+    Q_INVOKABLE void endSession(qint64, qint64) {}
+    Q_INVOKABLE void playbackStateChanged(bool, qint64, qint64) {}
+    Q_INVOKABLE void endSessionForProfileDeactivation(qint64, qint64) {}
+    Q_INVOKABLE bool localCompletionPersisted() const { return false; }
+
+signals:
+    void playbackLifecycleChanged(const QVariantMap &event);
 
 private:
     QObject *m_sink = nullptr;
+    quint64 m_lifecycleScopeGeneration = 0;
 };
 
 class ColosseumQmlTestSetup : public QObject
@@ -65,6 +94,38 @@ public slots:
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
                            settingsDir.path());
+    }
+
+    void qmlEngineAvailable(QQmlEngine *engine)
+    {
+        if (!engine)
+            return;
+        static QTemporaryDir trackerDataRoot;
+        static std::unique_ptr<TrackerConnectionStore> connections;
+        static std::unique_ptr<TrackerMappingStore> mappings;
+        static std::unique_ptr<TrackerDeliveryStore> delivery;
+        static std::unique_ptr<TrackerScrobbleStore> scrobble;
+        static std::unique_ptr<TrackerSyncSettingsStore> settings;
+        static std::unique_ptr<TrackerImportStore> imports;
+        static std::unique_ptr<TrackerSyncCenterModel> model;
+        if (!trackerDataRoot.isValid())
+            return;
+        const auto profile = ProfilePaths::account(
+            QStringLiteral("44444444-4444-4444-8444-444444444444"),
+            trackerDataRoot.path());
+        if (!profile)
+            return;
+        connections = std::make_unique<TrackerConnectionStore>(*profile);
+        mappings = std::make_unique<TrackerMappingStore>(*profile);
+        delivery = std::make_unique<TrackerDeliveryStore>(*profile, mappings.get(), connections.get());
+        scrobble = std::make_unique<TrackerScrobbleStore>(*profile);
+        settings = std::make_unique<TrackerSyncSettingsStore>(*profile);
+        imports = std::make_unique<TrackerImportStore>(*profile, mappings.get(), connections.get());
+        model = std::make_unique<TrackerSyncCenterModel>(
+            connections.get(), imports.get(), delivery.get(), scrobble.get(), settings.get(),
+            trackerBuiltInProviderCatalog());
+        engine->rootContext()->setContextProperty(QStringLiteral("TrackerSyncCenter"),
+                                                   model.get());
     }
 };
 

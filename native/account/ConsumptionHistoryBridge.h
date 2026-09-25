@@ -21,7 +21,8 @@ signals:
 private:
     bool projectActivityFact(const QVariantMap &event);
     bool projectProgressCompletion(const QString &kind, const QString &id,
-                                   qint64 completedAtMs);
+                                   qint64 completedAtMs, const QString &activityEventId,
+                                   const QString &activitySessionId);
 
     ActivityStore *m_activity = nullptr;
     ProgressStore *m_progress = nullptr;

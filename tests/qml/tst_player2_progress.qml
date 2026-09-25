@@ -34,13 +34,16 @@ TestCase {
         property string currentPlaybackUrl: ""
         property string mediaLocalPath: ""
 
-        function reportProgress(mediaId, position, duration, silent) {
+        function reportProgress(mediaId, position, duration, silent,
+                                activityEventId, activitySessionId) {
             progressCalls.push({
                 "mediaId": mediaId,
                 "position": position,
                 "duration": duration,
                 "silent": silent,
                 "argumentCount": arguments.length,
+                "activityEventId": activityEventId,
+                "activitySessionId": activitySessionId,
                 "activityKeyAtCall": testCase.shellUnderTest.activityActiveKey
             })
             events.push("progress")
@@ -121,7 +124,7 @@ TestCase {
 
     function assertVisibleProgress() {
         compare(fakeHost.progressCalls.length, 1)
-        compare(fakeHost.progressCalls[0].argumentCount, 4)
+        compare(fakeHost.progressCalls[0].argumentCount, 6)
         compare(fakeHost.progressCalls[0].silent, false)
     }
 
@@ -130,7 +133,7 @@ TestCase {
         shellUnderTest.reportProgress(false)
         compare(fakeHost.progressCalls.length, 1)
         compare(fakeHost.progressCalls[0].position, 15)
-        compare(fakeHost.progressCalls[0].argumentCount, 4)
+        compare(fakeHost.progressCalls[0].argumentCount, 6)
         compare(fakeHost.progressCalls[0].silent, true)
     }
 
@@ -170,12 +173,12 @@ TestCase {
         compare(fakeHost.events, ["progress", "close"])
     }
 
-    function test_ended_reports_visible_progress_before_activity_end() {
+    function test_ended_reports_visible_progress_after_activity_end() {
         fakeSession.position = 119
         shellUnderTest.activityActiveKey = "active-key"
         fakeSession.state = 6
         assertVisibleProgress()
-        compare(fakeHost.progressCalls[0].activityKeyAtCall, "active-key")
+        compare(fakeHost.progressCalls[0].activityKeyAtCall, "")
         compare(shellUnderTest.activityActiveKey, "")
     }
 }

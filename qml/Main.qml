@@ -91,6 +91,10 @@ Window {
     }
     function closeStremioSyncPanel() {
         stremioPanel.shown = false
+        if (syncCenterLayer.active && syncCenterLayer.item) {
+            Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
+            return
+        }
         const theatreWorld = win.theatreWorldItem()
         if (theatreWorld)
             Qt.callLater(function() { theatreWorld.focusStremioButton() })
@@ -680,12 +684,14 @@ Window {
             accountCenterVisible: accountCenter.visible,
             openRecentOpen: openRecentPanel.open,
             taskbarOpen: taskbar.open,
+            stremioSyncOpen: stremioPanel.shown,
             activeSessionKind: rec && rec.contentKind ? String(rec.contentKind) : "",
             playerOpen: win.playerOpen,
             bookReaderActive: bookReaderLayer.active,
             vaultComicActive: vaultComicLayer.active,
             comicReaderActive: win.embeddedComicReaderOpen(),
             updateActive: updateLayer.active,
+            syncCenterActive: syncCenterLayer.active,
             keyboardGuideActive: keyboardGuideLayer.active,
             settingsActive: settingsLayer.active,
             extensionsActive: extensionsLayer.active,
@@ -792,10 +798,17 @@ Window {
         case "accountCenter": accountCenter.close(); return
         case "openRecent": openRecentPanel.open = false; return
         case "taskbar": taskbar.open = false; return
+        case "stremioSync": win.closeStremioSyncPanel(); return
         case "player": win.requestPlayerEscape(); return
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
+        case "syncCenter":
+            if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
+                syncCenterLayer.item.requestEscape()
+            else
+                win.closeSyncCenterPage()
+            return
         case "keyboardGuide": win.closeKeyboardGuide(); return
         case "settings": win.closeSettingsPage(); return
         case "extensions":
@@ -1668,6 +1681,25 @@ Window {
         }
     }
 
+    // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
+    function openSyncCenterPage() {
+        win.bookRouteGeneration += 1
+        downloadsLayer.active = false
+        vaultLayer.active = false
+        extensionsLayer.active = false
+        settingsLayer.active = false
+        keyboardGuideLayer.active = false
+        updateLayer.active = false
+        syncCenterLayer.active = true
+        taskbar.open = false
+        if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
+            Qt.callLater(syncCenterLayer.item.takeKeyboardFocus)
+    }
+    function closeSyncCenterPage() {
+        syncCenterLayer.active = false
+        taskbar.focusSyncCenterAction()
+    }
+
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
     // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
@@ -1678,6 +1710,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        syncCenterLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
@@ -1697,6 +1730,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        syncCenterLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
     }
@@ -1800,6 +1834,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        syncCenterLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
@@ -1816,6 +1851,7 @@ Window {
         extensionsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        syncCenterLayer.active = false
         vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
@@ -1831,6 +1867,7 @@ Window {
         extensionsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
+        syncCenterLayer.active = false
         vaultLayer.active = false
         keyboardGuideLayer.active = true
         taskbar.open = false
@@ -1838,6 +1875,30 @@ Window {
             Qt.callLater(keyboardGuideLayer.item.takeKeyboardFocus)
     }
     function closeKeyboardGuide() { keyboardGuideLayer.active = false }
+
+    // ---- Sync Center: the approved tracker catalogue and profile-owned controls ----
+    Loader {
+        id: syncCenterLayer
+        objectName: "syncCenterLayer"
+        anchors.fill: parent
+        z: 58
+        active: false
+        visible: active
+        source: "TrackerSyncCenterPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.trackerModel = Qt.binding(function() {
+                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
+            })
+            item.stremioState = Qt.binding(function() {
+                return (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
+            })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            item.backRequested.connect(win.closeSyncCenterPage)
+            item.mainSyncRequested.connect(win.openStremioSyncPanel)
+            item.takeKeyboardFocus()
+        }
+    }
 
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
@@ -1848,6 +1909,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         vaultLayer.active = false
+        syncCenterLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
         // every other full-page destination (Downloads/Vault/Extensions/Settings)
@@ -4448,6 +4510,8 @@ Window {
         onSettingsClicked: !settingsLayer.active ? win.openSettingsPage() : win.closeSettingsPage()
         keyboardGuideActive: keyboardGuideLayer.active
         onKeyboardGuideClicked: !keyboardGuideLayer.active ? win.openKeyboardGuide() : win.closeKeyboardGuide()
+        syncCenterActive: syncCenterLayer.active
+        onSyncCenterClicked: !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.

@@ -231,6 +231,24 @@ add_executable(colosseum
     account/TankobanReaderPreferencesCodec.cpp
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
+    trackers/TrackerTypes.cpp
+    trackers/TrackerConnectionStore.cpp
+    trackers/TrackerConnectionService.cpp
+    trackers/TrackerRuntime.cpp
+    trackers/TrackerLifecycleCoordinator.cpp
+    trackers/TrackerCredentialVault.cpp
+    trackers/SimklAuth.cpp
+    trackers/TrackerMappingStore.cpp
+    trackers/TrackerHistoryEvidenceStore.cpp
+    trackers/TrackerImportStore.cpp
+    trackers/TrackerProgressImportOwner.cpp
+    trackers/TrackerDeliveryStore.cpp
+    trackers/TrackerScrobbleStore.cpp
+    trackers/TrackerScrobbleRuntime.cpp
+    trackers/TrackerCanonicalDeliverySource.cpp
+    trackers/TrackerDeliveryRuntime.cpp
+    trackers/TrackerSyncSettingsStore.cpp
+    trackers/TrackerSyncCenterModel.cpp
     stremio/StremioCodec.cpp
     stremio/StremioTheatreImporter.cpp
     stremio/StremioState.cpp
@@ -288,6 +306,24 @@ add_executable(colosseum
     account/TankobanReaderPreferencesOwner.h
     account/TankobanReaderPreferencesSyncAdapter.h
     account/WindowsAccountCredentialStore.h
+    trackers/TrackerTypes.h
+    trackers/TrackerConnectionStore.h
+    trackers/TrackerConnectionService.h
+    trackers/TrackerRuntime.h
+    trackers/TrackerLifecycleCoordinator.h
+    trackers/TrackerCredentialVault.h
+    trackers/SimklAuth.h
+    trackers/TrackerMappingStore.h
+    trackers/TrackerHistoryEvidenceStore.h
+    trackers/TrackerImportStore.h
+    trackers/TrackerProgressImportOwner.h
+    trackers/TrackerDeliveryStore.h
+    trackers/TrackerScrobbleStore.h
+    trackers/TrackerScrobbleRuntime.h
+    trackers/TrackerCanonicalDeliverySource.h
+    trackers/TrackerDeliveryRuntime.h
+    trackers/TrackerSyncSettingsStore.h
+    trackers/TrackerSyncCenterModel.h
     stremio/StremioCodec.h
     stremio/StremioTheatreImporter.h
     stremio/StremioState.h

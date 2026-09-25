@@ -5,6 +5,16 @@
 #include "HistoryStore.h"
 #include "ProfilePreferencesStore.h"
 
+#include "trackers/TrackerDeliveryRuntime.h"
+#include "trackers/TrackerImportStore.h"
+#include "trackers/TrackerProgressImportOwner.h"
+#include "trackers/TrackerHistoryEvidenceStore.h"
+#include "trackers/TrackerCredentialVault.h"
+#include "trackers/TrackerLifecycleCoordinator.h"
+#include "trackers/TrackerScrobbleRuntime.h"
+#include "trackers/TrackerSyncCenterModel.h"
+#include "trackers/TrackerSyncSettingsStore.h"
+
 #include "AudioPairingStore.h"
 #include "CollectionStore.h"
 #include "ProgressStore.h"
@@ -13,6 +23,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QDebug>
+#include <QCoreApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QTemporaryDir>
@@ -34,6 +45,13 @@ struct ProfileStoreRuntime::StoreSet {
     // is observational, per CPP-PORT-CONTRACT §25.
     std::unique_ptr<ActivityStore> activity;
     std::unique_ptr<ConsumptionHistoryBridge> consumptionHistory;
+    std::unique_ptr<TrackerDeliveryRuntime> trackerDelivery;
+    std::unique_ptr<TrackerSyncSettingsStore> trackerSettings;
+    std::unique_ptr<TrackerImportStore> trackerImports;
+    std::unique_ptr<TrackerProgressImportOwner> trackerImportOwner;
+    std::unique_ptr<TrackerHistoryEvidenceStore> trackerHistoryEvidence;
+    std::unique_ptr<TrackerScrobbleRuntime> trackerScrobble;
+    std::unique_ptr<TrackerSyncCenterModel> trackerSyncCenter;
 };
 
 ProfileStoreRuntime::ProfileStoreRuntime(
@@ -53,9 +71,21 @@ ProfileStoreRuntime::ProfileStoreRuntime(
     setObjectName(QStringLiteral("profileStoreRuntime"));
     m_context.activateSealed(m_appDataRoot);
     m_stores = createSealedStores(nullptr);
+    if (QCoreApplication *application = QCoreApplication::instance()) {
+        connect(application, &QCoreApplication::aboutToQuit, this, [this] {
+            QString trackerError;
+            if (!prepareTrackerForDeactivation(&trackerError)) {
+                qWarning() << "Tracker playback session could not be finalized before application shutdown:"
+                           << trackerError;
+            }
+        });
+    }
 }
 
 ProfileStoreRuntime::~ProfileStoreRuntime() {
+    QString trackerError;
+    if (!prepareTrackerForDeactivation(&trackerError))
+        qWarning() << "Tracker playback session could not be finalized during profile runtime shutdown:" << trackerError;
     flushPersonalStores();
 }
 
@@ -118,6 +148,13 @@ ProfileStoreRuntime::activityStore() const {
         : nullptr;
 }
 
+TrackerConnectionService *
+ProfileStoreRuntime::trackerConnectionService() const {
+    return m_stores && m_stores->trackerDelivery
+        ? m_stores->trackerDelivery->connectionService()
+        : nullptr;
+}
+
 void ProfileStoreRuntime::prepareForQml(
     QQmlApplicationEngine *engine) {
     Q_ASSERT(engine);
@@ -133,6 +170,7 @@ void ProfileStoreRuntime::prepareForQml(
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileContext"),
         &m_context);
+    m_qmlContext->setContextProperty(QStringLiteral("ProfileRuntime"), this);
 
     if (!m_stores
         && m_context.activeProfile().kind()
@@ -154,6 +192,19 @@ void ProfileStoreRuntime::flushPersonalStores() {
         m_stores->activity->checkpointForSafeCopy(nullptr);
 }
 
+bool ProfileStoreRuntime::prepareTrackerForDeactivation(QString *error) {
+    emit profileDeactivationRequested();
+    if (m_stores && m_stores->trackerScrobble
+        && !m_stores->trackerScrobble->prepareForProfileDeactivation()) {
+        const QString detail = m_stores->trackerScrobble->lastError();
+        return setError(error, detail.isEmpty()
+            ? QStringLiteral("Tracker playback could not be finalized before profile change.")
+            : detail);
+    }
+    emit profileDeactivationCommitted();
+    return true;
+}
+
 void ProfileStoreRuntime::configureRetentionPolicy(StoreSet *stores) const {
     if (!stores || !stores->preferences || !stores->searchHistory || !stores->activity)
         return;
@@ -169,9 +220,11 @@ void ProfileStoreRuntime::configureRetentionPolicy(StoreSet *stores) const {
             });
 }
 
-void ProfileStoreRuntime::suspendPersonalStoresForMigration() {
+bool ProfileStoreRuntime::suspendPersonalStoresForMigration(QString *error) {
     if (!m_stores)
-        return;
+        return true;
+    if (!prepareTrackerForDeactivation(error))
+        return false;
 
     flushPersonalStores();
     emit storesAboutToChange();
@@ -179,6 +232,7 @@ void ProfileStoreRuntime::suspendPersonalStoresForMigration() {
     m_stores.reset();
     m_sealedRoot.reset();
     emit storesChanged();
+    return true;
 }
 
 bool ProfileStoreRuntime::activateAccountProfile(
@@ -220,6 +274,9 @@ bool ProfileStoreRuntime::activateAccountProfile(
     std::unique_ptr<StoreSet> next =
         createProfileStores(*paths, error);
     if (!next)
+        return false;
+
+    if (!prepareTrackerForDeactivation(error))
         return false;
 
     flushPersonalStores();
@@ -264,6 +321,9 @@ bool ProfileStoreRuntime::activateLocalOnlyProfile(
             paths,
             error);
     if (!next)
+        return false;
+
+    if (!prepareTrackerForDeactivation(error))
         return false;
 
     flushPersonalStores();
@@ -313,6 +373,9 @@ bool ProfileStoreRuntime::sealAccountProfile(
     std::unique_ptr<StoreSet> sealed =
         createSealedStores(error);
     if (!sealed)
+        return false;
+
+    if (!prepareTrackerForDeactivation(error))
         return false;
 
     flushPersonalStores();
@@ -428,6 +491,8 @@ ProfileStoreRuntime::createSealedStores(
     if (!stores->consumptionHistory->replayExisting(&projectionError))
         qWarning() << "Consumption history replay failed:" << projectionError;
 
+    stores->trackerSyncCenter = std::make_unique<TrackerSyncCenterModel>();
+
     m_sealedRoot =
         std::move(sealedRoot);
     return stores;
@@ -487,6 +552,8 @@ ProfileStoreRuntime::createLegacyStores() const {
     if (!stores->consumptionHistory->replayExisting(&projectionError))
         qWarning() << "Consumption history replay failed:" << projectionError;
 
+    stores->trackerSyncCenter = std::make_unique<TrackerSyncCenterModel>();
+
     return stores;
 }
 
@@ -544,6 +611,77 @@ ProfileStoreRuntime::createProfileStores(
     if (!stores->consumptionHistory->replayExisting(&projectionError))
         qWarning() << "Consumption history replay failed:" << projectionError;
 
+    stores->trackerDelivery = std::make_unique<TrackerDeliveryRuntime>(
+        paths, stores->progress.get(), stores->activity.get(), stores->history.get());
+    QString trackerDeliveryError;
+    if (!stores->trackerDelivery->start(&trackerDeliveryError))
+        qWarning() << "Tracker delivery recovery is unavailable:" << trackerDeliveryError;
+    stores->trackerSettings = std::make_unique<TrackerSyncSettingsStore>(paths);
+    stores->trackerImports = std::make_unique<TrackerImportStore>(
+        paths, stores->trackerDelivery->mappingStore(),
+        stores->trackerDelivery->connectionStore());
+    stores->trackerImportOwner = std::make_unique<TrackerProgressImportOwner>(
+        stores->progress.get());
+    stores->trackerImports->recoverAsync(stores->trackerImportOwner.get(),
+        [](bool recovered, const QString &error) {
+            if (!recovered)
+                qWarning() << "Tracker import recovery remains pending:" << error;
+        });
+    stores->trackerHistoryEvidence = std::make_unique<TrackerHistoryEvidenceStore>(
+        paths, stores->trackerDelivery->mappingStore());
+    stores->trackerScrobble = std::make_unique<TrackerScrobbleRuntime>(
+        paths, stores->trackerDelivery->connectionStore(),
+        stores->trackerDelivery->mappingStore());
+    stores->trackerScrobble->setSyncSettingsStore(stores->trackerSettings.get());
+    QString trackerScrobbleError;
+    if (!stores->trackerScrobble->start(&trackerScrobbleError))
+        qWarning() << "Tracker playback tracking is unavailable:" << trackerScrobbleError;
+    TrackerScrobbleRuntime *scrobbleRuntime = stores->trackerScrobble.get();
+    stores->trackerSyncCenter = std::make_unique<TrackerSyncCenterModel>(
+        stores->trackerDelivery->connectionStore(), stores->trackerImports.get(),
+        stores->trackerDelivery->deliveryStore(), stores->trackerScrobble->store(),
+        stores->trackerSettings.get(), trackerBuiltInProviderCatalog(),
+        [scrobbleRuntime](const QString &providerKey, bool enabled) {
+            return scrobbleRuntime->setLivePlaybackTrackingEnabled(providerKey, enabled);
+        },
+        [scrobbleRuntime] { scrobbleRuntime->resumeAfterGlobalSyncEnabled(); },
+        [paths, deliveryRuntime = stores->trackerDelivery.get(), scrobbleRuntime](
+            const QString &providerKey, const QString &choice, QString *error) {
+            const auto providerId = trackerProviderIdFromKey(providerKey);
+            if (!providerId) {
+                if (error)
+                    *error = QStringLiteral("The tracker selection is invalid.");
+                return false;
+            }
+            TrackerDisconnectChoice disconnectChoice;
+            if (choice == QLatin1String("keep_paused"))
+                disconnectChoice = TrackerDisconnectChoice::KeepPaused;
+            else if (choice == QLatin1String("discard_known_unsent"))
+                disconnectChoice = TrackerDisconnectChoice::DiscardKnownUnsent;
+            else {
+                if (error)
+                    *error = QStringLiteral("The disconnect choice is invalid.");
+                return false;
+            }
+            WindowsTrackerCredentialVault vault;
+            return TrackerLifecycleCoordinator::disconnect(
+                paths, *providerId, disconnectChoice, vault,
+                *deliveryRuntime->connectionStore(), *deliveryRuntime->mappingStore(),
+                *deliveryRuntime->deliveryStore(), *scrobbleRuntime->store(), error);
+        }, stores->trackerHistoryEvidence.get(),
+        [deliveryRuntime = stores->trackerDelivery.get()](QString *error) {
+            return deliveryRuntime->refreshCurrentFacts(error);
+        });
+    stores->trackerSyncCenter->setImportOwner(stores->trackerImportOwner.get());
+    // The native source is present, but no provider has a verified remote
+    // readback adapter yet. Keep first export review unavailable until one is composed.
+    stores->trackerSyncCenter->setExportReview(
+        stores->trackerDelivery->canonicalSource(), {});
+    stores->trackerSyncCenter->setTitleMatching(
+        stores->trackerDelivery->mappingStore(), stores->trackerImportOwner.get());
+    QObject::connect(stores->progress.get(), &ProgressStore::healthChanged,
+                     stores->trackerSyncCenter.get(), &TrackerSyncCenterModel::refresh);
+
     return stores;
 }
 
@@ -572,6 +710,8 @@ void ProfileStoreRuntime::bindContextProperties() {
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileActivity"),
         m_stores->activity.get());
+    m_qmlContext->setContextProperty(QStringLiteral("ProfileTrackers"), m_stores->trackerScrobble.get());
+    m_qmlContext->setContextProperty(QStringLiteral("TrackerSyncCenter"), m_stores->trackerSyncCenter.get());
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileConsumptionHistory"),
         m_stores->consumptionHistory.get());
@@ -602,6 +742,8 @@ void ProfileStoreRuntime::clearContextProperties() {
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileActivity"),
         static_cast<QObject *>(nullptr));
+    m_qmlContext->setContextProperty(QStringLiteral("ProfileTrackers"), static_cast<QObject *>(nullptr));
+    m_qmlContext->setContextProperty(QStringLiteral("TrackerSyncCenter"), static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileConsumptionHistory"),
         static_cast<QObject *>(nullptr));

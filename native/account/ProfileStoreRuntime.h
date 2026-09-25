@@ -16,6 +16,7 @@ class ProgressStore;
 class HistoryStore;
 class ProfilePreferencesStore;
 class ActivityStore;
+class TrackerConnectionService;
 
 class SearchHistoryStore;
 class AudioPairingStore;
@@ -44,12 +45,13 @@ public:
     HistoryStore *historyStore() const;
     ProfilePreferencesStore *preferencesStore() const;
     ActivityStore *activityStore() const;
+    TrackerConnectionService *trackerConnectionService() const;
 
     void prepareForQml(
         QQmlApplicationEngine *engine);
 
     void flushPersonalStores();
-    void suspendPersonalStoresForMigration();
+    bool suspendPersonalStoresForMigration(QString *error = nullptr);
 
     bool activateAccountProfile(
         const QString &accountId,
@@ -68,6 +70,8 @@ public:
 signals:
     void storesAboutToChange();
     void storesChanged();
+    void profileDeactivationRequested();
+    void profileDeactivationCommitted();
 
 private:
     struct StoreSet;
@@ -82,6 +86,7 @@ private:
     void bindContextProperties();
     void clearContextProperties();
     void configureRetentionPolicy(StoreSet *stores) const;
+    bool prepareTrackerForDeactivation(QString *error);
     static bool setError(
         QString *error,
         const QString &message);

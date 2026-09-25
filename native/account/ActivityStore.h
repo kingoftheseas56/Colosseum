@@ -111,6 +111,7 @@ public:
     Q_INVOKABLE bool clearAll();
 
     QList<QVariantMap> historyProjectionFacts() const;
+    QVariantMap historyProjectionFact(const QString &eventId) const;
 
     // Portable immutable Activity facts used by account sync. Only durable
     // syncable events are exported. Machine-local presentation (notably
@@ -154,7 +155,8 @@ signals:
 private:
     bool ensureSchema();
     bool loadSyncMetadata();
-    bool insertFact(const QString &type, const QVariantMap &fact);
+    bool insertFact(const QString &type, const QVariantMap &fact,
+                    bool fromAccountSync = false);
     bool insertEventRow(const QJsonObject &event, const QString &canonicalJson,
                          const QByteArray &canonicalHash);
 

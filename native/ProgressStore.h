@@ -47,13 +47,16 @@
 #include <QJsonArray>
 #include <QJsonParseError>
 #include <QJsonDocument>
+#include <QCryptographicHash>
 #include <QDateTime>
+#include <QPointer>
 #include <QThread>
 #include <QCoreApplication>
 #include <QStandardPaths>
 #include <QDir>
 #include <memory>
 #include <algorithm>
+#include <cmath>
 #include <functional>
 
 namespace ProgressStoreDetail {
@@ -76,6 +79,73 @@ inline QString progressStoreTaggedIniPath(const QString &storeFileName) {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
     return dir + QLatin1Char('/') + storeFileName;
+}
+
+inline QString trackerImportReceiptSnapshotKey() {
+    return QStringLiteral("__colosseum_tracker_import_receipts_v1");
+}
+
+inline QString trackerProgressSourceRemovalSnapshotKey() {
+    return QStringLiteral("__colosseum_tracker_progress_removed_sources_v1");
+}
+
+inline QString trackerProgressSourceIdentityKey(const QString &providerKey,
+                                                const QString &remoteAccountId) {
+    QJsonArray identity;
+    identity.append(providerKey);
+    identity.append(remoteAccountId);
+    return QString::fromLatin1(QCryptographicHash::hash(
+        QJsonDocument(identity).toJson(QJsonDocument::Compact),
+        QCryptographicHash::Sha256).toHex());
+}
+
+inline QVariantMap withoutTrackerImportSourceMetadata(QVariantMap entry) {
+    entry.remove(QStringLiteral("_trackerProviderKey"));
+    entry.remove(QStringLiteral("_trackerRemoteAccountId"));
+    entry.remove(QStringLiteral("_trackerSources"));
+    entry.remove(QStringLiteral("_trackerBasePresent"));
+    entry.remove(QStringLiteral("_trackerBaseEntry"));
+    return entry;
+}
+
+inline QVariantMap withoutTrackerPrivateMetadata(QVariantMap entry) {
+    entry = withoutTrackerImportSourceMetadata(std::move(entry));
+    entry.remove(QStringLiteral("_trackerOrigin"));
+    return entry;
+}
+
+inline QVariantList trackerProgressSources(const QVariantMap &entry) {
+    const QVariantList stored = entry.value(QStringLiteral("_trackerSources")).toList();
+    if (!stored.isEmpty())
+        return stored;
+
+    // Read rows written before source stacking was introduced. The old row
+    // carries exactly one provider/account attribution and no recoverable base.
+    if (entry.value(QStringLiteral("_trackerOrigin")).toString()
+            != QLatin1String("tracker_import")) {
+        return {};
+    }
+    const QString providerKey = entry.value(QStringLiteral("_trackerProviderKey")).toString();
+    const QString remoteAccountId = entry.value(QStringLiteral("_trackerRemoteAccountId")).toString();
+    if (providerKey.isEmpty() || remoteAccountId.isEmpty())
+        return {};
+    QVariantMap sourceEntry = withoutTrackerImportSourceMetadata(entry);
+    sourceEntry.remove(QStringLiteral("_trackerOrigin"));
+    return {QVariantMap{{QStringLiteral("providerKey"), providerKey},
+                        {QStringLiteral("remoteAccountId"), remoteAccountId},
+                        {QStringLiteral("entry"), sourceEntry}}};
+}
+
+inline bool trackerProgressHasSource(const QVariantMap &entry,
+                                     const QString &providerKey,
+                                     const QString &remoteAccountId) {
+    const QVariantList sources = trackerProgressSources(entry);
+    return std::any_of(sources.cbegin(), sources.cend(),
+        [&providerKey, &remoteAccountId](const QVariant &value) {
+            const QVariantMap source = value.toMap();
+            return source.value(QStringLiteral("providerKey")).toString() == providerKey
+                && source.value(QStringLiteral("remoteAccountId")).toString() == remoteAccountId;
+        });
 }
 } // namespace ProgressStoreDetail
 
@@ -106,7 +176,9 @@ public slots:
     void writeSnapshot(const QVariantHash &snapshot) {
         QString error;
         const bool committed = writeSnapshotInternal(snapshot, &error);
-        if (!committed)
+        if (committed)
+            emit snapshotWritten(snapshot);
+        else
             emit writeFailed(error);
     }
 
@@ -114,17 +186,31 @@ public slots:
                                   const QVariantHash &snapshot) {
         QString error;
         const bool committed = writeSnapshotInternal(snapshot, &error);
+        if (committed)
+            emit snapshotWritten(snapshot);
         emit snapshotFinished(requestId, committed, error);
     }
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+    void failNextReceiptWriteForTesting() { m_failNextReceiptWrite = true; }
+#endif
     void flushSync() {}   // shutdown/flush barrier (see ProgressStore::flush)
 
 signals:
+    void snapshotWritten(const QVariantHash &snapshot);
     void snapshotFinished(quint64 requestId, bool committed,
                            const QString &error);
     void writeFailed(const QString &error);
 
 private:
     bool writeSnapshotInternal(const QVariantHash &snapshot, QString *error) {
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+        if (m_failNextReceiptWrite) {
+            m_failNextReceiptWrite = false;
+            if (error)
+                *error = QStringLiteral("Injected tracker Progress writer failure.");
+            return false;
+        }
+#endif
         ensureSettings();   // created on the worker thread on first use (correct affinity)
         QJsonObject obj;
         for (auto it = snapshot.constBegin(); it != snapshot.constEnd(); ++it)
@@ -152,6 +238,9 @@ private:
     std::unique_ptr<QSettings> m_settings;
     QString m_org, m_app, m_iniPath;
     bool m_useIni = false;
+#ifdef COLOSSEUM_PROGRESS_STORE_TESTING
+    bool m_failNextReceiptWrite = false;
+#endif
 };
 
 class ProgressStore : public QObject {
@@ -161,6 +250,16 @@ class ProgressStore : public QObject {
     Q_PROPERTY(QString persistenceError READ persistenceError NOTIFY healthChanged)
 public:
     using RemoteCommitCallback = std::function<void(bool, const QString &)>;
+    using TrackerProgressRemovalCallback =
+        std::function<void(bool, int, const QString &)>;
+    enum class TrackerImportApplyStatus : quint8 {
+        Applied,
+        AlreadyApplied,
+        Stale,
+        Failed
+    };
+    using TrackerImportCommitCallback = std::function<void(
+        TrackerImportApplyStatus, const QVariantMap &, const QString &)>;
 
     explicit ProgressStore(QObject *parent = nullptr)
         : QObject(parent) {
@@ -176,6 +275,8 @@ public:
             m_writer = new ProgressDiskWriter(tagged);
         }
         load();
+        m_lastPersistedSnapshot = snapshotHash();
+        m_hasPersistedSnapshot = healthy();
         setupWriter();
     }
 
@@ -186,6 +287,8 @@ public:
         : QObject(parent),
           m_settings(std::make_unique<QSettings>(iniPath, QSettings::IniFormat)) {
         load();
+        m_lastPersistedSnapshot = snapshotHash();
+        m_hasPersistedSnapshot = healthy();
         m_writer = new ProgressDiskWriter(iniPath);
         setupWriter();
     }
@@ -251,6 +354,11 @@ public:
     void forceWatchStatePersistenceFailureForTesting(bool enabled) {
         m_forceWatchStatePersistenceFailure = enabled;
     }
+    void forceNextTrackerImportWriteFailureForTesting() {
+        if (m_writer)
+            QMetaObject::invokeMethod(m_writer, "failNextReceiptWriteForTesting",
+                                      Qt::QueuedConnection);
+    }
 #endif
 
     // Native sync seam: complete raw Continue/progress state. Unlike recent(),
@@ -261,9 +369,289 @@ public:
         keys.sort();
         QVariantList out;
         out.reserve(keys.size());
+        for (const QString &key : keys) {
+            out.append(ProgressStoreDetail::withoutTrackerPrivateMetadata(
+                m_map.value(key).toMap()));
+        }
+        return out;
+    }
+
+    // Local-only owner view for tracker delivery. Provenance remains inside
+    // ProgressStore and is never included in portable account-sync rows.
+    QVariantList deliveryEntries() const {
+        QStringList keys = m_map.keys();
+        keys.sort();
+        QVariantList out;
+        out.reserve(keys.size());
         for (const QString &key : keys)
             out.append(m_map.value(key).toMap());
         return out;
+    }
+
+    QVariantMap deliveryEntry(const QString &kind, const QString &id) const {
+        return m_map.value(mapKey(kind, id)).toMap();
+    }
+
+    int trackerImportedProgressCount(const QString &providerKey,
+                                    const QString &remoteAccountId) const {
+        int count = 0;
+        for (auto it = m_map.cbegin(); it != m_map.cend(); ++it) {
+            const QVariantMap entry = it.value().toMap();
+            if (ProgressStoreDetail::trackerProgressHasSource(
+                    entry, providerKey, remoteAccountId)) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    QVariantList trackerImportedProgressRemovalPreview(
+        const QString &providerKey, const QString &remoteAccountId) const {
+        QVariantList preview;
+        if (providerKey.trimmed().isEmpty() || remoteAccountId.trimmed().isEmpty())
+            return preview;
+
+        QStringList keys = m_map.keys();
+        keys.sort();
+        for (const QString &key : keys) {
+            const QVariantMap current = m_map.value(key).toMap();
+            const QVariantList sources = ProgressStoreDetail::trackerProgressSources(current);
+            QVariantMap removedSource;
+            int remainingSourceCount = 0;
+            for (const QVariant &value : sources) {
+                const QVariantMap source = value.toMap();
+                if (source.value(QStringLiteral("providerKey")).toString() == providerKey
+                    && source.value(QStringLiteral("remoteAccountId")).toString()
+                        == remoteAccountId) {
+                    removedSource = source;
+                } else {
+                    ++remainingSourceCount;
+                }
+            }
+            if (removedSource.isEmpty())
+                continue;
+
+            const bool localBasePresent = current.contains(
+                    QStringLiteral("_trackerBasePresent"))
+                ? current.value(QStringLiteral("_trackerBasePresent")).toBool()
+                : current.value(QStringLiteral("_trackerOrigin")).toString()
+                    != QLatin1String("tracker_import");
+            const QVariantMap sourceEntry = removedSource.value(
+                QStringLiteral("entry")).toMap();
+            QString title = sourceEntry.value(QStringLiteral("title")).toString().trimmed();
+            if (title.isEmpty())
+                title = sourceEntry.value(QStringLiteral("caption")).toString().trimmed();
+            if (title.isEmpty())
+                title = QStringLiteral("Untitled media");
+
+            const QString consequence = remainingSourceCount > 0
+                ? QStringLiteral("Other tracker data remains; local Progress stays preserved.")
+                : (localBasePresent
+                    ? QStringLiteral("Your local Progress will be restored.")
+                    : QStringLiteral("This tracker-imported Progress will be removed."));
+            preview.append(QVariantMap{
+                {QStringLiteral("title"), title.left(256)},
+                {QStringLiteral("dataKind"), QStringLiteral("Progress")},
+                {QStringLiteral("consequence"), consequence}});
+        }
+        return preview;
+    }
+
+    bool trackerProgressSourceRemovalSuppressed(const QString &providerKey,
+                                                const QString &remoteAccountId) const {
+        if (providerKey.isEmpty() || remoteAccountId.isEmpty())
+            return false;
+        return m_trackerProgressSuppressedSources.contains(
+            ProgressStoreDetail::trackerProgressSourceIdentityKey(
+                providerKey, remoteAccountId));
+    }
+
+    bool removeTrackerImportedProgressAsync(const QString &providerKey,
+                                            const QString &remoteAccountId,
+                                            TrackerProgressRemovalCallback callback) {
+        const auto finish = [&callback](bool removed, int count, const QString &error) {
+            if (callback)
+                callback(removed, count, error);
+        };
+        if (!healthy()) {
+            finish(false, 0, persistenceError());
+            return false;
+        }
+        if (providerKey.trimmed().isEmpty() || remoteAccountId.trimmed().isEmpty()
+            || providerKey != providerKey.trimmed()
+            || remoteAccountId != remoteAccountId.trimmed()
+            || providerKey.contains(QLatin1Char('\0'))
+            || remoteAccountId.contains(QLatin1Char('\0'))) {
+            finish(false, 0, QStringLiteral("Tracker Progress source identity is invalid."));
+            return false;
+        }
+        if (m_trackerProgressRemovalPending || !m_pendingRemote.isEmpty()
+            || !m_pendingTrackerImportOperations.isEmpty()) {
+            finish(false, 0, QStringLiteral(
+                "Tracker Progress is still changing; retry removal after its current write completes."));
+            return false;
+        }
+
+        struct RemovalChange {
+            QString key;
+            QVariantMap previous;
+            QVariantMap replacement;
+            bool remove = false;
+        };
+        QList<RemovalChange> changes;
+        int removedCount = 0;
+        for (auto it = m_map.cbegin(); it != m_map.cend(); ++it) {
+            const QVariantMap entry = it.value().toMap();
+            const QVariantList sources = ProgressStoreDetail::trackerProgressSources(entry);
+            if (!ProgressStoreDetail::trackerProgressHasSource(
+                    entry, providerKey, remoteAccountId)) {
+                continue;
+            }
+            ++removedCount;
+
+            QVariantList remainingSources;
+            bool removedActiveSource = false;
+            for (int index = 0; index < sources.size(); ++index) {
+                const QVariantMap source = sources.at(index).toMap();
+                const bool matches = source.value(QStringLiteral("providerKey")).toString()
+                        == providerKey
+                    && source.value(QStringLiteral("remoteAccountId")).toString()
+                        == remoteAccountId;
+                if (matches) {
+                    removedActiveSource = removedActiveSource || index == sources.size() - 1;
+                    continue;
+                }
+                remainingSources.append(source);
+            }
+
+            RemovalChange change;
+            change.key = it.key();
+            change.previous = entry;
+            if (!remainingSources.isEmpty()) {
+                QVariantMap replacement = removedActiveSource
+                    ? remainingSources.last().toMap().value(QStringLiteral("entry")).toMap()
+                    : entry;
+                replacement = ProgressStoreDetail::withoutTrackerImportSourceMetadata(
+                    std::move(replacement));
+                const QVariantMap activeSource = remainingSources.last().toMap();
+                replacement.insert(QStringLiteral("_trackerOrigin"),
+                                   QStringLiteral("tracker_import"));
+                replacement.insert(QStringLiteral("_trackerProviderKey"),
+                    activeSource.value(QStringLiteral("providerKey")).toString());
+                replacement.insert(QStringLiteral("_trackerRemoteAccountId"),
+                    activeSource.value(QStringLiteral("remoteAccountId")).toString());
+                replacement.insert(QStringLiteral("_trackerSources"), remainingSources);
+                const bool basePresent = entry.value(QStringLiteral("_trackerBasePresent")).toBool();
+                replacement.insert(QStringLiteral("_trackerBasePresent"), basePresent);
+                if (basePresent)
+                    replacement.insert(QStringLiteral("_trackerBaseEntry"),
+                        entry.value(QStringLiteral("_trackerBaseEntry")).toMap());
+                else
+                    replacement.remove(QStringLiteral("_trackerBaseEntry"));
+                change.replacement = replacement;
+            } else {
+                const bool basePresent = entry.contains(QStringLiteral("_trackerBasePresent"))
+                    ? entry.value(QStringLiteral("_trackerBasePresent")).toBool()
+                    : entry.value(QStringLiteral("_trackerOrigin")).toString()
+                        != QLatin1String("tracker_import");
+                if (basePresent) {
+                    const QVariantMap base = entry.value(QStringLiteral("_trackerBaseEntry")).toMap();
+                    if (base.isEmpty()
+                        || base.value(QStringLiteral("kind")).toString()
+                            != entry.value(QStringLiteral("kind")).toString()
+                        || base.value(QStringLiteral("id")).toString()
+                            != entry.value(QStringLiteral("id")).toString()) {
+                        finish(false, 0, QStringLiteral(
+                            "The local Progress beneath this tracker import could not be restored safely."));
+                        return false;
+                    }
+                    change.replacement = ProgressStoreDetail::withoutTrackerImportSourceMetadata(
+                        base);
+                } else {
+                    change.remove = true;
+                }
+            }
+            changes.append(change);
+        }
+        const QString suppressionKey =
+            ProgressStoreDetail::trackerProgressSourceIdentityKey(providerKey,
+                                                                   remoteAccountId);
+        const bool wasSuppressed = m_trackerProgressSuppressedSources.contains(suppressionKey);
+        if (changes.isEmpty() && wasSuppressed) {
+            finish(true, 0, QString());
+            return true;
+        }
+
+        m_trackerProgressSuppressedSources.insert(suppressionKey, QVariantMap{
+            {QStringLiteral("providerKey"), providerKey},
+            {QStringLiteral("remoteAccountId"), remoteAccountId}});
+        m_trackerProgressRemovalPending = true;
+        for (const RemovalChange &change : changes) {
+            if (change.remove)
+                m_map.remove(change.key);
+            else
+                m_map.insert(change.key, change.replacement);
+        }
+        ++m_revision;
+        emit changed();
+        emit localMutationChanged();
+
+        QPointer<ProgressStore> progress(this);
+        requestDurableReceipt(
+            [progress, changes = std::move(changes), removedCount, suppressionKey,
+             wasSuppressed,
+             callback = std::move(callback)](bool committed, const QString &error) mutable {
+                if (!progress) {
+                    if (callback)
+                        callback(false, 0, QStringLiteral(
+                            "The active profile changed before tracker Progress removal completed."));
+                    return;
+                }
+                progress->m_trackerProgressRemovalPending = false;
+                if (!committed) {
+                    for (const RemovalChange &change : changes) {
+                        const bool replacementStillPresent = change.remove
+                            ? !progress->m_map.contains(change.key)
+                            : progress->m_map.value(change.key).toMap() == change.replacement;
+                        if (replacementStillPresent)
+                            progress->m_map.insert(change.key, change.previous);
+                    }
+                    if (!wasSuppressed)
+                        progress->m_trackerProgressSuppressedSources.remove(suppressionKey);
+                    ++progress->m_revision;
+                    emit progress->changed();
+                    emit progress->localMutationChanged();
+                    if (callback)
+                        callback(false, 0, error);
+                    return;
+                }
+                if (callback)
+                    callback(true, removedCount, QString());
+            });
+        return true;
+    }
+
+    static QString trackerImportRevisionToken(const QVariantMap &entry) {
+        const QByteArray canonical = QJsonDocument(
+            QJsonObject::fromVariantMap(entry)).toJson(QJsonDocument::Compact);
+        return QString::fromLatin1(QCryptographicHash::hash(
+            canonical, QCryptographicHash::Sha256).toHex());
+    }
+
+    bool deliveryEntryDurable(const QString &kind, const QString &id) const {
+        if (!healthy() || !m_hasPersistedSnapshot)
+            return false;
+        const QString key = mapKey(kind, id);
+        const bool currentPresent = m_map.contains(key);
+        if (currentPresent != m_lastPersistedSnapshot.contains(key))
+            return false;
+        return !currentPresent
+            || m_map.value(key).toMap() == m_lastPersistedSnapshot.value(key).toMap();
+    }
+
+    bool deliverySnapshotDurable() const {
+        return healthy() && m_hasPersistedSnapshot
+            && m_lastPersistedSnapshot == snapshotHash();
     }
 
     QHash<QString, int> syncWatchedMarks() const {
@@ -374,7 +762,7 @@ public:
             const QVariantMap rec = it.value().toMap();
             if (!kind.isEmpty() && rec.value(QStringLiteral("kind")).toString() != kind)
                 continue;
-            out.append(rec);
+            out.append(ProgressStoreDetail::withoutTrackerPrivateMetadata(rec));
         }
         std::sort(out.begin(), out.end(), [](const QVariant &a, const QVariant &b) {
             return a.toMap().value(QStringLiteral("updatedAt")).toLongLong()
@@ -451,7 +839,8 @@ public:
     }
 
     Q_INVOKABLE QVariantMap get(const QString &kind, const QString &id) const {
-        return m_map.value(mapKey(kind, id)).toMap();
+        return ProgressStoreDetail::withoutTrackerPrivateMetadata(
+            m_map.value(mapKey(kind, id)).toMap());
     }
 
     // Whole-kind purge (catalogue-independence Slice 5, 2026-08-20): unlike forget(),
@@ -684,9 +1073,10 @@ public:
         if (kind.isEmpty() || id.isEmpty())
             return false;
 
-        QVariantMap exact = entry;
+        QVariantMap exact = ProgressStoreDetail::withoutTrackerImportSourceMetadata(entry);
         exact.insert(QStringLiteral("kind"), kind);
         exact.insert(QStringLiteral("id"), id);
+        exact.insert(QStringLiteral("_trackerOrigin"), QStringLiteral("account_sync"));
 
         const QString key = mapKey(kind, id);
         if (m_map.value(key).toMap() == exact)
@@ -722,9 +1112,10 @@ public:
         const QString key = mapKey(kind, id);
         const QVariantHash baseSnapshot = snapshotHash();
         QVariantHash target = snapshotHash();
-        QVariantMap exact = entry;
+        QVariantMap exact = ProgressStoreDetail::withoutTrackerImportSourceMetadata(entry);
         exact.insert(QStringLiteral("kind"), kind);
         exact.insert(QStringLiteral("id"), id);
+        exact.insert(QStringLiteral("_trackerOrigin"), QStringLiteral("account_sync"));
         target.insert(key, exact);
 
         // Even an idempotent remote winner goes through the writer receipt:
@@ -742,6 +1133,189 @@ public:
         if (pending.baseKeyPresent)
             pending.baseEntry = m_map.value(key).toMap();
         pending.callback = std::move(callback);
+        m_pendingRemote.insert(pending.requestId, pending);
+        postRemoteSnapshot(pending.requestId, pending.target);
+        return true;
+    }
+
+    // Tracker import has a separate, effect-bound receipt in the same persisted
+    // Continue blob as the exact Progress row. It never stamps account_sync,
+    // emits syncDirty(), or crosses the native completion/History boundary.
+    bool applyTrackerImportedEntryAsync(
+        const QString &operationId,
+        const QString &effectDigest,
+        const QString &kind,
+        const QString &id,
+        bool expectedPresent,
+        const QString &expectedRevisionToken,
+        qint64 expectedUpdatedAt,
+        double expectedProgress,
+        bool expectedWatched,
+        const QVariantMap &importedEntry,
+        TrackerImportCommitCallback callback)
+    {
+        const auto finish = [&callback](TrackerImportApplyStatus status,
+                                        const QVariantMap &entry,
+                                        const QString &error) {
+            if (callback)
+                callback(status, entry, error);
+        };
+        if (!healthy()) {
+            finish(TrackerImportApplyStatus::Failed, {}, persistenceError());
+            return false;
+        }
+        if (m_trackerProgressRemovalPending) {
+            finish(TrackerImportApplyStatus::Stale, {},
+                   QStringLiteral("Tracker Progress removal is still being committed."));
+            return false;
+        }
+        if (operationId.trimmed().isEmpty() || effectDigest.size() != 64
+            || kind.trimmed().isEmpty() || id.trimmed().isEmpty()
+            || (expectedPresent && expectedRevisionToken.size() != 64)
+            || (!expectedPresent && !expectedRevisionToken.isEmpty())
+            || expectedUpdatedAt < 0 || !std::isfinite(expectedProgress)
+            || expectedProgress < 0.0 || expectedProgress > 1.0
+            || importedEntry.value(QStringLiteral("kind")).toString() != kind
+            || importedEntry.value(QStringLiteral("id")).toString() != id
+            || importedEntry.value(QStringLiteral("_trackerProviderKey")).toString().trimmed().isEmpty()
+            || importedEntry.value(QStringLiteral("_trackerProviderKey")).toString()
+                != importedEntry.value(QStringLiteral("_trackerProviderKey")).toString().trimmed()
+            || importedEntry.value(QStringLiteral("_trackerRemoteAccountId")).toString().trimmed().isEmpty()
+            || importedEntry.value(QStringLiteral("_trackerRemoteAccountId")).toString()
+                != importedEntry.value(QStringLiteral("_trackerRemoteAccountId")).toString().trimmed()
+            || importedEntry.value(QStringLiteral("_trackerProviderKey")).toString().contains(QLatin1Char('\0'))
+            || importedEntry.value(QStringLiteral("_trackerRemoteAccountId")).toString().contains(QLatin1Char('\0'))
+            || !std::isfinite(importedEntry.value(QStringLiteral("progress")).toDouble())
+            || importedEntry.value(QStringLiteral("progress")).toDouble() < 0.0
+            || importedEntry.value(QStringLiteral("progress")).toDouble() > 1.0) {
+            finish(TrackerImportApplyStatus::Failed, {},
+                   QStringLiteral("The exact tracker Progress effect is invalid."));
+            return false;
+        }
+
+        const auto receipt = m_trackerImportReceipts.constFind(operationId);
+        if (receipt != m_trackerImportReceipts.cend()) {
+            if (receipt->effectDigest != effectDigest || receipt->kind != kind
+                || receipt->id != id) {
+                finish(TrackerImportApplyStatus::Failed, {},
+                       QStringLiteral("The tracker import operation ID is bound to another effect."));
+                return false;
+            }
+            finish(TrackerImportApplyStatus::AlreadyApplied, receipt->resultingEntry, QString());
+            return true;
+        }
+
+        const auto pendingOperation = m_pendingTrackerImportOperations.constFind(operationId);
+        if (pendingOperation != m_pendingTrackerImportOperations.cend()) {
+            finish(TrackerImportApplyStatus::Failed, {},
+                   pendingOperation->second == effectDigest
+                       ? QStringLiteral("This tracker Progress operation is already being written.")
+                       : QStringLiteral("The tracker import operation ID is already bound to another effect."));
+            return false;
+        }
+
+        const QString key = mapKey(kind, id);
+        const bool currentPresent = m_map.contains(key);
+        const QVariantMap current = m_map.value(key).toMap();
+        const double currentProgress = current.value(QStringLiteral("progress")).toDouble();
+        const bool expectedMatches = currentPresent == expectedPresent
+            && (!expectedPresent
+                || (trackerImportRevisionToken(current) == expectedRevisionToken
+                    && current.value(QStringLiteral("updatedAt")).toLongLong() == expectedUpdatedAt
+                    && qFuzzyCompare(currentProgress + 1.0, expectedProgress + 1.0)
+                    && current.value(QStringLiteral("watched")).toBool() == expectedWatched));
+        if (!expectedMatches) {
+            finish(TrackerImportApplyStatus::Stale, {},
+                   QStringLiteral("Colosseum Progress changed after the tracker preview."));
+            return true;
+        }
+
+        const QString providerKey = importedEntry.value(
+            QStringLiteral("_trackerProviderKey")).toString();
+        const QString remoteAccountId = importedEntry.value(
+            QStringLiteral("_trackerRemoteAccountId")).toString();
+        QVariantList sources = ProgressStoreDetail::trackerProgressSources(current);
+        const bool currentIsTrackerImport = current.value(QStringLiteral("_trackerOrigin")).toString()
+            == QLatin1String("tracker_import");
+        if (currentPresent && currentIsTrackerImport && sources.isEmpty()) {
+            finish(TrackerImportApplyStatus::Failed, {}, QStringLiteral(
+                "The existing tracker Progress source attribution is incomplete."));
+            return false;
+        }
+
+        bool basePresent = false;
+        QVariantMap baseEntry;
+        if (currentPresent && currentIsTrackerImport) {
+            basePresent = current.contains(QStringLiteral("_trackerBasePresent"))
+                && current.value(QStringLiteral("_trackerBasePresent")).toBool();
+            baseEntry = current.value(QStringLiteral("_trackerBaseEntry")).toMap();
+            if (basePresent
+                && (baseEntry.isEmpty()
+                    || baseEntry.value(QStringLiteral("kind")).toString() != kind
+                    || baseEntry.value(QStringLiteral("id")).toString() != id)) {
+                finish(TrackerImportApplyStatus::Failed, {}, QStringLiteral(
+                    "The local Progress beneath this tracker import is incomplete."));
+                return false;
+            }
+        } else if (currentPresent) {
+            basePresent = true;
+            baseEntry = ProgressStoreDetail::withoutTrackerImportSourceMetadata(current);
+        }
+
+        QVariantList retainedSources;
+        for (const QVariant &sourceValue : sources) {
+            const QVariantMap source = sourceValue.toMap();
+            if (source.value(QStringLiteral("providerKey")).toString() == providerKey
+                && source.value(QStringLiteral("remoteAccountId")).toString() == remoteAccountId) {
+                continue;
+            }
+            retainedSources.append(source);
+        }
+        QVariantMap sourceEntry = ProgressStoreDetail::withoutTrackerImportSourceMetadata(
+            importedEntry);
+        sourceEntry.insert(QStringLiteral("kind"), kind);
+        sourceEntry.insert(QStringLiteral("id"), id);
+        sourceEntry.remove(QStringLiteral("_trackerOrigin"));
+        retainedSources.append(QVariantMap{
+            {QStringLiteral("providerKey"), providerKey},
+            {QStringLiteral("remoteAccountId"), remoteAccountId},
+            {QStringLiteral("entry"), sourceEntry}});
+
+        QVariantMap exact = sourceEntry;
+        const QVariantMap activeSource = retainedSources.last().toMap();
+        exact.insert(QStringLiteral("_trackerOrigin"), QStringLiteral("tracker_import"));
+        exact.insert(QStringLiteral("_trackerProviderKey"),
+                     activeSource.value(QStringLiteral("providerKey")).toString());
+        exact.insert(QStringLiteral("_trackerRemoteAccountId"),
+                     activeSource.value(QStringLiteral("remoteAccountId")).toString());
+        exact.insert(QStringLiteral("_trackerSources"), retainedSources);
+        exact.insert(QStringLiteral("_trackerBasePresent"), basePresent);
+        if (basePresent)
+            exact.insert(QStringLiteral("_trackerBaseEntry"), baseEntry);
+        QVariantHash target = snapshotHash();
+        target.insert(key, exact);
+        TrackerImportReceipt persistedReceipt{effectDigest, kind, id, exact};
+        QVariantMap receipts = target.value(
+            ProgressStoreDetail::trackerImportReceiptSnapshotKey()).toMap();
+        receipts.insert(operationId, receiptToVariant(persistedReceipt));
+        target.insert(ProgressStoreDetail::trackerImportReceiptSnapshotKey(), receipts);
+
+        PendingRemote pending;
+        pending.requestId = m_nextRemoteRequest++;
+        pending.key = key;
+        pending.kind = kind;
+        pending.id = id;
+        pending.target = target;
+        pending.remoteEntry = exact;
+        pending.baseSnapshot = snapshotHash();
+        pending.baseKeyPresent = currentPresent;
+        pending.baseEntry = current;
+        pending.trackerImport = true;
+        pending.trackerImportOperationId = operationId;
+        pending.trackerImportReceipt = persistedReceipt;
+        pending.trackerImportCallback = std::move(callback);
+        m_pendingTrackerImportOperations.insert(
+            operationId, qMakePair(pending.requestId, effectDigest));
         m_pendingRemote.insert(pending.requestId, pending);
         postRemoteSnapshot(pending.requestId, pending.target);
         return true;
@@ -800,9 +1374,12 @@ public:
 
 signals:
     void changed();
+    void durableSnapshotCurrent();
+    void durableEntryCurrent(const QString &kind, const QString &id);
     void healthChanged();
     void persistenceFailed(const QString &error);
-    void completionCrossed(const QString &kind, const QString &id, qint64 completedAtMs);
+    void completionCrossed(const QString &kind, const QString &id, qint64 completedAtMs,
+                           const QString &activityEventId, const QString &activitySessionId);
     // Remote-only import notification. Active readers may react to a synced
     // winner without treating ordinary local progress writes as imported resume.
     // Idempotent replay of the same winner does not emit it.
@@ -820,6 +1397,13 @@ signals:
     void watchStateChanged();
 
 private:
+    struct TrackerImportReceipt {
+        QString effectDigest;
+        QString kind;
+        QString id;
+        QVariantMap resultingEntry;
+    };
+
     struct PendingRemote {
         quint64 requestId = 0;
         QString key;
@@ -831,6 +1415,11 @@ private:
         bool baseKeyPresent = false;
         QVariantMap baseEntry;
         RemoteCommitCallback callback;
+        bool trackerImport = false;
+        bool trackerImportStale = false;
+        QString trackerImportOperationId;
+        TrackerImportReceipt trackerImportReceipt;
+        TrackerImportCommitCallback trackerImportCallback;
     };
 
     static QString mapKey(const QString &kind, const QString &id) {
@@ -1008,7 +1597,7 @@ private:
     void scheduleSave() {
         if (m_writer && healthy()) {
             QMetaObject::invokeMethod(m_writer, "writeSnapshot", Qt::QueuedConnection,
-                                      Q_ARG(QVariantHash, m_map));
+                                      Q_ARG(QVariantHash, snapshotHash()));
         }
     }
 
@@ -1016,7 +1605,91 @@ private:
         QVariantHash snapshot;
         for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it)
             snapshot.insert(it.key(), it.value().toMap());
+        if (!m_trackerImportReceipts.isEmpty()) {
+            QVariantMap receipts;
+            for (auto it = m_trackerImportReceipts.constBegin();
+                 it != m_trackerImportReceipts.constEnd(); ++it) {
+                receipts.insert(it.key(), receiptToVariant(it.value()));
+            }
+            snapshot.insert(ProgressStoreDetail::trackerImportReceiptSnapshotKey(), receipts);
+        }
+        if (!m_trackerProgressSuppressedSources.isEmpty()) {
+            QVariantMap removedSources;
+            for (auto it = m_trackerProgressSuppressedSources.constBegin();
+                 it != m_trackerProgressSuppressedSources.constEnd(); ++it) {
+                removedSources.insert(it.key(), it.value());
+            }
+            snapshot.insert(ProgressStoreDetail::trackerProgressSourceRemovalSnapshotKey(),
+                            removedSources);
+        }
         return snapshot;
+    }
+
+    static QVariantMap receiptToVariant(const TrackerImportReceipt &receipt) {
+        return {{QStringLiteral("effectDigest"), receipt.effectDigest},
+                {QStringLiteral("kind"), receipt.kind},
+                {QStringLiteral("id"), receipt.id},
+                {QStringLiteral("resultingEntry"), receipt.resultingEntry}};
+    }
+
+    static std::optional<TrackerImportReceipt> receiptFromVariant(const QVariant &value) {
+        if (!value.canConvert<QVariantMap>())
+            return std::nullopt;
+        const QVariantMap map = value.toMap();
+        const QString digest = map.value(QStringLiteral("effectDigest")).toString();
+        const QString kind = map.value(QStringLiteral("kind")).toString();
+        const QString id = map.value(QStringLiteral("id")).toString();
+        const QVariantMap entry = map.value(QStringLiteral("resultingEntry")).toMap();
+        if (digest.size() != 64 || kind.isEmpty() || id.isEmpty()
+            || entry.value(QStringLiteral("kind")).toString() != kind
+            || entry.value(QStringLiteral("id")).toString() != id
+            || entry.value(QStringLiteral("_trackerOrigin")).toString()
+                != QLatin1String("tracker_import")) {
+            return std::nullopt;
+        }
+        return TrackerImportReceipt{digest, kind, id, entry};
+    }
+
+    void replaceSnapshot(const QVariantHash &snapshot) {
+        m_map.clear();
+        m_trackerImportReceipts.clear();
+        m_trackerProgressSuppressedSources.clear();
+        const QString receiptKey = ProgressStoreDetail::trackerImportReceiptSnapshotKey();
+        const QString removedSourcesKey =
+            ProgressStoreDetail::trackerProgressSourceRemovalSnapshotKey();
+        for (auto it = snapshot.constBegin(); it != snapshot.constEnd(); ++it) {
+            if (it.key() == receiptKey) {
+                const QVariantMap receipts = it.value().toMap();
+                for (auto receiptIt = receipts.constBegin();
+                     receiptIt != receipts.constEnd(); ++receiptIt) {
+                    const auto receipt = receiptFromVariant(receiptIt.value());
+                    if (receipt)
+                        m_trackerImportReceipts.insert(receiptIt.key(), *receipt);
+                }
+                continue;
+            }
+            if (it.key() == removedSourcesKey) {
+                const QVariantMap removedSources = it.value().toMap();
+                for (auto sourceIt = removedSources.constBegin();
+                     sourceIt != removedSources.constEnd(); ++sourceIt) {
+                    const QVariantMap source = sourceIt.value().toMap();
+                    const QString providerKey = source.value(QStringLiteral("providerKey")).toString();
+                    const QString remoteAccountId = source.value(QStringLiteral("remoteAccountId")).toString();
+                    if (providerKey.trimmed().isEmpty() || remoteAccountId.trimmed().isEmpty()
+                        || providerKey != providerKey.trimmed()
+                        || remoteAccountId != remoteAccountId.trimmed()
+                        || providerKey.contains(QLatin1Char('\0'))
+                        || remoteAccountId.contains(QLatin1Char('\0'))
+                        || sourceIt.key() != ProgressStoreDetail::trackerProgressSourceIdentityKey(
+                            providerKey, remoteAccountId)) {
+                        continue;
+                    }
+                    m_trackerProgressSuppressedSources.insert(sourceIt.key(), source);
+                }
+                continue;
+            }
+            m_map.insert(it.key(), it.value().toMap());
+        }
     }
 
     void postRemoteSnapshot(quint64 requestId, const QVariantHash &snapshot) {
@@ -1068,6 +1741,27 @@ private:
         emit persistenceFailed(m_persistenceError);
     }
 
+    void handleWriterSnapshotWritten(const QVariantHash &snapshot) {
+        m_lastPersistedSnapshot = snapshot;
+        m_hasPersistedSnapshot = true;
+        if (healthy() && snapshot == snapshotHash()) {
+            const auto pending = m_trackerPendingEntries;
+            m_trackerPendingEntries.clear();
+            for (auto it = pending.constBegin(); it != pending.constEnd(); ++it) {
+                const QString key = mapKey(it.value().first, it.value().second);
+                const QVariantMap current = m_map.value(key).toMap();
+                if (current.isEmpty()
+                    || snapshot.value(key).toMap() != current
+                    || current.value(QStringLiteral("_trackerOrigin")).toString()
+                        != QLatin1String("native_local")) {
+                    continue;
+                }
+                emit durableEntryCurrent(it.value().first, it.value().second);
+            }
+            emit durableSnapshotCurrent();
+        }
+    }
+
     void handleRemoteSnapshotFinished(quint64 requestId, bool committed,
                                       const QString &error) {
         auto it = m_pendingRemote.find(requestId);
@@ -1075,16 +1769,31 @@ private:
             return;
         PendingRemote pending = it.value();
         m_pendingRemote.erase(it);
+        const auto releaseTrackerOperation = [this, requestId, &pending] {
+            if (!pending.trackerImport)
+                return;
+            const auto operation = m_pendingTrackerImportOperations.constFind(
+                pending.trackerImportOperationId);
+            if (operation != m_pendingTrackerImportOperations.cend()
+                && operation->first == requestId)
+                m_pendingTrackerImportOperations.remove(pending.trackerImportOperationId);
+        };
 
         if (!committed) {
             handleWriterFailure(error);
-            if (pending.callback)
+            releaseTrackerOperation();
+            if (pending.trackerImportCallback)
+                pending.trackerImportCallback(TrackerImportApplyStatus::Failed, {}, persistenceError());
+            else if (pending.callback)
                 pending.callback(false, persistenceError());
             return;
         }
 
         if (!healthy()) {
-            if (pending.callback)
+            releaseTrackerOperation();
+            if (pending.trackerImportCallback)
+                pending.trackerImportCallback(TrackerImportApplyStatus::Failed, {}, persistenceError());
+            else if (pending.callback)
                 pending.callback(false, persistenceError());
             return;
         }
@@ -1101,12 +1810,27 @@ private:
                 && (!pending.baseKeyPresent
                     || m_map.value(pending.key).toMap()
                         == pending.baseEntry);
-            pending.target = current;
-            if (keyUnchanged) {
-                if (!pending.remoteEntry.isEmpty())
+            if (pending.trackerImport) {
+                pending.target = current;
+                if (pending.trackerImportStale || !keyUnchanged) {
+                    pending.trackerImportStale = true;
+                } else {
                     pending.target.insert(pending.key, pending.remoteEntry);
-                else
-                    pending.target.remove(pending.key);
+                    QVariantMap receipts = current.value(
+                        ProgressStoreDetail::trackerImportReceiptSnapshotKey()).toMap();
+                    receipts.insert(pending.trackerImportOperationId,
+                                    receiptToVariant(pending.trackerImportReceipt));
+                    pending.target.insert(
+                        ProgressStoreDetail::trackerImportReceiptSnapshotKey(), receipts);
+                }
+            } else {
+                pending.target = current;
+                if (keyUnchanged) {
+                    if (!pending.remoteEntry.isEmpty())
+                        pending.target.insert(pending.key, pending.remoteEntry);
+                    else
+                        pending.target.remove(pending.key);
+                }
             }
             pending.baseSnapshot = current;
             m_pendingRemote.insert(requestId, pending);
@@ -1115,21 +1839,35 @@ private:
         }
 
         const QVariantHash before = snapshotHash();
-        m_map.clear();
-        for (auto mapIt = pending.target.constBegin();
-             mapIt != pending.target.constEnd(); ++mapIt)
-            m_map.insert(mapIt.key(), mapIt.value());
+        replaceSnapshot(pending.target);
+        const QVariantHash after = snapshotHash();
 
-        if (before != pending.target) {
+        if (before != after) {
             ++m_revision;
             emit changed();
-            if (!pending.kind.isEmpty() && !pending.id.isEmpty()
+            if (!pending.trackerImport && !pending.kind.isEmpty() && !pending.id.isEmpty()
                 && pending.target.contains(pending.key))
                 emit syncedEntryApplied(pending.kind, pending.id);
         }
 
-        if (pending.callback)
+        if (healthy() && m_hasPersistedSnapshot
+            && m_lastPersistedSnapshot == snapshotHash()) {
+            emit durableSnapshotCurrent();
+        }
+
+        releaseTrackerOperation();
+        if (pending.trackerImportCallback) {
+            if (pending.trackerImportStale) {
+                pending.trackerImportCallback(
+                    TrackerImportApplyStatus::Stale, {},
+                    QStringLiteral("Colosseum Progress changed while the tracker write was pending."));
+            } else {
+                pending.trackerImportCallback(TrackerImportApplyStatus::Applied,
+                                              pending.trackerImportReceipt.resultingEntry, QString());
+            }
+        } else if (pending.callback) {
             pending.callback(true, QString());
+        }
     }
 
     void handleWriterSnapshotFinished(quint64 requestId, bool committed,
@@ -1174,6 +1912,9 @@ private:
         connect(m_writer, &ProgressDiskWriter::writeFailed,
                 this, &ProgressStore::handleWriterFailure,
                 Qt::QueuedConnection);
+        connect(m_writer, &ProgressDiskWriter::snapshotWritten,
+                this, &ProgressStore::handleWriterSnapshotWritten,
+                Qt::QueuedConnection);
         connect(m_writer, &ProgressDiskWriter::snapshotFinished,
                 this, &ProgressStore::handleWriterSnapshotFinished,
                 Qt::QueuedConnection);
@@ -1200,14 +1941,21 @@ private:
     bool persist(const QVariantMap &entry) {
         if (!healthy())
             return false;
-        const QString kind = entry.value(QStringLiteral("kind")).toString();
-        const QString id   = entry.value(QStringLiteral("id")).toString();
+        const QString activityEventId = entry.value(QStringLiteral("_trackerActivityEventId")).toString();
+        const QString activitySessionId = entry.value(QStringLiteral("_trackerActivitySessionId")).toString();
+        QVariantMap canonicalEntry = entry;
+        canonicalEntry.remove(QStringLiteral("_trackerActivityEventId"));
+        canonicalEntry.remove(QStringLiteral("_trackerActivitySessionId"));
+        canonicalEntry = ProgressStoreDetail::withoutTrackerImportSourceMetadata(
+            std::move(canonicalEntry));
+        const QString kind = canonicalEntry.value(QStringLiteral("kind")).toString();
+        const QString id   = canonicalEntry.value(QStringLiteral("id")).toString();
         if (id.isEmpty() || kind.isEmpty())
             return false;
         const QString key = mapKey(kind, id);
         const QVariantMap previous = m_map.value(key).toMap();
 
-        const double progress = entry.value(QStringLiteral("progress")).toDouble();
+        const double progress = canonicalEntry.value(QStringLiteral("progress")).toDouble();
         const bool isSeriesEpisode =
             kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
         if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
@@ -1218,10 +1966,12 @@ private:
             // proven video-stutter source.
             if (m_map.contains(key)) {
                 emit completionCrossed(QStringLiteral("movie"), id,
-                                       QDateTime::currentMSecsSinceEpoch());
+                                       QDateTime::currentMSecsSinceEpoch(), activityEventId,
+                                       activitySessionId);
                 if (id.startsWith(QStringLiteral("vault:")))
                     setWatchedMark(id, true);
                 m_map.remove(key);
+                m_trackerPendingEntries.insert(key, qMakePair(kind, id));
                 scheduleSave();
                 emit syncDirty();
                 return true;
@@ -1229,17 +1979,20 @@ private:
             return false;
         }
 
-        QVariantMap rec = entry;
+        QVariantMap rec = canonicalEntry;
         rec.insert(QStringLiteral("id"), id);
         rec.insert(QStringLiteral("kind"), kind);
+        rec.insert(QStringLiteral("_trackerOrigin"), QStringLiteral("native_local"));
         if (isSeriesEpisode && progress >= 0.90) {
             if (!previous.value(QStringLiteral("watched")).toBool())
                 emit completionCrossed(QStringLiteral("episode"), id,
-                                       QDateTime::currentMSecsSinceEpoch());
+                                       QDateTime::currentMSecsSinceEpoch(), activityEventId,
+                                       activitySessionId);
             rec.insert(QStringLiteral("watched"), true);
         }
         rec.insert(QStringLiteral("updatedAt"), QDateTime::currentMSecsSinceEpoch());
         m_map.insert(key, rec);
+        m_trackerPendingEntries.insert(key, qMakePair(kind, id));
         scheduleSave();
         emit syncDirty();
         return true;
@@ -1247,6 +2000,8 @@ private:
 
     void load() {
         m_map.clear();
+        m_trackerImportReceipts.clear();
+        m_trackerProgressSuppressedSources.clear();
         const QByteArray blob =
             m_settings->value(QStringLiteral("continue/entries")).toByteArray();
         if (m_settings->status() != QSettings::NoError) {
@@ -1268,7 +2023,50 @@ private:
             if (!it.value().isObject()) {
                 m_loadError = QStringLiteral("A persisted Continue/progress record is malformed.");
                 m_map.clear();
+                m_trackerImportReceipts.clear();
+                m_trackerProgressSuppressedSources.clear();
                 return;
+            }
+            if (it.key() == ProgressStoreDetail::trackerImportReceiptSnapshotKey()) {
+                const QJsonObject receiptObject = it.value().toObject();
+                for (auto receiptIt = receiptObject.constBegin();
+                     receiptIt != receiptObject.constEnd(); ++receiptIt) {
+                    const auto receipt = receiptFromVariant(
+                        receiptIt.value().toObject().toVariantMap());
+                    if (!receipt || receiptIt.key().trimmed().isEmpty()) {
+                        m_loadError = QStringLiteral("A persisted tracker Progress receipt is malformed.");
+                        m_map.clear();
+                        m_trackerImportReceipts.clear();
+                        m_trackerProgressSuppressedSources.clear();
+                        return;
+                    }
+                    m_trackerImportReceipts.insert(receiptIt.key(), *receipt);
+                }
+                continue;
+            }
+            if (it.key() == ProgressStoreDetail::trackerProgressSourceRemovalSnapshotKey()) {
+                const QJsonObject removedSources = it.value().toObject();
+                for (auto sourceIt = removedSources.constBegin();
+                     sourceIt != removedSources.constEnd(); ++sourceIt) {
+                    const QVariantMap source = sourceIt.value().toObject().toVariantMap();
+                    const QString providerKey = source.value(QStringLiteral("providerKey")).toString();
+                    const QString remoteAccountId = source.value(QStringLiteral("remoteAccountId")).toString();
+                    if (providerKey.trimmed().isEmpty() || remoteAccountId.trimmed().isEmpty()
+                        || providerKey != providerKey.trimmed()
+                        || remoteAccountId != remoteAccountId.trimmed()
+                        || providerKey.contains(QLatin1Char('\0'))
+                        || remoteAccountId.contains(QLatin1Char('\0'))
+                        || sourceIt.key() != ProgressStoreDetail::trackerProgressSourceIdentityKey(
+                            providerKey, remoteAccountId)) {
+                        m_loadError = QStringLiteral("A persisted tracker Progress removal record is malformed.");
+                        m_map.clear();
+                        m_trackerImportReceipts.clear();
+                        m_trackerProgressSuppressedSources.clear();
+                        return;
+                    }
+                    m_trackerProgressSuppressedSources.insert(sourceIt.key(), source);
+                }
+                continue;
             }
             const QVariantMap record = it.value().toObject().toVariantMap();
             const QString kind = record.value(QStringLiteral("kind")).toString();
@@ -1276,6 +2074,8 @@ private:
             if (kind.isEmpty() || id.isEmpty() || it.key() != mapKey(kind, id)) {
                 m_loadError = QStringLiteral("A persisted Continue/progress record has invalid identity fields.");
                 m_map.clear();
+                m_trackerImportReceipts.clear();
+                m_trackerProgressSuppressedSources.clear();
                 return;
             }
             loaded.insert(it.key(), record);
@@ -1291,13 +2091,20 @@ private:
     // progressStoreTaggedIniPath() above and ProgressStore's default constructor.
     std::unique_ptr<QSettings> m_settings;
     QHash<QString, QVariant> m_map;   // "kind\x1fid" → entry map
+    QHash<QString, TrackerImportReceipt> m_trackerImportReceipts;
+    QHash<QString, QVariantMap> m_trackerProgressSuppressedSources;
+    QHash<QString, QPair<QString, QString>> m_trackerPendingEntries;
     int m_revision = 0;
     QString m_loadError;
     QString m_persistenceError;
     quint64 m_nextRemoteRequest = 1;
     QHash<quint64, PendingRemote> m_pendingRemote;
+    QHash<QString, QPair<quint64, QString>> m_pendingTrackerImportOperations;
+    bool m_trackerProgressRemovalPending = false;
     QHash<quint64, QVariantHash> m_pendingLocalReceipts;
     QHash<quint64, RemoteCommitCallback> m_localReceiptCallbacks;
+    QVariantHash m_lastPersistedSnapshot;
+    bool m_hasPersistedSnapshot = false;
     ProgressDiskWriter *m_writer = nullptr;
     QThread m_writerThread;
 #ifdef COLOSSEUM_PROGRESS_STORE_TESTING

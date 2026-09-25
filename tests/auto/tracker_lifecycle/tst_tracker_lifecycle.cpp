@@ -1376,7 +1376,8 @@ void TrackerLifecycleTest::profileRemovalDeletesTrackerPrivateStateOnly()
     }
     const QString historyPath = profile.historyIniPath();
     const QString activityPath = profile.activityDbPath();
-    const QString ratingsReviewsPath = profile.ratingsReviewsPath();
+    const QString ratingsReviewsPath = QDir(profile.profileRoot()).filePath(
+        QStringLiteral("ratings-reviews.json"));
     QVERIFY(writeFile(historyPath, QByteArrayLiteral("canonical-history")));
     QVERIFY(writeFile(activityPath, QByteArrayLiteral("canonical-activity")));
     QVERIFY(writeFile(ratingsReviewsPath, QByteArrayLiteral("arc49-state")));

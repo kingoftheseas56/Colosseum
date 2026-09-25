@@ -71,6 +71,8 @@
 class ActivityPlaybackTracker : public QObject {
     Q_OBJECT
     Q_PROPERTY(ActivityStore *sink READ sink WRITE setSink NOTIFY sinkChanged)
+    Q_PROPERTY(quint64 lifecycleScopeGeneration READ lifecycleScopeGeneration
+                   WRITE setLifecycleScopeGeneration NOTIFY lifecycleScopeGenerationChanged)
 
 public:
     using MonotonicClockFn = std::function<qint64()>;
@@ -82,6 +84,8 @@ public:
 
     ActivityStore *sink() const;
     void setSink(ActivityStore *sink);
+    quint64 lifecycleScopeGeneration() const;
+    void setLifecycleScopeGeneration(quint64 generation);
 
     // Clock injection for deterministic tests — a null function restores the
     // corresponding system-clock default. Set BEFORE begin() so the first
@@ -122,17 +126,33 @@ public:
     // the guarded-90% rule is the movie/episode-only *early* signal; eof is
     // unconditional). Does not itself tear down the session — call
     // endSession() afterward for lifecycle symmetry with begin().
-    Q_INVOKABLE void naturalEof();
+    Q_INVOKABLE void naturalEof(qint64 positionMs = -1, qint64 durationMs = -1);
 
     // Ends the current session: flushes any pending qualified time, then — if
     // the 10-second activation gate was never crossed this session — discards
     // every buffered-but-unpersisted interval, exactly as if the session never
     // happened (§8 "session ends below 10 seconds -> discard buffered
     // activity"). A no-op when no session is active.
-    Q_INVOKABLE void endSession();
+    Q_INVOKABLE void endSession(qint64 positionMs = -1, qint64 durationMs = -1);
+
+    // Profile transitions first persist any enabled external tracker close.
+    // Once that boundary commits, this ends the canonical Activity session
+    // without emitting a second tracker lifecycle close.
+    Q_INVOKABLE void endSessionForProfileDeactivation(
+        qint64 positionMs = -1, qint64 durationMs = -1);
+    Q_INVOKABLE bool localCompletionPersisted() const;
+
+    // Explicit player-state transitions only. Callers must not derive these
+    // from a timer, a seek, buffering, or decoder recovery. This is a generic
+    // observer event; it does not alter Activity sampling or canonical facts.
+    Q_INVOKABLE void playbackStateChanged(bool playing,
+                                          qint64 positionMs,
+                                          qint64 durationMs);
 
 signals:
     void sinkChanged();
+    void lifecycleScopeGenerationChanged();
+    void playbackLifecycleChanged(const QVariantMap &event);
 
 private:
     struct Baseline {
@@ -170,8 +190,9 @@ private:
                              qint64 nowWallMs);
     void closeOpenInterval();
     void submitChunk(const QVariantMap &fact, qint64 qualifiedMs);
-    void emitCompletion(const QString &reason, qint64 atMs, int utcOffsetMinutes);
-    void endSessionInternal();
+    bool emitCompletion(const QString &reason, qint64 atMs, int utcOffsetMinutes);
+    void emitPlaybackLifecycle(const QString &action, bool completedLocally = false);
+    void endSessionInternal(bool emitPlaybackLifecycle = true);
 
     ActivityStore *m_sink = nullptr;
 
@@ -183,6 +204,16 @@ private:
     QVariantMap m_identity; // normalized copy captured at begin()
     QString m_kind;
     QString m_sessionId;
+    quint64 m_playbackGeneration = 0;
+    quint64 m_lifecycleScopeGeneration = 0;
+    quint64 m_capturedScopeGeneration = 0;
+    quint64 m_transitionSequence = 0;
+    qint64 m_lastPositionMs = 0;
+    qint64 m_lastDurationMs = 0;
+    bool m_playingKnown = false;
+    bool m_playing = false;
+    bool m_lifecycleStarted = false;
+    bool m_localCompletionPersisted = false;
 
     bool m_haveBaseline = false;
     Baseline m_baseline;

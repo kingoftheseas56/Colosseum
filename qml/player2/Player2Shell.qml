@@ -3,6 +3,7 @@ import "controls"
 import "controls/Player2Browser.js" as Browser
 import "../ActivityLaneHelpers.js" as ActivityLaneHelpers
 import "../Player2ActivityHelpers.js" as Player2ActivityHelpers
+import ".." as ColosseumQml
 import Colosseum.Activity
 
 // The immersive Player 2 chrome, overlaid on the video surface. It receives the C++ `session` (typed
@@ -52,6 +53,8 @@ Item {
     // activityTracker below, or "" when no session is tracked. See the activity block near
     // the session Connections for the full hook (CPP-PORT-CONTRACT.md §9 Lane B).
     property string activityActiveKey: ""
+    property string activitySessionId: ""
+    property string activityCompletionEventId: ""
 
     // Host-resolved intro/recap/credits skip segments for the current episode (drives SkipButton).
     property var skipSegments: []
@@ -79,8 +82,11 @@ Item {
         if (!id.length)
             return
         if (forceVisible || Browser.shouldReportProgress(shell._lastReportedSec, shell.session.position, 5)) {
-            shell.hostServices.reportProgress(id, shell.session.position, shell.session.duration, !forceVisible)
+            shell.hostServices.reportProgress(id, shell.session.position, shell.session.duration,
+                                              !forceVisible, shell.activityCompletionEventId,
+                                              shell.activitySessionId)
             shell._lastReportedSec = shell.session.position
+            shell.activityCompletionEventId = ""
         }
     }
     onPausedChanged: if (shell.paused) reportProgress(true)
@@ -89,7 +95,7 @@ Item {
         interval: 1000; repeat: true; running: true
         // Formats the clock (display only), reports progress on cadence, and samples activity
         // (§9 Lane B: "Player 2's existing regular UI clock/timer") — never touches position.
-        onTriggered: { shell.updateEndsAt(); shell.reportProgress(false); shell.activitySample() }
+        onTriggered: { shell.updateEndsAt(); shell.activitySample(); shell.reportProgress(false) }
     }
     Connections {
         target: shell.session
@@ -109,11 +115,17 @@ Item {
             if (st === 3)        // Player2State::Playing
                 shell.activityBeginIfNeeded()
             else if (st === 6) {  // Player2State::Ended
-                shell.reportProgress(true)
                 shell.activityNaturalEof()
+                shell.reportProgress(true)
             }
-            else                 // Opening/Buffering/Paused/Seeking/Recovering/Error/Idle entry
+            else if (st === 4) {  // Player2State::Paused
+                shell.activityPlaybackStateChanged(false)
                 shell.activityDiscontinuity()
+            }
+            else                 // Opening/Buffering/Seeking/Recovering/Error/Idle entry
+                shell.activityDiscontinuity()
+            if (st === 3)        // lifecycle transition; not a sampling-timer signal
+                shell.activityPlaybackStateChanged(true)
         }
         // A generation bump is a new demux/decoder identity under the hood (episode switch,
         // stream replacement, recovery) — reset the sampling baseline here directly rather than
@@ -149,6 +161,8 @@ Item {
         shell.activityActiveKey = ActivityLaneHelpers.keyFor(idf)
         var sink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
         var sessionId = (sink && sink.newSessionId) ? sink.newSessionId() : ""
+        shell.activitySessionId = sessionId
+        shell.activityCompletionEventId = ""
         activityTracker.begin({
             "world": "theatre",
             "kind": idf.kind,
@@ -160,6 +174,13 @@ Item {
             "syncable": true,
             "source": "player2"
         }, sessionId)
+    }
+    function activityPlaybackStateChanged(playing) {
+        var session = shell.session
+        if (!session || !shell.activityActiveKey.length)
+            return
+        activityTracker.playbackStateChanged(playing, Math.round(session.position * 1000),
+                                              Math.round(session.duration * 1000))
     }
     // Sampling source: the existing endsAtTick 1-second UI clock, in addition to (never instead
     // of) its wall-clock/Continue work.
@@ -191,21 +212,68 @@ Item {
     function activityNaturalEof() {
         if (!shell.activityActiveKey.length)
             return
-        activityTracker.naturalEof()
-        activityTracker.endSession()
+        shell.activityCompletionEventId = ""
+        var session = shell.session
+        var position = session ? Math.round(session.position * 1000) : -1
+        var duration = session ? Math.round(session.duration * 1000) : -1
+        activityTracker.naturalEof(position, duration)
+        activityTracker.endSession(position, duration)
         shell.activityActiveKey = ""
+        shell.activitySessionId = ""
     }
     function activityEndSession() {
         if (!shell.activityActiveKey.length)
             return
         activityTracker.endSession()
         shell.activityActiveKey = ""
+        shell.activitySessionId = ""
+        shell.activityCompletionEventId = ""
     }
     // One transient tracker for this lane (§8/§9 Lane B). Activity NEVER breaks playback if
     // ProfileActivity is absent (§25).
     ActivityPlaybackTracker {
         id: activityTracker
         sink: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        lifecycleScopeGeneration: (typeof ProfileTrackers !== "undefined" && ProfileTrackers)
+                                   ? ProfileTrackers.playbackScopeGeneration : 0
+    }
+    Connections {
+        target: activityTracker
+        function onPlaybackLifecycleChanged(event) {
+            if (typeof ProfileTrackers !== "undefined" && ProfileTrackers)
+                ProfileTrackers.observePlaybackLifecycle(event)
+        }
+    }
+    ColosseumQml.ProfileActivityDeactivation {
+        profileRuntime: (typeof ProfileRuntime !== "undefined") ? ProfileRuntime : null
+        profileTrackers: (typeof ProfileTrackers !== "undefined") ? ProfileTrackers : null
+        activityTracker: activityTracker
+        source: "player2"
+        activeKey: shell.activityActiveKey
+        sessionId: shell.activitySessionId
+        positionMs: shell.session ? Math.round(shell.session.position * 1000) : -1
+        durationMs: shell.session ? Math.round(shell.session.duration * 1000) : -1
+        onActivitySessionCommitted: {
+            shell.activityActiveKey = ""
+            shell.activitySessionId = ""
+            shell.activityCompletionEventId = ""
+        }
+    }
+    Connections {
+        target: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        function onFactCommitted(event) {
+            if (!shell.activitySessionId.length || !event
+                    || event.type !== "media_completed"
+                    || event.sessionId !== shell.activitySessionId)
+                return
+            var expectedId = shell.currentEpisodeId.length
+                    ? shell.currentEpisodeId : shell.rootMediaId
+            if (event.itemKey !== expectedId)
+                return
+            var eventId = String(event.eventId || "")
+            if (eventId.length)
+                shell.activityCompletionEventId = eventId
+        }
     }
 
     // Pause info card (main-player parity): media details hydrated from host metadata, shown a beat

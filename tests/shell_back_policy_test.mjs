@@ -20,6 +20,9 @@ function action(state) { return mod.actionFor(state || {}); }
 eq(action({ transitioning: true, playerOpen: true }), 'consume', 'fullscreen transition owns Escape');
 eq(action({ bootVisible: true, worldOpen: true }), 'consume', 'boot splash owns Escape');
 eq(action({ accountHostVisible: true, worldOpen: true }), 'consume', 'mandatory account flow owns Escape');
+eq(action({ stremioSyncOpen: true }), 'stremioSync', 'Stremio Main Sync overlay owns Escape');
+eq(action({ stremioSyncOpen: true, syncCenterActive: true }), 'stremioSync', 'Main Sync closes before its underlying Sync Center page');
+eq(action({ identityCeremonyOpen: true, stremioSyncOpen: true }), 'cancelIdentityCeremony', 'front identity ceremony closes before background Main Sync');
 // Modal/transient shell surfaces beat sessions and ordinary pages.
 eq(action({ identityCeremonyOpen: true, playerOpen: true }), 'cancelIdentityCeremony', 'identity ceremony beats player');
 eq(action({ watchPartyJoinOpen: true, playerOpen: true }), 'watchPartyJoin', 'watch-party sheet beats player');
@@ -37,6 +40,9 @@ eq(action({ activeSessionKind: 'book', bookReaderActive: false }), 'bookReader',
 eq(action({ vaultComicActive: true, vaultActive: true }), 'comicReader', 'standalone Vault comic owns Escape');
 eq(action({ comicReaderActive: true, seriesActive: true }), 'comicReader', 'embedded comic reader owns Escape above its host page');
 eq(action({ activeSessionKind: 'comic', comicReaderActive: false }), 'comicReader', 'hidden active comic session is healed through comic authority');
+eq(action({ syncCenterActive: true }), 'syncCenter', 'Sync Center closes before returning to its underlying world');
+eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
+eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
 // Full-page peers are ordered by actual same-z document order, then browsing z-order.
 eq(action({ updateActive: true, keyboardGuideActive: true }), 'update', 'later update page wins a broken same-z overlap');
 eq(action({ keyboardGuideActive: true, settingsActive: true }), 'keyboardGuide', 'keyboard guide wins above Settings when both are active');

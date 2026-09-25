@@ -177,6 +177,10 @@ Item {
     // (activityDiscontinuity) instead of fragmenting the session/10s gate, while a genuine
     // item/episode change ends the old session and begins a new one. Empty = no open session.
     property string activityActiveKey: ""
+    property string activitySessionId: ""
+    // Exact Activity event emitted by the current sample, consumed by the matching
+    // Progress completion crossing. ProgressStore strips this before persistence.
+    property string activityCompletionEventId: ""
 
     // --- pre-play stream telemetry (Popcorn Time streamer.js parity, 2026-08-02): while the
     // loading face is up, the engine's stats.json feeds the status line — connecting → peers
@@ -2127,8 +2131,13 @@ Item {
                         "subId": root.subStreamId,
                         "position": mpv.position }
         }
+        if (root.activityCompletionEventId.length)
+            entry["_trackerActivityEventId"] = root.activityCompletionEventId
+        if (root.activitySessionId.length)
+            entry["_trackerActivitySessionId"] = root.activitySessionId
         if (silent) Progress.recordSilent(entry)
         else Progress.record(entry)
+        root.activityCompletionEventId = ""
     }
 
     // --- Your Colosseum activity (Lane A) ------------------------------------------------
@@ -2159,6 +2168,8 @@ Item {
         root.activityActiveKey = ActivityLaneHelpers.keyFor(idf)
         var sink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
         var sessionId = (sink && sink.newSessionId) ? sink.newSessionId() : ""
+        root.activitySessionId = sessionId
+        root.activityCompletionEventId = ""
         activityTracker.begin({
             "world": "theatre",
             "kind": idf.kind,
@@ -2170,6 +2181,8 @@ Item {
             "syncable": true,
             "source": "player1"
         }, sessionId)
+        activityTracker.playbackStateChanged(true, Math.round(mpv.position * 1000),
+                                              Math.round(mpv.duration * 1000))
     }
     // Sampling source: the existing five-second playing timer below, in addition to (never
     // instead of) its Continue write — changing that timer's cadence never changes the
@@ -2201,15 +2214,20 @@ Item {
     function activityNaturalEof() {
         if (!root.activityActiveKey.length)
             return
-        activityTracker.naturalEof()
-        activityTracker.endSession()
+        root.activityCompletionEventId = ""
+        activityTracker.naturalEof(Math.round(mpv.position * 1000),
+                                   Math.round(mpv.duration * 1000))
+        activityTracker.endSession(Math.round(mpv.position * 1000),
+                                   Math.round(mpv.duration * 1000))
         root.activityActiveKey = ""
+        root.activitySessionId = ""
     }
     function activityEndSession() {
         if (!root.activityActiveKey.length)
             return
         activityTracker.endSession()
         root.activityActiveKey = ""
+        root.activitySessionId = ""
     }
     // One transient tracker for this lane (§8/§9 Lane A). sink is re-evaluated whenever
     // ProfileActivity (profile switch/suspend) or the context property's own existence changes;
@@ -2217,9 +2235,47 @@ Item {
     ActivityPlaybackTracker {
         id: activityTracker
         sink: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        lifecycleScopeGeneration: (typeof ProfileTrackers !== "undefined" && ProfileTrackers)
+                                   ? ProfileTrackers.playbackScopeGeneration : 0
+    }
+    Connections {
+        target: activityTracker
+        function onPlaybackLifecycleChanged(event) {
+            if (typeof ProfileTrackers !== "undefined" && ProfileTrackers)
+                ProfileTrackers.observePlaybackLifecycle(event)
+        }
+    }
+    ProfileActivityDeactivation {
+        profileRuntime: (typeof ProfileRuntime !== "undefined") ? ProfileRuntime : null
+        profileTrackers: (typeof ProfileTrackers !== "undefined") ? ProfileTrackers : null
+        activityTracker: activityTracker
+        source: "player1"
+        activeKey: root.activityActiveKey
+        sessionId: root.activitySessionId
+        positionMs: Math.round(mpv.position * 1000)
+        durationMs: Math.round(mpv.duration * 1000)
+        onActivitySessionCommitted: {
+            root.activityActiveKey = ""
+            root.activitySessionId = ""
+            root.activityCompletionEventId = ""
+        }
     }
 
-    // Tick the watch position into the store every few seconds while actually playing.
+    Connections {
+        target: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        function onFactCommitted(event) {
+            if (!root.activitySessionId.length || !event
+                    || event.type !== "media_completed"
+                    || event.sessionId !== root.activitySessionId)
+                return
+            var eventId = String(event.eventId || "")
+            if (eventId.length)
+                root.activityCompletionEventId = eventId
+        }
+    }
+
+    // Sample Activity before the Continue write so a completion produced on this exact
+    // playback tick can be causally linked to Progress' matching threshold crossing.
     // Silent: persists for crash-resume via recordSilent() without emitting changed(), so the
     // Continue row is not re-rendered every 5s (that cascade was the proven video-stutter
     // source, 2026-07-29). Lifecycle writes (stop / stream-death / playback-failure /
@@ -2229,8 +2285,9 @@ Item {
         interval: 5000; repeat: true
         running: !root.starting && !root.errored && !mpv.pause && mpv.duration > 0
         onTriggered: {
-            root.recordProgress(true)
+            root.activityCompletionEventId = ""
             root.activitySample()
+            root.recordProgress(true)
         }
     }
 
@@ -3591,14 +3648,16 @@ Item {
                     root.switchArrivingToStream()
                     return
                 }
-                root.recordProgress()
                 root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
+                root.recordProgress()
                 if (root.handleSleepEpisodeEnd())
                     return
                 root.startUpNextCountdown()
             }
         }
         onPauseChanged: {
+            root.activityTracker.playbackStateChanged(!mpv.pause,
+                Math.round(mpv.position * 1000), Math.round(mpv.duration * 1000))
             if (mpv.pause)
                 root.wakeChrome()
             root.syncPowerInhibit()

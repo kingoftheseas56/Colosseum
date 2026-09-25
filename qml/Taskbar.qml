@@ -51,6 +51,16 @@ Item {
     signal keyboardGuideClicked()
     property bool keyboardGuideActive: false // the Keyboard Guide is the front surface
 
+    signal syncCenterClicked()
+    property bool syncCenterActive: false // the Sync Center is the front surface
+    readonly property int syncAttentionCount: {
+        if (typeof TrackerSyncCenter === "undefined" || !TrackerSyncCenter)
+            return 0
+        var state = TrackerSyncCenter.aggregateState || ({})
+        var unresolved = Number(state.unresolvedCount || 0)
+        return unresolved > 0 ? unresolved : Number(state.attentionProviderCount || 0)
+    }
+
     onOpenChanged: if (!open) fan.visible = false
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
@@ -61,6 +71,16 @@ Item {
         open = true
         autoRevealed = true
         idleTimer.restart()
+    }
+    function focusSyncCenterAction() {
+        bar.autoRevealed = false
+        idleTimer.stop()
+        if (!bar.open)
+            bar.open = true
+        Qt.callLater(function() {
+            if (syncInput.visible && syncInput.enabled)
+                syncInput.forceActiveFocus(Qt.TabFocusReason)
+        })
     }
     Timer {
         id: idleTimer
@@ -485,8 +505,70 @@ Item {
                 Keys.onSpacePressed: bar.keyboardGuideClicked()
             }
 
+            // ---- Sync Center: independent tracker catalogue and settings destination. ----
+            Item {
+                id: syncCenterAction
+                objectName: "taskbarSyncCenter"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                Rectangle {
+                    objectName: "taskbarSyncCenterSurface"
+                    anchors.fill: parent
+                    radius: 13
+                    color: syncInput.interactionActive || bar.syncCenterActive
+                           ? Qt.rgba(1, 1, 1, 0.15)
+                           : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: syncInput.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    objectName: "taskbarSyncCenterIcon"
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/sync.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.syncCenterActive ? 1 : 0.75
+                }
+                Rectangle {
+                    visible: bar.syncCenterActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                Rectangle {
+                    visible: bar.syncAttentionCount > 0
+                    anchors.top: parent.top; anchors.right: parent.right
+                    anchors.topMargin: 1; anchors.rightMargin: 1
+                    width: bar.syncAttentionCount > 9 ? 20 : 17
+                    height: 17; radius: 9
+                    color: theme.gold
+                    Text {
+                        anchors.centerIn: parent
+                        text: bar.syncAttentionCount > 9 ? "9+" : bar.syncAttentionCount
+                        color: theme.biblioWashBottom
+                        font.pixelSize: 9
+                        font.weight: Font.Bold
+                    }
+                }
+                KeyboardAction {
+                    id: syncInput
+                    objectName: "taskbarSyncCenterInput"
+                    anchors.fill: parent
+                    accessibleName: bar.syncAttentionCount > 0
+                                    ? "Connections, attention required"
+                                    : "Connections"
+                    spaceActivates: true
+                    focusRadius: 13
+                    onTriggered: bar.syncCenterClicked()
+                }
+            }
+
             // Session tiles — the dock's fill-width content.
             Row {
+                objectName: "taskbarSessionTiles"
                 Layout.fillWidth: true
                 spacing: 10
                 opacity: bar.open ? 1 : 0
