@@ -1,3 +1,4 @@
+/* Geometry parity: qml/update/UpdateLivingGallery.qml:149-421 and qml/UpdatePage.qml:178-283. */
 .update-page{width:100%;--up-edge:calc(var(--s-8) + var(--s-2));--up-mast:calc(var(--s-8) * 2 + var(--s-7) - var(--s-1) / 2);--up-hit:calc(var(--s-8) - var(--s-1) / 2);--up-nav-bottom:calc(var(--s-8) * 3 + var(--s-3) + var(--s-1) / 2);--up-status-bottom:calc(var(--s-8) + var(--s-7) + var(--s-2))}
 .update-page>.widget{margin:calc(var(--s-3) * -1) calc(var(--margin) * -1) calc(var(--s-8) * -2)}
 .up-stage{position:relative;min-height:calc(100vh - var(--board));overflow:hidden;background:var(--washBottom)}

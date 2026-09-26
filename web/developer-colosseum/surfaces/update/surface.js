@@ -42,6 +42,8 @@
         restoreFocus(fresh, focusKey);
       }
 
+      // qml/update/UpdateLivingGallery.qml:149-421 — one monochrome release
+      // stage, editorial chapter copy, chapter selector and Next control.
       function renderUpdate(section) {
         const data = section.data || {};
         const release = data.release || {};
@@ -88,6 +90,8 @@
                 redraw(section, 'update.next');
               }
             }, 'Next') : null),
+          // qml/UpdatePage.qml:178-283 — status, metadata, progress and
+          // the state-derived primary updater action live on the page.
           h('div.up-status', {},
             h('div.up-status-copy', {},
               h('b', {}, data.statusText || 'No update check yet'),
