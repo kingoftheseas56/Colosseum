@@ -691,6 +691,7 @@ Window {
             vaultComicActive: vaultComicLayer.active,
             comicReaderActive: win.embeddedComicReaderOpen(),
             updateActive: updateLayer.active,
+            historyStatsActive: historyStatsLayer.active,
             syncCenterActive: syncCenterLayer.active,
             keyboardGuideActive: keyboardGuideLayer.active,
             settingsActive: settingsLayer.active,
@@ -803,6 +804,7 @@ Window {
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
+        case "historyStats": win.closeHistoryStatsPage(); return
         case "syncCenter":
             if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
                 syncCenterLayer.item.requestEscape()
@@ -1690,6 +1692,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = true
         taskbar.open = false
         if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
@@ -1698,6 +1701,26 @@ Window {
     function closeSyncCenterPage() {
         syncCenterLayer.active = false
         taskbar.focusSyncCenterAction()
+    }
+
+    // ---- Arc 35: local-first History, Highlights, and Stats ----
+    function openHistoryStatsPage() {
+        win.bookRouteGeneration += 1
+        downloadsLayer.active = false
+        vaultLayer.active = false
+        extensionsLayer.active = false
+        settingsLayer.active = false
+        keyboardGuideLayer.active = false
+        updateLayer.active = false
+        syncCenterLayer.active = false
+        historyStatsLayer.active = true
+        taskbar.open = false
+        if (historyStatsLayer.item && historyStatsLayer.item.takeKeyboardFocus)
+            Qt.callLater(historyStatsLayer.item.takeKeyboardFocus)
+    }
+    function closeHistoryStatsPage() {
+        historyStatsLayer.active = false
+        taskbar.focusHistoryStatsAction()
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
@@ -1710,6 +1733,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
@@ -1730,6 +1754,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
@@ -1834,6 +1859,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
@@ -1851,6 +1877,7 @@ Window {
         extensionsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = false
         vaultLayer.active = false
         settingsLayer.active = true
@@ -1867,6 +1894,7 @@ Window {
         extensionsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = false
         vaultLayer.active = false
         keyboardGuideLayer.active = true
@@ -1900,6 +1928,32 @@ Window {
         }
     }
 
+    Loader {
+        id: historyStatsLayer
+        objectName: "historyStatsLayer"
+        anchors.fill: parent
+        z: 58
+        active: false
+        visible: active
+        source: "HistoryHighlightsStatsPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.activityStore = Qt.binding(function() {
+                return (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+            })
+            item.historyStore = Qt.binding(function() {
+                return (typeof ProfileHistory !== "undefined") ? ProfileHistory : null
+            })
+            item.trackerModel = Qt.binding(function() {
+                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
+            })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            item.backRequested.connect(win.closeHistoryStatsPage)
+            item.syncCenterRequested.connect(win.openSyncCenterPage)
+            item.takeKeyboardFocus()
+        }
+    }
+
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
@@ -1909,6 +1963,7 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         vaultLayer.active = false
+        historyStatsLayer.active = false
         syncCenterLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
@@ -4512,6 +4567,8 @@ Window {
         onKeyboardGuideClicked: !keyboardGuideLayer.active ? win.openKeyboardGuide() : win.closeKeyboardGuide()
         syncCenterActive: syncCenterLayer.active
         onSyncCenterClicked: !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
+        historyStatsActive: historyStatsLayer.active
+        onHistoryStatsClicked: !historyStatsLayer.active ? win.openHistoryStatsPage() : win.closeHistoryStatsPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.

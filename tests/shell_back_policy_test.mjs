@@ -41,6 +41,8 @@ eq(action({ vaultComicActive: true, vaultActive: true }), 'comicReader', 'standa
 eq(action({ comicReaderActive: true, seriesActive: true }), 'comicReader', 'embedded comic reader owns Escape above its host page');
 eq(action({ activeSessionKind: 'comic', comicReaderActive: false }), 'comicReader', 'hidden active comic session is healed through comic authority');
 eq(action({ syncCenterActive: true }), 'syncCenter', 'Sync Center closes before returning to its underlying world');
+eq(action({ historyStatsActive: true }), 'historyStats', 'History, highlights, and stats closes before returning to its underlying world');
+eq(action({ syncCenterActive: true, historyStatsActive: true }), 'historyStats', 'History page wins above retained Sync Center');
 eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
 eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
 // Full-page peers are ordered by actual same-z document order, then browsing z-order.

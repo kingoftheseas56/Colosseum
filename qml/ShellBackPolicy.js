@@ -35,6 +35,7 @@ function actionFor(state) {
     // Taskbar full pages all sit at z:56. Later document siblings win if a broken caller
     // ever leaves two active at once, so the policy is deterministic even in recovery.
     if (on(s.updateActive)) return "update"
+    if (on(s.historyStatsActive)) return "historyStats"
     if (on(s.syncCenterActive)) return "syncCenter"
     if (on(s.keyboardGuideActive)) return "keyboardGuide"
     if (on(s.settingsActive)) return "settings"

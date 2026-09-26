@@ -46,6 +46,8 @@ Item {
     property bool downloadsActive: false  // the Downloads page is the front surface
     signal extensionsClicked()
     property bool extensionsActive: false // the Extensions page is the front surface
+    signal historyStatsClicked()
+    property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
     signal settingsClicked()
     property bool settingsActive: false   // the Settings page is the front surface
     signal keyboardGuideClicked()
@@ -80,6 +82,16 @@ Item {
         Qt.callLater(function() {
             if (syncInput.visible && syncInput.enabled)
                 syncInput.forceActiveFocus(Qt.TabFocusReason)
+        })
+    }
+    function focusHistoryStatsAction() {
+        bar.autoRevealed = false
+        idleTimer.stop()
+        if (!bar.open)
+            bar.open = true
+        Qt.callLater(function() {
+            if (historyStatsInput.visible && historyStatsInput.enabled)
+                historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
     Timer {
@@ -563,6 +575,57 @@ Item {
                     spaceActivates: true
                     focusRadius: 13
                     onTriggered: bar.syncCenterClicked()
+                }
+            }
+
+            // ---- Your Colosseum: activity timeline, monthly highlights, and lifetime stats.
+            //      The laurel: your record in the arena. ----
+            Item {
+                id: historyStatsAction
+                objectName: "taskbarHistoryStats"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                Rectangle {
+                    objectName: "taskbarHistoryStatsSurface"
+                    anchors.fill: parent
+                    radius: 13
+                    color: historyStatsInput.interactionActive || bar.historyStatsActive
+                           ? Qt.rgba(1, 1, 1, 0.15)
+                           : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: historyStatsInput.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    objectName: "taskbarHistoryStatsIcon"
+                    anchors.centerIn: parent
+                    width: 21
+                    height: 21
+                    sourceSize.width: 42
+                    sourceSize.height: 42
+                    source: "../assets/icons/your-colosseum-laurel.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.historyStatsActive ? 1 : 0.75
+                }
+                Rectangle {
+                    visible: bar.historyStatsActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 4
+                    width: 20
+                    height: 3
+                    radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                KeyboardAction {
+                    id: historyStatsInput
+                    objectName: "taskbarHistoryStatsInput"
+                    anchors.fill: parent
+                    accessibleName: "History, highlights, and stats"
+                    spaceActivates: true
+                    focusRadius: 13
+                    onTriggered: bar.historyStatsClicked()
                 }
             }
 
