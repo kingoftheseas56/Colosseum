@@ -44,9 +44,11 @@
 #include "ProgressStore.h"
 #include "CollectionStore.h"
 #include "SearchHistoryStore.h"
+#include "webui/DeveloperWebUiBridge.h"
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
 #include "account/AccountRuntime.h"
+#include "account/ProfileStoreRuntime.h"
 #include "account/ActivityPlaybackTracker.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
@@ -1717,6 +1719,29 @@ int main(int argc, char *argv[]) {
     // Reader2Bridge uses that window to flush/scrub QML, clear paper authorization,
     // and seal the old route before storesChanged installs the next profile root.
     reader2Bridge->bindProfileStoreRuntime(accountRuntime->profileStores());
+
+    // Developer-only Web Colosseum seam. The WebUI receives projections from the
+    // existing native owners; it never becomes a second Progress/Collection/catalog
+    // owner. COLOSSEUM_WEBUI=1 only changes presentation in the isolated/dev build.
+    auto *developerWebUiBridge = new DeveloperWebUiBridge(
+        malCatalog, comicsCatalog, biblioCatalog, imdbCatalog, extensions, &app);
+    auto rebindDeveloperWebUiStores = [developerWebUiBridge, accountRuntime] {
+        auto *stores = accountRuntime->profileStores();
+        developerWebUiBridge->bindPersonalStores(
+            stores ? stores->progressStore() : nullptr,
+            stores ? stores->collectionStore() : nullptr);
+    };
+    rebindDeveloperWebUiStores();
+    QObject::connect(accountRuntime->profileStores(),
+                     &ProfileStoreRuntime::storesChanged,
+                     developerWebUiBridge,
+                     rebindDeveloperWebUiStores);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DeveloperWebUiBridge"), developerWebUiBridge);
+    const bool devWebUiEnabled =
+        qEnvironmentVariableIntValue("COLOSSEUM_WEBUI") == 1;
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevWebUiEnabled"), devWebUiEnabled);
 
     // Arc 39 restores chapter mode. The 2026-08-20 one-time chapter purge is
     // intentionally retired: future boots must preserve <AppData>/manga and kind:"manga"

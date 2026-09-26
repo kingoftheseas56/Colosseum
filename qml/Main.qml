@@ -4482,6 +4482,117 @@ Window {
         taskbar.reveal()
     }
 
+    // ---- developer-only Web Colosseum presentation layer ----
+    // Activated only by COLOSSEUM_WEBUI=1. The existing native/QML backend
+    // remains alive underneath; this WebEngine surface owns Home + world browsing
+    // while native detail/player/reader/taskbar layers keep their existing routes.
+    Loader {
+        id: developerWebUiLayer
+        objectName: "developerWebUiLayer"
+        anchors.fill: parent
+        z: 30
+        active: (typeof DevWebUiEnabled !== "undefined") && DevWebUiEnabled
+        visible: active && !win.immersiveSurfaceOpen
+        enabled: visible
+        source: "DeveloperWebUi.qml"
+        onLoaded: if (item) item.forceActiveFocus()
+    }
+
+    Connections {
+        target: (typeof DeveloperWebUiBridge !== "undefined")
+                ? DeveloperWebUiBridge : null
+        enabled: developerWebUiLayer.active
+
+        function onHomeRequested() {
+            win.closeWorld()
+        }
+        function onOpenWorldRequested(world) {
+            win.openWorld(world)
+        }
+        function onWorldTabRequested(world, tab) {
+            for (var i = 0; i < worldRepeater.count; ++i) {
+                var loader = worldRepeater.itemAt(i)
+                if (loader && loader.mode === world && loader.item
+                        && loader.item.activeTab !== undefined) {
+                    loader.item.activeTab = tab
+                    break
+                }
+            }
+        }
+        function onOpenItemRequested(world, item, intent) {
+            void intent
+            win.openWorld(world)
+            if (world === "Tankoban") {
+                win.openSeries(item.title || "",
+                               item.malId || item.mal_id || item.id || "",
+                               item)
+            } else if (world === "Biblio") {
+                win.openBook(item)
+            } else if (world === "Theatre") {
+                win.openTheatreSeries(item)
+            }
+        }
+        function onResumeRequested(world, item) {
+            void world
+            win.resumeContinue(item)
+        }
+        function onContinueDetailsRequested(world, item) {
+            void world
+            win.detailContinue(item)
+        }
+        function onNextUpRequested(world, item) {
+            if (world === "Theatre")
+                win.openTheatreSeries(item)
+            else if (world === "Biblio")
+                win.openBook(item)
+            else
+                win.openSeries(item.title || "",
+                               item.malId || item.mal_id || item.id || "",
+                               item)
+        }
+        function onContinueSeeAllRequested(world) {
+            win.openContinueSeeAll(world === "Theatre" ? "video"
+                                  : world === "Biblio" ? "book"
+                                  : "tankoban")
+        }
+        function onOpenUniverseRequested(extensionId, name, item) {
+            void item
+            win.openUniverse(extensionId, name)
+        }
+        function onOpenUniverseHallRequested() {
+            win.openUniverseHall()
+        }
+        function onOpenVaultRequested() {
+            win.openVaultPage()
+        }
+        function onOpenGenreRequested(world, genre) {
+            if (world === "Biblio")
+                win.openBiblioGenre(genre)
+            else if (world === "Theatre")
+                win.openTheatreGenre("movie", genre)
+            else
+                win.openGenre(genre)
+        }
+        function onTrackersRequested() {
+            win.openSyncCenterPage()
+        }
+        function onWallpaperRequested() {
+            win.openWallpaperSearch(win.currentSurface || "Home")
+        }
+        function onAccountRequested() {
+            accountFlyout.toggleAt(win.width - theme.margin, 92)
+        }
+        function onWindowMinimizeRequested() {
+            win.minimizeShell()
+        }
+        function onWindowToggleFullscreenRequested() {
+            win.toggleFullscreenShell()
+        }
+        function onWindowCloseRequested() {
+            Qt.quit()
+        }
+    }
+
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     Taskbar {
         id: taskbar

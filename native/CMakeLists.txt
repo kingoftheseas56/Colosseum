@@ -356,6 +356,8 @@ add_executable(colosseum
     MangaEngine.h
     ProgressStore.h
     CollectionStore.h
+    webui/DeveloperWebUiBridge.cpp
+    webui/DeveloperWebUiBridge.h
     SearchHistoryStore.h
     SessionStore.h
     AudioPairingStore.h
@@ -699,6 +701,17 @@ qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
+
+set(DEVELOPER_WEBUI_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/index.html"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/styles.css"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/bridge.js"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/app.js")
+qt_add_resources(colosseum "developer_webui_resources"
+    PREFIX "/developer-webui"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum"
+    FILES ${DEVELOPER_WEBUI_FILES})
+
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
