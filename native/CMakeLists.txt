@@ -710,14 +710,19 @@ qt_add_resources(colosseum "tankoyomi_resources"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
 
-set(DEVELOPER_WEBUI_FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/index.html"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/styles.css"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/bridge.js"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum/app.js")
+set(DEVELOPER_WEBUI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum")
+file(GLOB_RECURSE DEVELOPER_WEBUI_FILES CONFIGURE_DEPENDS
+    "${DEVELOPER_WEBUI_ROOT}/core/*"
+    "${DEVELOPER_WEBUI_ROOT}/components/*"
+    "${DEVELOPER_WEBUI_ROOT}/adapters/*"
+    "${DEVELOPER_WEBUI_ROOT}/styles/*"
+    "${DEVELOPER_WEBUI_ROOT}/surfaces/*")
+list(APPEND DEVELOPER_WEBUI_FILES
+    "${DEVELOPER_WEBUI_ROOT}/index.html"
+    "${DEVELOPER_WEBUI_ROOT}/app.js")
 qt_add_resources(colosseum "developer_webui_resources"
     PREFIX "/developer-webui"
-    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum"
+    BASE "${DEVELOPER_WEBUI_ROOT}"
     FILES ${DEVELOPER_WEBUI_FILES})
 qt_add_resources(colosseum "developer_webui_wallpaper"
     PREFIX "/developer-webui"
