@@ -1,0 +1,208 @@
+/* surfaces/detail-book/surface.css — 1:1 geometry from qml/BiblioBook.qml. */
+.db-ground{
+  position:fixed;top:var(--board);left:0;right:0;bottom:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,var(--biblioWashTop),var(--biblioWashBottom));
+}
+.db-page{
+  position:relative;z-index:1;display:grid;
+  grid-template-columns:268px minmax(0,1fr); /* token? 268px from BiblioBook.qml:737 */
+  column-gap:64px; /* token? 64px from BiblioBook.qml:837 */
+  row-gap:0;
+}
+.db-page>.widget{margin:0;min-width:0}
+.db-page>.widget>.wh{display:none}
+.db-page>.widget[data-section="hero"]{display:contents}
+.db-page>.widget[data-section="torrents"],
+.db-page>.widget[data-section="editions"],
+.db-page>.widget[data-section="audiobooks"]{grid-column:2;min-width:0}
+.db-page>.widget[data-section="torrents"]{margin-top:40px} /* token? 40px from BiblioBook.qml:884 */
+.db-page>.widget[data-section="editions"]{margin-top:40px} /* token? 40px from BiblioBook.qml:1004 */
+.db-page>.widget[data-section="audiobooks"]{margin-top:30px} /* token? 30px from BiblioBook.qml:1128 */
+.db-page>.widget[data-section="read-choice"]{display:contents}
+
+.db-hero{display:contents}
+.db-cover-column{
+  grid-column:1;grid-row:1 / span 4;align-self:start;
+  width:268px;padding-top:16px; /* token? 268/16 from BiblioBook.qml:737-739 */
+  display:flex;flex-direction:column;gap:28px; /* token? 28px from BiblioBook.qml:739 */
+}
+.db-cover-object{
+  position:relative;width:268px;height:402px; /* token? from BiblioBook.qml:743 */
+}
+.db-cover-face{
+  position:absolute;inset:0;border-radius:3px;overflow:hidden;
+  background:#14131a; /* token? #14131a from BiblioBook.qml:772 */
+  filter:drop-shadow(0 26px 24px rgba(0,0,0,.7)); /* 26px + shadow color from BiblioBook.qml:763-766 */
+}
+.db-cover-face .face,.db-cover-face .face img{position:absolute;inset:0;width:100%;height:100%}
+.db-cover-face .face img{object-fit:cover}
+.db-cover-face .face .fb{align-items:flex-end}
+.db-page-edge{
+  position:absolute;z-index:-1;right:-5px;top:5px;width:7px;height:392px;border-radius:2px;
+  background:linear-gradient(90deg,#d3cdbe,#a8a294); /* token? exact page-edge colors from BiblioBook.qml:750-751 */
+}
+.db-spine{
+  position:absolute;z-index:2;left:0;top:0;width:11px;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.05) 60%,rgba(255,255,255,.08) 100%);
+  /* token? exact spine stops from BiblioBook.qml:778-780 */
+}
+.db-actions{width:268px;display:flex;flex-direction:column;gap:12px} /* token? 12px from BiblioBook.qml:786 */
+.db-read,.db-library{
+  width:100%;height:50px;border-radius:13px; /* token? 50/13 from BiblioBook.qml:790,823-824 */
+  font-family:var(--ui-stack);font-size:15px;font-weight:600; /* token? 15px from BiblioBook.qml:799, LibraryButton.qml */
+}
+.db-read{background:var(--gold);color:#241a05} /* token? #241a05 from BiblioBook.qml:798 */
+.db-read:disabled{opacity:.5;cursor:default}
+.db-read:focus,.db-library:focus{box-shadow:var(--ring)}
+.db-read-status{
+  width:100%;font-family:var(--ui-stack);font-size:var(--t-sm);color:var(--inkDim);
+  text-align:center;line-height:1.35;overflow-wrap:anywhere;
+}
+.db-read-status.error{color:#e6a3a3} /* token? #e6a3a3 from BiblioBook.qml:816 */
+.db-library{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:rgba(255,255,255,.05);border:1px solid var(--edge);color:var(--ink);
+  /* token? rgba(.05) from LibraryButton.qml */
+}
+.db-library:hover,.db-library:focus{background:rgba(255,255,255,.10)} /* token? LibraryButton.qml */
+.db-library-glyph.saved{color:var(--gold)}
+
+.db-copy{grid-column:2;grid-row:1;min-width:0;padding-top:18px} /* token? 18px from BiblioBook.qml:839 */
+.db-eyebrow{
+  color:var(--inkDimmer);font-family:var(--ui-stack);font-size:var(--t-sm);font-weight:600;
+  letter-spacing:1.8px; /* token? 1.8px from BiblioBook.qml:845 */
+  margin:0 0 14px;
+}
+.db-copy h1{
+  margin:0;font-family:var(--display-stack);font-size:54px;line-height:1.02;font-weight:400;
+  /* token? 54px from BiblioBook.qml:850 */
+}
+.db-tagline{
+  margin:20px 0 0;color:var(--ink);opacity:.92;font-family:var(--display-stack);
+  font-size:var(--t-h2);font-style:italic;line-height:1.3;
+}
+.db-rule{position:relative;height:3px;margin-top:30px;margin-bottom:26px} /* token? 30/26 from BiblioBook.qml:861,875 */
+.db-rule:before{
+  content:"";position:absolute;left:0;right:0;top:1px;height:1px;
+  background:linear-gradient(90deg,var(--edge) 0%,transparent 70%);
+}
+.db-rule i{position:absolute;left:0;top:0;width:34px;height:3px;border-radius:2px;background:var(--gold)} /* token? 34px from BiblioBook.qml:873 */
+.db-synopsis{
+  width:min(100%,640px); /* token? 640px from BiblioBook.qml:877 */
+  margin:0;color:var(--inkDim);font-family:var(--display-stack);font-size:17px;line-height:1.7; /* token? 17px from BiblioBook.qml:880 */
+}
+.db-synopsis::first-letter{
+  font-family:var(--display-stack);font-size:62px;line-height:.75;color:var(--ink); /* token? 62px from BiblioBook.qml:91 */
+}
+
+.db-source-block{width:min(100%,640px)} /* token? 640px from BiblioBook.qml source panels */
+.db-source-heading{
+  margin-bottom:12px;color:var(--inkDimmer);font-family:var(--ui-stack);font-size:var(--t-sm);
+  font-weight:600;letter-spacing:1.6px; /* token? 1.6px from BiblioBook.qml:890,1012,1134 */
+}
+.db-source-panel{width:100%;border-radius:var(--r-lg);overflow:hidden}
+.db-source-empty{
+  height:52px;display:flex;align-items:center;padding-left:18px; /* token? 52/18 from BiblioBook.qml:915-918 etc. */
+  color:var(--inkDimmer);font-family:var(--ui-stack);font-size:var(--t-md);
+}
+.db-source-row{
+  position:relative;width:100%;border-radius:0;color:var(--ink);display:grid;align-items:center;
+  border-top:1px solid rgba(255,255,255,.06); /* token? exact separator from BiblioBook.qml:954 */
+  background:transparent;text-align:left;
+}
+.db-source-row:first-of-type{border-top:0}
+.db-source-row:hover{background:rgba(255,255,255,.06)} /* token? exact hover from BiblioBook.qml */
+.db-source-row:focus{background:rgba(240,196,74,.11)} /* token? exact focus fill from BiblioBook.qml */
+.db-source-row.recommended:not(:hover):not(:focus){background:rgba(240,196,74,.06)} /* token? exact recommended fill from BiblioBook.qml */
+.db-torrent-row{height:64px;grid-template-columns:minmax(0,1fr) auto;padding:0 18px} /* token? 64/18 from BiblioBook.qml:939,963,980 */
+.db-source-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
+.db-source-title{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--ui-stack);font-size:var(--t-md);font-weight:600;
+}
+.db-source-copy small,.db-edition-meta,.db-audio-meta{
+  color:var(--inkDim);font-family:var(--ui-stack);font-size:var(--t-sm);
+}
+.db-source-indicator{
+  justify-self:end;color:var(--inkDimmer);font-family:var(--ui-stack);font-size:16px; /* token? 16px from BiblioBook.qml:982 */
+}
+.db-source-row:hover .db-source-indicator{color:var(--gold)}
+.db-see-more{
+  width:100%;height:46px;border-top:1px solid rgba(255,255,255,.06);
+  color:var(--inkDim);font-family:var(--ui-stack);font-size:var(--t-sm);font-weight:600;letter-spacing:.6px;
+  /* token? 46px + .6px from BiblioBook.qml:995-1002 */
+}
+.db-see-more:hover{color:var(--gold)}
+.db-see-more:focus{box-shadow:inset var(--ring);color:var(--gold)}
+
+.db-edition-row{
+  height:52px;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;padding:0 18px;
+  /* token? 52/16/18 from BiblioBook.qml:1041,1062-1064 */
+}
+.db-format-pill{
+  min-width:54px;height:24px;padding:0 8px;border-radius:7px;border:1px solid var(--edge);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--inkDim);
+  font-family:var(--ui-stack);font-size:var(--t-xs);font-weight:700;letter-spacing:.8px;
+  /* token? 54/24/7/.8 from BiblioBook.qml:1066-1073 */
+}
+.db-format-pill.best{border-color:rgba(240,196,74,.5);color:var(--gold)} /* token? exact best border from BiblioBook.qml:1069 */
+.db-edition-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.db-audio-row{
+  height:52px;grid-template-columns:58px minmax(0,1fr) auto;gap:16px;padding:0 18px;
+  /* token? 58/52/16/18 from BiblioBook.qml:1203,1211-1217 */
+}
+.db-audio-pill{
+  width:58px;height:24px;border-radius:7px;border:1px solid var(--edge);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--inkDim);
+  font-family:var(--ui-stack);font-size:var(--t-xs);font-weight:700;letter-spacing:.6px;
+}
+.db-audio-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-audio-background{
+  height:40px;display:flex;align-items:center;padding-left:18px;color:var(--gold);
+  font-family:var(--ui-stack);font-size:var(--t-md); /* token? 40/18 from BiblioBook.qml:1178-1184 */
+}
+
+.db-choice-shade{
+  position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.72); /* token? exact shade from BiblioBook.qml:1253 */
+  display:grid;place-items:center;
+}
+.db-choice-card{
+  width:min(620px,calc(100% - 2 * var(--margin))); /* token? 620px from BiblioBook.qml:1259 */
+  max-height:calc(100vh - 120px); /* token? 120px from BiblioBook.qml:1260 */
+  overflow:auto;border-radius:18px;padding:24px; /* token? 18/24 from BiblioBook.qml:1261,1283 */
+  display:flex;flex-direction:column;gap:14px; /* token? 14px from BiblioBook.qml:1285 */
+}
+.db-choice-card h2{margin:0;font:400 var(--t-h2) var(--display-stack)}
+.db-choice-card>p{margin:0;color:var(--inkDim);font-family:var(--ui-stack);font-size:var(--t-md);line-height:1.35}
+.db-choice-list{display:flex;flex-direction:column;gap:0}
+.db-choice-row{
+  width:100%;height:58px;border-radius:10px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;background:rgba(255,255,255,.035);border:1px solid var(--edge);
+  /* token? exact geometry/background from BiblioBook.qml:1303-1308 */
+}
+.db-choice-row:hover{background:rgba(255,255,255,.08)} /* token? exact hover from BiblioBook.qml:1306 */
+.db-choice-row:focus{background:rgba(240,196,74,.11);border:2px solid var(--gold)} /* token? exact focus from BiblioBook.qml:1304-1308 */
+.db-choice-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
+.db-choice-copy b{font-family:var(--ui-stack);font-size:var(--t-base);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-choice-copy small{color:var(--inkDim);font-family:var(--ui-stack);font-size:var(--t-sm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-choice-verb{margin-left:14px;color:var(--gold);font-family:var(--ui-stack);font-size:var(--t-md);font-weight:600}
+.db-choice-cancel{
+  width:100%;height:42px;border-radius:10px;border:1px solid var(--edge);color:var(--inkDim);
+  font-family:var(--ui-stack);font-size:var(--t-md); /* token? 42/10 from BiblioBook.qml:1328-1331 */
+}
+.db-choice-cancel:focus{box-shadow:var(--ring);color:var(--ink)}
+
+/* HouseScrollBar parity for this surface only. */
+#board:has(.db-page){scrollbar-color:rgba(247,247,245,.30) rgba(247,247,245,.03)}
+#board:has(.db-page)::-webkit-scrollbar{width:12px} /* token? 12px from HouseScrollBar.qml:30 */
+#board:has(.db-page)::-webkit-scrollbar-track{background:rgba(247,247,245,.03)} /* HouseScrollBar.qml:36 */
+#board:has(.db-page)::-webkit-scrollbar-thumb{
+  background:rgba(247,247,245,.30);border-radius:4px; /* HouseScrollBar.qml:44-48 */
+}
+#board:has(.db-page)::-webkit-scrollbar-thumb:hover{background:rgba(247,247,245,.55)}
+#board:has(.db-page)::-webkit-scrollbar-thumb:active{background:rgba(240,196,74,.85)}
+
+@media (prefers-reduced-motion:reduce){
+  .db-cover-face{filter:none}
+}
