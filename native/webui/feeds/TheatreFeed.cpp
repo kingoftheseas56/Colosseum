@@ -1384,6 +1384,7 @@ const bool markWatchedRegistered = ActionRegistry::add({
         const QString id = payload.value(QStringLiteral("item")).toMap()
             .value(QStringLiteral("ref")).toMap().value(QStringLiteral("id")).toString();
         const bool watched = payload.value(QStringLiteral("watched")).toBool();
+        if (watched) progress->forget(QStringLiteral("video"), id);
         progress->setWatchedMark(id, watched);
         if (progress->watchedMark(id) != (watched ? 1 : -1)
             || !progress->watchedMarkIsManual(id)) {
