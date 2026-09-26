@@ -275,14 +275,17 @@
         update(next) {
           if (closed) return;
           const previous = JSON.stringify(params);
+          const previousId = params.id;
           params = next.params || {};
           if (JSON.stringify(params) !== previous) {
+            if (previousId) env.port.act('detail.book.cancelRead', { id: previousId });
             torrentExpanded = false;
             subscribe();
           }
         },
         unmount() {
           closed = true;
+          if (params.id) env.port.act('detail.book.cancelRead', { id: params.id });
           if (sub) sub.close();
         }
       };
