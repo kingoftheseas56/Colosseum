@@ -27,3 +27,18 @@ Choose one shared-shell policy for detail surfaces:
 - **Policy B:** shared shell gains a supported detail-chrome mode that can project the QML-local title/back/system presentation without a surface editing shared code.
 
 Until that shared decision exists, W2-9 keeps the body/action/source behavior 1:1 and records the chrome as a contract-blocked difference. No local workaround is added.
+
+
+## QML deletion blocker
+
+The current Arc 54 branch still has a runtime reference in `qml/Main.qml`:
+
+```qml
+source: "BiblioBook.qml"
+```
+
+W2-9 is explicitly forbidden from editing `Main.qml`. Deleting `qml/BiblioBook.qml` before that shared owner removes or replaces the loader would break QML loading, even though web-owned Biblio opens can route to `detail.book`.
+
+There are also static/harness references in the test suite that intentionally inspect or instantiate `BiblioBook.qml`. W2-9 will not rewrite those outside its owned files.
+
+Therefore the QML file is not safe to delete from this lane until the shared deletion map / Main owner resolves the loader reference. This is a contract-blocked deletion, not a silent deferral.
