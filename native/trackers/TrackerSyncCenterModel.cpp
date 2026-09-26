@@ -1164,9 +1164,7 @@ bool TrackerSyncCenterModel::resolveImportItem(const QString &batchId,
         });
     if (item == batchValue->items.cend())
         return finishIntent(false, action, QStringLiteral("review_item_not_found"));
-    const bool findMatchAvailable = titleMatchAvailable()
-        && isSignalConnected(QMetaMethod::fromSignal(
-            &TrackerSyncCenterModel::findMatchRequested));
+    const bool findMatchAvailable = titleMatchAvailable();
     const QStringList choices = allowedImportChoices(*item, findMatchAvailable);
     if (!choices.contains(choice))
         return finishIntent(false, action, QStringLiteral("choice_not_allowed"));
@@ -1214,9 +1212,7 @@ bool TrackerSyncCenterModel::resolveImportItems(const QString &batchId,
     QSet<QString> uniquePublicIds;
     QStringList privateItemIds;
     privateItemIds.reserve(itemIds.size());
-    const bool findMatchAvailable = titleMatchAvailable()
-        && isSignalConnected(QMetaMethod::fromSignal(
-            &TrackerSyncCenterModel::findMatchRequested));
+    const bool findMatchAvailable = titleMatchAvailable();
     for (const QString &publicItemId : itemIds) {
         if (publicItemId.isEmpty() || uniquePublicIds.contains(publicItemId))
             return finishIntent(false, action, QStringLiteral("choice_not_allowed"));
@@ -1948,9 +1944,7 @@ QVariantList TrackerSyncCenterModel::buildImportRows(const TrackerImportBatch &b
         if (title.isEmpty())
             title = QStringLiteral("Unmatched title");
         const std::optional<TrackerImportedProgressValue> local = item.remote.localAtPreview;
-        const bool findMatchAvailable = titleMatchAvailable()
-            && isSignalConnected(QMetaMethod::fromSignal(
-                &TrackerSyncCenterModel::findMatchRequested));
+        const bool findMatchAvailable = titleMatchAvailable();
         const QStringList choices = allowedImportChoices(item, findMatchAvailable);
         rows.append(QVariantMap{
             {QStringLiteral("reviewItemId"), publicImportItemId(batchValue.batchId,

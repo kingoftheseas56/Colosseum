@@ -682,7 +682,7 @@ void TrackerSyncCenterTest::findMatchIsRoutedAsASeparateNativeIntent()
     QVERIFY(batch);
     const QVariantMap review = fixture.model->importReviewSnapshot(
         batch->batchId, fixture.model->revision());
-    QVERIFY(!review.value(QStringLiteral("items")).toList().first().toMap()
+    QVERIFY(review.value(QStringLiteral("items")).toList().first().toMap()
                  .value(QStringLiteral("allowedChoices")).toStringList()
                  .contains(QStringLiteral("find_match")));
     const QString itemId = review.value(QStringLiteral("items")).toList()
