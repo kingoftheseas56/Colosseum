@@ -1,0 +1,46 @@
+name: biblio-syntax
+
+on:
+  push:
+    branches:
+      - verify/biblio-syntax-28d61
+
+permissions:
+  contents: read
+
+jobs:
+  biblio-feed-msvc:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.11.1'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: 'qtwebengine'
+          cache: true
+      - name: Enable MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile Biblio feed translation unit
+        shell: pwsh
+        run: |
+          $headers = (& qmake -query QT_INSTALL_HEADERS).Trim()
+          $args = @(
+            '/nologo', '/c', '/std:c++17', '/EHsc', '/permissive-',
+            '/Zc:__cplusplus', '/utf-8',
+            '/I', 'native',
+            "/external:I$headers",
+            "/external:I$headers\QtCore",
+            "/external:I$headers\QtNetwork",
+            "/external:I$headers\QtSql",
+            'native\webui\feeds\BiblioFeed.cpp',
+            "/Fo:$env:RUNNER_TEMP\BiblioFeed.obj"
+          )
+          & cl.exe @args
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
