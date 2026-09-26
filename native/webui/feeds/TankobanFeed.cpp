@@ -894,7 +894,8 @@ QVariantMap matchedProgress(const QVariantMap &entry,
 
 QVariantMap collectionBase(QVariantMap entry, MalCatalog &mal)
 {
-    const QString libraryId = entry.value(QStringLiteral("id")).toString();
+    const QString libraryId = entry.value(
+        QStringLiteral("libraryId"), entry.value(QStringLiteral("id"))).toString();
     entry.insert(QStringLiteral("libraryId"), libraryId);
     if (entry.value(QStringLiteral("type")).toString()
         == QLatin1String("manga")) {
@@ -979,6 +980,7 @@ QList<LibraryRow> libraryRows(const FeedContext &ctx, MalCatalog &mal)
         const QVariantMap progress = matchedProgress(
             entry, ctx.recent, progressKind);
         QVariantMap identityEntry = entry;
+        identityEntry.insert(QStringLiteral("libraryId"), collectionId);
         // A legacy title-keyed manga row may already have canonical Progress.
         // Prefer that native durable identity before consulting the catalogue.
         if (type == QLatin1String("manga")) {
