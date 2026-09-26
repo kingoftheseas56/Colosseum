@@ -1,4 +1,5 @@
 #include "ColosseumWebBridge.h"
+#include "feeds/ActionRegistry.h"
 #include "feeds/FeedRegistry.h"
 #include "feeds/FeedValue.h"
 #include "WallpaperSchemeHandler.h"
@@ -344,27 +345,76 @@ QVariantMap ColosseumWebBridge::fail(const QString &error)
     return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), error}};
 }
 
-QVariantMap ColosseumWebBridge::act(const QString &action,
-                                    const QVariantMap &payload)
+void ColosseumWebBridge::clearSurfaces()
 {
+    m_surfaces.clear();
+}
+
+bool ColosseumWebBridge::hasSurface(const QString &name) const
+{
+    return m_surfaces.contains(name);
+}
+
+QFuture<QVariantMap> ColosseumWebBridge::act(const QString &action,
+                                             const QVariantMap &payload)
+{
+    auto promise = QSharedPointer<QPromise<QVariantMap>>::create();
+    promise->start();
+    const QFuture<QVariantMap> future = promise->future();
+    const auto complete = [promise](const QVariantMap &answer) {
+        promise->addResult(answer);
+        promise->finish();
+    };
+    if (action == QLatin1String("shell.surfaces")) {
+        const QVariantList names = payload.value(QStringLiteral("names")).toList();
+        QSet<QString> registered;
+        for (const QVariant &value : names) {
+            if (value.metaType().id() != QMetaType::QString) {
+                complete(fail(QStringLiteral("Surface names must be strings.")));
+                return future;
+            }
+            const QString name = value.toString();
+            if (name.startsWith(QLatin1String("page."))
+                || name.startsWith(QLatin1String("detail.")))
+                registered.insert(name);
+        }
+        m_surfaces = registered;
+        complete({{QStringLiteral("ok"), true}});
+        return future;
+    }
+    if (const auto *registered = ActionRegistry::find(action)) {
+        if (!registered->valid(payload)) {
+            complete(fail(QStringLiteral("Action details are invalid.")));
+            return future;
+        }
+        registered->handle(*this, payload, complete);
+        return future;
+    }
     const QVariantMap item = payload.value(QStringLiteral("item")).toMap();
     const QVariantMap ref = item.value(QStringLiteral("ref")).toMap();
     if (action == QLatin1String("continue.forget")) {
         if (!m_progress || ref.value(QStringLiteral("kind")).toString().isEmpty()
             || ref.value(QStringLiteral("id")).toString().isEmpty())
-            return fail(QStringLiteral("Continue item is unavailable."));
+            complete(fail(QStringLiteral("Continue item is unavailable.")));
+        else {
         m_progress->forget(ref.value(QStringLiteral("kind")).toString(),
                            ref.value(QStringLiteral("id")).toString());
-        return {{QStringLiteral("ok"), true}};
+            complete({{QStringLiteral("ok"), true}});
+        }
+        return future;
     }
     if (action == QLatin1String("collection.add")
         || action == QLatin1String("collection.remove")) {
-        if (!m_collection || item.isEmpty())
-            return fail(QStringLiteral("Collection item is unavailable."));
+        if (!m_collection || item.isEmpty()) {
+            complete(fail(QStringLiteral("Collection item is unavailable.")));
+            return future;
+        }
         const QString world = item.value(QStringLiteral("world")).toString().toLower();
         const QString key = ref.value(QStringLiteral("id")).toString();
-        if (world.isEmpty() || key.isEmpty())
-            return fail(QStringLiteral("Collection identity is missing."));
+        if (world.isEmpty() || key.isEmpty()) {
+            complete(fail(QStringLiteral("Collection identity is missing.")));
+            return future;
+        }
         QVariantMap entry = ref;
         entry.insert(QStringLiteral("id"), key);
         entry.insert(QStringLiteral("title"), item.value(QStringLiteral("title")));
@@ -372,12 +422,16 @@ QVariantMap ColosseumWebBridge::act(const QString &action,
         entry.insert(QStringLiteral("type"), item.value(QStringLiteral("kind")));
         const bool ok = action == QLatin1String("collection.add")
             ? m_collection->add(world, entry) : m_collection->remove(world, key);
-        return ok ? QVariantMap{{QStringLiteral("ok"), true}}
-                  : fail(QStringLiteral("Collection could not be changed."));
+        complete(ok ? QVariantMap{{QStringLiteral("ok"), true}}
+                    : fail(QStringLiteral("Collection could not be changed.")));
+        return future;
     }
     if (action == QLatin1String("search.history.remove")
         || action == QLatin1String("search.history.clear")) {
-        if (!m_history) return fail(QStringLiteral("Search history is unavailable."));
+        if (!m_history) {
+            complete(fail(QStringLiteral("Search history is unavailable.")));
+            return future;
+        }
         QString scope = payload.value(QStringLiteral("scope")).toString();
         // Contract actions carry only a query. Resolve the current search
         // subscription when the web layer omits its route scope.
@@ -385,39 +439,113 @@ QVariantMap ColosseumWebBridge::act(const QString &action,
             for (const auto &sub : std::as_const(m_subscriptions)) {
                 if (sub.feed != QLatin1String("search")) continue;
                 const QString candidate = sub.params.value(QStringLiteral("scope")).toString();
-                if (!scope.isEmpty() && scope != candidate)
-                    return fail(QStringLiteral("Search scope is ambiguous."));
+                if (!scope.isEmpty() && scope != candidate) {
+                    complete(fail(QStringLiteral("Search scope is ambiguous.")));
+                    return future;
+                }
                 scope = candidate;
             }
         }
-        if (scope.isEmpty()) return fail(QStringLiteral("Search scope is missing."));
+        if (scope.isEmpty()) {
+            complete(fail(QStringLiteral("Search scope is missing.")));
+            return future;
+        }
         if (action == QLatin1String("search.history.remove"))
             m_history->remove(scope, payload.value(QStringLiteral("query")).toString());
         else
             m_history->clear(scope);
-        return {{QStringLiteral("ok"), true}};
+        complete({{QStringLiteral("ok"), true}});
+        return future;
     }
     static const QStringList doors{
         QStringLiteral("open"), QStringLiteral("open.vault"),
         QStringLiteral("open.universe"), QStringLiteral("open.universeHall"),
         QStringLiteral("open.native"), QStringLiteral("window.minimize"),
         QStringLiteral("window.fullscreen"), QStringLiteral("window.close")};
-    if (!doors.contains(action)) return fail(QStringLiteral("Unsupported action."));
+    if (!doors.contains(action)) {
+        complete(fail(QStringLiteral("Unsupported action.")));
+        return future;
+    }
     if (action == QLatin1String("open") &&
-        (item.isEmpty() || ref.isEmpty()))
-        return fail(QStringLiteral("Item identity is missing."));
+        (item.isEmpty() || ref.isEmpty())) {
+        complete(fail(QStringLiteral("Item identity is missing.")));
+        return future;
+    }
+    if (action == QLatin1String("open")
+        && payload.value(QStringLiteral("intent")).toString() != QLatin1String("resume")
+        && payload.value(QStringLiteral("intent")).toString() != QLatin1String("nextUp")) {
+        QString kind;
+        QVariantMap params;
+        const QString world = item.value(QStringLiteral("world")).toString();
+        const QString itemKind = item.value(QStringLiteral("kind")).toString();
+        if (itemKind == QLatin1String("universe")) {
+            kind = QStringLiteral("universe");
+            params.insert(QStringLiteral("extensionId"), ref.value(QStringLiteral("extensionId")));
+            params.insert(QStringLiteral("name"), ref.value(QStringLiteral("name")));
+        } else if (world == QLatin1String("Theatre")) {
+            kind = QStringLiteral("theatre");
+            QString id = ref.value(QStringLiteral("tt")).toString();
+            if (id.isEmpty()) id = ref.value(QStringLiteral("id")).toString();
+            if (itemKind == QLatin1String("anime") && !ref.value(QStringLiteral("mal_id")).toString().isEmpty())
+                id = QStringLiteral("mal:") + ref.value(QStringLiteral("mal_id")).toString();
+            params.insert(QStringLiteral("id"), id);
+            params.insert(QStringLiteral("type"), itemKind == QLatin1String("movie") ? QStringLiteral("movie") : QStringLiteral("series"));
+        } else if (world == QLatin1String("Biblio")) {
+            kind = QStringLiteral("book");
+            params.insert(QStringLiteral("id"), ref.value(QStringLiteral("id")));
+        } else if (world == QLatin1String("Tankoban")) {
+            const QString id = ref.value(QStringLiteral("id")).toString();
+            kind = itemKind == QLatin1String("comic") || id.startsWith(QLatin1String("gc:"))
+                || id.startsWith(QLatin1String("gcd:")) || id.startsWith(QLatin1String("locg:"))
+                ? QStringLiteral("comic") : QStringLiteral("manga");
+            QString identity = id;
+            if (identity.isEmpty() && !ref.value(QStringLiteral("gcdId")).toString().isEmpty())
+                identity = QStringLiteral("gcd:") + ref.value(QStringLiteral("gcdId")).toString();
+            if (identity.isEmpty() && !ref.value(QStringLiteral("locgId")).toString().isEmpty())
+                identity = QStringLiteral("locg:") + ref.value(QStringLiteral("locgId")).toString();
+            if (identity.isEmpty()) identity = ref.value(QStringLiteral("mal_id")).toString();
+            if (identity.isEmpty()) identity = ref.value(QStringLiteral("seriesId")).toString();
+            params.insert(QStringLiteral("id"), identity);
+        }
+        if (hasSurface(QStringLiteral("detail.") + kind) && !kind.isEmpty()) {
+            if (params.value(kind == QLatin1String("universe") ? QStringLiteral("extensionId") : QStringLiteral("id")).toString().isEmpty()) {
+                complete(fail(QStringLiteral("Item identity is missing.")));
+                return future;
+            }
+            params.insert(QStringLiteral("title"), item.value(QStringLiteral("title")));
+            params.insert(QStringLiteral("cover"), item.value(QStringLiteral("cover")));
+            complete({{QStringLiteral("ok"), true}, {QStringLiteral("result"), QVariantMap{
+                {QStringLiteral("route"), QVariantMap{{QStringLiteral("name"), QStringLiteral("detail")},
+                    {QStringLiteral("kind"), kind}, {QStringLiteral("params"), params}}}}}});
+            return future;
+        }
+    }
+    if (action == QLatin1String("open.native")) {
+        const QString door = payload.value(QStringLiteral("door")).toString();
+        if (hasSurface(QStringLiteral("page.") + door)) {
+            QVariantMap params;
+            if (door == QLatin1String("extensions") || door == QLatin1String("wallpaperSearch"))
+                params.insert(QStringLiteral("world"), payload.value(QStringLiteral("world")));
+            complete({{QStringLiteral("ok"), true}, {QStringLiteral("result"), QVariantMap{
+                {QStringLiteral("route"), QVariantMap{{QStringLiteral("name"), QStringLiteral("page")},
+                    {QStringLiteral("page"), door}, {QStringLiteral("params"), params}}}}}});
+            return future;
+        }
+    }
     const int requestId = m_nextAction++;
+    m_pendingActions.insert(requestId, promise);
     emit actionRequested(action, payload, requestId);
-    const QVariantMap result = m_finishedActions.take(requestId);
-    return result.isEmpty() ? fail(QStringLiteral("Native destination is unavailable."))
-                            : result;
+    return future;
 }
 
 void ColosseumWebBridge::finishAction(int requestId, bool ok,
                                        const QString &error,
                                        const QVariant &result)
 {
-    m_finishedActions.insert(requestId, ok
+    const auto promise = m_pendingActions.take(requestId);
+    if (!promise) return;
+    promise->addResult(ok
         ? QVariantMap{{QStringLiteral("ok"), true}, {QStringLiteral("result"), result}}
         : fail(error.isEmpty() ? QStringLiteral("Action failed.") : error));
+    promise->finish();
 }

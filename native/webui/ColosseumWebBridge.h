@@ -2,9 +2,13 @@
 
 #include "feeds/WorldFeed.h"
 
+#include <QFuture>
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QPromise>
+#include <QSet>
+#include <QSharedPointer>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -34,7 +38,9 @@ public:
     Q_INVOKABLE QVariantMap subscribe(const QString &feed, const QVariantMap &params);
     Q_INVOKABLE void unsubscribe(int id);
     Q_INVOKABLE QVariantMap more(int id, const QString &sectionId);
-    Q_INVOKABLE QVariantMap act(const QString &action, const QVariantMap &payload);
+    Q_INVOKABLE QFuture<QVariantMap> act(const QString &action, const QVariantMap &payload);
+    Q_INVOKABLE void clearSurfaces();
+    Q_INVOKABLE bool hasSurface(const QString &name) const;
     Q_INVOKABLE void finishAction(int requestId, bool ok,
                                    const QString &error = QString(),
                                    const QVariant &result = {});
@@ -75,7 +81,8 @@ private:
     QPointer<CollectionStore> m_collection;
     QPointer<SearchHistoryStore> m_history;
     QHash<int, Subscription> m_subscriptions;
-    QHash<int, QVariantMap> m_finishedActions;
+    QHash<int, QSharedPointer<QPromise<QVariantMap>>> m_pendingActions;
+    QSet<QString> m_surfaces;
     int m_nextSubscription = 1;
     int m_nextAction = 1;
     int m_profileRevision = 1;

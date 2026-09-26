@@ -1704,6 +1704,7 @@ Window {
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
+        if (win.openWebPage("connections")) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1725,6 +1726,7 @@ Window {
     // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        if (win.openWebPage("downloads")) return
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
@@ -1843,13 +1845,24 @@ Window {
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
-    function openUniverseHall() { universeHallLayer.active = true }
+    function openWebPage(page, params) {
+        if (!developerWebUiLayer.active || !developerWebUiLayer.item
+                || !ColosseumWebBridge.hasSurface("page." + page)) return false
+        developerWebUiLayer.item.openRoute({ name: "page", page: page, params: params || ({}) })
+        taskbar.open = false
+        return true
+    }
+    function openUniverseHall() {
+        if (win.openWebPage("universeHall")) return
+        universeHallLayer.active = true
+    }
     function closeUniverseHall() { universeHallLayer.active = false }
 
     // world (optional, R1 2026-08-21): lands the page straight on that world's Sources
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
+        if (win.openWebPage("extensions", { world: world || "" })) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         settingsLayer.active = false
@@ -1867,6 +1880,7 @@ Window {
 
     // ---- Settings page: the global preferences gear, entered from the taskbar ----
     function openSettingsPage() {
+        if (win.openWebPage("settings")) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -1883,6 +1897,7 @@ Window {
 
     // ---- Keyboard Guide: essential controls, entered from the taskbar beside Settings. ----
     function openKeyboardGuide() {
+        if (win.openWebPage("keyboardGuide")) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -1924,6 +1939,7 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
+        if (win.openWebPage("update")) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -2445,6 +2461,7 @@ Window {
     }
 
     function openWallpaperSearch(world) {
+        if (win.openWebPage("wallpaperSearch", { world: world || currentSurface || "Home" })) return
         wallpaperLayer.targetWorld = world || currentSurface || "Home"
         wallpaperLayer.active = true
     }
@@ -3067,7 +3084,9 @@ Window {
     //      activeMedium "" → HOME: no pill selected (the no-selection rule). Tapping a pill
     //      enters that world. ----
     TopBar {
-        onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
+        onAccountClicked: (anchorRight, anchorBottom) => {
+            if (!win.openWebPage("account")) accountFlyout.toggleAt(anchorRight, anchorBottom)
+        }
         id: topbar
         z: 20
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
@@ -4634,7 +4653,12 @@ Window {
                 else if (door === "settings") win.openSettingsPage()
                 else if (door === "connections") win.openSyncCenterPage()
                 else if (door === "wallpaperSearch") win.openWallpaperSearch(payload.world || "Home")
-                else if (door === "account") accountFlyout.toggleAt(win.width - theme.margin, 92)
+                else if (door === "account") {
+                    if (!win.openWebPage("account")) accountFlyout.toggleAt(win.width - theme.margin, 92)
+                }
+                else if (door === "keyboardGuide") win.openKeyboardGuide()
+                else if (door === "update") win.openUpdatePage()
+                else if (door === "universeHall") win.openUniverseHall()
                 else { ok = false; error = "Native page is unavailable." }
             } else if (action === "window.minimize") {
                 win.minimizeShell()
