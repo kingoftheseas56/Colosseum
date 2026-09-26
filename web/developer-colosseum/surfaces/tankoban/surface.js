@@ -132,10 +132,14 @@
         return box;
       }
 
+      function replaceDiscover(...nodes) {
+        CW.focus.preserve(discoverHead, () => discoverHead.replaceChildren(...nodes));
+      }
+
       function renderDiscoverControls() {
         if (route.tab !== 'discover') {
           discoverHead.hidden = true;
-          discoverHead.replaceChildren();
+          replaceDiscover();
           return;
         }
         discoverHead.hidden = false;
@@ -191,7 +195,7 @@
         }, selectedFilter && selectedFilter.label !== 'All'
           ? selectedFilter.label : 'Filter');
 
-        discoverHead.replaceChildren(
+        replaceDiscover(
           h('div.tk-mast', {},
             typeLens,
             h('div.tk-shelf', {}, catalogueButton,
