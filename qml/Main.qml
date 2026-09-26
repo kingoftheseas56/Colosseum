@@ -4486,6 +4486,22 @@ Window {
     // Activated only by COLOSSEUM_WEBUI=1. The existing native/QML backend
     // remains alive underneath; this WebEngine surface owns Home + world browsing
     // while native detail/player/reader/taskbar layers keep their existing routes.
+    function syncDeveloperWebWallpaper() {
+        if (typeof DeveloperWebUiBridge === "undefined" || !DeveloperWebUiBridge)
+            return
+        if (win.wallpaperIsNative) {
+            DeveloperWebUiBridge.wallpaper = ""
+            return
+        }
+        if (win.wallpaperSource === "../assets/wallpaper/cold-ripple.jpg") {
+            DeveloperWebUiBridge.wallpaper = "qrc:///developer-webui/cold-ripple.jpg"
+            return
+        }
+        DeveloperWebUiBridge.wallpaper = /^https?:/i.test(win.wallpaperSource)
+            ? win.wallpaperSource
+            : ""
+    }
+
     Loader {
         id: developerWebUiLayer
         objectName: "developerWebUiLayer"
@@ -4495,7 +4511,17 @@ Window {
         visible: active && !win.immersiveSurfaceOpen
         enabled: visible
         source: "DeveloperWebUi.qml"
-        onLoaded: if (item) item.forceActiveFocus()
+        onLoaded: {
+            if (item)
+                item.forceActiveFocus()
+            win.syncDeveloperWebWallpaper()
+        }
+    }
+
+    Connections {
+        target: win
+        enabled: developerWebUiLayer.active
+        function onWallpaperSourceChanged() { win.syncDeveloperWebWallpaper() }
     }
 
     Connections {

@@ -102,6 +102,19 @@ QString DeveloperWebUiBridge::resourceUrl() const
 {
     return QStringLiteral("qrc:///developer-webui/index.html");
 }
+
+void DeveloperWebUiBridge::setWallpaper(const QString &wallpaper)
+{
+    if (m_wallpaper == wallpaper)
+        return;
+    m_wallpaper = wallpaper;
+    emit wallpaperChanged();
+    if (m_clientReady) {
+        emit patchReady(QVariantMap{
+            {QStringLiteral("wallpaper"), m_wallpaper}
+        });
+    }
+}
 void DeveloperWebUiBridge::bindPersonalStores(
     ProgressStore *progress, CollectionStore *collection)
 {
@@ -558,7 +571,8 @@ QVariantMap DeveloperWebUiBridge::snapshot(
     const QString canonical = canonicalSurface(surface);
     QVariantMap out{
         {QStringLiteral("surface"), canonical},
-        {QStringLiteral("revision"), m_revision}
+        {QStringLiteral("revision"), m_revision},
+        {QStringLiteral("wallpaper"), m_wallpaper}
     };
 
     if (canonical == QLatin1String("Home")) {

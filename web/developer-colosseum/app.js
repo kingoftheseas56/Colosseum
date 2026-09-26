@@ -1,8 +1,8 @@
 (function () {
   'use strict';
 
-  const $ = function (id) { return document.getElementById(id); };
-  const WORLD_ORDER = ['Tankoban', 'Biblio', 'Theatre'];
+  const $ = id => document.getElementById(id);
+  const WORLDS = ['Tankoban', 'Biblio', 'Theatre'];
   const WORLD_TABS = Object.freeze({
     Tankoban: [
       { key: 'discover', label: 'Discover' },
@@ -23,16 +23,18 @@
       { key: 'library', label: 'Library' }
     ]
   });
+
   const state = {
     mounted: false,
-    surface: 'Home',
     snapshot: {},
+    surface: 'Home',
     activeTabs: { Tankoban: 'discover', Biblio: 'discover', Theatre: 'discover' },
     heroIndex: 0,
     heroTimer: 0,
     searchOpen: false,
     searchTimer: 0,
-    lastFocus: null
+    lastFocus: '',
+    mouseMode: false
   };
 
   function isObject(value) {
@@ -40,60 +42,87 @@
   }
 
   function merge(target, source) {
-    if (!isObject(source))
-      return source;
+    if (!isObject(source)) return source;
     const out = isObject(target) ? Object.assign({}, target) : {};
-    Object.keys(source).forEach(function (key) {
+    Object.keys(source).forEach(key => {
       const value = source[key];
       out[key] = isObject(value) ? merge(out[key], value) : value;
     });
     return out;
   }
 
-  function node(tag, className, text) {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (text !== undefined && text !== null) el.textContent = String(text);
-    return el;
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
   }
+
   function send(type, payload) {
-    const body = Object.assign({ surface: state.surface }, payload || {});
-    return window.ColosseumWeb.action(type, body);
+    return window.ColosseumWeb.action(type, Object.assign({ surface: state.surface }, payload || {}));
   }
 
   function safeUrl(value) {
     if (!value) return '';
     try {
       const url = new URL(String(value), location.href);
-      const allowed = ['https:', 'http:', 'file:', 'data:', 'blob:', 'colosseum:'];
-      return allowed.includes(url.protocol) ? url.href : '';
+      return ['https:', 'http:', 'file:', 'data:', 'blob:', 'qrc:', 'colosseum:'].includes(url.protocol)
+        ? url.href : '';
     } catch (_) {
       return '';
     }
   }
 
-  function titleOf(item) {
+  function rawTitle(item) {
     if (!item || typeof item !== 'object') return String(item || '');
     return String(item.title || item.caption || item.name || item.label || '');
   }
 
-  function artOf(item) {
+  function rawId(item) {
     if (!item || typeof item !== 'object') return '';
-    return item.cover || item.coverUrl || item.art || item.image ||
-           item.poster || item.posterUrl || item.banner || item.backdrop || '';
+    return String(item.id || item.tt || item.imdbId || item.seriesId || item.malId ||
+                  item.mal_id || item.gcdId || item.canonicalId || item.identityId || '');
   }
 
-  function idOf(item) {
-    if (!item || typeof item !== 'object') return '';
-    return String(item.id || item.seriesId || item.malId || item.gcdId ||
-                  item.canonicalId || item.identityId || '');
-  }
-  function kindOf(item) {
+  function rawKind(item) {
     if (!item || typeof item !== 'object') return '';
     return String(item.kind || item.type || item.mediaType || item.format || '').toLowerCase();
   }
 
-  function progressOf(item) {
+  function posterUrl(item) {
+    if (!item || typeof item !== 'object') return '';
+    return safeUrl(item.cover || item.coverUrl || item.poster || item.posterUrl ||
+                   item.image || item.art || item.banner || '');
+  }
+
+  function backdropUrl(item) {
+    if (!item || typeof item !== 'object') return '';
+    const explicit = safeUrl(item.backdrop || item.background || item.banner ||
+                             item.hero || item.wideArt || '');
+    if (explicit) return explicit;
+    const id = rawId(item);
+    if (/^tt\d+$/.test(id))
+      return 'https://images.metahub.space/background/medium/' + encodeURIComponent(id) + '/img';
+    return posterUrl(item);
+  }
+
+  function itemDescription(item) {
+    if (!item || typeof item !== 'object') return '';
+    return String(item.description || item.overview || item.blurb || item.synopsis || '');
+  }
+
+  function itemSubtitle(item) {
+    if (!item || typeof item !== 'object') return '';
+    if (item.episode) return String(item.episode);
+    if (item.author) return String(item.author);
+    if (item.subtitle) return String(item.subtitle);
+    if (item.year) return String(item.year);
+    if (item.releaseYear) return String(item.releaseYear);
+    if (item.source) return String(item.source);
+    return '';
+  }
+
+  function itemProgress(item) {
     if (!item || typeof item !== 'object') return -1;
     let value = item.progress;
     if (value === undefined || value === null) value = item.percent;
@@ -102,239 +131,35 @@
     if (value <= 1) value *= 100;
     return Math.max(0, Math.min(100, value));
   }
-
-  function subtitleOf(item) {
-    if (!item || typeof item !== 'object') return '';
-    if (item.episode) return String(item.episode);
-    if (item.author) return String(item.author);
-    if (item.subtitle) return String(item.subtitle);
-    if (item.year) return String(item.year);
-    if (item.lane) return String(item.lane);
-    if (item.source) return String(item.source);
-    return '';
-  }
-
-  function normalized(item) {
+  function normalize(item) {
     const raw = isObject(item) ? item : { title: String(item || '') };
     return {
-      raw: raw,
-      id: idOf(raw),
-      title: titleOf(raw) || 'Untitled',
-      art: safeUrl(artOf(raw)),
-      kind: kindOf(raw),
-      subtitle: subtitleOf(raw),
-      progress: progressOf(raw)
+      raw,
+      id: rawId(raw),
+      title: rawTitle(raw) || 'Untitled',
+      kind: rawKind(raw),
+      poster: posterUrl(raw),
+      backdrop: backdropUrl(raw),
+      subtitle: itemSubtitle(raw),
+      description: itemDescription(raw),
+      progress: itemProgress(raw)
     };
   }
-  function fallbackHue(seed) {
-    let hash = 0;
-    const text = String(seed || 'Colosseum');
-    for (let i = 0; i < text.length; i++)
-      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
-    return Math.abs(hash) % 360;
+
+  function identity(item) {
+    const data = normalize(item);
+    return { id: data.id, title: data.title, kind: data.kind, item: data.raw };
   }
 
-  function artFrame(item, className) {
-    const data = normalized(item);
-    const frame = node('div', className || 'art-frame');
-    const hue = fallbackHue(data.title);
-    frame.style.setProperty('--fallback-a', 'hsl(' + hue + ' 27% 29%)');
-    frame.style.setProperty('--fallback-b', 'hsl(' + ((hue + 32) % 360) + ' 24% 11%)');
-    if (data.art) {
-      const image = node('img', 'art-image');
-      image.alt = '';
-      image.loading = 'lazy';
-      image.decoding = 'async';
-      image.src = data.art;
-      image.addEventListener('error', function () { image.remove(); });
-      frame.append(image);
-    }
-    return frame;
-  }
-
-  function identityPayload(item) {
-    const data = normalized(item);
-    return {
-      id: data.id,
-      title: data.title,
-      kind: data.kind,
-      item: data.raw
-    };
-  }
-  function openItem(world, item, intent) {
-    send('open-item', Object.assign({
-      world: world,
-      intent: intent || 'details'
-    }, identityPayload(item)));
-  }
-
-  function activateContinue(world, item, intent) {
-    send(intent === 'details' ? 'continue-details' : 'resume',
-         Object.assign({ world: world }, identityPayload(item)));
-  }
-
-  function activateNextUp(world, item) {
-    send('next-up', Object.assign({ world: world }, identityPayload(item)));
-  }
-
-  function sectionHeading(title, moreLabel, onMore) {
-    const head = node('div', 'section-heading');
-    const h = node('h2', '', title);
-    head.append(h);
-    if (moreLabel && onMore) {
-      const more = node('button', 'text-button', moreLabel + ' ›');
-      more.type = 'button';
-      more.addEventListener('click', onMore);
-      head.append(more);
-    }
-    return head;
-  }
-
-  function emptyState(title, body) {
-    const box = node('div', 'empty-state');
-    box.append(node('h3', '', title), node('p', '', body));
-    return box;
-  }
-  function posterCard(world, item, options) {
-    const opts = options || {};
-    const data = normalized(item);
-    const card = node('button', 'poster-card');
-    card.type = 'button';
-    card.dataset.nav = 'true';
-    card.append(artFrame(data.raw, 'poster-art'));
-
-    const copy = node('span', 'poster-copy');
-    copy.append(node('strong', '', data.title));
-    if (data.subtitle) copy.append(node('small', '', data.subtitle));
-    card.append(copy);
-
-    if (opts.badge) card.append(node('span', 'poster-badge', opts.badge));
-    if (data.progress >= 0) {
-      const track = node('span', 'card-progress');
-      const fill = node('i');
-      fill.style.width = data.progress + '%';
-      track.append(fill);
-      card.append(track);
-    }
-
-    card.addEventListener('click', function () {
-      if (opts.onClick) opts.onClick(data.raw);
-      else openItem(world, data.raw, 'details');
-    });
-    return card;
-  }
-  function rail(world, title, items, options) {
-    const list = Array.isArray(items) ? items : [];
-    const opts = options || {};
-    const section = node('section', 'content-section');
-    section.append(sectionHeading(title, opts.moreLabel, opts.onMore));
-
-    if (!list.length) {
-      section.append(emptyState('Nothing here yet', opts.empty || 'Colosseum has not supplied rows for this section.'));
-      return section;
-    }
-
-    const row = node('div', 'poster-rail');
-    list.forEach(function (item) {
-      row.append(posterCard(world, item, {
-        badge: opts.badge,
-        onClick: opts.onClick
-      }));
-    });
-    section.append(row);
-    return section;
-  }
-
-  function continueRail(world, title, items, nextUp) {
-    return rail(world, title, items, {
-      moreLabel: 'See all',
-      onMore: function () { send('continue-see-all', { world: world }); },
-      onClick: function (item) {
-        if (nextUp) activateNextUp(world, item);
-        else activateContinue(world, item, 'resume');
-      },
-      empty: nextUp ? 'No verified next item is available.' : 'No unfinished progress is available.'
-    });
-  }
-  function hero(world, items) {
-    const list = Array.isArray(items) ? items : [];
-    const wrap = node('section', 'world-hero');
-    if (!list.length) {
-      wrap.append(emptyState('Featured is waiting', 'The existing Colosseum catalogue has not supplied featured items yet.'));
-      return wrap;
-    }
-
-    const item = list[Math.min(state.heroIndex, list.length - 1)] || list[0];
-    const data = normalized(item);
-    const visual = artFrame(item, 'hero-art');
-    const shade = node('div', 'hero-shade');
-    const copy = node('div', 'hero-copy');
-    copy.append(node('p', 'eyebrow', 'Featured in ' + world));
-    copy.append(node('h1', '', data.title));
-    if (data.subtitle) copy.append(node('p', 'hero-subtitle', data.subtitle));
-
-    const actions = node('div', 'hero-actions');
-    const primary = node('button', 'primary-button', world === 'Theatre' ? 'Watch' : 'Read');
-    primary.type = 'button';
-    primary.dataset.nav = 'true';
-    primary.addEventListener('click', function () { openItem(world, item, 'primary'); });
-    const details = node('button', 'outline-button', 'Details');
-    details.type = 'button';
-    details.dataset.nav = 'true';
-    details.addEventListener('click', function () { openItem(world, item, 'details'); });
-    actions.append(primary, details);
-    copy.append(actions);
-
-    wrap.append(visual, shade, copy);
-
-    if (list.length > 1) {
-      const count = node('span', 'hero-count', (state.heroIndex + 1) + ' / ' + list.length);
-      wrap.append(count);
-      wrap.addEventListener('pointerenter', stopHeroTimer);
-      wrap.addEventListener('pointerleave', startHeroTimer);
-      wrap.addEventListener('focusin', stopHeroTimer);
-      wrap.addEventListener('focusout', startHeroTimer);
-    }
-    return wrap;
-  }
-
-  function clearHeroTimer() {
-    if (state.heroTimer) window.clearInterval(state.heroTimer);
-    state.heroTimer = 0;
-  }
-
-  function stopHeroTimer() { clearHeroTimer(); }
-
-  function refreshHeroOnly() {
-    const selector = state.surface === 'Home' ? '.universe-hero' : '.world-hero';
-    const current = $('surface').querySelector(selector);
-    if (!current) return;
-    const replacement = state.surface === 'Home'
-      ? homeUniverseHero(homeData())
-      : hero(state.surface, listFrom(worldData(state.surface).featured));
-    current.replaceWith(replacement);
-  }
-
-  function startHeroTimer() {
-    clearHeroTimer();
-    const list = listFrom(worldData(state.surface).featured);
-    if (state.surface === 'Home' || list.length < 2) return;
-    state.heroTimer = window.setInterval(function () {
-      state.heroIndex = (state.heroIndex + 1) % list.length;
-      refreshHeroOnly();
-    }, 6500);
+  function worldData(world) {
+    if (isObject(state.snapshot.worlds) && isObject(state.snapshot.worlds[world]))
+      return state.snapshot.worlds[world];
+    const lower = world.toLowerCase();
+    return isObject(state.snapshot[lower]) ? state.snapshot[lower] : {};
   }
 
   function homeData() {
     return isObject(state.snapshot.home) ? state.snapshot.home : {};
-  }
-
-  function worldData(name) {
-    if (isObject(state.snapshot.worlds) && isObject(state.snapshot.worlds[name]))
-      return state.snapshot.worlds[name];
-    const lower = name.toLowerCase();
-    if (isObject(state.snapshot[lower])) return state.snapshot[lower];
-    return {};
   }
 
   function listFrom(value) {
@@ -344,419 +169,777 @@
     return [];
   }
 
-  function firstSectionItems(payload) {
-    if (!isObject(payload) || !Array.isArray(payload.sections)) return [];
-    for (const section of payload.sections) {
-      const items = listFrom(section);
-      if (items.length) return items;
-    }
-    return [];
-  }
-
-  function deriveHomeWorldPreview(world) {
-    const data = worldData(world);
-    if (world === 'Tankoban') {
-      const tabs = isObject(data.tabs) ? data.tabs : {};
-      return {
-        manga: listFrom(tabs.manga || data.manga).length ? listFrom(tabs.manga || data.manga)
-              : firstSectionItems(tabs.manga || data.manga),
-        comics: listFrom(tabs.comics || data.comics).length ? listFrom(tabs.comics || data.comics)
-                : firstSectionItems(tabs.comics || data.comics)
-      };
-    }
-
-    if (world === 'Theatre') {
-      return { items: listFrom(data.featured).concat(listFrom(data.movies)).slice(0, 9) };
-    }
-    if (world === 'Biblio') {
-      return { chart: listFrom(data.featured).slice(0, 10), genres: data.genres || [] };
-    }
-    return {};
-  }
-
-  function homeUniverseHero(data) {
-    const list = Array.isArray(data.universes) ? data.universes :
-                 (Array.isArray(state.snapshot.universes) ? state.snapshot.universes : []);
-    const box = node('section', 'universe-hero');
-    if (!list.length) {
-      box.append(emptyState('Universes are waiting', 'Installed Universe data will appear here when Colosseum mounts the Home snapshot.'));
-      return box;
-    }
-
-    const index = Math.min(state.heroIndex, list.length - 1);
-    const item = list[index] || list[0];
-    box.append(artFrame(item, 'universe-art'), node('div', 'universe-shade'));
-
-    const copy = node('div', 'universe-copy');
-    copy.append(node('p', 'eyebrow', 'UNIVERSE'));
-    copy.append(node('h1', '', titleOf(item)));
-    const open = node('button', 'glass-button', 'Explore the universe →');
-    open.type = 'button';
-    open.dataset.nav = 'true';
-    open.addEventListener('click', function () {
-      send('open-universe', { extensionId: item.extensionId || item.id || '', name: titleOf(item), item: item });
-    });
-    copy.append(open);
-    box.append(copy);
-
-    const hall = node('button', 'universe-hall', list.length + ' worlds ›');
-    hall.type = 'button';
-    hall.dataset.nav = 'true';
-    hall.addEventListener('click', function () { send('open-universe-hall'); });
-    box.append(hall);
-
-    if (list.length > 1) {
-      box.addEventListener('pointerenter', stopHeroTimer);
-      box.addEventListener('pointerleave', startHomeHeroTimer);
-      box.addEventListener('focusin', stopHeroTimer);
-      box.addEventListener('focusout', startHomeHeroTimer);
-    }
-    return box;
-  }
-
-  function startHomeHeroTimer() {
-    clearHeroTimer();
-    const data = homeData();
-    const list = Array.isArray(data.universes) ? data.universes :
-                 (Array.isArray(state.snapshot.universes) ? state.snapshot.universes : []);
-    if (state.surface !== 'Home' || list.length < 2) return;
-    state.heroTimer = window.setInterval(function () {
-      state.heroIndex = (state.heroIndex + 1) % list.length;
-      refreshHeroOnly();
-    }, 6500);
-  }
-
-  function fan(items, side) {
-    const list = Array.isArray(items) ? items.slice(0, 5) : [];
-    const wrap = node('div', 'cover-fan ' + side);
-    if (!list.length) {
-      wrap.append(node('span', 'fan-empty', 'Waiting for catalogue'));
-      return wrap;
-    }
-
-    list.forEach(function (item, index) {
-      const card = posterCard('Tankoban', item);
-      const slot = index - (list.length - 1) / 2;
-      card.classList.add('fan-card');
-      card.style.setProperty('--fan-slot', slot);
-      card.style.setProperty('--fan-y', Math.abs(slot) * 8 + 'px');
-      card.style.setProperty('--fan-angle', slot * 7 + 'deg');
-      wrap.append(card);
-    });
-    return wrap;
-  }
-
-  function tankobanIntro(data) {
-    const box = node('section', 'world-intro tankoban-intro');
-    const heading = node('button', 'intro-title', 'Tankoban');
-    heading.type = 'button';
-    heading.dataset.nav = 'true';
-    heading.addEventListener('click', function () { navigate('Tankoban'); });
-
-    box.append(node('span', 'intro-corner left', 'Manga'),
-               node('span', 'intro-corner right', 'Comics'),
-               heading);
-    const fans = node('div', 'fans');
-    fans.append(fan(data.manga, 'left'), fan(data.comics, 'right'));
-    box.append(fans);
-    return box;
-  }
-
-  function theatreIntro(data) {
-    const items = Array.isArray(data.items) ? data.items.slice(0, 9) : [];
-    const box = node('section', 'world-intro theatre-intro');
-    const heading = node('button', 'intro-title', 'Theatre');
-    heading.type = 'button';
-    heading.dataset.nav = 'true';
-    heading.addEventListener('click', function () { navigate('Theatre'); });
-    box.append(node('span', 'intro-corner left', 'Trending'), heading, node('i', 'gold-rule'));
-
-    const band = node('div', 'film-band');
-    const reel = node('div', 'film-reel');
-    const doubled = items.concat(items);
-    if (!doubled.length) {
-      band.append(node('span', 'film-empty', 'Waiting for Theatre catalogue'));
-    } else {
-      doubled.forEach(function (item) {
-        const dataItem = normalized(item);
-        const frame = node('button', 'film-frame');
-        frame.type = 'button';
-        frame.dataset.nav = 'true';
-        frame.append(artFrame(item, 'film-art'));
-        frame.append(node('span', 'film-lane', dataItem.kind || 'THEATRE'));
-        frame.append(node('strong', '', dataItem.title));
-        frame.addEventListener('click', function () { navigate('Theatre'); });
-        reel.append(frame);
-      });
-      band.append(reel);
-    }
-    box.append(band);
-    return box;
-  }
-
-  function biblioIntro(data) {
-    const chart = Array.isArray(data.chart) ? data.chart : [];
-    const genres = Array.isArray(data.genres) ? data.genres.slice(0, 4) : [];
-    const box = node('section', 'world-intro biblio-intro');
-    const heading = node('button', 'intro-title', 'Biblio');
-    heading.type = 'button';
-    heading.dataset.nav = 'true';
-    heading.addEventListener('click', function () { navigate('Biblio'); });
-    box.append(node('span', 'intro-corner left', 'Top charts'), heading);
-
-    const desk = node('div', 'reading-desk');
-    const pile = node('button', 'book-pile');
-    pile.type = 'button';
-    pile.dataset.nav = 'true';
-    pile.append(node('i', 'book-slab slab-three'), node('i', 'book-slab slab-two'), node('i', 'book-slab slab-one'));
-    if (chart[0]) pile.append(artFrame(chart[0], 'top-book'));
-    pile.addEventListener('click', function () { navigate('Biblio'); });
-
-    const stats = node('div', 'chart-copy');
-    stats.append(node('strong', '', 'Top 10'), node('p', '', 'Current Biblio chart'));
-    const chips = node('div', 'genre-chips');
-    genres.forEach(function (genre) {
-      const name = typeof genre === 'string' ? genre : titleOf(genre);
-      const chip = node('button', 'genre-chip', name);
-      chip.type = 'button';
-      chip.dataset.nav = 'true';
-      chip.addEventListener('click', function () {
-        navigate('Biblio');
-        send('open-genre', { world: 'Biblio', genre: name });
-      });
-      chips.append(chip);
-    });
-
-    stats.append(chips);
-    const runner = node('button', 'runner-book');
-    runner.type = 'button';
-    runner.dataset.nav = 'true';
-    if (chart[1]) runner.append(artFrame(chart[1], 'runner-art'));
-    runner.append(node('span', '', 'No. 2'));
-    runner.addEventListener('click', function () { navigate('Biblio'); });
-
-    desk.append(pile, stats, runner);
-    box.append(desk);
-    return box;
-  }
-
-  function vaultLauncher() {
-    const box = node('section', 'vault-launcher');
-    const copy = node('div');
-    copy.append(node('p', 'eyebrow', 'ON THIS MACHINE'));
-    copy.append(node('h2', '', 'Vault'));
-    copy.append(node('p', '', 'Keep the native Vault surface. Web Colosseum only hands off to it.'));
-    const open = node('button', 'outline-button', 'Open Vault →');
-    open.type = 'button';
-    open.dataset.nav = 'true';
-    open.addEventListener('click', function () { send('open-vault'); });
-    box.append(copy, open);
-    return box;
-  }
-
-  function renderHome() {
-    const data = homeData();
-    const root = node('div', 'home-surface');
-    root.append(homeUniverseHero(data));
-
-    const resumes = Array.isArray(data.continue) ? data.continue :
-                    (Array.isArray(data.progress) ? data.progress : []);
-    if (resumes.length)
-      root.append(continueRail('Home', 'Continue', resumes, false));
-
-    const tank = isObject(data.tankoban) ? data.tankoban : deriveHomeWorldPreview('Tankoban');
-    const theatre = isObject(data.theatre) ? data.theatre : deriveHomeWorldPreview('Theatre');
-    const biblio = isObject(data.biblio) ? data.biblio : deriveHomeWorldPreview('Biblio');
-
-    root.append(tankobanIntro(tank));
-    root.append(theatreIntro(theatre));
-    root.append(biblioIntro(biblio));
-    root.append(vaultLauncher());
-    return root;
+  function tabsFor(world, data) {
+    return Array.isArray(data.tabModel) && data.tabModel.length
+      ? data.tabModel : (WORLD_TABS[world] || []);
   }
 
   function tabPayload(world, key) {
     const data = worldData(world);
-    if (isObject(data.tabs) && data.tabs[key] !== undefined)
-      return data.tabs[key];
+    if (isObject(data.tabs) && data.tabs[key] !== undefined) return data.tabs[key];
     return data[key];
   }
 
-  function renderPayload(world, key, payload) {
-    const wrap = node('div', 'tab-content');
-    if (Array.isArray(payload)) {
-      wrap.append(gridSection(world, '', payload));
-      return wrap;
-    }
-
-    if (!isObject(payload)) {
-      wrap.append(emptyState('Waiting for ' + key, 'Colosseum has not mounted this tab snapshot yet.'));
-      window.ColosseumWeb.requestSnapshot(world, key);
-      return wrap;
-    }
-
-    if (Array.isArray(payload.sections)) {
-      payload.sections.forEach(function (section, index) {
-        const title = section.title || section.label || '';
-        const items = listFrom(section);
-        const layout = section.layout || (section.grid ? 'grid' : 'rail');
-        wrap.append(layout === 'grid'
-          ? gridSection(world, title, items, section)
-          : rail(world, title || ('Section ' + (index + 1)), items, {
-              moreLabel: section.moreLabel || (section.seeAll ? 'See all' : ''),
-              onMore: section.seeAll ? function () {
-                send('see-all', { world: world, tab: key, pin: section.pin || section });
-              } : null
-            }));
-      });
-      return wrap;
-    }
-
-    const items = listFrom(payload);
-    wrap.append(gridSection(world, payload.title || '', items, payload));
-    return wrap;
+  function openItem(world, item, intent) {
+    send('open-item', Object.assign({ world, intent: intent || 'details' }, identity(item)));
   }
 
-  function gridSection(world, title, items, options) {
-    const opts = options || {};
-    const section = node('section', 'content-section grid-section');
-    if (title) section.append(sectionHeading(title,
-      opts.seeAll ? (opts.moreLabel || 'See all') : '',
-      opts.seeAll ? function () { send('see-all', { world: world, pin: opts.pin || opts }); } : null));
+  function resumeItem(world, item) {
+    send('resume', Object.assign({ world }, identity(item)));
+  }
 
+  function nextUpItem(world, item) {
+    send('next-up', Object.assign({ world }, identity(item)));
+  }
+
+  function makeImage(url, className) {
+    if (!url) return null;
+    const image = el('img', className || '');
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.src = url;
+    image.addEventListener('load', () => image.classList.add('on'));
+    image.addEventListener('error', () => image.remove());
+    return image;
+  }
+
+  function face(item) {
+    const data = normalize(item);
+    const f = el('div', 'face');
+    const fallback = el('div', 'fb', data.title);
+    f.append(fallback);
+    const image = makeImage(data.poster);
+    if (image) f.append(image);
+    return f;
+  }
+
+  function emptyState(title, text) {
+    const box = el('div', 'empty-state');
+    const copy = el('div');
+    copy.append(el('b', '', title), el('span', '', text));
+    box.append(copy);
+    return box;
+  }
+
+  function sectionHeader(title, more) {
+    const head = el('div', 'wh');
+    head.append(el('h2', '', title));
+    if (more) {
+      const button = el('button', 'more fx');
+      button.type = 'button';
+      button.dataset.nav = 'true';
+      button.append(document.createTextNode(more.label || 'See all'), el('span', 'ch', '›'));
+      button.addEventListener('click', more.action);
+      head.append(button);
+    }
+    return head;
+  }
+
+  function posterCard(world, item, onClick) {
+    const data = normalize(item);
+    const card = el('button', 'pc fx');
+    card.type = 'button';
+    card.dataset.nav = 'true';
+
+    const art = el('div', 'art');
+    art.append(face(data.raw));
+    const rev = el('div', 'rev');
+    rev.append(el('b', '', data.title));
+    if (data.subtitle) rev.append(el('span', '', data.subtitle));
+    art.append(rev);
+    card.append(art, el('div', 'cap', data.title));
+    if (data.subtitle) card.append(el('div', 'sub', data.subtitle));
+    card.addEventListener('click', () => {
+      if (onClick) onClick(data.raw);
+      else openItem(world, data.raw, 'details');
+    });
+    return card;
+  }
+
+  function continueCard(world, item, isNextUp) {
+    const data = normalize(item);
+    const card = el('button', 'ct fx');
+    card.type = 'button';
+    card.dataset.nav = 'true';
+    card.append(face(data.raw), el('div', 'shade'));
+    card.append(el('div', 'lbl', data.title));
+    if (data.subtitle) card.append(el('div', 'sub', data.subtitle));
+
+    const play = el('span', 'play');
+    play.innerHTML = '<svg viewBox="0 0 24 24" fill="#f0c44a"><path d="M9 7.5v9l7-4.5z"/></svg>';
+    card.append(play, el('span', 'frame'));
+
+    if (data.progress >= 0 && !isNextUp) {
+      const bar = el('span', 'bar');
+      const fill = el('i');
+      fill.style.width = data.progress + '%';
+      bar.append(fill);
+      card.append(bar);
+    }
+
+    card.addEventListener('click', () => isNextUp ? nextUpItem(world, data.raw) : resumeItem(world, data.raw));
+    return card;
+  }
+  function topTenCard(world, item, index) {
+    const data = normalize(item);
+    const card = el('button', 't10 fx');
+    card.type = 'button';
+    card.dataset.nav = 'true';
+    card.append(el('span', 'num', String(index + 1)));
+    const art = el('div', 'art');
+    art.append(face(data.raw));
+    card.append(art);
+    const copy = el('span', 'rank-copy');
+    copy.append(el('b', '', data.title));
+    if (data.subtitle) copy.append(el('span', '', data.subtitle));
+    card.append(copy);
+    card.addEventListener('click', () => openItem(world, data.raw, 'details'));
+    return card;
+  }
+
+  function updateRailEdges(wrap) {
+    const rail = wrap && wrap.querySelector('.rail');
+    if (!rail) return;
+    const prev = wrap.querySelector('.edge.prev');
+    const next = wrap.querySelector('.edge.next');
+    if (prev) prev.classList.toggle('can', rail.scrollLeft > 5);
+    if (next) next.classList.toggle('can', rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 5);
+  }
+
+  function railSection(world, title, items, options) {
     const list = Array.isArray(items) ? items : [];
+    const opts = options || {};
+    if (!list.length && opts.hideWhenEmpty) return null;
+    const section = el('section', 'widget');
+    section.append(sectionHeader(title, opts.more));
+
     if (!list.length) {
-      section.append(emptyState('No items supplied', 'This frontend does not invent catalogue entries.'));
+      section.append(emptyState('Nothing here yet', opts.empty || 'Colosseum has no rows for this section.'));
       return section;
     }
 
-    const grid = node('div', 'poster-grid');
-    list.forEach(function (item) { grid.append(posterCard(world, item)); });
+    const wrap = el('div', 'rail-wrap');
+    const rail = el('div', 'rail');
+    list.forEach((item, index) => {
+      if (opts.kind === 'continue') rail.append(continueCard(world, item, false));
+      else if (opts.kind === 'next') rail.append(continueCard(world, item, true));
+      else if (opts.kind === 'top10') rail.append(topTenCard(world, item, index));
+      else rail.append(posterCard(world, item, opts.onClick));
+    });
+
+    const prev = el('button', 'edge prev', '‹');
+    const next = el('button', 'edge next', '›');
+    prev.type = next.type = 'button';
+    prev.tabIndex = next.tabIndex = -1;
+    prev.addEventListener('click', () => rail.scrollBy({ left: -rail.clientWidth * .78, behavior: 'smooth' }));
+    next.addEventListener('click', () => rail.scrollBy({ left: rail.clientWidth * .78, behavior: 'smooth' }));
+    rail.addEventListener('scroll', () => updateRailEdges(wrap), { passive: true });
+    wrap.append(rail, prev, next);
+    section.append(wrap);
+    requestAnimationFrame(() => updateRailEdges(wrap));
+    return section;
+  }
+
+  function heroAction(world, item, primary) {
+    if (world === 'Home') {
+      send('open-universe', {
+        extensionId: item.extensionId || item.id || '',
+        name: rawTitle(item),
+        item
+      });
+      return;
+    }
+    openItem(world, item, primary ? 'primary' : 'details');
+  }
+
+  function heroCarousel(world, items, options) {
+    const list = Array.isArray(items) ? items : [];
+    const opts = options || {};
+    if (!list.length) {
+      const empty = el('section', 'car empty widget');
+      empty.append(emptyState('Featured is waiting', 'Colosseum has not supplied featured items yet.'));
+      return empty;
+    }
+
+    state.heroIndex = Math.min(state.heroIndex, list.length - 1);
+    const car = el('section', 'car widget');
+    car.dataset.carousel = 'true';
+    const track = el('div', 'track');
+    track.style.transform = 'translateX(-' + (state.heroIndex * 100) + '%)';
+
+    list.forEach((item, index) => {
+      const data = normalize(item);
+      const slide = el('article', 'slide');
+      const image = makeImage(data.backdrop || data.poster, 'art');
+      if (image) slide.append(image);
+      slide.append(el('div', 'wash'));
+      slide.append(el('div', 'ghost', (data.kind || world).slice(0, 1).toUpperCase()));
+
+      const copy = el('div', 'copy');
+      copy.append(el('div', 'kicker', opts.kicker || ('FEATURED IN ' + world.toUpperCase())));
+      copy.append(el('h3', '', data.title));
+      if (data.description) copy.append(el('p', '', data.description));
+
+      const buttons = el('div', 'btns');
+      const primary = el('button', 'b-gold fx', opts.primary || (world === 'Theatre' ? 'Watch' : 'Read'));
+      primary.type = 'button';
+      primary.dataset.nav = 'true';
+      primary.addEventListener('click', () => heroAction(world, data.raw, true));
+      const details = el('button', 'b-glass fx', opts.secondary || 'Details');
+      details.type = 'button';
+      details.dataset.nav = 'true';
+      details.addEventListener('click', () => heroAction(world, data.raw, false));
+      buttons.append(primary);
+      if (!opts.noSecondary) buttons.append(details);
+      copy.append(buttons);
+      slide.append(copy);
+      track.append(slide);
+    });
+    car.append(track);
+
+    if (list.length > 1) {
+      const dots = el('div', 'dots');
+      list.forEach((_, index) => {
+        const dot = el('button', 'dot' + (index === state.heroIndex ? ' on' : ''));
+        dot.type = 'button';
+        dot.tabIndex = -1;
+        dot.addEventListener('click', () => setHeroIndex(index));
+        dots.append(dot);
+      });
+      car.append(dots);
+    }
+
+    car.addEventListener('pointerenter', stopHeroTimer);
+    car.addEventListener('pointerleave', startHeroTimer);
+    car.addEventListener('focusin', stopHeroTimer);
+    car.addEventListener('focusout', startHeroTimer);
+    return car;
+  }
+
+  function setHeroIndex(index) {
+    const car = document.querySelector('.car[data-carousel="true"]');
+    if (!car) return;
+    const slides = car.querySelectorAll('.slide');
+    if (!slides.length) return;
+    state.heroIndex = ((index % slides.length) + slides.length) % slides.length;
+    const track = car.querySelector('.track');
+    if (track) track.style.transform = 'translateX(-' + (state.heroIndex * 100) + '%)';
+    car.querySelectorAll('.dot').forEach((dot, i) => dot.classList.toggle('on', i === state.heroIndex));
+  }
+
+  function stopHeroTimer() {
+    if (state.heroTimer) clearInterval(state.heroTimer);
+    state.heroTimer = 0;
+  }
+
+  function startHeroTimer() {
+    stopHeroTimer();
+    const list = state.surface === 'Home'
+      ? (Array.isArray(state.snapshot.universes) ? state.snapshot.universes : [])
+      : listFrom(worldData(state.surface).featured);
+    if (list.length < 2) return;
+    state.heroTimer = setInterval(() => setHeroIndex(state.heroIndex + 1), 6500);
+  }
+
+  function tabBar(world, tabs, active, docked) {
+    const bar = el('div', 'tabs glass');
+    if (docked) bar.dataset.dockedTabs = 'true';
+    tabs.forEach(tab => {
+      const button = el('button', 'tab fx' + (tab.key === active ? ' on' : ''), tab.label || tab.key);
+      button.type = 'button';
+      button.id = (docked ? 'dock-' : 'world-') + 'tab-' + world.toLowerCase() + '-' + tab.key;
+      button.dataset.nav = 'true';
+      button.setAttribute('aria-current', tab.key === active ? 'page' : 'false');
+      button.addEventListener('click', () => selectTab(world, tab.key, button.id));
+      bar.append(button);
+    });
+    return bar;
+  }
+
+  function selectTab(world, tab, focusId) {
+    if (!WORLD_TABS[world] || !WORLD_TABS[world].some(row => row.key === tab)) return;
+    state.activeTabs[world] = tab;
+    state.lastFocus = focusId || ('world-tab-' + world.toLowerCase() + '-' + tab);
+    state.heroIndex = 0;
+    send('world-tab', { world, tab });
+    render();
+  }
+
+  function genreList(items) {
+    const counts = new Map();
+    (items || []).forEach(item => {
+      let genres = item && (item.genres || item.genre);
+      if (typeof genres === 'string') genres = genres.split(/[,|]/);
+      if (!Array.isArray(genres)) return;
+      genres.forEach(name => {
+        name = String(name || '').trim();
+        if (name) counts.set(name, (counts.get(name) || 0) + 1);
+      });
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  }
+
+  function genreMosaic(world, items) {
+    const genres = genreList(items);
+    if (!genres.length) return null;
+    const section = el('section', 'widget');
+    section.append(sectionHeader(world === 'Theatre' ? 'Genres' : 'Browse genres'));
+    const grid = el('div', 'gm');
+    genres.forEach(([name, count]) => {
+      const sample = (items || []).find(item => {
+        const source = item && (item.genres || item.genre);
+        const values = Array.isArray(source) ? source : String(source || '').split(/[,|]/);
+        return values.map(x => String(x).trim()).includes(name);
+      });
+      const tile = el('button', 'gt fx');
+      tile.type = 'button';
+      tile.dataset.nav = 'true';
+      const image = sample ? makeImage(backdropUrl(sample) || posterUrl(sample)) : null;
+      if (image) tile.append(image);
+      tile.append(el('span', 'n', name), el('span', 'c', String(count)));
+      tile.addEventListener('click', () => send('open-genre', { world, genre: name }));
+      grid.append(tile);
+    });
     section.append(grid);
     return section;
   }
 
-  function tabsFor(world, data) {
-    if (Array.isArray(data.tabModel) && data.tabModel.length)
-      return data.tabModel;
-    return WORLD_TABS[world] || [];
+  function renderPayload(world, key, payload) {
+    const pane = el('div', 'world-pane');
+    if (Array.isArray(payload)) {
+      const section = railSection(world, key === 'library' ? 'Your Library' : 'Now Browsing', payload);
+      if (section) pane.append(section);
+      return pane;
+    }
+
+    if (!isObject(payload)) {
+      pane.append(emptyState('Waiting for ' + key, 'Colosseum has not mounted this tab snapshot yet.'));
+      window.ColosseumWeb.requestSnapshot(world, key);
+      return pane;
+    }
+
+    const sections = Array.isArray(payload.sections) ? payload.sections : null;
+    if (sections) {
+      sections.forEach((part, index) => {
+        const items = listFrom(part);
+        const title = part.title || part.label || ('Section ' + (index + 1));
+        const useTop10 = world === 'Theatre' && index === 0 &&
+          (key === 'movies' || key === 'shows' || key === 'anime') &&
+          /top/i.test(title) && items.length >= 5;
+        const section = railSection(world, title, useTop10 ? items.slice(0, 10) : items, {
+          kind: useTop10 ? 'top10' : '',
+          more: part.seeAll ? {
+            label: part.moreLabel || 'See all',
+            action: () => send('see-all', { world, tab: key, pin: part.pin || part })
+          } : null
+        });
+        if (section) pane.append(section);
+      });
+      const all = sections.flatMap(section => listFrom(section));
+      const genres = genreMosaic(world, all);
+      if (genres && world === 'Theatre' && ['movies', 'shows', 'anime'].includes(key)) pane.append(genres);
+      return pane;
+    }
+
+    const items = listFrom(payload);
+    if (key === 'library') {
+      const section = el('section', 'widget');
+      section.append(sectionHeader('Your Library'));
+      if (!items.length) section.append(emptyState('Nothing saved yet', 'Your existing Colosseum Collection will appear here.'));
+      else {
+        const grid = el('div', 'grid');
+        items.forEach(item => grid.append(posterCard(world, item)));
+        section.append(grid);
+      }
+      pane.append(section);
+    } else {
+      const section = railSection(world, payload.title || 'Now Browsing', items);
+      if (section) pane.append(section);
+    }
+    return pane;
   }
 
   function renderWorld(world) {
     const data = worldData(world);
-    const root = node('div', 'world-surface ' + world.toLowerCase() + '-surface');
-    root.append(hero(world, listFrom(data.featured)));
+    const pane = el('div', 'world-pane');
+    pane.append(heroCarousel(world, listFrom(data.featured)));
 
-    const next = listFrom(data.nextUp);
-    if (next.length) root.append(continueRail(world, 'Next Up', next, true));
+    const next = railSection(world, 'Next Up', listFrom(data.nextUp), {
+      kind: 'next', hideWhenEmpty: true,
+      more: { label: 'See all', action: () => send('continue-see-all', { world }) }
+    });
+    if (next) pane.append(next);
 
-    const resumes = listFrom(data.continue);
-    if (resumes.length)
-      root.append(continueRail(world, world === 'Theatre' ? 'Continue Watching' : 'Continue Reading', resumes, false));
+    const resume = railSection(world, world === 'Theatre' ? 'Continue Watching' : 'Continue Reading',
+      listFrom(data.continue), {
+        kind: 'continue', hideWhenEmpty: true,
+        more: { label: 'See all', action: () => send('continue-see-all', { world }) }
+      });
+    if (resume) pane.append(resume);
 
     const tabs = tabsFor(world, data);
     const active = state.activeTabs[world] || (tabs[0] && tabs[0].key) || 'discover';
-    const tabBar = node('nav', 'world-tabs');
-
-    tabBar.setAttribute('aria-label', world + ' sections');
-
-    tabs.forEach(function (tab) {
-      const button = node('button', '', tab.label || tab.key);
-      button.type = 'button';
-      button.id = 'world-tab-' + world.toLowerCase() + '-' + tab.key;
-      button.dataset.nav = 'true';
-      button.dataset.active = String(tab.key === active);
-      button.setAttribute('aria-current', tab.key === active ? 'page' : 'false');
-      button.addEventListener('click', function () {
-        state.lastFocus = button.id;
-        state.activeTabs[world] = tab.key;
-        send('world-tab', { world: world, tab: tab.key });
-        state.heroIndex = 0;
-        render();
-      });
-      tabBar.append(button);
-    });
-    root.append(tabBar);
+    const host = el('div', 'tabs-host widget');
+    host.id = 'world-tabs-host';
+    host.append(tabBar(world, tabs, active, false));
+    pane.append(host);
 
     const payload = tabPayload(world, active);
-    root.append(renderPayload(world, active, payload));
-    return root;
+    pane.append(renderPayload(world, active, payload));
+    renderDock(world, tabs, active);
+    return pane;
+  }
+
+  function deriveHomePreview(world) {
+    const data = worldData(world);
+    if (world === 'Tankoban') {
+      const tabs = isObject(data.tabs) ? data.tabs : {};
+      const manga = listFrom(tabs.manga || data.manga);
+      const comics = listFrom(tabs.comics || data.comics);
+      return manga.concat(comics).slice(0, 16);
+    }
+    if (world === 'Theatre') {
+      return listFrom(data.featured).concat(listFrom(data.movies)).slice(0, 16);
+    }
+    if (world === 'Biblio') return listFrom(data.featured).slice(0, 16);
+    return [];
+  }
+
+  function homeSection(world, title, items) {
+    const list = Array.isArray(items) ? items : [];
+    const section = el('section', 'widget');
+    const head = el('div', 'home-world-head');
+    head.append(el('h2', '', title));
+    const open = el('button', 'fx', 'Open ' + world + ' ›');
+    open.type = 'button';
+    open.dataset.nav = 'true';
+    open.addEventListener('click', () => navigate(world));
+    head.append(open);
+    section.append(head);
+
+    if (!list.length) {
+      section.append(emptyState('Waiting for ' + world, 'The existing catalogue has not supplied this Home preview yet.'));
+      return section;
+    }
+    const wrap = el('div', 'rail-wrap');
+    const rail = el('div', 'rail');
+    list.forEach(item => rail.append(posterCard(world, item, () => navigate(world))));
+    wrap.append(rail);
+    section.append(wrap);
+    return section;
+  }
+
+  function renderHome() {
+    const data = homeData();
+    const pane = el('div', 'home-pane');
+    const universes = Array.isArray(data.universes) ? data.universes :
+      (Array.isArray(state.snapshot.universes) ? state.snapshot.universes : []);
+    pane.append(heroCarousel('Home', universes, {
+      kicker: 'UNIVERSE',
+      primary: 'Explore the universe',
+      noSecondary: true
+    }));
+
+    const resume = railSection('Home', 'Continue', listFrom(data.continue || data.progress), {
+      kind: 'continue', hideWhenEmpty: true,
+      more: { label: 'See all', action: () => send('continue-see-all', { world: 'Home' }) }
+    });
+    if (resume) pane.append(resume);
+
+    const tank = isObject(data.tankoban)
+      ? listFrom(data.tankoban.manga).concat(listFrom(data.tankoban.comics)).slice(0, 16)
+      : deriveHomePreview('Tankoban');
+    const theatre = isObject(data.theatre) ? listFrom(data.theatre.items) : deriveHomePreview('Theatre');
+    const biblio = isObject(data.biblio) ? listFrom(data.biblio.chart) : deriveHomePreview('Biblio');
+    pane.append(homeSection('Tankoban', 'Tankoban', tank));
+    pane.append(homeSection('Theatre', 'Theatre', theatre));
+    pane.append(homeSection('Biblio', 'Biblio', biblio));
+
+    const vault = el('button', 'vault-door glass fx');
+    vault.type = 'button';
+    vault.dataset.nav = 'true';
+    const copy = el('span', 'copy');
+    copy.append(el('b', '', 'Vault'), el('span', '', 'Local media on this machine'));
+    vault.append(copy, el('span', 'more', 'Open Vault ›'));
+    vault.addEventListener('click', () => send('open-vault'));
+    pane.append(vault);
+    clearDock();
+    return pane;
+  }
+
+  function renderDock(world, tabs, active) {
+    const dock = $('dock');
+    const target = $('dockTabs');
+    target.replaceChildren();
+    const fresh = tabBar(world, tabs, active, true);
+    [...fresh.children].forEach(child => target.append(child));
+    dock.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('docked');
+  }
+
+  function clearDock() {
+    $('dockTabs').replaceChildren();
+    $('dock').setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('docked');
+  }
+
+  function updateDock() {
+    const host = $('world-tabs-host');
+    const dock = $('dock');
+    if (!host || state.surface === 'Home') {
+      clearDock();
+      return;
+    }
+    const board = $('board');
+    const on = host.getBoundingClientRect().bottom <= board.getBoundingClientRect().top + 4;
+    document.body.classList.toggle('docked', on);
+    dock.setAttribute('aria-hidden', on ? 'false' : 'true');
   }
 
   function setWallpaper() {
+    const wall = $('wall');
     const value = safeUrl(state.snapshot.wallpaper || homeData().wallpaper);
-    const wall = $('wallpaper');
     wall.style.backgroundImage = value ? 'url("' + value.replace(/"/g, '%22') + '")' : '';
     wall.dataset.hasImage = value ? 'true' : 'false';
   }
 
+  function updateClock() {
+    const now = new Date();
+    const hour = now.getHours();
+    const h12 = hour % 12 || 12;
+    $('clkT').textContent = h12 + ':' + String(now.getMinutes()).padStart(2, '0');
+    $('clkA').textContent = hour < 12 ? 'AM' : 'PM';
+    $('clkD').textContent = now.toLocaleDateString(undefined, {
+      weekday: 'long', month: 'long', day: 'numeric'
+    });
+  }
+
   function updateTopbar() {
-    const onHome = state.surface === 'Home';
-    $('home-button').hidden = onHome;
-    $('brand-button').classList.toggle('compact', !onHome);
-    document.querySelectorAll('#world-nav [data-world]').forEach(function (button) {
+    $('app').dataset.surface = state.surface;
+    $('home-button').hidden = state.surface === 'Home';
+    document.querySelectorAll('#world-nav [data-world]').forEach(button => {
       const active = button.dataset.world === state.surface;
-      button.dataset.active = String(active);
+      button.classList.toggle('active', active);
       button.setAttribute('aria-current', active ? 'page' : 'false');
     });
-
     const initial = String(state.snapshot.accountInitial || '?').trim().slice(0, 1).toUpperCase() || '?';
-    $('account-button').firstElementChild.textContent = initial;
+    $('account-button').textContent = initial;
     $('backend-status').textContent = state.mounted ? 'Colosseum backend mounted' : 'Waiting for Colosseum backend';
-    $('backend-status').dataset.ready = String(state.mounted);
-    $('app').dataset.surface = state.surface;
+  }
+
+  function updateHints() {
+    const hints = $('hints');
+    hints.replaceChildren();
+    const add = (key, label) => {
+      const span = el('span');
+      span.innerHTML = '<kbd>' + key + '</kbd>' + label;
+      hints.append(span);
+    };
+    add('↑↓←→', 'Move');
+    add('Enter', 'Open');
+    add('Esc', state.searchOpen ? 'Back' : (state.surface === 'Home' ? 'Home' : 'Back'));
+    if (state.surface !== 'Home') add('[ ]', 'Tabs');
+    add('/', 'Search');
   }
 
   function render() {
-    clearHeroTimer();
+    stopHeroTimer();
     updateTopbar();
     setWallpaper();
-    const surface = $('surface');
-    surface.replaceChildren(state.surface === 'Home' ? renderHome() : renderWorld(state.surface));
+    const col = $('col');
+    col.replaceChildren(state.surface === 'Home' ? renderHome() : renderWorld(state.surface));
+    $('board').scrollTop = Math.min($('board').scrollTop, $('board').scrollHeight);
     restoreFocus();
-    if (state.surface === 'Home') startHomeHeroTimer();
-    else startHeroTimer();
+    updateHints();
+    startHeroTimer();
+    requestAnimationFrame(updateDock);
   }
 
   function navigate(surface) {
-    const next = WORLD_ORDER.includes(surface) ? surface : 'Home';
-    if (state.surface === next) return;
+    const next = WORLDS.includes(surface) ? surface : 'Home';
+    if (next === state.surface) return;
     rememberFocus();
     state.surface = next;
-
     state.heroIndex = 0;
+    $('board').scrollTop = 0;
     if (next === 'Home') send('home');
     else send('open-world', { world: next });
     render();
     if (next !== 'Home' && !Object.keys(worldData(next)).length)
       window.ColosseumWeb.requestSnapshot(next, state.activeTabs[next]);
   }
-
   function rememberFocus() {
     const active = document.activeElement;
-    state.lastFocus = active && active.id ? active.id : null;
+    state.lastFocus = active && active.id ? active.id : '';
   }
 
   function restoreFocus() {
-    window.requestAnimationFrame(function () {
+    requestAnimationFrame(() => {
       if (state.lastFocus) {
         const target = document.getElementById(state.lastFocus);
-        if (target) { target.focus(); state.lastFocus = null; return; }
+        state.lastFocus = '';
+        if (target) {
+          target.focus({ preventScroll: true });
+          revealFocus(target);
+          return;
+        }
       }
       const active = document.activeElement;
-      if (active && active !== document.body && !$('surface').contains(active))
-        return;
-      const target = document.querySelector('#surface [data-nav="true"]');
+      if (active && active !== document.body && !['board', 'col'].includes(active.id)) return;
+      const target = document.querySelector('#col [data-nav="true"]');
       if (target && state.mounted) target.focus({ preventScroll: true });
     });
   }
 
+  function revealFocus(node) {
+    if (!node || state.searchOpen) return;
+    const rail = node.closest('.rail');
+    if (rail) {
+      const r = node.getBoundingClientRect();
+      const b = rail.getBoundingClientRect();
+      if (r.left < b.left) rail.scrollBy({ left: r.left - b.left - 10, behavior: 'smooth' });
+      else if (r.right > b.right) rail.scrollBy({ left: r.right - b.right + 10, behavior: 'smooth' });
+    }
+
+    const board = $('board');
+    const widget = node.closest('.widget');
+    if (widget && !node.closest('.car')) {
+      const wr = widget.getBoundingClientRect();
+      const br = board.getBoundingClientRect();
+      if (wr.top < br.top + 8 || wr.top > br.top + 110)
+        board.scrollBy({ top: wr.top - br.top - 8, behavior: 'smooth' });
+    }
+  }
+  function focusables() {
+    const scope = state.searchOpen ? $('search') : document;
+    return [...scope.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled])')]
+      .filter(node => {
+        if (node.closest('[hidden]')) return false;
+        const r = node.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+  }
+
+  function spatialMove(key) {
+    const current = document.activeElement;
+    const list = focusables();
+    if (!current || !list.includes(current)) {
+      if (list[0]) list[0].focus();
+      return true;
+    }
+    const c = current.getBoundingClientRect();
+    const cx = (c.left + c.right) / 2;
+    const cy = (c.top + c.bottom) / 2;
+    let best = null;
+    let bestScore = Infinity;
+
+    list.forEach(candidate => {
+      if (candidate === current) return;
+      const r = candidate.getBoundingClientRect();
+      const x = (r.left + r.right) / 2;
+      const y = (r.top + r.bottom) / 2;
+      const dx = x - cx;
+      const dy = y - cy;
+      if (key === 'ArrowLeft' && dx >= -3) return;
+      if (key === 'ArrowRight' && dx <= 3) return;
+      if (key === 'ArrowUp' && dy >= -3) return;
+      if (key === 'ArrowDown' && dy <= 3) return;
+      const horizontal = key === 'ArrowLeft' || key === 'ArrowRight';
+      const primary = horizontal ? Math.abs(dx) : Math.abs(dy);
+      const secondary = horizontal ? Math.abs(dy) : Math.abs(dx);
+      const score = primary + secondary * 2.4;
+      if (score < bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+    });
+
+    if (!best) return false;
+    best.focus({ preventScroll: true });
+    revealFocus(best);
+    return true;
+  }
+  function openSearch(initial) {
+    state.searchOpen = true;
+    state.lastFocus = document.activeElement && document.activeElement.id || '';
+    $('search').classList.add('on');
+    $('board').inert = true;
+    $('topbar').inert = true;
+    const input = $('search-input');
+    input.value = initial || '';
+    renderSearchResults();
+    input.focus();
+    if (input.value) queueSearch();
+    send('search-open');
+    updateHints();
+  }
+
+  function closeSearch() {
+    state.searchOpen = false;
+    $('search').classList.remove('on');
+    $('board').inert = false;
+    $('topbar').inert = false;
+    send('search-close');
+    const target = state.lastFocus && document.getElementById(state.lastFocus);
+    state.lastFocus = '';
+    if (target) target.focus();
+    else $('search-button').focus();
+    updateHints();
+  }
+
+  function renderSearchResults() {
+    const root = $('search-results');
+    root.replaceChildren();
+    const query = $('search-input').value.trim();
+    const search = isObject(state.snapshot.search) ? state.snapshot.search : {};
+    const results = Array.isArray(search.results) ? search.results : [];
+
+    if (!query) {
+      root.append(el('div', 'sempty', 'Type to search the current Colosseum backend.'));
+      return;
+    }
+    if (search.loading) {
+      root.append(el('div', 'sempty', 'Searching…'));
+      return;
+    }
+    if (!results.length) {
+      root.append(el('div', 'sempty', 'No results.'));
+      return;
+    }
+    const grid = el('div', 'search-grid');
+    results.forEach(item => {
+      const world = item.world || state.surface;
+      grid.append(posterCard(world === 'Home' ? 'Theatre' : world, item, raw => {
+        closeSearch();
+        openItem(world === 'Home' ? 'Theatre' : world, raw, 'details');
+      }));
+    });
+    root.append(grid);
+  }
+
+  function queueSearch() {
+    clearTimeout(state.searchTimer);
+    state.searchTimer = setTimeout(() => {
+      send('search-query', { query: $('search-input').value.trim() });
+      renderSearchResults();
+    }, 120);
+  }
+
+  function cycleTab(delta) {
+    if (state.surface === 'Home') return;
+    const tabs = tabsFor(state.surface, worldData(state.surface));
+    if (!tabs.length) return;
+    const active = state.activeTabs[state.surface] || tabs[0].key;
+    let index = tabs.findIndex(tab => tab.key === active);
+    index = (index + delta + tabs.length) % tabs.length;
+    selectTab(state.surface, tabs[index].key);
+  }
+
   function patchSnapshot(data) {
     state.snapshot = merge(state.snapshot, data);
-    if (data.surface) {
-      const name = String(data.surface);
-      if (name === 'Home' || WORLD_ORDER.includes(name)) state.surface = name;
-    }
+    if (data.surface && (data.surface === 'Home' || WORLDS.includes(data.surface)))
+      state.surface = data.surface;
     if (isObject(data.activeTabs))
       state.activeTabs = Object.assign({}, state.activeTabs, data.activeTabs);
     state.mounted = true;
@@ -766,180 +949,110 @@
 
   function mountSnapshot(data) {
     state.snapshot = data || {};
-    state.surface = data && (data.surface === 'Home' || WORLD_ORDER.includes(data.surface))
+    state.surface = data && (data.surface === 'Home' || WORLDS.includes(data.surface))
       ? data.surface : 'Home';
     state.activeTabs = Object.assign(
       { Tankoban: 'discover', Biblio: 'discover', Theatre: 'discover' },
       isObject(data.activeTabs) ? data.activeTabs : {}
     );
-    WORLD_ORDER.forEach(function (world) {
+    WORLDS.forEach(world => {
       const active = worldData(world).activeTab;
       if (active) state.activeTabs[world] = String(active);
     });
-    state.mounted = true;
     state.heroIndex = 0;
+    state.mounted = true;
     render();
   }
 
-  function openSearch() {
-    state.searchOpen = true;
-    state.lastFocus = document.activeElement && document.activeElement.id;
-    $('search-overlay').hidden = false;
-    $('search-input').value = '';
-    $('search-results').replaceChildren(
-      emptyState('Search Colosseum', 'Type a query. The existing backend owns the search.')
-    );
-    $('search-input').focus();
-    send('search-open');
-  }
-
-  function closeSearch() {
-    state.searchOpen = false;
-    $('search-overlay').hidden = true;
-    send('search-close');
-    const target = state.lastFocus ? document.getElementById(state.lastFocus) : $('search-button');
-    if (target) target.focus();
-    state.lastFocus = null;
-  }
-
-  function renderSearchResults() {
-    const root = $('search-results');
-    root.replaceChildren();
-    const search = isObject(state.snapshot.search) ? state.snapshot.search : {};
-    const results = Array.isArray(search.results) ? search.results : [];
-    const query = $('search-input').value.trim();
-
-    if (search.loading) {
-      root.append(emptyState('Searching…', 'Colosseum is resolving "' + query + '".'));
-      return;
-    }
-    if (!query) {
-      root.append(emptyState('Search Colosseum', 'Type a query. The existing backend owns the search.'));
-      return;
-    }
-    if (!results.length) {
-      root.append(emptyState('No results yet', 'No backend results are mounted for this query.'));
-      return;
-    }
-
-    results.forEach(function (item) {
-      const data = normalized(item);
-      const button = node('button', 'search-result');
-      button.type = 'button';
-      button.append(artFrame(item, 'search-result-art'));
-      const copy = node('span');
-      copy.append(node('strong', '', data.title));
-      if (data.subtitle) copy.append(node('small', '', data.subtitle));
-      button.append(copy, node('span', 'search-arrow', '→'));
-      button.addEventListener('click', function () {
-        closeSearch();
-        openItem(item.world || state.surface, item, 'details');
-      });
-      root.append(button);
+  function bindChrome() {
+    $('home-button').addEventListener('click', () => navigate('Home'));
+    document.querySelectorAll('#world-nav [data-world]').forEach(button => {
+      button.addEventListener('click', () => navigate(button.dataset.world));
     });
-  }
-
-  function searchChanged() {
-    window.clearTimeout(state.searchTimer);
-    state.searchTimer = window.setTimeout(function () {
-      const query = $('search-input').value.trim();
-      send('search-query', { query: query });
-      renderSearchResults();
-    }, 120);
-  }
-
-  function focusables() {
-    return Array.from(document.querySelectorAll(
-      'button:not([disabled]):not([hidden]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )).filter(function (el) {
-      if (el.closest('[hidden]')) return false;
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    });
-  }
-
-  function spatialMove(key) {
-    const current = document.activeElement;
-    if (!current || current === document.body) return false;
-    const from = current.getBoundingClientRect();
-    const fx = from.left + from.width / 2;
-    const fy = from.top + from.height / 2;
-    let best = null;
-    let bestScore = Infinity;
-
-    focusables().forEach(function (candidate) {
-      if (candidate === current) return;
-      const rect = candidate.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-
-      const dx = x - fx;
-      const dy = y - fy;
-      if (key === 'ArrowLeft' && dx >= -2) return;
-      if (key === 'ArrowRight' && dx <= 2) return;
-      if (key === 'ArrowUp' && dy >= -2) return;
-      if (key === 'ArrowDown' && dy <= 2) return;
-
-      const horizontal = key === 'ArrowLeft' || key === 'ArrowRight';
-      const primary = horizontal ? Math.abs(dx) : Math.abs(dy);
-      const secondary = horizontal ? Math.abs(dy) : Math.abs(dx);
-      const score = primary + secondary * 2.4;
-      if (score < bestScore) { best = candidate; bestScore = score; }
-    });
-
-    if (best) {
-      best.focus({ preventScroll: true });
-      best.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-      return true;
-    }
-
-    if (key === 'ArrowDown')
-      window.scrollBy({ top: Math.round(innerHeight * 0.68), behavior: 'smooth' });
-    else if (key === 'ArrowUp')
-      window.scrollBy({ top: -Math.round(innerHeight * 0.68), behavior: 'smooth' });
-    return key === 'ArrowDown' || key === 'ArrowUp';
-  }
-
-  function bindStaticControls() {
-    $('brand-button').addEventListener('click', function () { navigate('Home'); });
-    $('home-button').addEventListener('click', function () { navigate('Home'); });
-
-    document.querySelectorAll('#world-nav [data-world]').forEach(function (button) {
-      button.addEventListener('click', function () { navigate(button.dataset.world); });
-    });
-
-    $('search-button').addEventListener('click', openSearch);
+    $('search-button').addEventListener('click', () => openSearch(''));
     $('search-close').addEventListener('click', closeSearch);
-    $('search-input').addEventListener('input', searchChanged);
-    $('trackers-button').addEventListener('click', function () { send('trackers'); });
-    $('wallpaper-button').addEventListener('click', function () { send('wallpaper'); });
-    $('account-button').addEventListener('click', function () { send('account'); });
-    $('minimize-button').addEventListener('click', function () { send('window-minimize'); });
-    $('fullscreen-button').addEventListener('click', function () { send('window-toggle-fullscreen'); });
-    $('close-button').addEventListener('click', function () { send('window-close'); });
+    $('search-input').addEventListener('input', queueSearch);
+    $('trackers-button').addEventListener('click', () => send('trackers'));
+    $('account-button').addEventListener('click', () => send('account'));
+    $('wallpaper-button').addEventListener('click', () => send('wallpaper'));
+    $('minimize-button').addEventListener('click', () => send('window-minimize'));
+    $('fullscreen-button').addEventListener('click', () => send('window-toggle-fullscreen'));
+    $('close-button').addEventListener('click', () => send('window-close'));
+    $('board').addEventListener('scroll', updateDock, { passive: true });
 
-    document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') {
-        if (state.searchOpen) { event.preventDefault(); closeSearch(); return; }
-        if (state.surface !== 'Home') { event.preventDefault(); navigate('Home'); return; }
+    document.addEventListener('mousemove', () => {
+      if (!state.mouseMode) {
+        state.mouseMode = true;
+        document.body.classList.add('mouse');
+        document.body.classList.remove('keys');
+      }
+    }, { passive: true });
+    document.addEventListener('mouseover', event => {
+      if (!state.mouseMode) return;
+      const target = event.target.closest && event.target.closest('.fx');
+      if (!target || target.disabled || target === document.activeElement) return;
+      target.focus({ preventScroll: true });
+      revealFocus(target);
+    });
+
+    document.addEventListener('keydown', event => {
+      if (!['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+        state.mouseMode = false;
+        document.body.classList.remove('mouse');
+        document.body.classList.add('keys');
       }
 
-      if (state.searchOpen) return;
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      if (state.searchOpen) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeSearch();
+        } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+          if (spatialMove(event.key)) event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.key === 'Escape' || event.key === 'Backspace') {
+        if (state.surface !== 'Home') {
+          event.preventDefault();
+          navigate('Home');
+        }
+        return;
+      }
+
+      if (event.key === '[' || event.key === ']') {
+        if (state.surface !== 'Home') {
+          event.preventDefault();
+          cycleTab(event.key === ']' ? 1 : -1);
+        }
+        return;
+      }
+
+      if (event.key === '/') {
+        event.preventDefault();
+        openSearch('');
+        return;
+      }
+      if (/^\p{L}$/u.test(event.key) && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        event.preventDefault();
+        openSearch(event.key);
+        return;
+      }
+
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
         if (spatialMove(event.key)) event.preventDefault();
       }
     });
   }
 
-  window.addEventListener('colosseum:webui-mount', function (event) {
-    mountSnapshot(event.detail || {});
-  });
+  window.addEventListener('colosseum:webui-mount', event => mountSnapshot(event.detail || {}));
+  window.addEventListener('colosseum:webui-patch', event => patchSnapshot(event.detail || {}));
 
-  window.addEventListener('colosseum:webui-patch', function (event) {
-    patchSnapshot(event.detail || {});
-  });
-
-  bindStaticControls();
-  render();
+  bindChrome();
+  updateClock();
+  setInterval(updateClock, 1000);
+  updateTopbar();
+  updateHints();
+  $('col').append(emptyState('Waiting for Colosseum', 'The existing backend will mount this frontend.'));
   window.ColosseumWeb.requestSnapshot('Home', '');
 }());

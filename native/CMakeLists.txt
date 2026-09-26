@@ -711,6 +711,10 @@ qt_add_resources(colosseum "developer_webui_resources"
     PREFIX "/developer-webui"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum"
     FILES ${DEVELOPER_WEBUI_FILES})
+qt_add_resources(colosseum "developer_webui_wallpaper"
+    PREFIX "/developer-webui"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/wallpaper"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../assets/wallpaper/cold-ripple.jpg")
 
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)

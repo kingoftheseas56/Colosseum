@@ -18,6 +18,7 @@ class DeveloperWebUiBridge final : public QObject {
     Q_OBJECT
     Q_PROPERTY(int revision READ revision NOTIFY revisionChanged)
     Q_PROPERTY(QString resourceUrl READ resourceUrl CONSTANT)
+    Q_PROPERTY(QString wallpaper READ wallpaper WRITE setWallpaper NOTIFY wallpaperChanged)
 
 public:
     explicit DeveloperWebUiBridge(
@@ -30,6 +31,8 @@ public:
 
     int revision() const { return m_revision; }
     QString resourceUrl() const;
+    QString wallpaper() const { return m_wallpaper; }
+    void setWallpaper(const QString &wallpaper);
 
     void bindPersonalStores(ProgressStore *progress, CollectionStore *collection);
 
@@ -42,6 +45,7 @@ public:
 
 signals:
     void revisionChanged();
+    void wallpaperChanged();
     void snapshotReady(const QVariantMap &snapshot);
     void patchReady(const QVariantMap &patch);
     void invalidAction(const QString &reason);
@@ -111,6 +115,7 @@ private:
     QMetaObject::Connection m_collectionChanged;
     QString m_activeSurface = QStringLiteral("Home");
     QString m_activeTab;
+    QString m_wallpaper;
     bool m_clientReady = false;
     int m_revision = 0;
 };
