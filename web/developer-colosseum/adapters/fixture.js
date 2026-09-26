@@ -1,6 +1,6 @@
 // adapters/fixture.js — swarm mode. Replays RECORDED real-app feed events (CONTRACT §6); never invents data.
 //
-// fixtures/index.json lists recorder files (tools/index_fixtures.py writes it). Each recorder file is
+// fixtures/index.json lists recorder files (dev/index_fixtures.py writes it). Each recorder file is
 //   { feed, params, events: [ { t, id, generation, seq, event } ] }
 // A subscription whose feed+params match a recording replays its events with their original timing
 // (gaps capped). No match → a truthful error section, so missing recordings are visible, not faked.
