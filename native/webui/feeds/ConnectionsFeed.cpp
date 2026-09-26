@@ -2,6 +2,7 @@
 #include "FeedRegistry.h"
 #include "../ColosseumWebBridge.h"
 #include "../../trackers/TrackerSyncCenterModel.h"
+#include "../../stremio/StremioSync.h"
 
 #include <QVariantList>
 #include <QVariantMap>
@@ -42,15 +43,21 @@ void capture(ColosseumWebBridge &bridge, FeedContext &context)
     // the feed worker sees only the model's safe, profile-bound projection.
     auto *model = qobject_cast<TrackerSyncCenterModel *>(
         bridge.service(QStringLiteral("TrackerSyncCenter")));
+    if (auto *stremio = qobject_cast<StremioSync *>(
+            bridge.service(QStringLiteral("stremioSyncState")))) {
+        context.nativeSnapshot.insert(QStringLiteral("stremio"), QVariantMap{
+            {QStringLiteral("status"), stremio->status()},
+            {QStringLiteral("linkedAccount"), stremio->linkedAccount()}});
+    }
     if (!model) return;
-    context.nativeSnapshot = {
+    context.nativeSnapshot.insert(QStringLiteral("tracker"), QVariantMap{
         {QStringLiteral("revision"), QVariant::fromValue(model->revision())},
         {QStringLiteral("aggregate"), model->aggregateState()},
         {QStringLiteral("connected"), model->connectedTrackers()},
         {QStringLiteral("catalogue"), model->catalogue()},
         {QStringLiteral("globalSettings"), model->globalSettings()},
         {QStringLiteral("importReviews"), model->importReviews()}
-    };
+    });
 }
 
 QString summary(const QVariantMap &aggregate)
@@ -72,7 +79,7 @@ QString summary(const QVariantMap &aggregate)
 
 QVariantList build(const FeedContext &context)
 {
-    const QVariantMap snap = context.nativeSnapshot;
+    const QVariantMap snap = context.nativeSnapshot.value(QStringLiteral("tracker")).toMap();
     if (snap.isEmpty()) {
         QVariantMap error = section(QStringLiteral("connections.owner"), 0, {}, QStringLiteral("error"));
         error.insert(QStringLiteral("error"), QStringLiteral("Connection information is unavailable for this profile."));
@@ -116,16 +123,17 @@ QVariantList build(const FeedContext &context)
         sections.append(section(QStringLiteral("connections.connected"), 3,
                                 QStringLiteral("connections.connected"), QStringLiteral("ready"),
                                 {{QStringLiteral("providers"), connected}}));
-    // TrackerSyncCenterPage.qml:2141-2279. Status/panel handoff awaits the
-    // shared native Stremio seam; the card does not claim a connection.
+    const QVariantMap stremio = context.nativeSnapshot.value(QStringLiteral("stremio")).toMap();
     sections.append(section(QStringLiteral("connections.stremio"), 4,
                             QStringLiteral("connections.stremio"), QStringLiteral("ready"),
                             {{QStringLiteral("name"), QStringLiteral("Stremio")},
                              {QStringLiteral("capabilities"), QStringList{QStringLiteral("Library"),
                                                                            QStringLiteral("Progress"),
                                                                            QStringLiteral("History")}},
-                             {QStringLiteral("status"), QStringLiteral("Status unavailable")},
-                             {QStringLiteral("panelAvailable"), false}}));
+                             {QStringLiteral("status"), stremio.value(QStringLiteral("status"),
+                                 QStringLiteral("Status unavailable"))},
+                             {QStringLiteral("linkedAccount"), stremio.value(QStringLiteral("linkedAccount"), false)},
+                             {QStringLiteral("panelAvailable"), !stremio.isEmpty()}}));
     // TrackerSyncCenterPage.qml:2280-2402. Availability is native-issued.
     sections.append(section(QStringLiteral("connections.catalogue"), 5,
                             QStringLiteral("connections.catalogue"),
@@ -134,9 +142,35 @@ QVariantList build(const FeedContext &context)
     return sections;
 }
 
-const bool feedRegistered = FeedRegistry::add({QStringLiteral("page.connections"), {}, valid,
-                                               initial, build, false, false, false, false,
-                                               nullptr, capture});
+QMetaObject::Connection watchTracker(QObject *object, QObject *receiver,
+                                     std::function<void()> changed)
+{
+    auto *model = qobject_cast<TrackerSyncCenterModel *>(object);
+    if (!model) return {};
+    return QObject::connect(model, &TrackerSyncCenterModel::modelChanged,
+                            receiver, [changed = std::move(changed)] { changed(); });
+}
+
+QMetaObject::Connection watchStremio(QObject *object, QObject *receiver,
+                                     std::function<void()> changed)
+{
+    auto *stremio = qobject_cast<StremioSync *>(object);
+    if (!stremio) return {};
+    return QObject::connect(stremio, &StremioSync::stateChanged,
+                            receiver, [changed = std::move(changed)] { changed(); });
+}
+
+const bool feedRegistered = [] {
+    FeedRegistry::Entry entry;
+    entry.name = QStringLiteral("page.connections");
+    entry.valid = valid;
+    entry.initial = initial;
+    entry.build = build;
+    entry.capture = capture;
+    entry.ownerSignals.append({QStringLiteral("TrackerSyncCenter"), watchTracker});
+    entry.ownerSignals.append({QStringLiteral("stremioSyncState"), watchStremio});
+    return FeedRegistry::add(std::move(entry));
+}();
 
 TrackerSyncCenterModel *owner(ColosseumWebBridge &bridge,
                               const ActionRegistry::Completion &done)
