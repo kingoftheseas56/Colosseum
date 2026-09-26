@@ -31,7 +31,11 @@
       toast: CW.toast,
       open(item, intent) {
         opener = document.activeElement;
-        return port.act('open', { item, intent: intent || 'details' }).then(report);
+        // v2 §12.4: native answers {result:{route}} when the destination is web-owned; web follows it.
+        return port.act('open', { item, intent: intent || 'details' }).then(r => {
+          if (r && r.ok && r.result && r.result.route && router.has(router.surfaceName(r.result.route))) router.go(r.result.route);
+          return report(r);
+        });
       },
       forget(item) { return port.act('continue.forget', { item }).then(report); },
       seeAll(section) {
@@ -50,7 +54,12 @@
         const q = choice.target && choice.target.query;
         return port.act('search.history.remove', { scope: router.current().scope || 'all', query: q }).then(report);
       },
-      door(door, extra) { opener = document.activeElement; return port.act('open.native', { door, ...(extra || {}) }).then(report); },
+      door(door, extra) {
+        // v2 §12.4: a page ported to web opens in web; otherwise the native page opens.
+        if (router.has('page.' + door)) { router.go({ name: 'page', page: door, params: extra || {} }); return Promise.resolve({ ok: true }); }
+        opener = document.activeElement;
+        return port.act('open.native', { door, ...(extra || {}) }).then(report);
+      },
       act(action, payload) { opener = document.activeElement; return port.act(action, payload).then(report); }
     };
     CW.env = env;

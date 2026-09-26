@@ -15,6 +15,8 @@
   const surfaceFor = r =>
     r.name === 'world' ? r.world.toLowerCase()
     : r.name === 'seeAll' ? 'seeall'
+    : r.name === 'page' ? 'page.' + r.page          // v2: { name:'page', page:'downloads', params }
+    : r.name === 'detail' ? 'detail.' + r.kind      // v2: { name:'detail', kind:'theatre', params } (native-issued)
     : r.name;
 
   function writeHash() {
@@ -39,6 +41,7 @@
   const router = {
     register(name, surface) { registry.set(name, surface); },
     surface(route) { return registry.get(surfaceFor(route)) || registry.get('reference'); },
+    has(name) { return registry.has(name); },
     surfaceName: surfaceFor,
     current,
     depth: () => stack.length,

@@ -71,6 +71,12 @@
         return { unmount: () => { clearTimeout(timer); if (view) view.close(); } };
       }
 
+      if (route.name === 'page' || route.name === 'detail') {
+        const feed = route.name === 'page' ? 'page.' + route.page : 'detail.' + route.kind;
+        const v = feedView(el, env, feed, route.params || {});
+        return { unmount: v.close };
+      }
+
       el.appendChild(CW.section.note('Unknown page', `No surface for route "${route.name}".`, 'err'));
       return { unmount() {} };
     }

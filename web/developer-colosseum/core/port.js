@@ -10,7 +10,7 @@
   const KINDS = ['movie', 'series', 'anime', 'manga', 'comic', 'book', 'audiobook', 'universe'];
   const ITEM_WORLDS = [...WORLDS, 'Colosseum'];     // v1.2: cross-world items (universes)
   const HEADER_ACTIONS = ['open.universeHall'];
-  const LAYOUTS = ['hero', 'rail', 'grid', 'list', 'continue', 'chips', 'tiles'];
+  const LAYOUTS = ['hero', 'rail', 'grid', 'list', 'continue', 'chips', 'tiles', 'custom'];   // custom = v2 page-drawn
   const STATES = ['loading', 'ready', 'empty', 'error'];
   const TABS = {
     Tankoban: [['discover', 'Discover'], ['manga', 'Manga'], ['comics', 'Comics'], ['library', 'Library']],
@@ -46,6 +46,12 @@
     return ok ? null : `choice ${c.key}: bad target`;
   }
 
+  // v2 §12.3: page-owned records. The web core only checks the envelope; the page's SCHEMA.md defines the rest.
+  function dataProblem(d) {
+    if (!isObj(d) || !isStr(d.schema) || !/^[a-z][a-zA-Z0-9]*\.[a-zA-Z0-9.]+$/.test(d.schema)) return 'data needs a namespaced schema';
+    return null;
+  }
+
   function sectionProblem(s) {
     if (!isObj(s)) return 'section is not an object';
     if (!isStr(s.id) || !s.id) return 'section.id missing';
@@ -56,6 +62,7 @@
     if (s.headerAction && !(isObj(s.headerAction) && HEADER_ACTIONS.includes(s.headerAction.action)
                             && isStr(s.headerAction.label))) return `section ${s.id}: bad headerAction`;
     for (const it of s.items) { const p = itemProblem(it); if (p) return `section ${s.id}: ${p}`; }
+    if (s.data != null) { const p = dataProblem(s.data); if (p) return `section ${s.id}: ${p}`; }
     if (s.choices != null) {
       if (!Array.isArray(s.choices)) return `section ${s.id}: choices is not an array`;
       if (s.items.length && s.choices.length) return `section ${s.id}: items and choices together`;
@@ -136,7 +143,9 @@
           handle.closed = true;
           if (handle.id != null) { subs.delete(handle.id); adapter.unsubscribe(handle.id); }
         } };
-        if (!FEEDS[feed] || !FEEDS[feed](params)) {
+        // v1 feeds are validated here; v2 page feeds ("page.<name>" / "detail.<kind>") are validated by native.
+        const pageFeed = /^(page|detail)\.[a-zA-Z0-9]+$/.test(feed);
+        if (!pageFeed && (!FEEDS[feed] || !FEEDS[feed](params))) {
           console.error(`[port] invalid subscribe: ${feed}`, params);
           onEvent({ type: 'reset', changed: null, sections: [] });
           return handle;

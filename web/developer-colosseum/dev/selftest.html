@@ -124,6 +124,14 @@
   check('choice chips render with a remove affordance', !!sec('recent') && !!sec('recent').querySelector('.chipx') && sec('recent').textContent.includes('Surprise me'));
   check('genre tiles render', !!sec('genres') && !!sec('genres').querySelector('.gt'));
   check('choice with a web-built target is dropped', !sec('badchoice'));
+  // v2: page-owned data envelope + custom layout
+  emit(8, { type: 'section', section: { id: 'dl', index: 10, title: 'Downloads', layout: 'custom', state: 'ready', items: [],
+    data: { schema: 'downloads.queue', jobs: [] } } });
+  emit(9, { type: 'section', section: { id: 'baddata', index: 11, title: 'x', layout: 'custom', state: 'ready', items: [], data: { jobs: [] } } });
+  check('page data with a namespaced schema is accepted', !!sec('dl'));
+  check('page data without a schema is dropped', !sec('baddata'));
+  check('router knows page and detail routes', CW.router.surfaceName({ name: 'page', page: 'downloads' }) === 'page.downloads'
+        && CW.router.surfaceName({ name: 'detail', kind: 'theatre' }) === 'detail.theatre');
   const r = await port.act('open', { item: item(1), intent: 'details' });
   check('act resolves with the native answer', r.ok === true);
 
