@@ -1,6 +1,8 @@
 /* surfaces/theatre/surface.css — Theatre-only look on top of the shared components (Portico halfway mock). */
 .th-top,.th-cont{gap:var(--s-7)}
 .th-top:empty,.th-cont:empty{display:none}
+.th-qbox{height:52px;max-width:520px}
+.th-qbox input{font:400 var(--t-lg) var(--ui-stack)}
 
 
 /* Top 10: ghost rank numerals behind solid covers (TrendingTop10) */

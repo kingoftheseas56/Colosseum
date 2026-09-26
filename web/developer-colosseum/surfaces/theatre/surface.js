@@ -30,6 +30,18 @@
       const topBox = h('div.world-pane.th-top');
       const contBox = h('div.world-pane.th-cont');
       const pane = h('div.world-pane.th-pane');
+      // Library title search (LibraryPage.qml:190-193): native filters on view.query (§13.1); Escape clears it
+      const query = h('input.th-q', { type: 'search', autocomplete: 'off', placeholder: 'Search your library',
+                                       'aria-label': 'Search your library', 'data-focus': true });
+      const queryBox = h('label.sfield.th-qbox', { hidden: true }, query);
+      let queryTimer = 0;
+      query.addEventListener('input', () => {
+        clearTimeout(queryTimer);
+        queryTimer = setTimeout(() => { view = { ...(view || {}), query: query.value }; subscribeTab(); }, 250);
+      });
+      query.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && query.value) { e.stopPropagation(); query.value = ''; view = { ...(view || {}), query: '' }; subscribeTab(); }
+      }, true);
       let bar = null, tabSub = null, view = null;
       const nextUpKeys = new Set();
 
@@ -42,7 +54,9 @@
       const ctx = {
         // Next Up cards open the next EPISODE (intent nextUp), everything else opens details (SCHEMA.md)
         open: (it, intent) => env.open(it, nextUpKeys.has(it.key) ? 'nextUp' : intent),
-        forget: env.forget, seeAll: env.seeAll, act: env.act,
+        forget: env.forget, seeAll: env.seeAll,
+        // card-menu actions (§15.1) resolve after native persists; the store change re-sends the section
+        act: (a, p) => env.act(a, p),
         // §13.1: a view Choice (library filter/sort, catalogue facet) merges its native patch and resubscribes
         choose: (c, s) => env.choose(c, s, null, patch => { view = { ...(view || {}), ...patch }; subscribeTab(); }),
         more: section => env.more(tabSub, section)
@@ -65,6 +79,8 @@
       function showTab(r) {
         route = r;
         view = null;                 // each tab starts from native defaults
+        query.value = '';
+        queryBox.hidden = r.tab !== 'library';
         pane.replaceChildren();
         subscribeTab();
       }
@@ -72,7 +88,7 @@
       const makeBar = tab => CW.tabBar(CW.contract.TABS.Theatre, tab,
         t => env.router.go({ name: 'world', world: 'Theatre', tab: t }, { replace: true }));
       bar = makeBar(route.tab);
-      el.append(topBox, contBox, bar, pane);
+      el.append(topBox, contBox, bar, queryBox, pane);
       showTab(route);
 
       return {

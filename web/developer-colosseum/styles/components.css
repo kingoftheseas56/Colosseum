@@ -57,6 +57,22 @@
 .grid .pc,.grid .pc .art{width:auto}
 .grid .pc .art{aspect-ratio:2/3;height:auto}
 
+/* v2.3 poster progress + ⋮ menu (LibraryPage card menu) */
+.pc .art .bar{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.2)}
+.pc .art .bar i{display:block;height:100%;background:var(--gold)}
+.pcw{position:relative;flex:0 0 var(--poster-w);width:var(--poster-w)}
+.grid .pcw{width:auto}
+.pcw .pc{width:100%}
+.pcm{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(6,7,11,.72);border:1px solid var(--edge);
+  color:var(--ink);font-size:18px;line-height:1;display:grid;place-items:center;opacity:0;transition:opacity var(--t-fast)}
+.pcw:hover .pcm,.pcm:focus,.pcw:focus-within .pcm{opacity:1}
+.pcm:focus{box-shadow:var(--ring)}
+.cardmenu{position:fixed;z-index:80;min-width:220px;padding:6px;border-radius:13px;background:rgba(11,13,19,.98);border:1px solid var(--edge);
+  box-shadow:0 24px 50px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.cmi{height:38px;padding:0 12px;border-radius:9px;font-size:var(--t-md);text-align:left;color:var(--ink)}
+.cmi:hover,.cmi:focus{background:var(--glassHi)}
+.cmi.warn{color:#e8907f}
+
 /* ContinueTile */
 .ct{flex:0 0 var(--poster-w);position:relative;width:var(--poster-w);height:var(--poster-h);border-radius:var(--r-md);overflow:hidden;text-align:left;transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease)}
 .ct .face .fb{align-items:flex-start}

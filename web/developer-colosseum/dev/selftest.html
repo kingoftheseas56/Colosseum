@@ -145,6 +145,25 @@
   emit(11, { type: 'section', section: { id: 'vault', index: 13, title: 'Vault', layout: 'tiles', state: 'ready', items: [],
     choices: [{ key: 'door:vault', label: 'Open the Vault', target: { act: 'open.vault' } }] } });
   check('a Vault door choice is accepted', !!sec('vault'));
+  // v2.3: native card menu + exact empty copy
+  let acted = null;
+  const ctx3 = { ...ctx, act: (a, p) => { acted = a + ':' + (p.watched === true); }, open() {} };
+  const menuCard = CW.cards.poster({ ...item('m1'), progress: .5, menu: [
+    { key: 'watch', label: 'Mark watched', target: { act: 'world.theatre.markWatched', payload: { watched: true } } },
+    { key: 'remove', label: 'Remove from Library', warn: true, target: { act: 'collection.remove' } }] }, ctx3);
+  document.body.appendChild(menuCard);
+  menuCard.querySelector('.pcm').click();
+  const menuEl = document.querySelector('.cardmenu');
+  check('⋮ menu opens with native labels and takes focus', !!menuEl && menuEl.textContent.includes('Remove from Library') && menuEl.contains(document.activeElement));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  check('Escape closes the menu before any page Back', !document.querySelector('.cardmenu'));
+  menuCard.querySelector('.pcm').click(); document.querySelector('.cardmenu .cmi').click();
+  check('a menu entry fires its native action', acted === 'world.theatre.markWatched:true');
+  check('poster shows progress', !!menuCard.querySelector('.art .bar i'));
+  menuCard.remove();
+  emit(12, { type: 'section', section: { id: 'emptylib', index: 14, title: 'Library', layout: 'grid', state: 'empty', items: [],
+    emptyTitle: 'Your library is empty', emptyText: 'Press play on anything, or tap + Library — it lands here.' } });
+  check('native empty copy is shown word for word', !!sec('emptylib') && sec('emptylib').textContent.includes('Your library is empty'));
   const r = await port.act('open', { item: item(1), intent: 'details' });
   check('act resolves with the native answer', r.ok === true);
 

@@ -92,7 +92,7 @@
     if (s.state === 'error') return note('Couldn’t load this', s.error || 'Colosseum could not load this section.', 'err');
     if (s.layout === 'custom') return ctx.custom ? ctx.custom(s) : note('Not drawn yet', `No renderer for ${s.data ? s.data.schema : s.id}.`);
     if (s.choices && s.choices.length) return choices(s, ctx);
-    if (s.state === 'empty' || !s.items.length) return note('Nothing here yet', s.error || null);
+    if (s.state === 'empty' || !s.items.length) return note(s.emptyTitle || 'Nothing here yet', s.emptyText || s.error || null);
     switch (s.layout) {
       case 'hero': return carousel(s, ctx);
       case 'continue': return h('div.rail-wrap', {}, h('div.rail', {}, s.items.map(it => cards.continueTile(it, ctx)), moreButton(s, ctx)));

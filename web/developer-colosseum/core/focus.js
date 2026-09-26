@@ -100,7 +100,9 @@
       move(dir);
     } else if (e.key === 'Escape' || (e.key === 'Backspace' && !isTextInput(t))) {
       e.preventDefault();
-      backHandler();
+      const scope = scopeRoot();                     // an open menu/overlay closes first (§15.1)
+      if (scope !== document && typeof scope.__close === 'function') scope.__close();
+      else backHandler();
     } else if ((e.key === 'Enter' || e.key === ' ') && t && t.matches('[data-focus]') && !isTextInput(t)
                && t.tagName !== 'BUTTON') {
       e.preventDefault();

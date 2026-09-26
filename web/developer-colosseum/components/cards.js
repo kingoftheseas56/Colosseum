@@ -7,8 +7,17 @@
   const subline = it => it.subtitle || [it.year, it.rating != null ? `★ ${Number(it.rating).toFixed(1)}` : null]
     .filter(Boolean).join(' · ');
 
-  /** CataloguePosterCard — gallery profile. ctx.open(item, intent) */
+  /** CataloguePosterCard — gallery profile. ctx.open(item, intent). v2.3: progress bar + native ⋮ menu. */
   function poster(it, ctx) {
+    const card = posterCard(it, ctx);
+    if (!Array.isArray(it.menu) || !it.menu.length) return card;
+    const more = h('button.pcm', { type: 'button', 'data-focus': true, 'data-key': it.key + '#menu',
+                                   'aria-label': `More for ${it.title}`, 'aria-haspopup': 'menu' }, '⋮');
+    more.addEventListener('click', e => { e.stopPropagation(); openMenu(it, more, ctx); });
+    return h('div.pcw', {}, card, more);
+  }
+
+  function posterCard(it, ctx) {
     const theatre = it.world === 'Theatre';
     const hoverLine = theatre
       ? (it.rating != null ? `★ ${Number(it.rating).toFixed(1)}` : '')
@@ -17,7 +26,8 @@
                             onclick: () => ctx.open(it, it.primary || 'details') },   // v2.2 §14.1
       h('span.art', {}, face(it.cover, it.title),
         h('span.rev', {}, h('b', {}, it.title), hoverLine ? h('span', {}, hoverLine) : null),
-        it.badge ? h('span.badge', {}, it.badge) : null),
+        it.badge ? h('span.badge', {}, it.badge) : null,
+        it.progress != null ? h('span.bar', {}, h('i', { style: { width: Math.round(it.progress * 100) + '%' } })) : null),
       h('span.cap', {}, it.title),
       !theatre && subline(it) ? h('span.sub', {}, subline(it)) : null);
   }
@@ -71,6 +81,31 @@
     const img = h('img.logo', { alt: it.title, decoding: 'async', src: it.cover });
     img.addEventListener('error', () => img.replaceWith(h('h3', {}, it.title)));
     return img;
+  }
+
+  /** The native-issued card menu (§15.1): focus is scoped to it; Escape or a pick closes it and returns focus. */
+  function openMenu(it, anchor, ctx) {
+    const old = document.querySelector('.cardmenu');
+    if (old) old.__close();
+    const r = anchor.getBoundingClientRect();
+    const menu = h('div.cardmenu', { role: 'menu', 'data-focus-scope': true });
+    const close = () => { menu.remove(); document.removeEventListener('mousedown', outside, true); anchor.focus({ preventScroll: true }); };
+    const outside = e => { if (!menu.contains(e.target)) close(); };
+    menu.__close = close;
+    it.menu.forEach(m => menu.appendChild(h('button.cmi' + (m.warn ? '.warn' : ''), {
+      type: 'button', role: 'menuitem', 'data-focus': true, 'data-key': it.key + '#m:' + m.key,
+      onclick: () => {
+        close();
+        const t = m.target;
+        if (t.intent) ctx.open(it, t.intent);
+        else if (ctx.act) ctx.act(t.act, { item: it, ...(t.payload || {}) });
+      } }, m.label)));
+    document.body.appendChild(menu);
+    const w = menu.offsetWidth, hgt = menu.offsetHeight;
+    menu.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.right - w)) + 'px';
+    menu.style.top = Math.max(8, Math.min(innerHeight - hgt - 8, r.bottom + 6)) + 'px';
+    document.addEventListener('mousedown', outside, true);
+    const first = menu.querySelector('[data-focus]'); if (first) first.focus({ preventScroll: true });
   }
 
   function playIcon() {

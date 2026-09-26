@@ -38,6 +38,15 @@
     if (!isObj(it.ref)) return `item ${it.key}: ref missing`;
     if (it.progress != null && !(it.progress >= 0 && it.progress <= 1)) return `item ${it.key}: progress out of range`;
     if (it.primary != null && it.primary !== 'details' && it.primary !== 'resume') return `item ${it.key}: bad primary`;
+    if (it.menu != null) {                                                     // v2.3 §15.1
+      if (!Array.isArray(it.menu)) return `item ${it.key}: menu must be a list`;
+      for (const m of it.menu) {
+        const t = m && m.target;
+        const ok = isObj(m) && isStr(m.key) && isStr(m.label) && isObj(t)
+          && (['resume', 'details', 'nextUp'].includes(t.intent) || (isStr(t.act) && /^[a-z][\w.]*$/.test(t.act)));
+        if (!ok) return `item ${it.key}: bad menu entry`;
+      }
+    }
     return null;
   }
 
@@ -67,6 +76,8 @@
     for (const it of s.items) { const p = itemProblem(it); if (p) return `section ${s.id}: ${p}`; }
     if (s.data != null) { const p = dataProblem(s.data); if (p) return `section ${s.id}: ${p}`; }
     if (s.pref != null && !isObj(s.pref)) return `section ${s.id}: pref must be an object`;   // v2.1 §13.2
+    for (const f of ['emptyTitle', 'emptyText'])                                  // v2.3 §15.2
+      if (s[f] != null && !isStr(s[f])) return `section ${s.id}: ${f} must be text`;
     if (s.choices != null) {
       if (!Array.isArray(s.choices)) return `section ${s.id}: choices is not an array`;
       if (s.items.length && s.choices.length) return `section ${s.id}: items and choices together`;
