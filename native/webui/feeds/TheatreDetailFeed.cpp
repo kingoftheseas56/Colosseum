@@ -552,16 +552,6 @@ const bool downloadRegistered = ActionRegistry::add({QStringLiteral("detail.thea
         done({{QStringLiteral("ok"), true}, {QStringLiteral("result"), QVariantMap{
             {QStringLiteral("jobId"), target}}}});
     }});
-const bool markRegistered = ActionRegistry::add({QStringLiteral("detail.theatre.markWatched"),
-    [](const QVariantMap &p) { return identity(p) && !p.value(QStringLiteral("episodeId")).toString().isEmpty()
-        && p.value(QStringLiteral("watched")).metaType().id() == QMetaType::Bool; },
-    [](ColosseumWebBridge &bridge, const QVariantMap &p, ActionRegistry::Completion done) {
-        const QString id = p.value(QStringLiteral("id")).toString();
-        if (!bridge.detailActive(kFeed, id)) return unavailable(done, QStringLiteral("This title is no longer open."));
-        if (episodeFor(id, p.value(QStringLiteral("episodeId")).toString()).isEmpty())
-            return unavailable(done, QStringLiteral("This episode is no longer available."));
-        unavailable(done, QStringLiteral("An exact episode watched mark is not available yet."));
-    }});
 const bool collectionRegistered = ActionRegistry::add({QStringLiteral("detail.theatre.collection"),
     [](const QVariantMap &p) { return identity(p) && p.value(QStringLiteral("saved")).metaType().id() == QMetaType::Bool; },
     [](ColosseumWebBridge &bridge, const QVariantMap &p, ActionRegistry::Completion done) {

@@ -89,17 +89,16 @@
                 role: 'progressbar', 'aria-valuenow': Math.round(episode.progress * 100),
                 'aria-valuemin': '0', 'aria-valuemax': '100'
               }, h('i', { style: { width: Math.round(episode.progress * 100) + '%' } })) : null,
+              h('span.dt-status', {}, episode.id === data.nextUpId ? 'NEXT UP'
+                : episode.watched ? 'WATCHED'
+                : episode.progress > 0.01 ? Math.round(episode.progress * 100) + '% WATCHED'
+                : episode.airDate ? 'AVAILABLE' : 'UPCOMING'),
               h('button.dt-small', { type: 'button', 'data-focus': true,
                 'data-key': 'theatre.episode.' + episode.id + '.play',
                 onclick: () => showSources(episode.id) }, 'Play'),
               h('button.dt-small', { type: 'button', 'data-focus': true,
                 'data-key': 'theatre.episode.' + episode.id + '.sources',
                 onclick: () => showSources(episode.id) }, 'Sources'),
-              h('button.dt-small', { type: 'button', 'data-focus': true,
-                'data-key': 'theatre.episode.' + episode.id + '.watched',
-                'aria-pressed': !!episode.watched,
-                onclick: () => act('markWatched', { episodeId: episode.id, watched: !episode.watched }) },
-                episode.watched ? 'Watched' : 'Mark watched'),
               h('button.dt-small', { type: 'button', 'data-focus': true,
                 'data-key': 'theatre.episode.' + episode.id + '.download',
                 onclick: () => showSources(episode.id) }, 'Download'))));
