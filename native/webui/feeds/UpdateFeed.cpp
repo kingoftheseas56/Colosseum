@@ -186,11 +186,16 @@ QMetaObject::Connection bindUpdateChanged(QObject *owner, QObject *receiver,
             const auto state = updates->state();
             if (state != *lastState) {
                 *lastState = state;
-                throttle->restart();
+                throttle->start();
                 refresh();
                 return;
             }
-            if (!throttle->isValid() || throttle->elapsed() >= 1000) {
+            if (!throttle->isValid()) {
+                throttle->start();
+                refresh();
+                return;
+            }
+            if (throttle->elapsed() >= 1000) {
                 throttle->restart();
                 refresh();
             }
