@@ -3,14 +3,20 @@
 (function (CW) {
   'use strict';
   const { h } = CW;
-  const TOP = new Set(['theatre.featured', 'theatre.nextUp']);
+  // Top region = the hero and Next Up, recognised by role rather than one exact id, so a native id change
+  // (theatre.nextUp vs theatre.discover.nextUp) can never push the hero under the tab bar again.
+  const isTop = s => s.layout === 'hero' || /(^|\.)nextUp$/.test(s.id);
   const LIB_FILTERS = [['all', 'All'], ['movies', 'Movies'], ['shows', 'Shows'], ['anime', 'Anime']];
   const LIB_KINDS = { movies: ['movie'], shows: ['series'], anime: ['anime'] };
 
   // Feed only the sections a box owns into CW.section.sync; a change to another box's section is ignored.
   function scoped(ev, keep) {
-    const sections = ev.sections.filter(s => keep(s.id));
-    if (ev.changed && !keep(ev.changed)) return null;
+    const sections = ev.sections.filter(keep);
+    if (ev.changed) {
+      const changed = ev.sections.find(s => s.id === ev.changed);
+      // a removed section is no longer in the list: let whichever box holds it drop it
+      if (changed ? !keep(changed) : false) return null;
+    }
     return { type: ev.type, changed: ev.changed, sections };
   }
 
@@ -60,9 +66,9 @@
         lastPaneEv = null;
         libBar.hidden = r.tab !== 'library';
         tabSub = env.port.subscribe('world', { world: 'Theatre', tab: r.tab }, ev => {
-          const top = scoped(ev, id => TOP.has(id));
+          const top = scoped(ev, isTop);
           if (top && (top.sections.length || top.changed)) CW.section.sync(topBox, top, ctx);
-          const rest = scoped(ev, id => !TOP.has(id));
+          const rest = scoped(ev, x => !isTop(x));
           if (!rest) return;
           lastPaneEv = rest;          // port events always carry the full ordered list
           paintPane(rest);
