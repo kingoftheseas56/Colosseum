@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Web core self-test</title>
+  <!-- Core self-test (Claude). Drives the REAL core files with synthetic, contract-shaped events and asserts
+       behaviour: validation, stale-event dropping, section swap, focus restore, TV focus rules, carousel.
+       The events here are test inputs for the core, not product fixtures (those are recorded, CONTRACT §6).
+       Open over http: http://localhost:<port>/web/developer-colosseum/dev/selftest.html -->
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/shell.css">
+  <link rel="stylesheet" href="../styles/components.css">
+  <style>
+    html,body{overflow:auto}
+    #report{position:fixed;right:12px;top:12px;z-index:99;width:420px;max-height:90vh;overflow:auto;padding:12px 14px;border-radius:10px;background:rgba(0,0,0,.85);font:12px/1.5 ui-monospace,monospace}
+    .pass{color:#8fd694}.fail{color:#ff8a80}
+  </style>
+</head>
+<body class="keys">
+<div id="app">
+  <header id="topbar"><nav class="pills"><button class="pill" data-focus id="p1">One</button><button class="pill" data-focus id="p2">Two</button></nav></header>
+  <main id="board"><div class="col" id="col"></div></main>
+  <div class="dock" id="dock" aria-hidden="true" inert></div>
+  <div id="toast"></div>
+</div>
+<div id="report"></div>
+<script src="../components/dom.js"></script>
+<script src="../core/port.js"></script>
+<script src="../core/router.js"></script>
+<script src="../core/focus.js"></script>
+<script src="../components/cards.js"></script>
+<script src="../components/section.js"></script>
+<script src="../components/tab-bar.js"></script>
+<script>
+(async function () {
+  const out = document.getElementById('report');
+  let failed = 0;
+  const check = (name, ok, extra) => {
+    if (!ok) failed++;
+    out.insertAdjacentHTML('beforeend', `<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}</div>`);
+  };
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const item = (n, extra) => ({ key: 'Theatre:test:' + n, world: 'Theatre', kind: 'movie', title: 'Title ' + n, ref: { id: String(n) }, ...extra });
+  const rail = (id, index, n, extra) => ({ id, index, title: id, layout: 'rail', state: 'ready',
+                                          items: Array.from({ length: n }, (_, i) => item(id + i)), ...extra });
+
+  const feedFns = [];
+  const adapter = { name: 'selftest', onFeedEvent: f => feedFns.push(f), onShellEvent() {},
+    subscribe: () => Promise.resolve({ ok: true, id: 7, generation: 1 }), unsubscribe() {},
+    more: () => Promise.resolve({ ok: true }), act: () => Promise.resolve({ ok: true }) };
+  const port = CW.createPort(adapter);
+  const emit = (seq, event, gen) => feedFns.forEach(f => f({ id: 7, generation: gen ?? 1, seq, event }));
+  const pane = CW.h('div.world-pane');
+  document.getElementById('col').appendChild(pane);
+  let events = 0;
+  const ctx = { open() {}, forget() {}, seeAll() {}, more() {} };
+
+  // early event (before subscribe resolves) must be buffered, not lost
+  emit(1, { type: 'reset', sections: [
+    { id: 'hero', index: 0, title: 'Featured', layout: 'hero', state: 'ready', items: [item('h0'), item('h1'), item('h2')] },
+    rail('a', 1, 6), rail('b', 2, 6),
+    { id: 'bad', index: 3, title: 'bad', layout: 'rail', state: 'ready', items: [{ key: 'x', world: 'Mars', kind: 'movie', title: 'x', ref: {} }] },
+    { id: 'err', index: 4, title: 'err', layout: 'grid', state: 'error', error: 'Plain words.', items: [] },
+    { id: 'load', index: 5, title: 'load', layout: 'rail', state: 'loading', items: [] }
+  ] });
+  port.subscribe('home', {}, ev => { events++; CW.section.sync(pane, ev, ctx); });
+  await wait(30);
+  const sec = id => pane.querySelector(`[data-section="${id}"]`);
+  check('early event buffered until subscribe resolves', events === 1 && !!sec('a'));
+  check('malformed section dropped', !sec('bad'));
+  check('error state shows plain words', !!sec('err') && sec('err').textContent.includes('Plain words.'));
+  check('loading state renders skeleton', !!(sec('load') && sec('load').querySelector('.skel')));
+
+  emit(1, { type: 'remove', id: 'a' });
+  check('stale seq ignored', !!sec('a'));
+  emit(2, { type: 'remove', id: 'a' }, 0);
+  check('old generation ignored', !!sec('a'));
+
+  const target = sec('b').querySelectorAll('.pc')[3];
+  target.focus();
+  const keyBefore = target.dataset.key;
+  const reordered = rail('b', 2, 6); reordered.items.reverse();
+  emit(3, { type: 'section', section: reordered });
+  check('focus restored by key after reorder', document.activeElement.dataset.key === keyBefore);
+  check('only the changed section was replaced', sec('b') !== null && sec('a').isConnected);
+
+  const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+  sec('a').querySelector('.pc').focus();
+  key('ArrowRight');
+  check('Right moves along the row', document.activeElement.dataset.key === 'Theatre:test:a1');
+  sec('a').querySelectorAll('.pc')[5].focus();
+  key('ArrowRight');
+  check('Right at row end stays put', document.activeElement.dataset.key === 'Theatre:test:a5');
+  key('ArrowDown');
+  check('Down goes to the nearest row', (document.activeElement.dataset.key || '').startsWith('Theatre:test:b'));
+
+  const heroBtn = sec('hero').querySelector('.slide:not([inert]) [data-focus]');
+  heroBtn.focus();
+  key('ArrowRight');
+  check('Right on hero pages the carousel', document.activeElement.dataset.key === 'Theatre:test:h1#open');
+  key('ArrowLeft'); key('ArrowLeft');
+  check('Left at first slide leaves the carousel alone', document.activeElement.dataset.key === 'Theatre:test:h0#open');
+  document.getElementById('p2').focus();
+  key('ArrowDown');
+  check('Down from the TopBar lands on the hero', document.activeElement.dataset.key === 'Theatre:test:h0#open');
+
+  const r = await port.act('open', { item: item(1), intent: 'details' });
+  check('act resolves with the native answer', r.ok === true);
+
+  out.insertAdjacentHTML('afterbegin', `<b class="${failed ? 'fail' : 'pass'}">${failed ? failed + ' FAILED' : 'ALL PASS'}</b>`);
+  document.title = failed ? 'FAIL' : 'PASS';
+})();
+</script>
+</body>
+</html>

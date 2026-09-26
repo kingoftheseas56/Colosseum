@@ -1,0 +1,54 @@
+/* styles/tokens.css — every design value (CONTRACT §4.2). Surfaces use var(--…) only: no raw hex, no pixel
+   constants. Two parts: the Theme.qml block (generated) and the house scale (hand-owned by Claude). */
+
+/* GENERATED from qml/Theme.qml by dev/gen_tokens.py — do not edit by hand */
+:root{
+  --gold: #f0c44a;
+  --ink: #f7f7f5;
+  --inkDim: #c9c8d0;
+  --inkDimmer: #9a99a5;
+  --edge: rgba(255,255,255,0.18);
+  --glassTint: rgba(255,255,255,0.1);
+  --glassHi: rgba(255,255,255,0.14);
+  --biblioWashTop: #0c0f18;
+  --biblioWashBottom: #06070b;
+  --ui: "Segoe UI";
+  --display: "Fraunces";
+  --hud: "Segoe UI";
+  --margin: 54px;
+}
+/* END GENERATED */
+
+/* ---- house scale (from the Portico halfway mock / live QML geometry) ---- */
+:root{
+  --ui-stack: var(--ui), "Segoe UI Variable Text", system-ui, sans-serif;
+  --display-stack: var(--display), Georgia, serif;
+  --washTop: var(--biblioWashTop);
+  --washBottom: var(--biblioWashBottom);
+  --board: 96px;            /* TopBar band; the board scrolls under it */
+
+  /* type */
+  --t-xs: 11px; --t-sm: 12px; --t-md: 13px; --t-base: 14px; --t-lg: 17px;
+  --t-h3: 22px; --t-h2: 28px; --t-h1: 42px; --t-hero: 64px;
+
+  /* spacing */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 26px; --s-7: 36px; --s-8: 46px;
+
+  /* radius */
+  --r-sm: 7px; --r-md: 12px; --r-lg: 14px; --r-xl: 20px; --r-pill: 999px;
+
+  /* cards */
+  --poster-w: 148px; --poster-h: 222px; --hero-h: 330px;
+
+  /* depth + motion */
+  --ring: 0 0 0 3px var(--gold);
+  --lift: 0 22px 42px rgba(0,0,0,.55);
+  --ease: cubic-bezier(.2,.7,.2,1);
+  --blur: 24px;
+  --t-fast: 140ms; --t-med: 260ms; --t-slow: 380ms;
+}
+@media (max-width:1100px){ :root{ --margin: 28px; } }
+
+/* Low-power tier (Android TV / weak GPUs): one switch, pages never check the device. */
+:root[data-power="low"]{ --blur: 0px; --lift: 0 8px 18px rgba(0,0,0,.45); --t-med: 0ms; --t-slow: 0ms; }
+@media (prefers-reduced-motion:reduce){ :root{ --t-fast: 0ms; --t-med: 0ms; --t-slow: 0ms; } }

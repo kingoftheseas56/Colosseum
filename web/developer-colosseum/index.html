@@ -4,100 +4,91 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#06070b">
-  <title>Developer Web Colosseum</title>
-  <link rel="stylesheet" href="./styles.css">
-  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-  <script defer src="./bridge.js"></script>
-  <script defer src="./app.js"></script>
+  <title>Colosseum</title>
+  <!-- One entry for both modes: inside Colosseum it talks to native over QWebChannel; opened in a plain
+       browser it replays recorded fixtures (CONTRACT §6). Entry files are Claude's; swarm agents never edit. -->
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/shell.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <!-- surface styles: each swarm agent creates only its own file; a missing file is harmless -->
+  <link rel="stylesheet" href="surfaces/home/surface.css">
+  <link rel="stylesheet" href="surfaces/theatre/surface.css">
+  <link rel="stylesheet" href="surfaces/tankoban/surface.css">
+  <link rel="stylesheet" href="surfaces/biblio/surface.css">
+  <link rel="stylesheet" href="surfaces/seeall/surface.css">
+  <link rel="stylesheet" href="surfaces/search/surface.css">
 </head>
-<body class="fp keys">
-<div id="app" data-surface="Home">
-  <div id="wall" aria-hidden="true"></div>
+<body class="keys">
+<div id="app" data-surface="home">
+  <div id="wall" data-has-image="false" aria-hidden="true"></div>
 
   <header id="topbar">
     <div class="tb-left">
-      <button id="home-button" class="homeback fx" type="button" aria-label="Home" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-             stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+      <button id="home-button" class="homeback" type="button" data-focus aria-label="Home" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
         Home
       </button>
       <div class="clock" aria-label="Current time">
-        <div class="r"><span class="t" id="clkT">8:29</span><span class="a" id="clkA">PM</span></div>
-        <span class="d" id="clkD">Thursday, September 24</span>
+        <div class="r"><span class="t" id="clkT"></span><span class="a" id="clkA"></span></div>
+        <span class="d" id="clkD"></span>
       </div>
     </div>
 
     <nav id="world-nav" class="pills glass" aria-label="Colosseum worlds">
-      <button class="pill fx" type="button" data-world="Tankoban">Tankoban</button>
-      <button class="pill fx" type="button" data-world="Biblio">Biblio</button>
-      <button class="pill fx" type="button" data-world="Theatre">Theatre</button>
+      <button class="pill" type="button" data-focus data-world="Tankoban">Tankoban</button>
+      <button class="pill" type="button" data-focus data-world="Biblio">Biblio</button>
+      <button class="pill" type="button" data-focus data-world="Theatre">Theatre</button>
       <span class="pill soon">Vinyl<span class="soon-tag">SOON</span></span>
     </nav>
 
     <div class="sys">
-      <button id="search-button" class="ico fx" type="button" aria-label="Search" title="Search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round">
-          <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>
-        </svg>
+      <button id="search-button" class="ico" type="button" data-focus aria-label="Search" title="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
       </button>
-      <button id="trackers-button" class="ico fx theatre-only" type="button" aria-label="Stremio Sync" title="Stremio Sync">
-        <svg viewBox="0 0 124.926 124.927" aria-hidden="true">
-          <defs><linearGradient id="stremio-gradient" x1="1" y1="1" x2=".296" y2=".296">
-            <stop offset="0" stop-color="#1155d9"/><stop offset="1" stop-color="#7b5bf5"/>
-          </linearGradient></defs>
-          <rect width="88.336" height="88.336" rx="6" transform="translate(62.463 0) rotate(45)" fill="url(#stremio-gradient)"/>
-          <path d="M22.236,1.1a1,1,0,0,1,1.611,0L44.912,29.739a1,1,0,0,1-.806,1.592H1.977a1,1,0,0,1-.806-1.592Z"
-                transform="translate(84.489 39.422) rotate(90)" fill="#fff"/>
-        </svg>
+      <button id="trackers-button" class="ico" type="button" data-focus aria-label="Connections" title="Connections">
+        <svg viewBox="0 0 124.926 124.927" aria-hidden="true"><defs><linearGradient id="stremio-gradient" x1="1" y1="1" x2=".296" y2=".296"><stop offset="0" stop-color="#1155d9"/><stop offset="1" stop-color="#7b5bf5"/></linearGradient></defs><rect width="88.336" height="88.336" rx="6" transform="translate(62.463 0) rotate(45)" fill="url(#stremio-gradient)"/><path d="M22.236,1.1a1,1,0,0,1,1.611,0L44.912,29.739a1,1,0,0,1-.806,1.592H1.977a1,1,0,0,1-.806-1.592Z" transform="translate(84.489 39.422) rotate(90)" fill="#fff"/></svg>
       </button>
-      <button id="account-button" class="acct fx" type="button" aria-label="Account">?</button>
-      <button id="wallpaper-button" class="ico fx" type="button" aria-label="Wallpaper" title="Wallpaper">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round">
-          <circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>
-        </svg>
+      <button id="account-button" class="acct" type="button" data-focus aria-label="Account"></button>
+      <button id="wallpaper-button" class="ico" type="button" data-focus aria-label="Wallpaper" title="Wallpaper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
       </button>
-      <button id="minimize-button" class="ico opt fx" type="button" aria-label="Minimize">
+      <button id="minimize-button" class="ico opt" type="button" data-focus aria-label="Minimize">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M6 17h12"/></svg>
       </button>
-      <button id="fullscreen-button" class="ico opt fx" type="button" aria-label="Toggle fullscreen">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round">
-          <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
-        </svg>
+      <button id="fullscreen-button" class="ico opt" type="button" data-focus aria-label="Toggle fullscreen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
       </button>
-      <button id="close-button" class="ico fx" type="button" aria-label="Quit Colosseum">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round">
-          <path d="M12 3v9"/><path d="M6.5 7a8 8 0 1 0 11 0"/>
-        </svg>
+      <button id="close-button" class="ico" type="button" data-focus aria-label="Close Colosseum">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.5 7a8 8 0 1 0 11 0"/></svg>
       </button>
     </div>
   </header>
-  <main id="board" tabindex="-1" aria-live="polite">
-    <div class="col" id="col"></div>
-  </main>
 
-  <div class="dock" id="dock" aria-hidden="true"><div class="tabs glass" id="dockTabs"></div></div>
-
-  <section class="layer" id="search" aria-label="Search">
-    <div class="shead">
-      <button id="search-close" class="pillback fx" type="button" aria-label="Back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
-             stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
-        Back
-      </button>
-      <label class="sfield">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/>
-        </svg>
-        <input id="search-input" type="search" autocomplete="off" placeholder="Search">
-      </label>
-    </div>
-    <div class="sbody" id="search-results"></div>
-  </section>
-
-  <div class="hints" id="hints" aria-hidden="true"></div>
+  <main id="board" tabindex="-1"><div class="col" id="col"></div></main>
+  <div class="dock" id="dock" aria-hidden="true" inert></div>
   <div id="toast" role="status" aria-live="polite"></div>
-  <div id="backend-status" class="sr-only" role="status">Waiting for Colosseum backend</div>
 </div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<!-- core (Claude) -->
+<script src="components/dom.js"></script>
+<script src="core/port.js"></script>
+<script src="core/router.js"></script>
+<script src="core/focus.js"></script>
+<script src="components/cards.js"></script>
+<script src="components/section.js"></script>
+<script src="components/tab-bar.js"></script>
+<script src="core/shell.js"></script>
+<script src="adapters/qwebchannel.js"></script>
+<script src="adapters/fixture.js"></script>
+<script src="surfaces/reference/reference.js"></script>
+<!-- surfaces: each swarm agent creates only its own surface.js; a missing file falls back to reference -->
+<script src="surfaces/home/surface.js"></script>
+<script src="surfaces/theatre/surface.js"></script>
+<script src="surfaces/tankoban/surface.js"></script>
+<script src="surfaces/biblio/surface.js"></script>
+<script src="surfaces/seeall/surface.js"></script>
+<script src="surfaces/search/surface.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,67 @@
+/* styles/shell.css — persistent chrome: wallpaper, TopBar, board, dock, toast, covered state.
+   Harvested from the Arc 54 Theatre × Portico CSS; values come from tokens.css. */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--washBottom);color:var(--ink);font-family:var(--ui-stack);overflow:hidden;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0;text-align:inherit}
+[hidden]{display:none!important}
+:focus{outline:none}
+.sr-only{position:absolute!important;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* wallpaper + Main.qml vignette */
+#wall{position:fixed;inset:0;background:#1a1a1c center/cover no-repeat}
+#wall[data-has-image="false"]{background:radial-gradient(circle at 72% 16%,rgba(70,91,117,.22),transparent 36%),linear-gradient(180deg,#15171c,var(--washBottom))}
+#wall:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,.10) 50%,rgba(0,0,0,.46))}
+.glass{background:linear-gradient(rgba(0,0,0,.14),rgba(0,0,0,.14)),var(--glassTint);border:1px solid var(--edge);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+
+/* TopBar.qml */
+#topbar{position:fixed;top:30px;left:var(--margin);right:var(--margin);height:56px;z-index:20;display:flex;align-items:center;justify-content:space-between}
+.tb-left{display:flex;align-items:center;gap:18px}
+.homeback{display:inline-flex;align-items:center;gap:9px;color:var(--inkDim);font-size:var(--t-base);padding:4px 6px 4px 2px;border-radius:var(--r-sm)}
+.homeback svg{width:18px;height:18px}
+.clock{display:flex;flex-direction:column;gap:3px}
+.clock .r{display:flex;align-items:flex-end;gap:5px}
+.clock .t{font-family:var(--display-stack);font-size:32px;line-height:1}
+.clock .a{font-size:16px;color:var(--inkDim);padding-bottom:3px}
+.clock .d{font-size:var(--t-md);color:var(--inkDim)}
+.pills{position:absolute;left:50%;transform:translateX(-50%);height:46px;border-radius:var(--r-pill);padding:0 6px;display:flex;align-items:center;gap:4px}
+.pill{height:34px;padding:0 17px;border-radius:var(--r-pill);color:var(--inkDim);font-size:var(--t-base);font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.pill.active{background:var(--gold);color:#1a1408;font-weight:600}
+.pill.soon{opacity:.6;cursor:default}
+.soon-tag{font-size:8px;letter-spacing:.8px;height:15px;padding:0 5px;border-radius:4px;background:rgba(255,255,255,.10);color:var(--inkDim);display:inline-flex;align-items:center}
+.sys{display:flex;align-items:center;gap:20px}
+.ico{width:22px;height:22px;opacity:.72;border-radius:6px;display:inline-grid;place-items:center}
+.ico svg{width:22px;height:22px}
+.ico:hover,.ico:focus{opacity:1}
+.acct{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.38);font-size:11px;font-weight:600;display:inline-grid;place-items:center}
+.acct.signed-in{border-color:rgba(240,196,74,.8);background:rgba(240,196,74,.16);color:#f0df9a}
+@media (max-width:1180px){.clock .d{display:none}.ico.opt{display:none}}
+@media (max-width:900px){.pills{display:none}}
+
+/* the one vertical scroller, clipped under the TopBar */
+#board{position:fixed;left:0;right:0;top:var(--board);bottom:0;overflow-y:auto;overflow-x:hidden;z-index:5;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+.col{padding:12px var(--margin) 110px;display:flex;flex-direction:column;gap:var(--s-7)}
+
+/* docked tab bar */
+.dock{position:fixed;top:calc(var(--board) + 4px);left:0;right:0;z-index:15;display:flex;justify-content:center;pointer-events:none;opacity:0;transform:translateY(-10px);transition:opacity var(--t-fast),transform var(--t-med) var(--ease)}
+.dock .tabs{pointer-events:auto;width:min(calc(100% - 2 * var(--margin)),620px);height:46px;padding:5px;border-radius:15px;box-shadow:0 14px 30px rgba(0,0,0,.35)}
+.dock .tab{font-size:var(--t-md);border-radius:11px}
+body.docked .dock{opacity:1;transform:none}
+.dock[aria-hidden="true"]{visibility:hidden}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:78px;transform:translate(-50%,16px);z-index:60;padding:11px 20px;border-radius:var(--r-pill);font-size:var(--t-md);opacity:0;transition:opacity var(--t-fast),transform var(--t-fast);pointer-events:none;background:rgba(8,10,16,.94);border:1px solid rgba(255,255,255,.14)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* covered by a native destination: keep the route, take no input */
+body.covered #app{pointer-events:none}
+
+/* focus: Portico's single loud look for every focusable control */
+body.keys .homeback:focus,body.keys .ico:focus,body.keys .acct:focus,body.keys .pill:focus{box-shadow:var(--ring)}
+
+@media (max-width:760px){
+  :root{--margin:18px;--board:126px}
+  #topbar{top:18px;height:94px;align-items:flex-start}
+  .tb-left{align-items:flex-start}.clock .t{font-size:26px}
+  .sys{gap:12px}.pills{top:54px;width:100%;justify-content:center}
+}
