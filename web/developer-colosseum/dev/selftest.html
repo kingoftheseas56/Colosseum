@@ -137,6 +137,14 @@
     choices: [{ key: 'sort:added', label: 'Added', selected: true, target: { view: { sort: 'added' } } },
               { key: 'sort:az', label: 'A–Z', target: { view: { sort: 'az' } } }] } });
   check('view choices render with the selected one marked', !!sec('sort') && !!sec('sort').querySelector('.chip.on[aria-pressed="true"]'));
+  // v2.2: Item.primary drives the card's click; door choices validate
+  let opened = null;
+  const ctx2 = { ...ctx, open: (it, intent) => { opened = intent; } };
+  CW.cards.poster({ ...item('p1'), primary: 'resume' }, ctx2).click();
+  check('Item.primary decides the poster click', opened === 'resume');
+  emit(11, { type: 'section', section: { id: 'vault', index: 13, title: 'Vault', layout: 'tiles', state: 'ready', items: [],
+    choices: [{ key: 'door:vault', label: 'Open the Vault', target: { act: 'open.vault' } }] } });
+  check('a Vault door choice is accepted', !!sec('vault'));
   const r = await port.act('open', { item: item(1), intent: 'details' });
   check('act resolves with the native answer', r.ok === true);
 

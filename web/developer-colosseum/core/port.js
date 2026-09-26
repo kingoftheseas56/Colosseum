@@ -9,7 +9,8 @@
   const WORLDS = ['Tankoban', 'Biblio', 'Theatre'];
   const KINDS = ['movie', 'series', 'anime', 'manga', 'comic', 'book', 'audiobook', 'universe'];
   const ITEM_WORLDS = [...WORLDS, 'Colosseum'];     // v1.2: cross-world items (universes)
-  const HEADER_ACTIONS = ['open.universeHall'];
+  const HEADER_ACTIONS = ['open.universeHall', 'open.vault'];            // v2.2 §14.2
+  const CHOICE_ACTS = ['search.surprise', 'open.vault', 'open.universeHall'];
   const LAYOUTS = ['hero', 'rail', 'grid', 'list', 'continue', 'chips', 'tiles', 'custom'];   // custom = v2 page-drawn
   const STATES = ['loading', 'ready', 'empty', 'error'];
   const TABS = {
@@ -36,13 +37,14 @@
     if (!isStr(it.title)) return `item ${it.key}: title missing`;
     if (!isObj(it.ref)) return `item ${it.key}: ref missing`;
     if (it.progress != null && !(it.progress >= 0 && it.progress <= 1)) return `item ${it.key}: progress out of range`;
+    if (it.primary != null && it.primary !== 'details' && it.primary !== 'resume') return `item ${it.key}: bad primary`;
     return null;
   }
 
   function choiceProblem(c) {
     if (!isObj(c) || !isStr(c.key) || !c.key || !isStr(c.label)) return 'choice needs key + label';
     const t = c.target;
-    const ok = isObj(t) && ((isObj(t.route) && t.route.v === 1) || isStr(t.query) || t.act === 'search.surprise'
+    const ok = isObj(t) && ((isObj(t.route) && t.route.v === 1) || isStr(t.query) || CHOICE_ACTS.includes(t.act)
                             || isObj(t.view));                                    // v2.1 §13.1
     return ok ? null : `choice ${c.key}: bad target`;
   }

@@ -14,7 +14,7 @@
       ? (it.rating != null ? `★ ${Number(it.rating).toFixed(1)}` : '')
       : subline(it);
     return h('button.pc', { type: 'button', 'data-focus': true, 'data-key': it.key, 'aria-label': it.title,
-                            onclick: () => ctx.open(it, 'details') },
+                            onclick: () => ctx.open(it, it.primary || 'details') },   // v2.2 §14.1
       h('span.art', {}, face(it.cover, it.title),
         h('span.rev', {}, h('b', {}, it.title), hoverLine ? h('span', {}, hoverLine) : null),
         it.badge ? h('span.badge', {}, it.badge) : null),
@@ -27,7 +27,7 @@
     const pct = Math.round((it.progress || 0) * 100);
     return h('button.ct', { type: 'button', 'data-focus': true, 'data-key': it.key,
                             'aria-label': `Resume ${it.title}${it.subtitle ? ', ' + it.subtitle : ''}`,
-                            onclick: () => ctx.open(it, 'resume'),
+                            onclick: () => ctx.open(it, it.primary || 'resume'),
                             oncontextmenu: e => { e.preventDefault(); ctx.forget && ctx.forget(it); } },
       face(it.cover, it.title),
       h('span.shade'),
@@ -40,7 +40,7 @@
 
   /** List row — for layout:"list" sections. */
   function row(it, ctx) {
-    return h('button.lr', { type: 'button', 'data-focus': true, 'data-key': it.key, onclick: () => ctx.open(it, 'details') },
+    return h('button.lr', { type: 'button', 'data-focus': true, 'data-key': it.key, onclick: () => ctx.open(it, it.primary || 'details') },
       h('span.lr-art', {}, face(it.cover, it.title)),
       h('span.lr-copy', {}, h('b', {}, it.title), subline(it) ? h('span', {}, subline(it)) : null),
       it.progress != null ? h('span.lr-bar', {}, h('i', { style: { width: Math.round(it.progress * 100) + '%' } })) : null);

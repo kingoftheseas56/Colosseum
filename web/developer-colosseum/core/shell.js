@@ -49,7 +49,8 @@
         if (t.view) { if (onView) onView(t.view); return; }        // v2.1 §13.1: the surface resubscribes
         if (t.route) router.go({ name: 'seeAll', route: t.route, title: choice.label, world: router.current().world || null });
         else if (typeof t.query === 'string') { if (onQuery) onQuery(t.query); else router.go({ name: 'search', scope: 'all', query: t.query }); }
-        else if (t.act) return env.act(t.act, { scope: router.current().scope || router.current().world || 'all' });
+        else if (t.act === 'search.surprise') return env.act(t.act, { scope: router.current().scope || router.current().world || 'all' });
+        else if (t.act) return env.act(t.act, {});                // v2.2 §14.2 door choices
       },
       removeChoice(choice) {
         const q = choice.target && choice.target.query;
