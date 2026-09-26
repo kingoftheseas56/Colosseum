@@ -42,6 +42,7 @@
     register(name, surface) { registry.set(name, surface); },
     surface(route) { return registry.get(surfaceFor(route)) || registry.get('reference'); },
     has(name) { return registry.has(name); },
+    names() { return [...registry.keys()]; },
     surfaceName: surfaceFor,
     current,
     depth: () => stack.length,

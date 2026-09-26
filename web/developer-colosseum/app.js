@@ -11,6 +11,8 @@
   CW.port = port;
   root.dataset.adapter = adapter.name;
   CW.shell.start(port);
+  // CONTRACT §12.4: tell native which destinations web owns, so `open` can answer with a web route.
+  port.act('shell.surfaces', { names: CW.router.names().filter(n => n !== 'reference') });
 
   if (adapter.name !== 'fixture') return;
 
