@@ -15,6 +15,7 @@
 
 class CollectionStore;
 class ProgressStore;
+class QQmlContext;
 class SearchHistoryStore;
 class WallpaperSchemeHandler;
 
@@ -29,6 +30,8 @@ public:
     QString resourceUrl() const;
     void bindPersonalStores(ProgressStore *progress, CollectionStore *collection,
                             SearchHistoryStore *history);
+    void bindNativeContext(QQmlContext *context);
+    QObject *service(const QString &name) const;
     void suspendProfile();
     void setAccountPresentation(const QString &mode, const QString &username);
     Q_INVOKABLE void setWallpaper(const QString &url, const QString &kind);
@@ -76,6 +79,7 @@ private:
     static QVariantMap fail(const QString &error);
 
     WorldFeed::Paths m_paths;
+    QPointer<QQmlContext> m_nativeContext;
     WallpaperSchemeHandler *m_wallpapers = nullptr;
     QPointer<ProgressStore> m_progress;
     QPointer<CollectionStore> m_collection;

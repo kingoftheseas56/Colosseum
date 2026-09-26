@@ -14,6 +14,7 @@
 #include <QFutureWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QQmlContext>
 #include <QSaveFile>
 #include <QTimer>
 #include <QtConcurrentRun>
@@ -33,6 +34,16 @@ ColosseumWebBridge::ColosseumWebBridge(const WorldFeed::Paths &paths,
 QString ColosseumWebBridge::resourceUrl() const
 {
     return QStringLiteral("qrc:///developer-webui/index.html");
+}
+
+void ColosseumWebBridge::bindNativeContext(QQmlContext *context)
+{
+    m_nativeContext = context;
+}
+
+QObject *ColosseumWebBridge::service(const QString &name) const
+{
+    return m_nativeContext ? m_nativeContext->contextProperty(name).value<QObject *>() : nullptr;
 }
 
 void ColosseumWebBridge::bindPersonalStores(ProgressStore *progress,

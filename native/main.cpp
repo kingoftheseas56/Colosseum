@@ -1732,6 +1732,7 @@ int main(int argc, char *argv[]) {
     auto *developerWebUiBridge = new ColosseumWebBridge(
         WorldFeed::Paths{imdbRes.path, malRes.path, comicsRes.path,
                          biblioCatalogPath}, webWallpaperScheme, &app);
+    developerWebUiBridge->bindNativeContext(engine.rootContext());
     auto syncDeveloperWebUiAccount = [developerWebUiBridge, accountRuntime] {
         auto *controller = accountRuntime->controller();
         developerWebUiBridge->setAccountPresentation(
