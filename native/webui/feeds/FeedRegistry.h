@@ -6,11 +6,16 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+class ColosseumWebBridge;
+
 struct FeedContext {
     QVariantMap params;
     QVariantList recent;
     QVariantList collection;
+    QVariantMap nativeSnapshot;
     WorldFeed::Paths paths;
+    int subscriptionId = 0;
+    int generation = 0;
     int visibleCount = 24;
     bool showExplicit = false;
 };
@@ -22,6 +27,7 @@ public:
     using Validator = bool (*)(const QVariantMap &);
     using Initial = QVariantList (*)(const QVariantMap &);
     using Builder = QVariantList (*)(const FeedContext &);
+    using Capture = void (*)(ColosseumWebBridge &, FeedContext &);
 
     struct Entry {
         QString name;
@@ -31,6 +37,8 @@ public:
         Builder build = nullptr;
         bool needsProgress = false;
         bool needsCollection = false;
+        Capture capture = nullptr;
+        Capture enrichCapture = nullptr;
     };
 
     static bool add(Entry entry);

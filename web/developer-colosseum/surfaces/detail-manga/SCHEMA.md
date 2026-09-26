@@ -7,8 +7,8 @@ Subscribe with native route `params: { id: string, title?: string, cover?: strin
 | `header` | `manga.header` | `id`, `malId`, `title`, `banner`, `cover`, `author`, `status`, `year`, `synopsis`, `genres:string[]`, `score`, `saved:boolean`, `primaryLabel`, `primaryState:"open"|"get"|"search"` |
 | `modes` | `manga.modes` | `selected:"volumes"|"chapters"`, `chapterEnabled:boolean`, `languages:{code,label,providerCount}[]`, `selectedLanguage` |
 | `volumes` | `manga.volumes` | `rows:{id,number,title,cover,startChapter,endChapter,owned,downloadState,progress,read}[]`; rows retain the QML shelf order |
-| `chapters` | `manga.chapters` | `sourceSeriesId`, `language`, `rows:{id,number,title,cover,sourceLabel,downloadState,progress,read}[]`; chapter identity includes its provider and language |
-| `sources` | `manga.sources` | `rows:{key,label,language,availability}[]`; `key` is opaque and local to the current feed generation |
+| `chapters` | `manga.chapters` | `sourceSeriesId`, `language`, `windowStart: number`, `rows:{id,number,title,cover,sourceLabel,downloadState,progress,read}[]`; chapter identity includes its provider and language; `windowStart` is this window's zero-based position |
+| `sources` | `manga.sources` | `targetId:string` (volume id during volume search; empty for chapter providers), `rows:{key,label,language,availability}[]`; `key` is opaque and local to the current feed generation |
 | `downloads` | `manga.downloads` | `rows:{unitKind:"volume"|"chapter",unitId,state,done,total,error}[]` |
 
 Chapter and volume records contain no page URL, provider endpoint, local path, credential, or token. `chapters` reports a plain error when Tankoyomi is disabled or the selected language has no source; `volumes` reports empty when the catalogue has no proven shelf.
@@ -19,6 +19,7 @@ Chapter and volume records contain no page URL, provider endpoint, local path, c
 |---|---|---|
 | `detail.manga.selectMode` | `{id, mode:"volumes"|"chapters", language?:string}` | Resolve after the mode/language selection is applied and the feed refresh is scheduled. |
 | `detail.manga.selectSource` | `{id, sourceKey:string}` | Resolve after the selected provider is applied and the chapter feed refresh is scheduled. |
+| `detail.manga.loadVolumeSources` | `{id, unitId:string}` | Search enabled volume sources and resolve after the `sources` section has refreshed, or report a plain failure. |
 | `detail.manga.read` | `{id, unitKind:"volume"|"chapter", unitId:string}` | Resolve after the native reader handoff succeeds. If a download is needed, resolve in about one second with `{state:"queued",jobId}`; the `downloads` section tracks it and the user can read when ready. |
 | `detail.manga.markRead` | `{id, unitKind:"volume"|"chapter", unitId:string, read:boolean}` | Resolve after ProgressStore persists the mark. |
 | `detail.manga.download` | `{id, unitKind:"volume"|"chapter", unitId:string, sourceKey?:string}` | Resolve after the real download request is accepted or fails; report the job id in `result`. |

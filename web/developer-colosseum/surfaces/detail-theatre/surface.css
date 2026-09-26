@@ -1,0 +1,24 @@
+.dt-page{gap:var(--s-7)}
+.dt-page .widget{background:var(--glassTint);border:solid var(--edge);border-width:thin;border-radius:var(--r-xl);overflow:hidden}
+.dt-page .widget[data-section="hero"]{background:transparent;border:none}
+.dt-hero{position:relative;display:grid;grid-template-columns:var(--poster-w) minmax(0,1fr);gap:var(--s-7);padding:var(--s-7);min-height:var(--hero-h);align-items:end;overflow:hidden}
+.dt-back{position:absolute;inset:0;opacity:.25;z-index:-1}.dt-back .face,.dt-back img{width:100%;height:100%;object-fit:cover}
+.dt-poster .face,.dt-poster img{display:block;width:var(--poster-w);height:var(--poster-h);object-fit:cover;border-radius:var(--r-md)}
+.dt-hero-copy{display:flex;flex-direction:column;align-items:start;gap:var(--s-3)}
+.dt-hero-copy h1{font:var(--t-hero) var(--display-stack);margin:0}.dt-kicker,.dt-episode-index{color:var(--gold);font:var(--t-xs) var(--ui-stack);letter-spacing:.2em}
+.dt-hero-meta,.dt-genres{color:var(--inkDim);margin:0}.dt-synopsis{max-width:70ch;line-height:1.5;color:var(--ink);margin:0}
+.dt-actions,.dt-episode-actions,.dt-season-row{display:flex;flex-wrap:wrap;gap:var(--s-2)}
+.dt-page button{cursor:pointer}.dt-page button:focus-visible{outline:solid var(--gold);outline-width:medium;outline-offset:var(--s-1)}
+.dt-primary,.dt-secondary,.dt-season,.dt-small,.dt-source,.dt-more{border:thin solid var(--edge);border-radius:var(--r-pill);padding:var(--s-3) var(--s-5);background:var(--glassTint);color:var(--ink)}
+.dt-primary,.dt-season.on{background:var(--gold);color:var(--washBottom);border-color:var(--gold)}
+.dt-facts{display:flex;flex-wrap:wrap;gap:var(--s-6)}.dt-fact{display:grid;gap:var(--s-1)}.dt-fact span,.dt-person small{color:var(--inkDimmer)}
+.dt-season-row{padding:var(--s-4)}.dt-season small{margin-left:var(--s-2)}
+.dt-episodes{display:grid;gap:var(--s-2);padding:var(--s-3)}
+.dt-episode{display:grid;grid-template-columns:var(--poster-w) minmax(0,1fr) auto;gap:var(--s-4);align-items:center;border-bottom:thin solid var(--edge);padding:var(--s-3)}
+.dt-episode-art .face,.dt-episode-art img{width:var(--poster-w);height:calc(var(--poster-w) * .56);object-fit:cover;border-radius:var(--r-sm)}
+.dt-episode-copy{display:grid;gap:var(--s-2)}.dt-episode-copy p{margin:0;color:var(--inkDim);line-height:1.4}.dt-episode-copy small{color:var(--inkDimmer)}
+.dt-episode-actions{justify-content:end;max-width:calc(var(--poster-w) * 2)}.dt-small{padding:var(--s-2) var(--s-3)}
+.dt-progress{width:100%;height:var(--s-1);border-radius:var(--r-pill);background:var(--edge);overflow:hidden}.dt-progress i{display:block;height:100%;background:var(--gold)}
+.dt-cast{display:flex;flex-wrap:wrap;gap:var(--s-5);padding:var(--s-4)}.dt-person{display:grid;gap:var(--s-2)}.dt-person .face{width:var(--poster-w);height:var(--poster-w)}
+.dt-sources{display:flex;flex-wrap:wrap;gap:var(--s-3);padding:var(--s-4)}.dt-source{display:grid;gap:var(--s-2);text-align:left;border:thin solid var(--edge);border-radius:var(--r-md);padding:var(--s-4);background:var(--glassTint)}.dt-source-actions{display:flex;gap:var(--s-2)}
+@media(max-width:70em){.dt-episode{grid-template-columns:minmax(0,1fr)}.dt-episode-art{display:none}.dt-episode-actions{justify-content:start;max-width:none}.dt-hero{grid-template-columns:minmax(0,1fr)}.dt-poster{display:none}}

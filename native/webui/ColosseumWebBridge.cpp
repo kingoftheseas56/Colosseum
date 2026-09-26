@@ -7,6 +7,8 @@
 #include "../CollectionStore.h"
 #include "../ProgressStore.h"
 #include "../SearchHistoryStore.h"
+#include "../engine/MangaDownloader.h"
+#include "../engine/MangaTankobanService.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -39,11 +41,106 @@ QString ColosseumWebBridge::resourceUrl() const
 void ColosseumWebBridge::bindNativeContext(QQmlContext *context)
 {
     m_nativeContext = context;
+    if (auto *downloads = qobject_cast<MangaDownloader *>(service(QStringLiteral("Downloads")))) {
+        connect(downloads, &MangaDownloader::progress, this,
+                [this] { storeChanged(true); });
+        connect(downloads, &MangaDownloader::finished, this,
+                [this] { storeChanged(true); });
+        connect(downloads, &MangaDownloader::failed, this,
+                [this] { storeChanged(true); });
+    }
+    if (auto *volumes = qobject_cast<MangaTankobanService *>(service(QStringLiteral("TankobanVolumes")))) {
+        connect(volumes, &MangaTankobanService::progress, this,
+                [this] { storeChanged(true); });
+        connect(volumes, &MangaTankobanService::finished, this,
+                [this] { storeChanged(true); });
+        connect(volumes, &MangaTankobanService::failed, this,
+                [this] { storeChanged(true); });
+    }
 }
 
 QObject *ColosseumWebBridge::service(const QString &name) const
 {
     return m_nativeContext ? m_nativeContext->contextProperty(name).value<QObject *>() : nullptr;
+}
+
+bool ColosseumWebBridge::detailActive(const QString &feed, const QString &identity) const
+{
+    for (auto it = m_subscriptions.cbegin(); it != m_subscriptions.cend(); ++it)
+        if (it->feed == feed && it->params.value(QStringLiteral("id")).toString() == identity)
+            return true;
+    return false;
+}
+
+bool ColosseumWebBridge::isDetailSubscription(int subscriptionId, const QString &feed,
+                                               const QString &identity) const
+{
+    const auto it = m_subscriptions.constFind(subscriptionId);
+    return it != m_subscriptions.cend() && it->feed == feed
+        && it->params.value(QStringLiteral("id")).toString() == identity;
+}
+
+QVariantMap ColosseumWebBridge::detailParams(const QString &feed, const QString &identity) const
+{
+    for (auto it = m_subscriptions.cbegin(); it != m_subscriptions.cend(); ++it)
+        if (it->feed == feed && it->params.value(QStringLiteral("id")).toString() == identity)
+            return it->params;
+    return {};
+}
+
+QVariantMap ColosseumWebBridge::detailRow(const QString &feed, const QString &identity,
+                                          const QString &sectionId,
+                                          const QString &rowId) const
+{
+    for (auto it = m_subscriptions.cbegin(); it != m_subscriptions.cend(); ++it) {
+        if (it->feed != feed || it->params.value(QStringLiteral("id")).toString() != identity)
+            continue;
+        const QVariantList rows = it->sections.value(sectionId).value(QStringLiteral("data"))
+            .toMap().value(QStringLiteral("rows")).toList();
+        for (const QVariant &value : rows) {
+            const QVariantMap row = value.toMap();
+            if (row.value(QStringLiteral("id")).toString() == rowId
+                || row.value(QStringLiteral("key")).toString() == rowId) return row;
+        }
+    }
+    return {};
+}
+
+bool ColosseumWebBridge::updateDetail(const QString &feed, const QString &identity,
+                                      const QVariantMap &patch)
+{
+    bool found = false;
+    for (auto it = m_subscriptions.begin(); it != m_subscriptions.end(); ++it) {
+        if (it->feed != feed || it->params.value(QStringLiteral("id")).toString() != identity)
+            continue;
+        for (auto field = patch.cbegin(); field != patch.cend(); ++field)
+            it->params.insert(field.key(), field.value());
+        if (patch.contains(QStringLiteral("view"))) it->visibleCount = 0;
+        const int subscriptionId = it.key();
+        if (patch.contains(QStringLiteral("sourceTarget")) && it->sections.contains(QStringLiteral("sources"))) {
+            QVariantMap loading = it->sections.value(QStringLiteral("sources"));
+            loading.insert(QStringLiteral("state"), QStringLiteral("loading"));
+            QVariantMap data = loading.value(QStringLiteral("data")).toMap();
+            data.insert(QStringLiteral("targetId"), patch.value(QStringLiteral("sourceTarget")));
+            data.insert(QStringLiteral("rows"), QVariantList{});
+            loading.insert(QStringLiteral("data"), data);
+            it->sections.insert(QStringLiteral("sources"), loading);
+            publish(subscriptionId, {{QStringLiteral("type"), QStringLiteral("section")},
+                                     {QStringLiteral("section"), loading}});
+        }
+        refresh(subscriptionId);
+        found = true;
+    }
+    return found;
+}
+
+void ColosseumWebBridge::delegateAction(const QString &action,
+                                        const QVariantMap &payload,
+                                        std::function<void(const QVariantMap &)> complete)
+{
+    const int requestId = m_nextAction++;
+    m_delegatedActions.insert(requestId, std::move(complete));
+    emit actionRequested(action, payload, requestId);
 }
 
 void ColosseumWebBridge::bindPersonalStores(ProgressStore *progress,
@@ -110,6 +207,13 @@ void ColosseumWebBridge::startRecorderSweep()
         requests.append({QStringLiteral("search"),
                          {{QStringLiteral("scope"), scope},
                           {QStringLiteral("query"), QStringLiteral("a")}}});
+    requests.append({QStringLiteral("detail.theatre"),
+                     {{QStringLiteral("id"), QStringLiteral("tt0944947")},
+                      {QStringLiteral("type"), QStringLiteral("series")},
+                      {QStringLiteral("title"), QStringLiteral("Game of Thrones")}}});
+    requests.append({QStringLiteral("detail.manga"),
+                     {{QStringLiteral("id"), QStringLiteral("mal:13")},
+                      {QStringLiteral("title"), QStringLiteral("One Piece")}}});
     for (int i = 0; i < requests.size(); ++i) {
         const auto request = requests.at(i);
         QTimer::singleShot(80 * i, this, [this, request] {
@@ -191,6 +295,7 @@ QVariantMap ColosseumWebBridge::subscribe(const QString &feed, const QVariantMap
     Subscription sub;
     sub.feed = feed;
     sub.params = WebFeedValue::jsonMap(params);
+    if (feed.startsWith(QLatin1String("detail."))) sub.visibleCount = 0;
     m_subscriptions.insert(id, sub);
     QTimer::singleShot(0, this, [this, id] { reset(id); });
     return {{QStringLiteral("ok"), true}, {QStringLiteral("id"), id},
@@ -207,10 +312,13 @@ QVariantMap ColosseumWebBridge::more(int id, const QString &sectionId)
 {
     auto it = m_subscriptions.find(id);
     if (it == m_subscriptions.end()) return fail(QStringLiteral("Subscription is closed."));
-    if (it->feed != QLatin1String("continue") || !it->sections.contains(sectionId)
+    if ((it->feed != QLatin1String("continue")
+         && it->feed != QLatin1String("detail.theatre")
+         && it->feed != QLatin1String("detail.manga"))
+        || !it->sections.contains(sectionId)
         || !it->sections.value(sectionId).value(QStringLiteral("hasMore")).toBool())
         return fail(QStringLiteral("No more items in that section."));
-    it->visibleCount += 24;
+    it->visibleCount += (it->feed.startsWith(QLatin1String("detail.")) ? 100 : 24);
     refresh(id);
     return {{QStringLiteral("ok"), true}};
 }
@@ -259,6 +367,8 @@ void ColosseumWebBridge::refresh(int id)
     const int requestVersion = ++it->requestVersion;
     FeedContext context;
     context.params = it->params;
+    context.subscriptionId = id;
+    context.generation = generation;
     context.visibleCount = it->visibleCount;
     context.paths = m_paths;
     context.showExplicit = m_showExplicit;
@@ -267,6 +377,7 @@ void ColosseumWebBridge::refresh(int id)
     if (entry.needsCollection && m_collection)
         context.collection = m_collection->items(
             context.params.value(QStringLiteral("world")).toString().toLower());
+    if (entry.capture) entry.capture(*this, context);
     auto *watcher = new QFutureWatcher<QVariantList>(this);
     connect(watcher, &QFutureWatcher<QVariantList>::finished, this,
             [this, watcher, id, generation, requestVersion] {
@@ -309,7 +420,9 @@ void ColosseumWebBridge::storeChanged(bool progress)
     for (const int id : m_subscriptions.keys()) {
         auto it = m_subscriptions.find(id);
         if (it == m_subscriptions.end()) continue;
-        if (progress && it->feed == QLatin1String("continue")) {
+        if (progress && (it->feed == QLatin1String("continue")
+            || it->feed == QLatin1String("detail.theatre")
+            || it->feed == QLatin1String("detail.manga"))) {
             if (it->pendingProgress) continue;
             it->pendingProgress = true;
             QTimer::singleShot(1000, this, [this, id] {
@@ -553,6 +666,11 @@ void ColosseumWebBridge::finishAction(int requestId, bool ok,
                                        const QString &error,
                                        const QVariant &result)
 {
+    if (auto delegated = m_delegatedActions.take(requestId)) {
+        delegated(ok ? QVariantMap{{QStringLiteral("ok"), true}, {QStringLiteral("result"), result}}
+                     : fail(error.isEmpty() ? QStringLiteral("Action failed.") : error));
+        return;
+    }
     const auto promise = m_pendingActions.take(requestId);
     if (!promise) return;
     promise->addResult(ok

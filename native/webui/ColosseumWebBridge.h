@@ -12,6 +12,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include <functional>
 
 class CollectionStore;
 class ProgressStore;
@@ -32,6 +33,16 @@ public:
                             SearchHistoryStore *history);
     void bindNativeContext(QQmlContext *context);
     QObject *service(const QString &name) const;
+    bool detailActive(const QString &feed, const QString &identity) const;
+    bool isDetailSubscription(int subscriptionId, const QString &feed,
+                              const QString &identity) const;
+    QVariantMap detailParams(const QString &feed, const QString &identity) const;
+    QVariantMap detailRow(const QString &feed, const QString &identity,
+                          const QString &sectionId, const QString &rowId) const;
+    bool updateDetail(const QString &feed, const QString &identity,
+                      const QVariantMap &patch);
+    void delegateAction(const QString &action, const QVariantMap &payload,
+                        std::function<void(const QVariantMap &)> complete);
     void suspendProfile();
     void setAccountPresentation(const QString &mode, const QString &username);
     Q_INVOKABLE void setWallpaper(const QString &url, const QString &kind);
@@ -86,6 +97,7 @@ private:
     QPointer<SearchHistoryStore> m_history;
     QHash<int, Subscription> m_subscriptions;
     QHash<int, QSharedPointer<QPromise<QVariantMap>>> m_pendingActions;
+    QHash<int, std::function<void(const QVariantMap &)>> m_delegatedActions;
     QSet<QString> m_surfaces;
     int m_nextSubscription = 1;
     int m_nextAction = 1;

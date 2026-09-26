@@ -4633,6 +4633,39 @@ Window {
                 } else {
                     ok = false; error = "Item destination is unavailable."
                 }
+            } else if (action === "detail.theatre.playSource") {
+                var sourceHash = String(payload.infoHash || "")
+                var sourceId = String(payload.subId || "")
+                if (!sourceHash.length || !sourceId.length) {
+                    ok = false; error = "This source is unavailable."
+                } else {
+                    win.openPlayer(sourceHash, Number(payload.fileIdx || 0),
+                                   String(payload.title || ""), String(payload.backdrop || ""),
+                                   String(payload.subType || ""), sourceId,
+                                   payload.candidates || [], payload.playbackContext || ({}))
+                }
+            } else if (action === "detail.manga.openReader") {
+                var readerSeriesId = String(payload.id || "")
+                var readerUnitId = String(payload.unitId || "")
+                var readerTitle = String(payload.title || "")
+                if (!readerSeriesId.length || !readerUnitId.length || !readerTitle.length) {
+                    ok = false; error = "This reading unit is unavailable."
+                } else if (payload.unitKind === "chapter") {
+                    win.openSeriesAt(readerTitle, readerSeriesId, readerUnitId)
+                    if (readerSeriesId.indexOf("mal:") === 0)
+                        seriesLayer.malId = readerSeriesId.slice(4)
+                } else if (payload.unitKind === "volume") {
+                    seriesLayer.resumeSeriesId = readerSeriesId
+                    seriesLayer.resumeChapterId = ""
+                    seriesLayer.resumeVolumeId = readerUnitId
+                    seriesLayer.malId = readerSeriesId.indexOf("mal:") === 0 ? readerSeriesId.slice(4) : ""
+                    seriesLayer.title = readerTitle
+                    if (seriesLayer.active && seriesLayer.item) {
+                        seriesLayer.item.seriesTitle = readerTitle
+                        seriesLayer.item.seriesId = readerSeriesId
+                        seriesLayer.item.resumeTankobanVolume(readerUnitId)
+                    } else seriesLayer.active = true
+                } else { ok = false; error = "This reading unit is unavailable." }
             } else if (action === "open.vault") {
                 win.openVaultPage()
             } else if (action === "open.universe") {
