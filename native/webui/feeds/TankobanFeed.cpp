@@ -523,22 +523,35 @@ QVariantList collectionLane(const FeedContext &ctx, MalCatalog *mal,
         entry.insert(QStringLiteral("libraryId"), libraryId);
         QVariantMap item;
         if (type == QLatin1String("manga") && mal) {
-            const QVariantList matches = mal->matchByTitle(
-                entry.value(QStringLiteral("title")).toString(), 0,
-                QStringLiteral("manga"));
-            if (matches.size() == 1) {
-                const QString malId = matches.first().toMap()
-                    .value(QStringLiteral("mal_id")).toString();
-                if (!malId.isEmpty()) {
-                    entry.insert(QStringLiteral("id"),
-                                 QStringLiteral("mal:") + malId);
-                    entry.insert(QStringLiteral("mal_id"), malId);
+            if (libraryId.startsWith(QLatin1String("mal:"))) {
+                entry.insert(QStringLiteral("mal_id"), libraryId.mid(4));
+            } else {
+                const QVariantList matches = mal->matchByTitle(
+                    entry.value(QStringLiteral("title")).toString(), 0,
+                    QStringLiteral("manga"));
+                if (matches.size() == 1) {
+                    const QString malId = matches.first().toMap()
+                        .value(QStringLiteral("mal_id")).toString();
+                    if (!malId.isEmpty()) {
+                        entry.insert(QStringLiteral("id"),
+                                     QStringLiteral("mal:") + malId);
+                        entry.insert(QStringLiteral("mal_id"), malId);
+                    }
                 }
             }
+            if (!entry.value(QStringLiteral("id")).toString()
+                     .startsWith(QLatin1String("mal:")))
+                continue;
             item = mangaItem(entry);
         } else {
-            item = type == QLatin1String("comic")
-                ? comicItem(entry) : mangaItem(entry);
+            const QString id = entry.value(QStringLiteral("id")).toString();
+            if (!id.startsWith(QLatin1String("gc:"))
+                && !id.startsWith(QLatin1String("gcd:"))
+                && !id.startsWith(QLatin1String("locg:"))
+                && entry.value(QStringLiteral("gcdId")).toString().isEmpty()
+                && entry.value(QStringLiteral("locgId")).toString().isEmpty())
+                continue;
+            item = comicItem(entry);
         }
         item.insert(QStringLiteral("primary"), QStringLiteral("details"));
         out.append(item);
@@ -885,7 +898,9 @@ QVariantMap collectionBase(QVariantMap entry, MalCatalog &mal)
     entry.insert(QStringLiteral("libraryId"), libraryId);
     if (entry.value(QStringLiteral("type")).toString()
         == QLatin1String("manga")) {
-        if (!libraryId.startsWith(QLatin1String("mal:"))) {
+        if (libraryId.startsWith(QLatin1String("mal:"))) {
+            entry.insert(QStringLiteral("mal_id"), libraryId.mid(4));
+        } else {
             const QVariantList matches = mal.matchByTitle(
                 entry.value(QStringLiteral("title")).toString(), 0,
                 QStringLiteral("manga"));
@@ -899,8 +914,24 @@ QVariantMap collectionBase(QVariantMap entry, MalCatalog &mal)
                 }
             }
         }
+        // CONTRACT §3.3 has no Tankoban:source:* manga identity. A stale
+        // title-keyed Collection row is shown only after it recovers one
+        // unambiguous MAL identity; otherwise omitting it is safer than
+        // inventing a non-canonical key that cannot round-trip through open().
+        if (!entry.value(QStringLiteral("id")).toString()
+                 .startsWith(QLatin1String("mal:")))
+            return {};
         return mangaItem(entry);
     }
+
+    const QString comicId = entry.value(QStringLiteral("id")).toString();
+    const bool canonicalComic = comicId.startsWith(QLatin1String("gc:"))
+        || comicId.startsWith(QLatin1String("gcd:"))
+        || comicId.startsWith(QLatin1String("locg:"))
+        || !entry.value(QStringLiteral("gcdId")).toString().isEmpty()
+        || !entry.value(QStringLiteral("locgId")).toString().isEmpty();
+    if (!canonicalComic)
+        return {};
     return comicItem(entry);
 }
 
@@ -947,7 +978,19 @@ QList<LibraryRow> libraryRows(const FeedContext &ctx, MalCatalog &mal)
             ? QStringLiteral("comic") : QStringLiteral("tankoban");
         const QVariantMap progress = matchedProgress(
             entry, ctx.recent, progressKind);
-        QVariantMap base = collectionBase(entry, mal);
+        QVariantMap identityEntry = entry;
+        // A legacy title-keyed manga row may already have canonical Progress.
+        // Prefer that native durable identity before consulting the catalogue.
+        if (type == QLatin1String("manga")) {
+            const QString progressId = progress.value(QStringLiteral("id")).toString();
+            if (progressId.startsWith(QLatin1String("mal:"))) {
+                identityEntry.insert(QStringLiteral("id"), progressId);
+                identityEntry.insert(QStringLiteral("mal_id"), progressId.mid(4));
+            }
+        }
+        QVariantMap base = collectionBase(identityEntry, mal);
+        if (base.isEmpty())
+            continue;
         QVariantMap item = base;
 
         LibraryRow row;
