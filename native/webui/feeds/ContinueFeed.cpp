@@ -1,4 +1,5 @@
 #include "ContinueFeed.h"
+#include "FeedRegistry.h"
 #include "FeedValue.h"
 
 #include "../../engine/ImdbCatalog.h"
@@ -6,6 +7,27 @@
 #include <QHash>
 #include <QStringList>
 #include <QUuid>
+
+namespace {
+const bool registered = FeedRegistry::add({
+    QStringLiteral("continue"), {},
+    [](const QVariantMap &params) {
+        return QStringList{QStringLiteral("all"), QStringLiteral("Tankoban"),
+                           QStringLiteral("Biblio"), QStringLiteral("Theatre")}
+            .contains(params.value(QStringLiteral("scope")).toString());
+    },
+    [](const QVariantMap &params) -> QVariantList {
+        const QString scope = params.value(QStringLiteral("scope")).toString();
+        return {WebFeedValue::section(QStringLiteral("continue.") + scope, 0,
+            QStringLiteral("Loading"), QStringLiteral("list"), {},
+            QStringLiteral("loading"))};
+    },
+    [](const FeedContext &ctx) {
+        return ContinueFeed::build(ctx.recent,
+            ctx.params.value(QStringLiteral("scope")).toString(),
+            ctx.paths.imdb, ctx.visibleCount);
+    }, true, false});
+} // namespace
 
 QVariantList ContinueFeed::build(const QVariantList &recent, const QString &scope,
                                  const QString &imdbPath, int visibleCount)

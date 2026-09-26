@@ -1,7 +1,6 @@
 #include "ColosseumWebBridge.h"
-#include "feeds/ContinueFeed.h"
+#include "feeds/FeedRegistry.h"
 #include "feeds/FeedValue.h"
-#include "feeds/PendingFeeds.h"
 #include "WallpaperSchemeHandler.h"
 
 #include "../CollectionStore.h"
@@ -18,22 +17,6 @@
 #include <QTimer>
 #include <QtConcurrentRun>
 #include <utility>
-
-namespace {
-
-QVariantList loading(const QString &feed, const QVariantMap &params)
-{
-    if (feed == QLatin1String("home")) return HomeFeed::initial();
-    if (feed == QLatin1String("seeAll")) return SeeAllFeed::initial();
-    if (feed == QLatin1String("search")) return SearchFeed::initial();
-    const QString scope = params.value(QStringLiteral("scope")).toString();
-    const QString title = QStringLiteral("Loading");
-    return {WebFeedValue::section(feed + (scope.isEmpty() ? QString() : QLatin1Char('.') + scope),
-                                  0, title, QStringLiteral("list"), {},
-                                  QStringLiteral("loading"))};
-}
-
-} // namespace
 
 ColosseumWebBridge::ColosseumWebBridge(const WorldFeed::Paths &paths,
                                        WallpaperSchemeHandler *wallpapers,
@@ -185,21 +168,8 @@ QVariantMap ColosseumWebBridge::shellState() const
 
 bool ColosseumWebBridge::validFeed(const QString &feed, const QVariantMap &params) const
 {
-    if (feed == QLatin1String("home")) return params.isEmpty();
-    if (feed == QLatin1String("continue"))
-        return QStringList{QStringLiteral("all"), QStringLiteral("Tankoban"),
-                           QStringLiteral("Biblio"), QStringLiteral("Theatre")}
-            .contains(params.value(QStringLiteral("scope")).toString());
-    if (feed == QLatin1String("world"))
-        return WorldFeed::validTab(params.value(QStringLiteral("world")).toString(),
-                                   params.value(QStringLiteral("tab")).toString());
-    if (feed == QLatin1String("seeAll"))
-        return params.value(QStringLiteral("route")).toMap().value(QStringLiteral("v")).toInt() == 1;
-    if (feed == QLatin1String("search"))
-        return QStringList{QStringLiteral("all"), QStringLiteral("Tankoban"),
-                           QStringLiteral("Biblio"), QStringLiteral("Theatre")}
-            .contains(params.value(QStringLiteral("scope")).toString());
-    return false;
+    const auto *entry = FeedRegistry::find(feed, params);
+    return entry && entry->valid(params);
 }
 
 QVariantMap ColosseumWebBridge::subscribe(const QString &feed, const QVariantMap &params)
@@ -255,7 +225,8 @@ void ColosseumWebBridge::reset(int id)
     it->seq = 0;
     ++it->requestVersion;
     it->sections.clear();
-    const QVariantList sections = loading(it->feed, it->params);
+    const auto *entry = FeedRegistry::find(it->feed, it->params);
+    const QVariantList sections = entry ? entry->initial(it->params) : QVariantList{};
     for (const QVariant &value : sections) {
         const QVariantMap section = value.toMap();
         it->sections.insert(section.value(QStringLiteral("id")).toString(), section);
@@ -269,19 +240,21 @@ void ColosseumWebBridge::refresh(int id)
 {
     auto it = m_subscriptions.find(id);
     if (it == m_subscriptions.end()) return;
-    const QString feed = it->feed;
-    if (feed != QLatin1String("continue") && feed != QLatin1String("world"))
-        return; // Deliberate Step 3 loading stubs for Home, See All and Search.
+    const auto *registered = FeedRegistry::find(it->feed, it->params);
+    if (!registered || !registered->build) return;
+    const FeedRegistry::Entry entry = *registered;
     const int generation = it->generation;
     const int requestVersion = ++it->requestVersion;
-    const QVariantMap params = it->params;
-    const int visibleCount = it->visibleCount;
-    const QVariantList recent = m_progress ? m_progress->recent(QString(), 0) : QVariantList{};
-    const QString world = params.value(QStringLiteral("world")).toString();
-    const QVariantList collection = (m_collection && !world.isEmpty())
-        ? m_collection->items(world.toLower()) : QVariantList{};
-    const WorldFeed::Paths paths = m_paths;
-    const bool showExplicit = m_showExplicit;
+    FeedContext context;
+    context.params = it->params;
+    context.visibleCount = it->visibleCount;
+    context.paths = m_paths;
+    context.showExplicit = m_showExplicit;
+    if (entry.needsProgress && m_progress)
+        context.recent = m_progress->recent(QString(), 0);
+    if (entry.needsCollection && m_collection)
+        context.collection = m_collection->items(
+            context.params.value(QStringLiteral("world")).toString().toLower());
     auto *watcher = new QFutureWatcher<QVariantList>(this);
     connect(watcher, &QFutureWatcher<QVariantList>::finished, this,
             [this, watcher, id, generation, requestVersion] {
@@ -289,14 +262,8 @@ void ColosseumWebBridge::refresh(int id)
         watcher->deleteLater();
         applySections(id, generation, requestVersion, sections);
     });
-    watcher->setFuture(QtConcurrent::run([feed, params, recent, collection, paths,
-                                          visibleCount, showExplicit] {
-        if (feed == QLatin1String("continue"))
-            return ContinueFeed::build(recent, params.value(QStringLiteral("scope")).toString(),
-                                       paths.imdb, visibleCount);
-        return WorldFeed::build(params.value(QStringLiteral("world")).toString(),
-                                params.value(QStringLiteral("tab")).toString(),
-                                paths, collection, showExplicit);
+    watcher->setFuture(QtConcurrent::run([entry, context] {
+        return entry.build(context);
     }));
 }
 

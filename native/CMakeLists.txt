@@ -361,11 +361,9 @@ add_executable(colosseum
     webui/WallpaperSchemeHandler.cpp
     webui/WallpaperSchemeHandler.h
     webui/feeds/FeedValue.h
-    webui/feeds/PendingFeeds.h
-    webui/feeds/ContinueFeed.cpp
     webui/feeds/ContinueFeed.h
-    webui/feeds/WorldFeed.cpp
     webui/feeds/WorldFeed.h
+    webui/feeds/FeedRegistry.h
     SearchHistoryStore.h
     SessionStore.h
     AudioPairingStore.h
@@ -703,6 +701,10 @@ add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
+file(GLOB WEBUI_FEED_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/webui/feeds/*.cpp")
+target_sources(colosseum PRIVATE ${WEBUI_FEED_SOURCES})
+
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
 qt_add_resources(colosseum "tankoyomi_resources"
@@ -712,14 +714,9 @@ qt_add_resources(colosseum "tankoyomi_resources"
 
 set(DEVELOPER_WEBUI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum")
 file(GLOB_RECURSE DEVELOPER_WEBUI_FILES CONFIGURE_DEPENDS
-    "${DEVELOPER_WEBUI_ROOT}/core/*"
-    "${DEVELOPER_WEBUI_ROOT}/components/*"
-    "${DEVELOPER_WEBUI_ROOT}/adapters/*"
-    "${DEVELOPER_WEBUI_ROOT}/styles/*"
-    "${DEVELOPER_WEBUI_ROOT}/surfaces/*")
-list(APPEND DEVELOPER_WEBUI_FILES
-    "${DEVELOPER_WEBUI_ROOT}/index.html"
-    "${DEVELOPER_WEBUI_ROOT}/app.js")
+    "${DEVELOPER_WEBUI_ROOT}/*")
+list(FILTER DEVELOPER_WEBUI_FILES EXCLUDE REGEX
+    "/(fixtures|dev)/|/(bridge[.]js|styles[.]css)$")
 qt_add_resources(colosseum "developer_webui_resources"
     PREFIX "/developer-webui"
     BASE "${DEVELOPER_WEBUI_ROOT}"
