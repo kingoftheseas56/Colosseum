@@ -624,6 +624,8 @@ void TrackerSyncCenterModel::setExportReview(
     m_exportSource = source;
     m_readExportSnapshot = std::move(readRemoteSnapshot);
     m_exportReview.reset();
+    m_pendingExportRead.reset();
+    m_pendingExportConfirm.reset();
     emit modelChanged();
 }
 
@@ -653,25 +655,79 @@ QVariantMap TrackerSyncCenterModel::beginExportReview(
         return rejected(QStringLiteral("provider_unavailable"));
     if (m_delivery->hasFirstExportConsent(*providerId, connection->remoteAccountId))
         return rejected(QStringLiteral("already_reviewed"));
+    if (m_pendingExportRead || m_pendingExportConfirm)
+        return rejected(QStringLiteral("review_in_progress"));
 
     const QList<TrackerDeliveryFact> facts = m_exportSource->currentCommittedFacts();
-    QString error;
-    const auto remote = m_readExportSnapshot(*connection, facts, &error);
-    if (!remote)
-        return rejected(QStringLiteral("remote_snapshot_unavailable"));
-    const auto preview = m_delivery->createExportPreview(*providerId,
-        connection->remoteAccountId, connection->connectionGeneration,
-        facts, *remote, m_exportSource, &error);
-    if (!preview)
-        return rejected(QStringLiteral("export_preview_changed"));
-
     ExportReviewHandle handle;
     handle.publicId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    handle.privatePreviewId = preview->previewId;
     handle.providerId = *providerId;
     handle.remoteAccountId = connection->remoteAccountId;
     handle.generation = connection->connectionGeneration;
     handle.revision = m_revision;
+
+    auto read = std::make_shared<PendingExportRead>();
+    read->handle = handle;
+    read->facts = facts;
+    QPointer<TrackerSyncCenterModel> self(this);
+    m_readExportSnapshot(*connection, facts,
+                         [self, read](std::optional<TrackerRemoteDeliverySnapshot> snapshot) {
+                             read->snapshot = std::move(snapshot);
+                             read->delivered = true;
+                             if (self)
+                                 self->completeExportReviewRead();
+                         });
+    if (read->delivered) {
+        // Deterministic seam: the adapter read synchronously (injected test
+        // readers do), so the review completes without a pending state.
+        // buildExportReview stores the fully-populated review handle.
+        return buildExportReview(*connection, *read);
+    }
+    m_pendingExportRead = read;
+    return {{QStringLiteral("accepted"), true},
+            {QStringLiteral("code"), QStringLiteral("checking")},
+            {QStringLiteral("pending"), true},
+            {QStringLiteral("revision"), QVariant::fromValue(m_revision)},
+            {QStringLiteral("reviewId"), handle.publicId},
+            {QStringLiteral("providerName"), provider->displayName},
+            {QStringLiteral("eligibleCount"), 0},
+            {QStringLiteral("items"), QVariantList{}},
+            {QStringLiteral("providerKey"), providerKey}};
+}
+
+QVariantMap TrackerSyncCenterModel::buildExportReview(
+    const TrackerConnection &connection,
+    const PendingExportRead &read)
+{
+    const QString code = read.snapshot
+        ? QStringLiteral("ready") : QStringLiteral("remote_snapshot_unavailable");
+    QVariantMap result{{QStringLiteral("accepted"), bool(read.snapshot)},
+                       {QStringLiteral("code"), code},
+                       {QStringLiteral("pending"), false},
+                       {QStringLiteral("revision"), QVariant::fromValue(read.handle.revision)},
+                       {QStringLiteral("reviewId"), read.handle.publicId},
+                       {QStringLiteral("eligibleCount"), 0},
+                       {QStringLiteral("items"), QVariantList{}}};
+    if (!read.snapshot)
+        return result;
+
+    QString error;
+    const auto preview = m_delivery->createExportPreview(
+        read.handle.providerId, connection.remoteAccountId,
+        connection.connectionGeneration, read.facts, *read.snapshot,
+        m_exportSource, &error);
+    if (!preview)
+        return QVariantMap{{QStringLiteral("accepted"), false},
+                           {QStringLiteral("code"), QStringLiteral("export_preview_changed")},
+                           {QStringLiteral("pending"), false},
+                           {QStringLiteral("revision"),
+                            QVariant::fromValue(read.handle.revision)},
+                           {QStringLiteral("reviewId"), read.handle.publicId},
+                           {QStringLiteral("eligibleCount"), 0},
+                           {QStringLiteral("items"), QVariantList{}}};
+
+    ExportReviewHandle handle = read.handle;
+    handle.privatePreviewId = preview->previewId;
     QVariantList rows;
     int eligibleCount = 0;
     for (const TrackerExportPreviewItem &item : preview->items) {
@@ -709,13 +765,35 @@ QVariantMap TrackerSyncCenterModel::beginExportReview(
             {QStringLiteral("reason"), reason}});
     }
     m_exportReview = std::move(handle);
-    return {{QStringLiteral("accepted"), true},
-            {QStringLiteral("code"), QStringLiteral("ready")},
-            {QStringLiteral("revision"), QVariant::fromValue(m_revision)},
-            {QStringLiteral("reviewId"), m_exportReview->publicId},
-            {QStringLiteral("providerName"), provider->displayName},
-            {QStringLiteral("eligibleCount"), eligibleCount},
-            {QStringLiteral("items"), rows}};
+    result.insert(QStringLiteral("eligibleCount"), eligibleCount);
+    result.insert(QStringLiteral("items"), rows);
+    return result;
+}
+
+void TrackerSyncCenterModel::completeExportReviewRead()
+{
+    if (!m_pendingExportRead)
+        return;
+    const auto read = m_pendingExportRead;
+    m_pendingExportRead.reset();
+    const auto connection = m_connections ? m_connections->connection(read->handle.providerId)
+                                          : std::nullopt;
+    QVariantMap ready;
+    if (!ownerHealthy() || !m_delivery || !connection
+        || connection->state != TrackerConnectionState::Connected
+        || connection->remoteAccountId != read->handle.remoteAccountId
+        || connection->connectionGeneration != read->handle.generation
+        || read->handle.revision != m_revision) {
+        ready = QVariantMap{{QStringLiteral("accepted"), false},
+                            {QStringLiteral("code"), QStringLiteral("review_changed")},
+                            {QStringLiteral("pending"), false},
+                            {QStringLiteral("reviewId"), read->handle.publicId}};
+    } else {
+        ready = buildExportReview(*connection, *read);
+    }
+    refreshRevision();
+    emit exportReviewReady(ready);
+    emit modelChanged();
 }
 
 bool TrackerSyncCenterModel::confirmExportReview(
@@ -725,6 +803,7 @@ bool TrackerSyncCenterModel::confirmExportReview(
     const QString action = QStringLiteral("confirm_export_review");
     if (!acceptIntent(expectedRevision, action)) {
         m_exportReview.reset();
+        m_pendingExportRead.reset();
         return false;
     }
     if (!m_exportReview || m_exportReview->publicId != reviewId
@@ -754,16 +833,60 @@ bool TrackerSyncCenterModel::confirmExportReview(
     }
     if (privateIds.isEmpty())
         return finishIntent(false, action, QStringLiteral("selection_required"));
+
     const QList<TrackerDeliveryFact> currentFacts = m_exportSource->currentCommittedFacts();
+    auto read = std::make_shared<PendingExportRead>();
+    read->handle = handle;
+    read->facts = currentFacts;
+    QPointer<TrackerSyncCenterModel> self(this);
+    m_readExportSnapshot(*connection, currentFacts,
+                         [self, read, privateIds](
+                             std::optional<TrackerRemoteDeliverySnapshot> snapshot) {
+                             read->snapshot = std::move(snapshot);
+                             read->delivered = true;
+                             if (!read->settled && self)
+                                 self->settlePendingExportConfirm(read, privateIds);
+                         });
+    if (read->settled)
+        return read->resultAccepted.value_or(false);
+    m_pendingExportConfirm = read;
+    return finishIntent(true, action, QStringLiteral("pending"));
+}
+
+void TrackerSyncCenterModel::settlePendingExportConfirm(
+    const std::shared_ptr<PendingExportRead> &read,
+    const QStringList &privateIds)
+{
+    if (read->settled)
+        return;
+    read->settled = true;
+    const QString action = QStringLiteral("confirm_export_review");
+    if (m_pendingExportConfirm == read)
+        m_pendingExportConfirm.reset();
+
+    auto conclude = [this, &read, &action](bool accepted, const QString &code) {
+        read->resultAccepted = accepted;
+        finishIntent(accepted, action, code);
+    };
+    if (!read->snapshot)
+        return conclude(false, QStringLiteral("remote_snapshot_unavailable"));
+    if (!ownerHealthy() || !m_delivery || !m_exportSource || !m_exportSource->isReady()) {
+        return conclude(false, QStringLiteral("owner_unavailable"));
+    }
+    const auto connection = m_connections
+        ? m_connections->connection(read->handle.providerId) : std::nullopt;
+    if (!connection || connection->state != TrackerConnectionState::Connected
+        || connection->remoteAccountId != read->handle.remoteAccountId
+        || connection->connectionGeneration != read->handle.generation)
+        return conclude(false, QStringLiteral("connection_changed"));
+    // The delivery journal revalidates the source facts, mapping, snapshot
+    // freshness, and connection before the consent becomes durable.
     QString error;
-    const auto currentRemote = m_readExportSnapshot(*connection, currentFacts, &error);
-    if (!currentRemote)
-        return finishIntent(false, action, QStringLiteral("remote_snapshot_unavailable"));
-    if (!m_delivery->confirmExport(handle.privatePreviewId, privateIds,
-                                   *currentRemote, m_exportSource,
+    if (!m_delivery->confirmExport(read->handle.privatePreviewId, privateIds,
+                                   *read->snapshot, m_exportSource,
                                    QDateTime::currentMSecsSinceEpoch(), &error))
-        return finishIntent(false, action, QStringLiteral("export_review_changed"));
-    return finishIntent(true, action, QStringLiteral("confirmed"));
+        return conclude(false, QStringLiteral("export_review_changed"));
+    conclude(true, QStringLiteral("confirmed"));
 }
 
 void TrackerSyncCenterModel::setTitleMatching(
@@ -773,6 +896,8 @@ void TrackerSyncCenterModel::setTitleMatching(
     m_titleIndex = index;
     m_titleMatchCandidateHandles.clear();
     m_exportReview.reset();
+    m_pendingExportRead.reset();
+    m_pendingExportConfirm.reset();
     refreshRevision();
     emit modelChanged();
 }
@@ -927,8 +1052,21 @@ bool TrackerSyncCenterModel::confirmTitleMatch(
     draft.items.reserve(batchValue->items.size());
     for (const TrackerImportItem &existingItem : batchValue->items) {
         TrackerImportRemoteItem remote = existingItem.remote;
-        if (existingItem.itemId == handle->itemId)
+        if (existingItem.itemId == handle->itemId) {
             remote.mapping = confirmedMapping;
+            if (remote.supported && !remote.exactProgressTarget) {
+                TrackerImportProgressTarget target{
+                    confirmedMapping->canonical.canonicalMediaId,
+                    confirmedMapping->canonical.historyKind,
+                    confirmedMapping->canonical.historyId,
+                    static_cast<double>(qBound(0, remote.progress, 100)) / 100.0,
+                    remote.completed};
+                remote.exactProgressTarget = target;
+                remote.localAtPreview = m_importOwner
+                    ? m_importOwner->currentProgress(*confirmedMapping, target)
+                    : std::nullopt;
+            }
+        }
         draft.items.append(std::move(remote));
     }
     QString previewError;
@@ -995,8 +1133,53 @@ QVariantList TrackerSyncCenterModel::deliveryRows(const QString &providerKey)
     return rows;
 }
 
+QVariantList TrackerSyncCenterModel::historyDeliveryRows()
+{
+    refreshRevision();
+    QVariantList rows;
+    if (!ownerHealthy() || !m_connections || !m_delivery)
+        return rows;
+
+    for (const TrackerDeliveryOperation &operation : m_delivery->operations()) {
+        const auto current = m_connections->connection(operation.providerId);
+        const TrackerProviderDescriptor *provider = descriptor(operation.providerId);
+        if (!current || !provider
+            || operation.remoteAccountId != current->remoteAccountId
+            || operation.connectionGeneration != current->connectionGeneration) {
+            continue;
+        }
+        const QString title = operation.mapping.canonical.displayName.trimmed();
+        if (title.isEmpty())
+            continue;
+        rows.append(QVariantMap{
+            {QStringLiteral("title"), title},
+            {QStringLiteral("providerKey"), trackerProviderKey(operation.providerId)},
+            {QStringLiteral("providerName"), provider->displayName},
+            {QStringLiteral("state"), deliveryStateKey(operation.state)}});
+    }
+    std::sort(rows.begin(), rows.end(), [](const QVariant &leftValue,
+                                           const QVariant &rightValue) {
+        const QVariantMap left = leftValue.toMap();
+        const QVariantMap right = rightValue.toMap();
+        const QString leftKey = left.value(QStringLiteral("title")).toString()
+            + QChar(0x1f) + left.value(QStringLiteral("providerKey")).toString();
+        const QString rightKey = right.value(QStringLiteral("title")).toString()
+            + QChar(0x1f) + right.value(QStringLiteral("providerKey")).toString();
+        return leftKey < rightKey;
+    });
+    return rows;
+}
+
 void TrackerSyncCenterModel::refresh()
 {
+    refreshRevision();
+}
+
+void TrackerSyncCenterModel::setConnectAvailable(bool available)
+{
+    if (m_connectAvailable == available)
+        return;
+    m_connectAvailable = available;
     refreshRevision();
 }
 
@@ -1743,7 +1926,8 @@ QVariantMap TrackerSyncCenterModel::connectionCard(const TrackerConnection &conn
             {QStringLiteral("unresolvedCount"), counts.unresolved},
             {QStringLiteral("capabilities"), capabilityKeys(capabilities)},
             {QStringLiteral("available"), provider && provider->available},
-            {QStringLiteral("connectEnabled"), false},
+            {QStringLiteral("connectEnabled"), provider && provider->available
+                    && m_connectAvailable && m_profileAvailable},
             {QStringLiteral("syncEnabled"), isConnected && provider && provider->available
                     && m_settings && m_settings->globalSettings().trackerSyncEnabled
                     && ownerHealthy() && syncAllHandlerAvailable()},
@@ -1777,8 +1961,8 @@ QVariantMap TrackerSyncCenterModel::providerCatalogueCard(
             {QStringLiteral("pendingWork"), pausedWork},
             {QStringLiteral("waitingCount"), counts.waiting},
             {QStringLiteral("unresolvedCount"), counts.unresolved},
-            // Keep this fail-closed until a native auth action is composed.
-            {QStringLiteral("connectEnabled"), false}};
+            {QStringLiteral("connectEnabled"), provider.available
+                    && m_connectAvailable && m_profileAvailable}};
 }
 
 QVariantList TrackerSyncCenterModel::buildConnectedTrackers() const

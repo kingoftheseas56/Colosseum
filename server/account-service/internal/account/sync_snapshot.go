@@ -127,6 +127,7 @@ func (s *Service) SnapshotSync(
             hlc_physical_ms,
             hlc_counter,
             operation,
+            deleted_at_ms,
             payload_ciphertext,
             received_at
         FROM (
@@ -140,6 +141,7 @@ func (s *Service) SnapshotSync(
                 hlc_physical_ms,
                 hlc_counter,
                 operation,
+                COALESCE(deleted_at_ms, 0) AS deleted_at_ms,
                 payload_ciphertext,
                 updated_at AS received_at
             FROM account_sync_current
@@ -157,6 +159,7 @@ func (s *Service) SnapshotSync(
                 hlc_physical_ms,
                 hlc_counter,
                 'put',
+                0 AS deleted_at_ms,
                 payload_ciphertext,
                 received_at
             FROM account_activity_facts
@@ -192,6 +195,7 @@ func (s *Service) SnapshotSync(
 			&stored.HLCPhysicalMS,
 			&counter,
 			&stored.Operation,
+			&stored.DeletedAtMS,
 			&stored.PayloadCipher,
 			&stored.ReceivedAt); err != nil {
 			return response, fmt.Errorf("scan snapshot row: %w", err)

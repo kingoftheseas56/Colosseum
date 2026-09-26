@@ -1,0 +1,6 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/ratings-reviews">
+    <file alias="provider_read_v1.json">provider_read_v1.json</file>
+    <file alias="title-identities-v1.json">../../../data/title-identities-v1.json</file>
+</qresource>
+</RCC>

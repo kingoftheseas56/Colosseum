@@ -15,6 +15,7 @@
 // no app.
 import QtQuick
 import QtQuick.Controls
+import "ratingsreviews"
 
 Item {
     id: sheet
@@ -33,6 +34,7 @@ Item {
     // playPath }.
     property var detail: ({})
     property string identityStateOfRow: "" // the grid row's own state, for the Identify/Un-identify choice
+    property string mediaKind: ""
     // S7 watched-verb inputs (see the signal's own block below for the full contract).
     property string rowVaultId: ""           // the opened row's vault id ("vault:"-prefixed; "" otherwise)
     property bool rowIsWatched: false        // the live ProgressStore.watchedMark === 1 state
@@ -62,6 +64,7 @@ Item {
     // identifyAgainRequested follows. A catalogue/container row's empty id hides both verbs;
     // "Mark unwatched" is the CLEAR verb (never a pinned -1).
     signal markWatchedRequested(string vaultId, bool watched)
+    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     readonly property bool found: !!(detail && detail.found)
     readonly property var copies: (detail && detail.copies) ? detail.copies : []
@@ -443,6 +446,31 @@ Item {
                                 KeyNavigation.backtab: markUnwatchedKey.enabled ? markUnwatchedKey
                                     : markWatchedKey.enabled ? markWatchedKey : hideKey
                                 onTriggered: sheet.playRequested(sheet.detail.playPath)
+                            }
+                        }
+
+                        RatingsReviewsAction {
+                            objectName: "vaultRatingsReviewsAction"
+                            width: 176; height: 42
+                            visible: sheet.mediaKind === "video"
+                            titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
+                                           ? RatingsReviewsIdentity : null
+                            world: "vault"
+                            kind: "film"
+                            directId: ""
+                            aliases: sheet.identityStateOfRow === "identified"
+                                     && sheet.detail && sheet.detail.identitySourceId
+                                     ? [{ namespace: "vault-source-id",
+                                          value: String(sheet.detail.identitySourceId) }] : []
+                            titleText: sheet.detail ? String(sheet.detail.displayTitle || "") : ""
+                            year: sheet.detail ? Number(sheet.detail.year || 0) : 0
+                            artwork: sheet.detail ? String(sheet.detail.coverRef || "") : ""
+                            origin: "vault-film-detail"
+                            readIds: ({ imdb: sheet.detail && String(sheet.detail.identitySourceId || "").indexOf("imdb:") === 0
+                                                ? String(sheet.detail.identitySourceId).substring(5) : "" })
+                            returnTarget: hideKey
+                            onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
+                                sheet.ratingsReviewsRequested(context, invokingItem, fallbackItem)
                             }
                         }
 

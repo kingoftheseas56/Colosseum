@@ -10,6 +10,250 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Arc 35 Tracker Connections — Slice 5 (2026-09-23)
+
+`colosseum.qttest.tracker_delivery` is the deterministic native delivery-journal
+contract. It covers explicit first-export preview and consent, complete typed
+remote snapshots, Colosseum-native/source-durable eligibility, atomic journal
+recovery across restart and the save-to-outbox gap, never-sent-only Progress
+coalescing, bounded provider/account cooldown and retries, readback before an
+uncertain delivery may be retried, profile/provider isolation, and exclusion of
+account-sync/imported history from export. The targeted Slice 5 run passed; the
+final full `-L unit` run also passed this target. Its deliberate unknown-outcome
+negative control failed when `UnknownOutcome` was temporarily allowed to send,
+then passed after the original guard was restored.
+
+The focused regression selector passed 12/12 targets, including tracker
+delivery, native History/Activity, sync adapters, and Arc 49 ratings/reviews
+contracts. `tests/CMakeLists.txt` adds the tracker runtime's required source
+files to the existing `ratings_reviews_journey` regression target so that this
+Arc 49 guard can link; no Arc 49 product source or behavior changed.
+
+The final standard gate, `ctest --test-dir native/build-msvc -L unit
+--output-on-failure`, reported **153/159 passed, 6 failed**. The failures were
+`reader2_runtime_contract`, `startup_deferral_contract`,
+`startup_responsiveness_probe`, `manga_downloader_responsiveness_contract`,
+`core_sync_adapters` (an unrelated silent-progress timing assertion), and
+`video_source_handoff_p0`. The tracker delivery target and all other tracker
+targets passed. These neighboring failures were retained, not repaired under
+Slice 5.
+
+Sol's independent review approved Slice 5 with no actionable correctness
+finding. No live tracker transport, external provider call, app launch, or
+runtime validation is claimed. This is **Test-reported** backend evidence;
+provider enablement and UI/runtime proof remain gated by later slices.
+Exact run and red/green logs are under
+`artifacts/arc35/tracker-connections/slice-5/`.
+
+## Arc 35 Tracker Connections — Slice 6 (2026-09-23)
+
+`colosseum.qttest.tracker_delivery` also exercises the native SIMKL scrobble
+observer. New cases cover a global-pause race where an in-flight send completes
+unknown, stale playback generations replayed after close, and unchanged native
+Activity facts, History projection, and monthly statistics with scrobbling
+disabled versus enabled against a fake transport. The Slice 6 target and its
+eight neighboring History, Activity, sync-adapter, and Arc 49 gates passed
+**9/9**.
+
+Negative control: temporarily emit a lifecycle event from `sample()`; the
+no-sampling-tick assertion failed (actual 3 events, expected 1). The deliberate
+mutation was restored and the focused selector passed. The standard
+`ctest --test-dir native/build-msvc -L unit --output-on-failure` gate ended
+**154/159 passed, 5 failed**. The remaining failures were
+`reader2_runtime_contract`, `startup_deferral_contract`,
+`startup_responsiveness_probe`, `manga_downloader_responsiveness_contract`,
+and `video_source_handoff_p0`; all tracker tests, including scrobbling, passed.
+
+Sol's final independent review approved Slice 6 with no actionable finding.
+No live SIMKL request or app runtime is claimed. Provider transport remains a
+fake seam, QML/provider transport logic was not added, and the existing app
+process was left untouched. Exact build, test, and negative-control logs are
+under `artifacts/arc35/tracker-connections/slice-6/`.
+
+## Arc 35 Tracker Connections — Slice 7 (2026-09-24)
+
+The connection lifecycle now keeps first-export consent and send preferences
+owned by the destination profile during adoption or move. “Remove imported data”
+removes only the selected tracker account's imported Progress and History
+evidence; native Progress and other providers' data remain. A durable
+provider/account suppression marker prevents removed Progress from returning
+through synchronous or asynchronous routine imports, including stale direct
+owner writes. The lifecycle deletion seam remains private and test-only because
+this checkout has no permanent Colosseum profile-deletion flow to own that
+operation; it is not attached to sign-out, deactivation, or profile switching.
+
+The corrected current-source build passed for the tracker lifecycle, import,
+delivery, Sync Center, profile, adoption, shared-PC, and account-runtime targets,
+including a fresh link of `tst_account_attachment_runtime.exe`. The final focused
+CTest selection passed **16/16**, including `colosseum.qttest.account_attachment_runtime`
+and the tracker suites. The fixed profile-activity isolation assertion also
+passed standalone after replacing a dangling raw-pointer comparison with a
+`QPointer` destruction check. Build and final test receipts are
+`artifacts/arc35/tracker-connections/slice-7/post-suppression-build-verified-20260924.log`
+and `artifacts/arc35/tracker-connections/slice-7/slice7-final-16-tests-20260924.log`;
+the standalone profile test receipt is
+`artifacts/arc35/tracker-connections/slice-7/profile-activity-isolation-fixed-20260924.log`.
+
+Sol's fresh independent read-only review approved Slice 7 with no actionable
+findings. This is focused test evidence; no live provider transport, app launch,
+or runtime validation is claimed. Arc 49 Ratings/Reviews ownership remains
+separate.
+
+## Arc 35 Tracker Connections — Slice 8 (2026-09-23)
+
+`colosseum.qttest.tracker_sync_center` is the focused native model/settings
+contract. Its 18 test cases cover profile-scoped settings, adoption precedence,
+inert accountless projection, safe connected-card capabilities/labels, opaque
+import handles and revision checks, separate Find match routing, supported
+conflict choices, first-import gating, queue-preserving pause/resume, setting
+and sync-receipt revision changes, truthful waiting/outage health, mixed-provider
+Sync All, consumer-gated actions, restart projection, and fail-closed owner or
+unsupported-preference behavior. Final focused run: **20/20** Qt Test checks
+green, including init/cleanup. Negative controls proved the unknown-outcome and
+retrying-delivery-outage health assertions fail when incorrectly made healthy;
+restoring the truthful expectations returned the focused target green.
+
+`colosseum.qml.tracker_sync_center` exercises the real production model context
+through Qt Quick Test: accountless/connected catalogue DTO boundary and
+revision-fenced settings intent. Final run: **4/4** green. Combined focused
+rerun: **2/2 targets** passed. Exact final logs and the full unit-gate log are under
+`artifacts/arc35/tracker-connections/slice-8/`.
+
+The named regressions passed for
+`colosseum.qttest.profile_preferences_sync`,
+`colosseum.qttest.ratings_reviews_journey`, and
+`colosseum.qml.ratings_reviews_journey`. `colosseum.qttest.stremio_sync`
+failed its single `taggedVaultCredentialRoundTripsOnlyForBoundProfile` case
+(`store.saveStremio(credential)` returned false; 74 other cases passed).
+No Stremio code was changed by this slice.
+
+The refreshed standard gate, `ctest --test-dir native/build-msvc -L unit
+--output-on-failure`, reported **151/159 passed, 7 failed, 1 not run**. The
+red tests were `reader2_runtime_contract`, `startup_deferral_contract`,
+`startup_responsiveness_probe`, `manga_downloader_responsiveness_contract`,
+`account_adoption` (`legacyQuarantinedRestartPreservesAccountWrites`,
+ProgressStore semantic readback), `stremio_sync` (above), and
+`video_source_handoff_p0`. `account_attachment_runtime` was not run because its
+target link failed with 12 unresolved Arc 49/profile-runtime symbols, leaving
+its executable absent. These neighboring failures are retained, not repaired
+under Slice 8.
+
+Production `colosseum` compiled the changed tracker/settings/profile-runtime
+objects, then final linking stopped at `LNK1168` because the already-running
+Colosseum PID 21744 held `colosseum.exe`. It was left running. No app launch or
+runtime proof was performed; the visible model/Lanista proof belongs to Slice 9.
+
+Sol's independent review found no actionable defect in the Slice 8 delta. It
+confirmed Sync All and Find match are hidden without consumers, supported
+resolution choices match durable-store rules, preference changes advance the
+revision, and retryable provider outages do not appear healthy. End-to-end launch,
+background scheduling, and resume behavior still require proof before any
+provider is enabled. The separate Slice 7 first-account adoption proof
+discrepancy remains open; Slice 8 does not claim to resolve it.
+
+## Arc 49 Slice 1 — canonical Ratings & Reviews owner (2026-09-21)
+
+`colosseum.qttest.ratings_reviews_store` is the registered deterministic Qt Test
+contract for the unexposed canonical `RatingsReviewsStore`. It covers rr1
+length-prefixed identity vectors, all 21 legal half-point ratings plus invalid
+values, zero versus null, exact Unicode/empty review preservation, the 16,384
+UTF-8 byte boundary, spoiler invariants, independent rating/review clears,
+persisted tombstones and recreate semantics, commit-before-signal durability,
+local no-ops, remote non-echo apply/delete, restore-local revision behavior,
+commutative/idempotent deterministic merge, malformed/corrupt fail-closed
+loading, injected persistence failure, and restart persistence.
+
+The focused selector registers exactly one test and passes after the required
+canonical-key negative control was restored. Existing
+`colosseum.qttest.store_isolation` and
+`colosseum.qttest.profile_activity_isolation` also pass. Two independent fast
+`-L unit` runs each ended 141/148 and both passed the new ratings/reviews target.
+The same six unrelated Reader2, startup deferral/responsiveness, manga-download
+responsiveness, shell-back arbitration, and video-source handoff contracts failed
+in both runs. Their seventh aggregate-only failures differed: one run failed the
+untouched Stremio two-device case inside `account_attachment_runtime` at varying
+assertions on reruns, while the other timed out `stream_server_failfast`; that
+stream-server target then passed 1/1 in isolation. No persistent Ratings & Reviews
+failure was added. The production RatingsReviewsStore object compiles in the colosseum
+target; the attempted full app link was blocked by LNK1168 because the already
+running daily `native/build-msvc/colosseum.exe` was left untouched. Slice 1
+adds no QML or runtime surface, so this is Test-reported backend evidence only.
+
+## Arc 49 Slice 4 — frozen Ratings & Reviews journey (2026-09-22)
+
+Slice 4 registers and exercises both `colosseum.qml.ratings_reviews_journey`
+and `colosseum.qttest.ratings_reviews_journey`. The final focused selector on
+the current Slice 4 source passed 2/2: the QML journey passed its host/action
+cases plus deterministic provider-strip keyboard and pointer reorder cases, and
+the native journey passed frozen Frieren identity, canonical save/edit/clear/delete,
+route/profile generation fencing, lawful fixture provider reads, stable hidden-slot
+ordering, safe source-link handling, and explicit zero provider operations from
+local Save.
+
+The provider-strip gate had one earlier red run in which both move gestures left
+the order unchanged and the keyboard case emitted `QTest::keyToAscii Unhandled key
+code Qt::Key(0)`. The installed Qt 6.11.1 `QtTest/TestCase.qml` signatures and
+existing Colosseum Quick Tests confirmed `keyClick(Qt.Key_Left)` is valid. The
+deterministic test harness was corrected instead: it re-activates the test window
+immediately before the key event and uses Qt Test's threshold-aware `mouseDrag()`
+helper against the provider card. Hidden-slot preservation, one preference write,
+focus identity, and boundary no-op assertions were retained. The QML journey then
+passed, with no production reorder change. The terminal test file SHA-256 is
+`AD2117645770F6929B480544394097E69AB8EFB8177254FDA7F6AD4104E94CCE`.
+
+Shell regression proof is also green. The pure
+`tests/shell_back_policy_test.mjs` matrix passed. The PowerShell shell gate first
+caught one stale test assertion that still expected the old inline `Shortcut`
+shape; after that gate was updated to the live semantic `KeyboardCommand`
+contract, `colosseum.shell_back_arbitration_p0` passed and the surrounding
+selector passed it again.
+
+The strongest focused/surrounding selector covered 13 registered targets:
+Ratings/Reviews QML conversion and journey, shell arbitration, account adoption,
+account shared-PC, canonical store, conversion, native journey, sync inventory,
+sync adapter registry, core sync adapters, profile-preferences sync, and
+account-attachment runtime. Twelve passed. The sole red was the already accepted
+Slice 2 `colosseum.qttest.account_attachment_runtime` environment failure:
+`secure_store_unavailable` causes six profile-ready assertions to miss their
+signal. That executable again reported 15 passed / 6 failed, while its
+Ratings/Reviews-specific `ratingsReviewsAccountRuntimeCompositionContract()`
+case passed. This is the same 119.24-second failure recorded by the accepted
+Slice 2 handoff and is not classified as a Slice 4 regression.
+
+A repository-wide `colosseum.qml` surrounding run also exercised the current
+tree. It reported 678 passed, 14 failed, and 3 skipped. Every Slice 4
+`RatingsReviewsJourney` and `RatingsReviewsProviderStrip` case passed, as did
+the existing Vault detail cases. The 14 failures were outside the Slice 4
+Ratings/Reviews surfaces: Account Data/Privacy, one Main compile case blocked by
+the existing missing `Colosseum.Player` test import, One Piece atlas render
+evidence, Player2 progress fixture creation, and one Tankoyomi narrow-layout
+case. This aggregate run is recorded as surrounding red, not upgraded to a green
+whole-QML claim.
+
+The closest pre-existing family gates touched by Slice 4 integration also passed:
+`test_theatre_series_scroll.ps1`, `test_biblio_consumption_intent.ps1`,
+`test_manga_shared_header.ps1`, `test_manga_reading_room.ps1`,
+`test_manga_chapter_series_view.ps1`, and
+`test_comic_series_notavailable.ps1`. `git diff --check` exited 0 with only
+line-ending warnings. `test_qml_quality_gate.py` exited 0 after rerunning it
+with the repository root on `PYTHONPATH`; the first invocation without that
+import root failed before executing the gate.
+
+The normal `colosseum` link could not overwrite the running daily
+`native/build-msvc/colosseum.exe` and failed with LNK1168, so the user-owned
+process was left untouched. The exact current `colosseum` object graph was then
+linked successfully to a temporary verification executable instead; this proves
+the current Slice 4 production objects link without killing or replacing the
+daily app.
+
+Static production review confirms Slice 4 Save remains Colosseum-local:
+`RatingsReviewsController::committedResult()` reports
+`providerOperationCount == 0`, and the Slice 4 Ratings/Reviews production
+surfaces contain no delivery coordinator, outbox, receipt, attempt, provider
+network request/reply, or enqueue implementation. This was the correct
+pre-Slice-5 boundary; the later Slice 5 delivery qualification is recorded in
+the current Arc 49 entry near the end of this ledger.
+
 ## Account restart persistence — app-owned endpoint fallback (2026-09-08)
 
 `colosseum.qttest.account_service_endpoint` is the registered deterministic
@@ -2652,3 +2896,167 @@ Piece and Mind Field Collection records with real titles and covers.
 
 `[Sol (Codex), review] APPROVE — the visible metadata gap is repaired without changing provider
 conflict precedence, profile ownership, credentials, or watched-state semantics.`
+
+## Arc 49 Slice 5 delivery-core qualification (2026-09-22)
+
+The registered focused delivery pair is now live: native
+`colosseum.qttest.ratings_reviews_delivery` and QML
+`colosseum.qml.ratings_reviews_delivery`. The guarded combined CTest selection for
+delivery, Ratings/Reviews journey, and account adoption passed **5/5**. The delivery
+native executable passed **15/15**, including intent-before-send, stale canonical
+binding, unknown-outcome isolation and reconciliation, spoiler refusal, terminal
+receipt recovery, private adoption, corrupt receipt, exact fixture identity, and a
+profile-incarnation mismatch that now fails closed before it can send.
+
+The Ratings/Reviews Go policy suite passed. Five database-backed account-service cases
+skipped only because `TEST_DATABASE_URL` is unset; no database-backed result is claimed.
+The test-only assembled-app `main.cpp` fixture branch compiled with
+`COLOSSEUM_RATINGS_REVIEWS_TESTING=1`; the normal build remains correctly compiled with
+that flag off. A static scan of the delivery owner and private stores found no HTTP,
+OAuth, token, production-provider, or remote-delete implementation. `git diff --check`
+passed with only pre-existing CRLF notices.
+
+## Arc 49 Slice 6 integrated qualification (2026-09-22)
+
+Final qualification kept canonical truth, test-only delivery, and live-provider work
+separate. The complete registered Ratings/Reviews CTest selection (`-R
+ratings_reviews`) passed **8/8**. The full Qt Quick estate completed **684 passed, 13
+failed, 3 skipped**; every Ratings/Reviews conversion, journey, provider-strip, and
+delivery case passed. Its failures are outside Arc 49: one Account Data/Privacy
+assertion, one unavailable-`Colosseum.Main` book-return compile fixture, five One Piece
+atlas evidence-save cases, and six Player2 shell fixture cases.
+
+The full `unit` CTest label completed **147/154**. All five registered native
+Ratings/Reviews targets passed. The seven failures are foreign Reader2, startup,
+manga-downloader, account secure-store, Stremio credential-vault, and video-source
+contracts. The account-attachment failure is explicitly `secure_store_unavailable`;
+its Ratings/Reviews account-runtime composition case still passed. A Visual Studio
+developer-environment build relinked the normal `colosseum.exe` from final source with
+`COLOSSEUM_RATINGS_REVIEWS_TESTING=OFF`.
+
+The Go Ratings/Reviews policy suite remains green with its five database-backed cases
+skipped when `TEST_DATABASE_URL` is absent. The existing Lanista bridge gate passed
+(`WARNING_GATE_OK`, `lanista bridge: OK`). The exact fake-delivery scenario remains
+bridge/session blocked (`NO_PIPE`) because no isolated, drive-enabled fixture app was
+running; no fixture journey is presented as runtime-validated. Full receipts and the
+case-indexed acceptance report are in the Arc 49 Slice 6 evidence directory.
+
+## Arc 49 Slice 5/6 post-review repair requalification (2026-09-23)
+
+The three bounded repairs requested by the Sol High review are now present in the
+working tree: persisted `profile_incarnation` remains historical while asynchronous
+callbacks use a separate active-incarnation fence; the named unknown-outcome,
+recovery, and private-adoption cases are present; and the safe joined fixture
+projection plus both frozen two-phase scenarios are implemented. The exact focused
+CTest selection `-R ratings_reviews --no-tests=error --output-on-failure` discovered
+eight registered targets and passed **8/8**: five native suites and three Qt Quick
+suites. A separate positive delivery selector passed **1/1**; a deliberately
+nonexistent selector failed closed with CTest exit 8, as required.
+
+The normal production `colosseum` target rebuilt and linked successfully after
+regenerating stale build-tree Qt MOC output with CMake's autogen step. Its cache has
+`COLOSSEUM_RATINGS_REVIEWS_TESTING=OFF`; no source edit was needed for the stale
+generated-file mismatch. `go test -count=1 ./...`, `node
+tests/shell_back_policy_test.mjs`, `tests/test_shell_back_arbitration_p0.ps1`, and
+`tests/test_qml_quality_gate.py` all passed. `TEST_DATABASE_URL` is unset, so
+database-backed Go integration cases remain unqualified. `git diff --check` exited 0
+with only the existing line-ending warnings.
+
+The broad `colosseum.qml` aggregate currently reports **683 passed, 14 failed, 3
+skipped**. All three focused Ratings/Reviews Qt Quick suites passed in the 8/8
+selection; the aggregate failures are outside those focused suites and remain visible
+as a surrounding-suite red, not a global pass.
+
+## Arc 49 whole-arc repair checks (2026-09-23)
+
+After the independent whole-arc review, focused `ctest -N -R ratings_reviews`
+discovered exactly eight registrations. `ctest -R ratings_reviews --output-on-failure
+--parallel 2` then passed **8/8** (five native and three Qt Quick). The Lanista timing
+and window-state suites passed **2/2** after the scene-tree depth regression. Both
+shell-back checks and QML quality passed; the latter requires `PYTHONPATH=.` when
+invoked directly from the repository root. `go test -count=1 ./...` passed in
+Windows, but database-backed cases skipped because `TEST_DATABASE_URL` was unset;
+that run alone is not database integration evidence. A subsequent WSL run used a
+newly created, disposable PostgreSQL database `colosseum_arc49_test` with an initially
+empty public schema. The first real account run exposed two overlong Arc 49 fixture
+usernames. After shortening only those test names, focused `TestRatingsReviews` and
+the full `./internal/account` package both passed uncached against that database.
+The migration checks `TestRunMigrationsFromEmptyDatabase` and
+`TestCheckSchemaAcceptsMigratedDatabase` passed uncached as PostgreSQL admin. The
+`./internal/database` package also passed uncached with only
+`TestRuntimeSchemaGateWorksWithoutDDLPrivilege` excluded; that one test cannot
+authenticate a switched user over the local Unix socket's peer-auth configuration.
+The full unfiltered database package is therefore not claimed green.
+An earlier attempt against the pre-existing `colosseum_account_test` database stopped
+before app logic because its public schema owner was not the test role; that database
+was not modified. All destructive test schema resets were confined to the new
+`_test` database.
+
+The current production build has `COLOSSEUM_RATINGS_REVIEWS_TESTING=OFF`. Its changed
+objects compiled, and the exact object graph linked to a separate verification
+executable because the daily `colosseum.exe` is held open by the user's running app;
+that file lock is not a source failure. The testing-OFF verification executable passed
+the real Frieren Lanista route; the test-only joined fixture passed two-phase same-root
+replay separately. These are distinct binaries and evidence lines. `git diff --check`
+exited 0 with line-ending warnings only. The previously recorded broad Qt Quick
+failures remain outside the focused Ratings/Reviews selection and are not promoted
+to a global green result.
+
+## Arc 49 Slices 1–2 focused qualification (2026-09-24)
+
+Focused Ratings/Reviews suites after the Slice 1 identity derivation and the
+Slice 2 inline private flow, all green in the `build-msvc` (testing-OFF) tree:
+native journey **12/12** (new: `identityRegistryDerivesStableCatalogueIdentities`
+exact/restart/collision/pivot/edition cases and
+`identityRegistryExcludesComicsAndUnadmittedRoutes` gcd/locg comic rejection,
+plus `controllerOpenAcceptsDerivedCatalogueIdentity`), native store **39/39**,
+conversion **11/11**, delivery **29/29**, sync **6/6**; QML journey **19/19**
+(new: inline editor save/collapse with Saved-privately badge, ten-star/numeric
+half-step equivalence, empty-editor-is-not-a-silent-delete, editor dirty Back
+choices, rating-only save, clear-rating-keeps-review), QML delivery **7/7**,
+QML conversion **6/6**. Registry changes: `ColosseumTitleIdentityRegistry` now
+derives deterministic v5 `ct1:` ids from identity-bearing aliases per admitted
+pair (theatre IMDb-preferring, biblio isbn-first, tankoban, vault), keeps the
+frozen Frieren seed row as pin, self-validates derived ids by pair tag on
+`controller.open`'s alias-less re-check, and no longer admits `tankoban/comic`
+(`identity_route_not_admitted`); comic entry actions were removed from
+`ComicSeries.qml` and `ComicSeriesPage.qml`. QML lint: the rewritten Host and
+Action carry `pragma ComponentBehavior: Bound` and are warning-free except one
+legacy-composer `modelData` unqualified access retained from the frozen
+delivery surface. Two QML-harness quirks are recorded, not product defects:
+synthesized clicks cannot focus a TextArea inside a Flickable (tests set the
+draft the way the driver does), and post-beginRoute layout needs a rendering
+wait before positional clicks. All work remains uncommitted per instruction;
+unrelated dirty files untouched.
+
+## Arc 49 Slices 1-2 review-fix qualification (2026-09-24)
+
+Three cross-review findings were fixed and requalified. (1) Slice 2 colors:
+six `Qt.rgba` calls in `RatingsReviewsHost.qml` used 0-255 components where Qt
+expects 0-1 (hero scrim, gold borders, saved badge, editor text-area
+background), producing the washed-out hero and near-white editor seen in
+review; all are now normalized to `n/255`. (2) Slice 1 identity splits: the
+registry now derives theatre/movie and vault/film in one shared film identity
+space (same 0x4a pair tag, `imdb:tt…` normalized to `tt…`), so the same
+identified IMDb film is one title from either door, including seed rows pinned
+under either pair; and provider-id pivots (kitsu:/mal: → tt…) are learned into
+a persisted alias-union sidecar (`setAliasUnionsPath`, wired in main.cpp under
+the tagged AppData root, silently degrading to stateless on any file problem),
+while `TheatreSeries.qml` withholds the route for provider-prefixed originals
+until the meta load settles so a pre-pivot click cannot write a split record.
+(3) `saveDraft` now refuses while the numeric field holds an invalid entry
+("Fix the rating before saving.") instead of quietly saving the older draft.
+Focused results after the fixes: native journey **14/14** (new:
+`identityRegistryLearnsAndPersistsAnimePivotUnions` with restart and
+corrupt-file degradation, `identityRegistryFilmSeedAnswersBothWorlds` with
+cross-pair seed match and conflict, plus film-space equality/self-validation
+assertions), QML journey **19/19** (invalid numeric now blocks save with zero
+controller calls). Two concurrency notes: the first rebuild of the native
+journey target failed to link on unresolved `TrackerSyncCenterModel` symbols
+from another agent's in-flight untracked `native/trackers/` work and cleared
+once their definitions landed (waited out, nothing killed); the `colosseum.exe`
+relink that bakes the registry objects into the app remains blocked by that
+agent's long-lived running instance (pid 28384, up since 09:55) — the QML
+fixes are live through the refreshed `qml-build.manifest` and are
+runtime-proven, but the exe must be relinked when the instance exits before
+any delivery claim that includes the native union code.

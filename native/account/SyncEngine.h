@@ -198,7 +198,8 @@ private:
         int schemaVersion,
         SyncWireOperation operation,
         const QJsonValue &payload,
-        qint64 localOrderMs = -1);
+        qint64 localOrderMs = -1,
+        std::optional<qint64> deletedAtMs = std::nullopt);
 
     void maybeRunNetwork();
     void beginPull();

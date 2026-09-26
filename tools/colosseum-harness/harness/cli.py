@@ -40,6 +40,14 @@ def build_parser() -> argparse.ArgumentParser:
     context_p.add_argument("--path", dest="paths", action="append")
     context_p.add_argument("--domain")
     context_p.add_argument("--record-run", action="store_true")
+    context_p.add_argument(
+        "--journey",
+        dest="journey",
+        help=(
+            "Freeze exactly this Lanista journey when --record-run finds several "
+            "candidates; must match one candidate's name or scenario path."
+        ),
+    )
 
     bind_p = sub.add_parser("bind-session", parents=[common], add_help=True)
     bind_p.add_argument("--run-id", required=True)
@@ -70,6 +78,15 @@ def command_text(argv: Any) -> str:
     if not isinstance(argv, list):
         return ""
     return subprocess.list2cmdline([str(value) for value in argv])
+
+def runner_summary_line(stdout: str) -> str:
+    """Last self-reported pass/fail summary line from a test runner (CTest-style)."""
+    summary = ""
+    for line in stdout.splitlines():
+        stripped = line.strip()
+        if "% tests passed" in stripped or stripped.startswith("The following tests FAILED"):
+            summary = stripped
+    return summary[:200]
 
 def emit(payload: dict[str, Any], json_mode: bool) -> None:
     if json_mode:
@@ -167,6 +184,9 @@ def emit(payload: dict[str, Any], json_mode: bool) -> None:
             if isinstance(arc, dict):
                 print(f"arc: {arc.get('id')} -> {arc.get('path')}")
         print(f"verification: {len(data.get('verification', []))}")
+        for journey in data.get("frozenJourneys", []):
+            if isinstance(journey, dict):
+                print(f"frozen journey: {journey.get('name')} ({journey.get('path')})")
     elif command == "test":
         print(f"selected: {', '.join(data.get('selectedTests', []))}")
         print(f"kind: {data.get('kind')}")
@@ -176,6 +196,13 @@ def emit(payload: dict[str, Any], json_mode: bool) -> None:
             if isinstance(reason, dict):
                 print(f"why: {reason.get('because')}")
         print(f"command: {command_text(data.get('argv'))}")
+        if data.get("dryRun") is False and "exitCode" in data:
+            exit_code = data.get("exitCode")
+            outcome = "passed" if exit_code == 0 else "failed"
+            print(f"result: exit={exit_code} ({outcome})")
+            summary = runner_summary_line(str(data.get("stdout") or ""))
+            if summary:
+                print(f"summary: {summary}")
     elif command == "verify":
         selected = data.get("selectedChecks", [])
         print(f"dry-run: {data.get('dryRun')}")
@@ -192,6 +219,14 @@ def emit(payload: dict[str, Any], json_mode: bool) -> None:
             f"journeys: {data.get('count')} "
             f"(valid={data.get('validCount')}, invalid={data.get('invalidCount')})"
         )
+        for item in data.get("journeys", []):
+            if not isinstance(item, dict):
+                continue
+            if item.get("valid", True):
+                print(f"  {item.get('name')}")
+            else:
+                error = item.get("error", {}) if isinstance(item.get("error"), dict) else {}
+                print(f"  {item.get('name')} [invalid: {error.get('code', 'SCENARIO_INVALID')}]")
     elif command == "journey":
         print(f"journey: {data.get('name')}")
         print(f"dry-run: {data.get('dryRun')}")

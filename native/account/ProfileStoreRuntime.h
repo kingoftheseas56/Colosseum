@@ -16,6 +16,7 @@ class ProgressStore;
 class HistoryStore;
 class ProfilePreferencesStore;
 class ActivityStore;
+class RatingsReviewsStore;
 class TrackerConnectionService;
 
 class SearchHistoryStore;
@@ -45,6 +46,7 @@ public:
     HistoryStore *historyStore() const;
     ProfilePreferencesStore *preferencesStore() const;
     ActivityStore *activityStore() const;
+    RatingsReviewsStore *ratingsReviewsStore() const;
     TrackerConnectionService *trackerConnectionService() const;
 
     void prepareForQml(
@@ -70,6 +72,8 @@ public:
 signals:
     void storesAboutToChange();
     void storesChanged();
+    // Synchronous two-phase boundary: players first snapshot their live
+    // position, tracker closes must persist, then Activity ends only on commit.
     void profileDeactivationRequested();
     void profileDeactivationCommitted();
 
@@ -78,7 +82,7 @@ private:
 
     std::unique_ptr<StoreSet> createSealedStores(
         QString *error);
-    std::unique_ptr<StoreSet> createLegacyStores() const;
+    std::unique_ptr<StoreSet> createLegacyStores(QString *error) const;
     std::unique_ptr<StoreSet> createProfileStores(
         const ProfilePaths &paths,
         QString *error) const;

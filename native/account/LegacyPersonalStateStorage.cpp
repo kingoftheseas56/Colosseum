@@ -3,6 +3,7 @@
 #include "LegacyPersonalStateStorage.h"
 
 #include "ProfilePaths.h"
+#include "RatingsReviewsStore.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -19,7 +20,7 @@
 #include <memory>
 
 namespace {
-constexpr int kSnapshotVersion = 4;
+constexpr int kSnapshotVersion = 5;
 constexpr qsizetype kMaximumPrivateStateBytes = 1024 * 1024;
 constexpr qsizetype kMaximumTheatreExtensions = 512;
 
@@ -260,6 +261,8 @@ bool PersonalStateSnapshot::isEmpty() const {
         && searchHistory.isEmpty()
         && audioPairings.isEmpty()
         && historyRecords.isEmpty()
+        && ratingsReviewsRecords.isEmpty()
+        && ratingsReviewsTombstones.isEmpty()
         && !showExplicit
         && mainSyncProvider.isEmpty()
         && stremioState.isEmpty()
@@ -296,6 +299,12 @@ QJsonObject PersonalStateSnapshot::toJson() const {
         QStringLiteral("history_records"),
         historyRecords);
     object.insert(
+        QStringLiteral("ratings_reviews_records"),
+        ratingsReviewsRecords);
+    object.insert(
+        QStringLiteral("ratings_reviews_tombstones"),
+        ratingsReviewsTombstones);
+    object.insert(
         QStringLiteral("show_explicit"),
         showExplicit);
     object.insert(QStringLiteral("main_sync_provider"), mainSyncProvider);
@@ -313,6 +322,27 @@ QString PersonalStateSnapshot::semanticDigest() const {
             payload,
             QCryptographicHash::Sha256)
             .toHex());
+}
+
+QString PersonalStateSnapshot::legacySemanticDigestV4() const {
+    QJsonObject object;
+    object.insert(QStringLiteral("version"), 4);
+    object.insert(QStringLiteral("progress_entries"), progressEntries);
+    object.insert(QStringLiteral("progress_last_season"), progressLastSeason);
+    object.insert(QStringLiteral("progress_watched_marks"), progressWatchedMarks);
+    object.insert(QStringLiteral("progress_watched_mark_action_times"),
+                  progressWatchedMarkActionTimes);
+    object.insert(QStringLiteral("collection_entries"), collectionEntries);
+    object.insert(QStringLiteral("search_history"), searchHistory);
+    object.insert(QStringLiteral("audio_pairings"), audioPairings);
+    object.insert(QStringLiteral("history_records"), historyRecords);
+    object.insert(QStringLiteral("show_explicit"), showExplicit);
+    object.insert(QStringLiteral("main_sync_provider"), mainSyncProvider);
+    object.insert(QStringLiteral("stremio_state"), stremioState);
+    object.insert(QStringLiteral("theatre_extensions"), theatreExtensions);
+    return QString::fromLatin1(QCryptographicHash::hash(
+        QJsonDocument(object).toJson(QJsonDocument::Compact),
+        QCryptographicHash::Sha256).toHex());
 }
 
 QString PersonalStateSnapshot::legacySemanticDigestV3() const {
@@ -398,6 +428,15 @@ matchesSemanticDigest(
         return false;
 
     if (semanticDigest() == normalized)
+        return true;
+
+    const bool ratingsReviewsEmpty =
+        ratingsReviewsRecords.isEmpty()
+        && ratingsReviewsTombstones.isEmpty();
+    if (!ratingsReviewsEmpty)
+        return false;
+
+    if (legacySemanticDigestV4() == normalized)
         return true;
 
     if (mainSyncProvider.isEmpty() && stremioState.isEmpty()
@@ -502,6 +541,21 @@ PersonalStateSnapshot::fromJson(
 
     snapshot.showExplicit =
         showExplicit.toBool();
+    if (version >= 5) {
+        if (!snapshotObject(
+                object,
+                QStringLiteral("ratings_reviews_records"),
+                &snapshot.ratingsReviewsRecords,
+                error)
+            || !snapshotObject(
+                object,
+                QStringLiteral("ratings_reviews_tombstones"),
+                &snapshot.ratingsReviewsTombstones,
+                error)) {
+            return std::nullopt;
+        }
+    }
+
     if (version >= 4) {
         const QJsonValue provider = object.value(QStringLiteral("main_sync_provider"));
         const QJsonValue stremio = object.value(QStringLiteral("stremio_state"));
@@ -757,17 +811,22 @@ LegacyPersonalStateStorage::capture(
     auto audioPairing = open(m_audioPairing);
     auto preferences = open(m_preferences);
     auto history = open(m_history);
+    RatingsReviewsStore ratingsReviews(ratingsReviewsPath());
+    QString ratingsReviewsError;
 
     if (!progress
         || !collection
         || !searchHistory
         || !audioPairing
         || !preferences
-        || !history) {
+        || !history
+        || !ratingsReviews.healthy(&ratingsReviewsError)) {
         setError(
             error,
-            QStringLiteral(
-                "Could not open legacy personal-state persistence."));
+            ratingsReviewsError.isEmpty()
+                ? QStringLiteral(
+                      "Could not open legacy personal-state persistence.")
+                : ratingsReviewsError);
         return std::nullopt;
     }
 
@@ -838,6 +897,9 @@ LegacyPersonalStateStorage::capture(
             error)) {
         return std::nullopt;
     }
+
+    snapshot.ratingsReviewsRecords = ratingsReviews.recordsJson();
+    snapshot.ratingsReviewsTombstones = ratingsReviews.tombstonesJson();
 
     snapshot.showExplicit =
         preferences
@@ -915,17 +977,22 @@ bool LegacyPersonalStateStorage::clearPersonalState(
     auto audioPairing = open(m_audioPairing);
     auto preferences = open(m_preferences);
     auto history = open(m_history);
+    RatingsReviewsStore ratingsReviews(ratingsReviewsPath());
+    QString ratingsReviewsError;
 
     if (!progress
         || !collection
         || !searchHistory
         || !audioPairing
         || !preferences
-        || !history) {
+        || !history
+        || !ratingsReviews.healthy(&ratingsReviewsError)) {
         return setError(
             error,
-            QStringLiteral(
-                "Could not open legacy personal-state persistence."));
+            ratingsReviewsError.isEmpty()
+                ? QStringLiteral(
+                      "Could not open legacy personal-state persistence.")
+                : ratingsReviewsError);
     }
 
     progress->remove(
@@ -960,6 +1027,8 @@ bool LegacyPersonalStateStorage::clearPersonalState(
         && sync(history.get(), error);
     if (!settingsCommitted)
         return false;
+    if (!ratingsReviews.clearForProfileRetirement(error))
+        return false;
     return removePrivateFile(stremioStatePath(m_profileRoot), error)
         && removePrivateFile(theatreExtensionsPath(m_profileRoot), error);
 }
@@ -973,17 +1042,22 @@ bool LegacyPersonalStateStorage::restorePersonalState(
     auto audioPairing = open(m_audioPairing);
     auto preferences = open(m_preferences);
     auto history = open(m_history);
+    RatingsReviewsStore ratingsReviews(ratingsReviewsPath());
+    QString ratingsReviewsError;
 
     if (!progress
         || !collection
         || !searchHistory
         || !audioPairing
         || !preferences
-        || !history) {
+        || !history
+        || !ratingsReviews.healthy(&ratingsReviewsError)) {
         return setError(
             error,
-            QStringLiteral(
-                "Could not open legacy personal-state persistence."));
+            ratingsReviewsError.isEmpty()
+                ? QStringLiteral(
+                      "Could not open legacy personal-state persistence.")
+                : ratingsReviewsError);
     }
 
     progress->remove(
@@ -1089,6 +1163,14 @@ bool LegacyPersonalStateStorage::restorePersonalState(
     if (!settingsCommitted)
         return false;
 
+    if (!ratingsReviews.restoreCanonicalState(
+            snapshot.ratingsReviewsRecords,
+            snapshot.ratingsReviewsTombstones,
+            nullptr,
+            error)) {
+        return false;
+    }
+
     if (!m_profileRoot.isEmpty()) {
         if (snapshot.stremioState.isEmpty()) {
             if (!removePrivateFile(stremioStatePath(m_profileRoot), error))
@@ -1175,12 +1257,37 @@ QString LegacyPersonalStateStorage::historyIniPath() const {
     return m_history.iniPath;
 }
 
+QString LegacyPersonalStateStorage::ratingsReviewsPath() const {
+    return m_profileRoot.isEmpty()
+        ? QString()
+        : QDir(m_profileRoot).filePath(QStringLiteral("ratings-reviews.json"));
+}
+
 QString LegacyPersonalStateStorage::devicePrivateProfileRoot() const {
     return m_profileRoot;
 }
 
 QString LegacyPersonalStateStorage::devicePrivateStremioStatePath() const {
     return stremioStatePath(m_profileRoot);
+}
+
+QString LegacyPersonalStateStorage::profileId() const {
+    return m_profileId;
+}
+
+QString LegacyPersonalStateStorage::devicePrivateRatingsReviewsProviderMappingsPath() const {
+    return m_profileRoot.isEmpty()
+        ? QString() : QDir(m_profileRoot).filePath(QStringLiteral("ratings-reviews-provider-mappings.json"));
+}
+
+QString LegacyPersonalStateStorage::devicePrivateRatingsReviewsDeliveryOutboxPath() const {
+    return m_profileRoot.isEmpty()
+        ? QString() : QDir(m_profileRoot).filePath(QStringLiteral("ratings-reviews-delivery-outbox.json"));
+}
+
+QString LegacyPersonalStateStorage::devicePrivateRatingsReviewsDeliveryReceiptsPath() const {
+    return m_profileRoot.isEmpty()
+        ? QString() : QDir(m_profileRoot).filePath(QStringLiteral("ratings-reviews-delivery-receipts.json"));
 }
 
 QString LegacyPersonalStateStorage::activityDbPath() const {

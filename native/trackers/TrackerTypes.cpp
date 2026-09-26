@@ -61,11 +61,17 @@ bool trackerProviderCapabilitiesAreKnown(TrackerProviderCapabilities capabilitie
 
 QList<TrackerProviderDescriptor> trackerBuiltInProviderCatalog()
 {
-    // Slice 1 is intentionally fail-closed: no production adapter has been
-    // verified or registered yet. Catalogue entries are honest unavailable
-    // descriptors rather than latent network integrations.
+    TrackerProviderCapabilities simkl;
+#ifdef COLOSSEUM_SIMKL_CLIENT_ID
+    simkl = TrackerProviderCapability::ReadHistory
+        | TrackerProviderCapability::ReadProgress
+        | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion
+        | TrackerProviderCapability::Scrobble;
+#endif
     return {
-        {TrackerProviderId::Simkl, trackerProviderDisplayName(TrackerProviderId::Simkl), {}, false},
+        {TrackerProviderId::Simkl, trackerProviderDisplayName(TrackerProviderId::Simkl),
+         simkl, simkl != TrackerProviderCapabilities{}},
         {TrackerProviderId::Mal, trackerProviderDisplayName(TrackerProviderId::Mal), {}, false},
         {TrackerProviderId::Trakt, trackerProviderDisplayName(TrackerProviderId::Trakt), {}, false},
         {TrackerProviderId::AniList, trackerProviderDisplayName(TrackerProviderId::AniList), {}, false}

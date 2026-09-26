@@ -52,7 +52,7 @@ Item {
     Image {
         anchors.centerIn: parent
         width: 21; height: 21
-        source: "../assets/icons/vault-folder.svg"
+        source: "../assets/icons/vault-door.svg"
         fillMode: Image.PreserveAspectFit
         opacity: door.active ? 1 : 0.75
     }

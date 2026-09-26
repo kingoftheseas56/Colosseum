@@ -2,10 +2,13 @@ package account
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strings"
 	"unicode"
@@ -13,16 +16,19 @@ import (
 )
 
 var syncWindowsDrivePath = regexp.MustCompile(`^[A-Za-z]:[\\/].+`)
+var syncRatingsReviewsKey = regexp.MustCompile(`^rr1:[0-9a-f]{64}$`)
 
 var syncAllowedCategories = map[string]int{
-	"collection":                  1,
-	"continue_progress":           1,
-	"full_history":                1,
-	"watch_state":                 1,
-	"activity_fact":               1,
-	"explicit_content_preference": 1,
-	"stremio_link":                1,
-	"desired_download_intent":     1,
+	"collection":                      1,
+	"continue_progress":               1,
+	"full_history":                    1,
+	"watch_state":                     1,
+	"activity_fact":                   1,
+	"explicit_content_preference":     1,
+	"stremio_link":                    1,
+	"desired_download_intent":         1,
+	"ratings_reviews":                 1,
+	"ratings_reviews_conversion_maps": 1,
 }
 
 // These categories are present in older server feeds, but have no confirmed
@@ -88,6 +94,10 @@ func validateSyncRecordKey(recordKey string) error {
 }
 
 func validateSyncPayload(raw json.RawMessage) error {
+	return validateSyncPayloadForCategory("", raw)
+}
+
+func validateSyncPayloadForCategory(category string, raw json.RawMessage) error {
 	if len(raw) == 0 {
 		return fmt.Errorf("payload_required")
 	}
@@ -101,7 +111,7 @@ func validateSyncPayload(raw json.RawMessage) error {
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return fmt.Errorf("payload_invalid")
 	}
-	return scanSyncPayload(value, 0)
+	return scanSyncPayload(value, 0, category, "$")
 }
 
 func decodeCanonicalSyncComponent(encoded string) (string, error) {
@@ -212,6 +222,156 @@ func syncIntegerField(
 		return 0, fmt.Errorf("payload_invalid")
 	}
 	return parsed, nil
+}
+
+func ratingsReviewsRecordKey(world, kind, mediaID string) string {
+	preimage := make([]byte, 0, len(world)+len(kind)+len(mediaID)+12)
+	for _, value := range []string{world, kind, mediaID} {
+		raw := []byte(value)
+		var length [4]byte
+		binary.BigEndian.PutUint32(length[:], uint32(len(raw)))
+		preimage = append(preimage, length[:]...)
+		preimage = append(preimage, raw...)
+	}
+	digest := sha256.Sum256(preimage)
+	return fmt.Sprintf("rr1:%x", digest)
+}
+
+func validateRatingsReviewsKey(recordKey string) error {
+	if !syncRatingsReviewsKey.MatchString(recordKey) {
+		return fmt.Errorf("invalid_record_key")
+	}
+	return nil
+}
+
+func validateRatingsReviewsPayload(recordKey string, object map[string]any) error {
+	if err := validateRatingsReviewsKey(recordKey); err != nil {
+		return err
+	}
+	allowed := map[string]struct{}{
+		"world": {}, "kind": {}, "media_id": {}, "rating": {}, "review": {},
+		"spoiler": {}, "created_at_ms": {}, "updated_at_ms": {},
+	}
+	if len(object) != len(allowed) {
+		return fmt.Errorf("payload_field_not_allowed")
+	}
+	for field := range object {
+		if _, ok := allowed[field]; !ok {
+			return fmt.Errorf("payload_field_not_allowed")
+		}
+	}
+	world, worldOK := object["world"].(string)
+	kind, kindOK := object["kind"].(string)
+	mediaID, mediaOK := object["media_id"].(string)
+	if !worldOK || world == "" || world != strings.TrimSpace(world) || world != strings.ToLower(world) ||
+		!kindOK || kind == "" || kind != strings.TrimSpace(kind) || kind != strings.ToLower(kind) ||
+		!mediaOK || mediaID == "" {
+		return fmt.Errorf("record_identity_mismatch")
+	}
+	if ratingsReviewsRecordKey(world, kind, mediaID) != recordKey {
+		return fmt.Errorf("record_identity_mismatch")
+	}
+
+	ratingPresent := object["rating"] != nil
+	if ratingPresent {
+		number, ok := object["rating"].(json.Number)
+		if !ok {
+			return fmt.Errorf("payload_invalid")
+		}
+		value, err := number.Float64()
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) ||
+			value < 0 || value > 10 || math.Trunc(value*2) != value*2 {
+			return fmt.Errorf("payload_invalid")
+		}
+	}
+
+	reviewPresent := object["review"] != nil
+	if reviewPresent {
+		review, ok := object["review"].(string)
+		if !ok || len([]byte(review)) > 16384 {
+			return fmt.Errorf("payload_invalid")
+		}
+	}
+	spoiler, ok := object["spoiler"].(bool)
+	if !ok || (!reviewPresent && spoiler) || (!ratingPresent && !reviewPresent) {
+		return fmt.Errorf("payload_invalid")
+	}
+	createdAt, err := syncIntegerField(object, "created_at_ms", true)
+	if err != nil {
+		return err
+	}
+	updatedAt, err := syncIntegerField(object, "updated_at_ms", true)
+	if err != nil || updatedAt < createdAt {
+		return fmt.Errorf("payload_invalid")
+	}
+	return nil
+}
+
+func validateRatingsReviewsConversionKey(recordKey string) (string, error) {
+	parts := strings.Split(recordKey, "/")
+	if len(parts) != 2 || parts[0] != "conversion" || parts[1] == "" {
+		return "", fmt.Errorf("invalid_record_key")
+	}
+	providerID := parts[1]
+	if providerID != strings.TrimSpace(providerID) ||
+		providerID != strings.ToLower(providerID) ||
+		strings.Contains(providerID, "\\") {
+		return "", fmt.Errorf("invalid_record_key")
+	}
+	allowedProviders := map[string]struct{}{
+		"mal": {}, "anilist": {}, "trakt": {}, "simkl": {},
+		"imdb": {}, "tmdb": {}, "rotten_tomatoes": {}, "metacritic": {},
+	}
+	if _, ok := allowedProviders[providerID]; !ok {
+		return "", fmt.Errorf("invalid_record_key")
+	}
+	return providerID, nil
+}
+
+func validateRatingsReviewsConversionPayload(recordKey string, object map[string]any) error {
+	providerID, err := validateRatingsReviewsConversionKey(recordKey)
+	if err != nil {
+		return err
+	}
+	allowed := map[string]struct{}{
+		"version": {}, "provider_id": {}, "domain_id": {}, "domain_version": {}, "outputs": {},
+	}
+	if len(object) != len(allowed) {
+		return fmt.Errorf("payload_field_not_allowed")
+	}
+	for field := range object {
+		if _, ok := allowed[field]; !ok {
+			return fmt.Errorf("payload_field_not_allowed")
+		}
+	}
+	version, err := syncIntegerField(object, "version", true)
+	if err != nil || version != 1 {
+		return fmt.Errorf("payload_invalid")
+	}
+	wireProvider, ok := object["provider_id"].(string)
+	if !ok || wireProvider != providerID {
+		return fmt.Errorf("record_identity_mismatch")
+	}
+	domainID, ok := object["domain_id"].(string)
+	if !ok || domainID == "" || domainID != strings.TrimSpace(domainID) ||
+		utf8.RuneCountInString(domainID) > 128 {
+		return fmt.Errorf("payload_invalid")
+	}
+	if _, err := syncIntegerField(object, "domain_version", true); err != nil {
+		return err
+	}
+	outputs, ok := object["outputs"].([]any)
+	if !ok || len(outputs) != 21 {
+		return fmt.Errorf("payload_invalid")
+	}
+	for _, output := range outputs {
+		switch output.(type) {
+		case nil, string, bool, json.Number:
+		default:
+			return fmt.Errorf("payload_invalid")
+		}
+	}
+	return nil
 }
 
 func validateFullHistory(
@@ -360,7 +520,7 @@ func validateSyncRecordShape(
 	if operation != "put" {
 		return fmt.Errorf("invalid_operation")
 	}
-	if err := validateSyncPayload(payload); err != nil {
+	if err := validateSyncPayloadForCategory(category, payload); err != nil {
 		return err
 	}
 
@@ -447,6 +607,10 @@ func validateSyncRecordShape(
 		return nil
 	case "desired_download_intent":
 		return validateDesiredDownloadIntent(recordKey, object)
+	case "ratings_reviews":
+		return validateRatingsReviewsPayload(recordKey, object)
+	case "ratings_reviews_conversion_maps":
+		return validateRatingsReviewsConversionPayload(recordKey, object)
 	case "explicit_content_preference":
 		return validateExplicitContentPreference(recordKey, object)
 	case "stremio_link":
@@ -463,6 +627,11 @@ func validateCategoryRecordKey(category, recordKey string) error {
 			return nil
 		}
 		_, _, err := validateCanonicalSyncKey(category, recordKey)
+		return err
+	case "ratings_reviews":
+		return validateRatingsReviewsKey(recordKey)
+	case "ratings_reviews_conversion_maps":
+		_, err := validateRatingsReviewsConversionKey(recordKey)
 		return err
 	case "desired_download_intent":
 		parts := strings.Split(recordKey, "/")
@@ -504,7 +673,7 @@ func validateCategoryRecordKey(category, recordKey string) error {
 	}
 }
 
-func scanSyncPayload(value any, depth int) error {
+func scanSyncPayload(value any, depth int, category, path string) error {
 	if depth > 64 {
 		return fmt.Errorf("payload_too_deep")
 	}
@@ -514,17 +683,22 @@ func scanSyncPayload(value any, depth int) error {
 			if _, forbidden := syncForbiddenFields[normalizeSyncField(key)]; forbidden {
 				return fmt.Errorf("forbidden_field")
 			}
-			if err := scanSyncPayload(child, depth+1); err != nil {
+			childPath := path + "." + key
+			if err := scanSyncPayload(child, depth+1, category, childPath); err != nil {
 				return err
 			}
 		}
 	case []any:
-		for _, child := range typed {
-			if err := scanSyncPayload(child, depth+1); err != nil {
+		for index, child := range typed {
+			childPath := fmt.Sprintf("%s[%d]", path, index)
+			if err := scanSyncPayload(child, depth+1, category, childPath); err != nil {
 				return err
 			}
 		}
 	case string:
+		if category == "ratings_reviews" && path == "$.review" {
+			return nil
+		}
 		if isSyncFilesystemPath(typed) {
 			return fmt.Errorf("filesystem_path_value")
 		}

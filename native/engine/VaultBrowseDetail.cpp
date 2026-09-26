@@ -140,6 +140,10 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
         : primary.identityState == QLatin1String("ambiguous") ? QStringLiteral("uncertain")
         : QStringLiteral("resolving");
     out.insert(QStringLiteral("identityState"), state);
+    if (identified) {
+        out.insert(QStringLiteral("identitySource"), primary.identitySource);
+        out.insert(QStringLiteral("identitySourceId"), primary.identityId);
+    }
     out.insert(QStringLiteral("identityLabel"),
                state == QLatin1String("identified") ? QStringLiteral("identity certain")
              : state == QLatin1String("uncertain")  ? QStringLiteral("identity uncertain")

@@ -6,10 +6,12 @@
 #include <QObject>
 #include <QByteArray>
 #include <QHash>
+#include <QPointer>
 #include <QVariantList>
 #include <QVariantMap>
 
 #include <functional>
+#include <memory>
 #include <optional>
 
 class TrackerConnectionStore;
@@ -48,8 +50,13 @@ public:
     using RefreshDeliveryFactsAction = std::function<bool(QString *)>;
     // Called once for preview and again immediately before confirmation. The
     // adapter must read actual provider state; it must never synthesize it.
-    using ReadExportSnapshotAction = std::function<std::optional<TrackerRemoteDeliverySnapshot>(
-        const TrackerConnection &, const QList<TrackerDeliveryFact> &, QString *)>;
+    // The read completes asynchronously; an adapter may still deliver the
+    // completion synchronously, which keeps test seams deterministic.
+    using ExportSnapshotCompletion = std::function<void(
+        std::optional<TrackerRemoteDeliverySnapshot>)>;
+    using ReadExportSnapshotAction = std::function<void(
+        const TrackerConnection &, const QList<TrackerDeliveryFact> &,
+        ExportSnapshotCompletion)>;
 
     // Sealed/accountless mode: catalogue can be shown, but no profile-owned
     // connection or setting action is admitted.
@@ -89,7 +96,11 @@ public:
                                          const QStringList &selectedItemIds,
                                          quint64 expectedRevision);
     Q_INVOKABLE QVariantList deliveryRows(const QString &providerKey);
+    // Safe cross-provider decoration for local History rows. This projection
+    // intentionally withholds account, remote, and canonical identity keys.
+    Q_INVOKABLE QVariantList historyDeliveryRows();
     Q_INVOKABLE void refresh();
+    void setConnectAvailable(bool available);
     void setImportOwner(TrackerImportOwner *owner) { m_importOwner = owner; }
     void setTitleMatching(TrackerMappingStore *store,
                           const TrackerCanonicalTitleIndex *index);
@@ -143,6 +154,10 @@ signals:
     void findMatchRequested(const QString &batchId,
                             const QString &reviewItemId,
                             quint64 revision);
+    // Delivers the completed (or failed) first-export review rows once the
+    // remote provider snapshot read finishes. QML matched a pending review by
+    // reviewId; the payload uses the same shape as beginExportReview's rows.
+    void exportReviewReady(const QVariantMap &review);
 
 private:
     struct ProviderCounts {
@@ -171,6 +186,24 @@ private:
         quint64 revision = 0;
         QHash<QString, QString> publicToPrivateItemId;
     };
+
+    // One in-flight remote snapshot read for the first-export review. The
+    // production SIMKL reader is asynchronous; injected test readers usually
+    // settle it synchronously, which keeps their contracts deterministic.
+    struct PendingExportRead {
+        ExportReviewHandle handle;
+        QList<TrackerDeliveryFact> facts;
+        std::optional<TrackerRemoteDeliverySnapshot> snapshot;
+        bool delivered = false;
+        bool settled = false;
+        std::optional<bool> resultAccepted;
+    };
+
+    QVariantMap buildExportReview(const TrackerConnection &connection,
+                                  const PendingExportRead &read);
+    void completeExportReviewRead();
+    void settlePendingExportConfirm(const std::shared_ptr<PendingExportRead> &read,
+                                    const QStringList &privateIds);
 
     const TrackerProviderDescriptor *descriptor(TrackerProviderId providerId) const;
     bool profileStoresHealthy() const;
@@ -214,6 +247,8 @@ private:
     TrackerDeliverySource *m_exportSource = nullptr;
     ReadExportSnapshotAction m_readExportSnapshot;
     std::optional<ExportReviewHandle> m_exportReview;
+    std::shared_ptr<PendingExportRead> m_pendingExportRead;
+    std::shared_ptr<PendingExportRead> m_pendingExportConfirm;
     TrackerScrobbleStore *m_scrobble = nullptr;
     TrackerSyncSettingsStore *m_settings = nullptr;
     QList<TrackerProviderDescriptor> m_catalogue;
@@ -228,6 +263,7 @@ private:
     quint64 m_revision = 1;
     bool m_profileAvailable = false;
     bool m_importedDataRemovalPending = false;
+    bool m_connectAvailable = false;
     QVariantMap m_lastActionResult{{QStringLiteral("accepted"), false},
                                   {QStringLiteral("action"), QStringLiteral("none")},
                                   {QStringLiteral("code"), QStringLiteral("idle")},

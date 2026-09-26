@@ -2,10 +2,170 @@ package account
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"testing"
+	"time"
 )
+
+func ratingsReviewsTestKey(world, kind, mediaID string) string {
+	preimage := make([]byte, 0, len(world)+len(kind)+len(mediaID)+12)
+	for _, value := range []string{world, kind, mediaID} {
+		length := make([]byte, 4)
+		binary.BigEndian.PutUint32(length, uint32(len([]byte(value))))
+		preimage = append(preimage, length...)
+		preimage = append(preimage, []byte(value)...)
+	}
+	digest := sha256.Sum256(preimage)
+	return "rr1:" + hex.EncodeToString(digest[:])
+}
+
+func TestSyncPolicyAllowsRatingsReviewsSchemaV1(t *testing.T) {
+	if err := validateSyncCategory("ratings_reviews", 1); err != nil {
+		t.Fatalf("ratings_reviews rejected: %v", err)
+	}
+	if err := validateSyncCategory("ratings_reviews", 2); err == nil {
+		t.Fatal("ratings_reviews schema 2 was accepted")
+	}
+}
+
+func TestRatingsReviewsConversionMapsAdmissionIsCanonical(t *testing.T) {
+	if err := validateSyncCategory("ratings_reviews_conversion_maps", 1); err != nil {
+		t.Fatalf("ratings_reviews_conversion_maps rejected: %v", err)
+	}
+	if err := validateSyncCategory("ratings_reviews_conversion_maps", 2); err == nil {
+		t.Fatal("ratings_reviews_conversion_maps schema 2 was accepted")
+	}
+	valid := json.RawMessage(`{"version":1,"provider_id":"mal","domain_id":"production-domain-v1","domain_version":1,"outputs":[0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10]}`)
+	if err := validateSyncRecordShape("ratings_reviews_conversion_maps", 1, "conversion/mal", "put", valid); err != nil {
+		t.Fatalf("canonical conversion map rejected: %v", err)
+	}
+	for _, key := range []string{"conversion/fixture-a", "conversion/rt", "conversion/meta", "conversion/unknown"} {
+		if err := validateSyncRecordShape("ratings_reviews_conversion_maps", 1, key, "put", valid); err == nil {
+			t.Fatalf("non-production conversion provider accepted: %s", key)
+		}
+	}
+}
+
+func TestRatingsReviewsPutShapeAndIdentity(t *testing.T) {
+	key := ratingsReviewsTestKey("theatre", "series", "fixture-series")
+	valid := json.RawMessage(`{"world":"theatre","kind":"series","media_id":"fixture-series","rating":8.5,"review":"Exact text","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`)
+	if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", valid); err != nil {
+		t.Fatalf("valid ratings_reviews PUT rejected: %v", err)
+	}
+
+	for name, payload := range map[string]string{
+		"wrong identity": `{"world":"theatre","kind":"series","media_id":"other","rating":8.5,"review":"Exact text","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`,
+		"extra field":    `{"world":"theatre","kind":"series","media_id":"fixture-series","rating":8.5,"review":"Exact text","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000,"provider_id":"x"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", json.RawMessage(payload)); err == nil {
+				t.Fatalf("invalid ratings_reviews payload accepted: %s", payload)
+			}
+		})
+	}
+	if err := validateSyncRecordShape("ratings_reviews", 1, "rr1:ABC", "put", valid); err == nil {
+		t.Fatal("malformed ratings_reviews key accepted")
+	}
+}
+
+func TestRatingsReviewsRatingAndReviewValidation(t *testing.T) {
+	key := ratingsReviewsTestKey("theatre", "series", "fixture-series")
+	valid := func(rating, review string, spoiler string) json.RawMessage {
+		return json.RawMessage(`{"world":"theatre","kind":"series","media_id":"fixture-series","rating":` + rating + `,"review":` + review + `,"spoiler":` + spoiler + `,"created_at_ms":1000,"updated_at_ms":2000}`)
+	}
+	for _, rating := range []string{"null", "0", "0.5", "10"} {
+		if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", valid(rating, `"ok"`, "false")); err != nil {
+			t.Fatalf("rating %s rejected: %v", rating, err)
+		}
+	}
+	for _, rating := range []string{"-0.5", "10.5", "0.25"} {
+		if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", valid(rating, `"ok"`, "false")); err == nil {
+			t.Fatalf("invalid rating %s accepted", rating)
+		}
+	}
+	if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", valid("8.5", "null", "true")); err == nil {
+		t.Fatal("null review with spoiler accepted")
+	}
+	if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", valid("null", "null", "false")); err == nil {
+		t.Fatal("both-null ratings_reviews PUT accepted")
+	}
+	tooLong := bytes.Repeat([]byte{'x'}, 16385)
+	payload, _ := json.Marshal(map[string]any{
+		"world": "theatre", "kind": "series", "media_id": "fixture-series",
+		"rating": 8.5, "review": string(tooLong), "spoiler": false,
+		"created_at_ms": 1000, "updated_at_ms": 2000,
+	})
+	if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", payload); err == nil {
+		t.Fatal("oversized ratings_reviews review accepted")
+	}
+}
+
+func TestRatingsReviewsReviewPathTextExceptionIsNarrow(t *testing.T) {
+	key := ratingsReviewsTestKey("theatre", "series", "fixture-series")
+	pathReview := json.RawMessage(`{"world":"theatre","kind":"series","media_id":"fixture-series","rating":8.5,"review":"C:\\Notes\\review.txt","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`)
+	if err := validateSyncRecordShape("ratings_reviews", 1, key, "put", pathReview); err != nil {
+		t.Fatalf("path-looking review rejected: %v", err)
+	}
+	pathID := ratingsReviewsTestKey("theatre", "series", "C:/Notes/review.txt")
+	pathMedia := json.RawMessage(`{"world":"theatre","kind":"series","media_id":"C:/Notes/review.txt","rating":8.5,"review":"ok","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`)
+	if err := validateSyncRecordShape("ratings_reviews", 1, pathID, "put", pathMedia); err == nil {
+		t.Fatal("path-looking media_id accepted")
+	}
+}
+
+func TestRatingsReviewsDeleteRequiresTimestampAndNoPayload(t *testing.T) {
+	service := &Service{syncMaxFutureSkew: 5 * time.Minute}
+	accountID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	deviceID := "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	auth := AuthenticatedSession{Account: Account{ID: accountID}, Device: Device{ID: deviceID}}
+	now := time.UnixMilli(1700000000000).UTC()
+	key := ratingsReviewsTestKey("theatre", "series", "fixture-series")
+	base := SyncMutationInput{
+		MutationID:    "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+		DeviceID:      deviceID,
+		Category:      "ratings_reviews",
+		RecordKey:     key,
+		SchemaVersion: 1,
+		HLCPhysicalMS: "1700000000000",
+		HLCCounter:    "0",
+		Operation:     "delete",
+		DeletedAtMS:   "1699999999123",
+	}
+	parsed, code, _ := service.validateSyncMutation(auth, base, now)
+	if code != "" {
+		t.Fatalf("valid ratings_reviews delete rejected: %s", code)
+	}
+	if parsed.DeletedAtMS != 1699999999123 {
+		t.Fatalf("deleted_at_ms = %d", parsed.DeletedAtMS)
+	}
+
+	missing := base
+	missing.DeletedAtMS = ""
+	if _, code, _ := service.validateSyncMutation(auth, missing, now); code != "invalid_deleted_at_ms" {
+		t.Fatalf("missing timestamp code = %q", code)
+	}
+	withPayload := base
+	withPayload.Payload = json.RawMessage(`{"x":1}`)
+	if _, code, _ := service.validateSyncMutation(auth, withPayload, now); code != "delete_payload_not_empty" {
+		t.Fatalf("delete payload code = %q", code)
+	}
+	put := base
+	put.Operation = "put"
+	put.Payload = json.RawMessage(`{"world":"theatre","kind":"series","media_id":"fixture-series","rating":8.5,"review":"ok","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`)
+	if _, code, _ := service.validateSyncMutation(auth, put, now); code != "invalid_deleted_at_ms" {
+		t.Fatalf("PUT timestamp code = %q", code)
+	}
+	nonRR := base
+	nonRR.Category = "collection"
+	nonRR.RecordKey = "collection/dGhlYXRyZQ/bW92aWUtMQ"
+	if _, code, _ := service.validateSyncMutation(auth, nonRR, now); code != "invalid_deleted_at_ms" {
+		t.Fatalf("non-RR timestamp code = %q", code)
+	}
+}
 
 func TestCompareServerHLCUsesPhysicalCounterThenDevice(t *testing.T) {
 	a := "11111111-1111-4111-8111-111111111111"

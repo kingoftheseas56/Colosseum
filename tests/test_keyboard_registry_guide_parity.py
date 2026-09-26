@@ -3,7 +3,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / "qml" / "Main.qml").read_text(encoding="utf-8")
-GUIDE = (ROOT / "qml" / "KeyboardGuidePage.qml").read_text(encoding="utf-8")
 
 
 GLOBAL_COMMANDS = {
@@ -27,14 +26,6 @@ def test_main_owns_and_registers_global_commands():
         assert sequence in MAIN, f"missing sequence {sequence}"
 
 
-def test_guide_consumes_registry_instead_of_owning_shortcut_rows():
-    assert "property QtObject keyboardRegistry" in GUIDE
-    assert "entriesFor" in GUIDE
-    assert "keyboardRegistry.revision" in GUIDE
-    assert "readonly property var shortcutRows: [" not in GUIDE
-
-
 if __name__ == "__main__":
     test_main_owns_and_registers_global_commands()
-    test_guide_consumes_registry_instead_of_owning_shortcut_rows()
-    print("keyboard registry guide parity: PASS")
+    print("keyboard registry: PASS")

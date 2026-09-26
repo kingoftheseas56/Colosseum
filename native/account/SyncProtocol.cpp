@@ -246,6 +246,11 @@ QJsonObject syncWireMutationToJson(
         QStringLiteral("operation"),
         syncWireOperationName(
             mutation.operation));
+    if (mutation.deletedAtMs.has_value()) {
+        object.insert(
+            QStringLiteral("deleted_at_ms"),
+            QString::number(*mutation.deletedAtMs));
+    }
 
     if (mutation.operation
         == SyncWireOperation::Put) {
@@ -414,6 +419,33 @@ syncWireMutationFromJson(
         materializedHlc;
     mutation.operation =
         *operation;
+
+    const bool hasDeletedAt =
+        object.contains(QStringLiteral("deleted_at_ms"));
+    std::optional<qint64> deletedAtMs;
+    if (hasDeletedAt) {
+        const QJsonValue deletedValue =
+            object.value(QStringLiteral("deleted_at_ms"));
+        if (!deletedValue.isString()) {
+            return std::nullopt;
+        }
+        deletedAtMs = signedInteger(deletedValue);
+        if (!deletedAtMs.has_value() || *deletedAtMs <= 0) {
+            return std::nullopt;
+        }
+    }
+    const bool ratingsReviews =
+        mutation.category == QLatin1String("ratings_reviews");
+    if ((ratingsReviews
+         && mutation.operation == SyncWireOperation::Delete
+         && !deletedAtMs.has_value())
+        || (ratingsReviews
+            && mutation.operation == SyncWireOperation::Put
+            && deletedAtMs.has_value())
+        || (!ratingsReviews && deletedAtMs.has_value())) {
+        return std::nullopt;
+    }
+    mutation.deletedAtMs = deletedAtMs;
 
     if (mutation.operation
         == SyncWireOperation::Put) {

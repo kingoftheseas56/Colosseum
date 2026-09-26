@@ -1,6 +1,8 @@
 package account
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -70,6 +72,7 @@ func TestSyncJournalSQLColumnParity(t *testing.T) {
 		"hlc_physical_ms",
 		"hlc_counter",
 		"operation",
+		"deleted_at_ms",
 		"payload_ciphertext",
 		"materialized_payload_ciphertext",
 		"materialized_hlc_physical_ms",
@@ -116,5 +119,31 @@ func TestSyncJournalSQLColumnParity(t *testing.T) {
 			t.Fatalf("journal Pull branch %d columns = %d, want %d: %#v",
 				index, len(columns), len(insertColumns), columns)
 		}
+	}
+}
+
+func TestRatingsReviewsMigrationDeclaresDeleteTimestampConstraints(t *testing.T) {
+	path := filepath.Join("..", "database", "migrations", "0010_ratings_reviews_sync.sql")
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read ratings/reviews migration: %v", err)
+	}
+	sql := string(payload)
+	for _, table := range []string{
+		"account_sync_journal",
+		"account_sync_current",
+		"account_sync_versions",
+		"account_device_attachment_manifest",
+	} {
+		if !strings.Contains(sql, "ALTER TABLE "+table) {
+			t.Fatalf("migration does not alter %s", table)
+		}
+	}
+	if strings.Count(sql, "ADD COLUMN deleted_at_ms bigint") != 4 {
+		t.Fatalf("deleted_at_ms column count = %d, want 4",
+			strings.Count(sql, "ADD COLUMN deleted_at_ms bigint"))
+	}
+	if strings.Count(sql, "category = 'ratings_reviews' AND operation = 'delete'") != 4 {
+		t.Fatal("ratings_reviews DELETE constraints are incomplete")
 	}
 }

@@ -9,6 +9,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import "ratingsreviews"
 import "BiblioApi.js" as BiblioApi
 import "AbbApi.js" as Abb
 
@@ -54,6 +55,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
+    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
     // (listenRequested retired 2026-07-18 — the reader is the one audiobook surface)
 
     // ── audiobook pairing lane: the same title's audiobook, from AudioBookBay ──
@@ -667,6 +669,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 22
             BackAction {
+                id: biblioBackAction
                 objectName: "biblioBookBack"
                 // Biblio world rule: quieter size, white (ink) hover — never gold
                 labelSize: 14
@@ -824,6 +827,37 @@ Item {
                         radius: 13
                         world: "biblio"
                         entry: detail.collectionEntry()
+                    }
+                    RatingsReviewsAction {
+                        objectName: "biblioRatingsReviewsAction"
+                        width: parent.width; height: 44
+                        titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
+                                       ? RatingsReviewsIdentity : null
+                        world: "biblio"
+                        kind: "book"
+                        directId: {
+                            var v = detail.book ? String(detail.book.mediaId || detail.book.colosseumId || "") : ""
+                            return v.indexOf("ct1:") === 0 ? v : ""
+                        }
+                        aliases: {
+                            var out = []
+                            if (detail.book && detail.book.id)
+                                out.push({ namespace: "biblio-source-id", value: String(detail.book.id) })
+                            if (detail.book && detail.book.workKey)
+                                out.push({ namespace: "openlibrary-work", value: String(detail.book.workKey) })
+                            if (detail.book && detail.book.isbn)
+                                out.push({ namespace: "isbn", value: String(detail.book.isbn) })
+                            return out
+                        }
+                        titleText: detail.book ? String(detail.book.title || "") : ""
+                        subtitleText: detail.book ? String(detail.book.author || "") : ""
+                        year: detail.book ? Number(detail.book.year || 0) : 0
+                        artwork: detail.book ? String(detail.book.cover || "") : ""
+                        origin: "biblio-detail"
+                        returnTarget: biblioBackAction
+                        onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
+                            detail.ratingsReviewsRequested(context, invokingItem, fallbackItem)
+                        }
                     }
                     // (The standalone Listen button is retired — Hemanth 2026-07-18: the reader IS
                     // the audiobook player. A downloaded audiobook auto-attaches; Read opens the

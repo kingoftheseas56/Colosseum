@@ -5,6 +5,8 @@
 #include "LegacyPersonalStateStorage.h"
 #include "ProfileAdoption.h"
 #include "ProfilePaths.h"
+#include "RatingsReviewsDelivery.h"
+#include "RatingsReviewsConversionMap.h"
 
 #include <QSet>
 #include <QByteArray>
@@ -31,6 +33,8 @@ public:
         ProfileStoreRuntime *profileRuntime,
         const QString &appDataRoot = QString(),
         StremioCredentialAdoptionCallbacks stremioCredentials = {},
+        RatingsReviewsConversionTestHook conversionTestHook = {},
+        RatingsReviewsPrivateAdoptionCallbacks ratingsReviewsPrivate = {},
         TrackerPrivateAdoptionCallbacks trackerPrivate = {});
 
     bool prepareCreatedAccount(
@@ -68,6 +72,16 @@ private:
         const LegacyPersonalStateStorage &sourceStorage,
         ProfilePaths::Kind sourceKind,
         QString *error);
+
+    bool copyRatingsReviewsConversionMaps(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        QString *error) const;
+
+    bool handoffRatingsReviewsPrivateState(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        QString *error) const;
 
     bool handoffTrackerPrivateState(
         const ProfilePaths &paths,
@@ -243,6 +257,8 @@ private:
     ProfileStoreRuntime *m_profileRuntime = nullptr;
     QString m_appDataRoot;
     StremioCredentialAdoptionCallbacks m_stremioCredentials;
+    RatingsReviewsConversionTestHook m_conversionTestHook;
+    RatingsReviewsPrivateAdoptionCallbacks m_ratingsReviewsPrivate;
     TrackerPrivateAdoptionCallbacks m_trackerPrivate;
     QSet<QString> m_quarantinedThisProcess;
 };

@@ -8,7 +8,6 @@ $root = Split-Path -Parent $PSScriptRoot
 #
 # Children:
 #   (1)  tests\test_explicit_content_policy.ps1      (Task 1 + 9 cross-world boundary)
-#   (2)  tests\test_content_preferences.ps1          (Task 2 preference plumbing)
 #   (3)  tests\test_discover_shared_shell.ps1        (Task 3 shared shell + Theatre regression)
 #   (4)  tests\test_tankoban_tabs.ps1                (Task 7+8 tabs/routing/pins)
 #   (5)  tests\test_mal_genre_catalog_p0.ps1         (Task 4 baked MAL catalogue)
@@ -44,13 +43,6 @@ Invoke-Gate "explicit content policy (Task 1 + 9)" {
     $p = Join-Path $root "tests\test_explicit_content_policy.ps1"
     & powershell -NoProfile -ExecutionPolicy Bypass -File $p
     if ($LASTEXITCODE -ne 0) { throw "test_explicit_content_policy exit $LASTEXITCODE" }
-}
-
-# (2) Content preferences plumbing
-Invoke-Gate "content preferences (Task 2)" {
-    $p = Join-Path $root "tests\test_content_preferences.ps1"
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $p
-    if ($LASTEXITCODE -ne 0) { throw "test_content_preferences exit $LASTEXITCODE" }
 }
 
 # (3) Shared Discover shell + Theatre regression

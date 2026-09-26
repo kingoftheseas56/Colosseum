@@ -44,6 +44,7 @@ from harness.context import (
 )
 from harness.cli import (
     add_common, add_execution_mode, build_parser, command_text, emit, option_value,
+    runner_summary_line,
 )
 
 def verify_run_receipt(
@@ -388,6 +389,47 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
                     "name": resolved_journey["name"],
                     "path": resolved_journey["path"],
                 })
+            journey_choice = getattr(ns, "journey", None)
+            if journey_choice:
+                needle = journey_choice.strip().lower().replace("\\", "/")
+                matches = [
+                    item for item in selected_journeys
+                    if needle in {
+                        str(item.get("name", "")).lower(),
+                        str(item.get("path", "")).lower(),
+                    }
+                ]
+                if len(matches) != 1:
+                    raise HarnessError(
+                        "JOURNEY_SELECTION_INVALID",
+                        "--journey must name one of the candidate journeys for this scope.",
+                        {
+                            "journey": journey_choice,
+                            "candidates": [
+                                {"name": item.get("name"), "path": item.get("path")}
+                                for item in selected_journeys
+                            ],
+                            "nextActions": [
+                                "Re-run --record-run with --journey <name> from the candidates.",
+                            ],
+                        },
+                    )
+                selected_journeys = [matches[0]]
+            elif len(selected_journeys) > 1:
+                raise HarnessError(
+                    "JOURNEY_SELECTION_REQUIRED",
+                    "--record-run found multiple candidate journeys; choose one explicitly.",
+                    {
+                        "candidates": [
+                            {"name": item.get("name"), "path": item.get("path")}
+                            for item in selected_journeys
+                        ],
+                        "nextActions": [
+                            "Re-run --record-run with --journey <name> from the candidates.",
+                            "Exactly one candidate is frozen per receipt by design.",
+                        ],
+                    },
+                )
             receipt, receipt_path = create_run_receipt(
                 root,
                 ns.task,
@@ -399,6 +441,7 @@ def dispatch(ns: argparse.Namespace) -> dict[str, Any]:
             )
             data["runId"] = receipt["runId"]
             data["receiptPath"] = str(receipt_path)
+            data["frozenJourneys"] = selected_journeys
         return envelope(
             command,
             root,

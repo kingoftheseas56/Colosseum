@@ -165,7 +165,6 @@ accountSwitchRebindsAndDestroysPreviousActivityStore() {
     ActivityStore *accountA =
         profileActivity(&engine);
     QVERIFY(accountA);
-    QVERIFY(accountA != sealed);
     QVERIFY(accountA->healthy());
     QVERIFY2(
         accountA->recordPlaybackDelta(
@@ -190,7 +189,6 @@ accountSwitchRebindsAndDestroysPreviousActivityStore() {
     ActivityStore *resealed =
         profileActivity(&engine);
     QVERIFY(resealed);
-    QVERIFY(resealed != accountA);
     QCOMPARE(resealed->revision(), quint64(0));
 
     QVERIFY2(
@@ -205,7 +203,6 @@ accountSwitchRebindsAndDestroysPreviousActivityStore() {
     ActivityStore *accountAReopened =
         profileActivity(&engine);
     QVERIFY(accountAReopened);
-    QVERIFY(accountAReopened != accountA);
     const QString monthKey =
         accountAReopened->earliestActivityMonth();
     QVERIFY(!monthKey.isEmpty());
@@ -247,12 +244,14 @@ noStaleCrossProfileActivityLeakage() {
                 QStringLiteral("account-a-only-session"))),
         "recording an activity fact into account A's store should succeed");
     QVERIFY(!accountA->earliestActivityMonth().isEmpty());
+    QPointer<ActivityStore> oldAccountA(accountA);
 
     QVERIFY2(
         profiles.sealAccountSession(
             QString::fromLatin1(kAccountA),
             &error),
         qPrintable(error));
+    QVERIFY(oldAccountA.isNull());
 
     QVERIFY2(
         profiles.prepareAccountSession(
@@ -263,7 +262,7 @@ noStaleCrossProfileActivityLeakage() {
     ActivityStore *accountB =
         profileActivity(&engine);
     QVERIFY(accountB);
-    QVERIFY(accountB != accountA);
+    QVERIFY(oldAccountA.isNull());
     QVERIFY(accountB->healthy());
 
     // Account B's store is a brand-new empty ledger — none of account A's

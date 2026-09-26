@@ -15,7 +15,8 @@ public:
     explicit SharedPcProfileCoordinator(
         ProfileStoreRuntime *profileRuntime,
         const QString &appDataRoot = QString(),
-        StremioCredentialAdoptionCallbacks stremioCredentials = {});
+        StremioCredentialAdoptionCallbacks stremioCredentials = {},
+        RatingsReviewsPrivateAdoptionCallbacks ratingsReviewsPrivate = {});
 
     bool prepareCreatedAccount(
         const QString &accountId,

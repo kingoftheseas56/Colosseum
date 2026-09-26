@@ -22,9 +22,9 @@ eq(action({ bootVisible: true, worldOpen: true }), 'consume', 'boot splash owns 
 eq(action({ accountHostVisible: true, worldOpen: true }), 'consume', 'mandatory account flow owns Escape');
 eq(action({ stremioSyncOpen: true }), 'stremioSync', 'Stremio Main Sync overlay owns Escape');
 eq(action({ stremioSyncOpen: true, syncCenterActive: true }), 'stremioSync', 'Main Sync closes before its underlying Sync Center page');
-eq(action({ identityCeremonyOpen: true, stremioSyncOpen: true }), 'cancelIdentityCeremony', 'front identity ceremony closes before background Main Sync');
 // Modal/transient shell surfaces beat sessions and ordinary pages.
 eq(action({ identityCeremonyOpen: true, playerOpen: true }), 'cancelIdentityCeremony', 'identity ceremony beats player');
+eq(action({ identityCeremonyOpen: true, stremioSyncOpen: true }), 'cancelIdentityCeremony', 'front identity ceremony closes before background Main Sync');
 eq(action({ watchPartyJoinOpen: true, playerOpen: true }), 'watchPartyJoin', 'watch-party sheet beats player');
 eq(action({ wallpaperActive: true, accountCenterVisible: true }), 'wallpaper', 'wallpaper picker beats account centre');
 eq(action({ accountFlyoutVisible: true, taskbarOpen: true }), 'accountFlyout', 'account flyout beats taskbar');
@@ -33,21 +33,23 @@ eq(action({ openRecentOpen: true, taskbarOpen: true }), 'openRecent', 'Open Rece
 eq(action({ taskbarOpen: true, worldOpen: true }), 'taskbar', 'expanded taskbar beats page navigation');
 
 // Session-owned immersive surfaces beat full-page and browsing layers.
-eq(action({ playerOpen: true, settingsActive: true }), 'player', 'player owns Escape above settings');
 eq(action({ activeSessionKind: 'movie', playerOpen: false }), 'player', 'hidden active movie session is healed through player authority');
 eq(action({ bookReaderActive: true, vaultActive: true }), 'bookReader', 'book reader owns Escape above Vault');
 eq(action({ activeSessionKind: 'book', bookReaderActive: false }), 'bookReader', 'hidden active book session is healed through reader authority');
 eq(action({ vaultComicActive: true, vaultActive: true }), 'comicReader', 'standalone Vault comic owns Escape');
 eq(action({ comicReaderActive: true, seriesActive: true }), 'comicReader', 'embedded comic reader owns Escape above its host page');
 eq(action({ activeSessionKind: 'comic', comicReaderActive: false }), 'comicReader', 'hidden active comic session is healed through comic authority');
-eq(action({ syncCenterActive: true }), 'syncCenter', 'Sync Center closes before returning to its underlying world');
-eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
-eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
 // Full-page peers are ordered by actual same-z document order, then browsing z-order.
 eq(action({ updateActive: true, keyboardGuideActive: true }), 'update', 'later update page wins a broken same-z overlap');
-eq(action({ keyboardGuideActive: true, settingsActive: true }), 'keyboardGuide', 'keyboard guide wins above Settings when both are active');
-eq(action({ settingsActive: true, extensionsActive: true }), 'settings', 'settings wins a broken same-z overlap');
+eq(action({ syncCenterActive: true }), 'syncCenter', 'Sync Center closes before returning to its underlying world');
+eq(action({ historyStatsActive: true }), 'historyStats', 'History, highlights, and stats closes before returning to its underlying world');
+eq(action({ syncCenterActive: true, historyStatsActive: true }), 'historyStats', 'later History page wins above retained Sync Center');
+eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
+eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
 eq(action({ extensionsActive: true, vaultActive: true }), 'extensions', 'extensions wins a broken same-z overlap');
+eq(action({ ratingsReviewsActive: true, vaultActive: true }), 'ratingsReviews', 'RR owns Escape above retained Vault');
+eq(action({ ratingsReviewsActive: true, downloadsActive: true }), 'ratingsReviews', 'RR owns Escape above retained Downloads');
+eq(action({ ratingsReviewsActive: false, vaultActive: true }), 'vault', 'after RR closes the next Escape returns to Vault');
 eq(action({ vaultActive: true, downloadsActive: true }), 'vault', 'Vault wins a broken same-z overlap');
 eq(action({ downloadsActive: true, bookActive: true }), 'downloads', 'taskbar full-page beats detail page');
 eq(action({ bookActive: true, theatreSeriesActive: true }), 'book', 'book detail is highest z53 sibling');

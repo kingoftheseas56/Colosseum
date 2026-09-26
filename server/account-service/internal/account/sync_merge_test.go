@@ -236,6 +236,48 @@ func TestSyncMergeHistoryDeleteBarrier(t *testing.T) {
 	}
 }
 
+func TestRatingsReviewsMergeKeepsWinningDeleteTimestamp(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"30000000-0000-4000-8000-000000000001", syncMergeDeviceA, "delete", 100, 0, "")
+	current.DeletedAtMS = 1111
+	incoming := syncMergeIncomingFixture(
+		"30000000-0000-4000-8000-000000000002", syncMergeDeviceB, "ratings_reviews", "delete", 200, 0, "")
+	incoming.RecordKey = ratingsReviewsTestKey("theatre", "series", "fixture-series")
+	incoming.DeletedAtMS = 2222
+
+	resolution, err := resolveMutableSync(current, true, incoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync() error = %v", err)
+	}
+	if !resolution.Changed || resolution.Operation != "delete" || resolution.DeletedAtMS != 2222 {
+		t.Fatalf("newer delete resolution = %+v", resolution)
+	}
+
+	stale := incoming
+	stale.HLCPhysicalMS = 50
+	stale.DeletedAtMS = 3333
+	resolution, err = resolveMutableSync(current, true, stale)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(stale) error = %v", err)
+	}
+	if resolution.Changed || resolution.Operation != "delete" || resolution.DeletedAtMS != 1111 {
+		t.Fatalf("stale delete resolution = %+v", resolution)
+	}
+
+	put := incoming
+	put.Operation = "put"
+	put.HLCPhysicalMS = 300
+	put.DeletedAtMS = 0
+	put.Payload = json.RawMessage(`{"world":"theatre","kind":"series","media_id":"fixture-series","rating":8.5,"review":"ok","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`)
+	resolution, err = resolveMutableSync(current, true, put)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(put) error = %v", err)
+	}
+	if !resolution.Changed || resolution.Operation != "put" || resolution.DeletedAtMS != 0 {
+		t.Fatalf("PUT winner retained delete timestamp: %+v", resolution)
+	}
+}
+
 func TestSyncMergeNonHistoryUsesHLC(t *testing.T) {
 	current := syncMergeCurrentFixture(
 		"20000000-0000-4000-8000-000000000001", syncMergeDeviceA, "put", 100, 0,

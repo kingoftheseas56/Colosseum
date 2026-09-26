@@ -1703,3 +1703,144 @@ logs and captures found no credential, callback URL, configured addon URL or syn
 fixture secret. This runtime proof covers the local application boundary. Official Stremio
 browser login and a live provider-outage playback witness remain external witnessed checks;
 no designated test account was supplied and Lanista does not control the external browser.
+
+
+## Arc 49 Slice 4 verification note
+
+The generic runtime bridge infrastructure check passed on 2026-09-22: `tests/test_lanista.ps1` emitted `WARNING_GATE_OK` and `lanista bridge: OK`.
+
+Production RR-001 was attempted against disposable tagged sessions using a temporary verification executable linked from the exact current `colosseum` object graph (SHA-256 `7B4C31168AC8A8E741C878F3908153354268037E22B23710AB1649EBA755478D`). The app and unique-pipe bridge became ready, Theatre opened, and the real Frieren search result `tt22248376` could be reached when driven interactively. The journey cannot be promoted to runtime-validated because the production shell contains multiple retained `topBarSearch` objects: Lanista object-name lookup is first-match depth-first, while snapshot handles vary between boots and the scenario DSL cannot dynamically bind the visible snapshot row to a later command target. Terminal-source session `20260922-180107-ef371015` reproduced that boundary: boot/local/Theatre and the named `topBarSearch` click all passed, then `searchSurfaceInput` never appeared; its failure evidence is `C:/Users/Suprabha/AppData/Roaming/Brotherhood/Colosseum-dltest-arc49-rr-selector-terminal/lanista/runs/20260922-180111-5808/seq109-1.png`.
+The final disposable scenario therefore stopped before the RR action rather than fabricating a pass. This is a bridge-selector limitation, not a Ratings/Reviews runtime failure. Deterministic native/QML coverage proves the frozen Frieren first-party identity, route open state, Back/focus contract, and zero-provider-operation local Save.
+The current production build cache correctly has `COLOSSEUM_RATINGS_REVIEWS_TESTING=OFF`. The joined fake-delivery journey requires the test-only joined fixture and T-05/Slice 5 delivery projection, so it was not enabled during this no-Slice-5 qualification.
+
+## Arc 49 Slice 5 delivery fixture (2026-09-22)
+
+`tests/lanista_scenarios/ratings_reviews_delivery_fixture.json` is valid and uses only
+the exact test-build plus `ratings-reviews-delivery-fixture` AppData tag. It covers local
+Save, one successful fake publish, one `unknownOutcome`, and explicit reconciliation;
+it has no production provider, credential, HTTP, tracker, or remote-delete route.
+
+The scenario was parsed by Lanista but could not run because no isolated drive-enabled
+fixture session was available: `NO_PIPE` on the default process connection. This is
+**bridge/session blocked, not runtime-validated**. The existing retained-world
+`topBarSearch` selector limitation also still blocks the preceding production-title route
+setup. Neither condition is written as a passing UI journey.
+
+## Arc 49 Slice 6 integrated runtime truth (2026-09-22)
+
+The generic bridge contract was replayed on final source with `tests/test_lanista.ps1`:
+`WARNING_GATE_OK` and `lanista bridge: OK`. The production-title route remains blocked
+by the retained-world `topBarSearch` ambiguity documented in the Slice 4 entry. The
+test-only delivery scenario was parsed and deliberately attempted without a running
+isolated fixture app; Lanista returned `NO_PIPE: no lanista listening on
+ColosseumLanista`. This is a session/bridge prerequisite failure, not a green fake-provider
+journey and not evidence of a production-provider path. Package 1 runtime status remains
+**bridge/session blocked**, while deterministic native and Qt Quick delivery proof is green.
+
+## Arc 49 Slice 5/6 post-review joined-fixture replay (2026-09-23)
+
+The repaired test-only joined fixture now completed both required phases in Lanista.
+Phase 1 passed **37/37** steps in session `20260923-013010-0bfa88f9`; phase 2 passed
+**19/19** steps in session `20260923-013138-c087b954`. Both used tag
+`ratings-reviews-delivery-fixture`, the same disposable AppData root
+`%APPDATA%/Brotherhood/Colosseum-dltest-ratings-reviews-delivery-fixture`,
+and the same cache root
+`%LOCALAPPDATA%/Brotherhood/Colosseum-dltest-ratings-reviews-delivery-fixture/cache`.
+Phase 2 launched a new process, performed no reseed or Publish, and observed restored
+state with unchanged counters. The test executable used by both sessions had SHA-256
+`6df0a6948c2f226f29f0b6fb5d42da52ff32aa7ae31260411840288bdcc551d0`.
+
+The required sentinel `RR_PRIVATE_REVIEW_SENTINEL_49` was searched across the complete
+tagged AppData/cache roots and Lanista session artifacts. It appeared only in the
+allowed canonical review store and private delivery outbox; no receipt, log, diagnostic,
+or Lanista artifact contained it. This proves the fake-delivery fixture path only; it
+does not change the separate Slice 4 production-title route status. That real Frieren
+route remains **bridge-selector blocked**, not runtime-validated, because of the
+retained-world `topBarSearch` ambiguity recorded above. The normal production build was
+subsequently rebuilt with `COLOSSEUM_RATINGS_REVIEWS_TESTING=OFF`, so the joined fixture
+remains unavailable to production composition.
+
+## Arc 49 whole-arc repair replay (2026-09-23)
+
+The production testing-OFF route is now runtime-validated in isolated Lanista session
+`20260923-041951-cc7a0c05` (executable SHA-256
+`7daa7cc2cdc79616f89033625f9543a4c998ac40a33d5a8798dc34bc5b9490b7`).
+`tests/lanista_scenarios/ratings_reviews_frieren_production.json` passed **24/24**:
+fresh local profile, active Theatre lifecycle, real search for `Frieren`, exact
+`tt22248376` result, real series detail, Ratings/Reviews entry, canonical-only rating
+Save, Back, and reopen. Both post-Save and reopened projections reported zero provider
+operations. Waiting for `theatreWorld.lifecycleActive` instead of its preloaded
+`visible` property resolved the earlier retained-control timing ambiguity. A search
+for the raw IMDb ID returned `provider unavailable` inside the UI; that failed run is
+retained as session `20260923-041023-9a6dac82`, not promoted to a pass. The title
+query is the passing user-facing route.
+
+The repaired test-only joined fixture passed phase 1 **40/40** in session
+`20260923-034326-f0704ff0` and same-root restart phase 2 **19/19** in session
+`20260923-034418-efdb01d5`, both against executable SHA-256
+`36e6f1f0c7b517b198849cd9681e32fe87a42cdce734341aeaed1e8e876ed90e`.
+The verified outbox stores source rating 8 as native value 8 for both fixture A and B,
+with distinct non-placeholder conversion-map digests, and review delivery only to A.
+The private sentinel was found only in the canonical store and private outbox, not
+receipts or logs. The verified tagged roots were archived under the same AppData
+directories with `-verified-20260923-034326` suffixes; the pre-existing exact-tag
+roots and registry values were restored. This is fake-transport proof, not a real
+provider writer. Database-backed Go integration was qualified separately in a fresh
+local PostgreSQL `colosseum_arc49_test` database; see the test ledger. Earlier runs
+without `TEST_DATABASE_URL` remain skips, not substitute evidence.
+
+## Arc 49 Slice 2 inline-private-flow replay (2026-09-24)
+
+The production testing-OFF route for the redesigned page — artwork hero with the
+house scrim, separate read-only overall card ("— / 10 · Rating unavailable"), ten
+pending-preview stars with a 0–10 half-step field, inline editor with Save
+privately / Cancel / explicit Delete, honest "Score unavailable" provider badges,
+and the community-held panel — passed **28/28** in isolated Lanista session
+`20260924-073253-6a5bdf66` (tag `arc49-rr-s2-final`, disposable
+`Colosseum-dltest-arc49-rr-s2-final` roots). The scenario
+`tests/lanista_scenarios/ratings_reviews_frieren_production.json` was rewritten
+for the inline flow: star 8 → `ratingsReviewsSaveRating` → zero-provider rating
+commit, `ratingsReviewsOpenEditor` → `ratingsReviewsEditorText` typing →
+`ratingsReviewsSavePrivate` → review commit, Back, and reopen with both
+projections intact and `providerOperationCount` 0 throughout. An earlier
+same-scenario failure (`20260924-064315-363610e5`, tag `arc49-rr-s2-prod`) was
+traced to the editor TextArea's `activeFocus` guard silently dropping
+driver-delivered text, turning Save into a rating-only commit; the guard was
+removed (unfocused text now updates the draft) and the fix is covered by the
+QML journey suite. Two intermediate runs (`arc49-rr-s2-prod2` pass,
+`arc49-rr-s2-prod3` fail) bracket the same root cause. A disposable visual
+capture scenario `_arc49_rr_slice2_visual_capture.json` (not a registered
+capability) passed 30/30 in session `20260924-072527-aa0267b7` (tag
+`arc49-rr-s2-capture2`), producing
+`%TEMP%/arc49-mock/captures2/arc49-rr-slice2-page.{mp4,gif}` with holds on hero,
+saved state, editor, and collapsed state; the tagged store for that session
+records rating 8 plus review "A quiet journey worth keeping." at revision 2.
+No provider read, delivery, or community side effects occurred in any run.
+
+## Arc 49 Slices 1-2 review-fix replay (2026-09-24)
+
+After the color, identity, and validation fixes, the production testing-OFF
+Frieren journey passed **28/28** again in isolated session
+`20260924-102002-28fae145` (tag `arc49-rr-review-fix`): star 8 → private rating
+save → inline editor → review save → Back → reopen, zero provider operations
+throughout. Visual evidence was recaptured with the fixed page: the wide
+capture passed **30/30** (session `20260924-102143-2dc45955`, tag
+`arc49-rr-fix-cap-wide`, output
+`%TEMP%/arc49-mock/fix-wide/arc49-rr-slice2-page.{mp4,gif}`) and the
+narrow-width capture passed **34/34** (session `20260924-102557-9ff1b665`,
+tag `arc49-rr-fix-cap-narrow2`, 760x920, output
+`%TEMP%/arc49-mock/fix-narrow2/arc49-rr-slice2-page-narrow.{mp4,gif}`). The
+narrow run uses a dedicated scenario
+(`_arc49_rr_slice2_visual_capture_narrow.json`) whose `ui-scroll` steps bring
+each stacked card into the viewport; the first narrow attempt without scrolls
+failed on the below-fold editor-open click (session
+`20260924-102338-24405f84`, retained as evidence of that boundary, not a page
+defect — narrow users scroll). Frame inspection of both captures confirms the
+repaired rendering: hero anime artwork reads through the light-to-dark scrim
+(bright key-art pixels at top, mean-luminance and pixel checks recorded), the
+editor background is dark with readable placeholder text, the saved state
+shows the green badge with "Edit my review", and the narrow layout stacks
+single-column without overlap. The app binary used for these runs predates
+the registry union relink (blocked by a concurrent long-lived instance); the
+journey exercises the seed-pinned Frieren identity, which the union path does
+not alter, so the run is valid evidence for the fixes it demonstrates.

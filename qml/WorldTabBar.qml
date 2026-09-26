@@ -54,12 +54,13 @@ Item {
             event.accepted = true
             return
         } else {
+            event.accepted = false
             return
         }
         if (next >= 0 && next < tabs.tabModel.length && next !== tabs.keyboardIndex) {
             tabs.requestIndex(next, next < tabs.keyboardIndex ? Qt.BacktabFocusReason : Qt.TabFocusReason)
             event.accepted = true
-        }
+        } else event.accepted = false
     }
 
     width: parent ? parent.width : 900

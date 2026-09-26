@@ -1823,12 +1823,20 @@ bool SyncEngine::reconcileCategory(
             && winnerIt != winnerCategory->constEnd()
             && winnerIt->operation == SyncWireOperation::Delete)
             continue;
+        const auto eventIt =
+            snapshot.tombstoneEventMs.constFind(recordKey);
+        const std::optional<qint64> deletedAtMs =
+            eventIt == snapshot.tombstoneEventMs.constEnd()
+            ? std::nullopt
+            : std::optional<qint64>(*eventIt);
         enqueueMutation(
             categoryId,
             recordKey,
             snapshot.schemaVersion,
             SyncWireOperation::Delete,
-            QJsonValue());
+            QJsonValue(),
+            deletedAtMs.has_value() ? *deletedAtMs : -1,
+            deletedAtMs);
     }
 
     QStringList previousKeys =
@@ -1864,7 +1872,8 @@ void SyncEngine::enqueueMutation(
     int schemaVersion,
     SyncWireOperation operation,
     const QJsonValue &payload,
-    qint64 localOrderMs) {
+    qint64 localOrderMs,
+    std::optional<qint64> deletedAtMs) {
     SyncWireMutation mutation;
     mutation.mutationId =
         QUuid::createUuid()
@@ -1885,6 +1894,8 @@ void SyncEngine::enqueueMutation(
             nowMs());
     mutation.operation =
         operation;
+    mutation.deletedAtMs =
+        deletedAtMs;
     mutation.payload =
         operation
                 == SyncWireOperation::Put
@@ -2597,6 +2608,7 @@ void SyncEngine::beginDurableOwnerApply(
         incoming.schemaVersion = context.entry.mutation.schemaVersion;
         incoming.operation = context.entry.mutation.operation;
         incoming.payload = context.entry.mutation.payload;
+        incoming.deletedAtMs = context.entry.mutation.deletedAtMs;
 
         SyncAdapterRegistryError startError;
         const bool started = m_registry->applyRemoteAsync(
@@ -3129,6 +3141,8 @@ bool SyncEngine::applyWinningPullEntry(
         mutation.operation;
     incoming.payload =
         mutation.payload;
+    incoming.deletedAtMs =
+        mutation.deletedAtMs;
 
     if (!m_disabledCategories.contains(mutation.category)) {
         SyncAdapterRegistryError registryError;

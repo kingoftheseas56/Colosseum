@@ -25,6 +25,7 @@ assets/covers/
 # Per-machine settings (QtCore Settings ini) — local picks, not source.
 player.ini
 wallpapers.ini
+views.ini
 
 # OS / editor cruft
 *.log
@@ -51,6 +52,9 @@ qml/comics_db.gen.js
 # Comics catalogue SQLite db — pipeline-deployed by scripts/comics_brain/catalogue_build.py,
 # not shipped through git; app degrades gracefully when absent.
 data/
+!/data/
+/data/*
+!/data/title-identities-v1.json
 data/vault_token.txt
 
 # Python bytecode caches

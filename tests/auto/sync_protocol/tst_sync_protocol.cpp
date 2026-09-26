@@ -36,6 +36,7 @@ private slots:
     void materializedHlcRoundTripsAndMustNotRegressRequest();
     void materializedHlcRequiresAllFields();
     void deleteMutationRoundTripsWithoutPayload();
+    void ratingsReviewsDeleteTimestampRoundTripsExactly();
     void deleteMutationRejectsOrdinaryPayload();
     void invalidRecordKeysAreRejected();
     void pushResultParsesClockSkewCurrentMetadata();
@@ -222,6 +223,53 @@ deleteMutationRoundTripsWithoutPayload() {
         decoded->operation,
         SyncWireOperation::Delete);
     QVERIFY(decoded->payload.isUndefined());
+}
+
+void tst_sync_protocol::
+ratingsReviewsDeleteTimestampRoundTripsExactly() {
+    SyncWireMutation source;
+    source.mutationId =
+        QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+    source.deviceId =
+        QStringLiteral("11111111-1111-4111-8111-111111111111");
+    source.category = QStringLiteral("ratings_reviews");
+    source.recordKey = QStringLiteral("rr1:")
+        + QString(64, QLatin1Char('a'));
+    source.schemaVersion = 1;
+    source.hlc = SyncWireHlc{3000, 1, source.deviceId};
+    source.operation = SyncWireOperation::Delete;
+    source.deletedAtMs = qint64(1720000000123);
+
+    const QJsonObject encoded = syncWireMutationToJson(source);
+    QCOMPARE(encoded.value(QStringLiteral("deleted_at_ms")).toString(),
+             QStringLiteral("1720000000123"));
+    QVERIFY(!encoded.contains(QStringLiteral("payload")));
+
+    const auto decoded = syncWireMutationFromJson(encoded);
+    QVERIFY(decoded.has_value());
+    QVERIFY(decoded->deletedAtMs.has_value());
+    QCOMPARE(*decoded->deletedAtMs, qint64(1720000000123));
+    QVERIFY(decoded->payload.isUndefined());
+
+    QJsonObject missing = encoded;
+    missing.remove(QStringLiteral("deleted_at_ms"));
+    QVERIFY(!syncWireMutationFromJson(missing).has_value());
+
+    QJsonObject numeric = encoded;
+    numeric.insert(QStringLiteral("deleted_at_ms"), 1720000000123.0);
+    QVERIFY(!syncWireMutationFromJson(numeric).has_value());
+
+    SyncWireMutation ordinary = source;
+    ordinary.category = QStringLiteral("collection");
+    ordinary.recordKey = QStringLiteral("manga/item-1");
+    QVERIFY(!syncWireMutationFromJson(
+                 syncWireMutationToJson(ordinary)).has_value());
+
+    SyncWireMutation put = source;
+    put.operation = SyncWireOperation::Put;
+    put.payload = QJsonObject{{QStringLiteral("value"), 1}};
+    QVERIFY(!syncWireMutationFromJson(
+                 syncWireMutationToJson(put)).has_value());
 }
 
 void tst_sync_protocol::

@@ -43,6 +43,8 @@ The normal branch is `master`. Do not reset, clean, stash, rewrite history, or d
 
 Before declaring work complete:
 
+- consult `tools/colosseum-harness/README.md` and get scoped task context/verification routing for Colosseum engineering work;
+- for a mapped user-visible runtime change, record the explicit changed paths before editing, bind an isolated Lanista session to the run, attach PID-bound desktop evidence, and execute the run's frozen checks and production journey; require `completionReady=true` and `completionBlockers=[]` before claiming Harness-backed runtime completion;
 - inspect the final diff for every file you touched;
 - run the narrowest relevant test or harness, then the surrounding checks needed for the touched surface;
 - use the build wiring in `native/CMakeLists.txt` when compilation evidence is required;
@@ -51,3 +53,4 @@ Before declaring work complete:
 - keep authored, compiled, tested, and runtime-verified states distinct.
 
 A successful edit is not runtime proof, and a successful compile is not behavioral proof.
+If Harness mapping or runtime is unavailable, use the strongest applicable direct checks and report the exact gap. Do not claim a Harness pass from dry-run output, a different source snapshot, or a journey against an unbound session.

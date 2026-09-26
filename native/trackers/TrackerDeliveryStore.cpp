@@ -200,6 +200,35 @@ bool providerSupportsDelivery(TrackerProviderId providerId, TrackerMediaDomain d
             || domain == TrackerMediaDomain::Television);
 }
 
+bool providerSupportsMappedDelivery(TrackerProviderId providerId,
+                                    TrackerMediaDomain domain,
+                                    const QString &remoteMediaId)
+{
+    if (!providerSupportsDelivery(providerId, domain))
+        return false;
+    const QStringList parts = remoteMediaId.split(QLatin1Char(':'));
+    bool numeric = false;
+    if (domain == TrackerMediaDomain::Movie) {
+        const QString id = parts.size() == 2 && parts.first() == QLatin1String("movie")
+            ? parts.at(1) : remoteMediaId;
+        id.toULongLong(&numeric);
+        return numeric;
+    }
+    if (parts.size() != 4)
+        return false;
+    parts.at(1).toULongLong(&numeric);
+    bool seasonOk = false;
+    bool episodeOk = false;
+    const int season = parts.at(2).toInt(&seasonOk);
+    const int episode = parts.at(3).toInt(&episodeOk);
+    if (!numeric || !seasonOk || !episodeOk || season < 0 || episode <= 0)
+        return false;
+    return (domain == TrackerMediaDomain::Television
+            && parts.first() == QLatin1String("episode"))
+        || (domain == TrackerMediaDomain::Anime
+            && parts.first() == QLatin1String("anime_episode"));
+}
+
 QString remoteSnapshotBinding(const TrackerRemoteDeliverySnapshot &snapshot)
 {
     QStringList rows;
@@ -678,7 +707,9 @@ bool connectionMatches(const TrackerConnectionStore *connections,
                        const TrackerDeliveryOperation &operation)
 {
     if (!connections || !connections->healthy()
-        || !providerSupportsDelivery(operation.providerId, operation.fact.mediaDomain))
+        || !providerSupportsMappedDelivery(operation.providerId,
+                                            operation.fact.mediaDomain,
+                                            operation.mapping.remote.remoteMediaId))
         return false;
     const auto connection = connections->connection(operation.providerId);
     return connection && connection->state == TrackerConnectionState::Connected
@@ -842,7 +873,8 @@ std::optional<TrackerExportPreview> TrackerDeliveryStore::createExportPreview(
                 item.remoteStateFingerprint = remoteState->stateFingerprint;
                 item.remoteStateSummary = remoteState->safeSummary;
 
-                if (!providerSupportsDelivery(providerId, fact.mediaDomain)
+                if (!providerSupportsMappedDelivery(providerId, fact.mediaDomain,
+                                                     item.mapping->remote.remoteMediaId)
                     || !m_connections->connection(providerId)->capabilities.testFlag(
                         requiredCapability(fact.kind))) {
                     item.reason = TrackerExportIneligibleReason::Unsupported;
@@ -959,6 +991,9 @@ bool TrackerDeliveryStore::confirmExport(const QString &previewId,
         const auto currentMapping = uniqueMapping(m_mappings, preview.providerId,
                                                  preview.remoteAccountId, item.fact, &ambiguous);
         if (ambiguous || !currentMapping || !sameMapping(*currentMapping, *item.mapping)
+            || !providerSupportsMappedDelivery(preview.providerId,
+                                                item.fact.mediaDomain,
+                                                currentMapping->remote.remoteMediaId)
             || !currentConnection(m_connections, preview.providerId, preview.remoteAccountId,
                                   preview.connectionGeneration, requiredCapability(item.fact.kind),
                                   item.fact.mediaDomain)) {
@@ -1114,6 +1149,9 @@ bool TrackerDeliveryStore::observeCommittedFact(const TrackerDeliveryFact &fact,
         const auto mapping = uniqueMapping(m_mappings, preference.providerId,
                                           preference.remoteAccountId, fact, &ambiguous);
         if (!mapping || ambiguous)
+            continue;
+        if (!providerSupportsMappedDelivery(preference.providerId, fact.mediaDomain,
+                                            mapping->remote.remoteMediaId))
             continue;
         QString id;
         if (!enqueueFact(fact, preference.providerId, preference.remoteAccountId,
@@ -1529,7 +1567,8 @@ bool TrackerDeliveryStore::enqueueFact(const TrackerDeliveryFact &fact,
                                        QString *out)
 {
     if (fact.origin != TrackerDeliveryOrigin::NativeLocal || !validFact(fact)
-        || !providerSupportsDelivery(providerId, fact.mediaDomain)
+        || !providerSupportsMappedDelivery(providerId, fact.mediaDomain,
+                                            mapping.remote.remoteMediaId)
         || !validMapping(mapping) || mapping.remote.providerId != providerId
         || mapping.remote.remoteAccountId != remoteAccountId
         || mapping.canonical.canonicalMediaId != fact.canonicalMediaId

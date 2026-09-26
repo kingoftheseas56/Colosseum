@@ -17,6 +17,7 @@ type syncMergeCurrent struct {
 	HLCPhysicalMS int64
 	HLCCounter    uint64
 	Operation     string
+	DeletedAtMS   int64
 	Payload       json.RawMessage
 }
 
@@ -29,6 +30,7 @@ type syncResolution struct {
 	WinnerSchemaVersion int
 	WinnerHLCPhysicalMS int64
 	WinnerHLCCounter    uint64
+	DeletedAtMS         int64
 }
 
 type syncHistoryPayload struct {
@@ -519,6 +521,7 @@ func syncResolutionFromCurrent(
 		WinnerSchemaVersion: current.SchemaVersion,
 		WinnerHLCPhysicalMS: current.HLCPhysicalMS,
 		WinnerHLCCounter:    current.HLCCounter,
+		DeletedAtMS:         current.DeletedAtMS,
 	}
 }
 
@@ -536,6 +539,7 @@ func syncResolutionFromIncoming(
 		WinnerSchemaVersion: incoming.SchemaVersion,
 		WinnerHLCPhysicalMS: incoming.HLCPhysicalMS,
 		WinnerHLCCounter:    incoming.HLCCounter,
+		DeletedAtMS:         incoming.DeletedAtMS,
 	}
 }
 

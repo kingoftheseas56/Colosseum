@@ -20,14 +20,7 @@ struct SyncAdapterSnapshot {
     bool missingRecordsAreDeletes = true;
     QList<SyncAdapterRecord> records;
     QList<QString> tombstones;
-};
-
-struct SyncAdapterMutation {
-    QString categoryId;
-    QString recordKey;
-    int schemaVersion = 0;
-    SyncWireOperation operation = SyncWireOperation::Put;
-    QJsonValue payload;
+    QHash<QString, qint64> tombstoneEventMs;
 };
 
 struct SyncAdapterRegistryError {

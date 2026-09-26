@@ -11,6 +11,9 @@ endif()
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
+option(COLOSSEUM_RATINGS_REVIEWS_TESTING
+    "Enable the isolated Arc 49 Ratings & Reviews joined fixture"
+    OFF)
 
 # Optional build-time override. AccountServiceEndpoint reads the environment
 # first, then this define, then the app-owned production endpoint. This keeps
@@ -18,6 +21,12 @@ option(COLOSSEUM_UPDATE_TESTING
 # inherited process environment.
 set(COLOSSEUM_ACCOUNT_SERVICE_URL "" CACHE STRING
     "Optional account service base URL compiled into this build; empty uses the app-owned production endpoint")
+
+# SIMKL AUTH V2 uses a public client identifier for desktop/device clients.
+# It is safe to ship, but the provider remains fail-closed when this value is
+# absent so an unregistered build can never present a false Connect action.
+set(COLOSSEUM_SIMKL_CLIENT_ID "" CACHE STRING
+    "Public SIMKL AUTH V2 client_id for Colosseum; empty keeps SIMKL unavailable")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -210,10 +219,22 @@ add_executable(colosseum
     account/HistoryStore.cpp
     account/HistorySyncAdapter.cpp
     account/LegacyPersonalStateStorage.cpp
+    account/RatingsReviewsStore.cpp
+    account/RatingsReviewsSyncAdapter.cpp
+    account/RatingsReviewsController.cpp
+    account/RatingsReviewsDelivery.cpp
+    account/RatingsReviewsDeliveryOutbox.cpp
+    account/RatingsReviewsDeliveryReceiptStore.cpp
+    account/RatingsReviewsDeliveryTypes.cpp
+    account/RatingsReviewsProviderMappingStore.cpp
+    engine/ColosseumTitleIdentityRegistry.cpp
+    engine/RatingsReviewsProviderReadProjection.cpp
     account/ProfileAdoption.cpp
     account/ProfileContext.cpp
     account/ProfilePaths.cpp
     account/ProfilePreferencesStore.cpp
+    account/RatingsReviewsConversionMap.cpp
+    account/RatingsReviewsConversionSyncAdapter.cpp
     account/ProfilePreferencesSyncAdapter.cpp
     account/StremioLinkSyncAdapter.cpp
     account/ProfileStoreRuntime.cpp
@@ -238,6 +259,10 @@ add_executable(colosseum
     trackers/TrackerLifecycleCoordinator.cpp
     trackers/TrackerCredentialVault.cpp
     trackers/SimklAuth.cpp
+    trackers/SimklHttpTransport.cpp
+    trackers/SimklConnectionController.cpp
+    trackers/SimklApiClient.cpp
+    trackers/SimklSyncRuntime.cpp
     trackers/TrackerMappingStore.cpp
     trackers/TrackerHistoryEvidenceStore.cpp
     trackers/TrackerImportStore.cpp
@@ -283,6 +308,16 @@ add_executable(colosseum
     account/HistoryStore.h
     account/HistorySyncAdapter.h
     account/LegacyPersonalStateStorage.h
+    account/RatingsReviewsStore.h
+    account/RatingsReviewsSyncAdapter.h
+    account/RatingsReviewsController.h
+    account/RatingsReviewsDelivery.h
+    account/RatingsReviewsDeliveryOutbox.h
+    account/RatingsReviewsDeliveryReceiptStore.h
+    account/RatingsReviewsDeliveryTypes.h
+    account/RatingsReviewsProviderMappingStore.h
+    engine/ColosseumTitleIdentityRegistry.h
+    engine/RatingsReviewsProviderReadProjection.h
     account/ProfileAdoption.h
     account/ProfileContext.h
     account/ProfilePaths.h
@@ -320,6 +355,8 @@ add_executable(colosseum
     trackers/TrackerDeliveryStore.h
     trackers/TrackerScrobbleStore.h
     trackers/TrackerScrobbleRuntime.h
+    trackers/SimklApiClient.h
+    trackers/SimklSyncRuntime.h
     trackers/TrackerCanonicalDeliverySource.h
     trackers/TrackerDeliveryRuntime.h
     trackers/TrackerSyncSettingsStore.h
@@ -703,8 +740,26 @@ target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine 
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
+if(COLOSSEUM_SIMKL_CLIENT_ID)
+    string(STRIP "${COLOSSEUM_SIMKL_CLIENT_ID}" colosseum_simkl_client_id)
+    if(NOT colosseum_simkl_client_id STREQUAL COLOSSEUM_SIMKL_CLIENT_ID
+       OR colosseum_simkl_client_id MATCHES "[\"\\\\]"
+       OR colosseum_simkl_client_id STREQUAL "")
+        message(FATAL_ERROR "COLOSSEUM_SIMKL_CLIENT_ID is malformed")
+    endif()
+    target_compile_definitions(colosseum PRIVATE
+        COLOSSEUM_SIMKL_CLIENT_ID="${colosseum_simkl_client_id}")
+    message(STATUS "SIMKL AUTH V2 enabled for this build")
+else()
+    message(STATUS "SIMKL AUTH V2 disabled: COLOSSEUM_SIMKL_CLIENT_ID is empty")
+endif()
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
+endif()
+if(COLOSSEUM_RATINGS_REVIEWS_TESTING)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_RATINGS_REVIEWS_TESTING=1)
+    target_sources(colosseum PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/ratings_reviews/ratings_reviews_test_resources.qrc")
 endif()
 if(COLOSSEUM_ACCOUNT_SERVICE_URL)
     # AccountHttpTransport::isAllowedBaseUrl accepts https anywhere but http only
@@ -734,6 +789,9 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+add_subdirectory(feria)
+target_link_libraries(colosseum PRIVATE feria_discovery)
+
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.
@@ -1137,6 +1195,8 @@ add_executable(reader2_profile_runtime_harness
     account/ProfilePaths.h
     account/ProfilePreferencesStore.cpp
     account/ProfilePreferencesStore.h
+    account/RatingsReviewsConversionMap.cpp
+    account/RatingsReviewsConversionMap.h
     account/ProfileStoreRuntime.cpp
     account/ProfileStoreRuntime.h
     ProgressStore.h

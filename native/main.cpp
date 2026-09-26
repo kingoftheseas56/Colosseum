@@ -15,6 +15,7 @@
 #include <QNetworkProxy>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
 #include <QtWebEngineQuick/QtWebEngineQuick>
@@ -48,6 +49,9 @@
 #include "AudioPairingStore.h"
 #include "account/AccountRuntime.h"
 #include "account/ActivityPlaybackTracker.h"
+#include "account/RatingsReviewsController.h"
+#include "account/RatingsReviewsDelivery.h"
+#include "account/ProfilePreferencesStore.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
@@ -70,6 +74,8 @@
 #include "engine/TankobanCatalog.h"
 #include "engine/ImdbCatalog.h"
 #include "engine/BiblioCatalog.h"
+#include "engine/ColosseumTitleIdentityRegistry.h"
+#include "engine/RatingsReviewsProviderReadProjection.h"
 #include "engine/LocalDownloads.h"
 #include "engine/AppLog.h"
 #include "bootstrap/AppDataMigration.h"
@@ -127,11 +133,43 @@
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
 // compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
+#include "feria/PorticoComposition.h"
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
 #ifdef COLOSSEUM_PLAYER2
 #include "player2/Player2Backend.h"
 #include "player2/video/Player2VideoItem.h"
+#endif
+
+// Package 1 has no production Ratings/Reviews writer.  This adapter exists
+// only in the separately compiled, exact-tagged assembled-app fixture.
+#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
+class RatingsReviewsTaggedFixtureAdapter final : public RatingsReviewsDeliveryAdapter
+{
+public:
+    explicit RatingsReviewsTaggedFixtureAdapter(bool unknownFirstSend = false)
+        : m_unknownFirstSend(unknownFirstSend) {}
+
+    Result send(const RatingsReviewsDeliveryOperation &) override
+    {
+        ++m_sendCount;
+        if (m_unknownFirstSend && m_sendCount == 1) {
+            return {SendOutcome::UnknownAfterDispatch,
+                    QStringLiteral("fixture_unknown"), {}, {}, std::nullopt};
+        }
+        return {SendOutcome::Success,
+                QStringLiteral("fixture_ok"), {}, {}, std::nullopt};
+    }
+
+    ReconcileOutcome reconcile(const RatingsReviewsDeliveryOperation &) override
+    {
+        return ReconcileOutcome::MatchesIntendedState;
+    }
+
+private:
+    bool m_unknownFirstSend = false;
+    int m_sendCount = 0;
+};
 #endif
 
 // gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
@@ -1709,9 +1747,104 @@ int main(int argc, char *argv[]) {
     // hold — the split-brain risk of two owners binding the same QML names is
     // closed by construction.
     auto *accountRuntime = new AccountRuntime(&app);
+#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
+    std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
+    std::unique_ptr<RatingsReviewsTaggedFixtureAdapter> ratingsReviewsFixtureA;
+    std::unique_ptr<RatingsReviewsTaggedFixtureAdapter> ratingsReviewsFixtureB;
+    std::unique_ptr<RatingsReviewsTaggedFixtureAdapter> ratingsReviewsFixtureSpoilerBlocked;
+    if (qEnvironmentVariable("COLOSSEUM_APPDATA_TAG")
+        == QLatin1String("ratings-reviews-delivery-fixture")) {
+        // This is the sole assembled-app writer seam in Package 1.  It is
+        // isolated by both compile flag and exact AppData tag; daily launches
+        // never register any Ratings/Reviews adapter.
+        auto *delivery = accountRuntime->ratingsReviewsDelivery();
+        const auto hook = RatingsReviewsConversionTestHook::syntheticDomains();
+        ratingsReviewsFixturePreferences = std::make_unique<ProfilePreferencesStore>(
+            QDir(instanceAppData).filePath(QStringLiteral("ratings-reviews-fixture-preferences.ini")),
+            hook);
+        const auto mapA = RatingsReviewsConversionMap::recommended(
+            QStringLiteral("fixture-a"), QStringLiteral("fixture-halfpoint-v1"), 1, hook);
+        const auto mapB = RatingsReviewsConversionMap::recommended(
+            QStringLiteral("fixture-b"), QStringLiteral("fixture-halfpoint-v1"), 1, hook);
+        if (!mapA || !mapB
+            || !ratingsReviewsFixturePreferences->ratingsReviewsConversionMapsHealthy()
+            || (!ratingsReviewsFixturePreferences->hasRatingsReviewsProviderOrder()
+                && !ratingsReviewsFixturePreferences->setRatingsReviewsProviderOrder(
+                    RatingsReviewsConversionMap::canonicalProviderIds()))
+            || (!ratingsReviewsFixturePreferences->hasRatingsReviewsDefaultRatingDestinations()
+                && !ratingsReviewsFixturePreferences->setRatingsReviewsDefaultRatingDestinations(
+                    {QStringLiteral("fixture-a"), QStringLiteral("fixture-b")}))
+            || (!ratingsReviewsFixturePreferences->hasRatingsReviewsDefaultReviewDestinations()
+                && !ratingsReviewsFixturePreferences->setRatingsReviewsDefaultReviewDestinations(
+                    {QStringLiteral("fixture-a")}))
+            || (!ratingsReviewsFixturePreferences->ratingsReviewsConversionMap(QStringLiteral("fixture-a"))
+                && !ratingsReviewsFixturePreferences->setRatingsReviewsConversionMap(*mapA))
+            || (!ratingsReviewsFixturePreferences->ratingsReviewsConversionMap(QStringLiteral("fixture-b"))
+                && !ratingsReviewsFixturePreferences->setRatingsReviewsConversionMap(*mapB))) {
+            qWarning() << "Ratings/Reviews tagged fixture preferences could not be seeded";
+        } else {
+            delivery->setFixturePreferencesForTests(ratingsReviewsFixturePreferences.get());
+            ratingsReviewsFixtureA = std::make_unique<RatingsReviewsTaggedFixtureAdapter>();
+            ratingsReviewsFixtureB = std::make_unique<RatingsReviewsTaggedFixtureAdapter>(true);
+            ratingsReviewsFixtureSpoilerBlocked = std::make_unique<RatingsReviewsTaggedFixtureAdapter>();
+            RatingsReviewsDeliveryProviderCapability full;
+            full.connected = true;
+            full.connectionGeneration = 1;
+            full.ratingCapable = true;
+            full.reviewCapable = true;
+            full.spoilerMetadata = true;
+            delivery->setFixtureProviderForTests(
+                QStringLiteral("fixture-a"), full, ratingsReviewsFixtureA.get());
+            RatingsReviewsDeliveryProviderCapability unknown = full;
+            unknown.reviewCapable = false;
+            delivery->setFixtureProviderForTests(
+                QStringLiteral("fixture-b"), unknown, ratingsReviewsFixtureB.get());
+            RatingsReviewsDeliveryProviderCapability spoilerBlocked = full;
+            spoilerBlocked.spoilerMetadata = false;
+            delivery->setFixtureProviderForTests(
+                QStringLiteral("fixture-spoiler-blocked"), spoilerBlocked,
+                ratingsReviewsFixtureSpoilerBlocked.get());
+            delivery->enableTaggedFixtureMappingForTests({
+                QStringLiteral("theatre"), QStringLiteral("series"),
+                QStringLiteral("fixture-provider-read-series")});
+        }
+    }
+#endif
     accountRuntime->setDownloadSource(localDownloads);
     accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
+
+    auto *ratingsReviewsIdentity = new ColosseumTitleIdentityRegistry(QString(), &app);
+    // Persist learned provider-id pivots (kitsu:/mal:… → tt…) under the tagged
+    // AppData root; the tag re-rooting applied earlier keeps isolated test
+    // sessions from touching the daily profile's learned unions.
+    {
+        const QString unionsDir = QStandardPaths::writableLocation(
+            QStandardPaths::AppDataLocation) + QStringLiteral("/ratings-reviews");
+        if (QDir().mkpath(unionsDir))
+            ratingsReviewsIdentity->setAliasUnionsPath(
+                unionsDir + QStringLiteral("/alias-unions-v1.json"));
+    }
+    auto *ratingsReviewsProviderRead = new RatingsReviewsProviderReadProjection(&app);
+    auto *ratingsReviewsController = new RatingsReviewsController(
+        accountRuntime->profileStores(), ratingsReviewsIdentity,
+        ratingsReviewsProviderRead, &app, accountRuntime->ratingsReviewsDelivery());
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("RatingsReviewsIdentity"), ratingsReviewsIdentity);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("RatingsReviewsController"), ratingsReviewsController);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("ratingsReviewsDeliveryState"),
+        accountRuntime->ratingsReviewsDelivery());
+#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
+    const QString ratingsReviewsFixture =
+        qEnvironmentVariable("COLOSSEUM_APPDATA_TAG")
+                == QLatin1String("ratings-reviews-delivery-fixture")
+            ? qEnvironmentVariable("COLOSSEUM_RR_PROVIDER_FIXTURE") : QString();
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("RatingsReviewsProviderFixture"), ratingsReviewsFixture);
+#endif
+
     // Reader2 private JSON follows the same profile lifecycle as the account-owned
     // stores. The runtime emits storesAboutToChange before destroying the old owner;
     // Reader2Bridge uses that window to flush/scrub QML, clear paper authorization,
@@ -1771,6 +1904,8 @@ int main(int argc, char *argv[]) {
     // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback
     // stalls without adding work to every event delivery.
     app.setStallContext(QStringLiteral("startup"), QStringLiteral("qml-load"));
+    PorticoComposition feriaDiscovery;
+    feriaDiscovery.exposeTo(engine.rootContext());
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
@@ -1783,6 +1918,22 @@ int main(int argc, char *argv[]) {
 
     const QStringList launchArguments = QCoreApplication::arguments();
     QObject* rootObject = engine.rootObjects().constFirst();
+#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
+    if (qEnvironmentVariable("COLOSSEUM_APPDATA_TAG")
+        == QLatin1String("ratings-reviews-delivery-fixture")) {
+        const QVariant fixtureTitle = QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("fixture-provider-read-series")},
+            {QStringLiteral("type"), QStringLiteral("series")},
+            {QStringLiteral("title"), QStringLiteral("Arc 49 Delivery Fixture")}};
+        const bool routed = QMetaObject::invokeMethod(
+            rootObject, "openTheatreSeries", Qt::DirectConnection,
+            Q_ARG(QVariant, fixtureTitle));
+        if (!routed) {
+            qCritical("Arc 49 delivery fixture could not open its exact Theatre title route");
+            return -1;
+        }
+    }
+#endif
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
         QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
                          [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {

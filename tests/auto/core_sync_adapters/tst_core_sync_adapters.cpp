@@ -9,6 +9,9 @@
 #include "account/CoreStateSyncProjection.h"
 #include "account/HistoryStore.h"
 #include "account/ProfilePaths.h"
+#include "account/ProfilePreferencesStore.h"
+#include "account/RatingsReviewsConversionMap.h"
+#include "account/RatingsReviewsConversionSyncAdapter.h"
 #include "account/ProgressSyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
 #include "account/SyncEngine.h"
@@ -490,6 +493,39 @@ struct CoreReplica {
     }
 };
 
+struct ConversionCoreReplica {
+    ProfilePaths profile;
+    RatingsReviewsConversionTestHook hook;
+    ProfilePreferencesStore preferences;
+    CoreFixtureTransport transport;
+    AccountClient client;
+    SyncAdapterRegistry registry;
+    RatingsReviewsConversionSyncAdapter adapter;
+    SyncEngine engine;
+
+    ConversionCoreReplica(
+        CoreFixtureService *service,
+        const ProfilePaths &profileValue,
+        const QString &deviceId)
+        : profile(profileValue),
+          hook(RatingsReviewsConversionTestHook::syntheticDomains()),
+          preferences(profile.preferencesIniPath(), hook),
+          transport(service),
+          client(&transport),
+          adapter(&preferences),
+          engine(&client, &registry) {
+        QDir().mkpath(profile.profileRoot());
+        client.setAccessToken(QByteArrayLiteral("fixture-access"));
+        if (!registry.registerAdapter(&adapter))
+            qFatal("conversion core adapter registration failed");
+        engine.setAutomaticSchedulingEnabled(false);
+        engine.setNetworkEnabled(false);
+        QString error;
+        if (!engine.start(profile, deviceId, &error))
+            qFatal("conversion core engine start failed: %s", qPrintable(error));
+    }
+};
+
 ProfilePaths makeProfile(
     QTemporaryDir *temp) {
     const auto profile =
@@ -595,6 +631,7 @@ private slots:
     void cleanup();
     void projectionStripsLocalOnlyNestedMaterial();
     void projectionExcludesFilesystemIdentity();
+    void ratingsReviewsConversionMapsUseExistingCoreEngineWithoutEcho();
     void collectionRemotePutPreservesLocalOnlyOverlay();
     void collectionAdapterRoundTripsAndTombstones();
     void progressSnapshotKeepsRawSiblingRecords();
@@ -643,6 +680,46 @@ void tst_core_sync_adapters::init() {
 
 void tst_core_sync_adapters::cleanup() {
     qunsetenv("COLOSSEUM_APPDATA_TAG");
+}
+
+void tst_core_sync_adapters::
+ratingsReviewsConversionMapsUseExistingCoreEngineWithoutEcho() {
+    QTemporaryDir tempA;
+    QTemporaryDir tempB;
+    QVERIFY(tempA.isValid());
+    QVERIFY(tempB.isValid());
+
+    CoreFixtureService service;
+    ConversionCoreReplica a(
+        &service, makeProfile(&tempA), QString::fromLatin1(kDeviceA));
+    ConversionCoreReplica b(
+        &service, makeProfile(&tempB), QString::fromLatin1(kDeviceB));
+    QSignalSpy bLocal(
+        &b.registry, &SyncAdapterRegistry::localMutationAvailable);
+
+    QString error;
+    const auto map = RatingsReviewsConversionMap::recommended(
+        QStringLiteral("fixture-a"),
+        QStringLiteral("fixture-halfpoint-v1"),
+        1,
+        a.hook,
+        &error);
+    QVERIFY2(map.has_value(), qPrintable(error));
+    QVERIFY(a.preferences.setRatingsReviewsConversionMap(*map));
+    QTRY_COMPARE(a.engine.pendingOutboxCount(), 1);
+
+    a.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(a.engine.pendingOutboxCount(), 0);
+    b.engine.setNetworkEnabled(true);
+    b.engine.requestImmediateSync();
+
+    QTRY_VERIFY(
+        b.preferences.ratingsReviewsConversionMap(map->providerId).has_value());
+    QCOMPARE(
+        b.preferences.ratingsReviewsConversionMap(map->providerId)->digest(),
+        map->digest());
+    QCOMPARE(bLocal.count(), 0);
+    QTRY_COMPARE(b.engine.pendingOutboxCount(), 0);
 }
 
 void tst_core_sync_adapters::

@@ -73,6 +73,34 @@ func snapshotEntryKey(entry SyncPullEntry) string {
 	return entry.Mutation.Category + "/" + entry.Mutation.RecordKey
 }
 
+func TestRatingsReviewsSnapshotRetainsDeleteTimestamp(t *testing.T) {
+	fixture := newServiceFixture(t)
+	created := createFixtureAccount(t, fixture, "SnapshotRatingsReviews")
+	auth := authenticateFixtureSession(t, fixture, created.Session)
+	now := fixture.clock.Now().UnixMilli()
+	mutation := fixtureRatingsReviewsMutation(
+		"99400000-0000-4000-8000-000000000001", auth.Device.ID, "delete", now, 5001)
+	push, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{mutation})
+	if err != nil || len(push.Results) != 1 || !push.Results[0].Accepted || !push.Results[0].Won {
+		t.Fatalf("RR snapshot seed = %+v err=%v", push, err)
+	}
+
+	snapshot, err := fixture.service.SnapshotSync(context.Background(), auth, "")
+	if err != nil {
+		t.Fatalf("SnapshotSync(RR) error = %v", err)
+	}
+	for _, entry := range snapshot.Entries {
+		if entry.Mutation.Category == "ratings_reviews" && entry.Mutation.RecordKey == mutation.RecordKey {
+			if entry.Mutation.Operation != "delete" || entry.Mutation.DeletedAtMS != "5001" {
+				t.Fatalf("RR snapshot mutation = %+v", entry.Mutation)
+			}
+			return
+		}
+	}
+	t.Fatal("RR delete missing from snapshot")
+}
+
 func TestSyncSnapshotFirstPageFreezesCursorAcrossPages(t *testing.T) {
 	fixture := newServiceFixture(t)
 	accountResult := createFixtureAccount(t, fixture, "SnapshotFrozenCursor")

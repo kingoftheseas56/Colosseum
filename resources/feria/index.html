@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Feria · Colosseum</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="../reader2/qwebchannel.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="mast">
+    <button id="close" class="back" type="button" aria-label="Close Feria">‹ <span>Colosseum</span></button>
+    <div class="identity"><span class="identity-mark" aria-hidden="true">✦</span><span>FERIA</span></div>
+    <div class="tools">
+      <button id="search-toggle" type="button" aria-label="Search Feria"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7"/><path d="m16 16 5 5"/></svg><span>Search</span></button>
+      <button id="refresh" type="button" aria-label="Refresh discovery">↻</button>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-image" id="hero-image"></div>
+      <div class="hero-shade"></div>
+      <div class="hero-copy">
+        <span class="eyebrow" id="hero-kicker">DISCOVER ACROSS YOUR SERVICES</span>
+        <h1 id="hero-title">A world of stories.</h1>
+        <p id="hero-summary">Films, shows, music, and books in one place.</p>
+        <button id="hero-details" type="button" disabled>Explore title <span aria-hidden="true">↗</span></button>
+      </div>
+      <span class="hero-index" id="hero-index">FERIA / 01</span>
+    </section>
+
+    <section class="services" aria-labelledby="services-title">
+      <div class="section-head"><div><span class="eyebrow">YOUR WINDOW INTO THE WORLD</span><h2 id="services-title">Services</h2></div><span class="section-note">Choose a service to narrow the shelves</span></div>
+      <div class="service-rail" id="services"></div>
+    </section>
+
+    <nav class="lens-bar" aria-label="Browse by medium" id="lenses">
+      <button type="button" data-lens="all" class="selected">All</button>
+      <button type="button" data-lens="watch">Watch</button>
+      <button type="button" data-lens="listen">Listen</button>
+      <button type="button" data-lens="read">Read</button>
+    </nav>
+
+    <section id="search-view" class="search-view" hidden>
+      <label for="query" class="eyebrow">FIND SOMETHING</label>
+      <input id="query" type="search" placeholder="Search titles, artists, or creators" autocomplete="off">
+      <div id="search-results" class="poster-grid"></div>
+    </section>
+
+    <div id="shelves" class="shelves" aria-live="polite"><div class="status">Connecting to live discovery…</div></div>
+  </main>
+
+  <div id="detail" class="detail" hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <div class="detail-scrim" data-close-detail></div>
+    <article class="detail-panel">
+      <button id="detail-close" type="button" aria-label="Close details">×</button>
+      <div id="detail-art" class="detail-art"></div>
+      <div class="detail-copy">
+        <span class="eyebrow" id="detail-kind"></span>
+        <h2 id="detail-title"></h2>
+        <p class="detail-meta" id="detail-meta"></p>
+        <p id="detail-summary"></p>
+        <h3>Available destinations</h3>
+        <div id="destinations"></div>
+      </div>
+    </article>
+  </div>
+</body>
+</html>

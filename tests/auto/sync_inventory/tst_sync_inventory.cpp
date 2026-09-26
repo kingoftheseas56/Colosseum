@@ -41,6 +41,8 @@ QStringList approvedInventoryIds() {
         QStringLiteral("extension_safe_config"),
         QStringLiteral("vault_identity_decisions"),
         QStringLiteral("desired_download_intent"),
+        QStringLiteral("ratings_reviews"),
+        QStringLiteral("ratings_reviews_conversion_maps"),
 
         QStringLiteral("account_password"),
         QStringLiteral("recovery_key"),
@@ -111,6 +113,7 @@ private slots:
     void filesystemPathSentinels();
 
     void nestedForbiddenFieldCannotHide();
+    void ratingsReviewsReviewPathExceptionIsNarrow();
     void ordinaryRemoteUrlsAreNotMistakenForFilesystemPaths();
 };
 
@@ -654,6 +657,35 @@ nestedForbiddenFieldCannotHide() {
     QCOMPARE(
         result.fieldPath,
         QStringLiteral("$.items[0].recoveryKey"));
+}
+
+void tst_sync_inventory::
+ratingsReviewsReviewPathExceptionIsNarrow() {
+    QJsonObject payload{
+        {QStringLiteral("world"), QStringLiteral("theatre")},
+        {QStringLiteral("kind"), QStringLiteral("series")},
+        {QStringLiteral("media_id"), QStringLiteral("fixture-series")},
+        {QStringLiteral("rating"), 8.5},
+        {QStringLiteral("review"), QStringLiteral("C:\\Notes\\review.txt")},
+        {QStringLiteral("spoiler"), false},
+        {QStringLiteral("created_at_ms"), 1720000000000.0},
+        {QStringLiteral("updated_at_ms"), 1720000001000.0}};
+
+    SyncPayloadValidation result = SyncPayloadFirewall::validate(
+        QStringLiteral("ratings_reviews"), payload);
+    QVERIFY2(result.allowed, qPrintable(result.code + QStringLiteral(" ") + result.fieldPath));
+
+    payload.insert(QStringLiteral("media_id"), QStringLiteral("C:\\Notes\\review.txt"));
+    result = SyncPayloadFirewall::validate(QStringLiteral("ratings_reviews"), payload);
+    QVERIFY(!result.allowed);
+    QCOMPARE(result.code, QStringLiteral("filesystem_path_value"));
+    QCOMPARE(result.fieldPath, QStringLiteral("$.media_id"));
+
+    payload.insert(QStringLiteral("media_id"), QStringLiteral("fixture-series"));
+    payload.insert(QStringLiteral("credentials"), QStringLiteral("sentinel"));
+    result = SyncPayloadFirewall::validate(QStringLiteral("ratings_reviews"), payload);
+    QVERIFY(!result.allowed);
+    QCOMPARE(result.code, QStringLiteral("forbidden_field"));
 }
 
 void tst_sync_inventory::

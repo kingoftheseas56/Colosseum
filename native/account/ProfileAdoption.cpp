@@ -148,6 +148,7 @@ std::optional<ProfileAdoption> ProfileAdoption::beginInternal(
     snapshot.legacyBackupRoot = paths.adoptionBackupRoot();
     snapshot.sourceKind = sourceKind;
     snapshot.sourceKindRecorded = recordSourceKind;
+    snapshot.ratingsReviewsPrivateHandoffMarkerRecorded = true;
 
     ProfileAdoption adoption(paths, snapshot);
     if (!adoption.writeSnapshot(error)) {
@@ -290,6 +291,30 @@ bool ProfileAdoption::markActivityLegacyQuarantined(const QString &activityLegac
     return writeSnapshot(error);
 }
 
+bool ProfileAdoption::markRatingsReviewsPrivateHandoffVerified(
+    QString *error) {
+    if (m_snapshot.state != State::Promoted
+        && m_snapshot.state != State::LegacyQuarantined
+        && m_snapshot.state != State::Committed) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Ratings/Reviews private handoff can only be verified after profile promotion."));
+    }
+    if (!QFileInfo::exists(m_snapshot.finalRoot)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Ratings/Reviews private handoff requires the promoted account profile."));
+    }
+    if (m_snapshot.ratingsReviewsPrivateHandoffVerified)
+        return true;
+
+    m_snapshot.ratingsReviewsPrivateHandoffVerified = true;
+    m_snapshot.ratingsReviewsPrivateHandoffMarkerRecorded = true;
+    return writeSnapshot(error);
+}
+
 bool ProfileAdoption::commit(QString *error) {
     if (m_snapshot.state != State::LegacyQuarantined)
         return setError(error, QStringLiteral("Profile adoption cannot commit before legacy state is quarantined."));
@@ -304,6 +329,14 @@ bool ProfileAdoption::commit(QString *error) {
     if (m_snapshot.activityTargetDigest != m_snapshot.activitySourceDigest
         || m_snapshot.activityLegacyBackupDigest != m_snapshot.activitySourceDigest) {
         return setError(error, QStringLiteral("Profile adoption activity-ledger verification is incomplete."));
+    }
+    // New adoption journals record the private Ratings/Reviews delivery
+    // handoff.  Local state cannot retire until that marker is verified.
+    // Older journals predate this field and deliberately remain compatible.
+    if (m_snapshot.ratingsReviewsPrivateHandoffMarkerRecorded
+        && !m_snapshot.ratingsReviewsPrivateHandoffVerified) {
+        return setError(error, QStringLiteral(
+            "Profile adoption cannot commit before Ratings/Reviews private state is handed off."));
     }
 
     m_snapshot.state = State::Committed;
@@ -334,6 +367,11 @@ bool ProfileAdoption::commitForAttachment(QString *error) {
             error,
             QStringLiteral(
                 "Profile adoption semantic verification is incomplete."));
+    }
+    if (m_snapshot.ratingsReviewsPrivateHandoffMarkerRecorded
+        && !m_snapshot.ratingsReviewsPrivateHandoffVerified) {
+        return setError(error, QStringLiteral(
+            "Profile attachment cannot commit before Ratings/Reviews private state is handed off."));
     }
 
     // Record the backup verification facts without claiming that the source
@@ -495,6 +533,15 @@ std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const Pro
     snapshot.activitySourceDigest = object.value(QStringLiteral("activity_source_digest")).toString();
     snapshot.activityTargetDigest = object.value(QStringLiteral("activity_target_digest")).toString();
     snapshot.activityLegacyBackupDigest = object.value(QStringLiteral("activity_legacy_backup_digest")).toString();
+    if (object.contains(QStringLiteral("ratings_reviews_private_handoff_verified"))
+        && !object.value(QStringLiteral("ratings_reviews_private_handoff_verified")).isBool()) {
+        setError(error, QStringLiteral("The Ratings/Reviews private-handoff journal marker is invalid."));
+        return std::nullopt;
+    }
+    snapshot.ratingsReviewsPrivateHandoffMarkerRecorded = object.contains(
+        QStringLiteral("ratings_reviews_private_handoff_verified"));
+    snapshot.ratingsReviewsPrivateHandoffVerified = object.value(
+        QStringLiteral("ratings_reviews_private_handoff_verified")).toBool(false);
 
     if (object.contains(QStringLiteral("source_kind"))) {
         const auto parsedSourceKind = sourceKindFromName(
@@ -535,6 +582,11 @@ bool ProfileAdoption::writeSnapshot(QString *error) const {
     object.insert(QStringLiteral("activity_source_digest"), m_snapshot.activitySourceDigest);
     object.insert(QStringLiteral("activity_target_digest"), m_snapshot.activityTargetDigest);
     object.insert(QStringLiteral("activity_legacy_backup_digest"), m_snapshot.activityLegacyBackupDigest);
+    if (m_snapshot.ratingsReviewsPrivateHandoffMarkerRecorded) {
+        object.insert(
+            QStringLiteral("ratings_reviews_private_handoff_verified"),
+            m_snapshot.ratingsReviewsPrivateHandoffVerified);
+    }
 
     const QByteArray payload = QJsonDocument(object).toJson(QJsonDocument::Compact);
 

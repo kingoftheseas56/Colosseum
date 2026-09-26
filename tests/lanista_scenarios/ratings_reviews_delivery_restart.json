@@ -1,0 +1,78 @@
+{
+  "name": "ratings-reviews-delivery-restart",
+  "comment": "Arc 49 T-05 phase 2. Run only after ratings_reviews_delivery.json with the same exact COLOSSEUM_RATINGS_REVIEWS_TESTING build, COLOSSEUM_RR_PROVIDER_FIXTURE=all_ready_visual, and --tag ratings-reviews-delivery-fixture. Do not pass --seed, clear storage, or click Publish. The existing tagged profile must reopen unchanged and report durable operation-derived counters.",
+  "steps": [
+    { "cmd": "ping", "label": "phase 2 uses the drive-enabled fixture build", "expect": [
+      { "path": "gates.drive", "op": "==", "value": true }
+    ]},
+    { "cmd": "get-state", "label": "phase 2 reuses the same exact data roots", "expect": [
+      { "path": "appDataRoot", "op": "matches", "value": "ratings-reviews-delivery-fixture$" },
+      { "path": "cacheRoot", "op": "matches", "value": "ratings-reviews-delivery-fixture/cache$" }
+    ]},
+    { "cmd": "ui-wait-for", "label": "phase 2 startup completes", "payload": {
+      "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "the same Theatre fixture title is reopened", "payload": {
+      "object": "theatreRatingsReviewsAction", "prop": "visible", "value": true, "timeout_ms": 30000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "reopen Ratings and Reviews without seeding or publishing", "payload": { "target": "theatreRatingsReviewsAction" }},
+    { "cmd": "ui-wait-for", "label": "restored Ratings and Reviews route is visible", "payload": {
+      "object": "ratingsReviewsHost", "prop": "visible", "value": true, "timeout_ms": 15000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "the delivery coordinator reports durable rehydration", "payload": {
+      "object": "ratingsReviewsDeliveryState", "prop": "fixturePhase", "value": "rehydrated", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "canonical rating and review remain present without serializing review content", "payload": {
+      "object": "ratingsReviewsHost", "props": ["canonicalRatingPresent", "canonicalReviewPresent", "committedRating", "committedSpoiler"]
+    }, "expect": [
+      { "path": "props.canonicalRatingPresent", "op": "==", "value": true },
+      { "path": "props.canonicalReviewPresent", "op": "==", "value": true },
+      { "path": "props.committedRating", "op": "==", "value": "8.0" },
+      { "path": "props.committedSpoiler", "op": "==", "value": true }
+    ]},
+    { "cmd": "qml-get", "label": "restart preserved all exact send/reconcile counters and no work remains pending", "payload": {
+      "object": "ratingsReviewsDeliveryState",
+      "props": ["fixtureARatingSendCount", "fixtureAReviewSendCount", "fixtureBSendCount", "fixtureBReconcileCount", "fixtureSpoilerBlockedSendCount", "pendingCount", "unknownCount"]
+    }, "expect": [
+      { "path": "props.fixtureARatingSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureAReviewSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureBSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureBReconcileCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureSpoilerBlockedSendCount", "op": "==", "value": 0 },
+      { "path": "props.pendingCount", "op": "==", "value": 0 },
+      { "path": "props.unknownCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "qml-get", "label": "the persisted provider-operation projection contains only safe status fields", "payload": {
+      "object": "ratingsReviewsDeliveryState", "props": ["providerRows"]
+    }, "expect": [
+      { "path": "props.providerRows", "op": "contains", "value": "fixture-a" }
+    ]},
+    { "cmd": "ui-wait-for", "label": "the successful A rating is still visible", "payload": {
+      "object": "ratingsReviewsDeliveryState_fixture-a_rating.set", "prop": "text", "value": "Succeeded", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "the reconciled B rating is still visible", "payload": {
+      "object": "ratingsReviewsDeliveryState_fixture-b_rating.set", "prop": "text", "value": "Succeeded", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "the independent A review is still visible", "payload": {
+      "object": "ratingsReviewsDeliveryState_fixture-a_review.set", "prop": "text", "value": "Succeeded", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "navigate back to the title detail", "payload": { "target": "ratingsReviewsBack" }},
+    { "cmd": "ui-wait-for", "label": "Ratings and Reviews closes without mutating delivery", "payload": {
+      "object": "ratingsReviewsLayer", "prop": "active", "value": false, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "reopen Ratings and Reviews from the same title", "payload": { "target": "theatreRatingsReviewsAction" }},
+    { "cmd": "ui-wait-for", "label": "return journey rehydrates the same canonical and delivery truth", "payload": {
+      "object": "ratingsReviewsDeliveryState", "prop": "fixturePhase", "value": "rehydrated", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "navigating away and back did not reseed or republish", "payload": {
+      "object": "ratingsReviewsDeliveryState", "props": ["fixtureARatingSendCount", "fixtureAReviewSendCount", "fixtureBSendCount", "fixtureBReconcileCount", "fixtureSpoilerBlockedSendCount"]
+    }, "expect": [
+      { "path": "props.fixtureARatingSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureAReviewSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureBSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureBReconcileCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureSpoilerBlockedSendCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "ping", "label": "phase 2 ends without any publish, resend, or reseed" }
+  ]
+}

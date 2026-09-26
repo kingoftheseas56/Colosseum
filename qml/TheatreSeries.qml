@@ -4,6 +4,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import "ratingsreviews"
 import "TheatreApi.js" as TheatreApi
 import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
 import "TheatreFacts.js" as TheatreFacts
@@ -22,6 +23,7 @@ Item {
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
+    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     property string title: ""
     property string mediaType: "movie"
@@ -1217,6 +1219,50 @@ Item {
                             world: "theatre"
                             entry: page.collectionEntry()
                             onRemoveRequested: (entry) => page.libraryRemovalRequested(entry)
+                        }
+                        RatingsReviewsAction {
+                            objectName: "theatreRatingsReviewsAction"
+                            width: 176; height: 42
+                            titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
+                                           ? RatingsReviewsIdentity : null
+                            world: "theatre"
+                            kind: page.mediaType === "series" ? "series" : "movie"
+                            directId: (page.itemData && String(page.itemData.id || "").indexOf("ct1:") === 0)
+                                      ? String(page.itemData.id) : ""
+                            aliases: {
+                                // Both the door we entered by (itemData.id, e.g. kitsu:…)
+                                // and the pivoted Cinemeta id (resolvedId, tt…) travel as
+                                // aliases so the identity registry can anchor on the IMDb id
+                                // and keep one stable canonical id across the anime pivot.
+                                // Provider-prefixed originals wait until the meta load has
+                                // settled: deriving before the pivot would split the title's
+                                // private record under two ids.
+                                var orig = (page.itemData && page.itemData.id)
+                                           ? String(page.itemData.id) : ""
+                                if (orig.length && orig.indexOf("tt") !== 0
+                                        && (page.loading || page.resolvedId.length === 0))
+                                    return []
+                                var out = []
+                                var rid = page.currentId()
+                                if (rid.length)
+                                    out.push({ namespace: "theatre-source-id", value: rid })
+                                if (orig.length && orig !== rid)
+                                    out.push({ namespace: "theatre-source-id", value: orig })
+                                return out
+                            }
+                            titleText: page.title
+                            subtitleText: page.genresLine
+                            year: Number(page.year || 0)
+                            artwork: page.banner.length ? page.banner : page.cover
+                            origin: "theatre-detail"
+                            readIds: ({ imdb: page.currentId().indexOf("tt") === 0 ? page.currentId() : "",
+                                        tmdb: page.tmdbId > 0 ? String(page.tmdbId) : "",
+                                        fixtureVariant: (typeof RatingsReviewsProviderFixture !== "undefined")
+                                                        ? String(RatingsReviewsProviderFixture || "") : "" })
+                            returnTarget: backBtn
+                            onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
+                                page.ratingsReviewsRequested(context, invokingItem, fallbackItem)
+                            }
                         }
                         // Notify-about-new-episodes toggle (spec §4.5) — only for SAVED series.
                         // Flips payload.libNotif; a silenced series stops badging + counting.

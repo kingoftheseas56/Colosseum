@@ -26,9 +26,9 @@ enum class SimklScrobbleReadbackResult : quint8 {
     Indeterminate
 };
 
-// Narrow native seam for the SIMKL lifecycle API. Production construction is
-// intentionally absent until the registered-app gate is cleared; tests inject
-// a deterministic fake and never contact SIMKL.
+// Narrow native seam for the SIMKL lifecycle API. Production composition uses
+// the registered AUTH V2 client; tests can inject a deterministic fake and
+// never contact SIMKL.
 class SimklScrobbleTransport
 {
 public:

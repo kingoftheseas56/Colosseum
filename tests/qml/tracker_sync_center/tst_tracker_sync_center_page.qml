@@ -2177,7 +2177,9 @@ TestCase {
         compare(findChild(page, "trackerDisconnectPendingCounts").text,
                 "Pending: 2 · Known unsent: 1 · Unknown outcome: 1")
         verify(findChild(page, "trackerDisconnectRemoteAccessNotice").text.indexOf(
-                   "does not revoke access") >= 0)
+                   "ask the tracker to revoke this app's access") >= 0)
+        verify(findChild(page, "trackerDisconnectRemoteAccessNotice").text.indexOf(
+                   "best-effort") >= 0)
         mouseClick(findChild(page, "trackerDisconnectDiscardKnownUnsent"))
         wait(0)
         compare(fixtureModel.disconnectCalls, 1)

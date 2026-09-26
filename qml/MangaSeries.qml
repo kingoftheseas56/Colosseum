@@ -38,6 +38,7 @@ Item {
     // underneath); it now raises upward like the other three verbs, so Main.qml can route it
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
+    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     // --- catalogue-independence identity seams (Slice 2, amended 2026-08-20) ---
     // Injectable properties defaulting to the context objects (the TankobanDiscoverPage
@@ -1021,6 +1022,9 @@ Item {
         onSourcesRequested: (ctx) => page._openSources(ctx)
         onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
         onChapterModeRequested: page._enterChapterMode()
+        onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
+            page.ratingsReviewsRequested(context, invokingItem, fallbackItem)
+        }
     }
 
     MangaChapterSeriesView {
@@ -1056,6 +1060,9 @@ Item {
         onChapterLanguageRequested: (code) => page._selectChapterLanguage(code)
         onReadChapterRequested: (chapterId, chapterLabel) => page._readChapter(chapterId, chapterLabel)
         onOpenExtensionsRequested: page.openExtensionsRequested()
+        onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
+            page.ratingsReviewsRequested(context, invokingItem, fallbackItem)
+        }
     }
 
     // ---- clean loading state ----

@@ -21,6 +21,7 @@
 
 #include <QEventLoop>
 #include <QGuiApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalSocket>
@@ -129,6 +130,9 @@ private slots:
     void drive_gate_accepts_hidden();
     void bad_state_is_rejected();
     void only_first_root_is_addressed();
+    void duplicate_name_resolves_visible_item_in_retained_window();
+    void deep_visible_name_resolves_before_hidden_fallback();
+    void retained_parent_does_not_make_child_an_active_match();
 };
 
 void tst_window_set_state::init()
@@ -137,6 +141,101 @@ void tst_window_set_state::init()
     // persist across QTest's private slots within one process, so this cannot be assumed —
     // it must be reasserted before each case.
     qunsetenv("COLOSSEUM_LANISTA_DRIVE");
+}
+
+void tst_window_set_state::duplicate_name_resolves_visible_item_in_retained_window()
+{
+    QQmlApplicationEngine engine;
+    engine.loadData(R"(
+        import QtQuick
+        import QtQuick.Window
+        Window {
+            visible: true
+            width: 200; height: 200
+            Item { objectName: "topBarSearch"; visible: false }
+            Item { objectName: "topBarSearch"; visible: true }
+        }
+    )");
+    QVERIFY(!engine.rootObjects().isEmpty());
+    settle();
+    LanistaServer server(&engine);
+    QVERIFY2(server.isListening(), qUtf8Printable(server.listenError()));
+    const QJsonObject result = sendCmd(QStringLiteral("qml-get"),
+        QJsonObject{{QStringLiteral("object"), QStringLiteral("topBarSearch")},
+                    {QStringLiteral("props"), QJsonArray{QStringLiteral("visible")}}});
+    QCOMPARE(result.value(QStringLiteral("props")).toObject()
+                 .value(QStringLiteral("visible")).toBool(), true);
+}
+
+void tst_window_set_state::deep_visible_name_resolves_before_hidden_fallback()
+{
+    QByteArray qml = "import QtQuick\nimport QtQuick.Window\n"
+                     "Window { visible: true; width: 200; height: 200\n"
+                     "Item { objectName: \"topBarSearch\"; visible: false }\n";
+    for (int i = 0; i < 70; ++i)
+        qml += "Item { width: 40; height: 40\n";
+    qml += "Item { objectName: \"topBarSearch\"; width: 22; height: 22 }\n";
+    for (int i = 0; i < 70; ++i)
+        qml += "}\n";
+    qml += "}\n";
+    QQmlApplicationEngine engine;
+    engine.loadData(qml);
+    QVERIFY(!engine.rootObjects().isEmpty());
+    settle();
+    LanistaServer server(&engine);
+    QVERIFY2(server.isListening(), qUtf8Printable(server.listenError()));
+    const QJsonObject result = sendCmd(QStringLiteral("qml-get"),
+        QJsonObject{{QStringLiteral("object"), QStringLiteral("topBarSearch")},
+                    {QStringLiteral("props"), QJsonArray{QStringLiteral("visible")}}});
+    QCOMPARE(result.value(QStringLiteral("props")).toObject()
+                 .value(QStringLiteral("visible")).toBool(), true);
+    const QJsonArray elements = sendCmd(QStringLiteral("ui-snapshot"))
+                                    .value(QStringLiteral("elements")).toArray();
+    bool found = false;
+    for (const QJsonValue &value : elements) {
+        if (value.toObject().value(QStringLiteral("objectName"))
+            == QLatin1String("topBarSearch")) {
+            found = true;
+            break;
+        }
+    }
+    QVERIFY(found);
+}
+
+void tst_window_set_state::retained_parent_does_not_make_child_an_active_match()
+{
+    QQmlApplicationEngine engine;
+    engine.loadData(R"(
+        import QtQuick
+        import QtQuick.Window
+        Window {
+            visible: true
+            width: 200; height: 200
+            Item {
+                visible: false
+                Item { objectName: "topBarSearch"; property string marker: "retained"; width: 22; height: 22 }
+            }
+            Item { objectName: "topBarSearch"; property string marker: "active"; width: 22; height: 22 }
+        }
+    )");
+    QVERIFY(!engine.rootObjects().isEmpty());
+    settle();
+    LanistaServer server(&engine);
+    QVERIFY2(server.isListening(), qUtf8Printable(server.listenError()));
+    const QJsonObject result = sendCmd(QStringLiteral("qml-get"),
+        QJsonObject{{QStringLiteral("object"), QStringLiteral("topBarSearch")},
+                    {QStringLiteral("props"), QJsonArray{QStringLiteral("marker")}}});
+    QCOMPARE(result.value(QStringLiteral("props")).toObject()
+                 .value(QStringLiteral("marker")).toString(), QStringLiteral("active"));
+    const QJsonArray elements = sendCmd(QStringLiteral("ui-snapshot"))
+                                    .value(QStringLiteral("elements")).toArray();
+    int count = 0;
+    for (const QJsonValue &value : elements) {
+        if (value.toObject().value(QStringLiteral("objectName"))
+            == QLatin1String("topBarSearch"))
+            ++count;
+    }
+    QCOMPARE(count, 1);
 }
 
 // The gate refusal itself: no COLOSSEUM_LANISTA_DRIVE means DRIVE_DISABLED, exactly like the

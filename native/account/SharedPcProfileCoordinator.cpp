@@ -9,12 +9,15 @@
 SharedPcProfileCoordinator::SharedPcProfileCoordinator(
     ProfileStoreRuntime *profileRuntime,
     const QString &appDataRoot,
-    StremioCredentialAdoptionCallbacks stremioCredentials)
+    StremioCredentialAdoptionCallbacks stremioCredentials,
+    RatingsReviewsPrivateAdoptionCallbacks ratingsReviewsPrivate)
     : m_profileRuntime(profileRuntime),
       m_firstAccount(
           profileRuntime,
           appDataRoot,
-          std::move(stremioCredentials)) {
+          std::move(stremioCredentials),
+          {},
+          std::move(ratingsReviewsPrivate)) {
     Q_ASSERT(m_profileRuntime);
 }
 

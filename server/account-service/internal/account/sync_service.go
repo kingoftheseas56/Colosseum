@@ -26,6 +26,7 @@ const syncJournalInsertQuery = `
             hlc_physical_ms,
             hlc_counter,
             operation,
+            deleted_at_ms,
             payload_ciphertext,
             materialized_payload_ciphertext,
             materialized_hlc_physical_ms,
@@ -37,7 +38,7 @@ const syncJournalInsertQuery = `
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4, $5, $6,
-            $7, $8, $9, $10, NULL, NULL, NULL, NULL, $11::uuid, false, $12
+            $7, $8, $9, $10, $11, NULL, NULL, NULL, NULL, $12::uuid, false, $13
         )
         ON CONFLICT(account_id, mutation_id) DO NOTHING
         RETURNING server_seq
@@ -54,6 +55,7 @@ const syncJournalPullQuery = `
             hlc_physical_ms,
             hlc_counter,
             operation,
+            COALESCE(deleted_at_ms, 0),
             payload_ciphertext,
             materialized_payload_ciphertext,
             COALESCE(materialized_hlc_physical_ms, hlc_physical_ms),
@@ -76,6 +78,7 @@ const syncJournalPullQuery = `
             hlc_physical_ms,
             hlc_counter,
             'put',
+            0,
             payload_ciphertext,
             NULL::bytea,
             hlc_physical_ms,
@@ -92,6 +95,13 @@ const syncJournalPullQuery = `
         LIMIT $3
     `
 
+func nullableDeletedAtMS(value int64) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
+}
+
 type parsedSyncMutation struct {
 	MutationID       string
 	DeviceID         string
@@ -101,6 +111,7 @@ type parsedSyncMutation struct {
 	HLCPhysicalMS    int64
 	HLCCounter       uint64
 	Operation        string
+	DeletedAtMS      int64
 	Payload          json.RawMessage
 	CanonicalPayload []byte
 }
@@ -310,6 +321,10 @@ func (s *Service) pushOneSyncMutation(
 			return SyncPushResult{}, fmt.Errorf("encrypt sync payload: %w", err)
 		}
 	}
+	var deletedAtParam any
+	if parsed.DeletedAtMS > 0 {
+		deletedAtParam = parsed.DeletedAtMS
+	}
 	var attachmentParam any
 	if attachmentID != "" {
 		attachmentParam = attachmentID
@@ -326,6 +341,7 @@ func (s *Service) pushOneSyncMutation(
 		parsed.HLCPhysicalMS,
 		int64(parsed.HLCCounter),
 		parsed.Operation,
+		deletedAtParam,
 		ciphertext,
 		attachmentParam,
 		now).Scan(&serverSeq)
@@ -398,6 +414,7 @@ func (s *Service) pushOneSyncMutation(
 			HLCPhysicalMS: current.HLCPhysicalMS,
 			HLCCounter:    current.HLCCounter,
 			Operation:     current.Operation,
+			DeletedAtMS:   current.DeletedAtMS,
 		}
 		if current.Operation == "put" {
 			plain, openErr := s.syncCipher.Open(
@@ -482,14 +499,14 @@ func (s *Service) pushOneSyncMutation(
                     account_id, category, record_key,
                     mutation_id, device_id, schema_version,
                     hlc_physical_ms, hlc_counter,
-                    operation, payload_ciphertext, server_seq,
+                    operation, deleted_at_ms, payload_ciphertext, server_seq,
                     replaced_at, replacing_mutation_id
                 )
                 VALUES(
                     $1::uuid, $2, $3,
 				$4::uuid, $5::uuid, $6,
-				$7, $8, $9, $10, $11,
-				$12, $13::uuid
+				$7, $8, $9, $10, $11, $12,
+				$13, $14::uuid
                 )
             `,
 				auth.Account.ID,
@@ -501,6 +518,7 @@ func (s *Service) pushOneSyncMutation(
 				current.HLCPhysicalMS,
 				int64(current.HLCCounter),
 				current.Operation,
+				nullableDeletedAtMS(current.DeletedAtMS),
 				current.PayloadCipher,
 				int64(current.ServerSeq),
 				now,
@@ -514,12 +532,12 @@ func (s *Service) pushOneSyncMutation(
                 account_id, category, record_key,
                 mutation_id, device_id, schema_version,
                 hlc_physical_ms, hlc_counter,
-                operation, payload_ciphertext, server_seq, updated_at
+                operation, deleted_at_ms, payload_ciphertext, server_seq, updated_at
             )
             VALUES(
                 $1::uuid, $2, $3,
                 $4::uuid, $5::uuid, $6,
-                $7, $8, $9, $10, $11, $12
+                $7, $8, $9, $10, $11, $12, $13
             )
             ON CONFLICT(account_id, category, record_key)
             DO UPDATE SET
@@ -529,6 +547,7 @@ func (s *Service) pushOneSyncMutation(
                 hlc_physical_ms = EXCLUDED.hlc_physical_ms,
                 hlc_counter = EXCLUDED.hlc_counter,
                 operation = EXCLUDED.operation,
+                deleted_at_ms = EXCLUDED.deleted_at_ms,
                 payload_ciphertext = EXCLUDED.payload_ciphertext,
                 server_seq = EXCLUDED.server_seq,
                 updated_at = EXCLUDED.updated_at
@@ -542,6 +561,7 @@ func (s *Service) pushOneSyncMutation(
 			resolution.WinnerHLCPhysicalMS,
 			int64(resolution.WinnerHLCCounter),
 			resolution.Operation,
+			nullableDeletedAtMS(resolution.DeletedAtMS),
 			materializedCipher,
 			serverSeq,
 			now); err != nil {
@@ -799,6 +819,7 @@ func (s *Service) PullSync(
 			&stored.HLCPhysicalMS,
 			&counter,
 			&stored.Operation,
+			&stored.DeletedAtMS,
 			&stored.PayloadCipher,
 			&stored.MaterializedPayloadCipher,
 			&stored.MaterializedHLCPhysicalMS,
@@ -901,9 +922,13 @@ func (s *Service) validateSyncMutation(
 	}
 
 	operation := strings.ToLower(strings.TrimSpace(input.Operation))
+	deletedAtMS := int64(0)
 	switch operation {
 	case "put":
-		if err := validateSyncPayload(input.Payload); err != nil {
+		if input.DeletedAtMS != "" {
+			return parsedSyncMutation{}, "invalid_deleted_at_ms", "A PUT mutation cannot contain deleted_at_ms."
+		}
+		if err := validateSyncPayloadForCategory(input.Category, input.Payload); err != nil {
 			return parsedSyncMutation{}, err.Error(), "The sync payload contains data that cannot be synced."
 		}
 		if input.Category != "activity_fact" {
@@ -933,6 +958,18 @@ func (s *Service) validateSyncMutation(
 			CanonicalPayload: canonicalPayload,
 		}, "", ""
 	case "delete":
+		if input.Category == "ratings_reviews" {
+			if input.DeletedAtMS == "" || input.DeletedAtMS != strings.TrimSpace(input.DeletedAtMS) {
+				return parsedSyncMutation{}, "invalid_deleted_at_ms", "A ratings_reviews DELETE requires deleted_at_ms."
+			}
+			parsedDeletedAt, parseErr := strconv.ParseInt(input.DeletedAtMS, 10, 64)
+			if parseErr != nil || parsedDeletedAt <= 0 {
+				return parsedSyncMutation{}, "invalid_deleted_at_ms", "A ratings_reviews DELETE requires a positive deleted_at_ms."
+			}
+			deletedAtMS = parsedDeletedAt
+		} else if input.DeletedAtMS != "" {
+			return parsedSyncMutation{}, "invalid_deleted_at_ms", "deleted_at_ms is reserved for ratings_reviews DELETE."
+		}
 		if len(input.Payload) > 0 && string(input.Payload) != "null" {
 			return parsedSyncMutation{}, "delete_payload_not_empty", "A delete mutation cannot contain a payload."
 		}
@@ -957,6 +994,7 @@ func (s *Service) validateSyncMutation(
 		HLCPhysicalMS: physical,
 		HLCCounter:    counter,
 		Operation:     operation,
+		DeletedAtMS:   deletedAtMS,
 		Payload:       input.Payload,
 	}, "", ""
 }
@@ -1001,6 +1039,7 @@ func (s *Service) loadCurrent(
             hlc_physical_ms,
             hlc_counter,
             operation,
+            COALESCE(deleted_at_ms, 0),
             payload_ciphertext,
             updated_at
         FROM account_sync_current
@@ -1022,6 +1061,7 @@ func (s *Service) loadCurrent(
 		&stored.HLCPhysicalMS,
 		&counter,
 		&stored.Operation,
+		&stored.DeletedAtMS,
 		&stored.PayloadCipher,
 		&stored.ReceivedAt); err != nil {
 		if err == pgx.ErrNoRows {
@@ -1069,6 +1109,7 @@ func loadCurrentForUpdateTx(
             hlc_physical_ms,
             hlc_counter,
             operation,
+            COALESCE(deleted_at_ms, 0),
             payload_ciphertext,
             updated_at
         FROM account_sync_current
@@ -1091,6 +1132,7 @@ func loadCurrentForUpdateTx(
 		&stored.HLCPhysicalMS,
 		&counter,
 		&stored.Operation,
+		&stored.DeletedAtMS,
 		&stored.PayloadCipher,
 		&stored.ReceivedAt); err != nil {
 		if err == pgx.ErrNoRows {
@@ -1140,6 +1182,9 @@ func (s *Service) decodeStoredMutation(
 		HLCCounter:    strconv.FormatUint(stored.HLCCounter, 10),
 		Operation:     stored.Operation,
 		Payload:       payload,
+	}
+	if stored.DeletedAtMS > 0 {
+		view.DeletedAtMS = strconv.FormatInt(stored.DeletedAtMS, 10)
 	}
 	if stored.MaterializedHLCValid {
 		view.MaterializedHLCPhysicalMS = strconv.FormatInt(

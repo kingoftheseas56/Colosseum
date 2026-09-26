@@ -331,6 +331,13 @@ bool SimklAuthSession::pollDevicePin()
             if (generation == m_generation
                 && response.error == SimklTransportError::AuthorizationPending) {
                 m_snapshot.phase = SimklAuthPhase::AwaitingDeviceApproval;
+                if (response.retryAfterMs > m_snapshot.retryAfterMs) {
+                    m_snapshot.retryAfterMs = response.retryAfterMs;
+                    if (!checkedAdd(m_clock->nowMs(), m_snapshot.retryAfterMs,
+                                    &m_nextDevicePollAtMs)) {
+                        becomeAttention(SimklAuthError::TokenRejected);
+                    }
+                }
                 return;
             }
             completeToken(generation, response);
@@ -650,7 +657,22 @@ void SimklIdentityProvider::requestStableAccountId(
 
 std::optional<SimklAuthConfiguration> simklProductionConfiguration()
 {
-    // This source tree contains no registered SIMKL desktop client receipt.
-    // No environment variable or test configuration may turn production on.
+#ifdef COLOSSEUM_SIMKL_CLIENT_ID
+    return SimklAuthConfiguration{
+        QStringLiteral(COLOSSEUM_SIMKL_CLIENT_ID),
+        QUrl(QStringLiteral("https://simkl.com/oauth2/authorize")),
+        QUrl(QStringLiteral("https://api.simkl.com/oauth2/token")),
+        QUrl(QStringLiteral("https://api.simkl.com/oauth2/device")),
+        QUrl(QStringLiteral("https://api.simkl.com/users/settings")),
+        QUrl(QStringLiteral("http://127.0.0.1:17835/simkl/callback")),
+        QStringLiteral("colosseum"),
+#ifdef COLOSSEUM_VERSION
+        QStringLiteral(COLOSSEUM_VERSION),
+#else
+        QStringLiteral("1.1.8"),
+#endif
+        {QStringLiteral("media:read"), QStringLiteral("media:write")}};
+#else
     return std::nullopt;
+#endif
 }

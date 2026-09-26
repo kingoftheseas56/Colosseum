@@ -22,11 +22,9 @@ Item {
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
-    // The closed dock now holds the arch AND the permanent Vault folder door, so its closed width is
-    // explicit: 8 left + 48 home + 14 spacing + 46 door + 14 right = 130. closedSize stays 64 for the
-    // dock HEIGHT and the closed corner radius (changing closedSize itself would make a 130-tall
-    // capsule with a 65px radius). (Slice 10)
-    readonly property int closedWidth: 130
+    // Permanent buttons: Colosseum, Feria, Vault.
+    // 8 left + 48 home + 14 + 46 Feria + 14 + 46 Vault + 14 right = 190.
+    readonly property int closedWidth: 190
 
     signal switchRequested(string id)
     signal closeRequested(string id)
@@ -46,20 +44,11 @@ Item {
     property bool downloadsActive: false  // the Downloads page is the front surface
     signal extensionsClicked()
     property bool extensionsActive: false // the Extensions page is the front surface
-    signal settingsClicked()
-    property bool settingsActive: false   // the Settings page is the front surface
-    signal keyboardGuideClicked()
-    property bool keyboardGuideActive: false // the Keyboard Guide is the front surface
-
-    signal syncCenterClicked()
-    property bool syncCenterActive: false // the Sync Center is the front surface
-    readonly property int syncAttentionCount: {
-        if (typeof TrackerSyncCenter === "undefined" || !TrackerSyncCenter)
-            return 0
-        var state = TrackerSyncCenter.aggregateState || ({})
-        var unresolved = Number(state.unresolvedCount || 0)
-        return unresolved > 0 ? unresolved : Number(state.attentionProviderCount || 0)
-    }
+    signal historyStatsClicked()
+    property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
+    signal feriaClicked()
+    property bool feriaActive: false
+    // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -72,14 +61,22 @@ Item {
         autoRevealed = true
         idleTimer.restart()
     }
-    function focusSyncCenterAction() {
+    function focusHistoryStatsAction() {
         bar.autoRevealed = false
         idleTimer.stop()
         if (!bar.open)
             bar.open = true
         Qt.callLater(function() {
-            if (syncInput.visible && syncInput.enabled)
-                syncInput.forceActiveFocus(Qt.TabFocusReason)
+            if (historyStatsInput.visible && historyStatsInput.enabled)
+                historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
+        })
+    }
+    function focusFeriaAction() {
+        bar.autoRevealed = false
+        idleTimer.stop()
+        Qt.callLater(function() {
+            if (feriaInput.visible && feriaInput.enabled)
+                feriaInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
     Timer {
@@ -191,6 +188,47 @@ Item {
                 Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
             }
 
+            // Feria stays between Colosseum and Vault even when the dock is closed.
+            Item {
+                objectName: "taskbarFeria"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: feriaInput.interactionActive || bar.feriaActive
+                           ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: feriaInput.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                // The web TV OS: a TV whose antenna flies the fair pennant.
+                Image {
+                    objectName: "taskbarFeriaIcon"
+                    anchors.centerIn: parent
+                    width: 22; height: 22
+                    sourceSize.width: 44; sourceSize.height: 44
+                    source: "../assets/icons/feria-tv.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: feriaInput.interactionActive || bar.feriaActive ? 1 : 0.75
+                }
+                Rectangle {
+                    visible: bar.feriaActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: theme.gold
+                }
+                KeyboardAction {
+                    id: feriaInput
+                    anchors.fill: parent
+                    accessibleName: "Feria"
+                    spaceActivates: true
+                    focusRadius: 13
+                    onTriggered: bar.feriaClicked()
+                }
+            }
+
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
             //      ALWAYS visible (unlike the open-only page controls), so it rides in the closed
             //      capsule beside the arch; the dock widens to closedWidth to hold both. The door's
@@ -291,15 +329,17 @@ Item {
                 Item {
                     objectName: "taskbarWatchPartyJoinGlyph"
                     property bool activeState: watchPartyJoinAction.atlasActive
-                    property color glyphColor: watchPartyJoinAction.atlasActive ? theme.gold : theme.ink
                     anchors.centerIn: parent
                     width: 22
-                    height: 20
+                    height: 22
                     opacity: watchPartyJoinAction.atlasActive || watchPartyInput.interactionActive ? 1 : 0.75
-                    Rectangle { x: 3; y: 2; width: 7; height: 7; radius: 3.5; color: parent.glyphColor }
-                    Rectangle { x: 12; y: 4; width: 6; height: 6; radius: 3; color: parent.glyphColor }
-                    Rectangle { x: 1; y: 11; width: 11; height: 7; radius: 5; color: parent.glyphColor }
-                    Rectangle { x: 11; y: 12; width: 10; height: 6; radius: 5; color: parent.glyphColor }
+                    // Two seats facing one screen.
+                    Image {
+                        anchors.fill: parent
+                        sourceSize.width: 44; sourceSize.height: 44
+                        source: "../assets/icons/watch-party.svg"
+                        fillMode: Image.PreserveAspectFit
+                    }
                 }
 
                 KeyboardAction {
@@ -414,155 +454,53 @@ Item {
                 Keys.onSpacePressed: bar.extensionsClicked()
             }
 
-            // ---- Settings: the global preferences sliders, beside Extensions (Task 2).
-            //      A distinct sliders glyph (not the gear) so it never reads as the
-            //      wallpaper settings gear in TopBar (Hemanth, 2026-08-02). ----
+            // ---- Your Colosseum: activity timeline, monthly highlights, and lifetime stats.
+            //      The laurel: your record in the arena. ----
             Item {
-                id: settingsAction
-                objectName: "taskbarSettings"
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
-                activeFocusOnTab: visible
-                Accessible.role: Accessible.Button
-                Accessible.name: "Settings"
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 13
-                    color: settingsInput.interactionActive || bar.settingsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: settingsInput.activeFocus ? 1 : 0
-                    border.color: theme.gold
-                }
-                Image {
-                    anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/preferences.svg"
-                    fillMode: Image.PreserveAspectFit
-                    opacity: bar.settingsActive ? 1 : 0.75
-                }
-                Rectangle {   // active-page underline, same gold language as session tiles
-                    visible: bar.settingsActive
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
-                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
-                }
-                KeyboardAction {
-                    id: settingsInput
-                    anchors.fill: parent
-                    accessibleName: "Settings"
-                    focusRadius: 13
-                    onTriggered: bar.settingsClicked()
-                }
-                Keys.onReturnPressed: bar.settingsClicked()
-                Keys.onEnterPressed: bar.settingsClicked()
-                Keys.onSpacePressed: bar.settingsClicked()
-            }
-
-            // ---- Keyboard Guide: the essentials sheet, directly beside Settings. ----
-            Item {
-                id: keyboardGuideAction
-                objectName: "taskbarKeyboardGuide"
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
-                activeFocusOnTab: visible
-                Accessible.role: Accessible.Button
-                Accessible.name: "Keyboard Guide"
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 13
-                    color: guideMa.containsMouse || bar.keyboardGuideActive || keyboardGuideAction.activeFocus
-                           ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: keyboardGuideAction.activeFocus ? 1 : 0
-                    border.color: theme.gold
-                }
-                Image {
-                    anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "assets/keyboard-guide/keyboard.svg"
-                    fillMode: Image.PreserveAspectFit
-                    opacity: bar.keyboardGuideActive ? 1 : 0.75
-                }
-                Rectangle {
-                    visible: bar.keyboardGuideActive
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
-                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
-                }
-                MouseArea {
-                    id: guideMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.keyboardGuideClicked()
-                }
-                Keys.onReturnPressed: bar.keyboardGuideClicked()
-                Keys.onEnterPressed: bar.keyboardGuideClicked()
-                Keys.onSpacePressed: bar.keyboardGuideClicked()
-            }
-
-            // ---- Sync Center: independent tracker catalogue and settings destination. ----
-            Item {
-                id: syncCenterAction
-                objectName: "taskbarSyncCenter"
+                id: historyStatsAction
+                objectName: "taskbarHistoryStats"
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
                 visible: bar.open
                 Rectangle {
-                    objectName: "taskbarSyncCenterSurface"
+                    objectName: "taskbarHistoryStatsSurface"
                     anchors.fill: parent
                     radius: 13
-                    color: syncInput.interactionActive || bar.syncCenterActive
+                    color: historyStatsInput.interactionActive || bar.historyStatsActive
                            ? Qt.rgba(1, 1, 1, 0.15)
                            : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: syncInput.activeFocus ? 1 : 0
+                    border.width: historyStatsInput.activeFocus ? 1 : 0
                     border.color: theme.gold
                 }
                 Image {
-                    objectName: "taskbarSyncCenterIcon"
+                    objectName: "taskbarHistoryStatsIcon"
                     anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/sync.svg"
+                    width: 21
+                    height: 21
+                    sourceSize.width: 42; sourceSize.height: 42
+                    source: "../assets/icons/your-colosseum-laurel.svg"
                     fillMode: Image.PreserveAspectFit
-                    opacity: bar.syncCenterActive ? 1 : 0.75
+                    opacity: bar.historyStatsActive ? 1 : 0.75
                 }
                 Rectangle {
-                    visible: bar.syncCenterActive
+                    visible: bar.historyStatsActive
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 4
+                    width: 20
+                    height: 3
+                    radius: 2
                     color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
                 }
-                Rectangle {
-                    visible: bar.syncAttentionCount > 0
-                    anchors.top: parent.top; anchors.right: parent.right
-                    anchors.topMargin: 1; anchors.rightMargin: 1
-                    width: bar.syncAttentionCount > 9 ? 20 : 17
-                    height: 17; radius: 9
-                    color: theme.gold
-                    Text {
-                        anchors.centerIn: parent
-                        text: bar.syncAttentionCount > 9 ? "9+" : bar.syncAttentionCount
-                        color: theme.biblioWashBottom
-                        font.pixelSize: 9
-                        font.weight: Font.Bold
-                    }
-                }
                 KeyboardAction {
-                    id: syncInput
-                    objectName: "taskbarSyncCenterInput"
+                    id: historyStatsInput
+                    objectName: "taskbarHistoryStatsInput"
                     anchors.fill: parent
-                    accessibleName: bar.syncAttentionCount > 0
-                                    ? "Connections, attention required"
-                                    : "Connections"
+                    accessibleName: "History, highlights, and stats"
                     spaceActivates: true
                     focusRadius: 13
-                    onTriggered: bar.syncCenterClicked()
+                    onTriggered: bar.historyStatsClicked()
                 }
             }
 

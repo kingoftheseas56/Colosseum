@@ -16,6 +16,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import "ratingsreviews"
 import "ComicResolve.js" as Resolve
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -40,6 +41,7 @@ Item {
     // underneath); it now raises upward like the other three verbs, so Main.qml can route it
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
+    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
     Keys.onPressed: comicSeriesPageKeys.handle(event)
     Keys.onReleased: comicSeriesPageKeys.handleRelease(event)
 
@@ -267,6 +269,14 @@ Item {
             x: theme.margin; y: 96
             width: parent.width - theme.margin * 2
             spacing: 26
+
+            // No Ratings & Reviews action here: comics are outside the admitted
+            // route (Arc 49 Slice 1 identity exclusion). The placeholder row keeps
+            // the column's historical spacing for the ledger below.
+            Item {
+                width: parent.width
+                height: 42
+            }
 
             // ===== DB-driven ledger (comics_db.json): hero + format-grouped editions =====
             ComicDbLedger {

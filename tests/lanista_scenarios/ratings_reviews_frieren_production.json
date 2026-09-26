@@ -1,0 +1,88 @@
+{
+  "name": "ratings-reviews-frieren-production",
+  "comment": "Arc 49 RR-001 / Slice 2: testing-OFF executable, isolated tagged roots, real Theatre search/detail route, inline ten-star rating with private Save, in-context editor, Back/return, and reopen. No fake provider adapter or writer.",
+  "steps": [
+    { "cmd": "ping", "label": "isolated production route is drive-enabled", "expect": [
+      { "path": "gates.drive", "op": "==", "value": true }
+    ]},
+    { "cmd": "ui-wait-for", "label": "startup completes", "payload": {
+      "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "fresh tagged profile offers local continuation", "payload": {
+      "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "activate tagged local profile", "payload": { "target": "accountWelcomeContinueLocal" }},
+    { "cmd": "ui-click", "label": "open Theatre", "payload": { "target": "modePill_Theatre" }},
+    { "cmd": "ui-wait-for", "label": "Theatre world becomes the active lifecycle", "payload": {
+      "object": "theatreWorld", "prop": "lifecycleActive", "value": true, "timeout_ms": 15000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "open visible Theatre search", "payload": { "target": "topBarSearch" }},
+    { "cmd": "ui-wait-for", "label": "search surface opens", "payload": {
+      "object": "searchSurfaceInput", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-text-input", "label": "search Frieren by its visible title", "payload": {
+      "target": "searchSurfaceInput", "text": "Frieren"
+    }},
+    { "cmd": "ui-wait-for", "label": "real Frieren result resolves", "payload": {
+      "object": "searchResult_tt22248376", "prop": "visible", "value": true, "timeout_ms": 30000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "open Frieren detail", "payload": { "target": "searchResult_tt22248376" }},
+    { "cmd": "ui-wait-for", "label": "Frieren detail is visible", "payload": {
+      "object": "theatreSeriesPage", "prop": "visible", "value": true, "timeout_ms": 30000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "real detail exposes Ratings and Reviews", "payload": {
+      "object": "theatreRatingsReviewsAction", "prop": "visible", "value": true, "timeout_ms": 30000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "open Ratings and Reviews from Frieren detail", "payload": {
+      "target": "theatreRatingsReviewsAction"
+    }},
+    { "cmd": "ui-wait-for", "label": "Ratings and Reviews opens with honest provider badges", "payload": {
+      "object": "ratingsReviewsProviderBadges", "prop": "visible", "value": true, "timeout_ms": 15000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "ten-star row selects 8 as a pending preview", "payload": {
+      "target": "rrStar_8"
+    }},
+    { "cmd": "ui-wait-for", "label": "private save control appears for the pending rating", "payload": {
+      "object": "ratingsReviewsSaveRating", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "Save privately commits the rating only", "payload": {
+      "target": "ratingsReviewsSaveRating"
+    }},
+    { "cmd": "qml-get", "label": "rating persisted with no provider operation", "payload": {
+      "object": "ratingsReviewsHost", "props": ["canonicalRatingPresent", "canonicalReviewPresent", "providerOperationCount"]
+    }, "expect": [
+      { "path": "props.canonicalRatingPresent", "op": "==", "value": true },
+      { "path": "props.canonicalReviewPresent", "op": "==", "value": false },
+      { "path": "props.providerOperationCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "ui-click", "label": "open the in-context review editor", "payload": { "target": "ratingsReviewsOpenEditor" }},
+    { "cmd": "ui-wait-for", "label": "inline editor expands on the main page", "payload": {
+      "object": "ratingsReviewsEditor", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-text-input", "label": "write a private review", "payload": {
+      "target": "ratingsReviewsEditorText", "text": "A quiet journey worth keeping."
+    }},
+    { "cmd": "ui-click", "label": "Save privately keeps the review on the profile", "payload": {
+      "target": "ratingsReviewsSavePrivate"
+    }},
+    { "cmd": "qml-get", "label": "rating and review persisted, still zero provider work", "payload": {
+      "object": "ratingsReviewsHost", "props": ["canonicalRatingPresent", "canonicalReviewPresent", "providerOperationCount"]
+    }, "expect": [
+      { "path": "props.canonicalRatingPresent", "op": "==", "value": true },
+      { "path": "props.canonicalReviewPresent", "op": "==", "value": true },
+      { "path": "props.providerOperationCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "ui-click", "label": "Back returns to Frieren detail", "payload": { "target": "ratingsReviewsBack" }},
+    { "cmd": "ui-wait-for", "label": "Ratings and Reviews layer closes", "payload": {
+      "object": "ratingsReviewsLayer", "prop": "active", "value": false, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "reopen without creating provider work", "payload": { "target": "theatreRatingsReviewsAction" }},
+    { "cmd": "qml-get", "label": "reopened route keeps the private rating and review", "payload": {
+      "object": "ratingsReviewsHost", "props": ["canonicalRatingPresent", "canonicalReviewPresent", "providerOperationCount"]
+    }, "expect": [
+      { "path": "props.canonicalRatingPresent", "op": "==", "value": true },
+      { "path": "props.canonicalReviewPresent", "op": "==", "value": true },
+      { "path": "props.providerOperationCount", "op": "==", "value": 0 }
+    ]}
+  ]
+}
