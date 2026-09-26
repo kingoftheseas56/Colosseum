@@ -1,0 +1,12 @@
+/* surfaces/theatre/surface.css — Theatre-only look on top of the shared components (Portico halfway mock). */
+.th-top,.th-cont{gap:var(--s-7)}
+.th-top:empty,.th-cont:empty{display:none}
+.th-libf{margin-top:calc(-1 * var(--s-3))}
+
+/* Top 10: ghost rank numerals behind solid covers (TrendingTop10) */
+.t10mode .rail{counter-reset:rank}
+.t10mode .pc{counter-increment:rank;flex:0 0 auto;width:auto;padding-left:58px;position:relative}
+.t10mode .pc::before{content:counter(rank);position:absolute;left:-4px;bottom:24px;font:700 176px/1 var(--display-stack);
+  color:rgba(255,255,255,.08);-webkit-text-stroke:1.5px rgba(255,255,255,.28);letter-spacing:-12px;pointer-events:none}
+.t10mode .pc .art{width:var(--poster-w)}
+.t10mode .pc .cap,.t10mode .pc .sub{display:none}
