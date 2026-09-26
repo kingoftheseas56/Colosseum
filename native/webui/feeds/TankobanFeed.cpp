@@ -84,6 +84,13 @@ QVariantMap genreIndexRoute(const QString &medium, bool showExplicit)
         {}, showExplicit, 24);
 }
 
+QVariantMap continueRoute(bool showExplicit)
+{
+    return WebFeedChoice::route(
+        QStringLiteral("Tankoban"), QStringLiteral("continue"),
+        {}, {}, showExplicit, 24);
+}
+
 void setSeeAll(QVariantMap &section, const QVariantMap &route)
 {
     if (!route.isEmpty())
@@ -184,19 +191,35 @@ QVariantMap staticComic(const QString &title, const QString &cover,
 QVariantList featuredItems()
 {
     // Moved from Catalog.js:17-21 and TankobanWorld.qml:171-176.
+    // The extra presentation fields are public Item decoration (never identity);
+    // surface.js uses them to preserve CarouselSlide.qml:17-18,21-153 exactly.
+    auto decorate = [](QVariantMap item, const QString &ghost,
+                       const QString &c1, const QString &c2,
+                       bool poster) {
+        item.insert(QStringLiteral("ghost"), ghost);
+        item.insert(QStringLiteral("c1"), c1);
+        item.insert(QStringLiteral("c2"), c2);
+        if (poster)
+            item.insert(QStringLiteral("artKind"), QStringLiteral("poster"));
+        return item;
+    };
     return {
-        staticManga(QStringLiteral("13"), QStringLiteral("One Piece"), {},
+        decorate(staticManga(QStringLiteral("13"), QStringLiteral("One Piece"), {},
             QStringLiteral("https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg"),
             QStringLiteral("Rubber-bodied Monkey D. Luffy and his Straw Hat crew sail the seas hunting the legendary treasure that crowns the next King of the Pirates.")),
-        staticComic(QStringLiteral("Saga"),
+            QStringLiteral("M"), QStringLiteral("#7a2f49"), QStringLiteral("#1d121b"), false),
+        decorate(staticComic(QStringLiteral("Saga"),
             QStringLiteral("https://is1-ssl.mzstatic.com/image/thumb/Publication4/v4/23/03/9c/23039c5b-155e-0ae4-36b3-d3407b07420c/AUG120491.jpg/2000x2000bb.jpg"),
             {}, QStringLiteral("Alana and Marko, lovers from opposite sides of a galactic war, flee both armies to raise their newborn daughter in hiding.")),
-        staticManga(QStringLiteral("2"), QStringLiteral("Berserk"), {},
+            QStringLiteral("C"), QStringLiteral("#7a4a2f"), QStringLiteral("#241813"), true),
+        decorate(staticManga(QStringLiteral("2"), QStringLiteral("Berserk"), {},
             QStringLiteral("https://s4.anilist.co/file/anilistcdn/media/manga/banner/30002-3TuoSMl20fUX.jpg"),
             QStringLiteral("Guts, a lone swordsman in a brutal dark-fantasy world, hunts the demons who damned his comrades.")),
-        staticComic(QStringLiteral("Invincible"),
+            QStringLiteral("M"), QStringLiteral("#5a2f3f"), QStringLiteral("#180f14"), false),
+        decorate(staticComic(QStringLiteral("Invincible"),
             QStringLiteral("https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg/2000x2000bb.jpg"),
-            {}, QStringLiteral("Mark Grayson inherits superpowers from his father, then learns the truth about his mission."))
+            {}, QStringLiteral("Mark Grayson inherits superpowers from his father, then learns the truth about his mission.")),
+            QStringLiteral("C"), QStringLiteral("#5a3f2f"), QStringLiteral("#1a120b"), true)
     };
 }
 
@@ -701,8 +724,8 @@ QVariantList buildComics(const FeedContext &ctx, ComicsCatalog &comics)
         QStringLiteral("tankoban.comics.genres"), out.size(),
         QStringLiteral("Explore Comics"),
         comicGenreChoices(comics, ctx.showExplicit), QStringLiteral("tiles"));
-    setSeeAll(genres, genreIndexRoute(QStringLiteral("comic"),
-                                      ctx.showExplicit));
+    // TankobanComicsTab.qml:89-99 sets navigable:false: genre tiles pin
+    // Discover directly, but the header has no extra Explore door.
     out.append(genres);
     return out;
 }
@@ -1082,20 +1105,21 @@ QVariantList libraryControls(const QList<LibraryRow> &rows,
         QStringLiteral("tankoban.library.filters"), sections.size(), {},
         {selectedChoice(
              QStringLiteral("tankoban:library:all"), QStringLiteral("All"),
-             {{QStringLiteral("filter"), QString()}}, filter.isEmpty(),
-             QString::number(rows.size())),
+             {{QStringLiteral("filter"), QString()}}, filter.isEmpty()),
          selectedChoice(
              QStringLiteral("tankoban:library:progress"),
              QStringLiteral("In Progress"),
-             {{QStringLiteral("filter"), QStringLiteral("inProgress")}},
-             filter == QLatin1String("inProgress"),
-             QString::number(inProgress)),
+             {{QStringLiteral("filter"),
+               filter == QLatin1String("inProgress")
+                   ? QString() : QStringLiteral("inProgress")}},
+             filter == QLatin1String("inProgress")),
          selectedChoice(
              QStringLiteral("tankoban:library:downloaded"),
              QStringLiteral("Downloaded"),
-             {{QStringLiteral("filter"), QStringLiteral("downloaded")}},
-             filter == QLatin1String("downloaded"),
-             QString::number(downloaded))}));
+             {{QStringLiteral("filter"),
+               filter == QLatin1String("downloaded")
+                   ? QString() : QStringLiteral("downloaded")}},
+             filter == QLatin1String("downloaded"))}));
     sections.append(choiceSection(
         QStringLiteral("tankoban.library.sort"), sections.size(), {},
         {selectedChoice(
@@ -1110,7 +1134,7 @@ QVariantList libraryControls(const QList<LibraryRow> &rows,
              sort == QLatin1String("added")),
          selectedChoice(
              QStringLiteral("tankoban:library:az"),
-             QStringLiteral("A–Z"),
+             QStringLiteral("A-Z"),
              {{QStringLiteral("sort"), QStringLiteral("az")}},
              sort == QLatin1String("az"))}));
     return sections;
@@ -1233,7 +1257,11 @@ QVariantList initial(const QVariantMap &params)
             QStringLiteral("Next Up"), QStringLiteral("continue"),
             {}, QStringLiteral("loading")),
         WebFeedValue::section(
-            QStringLiteral("tankoban.") + tab + QStringLiteral(".loading"), 2,
+            QStringLiteral("tankoban.chrome.continue"), 2,
+            QStringLiteral("Continue Reading"), QStringLiteral("continue"),
+            {}, QStringLiteral("loading")),
+        WebFeedValue::section(
+            QStringLiteral("tankoban.") + tab + QStringLiteral(".loading"), 3,
             QStringLiteral("Tankoban"), QStringLiteral("grid"),
             {}, QStringLiteral("loading"))
     };
@@ -1292,12 +1320,27 @@ QVariantList build(const FeedContext &ctx)
         QStringLiteral("tankoban.chrome.featured"), out.size(),
         QStringLiteral("Featured in Tankoban"), QStringLiteral("hero"),
         featuredItems()));
+    const QVariantMap deeper = continueRoute(ctx.showExplicit);
     const QVariantList nextUp = nextUpItems(ctx);
-    out.append(WebFeedValue::section(
+    QVariantMap nextUpSection = WebFeedValue::section(
         QStringLiteral("tankoban.chrome.nextUp"), out.size(),
         QStringLiteral("Next Up"), QStringLiteral("continue"), nextUp,
         nextUp.isEmpty() ? QStringLiteral("empty")
-                         : QStringLiteral("ready")));
+                         : QStringLiteral("ready"));
+    setSeeAll(nextUpSection, deeper);
+    out.append(nextUpSection);
+
+    QVariantMap continuing = ContinueFeed::build(
+        ctx.recent, QStringLiteral("Tankoban"), ctx.paths.imdb,
+        kPersonalLimit).first().toMap();
+    continuing.insert(QStringLiteral("id"),
+                      QStringLiteral("tankoban.chrome.continue"));
+    continuing.insert(QStringLiteral("index"), out.size());
+    continuing.insert(QStringLiteral("title"),
+                      QStringLiteral("Continue Reading"));
+    continuing.insert(QStringLiteral("hasMore"), false);
+    setSeeAll(continuing, deeper);
+    out.append(continuing);
 
     QVariantList body;
     if (tab == QLatin1String("discover")) {
