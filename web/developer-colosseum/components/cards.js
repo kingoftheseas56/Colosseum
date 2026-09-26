@@ -44,20 +44,29 @@
 
   /** Featured slide — one item of a layout:"hero" section. */
   function slide(it, ctx, kicker) {
-    const art = h('img.art', { alt: '', decoding: 'async', src: it.backdrop || it.cover || '' });
+    // a universe's cover is its wordmark, never its background
+    const bg = it.kind === 'universe' ? it.backdrop : (it.backdrop || it.cover);
+    const art = h('img.art', { alt: '', decoding: 'async', src: bg || '' });
     art.addEventListener('load', () => art.classList.add('on'));
     art.addEventListener('error', () => art.remove());
     return h('div.slide', { 'data-key': it.key },
-      (it.backdrop || it.cover) ? art : null,
+      bg ? art : null,
       h('div.wash'),
       h('div.copy', {},
         kicker ? h('span.kicker', {}, kicker) : null,
-        h('h3', {}, it.title),
+        it.kind === 'universe' && it.cover ? logo(it) : h('h3', {}, it.title),
         subline(it) ? h('p', {}, subline(it)) : null,
         h('div.btns', {},
           h('button.b-gold', { type: 'button', 'data-focus': true, 'data-key': it.key + '#open',
                                onclick: () => ctx.open(it, it.progress != null ? 'resume' : 'details') },
-            it.progress != null ? 'Resume' : 'Open'))));
+            it.kind === 'universe' ? 'Enter' : it.progress != null ? 'Resume' : 'Open'))));
+  }
+
+  /** Universe wordmark; falls back to the title in Fraunces if the logo fails (Cosmere has none). */
+  function logo(it) {
+    const img = h('img.logo', { alt: it.title, decoding: 'async', src: it.cover });
+    img.addEventListener('error', () => img.replaceWith(h('h3', {}, it.title)));
+    return img;
   }
 
   function playIcon() {

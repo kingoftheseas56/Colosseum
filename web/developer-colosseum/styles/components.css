@@ -22,6 +22,7 @@
 .slide .copy{position:absolute;left:42px;bottom:42px;width:min(560px,calc(100% - 84px));display:flex;flex-direction:column;gap:var(--s-2)}
 .kicker{font-size:var(--t-xs);letter-spacing:3px;color:var(--gold);text-transform:uppercase}
 .slide h3{margin:0;font:400 var(--t-h1)/.96 var(--display-stack)}
+.slide .logo{max-width:340px;max-height:120px;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 6px 24px rgba(0,0,0,.6))}
 .slide p{margin:0;font-size:var(--t-md);line-height:1.25;color:var(--inkDim)}
 .btns{display:flex;gap:10px;padding-top:6px;flex-wrap:wrap}
 .b-gold{height:42px;padding:0 18px;border-radius:11px;background:var(--gold);color:#1a1408;font-size:var(--t-base);font-weight:600;display:inline-flex;align-items:center;gap:var(--s-2);transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast)}

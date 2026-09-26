@@ -10,7 +10,7 @@
     el.appendChild(box);
     let handle = null;
     const ctx = {
-      open: env.open, forget: env.forget, seeAll: env.seeAll,
+      open: env.open, forget: env.forget, seeAll: env.seeAll, act: env.act,
       more: section => env.more(handle, section)
     };
     handle = env.port.subscribe(feed, params, ev => CW.section.sync(box, ev, ctx));

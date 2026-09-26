@@ -10,6 +10,11 @@
     if (!s.title) return null;
     return h('div.wh', {},
       h('h2', {}, s.title),
+      s.headerAction && ctx.act
+        ? h('button.more', { type: 'button', 'data-focus': true, 'data-key': s.id + '#action',
+                             onclick: () => ctx.act(s.headerAction.action, {}) },
+            s.headerAction.label, h('span.ch', { 'aria-hidden': true }, '›'))
+        : null,
       s.seeAll && ctx.seeAll
         ? h('button.more', { type: 'button', 'data-focus': true, 'data-key': s.id + '#all', onclick: () => ctx.seeAll(s) },
             'See all', h('span.ch', { 'aria-hidden': true }, '›'))
@@ -80,7 +85,7 @@
   function render(s, ctx) {
     return h('section.widget', { 'data-section': s.id, 'data-layout': s.layout, 'data-state': s.state,
                                  'aria-busy': s.state === 'loading' ? 'true' : null },
-      s.layout === 'hero' ? null : header(s, ctx), body(s, ctx));
+      s.layout === 'hero' && !s.headerAction ? null : header(s, ctx), body(s, ctx));
   }
 
   /** Apply a port event to a container: full rebuild on reset, single-section swap otherwise. */

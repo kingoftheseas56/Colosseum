@@ -7,7 +7,9 @@
   'use strict';
 
   const WORLDS = ['Tankoban', 'Biblio', 'Theatre'];
-  const KINDS = ['movie', 'series', 'anime', 'manga', 'comic', 'book', 'audiobook'];
+  const KINDS = ['movie', 'series', 'anime', 'manga', 'comic', 'book', 'audiobook', 'universe'];
+  const ITEM_WORLDS = [...WORLDS, 'Colosseum'];     // v1.2: cross-world items (universes)
+  const HEADER_ACTIONS = ['open.universeHall'];
   const LAYOUTS = ['hero', 'rail', 'grid', 'list', 'continue'];
   const STATES = ['loading', 'ready', 'empty', 'error'];
   const TABS = {
@@ -29,7 +31,7 @@
   function itemProblem(it) {
     if (!isObj(it)) return 'item is not an object';
     if (!isStr(it.key) || !it.key) return 'item.key missing';
-    if (!WORLDS.includes(it.world)) return `item ${it.key}: bad world "${it.world}"`;
+    if (!ITEM_WORLDS.includes(it.world)) return `item ${it.key}: bad world "${it.world}"`;
     if (!KINDS.includes(it.kind)) return `item ${it.key}: bad kind "${it.kind}"`;
     if (!isStr(it.title)) return `item ${it.key}: title missing`;
     if (!isObj(it.ref)) return `item ${it.key}: ref missing`;
@@ -44,6 +46,8 @@
     if (!LAYOUTS.includes(s.layout)) return `section ${s.id}: bad layout "${s.layout}"`;
     if (!STATES.includes(s.state)) return `section ${s.id}: bad state "${s.state}"`;
     if (!Array.isArray(s.items)) return `section ${s.id}: items is not an array`;
+    if (s.headerAction && !(isObj(s.headerAction) && HEADER_ACTIONS.includes(s.headerAction.action)
+                            && isStr(s.headerAction.label))) return `section ${s.id}: bad headerAction`;
     for (const it of s.items) { const p = itemProblem(it); if (p) return `section ${s.id}: ${p}`; }
     return null;
   }
