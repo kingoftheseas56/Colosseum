@@ -110,9 +110,11 @@ QString metadataCopy(const UpdateService &updates)
     return installed.isEmpty() ? QString() : QStringLiteral("Installed %1").arg(installed);
 }
 
-QVariantList filteredHighlights(const QVariantList &source)
+QVariantList filteredHighlights(const QVariantList &source, const QVariantMap &release)
 {
-    // Moved from qml/UpdatePage.qml:49-60 and UpdateLivingGallery.qml:39-55.
+    // Moved from qml/UpdatePage.qml:49-60 and
+    // qml/update/UpdateLivingGallery.qml:35-55. Native owns both the kind filter
+    // and the signed single-chapter fallback; web only renders these records.
     QVariantList out;
     for (const QVariant &value : source) {
         const QVariantMap row = value.toMap();
@@ -120,6 +122,17 @@ QVariantList filteredHighlights(const QVariantList &source)
         if (kind == QLatin1String("feature") || kind == QLatin1String("statistic")
             || kind == QLatin1String("beforeAfter") || kind == QLatin1String("milestone"))
             out.append(row);
+    }
+    if (out.isEmpty()) {
+        out.append(QVariantMap{
+            {QStringLiteral("kind"), QStringLiteral("feature")},
+            {QStringLiteral("section"), QStringLiteral("RELEASE")},
+            {QStringLiteral("title"),
+             release.value(QStringLiteral("title"), QStringLiteral("The latest chapter"))},
+            {QStringLiteral("body"),
+             release.value(QStringLiteral("summary"),
+                           QStringLiteral("The latest Colosseum chronicle lives here."))},
+            {QStringLiteral("artwork"), QVariantList{}}});
     }
     return out;
 }
@@ -146,8 +159,9 @@ QVariantMap captureUpdateData(const UpdateService &updates)
     data.insert(QStringLiteral("progressText"), progressCopy(updates));
     data.insert(QStringLiteral("statusText"), statusCopy(updates));
     data.insert(QStringLiteral("metadataText"), metadataCopy(updates));
-    data.insert(QStringLiteral("release"), updates.release());
-    data.insert(QStringLiteral("chapters"), filteredHighlights(updates.highlights()));
+    const QVariantMap release = updates.release();
+    data.insert(QStringLiteral("release"), release);
+    data.insert(QStringLiteral("chapters"), filteredHighlights(updates.highlights(), release));
     data.insert(QStringLiteral("primary"), QVariantMap{
         {QStringLiteral("label"), primaryCopy(state)},
         {QStringLiteral("action"), action},

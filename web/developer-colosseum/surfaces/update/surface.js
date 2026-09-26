@@ -13,19 +13,6 @@
       let chapterIndex = 0;
       let releaseIdentity = '';
 
-      function chaptersFor(data) {
-        const release = data.release || {};
-        const chapters = Array.isArray(data.chapters) ? data.chapters : [];
-        if (chapters.length) return chapters;
-        return [{
-          kind: 'feature',
-          section: 'RELEASE',
-          title: release.title || 'The latest chapter',
-          body: release.summary || 'The latest Colosseum chronicle lives here.',
-          artwork: []
-        }];
-      }
-
       function restoreFocus(root, key) {
         if (!key) return;
         requestAnimationFrame(() => {
@@ -47,13 +34,13 @@
       function renderUpdate(section) {
         const data = section.data || {};
         const release = data.release || {};
-        const chapters = chaptersFor(data);
+        const chapters = Array.isArray(data.chapters) ? data.chapters : [];
         const identity = String(release.version || data.latestVersion || data.installedVersion || release.title || '');
         if (identity !== releaseIdentity) {
           releaseIdentity = identity;
           chapterIndex = 0;
         }
-        chapterIndex = Math.max(0, Math.min(chapterIndex, chapters.length - 1));
+        chapterIndex = Math.max(0, Math.min(chapterIndex, Math.max(0, chapters.length - 1)));
         const chapter = chapters[chapterIndex] || {};
         const art = Array.isArray(chapter.artwork) && chapter.artwork.length ? chapter.artwork[0] : '';
         const version = release.version || data.latestVersion || data.installedVersion || release.title || '';
