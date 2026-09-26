@@ -1,0 +1,42 @@
+/* surfaces/biblio/surface.css — layout only; values come from shared tokens. */
+.biblio-surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+}
+
+.biblio-chrome,
+.biblio-body {
+  gap: var(--s-8);
+}
+
+.biblio-tabs {
+  display: contents;
+}
+
+.biblio-local-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.biblio-local-controls:empty {
+  display: none;
+}
+
+.biblio-library-search {
+  width: calc(var(--poster-w) + var(--poster-w));
+}
+
+.biblio-pref-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+.biblio-surface .chip.on,
+.biblio-surface .gt.on {
+  background: var(--gold);
+  color: var(--washBottom);
+  border-color: var(--gold);
+}
