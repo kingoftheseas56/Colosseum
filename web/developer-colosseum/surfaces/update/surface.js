@@ -11,10 +11,8 @@
 
       let sub = null;
       let alive = true;
-      let watching = false;
       let chapterIndex = 0;
       let releaseIdentity = '';
-      let lastSection = null;
 
       function chaptersFor(data) {
         const release = data.release || {};
@@ -46,7 +44,6 @@
       }
 
       function renderUpdate(section) {
-        lastSection = section;
         const data = section.data || {};
         const release = data.release || {};
         const chapters = chaptersFor(data);
@@ -107,7 +104,8 @@
               onclick: () => {
                 if (!primary.action) return;
                 env.act(primary.action, {}).then(result => {
-                  if (result && result.ok) refreshFeed();
+                  if (!alive) return;
+                  if (result && !result.ok && result.error) env.toast(result.error);
                 });
               }
             }, primary.label || '') : null));
@@ -121,46 +119,15 @@
         more: section => sub ? env.more(sub, section) : Promise.resolve({ ok: false })
       };
 
-      function subscribe() {
-        if (!alive) return;
-        if (sub) sub.close();
-        sub = env.port.subscribe('page.update', route.params || {},
-          ev => CW.section.sync(box, ev, ctx));
-      }
-
-      function refreshFeed() {
-        if (!alive) return;
-        const key = document.activeElement && document.activeElement.getAttribute
-          ? document.activeElement.getAttribute('data-key') : null;
-        subscribe();
-        if (key) requestAnimationFrame(() => restoreFocus(box, key));
-      }
-
-      function armWatch() {
-        if (!alive || watching) return;
-        watching = true;
-        env.act('page.update.wait', {}).then(result => {
-          watching = false;
-          if (!alive) return;
-          // The fixture adapter resolves every action immediately. Do not turn
-          // its canned answer into a tight resubscribe loop; live native waits
-          // return only "changed" or "idle" after a real signal/timeout.
-          if (result && result.result === 'fixture') return;
-          if (result && result.ok) refreshFeed();
-          armWatch();
-        });
-      }
-
-      subscribe();
+      sub = env.port.subscribe('page.update', route.params || {},
+        ev => CW.section.sync(box, ev, ctx));
       env.act('page.update.seen', {}).then(result => {
-        if (alive && result && result.ok) refreshFeed();
+        if (alive && result && !result.ok && result.error) env.toast(result.error);
       });
-      armWatch();
 
       return {
         unmount() {
           alive = false;
-          lastSection = null;
           if (sub) sub.close();
         }
       };

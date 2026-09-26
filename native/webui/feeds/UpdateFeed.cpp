@@ -4,12 +4,11 @@
 #include "../ColosseumWebBridge.h"
 #include "../../update/UpdateService.h"
 
-#include <QCoreApplication>
 #include <QMetaEnum>
 #include <QMetaObject>
-#include <QThread>
 #include <QTimer>
 
+#include <functional>
 #include <memory>
 #include <utility>
 
@@ -124,50 +123,59 @@ QVariantList filteredHighlights(const QVariantList &source)
     return out;
 }
 
-QVariantMap captureUpdateData()
+QVariantMap captureUpdateData(const UpdateService &updates)
 {
     QVariantMap data{{QStringLiteral("schema"), QStringLiteral("update.state")}};
-    bool found = false;
-    auto capture = [&] {
-        QCoreApplication *app = QCoreApplication::instance();
-        if (!app) return;
-        auto *updates = app->findChild<UpdateService *>();
-        if (!updates) return;
-        found = true;
-        const UpdateService::State state = updates->state();
-        const bool progressVisible = state == UpdateService::Downloading || state == UpdateService::Paused;
-        const QString action = primaryAction(state);
-        data.insert(QStringLiteral("state"), static_cast<int>(state));
-        const char *stateKey = QMetaEnum::fromType<UpdateService::State>().valueToKey(state);
-        data.insert(QStringLiteral("stateName"),
-                    stateKey ? QString::fromLatin1(stateKey) : QStringLiteral("Idle"));
-        data.insert(QStringLiteral("installedVersion"), updates->installedVersion());
-        data.insert(QStringLiteral("latestVersion"), updates->latestVersion());
-        data.insert(QStringLiteral("updateAvailable"), updates->updateAvailable());
-        data.insert(QStringLiteral("unseenUpdate"), updates->unseenUpdate());
-        data.insert(QStringLiteral("receivedBytes"), updates->receivedBytes());
-        data.insert(QStringLiteral("totalBytes"), updates->totalBytes());
-        data.insert(QStringLiteral("progress"), updates->progress());
-        data.insert(QStringLiteral("progressVisible"), progressVisible);
-        data.insert(QStringLiteral("progressIndeterminate"), progressVisible && updates->totalBytes() <= 0);
-        data.insert(QStringLiteral("progressText"), progressCopy(*updates));
-        data.insert(QStringLiteral("statusText"), statusCopy(*updates));
-        data.insert(QStringLiteral("metadataText"), metadataCopy(*updates));
-        data.insert(QStringLiteral("release"), updates->release());
-        data.insert(QStringLiteral("chapters"), filteredHighlights(updates->highlights()));
-        data.insert(QStringLiteral("primary"), QVariantMap{
-            {QStringLiteral("label"), primaryCopy(state)},
-            {QStringLiteral("action"), action},
-            {QStringLiteral("visible"), !action.isEmpty()},
-            {QStringLiteral("enabled"), !action.isEmpty()}});
-    };
-    QCoreApplication *app = QCoreApplication::instance();
-    if (app && QThread::currentThread() != app->thread())
-        QMetaObject::invokeMethod(app, capture, Qt::BlockingQueuedConnection);
-    else
-        capture();
-    if (!found) data.insert(QStringLiteral("error"), QStringLiteral("Update service is unavailable."));
+    const UpdateService::State state = updates.state();
+    const bool progressVisible = state == UpdateService::Downloading || state == UpdateService::Paused;
+    const QString action = primaryAction(state);
+    data.insert(QStringLiteral("state"), static_cast<int>(state));
+    const char *stateKey = QMetaEnum::fromType<UpdateService::State>().valueToKey(state);
+    data.insert(QStringLiteral("stateName"),
+                stateKey ? QString::fromLatin1(stateKey) : QStringLiteral("Idle"));
+    data.insert(QStringLiteral("installedVersion"), updates.installedVersion());
+    data.insert(QStringLiteral("latestVersion"), updates.latestVersion());
+    data.insert(QStringLiteral("updateAvailable"), updates.updateAvailable());
+    data.insert(QStringLiteral("unseenUpdate"), updates.unseenUpdate());
+    data.insert(QStringLiteral("receivedBytes"), updates.receivedBytes());
+    data.insert(QStringLiteral("totalBytes"), updates.totalBytes());
+    data.insert(QStringLiteral("progress"), updates.progress());
+    data.insert(QStringLiteral("progressVisible"), progressVisible);
+    data.insert(QStringLiteral("progressIndeterminate"), progressVisible && updates.totalBytes() <= 0);
+    data.insert(QStringLiteral("progressText"), progressCopy(updates));
+    data.insert(QStringLiteral("statusText"), statusCopy(updates));
+    data.insert(QStringLiteral("metadataText"), metadataCopy(updates));
+    data.insert(QStringLiteral("release"), updates.release());
+    data.insert(QStringLiteral("chapters"), filteredHighlights(updates.highlights()));
+    data.insert(QStringLiteral("primary"), QVariantMap{
+        {QStringLiteral("label"), primaryCopy(state)},
+        {QStringLiteral("action"), action},
+        {QStringLiteral("visible"), !action.isEmpty()},
+        {QStringLiteral("enabled"), !action.isEmpty()}});
     return data;
+}
+
+void captureUpdate(ColosseumWebBridge &bridge, FeedContext &context)
+{
+    auto *updates = qobject_cast<UpdateService *>(bridge.service(QStringLiteral("Updates")));
+    if (!updates) {
+        context.nativeSnapshot = {
+            {QStringLiteral("schema"), QStringLiteral("update.state")},
+            {QStringLiteral("error"), QStringLiteral("Update service is unavailable.")}};
+        return;
+    }
+    // FeedRegistry capture hooks run on the GUI thread before build() moves to
+    // the worker, so the worker never reads QObject-owned updater state.
+    context.nativeSnapshot = captureUpdateData(*updates);
+}
+
+QMetaObject::Connection bindUpdateChanged(QObject *owner, QObject *receiver,
+                                         std::function<void()> refresh)
+{
+    auto *updates = qobject_cast<UpdateService *>(owner);
+    if (!updates) return {};
+    return QObject::connect(updates, &UpdateService::changed, receiver,
+                            [refresh = std::move(refresh)] { refresh(); });
 }
 
 QVariantMap updateSection(const QString &state, QVariantMap data = {})
@@ -321,48 +329,40 @@ void install(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Co
         completeError(done, QStringLiteral("The updater could not start the installer."));
 }
 
-void waitForChange(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Completion done)
-{
-    auto *updates = service(bridge, done);
-    if (!updates) return;
-    auto settled = std::make_shared<bool>(false);
-    auto connection = std::make_shared<QMetaObject::Connection>();
-    *connection = QObject::connect(updates, &UpdateService::changed, &bridge,
-        [settled, connection, done] {
-            if (*settled) return;
-            *settled = true;
-            QObject::disconnect(*connection);
-            completeOk(done, QStringLiteral("changed"));
-        });
-    QTimer::singleShot(30000, &bridge, [settled, connection, done] {
-        if (*settled) return;
-        *settled = true;
-        QObject::disconnect(*connection);
-        completeOk(done, QStringLiteral("idle"));
-    });
-}
-
 bool valid(const QVariantMap &params) { return params.isEmpty(); }
 
-QVariantList build(const FeedContext &)
+QVariantList build(const FeedContext &context)
 {
-    QVariantMap data = captureUpdateData();
+    QVariantMap data = context.nativeSnapshot;
+    if (data.isEmpty()) {
+        data = {{QStringLiteral("schema"), QStringLiteral("update.state")},
+                {QStringLiteral("error"), QStringLiteral("Update service is unavailable.")}};
+    }
     return {updateSection(data.contains(QStringLiteral("error"))
                               ? QStringLiteral("error") : QStringLiteral("ready"),
                           std::move(data))};
 }
 
-const bool feedRegistered = FeedRegistry::add({
-    QStringLiteral("page.update"), {}, valid,
-    [](const QVariantMap &) -> QVariantList {
+FeedRegistry::Entry updateFeedEntry()
+{
+    FeedRegistry::Entry entry;
+    entry.name = QStringLiteral("page.update");
+    entry.valid = valid;
+    entry.initial = [](const QVariantMap &) -> QVariantList {
         return {updateSection(QStringLiteral("loading"))};
-    },
-    build});
+    };
+    entry.build = build;
+    entry.capture = captureUpdate;
+    entry.ownerSignals.append(
+        {QStringLiteral("Updates"), bindUpdateChanged});
+    return entry;
+}
+
+const bool feedRegistered = FeedRegistry::add(updateFeedEntry());
 
 const bool seenRegistered = ActionRegistry::add({QStringLiteral("page.update.seen"), emptyPayload, markSeen});
 const bool checkRegistered = ActionRegistry::add({QStringLiteral("page.update.check"), emptyPayload, checkNow});
 const bool downloadRegistered = ActionRegistry::add({QStringLiteral("page.update.download"), emptyPayload, download});
 const bool pauseRegistered = ActionRegistry::add({QStringLiteral("page.update.pause"), emptyPayload, pause});
 const bool installRegistered = ActionRegistry::add({QStringLiteral("page.update.install"), emptyPayload, install});
-const bool waitRegistered = ActionRegistry::add({QStringLiteral("page.update.wait"), emptyPayload, waitForChange});
 } // namespace

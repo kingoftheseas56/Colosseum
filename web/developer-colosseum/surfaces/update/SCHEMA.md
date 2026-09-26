@@ -25,6 +25,7 @@ Page actions, all with empty payloads:
 - `page.update.download` starts, resumes or retries the installer download.
 - `page.update.pause` pauses an active download.
 - `page.update.install` launches the verified ready installer and requests restart.
-- `page.update.wait` is a bounded one-shot change notification used by the surface to resubscribe the feed only when updater state changes (or after its idle timeout). It does not carry page data.
+
+The feed binds `UpdateService::changed` through `FeedRegistry::ownerSignals`; updater changes refresh the existing subscription directly, without polling or a page action.
 
 Action failures are returned in plain human language.
