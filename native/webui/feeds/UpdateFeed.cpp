@@ -4,6 +4,7 @@
 #include "../ColosseumWebBridge.h"
 #include "../../update/UpdateService.h"
 
+#include <QElapsedTimer>
 #include <QMetaEnum>
 #include <QMetaObject>
 #include <QTimer>
@@ -174,8 +175,26 @@ QMetaObject::Connection bindUpdateChanged(QObject *owner, QObject *receiver,
 {
     auto *updates = qobject_cast<UpdateService *>(owner);
     if (!updates) return {};
+
+    // State changes are user-visible transitions and refresh immediately.
+    // Same-state changed() emissions are primarily download progress/artwork;
+    // CONTRACT §3.2 caps progress-driven subscription updates to <= 1/second.
+    auto lastState = std::make_shared<UpdateService::State>(updates->state());
+    auto throttle = std::make_shared<QElapsedTimer>();
     return QObject::connect(updates, &UpdateService::changed, receiver,
-                            [refresh = std::move(refresh)] { refresh(); });
+        [updates, lastState, throttle, refresh = std::move(refresh)] {
+            const auto state = updates->state();
+            if (state != *lastState) {
+                *lastState = state;
+                throttle->restart();
+                refresh();
+                return;
+            }
+            if (!throttle->isValid() || throttle->elapsed() >= 1000) {
+                throttle->restart();
+                refresh();
+            }
+        });
 }
 
 QVariantMap updateSection(const QString &state, QVariantMap data = {})
