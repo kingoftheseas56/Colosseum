@@ -444,6 +444,9 @@ void ColosseumWebBridge::reset(int id)
 
 void ColosseumWebBridge::refresh(int id)
 {
+    // A suspend publishes loading resets only. The old context property can
+    // still point at the outgoing profile until the runtime finishes its swap.
+    if (!m_profileActive) return;
     auto it = m_subscriptions.find(id);
     if (it == m_subscriptions.end()) return;
     const auto *registered = FeedRegistry::find(it->feed, it->params);
