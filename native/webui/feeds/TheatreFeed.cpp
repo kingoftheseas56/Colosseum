@@ -10,6 +10,7 @@
 #include <QDateTime>
 #include <QCryptographicHash>
 #include <QEventLoop>
+#include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -859,6 +860,36 @@ QVariantList librarySections(const FeedContext &context, int firstIndex)
         QVariantMap item = mediaItems({entry}, {}, context.showExplicit).value(0).toMap();
         if (item.isEmpty()) continue;
         if (fraction > 0) item.insert(QStringLiteral("progress"), fraction);
+        const QString sub = progress.value(QStringLiteral("sub")).toString();
+        const bool resume = fraction > 0 || state == QLatin1String("progress");
+        QVariantList menu{
+            QVariantMap{{QStringLiteral("key"), QStringLiteral("resume")},
+                {QStringLiteral("label"), resume
+                    ? QStringLiteral("Resume") + (sub.isEmpty() ? QString() : QLatin1Char(' ') + sub)
+                    : QStringLiteral("Play")},
+                {QStringLiteral("target"), QVariantMap{{QStringLiteral("intent"), QStringLiteral("resume")}}}},
+            QVariantMap{{QStringLiteral("key"), QStringLiteral("detail")},
+                {QStringLiteral("label"), QStringLiteral("Details")},
+                {QStringLiteral("target"), QVariantMap{{QStringLiteral("intent"), QStringLiteral("details")}}}}
+        };
+        if (fraction > 0)
+            menu.append(QVariantMap{{QStringLiteral("key"), QStringLiteral("dismiss")},
+                {QStringLiteral("label"), QStringLiteral("Dismiss progress")},
+                {QStringLiteral("target"), QVariantMap{{QStringLiteral("act"),
+                    QStringLiteral("world.theatre.dismiss")}}}});
+        menu.append(QVariantMap{{QStringLiteral("key"), QStringLiteral("watch")},
+            {QStringLiteral("label"), state == QLatin1String("watched")
+                ? QStringLiteral("Mark unwatched") : QStringLiteral("Mark watched")},
+            {QStringLiteral("target"), QVariantMap{{QStringLiteral("act"),
+                QStringLiteral("world.theatre.markWatched")},
+                {QStringLiteral("payload"), QVariantMap{{QStringLiteral("watched"),
+                    state != QLatin1String("watched")}}}}}});
+        menu.append(QVariantMap{{QStringLiteral("key"), QStringLiteral("remove")},
+            {QStringLiteral("label"), QStringLiteral("Remove from Library")},
+            {QStringLiteral("warn"), true},
+            {QStringLiteral("target"), QVariantMap{{QStringLiteral("act"),
+                QStringLiteral("collection.remove")}}}});
+        item.insert(QStringLiteral("menu"), menu);
         if (newCount > 0) item.insert(QStringLiteral("badge"), QStringLiteral("New episode"));
         else if (downloaded) item.insert(QStringLiteral("badge"), QStringLiteral("Downloaded"));
         else if (state == QLatin1String("watched")) item.insert(QStringLiteral("badge"), QStringLiteral("Watched"));
@@ -939,9 +970,17 @@ QVariantList librarySections(const FeedContext &context, int firstIndex)
     QVariantMap filters = WebFeedValue::section(QStringLiteral("theatre.library.controls"),
         firstIndex, QStringLiteral("Your Collection"), QStringLiteral("chips"), {});
     filters.insert(QStringLiteral("choices"), controls);
-    return {filters, WebFeedValue::section(QStringLiteral("theatre.library"), firstIndex + 1,
+    QVariantMap library = WebFeedValue::section(QStringLiteral("theatre.library"), firstIndex + 1,
         QStringLiteral("Library"), QStringLiteral("grid"), cards,
-        cards.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"))};
+        cards.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
+    if (counts.value(QStringLiteral("saved")).toInt() == 0) {
+        library.insert(QStringLiteral("emptyTitle"), QStringLiteral("Your library is empty"));
+        library.insert(QStringLiteral("emptyText"),
+            QStringLiteral("Press play on anything, or tap + Library — it lands here."));
+    } else if (cards.isEmpty()) {
+        library.insert(QStringLiteral("emptyTitle"), QStringLiteral("Nothing matches these filters"));
+    }
+    return {filters, library};
 }
 
 bool validTheatreView(const QVariantMap &params)
@@ -1075,7 +1114,45 @@ QVariantList extensionPage(const FeedContext &context)
 }
 } // namespace
 
-QVariantList TheatreFeed::build(const FeedContext &context)
+namespace {
+QString shelfCacheKey(const FeedContext &context, const QString &tab)
+{
+    const auto stamp = [](const QString &path) {
+        const QFileInfo file(path);
+        return file.absoluteFilePath() + QLatin1Char(':')
+            + QString::number(file.size()) + QLatin1Char(':')
+            + QString::number(file.lastModified().toMSecsSinceEpoch());
+    };
+    return tab + QLatin1Char(':') + QString::number(context.showExplicit)
+        + QLatin1Char(':') + stamp(context.paths.imdb)
+        + QLatin1Char(':') + stamp(context.paths.mal);
+}
+
+QMutex &shelfCacheMutex()
+{
+    static QMutex mutex;
+    return mutex;
+}
+
+QHash<QString, QVariantList> &shelfCache()
+{
+    static QHash<QString, QVariantList> cache;
+    return cache;
+}
+
+QVariantMap nextUpSection(const FeedContext &context)
+{
+    const QList<FinishedShow> finished = finishedShows(context.recent);
+    QVariantList cards;
+    const bool hasCached = finished.isEmpty()
+        || cachedNextUp(nextUpCacheKey(finished, context.showExplicit), cards);
+    return WebFeedValue::section(QStringLiteral("theatre.nextUp"), 1,
+        QStringLiteral("Next Up"), QStringLiteral("rail"), cards,
+        !hasCached ? QStringLiteral("loading")
+            : cards.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
+}
+
+QVariantList buildFull(const FeedContext &context)
 {
     const QString tab = context.params.value(QStringLiteral("tab")).toString();
     QVariantList out;
@@ -1133,11 +1210,73 @@ QVariantList TheatreFeed::build(const FeedContext &context)
             QStringLiteral("Theatre"), QStringLiteral("list"), {}, QStringLiteral("error")));
     return out;
 }
+} // namespace
+
+QVariantList TheatreFeed::build(const FeedContext &context)
+{
+    const QString tab = context.params.value(QStringLiteral("tab")).toString();
+    if (tab != QLatin1String("movies") && tab != QLatin1String("shows")
+        && tab != QLatin1String("anime")) return buildFull(context);
+
+    const QString key = shelfCacheKey(context, tab);
+    QVariantList cached;
+    {
+        QMutexLocker lock(&shelfCacheMutex());
+        cached = shelfCache().value(key);
+    }
+    if (!cached.isEmpty()) {
+        cached[1] = nextUpSection(context);
+        return cached;
+    }
+
+    // A fresh tab sends its first real shelf without waiting for every catalogue query.
+    // The bridge calls this builder on a worker-owned SQLite connection.
+    QVariantList out{
+        WebFeedValue::section(QStringLiteral("theatre.featured"), 0,
+            QStringLiteral("Featured in Theatre"), QStringLiteral("hero"), {},
+            QStringLiteral("loading")),
+        nextUpSection(context)
+    };
+    if (tab == QLatin1String("anime")) {
+        MalCatalog mal(context.paths.mal, nullptr,
+            QStringLiteral("web_theatre_mal_") + QUuid::createUuid().toString(QUuid::WithoutBraces));
+        if (mal.ready())
+            malShelf(out, mal, QStringLiteral("top10"), QStringLiteral("Top 10"),
+                {{QStringLiteral("order"), QStringLiteral("members")}}, context.showExplicit, 10);
+    } else {
+        ImdbCatalog imdb(context.paths.imdb, nullptr,
+            QStringLiteral("web_theatre_imdb_") + QUuid::createUuid().toString(QUuid::WithoutBraces));
+        if (imdb.ready())
+            imdbShelf(out, imdb, tab, QStringLiteral("top10"), QStringLiteral("Top 10"),
+                {{QStringLiteral("type"), tab == QLatin1String("shows")
+                    ? QStringLiteral("series") : QStringLiteral("movie")},
+                 {QStringLiteral("order"), QStringLiteral("votes")}}, context.showExplicit, 10);
+    }
+    if (out.size() == 2)
+        out.append(WebFeedValue::section(QStringLiteral("theatre.%1.unavailable").arg(tab), 2,
+            QStringLiteral("Theatre"), QStringLiteral("list"), {}, QStringLiteral("error")));
+    return out;
+}
 
 QVariantList TheatreFeed::enrich(const FeedContext &context)
 {
     const QString tab = context.params.value(QStringLiteral("tab")).toString();
     QVariantList updated = context.baseSections;
+    if (tab == QLatin1String("movies") || tab == QLatin1String("shows")
+        || tab == QLatin1String("anime")) {
+        const QString key = shelfCacheKey(context, tab);
+        bool cached = false;
+        {
+            QMutexLocker lock(&shelfCacheMutex());
+            cached = shelfCache().contains(key);
+        }
+        if (!cached) {
+            updated = buildFull(context);
+            QMutexLocker lock(&shelfCacheMutex());
+            if (shelfCache().size() >= 8) shelfCache().clear();
+            shelfCache().insert(key, updated);
+        }
+    }
     QNetworkAccessManager manager;
     if (tab == QLatin1String("movies") || tab == QLatin1String("shows")) {
         enrichMovieShow(updated, manager, tab, context.showExplicit);
