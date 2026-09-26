@@ -104,6 +104,23 @@
 .rail .loadmore{margin:auto 0;flex:0 0 auto}
 .loadmore:focus{box-shadow:var(--ring)}
 
+/* v1.3 choices: pills + genre tiles (GenreMosaic geometry) */
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{height:36px;padding:0 16px;border-radius:var(--r-pill);background:var(--glassTint);border:1px solid var(--edge);color:var(--inkDim);font-size:var(--t-md);display:inline-flex;align-items:center;gap:8px;transition:box-shadow var(--t-fast)}
+.chip:hover{color:var(--ink);background:var(--glassHi)}
+.chip .cs{color:var(--inkDimmer);font-size:var(--t-sm)}
+.chip:focus,.chipx:focus,.gt:focus{box-shadow:var(--ring)}
+.chipwrap{display:inline-flex;align-items:center;gap:2px}
+.chipx{width:28px;height:28px;border-radius:50%;color:var(--inkDimmer);font-size:16px}
+.chipx:hover{color:var(--ink);background:var(--glassTint)}
+.gm{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s-3)}
+.gt{position:relative;height:112px;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--edge);text-align:left;transition:transform var(--t-fast) var(--ease)}
+.gt .face img{filter:blur(1px) brightness(.45)}
+.gt .face .fb{background:linear-gradient(160deg,#2b3446,#11151e)}
+.gt .n{position:absolute;left:16px;bottom:14px;font:400 var(--t-h3)/1 var(--display-stack)}
+.gt .c{position:absolute;right:16px;bottom:16px;font-size:var(--t-sm);color:var(--inkDim)}
+@media (max-width:1100px){.gm{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
 /* search field (SearchSurface) */
 .sfield{height:72px;border-radius:16px;background:rgba(0,0,0,.30);border:1px solid var(--edge);display:flex;align-items:center;padding:0 24px}
 .sfield input{flex:1;background:none;border:0;outline:0;color:var(--ink);font:400 var(--t-h3) var(--display-stack)}

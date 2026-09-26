@@ -10,7 +10,7 @@
   const KINDS = ['movie', 'series', 'anime', 'manga', 'comic', 'book', 'audiobook', 'universe'];
   const ITEM_WORLDS = [...WORLDS, 'Colosseum'];     // v1.2: cross-world items (universes)
   const HEADER_ACTIONS = ['open.universeHall'];
-  const LAYOUTS = ['hero', 'rail', 'grid', 'list', 'continue'];
+  const LAYOUTS = ['hero', 'rail', 'grid', 'list', 'continue', 'chips', 'tiles'];
   const STATES = ['loading', 'ready', 'empty', 'error'];
   const TABS = {
     Tankoban: [['discover', 'Discover'], ['manga', 'Manga'], ['comics', 'Comics'], ['library', 'Library']],
@@ -39,6 +39,13 @@
     return null;
   }
 
+  function choiceProblem(c) {
+    if (!isObj(c) || !isStr(c.key) || !c.key || !isStr(c.label)) return 'choice needs key + label';
+    const t = c.target;
+    const ok = isObj(t) && ((isObj(t.route) && t.route.v === 1) || isStr(t.query) || t.act === 'search.surprise');
+    return ok ? null : `choice ${c.key}: bad target`;
+  }
+
   function sectionProblem(s) {
     if (!isObj(s)) return 'section is not an object';
     if (!isStr(s.id) || !s.id) return 'section.id missing';
@@ -49,6 +56,11 @@
     if (s.headerAction && !(isObj(s.headerAction) && HEADER_ACTIONS.includes(s.headerAction.action)
                             && isStr(s.headerAction.label))) return `section ${s.id}: bad headerAction`;
     for (const it of s.items) { const p = itemProblem(it); if (p) return `section ${s.id}: ${p}`; }
+    if (s.choices != null) {
+      if (!Array.isArray(s.choices)) return `section ${s.id}: choices is not an array`;
+      if (s.items.length && s.choices.length) return `section ${s.id}: items and choices together`;
+      for (const c of s.choices) { const p = choiceProblem(c); if (p) return `section ${s.id}: ${p}`; }
+    }
     return null;
   }
 

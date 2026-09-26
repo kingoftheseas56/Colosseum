@@ -54,7 +54,7 @@
   const pane = CW.h('div.world-pane');
   document.getElementById('col').appendChild(pane);
   let events = 0;
-  const ctx = { open() {}, forget() {}, seeAll() {}, more() {}, act() {} };
+  const ctx = { open() {}, forget() {}, seeAll() {}, more() {}, act() {}, choose() {}, removeChoice() {} };
 
   // early event (before subscribe resolves) must be buffered, not lost
   emit(1, { type: 'reset', sections: [
@@ -113,6 +113,17 @@
     headerAction: { action: 'open.universeHall', label: 'Universe Hall' },
     items: [{ key: 'Colosseum:universe:u1', world: 'Colosseum', kind: 'universe', title: 'Cosmere', ref: { extensionId: 'u1', name: 'Cosmere' } }] } });
   check('universe item + header action accepted', !!sec('uni') && sec('uni').textContent.includes('Universe Hall') && sec('uni').textContent.includes('Enter'));
+  // v1.3 choices: chips with a removable query, tiles with a route, and a malformed target dropped
+  emit(5, { type: 'section', section: { id: 'recent', index: 7, title: 'Recent', layout: 'chips', state: 'ready', items: [],
+    choices: [{ key: 'search:recent:dune', label: 'dune', removable: true, target: { query: 'dune' } },
+              { key: 'search:surprise', label: 'Surprise me', target: { act: 'search.surprise' } }] } });
+  emit(6, { type: 'section', section: { id: 'genres', index: 8, title: 'Genres', layout: 'tiles', state: 'ready', items: [],
+    choices: [{ key: 'genre:Theatre:Drama', label: 'Drama', sublabel: '12,400 titles', target: { route: { v: 1, world: 'Theatre' } } }] } });
+  emit(7, { type: 'section', section: { id: 'badchoice', index: 9, title: 'x', layout: 'chips', state: 'ready', items: [],
+    choices: [{ key: 'c', label: 'c', target: { url: 'https://evil' } }] } });
+  check('choice chips render with a remove affordance', !!sec('recent') && !!sec('recent').querySelector('.chipx') && sec('recent').textContent.includes('Surprise me'));
+  check('genre tiles render', !!sec('genres') && !!sec('genres').querySelector('.gt'));
+  check('choice with a web-built target is dropped', !sec('badchoice'));
   const r = await port.act('open', { item: item(1), intent: 'details' });
   check('act resolves with the native answer', r.ok === true);
 

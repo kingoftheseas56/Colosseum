@@ -5,12 +5,13 @@
   'use strict';
   const { h } = CW;
 
-  function feedView(el, env, feed, params) {
+  function feedView(el, env, feed, params, onQuery) {
     const box = h('div.world-pane');
     el.appendChild(box);
     let handle = null;
     const ctx = {
       open: env.open, forget: env.forget, seeAll: env.seeAll, act: env.act,
+      choose: (c, s) => env.choose(c, s, onQuery), removeChoice: env.removeChoice,
       more: section => env.more(handle, section)
     };
     handle = env.port.subscribe(feed, params, ev => CW.section.sync(box, ev, ctx));
@@ -59,9 +60,12 @@
         const run = () => {
           if (view) { view.close(); view.box.remove(); view = null; }
           const query = input.value.trim();
-          if (query.length < 2) return;
-          view = feedView(results, env, 'search', { scope: route.scope || 'all', query });
+          // an empty query is valid: native answers with recent queries, genres and Surprise me (v1.3)
+          view = feedView(results, env, 'search', { scope: route.scope || 'all', query },
+                          q => { input.value = q; run(); });
         };
+        if (route.query) input.value = route.query;
+        run();
         input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 250); });
         requestAnimationFrame(() => input.focus());
         return { unmount: () => { clearTimeout(timer); if (view) view.close(); } };
