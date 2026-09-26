@@ -1246,10 +1246,26 @@ QVariantList TheatreFeed::build(const FeedContext &context)
     } else {
         ImdbCatalog imdb(context.paths.imdb, nullptr,
             QStringLiteral("web_theatre_imdb_") + QUuid::createUuid().toString(QUuid::WithoutBraces));
-        if (imdb.ready())
+        if (imdb.ready() && tab == QLatin1String("shows")) {
+            // Two indexed type scans avoid SQLite's temporary sort for series + mini.
+            QVariantList rows = imdb.titleCatalog(
+                {{QStringLiteral("type"), QStringLiteral("series")},
+                 {QStringLiteral("exactSeries"), true},
+                 {QStringLiteral("order"), QStringLiteral("votes")},
+                 {QStringLiteral("excludeAnime"), true}}, 0, 10);
+            rows.append(imdb.titleCatalog(
+                {{QStringLiteral("type"), QStringLiteral("mini")},
+                 {QStringLiteral("order"), QStringLiteral("votes")},
+                 {QStringLiteral("excludeAnime"), true}}, 0, 10));
+            std::stable_sort(rows.begin(), rows.end(), [](const QVariant &a, const QVariant &b) {
+                return a.toMap().value(QStringLiteral("votes")).toInt()
+                    > b.toMap().value(QStringLiteral("votes")).toInt();
+            });
+            append(out, tab, QStringLiteral("top10"), QStringLiteral("Top 10"),
+                QStringLiteral("series"), rows, context.showExplicit, 10);
+        } else if (imdb.ready())
             imdbShelf(out, imdb, tab, QStringLiteral("top10"), QStringLiteral("Top 10"),
-                {{QStringLiteral("type"), tab == QLatin1String("shows")
-                    ? QStringLiteral("series") : QStringLiteral("movie")},
+                {{QStringLiteral("type"), QStringLiteral("movie")},
                  {QStringLiteral("order"), QStringLiteral("votes")}}, context.showExplicit, 10);
     }
     if (out.size() == 2)

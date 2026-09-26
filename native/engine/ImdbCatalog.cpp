@@ -81,7 +81,8 @@ QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int
         QStringLiteral("votesMin"), QStringLiteral("votesMax"), QStringLiteral("yearFrom"),
         QStringLiteral("yearTo"), QStringLiteral("runtimeMax"), QStringLiteral("genre"),
         QStringLiteral("lang"), QStringLiteral("notLang"), QStringLiteral("excludeAnime"),
-        QStringLiteral("episodesMin"), QStringLiteral("notGenre")
+        QStringLiteral("episodesMin"), QStringLiteral("notGenre"),
+        QStringLiteral("exactSeries")
     };
     for (auto it = query.constBegin(); it != query.constEnd(); ++it)
         if (!allowed.contains(it.key())) return out;
@@ -98,7 +99,11 @@ QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int
     QVariantList binds;
     const QString type = query.value(QStringLiteral("type")).toString();
     if (type == QStringLiteral("movie"))       { where << QStringLiteral("t.type = 'movie'"); }
-    else if (type == QStringLiteral("series")) { where << QStringLiteral("t.type IN ('series','mini')"); }
+    else if (type == QStringLiteral("series")) {
+        where << (query.value(QStringLiteral("exactSeries")).toBool()
+            ? QStringLiteral("t.type = 'series'")
+            : QStringLiteral("t.type IN ('series','mini')"));
+    }
     else if (type == QStringLiteral("mini"))   { where << QStringLiteral("t.type = 'mini'"); }
     else if (!type.isEmpty())                  { return out; }
     const bool joinGenre = query.contains(QStringLiteral("genre"));
