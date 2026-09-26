@@ -13,9 +13,12 @@ Subscribe with native route `params: { id: string, type: "movie"|"series", title
 
 `related` is a standard `rail` of native issued `Item` records; it has no `data`. A film has `seasons` and `episodes` in `empty` state. Source records contain no provider URL, torrent hash, file path, credential, or token.
 
+`episodes` carries at most 100 rows per event. In absolute order its first window contains `nextUpId`; `hasMore:true` exposes later windows through `port.more`. Progress changes send at most one section event per second per subscription, and only the changed section is re-sent.
+
 | Action | Payload | Completion rule |
 |---|---|---|
 | `detail.theatre.selectSeason` | `{id, season:number, order?:"seasons"|"absolute"}` | Resolve after selection is stored and the feed refresh is scheduled. |
+| `detail.theatre.loadSources` | `{id, episodeId:string}` | Resolve after the `sources` section refreshes with `targetId` equal to this episode id. |
 | `detail.theatre.play` | `{id, episodeId?:string, sourceKey?:string}` | Resolve after native player handoff succeeds or returns a plain error. Missing `episodeId` means movie/hero play. |
 | `detail.theatre.markWatched` | `{id, episodeId:string, watched:boolean}` | Resolve after ProgressStore persists the mark. |
 | `detail.theatre.download` | `{id, episodeId?:string, sourceKey?:string}` | Resolve after the download request is accepted or fails; report the actual job id in `result`. |

@@ -13,10 +13,13 @@ Subscribe with native route `params: { id: string, title?: string, cover?: strin
 
 Chapter and volume records contain no page URL, provider endpoint, local path, credential, or token. `chapters` reports a plain error when Tankoyomi is disabled or the selected language has no source; `volumes` reports empty when the catalogue has no proven shelf.
 
+`chapters` carries at most 100 rows per event and uses `hasMore:true` plus `port.more` for later windows. Download progress sends at most one changed `downloads` section event per second per subscription.
+
 | Action | Payload | Completion rule |
 |---|---|---|
 | `detail.manga.selectMode` | `{id, mode:"volumes"|"chapters", language?:string}` | Resolve after the mode/language selection is applied and the feed refresh is scheduled. |
-| `detail.manga.read` | `{id, unitKind:"volume"|"chapter", unitId:string}` | Resolve after the native reader handoff succeeds; if a download is required, resolve only after readiness or return a plain error. |
+| `detail.manga.selectSource` | `{id, sourceKey:string}` | Resolve after the selected provider is applied and the chapter feed refresh is scheduled. |
+| `detail.manga.read` | `{id, unitKind:"volume"|"chapter", unitId:string}` | Resolve after the native reader handoff succeeds. If a download is needed, resolve in about one second with `{state:"queued",jobId}`; the `downloads` section tracks it and the user can read when ready. |
 | `detail.manga.markRead` | `{id, unitKind:"volume"|"chapter", unitId:string, read:boolean}` | Resolve after ProgressStore persists the mark. |
 | `detail.manga.download` | `{id, unitKind:"volume"|"chapter", unitId:string, sourceKey?:string}` | Resolve after the real download request is accepted or fails; report the job id in `result`. |
 | `detail.manga.collection` | `{id, saved:boolean}` | Resolve after CollectionStore persists the entry. |
