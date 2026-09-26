@@ -3526,6 +3526,17 @@ Window {
                     if (nextUpPlay) nextUpPlay.connect(win.openMovieSession)
                     var nextUpRead = item["nextUpReadRequested"]
                     if (nextUpRead) nextUpRead.connect(win.openComicSession)
+                    if (typeof DeveloperWebUiBridge !== "undefined"
+                            && DeveloperWebUiBridge
+                            && item.nextUpRows !== undefined) {
+                        DeveloperWebUiBridge.setProjectedNextUp(mode, item.nextUpRows)
+                        var projectedNextUpChanged = item["nextUpRowsChanged"]
+                        if (projectedNextUpChanged) {
+                            projectedNextUpChanged.connect(function() {
+                                DeveloperWebUiBridge.setProjectedNextUp(mode, item.nextUpRows)
+                            })
+                        }
+                    }
                     // Thread the global Explicit Content preference into every world's
                     // inherited WorldPage.showExplicitContent (Task 7 Step 4). Tankoban's
                     // Discover wall reads it now; Theatre/Biblio Discover walls read it

@@ -36,6 +36,10 @@ public:
     // Cheap prefix search over the baked normalized title column. Fully offline;
     // manual Identify may fall through to Cinemeta only when this returns empty.
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 20) const;
+    // Batch rows by exact IMDb identity. Used by native projections that already own
+    // a stable tt id (Continue, history, etc.) and need the catalogue's display metadata
+    // without title guessing or a network round trip. Result: {tt: row}.
+    QVariantMap rowsByIds(const QStringList& ids) const;
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
 

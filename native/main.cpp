@@ -1725,6 +1725,18 @@ int main(int argc, char *argv[]) {
     // owner. COLOSSEUM_WEBUI=1 only changes presentation in the isolated/dev build.
     auto *developerWebUiBridge = new DeveloperWebUiBridge(
         malCatalog, comicsCatalog, biblioCatalog, imdbCatalog, extensions, &app);
+    auto syncDeveloperWebUiAccount = [developerWebUiBridge, accountRuntime] {
+        auto *controller = accountRuntime->controller();
+        developerWebUiBridge->setAccountPresentation(
+            controller ? controller->mode() : QString(),
+            controller ? controller->username() : QString());
+    };
+    syncDeveloperWebUiAccount();
+    QObject::connect(accountRuntime->controller(), &AccountController::modeChanged,
+                     developerWebUiBridge, syncDeveloperWebUiAccount);
+    QObject::connect(accountRuntime->controller(), &AccountController::usernameChanged,
+                     developerWebUiBridge, syncDeveloperWebUiAccount);
+
     auto rebindDeveloperWebUiStores = [developerWebUiBridge, accountRuntime] {
         auto *stores = accountRuntime->profileStores();
         developerWebUiBridge->bindPersonalStores(

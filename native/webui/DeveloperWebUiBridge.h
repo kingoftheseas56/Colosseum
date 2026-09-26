@@ -42,6 +42,10 @@ public:
                                      const QString &tab = QString());
     Q_INVOKABLE void clientReady();
     Q_INVOKABLE void postAction(const QVariantMap &action);
+    Q_INVOKABLE void setProjectedNextUp(const QString &world,
+                                        const QVariantList &rows);
+    void setAccountPresentation(const QString &mode,
+                                const QString &username);
 
 signals:
     void revisionChanged();
@@ -116,6 +120,9 @@ private:
     QString m_activeSurface = QStringLiteral("Home");
     QString m_activeTab;
     QString m_wallpaper;
+    QVariantMap m_projectedNextUp;
+    QString m_accountMode;
+    QString m_accountUsername;
     bool m_clientReady = false;
     int m_revision = 0;
 };

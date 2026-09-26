@@ -111,9 +111,35 @@
     return String(item.description || item.overview || item.blurb || item.synopsis || '');
   }
 
+  function remainingLabel(item) {
+    const duration = Number(item && item.duration);
+    const resume = Number(item && item.resume && item.resume.position);
+    if (!Number.isFinite(duration) || duration <= 0 ||
+        !Number.isFinite(resume) || resume < 0 || resume >= duration)
+      return '';
+    const minutes = Math.max(1, Math.round((duration - resume) / 60));
+    if (minutes >= 90) {
+      const hours = Math.floor(minutes / 60);
+      const rest = minutes % 60;
+      return hours + 'h' + (rest ? ' ' + rest + 'm' : '') + ' left';
+    }
+    return minutes + ' min left';
+  }
+
   function itemSubtitle(item) {
     if (!item || typeof item !== 'object') return '';
     if (item.episode) return String(item.episode);
+    if (item.sub) return String(item.sub);
+
+    const id = rawId(item);
+    const episode = id.match(/^tt\d+:(\d+):(\d+)$/);
+    const remaining = remainingLabel(item);
+    if (episode) {
+      const label = 'S' + Number(episode[1]) + ' · E' + Number(episode[2]);
+      return remaining ? label + ' · ' + remaining : label;
+    }
+    if (remaining) return remaining;
+
     if (item.author) return String(item.author);
     if (item.subtitle) return String(item.subtitle);
     if (item.year) return String(item.year);
@@ -723,8 +749,27 @@
       button.classList.toggle('active', active);
       button.setAttribute('aria-current', active ? 'page' : 'false');
     });
-    const initial = String(state.snapshot.accountInitial || '?').trim().slice(0, 1).toUpperCase() || '?';
-    $('account-button').textContent = initial;
+    const account = $('account-button');
+    const mode = String(state.snapshot.accountMode || '');
+    const username = String(state.snapshot.accountUsername || '');
+    const signedIn = mode === 'signedIn' || mode === 'offline';
+    const localOnly = mode === 'localOnly';
+
+    account.classList.toggle('signed-in', signedIn);
+    account.classList.toggle('local-device', localOnly);
+    account.classList.toggle('guest', !signedIn && !localOnly);
+
+    if (localOnly) {
+      account.textContent = 'Device';
+      account.setAttribute('aria-label', 'Device');
+    } else if (signedIn) {
+      account.textContent = username.trim().slice(0, 1).toUpperCase() || '?';
+      account.setAttribute('aria-label', username ? ('Account: ' + username) : 'Account');
+    } else {
+      account.innerHTML = '<span class="person-glyph" aria-hidden="true"><i></i><b></b></span>';
+      account.setAttribute('aria-label', 'Account');
+    }
+
     $('backend-status').textContent = state.mounted ? 'Colosseum backend mounted' : 'Waiting for Colosseum backend';
   }
 

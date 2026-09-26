@@ -261,6 +261,57 @@ QVariantList ImdbCatalog::search(const QString& text, int limit) const
     return out;
 }
 
+
+QVariantMap ImdbCatalog::rowsByIds(const QStringList& ids) const
+{
+    QVariantMap out;
+    if (!m_ok || ids.isEmpty())
+        return out;
+
+    for (int start = 0; start < ids.size(); start += 100) {
+        const QStringList chunk = ids.mid(start, 100);
+        QStringList marks;
+        for (int i = 0; i < chunk.size(); ++i)
+            marks << QStringLiteral("?");
+
+        QSqlQuery q(m_db);
+        q.prepare(QStringLiteral(
+            "SELECT tt, type, title, year, endYear, runtimeMin, genres, rating, votes, "
+            "episodes, origLang, isAnime FROM title WHERE tt IN (")
+            + marks.join(QStringLiteral(",")) + QStringLiteral(")"));
+        for (const QString& id : chunk)
+            q.addBindValue(id);
+        if (!q.exec())
+            continue;
+
+        while (q.next()) {
+            QVariantMap row;
+            row.insert(QStringLiteral("tt"), q.value(0).toString());
+            row.insert(QStringLiteral("type"), q.value(1).toString());
+            row.insert(QStringLiteral("title"), q.value(2).toString());
+            row.insert(QStringLiteral("year"), q.value(3).toInt());
+            row.insert(QStringLiteral("endYear"), q.value(4).toInt());
+            row.insert(QStringLiteral("runtimeMin"), q.value(5).toInt());
+
+            QVariantList genres;
+            const QJsonArray arr =
+                QJsonDocument::fromJson(q.value(6).toString().toUtf8()).array();
+            for (const auto& v : arr)
+                genres.append(v.toString());
+            row.insert(QStringLiteral("genres"), genres);
+
+            row.insert(QStringLiteral("rating"), q.value(7).toDouble());
+            row.insert(QStringLiteral("votes"), q.value(8).toInt());
+            row.insert(QStringLiteral("episodes"), q.value(9).toInt());
+            row.insert(QStringLiteral("origLang"), q.value(10).toString());
+            row.insert(QStringLiteral("isAnime"), q.value(11).toInt() != 0);
+
+            out.insert(row.value(QStringLiteral("tt")).toString(), row);
+        }
+    }
+    return out;
+}
+
 QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
 {
     QVariantMap out;

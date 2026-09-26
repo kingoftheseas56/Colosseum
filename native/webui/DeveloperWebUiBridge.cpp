@@ -141,7 +141,71 @@ void DeveloperWebUiBridge::bindPersonalStores(
 QVariantList DeveloperWebUiBridge::recent(
     const QString &kind, int limit) const
 {
-    return m_progress ? m_progress->recent(kind, limit) : QVariantList{};
+    const QVariantList rows =
+        m_progress ? m_progress->recent(kind, limit) : QVariantList{};
+    if (rows.isEmpty())
+        return rows;
+
+    QStringList imdbIds;
+    for (const QVariant &value : rows) {
+        const QVariantMap row = value.toMap();
+        if (row.value(QStringLiteral("kind")).toString() != QLatin1String("video"))
+            continue;
+        QString root = row.value(QStringLiteral("libraryId")).toString();
+        if (root.isEmpty())
+            root = row.value(QStringLiteral("id")).toString().section(QLatin1Char(':'), 0, 0);
+        if (root.startsWith(QStringLiteral("tt")) && !imdbIds.contains(root))
+            imdbIds.append(root);
+    }
+
+    const QVariantMap imdbRows =
+        (m_imdbCatalog && m_imdbCatalog->ready() && !imdbIds.isEmpty())
+            ? m_imdbCatalog->rowsByIds(imdbIds)
+            : QVariantMap{};
+
+    QVariantList out;
+    out.reserve(rows.size());
+    for (const QVariant &value : rows) {
+        QVariantMap row = value.toMap();
+        const QString rowKind = row.value(QStringLiteral("kind")).toString();
+
+        if (rowKind == QLatin1String("video")) {
+            QString root = row.value(QStringLiteral("libraryId")).toString();
+            if (root.isEmpty())
+                root = row.value(QStringLiteral("id")).toString().section(QLatin1Char(':'), 0, 0);
+
+            if (root.startsWith(QStringLiteral("tt"))) {
+                row.insert(QStringLiteral("tt"), root);
+                const QVariantMap meta = imdbRows.value(root).toMap();
+                for (const QString &key : {
+                         QStringLiteral("title"), QStringLiteral("year"),
+                         QStringLiteral("type"), QStringLiteral("genres"),
+                         QStringLiteral("rating"), QStringLiteral("isAnime")}) {
+                    if (!row.contains(key) || row.value(key).toString().isEmpty())
+                        row.insert(key, meta.value(key));
+                }
+                if (row.value(QStringLiteral("cover")).toString().isEmpty()) {
+                    row.insert(QStringLiteral("cover"),
+                        QStringLiteral("https://images.metahub.space/poster/small/%1/img").arg(root));
+                }
+                if (row.value(QStringLiteral("backdrop")).toString().isEmpty()) {
+                    row.insert(QStringLiteral("backdrop"),
+                        QStringLiteral("https://images.metahub.space/background/medium/%1/img").arg(root));
+                }
+            }
+            out.append(normalizeRow(row, QStringLiteral("Theatre"),
+                                    row.value(QStringLiteral("type")).toString()));
+        } else if (rowKind == QLatin1String("book")) {
+            out.append(normalizeRow(row, QStringLiteral("Biblio"), QStringLiteral("book")));
+        } else if (rowKind == QLatin1String("manga")
+                   || rowKind == QLatin1String("comic")
+                   || rowKind == QLatin1String("comics")) {
+            out.append(normalizeRow(row, QStringLiteral("Tankoban"), rowKind));
+        } else {
+            out.append(normalizeRow(row, QString(), rowKind));
+        }
+    }
+    return out;
 }
 
 QVariantList DeveloperWebUiBridge::collection(
@@ -447,7 +511,8 @@ QVariantMap DeveloperWebUiBridge::tankobanSnapshot(
          isKnownTab(QStringLiteral("Tankoban"), tab)
              ? tab : QStringLiteral("discover")},
         {QStringLiteral("featured"), featured},
-        {QStringLiteral("nextUp"), QVariantList{}},
+        {QStringLiteral("nextUp"),
+         m_projectedNextUp.value(QStringLiteral("Tankoban")).toList()},
         {QStringLiteral("continue"),
          mergeRecent({recent(QStringLiteral("manga"), 12),
                       recent(QStringLiteral("tankoban"), 12),
@@ -524,7 +589,8 @@ QVariantMap DeveloperWebUiBridge::theatreSnapshot(
          isKnownTab(QStringLiteral("Theatre"), tab)
              ? tab : QStringLiteral("discover")},
         {QStringLiteral("featured"), featured},
-        {QStringLiteral("nextUp"), QVariantList{}},
+        {QStringLiteral("nextUp"),
+         m_projectedNextUp.value(QStringLiteral("Theatre")).toList()},
         {QStringLiteral("continue"), recent(QStringLiteral("video"), 12)},
         {QStringLiteral("tabs"), tabs}
     };
@@ -572,7 +638,9 @@ QVariantMap DeveloperWebUiBridge::snapshot(
     QVariantMap out{
         {QStringLiteral("surface"), canonical},
         {QStringLiteral("revision"), m_revision},
-        {QStringLiteral("wallpaper"), m_wallpaper}
+        {QStringLiteral("wallpaper"), m_wallpaper},
+        {QStringLiteral("accountMode"), m_accountMode},
+        {QStringLiteral("accountUsername"), m_accountUsername}
     };
 
     if (canonical == QLatin1String("Home")) {
@@ -610,6 +678,37 @@ void DeveloperWebUiBridge::clientReady()
 {
     m_clientReady = true;
     requestSnapshot(QStringLiteral("Home"), QString());
+}
+
+void DeveloperWebUiBridge::setAccountPresentation(
+    const QString &mode, const QString &username)
+{
+    if (m_accountMode == mode && m_accountUsername == username)
+        return;
+    m_accountMode = mode;
+    m_accountUsername = username;
+    if (m_clientReady) {
+        emit patchReady(QVariantMap{
+            {QStringLiteral("accountMode"), m_accountMode},
+            {QStringLiteral("accountUsername"), m_accountUsername}
+        });
+    }
+}
+
+void DeveloperWebUiBridge::setProjectedNextUp(
+    const QString &world, const QVariantList &rows)
+{
+    const QString canonical = canonicalSurface(world);
+    if (!isKnownWorld(canonical))
+        return;
+
+    const QVariantList normalized = normalizeRows(rows, canonical);
+    if (m_projectedNextUp.value(canonical).toList() == normalized)
+        return;
+
+    m_projectedNextUp.insert(canonical, normalized);
+    if (m_clientReady && m_activeSurface == canonical)
+        emit patchReady(snapshot(canonical, m_activeTab));
 }
 
 QVariantMap DeveloperWebUiBridge::actionItem(const QVariantMap &action)
