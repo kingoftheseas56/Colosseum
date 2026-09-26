@@ -199,6 +199,37 @@ void completeOk(ActionRegistry::Completion done, const QVariant &result = {})
     done(answer);
 }
 
+void completeError(ActionRegistry::Completion done, const QString &error)
+{
+    done({{QStringLiteral("ok"), false},
+          {QStringLiteral("error"), error}});
+}
+
+void completeCheckWhenSettled(UpdateService *updates, ColosseumWebBridge &bridge,
+                              ActionRegistry::Completion done)
+{
+    if (updates->state() != UpdateService::Checking) {
+        completeOk(done);
+        return;
+    }
+
+    auto settled = std::make_shared<bool>(false);
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = QObject::connect(updates, &UpdateService::changed, &bridge,
+        [updates, settled, connection, done] {
+            if (*settled || updates->state() == UpdateService::Checking) return;
+            *settled = true;
+            QObject::disconnect(*connection);
+            completeOk(done);
+        });
+    QTimer::singleShot(30000, &bridge, [settled, connection, done] {
+        if (*settled) return;
+        *settled = true;
+        QObject::disconnect(*connection);
+        completeError(done, QStringLiteral("The update check did not finish in time."));
+    });
+}
+
 void markSeen(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Completion done)
 {
     auto *updates = service(bridge, done);
@@ -220,7 +251,9 @@ void checkNow(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::C
         return;
     }
     updates->checkNow();
-    completeOk(done);
+    // UpdateService::checkNow() is asynchronous when a release client is present.
+    // CONTRACT §3: act() settles only after the native operation has settled.
+    completeCheckWhenSettled(updates, bridge, std::move(done));
 }
 
 void download(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Completion done)
@@ -235,7 +268,21 @@ void download(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::C
         return;
     }
     updates->download();
-    completeOk(done);
+    // Starting a download is the operation here. UpdateService transitions
+    // synchronously before returning, including synchronous hook failures.
+    switch (updates->state()) {
+    case UpdateService::Downloading:
+    case UpdateService::Verifying:
+    case UpdateService::Ready:
+        completeOk(done);
+        return;
+    case UpdateService::VerificationFailure:
+        completeError(done, QStringLiteral("The downloaded update could not be verified."));
+        return;
+    default:
+        completeError(done, QStringLiteral("The update download could not start."));
+        return;
+    }
 }
 
 void pause(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Completion done)
@@ -249,7 +296,10 @@ void pause(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Comp
         return;
     }
     updates->cancelDownload();
-    completeOk(done);
+    if (updates->state() == UpdateService::Paused)
+        completeOk(done);
+    else
+        completeError(done, QStringLiteral("The download could not be paused."));
 }
 
 void install(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Completion done)
@@ -262,8 +312,13 @@ void install(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Co
               {QStringLiteral("error"), QStringLiteral("The update is not ready to install.")}});
         return;
     }
-    completeOk(done);
     updates->restartAndUpdate();
+    // restartAndUpdate() synchronously attempts the installer launch, then queues
+    // app shutdown on success. Reply before that queued shutdown turn executes.
+    if (updates->state() == UpdateService::Installing)
+        completeOk(done);
+    else
+        completeError(done, QStringLiteral("The updater could not start the installer."));
 }
 
 void waitForChange(ColosseumWebBridge &bridge, const QVariantMap &, ActionRegistry::Completion done)
