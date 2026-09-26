@@ -9,7 +9,7 @@ Item {
 
     WebChannel {
         id: channel
-        Component.onCompleted: channel.registerObject("ColosseumWebBridge", DeveloperWebUiBridge)
+        Component.onCompleted: channel.registerObject("ColosseumWebBridge", ColosseumWebBridge)
     }
 
     WebEngineView {
@@ -20,7 +20,7 @@ Item {
         webChannel: channel
         settings.localContentCanAccessFileUrls: true
         settings.localContentCanAccessRemoteUrls: true
-        url: DeveloperWebUiBridge.resourceUrl
+        url: ColosseumWebBridge.resourceUrl
 
         onLoadingChanged: (info) => {
             if (info.status === WebEngineView.LoadSucceededStatus)

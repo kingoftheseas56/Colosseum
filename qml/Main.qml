@@ -839,7 +839,7 @@ Window {
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
         case "world": win.closeWorld(); return
-        default: Qt.quit(); return
+        default: win.requestClose(); return
         }
     }
     Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
@@ -954,6 +954,9 @@ Window {
     // keeps running, art stays warm). Windows restores it to whatever base mode it held before
     // minimizing (fullscreen or the developer window), so no forced snap-back is needed.
     function minimizeShell() { win.showMinimized() }
+    // Share the window's close event with the web shell. Future onClosing
+    // checks apply to native chrome and the web action alike.
+    function requestClose() { win.close(); return true }
     // Topbar fullscreen toggle — the same shell flip as the F11 developer door
     // (WindowModeStore stays the single native authority for the mode).
     function toggleFullscreenShell() {
@@ -1542,6 +1545,24 @@ Window {
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
+
+    // CONTRACT v1.1 §5.3: a full-page native destination covers the web route.
+    // The old browse loaders remain in this list until their web surface lands;
+    // shell overlays (Taskbar, account popups, dialogs) are deliberately absent.
+    readonly property bool webCovered: win.playerOpen
+        || seriesLayer.active || westernLayer.active || comicSeriesLayer.active
+        || theatreSeriesLayer.active || bookLayer.active || bookReaderLayer.active
+        || vaultComicLayer.active || vaultLayer.active || universeLayer.active
+        || onePieceArcLayer.active || universeHallLayer.active
+        || extensionsLayer.active || downloadsLayer.active || settingsLayer.active
+        || syncCenterLayer.active || wallpaperLayer.active || updateLayer.active
+        || keyboardGuideLayer.active || genreLayer.active || genreIndexLayer.active
+        || biblioGenreLayer.active || biblioGenreIndexLayer.active
+        || theatreGenreLayer.active || theatreGenreIndexLayer.active
+        || continueSeeAllLayer.active || searchLayer.active || worldSearchLayer.active
+        || locgPublisherLayer.active || comicBoardLayer.active || comicIndexLayer.active
+    onWebCoveredChanged: if (typeof ColosseumWebBridge !== "undefined")
+                             ColosseumWebBridge.setCovered(win.webCovered)
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
@@ -3464,7 +3485,8 @@ Window {
             delegate: Loader {
                 required property string mode
                 anchors.fill: parent
-                visible: worldStack.current === mode && !win.immersiveSurfaceOpen
+                visible: !(typeof DevWebUiEnabled !== "undefined" && DevWebUiEnabled)
+                         && worldStack.current === mode && !win.immersiveSurfaceOpen
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
                 active: false
@@ -3526,17 +3548,6 @@ Window {
                     if (nextUpPlay) nextUpPlay.connect(win.openMovieSession)
                     var nextUpRead = item["nextUpReadRequested"]
                     if (nextUpRead) nextUpRead.connect(win.openComicSession)
-                    if (typeof DeveloperWebUiBridge !== "undefined"
-                            && DeveloperWebUiBridge
-                            && item.nextUpRows !== undefined) {
-                        DeveloperWebUiBridge.setProjectedNextUp(mode, item.nextUpRows)
-                        var projectedNextUpChanged = item["nextUpRowsChanged"]
-                        if (projectedNextUpChanged) {
-                            projectedNextUpChanged.connect(function() {
-                                DeveloperWebUiBridge.setProjectedNextUp(mode, item.nextUpRows)
-                            })
-                        }
-                    }
                     // Thread the global Explicit Content preference into every world's
                     // inherited WorldPage.showExplicitContent (Task 7 Step 4). Tankoban's
                     // Discover wall reads it now; Theatre/Biblio Discover walls read it
@@ -4264,7 +4275,11 @@ Window {
     // their own (Qt.binding); this covers the .pragma-library side.
     Connections {
         target: contentPreferences
-        function onChanged() { TheatreApi.setShowExplicit(contentPreferences.showExplicit) }
+        function onChanged() {
+            TheatreApi.setShowExplicit(contentPreferences.showExplicit)
+            if (typeof ColosseumWebBridge !== "undefined")
+                ColosseumWebBridge.setShowExplicit(contentPreferences.showExplicit)
+        }
     }
 
     // ---- Universes: extension-backed bespoke pages + generic fallback ----
@@ -4498,19 +4513,17 @@ Window {
     // remains alive underneath; this WebEngine surface owns Home + world browsing
     // while native detail/player/reader/taskbar layers keep their existing routes.
     function syncDeveloperWebWallpaper() {
-        if (typeof DeveloperWebUiBridge === "undefined" || !DeveloperWebUiBridge)
+        if (typeof ColosseumWebBridge === "undefined" || !ColosseumWebBridge)
             return
         if (win.wallpaperIsNative) {
-            DeveloperWebUiBridge.wallpaper = ""
+            ColosseumWebBridge.setWallpaper("", "native")
             return
         }
         if (win.wallpaperSource === "../assets/wallpaper/cold-ripple.jpg") {
-            DeveloperWebUiBridge.wallpaper = "qrc:///developer-webui/cold-ripple.jpg"
+            ColosseumWebBridge.setWallpaper("qrc:///developer-webui/cold-ripple.jpg", "image")
             return
         }
-        DeveloperWebUiBridge.wallpaper = /^https?:/i.test(win.wallpaperSource)
-            ? win.wallpaperSource
-            : ""
+        ColosseumWebBridge.setWallpaper(win.wallpaperSource, "image")
     }
 
     Loader {
@@ -4519,14 +4532,17 @@ Window {
         anchors.fill: parent
         z: 30
         active: (typeof DevWebUiEnabled !== "undefined") && DevWebUiEnabled
-        visible: active && !win.immersiveSurfaceOpen
+        visible: active && !win.webCovered
         enabled: visible
         source: "DeveloperWebUi.qml"
         onLoaded: {
             if (item)
                 item.forceActiveFocus()
             win.syncDeveloperWebWallpaper()
+            ColosseumWebBridge.setCovered(win.webCovered)
+            ColosseumWebBridge.setShowExplicit(contentPreferences.showExplicit)
         }
+        onVisibleChanged: if (visible && item) item.forceActiveFocus()
     }
 
     Connections {
@@ -4536,97 +4552,100 @@ Window {
     }
 
     Connections {
-        target: (typeof DeveloperWebUiBridge !== "undefined")
-                ? DeveloperWebUiBridge : null
+        target: (typeof ColosseumWebBridge !== "undefined")
+                ? ColosseumWebBridge : null
         enabled: developerWebUiLayer.active
 
-        function onHomeRequested() {
-            win.closeWorld()
-        }
-        function onOpenWorldRequested(world) {
-            win.openWorld(world)
-        }
-        function onWorldTabRequested(world, tab) {
-            for (var i = 0; i < worldRepeater.count; ++i) {
-                var loader = worldRepeater.itemAt(i)
-                if (loader && loader.mode === world && loader.item
-                        && loader.item.activeTab !== undefined) {
-                    loader.item.activeTab = tab
-                    break
+        function onActionRequested(action, payload, requestId) {
+            var ok = true
+            var error = ""
+            var result = ({})
+            var item = payload.item || ({})
+            var ref = item.ref || ({})
+            if (action === "open") {
+                var entry = Object.assign({}, ref, {
+                    title: item.title || "", cover: item.cover || "",
+                    type: ref.type || item.kind || ""
+                })
+                var intent = String(payload.intent || "details")
+                if (intent === "resume" && ref.continueGroupKey) {
+                    win.resumeContinue(entry)
+                } else if (intent === "nextUp") {
+                    var resume = ref.resume || ({})
+                    if (item.world === "Theatre" && resume.infoHash) {
+                        win.openMovieSession(resume.infoHash, resume.fileIdx || 0,
+                                             item.title || "", item.backdrop || "",
+                                             resume.subType || "", resume.subId || "", [], {},
+                                             resume.position || 0)
+                    } else if (item.world === "Tankoban"
+                               && (ref.chapterId || resume.chapterId)) {
+                        win.openComicSession(item.title || "", ref.seriesId || ref.id || "",
+                                             ref.chapterId || resume.chapterId)
+                    } else {
+                        ok = false; error = "Next Up unit is unavailable."
+                    }
+                } else if (ref.continueGroupKey) {
+                    win.detailContinue(entry)
+                } else if (item.world === "Theatre") {
+                    var theatreId = ref.tt || ref.id || ""
+                    if (item.kind === "anime" && ref.mal_id)
+                        theatreId = "mal:" + ref.mal_id
+                    if (!theatreId) {
+                        ok = false; error = "Theatre identity is unavailable."
+                    } else win.openTheatreSeries({ id: theatreId,
+                                            type: item.kind === "movie" ? "movie" : "series",
+                                            title: item.title || "", cover: item.cover || "" })
+                } else if (item.world === "Biblio") {
+                    entry.canonicalId = ref.id || ""
+                    entry.author = item.subtitle || ""
+                    win.openBook(entry)
+                } else if (item.world === "Tankoban") {
+                    var id = String(ref.id || "")
+                    if (id.indexOf("gc:") === 0)
+                        win.openWestern({ title: item.title || "", tag: id.slice(3) })
+                    else if (id.indexOf("gcd:") === 0 || ref.gcdId)
+                        win.openGcdSeries({ gcdId: Number(ref.gcdId || id.slice(4)),
+                                            title: item.title || "", cover: item.cover || "" })
+                    else if (id.indexOf("locg:") === 0 || ref.locgId)
+                        win.openComicSeries({ id: id || "locg:" + ref.locgId,
+                                              title: item.title || "", cover: item.cover || "" })
+                    else
+                        win.openSeries(item.title || "", ref.mal_id || ref.malId || id, ref)
+                } else {
+                    ok = false; error = "Item destination is unavailable."
                 }
+            } else if (action === "open.vault") {
+                win.openVaultPage()
+            } else if (action === "open.universe") {
+                ok = false
+                for (var i = 0; i < win.installedUniverses.length; ++i) {
+                    if (win.installedUniverses[i].extensionId === payload.extensionId) {
+                        win.openUniverse(payload.extensionId, win.installedUniverses[i].name)
+                        ok = true; break
+                    }
+                }
+                if (!ok) error = "Universe is unavailable."
+            } else if (action === "open.universeHall") {
+                win.openUniverseHall()
+            } else if (action === "open.native") {
+                var door = String(payload.door || "")
+                if (door === "extensions") win.openExtensionsPage(payload.world || "")
+                else if (door === "downloads") win.openDownloadsPage()
+                else if (door === "settings") win.openSettingsPage()
+                else if (door === "connections") win.openSyncCenterPage()
+                else if (door === "wallpaperSearch") win.openWallpaperSearch(payload.world || "Home")
+                else if (door === "account") accountFlyout.toggleAt(win.width - theme.margin, 92)
+                else { ok = false; error = "Native page is unavailable." }
+            } else if (action === "window.minimize") {
+                win.minimizeShell()
+            } else if (action === "window.fullscreen") {
+                win.toggleFullscreenShell()
+            } else if (action === "window.close") {
+                result = win.requestClose() ? "closed" : "cancelled"
+            } else {
+                ok = false; error = "Unsupported action."
             }
-        }
-        function onOpenItemRequested(world, item, intent) {
-            void intent
-            win.openWorld(world)
-            if (world === "Tankoban") {
-                win.openSeries(item.title || "",
-                               item.malId || item.mal_id || item.id || "",
-                               item)
-            } else if (world === "Biblio") {
-                win.openBook(item)
-            } else if (world === "Theatre") {
-                win.openTheatreSeries(item)
-            }
-        }
-        function onResumeRequested(world, item) {
-            void world
-            win.resumeContinue(item)
-        }
-        function onContinueDetailsRequested(world, item) {
-            void world
-            win.detailContinue(item)
-        }
-        function onNextUpRequested(world, item) {
-            if (world === "Theatre")
-                win.openTheatreSeries(item)
-            else if (world === "Biblio")
-                win.openBook(item)
-            else
-                win.openSeries(item.title || "",
-                               item.malId || item.mal_id || item.id || "",
-                               item)
-        }
-        function onContinueSeeAllRequested(world) {
-            win.openContinueSeeAll(world === "Theatre" ? "video"
-                                  : world === "Biblio" ? "book"
-                                  : "tankoban")
-        }
-        function onOpenUniverseRequested(extensionId, name, item) {
-            void item
-            win.openUniverse(extensionId, name)
-        }
-        function onOpenUniverseHallRequested() {
-            win.openUniverseHall()
-        }
-        function onOpenVaultRequested() {
-            win.openVaultPage()
-        }
-        function onOpenGenreRequested(world, genre) {
-            if (world === "Biblio")
-                win.openBiblioGenre(genre)
-            else if (world === "Theatre")
-                win.openTheatreGenre("movie", genre)
-            else
-                win.openGenre(genre)
-        }
-        function onTrackersRequested() {
-            win.openSyncCenterPage()
-        }
-        function onWallpaperRequested() {
-            win.openWallpaperSearch(win.currentSurface || "Home")
-        }
-        function onAccountRequested() {
-            accountFlyout.toggleAt(win.width - theme.margin, 92)
-        }
-        function onWindowMinimizeRequested() {
-            win.minimizeShell()
-        }
-        function onWindowToggleFullscreenRequested() {
-            win.toggleFullscreenShell()
-        }
-        function onWindowCloseRequested() {
-            Qt.quit()
+            ColosseumWebBridge.finishAction(requestId, ok, error, result)
         }
     }
 

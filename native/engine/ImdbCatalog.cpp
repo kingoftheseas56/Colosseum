@@ -28,8 +28,10 @@ bool ImdbCatalog::openAt(const QString& dbPath)
     return m_db.open();
 }
 
-ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent)
-    : QObject(parent), m_conn(QStringLiteral("imdb_catalog"))
+ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent,
+                         const QString& connectionName)
+    : QObject(parent), m_conn(connectionName.isEmpty()
+                                  ? QStringLiteral("imdb_catalog") : connectionName)
 {
     m_ok = openAt(dbPath);
 }

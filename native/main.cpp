@@ -18,6 +18,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
 #include <QtWebEngineQuick/QtWebEngineQuick>
+#include <QWebEngineProfile>
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -44,7 +45,8 @@
 #include "ProgressStore.h"
 #include "CollectionStore.h"
 #include "SearchHistoryStore.h"
-#include "webui/DeveloperWebUiBridge.h"
+#include "webui/ColosseumWebBridge.h"
+#include "webui/WallpaperSchemeHandler.h"
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
 #include "account/AccountRuntime.h"
@@ -505,6 +507,7 @@ int main(int argc, char *argv[]) {
     // Not compiled in: there is nothing to boot, and the old player is the only engine present.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
+    WallpaperSchemeHandler::registerScheme();
     QtWebEngineQuick::initialize();
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
@@ -521,6 +524,9 @@ int main(int argc, char *argv[]) {
     // GUI-thread event and ranks what blocks the thread. Frame pacing proved the stutter is a
     // GUI-thread stall, not the video engine; this names the work. See native/GuiStallProbe.h.
     ProbedGuiApplication app(argc, argv);
+    auto *webWallpaperScheme = new WallpaperSchemeHandler(&app);
+    QWebEngineProfile::defaultProfile()->installUrlSchemeHandler(
+        QByteArrayLiteral("colosseum-wallpaper"), webWallpaperScheme);
     app.setApplicationName(QStringLiteral("Colosseum"));
     app.setApplicationVersion(QStringLiteral(COLOSSEUM_VERSION));
     // App identity on the Windows taskbar / alt-tab / title: the amphitheatre glyph on a
@@ -1723,8 +1729,9 @@ int main(int argc, char *argv[]) {
     // Developer-only Web Colosseum seam. The WebUI receives projections from the
     // existing native owners; it never becomes a second Progress/Collection/catalog
     // owner. COLOSSEUM_WEBUI=1 only changes presentation in the isolated/dev build.
-    auto *developerWebUiBridge = new DeveloperWebUiBridge(
-        malCatalog, comicsCatalog, biblioCatalog, imdbCatalog, extensions, &app);
+    auto *developerWebUiBridge = new ColosseumWebBridge(
+        WorldFeed::Paths{imdbRes.path, malRes.path, comicsRes.path,
+                         biblioCatalogPath}, webWallpaperScheme, &app);
     auto syncDeveloperWebUiAccount = [developerWebUiBridge, accountRuntime] {
         auto *controller = accountRuntime->controller();
         developerWebUiBridge->setAccountPresentation(
@@ -1741,15 +1748,20 @@ int main(int argc, char *argv[]) {
         auto *stores = accountRuntime->profileStores();
         developerWebUiBridge->bindPersonalStores(
             stores ? stores->progressStore() : nullptr,
-            stores ? stores->collectionStore() : nullptr);
+            stores ? stores->collectionStore() : nullptr,
+            stores ? stores->searchHistoryStore() : nullptr);
     };
     rebindDeveloperWebUiStores();
+    QObject::connect(accountRuntime->profileStores(),
+                     &ProfileStoreRuntime::storesAboutToChange,
+                     developerWebUiBridge,
+                     &ColosseumWebBridge::suspendProfile);
     QObject::connect(accountRuntime->profileStores(),
                      &ProfileStoreRuntime::storesChanged,
                      developerWebUiBridge,
                      rebindDeveloperWebUiStores);
     engine.rootContext()->setContextProperty(
-        QStringLiteral("DeveloperWebUiBridge"), developerWebUiBridge);
+        QStringLiteral("ColosseumWebBridge"), developerWebUiBridge);
     const bool devWebUiEnabled =
         qEnvironmentVariableIntValue("COLOSSEUM_WEBUI") == 1;
     engine.rootContext()->setContextProperty(

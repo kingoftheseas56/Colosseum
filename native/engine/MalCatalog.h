@@ -23,7 +23,8 @@ class MalCatalog final : public QObject {
     // a plain signal; Connections-based listeners (see qml/Main.qml's catalogVaultState)
     // still work off it exactly as before.
 public:
-    explicit MalCatalog(const QString& dbPath, QObject* parent = nullptr);
+    explicit MalCatalog(const QString& dbPath, QObject* parent = nullptr,
+                        const QString& connectionName = QString());
     ~MalCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }

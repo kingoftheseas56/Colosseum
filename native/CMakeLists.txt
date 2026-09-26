@@ -356,8 +356,16 @@ add_executable(colosseum
     MangaEngine.h
     ProgressStore.h
     CollectionStore.h
-    webui/DeveloperWebUiBridge.cpp
-    webui/DeveloperWebUiBridge.h
+    webui/ColosseumWebBridge.cpp
+    webui/ColosseumWebBridge.h
+    webui/WallpaperSchemeHandler.cpp
+    webui/WallpaperSchemeHandler.h
+    webui/feeds/FeedValue.h
+    webui/feeds/PendingFeeds.h
+    webui/feeds/ContinueFeed.cpp
+    webui/feeds/ContinueFeed.h
+    webui/feeds/WorldFeed.cpp
+    webui/feeds/WorldFeed.h
     SearchHistoryStore.h
     SessionStore.h
     AudioPairingStore.h

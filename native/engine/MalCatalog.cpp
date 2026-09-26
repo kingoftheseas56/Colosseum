@@ -60,8 +60,10 @@ bool MalCatalog::openAt(const QString& dbPath)
     return m_db.open();
 }
 
-MalCatalog::MalCatalog(const QString& dbPath, QObject* parent)
-    : QObject(parent), m_conn(QStringLiteral("mal_catalog"))
+MalCatalog::MalCatalog(const QString& dbPath, QObject* parent,
+                       const QString& connectionName)
+    : QObject(parent), m_conn(connectionName.isEmpty()
+                                  ? QStringLiteral("mal_catalog") : connectionName)
 {
     m_ok = openAt(dbPath);
 }

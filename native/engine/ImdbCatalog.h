@@ -16,7 +16,8 @@ class ImdbCatalog final : public QObject {
     // (data-vault Slice 4, 2026-08-22 fix): it collided with the Q_INVOKABLE of the
     // same name and broke every `.ready()` call site in QML.
 public:
-    explicit ImdbCatalog(const QString& dbPath, QObject* parent = nullptr);
+    explicit ImdbCatalog(const QString& dbPath, QObject* parent = nullptr,
+                         const QString& connectionName = QString());
     ~ImdbCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
