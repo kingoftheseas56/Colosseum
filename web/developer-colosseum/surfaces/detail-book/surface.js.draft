@@ -80,9 +80,12 @@
 
       function sourceRow(kind, row, index) {
         const key = sourceKey(row);
-        const state = stateOf(row);
-        const inert = state === 'done' || state === 'resolving'
-          || state === 'queued' || state === 'downloading';
+        const activeAudio = kind !== 'audio'
+          || String(row.slug || key) === String(row.activeSlug || '');
+        const state = kind === 'audio' && !activeAudio ? 'idle' : stateOf(row);
+        const inert = kind === 'audio'
+          ? state === 'resolving' || state === 'queued' || state === 'downloading'
+          : state === 'done' || state === 'resolving' || state === 'queued' || state === 'downloading';
         const click = () => {
           if (inert || !key) return;
           if (kind === 'torrent') act('downloadTorrent', { sourceKey: key });
@@ -118,9 +121,7 @@
             h('span.db-source-indicator', {}, indicator(row, !row.md5)));
         }
 
-        const active = String(row.slug || key) === String(row.activeSlug || '');
-        const audioState = active ? state : 'idle';
-        const audioRow = { ...row, state: audioState };
+        const audioRow = { ...row, state };
         return h('button.db-source-row.db-audio-row', {
           type: 'button', 'data-focus': true, 'data-key': 'book.audio.' + key,
           onclick: click
