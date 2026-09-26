@@ -44,8 +44,9 @@
       },
       more(handle, section) { return port.more(handle, section.id).then(report); },
       /** v1.3: follow a Choice's native-issued target. onQuery(query) lets a search surface rerun itself. */
-      choose(choice, section, onQuery) {
+      choose(choice, section, onQuery, onView) {
         const t = choice.target;
+        if (t.view) { if (onView) onView(t.view); return; }        // v2.1 §13.1: the surface resubscribes
         if (t.route) router.go({ name: 'seeAll', route: t.route, title: choice.label, world: router.current().world || null });
         else if (typeof t.query === 'string') { if (onQuery) onQuery(t.query); else router.go({ name: 'search', scope: 'all', query: t.query }); }
         else if (t.act) return env.act(t.act, { scope: router.current().scope || router.current().world || 'all' });

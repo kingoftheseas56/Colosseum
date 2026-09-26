@@ -1,21 +1,21 @@
 // surfaces/theatre/surface.js — Theatre world (pilot, Claude). Layout per SCHEMA.md and the Portico halfway mock:
 // top region (featured + next up) · Continue Watching · tab bar · tab pane. Only shared components; no arrow keys.
+// All browsing logic is native: Library filters/sort arrive as view Choices (CONTRACT §13.1), never computed here.
 (function (CW) {
   'use strict';
   const { h } = CW;
+
   // Top region = the hero and Next Up, recognised by role rather than one exact id, so a native id change
   // (theatre.nextUp vs theatre.discover.nextUp) can never push the hero under the tab bar again.
   const isTop = s => s.layout === 'hero' || /(^|\.)nextUp$/.test(s.id);
-  const LIB_FILTERS = [['all', 'All'], ['movies', 'Movies'], ['shows', 'Shows'], ['anime', 'Anime']];
-  const LIB_KINDS = { movies: ['movie'], shows: ['series'], anime: ['anime'] };
+  const isNextUp = s => /(^|\.)nextUp$/.test(s.id);
 
   // Feed only the sections a box owns into CW.section.sync; a change to another box's section is ignored.
   function scoped(ev, keep) {
     const sections = ev.sections.filter(keep);
     if (ev.changed) {
       const changed = ev.sections.find(s => s.id === ev.changed);
-      // a removed section is no longer in the list: let whichever box holds it drop it
-      if (changed ? !keep(changed) : false) return null;
+      if (changed && !keep(changed)) return null;   // a removed id (not in the list) goes to whichever box has it
     }
     return { type: ev.type, changed: ev.changed, sections };
   }
@@ -29,13 +29,22 @@
     mount(el, route, env) {
       const topBox = h('div.world-pane.th-top');
       const contBox = h('div.world-pane.th-cont');
-      const libBar = h('div.chips.th-libf', { hidden: true });
       const pane = h('div.world-pane.th-pane');
-      let bar = null, tabSub = null, libFilter = 'all', lastPaneEv = null;
+      let bar = null, tabSub = null, view = null;
+      const nextUpKeys = new Set();
+
+      function subscribeTab() {
+        if (tabSub) tabSub.close();
+        const params = view ? { world: 'Theatre', tab: route.tab, view } : { world: 'Theatre', tab: route.tab };
+        tabSub = env.port.subscribe('world', params, onTabEvent);
+      }
 
       const ctx = {
-        open: env.open, forget: env.forget, seeAll: env.seeAll, act: env.act,
-        choose: (c, s) => env.choose(c, s),
+        // Next Up cards open the next EPISODE (intent nextUp), everything else opens details (SCHEMA.md)
+        open: (it, intent) => env.open(it, nextUpKeys.has(it.key) ? 'nextUp' : intent),
+        forget: env.forget, seeAll: env.seeAll, act: env.act,
+        // §13.1: a view Choice (library filter/sort, catalogue facet) merges its native patch and resubscribes
+        choose: (c, s) => env.choose(c, s, null, patch => { view = { ...(view || {}), ...patch }; subscribeTab(); }),
         more: section => env.more(tabSub, section)
       };
 
@@ -44,55 +53,33 @@
         CW.section.sync(contBox, next, ctx);   // its See all uses the native-issued route
       });
 
-      function libraryView(ev) {
-        if (!ev || route.tab !== 'library') return ev;
-        const kinds = LIB_KINDS[libFilter];
-        return { ...ev, changed: null, type: 'reset',
-                 sections: ev.sections.map(s => kinds ? { ...s, items: s.items.filter(it => kinds.includes(it.kind)),
-                                                          state: s.items.some(it => kinds.includes(it.kind)) ? s.state : 'empty' } : s) };
-      }
-
-      function paintPane(ev) {
-        const view = libraryView(ev);
-        if (!view) return;
-        CW.section.sync(pane, view, ctx);
-        mark(pane);
+      function onTabEvent(ev) {
+        nextUpKeys.clear();
+        ev.sections.filter(isNextUp).forEach(s => s.items.forEach(it => nextUpKeys.add(it.key)));
+        const top = scoped(ev, isTop);
+        if (top && (top.sections.length || top.changed)) CW.section.sync(topBox, top, ctx);
+        const rest = scoped(ev, x => !isTop(x));
+        if (rest) { CW.section.sync(pane, rest, ctx); mark(pane); }
       }
 
       function showTab(r) {
         route = r;
-        if (tabSub) tabSub.close();
+        view = null;                 // each tab starts from native defaults
         pane.replaceChildren();
-        lastPaneEv = null;
-        libBar.hidden = r.tab !== 'library';
-        tabSub = env.port.subscribe('world', { world: 'Theatre', tab: r.tab }, ev => {
-          const top = scoped(ev, isTop);
-          if (top && (top.sections.length || top.changed)) CW.section.sync(topBox, top, ctx);
-          const rest = scoped(ev, x => !isTop(x));
-          if (!rest) return;
-          lastPaneEv = rest;          // port events always carry the full ordered list
-          paintPane(rest);
-        });
+        subscribeTab();
       }
 
-      function renderLibBar() {
-        libBar.replaceChildren(...LIB_FILTERS.map(([k, label]) =>
-          h('button.chip' + (k === libFilter ? '.on' : ''), { type: 'button', 'data-focus': true, 'data-key': 'libf:' + k,
-            onclick: () => { libFilter = k; renderLibBar(); if (lastPaneEv) paintPane({ ...lastPaneEv, type: 'reset', changed: null }); } }, label)));
-      }
-
-      bar = CW.tabBar(CW.contract.TABS.Theatre, route.tab,
-        tab => env.router.go({ name: 'world', world: 'Theatre', tab }, { replace: true }));
-      renderLibBar();
-      el.append(topBox, contBox, bar, libBar, pane);
+      const makeBar = tab => CW.tabBar(CW.contract.TABS.Theatre, tab,
+        t => env.router.go({ name: 'world', world: 'Theatre', tab: t }, { replace: true }));
+      bar = makeBar(route.tab);
+      el.append(topBox, contBox, bar, pane);
       showTab(route);
 
       return {
         update(r) {
-          // tab change: rebuild only the tab bar state + pane; the top region and Continue stay put
+          // tab change: the top region and Continue stay put; only the bar state and the pane change
           const hadFocus = bar.contains(document.activeElement);
-          const fresh = CW.tabBar(CW.contract.TABS.Theatre, r.tab,
-            tab => env.router.go({ name: 'world', world: 'Theatre', tab }, { replace: true }));
+          const fresh = makeBar(r.tab);
           bar.dispose(); bar.replaceWith(fresh); bar = fresh;
           if (hadFocus) { const on = bar.querySelector('.tab.on'); if (on) on.focus({ preventScroll: true }); }
           showTab(r);

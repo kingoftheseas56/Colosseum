@@ -9,12 +9,20 @@
     const box = h('div.world-pane');
     el.appendChild(box);
     let handle = null;
+    let view = params.view || null;
+    const listen = ev => CW.section.sync(box, ev, ctx);
+    // v2.1 §13.1: a view Choice merges its native-issued patch and resubscribes with the new params
+    const onView = patch => {
+      view = { ...(view || {}), ...patch };
+      handle.close();
+      handle = env.port.subscribe(feed, { ...params, view }, listen);
+    };
     const ctx = {
       open: env.open, forget: env.forget, seeAll: env.seeAll, act: env.act,
-      choose: (c, s) => env.choose(c, s, onQuery), removeChoice: env.removeChoice,
+      choose: (c, s) => env.choose(c, s, onQuery, onView), removeChoice: env.removeChoice,
       more: section => env.more(handle, section)
     };
-    handle = env.port.subscribe(feed, params, ev => CW.section.sync(box, ev, ctx));
+    handle = env.port.subscribe(feed, params, listen);
     return { box, close: () => handle.close() };
   }
 

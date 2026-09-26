@@ -24,6 +24,8 @@ Theatre uses only shared records (`Item`, `Choice`); no page-owned `data` schema
 | all tabs | `theatre.featured` (hero), `theatre.nextUp` (rail) | nextUp items open with intent `nextUp`; use `subtitle` for "S2 · E5" |
 | discover | `theatre.discover.<shelf>` rails / grid | today: movies, shows, anime |
 | movies / shows / anime | `theatre.<tab>.top10` (rail, 10 items, **rendered with rank numerals**), `theatre.<tab>.<shelf>` rails with `seeAll`, `theatre.<tab>.genres` (`tiles` of genre `Choice`s with Route targets) | top10 is presentation-only: web adds the numerals |
-| library | `theatre.library` (grid of the user's saved titles) | web filters All / Movies / Shows / Anime locally by `Item.kind` |
+| library | a `chips` section of view Choices (All / Movies / Shows / Anime, sort, In progress, Airing; counts in `sublabel`), then `theatre.library` (grid; ledger state in `badge`/`progress`) | all filtering/sorting is native (CONTRACT §13.1/§13.3); web only resubscribes with the chosen `view` |
 
 Anything else that arrives renders in the pane in index order, so native can add shelves without a web change.
+
+**No row customization on Theatre** (Hemanth: no Customize rows; CONTRACT §13.2).

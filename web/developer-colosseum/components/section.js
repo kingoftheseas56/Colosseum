@@ -73,7 +73,9 @@
   function choices(s, ctx) {
     const tiles = s.layout === 'tiles';
     return h(tiles ? 'div.gm' : 'div.chips', {}, s.choices.map(c => {
-      const pick = h(tiles ? 'button.gt' : 'button.chip', { type: 'button', 'data-focus': true, 'data-key': c.key,
+      const pick = h((tiles ? 'button.gt' : 'button.chip') + (c.selected ? '.on' : ''), {
+                                                           type: 'button', 'data-focus': true, 'data-key': c.key,
+                                                           'aria-pressed': c.selected ? 'true' : null,
                                                            onclick: () => ctx.choose && ctx.choose(c, s) },
         tiles && c.art ? CW.face(c.art, '') : null,
         h(tiles ? 'span.n' : 'span', {}, c.label),

@@ -1,7 +1,7 @@
 /* surfaces/theatre/surface.css — Theatre-only look on top of the shared components (Portico halfway mock). */
 .th-top,.th-cont{gap:var(--s-7)}
 .th-top:empty,.th-cont:empty{display:none}
-.th-libf{margin-top:calc(-1 * var(--s-3))}
+
 
 /* Top 10: ghost rank numerals behind solid covers (TrendingTop10) */
 .t10mode .rail{counter-reset:rank}

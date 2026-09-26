@@ -132,6 +132,11 @@
   check('page data without a schema is dropped', !sec('baddata'));
   check('router knows page and detail routes', CW.router.surfaceName({ name: 'page', page: 'downloads' }) === 'page.downloads'
         && CW.router.surfaceName({ name: 'detail', kind: 'theatre' }) === 'detail.theatre');
+  // v2.1: view-control chips with a selected state
+  emit(10, { type: 'section', section: { id: 'sort', index: 12, title: 'Sort', layout: 'chips', state: 'ready', items: [],
+    choices: [{ key: 'sort:added', label: 'Added', selected: true, target: { view: { sort: 'added' } } },
+              { key: 'sort:az', label: 'A–Z', target: { view: { sort: 'az' } } }] } });
+  check('view choices render with the selected one marked', !!sec('sort') && !!sec('sort').querySelector('.chip.on[aria-pressed="true"]'));
   const r = await port.act('open', { item: item(1), intent: 'details' });
   check('act resolves with the native answer', r.ok === true);
 

@@ -42,7 +42,8 @@
   function choiceProblem(c) {
     if (!isObj(c) || !isStr(c.key) || !c.key || !isStr(c.label)) return 'choice needs key + label';
     const t = c.target;
-    const ok = isObj(t) && ((isObj(t.route) && t.route.v === 1) || isStr(t.query) || t.act === 'search.surprise');
+    const ok = isObj(t) && ((isObj(t.route) && t.route.v === 1) || isStr(t.query) || t.act === 'search.surprise'
+                            || isObj(t.view));                                    // v2.1 §13.1
     return ok ? null : `choice ${c.key}: bad target`;
   }
 
@@ -63,6 +64,7 @@
                             && isStr(s.headerAction.label))) return `section ${s.id}: bad headerAction`;
     for (const it of s.items) { const p = itemProblem(it); if (p) return `section ${s.id}: ${p}`; }
     if (s.data != null) { const p = dataProblem(s.data); if (p) return `section ${s.id}: ${p}`; }
+    if (s.pref != null && !isObj(s.pref)) return `section ${s.id}: pref must be an object`;   // v2.1 §13.2
     if (s.choices != null) {
       if (!Array.isArray(s.choices)) return `section ${s.id}: choices is not an array`;
       if (s.items.length && s.choices.length) return `section ${s.id}: items and choices together`;
