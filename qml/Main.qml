@@ -1697,13 +1697,9 @@ Window {
         }
     }
 
-    // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
+    // ---- Connections is a web page; the Stremio panel remains native. ----
     function openSyncCenterPage() {
         win.openWebPage("connections")
-    }
-    function closeSyncCenterPage() {
-        if (developerWebUiLayer.active && developerWebUiLayer.item)
-            developerWebUiLayer.item.openRoute({ name: "home" })
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
