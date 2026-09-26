@@ -1258,7 +1258,13 @@ QVariantList build(const FeedContext &ctx)
             QStringLiteral("web_tankoban_discover_mal_")
                 + QUuid::createUuid().toString(QUuid::WithoutBraces));
         ComicsCatalog comics(ctx.paths.comics);
-        if (mal.ready() && comics.ready())
+        // TankobanDiscoverPage.qml:82-105 gates readiness by the CURRENT type.
+        // A first-run Comics vault fetch must not blank an already-ready Manga wall,
+        // and a missing MAL database must not suppress a ready Comics catalogue.
+        const QString type = ctx.params.value(QStringLiteral("view")).toMap()
+            .value(QStringLiteral("type"), QStringLiteral("manga")).toString();
+        if ((type == QLatin1String("comics") && comics.ready())
+            || (type != QLatin1String("comics") && mal.ready()))
             body = buildDiscover(ctx, mal, comics);
     } else if (tab == QLatin1String("manga")) {
         MalCatalog mal(ctx.paths.mal, nullptr,
