@@ -1,0 +1,61 @@
+# W2-6 — Connections migration plan
+
+**Status:** execution guide. Hemanth waived the pre-build plan review; implement in slices and request Claude review after completion. Native builds remain milestone-only under the shared build lock.
+
+## Boundary and present source
+
+- Register the `page.connections` route and feed in `surfaces/connections/surface.js` and `native/webui/feeds/ConnectionsFeed.cpp`. Keep its styles and schema in `surfaces/connections/surface.css` and `SCHEMA.md`. `index.html` already links the surface files; the folder was absent before this plan.
+- Preserve the current Connections page's wording, information hierarchy, provider icons, and Colosseum styling. This is a 1:1 move of `qml/TrackerSyncCenterPage.qml`, not a redesign or a change to Arc 49 ratings/reviews or native History. Use shared web helpers and tokens; no raw colours, pixel constants, framework, `fetch`, `item.ref`, or surface-owned arrow-key handling.
+- Keep tracker state and decisions with the existing native owners. `TrackerSyncCenterModel.h:29-123` exposes a safe presentation projection and revision-checked operations. `TrackerSyncCenterModel.cpp:439-503` explicitly withholds remote account identifiers and sets `connectEnabled: false` because this checkout has no composed native authentication action. An unavailable provider must remain unavailable; a web button must never imply a working connection path.
+- The native Stremio panel is separate from third-party trackers: `TrackerSyncCenterPage.qml:2163-2278` renders its card; `Main.qml:1923-1935` supplies `stremioSyncState` and opens `openStremioSyncPanel`. Preserve that separation.
+- For each moved behavior, put a source-line comment next to its eventual web/native implementation, for example `// TrackerSyncCenterPage.qml:1393-1396`. The map below is the starting inventory; recheck line numbers against the live file before authoring each slice.
+
+## Source-to-section map
+
+All non-media records will use `layout: "custom"` with `Section.data.schema` namespaced `connections.*`, documented field by field in `SCHEMA.md`. The surface draws them through `ctx.custom(section)`. Each section has loading, ready, empty, and error presentations. Provider keys, batch IDs, review IDs, and candidate IDs remain opaque public handles; no credential, remote account ID, canonical identity key, or raw provider payload enters the feed. Native issues every action's allowed choice and validates its revision on confirmation.
+
+| Web section / flow | QML source | Native source to project or invoke |
+|---|---|---|
+| Heading, aggregate status, Preferences and Sync all | `TrackerSyncCenterPage.qml:1560-1670`, `:262-276`, `:1393-1396` | `TrackerSyncCenterModel.h:39-44, 119-123`; `TrackerSyncCenterModel.cpp:1873` |
+| Native Colosseum card and connection relay | `TrackerSyncCenterPage.qml:1671-1936` | `TrackerSyncCenterModel.cpp:1724-1808, 1873`; native History remains canonical |
+| Attention strip and connected provider cards | `TrackerSyncCenterPage.qml:1936-2140` | `TrackerSyncCenterModel.cpp:1724-1754, 1873` |
+| Stremio card, status and native-panel handoff | `TrackerSyncCenterPage.qml:2141-2279`; `Main.qml:1923-1935` | Existing `stremioSyncState` owner and `openStremioSyncPanel`; requires an approved bridge/action binding |
+| Available tracker catalogue, verified capabilities, unavailable states | `TrackerSyncCenterPage.qml:2280-2402` | `TrackerSyncCenterModel.cpp:1756-1808`; do not create capabilities or enable Connect |
+| Provider dossier: status, account/profile, capability list, pending import, delivery rows, automatic sync and global settings | `TrackerSyncCenterPage.qml:1188-1217, 1304-1348, 2404-3070` | `TrackerSyncCenterModel.h:65-91`; `TrackerSyncCenterModel.cpp:402-503, 955, 1810-1871` |
+| Import preview, individual decisions, bulk common choices and confirmation | `TrackerSyncCenterPage.qml:281-401, 801-1142, 2762-2837, 3303-3714, 4133-4257` | `TrackerSyncCenterModel.h:69-70, 104-113`; `TrackerSyncCenterModel.cpp:580, 1810-1859, 1940` |
+| Find match for an unmatched title | `TrackerSyncCenterPage.qml:402-548, 3715-3951` | `TrackerSyncCenterModel.h:77-82, 102-104`; title matching stays native and never treats a match alone as watched History |
+| Separate outbound send review and consent | `TrackerSyncCenterPage.qml:1398-1468, 2954-2983, 3071-3302` | `TrackerSyncCenterModel.h:71-76`; no automatic first export or import/export conflation |
+| Recovery route and uncertain delivery | `TrackerSyncCenterPage.qml:1219-1303, 2838-2921` | `TrackerSyncCenterModel.h:68, 77`; delivery state and reason remain native |
+| Disconnect confirmation and pending-work choice | `TrackerSyncCenterPage.qml:549-560, 696-800, 2657-2710, 3952-4132` | `TrackerSyncCenterModel.h:115`; retain explicit known-unsent versus uncertain-outcome wording |
+| Remove imported History evidence and eligible imported Progress | `TrackerSyncCenterPage.qml:565-695, 2677-2693, 4258-4470` | `TrackerSyncCenterModel.h:116`; protect native History, Activity, statistics, local Progress and other providers |
+| Modal Back order, stale-review invalidation and focus return | `TrackerSyncCenterPage.qml:1327-1389, 1470-1519` | Web router/focus engine; use `data-focus`/`data-key`, no custom arrow-key engine |
+
+## Execution slices
+
+Each slice is independently reviewable. Commit and push only my owned files with explicit pathspecs once that slice works. Do not stage, reset, clean, stash, checkout, rebase, or overwrite another agent's work. Native builds occur only at the named milestones through `native\build-target.bat colosseum`, which holds the shared lock.
+
+1. **Read-only page first.** Define the initial `connections.*` records in `SCHEMA.md`; register `page.connections`; render heading, native card, aggregate/relay, attention, connected cards, Stremio card and catalogue from safe native projections. Subscription lifecycle follows `surfaces/reference/reference.js`: subscribe, section sync with `ctx.custom`, close on unmount, reset on profile generation. Compare to QML at both viewport sizes. **Milestone A:** one locked native build after feed composition; browser recording and app route smoke check.
+2. **Dossier and preferences.** Move provider/global dossier projection, capabilities, delivery rows and pending import list. Register revision-checked global/provider setting and Sync all actions. Return a settled `{ok, result|error}` in plain words and refresh affected sections; keep unavailable controls disabled. Preserve the dossier invoker for Back/focus. **Milestone B:** build after the native action group is complete, then try each setting and a failure/stale-revision path.
+3. **Inbound review flows.** Move import batch preview, individual disagreement choices, bulk common-choice review, page-incomplete lockout, confirm, and Find match. Keep unmatched titles unmatched until a verified match and explicit decision. Native owns eligibility, public handles, revisions, and protected-History rules. Exercise stale review, profile switch, and incomplete page states before proceeding.
+4. **Outbound and recovery flows.** Move the separate export review/selection/confirm; keep first-export consent tied to this profile. Add diagnostic/recovery display, uncertain delivery rows and Sync all outcomes. No provider network work runs in the surface. **Milestone C:** locked build, recorded success and failure actions, native run.
+5. **Destructive choices and Stremio handoff.** Move disconnect choice review and remove-imported-data preview/confirmation using the current native model. Preserve the exact source-scoped removal and in-flight fences. Wire the Stremio card to its existing native panel only through an approved page action; keep that panel separate. Build at **Milestone D** after the action group.
+6. **Parity, proof and replacement.** Run `dev/selftest.html`; record real feed fixtures with `COLOSSEUM_WEBUI_RECORD`, run `dev/index_fixtures.py`, and report fixture names/sizes only. Replay the same surface in browser and app without code changes. Capture web and QML original at 1920×1080 and 1280×720. Walk every focus target, review dialog, Back return, update and profile switch; try every action once for real and one plain-word failure. After an import/reference check and coordinated native-route cleanup, delete exactly `qml/TrackerSyncCenterPage.qml`. Final locked build and checks precede an explicit-pathspec commit/push.
+
+## Shared seams to request while implementation proceeds
+
+These are current code seams, not invitations to bypass ownership. If unresolved after plan review, file `REQUEST-<name>.md` beside the brief and proceed with independent sections while the affected section stays loading or empty.
+
+1. **Feed/model binding and thread safety.** `FeedRegistry.h:13-43` gives a builder only `FeedContext` with catalogue paths and four unrelated store snapshots. `ColosseumWebBridge.cpp:260-301` runs that builder under `QtConcurrent`; it has no `TrackerSyncCenterModel` snapshot, and reading that `QObject` or its profile-owned stores on this worker would violate contract §5.5. `ProfileStoreRuntime.h` does not expose the tracker model to this bridge. A shared owner must supply a GUI-thread, profile-generation-bound safe snapshot/refresh seam (or an equivalent approved binding) before the real `page.connections` feed can be completed. I will not use a process-global pointer, QML context read, or a worker call into the model.
+2. **Action owner binding.** `ActionRegistry.h:11-23` passes handlers a `ColosseumWebBridge&`, payload and completion. `ColosseumWebBridge.h:20-84` has no tracker owner accessor; `Main.qml` and bridge files are forbidden to this surface. The approved seam must make the profile-bound `TrackerSyncCenterModel` operations reachable and ensure completion happens after each native result, with generation/revision invalidation.
+3. **Stremio and QML removal.** The Stremio status and panel opener currently arrive only through `Main.qml:1929-1935`; the page feed/action needs an approved native projection and handoff. `Main.qml:1915-1937` still has a Loader sourcing `TrackerSyncCenterPage.qml`, and the non-web fallback uses it. Deleting that QML without the shared owner changing the fallback would break the normal route; I will coordinate the owner change before the same-merge deletion and will not edit `Main.qml` myself.
+
+**Review point:** Claude reviews the finished implementation and its evidence. Unresolved shared seams are written as `REQUEST-*.md` beside the brief while independent work continues.
+
+## Current execution state (2026-09-27)
+
+- Read-only `page.connections` feed, web overview, provider dossier, global/provider settings, Sync all, import review and bulk choices, Find match panel, first-export review, delivery diagnosis, disconnect choice and imported-data removal preview are authored in this surface and `ConnectionsFeed.cpp`.
+- Import application and imported-data removal actions wait for the final native model result. The page pins a review revision and invalidates an open review when the feed revision changes.
+- The existing recorded `page.connections` fixture renders at 1920×1080 and 1280×720; the web core self-test shows ALL PASS. This recording covers the read-only state, not the new action journeys.
+- The first two locked builds compiled `ConnectionsFeed.cpp.obj` but failed at link with `LNK1104: cannot open file 'colosseum.exe'` while another agent's app process held that executable. After it closed, a third locked `native\build-target.bat colosseum` run exited `TARGET_BUILD_OK` (03:17 local). This is a build receipt, not a live action journey.
+- The surface owns local copies of the approved SVGs because the app's `qrc:///developer-webui/` package does not include root `assets/icons/`. CMake regeneration embedded the surface resources in the successful build.
+- The shared requests in `REQUEST-CONNECTIONS-SHARED-SEAMS.md` remain: model-change feed invalidation, Stremio status/panel handoff, native Find match readiness, and removal of `Main.qml`'s QML fallback before `TrackerSyncCenterPage.qml` can be deleted. The Arc 35 authentication implementation also must reach this branch before a Connect journey can be proved.
