@@ -38,10 +38,10 @@ jobs:
             '/nologo', '/c', '/std:c++17', '/EHsc', '/permissive-',
             '/Zc:__cplusplus', '/utf-8',
             '/I', 'native',
-            "/external:I$headers",
-            "/external:I$headers\QtCore",
-            "/external:I$headers\QtNetwork",
-            "/external:I$headers\QtSql",
+            '/I', $headers,
+            '/I', "$headers\QtCore",
+            '/I', "$headers\QtNetwork",
+            '/I', "$headers\QtSql",
             'native\webui\feeds\BiblioFeed.cpp',
             "/Fo:$env:RUNNER_TEMP\BiblioFeed.obj"
           )
