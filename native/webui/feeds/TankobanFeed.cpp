@@ -18,6 +18,8 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSet>
+#include <QSharedPointer>
+#include <QTimer>
 #include <QStringList>
 #include <QUrlQuery>
 #include <QUuid>
@@ -1382,10 +1384,22 @@ QMetaObject::Connection bindProgress(QObject *owner, QObject *receiver,
                                      std::function<void()> refresh)
 {
     auto *progress = qobject_cast<ProgressStore *>(owner);
-    return progress
-        ? QObject::connect(progress, &ProgressStore::changed, receiver,
-                           [refresh] { refresh(); })
-        : QMetaObject::Connection{};
+    if (!progress)
+        return {};
+    // CONTRACT §3.2: progress-driven feed events are coalesced per
+    // subscription to at most one refresh per second. recordSilent() already
+    // suppresses the 5-second playback tick; this also folds lifecycle bursts.
+    const auto pending = QSharedPointer<bool>::create(false);
+    return QObject::connect(progress, &ProgressStore::changed, receiver,
+        [receiver, refresh, pending] {
+            if (*pending)
+                return;
+            *pending = true;
+            QTimer::singleShot(1000, receiver, [refresh, pending] {
+                *pending = false;
+                refresh();
+            });
+        });
 }
 
 QMetaObject::Connection bindDownloads(QObject *owner, QObject *receiver,
