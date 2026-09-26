@@ -196,13 +196,12 @@
 /* HouseScrollBar parity for this surface only. */
 #board:has(.db-page){scrollbar-color:rgba(247,247,245,.30) rgba(247,247,245,.03)}
 #board:has(.db-page)::-webkit-scrollbar{width:12px} /* token? 12px from HouseScrollBar.qml:30 */
-#board:has(.db-page)::-webkit-scrollbar-track{background:rgba(247,247,245,.03)} /* HouseScrollBar.qml:36 */
+#board:has(.db-page)::-webkit-scrollbar-track{
+  background:rgba(247,247,245,.03);transition:background 140ms; /* HouseScrollBar.qml:36-38 */
+}
 #board:has(.db-page)::-webkit-scrollbar-thumb{
-  background:rgba(247,247,245,.30);border-radius:4px; /* HouseScrollBar.qml:44-48 */
+  background:rgba(247,247,245,.30);border-radius:4px;transition:background 140ms; /* HouseScrollBar.qml:44-49 */
 }
 #board:has(.db-page)::-webkit-scrollbar-thumb:hover{background:rgba(247,247,245,.55)}
 #board:has(.db-page)::-webkit-scrollbar-thumb:active{background:rgba(240,196,74,.85)}
 
-@media (prefers-reduced-motion:reduce){
-  .db-cover-face{filter:none}
-}
