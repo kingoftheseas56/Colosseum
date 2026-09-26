@@ -10,7 +10,6 @@
       el.appendChild(box);
 
       let sub = null;
-      let alive = true;
       let chapterIndex = 0;
       let releaseIdentity = '';
 
@@ -103,10 +102,7 @@
               disabled: primary.enabled === false ? true : null,
               onclick: () => {
                 if (!primary.action) return;
-                env.act(primary.action, {}).then(result => {
-                  if (!alive) return;
-                  if (result && !result.ok && result.error) env.toast(result.error);
-                });
+                env.act(primary.action, {});
               }
             }, primary.label || '') : null));
 
@@ -121,13 +117,10 @@
 
       sub = env.port.subscribe('page.update', route.params || {},
         ev => CW.section.sync(box, ev, ctx));
-      env.act('page.update.seen', {}).then(result => {
-        if (alive && result && !result.ok && result.error) env.toast(result.error);
-      });
+      env.act('page.update.seen', {});
 
       return {
         unmount() {
-          alive = false;
           if (sub) sub.close();
         }
       };
