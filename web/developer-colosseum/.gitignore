@@ -1,1 +1,4 @@
 fixtures/
+dev/e2e/node_modules/
+dev/e2e/out/
+dev/e2e/package-lock.json

@@ -1,0 +1,14 @@
+{
+  "name": "colosseum-web-e2e",
+  "private": true,
+  "description": "Playwright checks for the Colosseum web layer (dev only; never embedded in the app).",
+  "type": "module",
+  "scripts": {
+    "selftest": "node selftest.mjs",
+    "walk": "node walk.mjs",
+    "attach": "node attach.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}
