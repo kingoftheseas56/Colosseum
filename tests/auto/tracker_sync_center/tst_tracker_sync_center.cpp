@@ -16,6 +16,7 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QtTest>
 
 #include <initializer_list>
@@ -324,6 +325,7 @@ private slots:
     void automaticPullRequiresCompletedInitialReview();
     void providerSettingsAndSyncReceiptsAdvanceRevision();
     void firstExportReviewUsesOpaqueSelectionAndFreshSnapshots();
+    void firstExportReviewPendingReadDeliversRowsAsynchronously();
     void connectionServiceCountsOnlyCurrentSupportedReceipts();
     void connectionServiceDoesNotCountConnectedOnlyProvider();
     void connectionServiceNormalizedTransportContract();
@@ -771,9 +773,15 @@ void TrackerSyncCenterTest::titleMatchConfirmsOnlyARevalidatedNativeTitle()
     QCOMPARE(mapping->provenance, TrackerMappingProvenance::UserConfirmed);
     const auto updatedBatch = fixture.imports->batch(batch->batchId);
     QVERIFY(updatedBatch);
+    // A confirmed title match must create an exact Progress target, which
+    // turns the previously unmatched item into a reviewable disagreement
+    // (provider 8% versus local 35%) instead of leaving it unsupported.
     QCOMPARE(updatedBatch->items.first().classification,
-             TrackerImportClassification::Unsupported);
-    QVERIFY(!updatedBatch->items.first().remote.exactProgressTarget.has_value());
+             TrackerImportClassification::Disagreement);
+    QVERIFY(updatedBatch->items.first().remote.exactProgressTarget.has_value());
+    QCOMPARE(updatedBatch->items.first().remote.exactProgressTarget->canonicalMediaId,
+             QStringLiteral("video:native-progress-private-7"));
+    QCOMPARE(updatedBatch->items.first().remote.exactProgressTarget->fraction, 0.08);
     QCOMPARE(fixture.titleProgress->deliveryEntry(
                  QStringLiteral("video"), QStringLiteral("native-progress-private-7"))
                  .value(QStringLiteral("progress")).toDouble(), 0.35);
@@ -2001,7 +2009,7 @@ void TrackerSyncCenterTest::providerSettingsAndSyncReceiptsAdvanceRevision()
     QVERIFY(fixture.model->revision() > previousRevision);
 
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
-        QStringLiteral("sync-center-remote-1")};
+        QStringLiteral("episode:6606:1:9")};
     const TrackerCanonicalTitleCandidate canonical{
         QStringLiteral("colosseum:series:sync-center-1"), QStringLiteral("series"),
         QStringLiteral("series:sync-center-1"), QStringLiteral("Sync center title")};
@@ -2039,7 +2047,7 @@ void TrackerSyncCenterTest::firstExportReviewUsesOpaqueSelectionAndFreshSnapshot
     QVERIFY(fixture.connectSimkl());
     const QString account = QString::fromLatin1(kRemoteAccountId);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
-        QStringLiteral("private-remote-export-id")};
+        QStringLiteral("episode:6601:2:8")};
     const TrackerCanonicalTitleCandidate canonical{
         QStringLiteral("private-canonical-export-id"), QStringLiteral("series"),
         QStringLiteral("private-history-export-id"), QStringLiteral("A local title")};
@@ -2066,9 +2074,10 @@ void TrackerSyncCenterTest::firstExportReviewUsesOpaqueSelectionAndFreshSnapshot
     QVERIFY(!missing.value(QStringLiteral("accepted")).toBool());
     fixture.model->setExportReview(&source,
         [&remoteSnapshot, &remoteReads](const TrackerConnection &,
-                                        const QList<TrackerDeliveryFact> &, QString *) {
+                                        const QList<TrackerDeliveryFact> &,
+                                        TrackerSyncCenterModel::ExportSnapshotCompletion completion) {
             ++remoteReads;
-            return std::optional<TrackerRemoteDeliverySnapshot>(remoteSnapshot);
+            completion(std::optional<TrackerRemoteDeliverySnapshot>(remoteSnapshot));
         });
     const quint64 firstRevision = fixture.model->revision();
     QVariantMap review = fixture.model->beginExportReview(QStringLiteral("simkl"),
@@ -2152,6 +2161,76 @@ void TrackerSyncCenterTest::firstExportReviewUsesOpaqueSelectionAndFreshSnapshot
     QVERIFY(fixture.model->importReviews().isEmpty());
 }
 
+void TrackerSyncCenterTest::firstExportReviewPendingReadDeliversRowsAsynchronously()
+{
+    // Production provider readers are asynchronous; the review must open as a
+    // pending state and complete through exportReviewReady without blocking,
+    // and the confirmation must settle through lastActionResult.
+    TrackerSyncCenterFixture fixture;
+    QVERIFY(fixture.valid());
+    QVERIFY(fixture.connectSimkl());
+    const QString account = QString::fromLatin1(kRemoteAccountId);
+    const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
+        QStringLiteral("episode:6602:1:5")};
+    const TrackerCanonicalTitleCandidate canonical{
+        QStringLiteral("private-canonical-async-id"), QStringLiteral("series"),
+        QStringLiteral("private-history-async-id"), QStringLiteral("An async title")};
+    QVERIFY(fixture.mappings->upsert(remote, canonical,
+        TrackerMappingProvenance::UserConfirmed));
+    const TrackerDeliveryFact nativeFact{canonical.canonicalMediaId, canonical.historyKind,
+        canonical.historyId, TrackerDeliveryFactKind::Progress, 1, {}, 8,
+        QStringLiteral("private-async-fingerprint"), TrackerDeliveryOrigin::NativeLocal,
+        TrackerMediaDomain::Television};
+    ExportReviewSource source;
+    source.facts = {nativeFact};
+    TrackerRemoteDeliverySnapshot remoteSnapshot{TrackerProviderId::Simkl,
+        account, 1, QStringLiteral("private-async-snapshot"), 7654322, true,
+        {{remote.remoteMediaId, TrackerDeliveryFactKind::Progress, {}, true, false,
+          QStringLiteral("private-remote-async-state"),
+          QStringLiteral("Earlier progress")}}};
+
+    fixture.model->setExportReview(&source,
+        [&remoteSnapshot](const TrackerConnection &,
+                          const QList<TrackerDeliveryFact> &,
+                          TrackerSyncCenterModel::ExportSnapshotCompletion completion) {
+            QTimer::singleShot(0, [&remoteSnapshot, completion]() {
+                completion(std::optional<TrackerRemoteDeliverySnapshot>(remoteSnapshot));
+            });
+        });
+
+    QSignalSpy readySpy(fixture.model.get(),
+                        &TrackerSyncCenterModel::exportReviewReady);
+    const QVariantMap review = fixture.model->beginExportReview(
+        QStringLiteral("simkl"), fixture.model->revision());
+    QVERIFY(review.value(QStringLiteral("accepted")).toBool());
+    QCOMPARE(review.value(QStringLiteral("code")).toString(),
+             QStringLiteral("checking"));
+    QVERIFY(review.value(QStringLiteral("pending")).toBool());
+    QVERIFY(review.value(QStringLiteral("items")).toList().isEmpty());
+    QVERIFY(readySpy.wait());
+    QCOMPARE(readySpy.count(), 1);
+    const QVariantMap ready = readySpy.at(0).at(0).toMap();
+    QCOMPARE(ready.value(QStringLiteral("code")).toString(), QStringLiteral("ready"));
+    QVERIFY(ready.value(QStringLiteral("accepted")).toBool());
+    const QVariantList rows = ready.value(QStringLiteral("items")).toList();
+    QCOMPARE(rows.size(), 1);
+    const QVariantMap row = rows.first().toMap();
+    QVERIFY(row.value(QStringLiteral("eligible")).toBool());
+    QCOMPARE(row.value(QStringLiteral("remoteAfter")).toString(),
+             QStringLiteral("Progress: 8"));
+
+    QVERIFY(fixture.model->confirmExportReview(
+        ready.value(QStringLiteral("reviewId")).toString(),
+        {row.value(QStringLiteral("itemId")).toString()},
+        fixture.model->revision()));
+    QCOMPARE(fixture.model->lastActionResult().value(QStringLiteral("code")).toString(),
+             QStringLiteral("pending"));
+    QTRY_COMPARE(fixture.model->lastActionResult().value(QStringLiteral("code")).toString(),
+                 QStringLiteral("confirmed"));
+    QVERIFY(fixture.delivery->hasFirstExportConsent(TrackerProviderId::Simkl, account));
+    QCOMPARE(fixture.delivery->operations().size(), 1);
+}
+
 void TrackerSyncCenterTest::connectionServiceCountsOnlyCurrentSupportedReceipts()
 {
     TrackerSyncCenterFixture fixture;
@@ -2160,7 +2239,7 @@ void TrackerSyncCenterTest::connectionServiceCountsOnlyCurrentSupportedReceipts(
 
     const QString account = QString::fromLatin1(kRemoteAccountId);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
-        QStringLiteral("coverage-remote-1")};
+        QStringLiteral("episode:6603:3:1")};
     const TrackerCanonicalTitleCandidate canonical{
         QStringLiteral("colosseum:series:coverage-1"), QStringLiteral("series"),
         QStringLiteral("series:coverage-1"), QStringLiteral("Coverage title")};
@@ -2189,6 +2268,25 @@ void TrackerSyncCenterTest::connectionServiceCountsOnlyCurrentSupportedReceipts(
     QVERIFY(fixture.delivery->markDelivering(operationId, &source, 8765003));
     QVERIFY(fixture.delivery->recordAttemptResult(operationId,
         TrackerDeliveryAttemptResult::Succeeded, 8765004));
+
+    const QVariantList historyDeliveryRows = fixture.model->historyDeliveryRows();
+    QCOMPARE(historyDeliveryRows.size(), 1);
+    const QVariantMap historyDelivery = historyDeliveryRows.first().toMap();
+    QCOMPARE(keys(historyDelivery), keySet({"title", "providerKey", "providerName", "state"}));
+    QCOMPARE(historyDelivery.value(QStringLiteral("title")).toString(),
+             QStringLiteral("Coverage title"));
+    QCOMPARE(historyDelivery.value(QStringLiteral("providerKey")).toString(),
+             QStringLiteral("simkl"));
+    QCOMPARE(historyDelivery.value(QStringLiteral("providerName")).toString(),
+             QStringLiteral("SIMKL"));
+    QCOMPARE(historyDelivery.value(QStringLiteral("state")).toString(),
+             QStringLiteral("confirmed"));
+    const QByteArray safeHistoryDelivery = QJsonDocument::fromVariant(historyDelivery)
+        .toJson(QJsonDocument::Compact);
+    QVERIFY(!safeHistoryDelivery.contains(kRemoteAccountId));
+    QVERIFY(!safeHistoryDelivery.contains("episode:6603:3:1"));
+    QVERIFY(!safeHistoryDelivery.contains("colosseum:series:coverage-1"));
+    QVERIFY(fixture.model->deliveryRows(QStringLiteral("simkl")).isEmpty());
 
     TrackerConnectionService enabledService(fixture.connections.get(), fixture.mappings.get(),
         fixture.delivery.get(), &source, testCatalogue());
@@ -2333,7 +2431,7 @@ void TrackerSyncCenterTest::diagnoseRouteIsCurrentAndSanitized()
 
     const QString account = QString::fromLatin1(kRemoteAccountId);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
-        QString::fromLatin1(kRemoteItemId)};
+        QStringLiteral("episode:6604:1:2")};
     const TrackerCanonicalTitleCandidate canonical{
         QStringLiteral("colosseum:series:diagnose-private-title"), QStringLiteral("series"),
         QStringLiteral("series:diagnose-private-id"), QStringLiteral("Diagnose title")};
@@ -2406,7 +2504,7 @@ void TrackerSyncCenterTest::enablingSendsRefreshesCurrentFactsAfterPersistingPre
     QVERIFY(fixture.connectSimkl());
     const QString account = QString::fromLatin1(kRemoteAccountId);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
-        QStringLiteral("send-refresh-remote")};
+        QStringLiteral("episode:6605:4:6")};
     const TrackerCanonicalTitleCandidate canonical{
         QStringLiteral("colosseum:series:send-refresh"), QStringLiteral("series"),
         QStringLiteral("series:send-refresh"), QStringLiteral("Send refresh")};
@@ -2508,7 +2606,7 @@ void TrackerSyncCenterTest::retryingDeliveryOutageNeverProjectsHealthy()
     QVERIFY(fixture.connectSimkl());
     const QString account = QString::fromLatin1(kRemoteAccountId);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, account,
-        QStringLiteral("retrying-delivery-remote")};
+        QStringLiteral("episode:6607:2:3")};
     const TrackerCanonicalTitleCandidate canonical{
         QStringLiteral("colosseum:series:retrying-delivery"), QStringLiteral("series"),
         QStringLiteral("series:retrying-delivery"), QStringLiteral("Retrying delivery title")};

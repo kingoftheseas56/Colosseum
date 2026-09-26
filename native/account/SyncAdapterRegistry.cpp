@@ -252,6 +252,25 @@ bool SyncAdapterRegistry::exportSnapshot(
         tombstones.insert(recordKey);
     }
 
+    for (auto it = exported.tombstoneEventMs.constBegin();
+         it != exported.tombstoneEventMs.constEnd(); ++it) {
+        if (!tombstones.contains(it.key()) || it.value() <= 0) {
+            return fail(
+                error,
+                QStringLiteral("invalid_tombstone_event"),
+                QStringLiteral(
+                    "A tombstone event timestamp must be positive and belong to an exported tombstone."));
+        }
+    }
+    if (entry->categoryId == QLatin1String("ratings_reviews")
+        && exported.tombstoneEventMs.size() != tombstones.size()) {
+        return fail(
+            error,
+            QStringLiteral("invalid_tombstone_event"),
+            QStringLiteral(
+                "Ratings/reviews tombstones require exact semantic delete timestamps."));
+    }
+
     snapshot->categoryId =
         entry->categoryId;
     snapshot->schemaVersion =
@@ -264,6 +283,8 @@ bool SyncAdapterRegistry::exportSnapshot(
         exported.records;
     snapshot->tombstones =
         exported.tombstones;
+    snapshot->tombstoneEventMs =
+        exported.tombstoneEventMs;
     return true;
 }
 
@@ -353,13 +374,8 @@ bool SyncAdapterRegistry::applyRemote(
     }
 
     SyncAdapterValidationError validation;
-    if (!adapter->validateRemote(
-            mutation.recordKey,
-            mutation.operation,
-            mutation.operation == SyncWireOperation::Put
-                ? mutation.payload
-                : QJsonValue(),
-            mutation.schemaVersion,
+    if (!adapter->validateRemoteMutation(
+            mutation,
             &validation)) {
         return failCompatibility(
             error,
@@ -385,14 +401,8 @@ bool SyncAdapterRegistry::applyRemote(
 
     QString adapterError;
     const bool applied =
-        adapter->applyRemote(
-            mutation.recordKey,
-            mutation.operation,
-            mutation.operation
-                    == SyncWireOperation::Put
-                ? mutation.payload
-                : QJsonValue(),
-            mutation.schemaVersion,
+        adapter->applyRemoteMutation(
+            mutation,
             &adapterError);
 
     if (suppressLocalMutation) {
@@ -464,11 +474,8 @@ bool SyncAdapterRegistry::applyRemoteAsync(
     }
 
     SyncAdapterValidationError validation;
-    if (!adapter->validateRemote(
-            mutation.recordKey,
-            mutation.operation,
-            mutation.operation == SyncWireOperation::Put ? mutation.payload : QJsonValue(),
-            mutation.schemaVersion,
+    if (!adapter->validateRemoteMutation(
+            mutation,
             &validation)) {
         return failCompatibility(
             error,
@@ -486,11 +493,8 @@ bool SyncAdapterRegistry::applyRemoteAsync(
     QPointer<SyncAdapterRegistry> self(this);
     QPointer<SyncAdapter> adapterGuard(adapter);
     QString adapterStartError;
-    const bool started = adapter->applyRemoteAsync(
-        mutation.recordKey,
-        mutation.operation,
-        mutation.operation == SyncWireOperation::Put ? mutation.payload : QJsonValue(),
-        mutation.schemaVersion,
+    const bool started = adapter->applyRemoteMutationAsync(
+        mutation,
         [self, adapterGuard, categoryId, mutation, callback, suppressLocalMutation](
             bool applied, const QString &adapterError) {
             if (!self)

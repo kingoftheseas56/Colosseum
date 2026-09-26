@@ -46,7 +46,7 @@ if ($bar -match 'colosseumUpdateBadge') { throw 'Taskbar still has the Update ba
 if ($bar -match 'signal updateClicked|property bool updateActive|updatePresentation') {
     throw 'Taskbar retains dead update plumbing'
 }
-if ($bar -notmatch 'closedWidth:\s*130') { throw 'closed taskbar geometry changed outside scope' }
+if ($bar -notmatch 'closedWidth:\s*190') { throw 'closed taskbar must fit Colosseum, Feria, and Vault' }
 
 # ---- Main.qml: home TopBar wired + taskbar has no update bindings ----
 if ($main -notmatch 'onUpdateClicked:\s*!updateLayer\.active') {

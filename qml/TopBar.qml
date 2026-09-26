@@ -46,7 +46,33 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
     signal updateClicked()
+    signal trackersClicked()
     signal boundaryArrowRequested(int key, Item fromItem)
+
+    // Third-party trackers door (AniList, MAL, Trakt, Simkl...). Unlike Stremio it is not one
+    // provider and it serves every world, so it gets a provider-neutral mark in all of them.
+    // Hosts that wire trackersClicked opt in; other TopBar hosts (reader, player) stay unchanged.
+    property bool trackersEnabled: false
+    property bool trackersActive: false
+    // Aggregate sync state -> dot colour. No dot when nothing is connected, so the icon
+    // never nags someone who doesn't use trackers.
+    readonly property string trackersDotState: {
+        if (typeof TrackerSyncCenter === "undefined" || !TrackerSyncCenter)
+            return ""
+        var state = TrackerSyncCenter.aggregateState || ({})
+        var status = String(state.status || "Empty")
+        if (status === "Attention" || status === "Owner unavailable")
+            return "error"
+        if (status === "Empty" && Number(state.connectedCount || 0) === 0)
+            return ""
+        if (status === "Healthy")
+            return "ok"
+        return "pending"
+    }
+    function focusTrackersButton() {
+        if (trackersButton.visible)
+            trackersInput.forceActiveFocus(Qt.TabFocusReason)
+    }
 
     // Update availability flags (home only): drive the silver badge on the home
     // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
@@ -93,14 +119,27 @@ Item {
         id: sysRoot
         property url source
         property string accessibleName: ""
+        property bool showLabel: false
         signal clicked()
-        width: 22; height: 22
+        width: showLabel ? 82 : 22; height: 22
         Image {
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22; height: 22
             source: sysRoot.source
             sourceSize.width: 22; sourceSize.height: 22
             fillMode: Image.PreserveAspectFit
             opacity: input.interactionActive ? 1.0 : 0.72
+        }
+        Text {
+            visible: sysRoot.showLabel
+            anchors.left: parent.left
+            anchors.leftMargin: 30
+            anchors.verticalCenter: parent.verticalCenter
+            text: sysRoot.accessibleName
+            color: input.interactionActive ? theme.ink : theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 14
         }
         KeyboardAction {
             id: input
@@ -113,7 +152,7 @@ Item {
 
     // ---- inline: a library pill (selected when its label == activeMedium).
     //      Clean centered TEXT — icons return later with proper active/inactive tinting.
-    //      comingSoon → a placeholder mode (e.g. Vinyl): muted "SOON" tag, not navigable. ----
+    //      comingSoon → a placeholder mode: muted "SOON" tag, not navigable. ----
     component Pill: Item {
         id: pill
         // Automation identity (Lanista): the pills are plain Items made clickable by a child
@@ -205,12 +244,9 @@ Item {
             id: pillsRow
             anchors.centerIn: parent
             spacing: 4
-            // The four modes (Hemanth-locked 2026-06-24). Tankoban = comics+manga · Biblio = books ·
-            // Theatre = movies/video · Vinyl = music (placeholder, no world yet).
             Pill { label: "Tankoban" }
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
-            Pill { label: "Vinyl"; comingSoon: true }
         }
     }
 
@@ -225,7 +261,11 @@ Item {
         spacing: 20
         // Search — worlds only.
         SysIcon {
-            objectName: "topBarSearch"
+            // Retained worlds keep their TopBars alive together. Give each
+            // non-Theatre search a world-specific name so Lanista can target
+            // the visible Theatre search without matching a hidden sibling.
+            objectName: bar.activeMedium === "Theatre" ? "topBarSearch"
+                       : bar.activeMedium === "" ? "" : "topBarSearch_" + bar.activeMedium
             source: "../assets/icons/search.svg"
             accessibleName: "Search"
             onClicked: bar.searchClicked()
@@ -304,6 +344,44 @@ Item {
                 accessibleName: bar.updateAvailable ? "Update available" : "Updates"
                 focusRadius: 6
                 onTriggered: bar.updateClicked()
+            }
+        }
+        // Third-party trackers — every world and home. Theatre shows it beside Stremio;
+        // on home it follows the Update glyph.
+        Item {
+            id: trackersButton
+            // Home and every retained world own a TopBar; suffix world copies so automation
+            // never resolves a hidden sibling.
+            objectName: !bar.lifecycleActive ? ""
+                        : bar.activeMedium === "" ? "topBarTrackersButton"
+                        : "topBarTrackersButton_" + bar.activeMedium
+            width: 22; height: 22
+            visible: bar.trackersEnabled && bar.lifecycleActive
+            opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
+            Image {
+                anchors.fill: parent
+                source: "../assets/icons/trackers.svg"
+                sourceSize.width: 44; sourceSize.height: 44
+                fillMode: Image.PreserveAspectFit
+            }
+            Rectangle {
+                objectName: "topBarTrackersStatusDot"
+                visible: bar.trackersDotState !== ""
+                anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                width: 8; height: 8; radius: 4
+                color: bar.trackersDotState === "ok" ? "#5fd18b"
+                     : bar.trackersDotState === "error" ? "#ef6a5a" : theme.gold
+                border.width: 1; border.color: "#15151a"
+            }
+            KeyboardAction {
+                id: trackersInput
+                objectName: bar.activeMedium === "" ? "topBarTrackersInput" : ""
+                anchors.fill: parent
+                accessibleName: bar.trackersDotState === "error"
+                                ? qsTr("Trackers, attention required") : qsTr("Trackers")
+                focusRadius: 6
+                onTriggered: bar.trackersClicked()
             }
         }
         // Account identity (Bundle 8C first-light): gold-ringed initial when

@@ -52,10 +52,13 @@ constexpr int kGrabTimeoutMs = 4000;
 // — and deliberately favors several small, PAGEABLE replies over one huge one:
 // the client is an agent, and a bounded page is easier to reason about than a
 // single multi-hundred-KB blob even when the wire could technically carry it.
-// maxDepth's ceiling matches walkVisual's own hard recursion guard (depth > 64
-// below) — a client cannot ask for more depth than the walker itself allows.
+// Retained-world QML can nest interactive chrome beyond 64 visual levels.
+// Keep the traversal bounded, but let named controls in those live scenes
+// resolve before the QObject fallback reaches a hidden retained sibling.
+constexpr int kVisualTreeDepthLimit = 256;
+// maxDepth's ceiling matches walkVisual's hard recursion guard below.
 constexpr qint64 kDumpUiByteBudget = 96 * 1024;
-constexpr int kDumpUiMaxDepthCeiling = 64;
+constexpr int kDumpUiMaxDepthCeiling = kVisualTreeDepthLimit;
 constexpr int kDumpUiMaxItemsCeiling = 5000;
 
 // Depth-first search over the VISUAL tree (QQuickItem::childItems), which is
@@ -74,7 +77,7 @@ constexpr int kDumpUiMaxItemsCeiling = 5000;
 bool walkVisual(QQuickItem* item, int depth,
                 const std::function<bool(QQuickItem*, int)>& visit)
 {
-    if (!item || depth > 64)
+    if (!item || depth > kVisualTreeDepthLimit)
         return false;
     if (visit(item, depth))
         return true;
@@ -86,8 +89,8 @@ bool walkVisual(QQuickItem* item, int depth,
     return false;
 }
 
-// The finder: first item whose objectName matches, or nullptr. findItem() calls
-// this from the main window's content item.
+// The finder prefers a visible match when retained pages contain duplicate
+// object names. Hidden matches remain a read-only fallback for diagnostics.
 bool writeRequiredProperty(QObject* object, const char* name,
                            const QVariant& value, QString* error)
 {
@@ -136,15 +139,20 @@ bool evaluateFixedQml(QQuickItem* item, const QString& expressionText,
 
 QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
 {
-    QQuickItem* found = nullptr;
+    QQuickItem* fallback = nullptr;
+    QQuickItem* visible = nullptr;
     walkVisual(item, depth, [&](QQuickItem* it, int) {
         if (it->objectName() == objectName) {
-            found = it;
-            return true;   // stop: we have our match
+            if (!fallback)
+                fallback = it;
+            if (it->isVisible()) {
+                visible = it;
+                return true;
+            }
         }
         return false;
     });
-    return found;
+    return visible ? visible : fallback;
 }
 
 // J1-Tray-Bridge (2026-08-14): the ONE place a window's live QWindow::visibility()
@@ -1482,7 +1490,11 @@ void LanistaServer::cmdUiTextInput(const QJsonObject& p, Replier reply) const
         ev.setTimestamp(m_inputClock.elapsed());
         QCoreApplication::sendEvent(w, &ev);
     }
-    reply.reply({{QStringLiteral("typed"), text}});
+    if (p.value(QStringLiteral("redact")).toBool()) {
+        reply.reply({{QStringLiteral("typedLength"), text.size()}});
+    } else {
+        reply.reply({{QStringLiteral("typed"), text}});
+    }
 }
 
 // ui-scroll: a QWheelEvent with angleDelta QPoint(0, dy) (default dy -120) at the

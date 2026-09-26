@@ -114,6 +114,22 @@ QString ProfilePaths::activityDbPath() const {
     return childPath(QStringLiteral("activity.sqlite"));
 }
 
+QString ProfilePaths::ratingsReviewsPath() const {
+    return childPath(QStringLiteral("ratings-reviews.json"));
+}
+
+QString ProfilePaths::ratingsReviewsProviderMappingsPath() const {
+    return childPath(QStringLiteral("ratings-reviews-provider-mappings.json"));
+}
+
+QString ProfilePaths::ratingsReviewsDeliveryOutboxPath() const {
+    return childPath(QStringLiteral("ratings-reviews-delivery-outbox.json"));
+}
+
+QString ProfilePaths::ratingsReviewsDeliveryReceiptsPath() const {
+    return childPath(QStringLiteral("ratings-reviews-delivery-receipts.json"));
+}
+
 QString ProfilePaths::syncStatePath() const {
     return childPath(QStringLiteral("sync/state.json"));
 }

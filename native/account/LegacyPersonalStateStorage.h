@@ -21,6 +21,8 @@ struct PersonalStateSnapshot {
     QJsonObject searchHistory;
     QJsonObject audioPairings;
     QJsonObject historyRecords;
+    QJsonObject ratingsReviewsRecords;
+    QJsonObject ratingsReviewsTombstones;
     bool showExplicit = false;
     QString mainSyncProvider;
     // Device-private Stremio continuity. These fields only ride the local
@@ -31,6 +33,7 @@ struct PersonalStateSnapshot {
     bool isEmpty() const;
     QJsonObject toJson() const;
     QString semanticDigest() const;
+    QString legacySemanticDigestV4() const;
     QString legacySemanticDigestV3() const;
     QString legacySemanticDigestV2() const;
     QString legacySemanticDigestV1() const;
@@ -78,8 +81,13 @@ public:
     QString audioPairingIniPath() const;
     QString preferencesIniPath() const;
     QString historyIniPath() const;
+    QString ratingsReviewsPath() const;
+    QString profileId() const;
     QString devicePrivateProfileRoot() const;
     QString devicePrivateStremioStatePath() const;
+    QString devicePrivateRatingsReviewsProviderMappingsPath() const;
+    QString devicePrivateRatingsReviewsDeliveryOutboxPath() const;
+    QString devicePrivateRatingsReviewsDeliveryReceiptsPath() const;
 
     // The durable activity.sqlite path for this storage location — always an
     // explicit file path (SQLite has no registry-backed equivalent of the

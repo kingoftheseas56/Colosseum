@@ -4,12 +4,14 @@
 
 #include "SyncProtocol.h"
 
+#include <QHash>
 #include <QJsonValue>
 #include <QList>
 #include <QObject>
 #include <QString>
 
 #include <functional>
+#include <optional>
 
 struct SyncAdapterRecord {
     QString recordKey;
@@ -30,6 +32,7 @@ struct SyncAdapterExport {
     // records so a cancellation can produce a wire DELETE even when the
     // record was added and cancelled before the first mirror checkpoint.
     QList<QString> tombstones;
+    QHash<QString, qint64> tombstoneEventMs;
 };
 
 // A validation failure is compatibility evidence only when it comes from a
@@ -44,6 +47,15 @@ struct SyncAdapterValidationError {
     QString code;
     QString detail;
     QString fieldPath;
+};
+
+struct SyncAdapterMutation {
+    QString categoryId;
+    QString recordKey;
+    int schemaVersion = 0;
+    SyncWireOperation operation = SyncWireOperation::Put;
+    QJsonValue payload;
+    std::optional<qint64> deletedAtMs;
 };
 
 class SyncAdapter : public QObject {
@@ -94,6 +106,17 @@ public:
         return true;
     }
 
+    virtual bool validateRemoteMutation(
+        const SyncAdapterMutation &mutation,
+        SyncAdapterValidationError *error = nullptr) const {
+        return validateRemote(
+            mutation.recordKey,
+            mutation.operation,
+            mutation.payload,
+            mutation.schemaVersion,
+            error);
+    }
+
     // Returns one coherent current semantic record snapshot. Each logical
     // record key appears at most once. The generic engine interprets a key
     // missing from a later snapshot as a local delete relative to its durable
@@ -116,6 +139,17 @@ public:
         int schemaVersion,
         QString *error = nullptr) = 0;
 
+    virtual bool applyRemoteMutation(
+        const SyncAdapterMutation &mutation,
+        QString *error = nullptr) {
+        return applyRemote(
+            mutation.recordKey,
+            mutation.operation,
+            mutation.payload,
+            mutation.schemaVersion,
+            error);
+    }
+
     // Asynchronous owner acknowledgement seam. The default preserves the
     // synchronous behavior of adapters whose owners are already durable on
     // return; durable disk-backed owners override it and invoke the callback
@@ -135,6 +169,19 @@ public:
         if (!applied && error)
             *error = applyError;
         return true;
+    }
+
+    virtual bool applyRemoteMutationAsync(
+        const SyncAdapterMutation &mutation,
+        std::function<void(bool, const QString &)> callback,
+        QString *error = nullptr) {
+        return applyRemoteAsync(
+            mutation.recordKey,
+            mutation.operation,
+            mutation.payload,
+            mutation.schemaVersion,
+            std::move(callback),
+            error);
     }
 
 signals:

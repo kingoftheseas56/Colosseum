@@ -114,6 +114,15 @@ SyncPayloadValidation SyncPayloadFirewall::validate(
                 "The category is syncable by product policy, but its portable owner/export seam is not frozen yet."));
     }
 
+    if (categoryId == QLatin1String("ratings_reviews")
+        && payload.isObject()) {
+        QJsonObject filtered = payload.toObject();
+        const QJsonValue review = filtered.value(QStringLiteral("review"));
+        if (review.isString())
+            filtered.insert(QStringLiteral("review"), QStringLiteral("review-text"));
+        return scan(filtered, QStringLiteral("$"), 0);
+    }
+
     return scan(
         payload,
         QStringLiteral("$"),

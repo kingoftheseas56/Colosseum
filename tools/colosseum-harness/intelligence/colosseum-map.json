@@ -1,1 +1,1379 @@
-{"schema_version":1,"map_id":"colosseum-intelligence-v0","repo_basis":{"head":"b9be4f5f11740eca7dfc2998ef884e07f1186ca7","branch":"master","path_semantics":"repo-relative","source_of_truth":["AGENTS.md","docs/terminology.md","native/main.cpp","qml/Main.qml","native/CMakeLists.txt","tests/CMakeLists.txt","tests/lanista_scenarios"]},"donors":{"source_index":"scripts/code_encyclopedia.py","lanista_inventory":"scripts/lanista_coverage.py","test_ledger":"docs/colosseum-test-verification.md","lanista_ledger":"docs/colosseum-lanista-verification.md"},"known_gaps":["QML ownership is not AST-derived; QML mappings use inspected current entry points and source anchors.","CTest/check lists are high-signal subsets, not a complete assignment of the test estate.","Referenced Lanista entries are required to exist and parse as JSON, but this does not imply current green runtime status.","Current Lanista scenario census: 85 files, 85 valid JSON.","Preflight Function Atlas pointers are audit context on their recorded basis; current Colosseum source/tests win."],"domains":[{"id":"shell","display_name":"Application Shell","aliases":["taskbar","sessions","navigation","main"],"source_roots":["qml/Main.qml","qml/Taskbar.qml","native/SessionStore.h","qml/ShellBackPolicy.js"],"entry_points":["qml/Main.qml","native/main.cpp","qml/ShellBackPolicy.js"],"owners":[{"name":"SessionStore","path":"native/SessionStore.h","confidence":"observed","responsibility":"Open-session identity, active session, saved state, taskbar grouping.","provenance":[{"path":"native/SessionStore.h","contains":"SessionStore - the OS-shell's open-sessions model"}]},{"name":"Main.qml root shell","path":"qml/Main.qml","confidence":"observed","responsibility":"World/page/detail composition and taskbar/overlay routing.","provenance":[{"path":"qml/Main.qml","contains":"Taskbar {"}]},{"name":"ShellBackPolicy","path":"qml/ShellBackPolicy.js","confidence":"observed","responsibility":"Pure shell-level Escape/back ownership arbitration.","provenance":[{"path":"qml/ShellBackPolicy.js","contains":"Pure shell-level Escape arbitration"}]}],"ctests":[{"name":"colosseum.qttest.window_state_policy","labels":["unit","windows","qttest"]},{"name":"colosseum.qttest.window_set_state","labels":["unit","windows","qttest"]}],"checks":["tests/test_shell_back_arbitration_p0.ps1","tests/test_shell_windowed_mode_p0.ps1"],"lanista_scenarios":["tests/lanista_scenarios/app_home.json","tests/lanista_scenarios/journey_tray.json"],"context":[{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0003-QML-SHELL-NAVIGATION.md"},{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0004-SESSION-MODEL.md"}],"platform_constraints":["Window-state/runtime proof is Windows-labeled."],"relations":["account-sync","downloads","update","universes","ratings-reviews"]},{"id":"tankoban","display_name":"Tankoban","aliases":["manga","comics","tankoyomi"],"source_roots":["qml/TankobanWorld.qml","qml/TankobanMangaTab.qml","qml/TankobanComicsTab.qml","native/MangaEngine.h","native/engine","qml/comicreader","native/comicreader","extensions/tankoyomi"],"entry_points":["qml/TankobanWorld.qml","native/MangaEngine.h"],"owners":[{"name":"MangaEngine","path":"native/MangaEngine.h","confidence":"observed","responsibility":"Manga QML bridge plus Tankoyomi chapter-mode access.","provenance":[{"path":"native/MangaEngine.h","contains":"QML bridge over the native WeebCentral scraper"}]},{"name":"TankoyomiChapterService","path":"native/engine/TankoyomiChapterService.h","confidence":"observed","responsibility":"Chapter provider catalogue and page retrieval behind MangaEngine.","provenance":[{"path":"native/MangaEngine.h","contains":"Chapter Mode enters the Tankoyomi provider layer"}]}],"ctests":[{"name":"colosseum.qttest.tankoban_catalog","labels":["unit","qttest"]},{"name":"colosseum.qttest.manga_page_transport","labels":["unit","qttest","tankoyomi"]},{"name":"colosseum.qttest.tankoban_preferences_sync","labels":["unit","qttest","sync","domain","tankoban","preferences"]}],"checks":["tests/test_tankoban_discover.ps1","tests/test_manga_volume_flow.ps1","tests/tankoyomi_consumption_routing_contract_test.mjs"],"lanista_scenarios":["tests/lanista_scenarios/tankoban_catalogue_smoke.json","tests/lanista_scenarios/journey_open_manga.json","tests/lanista_scenarios/keyboard_catalogue_tankoban_completion.json"],"context":[{"scope":"repo","path":"docs/terminology.md"},{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0006-COMIC-READER.md"}],"platform_constraints":["Mixed provider/static proof; several reader/volume and Lanista paths need Windows assembled runtime."],"relations":["downloads","account-sync","search-discovery"]},{"id":"biblio","display_name":"Biblio","aliases":["books","audiobooks","reader2","book-reader"],"source_roots":["qml/BiblioWorld.qml","qml/BiblioLibraryPage.qml","qml/BiblioSearch.qml","qml/reader2","native/reader2","native/reader"],"entry_points":["qml/BiblioWorld.qml","qml/reader2/ReaderShell.qml","native/reader2/Reader2Bridge.h"],"owners":[{"name":"Reader2Bridge","path":"native/reader2/Reader2Bridge.h","confidence":"observed","responsibility":"Reader 2 native seam for authorized bytes, profile stores, paper events, and dictionary networking.","provenance":[{"path":"native/reader2/Reader2Bridge.h","contains":"The fresh reader's native seam"}]}],"ctests":[{"name":"colosseum.reader2_logic","labels":["unit","reader2","windows"]},{"name":"colosseum.reader2_runtime_contract","labels":["unit","reader2","windows"]}],"checks":["tests/test_biblio_library.ps1","tests/test_biblio_consumption_intent.ps1","tests/qml/tst_biblio_library_focus.qml"],"lanista_scenarios":["tests/lanista_scenarios/biblio_downloaded_epub_read_journey.json","tests/lanista_scenarios/function0007_reader2_hot_switch.json","tests/lanista_scenarios/function0007_reader2_ui_smoke.json"],"context":[{"scope":"repo","path":"docs/terminology.md"},{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0007-BOOK-READER-RUNTIME.md"}],"platform_constraints":["Reader 2 deterministic CTests are Windows-labeled."],"relations":["downloads","account-sync","search-discovery"]},{"id":"theatre","display_name":"Theatre","aliases":["movies","tv","anime","stremio"],"source_roots":["qml/TheatreWorld.qml","qml/TheatreSeries.qml","qml/AddonClient.js","native/stremio","native/engine/ExtensionsStore.h"],"entry_points":["qml/TheatreWorld.qml","qml/TheatreSeries.qml"],"owners":[{"name":"TheatreWorld.qml","path":"qml/TheatreWorld.qml","confidence":"inferred","responsibility":"Top-level Theatre browsing surface; provider/playback work delegates to narrower seams.","note":"Inferred from the current Main.qml loader and Theatre component structure; no single native Theatre state owner exists.","provenance":[{"path":"qml/Main.qml","contains":"TheatreWorld.qml"}]}],"ctests":[{"name":"colosseum.qttest.stremio_sync","labels":["unit","qttest","stremio","sync","windows"]},{"name":"colosseum.search_cancellation_contract","labels":["unit","responsiveness","windows"]}],"checks":["tests/test_theatre_search_p0.ps1","tests/test_theatre_anime_parity.ps1"],"lanista_scenarios":["tests/lanista_scenarios/theatre_one_piece_virtualization.json","tests/lanista_scenarios/stremio_task4_theatre_panel.json"],"context":[{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0008-VIDEO-SOURCE-HANDOFF.md"},{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0010-SEARCH-DISCOVERY.md"}],"platform_constraints":["Browsing/static checks are mixed; provider/runtime playback includes Windows-only gates."],"relations":["video-playback","downloads","account-sync","search-discovery"]},{"id":"video-playback","display_name":"Video Playback","aliases":["player","player1","player2","mpv"],"source_roots":["qml/PlayerPage.qml","native/player","native/player2"],"entry_points":["qml/PlayerPage.qml","native/player/mpvitem.h","native/main.cpp"],"owners":[{"name":"MpvItem","path":"native/player/mpvitem.h","confidence":"observed","responsibility":"Player 1 playable mpv QQuickItem surface registered as Colosseum.Player/MpvItem.","provenance":[{"path":"native/player/mpvitem.h","contains":"MpvItem — the playable mpv surface"}]}],"ctests":[{"name":"colosseum.player1_runtime_recovery","labels":["unit","player","windows"]},{"name":"colosseum.player1_resume_choice","labels":["unit","player","windows"]},{"name":"colosseum.qttest.player1_selftest_bridge","labels":["unit","windows","qttest","lanista"]},{"name":"colosseum.downloadstore_source_headers_harness","labels":["unit","network","contract"]}],"checks":["tests/test_player1_runtime_recovery_p0.ps1","tests/test_video_source_handoff_p0.ps1","tests/function0008_lanista_runtime.py"],"lanista_scenarios":["tests/lanista_scenarios/journey_play_video.json","tests/lanista_scenarios/player1_failover.json","tests/lanista_scenarios/function0008_arriving_play.json"],"context":[{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0008-VIDEO-SOURCE-HANDOFF.md"},{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0009-PLAYER1-CORE-PLAYBACK-RUNTIME.md"}],"platform_constraints":["Player runtime CTests/Lanista journeys are Windows-labeled or assembled-runtime proof; Player 2 is build-conditional."],"relations":["theatre","downloads","watch-party","shell"]},{"id":"vault","display_name":"Vault","aliases":["local-media","on-this-machine"],"source_roots":["qml/VaultPage.qml","native/engine/VaultLibrary.h","native/engine/VaultIndex.h","native/engine/VaultScanner.h","native/engine/LocalLaunch.h"],"entry_points":["qml/VaultPage.qml","native/engine/VaultLibrary.h"],"owners":[{"name":"VaultLibrary","path":"native/engine/VaultLibrary.h","confidence":"observed","responsibility":"Vault single QML facade over query truth, scanning, confirmation, publication, and commands.","provenance":[{"path":"native/engine/VaultLibrary.h","contains":"VaultLibrary — the Vault's single QML façade"}]}],"ctests":[{"name":"colosseum.qttest.vault_index","labels":["unit","qttest"]},{"name":"colosseum.qttest.vault_scanner","labels":["unit","qttest"]},{"name":"colosseum.qttest.vault_identifier","labels":["unit","qttest"]},{"name":"colosseum.vault_launch_router_harness","labels":["unit"]}],"checks":["tests/test_vault_forensic_owner_thread.py","tests/qml/tst_vault_browse_page.qml"],"lanista_scenarios":["tests/lanista_scenarios/journey_vault_browse.json","tests/lanista_scenarios/vault_identify.json","tests/lanista_scenarios/vault_launch_smoke.json"],"context":[],"platform_constraints":["Core Vault CTests are platform-neutral where unlabeled; launch/player journeys need assembled desktop runtime."],"relations":["video-playback","downloads","shell"]},{"id":"downloads","display_name":"Downloads","aliases":["local-downloads","acquisition"],"source_roots":["qml/DownloadsPage.qml","native/engine/LocalDownloads.h","native/engine/LocalDownloadsProjection.h","native/player/downloadstore.h"],"entry_points":["qml/DownloadsPage.qml","native/engine/LocalDownloads.h"],"owners":[{"name":"LocalDownloads","path":"native/engine/LocalDownloads.h","confidence":"observed","responsibility":"Unified downloads read-model; actions route to owning download backends.","provenance":[{"path":"native/engine/LocalDownloads.h","contains":"LocalDownloads — the unified read-model behind the Downloads page"}]}],"ctests":[{"name":"colosseum.qttest.local_downloads_failure","labels":["unit","qttest"]},{"name":"colosseum.qttest.local_downloads_projection","labels":["unit","qttest","downloads","tankoyomi"]},{"name":"colosseum.qttest.download_intent","labels":["unit","qttest","sync","downloads"]}],"checks":["tests/test_downloads_essentials.ps1","tests/test_downloads_play_arriving_p0.ps1"],"lanista_scenarios":["tests/lanista_scenarios/function0008_direct_download.json","tests/lanista_scenarios/function0008_arriving_play.json"],"context":[{"scope":"repo","path":"docs/terminology.md"}],"platform_constraints":["Read-model CTests are largely platform-neutral; video handoff journeys need Windows assembled runtime."],"relations":["tankoban","biblio","theatre","vault","account-sync"]},{"id":"account-sync","display_name":"Account and Sync","aliases":["account","profile","sync","history","activity"],"source_roots":["qml/account","native/account","server/account-service","native/stremio"],"entry_points":["qml/account/AccountCenter.qml","native/account/AccountRuntime.h"],"owners":[{"name":"AccountRuntime","path":"native/account/AccountRuntime.h","confidence":"inferred","responsibility":"Composition root for account controller, profile stores, sync engine/adapters, credentials, and provider integration.","note":"Composition ownership is inferred from the current dependency/API surface; individual stores remain their own authorities.","provenance":[{"path":"native/account/AccountRuntime.h","contains":"ProfileStoreRuntime *profileStores()"},{"path":"native/account/AccountRuntime.h","contains":"void prepareForQml"}]},{"name":"SyncEngine","path":"native/account/SyncEngine.cpp","confidence":"observed","responsibility":"Profile-sync execution, convergence, durable outbox, attachment, and provider-import checkpoint engine.","provenance":[{"path":"native/account/SyncEngine.h","contains":"class SyncEngine final : public QObject"}]},{"name":"FirstAccountProfileCoordinator","path":"native/account/FirstAccountProfileCoordinator.cpp","confidence":"observed","responsibility":"First-account, remembered-account, and local-only profile adoption and migration coordinator.","provenance":[{"path":"native/account/FirstAccountProfileCoordinator.h","contains":"class FirstAccountProfileCoordinator final"}]},{"name":"ProfilePreferencesStore","path":"native/account/ProfilePreferencesStore.cpp","confidence":"observed","responsibility":"Durable per-profile preferences owner and local/remote preference mutation seam.","provenance":[{"path":"native/account/ProfilePreferencesStore.h","contains":"class ProfilePreferencesStore final : public QObject"}]}],"ctests":[{"name":"colosseum.qttest.account_attachment_runtime","labels":["unit","qttest","sync","attachment","f03","runtime"]},{"name":"colosseum.qttest.account_identity","labels":["unit","qttest","windows"]},{"name":"colosseum.qttest.sync_engine","labels":["unit","qttest","sync","convergence"]},{"name":"colosseum.qttest.core_sync_adapters","labels":["unit","qttest","sync","domain","collection","progress"]},{"name":"colosseum.qttest.history_sync","labels":["unit","qttest","sync","domain","history"]}],"checks":["tests/test_account_auth_journeys.ps1","tests/test_account_sync_profile_switch_contract.py","tests/qml/tst_account_center_composed.qml"],"lanista_scenarios":["tests/lanista_scenarios/account_create_happy_path.json","tests/lanista_scenarios/account_local_device_happy_path.json","tests/lanista_scenarios/account_signin_happy_path.json","tests/lanista_scenarios/stremio_task1_fixture_projection.json"],"context":[{"scope":"repo","path":"docs/terminology.md"},{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0005-DURABLE-CONSUMPTION-STATE.md"}],"platform_constraints":["Core sync has platform-neutral CTests; credential/account identity and assembled account journeys include Windows-specific proof."],"relations":["tankoban","biblio","theatre","downloads","search-discovery","ratings-reviews"]},{"id":"search-discovery","display_name":"Search and Discovery","aliases":["search","discover","genre","search-history"],"source_roots":["qml/SearchSurface.qml","qml/BiblioSearch.qml","qml/DiscoverPage.qml","native/SearchHistoryStore.h"],"entry_points":["qml/SearchSurface.qml","qml/BiblioSearch.qml","native/SearchHistoryStore.h"],"owners":[{"name":"SearchHistoryStore","path":"native/SearchHistoryStore.h","confidence":"observed","responsibility":"Durable MRU and remember-searches boundary for the three world search surfaces.","provenance":[{"path":"native/SearchHistoryStore.h","contains":"a tiny, durable MRU list for the three world search surfaces"}]}],"ctests":[{"name":"colosseum.search_cancellation_contract","labels":["unit","responsiveness","windows"]}],"checks":["tests/test_search_cancellation_contract.ps1","tests/test_search_history_p0.ps1","tests/qml/tst_search_history_flow.qml"],"lanista_scenarios":["tests/lanista_scenarios/tankoban_discover_depth.json","tests/lanista_scenarios/biblio_catalog_source_smoke.json","tests/lanista_scenarios/keyboard_catalogue_theatre_completion.json"],"context":[{"scope":"preflight","path":"arcs/20-colosseum-function-atlas/audits/FUNCTION-0010-SEARCH-DISCOVERY.md"}],"platform_constraints":["Cancellation CTest is Windows-labeled; provider/QML contracts also include non-runtime checks."],"relations":["tankoban","biblio","theatre","account-sync"]},{"id":"update","display_name":"Updater","aliases":["updates","release-chronicle"],"source_roots":["qml/UpdatePage.qml","qml/update","native/update"],"entry_points":["qml/UpdatePage.qml","native/update/UpdateService.h"],"owners":[{"name":"UpdateService","path":"native/update/UpdateService.h","confidence":"observed","responsibility":"Update state, release projection, download/verification/install hooks, installed chronicle.","provenance":[{"path":"native/main.cpp","contains":"setContextProperty(QStringLiteral(\"Updates\"), updates)"}]}],"ctests":[{"name":"colosseum.qttest.installed_chronicle","labels":[]}],"checks":["tests/test_update_data_boundary.ps1","tests/test_update_lanista.ps1","tests/qml/tst_update_page.qml"],"lanista_scenarios":["tests/lanista_scenarios/update_available.json","tests/lanista_scenarios/update_downloading.json","tests/lanista_scenarios/update_idle.json","tests/lanista_scenarios/update_up_to_date.json"],"context":[],"platform_constraints":["Manifest/chronicle logic is separable; install/restart qualification is Windows-specific."],"relations":["shell"]},{"id":"watch-party","display_name":"Watch Party","aliases":["watchparty","room","party"],"source_roots":["qml/WatchPartyPanel.qml","qml/WatchPartyJoinSheet.qml","native/watchparty","server/watchparty-relay"],"entry_points":["qml/WatchPartyPanel.qml","native/watchparty/WatchPartyUiController.h"],"owners":[{"name":"RoomServiceClient / PlayerSyncController / WatchPartySource","path":"native/watchparty/WatchPartyUiController.h","confidence":"observed","responsibility":"Authoritative room state, timeline application, and source eligibility; UiController is only the QML-facing adapter.","provenance":[{"path":"native/watchparty/WatchPartyUiController.h","contains":"Authoritative room state still comes"}]}],"ctests":[{"name":"colosseum.qttest.watchparty_room","labels":["unit","qttest"]},{"name":"colosseum.qttest.watchparty_source","labels":["unit","qttest"]},{"name":"colosseum.qttest.watchparty_sync","labels":["unit","qttest"]},{"name":"colosseum.qttest.watchparty_lifecycle","labels":["unit","qttest"]}],"checks":["tests/qml/tst_watch_party_join_sheet.qml","tests/qml/tst_watch_party_lifecycle.qml","tests/qml/tst_watch_party_panel.qml"],"lanista_scenarios":[],"context":[],"platform_constraints":["No dedicated Watch Party Lanista scenario exists in the current scenario inventory."],"relations":["video-playback","account-sync"]},{"id":"universes","display_name":"Universes","aliases":["universe","one-piece","dcau","star-wars","cosmere"],"source_roots":["qml/UniverseHallPage.qml","qml/UniverseExtensionPage.qml","qml/DCAUUniversePage.qml","qml/GalaxyUniversePage.qml","qml/OnePieceUniversePage.qml","qml/CosmereUniversePage.qml"],"entry_points":["qml/UniverseHallPage.qml","qml/Main.qml"],"owners":[{"name":"Main.qml universe loader","path":"qml/Main.qml","confidence":"inferred","responsibility":"Dispatches universe extension IDs to bespoke pages or generic fallback.","note":"Inferred from the explicit current extensionId dispatch; bespoke pages own their presentation behavior.","provenance":[{"path":"qml/Main.qml","contains":"com.colosseum.universe.dcau"}]}],"ctests":[],"checks":["tests/test_universe_hall_p0.ps1","tests/test_universe_keyboard_p0.ps1","tests/verify_universe_ids.mjs"],"lanista_scenarios":["tests/lanista_scenarios/keyboard_universe_utilities_completion.json","tests/lanista_scenarios/world_cold_navigation_qualification.json"],"context":[{"scope":"repo","path":"docs/UNIVERSE_PAGE_LAW.md"}],"platform_constraints":["Most contracts are QML/static; Lanista navigation needs assembled desktop runtime."],"relations":["shell","tankoban","theatre"]},{"id":"ratings-reviews","display_name":"Ratings & Reviews","aliases":["ratings","reviews","rating","review","ratings/reviews"],"feature_status":"Arc 49 working-tree implementation is present in the read-only target: RatingsReviewsStore source and focused CTest are wired but remain uncommitted at Workbench R1 verification time.","source_roots":["native/account/RatingsReviewsStore.h","native/account/RatingsReviewsStore.cpp"],"entry_points":["native/account/RatingsReviewsStore.cpp"],"related_files":["tests/auto/ratings_reviews_store","tests/auto/ratings_reviews_store/tst_ratings_reviews_store.cpp","native/account/SyncEngine.h","native/account/FirstAccountProfileCoordinator.h","native/account/ProfilePreferencesStore.h","native/account/AccountRuntime.cpp","qml/Main.qml","tests/auto/account_adoption/tst_account_adoption.cpp","tests/auto/profile_preferences_sync/tst_profile_preferences_sync.cpp","tests/test_shell_back_arbitration_p0.ps1","native/account/SyncEngine.cpp","native/account/FirstAccountProfileCoordinator.cpp","native/account/ProfilePreferencesStore.cpp","qml/ShellBackPolicy.js"],"owners":[{"name":"RatingsReviewsStore","path":"native/account/RatingsReviewsStore.cpp","confidence":"observed","responsibility":"Canonical local Ratings & Reviews record/tombstone persistence, mutation, remote-apply, restore, retirement, and deterministic canonical merge owner.","provenance":[{"path":"native/account/RatingsReviewsStore.h","contains":"class RatingsReviewsStore final : public QObject"}]}],"ctests":[{"name":"colosseum.qttest.ratings_reviews_store","labels":["unit","qttest","ratings-reviews","profile"]},{"name":"colosseum.qttest.sync_engine","labels":["unit","qttest","sync","convergence"]},{"name":"colosseum.qttest.account_adoption","labels":["unit","qttest","profile"]},{"name":"colosseum.qttest.profile_preferences_sync","labels":["unit","qttest","sync","domain","preferences"]},{"name":"colosseum.qml","labels":["qml","windows"]}],"checks":["tests/test_shell_back_arbitration_p0.ps1"],"lanista_scenarios":[],"context":[],"platform_constraints":["RatingsReviewsStore and its focused CTest are present in the current dirty read-only working tree; status must be consulted before treating them as committed baseline.","No dedicated ratings/reviews delivery CTest is registered on this checkout.","Declared tests are surrounding integration surfaces, not proof that Ratings/Reviews is implemented.","colosseum.qml is a Windows-labeled assembled QML test surface."],"relations":["account-sync","shell"]}]}
+{
+  "schema_version": 1,
+  "map_id": "colosseum-intelligence-v0",
+  "repo_basis": {
+    "head": "e040c64f55e8be5a6b65933839cf8b06259e26b8",
+    "branch": "master",
+    "path_semantics": "repo-relative",
+    "source_of_truth": [
+      "AGENTS.md",
+      "docs/terminology.md",
+      "native/main.cpp",
+      "qml/Main.qml",
+      "native/CMakeLists.txt",
+      "tests/CMakeLists.txt",
+      "tests/lanista_scenarios"
+    ],
+    "semantic_worktree": {
+      "algorithm": "sha256-git-semantic-v1",
+      "watch_scopes": [
+        "qml/ratingsreviews",
+        "native/engine/ColosseumTitleIdentityRegistry.h",
+        "native/engine/ColosseumTitleIdentityRegistry.cpp",
+        "native/account/RatingsReviewsStore.h",
+        "native/account/RatingsReviewsStore.cpp",
+        "native/account/RatingsReviewsController.h",
+        "native/account/RatingsReviewsController.cpp",
+        "data/title-identities-v1.json",
+        "tests/auto/ratings_reviews_journey",
+        "tests/qml/ratings_reviews_journey",
+        "tests/qml/ratings_reviews_delivery",
+        "tests/qml/ratings_reviews_conversion",
+        "tests/lanista_scenarios/ratings_reviews_frieren_production.json",
+        "qml/TheatreSeries.qml",
+        "qml/ComicSeries.qml",
+        "qml/ComicSeriesPage.qml"
+      ],
+      "fingerprint": "1d9bd10154c1d5df96bb63ac9e3498bb4f5e7c615fb48dc95b69e6ad3c00e9ae"
+    }
+  },
+  "donors": {
+    "source_index": "scripts/code_encyclopedia.py",
+    "lanista_inventory": "scripts/lanista_coverage.py",
+    "test_ledger": "docs/colosseum-test-verification.md",
+    "lanista_ledger": "docs/colosseum-lanista-verification.md"
+  },
+  "known_gaps": [
+    "QML ownership is not AST-derived; QML mappings use inspected current entry points and source anchors.",
+    "CTest/check lists are high-signal subsets, not a complete assignment of the test estate.",
+    "Referenced Lanista entries are required to exist and parse as JSON, but this does not imply current green runtime status.",
+    "Current Lanista scenario census: 85 files, 85 valid JSON.",
+    "Preflight Function Atlas pointers are audit context on their recorded basis; current Colosseum source/tests win.",
+    "Ratings & Reviews category-wide runtime entry (anime pivot, book, manga, vault film, comic absence) awaits dedicated Lanista scenarios; only the registered Frieren production and fixture delivery journeys are mapped.",
+    "RatingsWrapper and the public community service do not exist yet; no owners, endpoints, or capabilities are mapped for them."
+  ],
+  "domains": [
+    {
+      "id": "shell",
+      "display_name": "Application Shell",
+      "aliases": [
+        "taskbar",
+        "sessions",
+        "navigation",
+        "main"
+      ],
+      "source_roots": [
+        "qml/Main.qml",
+        "qml/Taskbar.qml",
+        "native/SessionStore.h",
+        "qml/ShellBackPolicy.js"
+      ],
+      "entry_points": [
+        "qml/Main.qml",
+        "native/main.cpp",
+        "qml/ShellBackPolicy.js"
+      ],
+      "owners": [
+        {
+          "name": "SessionStore",
+          "path": "native/SessionStore.h",
+          "confidence": "observed",
+          "responsibility": "Open-session identity, active session, saved state, taskbar grouping.",
+          "provenance": [
+            {
+              "path": "native/SessionStore.h",
+              "contains": "SessionStore - the OS-shell's open-sessions model"
+            }
+          ]
+        },
+        {
+          "name": "Main.qml root shell",
+          "path": "qml/Main.qml",
+          "confidence": "observed",
+          "responsibility": "World/page/detail composition and taskbar/overlay routing.",
+          "provenance": [
+            {
+              "path": "qml/Main.qml",
+              "contains": "Taskbar {"
+            }
+          ]
+        },
+        {
+          "name": "ShellBackPolicy",
+          "path": "qml/ShellBackPolicy.js",
+          "confidence": "observed",
+          "responsibility": "Pure shell-level Escape/back ownership arbitration.",
+          "provenance": [
+            {
+              "path": "qml/ShellBackPolicy.js",
+              "contains": "Pure shell-level Escape arbitration"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.window_state_policy",
+          "labels": [
+            "unit",
+            "windows",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.window_set_state",
+          "labels": [
+            "unit",
+            "windows",
+            "qttest"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_shell_back_arbitration_p0.ps1",
+        "tests/test_shell_windowed_mode_p0.ps1"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/app_home.json",
+        "tests/lanista_scenarios/journey_tray.json"
+      ],
+      "context": [
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0003-QML-SHELL-NAVIGATION.md"
+        },
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0004-SESSION-MODEL.md"
+        }
+      ],
+      "platform_constraints": [
+        "Window-state/runtime proof is Windows-labeled."
+      ],
+      "relations": [
+        "account-sync",
+        "downloads",
+        "update",
+        "universes",
+        "ratings-reviews"
+      ]
+    },
+    {
+      "id": "tankoban",
+      "display_name": "Tankoban",
+      "aliases": [
+        "manga",
+        "comics",
+        "tankoyomi"
+      ],
+      "source_roots": [
+        "qml/TankobanWorld.qml",
+        "qml/TankobanMangaTab.qml",
+        "qml/TankobanComicsTab.qml",
+        "native/MangaEngine.h",
+        "native/engine",
+        "qml/comicreader",
+        "native/comicreader",
+        "extensions/tankoyomi"
+      ],
+      "entry_points": [
+        "qml/TankobanWorld.qml",
+        "native/MangaEngine.h"
+      ],
+      "owners": [
+        {
+          "name": "MangaEngine",
+          "path": "native/MangaEngine.h",
+          "confidence": "observed",
+          "responsibility": "Manga QML bridge plus Tankoyomi chapter-mode access.",
+          "provenance": [
+            {
+              "path": "native/MangaEngine.h",
+              "contains": "QML bridge over the native WeebCentral scraper"
+            }
+          ]
+        },
+        {
+          "name": "TankoyomiChapterService",
+          "path": "native/engine/TankoyomiChapterService.h",
+          "confidence": "observed",
+          "responsibility": "Chapter provider catalogue and page retrieval behind MangaEngine.",
+          "provenance": [
+            {
+              "path": "native/MangaEngine.h",
+              "contains": "Chapter Mode enters the Tankoyomi provider layer"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.tankoban_catalog",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.manga_page_transport",
+          "labels": [
+            "unit",
+            "qttest",
+            "tankoyomi"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.tankoban_preferences_sync",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "domain",
+            "tankoban",
+            "preferences"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_tankoban_discover.ps1",
+        "tests/test_manga_volume_flow.ps1",
+        "tests/tankoyomi_consumption_routing_contract_test.mjs"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/tankoban_catalogue_smoke.json",
+        "tests/lanista_scenarios/journey_open_manga.json",
+        "tests/lanista_scenarios/keyboard_catalogue_tankoban_completion.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/terminology.md"
+        },
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0006-COMIC-READER.md"
+        }
+      ],
+      "platform_constraints": [
+        "Mixed provider/static proof; several reader/volume and Lanista paths need Windows assembled runtime."
+      ],
+      "relations": [
+        "downloads",
+        "account-sync",
+        "search-discovery"
+      ]
+    },
+    {
+      "id": "biblio",
+      "display_name": "Biblio",
+      "aliases": [
+        "books",
+        "audiobooks",
+        "reader2",
+        "book-reader"
+      ],
+      "source_roots": [
+        "qml/BiblioWorld.qml",
+        "qml/BiblioLibraryPage.qml",
+        "qml/BiblioSearch.qml",
+        "qml/reader2",
+        "native/reader2",
+        "native/reader"
+      ],
+      "entry_points": [
+        "qml/BiblioWorld.qml",
+        "qml/reader2/ReaderShell.qml",
+        "native/reader2/Reader2Bridge.h"
+      ],
+      "owners": [
+        {
+          "name": "Reader2Bridge",
+          "path": "native/reader2/Reader2Bridge.h",
+          "confidence": "observed",
+          "responsibility": "Reader 2 native seam for authorized bytes, profile stores, paper events, and dictionary networking.",
+          "provenance": [
+            {
+              "path": "native/reader2/Reader2Bridge.h",
+              "contains": "The fresh reader's native seam"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.reader2_logic",
+          "labels": [
+            "unit",
+            "reader2",
+            "windows"
+          ]
+        },
+        {
+          "name": "colosseum.reader2_runtime_contract",
+          "labels": [
+            "unit",
+            "reader2",
+            "windows"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_biblio_library.ps1",
+        "tests/test_biblio_consumption_intent.ps1",
+        "tests/qml/tst_biblio_library_focus.qml"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/biblio_downloaded_epub_read_journey.json",
+        "tests/lanista_scenarios/function0007_reader2_hot_switch.json",
+        "tests/lanista_scenarios/function0007_reader2_ui_smoke.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/terminology.md"
+        },
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0007-BOOK-READER-RUNTIME.md"
+        }
+      ],
+      "platform_constraints": [
+        "Reader 2 deterministic CTests are Windows-labeled."
+      ],
+      "relations": [
+        "downloads",
+        "account-sync",
+        "search-discovery"
+      ]
+    },
+    {
+      "id": "theatre",
+      "display_name": "Theatre",
+      "aliases": [
+        "movies",
+        "tv",
+        "anime",
+        "stremio"
+      ],
+      "source_roots": [
+        "qml/TheatreWorld.qml",
+        "qml/TheatreSeries.qml",
+        "qml/AddonClient.js",
+        "native/stremio",
+        "native/engine/ExtensionsStore.h"
+      ],
+      "entry_points": [
+        "qml/TheatreWorld.qml",
+        "qml/TheatreSeries.qml"
+      ],
+      "owners": [
+        {
+          "name": "TheatreWorld.qml",
+          "path": "qml/TheatreWorld.qml",
+          "confidence": "inferred",
+          "responsibility": "Top-level Theatre browsing surface; provider/playback work delegates to narrower seams.",
+          "note": "Inferred from the current Main.qml loader and Theatre component structure; no single native Theatre state owner exists.",
+          "provenance": [
+            {
+              "path": "qml/Main.qml",
+              "contains": "TheatreWorld.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.stremio_sync",
+          "labels": [
+            "unit",
+            "qttest",
+            "stremio",
+            "sync",
+            "windows"
+          ]
+        },
+        {
+          "name": "colosseum.search_cancellation_contract",
+          "labels": [
+            "unit",
+            "responsiveness",
+            "windows"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_theatre_search_p0.ps1",
+        "tests/test_theatre_anime_parity.ps1"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/theatre_one_piece_virtualization.json",
+        "tests/lanista_scenarios/stremio_task4_theatre_panel.json"
+      ],
+      "context": [
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0008-VIDEO-SOURCE-HANDOFF.md"
+        },
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0010-SEARCH-DISCOVERY.md"
+        }
+      ],
+      "platform_constraints": [
+        "Browsing/static checks are mixed; provider/runtime playback includes Windows-only gates."
+      ],
+      "relations": [
+        "video-playback",
+        "downloads",
+        "account-sync",
+        "search-discovery"
+      ]
+    },
+    {
+      "id": "video-playback",
+      "display_name": "Video Playback",
+      "aliases": [
+        "player",
+        "player1",
+        "player2",
+        "mpv"
+      ],
+      "source_roots": [
+        "qml/PlayerPage.qml",
+        "native/player",
+        "native/player2"
+      ],
+      "entry_points": [
+        "qml/PlayerPage.qml",
+        "native/player/mpvitem.h",
+        "native/main.cpp"
+      ],
+      "owners": [
+        {
+          "name": "MpvItem",
+          "path": "native/player/mpvitem.h",
+          "confidence": "observed",
+          "responsibility": "Player 1 playable mpv QQuickItem surface registered as Colosseum.Player/MpvItem.",
+          "provenance": [
+            {
+              "path": "native/player/mpvitem.h",
+              "contains": "MpvItem — the playable mpv surface"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.player1_runtime_recovery",
+          "labels": [
+            "unit",
+            "player",
+            "windows"
+          ]
+        },
+        {
+          "name": "colosseum.player1_resume_choice",
+          "labels": [
+            "unit",
+            "player",
+            "windows"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.player1_selftest_bridge",
+          "labels": [
+            "unit",
+            "windows",
+            "qttest",
+            "lanista"
+          ]
+        },
+        {
+          "name": "colosseum.downloadstore_source_headers_harness",
+          "labels": [
+            "unit",
+            "network",
+            "contract"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_player1_runtime_recovery_p0.ps1",
+        "tests/test_video_source_handoff_p0.ps1",
+        "tests/function0008_lanista_runtime.py"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/journey_play_video.json",
+        "tests/lanista_scenarios/player1_failover.json",
+        "tests/lanista_scenarios/function0008_arriving_play.json"
+      ],
+      "context": [
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0008-VIDEO-SOURCE-HANDOFF.md"
+        },
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0009-PLAYER1-CORE-PLAYBACK-RUNTIME.md"
+        }
+      ],
+      "platform_constraints": [
+        "Player runtime CTests/Lanista journeys are Windows-labeled or assembled-runtime proof; Player 2 is build-conditional."
+      ],
+      "relations": [
+        "theatre",
+        "downloads",
+        "watch-party",
+        "shell"
+      ]
+    },
+    {
+      "id": "vault",
+      "display_name": "Vault",
+      "aliases": [
+        "local-media",
+        "on-this-machine"
+      ],
+      "source_roots": [
+        "qml/VaultPage.qml",
+        "native/engine/VaultLibrary.h",
+        "native/engine/VaultIndex.h",
+        "native/engine/VaultScanner.h",
+        "native/engine/LocalLaunch.h"
+      ],
+      "entry_points": [
+        "qml/VaultPage.qml",
+        "native/engine/VaultLibrary.h"
+      ],
+      "owners": [
+        {
+          "name": "VaultLibrary",
+          "path": "native/engine/VaultLibrary.h",
+          "confidence": "observed",
+          "responsibility": "Vault single QML facade over query truth, scanning, confirmation, publication, and commands.",
+          "provenance": [
+            {
+              "path": "native/engine/VaultLibrary.h",
+              "contains": "VaultLibrary — the Vault's single QML façade"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.vault_index",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.vault_scanner",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.vault_identifier",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.vault_launch_router_harness",
+          "labels": [
+            "unit"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_vault_forensic_owner_thread.py",
+        "tests/qml/tst_vault_browse_page.qml"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/journey_vault_browse.json",
+        "tests/lanista_scenarios/vault_identify.json",
+        "tests/lanista_scenarios/vault_launch_smoke.json"
+      ],
+      "context": [],
+      "platform_constraints": [
+        "Core Vault CTests are platform-neutral where unlabeled; launch/player journeys need assembled desktop runtime."
+      ],
+      "relations": [
+        "video-playback",
+        "downloads",
+        "shell"
+      ]
+    },
+    {
+      "id": "downloads",
+      "display_name": "Downloads",
+      "aliases": [
+        "local-downloads",
+        "acquisition"
+      ],
+      "source_roots": [
+        "qml/DownloadsPage.qml",
+        "native/engine/LocalDownloads.h",
+        "native/engine/LocalDownloadsProjection.h",
+        "native/player/downloadstore.h"
+      ],
+      "entry_points": [
+        "qml/DownloadsPage.qml",
+        "native/engine/LocalDownloads.h"
+      ],
+      "owners": [
+        {
+          "name": "LocalDownloads",
+          "path": "native/engine/LocalDownloads.h",
+          "confidence": "observed",
+          "responsibility": "Unified downloads read-model; actions route to owning download backends.",
+          "provenance": [
+            {
+              "path": "native/engine/LocalDownloads.h",
+              "contains": "LocalDownloads — the unified read-model behind the Downloads page"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.local_downloads_failure",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.local_downloads_projection",
+          "labels": [
+            "unit",
+            "qttest",
+            "downloads",
+            "tankoyomi"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.download_intent",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "downloads"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_downloads_essentials.ps1",
+        "tests/test_downloads_play_arriving_p0.ps1"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/function0008_direct_download.json",
+        "tests/lanista_scenarios/function0008_arriving_play.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/terminology.md"
+        }
+      ],
+      "platform_constraints": [
+        "Read-model CTests are largely platform-neutral; video handoff journeys need Windows assembled runtime."
+      ],
+      "relations": [
+        "tankoban",
+        "biblio",
+        "theatre",
+        "vault",
+        "account-sync"
+      ]
+    },
+    {
+      "id": "account-sync",
+      "display_name": "Account and Sync",
+      "aliases": [
+        "account",
+        "profile",
+        "sync",
+        "history",
+        "activity"
+      ],
+      "source_roots": [
+        "qml/account",
+        "native/account",
+        "server/account-service",
+        "native/stremio"
+      ],
+      "entry_points": [
+        "qml/account/AccountCenter.qml",
+        "native/account/AccountRuntime.h"
+      ],
+      "owners": [
+        {
+          "name": "AccountRuntime",
+          "path": "native/account/AccountRuntime.h",
+          "confidence": "inferred",
+          "responsibility": "Composition root for account controller, profile stores, sync engine/adapters, credentials, and provider integration.",
+          "note": "Composition ownership is inferred from the current dependency/API surface; individual stores remain their own authorities.",
+          "provenance": [
+            {
+              "path": "native/account/AccountRuntime.h",
+              "contains": "ProfileStoreRuntime *profileStores()"
+            },
+            {
+              "path": "native/account/AccountRuntime.h",
+              "contains": "void prepareForQml"
+            }
+          ]
+        },
+        {
+          "name": "SyncEngine",
+          "path": "native/account/SyncEngine.cpp",
+          "confidence": "observed",
+          "responsibility": "Profile-sync execution, convergence, durable outbox, attachment, and provider-import checkpoint engine.",
+          "provenance": [
+            {
+              "path": "native/account/SyncEngine.h",
+              "contains": "class SyncEngine final : public QObject"
+            }
+          ]
+        },
+        {
+          "name": "FirstAccountProfileCoordinator",
+          "path": "native/account/FirstAccountProfileCoordinator.cpp",
+          "confidence": "observed",
+          "responsibility": "First-account, remembered-account, and local-only profile adoption and migration coordinator.",
+          "provenance": [
+            {
+              "path": "native/account/FirstAccountProfileCoordinator.h",
+              "contains": "class FirstAccountProfileCoordinator final"
+            }
+          ]
+        },
+        {
+          "name": "ProfilePreferencesStore",
+          "path": "native/account/ProfilePreferencesStore.cpp",
+          "confidence": "observed",
+          "responsibility": "Durable per-profile preferences owner and local/remote preference mutation seam.",
+          "provenance": [
+            {
+              "path": "native/account/ProfilePreferencesStore.h",
+              "contains": "class ProfilePreferencesStore final : public QObject"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.account_attachment_runtime",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "attachment",
+            "f03",
+            "runtime"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.account_identity",
+          "labels": [
+            "unit",
+            "qttest",
+            "windows"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.sync_engine",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "convergence"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.core_sync_adapters",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "domain",
+            "collection",
+            "progress"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.history_sync",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "domain",
+            "history"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_account_auth_journeys.ps1",
+        "tests/test_account_sync_profile_switch_contract.py",
+        "tests/qml/tst_account_center_composed.qml"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/account_create_happy_path.json",
+        "tests/lanista_scenarios/account_local_device_happy_path.json",
+        "tests/lanista_scenarios/account_signin_happy_path.json",
+        "tests/lanista_scenarios/stremio_task1_fixture_projection.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/terminology.md"
+        },
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0005-DURABLE-CONSUMPTION-STATE.md"
+        }
+      ],
+      "platform_constraints": [
+        "Core sync has platform-neutral CTests; credential/account identity and assembled account journeys include Windows-specific proof."
+      ],
+      "relations": [
+        "tankoban",
+        "biblio",
+        "theatre",
+        "downloads",
+        "search-discovery",
+        "ratings-reviews"
+      ]
+    },
+    {
+      "id": "search-discovery",
+      "display_name": "Search and Discovery",
+      "aliases": [
+        "search",
+        "discover",
+        "genre",
+        "search-history"
+      ],
+      "source_roots": [
+        "qml/SearchSurface.qml",
+        "qml/BiblioSearch.qml",
+        "qml/DiscoverPage.qml",
+        "native/SearchHistoryStore.h"
+      ],
+      "entry_points": [
+        "qml/SearchSurface.qml",
+        "qml/BiblioSearch.qml",
+        "native/SearchHistoryStore.h"
+      ],
+      "owners": [
+        {
+          "name": "SearchHistoryStore",
+          "path": "native/SearchHistoryStore.h",
+          "confidence": "observed",
+          "responsibility": "Durable MRU and remember-searches boundary for the three world search surfaces.",
+          "provenance": [
+            {
+              "path": "native/SearchHistoryStore.h",
+              "contains": "a tiny, durable MRU list for the three world search surfaces"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.search_cancellation_contract",
+          "labels": [
+            "unit",
+            "responsiveness",
+            "windows"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_search_cancellation_contract.ps1",
+        "tests/test_search_history_p0.ps1",
+        "tests/qml/tst_search_history_flow.qml"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/tankoban_discover_depth.json",
+        "tests/lanista_scenarios/biblio_catalog_source_smoke.json",
+        "tests/lanista_scenarios/keyboard_catalogue_theatre_completion.json"
+      ],
+      "context": [
+        {
+          "scope": "preflight",
+          "path": "arcs/20-colosseum-function-atlas/audits/FUNCTION-0010-SEARCH-DISCOVERY.md"
+        }
+      ],
+      "platform_constraints": [
+        "Cancellation CTest is Windows-labeled; provider/QML contracts also include non-runtime checks."
+      ],
+      "relations": [
+        "tankoban",
+        "biblio",
+        "theatre",
+        "account-sync"
+      ]
+    },
+    {
+      "id": "update",
+      "display_name": "Updater",
+      "aliases": [
+        "updates",
+        "release-chronicle"
+      ],
+      "source_roots": [
+        "qml/UpdatePage.qml",
+        "qml/update",
+        "native/update"
+      ],
+      "entry_points": [
+        "qml/UpdatePage.qml",
+        "native/update/UpdateService.h"
+      ],
+      "owners": [
+        {
+          "name": "UpdateService",
+          "path": "native/update/UpdateService.h",
+          "confidence": "observed",
+          "responsibility": "Update state, release projection, download/verification/install hooks, installed chronicle.",
+          "provenance": [
+            {
+              "path": "native/main.cpp",
+              "contains": "setContextProperty(QStringLiteral(\"Updates\"), updates)"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.installed_chronicle",
+          "labels": []
+        }
+      ],
+      "checks": [
+        "tests/test_update_data_boundary.ps1",
+        "tests/test_update_lanista.ps1",
+        "tests/qml/tst_update_page.qml"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/update_available.json",
+        "tests/lanista_scenarios/update_downloading.json",
+        "tests/lanista_scenarios/update_idle.json",
+        "tests/lanista_scenarios/update_up_to_date.json"
+      ],
+      "context": [],
+      "platform_constraints": [
+        "Manifest/chronicle logic is separable; install/restart qualification is Windows-specific."
+      ],
+      "relations": [
+        "shell"
+      ]
+    },
+    {
+      "id": "watch-party",
+      "display_name": "Watch Party",
+      "aliases": [
+        "watchparty",
+        "room",
+        "party"
+      ],
+      "source_roots": [
+        "qml/WatchPartyPanel.qml",
+        "qml/WatchPartyJoinSheet.qml",
+        "native/watchparty",
+        "server/watchparty-relay"
+      ],
+      "entry_points": [
+        "qml/WatchPartyPanel.qml",
+        "native/watchparty/WatchPartyUiController.h"
+      ],
+      "owners": [
+        {
+          "name": "RoomServiceClient / PlayerSyncController / WatchPartySource",
+          "path": "native/watchparty/WatchPartyUiController.h",
+          "confidence": "observed",
+          "responsibility": "Authoritative room state, timeline application, and source eligibility; UiController is only the QML-facing adapter.",
+          "provenance": [
+            {
+              "path": "native/watchparty/WatchPartyUiController.h",
+              "contains": "Authoritative room state still comes"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.watchparty_room",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.watchparty_source",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.watchparty_sync",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.watchparty_lifecycle",
+          "labels": [
+            "unit",
+            "qttest"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/qml/tst_watch_party_join_sheet.qml",
+        "tests/qml/tst_watch_party_lifecycle.qml",
+        "tests/qml/tst_watch_party_panel.qml"
+      ],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [
+        "No dedicated Watch Party Lanista scenario exists in the current scenario inventory."
+      ],
+      "relations": [
+        "video-playback",
+        "account-sync"
+      ]
+    },
+    {
+      "id": "universes",
+      "display_name": "Universes",
+      "aliases": [
+        "universe",
+        "one-piece",
+        "dcau",
+        "star-wars",
+        "cosmere"
+      ],
+      "source_roots": [
+        "qml/UniverseHallPage.qml",
+        "qml/UniverseExtensionPage.qml",
+        "qml/DCAUUniversePage.qml",
+        "qml/GalaxyUniversePage.qml",
+        "qml/OnePieceUniversePage.qml",
+        "qml/CosmereUniversePage.qml"
+      ],
+      "entry_points": [
+        "qml/UniverseHallPage.qml",
+        "qml/Main.qml"
+      ],
+      "owners": [
+        {
+          "name": "Main.qml universe loader",
+          "path": "qml/Main.qml",
+          "confidence": "inferred",
+          "responsibility": "Dispatches universe extension IDs to bespoke pages or generic fallback.",
+          "note": "Inferred from the explicit current extensionId dispatch; bespoke pages own their presentation behavior.",
+          "provenance": [
+            {
+              "path": "qml/Main.qml",
+              "contains": "com.colosseum.universe.dcau"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [
+        "tests/test_universe_hall_p0.ps1",
+        "tests/test_universe_keyboard_p0.ps1",
+        "tests/verify_universe_ids.mjs"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/keyboard_universe_utilities_completion.json",
+        "tests/lanista_scenarios/world_cold_navigation_qualification.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/UNIVERSE_PAGE_LAW.md"
+        }
+      ],
+      "platform_constraints": [
+        "Most contracts are QML/static; Lanista navigation needs assembled desktop runtime."
+      ],
+      "relations": [
+        "shell",
+        "tankoban",
+        "theatre"
+      ]
+    },
+    {
+      "id": "ratings-reviews",
+      "display_name": "Ratings & Reviews",
+      "aliases": [
+        "ratings",
+        "reviews",
+        "rating",
+        "review",
+        "ratings/reviews"
+      ],
+      "feature_status": "Arc 49 Slices 1-2 are implemented in the working tree (uncommitted): the title identity registry derives deterministic ct1 ids for admitted pairs and rejects comics, the controller/store private flow keeps its ownership, and the native QML host/action present the approved page with the inline private review editor. The Frieren production journey is runtime-validated; category entry journeys are not yet registered.",
+      "source_roots": [
+        "native/engine/ColosseumTitleIdentityRegistry.h",
+        "native/engine/ColosseumTitleIdentityRegistry.cpp",
+        "native/account/RatingsReviewsController.h",
+        "native/account/RatingsReviewsController.cpp",
+        "native/account/RatingsReviewsStore.h",
+        "native/account/RatingsReviewsStore.cpp",
+        "qml/ratingsreviews/RatingsReviewsHost.qml",
+        "qml/ratingsreviews/RatingsReviewsAction.qml",
+        "data/title-identities-v1.json"
+      ],
+      "entry_points": [
+        "qml/ratingsreviews/RatingsReviewsAction.qml",
+        "qml/ratingsreviews/RatingsReviewsHost.qml",
+        "native/engine/ColosseumTitleIdentityRegistry.cpp"
+      ],
+      "related_files": [
+        "tests/auto/ratings_reviews_store",
+        "tests/auto/ratings_reviews_store/tst_ratings_reviews_store.cpp",
+        "native/account/SyncEngine.h",
+        "native/account/FirstAccountProfileCoordinator.h",
+        "native/account/ProfilePreferencesStore.h",
+        "native/account/AccountRuntime.cpp",
+        "qml/Main.qml",
+        "tests/auto/account_adoption/tst_account_adoption.cpp",
+        "tests/auto/profile_preferences_sync/tst_profile_preferences_sync.cpp",
+        "tests/test_shell_back_arbitration_p0.ps1",
+        "native/account/SyncEngine.cpp",
+        "native/account/FirstAccountProfileCoordinator.cpp",
+        "native/account/ProfilePreferencesStore.cpp",
+        "qml/ShellBackPolicy.js",
+        "tests/auto/ratings_reviews_journey",
+        "tests/qml/ratings_reviews_journey",
+        "tests/qml/ratings_reviews_delivery",
+        "tests/qml/ratings_reviews_conversion",
+        "qml/TheatreSeries.qml",
+        "qml/ComicSeries.qml",
+        "qml/ComicSeriesPage.qml",
+        "data/title-identities-v1.json"
+      ],
+      "owners": [
+        {
+          "name": "RatingsReviewsStore",
+          "path": "native/account/RatingsReviewsStore.cpp",
+          "confidence": "observed",
+          "responsibility": "Canonical local Ratings & Reviews record/tombstone persistence, mutation, remote-apply, restore, retirement, and deterministic canonical merge owner.",
+          "provenance": [
+            {
+              "path": "native/account/RatingsReviewsStore.h",
+              "contains": "class RatingsReviewsStore final : public QObject"
+            }
+          ]
+        },
+        {
+          "name": "ColosseumTitleIdentityRegistry",
+          "path": "native/engine/ColosseumTitleIdentityRegistry.cpp",
+          "confidence": "observed",
+          "responsibility": "Admits Ratings & Reviews world/kind pairs, pins the frozen Frieren seed id, derives deterministic version-5 ct1 canonical ids from identity-bearing aliases (theatre IMDb-preferring, biblio isbn-first, tankoban, vault), and rejects comic routes with identity_route_not_admitted.",
+          "provenance": [
+            {
+              "path": "native/engine/ColosseumTitleIdentityRegistry.h",
+              "contains": "class ColosseumTitleIdentityRegistry final : public QObject"
+            }
+          ]
+        },
+        {
+          "name": "RatingsReviewsController",
+          "path": "native/account/RatingsReviewsController.cpp",
+          "confidence": "observed",
+          "responsibility": "Route open/close with registry-validated identity tuples, canonical projection, private rating/review save, clear rating, delete review, and provider read/delivery presentation seams; local saves produce zero provider operations.",
+          "provenance": [
+            {
+              "path": "native/account/RatingsReviewsController.h",
+              "contains": "class RatingsReviewsController final : public QObject"
+            }
+          ]
+        },
+        {
+          "name": "RatingsReviewsHost.qml",
+          "path": "qml/ratingsreviews/RatingsReviewsHost.qml",
+          "confidence": "observed",
+          "responsibility": "The Ratings & Reviews title page: artwork hero over the house scrim, read-only overall Colosseum rating placeholder, ten-star personal rating with a 0-10 half-step field, inline private review editor (Save privately, Cancel, explicit delete, dirty-exit choices), honest provider score badges, and the community-held area; the legacy full-page composer remains only as the fixture-mode delivery surface.",
+          "provenance": [
+            {
+              "path": "qml/ratingsreviews/RatingsReviewsHost.qml",
+              "contains": "objectName: \"ratingsReviewsHost\""
+            }
+          ]
+        },
+        {
+          "name": "RatingsReviewsAction.qml",
+          "path": "qml/ratingsreviews/RatingsReviewsAction.qml",
+          "confidence": "observed",
+          "responsibility": "Compact house-styled title-detail entry row (star glyph, label, chevron); resolves the title through the identity registry and emits the route request with return-focus target, or shows the greyed unavailable form.",
+          "provenance": [
+            {
+              "path": "qml/ratingsreviews/RatingsReviewsAction.qml",
+              "contains": "signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.ratings_reviews_store",
+          "labels": [
+            "unit",
+            "qttest",
+            "ratings-reviews",
+            "profile"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.sync_engine",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "convergence"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.account_adoption",
+          "labels": [
+            "unit",
+            "qttest",
+            "profile"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.profile_preferences_sync",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "domain",
+            "preferences"
+          ]
+        },
+        {
+          "name": "colosseum.qml",
+          "labels": [
+            "qml",
+            "windows"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.ratings_reviews_journey",
+          "labels": [
+            "unit",
+            "qttest",
+            "ratings-reviews",
+            "journey",
+            "profile"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.ratings_reviews_conversion",
+          "labels": [
+            "unit",
+            "qttest",
+            "ratings-reviews",
+            "conversion",
+            "profile"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.ratings_reviews_delivery",
+          "labels": [
+            "unit",
+            "qttest",
+            "ratings-reviews",
+            "delivery",
+            "profile"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.ratings_reviews_sync",
+          "labels": [
+            "unit",
+            "qttest",
+            "sync",
+            "ratings-reviews"
+          ]
+        },
+        {
+          "name": "colosseum.qml.ratings_reviews_journey",
+          "labels": [
+            "qml",
+            "windows",
+            "ratings-reviews",
+            "journey"
+          ]
+        },
+        {
+          "name": "colosseum.qml.ratings_reviews_delivery",
+          "labels": [
+            "qml",
+            "windows",
+            "ratings-reviews",
+            "delivery"
+          ]
+        },
+        {
+          "name": "colosseum.qml.ratings_reviews_conversion",
+          "labels": [
+            "qml",
+            "windows",
+            "ratings-reviews",
+            "conversion"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/test_shell_back_arbitration_p0.ps1"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/ratings_reviews_frieren_production.json",
+        "tests/lanista_scenarios/ratings_reviews_delivery.json",
+        "tests/lanista_scenarios/ratings_reviews_delivery_restart.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/colosseum-test-verification.md",
+          "role": "verification",
+          "authority": "supporting"
+        },
+        {
+          "scope": "repo",
+          "path": "docs/colosseum-lanista-verification.md",
+          "role": "verification",
+          "authority": "supporting"
+        }
+      ],
+      "platform_constraints": [
+        "Arc 49 Slices 1-2 are working-tree implementation, uncommitted; consult status before treating them as committed baseline.",
+        "Runtime entry is validated for the Frieren Theatre journey; category entry journeys (anime pivot, book, manga, vault film, comic absence) are not yet registered Lanista scenarios.",
+        "The public community service (Arc 49 Slices 3-4) does not exist; the community UI holds an honest unavailable state and no public owners are mapped.",
+        "RatingsWrapper has no API contract; it is deliberately unmapped and must not be inferred from mocks or plans.",
+        "colosseum.qml and the colosseum.qml.ratings_reviews_* selectors are Windows-labeled assembled QML surfaces."
+      ],
+      "relations": [
+        "account-sync",
+        "shell",
+        "theatre",
+        "biblio",
+        "tankoban",
+        "vault"
+      ]
+    }
+  ]
+}

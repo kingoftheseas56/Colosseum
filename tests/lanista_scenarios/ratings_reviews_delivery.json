@@ -1,0 +1,118 @@
+{
+  "name": "ratings-reviews-delivery",
+  "comment": "Arc 49 T-05 phase 1. Run only with the exact COLOSSEUM_RATINGS_REVIEWS_TESTING build, COLOSSEUM_RR_PROVIDER_FIXTURE=all_ready_visual, --drive, and --tag ratings-reviews-delivery-fixture. The tagged app opens one exact Theatre fixture title at startup; this scenario then uses its real detail action and composer. Review text is entered with redacted ui-text-input and must not appear in Lanista output, logs, receipts, or evidence. It never seeds/resets the outbox and has no real provider writer.",
+  "steps": [
+    { "cmd": "ping", "label": "isolated delivery fixture is drive-enabled", "expect": [
+      { "path": "gates.drive", "op": "==", "value": true }
+    ]},
+    { "cmd": "get-state", "label": "exact tagged roots are active", "expect": [
+      { "path": "appDataRoot", "op": "matches", "value": "ratings-reviews-delivery-fixture$" },
+      { "path": "cacheRoot", "op": "matches", "value": "ratings-reviews-delivery-fixture/cache$" }
+    ]},
+    { "cmd": "ui-wait-for", "label": "startup completes", "payload": {
+      "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "the tagged fixture starts at account onboarding", "payload": {
+      "object": "accountHost", "props": ["visible"]
+    }, "expect": [{ "path": "props.visible", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "continue locally in the tagged fixture profile", "payload": {
+      "target": "accountWelcomeContinueLocal"
+    }},
+    { "cmd": "ui-wait-for", "label": "tagged local profile activates", "payload": {
+      "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "the exact Theatre fixture detail route is live", "payload": {
+      "object": "theatreSeriesPage", "prop": "visible", "value": true, "timeout_ms": 30000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "the real detail-page Ratings and Reviews action is available", "payload": {
+      "object": "theatreRatingsReviewsAction", "prop": "visible", "value": true, "timeout_ms": 30000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "open Ratings and Reviews from Theatre detail", "payload": { "target": "theatreRatingsReviewsAction" }},
+    { "cmd": "ui-wait-for", "label": "Ratings and Reviews host opens", "payload": {
+      "object": "ratingsReviewsHost", "prop": "visible", "value": true, "timeout_ms": 15000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "open the local composer", "payload": { "target": "ratingsReviewsOpenComposer" }},
+    { "cmd": "ui-wait-for", "label": "composer opens", "payload": {
+      "object": "ratingsReviewsComposer", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-text-input", "label": "enter canonical rating", "payload": {
+      "target": "ratingsReviewsComposerRating", "text": "8.0"
+    }},
+    { "cmd": "ui-text-input", "label": "enter private review content without echoing it", "payload": {
+      "target": "ratingsReviewsComposerReview",
+      "text": "RR_PRIVATE_REVIEW_SENTINEL_49_A careful review written once in Colosseum for the delivery restart proof.",
+      "redact": true
+    }},
+    { "cmd": "ui-click", "label": "Save persists canonical fields without provider delivery", "payload": { "target": "ratingsReviewsSave" }},
+    { "cmd": "qml-get", "label": "canonical save is present and created zero provider operations", "payload": {
+      "object": "ratingsReviewsHost", "props": ["canonicalRatingPresent", "canonicalReviewPresent", "providerOperationCount"]
+    }, "expect": [
+      { "path": "props.canonicalRatingPresent", "op": "==", "value": true },
+      { "path": "props.canonicalReviewPresent", "op": "==", "value": true },
+      { "path": "props.providerOperationCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "ui-click", "label": "one-Publish override deselects the seeded A review default", "payload": { "target": "ratingsReviewsDeliveryReview_fixture-a" }},
+    { "cmd": "ui-click", "label": "explicitly publish selected ratings to A and B", "payload": { "target": "ratingsReviewsPublish" }},
+    { "cmd": "ui-wait-for", "label": "joined phase reports the mixed A success and B unknown", "payload": {
+      "object": "ratingsReviewsDeliveryState", "prop": "fixturePhase", "value": "publishedMixedRating", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "first phase exact fake-transport counters", "payload": {
+      "object": "ratingsReviewsDeliveryState",
+      "props": ["fixtureARatingSendCount", "fixtureAReviewSendCount", "fixtureBSendCount", "fixtureBReconcileCount", "fixtureSpoilerBlockedSendCount", "unknownCount"]
+    }, "expect": [
+      { "path": "props.fixtureARatingSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureAReviewSendCount", "op": "==", "value": 0 },
+      { "path": "props.fixtureBSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureBReconcileCount", "op": "==", "value": 0 },
+      { "path": "props.fixtureSpoilerBlockedSendCount", "op": "==", "value": 0 },
+      { "path": "props.unknownCount", "op": "==", "value": 1 }
+    ]},
+    { "cmd": "ui-wait-for", "label": "B exposes the reconciliation action for its opaque operation ID", "payload": {
+      "object": "ratingsReviewsDeliveryReconcile_fixture-b_rating.set", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-click", "label": "explicitly reconcile B through the visible UI", "payload": { "target": "ratingsReviewsDeliveryReconcile_fixture-b_rating.set" }},
+    { "cmd": "ui-wait-for", "label": "B reconciliation completes", "payload": {
+      "object": "ratingsReviewsDeliveryState", "prop": "fixturePhase", "value": "reconciledRating", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "B reconciles without another send", "payload": {
+      "object": "ratingsReviewsDeliveryState", "props": ["fixtureBSendCount", "fixtureBReconcileCount", "unknownCount"]
+    }, "expect": [
+      { "path": "props.fixtureBSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureBReconcileCount", "op": "==", "value": 1 },
+      { "path": "props.unknownCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "ui-click", "label": "one-Publish override deselects the seeded A rating default", "payload": { "target": "ratingsReviewsDeliveryRating_fixture-a" }},
+    { "cmd": "ui-click", "label": "one-Publish override deselects the seeded B rating default", "payload": { "target": "ratingsReviewsDeliveryRating_fixture-b" }},
+    { "cmd": "ui-click", "label": "explicitly publish A review after its rating", "payload": { "target": "ratingsReviewsPublish" }},
+    { "cmd": "ui-wait-for", "label": "A review publishes independently", "payload": {
+      "object": "ratingsReviewsDeliveryState", "prop": "fixturePhase", "value": "reviewPublished", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "A rating and review each send once", "payload": {
+      "object": "ratingsReviewsDeliveryState", "props": ["fixtureARatingSendCount", "fixtureAReviewSendCount"]
+    }, "expect": [
+      { "path": "props.fixtureARatingSendCount", "op": "==", "value": 1 },
+      { "path": "props.fixtureAReviewSendCount", "op": "==", "value": 1 }
+    ]},
+    { "cmd": "ui-click", "label": "exclude the seeded A rating default from the spoiler-only attempt", "payload": { "target": "ratingsReviewsDeliveryRating_fixture-a" }},
+    { "cmd": "ui-click", "label": "exclude the seeded B rating default from the spoiler-only attempt", "payload": { "target": "ratingsReviewsDeliveryRating_fixture-b" }},
+    { "cmd": "ui-click", "label": "exclude the seeded A review default from the spoiler-only attempt", "payload": { "target": "ratingsReviewsDeliveryReview_fixture-a" }},
+    { "cmd": "ui-click", "label": "preselect the spoiler-incapable review destination", "payload": { "target": "ratingsReviewsDeliveryReview_fixture-spoiler-blocked" }},
+    { "cmd": "ui-click", "label": "mark the canonical review as spoiler content", "payload": { "target": "ratingsReviewsComposerSpoiler" }},
+    { "cmd": "ui-click", "label": "Save the spoiler flag canonically without delivery", "payload": { "target": "ratingsReviewsSave" }},
+    { "cmd": "ui-click", "label": "Publish is explicitly attempted and the hard spoiler gate rejects delivery", "payload": { "target": "ratingsReviewsPublish" }},
+    { "cmd": "ui-wait-for", "label": "the spoiler protection explanation is visible", "payload": {
+      "object": "ratingsReviewsDeliveryReason_fixture-spoiler-blocked", "prop": "visible", "value": true, "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "ui-wait-for", "label": "spoiler block phase is recorded", "payload": {
+      "object": "ratingsReviewsDeliveryState", "prop": "fixturePhase", "value": "spoilerBlocked", "timeout_ms": 10000
+    }, "expect": [{ "path": "matched", "op": "==", "value": true }]},
+    { "cmd": "qml-get", "label": "blocked destination caused zero provider operations or sends", "payload": {
+      "object": "ratingsReviewsDeliveryState", "props": ["fixtureSpoilerBlockedSendCount", "pendingCount", "unknownCount"]
+    }, "expect": [
+      { "path": "props.fixtureSpoilerBlockedSendCount", "op": "==", "value": 0 },
+      { "path": "props.pendingCount", "op": "==", "value": 0 },
+      { "path": "props.unknownCount", "op": "==", "value": 0 }
+    ]},
+    { "cmd": "ping", "label": "phase 1 ends with the app alive and tagged profile intact" }
+  ]
+}

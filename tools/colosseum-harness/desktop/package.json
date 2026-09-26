@@ -1,0 +1,53 @@
+{
+  "name": "colosseum-harness-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows-first desktop cockpit for the Colosseum engineering harness.",
+  "main": "dist/electron/electron/main.js",
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck:renderer": "tsc -p tsconfig.renderer.json",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:renderer": "vite build",
+    "build": "npm run clean && npm run build:electron && npm run typecheck:renderer && npm run build:renderer",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "npm run build && electron .",
+    "package:dir": "npm run build && electron-builder --win --x64 --dir",
+    "smoke:packaged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-packaged.ps1"
+  },
+  "build": {
+    "appId": "app.colosseum.harness",
+    "productName": "Colosseum Harness",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/electron/**/*",
+      "dist/renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "artifactName": "Colosseum-Harness-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

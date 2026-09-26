@@ -15,14 +15,26 @@ function Assert-Lacks($text, $needle, $message) {
 }
 
 $main = Read-File "qml/Main.qml"
+$taskbar = Read-File "qml/Taskbar.qml"
+$policy = Read-File "qml/ShellBackPolicy.js"
 Assert-Contains $main 'import "ShellBackPolicy.js" as ShellBackPolicy' `
     "Main.qml must import the pure shell Escape policy."
 Assert-Contains $main 'function handleEscape()' `
     "Main.qml must expose one shell Escape dispatcher."
 Assert-Contains $main 'ShellBackPolicy.actionFor(win.shellEscapeState())' `
     "The shell dispatcher must select through ShellBackPolicy."
-Assert-Contains $main 'onActivated: win.handleEscape()' `
-    "The global Escape Shortcut must do nothing except enter the dispatcher."
+Assert-Contains $main 'stremioSyncOpen: stremioPanel.shown,' `
+    "The Stremio Main Sync overlay must participate in shell Escape arbitration."
+Assert-Contains $policy 'if (on(s.stremioSyncOpen)) return "stremioSync"' `
+    "The Stremio Main Sync overlay must win Escape above the underlying page."
+Assert-Contains $main 'case "stremioSync": win.closeStremioSyncPanel(); return' `
+    "Escape must close Main Sync through its existing close route."
+Assert-Contains $main 'semanticId: "global.escape"' `
+    "The semantic keyboard registry must own the one global Escape command."
+Assert-Contains $main 'sequences: ["Escape"]' `
+    "The global Escape command must retain its physical Escape sequence."
+Assert-Contains $main 'onTriggered: win.handleEscape()' `
+    "The global Escape command must do nothing except enter the dispatcher."
 Assert-Lacks $main 'Shortcut { sequences: ["Escape"]; onActivated: {' `
     "The old inline Escape decision chain must be gone."
 Assert-Lacks $main 'else if (bookReaderLayer.active) win.closeBookReader()' `
@@ -39,6 +51,37 @@ Assert-Contains $main 'item.backRequested.connect(win.closeVaultPage)' `
     "VaultPage terminal Back must retain the existing shell exit seam."
 Assert-Contains $main 'vaultLayer.item.handleBack()' `
     "Shell Escape must delegate into VaultPage instead of blindly deactivating it."
+Assert-Contains $main 'ratingsReviewsActive: ratingsReviewsLayer.active,' `
+    "Ratings Reviews must participate in the one shell Escape state snapshot."
+Assert-Contains $main 'case "ratingsReviews":' `
+    "Shell Escape must expose one Ratings Reviews arbitration branch."
+Assert-Contains $main 'ratingsReviewsLayer.item.handleBack()' `
+    "The Ratings Reviews branch must delegate to the host Back contract."
+Assert-Contains $main 'syncCenterActive: syncCenterLayer.active,' `
+    "Sync Center must participate in the one shell Escape state snapshot."
+Assert-Contains $main 'case "syncCenter":' `
+    "Shell Escape must close the Sync dossier before the full page."
+Assert-Contains $main 'syncCenterLayer.item.requestEscape()' `
+    "Sync Center Escape must delegate to its nested-dossier Back contract."
+Assert-Contains $main 'function openSyncCenterPage()' `
+    "The taskbar Sync intent must enter the real full-page route."
+Assert-Contains $main 'function closeSyncCenterPage()' `
+    "The Sync Center must expose one shell close route."
+Assert-Contains $main 'win.focusTrackersDoor()' `
+    "Closing the Sync Center must restore keyboard focus to the top-bar trackers door."
+Assert-Contains $main 'function focusTrackersDoor()' `
+    "The shell must hand focus back to the trackers door of the front TopBar."
+Assert-Contains $main 'source: "TrackerSyncCenterPage.qml"' `
+    "The Sync Center route must load the production page, not a test surface."
+Assert-Contains $main 'item.mainSyncRequested.connect(win.openStremioSyncPanel)' `
+    "The distinct Main Sync row must open the existing Stremio panel."
+Assert-Contains $main 'onTrackersClicked: win.toggleSyncCenterPage()' `
+    "The home trackers door must toggle only the Sync Center route."
+Assert-Contains $main 'item.trackersClicked.connect(win.toggleSyncCenterPage)' `
+    "Every world's trackers door must toggle only the Sync Center route."
+if ([regex]::Matches($main, [regex]::Escape('ratingsReviewsLayer.item.handleBack()')).Count -ne 1) {
+    throw "Shell Escape must call the Ratings Reviews host exactly once per branch."
+}
 
 $vault = Read-File "qml/VaultPage.qml"
 Assert-Contains $vault 'function handleBack()' `

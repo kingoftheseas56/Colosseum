@@ -40,6 +40,11 @@ Window {
     property string currentSurface: "Home"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
+    property int rrRouteGeneration: 0
+    property var rrInvokingItem: null
+    property var rrFallbackItem: null
+    property var rrRouteContext: null
+    property var rrOpenResult: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
     // return snapshot so closing it restores the live page item and bounded
     // offsets without introducing a global focus history service.
@@ -53,7 +58,6 @@ Window {
     readonly property var bookLayerRef: bookLayer
     readonly property var bookReaderLayerRef: bookReaderLayer
     readonly property var playerLayerRef: playerLayer
-    readonly property var settingsLayerRef: settingsLayer
     readonly property var searchLayerRef: searchLayer
     readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
@@ -76,6 +80,33 @@ Window {
         property var accountDisplayName: stremioSyncState.accountDisplayName
         property var lastResultSummary: stremioSyncState.lastResultSummary
         property var linkedAccount: stremioSyncState.linkedAccount
+    }
+
+    // Lanista's existing qml-get reads named QQuickItems. Keep the RR state
+    // projection read-only and content-free; the native owner exposes fixture
+    // scalars only in its exact compile/tag-gated test build.
+    Item {
+        objectName: "ratingsReviewsDeliveryState"
+        visible: false
+        width: 0
+        height: 0
+        property var sourceState: ratingsReviewsDeliveryState
+        property var activeProfileId: sourceState ? sourceState.activeProfileId : ""
+        property int pendingCount: sourceState ? sourceState.pendingCount : 0
+        property int unknownCount: sourceState ? sourceState.unknownCount : 0
+        property var providerRows: sourceState ? sourceState.providerRows : []
+        property string fixturePhase: sourceState && sourceState.fixturePhase !== undefined
+                                      ? sourceState.fixturePhase : ""
+        property int fixtureARatingSendCount: sourceState
+                                             ? Number(sourceState.fixtureARatingSendCount || 0) : 0
+        property int fixtureAReviewSendCount: sourceState
+                                             ? Number(sourceState.fixtureAReviewSendCount || 0) : 0
+        property int fixtureBSendCount: sourceState
+                                       ? Number(sourceState.fixtureBSendCount || 0) : 0
+        property int fixtureBReconcileCount: sourceState
+                                            ? Number(sourceState.fixtureBReconcileCount || 0) : 0
+        property int fixtureSpoilerBlockedSendCount: sourceState
+                                                     ? Number(sourceState.fixtureSpoilerBlockedSendCount || 0) : 0
     }
 
     function theatreWorldItem() {
@@ -102,6 +133,66 @@ Window {
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
         theatreRemoval.shown = true
+    }
+
+    function openRatingsReviews(context, invokingItem, fallbackItem) {
+        if (typeof RatingsReviewsController === "undefined" || !RatingsReviewsController)
+            return false
+        var generation = win.rrRouteGeneration + 1
+        var result = RatingsReviewsController.open(context || ({}), generation)
+        if (!result || result.ok !== true)
+            return false
+        win.rrRouteGeneration = generation
+        win.rrRouteContext = context || ({})
+        win.rrOpenResult = result
+        win.rrInvokingItem = invokingItem || null
+        win.rrFallbackItem = fallbackItem || null
+        ratingsReviewsLayer.active = true
+        if (ratingsReviewsLayer.item && ratingsReviewsLayer.item.beginRoute)
+            ratingsReviewsLayer.item.beginRoute(win.rrRouteContext, win.rrOpenResult, generation)
+        taskbar.open = false
+        return true
+    }
+
+    function ratingsReviewsDetailFallback(origin) {
+        if (origin === "theatre-detail" && theatreSeriesLayer.item) return theatreSeriesLayer.item
+        if (origin === "biblio-detail" && bookLayer.item) return bookLayer.item
+        if (origin === "tankoban-manga-detail" && seriesLayer.item) return seriesLayer.item
+        if (origin === "western-comic-detail" && westernLayer.item) return westernLayer.item
+        if (origin === "locg-comic-detail" && comicSeriesLayer.item) return comicSeriesLayer.item
+        if (origin === "vault-film-detail" && vaultLayer.item) return vaultLayer.item
+        return null
+    }
+
+    function restoreRatingsReviewsFocus() {
+        var exact = win.rrInvokingItem
+        var fallback = win.rrFallbackItem
+        var origin = win.rrRouteContext ? String(win.rrRouteContext.origin || "") : ""
+        var detail = win.ratingsReviewsDetailFallback(origin)
+        win.rrInvokingItem = null
+        win.rrFallbackItem = null
+        Qt.callLater(function() {
+            if (exact && exact.visible && exact.enabled !== false && exact.forceActiveFocus) {
+                exact.forceActiveFocus(Qt.BacktabFocusReason); return
+            }
+            if (fallback && fallback.visible && fallback.enabled !== false && fallback.forceActiveFocus) {
+                fallback.forceActiveFocus(Qt.BacktabFocusReason); return
+            }
+            if (detail && detail.visible && detail.enabled !== false && detail.forceActiveFocus) {
+                detail.forceActiveFocus(Qt.BacktabFocusReason); return
+            }
+            keyboardIgnition.forceActiveFocus(Qt.BacktabFocusReason)
+        })
+    }
+
+    function closeRatingsReviews() {
+        var generation = win.rrRouteGeneration
+        if (typeof RatingsReviewsController !== "undefined" && RatingsReviewsController)
+            RatingsReviewsController.close(generation)
+        ratingsReviewsLayer.active = false
+        win.restoreRatingsReviewsFocus()
+        win.rrRouteContext = null
+        win.rrOpenResult = null
     }
 
     // The existing Theatre metadata reader is the only QML participant in
@@ -169,16 +260,6 @@ Window {
         sequences: ["Ctrl+Shift+E"]
         icon: "extensions.svg"
         onTriggered: win.openExtensionsPage()
-    }
-    KeyboardCommand {
-        id: openSettingsCommand
-        semanticId: "global.openSettings"
-        label: "Open Settings"
-        category: "Shortcuts"
-        scope: "application"
-        sequences: ["Ctrl+Shift+S"]
-        icon: "settings.svg"
-        onTriggered: win.openSettingsPage()
     }
     KeyboardCommand {
         id: fullscreenCommand
@@ -345,6 +426,17 @@ Window {
         return ""
     }
 
+    // The rebuilt title pages (world feel design, 2026-09-24): TheatreSeriesView.qml and
+    // TankobanSeriesView.qml are built to replace TheatreSeries.qml and MangaSeries.qml.
+    // Until Hemanth signs them off, a local views.ini (git-ignored, beside wallpapers.ini)
+    // selects them: [views] rebuiltTitlePages=true.
+    Settings {
+        id: viewSettings
+        location: Qt.resolvedUrl("../views.ini")
+        category: "views"
+        property bool rebuiltTitlePages: false
+    }
+
     Settings {
         id: wallpaperSettings
         location: Qt.resolvedUrl("../wallpapers.ini")
@@ -360,9 +452,7 @@ Window {
     // showExplicit into Theatre/Tankoban/Biblio is Task 9 — here it is only set + surfaced.
     ContentPreferences { id: contentPreferences }
 
-    // The C++ extension store gates adult manifests on direct preview/install. It reads the
-    // same one preference, so the Settings switch governs both ingress paths (community
-    // Browse is filtered in ExtensionsCatalog.js) rather than only the one.
+    // Keep direct extension installs aligned with unrestricted catalogue browsing.
     Binding {
         target: typeof Extensions !== "undefined" ? Extensions : null
         property: "showExplicit"
@@ -510,7 +600,6 @@ Window {
         keyboardRegistry.registerCommand(openVaultCommand)
         keyboardRegistry.registerCommand(openDownloadsCommand)
         keyboardRegistry.registerCommand(openExtensionsCommand)
-        keyboardRegistry.registerCommand(openSettingsCommand)
         keyboardRegistry.registerCommand(fullscreenCommand)
         keyboardRegistry.registerCommand(quitCommand)
         keyboardRegistry.registerCommand(escapeCommand)
@@ -693,9 +782,8 @@ Window {
             updateActive: updateLayer.active,
             historyStatsActive: historyStatsLayer.active,
             syncCenterActive: syncCenterLayer.active,
-            keyboardGuideActive: keyboardGuideLayer.active,
-            settingsActive: settingsLayer.active,
             extensionsActive: extensionsLayer.active,
+            ratingsReviewsActive: ratingsReviewsLayer.active,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
             bookActive: bookLayer.active,
@@ -789,6 +877,12 @@ Window {
         identityCeremonyDialog.close()
     }
     function handleEscape() {
+        if (feriaLayer.active && !taskbar.open && !accountFlyout.visible
+                && !accountCenter.visible) {
+            if (feriaLayer.item) feriaLayer.item.requestEscape()
+            else win.closeFeriaPage()
+            return
+        }
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
         case "consume": return
@@ -811,12 +905,14 @@ Window {
             else
                 win.closeSyncCenterPage()
             return
-        case "keyboardGuide": win.closeKeyboardGuide(); return
-        case "settings": win.closeSettingsPage(); return
         case "extensions":
             if (extensionsLayer.item && extensionsLayer.item.requestEscape
                     && extensionsLayer.item.requestEscape()) return
             win.closeExtensionsPage(); return
+        case "ratingsReviews":
+            if (ratingsReviewsLayer.item && ratingsReviewsLayer.item.handleBack)
+                ratingsReviewsLayer.item.handleBack()
+            return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
         case "book": win.closeBook(); return
@@ -914,7 +1010,7 @@ Window {
     // nothing has claimed it yet (a cold launch), it fell back to the window's contentItem,
     // or — the one that actually strands the running shell — it is still held by an item
     // that has since been hidden or disabled. Onboarding leaves focus on a hidden control
-    // when it dismisses, and the layer closers (closeVaultPage, closeKeyboardGuide and
+    // when it dismisses, and the layer closers (closeVaultPage, closeExtensionsPage and
     // friends) deactivate a Loader the same way. A hidden owner is worse than no owner:
     // Qt keeps delivering keys to it, and it traverses nothing, so every navigation key
     // disappears into an item the user cannot see.
@@ -1684,15 +1780,32 @@ Window {
     }
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
+    function openFeriaPage() {
+        win.bookRouteGeneration += 1
+        downloadsLayer.active = false
+        vaultLayer.active = false
+        extensionsLayer.active = false
+        updateLayer.active = false
+        historyStatsLayer.active = false
+        syncCenterLayer.active = false
+        feriaLayer.active = true
+        taskbar.open = false
+        if (feriaLayer.item) Qt.callLater(feriaLayer.item.takeKeyboardFocus)
+    }
+    function closeFeriaPage() {
+        feriaLayer.active = false
+        taskbar.focusFeriaAction()
+    }
+
+    // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
         updateLayer.active = false
         historyStatsLayer.active = false
+        feriaLayer.active = false
         syncCenterLayer.active = true
         taskbar.open = false
         if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
@@ -1700,7 +1813,24 @@ Window {
     }
     function closeSyncCenterPage() {
         syncCenterLayer.active = false
-        taskbar.focusSyncCenterAction()
+        win.focusTrackersDoor()
+    }
+    function toggleSyncCenterPage() {
+        !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
+    }
+    // The trackers door lives in the TopBar of home and of every world; hand focus back to
+    // whichever of those is in front.
+    function focusTrackersDoor() {
+        for (let i = 0; i < worldRepeater.count; ++i) {
+            const loader = worldRepeater.itemAt(i)
+            if (loader && loader.mode === worldStack.current && loader.item
+                    && loader.item.focusTrackersButton) {
+                const world = loader.item
+                Qt.callLater(function() { world.focusTrackersButton() })
+                return
+            }
+        }
+        Qt.callLater(function() { topbar.focusTrackersButton() })
     }
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
@@ -1709,10 +1839,9 @@ Window {
         downloadsLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
         updateLayer.active = false
         syncCenterLayer.active = false
+        feriaLayer.active = false
         historyStatsLayer.active = true
         taskbar.open = false
         if (historyStatsLayer.item && historyStatsLayer.item.takeKeyboardFocus)
@@ -1724,17 +1853,16 @@ Window {
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
-    // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
+    // Downloads and Extensions are taskbar full-pages; opening either one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
+        feriaLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
@@ -1751,11 +1879,10 @@ Window {
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
+        feriaLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
     }
@@ -1856,11 +1983,10 @@ Window {
     function openExtensionsPage(world) {
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
+        feriaLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
@@ -1870,104 +1996,19 @@ Window {
     }
     function closeExtensionsPage() { extensionsLayer.active = false }
 
-    // ---- Settings page: the global preferences gear, entered from the taskbar ----
-    function openSettingsPage() {
-        win.bookRouteGeneration += 1
-        downloadsLayer.active = false
-        extensionsLayer.active = false
-        keyboardGuideLayer.active = false
-        updateLayer.active = false
-        historyStatsLayer.active = false
-        syncCenterLayer.active = false
-        vaultLayer.active = false
-        settingsLayer.active = true
-        taskbar.open = false
-        if (settingsLayer.item && settingsLayer.item.takeKeyboardFocus)
-            Qt.callLater(settingsLayer.item.takeKeyboardFocus)
-    }
-    function closeSettingsPage() { settingsLayer.active = false }
-
-    // ---- Keyboard Guide: essential controls, entered from the taskbar beside Settings. ----
-    function openKeyboardGuide() {
-        win.bookRouteGeneration += 1
-        downloadsLayer.active = false
-        extensionsLayer.active = false
-        settingsLayer.active = false
-        updateLayer.active = false
-        historyStatsLayer.active = false
-        syncCenterLayer.active = false
-        vaultLayer.active = false
-        keyboardGuideLayer.active = true
-        taskbar.open = false
-        if (keyboardGuideLayer.item && keyboardGuideLayer.item.takeKeyboardFocus)
-            Qt.callLater(keyboardGuideLayer.item.takeKeyboardFocus)
-    }
-    function closeKeyboardGuide() { keyboardGuideLayer.active = false }
-
-    // ---- Sync Center: the approved tracker catalogue and profile-owned controls ----
-    Loader {
-        id: syncCenterLayer
-        objectName: "syncCenterLayer"
-        anchors.fill: parent
-        z: 58
-        active: false
-        visible: active
-        source: "TrackerSyncCenterPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.trackerModel = Qt.binding(function() {
-                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
-            })
-            item.stremioState = Qt.binding(function() {
-                return (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
-            })
-            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            item.backRequested.connect(win.closeSyncCenterPage)
-            item.mainSyncRequested.connect(win.openStremioSyncPanel)
-            item.takeKeyboardFocus()
-        }
-    }
-
-    Loader {
-        id: historyStatsLayer
-        objectName: "historyStatsLayer"
-        anchors.fill: parent
-        z: 58
-        active: false
-        visible: active
-        source: "HistoryHighlightsStatsPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.activityStore = Qt.binding(function() {
-                return (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
-            })
-            item.historyStore = Qt.binding(function() {
-                return (typeof ProfileHistory !== "undefined") ? ProfileHistory : null
-            })
-            item.trackerModel = Qt.binding(function() {
-                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
-            })
-            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            item.backRequested.connect(win.closeHistoryStatsPage)
-            item.syncCenterRequested.connect(win.openSyncCenterPage)
-            item.takeKeyboardFocus()
-        }
-    }
-
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
         vaultLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
+        feriaLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
-        // every other full-page destination (Downloads/Vault/Extensions/Settings)
+        // every other full-page destination (Downloads/Vault/Extensions)
         // and still reveals on hover for session switching. The Update entry point
         // is the home topbar glyph now — no launcher in the taskbar dock.
         taskbar.open = false
@@ -2238,7 +2279,6 @@ Window {
         return win._layerCoversReturn(win.bookLayerRef)
             || win._layerCoversReturn(win.bookReaderLayerRef)
             || win._layerCoversReturn(win.playerLayerRef)
-            || win._layerCoversReturn(win.settingsLayerRef)
             || win._layerCoversReturn(win.searchLayerRef)
             || win._layerCoversReturn(win.vaultLayerRef)
     }
@@ -3120,6 +3160,9 @@ Window {
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
         onUpdateClicked: !updateLayer.active ? win.openUpdatePage() : win.closeUpdatePage()
+        trackersEnabled: true
+        trackersActive: syncCenterLayer.active
+        onTrackersClicked: win.toggleSyncCenterPage()
         onBoundaryArrowRequested: (key, fromItem) => {
             if (key === Qt.Key_Down && page.visible)
                 homePageSpatialNav.moveFrom(fromItem, key)
@@ -3604,6 +3647,10 @@ Window {
                     }
                     item.searchClicked.connect(win.openSearch)
                     if (item.stremioClicked) item.stremioClicked.connect(win.openStremioSyncPanel)
+                    if (item.trackersClicked) {
+                        item.trackersClicked.connect(win.toggleSyncCenterPage)
+                        item.trackersActive = Qt.binding(function() { return syncCenterLayer.active })
+                    }
                     if (item.libraryRemovalRequested) item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
                     if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
@@ -3771,7 +3818,8 @@ Window {
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
         property string requestedVolumeNumber: "" // temporary arc-volume landing; chapter catalogue follows
         property bool legacyWeebCentral: false
-        source: legacyWeebCentral ? "MangaSeriesThumbnailMock.qml" : "MangaSeries.qml"
+        source: legacyWeebCentral ? "MangaSeriesThumbnailMock.qml"
+              : (viewSettings.rebuiltTitlePages ? "TankobanSeriesView.qml" : "MangaSeries.qml")
         onLoaded: {
             item.backdrop = wall
             item.malId = seriesLayer.malId
@@ -3790,11 +3838,24 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
+            if (item.ratingsReviewsRequested)
+                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
+            // Rebuilt title page only: the world pills, search and a Back pill that names its place.
+            if (item.worldRequested)
+                item.worldRequested.connect(function(w) { win.closeSeries(); win.openWorld(w) })
+            if (item.searchRequested)
+                item.searchRequested.connect(function() {
+                    win.closeSeries()
+                    if (worldStack.current !== "Tankoban") win.openWorld("Tankoban")
+                    win.openSearch()
+                })
+            if (item.backLabel !== undefined)
+                item.backLabel = Qt.binding(function() { return worldStack.current.length ? worldStack.current : "Home" })
         }
     }
 
@@ -3843,6 +3904,8 @@ Window {
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
+            if (item.ratingsReviewsRequested)
+                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
         }
     }
 
@@ -3871,6 +3934,8 @@ Window {
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
+            if (item.ratingsReviewsRequested)
+                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }
@@ -3994,7 +4059,7 @@ Window {
         active: false
         visible: active
         property var pendingItem: ({})
-        source: "TheatreSeries.qml"
+        source: viewSettings.rebuiltTitlePages ? "TheatreSeriesView.qml" : "TheatreSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.itemData = theatreSeriesLayer.pendingItem
@@ -4007,6 +4072,19 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
+            if (item.ratingsReviewsRequested)
+                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
+            // Rebuilt title page only: the world pills, search and a Back pill that names its place.
+            if (item.worldRequested)
+                item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })
+            if (item.searchRequested)
+                item.searchRequested.connect(function() {
+                    win.closeTheatreSeries()
+                    if (worldStack.current !== "Theatre") win.openWorld("Theatre")
+                    win.openSearch()
+                })
+            if (item.backLabel !== undefined)
+                item.backLabel = Qt.binding(function() { return worldStack.current.length ? worldStack.current : "Home" })
         }
     }
 
@@ -4091,6 +4169,8 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readRequested.connect(win.openBookSession)
+            if (item.ratingsReviewsRequested)
+                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             // (listenRequested retired — the reader carries audiobook playback now)
         }
     }
@@ -4277,6 +4357,8 @@ Window {
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.viewWorldRequested.connect(win.openVaultIdentity)
+            if (item.ratingsReviewsRequested)
+                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
@@ -4423,19 +4505,52 @@ Window {
         }
     }
 
+    // ---- Ratings & Reviews: same-window title journey over the retained detail page. ----
+    Loader {
+        id: ratingsReviewsLayer
+        objectName: "ratingsReviewsLayer"
+        anchors.fill: parent
+        z: 57
+        active: false
+        visible: active
+        source: "ratingsreviews/RatingsReviewsHost.qml"
+        onLoaded: {
+            item.controller = (typeof RatingsReviewsController !== "undefined")
+                              ? RatingsReviewsController : null
+            item.closeRequested.connect(win.closeRatingsReviews)
+            if (win.rrRouteContext && win.rrOpenResult)
+                item.beginRoute(win.rrRouteContext, win.rrOpenResult, win.rrRouteGeneration)
+        }
+    }
+
+    // ---- Feria: bundled web UI on the existing native discovery backend. ----
+    Loader {
+        id: feriaLayer
+        objectName: "feriaLayer"
+        anchors.fill: parent
+        z: 58
+        active: false
+        visible: active
+        source: "feria/FeriaAppPage.qml"
+        onLoaded: {
+            item.backRequested.connect(win.closeFeriaPage)
+            item.takeKeyboardFocus()
+        }
+    }
+
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
         objectName: "extensionsLayer"
         anchors.fill: parent
-        z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
+        z: 58     // full-page cover: intentionally above Ratings & Reviews (z:57)
         active: false
         visible: active
         source: "ExtensionsPage.qml"
         onLoaded: {
             item.backdrop = wall
             // Same global preference Discover/genres/search read — a live binding so
-            // flipping the Settings switch re-asks the registry without a relaunch.
+            // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4447,39 +4562,52 @@ Window {
         }
     }
 
-    // ---- Settings page: global preferences, entered from the taskbar gear (Task 2) ----
+    // ---- Sync Center: the approved tracker catalogue and profile-owned controls ----
     Loader {
-        id: settingsLayer
-        objectName: "settingsLayer"
+        id: syncCenterLayer
+        objectName: "syncCenterLayer"
         anchors.fill: parent
-        z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
+        z: 58
         active: false
         visible: active
-        source: "SettingsPage.qml"
+        source: "TrackerSyncCenterPage.qml"
         onLoaded: {
             item.backdrop = wall
-            item.preferences = contentPreferences
-            item.backRequested.connect(win.closeSettingsPage)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            if (item.takeKeyboardFocus)
-                Qt.callLater(item.takeKeyboardFocus)
+            item.trackerModel = Qt.binding(function() {
+                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
+            })
+            item.stremioState = Qt.binding(function() {
+                return (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
+            })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            item.backRequested.connect(win.closeSyncCenterPage)
+            item.mainSyncRequested.connect(win.openStremioSyncPanel)
+            item.takeKeyboardFocus()
         }
     }
 
-    // ---- Keyboard Guide: essential controls, directly beside Settings on the taskbar. ----
     Loader {
-        id: keyboardGuideLayer
-        objectName: "keyboardGuideLayer"
+        id: historyStatsLayer
+        objectName: "historyStatsLayer"
         anchors.fill: parent
-        z: 56
+        z: 58
         active: false
         visible: active
-        source: "KeyboardGuidePage.qml"
+        source: "HistoryHighlightsStatsPage.qml"
         onLoaded: {
-            item.keyboardRegistry = keyboardRegistry
-            item.backRequested.connect(win.closeKeyboardGuide)
+            item.backdrop = wall
+            item.activityStore = Qt.binding(function() {
+                return (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+            })
+            item.historyStore = Qt.binding(function() {
+                return (typeof ProfileHistory !== "undefined") ? ProfileHistory : null
+            })
+            item.trackerModel = Qt.binding(function() {
+                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
+            })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            item.backRequested.connect(win.closeHistoryStatsPage)
+            item.syncCenterRequested.connect(win.openSyncCenterPage)
             item.takeKeyboardFocus()
         }
     }
@@ -4489,7 +4617,7 @@ Window {
         id: updateLayer
         objectName: "updateLayer"
         anchors.fill: parent
-        z: 56
+        z: 58
         active: false
         visible: active
         source: "UpdatePage.qml"
@@ -4561,14 +4689,10 @@ Window {
         onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
-        settingsActive: settingsLayer.active
-        onSettingsClicked: !settingsLayer.active ? win.openSettingsPage() : win.closeSettingsPage()
-        keyboardGuideActive: keyboardGuideLayer.active
-        onKeyboardGuideClicked: !keyboardGuideLayer.active ? win.openKeyboardGuide() : win.closeKeyboardGuide()
-        syncCenterActive: syncCenterLayer.active
-        onSyncCenterClicked: !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
         historyStatsActive: historyStatsLayer.active
         onHistoryStatsClicked: !historyStatsLayer.active ? win.openHistoryStatsPage() : win.closeHistoryStatsPage()
+        feriaActive: feriaLayer.active
+        onFeriaClicked: !feriaLayer.active ? win.openFeriaPage() : win.closeFeriaPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -4747,11 +4871,6 @@ Window {
         sequences: openExtensionsCommand.sequences
         context: Qt.ApplicationShortcut
         onActivated: openExtensionsCommand.invoke("shortcut")
-    }
-    Shortcut {
-        sequences: openSettingsCommand.sequences
-        context: Qt.ApplicationShortcut
-        onActivated: openSettingsCommand.invoke("shortcut")
     }
 
     // ── Open Recent panel (Slice 9): the Open Media control remembers ──

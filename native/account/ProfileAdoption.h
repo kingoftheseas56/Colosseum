@@ -47,6 +47,13 @@ public:
         // ambiguity.  New journals always record the source kind explicitly.
         ProfilePaths::Kind sourceKind = ProfilePaths::Kind::LegacyLocal;
         bool sourceKindRecorded = false;
+
+        // The Ratings/Reviews provider mapping, outbox, and receipt files
+        // have their own device-private ownership lane.  This contains only
+        // the durable checkpoint that their verified handoff completed; it
+        // must never carry private payloads into the portable journal.
+        bool ratingsReviewsPrivateHandoffVerified = false;
+        bool ratingsReviewsPrivateHandoffMarkerRecorded = false;
     };
 
     static std::optional<ProfileAdoption> begin(const ProfilePaths &paths,
@@ -85,6 +92,12 @@ public:
     // reasoning as markActivityTargetVerified() above.
     bool markActivityLegacyQuarantined(const QString &activityLegacyBackupDigest,
                                        QString *error = nullptr);
+
+    // Records the one idempotent Ratings/Reviews private-state handoff after
+    // canonical promotion.  It is deliberately a journal checkpoint, not a
+    // second migration engine or portable snapshot field.
+    bool markRatingsReviewsPrivateHandoffVerified(
+        QString *error = nullptr);
 
     bool commit(QString *error = nullptr);
 

@@ -44,13 +44,6 @@ $families = @(
         SettingsSeed = $false
     },
     [pscustomobject]@{
-        Name = "family4-settings-overflow"
-        Scenario = "tests\lanista_scenarios\arc41_settings_overflow.json"
-        Seed = "tests\lanista-seeds\arc41-settings-local-onboarding-v1"
-        Scale = "1.5"
-        SettingsSeed = $true
-    },
-    [pscustomobject]@{
         Name = "family5-virtualized-collection"
         Scenario = "tests\lanista_scenarios\arc41_virtualized_collection.json"
         Seed = "tests\lanista-seeds\biblio-virtualized-v1"

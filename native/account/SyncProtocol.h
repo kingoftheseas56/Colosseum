@@ -34,6 +34,7 @@ struct SyncWireMutation {
     std::optional<SyncWireHlc> materializedHlc;
     SyncWireOperation operation = SyncWireOperation::Put;
     QJsonValue payload;
+    std::optional<qint64> deletedAtMs;
 };
 
 struct SyncWireAttachmentManifestItem {

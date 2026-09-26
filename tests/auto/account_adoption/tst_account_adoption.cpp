@@ -7,13 +7,21 @@
 #include "account/ProfileAdoption.h"
 #include "account/ProfilePaths.h"
 #include "account/ProfileStoreRuntime.h"
-
+#include "account/ProfilePreferencesStore.h"
+#include "account/RatingsReviewsConversionMap.h"
+#include "account/RatingsReviewsDelivery.h"
+#include "account/RatingsReviewsDeliveryOutbox.h"
+#include "account/RatingsReviewsDeliveryReceiptStore.h"
+#include "account/RatingsReviewsProviderMappingStore.h"
+#include "account/RatingsReviewsStore.h"
 #include "trackers/TrackerConnectionStore.h"
 #include "trackers/TrackerMappingStore.h"
 #include "trackers/TrackerScrobbleRuntime.h"
 #include "trackers/TrackerScrobbleStore.h"
+
 #include "ProgressStore.h"
 
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -21,12 +29,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
-#include <QSettings>
-#include <QTemporaryDir>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QSaveFile>
+#include <QSettings>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QtTest>
 
 namespace {
@@ -34,6 +42,20 @@ constexpr auto kAccountA =
     "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 constexpr auto kAccountB =
     "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+RatingsReviewsConversionMap fixtureConversionMap(
+    const RatingsReviewsConversionTestHook &hook) {
+    QString error;
+    const auto map = RatingsReviewsConversionMap::recommended(
+        QStringLiteral("fixture-a"),
+        QStringLiteral("fixture-halfpoint-v1"),
+        1,
+        hook,
+        &error);
+    if (!map.has_value())
+        qFatal("conversion fixture failed: %s", qPrintable(error));
+    return *map;
+}
 
 PersonalStateSnapshot populatedSnapshot() {
     PersonalStateSnapshot snapshot;
@@ -136,6 +158,29 @@ PersonalStateSnapshot populatedSnapshot() {
             + QStringLiteral("series-1"),
         history);
 
+    const RatingsReviewsStore::Identity liveIdentity{
+        QStringLiteral("theatre"),
+        QStringLiteral("series"),
+        QStringLiteral("fixture-series")};
+    const QString liveKey = RatingsReviewsStore::recordKeyForIdentity(liveIdentity);
+    snapshot.ratingsReviewsRecords.insert(liveKey, QJsonObject{
+        {QStringLiteral("world"), liveIdentity.world},
+        {QStringLiteral("kind"), liveIdentity.kind},
+        {QStringLiteral("media_id"), liveIdentity.mediaId},
+        {QStringLiteral("rating"), 8.5},
+        {QStringLiteral("review"), QStringLiteral("C:\\Notes\\review.txt")},
+        {QStringLiteral("spoiler"), false},
+        {QStringLiteral("created_at_ms"), 1720000004000.0},
+        {QStringLiteral("updated_at_ms"), 1720000005000.0}});
+
+    const RatingsReviewsStore::Identity deletedIdentity{
+        QStringLiteral("biblio"),
+        QStringLiteral("book"),
+        QStringLiteral("fixture-deleted")};
+    const QString deletedKey = RatingsReviewsStore::recordKeyForIdentity(deletedIdentity);
+    snapshot.ratingsReviewsTombstones.insert(deletedKey, QJsonObject{
+        {QStringLiteral("deleted_at_ms"), 1720000006000.0}});
+
     snapshot.showExplicit = true;
     return snapshot;
 }
@@ -176,6 +221,104 @@ struct AdoptionFixture {
         return *paths;
     }
 };
+
+RatingsReviewsPrivateProfileBinding privateBinding(
+    const LegacyPersonalStateStorage &storage) {
+    return {
+        storage.profileId(),
+        storage.preferencesIniPath(),
+        {storage.devicePrivateRatingsReviewsProviderMappingsPath(),
+         storage.devicePrivateRatingsReviewsDeliveryOutboxPath(),
+         storage.devicePrivateRatingsReviewsDeliveryReceiptsPath()}};
+}
+
+RatingsReviewsPrivateProfileBinding privateBinding(
+    const ProfilePaths &paths) {
+    return {
+        paths.profileId(),
+        paths.preferencesIniPath(),
+        {paths.ratingsReviewsProviderMappingsPath(),
+         paths.ratingsReviewsDeliveryOutboxPath(),
+         paths.ratingsReviewsDeliveryReceiptsPath()}};
+}
+
+bool seedPrivateDeliveryState(
+    const RatingsReviewsPrivateProfileBinding &binding,
+    const QString &canonicalPath,
+    const QString &operationId,
+    const QString &state,
+    int attemptCount,
+    const QString &receiptStatus = QString(),
+    RatingsReviewsDeliveryOperation *operationReadback = nullptr) {
+    const RatingsReviewsStore::Identity identity{
+        QStringLiteral("theatre"), QStringLiteral("series"),
+        QStringLiteral("fixture-series")};
+    RatingsReviewsStore canonical(canonicalPath);
+    QString error;
+    if (!canonical.healthy(&error))
+        return false;
+    const QString key = RatingsReviewsStore::recordKeyForIdentity(identity);
+    const auto record = canonical.recordByKey(key);
+    if (!record)
+        return false;
+
+    RatingsReviewsProviderMappingStore mappings(
+        binding.privatePaths.mappingsPath);
+    if (!mappings.upsert({QStringLiteral("fixture-a"), key,
+                          QStringLiteral("matched"), QStringLiteral("fixture-a-title"),
+                          QStringLiteral("exact"), 1720000006000LL, 7}, &error))
+        return false;
+
+    RatingsReviewsDeliveryOperation operation;
+    operation.operationId = operationId;
+    operation.profileId = binding.profileId;
+    operation.profileIncarnation = 9;
+    operation.providerId = QStringLiteral("fixture-a");
+    operation.connectionGeneration = 7;
+    operation.operationType = QStringLiteral("rating.set");
+    operation.canonicalKey = key;
+    operation.canonicalRevision = canonical.revision();
+    operation.canonicalPayloadDigest =
+        ratingsReviewsCanonicalPayloadDigestV1(*record);
+    operation.mappingProviderMediaId = QStringLiteral("fixture-a-title");
+    operation.conversionMapDigest = QString(64, QLatin1Char('a'));
+    operation.intentCreatedAtMs = 1720000007000LL;
+    operation.state = state;
+    operation.attemptCount = attemptCount;
+    if (attemptCount > 0)
+        operation.lastAttemptAtMs = 1720000008000LL;
+    operation.retryClass = QStringLiteral("manualAfterUnknown");
+    operation.adapterIdempotency = QStringLiteral("none");
+    operation.safePayload = {
+        {QStringLiteral("kind"), QStringLiteral("rating")},
+        {QStringLiteral("native_value"), 81},
+        {QStringLiteral("source_rating"), record->rating.value_or(8.5)}};
+    RatingsReviewsDeliveryOutbox outbox(binding.privatePaths.outboxPath);
+    if (!outbox.append({operation}, &error))
+        return false;
+
+    if (!receiptStatus.isEmpty()) {
+        RatingsReviewsDeliveryReceipt receipt;
+        receipt.operationId = operation.operationId;
+        receipt.providerId = operation.providerId;
+        receipt.operationType = operation.operationType;
+        receipt.canonicalKey = operation.canonicalKey;
+        receipt.canonicalPayloadDigest = operation.canonicalPayloadDigest;
+        receipt.status = receiptStatus;
+        receipt.attemptNumber = attemptCount;
+        receipt.createdAtMs = operation.intentCreatedAtMs;
+        receipt.updatedAtMs = 1720000009000LL;
+        receipt.completedAtMs = receipt.updatedAtMs;
+        receipt.safeProviderStatus = QStringLiteral("fixture-ok");
+        RatingsReviewsDeliveryReceiptStore receipts(
+            binding.privatePaths.receiptsPath);
+        if (!receipts.upsert(receipt, &error))
+            return false;
+    }
+    if (operationReadback)
+        *operationReadback = operation;
+    return true;
+}
 
 void seedMachineSentinels(
     const LegacyPersonalStateStorage &legacy) {
@@ -326,7 +469,7 @@ private slots:
     void cleanRestartKeepsCommittedAdoption();
     void committedAccountSessionMergesResidualLocalOnlyState();
     void ordinarySignInAdoptsLegacyLocalState();
-    void ordinarySignInMergesExistingAccountWithLocalOnlyState();
+    void R8_existing_account_merge_preserves_terminal_receipt();
     void activeAccountSessionMergesLaterLocalOnlyState();
     void rememberedAccountSessionMergesLaterLocalOnlyState();
     void coldStartTrackerOnlyLocalOnlyProfileRetriesPrivateHandoff();
@@ -336,6 +479,12 @@ private slots:
     void missingFinalStorePreservesAccountEvidence();
     void retryIntentReAdoptsOnLaterSignIn();
     void legacySnapshotV1RemainsReadableWithoutHistory();
+    void legacySnapshotsV1ThroughV4RemainCompatible();
+    void ratingsReviewsSnapshotV5RoundTripsAndV4DigestRemainsExact();
+    void populatedRatingsReviewsCannotMatchLegacyV4Digest();
+    void R8_legacy_private_handoff_idempotent_and_order_preserved();
+    void ratingsReviewsConversionMapCopyFailurePreservesSource();
+    void R8_handoff_failure_preserves_source_and_blocks_activation();
     void directAccountSwitchRequiresSealing();
 
     void existingAccountMergeAcceptsCompletedActivity();
@@ -349,7 +498,7 @@ private slots:
     void explicitLocalQuarantineIgnoresUnrelatedLegacyState();
     void explicitLocalPreparingAdoptionResumesFromLocalSource();
     void retryFailsClosedWhenCompetingSourceUnreadable();
-    void explicitLocalAdoptionCarriesStremioPrivateState();
+    void R8_localonly_private_handoff_before_source_clear();
     void legacyAccountlessAdoptionCarriesStremioCredential();
     void stremioCredentialTransferReplacesStaleDestinationForSameAccount();
     void stremioCredentialTransferRetriesBeforeSourceRetirement();
@@ -394,6 +543,289 @@ legacySnapshotV1RemainsReadableWithoutHistory() {
     QCOMPARE(
         parsed->progressEntries,
         source.progressEntries);
+}
+
+void tst_account_adoption::
+legacySnapshotsV1ThroughV4RemainCompatible() {
+    PersonalStateSnapshot source = populatedSnapshot();
+    source.ratingsReviewsRecords = {};
+    source.ratingsReviewsTombstones = {};
+
+    QJsonObject v4 = source.toJson();
+    v4.insert(QStringLiteral("version"), 4);
+    v4.remove(QStringLiteral("ratings_reviews_records"));
+    v4.remove(QStringLiteral("ratings_reviews_tombstones"));
+
+    QJsonObject v3 = v4;
+    v3.insert(QStringLiteral("version"), 3);
+    v3.remove(QStringLiteral("main_sync_provider"));
+    v3.remove(QStringLiteral("stremio_state"));
+    v3.remove(QStringLiteral("theatre_extensions"));
+
+    QJsonObject v2 = v3;
+    v2.insert(QStringLiteral("version"), 2);
+    v2.remove(QStringLiteral("progress_watched_mark_action_times"));
+
+    QJsonObject v1 = v2;
+    v1.insert(QStringLiteral("version"), 1);
+    v1.remove(QStringLiteral("history_records"));
+
+    const QList<QJsonObject> legacy{v1, v2, v3, v4};
+    for (int index = 0; index < legacy.size(); ++index) {
+        QString error;
+        const auto parsed =
+            PersonalStateSnapshot::fromJson(legacy.at(index), &error);
+        QVERIFY2(parsed.has_value(), qPrintable(error));
+        QVERIFY(parsed->ratingsReviewsRecords.isEmpty());
+        QVERIFY(parsed->ratingsReviewsTombstones.isEmpty());
+
+        const QString digest =
+            index == 0 ? parsed->legacySemanticDigestV1()
+            : index == 1 ? parsed->legacySemanticDigestV2()
+            : index == 2 ? parsed->legacySemanticDigestV3()
+                         : parsed->legacySemanticDigestV4();
+        QVERIFY(parsed->matchesSemanticDigest(digest));
+    }
+}
+
+void tst_account_adoption::
+ratingsReviewsSnapshotV5RoundTripsAndV4DigestRemainsExact() {
+    const PersonalStateSnapshot source = populatedSnapshot();
+    const QJsonObject encoded = source.toJson();
+
+    QCOMPARE(encoded.value(QStringLiteral("version")).toInt(), 5);
+    QVERIFY(encoded.contains(QStringLiteral("ratings_reviews_records")));
+    QVERIFY(encoded.contains(QStringLiteral("ratings_reviews_tombstones")));
+
+    QString error;
+    const auto parsed = PersonalStateSnapshot::fromJson(encoded, &error);
+    QVERIFY2(parsed.has_value(), qPrintable(error));
+    QCOMPARE(parsed->toJson(), encoded);
+    QCOMPARE(parsed->ratingsReviewsRecords, source.ratingsReviewsRecords);
+    QCOMPARE(parsed->ratingsReviewsTombstones, source.ratingsReviewsTombstones);
+
+    PersonalStateSnapshot preV5 = source;
+    preV5.ratingsReviewsRecords = {};
+    preV5.ratingsReviewsTombstones = {};
+    QJsonObject v4 = preV5.toJson();
+    v4.insert(QStringLiteral("version"), 4);
+    v4.remove(QStringLiteral("ratings_reviews_records"));
+    v4.remove(QStringLiteral("ratings_reviews_tombstones"));
+    const QString v4Digest = QString::fromLatin1(
+        QCryptographicHash::hash(
+            QJsonDocument(v4).toJson(QJsonDocument::Compact),
+            QCryptographicHash::Sha256).toHex());
+    QCOMPARE(preV5.legacySemanticDigestV4(), v4Digest);
+    QVERIFY(preV5.matchesSemanticDigest(v4Digest));
+
+    const auto parsedV4 = PersonalStateSnapshot::fromJson(v4, &error);
+    QVERIFY2(parsedV4.has_value(), qPrintable(error));
+    QVERIFY(parsedV4->ratingsReviewsRecords.isEmpty());
+    QVERIFY(parsedV4->ratingsReviewsTombstones.isEmpty());
+
+    QJsonObject malformedV5 = encoded;
+    malformedV5.remove(QStringLiteral("ratings_reviews_tombstones"));
+    QVERIFY(!PersonalStateSnapshot::fromJson(malformedV5, &error).has_value());
+}
+
+void tst_account_adoption::
+populatedRatingsReviewsCannotMatchLegacyV4Digest() {
+    const PersonalStateSnapshot source = populatedSnapshot();
+    QVERIFY(!source.ratingsReviewsRecords.isEmpty());
+    QVERIFY(!source.ratingsReviewsTombstones.isEmpty());
+    QVERIFY(!source.matchesSemanticDigest(source.legacySemanticDigestV4()));
+    QVERIFY(!source.matchesSemanticDigest(source.legacySemanticDigestV3()));
+    QVERIFY(!source.matchesSemanticDigest(source.legacySemanticDigestV2()));
+    QVERIFY(!source.matchesSemanticDigest(source.legacySemanticDigestV1()));
+}
+
+void tst_account_adoption::
+R8_legacy_private_handoff_idempotent_and_order_preserved() {
+    AdoptionFixture fixture;
+    const auto hook = RatingsReviewsConversionTestHook::syntheticDomains();
+    const RatingsReviewsConversionMap map = fixtureConversionMap(hook);
+    QVERIFY(fixture.legacy.restorePersonalState(populatedSnapshot()));
+
+    const auto legacyBinding = privateBinding(fixture.legacy);
+    const QString operationId = QStringLiteral("49b86174-79b8-4da2-8b54-7a902bbc8701");
+    RatingsReviewsDeliveryOperation legacyUnknown;
+    QVERIFY(seedPrivateDeliveryState(
+        legacyBinding, fixture.legacy.ratingsReviewsPath(), operationId,
+        QStringLiteral("unknownOutcome"), 1, {}, &legacyUnknown));
+    QFile legacyOutboxFile(legacyBinding.privatePaths.outboxPath);
+    QVERIFY(legacyOutboxFile.open(QIODevice::ReadOnly));
+    const QByteArray sourceOutboxBytes = legacyOutboxFile.readAll();
+    legacyOutboxFile.close();
+
+    ProfilePreferencesStore sourcePreferences(
+        fixture.legacy.preferencesIniPath(), hook);
+    QVERIFY(sourcePreferences.setRatingsReviewsConversionMap(map));
+    QVERIFY(sourcePreferences.setRatingsReviewsProviderOrder({
+        QStringLiteral("anilist"), QStringLiteral("mal"), QStringLiteral("trakt"),
+        QStringLiteral("simkl"), QStringLiteral("imdb"), QStringLiteral("tmdb"),
+        QStringLiteral("rotten_tomatoes"), QStringLiteral("metacritic")}));
+    QVERIFY(sourcePreferences.setRatingsReviewsDefaultRatingDestinations(
+        {QStringLiteral("mal")}));
+    QVERIFY(sourcePreferences.setRatingsReviewsDefaultReviewDestinations(
+        {QStringLiteral("anilist"), QStringLiteral("mal")}));
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot,
+        {},
+        hook,
+        RatingsReviewsPrivateAdoptionCallbacks{
+            [](const RatingsReviewsPrivateProfileBinding &source,
+               const RatingsReviewsPrivateProfileBinding &destination,
+               RatingsReviewsStore *destinationCanonical,
+               QString *handoffError) {
+                return RatingsReviewsDelivery::handoffPrivateState(
+                    source,
+                    destination,
+                    destinationCanonical,
+                    handoffError);
+            }});
+    QString error;
+    QVERIFY2(
+        coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error),
+        qPrintable(error));
+
+    ProfilePreferencesStore destination(
+        fixture.accountPaths().preferencesIniPath(), hook);
+    const auto copied = destination.ratingsReviewsConversionMap(map.providerId);
+    QVERIFY(copied.has_value());
+    QCOMPARE(copied->digest(), map.digest());
+    QCOMPARE(
+        destination.ratingsReviewsProviderOrder(),
+        QStringList({
+            QStringLiteral("anilist"), QStringLiteral("mal"), QStringLiteral("trakt"),
+            QStringLiteral("simkl"), QStringLiteral("imdb"), QStringLiteral("tmdb"),
+            QStringLiteral("rotten_tomatoes"), QStringLiteral("metacritic")}));
+    QCOMPARE(
+        destination.ratingsReviewsDefaultRatingDestinations(),
+        QStringList({QStringLiteral("mal")}));
+    QCOMPARE(
+        destination.ratingsReviewsDefaultReviewDestinations(),
+        QStringList({QStringLiteral("anilist"), QStringLiteral("mal")}));
+
+    const auto adoption = ProfileAdoption::open(fixture.accountPaths(), &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QVERIFY(adoption->snapshot().ratingsReviewsPrivateHandoffMarkerRecorded);
+    QVERIFY(adoption->snapshot().ratingsReviewsPrivateHandoffVerified);
+    QVERIFY(QFileInfo::exists(
+        fixture.accountPaths().ratingsReviewsDeliveryOutboxPath()));
+    RatingsReviewsDeliveryOutbox accountOutbox(
+        fixture.accountPaths().ratingsReviewsDeliveryOutboxPath());
+    const auto adoptedUnknown = accountOutbox.operation(operationId);
+    QVERIFY(adoptedUnknown.has_value());
+    QCOMPARE(adoptedUnknown->profileId, fixture.accountPaths().profileId());
+    QCOMPARE(adoptedUnknown->profileIncarnation, legacyUnknown.profileIncarnation);
+    QCOMPARE(adoptedUnknown->intentCreatedAtMs, legacyUnknown.intentCreatedAtMs);
+    QCOMPARE(adoptedUnknown->state, QStringLiteral("unknownOutcome"));
+    QFile legacyOutboxAfter(legacyBinding.privatePaths.outboxPath);
+    QVERIFY(legacyOutboxAfter.open(QIODevice::ReadOnly));
+    QCOMPARE(legacyOutboxAfter.readAll(), sourceOutboxBytes);
+
+    const auto destinationBinding = privateBinding(fixture.accountPaths());
+    RatingsReviewsStore destinationCanonical(
+        fixture.accountPaths().ratingsReviewsPath());
+    QVERIFY2(destinationCanonical.healthy(&error), qPrintable(error));
+    QVERIFY2(RatingsReviewsDelivery::handoffPrivateState(
+                 legacyBinding, destinationBinding, &destinationCanonical, &error),
+             qPrintable(error));
+    RatingsReviewsDeliveryOutbox idempotentReadback(
+        destinationBinding.privatePaths.outboxPath);
+    QCOMPARE(idempotentReadback.operations().size(), 1);
+    QCOMPARE(idempotentReadback.operation(operationId)->state,
+             QStringLiteral("unknownOutcome"));
+    ProfilePreferencesStore orderReadback(
+        fixture.accountPaths().preferencesIniPath(), hook);
+    QCOMPARE(orderReadback.ratingsReviewsProviderOrder(),
+             destination.ratingsReviewsProviderOrder());
+}
+
+void tst_account_adoption::
+ratingsReviewsConversionMapCopyFailurePreservesSource() {
+    AdoptionFixture fixture;
+    const auto gate = RatingsReviewsConversionTestHook::settingsFailureGate();
+    const auto hook = RatingsReviewsConversionTestHook::syntheticDomains(gate);
+    const RatingsReviewsConversionMap map = fixtureConversionMap(hook);
+    QVERIFY(fixture.legacy.restorePersonalState(populatedSnapshot()));
+
+    ProfilePreferencesStore sourcePreferences(
+        fixture.legacy.preferencesIniPath(), hook);
+    QVERIFY(sourcePreferences.setRatingsReviewsConversionMap(map));
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime, fixture.appDataRoot, {}, hook);
+    *gate = true;
+    QString error;
+    QVERIFY(!coordinator.prepareCreatedAccount(
+        QString::fromLatin1(kAccountA), &error));
+    QVERIFY(!error.isEmpty());
+    *gate = false;
+
+    ProfilePreferencesStore sourceReadback(
+        fixture.legacy.preferencesIniPath(), hook);
+    const auto preserved =
+        sourceReadback.ratingsReviewsConversionMap(map.providerId);
+    QVERIFY(preserved.has_value());
+    QCOMPARE(preserved->digest(), map.digest());
+}
+
+void tst_account_adoption::
+R8_handoff_failure_preserves_source_and_blocks_activation() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source = populatedSnapshot();
+    QVERIFY(fixture.legacy.restorePersonalState(source));
+    const auto legacyBinding = privateBinding(fixture.legacy);
+    const QString operationId = QStringLiteral("27319e13-55ee-4b1a-a52c-80028998135f");
+    QVERIFY(seedPrivateDeliveryState(
+        legacyBinding, fixture.legacy.ratingsReviewsPath(), operationId,
+        QStringLiteral("unknownOutcome"), 1));
+    QFile sourceOutbox(legacyBinding.privatePaths.outboxPath);
+    QVERIFY(sourceOutbox.open(QIODevice::ReadOnly));
+    const QByteArray originalOutboxBytes = sourceOutbox.readAll();
+    sourceOutbox.close();
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime, fixture.appDataRoot, {}, {},
+        RatingsReviewsPrivateAdoptionCallbacks{
+            [](const RatingsReviewsPrivateProfileBinding &,
+               const RatingsReviewsPrivateProfileBinding &,
+               RatingsReviewsStore *,
+               QString *error) {
+                if (error)
+                    *error = QStringLiteral("injected private handoff failure");
+                return false;
+            }});
+    QString error;
+    QVERIFY(!coordinator.prepareCreatedAccount(
+        QString::fromLatin1(kAccountA), &error));
+    QVERIFY(error.contains(QStringLiteral("injected private handoff failure")));
+    QVERIFY(runtime.activeProfile().kind() != ProfilePaths::Kind::Account);
+
+    const ProfilePaths accountPaths = fixture.accountPaths();
+    RatingsReviewsStore accountCanonical(accountPaths.ratingsReviewsPath());
+    QVERIFY(accountCanonical.healthy());
+    QVERIFY(accountCanonical.recordByKey(RatingsReviewsStore::recordKeyForIdentity({
+        QStringLiteral("theatre"), QStringLiteral("series"),
+        QStringLiteral("fixture-series")})).has_value());
+    const auto adoption = ProfileAdoption::open(accountPaths, &error);
+    QVERIFY2(adoption.has_value(), qPrintable(error));
+    QCOMPARE(adoption->state(), ProfileAdoption::State::Promoted);
+    QVERIFY(adoption->snapshot().ratingsReviewsPrivateHandoffMarkerRecorded);
+    QVERIFY(!adoption->snapshot().ratingsReviewsPrivateHandoffVerified);
+
+    const auto sourceReadback = fixture.legacy.capture(&error);
+    QVERIFY2(sourceReadback.has_value(), qPrintable(error));
+    QCOMPARE(sourceReadback->semanticDigest(), source.semanticDigest());
+    QFile sourceOutboxAfter(legacyBinding.privatePaths.outboxPath);
+    QVERIFY(sourceOutboxAfter.open(QIODevice::ReadOnly));
+    QCOMPARE(sourceOutboxAfter.readAll(), originalOutboxBytes);
 }
 
 void tst_account_adoption::
@@ -739,7 +1171,7 @@ ordinarySignInAdoptsLegacyLocalState() {
 }
 
 void tst_account_adoption::
-ordinarySignInMergesExistingAccountWithLocalOnlyState() {
+R8_existing_account_merge_preserves_terminal_receipt() {
     AdoptionFixture fixture;
     const PersonalStateSnapshot accountState = populatedSnapshot();
     PersonalStateSnapshot localState = populatedSnapshot();
@@ -772,12 +1204,31 @@ ordinarySignInMergesExistingAccountWithLocalOnlyState() {
     QVERIFY(QDir().mkpath(accountPaths.profileRoot()));
     QVERIFY(accountStorage->restorePersonalState(accountState));
 
+    const auto localBinding = privateBinding(*localStorage);
+    const auto accountBinding = privateBinding(accountPaths);
+    const QString sharedOperationId =
+        QStringLiteral("3d62aa0a-8b9d-4e2b-8fa7-4104abbbad55");
+    QVERIFY(seedPrivateDeliveryState(
+        localBinding, localStorage->ratingsReviewsPath(), sharedOperationId,
+        QStringLiteral("pending"), 1));
+    QVERIFY(seedPrivateDeliveryState(
+        accountBinding, accountStorage->ratingsReviewsPath(), sharedOperationId,
+        QStringLiteral("inFlight"), 1, QStringLiteral("succeeded")));
+
     ProfileStoreRuntime runtime(
         fixture.legacy,
         fixture.appDataRoot);
     FirstAccountProfileCoordinator coordinator(
-        &runtime,
-        fixture.appDataRoot);
+        &runtime, fixture.appDataRoot, {}, {},
+        RatingsReviewsPrivateAdoptionCallbacks{
+            [](const RatingsReviewsPrivateProfileBinding &sourceBinding,
+               const RatingsReviewsPrivateProfileBinding &destinationBinding,
+               RatingsReviewsStore *destinationCanonical,
+               QString *handoffError) {
+                return RatingsReviewsDelivery::handoffPrivateState(
+                    sourceBinding, destinationBinding, destinationCanonical,
+                    handoffError);
+            }});
 
     QString error;
     QVERIFY2(
@@ -800,6 +1251,21 @@ ordinarySignInMergesExistingAccountWithLocalOnlyState() {
     QVERIFY2(localAfter.has_value(), qPrintable(error));
     QVERIFY(!localAfter->isEmpty());
     QVERIFY(QFileInfo::exists(accountPaths.cloudAttachmentReceiptPath()));
+
+    RatingsReviewsDeliveryOutbox mergedOutbox(
+        accountPaths.ratingsReviewsDeliveryOutboxPath());
+    QCOMPARE(mergedOutbox.operations().size(), 1);
+    QCOMPARE(mergedOutbox.operation(sharedOperationId)->state,
+             QStringLiteral("succeeded"));
+    RatingsReviewsDeliveryReceiptStore mergedReceipts(
+        accountPaths.ratingsReviewsDeliveryReceiptsPath());
+    QCOMPARE(mergedReceipts.receipts().size(), 1);
+    QCOMPARE(mergedReceipts.receipt(sharedOperationId)->status,
+             QStringLiteral("succeeded"));
+    RatingsReviewsDeliveryOutbox localOutbox(
+        localBinding.privatePaths.outboxPath);
+    QCOMPARE(localOutbox.operation(sharedOperationId)->state,
+             QStringLiteral("pending"));
 }
 
 void tst_account_adoption::
@@ -925,6 +1391,63 @@ rememberedAccountSessionMergesLaterLocalOnlyState() {
     QVERIFY2(localAfter.has_value(), qPrintable(error));
     QVERIFY(!localAfter->isEmpty());
     QVERIFY(QFileInfo::exists(accountPaths.cloudAttachmentReceiptPath()));
+}
+
+void tst_account_adoption::
+coldStartTrackerOnlyLocalOnlyProfileRetriesPrivateHandoff() {
+    AdoptionFixture fixture;
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    int handoffCalls = 0;
+    QString handedOffSourceId;
+    QString handedOffDestinationId;
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot,
+        {},
+        {},
+        {},
+        TrackerPrivateAdoptionCallbacks{
+            [&](const ProfilePaths &source,
+                const ProfilePaths &destination,
+                QString *handoffError) {
+                ++handoffCalls;
+                handedOffSourceId = source.profileId();
+                handedOffDestinationId = destination.profileId();
+                if (handoffCalls == 1) {
+                    if (handoffError)
+                        *handoffError = QStringLiteral(
+                            "Simulated tracker credential transfer failure.");
+                    return false;
+                }
+                return true;
+            }});
+
+    QString error;
+    const ProfilePaths local = ProfilePaths::localOnly(fixture.appDataRoot);
+    TrackerConnectionStore localConnections(local);
+    QVERIFY(localConnections.upsert({TrackerProviderId::Simkl, QStringLiteral("local-account"),
+        1, 1000, TrackerProviderCapability::ReadHistory,
+        TrackerConnectionState::Connected}));
+
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(!coordinator.prepareAccountSession(
+        QString::fromLatin1(kAccountA), &error));
+    QCOMPARE(handoffCalls, 1);
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::LocalOnly);
+    QCOMPARE(localConnections.connection(TrackerProviderId::Simkl)->state,
+             TrackerConnectionState::Connected);
+    auto pendingAdoption = ProfileAdoption::open(fixture.accountPaths(), &error);
+    QVERIFY2(pendingAdoption.has_value(), qPrintable(error));
+    QCOMPARE(pendingAdoption->state(), ProfileAdoption::State::Promoted);
+
+    error.clear();
+    QVERIFY2(coordinator.prepareAccountSession(
+                 QString::fromLatin1(kAccountA), &error),
+             qPrintable(error));
+    QCOMPARE(handoffCalls, 2);
+    QCOMPARE(handedOffSourceId, local.profileId());
+    QCOMPARE(handedOffDestinationId, fixture.accountPaths().profileId());
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Account);
 }
 
 void tst_account_adoption::
@@ -2055,7 +2578,7 @@ retryFailsClosedWhenCompetingSourceUnreadable() {
 }
 
 void tst_account_adoption::
-explicitLocalAdoptionCarriesStremioPrivateState() {
+R8_localonly_private_handoff_before_source_clear() {
     AdoptionFixture fixture;
     const ProfilePaths paths = fixture.accountPaths();
     const ProfilePaths localPaths = ProfilePaths::localOnly(fixture.appDataRoot);
@@ -2096,9 +2619,30 @@ explicitLocalAdoptionCarriesStremioPrivateState() {
              QStringLiteral("stremio-account-a"));
     QCOMPARE(restoredSource->theatreExtensions, source.theatreExtensions);
 
+    const auto localBinding = privateBinding(*localStorage);
+    const QString operationId = QStringLiteral("4b474b6a-03ca-455b-bc28-8a3f0a27b903");
+    RatingsReviewsDeliveryOperation localUnknown;
+    QVERIFY(seedPrivateDeliveryState(
+        localBinding, localStorage->ratingsReviewsPath(), operationId,
+        QStringLiteral("unknownOutcome"), 1, {}, &localUnknown));
+    QFile localOutboxFile(localBinding.privatePaths.outboxPath);
+    QVERIFY(localOutboxFile.open(QIODevice::ReadOnly));
+    const QByteArray localOutboxBytes = localOutboxFile.readAll();
+    localOutboxFile.close();
+
     ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
     QVERIFY2(runtime.activateLocalOnlyProfile(&error), qPrintable(error));
-    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime, fixture.appDataRoot, {}, {},
+        RatingsReviewsPrivateAdoptionCallbacks{
+            [](const RatingsReviewsPrivateProfileBinding &sourceBinding,
+               const RatingsReviewsPrivateProfileBinding &destinationBinding,
+               RatingsReviewsStore *destinationCanonical,
+               QString *handoffError) {
+                return RatingsReviewsDelivery::handoffPrivateState(
+                    sourceBinding, destinationBinding, destinationCanonical,
+                    handoffError);
+            }});
     QVERIFY2(coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error),
              qPrintable(error));
 
@@ -2124,6 +2668,16 @@ explicitLocalAdoptionCarriesStremioPrivateState() {
     QVERIFY(cleared->mainSyncProvider.isEmpty());
     QVERIFY(cleared->stremioState.isEmpty());
     QVERIFY(cleared->theatreExtensions.isEmpty());
+    RatingsReviewsDeliveryOutbox accountOutbox(
+        paths.ratingsReviewsDeliveryOutboxPath());
+    const auto adoptedUnknown = accountOutbox.operation(operationId);
+    QVERIFY(adoptedUnknown.has_value());
+    QCOMPARE(adoptedUnknown->profileId, paths.profileId());
+    QCOMPARE(adoptedUnknown->profileIncarnation, localUnknown.profileIncarnation);
+    QCOMPARE(adoptedUnknown->state, QStringLiteral("unknownOutcome"));
+    QFile localOutboxAfter(localBinding.privatePaths.outboxPath);
+    QVERIFY(localOutboxAfter.open(QIODevice::ReadOnly));
+    QCOMPARE(localOutboxAfter.readAll(), localOutboxBytes);
 }
 
 void tst_account_adoption::
@@ -2346,62 +2900,6 @@ stremioCredentialTransferRetriesBeforeSourceRetirement() {
 }
 
 void tst_account_adoption::
-coldStartTrackerOnlyLocalOnlyProfileRetriesPrivateHandoff() {
-    AdoptionFixture fixture;
-    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
-    int handoffCalls = 0;
-    QString handedOffSourceId;
-    QString handedOffDestinationId;
-    FirstAccountProfileCoordinator coordinator(
-        &runtime,
-        fixture.appDataRoot,
-        {},
-        TrackerPrivateAdoptionCallbacks{
-            [&](const ProfilePaths &source,
-                const ProfilePaths &destination,
-                QString *handoffError) {
-                ++handoffCalls;
-                handedOffSourceId = source.profileId();
-                handedOffDestinationId = destination.profileId();
-                if (handoffCalls == 1) {
-                    if (handoffError)
-                        *handoffError = QStringLiteral(
-                            "Simulated tracker credential transfer failure.");
-                    return false;
-                }
-                return true;
-            }});
-
-    QString error;
-    const ProfilePaths local = ProfilePaths::localOnly(fixture.appDataRoot);
-    TrackerConnectionStore localConnections(local);
-    QVERIFY(localConnections.upsert({TrackerProviderId::Simkl, QStringLiteral("local-account"),
-        1, 1000, TrackerProviderCapability::ReadHistory,
-        TrackerConnectionState::Connected}));
-
-    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Sealed);
-    QVERIFY(!coordinator.prepareAccountSession(
-        QString::fromLatin1(kAccountA), &error));
-    QCOMPARE(handoffCalls, 1);
-    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::LocalOnly);
-    QCOMPARE(localConnections.connection(TrackerProviderId::Simkl)->state,
-             TrackerConnectionState::Connected);
-    auto pendingAdoption = ProfileAdoption::open(fixture.accountPaths(), &error);
-    QVERIFY2(pendingAdoption.has_value(), qPrintable(error));
-    QCOMPARE(pendingAdoption->state(), ProfileAdoption::State::Promoted);
-
-    error.clear();
-    QVERIFY2(coordinator.prepareAccountSession(
-                 QString::fromLatin1(kAccountA), &error),
-             qPrintable(error));
-    QCOMPARE(handoffCalls, 2);
-    QCOMPARE(handedOffSourceId, local.profileId());
-    QCOMPARE(handedOffDestinationId, fixture.accountPaths().profileId());
-    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Account);
-}
-
-
-void tst_account_adoption::
 migrationSuspensionStopsWhenTrackerCloseCannotBePersisted() {
     AdoptionFixture fixture;
     const ProfilePaths local = ProfilePaths::localOnly(fixture.appDataRoot);
@@ -2468,7 +2966,6 @@ migrationSuspensionStopsWhenTrackerCloseCannotBePersisted() {
     QVERIFY(runtime.activityStore());
     QVERIFY(QDir(scrobblePath).removeRecursively());
 }
-
 
 QTEST_MAIN(tst_account_adoption)
 #include "tst_account_adoption.moc"

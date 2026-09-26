@@ -62,12 +62,13 @@ def discover_journeys(root: Path) -> list[dict[str, Any]]:
     return out
 
 def resolve_journey(root: Path, selector: str) -> dict[str, Any]:
-    query = selector.strip().lower()
+    query = selector.strip().lower().replace("\\", "/")
     matches = [
         item for item in discover_journeys(root)
         if query in {
             item["name"].lower(),
             item["file"].lower(),
+            item["path"].lower(),
             Path(item["file"]).stem.lower(),
         }
     ]

@@ -1,0 +1,375 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #edf0f7;
+  background: #090b11;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+button, textarea, select { font: inherit; }
+
+.app-shell {
+  --bg: #090b11;
+  --surface: #0e1118;
+  --surface-2: #131720;
+  --surface-3: #181d28;
+  --line: #242a37;
+  --muted: #858e9e;
+  --text: #eef2f8;
+  --accent: #d0a85c;
+  --accent-soft: rgba(208, 168, 92, 0.12);
+  height: 100%;
+  display: grid;
+  grid-template-rows: 42px 1fr 30px;
+  background: radial-gradient(circle at 56% 18%, #141923 0, var(--bg) 42%);
+  color: var(--text);
+}
+
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(10, 12, 17, 0.94);
+  user-select: none;
+}
+
+.brand-mark {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #6f5a35;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: linear-gradient(145deg, #211d16, #121317);
+}
+
+.title-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.title-copy span { color: var(--muted); font-size: 11px; }
+.title-spacer { flex: 1; }
+
+.window-controls {
+  -webkit-app-region: no-drag;
+  align-self: stretch;
+  display: flex;
+}
+
+.window-controls button {
+  width: 46px;
+  border: 0;
+  color: #aeb5c1;
+  background: transparent;
+  font-size: 15px;
+}
+
+.window-controls button:hover { background: #20242d; color: white; }
+.window-controls .close:hover { background: #c94c4c; }
+
+.workspace-grid {
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+
+.task-sidebar {
+  min-width: 210px;
+  max-width: 420px;
+  background: rgba(13, 16, 23, 0.96);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-top { padding: 14px 12px 10px; }
+
+.new-task {
+  width: 100%;
+  border: 1px solid #343b49;
+  background: linear-gradient(180deg, #1c212c, #171b24);
+  color: #f5f6f8;
+  border-radius: 8px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.new-task:hover { border-color: #515c6e; }
+
+.sidebar-label {
+  padding: 10px 14px 7px;
+  color: #70798a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.task-list { display: grid; gap: 3px; padding: 0 8px; }
+
+.task, .settings-button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #aeb6c3;
+  text-align: left;
+  padding: 9px 10px;
+}
+
+.task { display: grid; gap: 3px; }
+.task span { color: #d9dee7; font-size: 13px; }
+.task small { color: #6f7888; font-size: 10px; }
+.task:hover, .settings-button:hover { background: #171b24; }
+.task.active, .settings-button.active { background: var(--accent-soft); color: #f7e6c5; }
+.task.active span { color: #f5e8cf; }
+
+.archived-label { margin-top: 8px; }
+.archived-empty { color: #5c6472; font-size: 11px; padding: 4px 18px; }
+.sidebar-bottom { margin-top: auto; padding: 10px 8px; border-top: 1px solid var(--line); }
+.settings-button { width: 100%; }
+
+.resize-handle {
+  width: 4px;
+  margin-left: -2px;
+  margin-right: -2px;
+  z-index: 5;
+  cursor: col-resize;
+  background: transparent;
+}
+.resize-handle:hover { background: rgba(208, 168, 92, 0.36); }
+
+.main-stage {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: rgba(9, 11, 17, 0.72);
+}
+
+.stage-toolbar {
+  min-height: 56px;
+  padding: 10px 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.stage-toolbar > div:first-child { display: grid; gap: 2px; }
+.stage-toolbar strong { font-size: 14px; font-weight: 620; }
+
+.eyebrow {
+  color: #777f8f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.stage-actions { display: flex; gap: 7px; }
+.stage-actions button {
+  border: 1px solid #2d3340;
+  background: #141821;
+  color: #636b78;
+  border-radius: 6px;
+  padding: 6px 9px;
+}
+
+.conversation-empty {
+  align-self: center;
+  justify-self: center;
+  max-width: 470px;
+  padding: 28px;
+  text-align: center;
+}
+
+.empty-orbit {
+  width: 58px;
+  height: 58px;
+  border: 1px solid #343b48;
+  border-radius: 50%;
+  margin: 0 auto 22px;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 22px rgba(208, 168, 92, 0.05);
+}
+
+.empty-orbit span {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--accent);
+  box-shadow: 0 0 26px rgba(208, 168, 92, 0.3);
+}
+
+.conversation-empty h1, .settings-content h1 {
+  margin: 7px 0 9px;
+  font-size: 25px;
+  letter-spacing: -0.03em;
+}
+
+.conversation-empty p, .settings-content p, .inspector-body p {
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 12px;
+}
+
+.composer-shell {
+  margin: 0 18px 16px;
+  border: 1px solid #2b313d;
+  border-radius: 10px;
+  background: #11151d;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.composer-shell textarea {
+  resize: none;
+  height: 48px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #7a8290;
+  padding: 8px;
+}
+
+.composer-shell button {
+  align-self: end;
+  border: 1px solid #3a3428;
+  background: #1e1b16;
+  color: #786b55;
+  border-radius: 7px;
+  padding: 8px 14px;
+}
+
+.inspector {
+  min-width: 280px;
+  max-width: 520px;
+  background: rgba(13, 16, 23, 0.98);
+  border-left: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.inspector-tabs {
+  height: 43px;
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  padding: 0 7px;
+}
+
+.inspector-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #6e7786;
+  padding: 0 9px;
+  font-size: 10px;
+}
+
+.inspector-tabs button.active {
+  color: #e8e0d2;
+  border-bottom-color: var(--accent);
+}
+
+.inspector-body { padding: 20px 17px; }
+.inspector-body h2 { margin: 8px 0; font-size: 15px; }
+
+.inspector-toggle {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 8;
+  width: 20px;
+  height: 42px;
+  border: 1px solid #2c323d;
+  border-radius: 6px;
+  background: #151922;
+  color: #77808f;
+}
+
+.settings-layout {
+  grid-row: 1 / -1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 170px 1fr;
+}
+
+.settings-nav {
+  border-right: 1px solid var(--line);
+  padding: 14px 8px;
+  background: rgba(13, 16, 23, 0.62);
+}
+
+.settings-nav button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #808998;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.settings-nav button.active { background: var(--accent-soft); color: #ead9b9; }
+
+.settings-content { padding: 34px; max-width: 720px; }
+.setting-card {
+  margin-top: 25px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+}
+
+.setting-card > div { display: grid; gap: 4px; }
+.setting-card strong { font-size: 12px; }
+.setting-card span { color: var(--muted); font-size: 10px; }
+.setting-card select {
+  border: 1px solid #343a47;
+  border-radius: 6px;
+  padding: 6px 24px 6px 8px;
+  background: #171b24;
+  color: #dbe0e8;
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  border-top: 1px solid var(--line);
+  background: #0d1016;
+  color: #697282;
+  font-size: 9px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.status-primary { color: var(--accent); font-weight: 800; }
+.status-spacer { flex: 1; }
+
+@media (max-width: 1120px) {
+  .statusbar span:nth-of-type(5),
+  .statusbar span:nth-of-type(7),
+  .statusbar span:nth-of-type(8) { display: none; }
+}

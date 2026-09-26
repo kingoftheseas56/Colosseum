@@ -96,6 +96,8 @@ Item {
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
     signal stremioClicked()
+    signal trackersClicked()                 // topbar third-party trackers door -> host opens the Sync Center
+    property bool trackersActive: false
     signal settingsClicked()
     signal accountClicked(real anchorRight, real anchorBottom) // topbar account control -> anchored flyout
     signal wallpaperClicked()
@@ -104,6 +106,7 @@ Item {
     signal powerClicked()
 
     function focusStremioButton() { topbar.focusStremioButton() }
+    function focusTrackersButton() { topbar.focusTrackersButton() }
 
     Theme { id: theme }
 
@@ -122,6 +125,9 @@ Item {
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
         onStremioClicked: world.stremioClicked()
+        trackersEnabled: true
+        trackersActive: world.trackersActive
+        onTrackersClicked: world.trackersClicked()
         onSettingsClicked: world.settingsClicked()
         onAccountClicked: (anchorRight, anchorBottom) =>
             world.accountClicked(anchorRight, anchorBottom)

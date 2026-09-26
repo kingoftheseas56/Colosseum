@@ -33,6 +33,54 @@ func beginManifestAttachment(
 	return attachment
 }
 
+func TestRatingsReviewsAttachmentManifestBindsDeleteTimestamp(t *testing.T) {
+	fixture := newServiceFixture(t)
+	created := createFixtureAccount(t, fixture, "AttachRatingsReviews")
+	auth := authenticateFixtureSession(t, fixture, created.Session)
+	now := fixture.clock.Now().UnixMilli()
+	mutation := fixtureRatingsReviewsMutation(
+		"99300000-0000-4000-8000-000000000001", auth.Device.ID, "delete", now, 4001)
+	const attachmentID = "99300000-0000-4000-8000-0000000000aa"
+	attachment := beginManifestAttachment(
+		t, fixture, auth, attachmentID, []SyncMutationInput{mutation})
+	if attachment.ManifestCount != 1 {
+		t.Fatalf("manifest count = %d", attachment.ManifestCount)
+	}
+
+	var storedDeleted int64
+	if err := fixture.pool.QueryRow(context.Background(),
+		`SELECT deleted_at_ms FROM account_device_attachment_manifest WHERE attachment_id=$1::uuid AND mutation_id=$2::uuid`,
+		attachmentID, mutation.MutationID).Scan(&storedDeleted); err != nil {
+		t.Fatalf("load RR manifest delete time: %v", err)
+	}
+	if storedDeleted != 4001 {
+		t.Fatalf("manifest deleted_at_ms = %d, want 4001", storedDeleted)
+	}
+
+	changed := mutation
+	changed.DeletedAtMS = "4002"
+	if _, err := fixture.service.BeginProfileAttachment(
+		context.Background(), auth, BeginProfileAttachmentInput{
+			AttachmentID:         attachmentID,
+			SourceKind:           "local_only",
+			SourceProfileID:      "local-only",
+			SourceSemanticDigest: "sha256:source",
+			SourceActivityDigest: "sha256:activity",
+			Manifest:             []SyncMutationInput{changed},
+		}); err == nil {
+		t.Fatal("attachment begin accepted changed RR delete timestamp")
+	} else {
+		requireErrorIs(t, err, ErrAttachmentConflict)
+	}
+
+	push, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, attachmentID, []SyncMutationInput{changed})
+	if err != nil || len(push.Results) != 1 || push.Results[0].Accepted ||
+		push.Results[0].Code != "attachment_manifest_mismatch" {
+		t.Fatalf("changed RR timestamp push = %+v err=%v", push, err)
+	}
+}
+
 func TestProfileAttachmentManifestLifecycleAndFreshExport(t *testing.T) {
 	fixture := newServiceFixture(t)
 	created := createFixtureAccount(t, fixture, "AttachManifest")

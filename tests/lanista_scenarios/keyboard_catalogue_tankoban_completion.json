@@ -211,7 +211,7 @@
       "cmd": "ui-click",
       "label": "open world search",
       "payload": {
-        "target": "topBarSearch"
+        "target": "topBarSearch_Tankoban"
       }
     },
     {

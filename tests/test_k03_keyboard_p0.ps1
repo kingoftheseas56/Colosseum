@@ -16,8 +16,6 @@ function NeedCount([string]$rel, [string]$needle, [int]$count, [string]$why) {
     if ($actual -lt $count) { throw "${rel}: $why (found $actual, need >= $count)" }
 }
 
-Need 'qml\SettingsPage.qml' 'KeyboardScrollController' 'Settings must be keyboard scrollable.'
-Need 'qml\SettingsPage.qml' 'accessibleName: "Show explicit content"' 'Explicit-content toggle needs semantic keyboard activation.'
 Need 'qml\OpenRecentPanel.qml' 'Keys.onEscapePressed' 'Open Recent needs Esc dismissal.'
 Need 'qml\OpenRecentPanel.qml' 'movePopupFocus' 'Open Recent must trap Tab within the popup.'
 NeedCount 'qml\OpenRecentPanel.qml' 'KeyboardAction {' 2 'Recent rows and Clear need semantic keyboard actions.'

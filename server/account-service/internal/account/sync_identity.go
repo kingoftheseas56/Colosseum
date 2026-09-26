@@ -134,6 +134,7 @@ func loadJournalByMutationIDTx(
             hlc_physical_ms,
             hlc_counter,
             operation,
+            COALESCE(deleted_at_ms, 0),
             payload_ciphertext,
             materialized_payload_ciphertext,
             won,
@@ -155,6 +156,7 @@ func loadJournalByMutationIDTx(
 		&stored.HLCPhysicalMS,
 		&counter,
 		&stored.Operation,
+		&stored.DeletedAtMS,
 		&stored.PayloadCipher,
 		&stored.MaterializedPayloadCipher,
 		&stored.Won,
@@ -185,7 +187,8 @@ func (s *Service) syncStoredMutationMatches(
 		stored.SchemaVersion != parsed.SchemaVersion ||
 		stored.HLCPhysicalMS != parsed.HLCPhysicalMS ||
 		stored.HLCCounter != parsed.HLCCounter ||
-		stored.Operation != parsed.Operation {
+		stored.Operation != parsed.Operation ||
+		stored.DeletedAtMS != parsed.DeletedAtMS {
 		return false, nil
 	}
 	if parsed.Operation == "delete" {

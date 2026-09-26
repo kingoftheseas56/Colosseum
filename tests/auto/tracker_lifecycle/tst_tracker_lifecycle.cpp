@@ -1,4 +1,7 @@
 #include "account/ProfilePaths.h"
+#include "trackers/SimklApiClient.h"
+#include "trackers/SimklAuth.h"
+#include "trackers/SimklConnectionController.h"
 #include "trackers/TrackerConnectionStore.h"
 #include "trackers/TrackerCredentialVault.h"
 #include "trackers/TrackerDeliveryStore.h"
@@ -8,10 +11,15 @@
 #include "trackers/TrackerMappingStore.h"
 #include "trackers/TrackerScrobbleStore.h"
 
+#include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
+#include <QThread>
+#include <QTimer>
+#include <QUrl>
 #include <QtTest>
 
 #include <algorithm>
@@ -82,6 +90,93 @@ TrackerCredential credential(const QString &profileId, const QString &remoteAcco
     return {{profileId, providerId, remoteAccountId},
             QByteArrayLiteral("access"), QByteArrayLiteral("refresh"),
             5000, 10000, {QStringLiteral("media:read"), QStringLiteral("media:write")}};
+}
+
+TrackerCredential reusableCredential(const QString &profileId,
+                                     const QString &remoteAccountId,
+                                     const QByteArray &accessToken)
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    return {{profileId, TrackerProviderId::Simkl, remoteAccountId},
+            accessToken, QByteArrayLiteral("refresh-reusable"),
+            now + 7LL * 24 * 60 * 60 * 1000,
+            now + 170LL * 24 * 60 * 60 * 1000,
+            {QStringLiteral("media:read"), QStringLiteral("media:write")}};
+}
+
+class FakeAuthTransport final : public SimklAuthTransport
+{
+public:
+    void exchangeAuthorizationCode(const SimklAuthorizationCodeRequest &,
+                                   SimklTokenCompletion completion) override
+    {
+        completion({SimklTransportError::ProtocolFailure, {}, {}, 0, 0, {}, 0});
+    }
+
+    void requestDevicePin(const SimklDevicePinRequest &,
+                          SimklDevicePinCompletion completion) override
+    {
+        SimklDevicePinResponse response;
+        response.error = SimklTransportError::None;
+        response.deviceCode = QByteArrayLiteral("device-code-1");
+        response.userCode = QStringLiteral("ABCD-EFGH");
+        response.verificationUri = QUrl(QStringLiteral("https://simkl.com/pin"));
+        response.verificationUriComplete =
+            QUrl(QStringLiteral("https://simkl.com/pin?user_code=ABCD-EFGH"));
+        response.expiresInMs = 60 * 1000;
+        response.pollIntervalMs = 100;
+        completion(response);
+    }
+
+    void pollDevicePin(const SimklDevicePinPollRequest &,
+                       SimklTokenCompletion completion) override
+    {
+        SimklTokenResponse response;
+        response.error = SimklTransportError::None;
+        response.accessToken = QByteArrayLiteral("access-new");
+        response.refreshToken = QByteArrayLiteral("refresh-new");
+        response.accessExpiresInMs = 7LL * 24 * 60 * 60 * 1000;
+        response.refreshExpiresInMs = 179LL * 24 * 60 * 60 * 1000;
+        response.grantedScopes = {QStringLiteral("media:read"),
+                                  QStringLiteral("media:write")};
+        completion(response);
+    }
+
+    void fetchStableAccountId(const SimklIdentityRequest &,
+                              SimklIdentityCompletion completion) override
+    {
+        SimklIdentityResponse response;
+        response.error = SimklTransportError::None;
+        response.remoteAccountId = accountId;
+        completion(response);
+    }
+
+    QString accountId = QStringLiteral("777777");
+};
+
+class FakeBrowser final : public TrackerSystemBrowser
+{
+public:
+    bool open(const QUrl &) override { return true; }
+};
+
+class WallClock final : public TrackerClock
+{
+public:
+    qint64 nowMs() const override { return QDateTime::currentMSecsSinceEpoch(); }
+};
+
+SimklAuthConfiguration testAuthConfiguration()
+{
+    return {QStringLiteral("test-public-client-id"),
+            QUrl(QStringLiteral("https://simkl.com/oauth2/authorize")),
+            QUrl(QStringLiteral("https://api.simkl.com/oauth2/token")),
+            QUrl(QStringLiteral("https://api.simkl.com/oauth2/device")),
+            QUrl(QStringLiteral("https://api.simkl.com/users/settings")),
+            QUrl(QStringLiteral("http://127.0.0.1:17835/simkl/callback")),
+            QStringLiteral("colosseum-test"),
+            QStringLiteral("1.1.8-test"),
+            {QStringLiteral("media:read"), QStringLiteral("media:write")}};
 }
 
 bool writeFile(const QString &path, const QByteArray &contents)
@@ -157,6 +252,16 @@ private slots:
     void reconnectAfterUnlinkResumesSafePendingWork();
     void changedIdentityDoesNotRunReconnectActions();
     void moveRebindsCredentialWithoutMovingCanonicalOrQueuedState();
+    void connectionCeremonyOffersMoveAndKeepsFreshCredentialForIt();
+    void decliningMoveRestoresPriorCredentialAndSurfacesRestoreFailure();
+    void moveOperatesFromLocalOnlySourceWithExpiredSourceToken();
+    void simklClientReservesWriteCadenceSlotsInOrder();
+    void simklClientGateSpacesSendsAfterEventLoopStall();
+    void connectionRollbackSurvivesControllerTeardown();
+    void connectionDeactivationGateRollsBackPendingCredential();
+    void unchangedPriorCredentialDoesNotBlockEarlyDeactivation();
+    void credentialWriteBeforeControllerPollBlocksDeactivation();
+    void repeatedCeremonyCannotDiscardUnresolvedRollback();
     void failedMovePreservesSourceBindingAndCredential();
     void adoptPrivateStateMovesOwnerJournalsAndIsIdempotent();
     void adoptedPendingExportNeedsDestinationReview();
@@ -280,7 +385,7 @@ void TrackerLifecycleTest::reconnectAfterUnlinkResumesSafePendingWork()
 
     TrackerMappingStore mappings(profile);
     const auto title = frieren();
-    const QString remoteMediaId = QStringLiteral("simkl-frieren");
+    const QString remoteMediaId = QStringLiteral("episode:6701:1:2");
     QVERIFY(mappings.upsert({TrackerProviderId::Simkl, QString::fromLatin1(accountId),
                              remoteMediaId}, title,
                             TrackerMappingProvenance::UserConfirmed));
@@ -462,7 +567,7 @@ void TrackerLifecycleTest::moveRebindsCredentialWithoutMovingCanonicalOrQueuedSt
 
     TrackerMappingStore sourceMappings(source);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, QStringLiteral("12345"),
-                                       QStringLiteral("simkl-progress-1")};
+                                       QStringLiteral("episode:6702:4:11")};
     QVERIFY(sourceMappings.upsert(remote, frieren(),
                                   TrackerMappingProvenance::UserConfirmed));
     FakeDeliverySource sourceFacts;
@@ -471,7 +576,7 @@ void TrackerLifecycleTest::moveRebindsCredentialWithoutMovingCanonicalOrQueuedSt
     const TrackerRemoteDeliverySnapshot sourceRemoteSnapshot{
         TrackerProviderId::Simkl, QStringLiteral("12345"), 4,
         QStringLiteral("move-export-snapshot"), 1500, true,
-        {{QStringLiteral("simkl-progress-1"), TrackerDeliveryFactKind::Progress,
+        {{QStringLiteral("episode:6702:4:11"), TrackerDeliveryFactKind::Progress,
           {}, false, false, QStringLiteral("absent"), {}}}};
     const auto sourceExportPreview = sourceDelivery.createExportPreview(
         TrackerProviderId::Simkl, QStringLiteral("12345"), 4,
@@ -538,6 +643,458 @@ void TrackerLifecycleTest::moveRebindsCredentialWithoutMovingCanonicalOrQueuedSt
     QVERIFY(destinationScrobbleAfter.intents().isEmpty());
 }
 
+void TrackerLifecycleTest::connectionCeremonyOffersMoveAndKeepsFreshCredentialForIt()
+{
+    // The approved journey for an account already active on another profile:
+    // the ceremony must surface "Move connection to this profile" (not a raw
+    // failure), must keep the freshly approved credential so the move does
+    // not depend on the source profile's aging token, and must attach the
+    // connection here without transferring consent.
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    constexpr auto destinationProfileId = "22222222-2222-4222-8222-222222222222";
+    const auto source = ProfilePaths::account(
+        QString::fromLatin1(kAccountProfileId), root.path());
+    const auto destination = ProfilePaths::account(
+        QString::fromLatin1(destinationProfileId), root.path());
+    QVERIFY(source.has_value());
+    QVERIFY(destination.has_value());
+    constexpr auto accountId = "777777";
+
+    TrackerConnectionStore sourceConnections(*source);
+    const auto capabilities = TrackerProviderCapability::ReadHistory
+        | TrackerProviderCapability::ReadProgress | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion | TrackerProviderCapability::Scrobble;
+    QVERIFY(sourceConnections.upsert({TrackerProviderId::Simkl,
+        QString::fromLatin1(accountId), 1, 1000, capabilities,
+        TrackerConnectionState::Connected}));
+
+    FakeVault vault;
+    QVERIFY(vault.saveAndVerify(reusableCredential(
+        source->profileId(), QString::fromLatin1(accountId),
+        QByteArrayLiteral("access-source"))));
+    QVERIFY(vault.saveAndVerify(reusableCredential(
+        destination->profileId(), QString::fromLatin1(accountId),
+        QByteArrayLiteral("access-old"))));
+
+    FakeAuthTransport authTransport;
+    FakeBrowser browser;
+    WallClock clock;
+    TrackerConnectionStore destinationConnections(*destination);
+    SimklConnectionController controller(*destination, &destinationConnections, nullptr,
+                                         testAuthConfiguration(), &vault, &browser,
+                                         &authTransport, &clock);
+    QVERIFY(controller.available());
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    QVERIFY(controller.moveAvailable());
+
+    // The attach was refused, but the fresh ceremony credential stays in the
+    // vault so the move can proceed even when the source token has expired.
+    QVERIFY(!destinationConnections.connection(TrackerProviderId::Simkl).has_value());
+    const auto retained = vault.loadForProfile(destination->profileId(),
+                                               TrackerProviderId::Simkl);
+    QVERIFY(retained.has_value());
+    QCOMPARE(retained->accessToken, QByteArrayLiteral("access-new"));
+
+    QVERIFY(controller.moveConnectionToThisProfile());
+    QCOMPARE(controller.phase(), QStringLiteral("connected"));
+    QVERIFY(!controller.moveAvailable());
+    QVERIFY(destinationConnections.refresh(nullptr));
+    const auto moved = destinationConnections.connection(TrackerProviderId::Simkl);
+    QVERIFY(moved.has_value());
+    QCOMPARE(moved->state, TrackerConnectionState::Connected);
+    QCOMPARE(moved->remoteAccountId, QString::fromLatin1(accountId));
+    QVERIFY(sourceConnections.refresh(nullptr));
+    const auto sourceAfter = sourceConnections.connection(TrackerProviderId::Simkl);
+    QVERIFY(sourceAfter.has_value());
+    QCOMPARE(sourceAfter->state, TrackerConnectionState::Disconnected);
+
+    // A move never transfers first-export consent or send preferences; the
+    // stronger with-consent source variant lives in
+    // moveRebindsCredentialWithoutMovingCanonicalOrQueuedState.
+    TrackerMappingStore sourceMappings(*source);
+    TrackerMappingStore destinationMappings(*destination);
+    TrackerDeliveryStore sourceDelivery(*source, &sourceMappings, &sourceConnections);
+    TrackerDeliveryStore destinationDelivery(*destination, &destinationMappings,
+                                             &destinationConnections);
+    QVERIFY(!destinationDelivery.hasFirstExportConsent(
+        TrackerProviderId::Simkl, QString::fromLatin1(accountId)));
+    QVERIFY(!destinationDelivery.providerSendEnabled(
+        TrackerProviderId::Simkl, QString::fromLatin1(accountId)));
+    Q_UNUSED(sourceDelivery);
+}
+
+void TrackerLifecycleTest::decliningMoveRestoresPriorCredentialAndSurfacesRestoreFailure()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    constexpr auto destinationProfileId = "33333333-3333-4333-8333-333333333333";
+    const auto source = ProfilePaths::account(
+        QString::fromLatin1(kAccountProfileId), root.path());
+    const auto destination = ProfilePaths::account(
+        QString::fromLatin1(destinationProfileId), root.path());
+    QVERIFY(source.has_value());
+    QVERIFY(destination.has_value());
+    constexpr auto accountId = "777777";
+
+    TrackerConnectionStore sourceConnections(*source);
+    QVERIFY(sourceConnections.upsert({TrackerProviderId::Simkl,
+        QString::fromLatin1(accountId), 1, 1000,
+        TrackerProviderCapability::ReadHistory | TrackerProviderCapability::ReadProgress,
+        TrackerConnectionState::Connected}));
+    FakeVault vault;
+    QVERIFY(vault.saveAndVerify(reusableCredential(
+        source->profileId(), QString::fromLatin1(accountId),
+        QByteArrayLiteral("access-source"))));
+    QVERIFY(vault.saveAndVerify(reusableCredential(
+        destination->profileId(), QString::fromLatin1(accountId),
+        QByteArrayLiteral("access-old"))));
+
+    FakeAuthTransport authTransport;
+    FakeBrowser browser;
+    WallClock clock;
+    TrackerConnectionStore destinationConnections(*destination);
+    SimklConnectionController controller(*destination, &destinationConnections, nullptr,
+                                         testAuthConfiguration(), &vault, &browser,
+                                         &authTransport, &clock);
+
+    // Declining the move rolls the vault back to the pre-ceremony credential.
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    controller.dismiss();
+    QCOMPARE(controller.phase(), QStringLiteral("idle"));
+    const auto restored = vault.loadForProfile(destination->profileId(),
+                                               TrackerProviderId::Simkl);
+    QVERIFY(restored.has_value());
+    QCOMPARE(restored->accessToken, QByteArrayLiteral("access-old"));
+    QVERIFY(!destinationConnections.connection(TrackerProviderId::Simkl).has_value());
+
+    // A restore that cannot be written is surfaced, never silently dropped:
+    // the ceremony's own save already succeeded, so the failure is forced at
+    // the decline boundary.
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    vault.failSaveForProfile = destination->profileId();
+    controller.dismiss();
+    QCOMPARE(controller.phase(), QStringLiteral("attention"));
+    QVERIFY(controller.statusMessage().contains(QStringLiteral("could not finalize")));
+    const auto stuck = vault.loadForProfile(destination->profileId(),
+                                            TrackerProviderId::Simkl);
+    QVERIFY(stuck.has_value());
+    QCOMPARE(stuck->accessToken, QByteArrayLiteral("access-new"));
+
+    // The attention state cannot be dismissed past an unresolved rollback:
+    // repeated closes keep retrying it, and only a completed rollback lets
+    // the panel settle (and restores the prior credential).
+    controller.dismiss();
+    QCOMPARE(controller.phase(), QStringLiteral("attention"));
+    QVERIFY(vault.loadForProfile(destination->profileId(), TrackerProviderId::Simkl)
+                ->accessToken == QByteArrayLiteral("access-new"));
+    vault.failSaveForProfile.clear();
+    controller.dismiss();
+    QCOMPARE(controller.phase(), QStringLiteral("idle"));
+    const auto recovered = vault.loadForProfile(destination->profileId(),
+                                                TrackerProviderId::Simkl);
+    QVERIFY(recovered.has_value());
+    QCOMPARE(recovered->accessToken, QByteArrayLiteral("access-old"));
+}
+
+void TrackerLifecycleTest::moveOperatesFromLocalOnlySourceWithExpiredSourceToken()
+{
+    // The claim scan reports the local-only profile by its "local" directory
+    // name, and its stored access token may be long expired. The move must
+    // still work: the source resolves through the local-only constructor and
+    // the freshly approved destination credential satisfies the move.
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    constexpr auto destinationProfileId = "44444444-4444-4444-8444-444444444444";
+    const ProfilePaths source = ProfilePaths::localOnly(root.path());
+    const auto destination = ProfilePaths::account(
+        QString::fromLatin1(destinationProfileId), root.path());
+    QVERIFY(destination.has_value());
+    constexpr auto accountId = "777777";
+
+    TrackerConnectionStore sourceConnections(source);
+    QVERIFY(sourceConnections.upsert({TrackerProviderId::Simkl,
+        QString::fromLatin1(accountId), 1, 1000,
+        TrackerProviderCapability::ReadHistory | TrackerProviderCapability::ReadProgress
+            | TrackerProviderCapability::WriteProgress,
+        TrackerConnectionState::Connected}));
+    FakeVault vault;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const TrackerCredential expiredSource{
+        {source.profileId(), TrackerProviderId::Simkl, QString::fromLatin1(accountId)},
+        QByteArrayLiteral("access-expired"), QByteArrayLiteral("refresh-source"),
+        now - 1000, now + 170LL * 24 * 60 * 60 * 1000,
+        {QStringLiteral("media:read"), QStringLiteral("media:write")}};
+    QVERIFY(vault.saveAndVerify(expiredSource));
+
+    FakeAuthTransport authTransport;
+    FakeBrowser browser;
+    WallClock clock;
+    TrackerConnectionStore destinationConnections(*destination);
+    SimklConnectionController controller(*destination, &destinationConnections, nullptr,
+                                         testAuthConfiguration(), &vault, &browser,
+                                         &authTransport, &clock);
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    QVERIFY(controller.moveConnectionToThisProfile());
+    QCOMPARE(controller.phase(), QStringLiteral("connected"));
+    QVERIFY(destinationConnections.refresh(nullptr));
+    const auto moved = destinationConnections.connection(TrackerProviderId::Simkl);
+    QVERIFY(moved.has_value());
+    QCOMPARE(moved->state, TrackerConnectionState::Connected);
+    QCOMPARE(moved->remoteAccountId, QString::fromLatin1(accountId));
+    QVERIFY(sourceConnections.refresh(nullptr));
+    QCOMPARE(sourceConnections.connection(TrackerProviderId::Simkl)->state,
+             TrackerConnectionState::Disconnected);
+}
+
+void TrackerLifecycleTest::simklClientReservesWriteCadenceSlotsInOrder()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const ProfilePaths profile = ProfilePaths::localOnly(root.path());
+    SimklApiClient client(profile, testAuthConfiguration());
+    QVERIFY(client.available());
+
+    QElapsedTimer elapsed;
+    elapsed.start();
+    QVector<qint64> fired;
+    client.postAtCadence([&fired, &elapsed] { fired.append(elapsed.elapsed()); });
+    client.postAtCadence([&fired, &elapsed] { fired.append(elapsed.elapsed()); });
+    client.postAtCadence([&fired, &elapsed] { fired.append(elapsed.elapsed()); });
+
+    // The first write takes the free slot immediately; the later two fire at
+    // their reserved one-per-second instants, in reservation order. The
+    // delayed-revoke case rides the same timeline.
+    QCOMPARE(fired.size(), 1);
+    QTRY_COMPARE_WITH_TIMEOUT(fired.size(), 3, 6000);
+    QVERIFY(fired.at(1) - fired.at(0) >= 900);
+    QVERIFY(fired.at(2) - fired.at(1) >= 900);
+    QVERIFY(fired.at(2) - fired.at(0) <= 4500);
+}
+
+void TrackerLifecycleTest::simklClientGateSpacesSendsAfterEventLoopStall()
+{
+    // Qt timers can fire late; a stalled event loop then delivers several
+    // reserved slots in one spin. The gate must still keep the provider's
+    // one-write-per-second cap against the last ACTUAL send, not the stale
+    // deadlines.
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const ProfilePaths profile = ProfilePaths::localOnly(root.path());
+    SimklApiClient client(profile, testAuthConfiguration());
+    QVERIFY(client.available());
+
+    QElapsedTimer elapsed;
+    elapsed.start();
+    QVector<qint64> fired;
+    client.postAtCadence([&fired, &elapsed] { fired.append(elapsed.elapsed()); });
+    QCOMPARE(fired.size(), 1);
+    QTest::qWait(50);
+    client.postAtCadence([&fired, &elapsed] { fired.append(elapsed.elapsed()); });
+    client.postAtCadence([&fired, &elapsed] { fired.append(elapsed.elapsed()); });
+    QCOMPARE(fired.size(), 1);
+
+    // Stall the loop past both reserved deadlines, then let it spin: both
+    // callbacks arrive in one burst, but only one may send per interval.
+    QThread::msleep(2400);
+    QTRY_COMPARE_WITH_TIMEOUT(fired.size(), 3, 6000);
+    QVERIFY(fired.at(1) - fired.at(0) >= 2000); // both deadlines long due
+    QVERIFY(fired.at(2) - fired.at(1) >= 900);  // the guarded gap
+    QVERIFY(fired.at(2) - fired.at(1) <= 2500); // but not stuck forever
+}
+
+namespace {
+
+// Shared setup for the ceremony lifecycle cases: a source profile claiming
+// account 777777, a destination with a prior same-account credential, and
+// the fakes the injected controller needs.
+struct CeremonySetup
+{
+    QTemporaryDir root;
+    std::optional<ProfilePaths> source;
+    std::optional<ProfilePaths> destination;
+    std::unique_ptr<TrackerConnectionStore> sourceConnections;
+    std::unique_ptr<TrackerConnectionStore> destinationConnections;
+    FakeVault vault;
+    FakeAuthTransport authTransport;
+    FakeBrowser browser;
+    WallClock clock;
+    bool valid = false;
+
+    explicit CeremonySetup(const char *destinationProfileId)
+    {
+        if (!root.isValid())
+            return;
+        source = ProfilePaths::account(QString::fromLatin1(kAccountProfileId),
+                                       root.path());
+        destination = ProfilePaths::account(QString::fromLatin1(destinationProfileId),
+                                            root.path());
+        if (!source.has_value() || !destination.has_value())
+            return;
+        sourceConnections = std::make_unique<TrackerConnectionStore>(*source);
+        destinationConnections = std::make_unique<TrackerConnectionStore>(*destination);
+        valid = sourceConnections->upsert({TrackerProviderId::Simkl,
+            QStringLiteral("777777"), 1, 1000,
+            TrackerProviderCapability::ReadHistory | TrackerProviderCapability::ReadProgress
+                | TrackerProviderCapability::WriteProgress,
+            TrackerConnectionState::Connected})
+            && vault.saveAndVerify(reusableCredential(
+                source->profileId(), QStringLiteral("777777"),
+                QByteArrayLiteral("access-source")))
+            && vault.saveAndVerify(reusableCredential(
+                destination->profileId(), QStringLiteral("777777"),
+                QByteArrayLiteral("access-old")));
+    }
+
+    QByteArray destinationToken() const
+    {
+        const auto credential = vault.loadForProfile(destination->profileId(),
+                                                     TrackerProviderId::Simkl);
+        return credential ? credential->accessToken : QByteArray();
+    }
+};
+
+} // namespace
+
+void TrackerLifecycleTest::connectionRollbackSurvivesControllerTeardown()
+{
+    // A pending rollback's prior credential exists only in the controller.
+    // Destroying the controller without the deactivation gate (app shutdown,
+    // legacy reload) must still roll the vault back; a failing vault write
+    // keeps the fresh same-account grant — honestly, without a crash.
+    CeremonySetup setup("55555555-5555-4555-8555-555555555555");
+    QVERIFY(setup.valid);
+    {
+        SimklConnectionController controller(*setup.destination,
+                                             setup.destinationConnections.get(),
+                                             nullptr, testAuthConfiguration(),
+                                             &setup.vault, &setup.browser,
+                                             &setup.authTransport, &setup.clock);
+        QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+        QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+        QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-new"));
+    }
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-old"));
+
+    {
+        SimklConnectionController controller(*setup.destination,
+                                             setup.destinationConnections.get(),
+                                             nullptr, testAuthConfiguration(),
+                                             &setup.vault, &setup.browser,
+                                             &setup.authTransport, &setup.clock);
+        QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+        QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+        setup.vault.failSaveForProfile = setup.destination->profileId();
+    }
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-new"));
+}
+
+void TrackerLifecycleTest::connectionDeactivationGateRollsBackPendingCredential()
+{
+    // The profile-switch gate completes the pending rollback and may refuse
+    // the switch while the vault write keeps failing, exactly like an
+    // unfinalizable scrobble session.
+    CeremonySetup setup("66666666-6666-4666-8666-666666666666");
+    QVERIFY(setup.valid);
+    SimklConnectionController controller(*setup.destination,
+                                         setup.destinationConnections.get(),
+                                         nullptr, testAuthConfiguration(),
+                                         &setup.vault, &setup.browser,
+                                         &setup.authTransport, &setup.clock);
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    setup.vault.failSaveForProfile = setup.destination->profileId();
+    QVERIFY(!controller.prepareForProfileDeactivation());
+    QCOMPARE(controller.phase(), QStringLiteral("attention"));
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-new"));
+    setup.vault.failSaveForProfile.clear();
+    QVERIFY(controller.prepareForProfileDeactivation());
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-old"));
+}
+
+void TrackerLifecycleTest::unchangedPriorCredentialDoesNotBlockEarlyDeactivation()
+{
+    CeremonySetup withPrior("99999999-9999-4999-8999-999999999999");
+    QVERIFY(withPrior.valid);
+    SimklConnectionController priorController(*withPrior.destination,
+        withPrior.destinationConnections.get(), nullptr, testAuthConfiguration(),
+        &withPrior.vault, &withPrior.browser, &withPrior.authTransport, &withPrior.clock);
+    QVERIFY(priorController.beginConnection(QStringLiteral("simkl")));
+    withPrior.vault.failSaveForProfile = withPrior.destination->profileId();
+    QVERIFY(priorController.prepareForProfileDeactivation());
+    QCOMPARE(withPrior.destinationToken(), QByteArrayLiteral("access-old"));
+}
+
+void TrackerLifecycleTest::credentialWriteBeforeControllerPollBlocksDeactivation()
+{
+    CeremonySetup setup("88888888-8888-4888-8888-888888888888");
+    QVERIFY(setup.valid);
+    SimklConnectionController controller(*setup.destination,
+                                         setup.destinationConnections.get(),
+                                         nullptr, testAuthConfiguration(),
+                                         &setup.vault, &setup.browser,
+                                         &setup.authTransport, &setup.clock);
+    bool boundaryReached = false;
+    bool switchAllowed = true;
+    QString phaseAtWrite;
+    QByteArray tokenAtWrite;
+    setup.vault.beforeSave = [&](const TrackerCredential &credential) {
+        if (credential.accessToken != QByteArrayLiteral("access-new"))
+            return;
+        // Run after SimklAuthSession has written the fresh credential, but
+        // before the controller's next 250 ms poll can finalize the claim.
+        QTimer::singleShot(0, &controller, [&] {
+            phaseAtWrite = controller.phase();
+            tokenAtWrite = setup.destinationToken();
+            setup.vault.failSaveForProfile = setup.destination->profileId();
+            switchAllowed = controller.prepareForProfileDeactivation();
+            boundaryReached = true;
+        });
+    };
+
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_VERIFY_WITH_TIMEOUT(boundaryReached, 15000);
+    QVERIFY(phaseAtWrite != QStringLiteral("move_available"));
+    QCOMPARE(tokenAtWrite, QByteArrayLiteral("access-new"));
+    QVERIFY(!switchAllowed);
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-new"));
+
+    setup.vault.failSaveForProfile.clear();
+    QVERIFY(controller.prepareForProfileDeactivation());
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-old"));
+}
+
+void TrackerLifecycleTest::repeatedCeremonyCannotDiscardUnresolvedRollback()
+{
+    // Re-entry cannot adopt the fresh credential as the new prior state:
+    // starting over requires the rollback to complete first, and the second
+    // ceremony retains the true prior credential for its own decline path.
+    CeremonySetup setup("77777777-7777-4777-8777-777777777777");
+    QVERIFY(setup.valid);
+    SimklConnectionController controller(*setup.destination,
+                                         setup.destinationConnections.get(),
+                                         nullptr, testAuthConfiguration(),
+                                         &setup.vault, &setup.browser,
+                                         &setup.authTransport, &setup.clock);
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    setup.vault.failSaveForProfile = setup.destination->profileId();
+    QVERIFY(!controller.beginConnection(QStringLiteral("simkl")));
+    QCOMPARE(controller.phase(), QStringLiteral("attention"));
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-new"));
+
+    setup.vault.failSaveForProfile.clear();
+    QVERIFY(controller.beginConnection(QStringLiteral("simkl")));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.phase(), QStringLiteral("move_available"), 15000);
+    controller.dismiss();
+    QCOMPARE(controller.phase(), QStringLiteral("idle"));
+    QCOMPARE(setup.destinationToken(), QByteArrayLiteral("access-old"));
+}
+
 void TrackerLifecycleTest::failedMovePreservesSourceBindingAndCredential()
 {
     QTemporaryDir root;
@@ -585,7 +1142,7 @@ void TrackerLifecycleTest::adoptPrivateStateMovesOwnerJournalsAndIsIdempotent()
     QVERIFY(vault.saveAndVerify(credential(source.profileId(), QString::fromLatin1(accountId))));
 
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl,
-        QString::fromLatin1(accountId), QStringLiteral("simkl-title-1")};
+        QString::fromLatin1(accountId), QStringLiteral("episode:6703:1:3")};
     TrackerMappingStore sourceMappings(source);
     QVERIFY(sourceMappings.upsert(remote, frieren(),
                                   TrackerMappingProvenance::UserConfirmed));
@@ -612,7 +1169,7 @@ void TrackerLifecycleTest::adoptPrivateStateMovesOwnerJournalsAndIsIdempotent()
     const TrackerRemoteDeliverySnapshot remoteSnapshot{
         TrackerProviderId::Simkl, QString::fromLatin1(accountId), sourceGeneration,
         QStringLiteral("export-snapshot-1"), 1500, true,
-        {{QStringLiteral("simkl-title-1"), TrackerDeliveryFactKind::Progress,
+        {{QStringLiteral("episode:6703:1:3"), TrackerDeliveryFactKind::Progress,
           {}, false, false, QStringLiteral("absent"), {}}}};
     const auto exportPreview = sourceDelivery.createExportPreview(
         TrackerProviderId::Simkl, QString::fromLatin1(accountId), sourceGeneration,
@@ -709,7 +1266,7 @@ void TrackerLifecycleTest::adoptPrivateStateMovesOwnerJournalsAndIsIdempotent()
     const TrackerRemoteDeliverySnapshot destinationRemoteSnapshot{
         TrackerProviderId::Simkl, QString::fromLatin1(accountId), sourceGeneration + 1,
         QStringLiteral("destination-export-snapshot"), 2100, true,
-        {{QStringLiteral("simkl-title-1"), TrackerDeliveryFactKind::Progress,
+        {{QStringLiteral("episode:6703:1:3"), TrackerDeliveryFactKind::Progress,
           {}, false, false, QStringLiteral("absent"), {}}}};
     const auto destinationExportPreview = destinationDelivery.createExportPreview(
         TrackerProviderId::Simkl, QString::fromLatin1(accountId), sourceGeneration + 1,
@@ -761,9 +1318,9 @@ void TrackerLifecycleTest::adoptedPendingExportNeedsDestinationReview()
         2, 1000, capabilities, TrackerConnectionState::Connected}));
 
     const TrackerRemoteMediaKey sourceRemote{TrackerProviderId::Simkl,
-        QString::fromLatin1(accountId), QStringLiteral("simkl-source-progress")};
+        QString::fromLatin1(accountId), QStringLiteral("episode:6704:1:4")};
     const TrackerRemoteMediaKey destinationRemote{TrackerProviderId::Simkl,
-        QString::fromLatin1(accountId), QStringLiteral("simkl-destination-progress")};
+        QString::fromLatin1(accountId), QStringLiteral("movie:6705")};
     const TrackerCanonicalTitleCandidate destinationTitle{
         QStringLiteral("ct1:49f10000-0000-4000-8000-000000000002"),
         QStringLiteral("movie"), QStringLiteral("movie:destination-title"),
@@ -1233,7 +1790,7 @@ void TrackerLifecycleTest::partialDiscardLeavesPausedWorkAndSupportsCleanupRetry
     QVERIFY(connections.upsert({TrackerProviderId::Simkl, QString::fromLatin1(accountId),
         generation, 1000, capabilities, TrackerConnectionState::Connected}));
     TrackerMappingStore mappings(profile);
-    const QString remoteMediaId = QStringLiteral("simkl-frieren");
+    const QString remoteMediaId = QStringLiteral("episode:6701:1:2");
     QVERIFY(mappings.upsert({TrackerProviderId::Simkl, QString::fromLatin1(accountId),
                              remoteMediaId}, frieren(),
                             TrackerMappingProvenance::UserConfirmed));
@@ -1264,7 +1821,7 @@ void TrackerLifecycleTest::partialDiscardLeavesPausedWorkAndSupportsCleanupRetry
     queued.connectionGeneration = generation;
     queued.mappingRevision = 1;
     queued.canonicalMediaId = QStringLiteral("movie:partial-discard");
-    queued.remoteMediaId = QStringLiteral("simkl-partial-discard");
+    queued.remoteMediaId = QStringLiteral("episode:6706:1:5");
     queued.playbackSessionId = QStringLiteral("partial-discard-session");
     queued.playbackGeneration = 1;
     queued.transitionSequence = 1;
@@ -1344,7 +1901,7 @@ void TrackerLifecycleTest::removeImportedHistoryIsSourceOnlyAndSuppressesReimpor
     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
     TrackerMappingStore mappings(profile);
     const TrackerRemoteMediaKey remote{TrackerProviderId::Simkl, QStringLiteral("12345"),
-                                       QStringLiteral("simkl-title-1")};
+                                       QStringLiteral("episode:6703:1:3")};
     QVERIFY(mappings.upsert(remote, frieren(), TrackerMappingProvenance::ExactProviderIdentity));
     TrackerHistoryEvidenceStore evidence(profile, &mappings);
     const TrackerTitleMapping mapping = *mappings.mapping(remote);
@@ -1421,6 +1978,8 @@ void TrackerLifecycleTest::profileRemovalUsesSupportedVaultNamespace()
     QVERIFY(!QFileInfo::exists(trackerPath));
 }
 
-QTEST_APPLESS_MAIN(TrackerLifecycleTest)
+// GUILESS (not APPLESS): the connection-ceremony test drives the controller's
+// poll timer, which needs a real event dispatcher.
+QTEST_GUILESS_MAIN(TrackerLifecycleTest)
 
 #include "tst_tracker_lifecycle.moc"

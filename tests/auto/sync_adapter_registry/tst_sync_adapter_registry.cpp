@@ -61,6 +61,10 @@ public:
             m_revision;
         snapshot->records =
             m_records;
+        snapshot->tombstones =
+            m_tombstones;
+        snapshot->tombstoneEventMs =
+            m_tombstoneEventMs;
         return true;
     }
 
@@ -121,6 +125,13 @@ public:
         const QList<SyncAdapterRecord> &records) {
         m_records =
             records;
+    }
+
+    void setTombstones(
+        const QList<QString> &tombstones,
+        const QHash<QString, qint64> &eventMs = {}) {
+        m_tombstones = tombstones;
+        m_tombstoneEventMs = eventMs;
     }
 
     void setSchemaVersion(
@@ -217,6 +228,9 @@ private:
     int m_schemaVersion = 1;
     quint64 m_revision = 0;
 
+    QList<QString> m_tombstones;
+    QHash<QString, qint64> m_tombstoneEventMs;
+
     QList<SyncAdapterRecord> m_records = {
         {
             QStringLiteral("fixture"),
@@ -252,6 +266,7 @@ QStringList contractRegisterableCategories() {
         QStringLiteral("activity_fact"),
         QStringLiteral(
             "explicit_content_preference"),
+        QStringLiteral("ratings_reviews_conversion_maps"),
         QStringLiteral("stremio_link"),
         QStringLiteral(
             "theatre_track_preferences"),
@@ -313,6 +328,8 @@ private slots:
 
     void exportSnapshotContainsRecordKeysAndRevision();
     void exportSnapshotCarriesDeletionPolicy();
+    void ratingsReviewsTombstoneEventMetadataIsValidatedAndCarried();
+    void legacyAdapterRemoteWrapperIgnoresDeleteMetadata();
     void duplicateExportRecordKeyIsRejected();
     void invalidExportRecordKeyIsRejected();
     void exportFailureIsReported();
@@ -652,6 +669,97 @@ exportSnapshotCarriesDeletionPolicy() {
             &error),
         qPrintable(error.detail));
     QVERIFY(!snapshot.missingRecordsAreDeletes);
+}
+
+void tst_sync_adapter_registry::
+ratingsReviewsTombstoneEventMetadataIsValidatedAndCarried() {
+    const QString key =
+        QStringLiteral("rr1:")
+        + QString(64, QLatin1Char('a'));
+
+    SyncAdapterRegistry registry;
+    FakeSyncAdapter adapter(
+        QStringLiteral("ratings_reviews"));
+    adapter.setRecords({});
+    adapter.setTombstones(
+        {key},
+        QHash<QString, qint64>{{key, 4242}});
+    QVERIFY(registry.registerAdapter(&adapter));
+
+    SyncAdapterSnapshot snapshot;
+    SyncAdapterRegistryError error;
+    QVERIFY2(
+        registry.exportSnapshot(
+            QStringLiteral("ratings_reviews"),
+            &snapshot,
+            &error),
+        qPrintable(error.detail));
+    QCOMPARE(snapshot.tombstones, QList<QString>{key});
+    QCOMPARE(snapshot.tombstoneEventMs.value(key), qint64(4242));
+
+    adapter.setTombstones({key});
+    QVERIFY(!registry.exportSnapshot(
+        QStringLiteral("ratings_reviews"),
+        &snapshot,
+        &error));
+    QCOMPARE(error.code, QStringLiteral("invalid_tombstone_event"));
+
+    adapter.setTombstones(
+        {key},
+        QHash<QString, qint64>{{key, 0}});
+    QVERIFY(!registry.exportSnapshot(
+        QStringLiteral("ratings_reviews"),
+        &snapshot,
+        &error));
+    QCOMPARE(error.code, QStringLiteral("invalid_tombstone_event"));
+
+    const QString other =
+        QStringLiteral("rr1:")
+        + QString(64, QLatin1Char('b'));
+    adapter.setTombstones(
+        {key},
+        QHash<QString, qint64>{{other, 4242}});
+    QVERIFY(!registry.exportSnapshot(
+        QStringLiteral("ratings_reviews"),
+        &snapshot,
+        &error));
+    QCOMPARE(error.code, QStringLiteral("invalid_tombstone_event"));
+
+    adapter.setRecords({
+        {key, QJsonObject{{QStringLiteral("review"), QStringLiteral("x")}}}
+    });
+    adapter.setTombstones(
+        {key},
+        QHash<QString, qint64>{{key, 4242}});
+    QVERIFY(!registry.exportSnapshot(
+        QStringLiteral("ratings_reviews"),
+        &snapshot,
+        &error));
+    QCOMPARE(error.code, QStringLiteral("duplicate_record_key"));
+}
+
+void tst_sync_adapter_registry::
+legacyAdapterRemoteWrapperIgnoresDeleteMetadata() {
+    SyncAdapterRegistry registry;
+    FakeSyncAdapter adapter(
+        QStringLiteral("collection"));
+    QVERIFY(registry.registerAdapter(&adapter));
+
+    SyncAdapterMutation mutation;
+    mutation.categoryId = QStringLiteral("collection");
+    mutation.recordKey = QStringLiteral("fixture");
+    mutation.schemaVersion = 1;
+    mutation.operation = SyncWireOperation::Delete;
+    mutation.deletedAtMs = qint64(5150);
+
+    SyncAdapterRegistryError error;
+    QVERIFY2(
+        registry.applyRemote(mutation, &error),
+        qPrintable(error.detail));
+    QCOMPARE(adapter.applyCalls(), 1);
+    QCOMPARE(
+        adapter.lastAppliedOperation(),
+        SyncWireOperation::Delete);
 }
 
 void tst_sync_adapter_registry::

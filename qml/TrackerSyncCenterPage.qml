@@ -16,6 +16,9 @@ Item {
     property var stremioState: null
     property var trackerModel: (typeof TrackerSyncCenter !== "undefined")
                                ? TrackerSyncCenter : null
+    property var trackerConnector: (typeof TrackerConnection !== "undefined")
+                                   ? TrackerConnection : null
+    property bool connectionPanelOpen: false
     property bool reducedMotion: false
     property string selectedProviderKey: ""
     property var selectedDossier: ({})
@@ -120,6 +123,15 @@ Item {
 
     signal backRequested()
     signal mainSyncRequested()
+
+    Connections {
+        target: root.trackerConnector
+        function onConnectionEstablished(providerKey) {
+            if (root.trackerModel)
+                root.trackerModel.refresh()
+            root.openDossier(providerKey, connectButton)
+        }
+    }
 
     onTrackerModelChanged: {
         var closedReviewedAction = false
@@ -1408,7 +1420,8 @@ Item {
         selectedExportReview = review
         selectedExportItemIds = []
         exportReviewModel = trackerModel
-        exportReviewNotice = ""
+        exportReviewNotice = review.pending === true
+                ? "Reading the current tracker state…" : ""
         Qt.callLater(function() {
             if (root.exportReviewOpen)
                 exportReviewCloseButton.forceActiveFocus(Qt.TabFocusReason)
@@ -1453,23 +1466,53 @@ Item {
             return false
         }
         exportConfirmationPending = true
+        exportReviewNotice = "Confirming against the current tracker state…"
         var accepted = trackerModel.confirmExportReview(selectedExportReview.reviewId,
             selectedExportItemIds, Number(selectedExportReview.revision))
-        exportConfirmationPending = false
         if (!accepted) {
+            exportConfirmationPending = false
             closeExportReview()
             actionNotice = "The send review changed. Open it again before sending."
             return false
         }
+        if (trackerModel.lastActionResult
+                && trackerModel.lastActionResult.code === "pending") {
+            // The remote snapshot read is in flight; onModelChanged delivers
+            // the final result and finishes this journey.
+            return true
+        }
+        exportConfirmationPending = false
+        finishExportConfirmation(true)
+        return true
+    }
+
+    function finishExportConfirmation(succeeded) {
+        exportConfirmationPending = false
         closeExportReview()
         refreshDossier()
-        actionNotice = "Selected Colosseum updates are waiting to sync."
-        return true
+        actionNotice = succeeded
+                ? "Selected Colosseum updates are waiting to sync."
+                : "The send review changed. Open it again before sending."
     }
 
     Connections {
         target: root.trackerModel
         ignoreUnknownSignals: true
+        function onExportReviewReady(review) {
+            if (!root.exportReviewOpen || !root.selectedExportReview
+                    || root.selectedExportReview.pending !== true
+                    || !review || review.reviewId !== root.selectedExportReview.reviewId)
+                return
+            if (review.accepted === true) {
+                root.selectedExportReview = review
+                root.exportReviewNotice = ""
+                return
+            }
+            root.closeExportReview()
+            root.actionNotice = review.code === "remote_snapshot_unavailable"
+                    ? "The tracker state could not be read. Check the tracker connection and try again."
+                    : "The send review changed. Open it again before sending."
+        }
         function onModelChanged() {
             root.refreshDossier()
             var currentRevision = root.trackerModel
@@ -1505,6 +1548,12 @@ Item {
             if (root.importReviewOpen)
                 Qt.callLater(root.refreshImportReview)
             var result = root.trackerModel ? root.trackerModel.lastActionResult || ({}) : ({})
+            if (root.exportConfirmationPending
+                    && result.action === "confirm_export_review"
+                    && result.code !== "pending") {
+                root.finishExportConfirmation(result.code === "confirmed")
+                return
+            }
             if (root.importedRemovalAwaitingResult
                     && result.action === "remove_imported_tracker_data"
                     && result.code !== "removal_pending"
@@ -2612,6 +2661,13 @@ Item {
                                                           + (root.selectedDossier.providerName || "tracker"))
                                                      : "Provider unavailable in this build"
                                     Layout.alignment: Qt.AlignLeft
+                                    onClicked: {
+                                        if (!root.trackerConnector)
+                                            return
+                                        root.connectionPanelOpen = true
+                                        if (!root.trackerConnector.beginConnection(root.selectedProviderKey))
+                                            Qt.callLater(connectionDismissButton.forceActiveFocus)
+                                    }
                                 }
                             }
                         }
@@ -3160,6 +3216,7 @@ Item {
                     Text {
                         objectName: "trackerExportReviewEmptyNotice"
                         visible: root.exportReviewOpen
+                                 && root.selectedExportReview.pending !== true
                                  && Number(root.selectedExportReview.eligibleCount || 0) === 0
                         text: (root.selectedExportReview.items || []).length === 0
                               ? "There are no local updates to send. Close this review."
@@ -4047,7 +4104,7 @@ Item {
                     Text {
                         objectName: "trackerDisconnectRemoteAccessNotice"
                         visible: !root.disconnectCleanupMode()
-                        text: "This removes the connection from Colosseum; it does not revoke access in the tracker account. Revoke access separately in that service's connected-app settings."
+                        text: "After disconnecting, Colosseum will ask the tracker to revoke this app's access. That request is best-effort: the tracker always acknowledges it, so it cannot be confirmed from here. Check the service's connected-app settings if you want certainty."
                         color: theme.inkDim
                         font.family: theme.ui
                         font.pixelSize: 11
@@ -4467,6 +4524,196 @@ Item {
                 }
             }
 
+        }
+    }
+
+    FocusScope {
+        id: connectionApprovalLayer
+        objectName: "trackerConnectionApprovalLayer"
+        anchors.fill: parent
+        visible: root.connectionPanelOpen
+        enabled: visible
+        z: 120
+
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.78)
+            MouseArea { anchors.fill: parent }
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 540)
+            implicitHeight: connectionApprovalContent.implicitHeight + 54
+            radius: 18
+            color: "#111318"
+            border.width: 1
+            border.color: theme.edge
+
+            ColumnLayout {
+                id: connectionApprovalContent
+                anchors.fill: parent
+                anchors.margins: 27
+                spacing: 14
+
+                Text {
+                    text: root.trackerConnector
+                          && root.trackerConnector.phase === "connected"
+                          ? "SIMKL connected" : "Connect SIMKL"
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 28
+                    Layout.fillWidth: true
+                }
+                Text {
+                    text: root.trackerConnector
+                          ? root.trackerConnector.statusMessage : "SIMKL connection is unavailable."
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+                Rectangle {
+                    visible: root.trackerConnector
+                             && root.trackerConnector.userCode.length > 0
+                    Layout.fillWidth: true
+                    implicitHeight: approvalCodeColumn.implicitHeight + 24
+                    radius: 12
+                    color: Qt.rgba(1, 1, 1, 0.04)
+                    border.width: 1
+                    border.color: theme.edge
+
+                    ColumnLayout {
+                        id: approvalCodeColumn
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 5
+                        Text {
+                            text: "APPROVAL CODE"
+                            color: theme.inkDimmer
+                            font.family: theme.ui
+                            font.pixelSize: 9
+                            font.letterSpacing: 1.2
+                        }
+                        Text {
+                            objectName: "trackerSimklApprovalCode"
+                            text: root.trackerConnector ? root.trackerConnector.userCode : ""
+                            color: theme.gold
+                            font.family: theme.display
+                            font.pixelSize: 30
+                            font.letterSpacing: 2
+                        }
+                    }
+                }
+                Text {
+                    visible: root.trackerConnector
+                             && root.trackerConnector.verificationUrl.length > 0
+                    text: "The browser page is prefilled. The code remains here as a fallback."
+                    color: theme.inkDimmer
+                    font.family: theme.ui
+                    font.pixelSize: 11
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+                Button {
+                    id: connectionMoveButton
+                    objectName: "trackerSimklMoveConnection"
+                    visible: root.trackerConnector
+                             && root.trackerConnector.moveAvailable === true
+                    text: "Move connection to this profile"
+                    activeFocusOnTab: true
+                    Accessible.name: text
+                    onClicked: {
+                        if (root.trackerConnector)
+                            root.trackerConnector.moveConnectionToThisProfile()
+                    }
+                    contentItem: Text {
+                        text: connectionMoveButton.text
+                        color: connectionMoveButton.enabled ? theme.gold : theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        radius: 10
+                        color: connectionMoveButton.down ? theme.glassHi : Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.08)
+                        border.width: 1
+                        border.color: connectionMoveButton.activeFocus ? theme.gold : Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.42)
+                    }
+                    padding: 12
+                    Layout.fillWidth: true
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Button {
+                        id: connectionOpenBrowserButton
+                        objectName: "trackerSimklOpenApproval"
+                        visible: root.trackerConnector
+                                 && root.trackerConnector.verificationUrl.length > 0
+                        text: "Open SIMKL"
+                        onClicked: root.trackerConnector.openApprovalPage()
+                    }
+                    Item { Layout.fillWidth: true }
+                    Button {
+                        id: connectionCancelButton
+                        objectName: "trackerSimklCancel"
+                        visible: root.trackerConnector && root.trackerConnector.busy
+                        text: "Cancel"
+                        onClicked: {
+                            root.trackerConnector.cancel()
+                            connectionDismissButton.forceActiveFocus()
+                        }
+                    }
+                    Button {
+                        id: connectionDismissButton
+                        objectName: "trackerSimklDismiss"
+                        visible: root.trackerConnector && !root.trackerConnector.busy
+                        text: root.trackerConnector
+                              && root.trackerConnector.phase === "connected" ? "Done" : "Close"
+                        onClicked: {
+                            if (root.trackerConnector)
+                                root.trackerConnector.dismiss()
+                            if (root.trackerConnector
+                                    && root.trackerConnector.phase === "attention")
+                                return // a failed rollback stays visible here
+                            root.connectionPanelOpen = false
+                            if (connectButton.visible)
+                                connectButton.forceActiveFocus(Qt.BacktabFocusReason)
+                        }
+                    }
+                }
+            }
+        }
+
+        Keys.onPressed: (event) => {
+            if (event.key !== Qt.Key_Escape && event.key !== Qt.Key_Back)
+                return
+            if (root.trackerConnector && root.trackerConnector.busy)
+                root.trackerConnector.cancel()
+            else if (root.trackerConnector) {
+                root.trackerConnector.dismiss()
+                if (root.trackerConnector.phase === "attention")
+                    return // keep the panel open so the rollback failure is seen
+                root.connectionPanelOpen = false
+            } else {
+                root.connectionPanelOpen = false
+            }
+            event.accepted = true
+        }
+
+        onVisibleChanged: {
+            if (visible)
+                Qt.callLater(function() {
+                    if (connectionOpenBrowserButton.visible)
+                        connectionOpenBrowserButton.forceActiveFocus()
+                    else if (connectionCancelButton.visible)
+                        connectionCancelButton.forceActiveFocus()
+                    else
+                        connectionDismissButton.forceActiveFocus()
+                })
         }
     }
 

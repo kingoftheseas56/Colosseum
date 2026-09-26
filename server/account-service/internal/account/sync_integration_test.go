@@ -69,6 +69,187 @@ func formatUint64(value uint64) string {
 	return strconv.FormatUint(value, 10)
 }
 
+func fixtureRatingsReviewsMutation(
+	mutationID, deviceID, operation string,
+	physical, deletedAtMS int64,
+) SyncMutationInput {
+	input := SyncMutationInput{
+		MutationID:    mutationID,
+		DeviceID:      deviceID,
+		Category:      "ratings_reviews",
+		RecordKey:     ratingsReviewsTestKey("theatre", "series", "fixture-series"),
+		SchemaVersion: 1,
+		HLCPhysicalMS: formatInt64(physical),
+		HLCCounter:    "0",
+		Operation:     operation,
+	}
+	if operation == "put" {
+		input.Payload = json.RawMessage(`{"world":"theatre","kind":"series","media_id":"fixture-series","rating":8.5,"review":"C:\\Notes\\review.txt","spoiler":false,"created_at_ms":1000,"updated_at_ms":2000}`)
+	} else {
+		input.DeletedAtMS = formatInt64(deletedAtMS)
+	}
+	return input
+}
+
+func TestRatingsReviewsDeleteTimestampSurvivesJournalCurrentPullAndSnapshot(t *testing.T) {
+	fixture := newServiceFixture(t)
+	created := createFixtureAccount(t, fixture, "RatingsReviewsDeleteTime")
+	auth := authenticateFixtureSession(t, fixture, created.Session)
+	now := fixture.clock.Now().UnixMilli()
+	put := fixtureRatingsReviewsMutation(
+		"99100000-0000-4000-8000-000000000001", auth.Device.ID, "put", now, 0)
+	if result, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{put}); err != nil ||
+		len(result.Results) != 1 || !result.Results[0].Accepted || !result.Results[0].Won {
+		t.Fatalf("ratings_reviews PUT = %+v, err=%v", result, err)
+	}
+	const deletedAt = int64(1699999999123)
+	deleteMutation := fixtureRatingsReviewsMutation(
+		"99100000-0000-4000-8000-000000000002", auth.Device.ID, "delete", now+1, deletedAt)
+	result, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{deleteMutation})
+	if err != nil || len(result.Results) != 1 || !result.Results[0].Accepted || !result.Results[0].Won {
+		t.Fatalf("ratings_reviews DELETE = %+v, err=%v", result, err)
+	}
+
+	var journalDeleted, currentDeleted int64
+	if err := fixture.pool.QueryRow(context.Background(),
+		`SELECT deleted_at_ms FROM account_sync_journal WHERE account_id=$1::uuid AND mutation_id=$2::uuid`,
+		auth.Account.ID, deleteMutation.MutationID).Scan(&journalDeleted); err != nil {
+		t.Fatalf("load RR journal delete time: %v", err)
+	}
+	if err := fixture.pool.QueryRow(context.Background(),
+		`SELECT deleted_at_ms FROM account_sync_current WHERE account_id=$1::uuid AND category='ratings_reviews' AND record_key=$2`,
+		auth.Account.ID, deleteMutation.RecordKey).Scan(&currentDeleted); err != nil {
+		t.Fatalf("load RR current delete time: %v", err)
+	}
+	if journalDeleted != deletedAt || currentDeleted != deletedAt {
+		t.Fatalf("stored delete times journal=%d current=%d want=%d", journalDeleted, currentDeleted, deletedAt)
+	}
+
+	pull, err := fixture.service.PullSync(context.Background(), auth, 0)
+	if err != nil {
+		t.Fatalf("PullSync(RR) error = %v", err)
+	}
+	seenPull := false
+	for _, entry := range pull.Entries {
+		if entry.Mutation.MutationID == deleteMutation.MutationID {
+			seenPull = true
+			if entry.Mutation.DeletedAtMS != formatInt64(deletedAt) {
+				t.Fatalf("pull deleted_at_ms = %q", entry.Mutation.DeletedAtMS)
+			}
+		}
+	}
+	if !seenPull {
+		t.Fatal("RR delete missing from pull")
+	}
+
+	snapshot, err := fixture.service.SnapshotSync(context.Background(), auth, "")
+	if err != nil {
+		t.Fatalf("SnapshotSync(RR) error = %v", err)
+	}
+	seenSnapshot := false
+	for _, entry := range snapshot.Entries {
+		if entry.Mutation.Category == "ratings_reviews" && entry.Mutation.RecordKey == deleteMutation.RecordKey {
+			seenSnapshot = true
+			if entry.Mutation.Operation != "delete" || entry.Mutation.DeletedAtMS != formatInt64(deletedAt) {
+				t.Fatalf("snapshot RR delete = %+v", entry.Mutation)
+			}
+		}
+	}
+	if !seenSnapshot {
+		t.Fatal("RR delete missing from snapshot")
+	}
+
+	recreate := fixtureRatingsReviewsMutation(
+		"99100000-0000-4000-8000-000000000003", auth.Device.ID, "put", now+2, 0)
+	result, err = fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{recreate})
+	if err != nil || len(result.Results) != 1 || !result.Results[0].Accepted || !result.Results[0].Won {
+		t.Fatalf("RR recreate = %+v err=%v", result, err)
+	}
+	var archivedDeleted int64
+	if err := fixture.pool.QueryRow(context.Background(),
+		`SELECT deleted_at_ms FROM account_sync_versions
+		 WHERE account_id=$1::uuid AND category='ratings_reviews' AND record_key=$2
+		   AND operation='delete' ORDER BY replaced_at DESC LIMIT 1`,
+		auth.Account.ID, deleteMutation.RecordKey).Scan(&archivedDeleted); err != nil {
+		t.Fatalf("load archived RR delete time: %v", err)
+	}
+	if archivedDeleted != deletedAt {
+		t.Fatalf("archived deleted_at_ms = %d, want %d", archivedDeleted, deletedAt)
+	}
+	var currentDeletedIsNull bool
+	if err := fixture.pool.QueryRow(context.Background(),
+		`SELECT deleted_at_ms IS NULL FROM account_sync_current
+		 WHERE account_id=$1::uuid AND category='ratings_reviews' AND record_key=$2`,
+		auth.Account.ID, deleteMutation.RecordKey).Scan(&currentDeletedIsNull); err != nil {
+		t.Fatalf("load recreated RR current row: %v", err)
+	}
+	if !currentDeletedIsNull {
+		t.Fatal("RR PUT current row retained deleted_at_ms")
+	}
+}
+
+func TestRatingsReviewsPutDeleteLWWKeepsWinningDeleteTimestamp(t *testing.T) {
+	fixture := newServiceFixture(t)
+	created := createFixtureAccount(t, fixture, "RR_LWW_DeleteTime")
+	auth := authenticateFixtureSession(t, fixture, created.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	put := fixtureRatingsReviewsMutation(
+		"99110000-0000-4000-8000-000000000001", auth.Device.ID, "put", now, 0)
+	first, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{put})
+	if err != nil || len(first.Results) != 1 || !first.Results[0].Accepted || !first.Results[0].Won {
+		t.Fatalf("initial RR PUT = %+v err=%v", first, err)
+	}
+
+	const deletedAt = int64(246813579)
+	winnerDelete := fixtureRatingsReviewsMutation(
+		"99110000-0000-4000-8000-000000000002", auth.Device.ID, "delete", now+20, deletedAt)
+	second, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{winnerDelete})
+	if err != nil || len(second.Results) != 1 || !second.Results[0].Accepted || !second.Results[0].Won {
+		t.Fatalf("winning RR DELETE = %+v err=%v", second, err)
+	}
+
+	stalePut := fixtureRatingsReviewsMutation(
+		"99110000-0000-4000-8000-000000000003", auth.Device.ID, "put", now+10, 0)
+	third, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{stalePut})
+	if err != nil || len(third.Results) != 1 || !third.Results[0].Accepted || third.Results[0].Won {
+		t.Fatalf("stale RR PUT = %+v err=%v", third, err)
+	}
+
+	var operation string
+	var storedDeleted int64
+	if err := fixture.pool.QueryRow(context.Background(),
+		`SELECT operation, deleted_at_ms FROM account_sync_current
+		 WHERE account_id=$1::uuid AND category='ratings_reviews' AND record_key=$2`,
+		auth.Account.ID, winnerDelete.RecordKey).Scan(&operation, &storedDeleted); err != nil {
+		t.Fatalf("load RR LWW current: %v", err)
+	}
+	if operation != "delete" || storedDeleted != deletedAt {
+		t.Fatalf("RR LWW current operation=%q deleted_at_ms=%d want delete/%d",
+			operation, storedDeleted, deletedAt)
+	}
+}
+
+func TestRatingsReviewsMutationIDBindsDeleteTimestamp(t *testing.T) {
+	fixture := newServiceFixture(t)
+	created := createFixtureAccount(t, fixture, "RR_MutationIdentity")
+	auth := authenticateFixtureSession(t, fixture, created.Session)
+	now := fixture.clock.Now().UnixMilli()
+	mutation := fixtureRatingsReviewsMutation(
+		"99200000-0000-4000-8000-000000000001", auth.Device.ID, "delete", now, 1001)
+	first, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{mutation})
+	if err != nil || len(first.Results) != 1 || !first.Results[0].Accepted {
+		t.Fatalf("first RR delete = %+v err=%v", first, err)
+	}
+	changed := mutation
+	changed.DeletedAtMS = "1002"
+	second, err := fixture.service.PushSync(context.Background(), auth, []SyncMutationInput{changed})
+	if err != nil || len(second.Results) != 1 || second.Results[0].Accepted ||
+		second.Results[0].Code != "mutation_id_conflict" {
+		t.Fatalf("changed timestamp retry = %+v err=%v", second, err)
+	}
+}
+
 func TestSyncFullHistoryCategoryRoundTrips(t *testing.T) {
 	fixture := newServiceFixture(t)
 	accountResult := createFixtureAccount(t, fixture, "SyncHistory")

@@ -9,6 +9,7 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfileStoreRuntime.h"
+#include "account/WindowsAccountCredentialStore.h"
 #include "engine/ExtensionsStore.h"
 #include "stremio/StremioState.h"
 #include "stremio/StremioCodec.h"
@@ -19,6 +20,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonDocument>
@@ -83,6 +85,13 @@ private:
     QByteArray m_name;
     bool m_wasSet = false;
     QByteArray m_previous;
+};
+
+class ScopedActiveAccountCredentialCleanup {
+public:
+    ~ScopedActiveAccountCredentialCleanup() {
+        WindowsAccountCredentialStore().clearActive();
+    }
 };
 
 class LoopbackAccountService final : public QObject {
@@ -675,6 +684,7 @@ private slots:
     void createNewAccountRetiresSourceOnlyAfterFreshExportAbsorption();
     void createNewAccountAcceptsConcurrentHistoryMergeAfterCommit();
     void createNewAccountAcceptsCertifiedLwwSupersession();
+    void ratingsReviewsAccountRuntimeCompositionContract();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
     void stremioLegacyAccountlessProfileCanConnect();
     void stremioMarkerChangeUpdatesActiveRuntimeState();
@@ -690,6 +700,83 @@ private slots:
     void stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho();
     void extensionsOwnerFollowsTheActiveProfile();
 };
+
+void tst_account_attachment_runtime::
+ratingsReviewsAccountRuntimeCompositionContract() {
+    const QString testDir = QFileInfo(QString::fromUtf8(__FILE__)).absolutePath();
+    const QString runtimePath = QDir(testDir).absoluteFilePath(
+        QStringLiteral("../../../native/account/AccountRuntime.cpp"));
+    const QString storesPath = QDir(testDir).absoluteFilePath(
+        QStringLiteral("../../../native/account/ProfileStoreRuntime.cpp"));
+
+    QFile runtimeFile(runtimePath);
+    QVERIFY2(runtimeFile.open(QIODevice::ReadOnly), qPrintable(runtimePath));
+    QByteArray runtime = runtimeFile.readAll();
+    runtime.replace("\r\n", "\n");
+    QFile storesFile(storesPath);
+    QVERIFY2(storesFile.open(QIODevice::ReadOnly), qPrintable(storesPath));
+    QByteArray stores = storesFile.readAll();
+    stores.replace("\r\n", "\n");
+
+    const auto requireOrdered = [](const QByteArray &haystack,
+                                   std::initializer_list<QByteArray> needles) {
+        qsizetype position = -1;
+        for (const QByteArray &needle : needles) {
+            position = haystack.indexOf(needle, position + 1);
+            if (position < 0)
+                return false;
+        }
+        return true;
+    };
+
+    QVERIFY(requireOrdered(runtime, {
+        "accountProfileReadyForSync",
+        "setNetworkEnabled(\n                false)",
+        "installCoreSyncAdapters(",
+        "m_syncEngine.start(",
+        "startOrResumeAccountAttachment()"}));
+    QVERIFY(requireOrdered(runtime, {
+        "&AccountController::signedIn",
+        "setNetworkEnabled(\n                    false)",
+        "installCoreSyncAdapters(",
+        "m_syncEngine.start(",
+        "startOrResumeAccountAttachment()",
+        "setNetworkEnabled(\n                true)"}));
+
+    QVERIFY(requireOrdered(runtime, {
+        "std::make_unique<RatingsReviewsSyncAdapter>",
+        "registerAdapter(\n            ratingsReviewsAdapter.get()",
+        "registerAdapter(\n            collectionAdapter.get()"}));
+    QVERIFY(requireOrdered(runtime, {
+        "std::make_unique<RatingsReviewsConversionSyncAdapter>",
+        "registerAdapter(\n            ratingsReviewsConversionAdapter.get()",
+        "m_ratingsReviewsConversionSyncAdapter ="}));
+    QVERIFY(runtime.contains(
+        "QStringLiteral(\"ratings_reviews_conversion_maps\")"));
+    QVERIFY(requireOrdered(runtime, {
+        "void AccountRuntime::clearCoreSyncAdapters()",
+        "QStringLiteral(\"ratings_reviews_conversion_maps\")",
+        "m_ratingsReviewsConversionSyncAdapter.reset()"}));
+    QVERIFY(requireOrdered(runtime, {
+        "void AccountRuntime::clearCoreSyncAdapters()",
+        "QStringLiteral(\"ratings_reviews\")",
+        "m_ratingsReviewsSyncAdapter.reset()"}));
+
+    QVERIFY(runtime.contains("snapshot.tombstoneEventMs.value("));
+    QVERIFY(runtime.contains("deletedAtMs != *item.mutation.deletedAtMs"));
+    QVERIFY(runtime.contains("The fresh Ratings & Reviews export still contains a deleted key."));
+    QVERIFY(runtime.contains("QStringLiteral(\"ratings_reviews\")"));
+    QVERIFY(runtime.contains("const QSet<QString> lwwCategories"));
+
+    QVERIFY(requireOrdered(runtime, {
+        "storesAboutToChange",
+        "stopPreservingOutbox(",
+        "clearCoreSyncAdapters()"}));
+    QVERIFY(requireOrdered(stores, {
+        "emit storesAboutToChange();",
+        "std::move(m_stores)",
+        "previous.reset();"}));
+}
 
 void tst_account_attachment_runtime::
 stremioLegacyAccountlessProfileCanConnect() {
@@ -1659,6 +1746,7 @@ createNewAccountAdoptionWaitsForAttachmentVerificationBeforeRetiringSource() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1737,6 +1825,7 @@ createNewAccountRetiresSourceOnlyAfterFreshExportAbsorption() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-complete-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1822,6 +1911,7 @@ createNewAccountAcceptsConcurrentHistoryMergeAfterCommit() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-history-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1898,6 +1988,7 @@ createNewAccountAcceptsCertifiedLwwSupersession() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-lww-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1969,6 +2060,7 @@ activitySourceClearRemovesLedgerAfterAttachmentCompletion() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-activity-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(

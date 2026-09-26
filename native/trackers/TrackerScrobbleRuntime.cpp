@@ -21,11 +21,14 @@ bool safeKey(const QString &value, int maximum = 512)
 
 bool positiveSimklId(const QString &value)
 {
-    if (!safeKey(value, 32))
+    QString numeric = value;
+    if (value.startsWith(QLatin1String("movie:")))
+        numeric = value.mid(6);
+    if (!safeKey(numeric, 32))
         return false;
     bool ok = false;
-    const qulonglong numeric = value.toULongLong(&ok);
-    return ok && numeric > 0 && QString::number(numeric) == value;
+    const qulonglong parsed = numeric.toULongLong(&ok);
+    return ok && parsed > 0 && QString::number(parsed) == numeric;
 }
 
 quint64 asUnsigned(const QVariant &value, bool *ok)

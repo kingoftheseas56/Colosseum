@@ -13,6 +13,10 @@
 # no GUI-platform traps. Registrations grow deliberately — never register
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
+if(WIN32)
+    add_subdirectory(feria_host_probe)
+endif()
+
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})
@@ -126,6 +130,7 @@ set(CMAKE_AUTOMOC ON)
 # built and registered until parity review retires it (ledger, migration
 # policy).
 set(COLOSSEUM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+
 # ProfileStoreRuntime owns the tracker delivery, scrobble, and progress-import
 # runtimes in production. Keep focused profile/account test executables
 # link-complete without pulling Arc 35 into a separate shared test library
@@ -163,7 +168,20 @@ function(colosseum_add_tracker_delivery_runtime_sources target)
         "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.cpp"
-        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.h")
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklAuth.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklAuth.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.h")
+    # The SIMKL composition needs QtGui (QDesktopServices browser launch) and
+    # QtNetwork (AUTH V2 transport) wherever ProfileStoreRuntime is compiled.
+    target_link_libraries(${target} PRIVATE Qt6::Gui Qt6::Network)
 endfunction()
 
 function(colosseum_add_tracker_sync_center_sources target)
@@ -1455,7 +1473,8 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
-target_include_directories(colosseum_qml_tests PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_include_directories(colosseum_qml_tests PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
     PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
 set_target_properties(colosseum_qml_tests PROPERTIES
@@ -1488,6 +1507,30 @@ set_tests_properties(colosseum.qml PROPERTIES
     LABELS "qml;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
+
+add_test(NAME colosseum.qml.ratings_reviews_conversion
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/ratings_reviews_conversion")
+set_tests_properties(colosseum.qml.ratings_reviews_conversion PROPERTIES
+    LABELS "qml;windows;ratings-reviews;conversion"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.qml.ratings_reviews_journey
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/ratings_reviews_journey")
+set_tests_properties(colosseum.qml.ratings_reviews_journey PROPERTIES
+    LABELS "qml;windows;ratings-reviews;journey"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.qml.ratings_reviews_delivery
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/ratings_reviews_delivery")
+set_tests_properties(colosseum.qml.ratings_reviews_delivery PROPERTIES
+    LABELS "qml;windows;ratings-reviews;delivery"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
 
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input
@@ -1533,12 +1576,16 @@ add_executable(tst_privacy_policy
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
@@ -1721,11 +1768,19 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
@@ -1842,8 +1897,26 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
@@ -1882,6 +1955,12 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
@@ -1915,6 +1994,17 @@ add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
 add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Gui>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+# Arc 35: ProfileStoreRuntime now composes the SIMKL client/controller, which
+# imports Qt6Network, and its QQmlContext member imports Qt6Qml. Both DLLs
+# must sit beside the exe exactly like the other Qt test dependencies.
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Network>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Qml>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_account_attachment_runtime POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -2295,8 +2385,22 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
@@ -2326,12 +2430,23 @@ target_include_directories(tst_account_adoption PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_sources(tst_account_adoption PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h")
 target_link_libraries(tst_account_adoption PRIVATE
     Qt6::Core
     Qt6::Qml
     Qt6::Sql
     Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_account_adoption PRIVATE advapi32)
+endif()
 set_target_properties(tst_account_adoption PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_account_adoption POST_BUILD
@@ -2421,8 +2536,12 @@ add_executable(tst_account_shared_pc
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
@@ -2454,7 +2573,17 @@ target_sources(tst_account_shared_pc PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
 target_link_libraries(tst_account_shared_pc PRIVATE
     Qt6::Core
     Qt6::Qml
@@ -2510,6 +2639,8 @@ add_executable(tst_profile_activity_isolation
     "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
@@ -2539,7 +2670,19 @@ target_sources(tst_profile_activity_isolation PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h")
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
 target_link_libraries(tst_profile_activity_isolation PRIVATE
     Qt6::Core
     Qt6::Qml
@@ -2562,6 +2705,174 @@ set_tests_properties(colosseum.qttest.profile_activity_isolation PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+
+# Arc 49 Slice 1: canonical Ratings & Reviews owner
+add_executable(tst_ratings_reviews_store
+    auto/ratings_reviews_store/tst_ratings_reviews_store.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h")
+target_include_directories(tst_ratings_reviews_store PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_ratings_reviews_store PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_ratings_reviews_store PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_ratings_reviews_store POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.ratings_reviews_store
+         COMMAND tst_ratings_reviews_store)
+set_tests_properties(colosseum.qttest.ratings_reviews_store PROPERTIES
+    LABELS "unit;qttest;ratings-reviews;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Arc 49 Slice 3 RED owner: conversion map contract.
+add_executable(tst_ratings_reviews_conversion
+    auto/ratings_reviews_conversion/tst_ratings_reviews_conversion.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h")
+target_include_directories(tst_ratings_reviews_conversion PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_ratings_reviews_conversion PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_ratings_reviews_conversion PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_ratings_reviews_conversion POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.ratings_reviews_conversion
+         COMMAND tst_ratings_reviews_conversion)
+set_tests_properties(colosseum.qttest.ratings_reviews_conversion PROPERTIES
+    LABELS "unit;qttest;ratings-reviews;conversion;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Arc 49 Slice 4: title identity, thin controller, provider-read projection.
+add_executable(tst_ratings_reviews_journey
+    auto/ratings_reviews_journey/tst_ratings_reviews_journey.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ColosseumTitleIdentityRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ColosseumTitleIdentityRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/RatingsReviewsProviderReadProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/RatingsReviewsProviderReadProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
+    fixtures/ratings_reviews/ratings_reviews_test_resources.qrc)
+target_include_directories(tst_ratings_reviews_journey PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_ratings_reviews_journey PRIVATE
+    COLOSSEUM_RATINGS_REVIEWS_TESTING=1
+    RR_IDENTITY_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/../data/title-identities-v1.json\")
+target_link_libraries(tst_ratings_reviews_journey PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Sql Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_ratings_reviews_journey PRIVATE advapi32)
+endif()
+set_target_properties(tst_ratings_reviews_journey PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.ratings_reviews_journey
+         COMMAND tst_ratings_reviews_journey)
+set_tests_properties(colosseum.qttest.ratings_reviews_journey PROPERTIES
+    LABELS "unit;qttest;ratings-reviews;journey;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Arc 49 Slice 5: durable Ratings & Reviews delivery core.
+add_executable(tst_ratings_reviews_delivery
+    auto/ratings_reviews_delivery/tst_ratings_reviews_delivery.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
+target_include_directories(tst_ratings_reviews_delivery PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_ratings_reviews_delivery PRIVATE
+    COLOSSEUM_RATINGS_REVIEWS_TESTING=1)
+target_link_libraries(tst_ratings_reviews_delivery PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_ratings_reviews_delivery PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_ratings_reviews_delivery POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.ratings_reviews_delivery
+         COMMAND tst_ratings_reviews_delivery)
+set_tests_properties(colosseum.qttest.ratings_reviews_delivery PROPERTIES
+    LABELS "unit;qttest;ratings-reviews;delivery;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
 
 # ── Sync ownership inventory + exclusion firewall (Bundle 8C, Slice 12A) ──
 add_executable(tst_sync_inventory
@@ -2789,6 +3100,56 @@ set_tests_properties(colosseum.qttest.sync_engine PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
 
+add_executable(tst_ratings_reviews_sync
+    auto/ratings_reviews_sync/tst_ratings_reviews_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_include_directories(tst_ratings_reviews_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_ratings_reviews_sync PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_ratings_reviews_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_ratings_reviews_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_ratings_reviews_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_ratings_reviews_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
+add_test(NAME colosseum.qttest.ratings_reviews_sync
+         COMMAND tst_ratings_reviews_sync)
+set_tests_properties(colosseum.qttest.ratings_reviews_sync PROPERTIES
+    LABELS "unit;qttest;sync;ratings-reviews"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)
 
 # ── First production domain adapters: Collection + Continue/Progress
 #    (Bundle 8C, Slice 14A) ───────────────────────────────────────────
@@ -2801,6 +3162,12 @@ add_executable(tst_core_sync_adapters
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
@@ -3018,8 +3385,12 @@ add_executable(tst_profile_preferences_sync
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
@@ -3598,11 +3969,26 @@ add_executable(tst_tracker_lifecycle
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncSettingsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h")
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerProgressImportOwner.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerSyncCenterModel.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklAuth.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklAuth.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklApiClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklApiClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.h")
 target_include_directories(tst_tracker_lifecycle PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_tracker_lifecycle PRIVATE
     Qt6::Core
+    Qt6::Gui
+    Qt6::Network
     Qt6::Test)
 set_target_properties(tst_tracker_lifecycle PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -3859,6 +4245,6 @@ foreach(_tracker_profile_target IN ITEMS
         tst_account_adoption
         tst_account_shared_pc
         tst_profile_activity_isolation
-        )
+        tst_ratings_reviews_journey)
     colosseum_add_tracker_delivery_runtime_sources(${_tracker_profile_target})
 endforeach()

@@ -1148,6 +1148,111 @@ class WorkbenchR1Tests(unittest.TestCase):
             "path": "tests/lanista_scenarios/alpha_journey.json",
         }])
 
+    def _journey_choice_fixture(self) -> Path:
+        (self.root / "native" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        (self.root / "tests" / "CMakeLists.txt").write_text("", encoding="utf-8")
+        src = self.root / "src"
+        src.mkdir()
+        (src / "owner.cpp").write_text("// owner\n", encoding="utf-8")
+        (self.root / "tests" / "test_alpha.py").write_text("print('ok')\n", encoding="utf-8")
+        scenario_dir = self.root / "tests" / "lanista_scenarios"
+        scenario_dir.mkdir(parents=True)
+        for name in ("alpha_journey", "beta_journey"):
+            (scenario_dir / f"{name}.json").write_text(
+                json.dumps({"name": name, "steps": [{"cmd": "ping"}]}),
+                encoding="utf-8",
+            )
+        self.commit_fixture()
+        map_path = Path(self.tmp.name) / "journey-choice-map.json"
+        self._write_semantic_map(
+            map_path,
+            [{
+                "id": "alpha",
+                "aliases": ["alpha"],
+                "source_roots": ["src"],
+                "entry_points": ["src/owner.cpp"],
+                "owners": [{"path": "src/owner.cpp"}],
+                "ctests": [],
+                "checks": ["tests/test_alpha.py"],
+                "lanista_scenarios": ["alpha_journey", "beta_journey"],
+                "context": [],
+                "platform_constraints": [],
+                "relations": [],
+            }],
+            ["src", "tests"],
+        )
+        return map_path
+
+    def test_record_run_multiple_journey_candidates_require_explicit_choice(self) -> None:
+        map_path = self._journey_choice_fixture()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "--map", str(map_path),
+            "context-for-task", "alpha",
+            "--path", "src/owner.cpp",
+            "--record-run",
+        ])
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+
+        self.assertEqual(raised.exception.code, "JOURNEY_SELECTION_REQUIRED")
+        candidates = raised.exception.details["candidates"]
+        self.assertEqual(
+            sorted(item["name"] for item in candidates),
+            ["alpha_journey", "beta_journey"],
+        )
+        # The failure happens before any receipt is written.
+        runs_root = self.root / "artifacts" / "harness-runs"
+        self.assertFalse(runs_root.exists() or any(runs_root.glob("*/run.json")))
+
+    def test_record_run_journey_choice_freezes_only_the_selected_journey(self) -> None:
+        map_path = self._journey_choice_fixture()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "--map", str(map_path),
+            "context-for-task", "alpha",
+            "--path", "src/owner.cpp",
+            "--record-run",
+            "--journey", "beta_journey",
+        ])
+        payload = cli.dispatch(ns)
+        receipt = cli.load_run_receipt(Path(payload["data"]["receiptPath"]))
+
+        self.assertEqual(receipt["verification"]["selectedJourneys"], [{
+            "selector": "beta_journey",
+            "name": "beta_journey",
+            "path": "tests/lanista_scenarios/beta_journey.json",
+        }])
+        self.assertEqual(
+            payload["data"]["frozenJourneys"],
+            receipt["verification"]["selectedJourneys"],
+        )
+
+    def test_record_run_journey_choice_must_match_a_candidate(self) -> None:
+        map_path = self._journey_choice_fixture()
+
+        ns = cli.build_parser().parse_args([
+            "--root", str(self.root),
+            "--map", str(map_path),
+            "context-for-task", "alpha",
+            "--path", "src/owner.cpp",
+            "--record-run",
+            "--journey", "gamma_journey",
+        ])
+        with self.assertRaises(cli.HarnessError) as raised:
+            cli.dispatch(ns)
+
+        self.assertEqual(raised.exception.code, "JOURNEY_SELECTION_INVALID")
+        candidates = raised.exception.details["candidates"]
+        self.assertEqual(
+            sorted(item["name"] for item in candidates),
+            ["alpha_journey", "beta_journey"],
+        )
+        runs_root = self.root / "artifacts" / "harness-runs"
+        self.assertFalse(runs_root.exists() or any(runs_root.glob("*/run.json")))
+
     def test_run_bound_journey_uses_bound_pipe_and_records_bounded_result(self) -> None:
         receipt, receipt_path = self._make_run_for_journey()
         seen: dict[str, object] = {}
@@ -1586,6 +1691,132 @@ class WorkbenchR1Tests(unittest.TestCase):
         self.assertNotIn("\ufffd", rendered)
         self.assertIn("fa\\u00e7ade", rendered)
         self.assertEqual(json.loads(rendered)["data"]["word"], "façade")
+
+    def test_emit_test_run_plain_output_shows_execution_result(self) -> None:
+        payload = {
+            "ok": True,
+            "command": "test",
+            "repo": {},
+            "data": {
+                "selectedTests": ["colosseum.qttest.example"],
+                "kind": "ctest",
+                "dryRun": False,
+                "argv": ["ctest", "--test-dir", "build"],
+                "exitCode": 0,
+                "stdout": "Test #1: tst_example\n100% tests passed, 0 tests failed out of 19\n",
+                "stderr": "",
+            },
+            "evidence": [],
+            "warnings": [],
+        }
+        stream = io.StringIO()
+        with contextlib.redirect_stdout(stream):
+            cli.emit(payload, False)
+
+        rendered = stream.getvalue()
+        self.assertIn("result: exit=0 (passed)", rendered)
+        self.assertIn("summary: 100% tests passed, 0 tests failed out of 19", rendered)
+
+    def test_emit_test_run_plain_output_marks_failure(self) -> None:
+        payload = {
+            "ok": True,
+            "command": "test",
+            "repo": {},
+            "data": {
+                "selectedTests": ["colosseum.qttest.example"],
+                "kind": "ctest",
+                "dryRun": False,
+                "argv": ["ctest", "--test-dir", "build"],
+                "exitCode": 8,
+                "stdout": "50% tests passed, 1 tests failed out of 2\n",
+                "stderr": "",
+            },
+            "evidence": [],
+            "warnings": [],
+        }
+        stream = io.StringIO()
+        with contextlib.redirect_stdout(stream):
+            cli.emit(payload, False)
+
+        rendered = stream.getvalue()
+        self.assertIn("result: exit=8 (failed)", rendered)
+        self.assertIn("summary: 50% tests passed, 1 tests failed out of 2", rendered)
+
+    def test_emit_test_dry_run_plain_output_has_no_result_line(self) -> None:
+        payload = {
+            "ok": True,
+            "command": "test",
+            "repo": {},
+            "data": {
+                "selectedTests": ["colosseum.qttest.example"],
+                "kind": "ctest",
+                "dryRun": True,
+                "argv": ["ctest", "--test-dir", "build"],
+            },
+            "evidence": [],
+            "warnings": [],
+        }
+        stream = io.StringIO()
+        with contextlib.redirect_stdout(stream):
+            cli.emit(payload, False)
+
+        self.assertNotIn("result:", stream.getvalue())
+
+    def test_emit_journeys_lists_discoverable_scenario_names(self) -> None:
+        payload = {
+            "ok": True,
+            "command": "journeys",
+            "repo": {},
+            "data": {
+                "count": 3,
+                "validCount": 2,
+                "invalidCount": 1,
+                "journeys": [
+                    {"name": "ratings-reviews-frieren-production", "valid": True},
+                    {"name": "app-home", "valid": True},
+                    {
+                        "name": "broken-scenario",
+                        "valid": False,
+                        "error": {"code": "SCENARIO_INVALID"},
+                    },
+                ],
+            },
+            "evidence": [],
+            "warnings": [],
+        }
+        stream = io.StringIO()
+        with contextlib.redirect_stdout(stream):
+            cli.emit(payload, False)
+
+        rendered = stream.getvalue()
+        self.assertIn("ratings-reviews-frieren-production", rendered)
+        self.assertIn("app-home", rendered)
+        self.assertIn("broken-scenario [invalid: SCENARIO_INVALID]", rendered)
+
+    def test_runner_summary_line_prefers_last_ctest_summary(self) -> None:
+        stdout = (
+            "Test #1: first\n25% tests passed, 3 tests failed out of 4\n"
+            "Test #2: second\n100% tests passed, 0 tests failed out of 4\n"
+        )
+        self.assertEqual(
+            cli.runner_summary_line(stdout),
+            "100% tests passed, 0 tests failed out of 4",
+        )
+        self.assertEqual(cli.runner_summary_line("no summary here"), "")
+
+    def test_resolve_journey_accepts_repo_relative_scenario_path(self) -> None:
+        scenario_dir = self.root / "tests" / "lanista_scenarios"
+        scenario_dir.mkdir(parents=True, exist_ok=True)
+        (scenario_dir / "alpha-journey.json").write_text(
+            json.dumps({"name": "alpha-journey", "steps": []}), encoding="utf-8"
+        )
+
+        resolved = cli.resolve_journey(
+            self.root, "tests/lanista_scenarios/alpha-journey.json"
+        )
+
+        self.assertEqual(resolved["name"], "alpha-journey")
+        self.assertEqual(resolved["path"], "tests/lanista_scenarios/alpha-journey.json")
 
 
 if __name__ == "__main__":

@@ -6,10 +6,11 @@
 #include "AccountAttachmentReceipt.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfilePreferencesStore.h"
+#include "ProfileStoreRuntime.h"
+#include "RatingsReviewsStore.h"
+#include "SyncStateStore.h"
 #include "trackers/TrackerCredentialVault.h"
 #include "trackers/TrackerLifecycleCoordinator.h"
-#include "ProfileStoreRuntime.h"
-#include "SyncStateStore.h"
 
 #include "AudioPairingStore.h"
 #include "CollectionStore.h"
@@ -18,8 +19,8 @@
 #include "SearchHistoryStore.h"
 
 #include <QDir>
-#include <QFile>
 #include <QDateTime>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
@@ -161,6 +162,12 @@ bool migratedProfileFilesPresent(
         return false;
     }
 
+    if ((!source.ratingsReviewsRecords.isEmpty()
+         || !source.ratingsReviewsTombstones.isEmpty())
+        && !QFileInfo::exists(paths.ratingsReviewsPath())) {
+        return false;
+    }
+
     if (!source.stremioState.isEmpty()
         && !QFileInfo::exists(paths.stremioSyncStatePath())) {
         return false;
@@ -287,9 +294,10 @@ QJsonObject mergeSearchHistory(
     return merged;
 }
 
-PersonalStateSnapshot mergeSnapshots(
+std::optional<PersonalStateSnapshot> mergeSnapshots(
     const PersonalStateSnapshot &account,
-    const PersonalStateSnapshot &local) {
+    const PersonalStateSnapshot &local,
+    QString *error) {
     PersonalStateSnapshot merged = account;
     merged.progressEntries = mergeTimestampedObjects(
         account.progressEntries,
@@ -333,6 +341,21 @@ PersonalStateSnapshot mergeSnapshots(
         else
             merged.progressWatchedMarkActionTimes.remove(it.key());
     }
+    QJsonObject mergedRatingsReviewsRecords;
+    QJsonObject mergedRatingsReviewsTombstones;
+    if (!RatingsReviewsStore::mergeCanonicalState(
+            account.ratingsReviewsRecords,
+            account.ratingsReviewsTombstones,
+            local.ratingsReviewsRecords,
+            local.ratingsReviewsTombstones,
+            &mergedRatingsReviewsRecords,
+            &mergedRatingsReviewsTombstones,
+            error)) {
+        return std::nullopt;
+    }
+    merged.ratingsReviewsRecords = mergedRatingsReviewsRecords;
+    merged.ratingsReviewsTombstones = mergedRatingsReviewsTombstones;
+
     merged.showExplicit = account.showExplicit || local.showExplicit;
     if (local.mainSyncProvider == QLatin1String("stremio")) {
         merged.mainSyncProvider = local.mainSyncProvider;
@@ -402,6 +425,8 @@ bool matchesWithActivityProjection(
         || current.collectionEntries != expected.collectionEntries
         || current.searchHistory != expected.searchHistory
         || current.audioPairings != expected.audioPairings
+        || current.ratingsReviewsRecords != expected.ratingsReviewsRecords
+        || current.ratingsReviewsTombstones != expected.ratingsReviewsTombstones
         || current.showExplicit != expected.showExplicit) {
         return false;
     }
@@ -455,12 +480,29 @@ FirstAccountProfileCoordinator(
     ProfileStoreRuntime *profileRuntime,
     const QString &appDataRoot,
     StremioCredentialAdoptionCallbacks stremioCredentials,
+    RatingsReviewsConversionTestHook conversionTestHook,
+    RatingsReviewsPrivateAdoptionCallbacks ratingsReviewsPrivate,
     TrackerPrivateAdoptionCallbacks trackerPrivate)
     : m_profileRuntime(profileRuntime),
       m_appDataRoot(appDataRoot),
       m_stremioCredentials(std::move(stremioCredentials)),
+      m_conversionTestHook(std::move(conversionTestHook)),
+      m_ratingsReviewsPrivate(std::move(ratingsReviewsPrivate)),
       m_trackerPrivate(std::move(trackerPrivate)) {
     Q_ASSERT(m_profileRuntime);
+    if (!m_ratingsReviewsPrivate.handoff) {
+        m_ratingsReviewsPrivate.handoff = [](
+                                             const RatingsReviewsPrivateProfileBinding &source,
+                                             const RatingsReviewsPrivateProfileBinding &destination,
+                                             RatingsReviewsStore *destinationCanonical,
+                                             QString *error) {
+            return RatingsReviewsDelivery::handoffPrivateState(
+                source,
+                destination,
+                destinationCanonical,
+                error);
+        };
+    }
     if (!m_trackerPrivate.handoff) {
         m_trackerPrivate.handoff = [](
                                         const ProfilePaths &source,
@@ -631,14 +673,30 @@ prepareAccountSession(
             migrationSourceHasActivity(
                 m_profileRuntime,
                 *sourceStorage);
+        std::unique_ptr<ProfilePreferencesStore> sourcePreferences;
+        if (sourceStorage->preferencesUseExplicitIni()) {
+            sourcePreferences = std::make_unique<ProfilePreferencesStore>(
+                sourceStorage->preferencesIniPath(),
+                m_conversionTestHook);
+        } else {
+            sourcePreferences = std::make_unique<ProfilePreferencesStore>();
+        }
+        QString conversionError;
+        if (!sourcePreferences->ratingsReviewsConversionMapsHealthy(&conversionError)) {
+            return setError(error, conversionError);
+        }
+        const bool hasConversionMaps =
+            !sourcePreferences->ratingsReviewsConversionMaps().isEmpty();
         bool hasTrackerPrivateState = false;
         if (explicitProfile
             && !TrackerLifecycleCoordinator::hasPrivateState(
                 ProfilePaths::localOnly(paths->appDataRoot()),
-                &hasTrackerPrivateState, error)) {
+                &hasTrackerPrivateState,
+                error)) {
             return false;
         }
-        if (!source->isEmpty() || hasActivity || hasTrackerPrivateState) {
+        if (!source->isEmpty() || hasActivity || hasConversionMaps
+            || hasTrackerPrivateState) {
             if (!QFileInfo::exists(paths->profileRoot())) {
                 if (explicitProfile)
                     return runLocalOnlyAdoption(
@@ -741,8 +799,10 @@ prepareLocalOnly(
         return true;
     }
 
-    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+    if (!m_profileRuntime
+             ->suspendPersonalStoresForMigration(error)) {
         return false;
+    }
 
     if (*claimed) {
         return m_profileRuntime
@@ -1002,6 +1062,123 @@ clearMigrationSource(
     return true;
 }
 
+bool FirstAccountProfileCoordinator::
+copyRatingsReviewsConversionMaps(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    QString *error) const {
+    std::unique_ptr<ProfilePreferencesStore> sourcePreferences;
+    if (sourceStorage.preferencesUseExplicitIni()) {
+        sourcePreferences = std::make_unique<ProfilePreferencesStore>(
+            sourceStorage.preferencesIniPath(),
+            m_conversionTestHook);
+    } else {
+        sourcePreferences = std::make_unique<ProfilePreferencesStore>(
+            m_conversionTestHook);
+    }
+
+    QString healthError;
+    if (!sourcePreferences->ratingsReviewsConversionMapsHealthy(&healthError))
+        return setError(error, healthError);
+
+    ProfilePreferencesStore destination(
+        paths.preferencesIniPath(),
+        m_conversionTestHook);
+    if (!destination.ratingsReviewsConversionMapsHealthy(&healthError))
+        return setError(error, healthError);
+
+    for (const RatingsReviewsConversionMap &map :
+         sourcePreferences->ratingsReviewsConversionMaps()) {
+        if (destination.ratingsReviewsConversionMap(map.providerId).has_value())
+            continue;
+        if (!destination.setRatingsReviewsConversionMap(map)) {
+            return setError(
+                error,
+                QStringLiteral("Could not adopt a Ratings & Reviews conversion map."));
+        }
+        const auto readback =
+            destination.ratingsReviewsConversionMap(map.providerId);
+        if (!readback.has_value()
+            || readback->digest() != map.digest()) {
+            return setError(
+                error,
+                QStringLiteral("The adopted Ratings & Reviews conversion map failed readback."));
+        }
+    }
+
+    const auto copyPreferenceIfUnset = [&](bool sourceHasValue,
+                                            const QStringList &sourceValue,
+                                            bool destinationHasValue,
+                                            const std::function<bool(const QStringList &)> &save) {
+        return !sourceHasValue || destinationHasValue || save(sourceValue);
+    };
+    if (!copyPreferenceIfUnset(
+            sourcePreferences->hasRatingsReviewsProviderOrder(),
+            sourcePreferences->ratingsReviewsProviderOrder(),
+            destination.hasRatingsReviewsProviderOrder(),
+            [&destination](const QStringList &value) {
+                return destination.setRatingsReviewsProviderOrder(value);
+            })
+        || !copyPreferenceIfUnset(
+            sourcePreferences->hasRatingsReviewsDefaultRatingDestinations(),
+            sourcePreferences->ratingsReviewsDefaultRatingDestinations(),
+            destination.hasRatingsReviewsDefaultRatingDestinations(),
+            [&destination](const QStringList &value) {
+                return destination.setRatingsReviewsDefaultRatingDestinations(value);
+            })
+        || !copyPreferenceIfUnset(
+            sourcePreferences->hasRatingsReviewsDefaultReviewDestinations(),
+            sourcePreferences->ratingsReviewsDefaultReviewDestinations(),
+            destination.hasRatingsReviewsDefaultReviewDestinations(),
+            [&destination](const QStringList &value) {
+                return destination.setRatingsReviewsDefaultReviewDestinations(value);
+            })) {
+        return setError(error, QStringLiteral("Could not adopt Ratings & Reviews private preferences."));
+    }
+    return handoffRatingsReviewsPrivateState(paths, sourceStorage, error);
+}
+
+bool FirstAccountProfileCoordinator::handoffRatingsReviewsPrivateState(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    QString *error) const {
+    if (!m_ratingsReviewsPrivate.handoff)
+        return true;
+    RatingsReviewsStore destinationCanonical(paths.ratingsReviewsPath());
+    QString healthError;
+    if (!destinationCanonical.healthy(&healthError))
+        return setError(error, healthError);
+    const RatingsReviewsPrivateProfileBinding source{
+        sourceStorage.profileId(),
+        sourceStorage.preferencesIniPath(),
+        {sourceStorage.devicePrivateRatingsReviewsProviderMappingsPath(),
+         sourceStorage.devicePrivateRatingsReviewsDeliveryOutboxPath(),
+         sourceStorage.devicePrivateRatingsReviewsDeliveryReceiptsPath()}};
+    const RatingsReviewsPrivateProfileBinding destination{
+        paths.profileId(),
+        paths.preferencesIniPath(),
+        {paths.ratingsReviewsProviderMappingsPath(),
+         paths.ratingsReviewsDeliveryOutboxPath(),
+         paths.ratingsReviewsDeliveryReceiptsPath()}};
+    if (!m_ratingsReviewsPrivate.handoff(
+            source, destination, &destinationCanonical, error)) {
+        return false;
+    }
+
+    // Existing-account merges do not have a first-account journal.  Their
+    // callback remains idempotent and source-preserving; only a real adoption
+    // records this journal checkpoint.
+    if (!QFileInfo::exists(paths.adoptionJournalPath()))
+        return true;
+    QString adoptionError;
+    auto adoption = ProfileAdoption::open(paths, &adoptionError);
+    if (!adoption.has_value())
+        return setError(error, adoptionError);
+    if (!adoption->markRatingsReviewsPrivateHandoffVerified(&adoptionError))
+        return setError(error, adoptionError);
+    return true;
+}
+
 bool FirstAccountProfileCoordinator::handoffTrackerPrivateState(
     const ProfilePaths &paths,
     const LegacyPersonalStateStorage &sourceStorage,
@@ -1011,8 +1188,7 @@ bool FirstAccountProfileCoordinator::handoffTrackerPrivateState(
         return true;
 
     const ProfilePaths source = ProfilePaths::localOnly(paths.appDataRoot());
-    if (QDir::cleanPath(sourceStorage.devicePrivateProfileRoot())
-        != QDir::cleanPath(source.profileRoot())) {
+    if (sourceStorage.profileId() != source.profileId()) {
         return setError(error, QStringLiteral(
             "Tracker adoption source does not match the LocalOnly profile."));
     }
@@ -1101,6 +1277,9 @@ runLocalOnlyAdoption(
         return false;
     }
 
+    if (!copyRatingsReviewsConversionMaps(paths, sourceStorage, error))
+        return false;
+
     if (!writeBackup(paths, *source, error))
         return false;
     QString activityBackupDigest;
@@ -1127,11 +1306,25 @@ runLocalOnlyAdoption(
 
     if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
         return false;
-    if (!handoffTrackerPrivateState(paths, sourceStorage,
-            ProfilePaths::Kind::LocalOnly, error)) {
+    if (!handoffTrackerPrivateState(
+            paths, sourceStorage, ProfilePaths::Kind::LocalOnly, error)) {
         m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return false;
     }
+
+    // The private handoff persists a progress checkpoint through a separate
+    // adoption handle. Refresh this in-flight handle before it writes any
+    // later transition, otherwise commit would overwrite that checkpoint.
+    const auto privateHandoffAdoption = ProfileAdoption::open(paths, error);
+    if (!privateHandoffAdoption.has_value()
+        || !privateHandoffAdoption->snapshot()
+                .ratingsReviewsPrivateHandoffVerified) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Ratings/Reviews private handoff did not reach its adoption checkpoint."));
+    }
+    *adoption = *privateHandoffAdoption;
 
     if (!clearMigrationSource(
             sourceStorage,
@@ -1197,8 +1390,10 @@ mergeExistingAccount(
                 source.has_value() ? QString() : sourceError));
     }
 
-    const PersonalStateSnapshot merged =
-        mergeSnapshots(*target, *source);
+    const auto merged =
+        mergeSnapshots(*target, *source, error);
+    if (!merged.has_value())
+        return false;
 
     QList<QVariantMap> activityFacts;
     const ProfilePaths::Kind activeKind =
@@ -1224,7 +1419,7 @@ mergeExistingAccount(
 
     if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
         return false;
-    if (!targetStorage->restorePersonalState(merged, error)) {
+    if (!targetStorage->restorePersonalState(*merged, error)) {
         sourceStorage.restorePersonalState(*source, nullptr);
         m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return false;
@@ -1261,7 +1456,7 @@ mergeExistingAccount(
     if (!verifyProfile(
             paths,
             paths.profileRoot(),
-            merged,
+            *merged,
             nullptr,
             &verifyError)) {
         sourceStorage.restorePersonalState(*source, nullptr);
@@ -1269,7 +1464,8 @@ mergeExistingAccount(
         return setError(error, verifyError);
     }
 
-    if (!handoffTrackerPrivateState(paths, sourceStorage, sourceKind, error)) {
+    if (!copyRatingsReviewsConversionMaps(paths, sourceStorage, error)
+        || !handoffTrackerPrivateState(paths, sourceStorage, sourceKind, error)) {
         sourceStorage.restorePersonalState(*source, nullptr);
         m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return false;
@@ -1747,8 +1943,17 @@ mergeResidualLocalOnlyState(
                 localError));
     }
 
-    if (local->isEmpty())
+    ProfilePreferencesStore localPreferences(
+        localStorage->preferencesIniPath(),
+        m_conversionTestHook);
+    QString conversionError;
+    if (!localPreferences.ratingsReviewsConversionMapsHealthy(&conversionError))
+        return setError(error, conversionError);
+
+    if (local->isEmpty()
+        && localPreferences.ratingsReviewsConversionMaps().isEmpty()) {
         return true;
+    }
 
     return mergeExistingAccount(
         paths,
@@ -1790,6 +1995,13 @@ finishPromotedAdoption(
             paths.profileRoot(),
             activitySourceDigest,
             &promotedActivityDigest,
+            error)) {
+        return false;
+    }
+
+    if (!copyRatingsReviewsConversionMaps(
+            paths,
+            sourceStorage,
             error)) {
         return false;
     }
@@ -1885,13 +2097,29 @@ finishPromotedAdoption(
         }
     }
 
-    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+    if (!m_profileRuntime
+             ->suspendPersonalStoresForMigration(error)) {
         return false;
+    }
     if (!handoffTrackerPrivateState(paths, sourceStorage, sourceKind, error)) {
         if (sourceKind == ProfilePaths::Kind::LocalOnly)
             m_profileRuntime->activateLocalOnlyProfile(nullptr);
         return false;
     }
+
+    // Private handoff persists through its own journal handle, so adopt that
+    // updated snapshot before committing this in-flight transition.
+    const auto privateHandoffAdoption = ProfileAdoption::open(paths, error);
+    if (!privateHandoffAdoption.has_value()
+        || !privateHandoffAdoption->snapshot()
+                .ratingsReviewsPrivateHandoffVerified) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Ratings/Reviews private handoff did not reach its adoption checkpoint."));
+    }
+    adoption = *privateHandoffAdoption;
+
     if (!adoption.commitForAttachment(error))
         return false;
 
@@ -2099,6 +2327,22 @@ verifyProfile(
         storage->historyIniPath());
     ProfilePreferencesStore preferences(
         storage->preferencesIniPath());
+    RatingsReviewsStore ratingsReviews(
+        storage->ratingsReviewsPath());
+    QString ratingsReviewsError;
+    if (!ratingsReviews.healthy(&ratingsReviewsError)) {
+        return setError(
+            error,
+            ratingsReviewsError.isEmpty()
+                ? QStringLiteral("RatingsReviewsStore semantic readback failed.")
+                : ratingsReviewsError);
+    }
+    if (ratingsReviews.recordsJson() != expected.ratingsReviewsRecords
+        || ratingsReviews.tombstonesJson() != expected.ratingsReviewsTombstones) {
+        return setError(
+            error,
+            QStringLiteral("RatingsReviewsStore semantic readback failed."));
+    }
 
     for (auto it =
              expected.progressEntries.constBegin();
@@ -2125,9 +2369,9 @@ verifyProfile(
 
         if (kind.isEmpty()
             || id.isEmpty()
-            || !equalMap(
-                progress.deliveryEntry(kind, id),
-                record)) {
+             || !equalMap(
+                 progress.deliveryEntry(kind, id),
+                 record)) {
             return setError(
                 error,
                 QStringLiteral(
@@ -2575,8 +2819,10 @@ restoreLegacyAndRollback(
     ProfileAdoption *adoption,
     const PersonalStateSnapshot &snapshot,
     QString *error) {
-    if (!m_profileRuntime->suspendPersonalStoresForMigration(error))
+    if (!m_profileRuntime
+             ->suspendPersonalStoresForMigration(error)) {
         return false;
+    }
 
     QString restoreError;
     if (!restoreLegacyActivityFromBackup(

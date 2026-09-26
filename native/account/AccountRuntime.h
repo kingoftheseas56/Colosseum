@@ -10,6 +10,9 @@
 #include "HistorySyncAdapter.h"
 #include "WatchStateSyncAdapter.h"
 #include "ProfilePreferencesSyncAdapter.h"
+#include "RatingsReviewsSyncAdapter.h"
+#include "RatingsReviewsConversionSyncAdapter.h"
+#include "RatingsReviewsDelivery.h"
 #include "StremioLinkSyncAdapter.h"
 #include "CollectionSyncAdapter.h"
 #include "DownloadIntentStore.h"
@@ -56,6 +59,7 @@ public:
     AccountController *controller();
     AccountRecoveryKeyPresenter *recoveryKeyPresenter();
     ProfileStoreRuntime *profileStores();
+    RatingsReviewsDelivery *ratingsReviewsDelivery();
 
     void setDownloadSource(LocalDownloads *downloads);
     // ExtensionsStore retains its manifest/native responsibilities. This
@@ -94,6 +98,7 @@ private:
     void startOrResumeAccountAttachment();
     void activateStremioProfile();
     void activateExtensionsProfile();
+    void activateRatingsReviewsDelivery();
     void refreshStremioLibrary(
         std::function<void(bool, int)> completion = {});
     bool applyStremioSeriesWatchedAfterRedo(
@@ -129,6 +134,7 @@ private:
     WindowsAccountSensitiveClipboard m_sensitiveClipboard;
     AccountRecoveryKeyPresenter m_recoveryKeyPresenter;
     ProfileStoreRuntime m_profileStores;
+    RatingsReviewsDelivery m_ratingsReviewsDelivery;
     SharedPcProfileCoordinator m_profileCoordinator;
     SyncAdapterRegistry m_syncRegistry;
     std::unique_ptr<CollectionSyncAdapter>
@@ -143,6 +149,10 @@ private:
         m_activitySyncAdapter;
     std::unique_ptr<ProfilePreferencesSyncAdapter>
         m_preferencesSyncAdapter;
+    std::unique_ptr<RatingsReviewsSyncAdapter>
+        m_ratingsReviewsSyncAdapter;
+    std::unique_ptr<RatingsReviewsConversionSyncAdapter>
+        m_ratingsReviewsConversionSyncAdapter;
     std::unique_ptr<StremioLinkSyncAdapter>
         m_stremioLinkSyncAdapter;
     DownloadIntentStore m_downloadIntentStore;

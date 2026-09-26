@@ -5,6 +5,8 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfilePreferencesSyncAdapter.h"
+#include "account/RatingsReviewsConversionMap.h"
+#include "account/RatingsReviewsConversionSyncAdapter.h"
 #include "account/StremioLinkSyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
 #include "account/SyncEngine.h"
@@ -311,6 +313,20 @@ ProfilePaths accountProfile(
     return *profile;
 }
 
+RatingsReviewsConversionMap conversionFixture(
+    const RatingsReviewsConversionTestHook &hook) {
+    QString error;
+    const auto map = RatingsReviewsConversionMap::recommended(
+        QStringLiteral("fixture-a"),
+        QStringLiteral("fixture-halfpoint-v1"),
+        1,
+        hook,
+        &error);
+    if (!map.has_value())
+        qFatal("conversion fixture failed: %s", qPrintable(error));
+    return *map;
+}
+
 struct PreferenceReplica {
     PreferenceFixtureTransport transport;
     AccountClient client;
@@ -362,6 +378,39 @@ struct PreferenceReplica {
         }
     }
 };
+
+struct ConversionReplica {
+    PreferenceFixtureTransport transport;
+    AccountClient client;
+    RatingsReviewsConversionTestHook hook;
+    ProfilePreferencesStore store;
+    SyncAdapterRegistry registry;
+    RatingsReviewsConversionSyncAdapter adapter;
+    SyncEngine engine;
+    ProfilePaths profile;
+
+    ConversionReplica(
+        PreferenceFixtureService *service,
+        const ProfilePaths &profileValue,
+        const QString &deviceId,
+        qint64 *now)
+        : transport(service),
+          client(&transport),
+          hook(RatingsReviewsConversionTestHook::syntheticDomains()),
+          store(profileValue.preferencesIniPath(), hook),
+          adapter(&store),
+          engine(&client, &registry, [now]() { return *now; }),
+          profile(profileValue) {
+        client.setAccessToken(QByteArrayLiteral("fixture-access"));
+        if (!registry.registerAdapter(&adapter))
+            qFatal("conversion fixture adapter registration failed");
+        engine.setAutomaticSchedulingEnabled(false);
+        engine.setNetworkEnabled(false);
+        QString error;
+        if (!engine.start(profile, deviceId, &error))
+            qFatal("conversion fixture engine start failed: %s", qPrintable(error));
+    }
+};
 }
 
 class tst_profile_preferences_sync final
@@ -379,6 +428,7 @@ private slots:
     void deleteResetsToDefaultWithoutEcho();
     void qmlFacadeReactsOnceToRemoteOwnerChange();
     void twoReplicasConvergeExplicitPreference();
+    void twoReplicasConvergeRatingsReviewsConversionMap();
 };
 
 void tst_profile_preferences_sync::
@@ -701,43 +751,61 @@ twoReplicasConvergeExplicitPreference() {
     QVERIFY(tempB.isValid());
 
     PreferenceFixtureService service;
-    qint64 nowA =
-        service.serverTimeMs;
-    qint64 nowB =
-        service.serverTimeMs;
+    qint64 nowA = service.serverTimeMs;
+    qint64 nowB = service.serverTimeMs;
 
     PreferenceReplica a(
-        &service,
-        accountProfile(&tempA),
-        QString::fromLatin1(
-            kDeviceA),
-        &nowA);
+        &service, accountProfile(&tempA),
+        QString::fromLatin1(kDeviceA), &nowA);
     PreferenceReplica b(
-        &service,
-        accountProfile(&tempB),
-        QString::fromLatin1(
-            kDeviceB),
-        &nowB);
+        &service, accountProfile(&tempB),
+        QString::fromLatin1(kDeviceB), &nowB);
 
     a.store.setShowExplicit(true);
-    QTRY_COMPARE(
-        a.engine.pendingOutboxCount(),
-        1);
+    QTRY_COMPARE(a.engine.pendingOutboxCount(), 1);
 
     a.engine.setNetworkEnabled(true);
-    QTRY_COMPARE(
-        a.engine.pendingOutboxCount(),
-        0);
+    QTRY_COMPARE(a.engine.pendingOutboxCount(), 0);
 
     b.engine.setNetworkEnabled(true);
     b.engine.requestImmediateSync();
 
-    QTRY_COMPARE(
-        b.store.showExplicit(),
-        true);
-    QTRY_COMPARE(
-        b.engine.pendingOutboxCount(),
-        0);
+    QTRY_COMPARE(b.store.showExplicit(), true);
+    QTRY_COMPARE(b.engine.pendingOutboxCount(), 0);
+}
+
+void tst_profile_preferences_sync::
+twoReplicasConvergeRatingsReviewsConversionMap() {
+    QTemporaryDir tempA;
+    QTemporaryDir tempB;
+    QVERIFY(tempA.isValid());
+    QVERIFY(tempB.isValid());
+
+    PreferenceFixtureService service;
+    qint64 nowA = service.serverTimeMs;
+    qint64 nowB = service.serverTimeMs;
+    ConversionReplica a(
+        &service, accountProfile(&tempA),
+        QString::fromLatin1(kDeviceA), &nowA);
+    ConversionReplica b(
+        &service, accountProfile(&tempB),
+        QString::fromLatin1(kDeviceB), &nowB);
+
+    const RatingsReviewsConversionMap map = conversionFixture(a.hook);
+    QVERIFY(a.store.setRatingsReviewsConversionMap(map));
+    QTRY_COMPARE(a.engine.pendingOutboxCount(), 1);
+
+    a.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(a.engine.pendingOutboxCount(), 0);
+
+    b.engine.setNetworkEnabled(true);
+    b.engine.requestImmediateSync();
+
+    QTRY_VERIFY(b.store.ratingsReviewsConversionMap(map.providerId).has_value());
+    QCOMPARE(
+        b.store.ratingsReviewsConversionMap(map.providerId)->digest(),
+        map.digest());
+    QTRY_COMPARE(b.engine.pendingOutboxCount(), 0);
 }
 
 QTEST_MAIN(tst_profile_preferences_sync)

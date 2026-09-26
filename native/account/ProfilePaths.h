@@ -33,6 +33,10 @@ public:
     QString audioPairingIniPath() const;
     QString preferencesIniPath() const;
     QString historyIniPath() const;
+    QString ratingsReviewsPath() const;
+    QString ratingsReviewsProviderMappingsPath() const;
+    QString ratingsReviewsDeliveryOutboxPath() const;
+    QString ratingsReviewsDeliveryReceiptsPath() const;
     QString activityDbPath() const;
     QString syncStatePath() const;
     QString syncOutboxPath() const;

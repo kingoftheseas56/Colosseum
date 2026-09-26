@@ -1220,6 +1220,14 @@ int main(int argc, char** argv)
         require(fieldText.value("props").toObject().value("text").toString()
                     == QStringLiteral("luffy"),
                 "ui-text-input REALLY landed each character in the field" + why());
+        QJsonObject redacted = call(pipe, {{"cmd", "ui-text-input"}, {"seq", 741},
+                                           {"payload", QJsonObject{
+                                               {"target", "nameField"},
+                                               {"text", "review-secret-sentinel"},
+                                               {"redact", true}}}});
+        require(!redacted.contains("typed")
+                    && redacted.value("typedLength").toInt() == 22,
+                "redacted ui-text-input reports length without echoing content" + why());
 
         // ── Task 5: ui-keypress lands a real key on the focused item ──
         // The scene has no global key handler, so we focus keySink first (its

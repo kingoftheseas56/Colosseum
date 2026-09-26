@@ -15,8 +15,12 @@ TestCase {
     }
 
     Component { id: barComponent; Colosseum.Taskbar {} }
+    Component { id: topBarComponent; Colosseum.TopBar {} }
+    Item { id: backdropStub; width: 1280; height: 720 }
     property var bar: null
-    SignalSpy { id: syncSpy; signalName: "syncCenterClicked" }
+    property var topBar: null
+    SignalSpy { id: syncSpy; signalName: "trackersClicked" }
+    SignalSpy { id: historySpy; signalName: "historyStatsClicked" }
 
     function init() {
         bar = barComponent.createObject(testWindow, {
@@ -25,7 +29,15 @@ TestCase {
             "open": true
         })
         verify(bar !== null)
-        syncSpy.target = bar
+        topBar = topBarComponent.createObject(testWindow, {
+            "backdrop": backdropStub,
+            "width": testWindow.width,
+            "height": 80,
+            "trackersEnabled": true
+        })
+        verify(topBar !== null)
+        syncSpy.target = topBar
+        historySpy.target = bar
         testWindow.requestActivate()
         tryCompare(testWindow, "active", true, 1000)
         wait(320)
@@ -34,9 +46,14 @@ TestCase {
     function cleanup() {
         syncSpy.clear()
         syncSpy.target = null
+        historySpy.clear()
+        historySpy.target = null
         if (bar)
             bar.destroy()
         bar = null
+        if (topBar)
+            topBar.destroy()
+        topBar = null
     }
 
     function findChild(root, objectName) {
@@ -53,27 +70,16 @@ TestCase {
         return null
     }
 
-    function test_sync_sits_after_keyboard_guide_before_sessions() {
-        var guide = findChild(bar, "taskbarKeyboardGuide")
-        var sync = findChild(bar, "taskbarSyncCenter")
-        var sessions = findChild(bar, "taskbarSessionTiles")
-        verify(guide !== null)
-        verify(sync !== null)
-        verify(sessions !== null)
-        verify(guide.x < sync.x)
-        verify(sync.x < sessions.x)
-        compare(sync.visible, true)
-
-        bar.open = false
-        wait(300)
-        compare(sync.visible, false)
+    function test_keyboard_guide_and_sync_left_the_dock() {
+        compare(findChild(bar, "taskbarKeyboardGuide"), null)
+        compare(findChild(bar, "taskbarSyncCenter"), null)
     }
 
     function test_existing_dock_order_is_preserved() {
         var orderedNames = [
             "taskbarOpenMedia", "openRecentDisclosure", "taskbarWatchPartyJoin",
-            "taskbarDownloads", "taskbarExtensions", "taskbarSettings",
-            "taskbarKeyboardGuide", "taskbarSyncCenter", "taskbarSessionTiles"
+            "taskbarDownloads", "taskbarExtensions", "taskbarHistoryStats",
+            "taskbarSessionTiles"
         ]
         var previousX = -1
         for (var i = 0; i < orderedNames.length; ++i) {
@@ -85,50 +91,53 @@ TestCase {
         }
     }
 
-    function test_sync_is_an_accessible_intent_and_active_destination() {
-        var sync = findChild(bar, "taskbarSyncCenter")
-        var surface = findChild(bar, "taskbarSyncCenterSurface")
-        var icon = findChild(bar, "taskbarSyncCenterIcon")
-        var action = findChild(sync, "taskbarSyncCenterInput")
-        verify(sync !== null)
-        verify(surface !== null)
-        verify(icon !== null)
+    function test_history_is_an_accessible_intent_and_active_destination() {
+        var history = findChild(bar, "taskbarHistoryStats")
+        var action = findChild(history, "taskbarHistoryStatsInput")
+        verify(history !== null)
         verify(action !== null)
-        compare(icon.status, Image.Ready)
-        compare(action.Accessible.name, "Connections")
-        compare(bar.syncAttentionCount, 0)
-        compare(syncSpy.count, 0)
-        mouseClick(sync)
-        compare(syncSpy.count, 1)
+        compare(action.Accessible.name, "History, highlights, and stats")
+        compare(historySpy.count, 0)
+        mouseClick(history)
+        compare(historySpy.count, 1)
 
         action.forceActiveFocus(Qt.TabFocusReason)
         tryCompare(action, "activeFocus", true, 1000)
         keyClick(Qt.Key_Return)
-        compare(syncSpy.count, 2)
-        keyClick(Qt.Key_Enter)
-        compare(syncSpy.count, 3)
-        keyClick(Qt.Key_Space)
-        compare(syncSpy.count, 4)
+        compare(historySpy.count, 2)
 
-        bar.syncCenterActive = true
+        bar.historyStatsActive = true
         wait(0)
-        compare(findChild(sync, "taskbarSyncCenter").visible, true)
+        compare(history.visible, true)
     }
 
-    function test_return_focus_reopens_taskbar_and_targets_sync() {
-        var sync = findChild(bar, "taskbarSyncCenter")
-        var action = findChild(sync, "taskbarSyncCenterInput")
-        verify(sync !== null)
+    function test_trackers_door_is_an_accessible_top_bar_intent() {
+        var door = findChild(topBar, "topBarTrackersButton")
+        var action = findChild(topBar, "topBarTrackersInput")
+        verify(door !== null)
         verify(action !== null)
-        bar.reveal()
-        compare(bar.autoRevealed, true)
-        bar.open = false
-        wait(0)
-        compare(sync.visible, false)
+        compare(door.visible, true)
+        compare(action.Accessible.name, "Trackers")
+        compare(syncSpy.count, 0)
+        mouseClick(door)
+        compare(syncSpy.count, 1)
 
-        bar.focusSyncCenterAction()
-        tryCompare(bar, "open", true, 1000)
-        compare(bar.autoRevealed, false)
+        topBar.focusTrackersButton()
         tryCompare(action, "activeFocus", true, 1000)
+        keyClick(Qt.Key_Return)
+        compare(syncSpy.count, 2)
+    }
+
+    function test_trackers_door_is_opt_in_per_host() {
+        var door = findChild(topBar, "topBarTrackersButton")
+        verify(door !== null)
+        topBar.trackersEnabled = false
+        wait(0)
+        compare(door.visible, false)
+    }
+
+    function test_trackers_door_shows_no_status_without_connections() {
+        compare(topBar.trackersDotState, "")
+        compare(findChild(topBar, "topBarTrackersStatusDot").visible, false)
     }
 }

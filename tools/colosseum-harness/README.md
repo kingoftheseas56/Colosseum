@@ -188,11 +188,11 @@ A stale intelligence-map basis is surfaced explicitly. `context-for-task` and sc
 
 `inspect ratings` reflects the current read-only target checkout, including dirty working-tree implementation when it exists.
 
-At Workbench R1 verification time, Arc 49 has an uncommitted canonical owner:
+After the Arc 49 Slices 1–2 map refresh (2026-09-24), the domain maps the uncommitted working-tree implementation:
 
-- `native/account/RatingsReviewsStore.cpp`
-- `native/account/RatingsReviewsStore.h`
-- focused CTest `colosseum.qttest.ratings_reviews_store`
+- owners: `native/engine/ColosseumTitleIdentityRegistry.cpp` (pair admission, seed pin, deterministic v5 ct1 derivation, comic rejection), `native/account/RatingsReviewsController.cpp`, `native/account/RatingsReviewsStore.cpp`, `qml/ratingsreviews/RatingsReviewsHost.qml` (approved page with the inline private editor), `qml/ratingsreviews/RatingsReviewsAction.qml` (title-detail entry row)
+- focused CTests: `colosseum.qttest.ratings_reviews_{journey,store,conversion,delivery,sync}` and `colosseum.qml.ratings_reviews_{journey,delivery,conversion}`
+- Lanista journeys: `ratings-reviews-frieren-production` (runtime-validated path) plus the two test-build delivery fixture journeys
 
 Supporting integration seams remain:
 
@@ -202,7 +202,7 @@ Supporting integration seams remain:
 - `qml/ShellBackPolicy.js`
 - shared composition through `qml/Main.qml`
 
-The harness distinguishes this dirty working-tree state from committed baseline through `status`. It also keeps the future `colosseum.qttest.ratings_reviews_delivery` honest: that selector remains NOT FOUND until it is actually registered.
+The harness distinguishes this dirty working-tree state from committed baseline through `status`. Unregistered selectors still fail with `TEST_NOT_FOUND`; `colosseum.qttest.ratings_reviews_delivery` is now registered and mapped because it actually exists. Category entry journeys (anime pivot, book, manga, vault film, comic absence) and the public community service (Slices 3–4) are not mapped because they do not exist yet, and RatingsWrapper stays deliberately unmapped until its API contract lands.
 ## MCP bridge
 
 Run:

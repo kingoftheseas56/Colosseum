@@ -14,6 +14,7 @@ type SyncMutationInput struct {
 	HLCPhysicalMS string          `json:"hlc_physical_ms"`
 	HLCCounter    string          `json:"hlc_counter"`
 	Operation     string          `json:"operation"`
+	DeletedAtMS   string          `json:"deleted_at_ms,omitempty"`
 	Payload       json.RawMessage `json:"payload,omitempty"`
 }
 
@@ -46,6 +47,7 @@ type SyncMutationView struct {
 	HLCPhysicalMS string          `json:"hlc_physical_ms"`
 	HLCCounter    string          `json:"hlc_counter"`
 	Operation     string          `json:"operation"`
+	DeletedAtMS   string          `json:"deleted_at_ms,omitempty"`
 	Payload       json.RawMessage `json:"payload,omitempty"`
 	// HLC/device describe the original request identity. A semantic merge can
 	// materialize a payload under the already accepted winner's ordering; that
@@ -96,6 +98,7 @@ type syncStoredMutation struct {
 	HLCPhysicalMS int64
 	HLCCounter    uint64
 	Operation     string
+	DeletedAtMS   int64
 	PayloadCipher []byte
 	// PayloadCipher is the original request identity. MaterializedPayloadCipher
 	// is the canonical domain result sent to peers when a semantic merge (for

@@ -7,12 +7,14 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfileStoreRuntime.h"
+#include "account/RatingsReviewsStore.h"
 #include "account/SharedPcProfileCoordinator.h"
 #include "ProgressStore.h"
 
 #include "SearchHistoryStore.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QPointer>
@@ -20,6 +22,8 @@
 #include <QQmlContext>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <optional>
 
 namespace {
 constexpr auto kAccountA =
@@ -217,6 +221,7 @@ private slots:
     void historyNeverCrossesAccountBoundary();
     void directCrossAccountOpenFailsUntilCurrentProfileIsSealed();
     void rememberedAccountRefusesMissingLocalProfile();
+    void malformedRatingsReviewsBlocksProfileActivationAndCapture();
     void sealedAccountCanReopenOnlyThroughExplicitSessionPreparation();
     void consumptionPrivacyAndHistoryRemainOwnedAcrossSharedPcSwitch();
 
@@ -244,6 +249,7 @@ signedOutRuntimeStartsSealedAndHidesLegacyPersonalState() {
     QCOMPARE(
         runtime.activeProfile().kind(),
         ProfilePaths::Kind::Sealed);
+    QVERIFY(runtime.ratingsReviewsStore() == nullptr);
     QCOMPARE(
         runtime.activeProfile().appDataRoot(),
         QDir::cleanPath(
@@ -335,8 +341,20 @@ accountAToBToASealsConcreteStoreObjects() {
         profilePreferences(&engine)
             ->showExplicit());
 
-    QPointer<SearchHistoryStore> oldAccountA(
-        accountA);
+    const RatingsReviewsStore::Identity rrIdentity{
+        QStringLiteral("theatre"),
+        QStringLiteral("series"),
+        QStringLiteral("shared-pc-fixture")};
+    RatingsReviewsStore *ratingsA = runtime.ratingsReviewsStore();
+    QVERIFY(ratingsA);
+    QVERIFY(ratingsA->saveLocal(
+        rrIdentity,
+        std::optional<double>{9.0},
+        std::optional<QString>{QStringLiteral("account-a-review")},
+        false));
+
+    QPointer<SearchHistoryStore> oldAccountA(accountA);
+    QPointer<RatingsReviewsStore> oldRatingsA(ratingsA);
 
     QVERIFY2(
         profiles.sealAccountSession(
@@ -348,6 +366,8 @@ accountAToBToASealsConcreteStoreObjects() {
         runtime.activeProfile().kind(),
         ProfilePaths::Kind::Sealed);
     QVERIFY(oldAccountA.isNull());
+    QVERIFY(oldRatingsA.isNull());
+    QVERIFY(runtime.ratingsReviewsStore() == nullptr);
 
     SearchHistoryStore *sealed =
         searchHistory(&engine);
@@ -381,9 +401,17 @@ accountAToBToASealsConcreteStoreObjects() {
     QVERIFY(
         !profilePreferences(&engine)
              ->showExplicit());
+    RatingsReviewsStore *ratingsB = runtime.ratingsReviewsStore();
+    QVERIFY(ratingsB);
+    QVERIFY(!ratingsB->record(rrIdentity).has_value());
+    QVERIFY(ratingsB->saveLocal(
+        rrIdentity,
+        std::optional<double>{6.5},
+        std::optional<QString>{QStringLiteral("account-b-review")},
+        false));
 
-    QPointer<SearchHistoryStore> oldAccountB(
-        accountB);
+    QPointer<SearchHistoryStore> oldAccountB(accountB);
+    QPointer<RatingsReviewsStore> oldRatingsB(ratingsB);
 
     QVERIFY2(
         profiles.sealAccountSession(
@@ -391,6 +419,8 @@ accountAToBToASealsConcreteStoreObjects() {
             &error),
         qPrintable(error));
     QVERIFY(oldAccountB.isNull());
+    QVERIFY(oldRatingsB.isNull());
+    QVERIFY(runtime.ratingsReviewsStore() == nullptr);
 
     QVERIFY2(
         profiles.prepareAccountSession(
@@ -411,6 +441,14 @@ accountAToBToASealsConcreteStoreObjects() {
     QVERIFY(
         profilePreferences(&engine)
             ->showExplicit());
+    RatingsReviewsStore *ratingsAReopened = runtime.ratingsReviewsStore();
+    QVERIFY(ratingsAReopened);
+    const auto reopenedRecord = ratingsAReopened->record(rrIdentity);
+    QVERIFY(reopenedRecord.has_value());
+    QVERIFY(reopenedRecord->rating.has_value());
+    QCOMPARE(*reopenedRecord->rating, 9.0);
+    QVERIFY(reopenedRecord->review.has_value());
+    QCOMPARE(*reopenedRecord->review, QStringLiteral("account-a-review"));
 }
 
 void tst_account_shared_pc::
@@ -637,6 +675,39 @@ rememberedAccountRefusesMissingLocalProfile() {
     QCOMPARE(
         runtime.activeProfile().kind(),
         ProfilePaths::Kind::Sealed);
+}
+
+void tst_account_shared_pc::
+malformedRatingsReviewsBlocksProfileActivationAndCapture() {
+    SharedPcFixture fixture;
+    fixture.seedAccount(
+        QString::fromLatin1(kAccountA),
+        PersonalStateSnapshot{});
+
+    const ProfilePaths profile =
+        fixture.paths(QString::fromLatin1(kAccountA));
+    QFile corrupt(profile.ratingsReviewsPath());
+    QVERIFY(corrupt.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QCOMPARE(corrupt.write("{not-json"), qint64(9));
+    corrupt.close();
+
+    QString error;
+    const auto storage =
+        LegacyPersonalStateStorage::forProfile(profile, &error);
+    QVERIFY2(storage.has_value(), qPrintable(error));
+    QVERIFY(!storage->capture(&error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    ProfileStoreRuntime runtime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    QVERIFY(!runtime.activateAccountProfile(
+        QString::fromLatin1(kAccountA),
+        &error));
+    QCOMPARE(
+        runtime.activeProfile().kind(),
+        ProfilePaths::Kind::Sealed);
+    QVERIFY(runtime.ratingsReviewsStore() == nullptr);
 }
 
 void tst_account_shared_pc::

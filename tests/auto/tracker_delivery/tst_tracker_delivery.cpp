@@ -296,17 +296,17 @@ void TrackerDeliveryTest::firstExportIsInertUntilSelectedItemsAreConfirmed()
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-b"), QStringLiteral("canonical-b")));
+                           QStringLiteral("episode:6802:2:2"), QStringLiteral("canonical-b")));
 
     FakeDeliverySource source;
     const auto first = progressFact(QStringLiteral("canonical-a"), 4, 8, QStringLiteral("sha-a"));
     const auto second = progressFact(QStringLiteral("canonical-b"), 7, 3, QStringLiteral("sha-b"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("snapshot-1"),
-                                       {remoteDifferent(QStringLiteral("remote-a")),
-                                        remoteDifferent(QStringLiteral("remote-b"))});
+                                       {remoteDifferent(QStringLiteral("episode:6801:1:1")),
+                                        remoteDifferent(QStringLiteral("episode:6802:2:2"))});
     source.commit(first);
     source.commit(second);
 
@@ -327,8 +327,8 @@ void TrackerDeliveryTest::firstExportIsInertUntilSelectedItemsAreConfirmed()
 
     const auto changedRemote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                               QStringLiteral("snapshot-2"),
-                                              {remoteDifferent(QStringLiteral("remote-a")),
-                                               remoteDifferent(QStringLiteral("remote-b"))});
+                                              {remoteDifferent(QStringLiteral("episode:6801:1:1")),
+                                               remoteDifferent(QStringLiteral("episode:6802:2:2"))});
     QVERIFY(!store.confirmExport(preview->previewId, {preview->items.at(0).itemId},
                                  changedRemote, &source, 1999));
     QVERIFY(!store.hasFirstExportConsent(TrackerProviderId::Simkl, QStringLiteral("42")));
@@ -364,7 +364,7 @@ void TrackerDeliveryTest::exportReviewBindsACompleteFreshRemoteSnapshot()
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     FakeDeliverySource source;
     const auto fact = progressFact(QStringLiteral("canonical-a"), 1, 5, QStringLiteral("sha-1"));
     source.commit(fact);
@@ -378,7 +378,7 @@ void TrackerDeliveryTest::exportReviewBindsACompleteFreshRemoteSnapshot()
 
     const auto current = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                         QStringLiteral("current"),
-                                        {remoteMatching(QStringLiteral("remote-a"))});
+                                        {remoteMatching(QStringLiteral("episode:6801:1:1"))});
     const auto preview = store.createExportPreview(
         TrackerProviderId::Simkl, QStringLiteral("42"), 1, {fact}, current, &source);
     QVERIFY(preview.has_value());
@@ -402,7 +402,7 @@ void TrackerDeliveryTest::sameTitleProgressAndCompletionUseSeparateRemoteCompari
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
 
     FakeDeliverySource source;
     const TrackerDeliveryFact progress = progressFact(
@@ -415,9 +415,9 @@ void TrackerDeliveryTest::sameTitleProgressAndCompletionUseSeparateRemoteCompari
 
     const auto remote = remoteSnapshot(
         TrackerProviderId::Simkl, QStringLiteral("42"), 1, QStringLiteral("typed-state"),
-        {remoteMatching(QStringLiteral("remote-a"), QStringLiteral("progress-state"),
+        {remoteMatching(QStringLiteral("episode:6801:1:1"), QStringLiteral("progress-state"),
                         QStringLiteral("Progress is current"), TrackerDeliveryFactKind::Progress),
-         remoteDifferent(QStringLiteral("remote-a"), QStringLiteral("completion-state"),
+         remoteDifferent(QStringLiteral("episode:6801:1:1"), QStringLiteral("completion-state"),
                          QStringLiteral("Completion is absent"),
                          TrackerDeliveryFactKind::Completion, completionEvent)});
     TrackerDeliveryStore store(*profile, &mappings, &connections);
@@ -453,16 +453,16 @@ void TrackerDeliveryTest::unselectedFirstExportFactsDoNotLeakThroughStartupRecov
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-b"), QStringLiteral("canonical-b")));
+                           QStringLiteral("episode:6802:2:2"), QStringLiteral("canonical-b")));
     FakeDeliverySource source;
     const auto selected = progressFact(QStringLiteral("canonical-a"), 1, 8, QStringLiteral("sha-a"));
     const auto leftUnselected = progressFact(QStringLiteral("canonical-b"), 1, 4, QStringLiteral("sha-b"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("first-export"),
-                                       {remoteAbsent(QStringLiteral("remote-a")),
-                                        remoteAbsent(QStringLiteral("remote-b"))});
+                                       {remoteAbsent(QStringLiteral("episode:6801:1:1")),
+                                        remoteAbsent(QStringLiteral("episode:6802:2:2"))});
     source.commit(selected);
     source.commit(leftUnselected);
 
@@ -501,12 +501,12 @@ void TrackerDeliveryTest::failedPersistenceCannotGrantConsentOrQueueAnItem()
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     FakeDeliverySource source;
     const auto fact = progressFact(QStringLiteral("canonical-a"), 1, 5, QStringLiteral("sha-1"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("export"),
-                                       {remoteAbsent(QStringLiteral("remote-a"))});
+                                       {remoteAbsent(QStringLiteral("episode:6801:1:1"))});
     source.commit(fact);
     TrackerDeliveryStore store(*profile, &mappings, &connections);
     const auto preview = store.createExportPreview(
@@ -560,7 +560,7 @@ void TrackerDeliveryTest::nativeWritesQueueOnlyAfterConsentAndProgressCoalescesO
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     FakeDeliverySource source;
     const auto first = progressFact(QStringLiteral("canonical-a"), 1, 2, QStringLiteral("sha-1"));
     const auto second = progressFact(QStringLiteral("canonical-a"), 2, 3, QStringLiteral("sha-2"));
@@ -577,7 +577,7 @@ void TrackerDeliveryTest::nativeWritesQueueOnlyAfterConsentAndProgressCoalescesO
     source.commit(first);
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("export"),
-                                       {remoteAbsent(QStringLiteral("remote-a"))});
+                                       {remoteAbsent(QStringLiteral("episode:6801:1:1"))});
 
     const auto preview = store.createExportPreview(
         TrackerProviderId::Simkl, QStringLiteral("42"), 1, {first}, remote, &source);
@@ -619,13 +619,13 @@ void TrackerDeliveryTest::startupRecoveryFindsTheLocalSaveToOutboxGapExactlyOnce
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     FakeDeliverySource source;
     const auto reviewed = progressFact(QStringLiteral("canonical-a"), 1, 2, QStringLiteral("sha-1"));
     const auto savedButNotQueued = progressFact(QStringLiteral("canonical-a"), 2, 3, QStringLiteral("sha-2"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("export"),
-                                       {remoteAbsent(QStringLiteral("remote-a"))});
+                                       {remoteAbsent(QStringLiteral("episode:6801:1:1"))});
     source.commit(reviewed);
     {
         TrackerDeliveryStore store(*profile, &mappings, &connections);
@@ -659,13 +659,13 @@ void TrackerDeliveryTest::changedLocalFactCannotCrossTheDeliveryBoundary()
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     FakeDeliverySource source;
     const auto reviewed = progressFact(QStringLiteral("canonical-a"), 1, 2, QStringLiteral("sha-1"));
     const auto newer = progressFact(QStringLiteral("canonical-a"), 2, 4, QStringLiteral("sha-2"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("export"),
-                                       {remoteAbsent(QStringLiteral("remote-a"))});
+                                       {remoteAbsent(QStringLiteral("episode:6801:1:1"))});
     source.commit(reviewed);
     TrackerDeliveryStore store(*profile, &mappings, &connections);
     const auto preview = store.createExportPreview(
@@ -691,12 +691,12 @@ void TrackerDeliveryTest::interruptedDeliveryRequiresReadbackBeforeItCanBeSentAg
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     FakeDeliverySource source;
     const auto fact = progressFact(QStringLiteral("canonical-a"), 1, 8, QStringLiteral("sha-1"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("export"),
-                                       {remoteAbsent(QStringLiteral("remote-a"))});
+                                       {remoteAbsent(QStringLiteral("episode:6801:1:1"))});
     source.commit(fact);
 
     QString operationId;
@@ -755,11 +755,11 @@ void TrackerDeliveryTest::providerFailuresRemainItemScopedAndRespectRetryAfter()
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-s"), QStringLiteral("canonical-s")));
+                           QStringLiteral("episode:6804:1:4"), QStringLiteral("canonical-s")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-t"), QStringLiteral("canonical-t")));
+                           QStringLiteral("episode:6805:2:5"), QStringLiteral("canonical-t")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-u"), QStringLiteral("canonical-u")));
+                           QStringLiteral("episode:6806:3:6"), QStringLiteral("canonical-u")));
     FakeDeliverySource source;
     const auto simklFact = progressFact(QStringLiteral("canonical-s"), 1, 8, QStringLiteral("sha-s"));
     const auto secondFact = progressFact(QStringLiteral("canonical-t"), 1, 6, QStringLiteral("sha-t"));
@@ -769,9 +769,9 @@ void TrackerDeliveryTest::providerFailuresRemainItemScopedAndRespectRetryAfter()
     source.commit(waitingFact);
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("42"), 1,
                                        QStringLiteral("batch"),
-                                       {remoteAbsent(QStringLiteral("remote-s")),
-                                        remoteAbsent(QStringLiteral("remote-t")),
-                                        remoteAbsent(QStringLiteral("remote-u"))});
+                                       {remoteAbsent(QStringLiteral("episode:6804:1:4")),
+                                        remoteAbsent(QStringLiteral("episode:6805:2:5")),
+                                        remoteAbsent(QStringLiteral("episode:6806:3:6"))});
 
     TrackerDeliveryStore store(*profile, &mappings, &connections);
     const auto preview = store.createExportPreview(
@@ -868,12 +868,12 @@ void TrackerDeliveryTest::terminalProviderRefusalSurvivesReopenWithoutBecomingRe
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("account-simkl")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("account-simkl"),
-                           QStringLiteral("remote-simkl"), QStringLiteral("canonical-simkl")));
+                           QStringLiteral("episode:6807:1:7"), QStringLiteral("canonical-simkl")));
     FakeDeliverySource source;
     const auto fact = progressFact(QStringLiteral("canonical-simkl"), 1, 7, QStringLiteral("sha-simkl"));
     const auto remote = remoteSnapshot(TrackerProviderId::Simkl, QStringLiteral("account-simkl"), 1,
                                        QStringLiteral("initial"),
-                                       {remoteAbsent(QStringLiteral("remote-simkl"))});
+                                       {remoteAbsent(QStringLiteral("episode:6807:1:7"))});
     source.commit(fact);
     QString operationId;
     {
@@ -1212,7 +1212,7 @@ void TrackerDeliveryTest::liveRuntimeSuppressesDelayedDivergentKindActivity()
     QVERIFY2(runtime.start(&error), qPrintable(error));
 
     const QString account = QStringLiteral("simkl-account");
-    const QString remoteId = QStringLiteral("simkl-feature-cut");
+    const QString remoteId = QStringLiteral("episode:6808:2:8");
     const QString id = QStringLiteral("catalog:feature-cut:extended");
     const QString sessionId = QStringLiteral("play-session-delayed-feature-cut");
     QVERIFY(installConnection(runtime.connectionStore(), TrackerProviderId::Simkl, account));
@@ -1309,7 +1309,7 @@ void TrackerDeliveryTest::liveRuntimeDeduplicatesGuardedNinetyAndEofButKeepsRewa
     QVERIFY2(runtime.start(&error), qPrintable(error));
 
     const QString account = QStringLiteral("simkl-account");
-    const QString remoteId = QStringLiteral("simkl-guarded-feature");
+    const QString remoteId = QStringLiteral("movie:6809");
     const QString id = QStringLiteral("movie:guarded-feature");
     QVERIFY(installConnection(runtime.connectionStore(), TrackerProviderId::Simkl, account));
 
@@ -1634,7 +1634,7 @@ void TrackerDeliveryTest::reEnablingSendRefreshesProgressCommittedWhilePaused()
     QTRY_VERIFY_WITH_TIMEOUT(progress.deliverySnapshotDurable(), 3000);
 
     const QString account = QStringLiteral("simkl-paused-send-account");
-    const QString remoteId = QStringLiteral("simkl-paused-send-show");
+    const QString remoteId = QStringLiteral("episode:6810:1:10");
     const QString canonical = QStringLiteral("video:") + progressId;
     TrackerDeliveryRuntime runtime(*profile, &progress, &activity, &history);
     QString error;
@@ -1692,7 +1692,7 @@ void TrackerDeliveryTest::profileRuntimeRecoversDurableProgressAfterRestart()
     QTRY_VERIFY(progress.deliverySnapshotDurable());
 
     const QString account = QStringLiteral("simkl-account");
-    const QString remoteId = QStringLiteral("simkl-show");
+    const QString remoteId = QStringLiteral("episode:6811:2:11");
     const QString canonical = QStringLiteral("video:") + progressId;
     {
         TrackerDeliveryRuntime runtime(*profile, &progress, &activity, &history);
@@ -2038,11 +2038,11 @@ void TrackerDeliveryTest::disconnectDiscardNeverDeletesUnknownOutcomes()
     TrackerMappingStore mappings(*profile);
     QVERIFY(installConnection(&connections, TrackerProviderId::Simkl, QStringLiteral("42")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-a"), QStringLiteral("canonical-a")));
+                           QStringLiteral("episode:6801:1:1"), QStringLiteral("canonical-a")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-b"), QStringLiteral("canonical-b")));
+                           QStringLiteral("episode:6802:2:2"), QStringLiteral("canonical-b")));
     QVERIFY(installMapping(&mappings, TrackerProviderId::Simkl, QStringLiteral("42"),
-                           QStringLiteral("remote-c"), QStringLiteral("canonical-c")));
+                           QStringLiteral("episode:6803:3:3"), QStringLiteral("canonical-c")));
     FakeDeliverySource source;
     const QList<TrackerDeliveryFact> facts{
         progressFact(QStringLiteral("canonical-a"), 1, 1, QStringLiteral("a")),
@@ -2052,8 +2052,8 @@ void TrackerDeliveryTest::disconnectDiscardNeverDeletesUnknownOutcomes()
         source.commit(fact);
     const TrackerRemoteDeliverySnapshot remote = remoteSnapshot(
         TrackerProviderId::Simkl, QStringLiteral("42"), 1, QStringLiteral("disconnect-review"),
-        {remoteAbsent(QStringLiteral("remote-a")), remoteAbsent(QStringLiteral("remote-b")),
-         remoteAbsent(QStringLiteral("remote-c"))});
+        {remoteAbsent(QStringLiteral("episode:6801:1:1")), remoteAbsent(QStringLiteral("episode:6802:2:2")),
+         remoteAbsent(QStringLiteral("episode:6803:3:3"))});
 
     TrackerDeliveryStore delivery(*profile, &mappings, &connections);
     const auto preview = delivery.createExportPreview(

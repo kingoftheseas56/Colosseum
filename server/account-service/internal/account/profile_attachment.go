@@ -231,6 +231,9 @@ func (s *Service) validateAttachmentManifest(
 			Operation:     parsed.Operation,
 			Payload:       parsed.CanonicalPayload,
 		}
+		if parsed.DeletedAtMS > 0 {
+			normalizedInput.DeletedAtMS = strconv.FormatInt(parsed.DeletedAtMS, 10)
+		}
 		if parsed.Operation == "delete" {
 			normalizedInput.Payload = nil
 		}
@@ -289,15 +292,16 @@ func (s *Service) insertAttachmentManifestTx(
             INSERT INTO account_device_attachment_manifest(
                 attachment_id, ordinal, mutation_id, device_id,
                 category, record_key, schema_version,
-                hlc_physical_ms, hlc_counter, operation,
+                hlc_physical_ms, hlc_counter, operation, deleted_at_ms,
                 payload_ciphertext, canonical_payload_hash, created_at)
             VALUES($1::uuid, $2, $3::uuid, $4::uuid, $5, $6, $7,
-                   $8, $9, $10, $11, $12, $13)
+                   $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT(attachment_id, mutation_id) DO NOTHING
         `, attachmentID, ordinal, parsed.MutationID, parsed.DeviceID,
 			parsed.Category, parsed.RecordKey, parsed.SchemaVersion,
 			parsed.HLCPhysicalMS, int64(parsed.HLCCounter), parsed.Operation,
-			ciphertext, canonicalPayloadHash(parsed.CanonicalPayload), now); err != nil {
+			nullableDeletedAtMS(parsed.DeletedAtMS), ciphertext,
+			canonicalPayloadHash(parsed.CanonicalPayload), now); err != nil {
 			return fmt.Errorf("store attachment manifest item: %w", err)
 		}
 	}
@@ -321,7 +325,7 @@ func (s *Service) validateStoredAttachmentManifestTx(
 	rows, err := tx.Query(ctx, `
         SELECT ordinal, mutation_id::text, device_id::text, category,
                record_key, schema_version, hlc_physical_ms, hlc_counter,
-               operation, canonical_payload_hash
+               operation, COALESCE(deleted_at_ms, 0), canonical_payload_hash
         FROM account_device_attachment_manifest
         WHERE attachment_id = $1::uuid
         ORDER BY ordinal ASC
@@ -333,7 +337,7 @@ func (s *Service) validateStoredAttachmentManifestTx(
 		ordinal                                   int
 		mutationID, deviceID, category, recordKey string
 		schemaVersion                             int
-		physical, counter                         int64
+		physical, counter, deletedAt              int64
 		operation                                 string
 		payloadHash                               []byte
 	}
@@ -342,7 +346,7 @@ func (s *Service) validateStoredAttachmentManifestTx(
 		var item manifestItem
 		if err := rows.Scan(&item.ordinal, &item.mutationID, &item.deviceID,
 			&item.category, &item.recordKey, &item.schemaVersion, &item.physical,
-			&item.counter, &item.operation, &item.payloadHash); err != nil {
+			&item.counter, &item.operation, &item.deletedAt, &item.payloadHash); err != nil {
 			rows.Close()
 			return fmt.Errorf("scan attachment manifest: %w", err)
 		}
@@ -366,7 +370,7 @@ func (s *Service) validateStoredAttachmentManifestTx(
 		var (
 			foundCategory, foundKey, foundDevice, foundOperation string
 			foundSchema                                          int
-			foundPhysical, foundCounter                          int64
+			foundPhysical, foundCounter, foundDeleted            int64
 			foundPayload, foundHash                              []byte
 			foundAttachment                                      *string
 			foundAlias                                           bool
@@ -374,26 +378,27 @@ func (s *Service) validateStoredAttachmentManifestTx(
 		lookupErr := tx.QueryRow(ctx, `
             SELECT category, record_key, device_id::text, schema_version,
                    hlc_physical_ms, hlc_counter, operation,
-                   payload_ciphertext, NULL::bytea, attachment_id::text, false
+                   COALESCE(deleted_at_ms, 0), payload_ciphertext, NULL::bytea,
+                   attachment_id::text, false
             FROM account_sync_journal
             WHERE account_id = $1::uuid AND mutation_id = $2::uuid
             UNION ALL
             SELECT 'activity_fact', 'activity/' || event_id::text,
                    origin_device_id::text, schema_version, hlc_physical_ms,
-                   hlc_counter, 'put', payload_ciphertext, NULL::bytea,
+                   hlc_counter, 'put', 0, payload_ciphertext, NULL::bytea,
                    attachment_id::text, false
             FROM account_activity_facts
             WHERE account_id = $1::uuid AND mutation_id = $2::uuid
             UNION ALL
             SELECT category, record_key, device_id::text, schema_version,
                    hlc_physical_ms, hlc_counter, operation,
-                   NULL::bytea, canonical_payload_hash, attachment_id::text, true
+                   0, NULL::bytea, canonical_payload_hash, attachment_id::text, true
             FROM account_sync_mutation_aliases
             WHERE account_id = $1::uuid AND mutation_id = $2::uuid
             LIMIT 1
 		`, accountID, item.mutationID).Scan(&foundCategory, &foundKey, &foundDevice,
 			&foundSchema, &foundPhysical, &foundCounter, &foundOperation,
-			&foundPayload, &foundHash, &foundAttachment, &foundAlias)
+			&foundDeleted, &foundPayload, &foundHash, &foundAttachment, &foundAlias)
 		if lookupErr != nil {
 			if errors.Is(lookupErr, pgx.ErrNoRows) {
 				return ErrAttachmentNotActive
@@ -415,7 +420,8 @@ func (s *Service) validateStoredAttachmentManifestTx(
 		}
 		if foundCategory != item.category || foundKey != item.recordKey || foundDevice != item.deviceID ||
 			foundSchema != item.schemaVersion || foundPhysical != item.physical || foundCounter != item.counter ||
-			foundOperation != item.operation || !bytes.Equal(foundHash, item.payloadHash) ||
+			foundOperation != item.operation || foundDeleted != item.deletedAt ||
+			!bytes.Equal(foundHash, item.payloadHash) ||
 			foundAttachment == nil || *foundAttachment != attachment.ID {
 			return ErrAttachmentConflict
 		}
@@ -641,13 +647,13 @@ func (s *Service) validateAttachmentMutationForPush(
 	var (
 		manifestDevice, category, recordKey, operation string
 		schemaVersion                                  int
-		physical, counter                              int64
+		physical, counter, deletedAt                   int64
 		payloadHash                                    []byte
 	)
 	err := s.pool.QueryRow(ctx, `
         SELECT m.device_id::text, m.category, m.record_key,
                m.schema_version, m.hlc_physical_ms, m.hlc_counter,
-               m.operation, m.canonical_payload_hash
+               m.operation, COALESCE(m.deleted_at_ms, 0), m.canonical_payload_hash
         FROM account_device_attachment_manifest m
         JOIN account_device_attachments a ON a.id = m.attachment_id
         WHERE m.attachment_id = $1::uuid
@@ -657,7 +663,7 @@ func (s *Service) validateAttachmentMutationForPush(
           AND a.state IN ('open', 'uploaded')
     `, attachmentID, parsed.MutationID, auth.Account.ID, auth.Device.ID).Scan(
 		&manifestDevice, &category, &recordKey, &schemaVersion,
-		&physical, &counter, &operation, &payloadHash)
+		&physical, &counter, &operation, &deletedAt, &payloadHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrAttachmentManifestMissing
 	}
@@ -668,7 +674,7 @@ func (s *Service) validateAttachmentMutationForPush(
 		category != parsed.Category || recordKey != parsed.RecordKey ||
 		schemaVersion != parsed.SchemaVersion || physical != parsed.HLCPhysicalMS ||
 		counter < 0 || uint64(counter) != parsed.HLCCounter ||
-		operation != parsed.Operation ||
+		operation != parsed.Operation || deletedAt != parsed.DeletedAtMS ||
 		!bytes.Equal(payloadHash, canonicalPayloadHash(parsed.CanonicalPayload)) {
 		return ErrAttachmentManifestMismatch
 	}

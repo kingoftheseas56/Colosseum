@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "titles": [
+    {
+      "world": "theatre",
+      "kind": "series",
+      "media_id": "ct1:49f10000-0000-4000-8000-000000000001",
+      "aliases": [
+        { "namespace": "theatre-source-id", "value": "tt22248376" }
+      ]
+    }
+  ]
+}

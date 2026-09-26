@@ -24,6 +24,7 @@ Item {
     // (the same path the picker, drag-drop, and Open Recent funnel through win.openLocalMedia).
     signal openMediaRequested(string path)
     signal viewWorldRequested(var identity)
+    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     Theme { id: theme }
 
@@ -2137,7 +2138,11 @@ Item {
         enabled: visible
         detail: root.detailSheetDetail
         identityStateOfRow: root.detailSheetRowState
+        mediaKind: root.detailSheetRowKind
         onBackRequested: root.closeDetailSheet()
+        onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
+            root.ratingsReviewsRequested(context, invokingItem, fallbackItem)
+        }
         onPlayRequested: (path) => {
             root.closeDetailSheet()
             if (path) root.openMediaRequested(path)

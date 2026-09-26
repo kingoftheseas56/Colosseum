@@ -5,7 +5,9 @@
 #include "AccountServiceEndpoint.h"
 #include "engine/ExtensionsStore.h"
 #include "LegacyPersonalStateStorage.h"
+#include "ProfileAdoption.h"
 #include "ProfilePreferencesStore.h"
+#include "RatingsReviewsStore.h"
 #include "ProgressStore.h"
 #include "DownloadIntentSyncAdapter.h"
 #include "watchparty/WatchPartyIdentity.h"
@@ -174,6 +176,7 @@ bool verifyAttachmentDispositions(
         QStringLiteral("collection"),
         QStringLiteral("continue_progress"),
         QStringLiteral("watch_state"),
+        QStringLiteral("ratings_reviews"),
         QStringLiteral("desired_download_intent"),
         QStringLiteral("explicit_content_preference")};
 
@@ -629,6 +632,14 @@ AccountRuntime::AccountRuntime(
               },
               [this](const QString &profileId) {
                   return m_credentialStore.clearStremio(profileId);
+              }},
+          RatingsReviewsPrivateAdoptionCallbacks{
+              [](const RatingsReviewsPrivateProfileBinding &source,
+                 const RatingsReviewsPrivateProfileBinding &destination,
+                 RatingsReviewsStore *destinationCanonical,
+                 QString *error) {
+                  return RatingsReviewsDelivery::handoffPrivateState(
+                      source, destination, destinationCanonical, error);
               }}),
       m_syncRegistry(),
       m_syncEngine(
@@ -744,6 +755,7 @@ AccountRuntime::AccountRuntime(
             storesAboutToChange,
         this,
         [this]() {
+            m_ratingsReviewsDelivery.deactivateProfile();
             // Store replacement is a sync boundary. Preserve the current
             // profile's outbox while its adapters still point at the old
             // stores; otherwise the engine stays active after the registry is
@@ -778,6 +790,7 @@ AccountRuntime::AccountRuntime(
         &ProfileStoreRuntime::storesChanged,
         this,
         [this]() {
+            activateRatingsReviewsDelivery();
             activateExtensionsProfile();
             activateStremioProfile();
         });
@@ -901,15 +914,22 @@ bool AccountRuntime::installCoreSyncAdapters(
         m_profileStores.activityStore();
     ProfilePreferencesStore *preferences =
         m_profileStores.preferencesStore();
+    RatingsReviewsStore *ratingsReviews =
+        m_profileStores.ratingsReviewsStore();
+    QString ratingsReviewsError;
 
     if (!collection
         || !progress
         || !history
         || !activity
-        || !preferences) {
+        || !preferences
+        || !ratingsReviews
+        || !ratingsReviews->healthy(&ratingsReviewsError)) {
         if (error) {
-            *error = QStringLiteral(
-                "The Collection, Continue/progress, History, Activity, or profile preference owner is unavailable.");
+            *error = ratingsReviewsError.isEmpty()
+                ? QStringLiteral(
+                      "A required account sync owner is unavailable.")
+                : ratingsReviewsError;
         }
         return false;
     }
@@ -917,6 +937,9 @@ bool AccountRuntime::installCoreSyncAdapters(
     if (!m_downloadIntentStore.activate(profile, error))
         return false;
 
+    auto ratingsReviewsAdapter =
+        std::make_unique<RatingsReviewsSyncAdapter>(
+            ratingsReviews);
     auto collectionAdapter =
         std::make_unique<
             CollectionSyncAdapter>(
@@ -943,11 +966,26 @@ bool AccountRuntime::installCoreSyncAdapters(
                 preferences);
     auto stremioLinkAdapter =
         std::make_unique<StremioLinkSyncAdapter>(preferences);
+    auto ratingsReviewsConversionAdapter =
+        std::make_unique<RatingsReviewsConversionSyncAdapter>(preferences);
 
     SyncAdapterRegistryError registryError;
     if (!m_syncRegistry.registerAdapter(
+            ratingsReviewsAdapter.get(),
+            &registryError)) {
+        if (error) {
+            *error = registryError.detail.isEmpty()
+                ? registryError.code
+                : registryError.detail;
+        }
+        return false;
+    }
+
+    if (!m_syncRegistry.registerAdapter(
             collectionAdapter.get(),
             &registryError)) {
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("ratings_reviews"));
         if (error) {
             *error =
                 registryError.detail.isEmpty()
@@ -962,6 +1000,8 @@ bool AccountRuntime::installCoreSyncAdapters(
             &registryError)) {
         m_syncRegistry.unregisterAdapter(
             QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("ratings_reviews"));
 
         if (error) {
             *error =
@@ -980,6 +1020,8 @@ bool AccountRuntime::installCoreSyncAdapters(
                 "continue_progress"));
         m_syncRegistry.unregisterAdapter(
             QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("ratings_reviews"));
 
         if (error) {
             *error =
@@ -996,6 +1038,7 @@ bool AccountRuntime::installCoreSyncAdapters(
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("ratings_reviews"));
         if (error) {
             *error = registryError.detail.isEmpty()
                 ? registryError.code
@@ -1011,6 +1054,7 @@ bool AccountRuntime::installCoreSyncAdapters(
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("ratings_reviews"));
         if (error) {
             *error = registryError.detail.isEmpty()
                 ? registryError.code
@@ -1033,6 +1077,8 @@ bool AccountRuntime::installCoreSyncAdapters(
                 "continue_progress"));
         m_syncRegistry.unregisterAdapter(
             QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("ratings_reviews"));
 
         if (error) {
             *error =
@@ -1052,6 +1098,7 @@ bool AccountRuntime::installCoreSyncAdapters(
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("ratings_reviews"));
         if (error)
             *error = registryError.detail.isEmpty() ? registryError.code : registryError.detail;
         return false;
@@ -1069,6 +1116,7 @@ bool AccountRuntime::installCoreSyncAdapters(
         m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
         m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("ratings_reviews"));
         if (error) {
             *error = registryError.detail.isEmpty()
                 ? registryError.code : registryError.detail;
@@ -1076,6 +1124,27 @@ bool AccountRuntime::installCoreSyncAdapters(
         return false;
     }
 
+    if (!m_syncRegistry.registerAdapter(
+            ratingsReviewsConversionAdapter.get(),
+            &registryError)) {
+        m_syncRegistry.unregisterAdapter(QStringLiteral("desired_download_intent"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("stremio_link"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("explicit_content_preference"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("activity_fact"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("ratings_reviews"));
+        if (error)
+            *error = registryError.detail.isEmpty() ? registryError.code : registryError.detail;
+        return false;
+    }
+
+    m_ratingsReviewsSyncAdapter =
+        std::move(ratingsReviewsAdapter);
+    m_ratingsReviewsConversionSyncAdapter =
+        std::move(ratingsReviewsConversionAdapter);
     m_collectionSyncAdapter =
         std::move(collectionAdapter);
     m_progressSyncAdapter =
@@ -1114,6 +1183,12 @@ bool AccountRuntime::installCoreSyncAdapters(
     m_syncEngine.setCategoryNetworkEnabled(
         QStringLiteral("watch_state"),
         true);
+    m_syncEngine.setCategoryNetworkEnabled(
+        QStringLiteral("ratings_reviews"),
+        true);
+    m_syncEngine.setCategoryNetworkEnabled(
+        QStringLiteral("ratings_reviews_conversion_maps"),
+        true);
     connect(
         preferences,
         &ProfilePreferencesStore::syncActivityHistoryChanged,
@@ -1145,7 +1220,10 @@ bool AccountRuntime::installCoreSyncAdapters(
 
 void AccountRuntime::clearCoreSyncAdapters() {
     m_attachmentCoordinator.reset();
+    m_syncRegistry.unregisterAdapter(QStringLiteral("ratings_reviews_conversion_maps"));
 
+    m_syncRegistry.unregisterAdapter(
+        QStringLiteral("ratings_reviews"));
     m_syncRegistry.unregisterAdapter(
         QStringLiteral("collection"));
     m_syncRegistry.unregisterAdapter(
@@ -1167,6 +1245,8 @@ void AccountRuntime::clearCoreSyncAdapters() {
     m_downloadIntentStore.deactivate();
 
     m_preferencesSyncAdapter.reset();
+    m_ratingsReviewsConversionSyncAdapter.reset();
+    m_ratingsReviewsSyncAdapter.reset();
     m_stremioLinkSyncAdapter.reset();
     m_activitySyncAdapter.reset();
     m_historySyncAdapter.reset();
@@ -1326,9 +1406,24 @@ void AccountRuntime::startOrResumeAccountAttachment() {
                     });
                 if (item.mutation.operation
                         == SyncWireOperation::Delete) {
-                    if (record != snapshot.records.constEnd()
-                        && !snapshot.tombstones.contains(
-                               item.mutation.recordKey)) {
+                    if (item.mutation.category
+                            == QLatin1String("ratings_reviews")) {
+                        const qint64 deletedAtMs =
+                            snapshot.tombstoneEventMs.value(
+                                item.mutation.recordKey, -1);
+                        if (record != snapshot.records.constEnd()
+                            || !snapshot.tombstones.contains(
+                                   item.mutation.recordKey)
+                            || !item.mutation.deletedAtMs.has_value()
+                            || deletedAtMs != *item.mutation.deletedAtMs) {
+                            if (error)
+                                *error = QStringLiteral(
+                                    "The Ratings & Reviews delete timestamp was not absorbed exactly.");
+                            return false;
+                        }
+                    } else if (record != snapshot.records.constEnd()
+                               && !snapshot.tombstones.contains(
+                                      item.mutation.recordKey)) {
                         if (error)
                             *error = QStringLiteral(
                                 "The attachment delete was not absorbed by the active owner.");
@@ -1368,6 +1463,7 @@ void AccountRuntime::startOrResumeAccountAttachment() {
                 } else if (item.mutation.category == QLatin1String("collection")
                            || item.mutation.category == QLatin1String("continue_progress")
                            || item.mutation.category == QLatin1String("watch_state")
+                           || item.mutation.category == QLatin1String("ratings_reviews")
                            || item.mutation.category == QLatin1String("desired_download_intent")
                            || item.mutation.category == QLatin1String("explicit_content_preference")) {
                     // Before the server commit there is no certified
@@ -1423,6 +1519,18 @@ void AccountRuntime::startOrResumeAccountAttachment() {
                  receipt.data.manifest) {
                 if (item.mutation.operation
                     == SyncWireOperation::Delete) {
+                    if (item.mutation.category
+                            == QLatin1String("ratings_reviews")) {
+                        const QString key = item.mutation.category
+                            + QChar(0x1f)
+                            + item.mutation.recordKey;
+                        if (canonical.contains(key)) {
+                            if (error)
+                                *error = QStringLiteral(
+                                    "The fresh Ratings & Reviews export still contains a deleted key.");
+                            return false;
+                        }
+                    }
                     continue;
                 }
                 const QString key = item.mutation.category
@@ -1460,6 +1568,7 @@ void AccountRuntime::startOrResumeAccountAttachment() {
                 } else if (item.mutation.category == QLatin1String("collection")
                            || item.mutation.category == QLatin1String("continue_progress")
                            || item.mutation.category == QLatin1String("watch_state")
+                           || item.mutation.category == QLatin1String("ratings_reviews")
                            || item.mutation.category == QLatin1String("desired_download_intent")
                            || item.mutation.category == QLatin1String("explicit_content_preference")) {
                     // LWW supersession is accepted only through the server's
@@ -1522,6 +1631,55 @@ ProfileStoreRuntime *AccountRuntime::profileStores() {
     return &m_profileStores;
 }
 
+RatingsReviewsDelivery *AccountRuntime::ratingsReviewsDelivery() {
+    return &m_ratingsReviewsDelivery;
+}
+
+void AccountRuntime::activateRatingsReviewsDelivery() {
+    const ProfilePaths paths = m_profileStores.activeProfile();
+    if (paths.kind() == ProfilePaths::Kind::Sealed)
+        return;
+
+    // A promoted first-account profile is not allowed to activate its private
+    // delivery lane until the separate RR handoff is durably verified.  Older
+    // accounts without an adoption journal remain valid.
+    if (paths.kind() == ProfilePaths::Kind::Account
+        && QFileInfo::exists(paths.adoptionJournalPath())) {
+        QString adoptionError;
+        const auto adoption = ProfileAdoption::open(paths, &adoptionError);
+        if (!adoption.has_value()
+            || (adoption->snapshot().ratingsReviewsPrivateHandoffMarkerRecorded
+                && !adoption->snapshot().ratingsReviewsPrivateHandoffVerified)) {
+            qWarning() << "Ratings/Reviews delivery activation blocked by private adoption:"
+                       << (adoptionError.isEmpty()
+                               ? QStringLiteral("private handoff is incomplete")
+                               : adoptionError);
+            return;
+        }
+    }
+
+    RatingsReviewsPrivatePaths privatePaths;
+    if (paths.kind() == ProfilePaths::Kind::LegacyLocal) {
+        const LegacyPersonalStateStorage &legacy = m_profileStores.legacyStorage();
+        privatePaths = {
+            legacy.devicePrivateRatingsReviewsProviderMappingsPath(),
+            legacy.devicePrivateRatingsReviewsDeliveryOutboxPath(),
+            legacy.devicePrivateRatingsReviewsDeliveryReceiptsPath()};
+    } else {
+        privatePaths = {
+            paths.ratingsReviewsProviderMappingsPath(),
+            paths.ratingsReviewsDeliveryOutboxPath(),
+            paths.ratingsReviewsDeliveryReceiptsPath()};
+    }
+
+    QString error;
+    if (!m_ratingsReviewsDelivery.activateProfile(
+            {paths.profileId(), privatePaths, m_profileStores.ratingsReviewsStore()},
+            &error)) {
+        qWarning() << "Ratings/Reviews delivery activation blocked:" << error;
+    }
+}
+
 AccountController *AccountRuntime::controller() {
     return &m_controller;
 }
@@ -1558,6 +1716,7 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
         return;
 
     m_profileStores.prepareForQml(engine);
+    activateRatingsReviewsDelivery();
 
     engine->rootContext()->setContextProperty(
         QStringLiteral("AccountController"),
