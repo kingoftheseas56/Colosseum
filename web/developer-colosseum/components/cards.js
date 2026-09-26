@@ -9,13 +9,17 @@
 
   /** CataloguePosterCard — gallery profile. ctx.open(item, intent) */
   function poster(it, ctx) {
+    const theatre = it.world === 'Theatre';
+    const hoverLine = theatre
+      ? (it.rating != null ? `★ ${Number(it.rating).toFixed(1)}` : '')
+      : subline(it);
     return h('button.pc', { type: 'button', 'data-focus': true, 'data-key': it.key, 'aria-label': it.title,
                             onclick: () => ctx.open(it, 'details') },
       h('span.art', {}, face(it.cover, it.title),
-        h('span.rev', {}, h('b', {}, it.title), subline(it) ? h('span', {}, subline(it)) : null),
+        h('span.rev', {}, h('b', {}, it.title), hoverLine ? h('span', {}, hoverLine) : null),
         it.badge ? h('span.badge', {}, it.badge) : null),
       h('span.cap', {}, it.title),
-      subline(it) ? h('span.sub', {}, subline(it)) : null);
+      !theatre && subline(it) ? h('span.sub', {}, subline(it)) : null);
   }
 
   /** ContinueTile — resume on Enter; progress bar; forget via ctx.forget (context affordance). */
