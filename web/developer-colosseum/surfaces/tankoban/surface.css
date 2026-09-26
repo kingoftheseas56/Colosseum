@@ -1,0 +1,205 @@
+/* Tankoban world parity layer. Every design value comes from shared tokens. */
+.tk-surface,
+.tk-top,
+.tk-continue,
+.tk-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.tk-surface {
+  gap: var(--s-8);
+}
+
+.tk-top,
+.tk-continue,
+.tk-pane {
+  gap: var(--s-8);
+}
+
+.tk-tabs {
+  position: relative;
+}
+
+.tk-querybox {
+  align-self: stretch;
+}
+
+.tk-query {
+  width: 100%;
+}
+
+.tk-discover-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  position: relative;
+  z-index: 2;
+}
+
+.tk-mast {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-7);
+  padding-bottom: var(--s-3);
+  border-bottom: thin solid var(--edge);
+  position: relative;
+}
+
+.tk-type-lens {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-7);
+}
+
+.tk-type {
+  padding: 0 0 var(--s-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--inkDimmer);
+  font-family: var(--ui-stack);
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+
+.tk-type:hover,
+.tk-type:focus,
+.tk-type.on {
+  color: var(--ink);
+}
+
+.tk-type.on {
+  box-shadow: inset 0 calc(-1 * var(--s-1)) 0 var(--gold);
+}
+
+.tk-type:focus,
+.tk-catalogue:focus,
+.tk-filter:focus,
+.tk-menu-row:focus {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.tk-shelf {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tk-catalogue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-1);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+}
+
+.tk-kicker,
+.tk-filter-label {
+  color: var(--inkDimmer);
+  font-family: var(--ui-stack);
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+
+.tk-catalogue strong {
+  font-family: var(--display-stack);
+  font-size: var(--t-h2);
+  font-weight: 600;
+}
+
+.tk-catalogue small {
+  color: var(--inkDim);
+  font-family: var(--ui-stack);
+  font-size: var(--t-md);
+}
+
+.tk-filterbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  position: relative;
+}
+
+.tk-filter {
+  padding: var(--s-2) var(--s-4);
+  border: thin solid var(--edge);
+  border-radius: var(--r-pill);
+  background: var(--glassTint);
+  color: var(--ink);
+  font-family: var(--ui-stack);
+  font-size: var(--t-md);
+}
+
+.tk-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: calc(var(--poster-w) * 2);
+  max-height: calc(var(--hero-h) + var(--s-7));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+  padding: var(--s-2);
+  border: thin solid var(--edge);
+  border-radius: var(--r-lg);
+  background: var(--washTop);
+  box-shadow: var(--lift);
+  z-index: 3;
+}
+
+.tk-filterbar .tk-menu {
+  left: 0;
+  right: auto;
+}
+
+.tk-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-family: var(--ui-stack);
+  font-size: var(--t-md);
+}
+
+.tk-menu-row:hover,
+.tk-menu-row.on {
+  background: var(--glassTint);
+}
+
+.tk-menu-row.on {
+  color: var(--gold);
+}
+
+.tk-menu-row small {
+  color: var(--inkDimmer);
+  font-size: var(--t-sm);
+}
+
+.tk-pane[data-tab="library"] [data-section="tankoban.library.filters"],
+.tk-pane[data-tab="library"] [data-section="tankoban.library.sort"] {
+  margin-bottom: calc(-1 * var(--s-6));
+}
+
+.tk-pane[data-tab="library"] .chip.on {
+  background: var(--gold);
+  color: var(--washBottom);
+  border-color: var(--gold);
+}
+
+.tk-pane[data-tab="library"] .chip.on .cs {
+  color: var(--washBottom);
+}
