@@ -91,8 +91,9 @@ Window {
     }
     function closeStremioSyncPanel() {
         stremioPanel.shown = false
-        if (syncCenterLayer.active && syncCenterLayer.item) {
-            Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
+        if (developerWebUiLayer.active && developerWebUiLayer.visible
+                && developerWebUiLayer.item) {
+            Qt.callLater(function() { developerWebUiLayer.item.forceActiveFocus() })
             return
         }
         const theatreWorld = win.theatreWorldItem()
@@ -691,7 +692,7 @@ Window {
             vaultComicActive: vaultComicLayer.active,
             comicReaderActive: win.embeddedComicReaderOpen(),
             updateActive: updateLayer.active,
-            syncCenterActive: syncCenterLayer.active,
+            syncCenterActive: false,
             keyboardGuideActive: keyboardGuideLayer.active,
             settingsActive: settingsLayer.active,
             extensionsActive: extensionsLayer.active,
@@ -803,12 +804,6 @@ Window {
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
-        case "syncCenter":
-            if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
-                syncCenterLayer.item.requestEscape()
-            else
-                win.closeSyncCenterPage()
-            return
         case "keyboardGuide": win.closeKeyboardGuide(); return
         case "settings": win.closeSettingsPage(); return
         case "extensions":
@@ -1555,7 +1550,7 @@ Window {
         || vaultComicLayer.active || vaultLayer.active || universeLayer.active
         || onePieceArcLayer.active || universeHallLayer.active
         || extensionsLayer.active || downloadsLayer.active || settingsLayer.active
-        || syncCenterLayer.active || wallpaperLayer.active || updateLayer.active
+        || wallpaperLayer.active || updateLayer.active
         || keyboardGuideLayer.active || genreLayer.active || genreIndexLayer.active
         || biblioGenreLayer.active || biblioGenreIndexLayer.active
         || theatreGenreLayer.active || theatreGenreIndexLayer.active
@@ -1704,22 +1699,11 @@ Window {
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
-        if (win.openWebPage("connections")) return
-        win.bookRouteGeneration += 1
-        downloadsLayer.active = false
-        vaultLayer.active = false
-        extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
-        updateLayer.active = false
-        syncCenterLayer.active = true
-        taskbar.open = false
-        if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
-            Qt.callLater(syncCenterLayer.item.takeKeyboardFocus)
+        win.openWebPage("connections")
     }
     function closeSyncCenterPage() {
-        syncCenterLayer.active = false
-        taskbar.focusSyncCenterAction()
+        if (developerWebUiLayer.active && developerWebUiLayer.item)
+            developerWebUiLayer.item.openRoute({ name: "home" })
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
@@ -1733,7 +1717,6 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
-        syncCenterLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
@@ -1753,7 +1736,6 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
-        syncCenterLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
     }
@@ -1868,7 +1850,6 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
-        syncCenterLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
@@ -1886,7 +1867,6 @@ Window {
         extensionsLayer.active = false
         keyboardGuideLayer.active = false
         updateLayer.active = false
-        syncCenterLayer.active = false
         vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
@@ -1903,7 +1883,6 @@ Window {
         extensionsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
-        syncCenterLayer.active = false
         vaultLayer.active = false
         keyboardGuideLayer.active = true
         taskbar.open = false
@@ -1911,30 +1890,6 @@ Window {
             Qt.callLater(keyboardGuideLayer.item.takeKeyboardFocus)
     }
     function closeKeyboardGuide() { keyboardGuideLayer.active = false }
-
-    // ---- Sync Center: the approved tracker catalogue and profile-owned controls ----
-    Loader {
-        id: syncCenterLayer
-        objectName: "syncCenterLayer"
-        anchors.fill: parent
-        z: 58
-        active: false
-        visible: active
-        source: "TrackerSyncCenterPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.trackerModel = Qt.binding(function() {
-                return (typeof TrackerSyncCenter !== "undefined") ? TrackerSyncCenter : null
-            })
-            item.stremioState = Qt.binding(function() {
-                return (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
-            })
-            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            item.backRequested.connect(win.closeSyncCenterPage)
-            item.mainSyncRequested.connect(win.openStremioSyncPanel)
-            item.takeKeyboardFocus()
-        }
-    }
 
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
@@ -1946,7 +1901,6 @@ Window {
         settingsLayer.active = false
         keyboardGuideLayer.active = false
         vaultLayer.active = false
-        syncCenterLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
         // every other full-page destination (Downloads/Vault/Extensions/Settings)
@@ -4716,6 +4670,7 @@ Window {
                 else if (door === "downloads") win.openDownloadsPage()
                 else if (door === "settings") win.openSettingsPage()
                 else if (door === "connections") win.openSyncCenterPage()
+                else if (door === "stremioSync") win.openStremioSyncPanel()
                 else if (door === "wallpaperSearch") win.openWallpaperSearch(payload.world || "Home")
                 else if (door === "account") {
                     if (!win.openWebPage("account")) accountFlyout.toggleAt(win.width - theme.margin, 92)
@@ -4765,8 +4720,8 @@ Window {
         onSettingsClicked: !settingsLayer.active ? win.openSettingsPage() : win.closeSettingsPage()
         keyboardGuideActive: keyboardGuideLayer.active
         onKeyboardGuideClicked: !keyboardGuideLayer.active ? win.openKeyboardGuide() : win.closeKeyboardGuide()
-        syncCenterActive: syncCenterLayer.active
-        onSyncCenterClicked: !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
+        syncCenterActive: false
+        onSyncCenterClicked: win.openSyncCenterPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
