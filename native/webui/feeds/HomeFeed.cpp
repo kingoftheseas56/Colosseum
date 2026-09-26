@@ -140,8 +140,11 @@ QVariantList build(const FeedContext &ctx)
         {}, QStringLiteral("Biblio"), QStringLiteral("book"), ctx.showExplicit);
     biblio.insert(QStringLiteral("state"), QStringLiteral("loading"));
     sections.append(biblio);
-    sections.append(WebFeedValue::section(QStringLiteral("home.vault"), sections.size(),
-        QStringLiteral("Vault"), QStringLiteral("list"), {}));
+    // Main.qml:3434-3450 / VaultHomeWidget.qml: the Home teaser is a Vault door.
+    sections.append(WebFeedChoice::section(QStringLiteral("home.vault"), sections.size(),
+        QStringLiteral("Vault"), QStringLiteral("tiles"),
+        {WebFeedChoice::choice(QStringLiteral("door:vault"), QStringLiteral("Open Vault"),
+            {{QStringLiteral("act"), QStringLiteral("open.vault")}})}));
     return sections;
 }
 

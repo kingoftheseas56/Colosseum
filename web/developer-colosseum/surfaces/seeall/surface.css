@@ -1,0 +1,16 @@
+/* GenrePage.qml's cover-washed title; GenreIndex.qml's mosaic and catalogue cards stay shared. */
+.seeall-head{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:flex-end;
+  min-height:var(--hero-h);padding:var(--s-8);border-radius:var(--r-xl);overflow:hidden;
+  background:var(--glassTint);border:var(--s-1) solid var(--edge)}
+.seeall-head::before{content:"";position:absolute;inset:0;z-index:-2;background-image:var(--seeall-art);
+  background-size:cover;background-position:center;opacity:.35}
+.seeall-head::after{content:"";position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(to top,var(--washBottom),transparent)}
+.seeall-kicker{font-size:var(--t-sm);font-weight:600;letter-spacing:var(--s-1);text-transform:uppercase;color:var(--gold)}
+.seeall-head h1{margin-top:var(--s-2);font-size:var(--t-hero)}
+.seeall-pane [data-layout="tiles"] .gm{grid-template-columns:repeat(auto-fit,minmax(calc(var(--poster-w) + var(--s-8) + var(--s-8)),1fr))}
+.seeall-pane [data-layout="tiles"] .gt{height:calc(var(--poster-w) - var(--s-8))}
+.seeall-pane [data-layout="tiles"] .gt .n{font-size:var(--t-lg);left:var(--s-4);bottom:var(--s-4);right:var(--s-8)}
+.seeall-pane [data-layout="tiles"] .gt .c{right:var(--s-4);bottom:var(--s-4)}
+.seeall-pane .chip.on{background:var(--gold);color:var(--washBottom);border-color:var(--gold)}
+.seeall-pane [data-layout="continue"] .rail{flex-wrap:wrap;overflow:visible}

@@ -1,0 +1,19 @@
+/* SearchSurface.qml / BiblioSearch.qml: field first, Top Match, then results and idle choices. */
+.search-head{margin-bottom:var(--s-7)}
+.search-head .sfield{width:100%}
+.search-pane{gap:var(--s-8)}
+.search-pane .wh h2{font:600 var(--t-sm)/1 var(--ui-stack);letter-spacing:var(--s-1);
+  text-transform:uppercase;color:var(--inkDim)}
+.search-pane .search-top-match .grid .pc:first-child{grid-column:1/-1;width:100%;display:flex;
+  align-items:center;gap:var(--s-7);padding:var(--s-6);border:var(--s-1) solid var(--edge);
+  border-radius:var(--r-xl);background:var(--glassTint)}
+.search-pane .search-top-match .grid .pc:first-child .art{width:var(--poster-w);height:var(--poster-h);
+  flex:0 0 var(--poster-w);aspect-ratio:auto}
+.search-pane .search-top-match .grid .pc:first-child .cap{font:400 var(--t-h2)/1.1 var(--display-stack)}
+.search-pane .search-top-match .grid .pc:first-child .sub{font-size:var(--t-base)}
+.search-pane .search-top-match .grid .pc:first-child::after{content:"Open ›";margin-left:auto;
+  padding:var(--s-3) var(--s-5);border-radius:var(--r-md);background:var(--gold);color:var(--washBottom)}
+.search-pane .search-top-match .grid .pc:first-child:focus{box-shadow:var(--ring)}
+.search-pane [data-section="search.surprise"]{display:flex;justify-content:center}
+.search-pane [data-section="search.surprise"] .wh{display:none}
+.search-pane [data-section="search.surprise"] .chip{background:transparent;border:0}

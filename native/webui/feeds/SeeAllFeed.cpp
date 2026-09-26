@@ -2,6 +2,7 @@
 #include "FeedChoice.h"
 #include "FeedHttp.h"
 #include "FeedValue.h"
+#include "GenreArt.h"
 #include "ContinueFeed.h"
 
 #include "../../engine/BiblioCatalogStore.h"
@@ -12,8 +13,10 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QHash>
+#include <QSet>
 #include <QUrlQuery>
 #include <QUuid>
+#include <algorithm>
 
 #include <functional>
 
@@ -34,6 +37,25 @@ bool valid(const QVariantMap &params)
     const QString source = r.value(QStringLiteral("source")).toString();
     const QVariantMap facet = r.value(QStringLiteral("facet")).toMap();
     const QString medium = mediumFor(world, facet);
+    const QVariantMap view = params.value(QStringLiteral("view")).toMap();
+    if (params.contains(QStringLiteral("view")) && !params.value(QStringLiteral("view")).canConvert<QVariantMap>())
+        return false;
+    for (auto it = view.constBegin(); it != view.constEnd(); ++it) {
+        if (it.key() == QLatin1String("sort")) {
+            const QStringList allowed = source == QLatin1String("continue")
+                ? QStringList{QStringLiteral("recent"), QStringLiteral("az"), QStringLiteral("za"),
+                              QStringLiteral("watched"), QStringLiteral("unwatched")}
+                : source == QLatin1String("genre") && medium == QLatin1String("manga")
+                    ? QStringList{QStringLiteral("popular"), QStringLiteral("rating")}
+                    : QStringList{};
+            if (!allowed.contains(it.value().toString())) return false;
+        } else if (it.key() == QLatin1String("medium") && source == QLatin1String("continue")
+                   && world == QLatin1String("all")) {
+            if (!QStringList{QString(), QStringLiteral("video"), QStringLiteral("manga"),
+                             QStringLiteral("comic"), QStringLiteral("book")}.contains(it.value().toString()))
+                return false;
+        } else return false;
+    }
     if (r.value(QStringLiteral("v")).toInt() != 1 ||
         !QStringList{QStringLiteral("Tankoban"), QStringLiteral("Biblio"),
                      QStringLiteral("Theatre"), QStringLiteral("all")}.contains(world) ||
@@ -53,6 +75,89 @@ bool valid(const QVariantMap &params)
         !QStringList{QStringLiteral("movie"), QStringLiteral("series"),
                      QStringLiteral("anime")}.contains(medium)) return false;
     return source != QLatin1String("genre") || !facet.value(QStringLiteral("name")).toString().isEmpty();
+}
+
+QVariantMap option(const QString &key, const QString &label, const QString &field,
+                   const QString &value, bool selected)
+{
+    QVariantMap choice = WebFeedChoice::choice(key, label,
+        {{QStringLiteral("view"), QVariantMap{{field, value}}}});
+    choice.insert(QStringLiteral("selected"), selected);
+    return choice;
+}
+
+QVariantList controls(const QString &source, const QString &world, const QString &medium,
+                      const QVariantMap &view)
+{
+    QVariantList result;
+    if (source == QLatin1String("genre") && medium == QLatin1String("manga")) {
+        // GenrePage.qml:245-272: Readers / Score sort is a native query choice.
+        const QString selected = view.value(QStringLiteral("sort"), QStringLiteral("popular")).toString();
+        result.append(WebFeedChoice::section(QStringLiteral("seeAll.sort"), 0,
+            QStringLiteral("Sorted by"), QStringLiteral("chips"),
+            {option(QStringLiteral("seeAll:sort:popular"), QStringLiteral("Readers"),
+                QStringLiteral("sort"), QStringLiteral("popular"), selected == QLatin1String("popular")),
+             option(QStringLiteral("seeAll:sort:rating"), QStringLiteral("Score"),
+                QStringLiteral("sort"), QStringLiteral("rating"), selected == QLatin1String("rating"))}));
+    } else if (source == QLatin1String("continue")) {
+        // ContinueSeeAllPage.qml and ContinueSeeAll.js: sort and Home medium chips.
+        const QString selected = view.value(QStringLiteral("sort"), QStringLiteral("recent")).toString();
+        QVariantList sorts;
+        for (const auto &pair : {qMakePair("recent", "Last Watched"), qMakePair("az", "A–Z"),
+                                 qMakePair("za", "Z–A"), qMakePair("watched", "Watched"),
+                                 qMakePair("unwatched", "Not Watched")}) {
+            const QString value = QString::fromUtf8(pair.first);
+            sorts.append(option(QStringLiteral("seeAll:sort:") + value, QString::fromUtf8(pair.second),
+                QStringLiteral("sort"), value, selected == value));
+        }
+        result.append(WebFeedChoice::section(QStringLiteral("seeAll.sort"), 0,
+            QStringLiteral("Sort"), QStringLiteral("chips"), sorts));
+        if (world == QLatin1String("all")) {
+            const QString picked = view.value(QStringLiteral("medium")).toString();
+            QVariantList media;
+            for (const auto &pair : {qMakePair("", "All"), qMakePair("video", "Theatre"),
+                                     qMakePair("manga", "Manga"), qMakePair("comic", "Comics"),
+                                     qMakePair("book", "Books")}) {
+                const QString value = QString::fromUtf8(pair.first);
+                media.append(option(QStringLiteral("seeAll:medium:") + value,
+                    QString::fromUtf8(pair.second), QStringLiteral("medium"), value, picked == value));
+            }
+            result.append(WebFeedChoice::section(QStringLiteral("seeAll.medium"), result.size(),
+                QStringLiteral("Medium"), QStringLiteral("chips"), media));
+        }
+    }
+    return result;
+}
+
+QVariantList continueRows(const QVariantList &recent, const QVariantMap &view)
+{
+    const QString medium = view.value(QStringLiteral("medium")).toString();
+    const QString sort = view.value(QStringLiteral("sort"), QStringLiteral("recent")).toString();
+    QVariantList rows;
+    for (const QVariant &entry : recent) {
+        const QVariantMap row = entry.toMap();
+        const QString kind = row.value(QStringLiteral("kind")).toString();
+        const bool match = medium.isEmpty() || kind == medium
+            || (medium == QLatin1String("manga") && kind == QLatin1String("tankoban"))
+            || (medium == QLatin1String("comic") && kind == QLatin1String("comics"));
+        if (!match) continue;
+        if (sort == QLatin1String("watched") && !row.value(QStringLiteral("watched")).toBool()) continue;
+        if (sort == QLatin1String("unwatched") && row.value(QStringLiteral("watched")).toBool()) continue;
+        rows.append(row);
+    }
+    if (sort == QLatin1String("az") || sort == QLatin1String("za")) {
+        std::sort(rows.begin(), rows.end(), [sort](const QVariant &a, const QVariant &b) {
+            const QString x = a.toMap().value(QStringLiteral("title"), a.toMap().value(QStringLiteral("caption"))).toString();
+            const QString y = b.toMap().value(QStringLiteral("title"), b.toMap().value(QStringLiteral("caption"))).toString();
+            return sort == QLatin1String("az") ? x.localeAwareCompare(y) < 0 : x.localeAwareCompare(y) > 0;
+        });
+    } else {
+        std::sort(rows.begin(), rows.end(), [](const QVariant &a, const QVariant &b) {
+            return a.toMap().value(QStringLiteral("updatedAt")).toLongLong()
+                > b.toMap().value(QStringLiteral("updatedAt")).toLongLong();
+        });
+    }
+    return rows;
 }
 
 QVariantMap mediaItem(const QVariantMap &row, const QString &world, const QString &medium)
@@ -150,18 +255,22 @@ QVariantList genres(const FeedContext &ctx, const QString &world, const QString 
         for (const QString &name : names) rows.append(QVariantMap{{QStringLiteral("name"), name}});
     }
     QVariantList choices;
+    QSet<QString> seen;
     for (const QVariant &entry : rows) {
         const QVariantMap row = entry.toMap();
         const QString name = row.value(QStringLiteral("name"), row.value(QStringLiteral("label"))).toString();
-        if (name.isEmpty()) continue;
+        if (name.isEmpty() || seen.contains(name)) continue;
+        seen.insert(name);
         if (!ctx.showExplicit && (name == QLatin1String("Erotica") || name == QLatin1String("Hentai"))) continue;
         QVariantMap facet{{QStringLiteral("medium"), medium}, {QStringLiteral("name"), name}};
         if (row.contains(QStringLiteral("key"))) facet.insert(QStringLiteral("key"), row.value(QStringLiteral("key")));
         const QVariantMap route = WebFeedChoice::route(world, QStringLiteral("genre"), facet,
                                                        QStringLiteral("popular"), ctx.showExplicit, 24);
+        const QString art = world == QLatin1String("Tankoban") && medium == QLatin1String("manga")
+            ? GenreArt::manga(name) : row.value(QStringLiteral("cover")).toString();
         choices.append(WebFeedChoice::choice(QStringLiteral("genre:") + world + QLatin1Char(':') + medium + QLatin1Char(':') + name,
                                             name, {{QStringLiteral("route"), route}},
-                                            row.value(QStringLiteral("count")).toString()));
+                                            row.value(QStringLiteral("count")).toString(), art));
     }
     return choices;
 }
@@ -192,6 +301,12 @@ QVariantList genreSections(const FeedContext &ctx, const QString &world, const Q
             : demographics.contains(name) ? 3 : 2;
         groups[group].append(choice);
     }
+    // GenreIndexApi.js:166-168: the broad genres and themes read alphabetically.
+    for (int group : {0, 2})
+        std::sort(groups[group].begin(), groups[group].end(), [](const QVariant &a, const QVariant &b) {
+            return a.toMap().value(QStringLiteral("label")).toString()
+                < b.toMap().value(QStringLiteral("label")).toString();
+        });
     const QStringList names{QStringLiteral("Genres"), QStringLiteral("Explicit Genres"),
         QStringLiteral("Themes"), QStringLiteral("Demographics")};
     QVariantList result;
@@ -202,6 +317,31 @@ QVariantList genreSections(const FeedContext &ctx, const QString &world, const Q
             result.size(), names.at(i), QStringLiteral("tiles"), groups[i]));
     }
     return result;
+}
+
+QVariantMap genreNavigation(const FeedContext &ctx, const QString &world,
+                            const QString &medium, const QString &current, int index)
+{
+    // GenrePage.qml:190-237 and the Biblio/Theatre genre pages: sibling hops and Explore.
+    const QStringList mangaSiblings{QStringLiteral("Action"), QStringLiteral("Adventure"),
+        QStringLiteral("Comedy"), QStringLiteral("Drama"), QStringLiteral("Fantasy"),
+        QStringLiteral("Horror"), QStringLiteral("Mystery"), QStringLiteral("Romance"),
+        QStringLiteral("Sci-Fi"), QStringLiteral("Slice of Life"), QStringLiteral("Sports"),
+        QStringLiteral("Supernatural")};
+    QVariantList links;
+    for (const QVariant &entry : genres(ctx, world, medium)) {
+        QVariantMap choice = entry.toMap();
+        const QString name = choice.value(QStringLiteral("label")).toString();
+        if (medium == QLatin1String("manga") && !mangaSiblings.contains(name)) continue;
+        choice.insert(QStringLiteral("selected"), name == current);
+        links.append(choice);
+    }
+    links.append(WebFeedChoice::choice(QStringLiteral("seeAll:explore:") + world + QLatin1Char(':') + medium,
+        QStringLiteral("Explore"), {{QStringLiteral("route"),
+            WebFeedChoice::route(world, QStringLiteral("genreIndex"),
+                {{QStringLiteral("medium"), medium}}, {}, ctx.showExplicit, 24)}}));
+    return WebFeedChoice::section(QStringLiteral("seeAll.siblings"), index,
+        QStringLiteral("Browse genres"), QStringLiteral("chips"), links);
 }
 
 QVariantList remoteRows(const QString &medium, const QVariantMap &facet, int count, bool *failed)
@@ -364,12 +504,19 @@ QVariantList build(const FeedContext &ctx)
     const QString source = r.value(QStringLiteral("source")).toString();
     const QVariantMap facet = r.value(QStringLiteral("facet")).toMap();
     const QString medium = mediumFor(world, facet);
+    const QVariantMap view = ctx.params.value(QStringLiteral("view")).toMap();
     const int pageSize = r.value(QStringLiteral("pageSize")).toInt();
     const int wanted = qMin(5000, pageSize * qMax(1, (ctx.visibleCount + 23) / 24));
     if (source == QLatin1String("genreIndex"))
         return genreSections(ctx, world, medium);
-    if (source == QLatin1String("continue"))
-        return ContinueFeed::build(ctx.recent, world, ctx.paths.imdb, wanted);
+    if (source == QLatin1String("continue")) {
+        QVariantList sections = controls(source, world, medium, view);
+        QVariantMap content = ContinueFeed::build(continueRows(ctx.recent, view),
+            world, ctx.paths.imdb, wanted).first().toMap();
+        content.insert(QStringLiteral("index"), sections.size());
+        sections.append(content);
+        return sections;
+    }
     if (source == QLatin1String("collection"))
         return {WebFeedValue::section(QStringLiteral("seeAll.collection"), 0, QStringLiteral("Collection"),
                                       QStringLiteral("grid"), mapItems(ctx.collection, world, {}, wanted),
@@ -387,7 +534,7 @@ QVariantList build(const FeedContext &ctx)
         MalCatalog mal(ctx.paths.mal, nullptr, QUuid::createUuid().toString(QUuid::WithoutBraces));
         if (source == QLatin1String("genre")) {
             rows = mal.genreEntries(medium, facet.value(QStringLiteral("name")).toString(),
-                                    r.value(QStringLiteral("sort")).toString() == QLatin1String("rating")
+                                    view.value(QStringLiteral("sort"), r.value(QStringLiteral("sort"))).toString() == QLatin1String("rating")
                                         ? QStringLiteral("score") : QStringLiteral("members"), qMin(100, wanted + 1));
             more = rows.size() > wanted;
         } else if (medium == QLatin1String("anime")) {
@@ -440,12 +587,17 @@ QVariantList build(const FeedContext &ctx)
         more = rows.size() > wanted;
     }
     if (wanted >= 5000 || (source == QLatin1String("genre") && medium == QLatin1String("manga") && wanted >= 100)) more = false;
-    return {WebFeedValue::section(QStringLiteral("seeAll.results"), 0,
+    QVariantList sections = controls(source, world, medium, view);
+    if (source == QLatin1String("genre"))
+        sections.append(genreNavigation(ctx, world, medium,
+            facet.value(QStringLiteral("name")).toString(), sections.size()));
+    sections.append(WebFeedValue::section(QStringLiteral("seeAll.results"), sections.size(),
                                   source == QLatin1String("genre") ? facet.value(QStringLiteral("name")).toString()
                                       : QStringLiteral("See All"), QStringLiteral("grid"),
                                   mapItems(rows, world, medium, wanted),
                                   failed ? QStringLiteral("error")
-                                      : rows.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"), more)};
+                                      : rows.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"), more));
+    return sections;
 }
 
 const bool registered = FeedRegistry::add({QStringLiteral("seeAll"), {}, valid,
