@@ -833,6 +833,25 @@ QVariantMap libraryItem(QVariantMap row)
     QVariantMap item = WebFeedValue::item(row, kWorld, QStringLiteral("book"));
     item.insert(QStringLiteral("primary"),
                 canResume ? QStringLiteral("resume") : QStringLiteral("details"));
+
+    // BiblioLibraryPage.qml:169-186. The old card menu exposes Resume only
+    // when a proven reopen payload exists, plus Details and Remove always.
+    QVariantList menu;
+    if (canResume)
+        menu.append(QVariantMap{{QStringLiteral("key"), QStringLiteral("resume")},
+            {QStringLiteral("label"), QStringLiteral("Resume")},
+            {QStringLiteral("target"), QVariantMap{{QStringLiteral("intent"),
+                QStringLiteral("resume")}}}});
+    menu.append(QVariantMap{{QStringLiteral("key"), QStringLiteral("detail")},
+        {QStringLiteral("label"), QStringLiteral("Details")},
+        {QStringLiteral("target"), QVariantMap{{QStringLiteral("intent"),
+            QStringLiteral("details")}}}});
+    menu.append(QVariantMap{{QStringLiteral("key"), QStringLiteral("remove")},
+        {QStringLiteral("label"), QStringLiteral("Remove from Library")},
+        {QStringLiteral("warn"), true},
+        {QStringLiteral("target"), QVariantMap{{QStringLiteral("act"),
+            QStringLiteral("collection.remove")}}}});
+    item.insert(QStringLiteral("menu"), menu);
     return item;
 }
 
@@ -1052,6 +1071,27 @@ void resetRows(ColosseumWebBridge &, const QVariantMap &, ActionRegistry::Comple
     done({{QStringLiteral("ok"), true}});
 }
 
+bool enrichmentPayload(const QVariantMap &payload)
+{
+    const QString catalogue = payload.value(QStringLiteral("catalogue")).toString();
+    return catalogue == QLatin1String("most-read")
+        || catalogue == QLatin1String("classics");
+}
+
+void requestEnrichment(ColosseumWebBridge &bridge, const QVariantMap &payload,
+                       ActionRegistry::Completion done)
+{
+    auto *catalog = qobject_cast<BiblioCatalog *>(
+        bridge.service(QStringLiteral("BiblioCatalog")));
+    if (!catalog) {
+        done({{QStringLiteral("ok"), false},
+              {QStringLiteral("error"), QStringLiteral("Biblio catalogue is unavailable.")}});
+        return;
+    }
+    catalog->requestEnrichment(payload.value(QStringLiteral("catalogue")).toString());
+    done({{QStringLiteral("ok"), true}});
+}
+
 const bool feedRegistered = FeedRegistry::add({
     QStringLiteral("world"), kWorld,
     [](const QVariantMap &params) {
@@ -1068,6 +1108,12 @@ const bool feedRegistered = FeedRegistry::add({
     {{QStringLiteral("Progress"), bindProgress},
      {QStringLiteral("BiblioCatalog"), bindRevision},
      {QStringLiteral("BiblioCatalog"), bindReady}}
+});
+
+const bool enrichmentRegistered = ActionRegistry::add({
+    QStringLiteral("world.biblio.requestEnrichment"),
+    enrichmentPayload,
+    requestEnrichment
 });
 
 const bool moveRegistered = ActionRegistry::add({

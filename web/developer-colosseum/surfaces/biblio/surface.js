@@ -38,12 +38,18 @@
     }
 
     function applyView(patch) {
-      const next = { ...currentView(), ...(patch || {}) };
+      const delta = patch || {};
+      const queryOnly = activeTab === 'library'
+        && Object.keys(delta).length === 1
+        && Object.prototype.hasOwnProperty.call(delta, 'query');
+      const next = { ...currentView(), ...delta };
       Object.keys(next).forEach(key => {
         if (next[key] === '' || next[key] == null) delete next[key];
       });
       views[activeTab] = next;
-      renderLocalControls();
+      // Do not replace the live search input while the user is typing. The feed
+      // resubscribe updates only the section body, so focus and caret stay put.
+      if (!queryOnly) renderLocalControls();
       resubscribe();
     }
 
@@ -60,7 +66,15 @@
       open: env.open,
       forget: env.forget,
       act: env.act,
-      seeAll: env.seeAll,
+      seeAll(section) {
+        const id = String(section && section.id || '');
+        if (id === 'biblio.explore.most-read' || id === 'biblio.explore.classics') {
+          const catalogue = id.substring('biblio.explore.'.length);
+          return env.act('world.biblio.requestEnrichment', { catalogue })
+            .then(() => env.seeAll(section));
+        }
+        return env.seeAll(section);
+      },
       removeChoice: env.removeChoice,
       choose(choice, section) {
         return env.choose(choice, section, null, applyView);
