@@ -19,7 +19,7 @@ QString key(const QString &name, const QString &selector)
 
 bool FeedRegistry::add(Entry entry)
 {
-    if (entry.name.isEmpty() || !entry.valid || !entry.initial) return false;
+    if (entry.name.isEmpty() || !entry.valid || !entry.initial || !entry.build) return false;
     const QString id = key(entry.name, entry.selector);
     if (entries().contains(id)) {
         qWarning() << "Duplicate web feed registration:" << id;
@@ -32,8 +32,17 @@ bool FeedRegistry::add(Entry entry)
 const FeedRegistry::Entry *FeedRegistry::find(const QString &name,
                                                const QVariantMap &params)
 {
-    const QString selector = name == QLatin1String("world")
-        ? params.value(QStringLiteral("world")).toString() : QString();
+    QString selector;
+    if (name == QLatin1String("world"))
+        selector = params.value(QStringLiteral("world")).toString();
+    else if (name == QLatin1String("seeAll")) {
+        const QVariantMap route = params.value(QStringLiteral("route")).toMap();
+        if (route.value(QStringLiteral("world")).toString() == QLatin1String("Theatre")
+            && route.value(QStringLiteral("source")).toString() == QLatin1String("catalogue")
+            && route.value(QStringLiteral("facet")).toMap()
+                .value(QStringLiteral("kind")).toString() == QLatin1String("extension"))
+            selector = QStringLiteral("TheatreExtension");
+    }
     const auto it = entries().constFind(key(name, selector));
     return it == entries().cend() ? nullptr : &it.value();
 }

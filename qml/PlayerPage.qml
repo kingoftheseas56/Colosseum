@@ -3656,7 +3656,7 @@ Item {
             }
         }
         onPauseChanged: {
-            root.activityTracker.playbackStateChanged(!mpv.pause,
+            activityTracker.playbackStateChanged(!mpv.pause,
                 Math.round(mpv.position * 1000), Math.round(mpv.duration * 1000))
             if (mpv.pause)
                 root.wakeChrome()

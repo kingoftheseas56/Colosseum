@@ -1733,6 +1733,7 @@ int main(int argc, char *argv[]) {
         WorldFeed::Paths{imdbRes.path, malRes.path, comicsRes.path,
                          biblioCatalogPath}, webWallpaperScheme, &app);
     developerWebUiBridge->bindNativeContext(engine.rootContext());
+    developerWebUiBridge->bindExtensionsStore(extensions);
     auto syncDeveloperWebUiAccount = [developerWebUiBridge, accountRuntime] {
         auto *controller = accountRuntime->controller();
         developerWebUiBridge->setAccountPresentation(

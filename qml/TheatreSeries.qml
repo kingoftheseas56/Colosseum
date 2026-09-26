@@ -22,6 +22,8 @@ Item {
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
+    signal nextUpTargetSettled(bool ok, string error)
+    property string pendingNextUpEpisodeId: ""
 
     property string title: ""
     property string mediaType: "movie"
@@ -460,6 +462,35 @@ Item {
         page.sheetEpisode=v
         sources.show("series",page.episodeStreamId(v),label,Object.assign({"title":page.title,"metaLine":page.episodeSourceLine(v),"backdrop":page.sourceBackdrop(),"tmdbId":page.tmdbId,"imdbId":page.currentId(),"season":page.episodeSeason(v),"episode":page.episodeNumber(v)},page.adjacentEpisodeContext(v)))
     }
+    // Main's web action targets the exact Next Up episode. This detail page
+    // remains native; the web surface never reads its live QML state.
+    function requestNextUpEpisode(episodeId) {
+        pendingNextUpEpisodeId = String(episodeId || "")
+        if (!pendingNextUpEpisodeId.length) {
+            nextUpTargetSettled(false, "Next Up episode is unavailable.")
+            return
+        }
+        tryOpenNextUpTarget()
+    }
+    function tryOpenNextUpTarget() {
+        if (!pendingNextUpEpisodeId.length || loading) return
+        var targetId = pendingNextUpEpisodeId
+        pendingNextUpEpisodeId = ""
+        if (mediaType !== "series" || !videos || !videos.length) {
+            nextUpTargetSettled(false, "Next Up episode metadata is unavailable.")
+            return
+        }
+        for (var i = 0; i < videos.length; ++i) {
+            var episode = videos[i]
+            if (episodeStreamId(episode) !== targetId) continue
+            activeSeason = episodeSeason(episode)
+            openEpisodeForPlay(episode)
+            nextUpTargetSettled(true, "")
+            return
+        }
+        nextUpTargetSettled(false, "Next Up episode is no longer available.")
+    }
+    onLoadingChanged: if (!loading) tryOpenNextUpTarget()
     function openEpisodeDownload(v) {
         if (!v || typeof Download === "undefined") return
         var sid=page.episodeStreamId(v)
