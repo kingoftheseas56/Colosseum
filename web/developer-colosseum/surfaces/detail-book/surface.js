@@ -263,12 +263,10 @@
       function subscribe() {
         if (sub) sub.close();
         sub = env.port.subscribe('detail.book', params, ev => {
-          if (ev.type === 'reset')
-            CW.section.sync(box, { ...ev, sections: (ev.sections || []).map(viewSection) }, ctx);
-          else if (ev.type === 'section')
-            CW.section.sync(box, { ...ev, section: viewSection(ev.section) }, ctx);
-          else
-            CW.section.sync(box, ev, ctx);
+          CW.section.sync(box, {
+            ...ev,
+            sections: (ev.sections || []).map(viewSection)
+          }, ctx);
         });
       }
 
