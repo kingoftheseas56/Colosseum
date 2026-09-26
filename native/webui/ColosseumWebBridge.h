@@ -15,6 +15,7 @@
 #include <functional>
 
 class CollectionStore;
+class ExtensionsStore;
 class ProgressStore;
 class QQmlContext;
 class SearchHistoryStore;
@@ -29,6 +30,8 @@ public:
                                 QObject *parent = nullptr);
 
     QString resourceUrl() const;
+    const WorldFeed::Paths &feedPaths() const { return m_paths; }
+    bool showExplicit() const { return m_showExplicit; }
     void bindPersonalStores(ProgressStore *progress, CollectionStore *collection,
                             SearchHistoryStore *history);
     void bindNativeContext(QQmlContext *context);
@@ -43,6 +46,7 @@ public:
                       const QVariantMap &patch);
     void delegateAction(const QString &action, const QVariantMap &payload,
                         std::function<void(const QVariantMap &)> complete);
+    void bindExtensionsStore(ExtensionsStore *extensions);
     void suspendProfile();
     void setAccountPresentation(const QString &mode, const QString &username);
     Q_INVOKABLE void setWallpaper(const QString &url, const QString &kind);
@@ -76,6 +80,7 @@ private:
         int visibleCount = 24;
         bool pendingProgress = false;
         QHash<QString, QVariantMap> sections;
+        QList<QMetaObject::Connection> ownerConnections;
     };
 
     bool validFeed(const QString &feed, const QVariantMap &params) const;
@@ -85,6 +90,8 @@ private:
     void applySections(int id, int generation, int requestVersion,
                        const QVariantList &sections);
     void storeChanged(bool progress);
+    void bindOwnerSignals(int id);
+    void disconnectOwnerSignals(Subscription &subscription);
     void record(int id, const QVariantMap &event);
     void startRecorderSweep();
     static QVariantMap fail(const QString &error);
@@ -94,6 +101,7 @@ private:
     WallpaperSchemeHandler *m_wallpapers = nullptr;
     QPointer<ProgressStore> m_progress;
     QPointer<CollectionStore> m_collection;
+    QPointer<ExtensionsStore> m_extensions;
     QPointer<SearchHistoryStore> m_history;
     QHash<int, Subscription> m_subscriptions;
     QHash<int, QSharedPointer<QPromise<QVariantMap>>> m_pendingActions;
@@ -102,6 +110,7 @@ private:
     int m_nextSubscription = 1;
     int m_nextAction = 1;
     int m_profileRevision = 1;
+    bool m_profileActive = true;
     QString m_accountMode;
     QString m_accountUsername;
     QString m_wallpaperUrl;

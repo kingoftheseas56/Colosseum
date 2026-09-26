@@ -5,10 +5,13 @@
 #include "WallpaperSchemeHandler.h"
 
 #include "../CollectionStore.h"
-#include "../ProgressStore.h"
-#include "../SearchHistoryStore.h"
+#include "../account/HistoryStore.h"
+#include "../engine/ExtensionsStore.h"
+#include "../engine/LocalDownloads.h"
 #include "../engine/MangaDownloader.h"
 #include "../engine/MangaTankobanService.h"
+#include "../ProgressStore.h"
+#include "../SearchHistoryStore.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -16,6 +19,7 @@
 #include <QFutureWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPair>
 #include <QQmlContext>
 #include <QSaveFile>
 #include <QTimer>
@@ -162,15 +166,33 @@ void ColosseumWebBridge::bindPersonalStores(ProgressStore *progress,
     if (m_history)
         connect(m_history, &SearchHistoryStore::changed, this,
                 [this](const QString &) { storeChanged(false); });
-    for (const int id : m_subscriptions.keys())
+    m_profileActive = true;
+    for (const int id : m_subscriptions.keys()) {
+        bindOwnerSignals(id);
         reset(id);
+    }
     startRecorderSweep();
+}
+
+void ColosseumWebBridge::bindExtensionsStore(ExtensionsStore *extensions)
+{
+    if (m_extensions) disconnect(m_extensions, nullptr, this, nullptr);
+    m_extensions = extensions;
+    if (m_extensions)
+        connect(m_extensions, &ExtensionsStore::changed, this,
+                [this] { storeChanged(false); });
+    storeChanged(false);
 }
 
 void ColosseumWebBridge::startRecorderSweep()
 {
     if (m_recordDirectory.isEmpty() || m_recorderSweepStarted) return;
     m_recorderSweepStarted = true;
+    QSaveFile shellFile(QDir(m_recordDirectory).filePath(QStringLiteral("shell.json")));
+    if (shellFile.open(QIODevice::WriteOnly)) {
+        shellFile.write(QJsonDocument(QJsonObject::fromVariantMap(shellState())).toJson());
+        shellFile.commit();
+    }
     // A real launch can record every v1 feed/tab before Claude's web adapter
     // is installed. These are ordinary subscriptions; the recorder observes
     // precisely the same feedEvent envelopes that a web client would receive.
@@ -195,18 +217,39 @@ void ColosseumWebBridge::startRecorderSweep()
                              {{QStringLiteral("world"), world},
                               {QStringLiteral("tab"), tab}}});
     }
-    requests.append({QStringLiteral("seeAll"),
-                     {{QStringLiteral("route"), QVariantMap{
-                         {QStringLiteral("v"), 1},
-                         {QStringLiteral("world"), QStringLiteral("Theatre")},
-                         {QStringLiteral("source"), QStringLiteral("catalogue")},
-                         {QStringLiteral("explicit"), false},
-                         {QStringLiteral("pageSize"), 24}}}}});
+    auto recordRoute = [&requests](const QString &world, const QString &source,
+                                   const QVariantMap &facet) {
+        requests.append({QStringLiteral("seeAll"),
+                         {{QStringLiteral("route"), QVariantMap{
+                             {QStringLiteral("v"), 1},
+                             {QStringLiteral("world"), world},
+                             {QStringLiteral("source"), source},
+                             {QStringLiteral("facet"), facet},
+                             {QStringLiteral("explicit"), false},
+                             {QStringLiteral("pageSize"), 24}}}}});
+    };
+    for (const auto &worldMedium : {
+             QPair<QString, QString>{QStringLiteral("Tankoban"), QStringLiteral("manga")},
+             {QStringLiteral("Biblio"), QStringLiteral("book")},
+             {QStringLiteral("Theatre"), QStringLiteral("movie")}}) {
+        QVariantMap facet{{QStringLiteral("medium"), worldMedium.second}};
+        recordRoute(worldMedium.first, QStringLiteral("catalogue"), facet);
+        recordRoute(worldMedium.first, QStringLiteral("genreIndex"), facet);
+        facet.insert(QStringLiteral("name"), worldMedium.first == QLatin1String("Biblio")
+            ? QStringLiteral("Fiction & Literature") : QStringLiteral("Action"));
+        if (worldMedium.first == QLatin1String("Biblio"))
+            facet.insert(QStringLiteral("key"), QStringLiteral("9031"));
+        recordRoute(worldMedium.first, QStringLiteral("genre"), facet);
+    }
     for (const QString &scope : {QStringLiteral("all"), QStringLiteral("Tankoban"),
-                                 QStringLiteral("Biblio"), QStringLiteral("Theatre")})
+                                 QStringLiteral("Biblio"), QStringLiteral("Theatre")}) {
         requests.append({QStringLiteral("search"),
                          {{QStringLiteral("scope"), scope},
-                          {QStringLiteral("query"), QStringLiteral("a")}}});
+                          {QStringLiteral("query"), QString()}}});
+        requests.append({QStringLiteral("search"),
+                         {{QStringLiteral("scope"), scope},
+                          {QStringLiteral("query"), QStringLiteral("Dragon")}}});
+    }
     requests.append({QStringLiteral("detail.theatre"),
                      {{QStringLiteral("id"), QStringLiteral("tt0944947")},
                       {QStringLiteral("type"), QStringLiteral("series")},
@@ -216,7 +259,7 @@ void ColosseumWebBridge::startRecorderSweep()
                       {QStringLiteral("title"), QStringLiteral("One Piece")}}});
     for (int i = 0; i < requests.size(); ++i) {
         const auto request = requests.at(i);
-        QTimer::singleShot(80 * i, this, [this, request] {
+        QTimer::singleShot(500 * i, this, [this, request] {
             subscribe(request.first, request.second);
         });
     }
@@ -224,6 +267,9 @@ void ColosseumWebBridge::startRecorderSweep()
 
 void ColosseumWebBridge::suspendProfile()
 {
+    m_profileActive = false;
+    for (auto it = m_subscriptions.begin(); it != m_subscriptions.end(); ++it)
+        disconnectOwnerSignals(it.value());
     if (m_progress) disconnect(m_progress, nullptr, this, nullptr);
     if (m_collection) disconnect(m_collection, nullptr, this, nullptr);
     if (m_history) disconnect(m_history, nullptr, this, nullptr);
@@ -297,6 +343,12 @@ QVariantMap ColosseumWebBridge::subscribe(const QString &feed, const QVariantMap
     sub.params = WebFeedValue::jsonMap(params);
     if (feed.startsWith(QLatin1String("detail."))) sub.visibleCount = 0;
     m_subscriptions.insert(id, sub);
+    bindOwnerSignals(id);
+    if (feed == QLatin1String("search") && m_history) {
+        const QString query = params.value(QStringLiteral("query")).toString().trimmed();
+        if (query.size() >= 2)
+            m_history->record(params.value(QStringLiteral("scope")).toString(), query);
+    }
     QTimer::singleShot(0, this, [this, id] { reset(id); });
     return {{QStringLiteral("ok"), true}, {QStringLiteral("id"), id},
             {QStringLiteral("generation"), sub.generation + 1}};
@@ -304,15 +356,49 @@ QVariantMap ColosseumWebBridge::subscribe(const QString &feed, const QVariantMap
 
 void ColosseumWebBridge::unsubscribe(int id)
 {
+    auto it = m_subscriptions.find(id);
+    if (it != m_subscriptions.end()) disconnectOwnerSignals(it.value());
     m_subscriptions.remove(id);
     m_recordedEvents.remove(id);
+}
+
+void ColosseumWebBridge::disconnectOwnerSignals(Subscription &subscription)
+{
+    for (const auto &connection : subscription.ownerConnections)
+        QObject::disconnect(connection);
+    subscription.ownerConnections.clear();
+}
+
+void ColosseumWebBridge::bindOwnerSignals(int id)
+{
+    auto it = m_subscriptions.find(id);
+    if (it == m_subscriptions.end()) return;
+    disconnectOwnerSignals(it.value());
+    if (!m_profileActive) return;
+    const auto *entry = FeedRegistry::find(it->feed, it->params);
+    if (!entry) return;
+    const int profileRevision = m_profileRevision;
+    for (const auto &signal : entry->ownerSignals) {
+        QObject *owner = service(signal.service);
+        if (!owner || !signal.bind) continue;
+        const QPointer<QObject> guarded(owner);
+        const QString serviceName = signal.service;
+        auto connection = signal.bind(owner, this, [this, id, profileRevision,
+                                                     guarded, serviceName] {
+            if (!m_profileActive || m_profileRevision != profileRevision || !guarded
+                || service(serviceName) != guarded.data()
+                || !m_subscriptions.contains(id)) return;
+            refresh(id);
+        });
+        it->ownerConnections.append(connection);
+    }
 }
 
 QVariantMap ColosseumWebBridge::more(int id, const QString &sectionId)
 {
     auto it = m_subscriptions.find(id);
     if (it == m_subscriptions.end()) return fail(QStringLiteral("Subscription is closed."));
-    if ((it->feed != QLatin1String("continue")
+    if ((it->feed != QLatin1String("continue") && it->feed != QLatin1String("seeAll")
          && it->feed != QLatin1String("detail.theatre")
          && it->feed != QLatin1String("detail.manga"))
         || !it->sections.contains(sectionId)
@@ -375,15 +461,78 @@ void ColosseumWebBridge::refresh(int id)
     if (entry.needsProgress && m_progress)
         context.recent = m_progress->recent(QString(), 0);
     if (entry.needsCollection && m_collection)
-        context.collection = m_collection->items(
-            context.params.value(QStringLiteral("world")).toString().toLower());
-    if (entry.capture) entry.capture(*this, context);
+        context.collection = m_collection->items((it->feed == QLatin1String("seeAll")
+            ? context.params.value(QStringLiteral("route")).toMap().value(QStringLiteral("world"))
+            : context.params.value(QStringLiteral("world"))).toString().toLower());
+    if (entry.needsExtensions && m_extensions)
+        context.extensions = m_extensions->installed();
+    if (entry.needsHistory && m_history)
+        context.history = m_history->list(
+            context.params.value(QStringLiteral("scope")).toString());
+    if (entry.capture)
+        entry.capture(*this, context);
+    if (it->feed == QLatin1String("world")
+        && context.params.value(QStringLiteral("world")).toString() == QLatin1String("Theatre")
+        && context.params.value(QStringLiteral("tab")).toString() == QLatin1String("library")) {
+        auto *history = qobject_cast<HistoryStore *>(service(QStringLiteral("ProfileHistory")));
+        for (const QVariant &value : context.collection) {
+            const QVariantMap row = value.toMap();
+            const QString key = row.value(QStringLiteral("id")).toString();
+            if (key.isEmpty()) continue;
+            QVariantMap facts;
+            if (m_progress) {
+                facts.insert(QStringLiteral("mark"), m_progress->watchedMark(key));
+                facts.insert(QStringLiteral("manual"), m_progress->watchedMarkIsManual(key));
+                facts.insert(QStringLiteral("actionAt"), m_progress->watchedMarkActionAt(key));
+            }
+            if (history && row.value(QStringLiteral("type")).toString() != QLatin1String("series"))
+                facts.insert(QStringLiteral("completedAt"), history->get(
+                    QStringLiteral("movie"), key).value(QStringLiteral("completedAt")));
+            context.libraryFacts.insert(key, facts);
+        }
+        if (auto *downloads = qobject_cast<LocalDownloads *>(service(QStringLiteral("LocalDownloads")))) {
+            QSet<QString> downloaded;
+            for (const QVariant &value : downloads->series(QStringLiteral("theatre"))) {
+                const QVariantMap series = value.toMap();
+                const QString key = series.value(QStringLiteral("key")).toString();
+                const QVariantList items = downloads->items(QStringLiteral("theatre"), key);
+                QString id = items.isEmpty() ? QString() : items.first().toMap()
+                    .value(QStringLiteral("id")).toString();
+                if (series.value(QStringLiteral("kind")).toString() != QLatin1String("movie")) {
+                    const QStringList parts = id.split(QLatin1Char(':'));
+                    if (parts.size() > 2) id = parts.mid(0, parts.size() - 2).join(QLatin1Char(':'));
+                } else if (id.isEmpty() && key.startsWith(QLatin1String("movie:"))) {
+                    id = key.mid(6);
+                }
+                if (!id.isEmpty()) downloaded.insert(id);
+            }
+            context.downloadedIds = downloaded.values();
+        }
+    }
     auto *watcher = new QFutureWatcher<QVariantList>(this);
     connect(watcher, &QFutureWatcher<QVariantList>::finished, this,
-            [this, watcher, id, generation, requestVersion] {
+            [this, watcher, id, generation, requestVersion, entry, context] {
         const QVariantList sections = watcher->result();
         watcher->deleteLater();
         applySections(id, generation, requestVersion, sections);
+        if (!entry.enrich) return;
+        auto sub = m_subscriptions.constFind(id);
+        if (sub == m_subscriptions.cend() || sub->generation != generation
+            || sub->requestVersion != requestVersion) return;
+        FeedContext followUp = context;
+        followUp.baseSections = sections;
+        if (entry.enrichCapture)
+            entry.enrichCapture(*this, followUp);
+        auto *second = new QFutureWatcher<QVariantList>(this);
+        connect(second, &QFutureWatcher<QVariantList>::finished, this,
+                [this, second, id, generation, requestVersion] {
+            const QVariantList updated = second->result();
+            second->deleteLater();
+            applySections(id, generation, requestVersion, updated);
+        });
+        second->setFuture(QtConcurrent::run([entry, followUp] {
+            return entry.enrich(followUp);
+        }));
     });
     watcher->setFuture(QtConcurrent::run([entry, context] {
         return entry.build(context);
@@ -420,9 +569,11 @@ void ColosseumWebBridge::storeChanged(bool progress)
     for (const int id : m_subscriptions.keys()) {
         auto it = m_subscriptions.find(id);
         if (it == m_subscriptions.end()) continue;
-        if (progress && (it->feed == QLatin1String("continue")
-            || it->feed == QLatin1String("detail.theatre")
-            || it->feed == QLatin1String("detail.manga"))) {
+        if (progress && (it->feed == QLatin1String("detail.theatre")
+            || it->feed == QLatin1String("detail.manga")
+            || it->feed == QLatin1String("continue")
+            || (it->feed == QLatin1String("world")
+                && it->params.value(QStringLiteral("world")).toString() == QLatin1String("Theatre")))) {
             if (it->pendingProgress) continue;
             it->pendingProgress = true;
             QTimer::singleShot(1000, this, [this, id] {
@@ -431,7 +582,9 @@ void ColosseumWebBridge::storeChanged(bool progress)
                 sub->pendingProgress = false;
                 refresh(id);
             });
-        } else if (!progress && it->feed == QLatin1String("world")) {
+        } else if (!progress && (it->feed == QLatin1String("world")
+                                 || it->feed == QLatin1String("search")
+                                 || it->feed == QLatin1String("home"))) {
             refresh(id);
         }
     }

@@ -3980,7 +3980,17 @@ Window {
         active: false
         visible: active
         property var pendingItem: ({})
+        property int pendingNextUpRequestId: 0
+        property string pendingNextUpEpisodeId: ""
         source: "TheatreSeries.qml"
+        onActiveChanged: {
+            if (!active && pendingNextUpRequestId) {
+                ColosseumWebBridge.finishAction(pendingNextUpRequestId, false,
+                    "Next Up was closed before the episode opened.")
+                pendingNextUpRequestId = 0
+                pendingNextUpEpisodeId = ""
+            }
+        }
         onLoaded: {
             item.backdrop = wall
             item.itemData = theatreSeriesLayer.pendingItem
@@ -3993,6 +4003,15 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
+            item.nextUpTargetSettled.connect(function(ok, error) {
+                var requestId = theatreSeriesLayer.pendingNextUpRequestId
+                if (!requestId) return
+                theatreSeriesLayer.pendingNextUpRequestId = 0
+                theatreSeriesLayer.pendingNextUpEpisodeId = ""
+                ColosseumWebBridge.finishAction(requestId, ok, error)
+            })
+            if (theatreSeriesLayer.pendingNextUpEpisodeId.length)
+                item.requestNextUpEpisode(theatreSeriesLayer.pendingNextUpEpisodeId)
         }
     }
 
@@ -4577,6 +4596,7 @@ Window {
 
         function onActionRequested(action, payload, requestId) {
             var ok = true
+            var deferred = false
             var error = ""
             var result = ({})
             var item = payload.item || ({})
@@ -4589,13 +4609,24 @@ Window {
                 var intent = String(payload.intent || "details")
                 if (intent === "resume" && ref.continueGroupKey) {
                     win.resumeContinue(entry)
+                } else if (intent === "resume" && item.world === "Theatre") {
+                    win.resumeLibraryEntry(entry)
                 } else if (intent === "nextUp") {
                     var resume = ref.resume || ({})
-                    if (item.world === "Theatre" && resume.infoHash) {
-                        win.openMovieSession(resume.infoHash, resume.fileIdx || 0,
-                                             item.title || "", item.backdrop || "",
-                                             resume.subType || "", resume.subId || "", [], {},
-                                             resume.position || 0)
+                    if (item.world === "Theatre" && (resume.unitId || ref.unitId)
+                            && (resume.showId || ref.tt)) {
+                        if (theatreSeriesLayer.pendingNextUpRequestId)
+                            ColosseumWebBridge.finishAction(
+                                theatreSeriesLayer.pendingNextUpRequestId, false,
+                                "A newer Next Up request replaced this one.")
+                        theatreSeriesLayer.pendingNextUpRequestId = requestId
+                        theatreSeriesLayer.pendingNextUpEpisodeId = String(resume.unitId || ref.unitId)
+                        deferred = true
+                        win.openTheatreSeries({ id: resume.showId || ref.tt, type: "series",
+                                                title: item.title || "", cover: item.cover || "" })
+                        if (theatreSeriesLayer.item && theatreSeriesLayer.pendingNextUpRequestId)
+                            theatreSeriesLayer.item.requestNextUpEpisode(
+                                theatreSeriesLayer.pendingNextUpEpisodeId)
                     } else if (item.world === "Tankoban"
                                && (ref.chapterId || resume.chapterId)) {
                         win.openComicSession(item.title || "", ref.seriesId || ref.id || "",
@@ -4702,7 +4733,7 @@ Window {
             } else {
                 ok = false; error = "Unsupported action."
             }
-            ColosseumWebBridge.finishAction(requestId, ok, error, result)
+            if (!deferred) ColosseumWebBridge.finishAction(requestId, ok, error, result)
         }
     }
 
