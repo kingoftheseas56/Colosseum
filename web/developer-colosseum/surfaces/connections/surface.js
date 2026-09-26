@@ -24,6 +24,14 @@
     if (status === 'Owner unavailable') return 'Needs attention';
     return status || 'Unknown';
   }
+  function stremioStatusLabel(data) {
+    // TrackerSyncCenterPage.qml:216-224: status and linked account jointly name the state.
+    if (!data.panelAvailable) return 'Unavailable';
+    if (['reconnectRequired', 'syncFailed', 'paused'].includes(data.status)) return 'Needs attention';
+    if (data.status === 'connecting') return 'Connecting';
+    if (data.status === 'syncing') return 'Updating';
+    return data.linkedAccount === true ? 'Connected' : 'Not connected';
+  }
   function deliveryState(state) {
     return {
       waiting: 'Waiting to sync', syncing: 'Syncing', retrying: 'Retry scheduled',
@@ -745,7 +753,8 @@
                       'aria-label': 'Connection preferences', onclick: () => openDossier('global') },
                       icon('preferences.svg', 'connections-action-icon'), 'Preferences'),
                     h('button.connections-secondary.connections-sync-all', {
-                      type: 'button', 'data-focus': true, 'data-key': 'connections.sync-all',
+                      type: 'button', 'data-focus': !!(d.aggregate && d.aggregate.canSyncAll),
+                      'data-key': 'connections.sync-all',
                       disabled: !(d.aggregate && d.aggregate.canSyncAll),
                       'aria-label': 'Sync all connected trackers',
                       onclick: () => env.act('page.connections.syncAll', { revision }).then(answer => {
@@ -818,8 +827,7 @@
                         + (Number(row.waitingCount) || 0))), h('span', {}, 'WAITING / REVIEW')),
                       h('span.connections-open', {}, 'Open ›'))))));
             case 'connections.stremio':
-              // TrackerSyncCenterPage.qml:2141-2279. Status is explicitly
-              // unavailable until the shared Stremio projection is supplied.
+              // TrackerSyncCenterPage.qml:2141-2279: status badge and native panel door.
               return h('div.connections-stremio-section', {},
                 h('div.connections-section-heading.connections-section-stacked', {},
                   h('h2', {}, 'External services'),
@@ -831,10 +839,12 @@
                     h('p', {}, 'Library, progress, and History'),
                     h('div.connections-tags', {}, (d.capabilities || []).map(tag))),
                   h('div.connections-stremio-actions', {},
-                    h('span.connections-state-badge', {}, d.status || 'Status unavailable'),
+                    h('span.connections-state-badge', {}, stremioStatusLabel(d)),
                     h('button.connections-open-settings', {
                       type: 'button', disabled: !d.panelAvailable,
-                      'aria-label': 'Open Stremio settings'
+                      'data-focus': !!d.panelAvailable, 'data-key': 'connections.stremio.open',
+                      'aria-label': 'Open Stremio settings',
+                      onclick: () => env.door('stremioSync')
                     }, 'Open settings ›'))));
             case 'connections.catalogue':
               // TrackerSyncCenterPage.qml:2280-2402. Availability and verified

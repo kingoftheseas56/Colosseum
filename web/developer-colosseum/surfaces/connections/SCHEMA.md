@@ -9,7 +9,7 @@ Feed: `page.connections`, with empty params. Records are `layout: "custom"`, con
 | `connections.relay` | `summary` display text, `providers` safe connection cards | `connectedTrackers`, aggregate |
 | `connections.attention` | `unresolvedCount`, `attentionProviderCount` | aggregate |
 | `connections.connected` | `providers` safe connection cards | `connectedTrackers` |
-| `connections.stremio` | `name`, `capabilities`, `status`, `panelAvailable` | Stremio status seam, when supplied; until then status says unavailable and panel action remains disabled |
+| `connections.stremio` | `name`, `capabilities`, `status`, `linkedAccount`, `panelAvailable` | Profile-bound Stremio state; status and linked-account flag determine the QML-parity badge, and panel availability gates the native `stremioSync` door |
 | `connections.catalogue` | `providers` safe catalogue cards | `catalogue` |
 
 Connection cards carry only public provider key/name, generic account label, status, last-success time, counts, verified capability keys, and native-issued booleans. The feed omits remote account IDs, credentials, canonical keys, provider payloads, and opaque backing-store paths. The web surface does not infer a provider capability. Provider icons are static bundled assets selected from a fixed provider-key table in the surface.
@@ -41,4 +41,4 @@ Every mutation carries the currently displayed model revision. Native checks it 
 | `page.connections.disconnect` | `{providerKey,choice,revision}` | Connection action settled; uncertain outcomes retained |
 | `page.connections.removeImported` | `{providerKey,revision}` | Eligible imported Progress and source History evidence removal settled |
 
-`page.connections.titleMatches` is still gated by the native title-matching readiness seam described in `REQUEST-CONNECTIONS-SHARED-SEAMS.md`. Stremio status and its panel handoff also await that shared seam. The web page neither invents an authentication capability nor treats a provider catalogue card as a connected account.
+`page.connections.titleMatches` follows native title-index readiness. The Stremio card uses the profile-bound status snapshot and opens the existing native panel through `open.native` with door `stremioSync`. The web page neither invents an authentication capability nor treats a provider catalogue card as a connected account.
