@@ -204,20 +204,24 @@ def context_for_task(
                 )
 
     if not selected:
+        task_matches: list[tuple[dict[str, Any], list[str]]] = []
         for _source, entry in map_entries(doc):
-            selectors = [entry.get("id"), *entry_aliases(entry)]
+            selectors = [entry.get("id"), entry.get("display_name"), *entry_aliases(entry)]
             matched = [
                 selector for selector in selectors
                 if isinstance(selector, str) and _task_mentions_selector(task, selector)
             ]
             if matched:
-                add_domain(
-                    entry,
-                    {
-                        "kind": "task-text",
-                        "selectors": matched,
-                    },
-                )
+                task_matches.append((entry, matched))
+        page_matches = [item for item in task_matches if item[0].get("kind") == "page"]
+        if page_matches:
+            longest = max(len(selector) for _entry, matches in page_matches for selector in matches)
+            page_matches = [
+                (entry, matches) for entry, matches in page_matches
+                if any(len(selector) == longest for selector in matches)
+            ]
+        for entry, matched in page_matches or task_matches:
+            add_domain(entry, {"kind": "task-text", "selectors": matched})
 
     if not selected:
         raise HarnessError(
@@ -295,6 +299,12 @@ def context_for_task(
             "id": domain_id,
             "displayName": entry.get("display_name"),
             "matchReasons": selected[domain_id]["reasons"],
+            "sourceRoots": entry.get("source_roots", []),
+            "entryPoints": entry.get("entry_points", []),
+            "qmlFiles": entry.get("qml_files", []),
+            "host": entry.get("host"),
+            "plannedPaths": entry.get("planned_paths", []),
+            "featureStatus": entry.get("feature_status"),
             "owners": entry.get("owners", []),
             "context": contexts,
             "verification": domain_verification,

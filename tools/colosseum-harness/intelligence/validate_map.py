@@ -97,7 +97,7 @@ def validate_map(
     def err(message: str) -> None:
         errors.append(message)
 
-    def repo_path(rel: Any, where: str) -> Path | None:
+    def repo_path(rel: Any, where: str, *, allow_missing: bool = False) -> Path | None:
         if not isinstance(rel, str) or not rel:
             err(f"{where}: path must be a non-empty string")
             return None
@@ -112,7 +112,7 @@ def validate_map(
             err(f"{where}: path escapes repo: {rel!r}")
             return None
         stats["repo_paths_checked"] += 1
-        if not full.exists():
+        if not full.exists() and not allow_missing:
             err(f"{where}: missing repo path: {rel}")
             return None
         return full
@@ -151,7 +151,7 @@ def validate_map(
                 err("repo_basis.semantic_worktree.watch_scopes must be a non-empty array")
             else:
                 for i, rel in enumerate(watch_scopes):
-                    repo_path(rel, f"repo_basis.semantic_worktree.watch_scopes[{i}]")
+                    repo_path(rel, f"repo_basis.semantic_worktree.watch_scopes[{i}]", allow_missing=True)
             fingerprint = semantic.get("fingerprint")
             if not isinstance(fingerprint, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", fingerprint):
                 err("repo_basis.semantic_worktree.fingerprint must be a SHA-256 hex digest")
@@ -238,7 +238,45 @@ def validate_map(
             if len(values) != len(set(values)):
                 err(f"{where}.{field}: contains duplicates")
             for i, rel in enumerate(values):
-                repo_path(rel, f"{where}.{field}[{i}]")
+                planned = (
+                    field == "source_roots"
+                    and domain.get("feature_status") == "absent_on_master"
+                    and isinstance(domain.get("planned_paths"), list)
+                    and rel in domain["planned_paths"]
+                )
+                repo_path(rel, f"{where}.{field}[{i}]", allow_missing=planned)
+
+        if domain.get("kind") == "page":
+            qml_files = domain.get("qml_files")
+            if not isinstance(qml_files, list) or not qml_files:
+                err(f"{where}.qml_files: page domain requires QML files")
+            else:
+                for i, rel in enumerate(qml_files):
+                    if not isinstance(rel, str) or not rel.startswith("qml/") or not rel.endswith(".qml"):
+                        err(f"{where}.qml_files[{i}]: must be a QML path")
+                    repo_path(rel, f"{where}.qml_files[{i}]")
+            host = domain.get("host")
+            if not isinstance(host, dict) or host.get("path") != "qml/Main.qml":
+                err(f"{where}.host: page domain requires a Main.qml host")
+            else:
+                full = repo_path(host["path"], f"{where}.host.path")
+                anchor = host.get("anchor")
+                if not isinstance(anchor, str) or not anchor:
+                    err(f"{where}.host.anchor: must be a non-empty string")
+                elif full and anchor not in full.read_text(encoding="utf-8-sig", errors="replace"):
+                    err(f"{where}.host.anchor: not found in Main.qml: {anchor!r}")
+                if host.get("route") not in {"direct", "nested"}:
+                    err(f"{where}.host.route: must be direct or nested")
+
+        planned_paths = domain.get("planned_paths", [])
+        if not isinstance(planned_paths, list):
+            err(f"{where}.planned_paths: must be an array")
+        else:
+            for i, rel in enumerate(planned_paths):
+                if not isinstance(rel, str) or not rel or Path(rel).is_absolute() or ".." in Path(rel).parts:
+                    err(f"{where}.planned_paths[{i}]: must be repo-relative")
+                elif (repo_root / rel).exists() and domain.get("feature_status") == "absent_on_master":
+                    err(f"{where}.planned_paths[{i}]: path now exists; refresh absent_on_master status")
 
         related_files = domain.get("related_files", [])
         if not isinstance(related_files, list):

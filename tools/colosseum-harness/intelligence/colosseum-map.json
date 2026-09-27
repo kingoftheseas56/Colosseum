@@ -2,7 +2,7 @@
   "schema_version": 1,
   "map_id": "colosseum-intelligence-v0",
   "repo_basis": {
-    "head": "e040c64f55e8be5a6b65933839cf8b06259e26b8",
+    "head": "d0825e88b43be5d6b4d65673254627c621103336",
     "branch": "master",
     "path_semantics": "repo-relative",
     "source_of_truth": [
@@ -15,26 +15,22 @@
       "tests/lanista_scenarios"
     ],
     "semantic_worktree": {
-      "algorithm": "sha256-git-semantic-v1",
+      "algorithm": "sha256-git-semantic-v2",
       "watch_scopes": [
-        "qml/ratingsreviews",
+        "qml",
+        "tests/CMakeLists.txt",
+        "tests/lanista_scenarios",
+        "native/webui",
+        "web/developer-colosseum",
         "native/engine/ColosseumTitleIdentityRegistry.h",
         "native/engine/ColosseumTitleIdentityRegistry.cpp",
         "native/account/RatingsReviewsStore.h",
         "native/account/RatingsReviewsStore.cpp",
         "native/account/RatingsReviewsController.h",
         "native/account/RatingsReviewsController.cpp",
-        "data/title-identities-v1.json",
-        "tests/auto/ratings_reviews_journey",
-        "tests/qml/ratings_reviews_journey",
-        "tests/qml/ratings_reviews_delivery",
-        "tests/qml/ratings_reviews_conversion",
-        "tests/lanista_scenarios/ratings_reviews_frieren_production.json",
-        "qml/TheatreSeries.qml",
-        "qml/ComicSeries.qml",
-        "qml/ComicSeriesPage.qml"
+        "data/title-identities-v1.json"
       ],
-      "fingerprint": "1d9bd10154c1d5df96bb63ac9e3498bb4f5e7c615fb48dc95b69e6ad3c00e9ae"
+      "fingerprint": "c215c15dde7b915801f9b318096e3ac575960051c6f494601f441b0302a270d7"
     }
   },
   "donors": {
@@ -47,10 +43,15 @@
     "QML ownership is not AST-derived; QML mappings use inspected current entry points and source anchors.",
     "CTest/check lists are high-signal subsets, not a complete assignment of the test estate.",
     "Referenced Lanista entries are required to exist and parse as JSON, but this does not imply current green runtime status.",
-    "Current Lanista scenario census: 85 files, 85 valid JSON.",
     "Preflight Function Atlas pointers are audit context on their recorded basis; current Colosseum source/tests win.",
     "Ratings & Reviews category-wide runtime entry (anime pivot, book, manga, vault film, comic absence) awaits dedicated Lanista scenarios; only the registered Frieren production and fixture delivery journeys are mapped.",
-    "RatingsWrapper and the public community service do not exist yet; no owners, endpoints, or capabilities are mapped for them."
+    "RatingsWrapper and the public community service do not exist yet; no owners, endpoints, or capabilities are mapped for them.",
+    "Page domains enumerate COLOSSEUM-PAGES.md on 2026-09-27; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage.",
+    "Developer WebUI source paths are branch-only and absent on master; planned paths are informational until integrated.",
+    "Page domains enumerate COLOSSEUM-PAGES.md on 2026-09-27; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage.",
+    "Developer WebUI source paths are branch-only and absent on master; planned paths are informational until integrated.",
+    "Page domains enumerate COLOSSEUM-PAGES.md on 2026-09-27; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage.",
+    "Developer WebUI source paths are branch-only and absent on master; planned paths are informational until integrated."
   ],
   "domains": [
     {
@@ -1373,6 +1374,3399 @@
         "biblio",
         "tankoban",
         "vault"
+      ]
+    },
+    {
+      "id": "page-top-bar",
+      "kind": "page",
+      "display_name": "Top bar (clock, world pills, doors)",
+      "aliases": [
+        "top bar"
+      ],
+      "source_roots": [
+        "qml/TopBar.qml"
+      ],
+      "entry_points": [
+        "qml/TopBar.qml"
+      ],
+      "qml_files": [
+        "qml/TopBar.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "TopBar {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TopBar",
+          "path": "qml/TopBar.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Top bar (clock, world pills, doors).",
+          "provenance": [
+            {
+              "path": "qml/TopBar.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-taskbar",
+      "kind": "page",
+      "display_name": "Taskbar",
+      "aliases": [
+        "taskbar page"
+      ],
+      "source_roots": [
+        "qml/Taskbar.qml"
+      ],
+      "entry_points": [
+        "qml/Taskbar.qml"
+      ],
+      "qml_files": [
+        "qml/Taskbar.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "Taskbar {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "Taskbar",
+          "path": "qml/Taskbar.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Taskbar.",
+          "provenance": [
+            {
+              "path": "qml/Taskbar.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.session_model_contract",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/journey_tray.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-boot-splash",
+      "kind": "page",
+      "display_name": "Boot splash",
+      "aliases": [
+        "boot splash"
+      ],
+      "source_roots": [
+        "qml/BootSplash.qml"
+      ],
+      "entry_points": [
+        "qml/BootSplash.qml"
+      ],
+      "qml_files": [
+        "qml/BootSplash.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "BootSplash {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "BootSplash",
+          "path": "qml/BootSplash.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Boot splash.",
+          "provenance": [
+            {
+              "path": "qml/BootSplash.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-fullscreen-transition-shield",
+      "kind": "page",
+      "display_name": "Fullscreen transition shield",
+      "aliases": [
+        "fullscreen transition shield"
+      ],
+      "source_roots": [
+        "qml/FullscreenTransitionShield.qml"
+      ],
+      "entry_points": [
+        "qml/FullscreenTransitionShield.qml"
+      ],
+      "qml_files": [
+        "qml/FullscreenTransitionShield.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "FullscreenTransitionShield {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "FullscreenTransitionShield",
+          "path": "qml/FullscreenTransitionShield.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Fullscreen transition shield.",
+          "provenance": [
+            {
+              "path": "qml/FullscreenTransitionShield.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-account-flyout",
+      "kind": "page",
+      "display_name": "Account flyout",
+      "aliases": [
+        "account flyout"
+      ],
+      "source_roots": [
+        "qml/account/AccountFlyout.qml"
+      ],
+      "entry_points": [
+        "qml/account/AccountFlyout.qml"
+      ],
+      "qml_files": [
+        "qml/account/AccountFlyout.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "AccountFlyout {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "AccountFlyout",
+          "path": "qml/account/AccountFlyout.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Account flyout.",
+          "provenance": [
+            {
+              "path": "qml/account/AccountFlyout.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-open-recent-panel",
+      "kind": "page",
+      "display_name": "Open Recent panel",
+      "aliases": [
+        "open recent panel"
+      ],
+      "source_roots": [
+        "qml/OpenRecentPanel.qml"
+      ],
+      "entry_points": [
+        "qml/OpenRecentPanel.qml"
+      ],
+      "qml_files": [
+        "qml/OpenRecentPanel.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "OpenRecentPanel {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "OpenRecentPanel",
+          "path": "qml/OpenRecentPanel.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Open Recent panel.",
+          "provenance": [
+            {
+              "path": "qml/OpenRecentPanel.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/vault_open_recent.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-next-to-open-tray",
+      "kind": "page",
+      "display_name": "Next to Open tray",
+      "aliases": [
+        "next to open tray"
+      ],
+      "source_roots": [
+        "qml/NextToOpenTray.qml"
+      ],
+      "entry_points": [
+        "qml/NextToOpenTray.qml"
+      ],
+      "qml_files": [
+        "qml/NextToOpenTray.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "NextToOpenTray {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "NextToOpenTray",
+          "path": "qml/NextToOpenTray.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Next to Open tray.",
+          "provenance": [
+            {
+              "path": "qml/NextToOpenTray.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-stremio-sync-panel",
+      "kind": "page",
+      "display_name": "Stremio Sync panel",
+      "aliases": [
+        "stremio sync panel"
+      ],
+      "source_roots": [
+        "qml/StremioSyncPanel.qml"
+      ],
+      "entry_points": [
+        "qml/StremioSyncPanel.qml"
+      ],
+      "qml_files": [
+        "qml/StremioSyncPanel.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "StremioSyncPanel {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "StremioSyncPanel",
+          "path": "qml/StremioSyncPanel.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Stremio Sync panel.",
+          "provenance": [
+            {
+              "path": "qml/StremioSyncPanel.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/stremio_task4_theatre_panel.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-watch-party-join-sheet",
+      "kind": "page",
+      "display_name": "Watch Party join sheet",
+      "aliases": [
+        "watch party join sheet"
+      ],
+      "source_roots": [
+        "qml/WatchPartyJoinSheet.qml"
+      ],
+      "entry_points": [
+        "qml/WatchPartyJoinSheet.qml"
+      ],
+      "qml_files": [
+        "qml/WatchPartyJoinSheet.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "WatchPartyJoinSheet {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "WatchPartyJoinSheet",
+          "path": "qml/WatchPartyJoinSheet.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Watch Party join sheet.",
+          "provenance": [
+            {
+              "path": "qml/WatchPartyJoinSheet.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-theatre-removal-dialog",
+      "kind": "page",
+      "display_name": "Theatre removal dialog",
+      "aliases": [
+        "theatre removal dialog"
+      ],
+      "source_roots": [
+        "qml/TheatreRemovalDialog.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreRemovalDialog.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreRemovalDialog.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "TheatreRemovalDialog {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TheatreRemovalDialog",
+          "path": "qml/TheatreRemovalDialog.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Theatre removal dialog.",
+          "provenance": [
+            {
+              "path": "qml/TheatreRemovalDialog.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-sources-sheet",
+      "kind": "page",
+      "display_name": "Sources sheet",
+      "aliases": [
+        "sources sheet"
+      ],
+      "source_roots": [
+        "qml/SourcesSheet.qml"
+      ],
+      "entry_points": [
+        "qml/SourcesSheet.qml"
+      ],
+      "qml_files": [
+        "qml/SourcesSheet.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "TopBar {",
+        "route": "nested",
+        "note": "Nested surface in Shell (always around); Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "SourcesSheet",
+          "path": "qml/SourcesSheet.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Sources sheet.",
+          "provenance": [
+            {
+              "path": "qml/SourcesSheet.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-browser-drawer",
+      "kind": "page",
+      "display_name": "Browser drawer",
+      "aliases": [
+        "browser drawer"
+      ],
+      "source_roots": [
+        "qml/BrowserDrawer.qml"
+      ],
+      "entry_points": [
+        "qml/BrowserDrawer.qml"
+      ],
+      "qml_files": [
+        "qml/BrowserDrawer.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "TopBar {",
+        "route": "nested",
+        "note": "Nested surface in Shell (always around); Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "BrowserDrawer",
+          "path": "qml/BrowserDrawer.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Browser drawer.",
+          "provenance": [
+            {
+              "path": "qml/BrowserDrawer.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-home",
+      "kind": "page",
+      "display_name": "Home (universes, Continue, world shelves)",
+      "aliases": [
+        "home",
+        "home page"
+      ],
+      "source_roots": [
+        "qml/Main.qml",
+        "qml/WorldPage.qml"
+      ],
+      "entry_points": [
+        "qml/Main.qml"
+      ],
+      "qml_files": [
+        "qml/Main.qml",
+        "qml/WorldPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "objectName: \"homePageFlickable\"",
+        "route": "nested",
+        "note": "Nested surface in Home; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "Main",
+          "path": "qml/Main.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Home (universes, Continue, world shelves).",
+          "provenance": [
+            {
+              "path": "qml/Main.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.home_hidden_work_contract",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/app_home.json",
+        "tests/lanista_scenarios/continue_home_qualification.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-continue-see-all-page",
+      "kind": "page",
+      "display_name": "Continue — See All",
+      "aliases": [
+        "continue see all page"
+      ],
+      "source_roots": [
+        "qml/ContinueSeeAllPage.qml"
+      ],
+      "entry_points": [
+        "qml/ContinueSeeAllPage.qml"
+      ],
+      "qml_files": [
+        "qml/ContinueSeeAllPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"ContinueSeeAllPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "ContinueSeeAllPage",
+          "path": "qml/ContinueSeeAllPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Continue — See All.",
+          "provenance": [
+            {
+              "path": "qml/ContinueSeeAllPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/continue_home_qualification.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-search",
+      "kind": "page",
+      "display_name": "Search (world search, history, Surprise me)",
+      "aliases": [
+        "search page"
+      ],
+      "source_roots": [
+        "qml/Main.qml",
+        "qml/SearchSurface.qml",
+        "qml/BiblioSearch.qml"
+      ],
+      "entry_points": [
+        "qml/Main.qml"
+      ],
+      "qml_files": [
+        "qml/Main.qml",
+        "qml/SearchSurface.qml",
+        "qml/BiblioSearch.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "source: \"SearchSurface.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "Main",
+          "path": "qml/Main.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Search (world search, history, Surprise me).",
+          "provenance": [
+            {
+              "path": "qml/Main.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-theatre-world",
+      "kind": "page",
+      "display_name": "Theatre world: Discover · Movies · Shows · Anime",
+      "aliases": [
+        "theatre world"
+      ],
+      "source_roots": [
+        "qml/TheatreWorld.qml",
+        "qml/WorldTabBar.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreWorld.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreWorld.qml",
+        "qml/WorldTabBar.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TheatreWorld.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TheatreWorld",
+          "path": "qml/TheatreWorld.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Theatre world: Discover · Movies · Shows · Anime.",
+          "provenance": [
+            {
+              "path": "qml/TheatreWorld.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.world_lifecycle_contract",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/theatre_one_piece_virtualization.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-library-page",
+      "kind": "page",
+      "display_name": "Theatre Library",
+      "aliases": [
+        "library page"
+      ],
+      "source_roots": [
+        "qml/LibraryPage.qml"
+      ],
+      "entry_points": [
+        "qml/LibraryPage.qml"
+      ],
+      "qml_files": [
+        "qml/LibraryPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TheatreWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Theatre; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "LibraryPage",
+          "path": "qml/LibraryPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Theatre Library.",
+          "provenance": [
+            {
+              "path": "qml/LibraryPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-theatre-catalog-page",
+      "kind": "page",
+      "display_name": "Catalogue page",
+      "aliases": [
+        "theatre catalog page"
+      ],
+      "source_roots": [
+        "qml/TheatreCatalogPage.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreCatalogPage.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreCatalogPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TheatreWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Theatre; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "TheatreCatalogPage",
+          "path": "qml/TheatreCatalogPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Catalogue page.",
+          "provenance": [
+            {
+              "path": "qml/TheatreCatalogPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.catalogue_cancellation_contract",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/keyboard_catalogue_theatre_completion.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-theatre-genre-index",
+      "kind": "page",
+      "display_name": "Genre index · genre page",
+      "aliases": [
+        "theatre genre index"
+      ],
+      "source_roots": [
+        "qml/TheatreGenreIndex.qml",
+        "qml/TheatreGenrePage.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreGenreIndex.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreGenreIndex.qml",
+        "qml/TheatreGenrePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TheatreGenreIndex.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TheatreGenreIndex",
+          "path": "qml/TheatreGenreIndex.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Genre index · genre page.",
+          "provenance": [
+            {
+              "path": "qml/TheatreGenreIndex.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-theatre-see-all-page",
+      "kind": "page",
+      "display_name": "See All",
+      "aliases": [
+        "theatre see all page"
+      ],
+      "source_roots": [
+        "qml/TheatreSeeAllPage.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreSeeAllPage.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreSeeAllPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TheatreWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Theatre; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "TheatreSeeAllPage",
+          "path": "qml/TheatreSeeAllPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for See All.",
+          "provenance": [
+            {
+              "path": "qml/TheatreSeeAllPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-theatre-series",
+      "kind": "page",
+      "display_name": "Title page (old)",
+      "aliases": [
+        "theatre series"
+      ],
+      "source_roots": [
+        "qml/TheatreSeries.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreSeries.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreSeries.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TheatreSeries.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TheatreSeries",
+          "path": "qml/TheatreSeries.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Title page (old).",
+          "provenance": [
+            {
+              "path": "qml/TheatreSeries.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-theatre-series-view",
+      "kind": "page",
+      "display_name": "Title page (new series/movie view)",
+      "aliases": [
+        "theatre series view"
+      ],
+      "source_roots": [
+        "qml/TheatreSeriesView.qml",
+        "qml/TitlePageBar.qml"
+      ],
+      "entry_points": [
+        "qml/TheatreSeriesView.qml"
+      ],
+      "qml_files": [
+        "qml/TheatreSeriesView.qml",
+        "qml/TitlePageBar.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TheatreSeriesView.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TheatreSeriesView",
+          "path": "qml/TheatreSeriesView.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Title page (new series/movie view).",
+          "provenance": [
+            {
+              "path": "qml/TheatreSeriesView.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-discover-browser",
+      "kind": "page",
+      "display_name": "Discover browser / picker",
+      "aliases": [
+        "discover browser"
+      ],
+      "source_roots": [
+        "qml/DiscoverBrowser.qml",
+        "qml/DiscoverPage.qml",
+        "qml/DiscoverPicker.qml"
+      ],
+      "entry_points": [
+        "qml/DiscoverBrowser.qml"
+      ],
+      "qml_files": [
+        "qml/DiscoverBrowser.qml",
+        "qml/DiscoverPage.qml",
+        "qml/DiscoverPicker.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TheatreWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Theatre; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "DiscoverBrowser",
+          "path": "qml/DiscoverBrowser.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Discover browser / picker.",
+          "provenance": [
+            {
+              "path": "qml/DiscoverBrowser.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "theatre"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-tankoban-world",
+      "kind": "page",
+      "display_name": "Tankoban world: Discover · Manga · Comics · Library",
+      "aliases": [
+        "tankoban world"
+      ],
+      "source_roots": [
+        "qml/TankobanWorld.qml",
+        "qml/TankobanDiscoverPage.qml"
+      ],
+      "entry_points": [
+        "qml/TankobanWorld.qml"
+      ],
+      "qml_files": [
+        "qml/TankobanWorld.qml",
+        "qml/TankobanDiscoverPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TankobanWorld.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TankobanWorld",
+          "path": "qml/TankobanWorld.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Tankoban world: Discover · Manga · Comics · Library.",
+          "provenance": [
+            {
+              "path": "qml/TankobanWorld.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.tankoban_catalog",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/tankoban_discover_depth.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-manga-catalog-page",
+      "kind": "page",
+      "display_name": "Manga catalogue",
+      "aliases": [
+        "manga catalog page"
+      ],
+      "source_roots": [
+        "qml/MangaCatalogPage.qml"
+      ],
+      "entry_points": [
+        "qml/MangaCatalogPage.qml"
+      ],
+      "qml_files": [
+        "qml/MangaCatalogPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TankobanWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Tankoban; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "MangaCatalogPage",
+          "path": "qml/MangaCatalogPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Manga catalogue.",
+          "provenance": [
+            {
+              "path": "qml/MangaCatalogPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.tankoban_catalog",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/tankoban_catalogue_smoke.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-manga-series",
+      "kind": "page",
+      "display_name": "Manga series (old) · chapter view",
+      "aliases": [
+        "manga series"
+      ],
+      "source_roots": [
+        "qml/MangaSeries.qml",
+        "qml/MangaChapterSeriesView.qml",
+        "qml/MangaSeriesSharedHeader.qml"
+      ],
+      "entry_points": [
+        "qml/MangaSeries.qml"
+      ],
+      "qml_files": [
+        "qml/MangaSeries.qml",
+        "qml/MangaChapterSeriesView.qml",
+        "qml/MangaSeriesSharedHeader.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"MangaSeries.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "MangaSeries",
+          "path": "qml/MangaSeries.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Manga series (old) · chapter view.",
+          "provenance": [
+            {
+              "path": "qml/MangaSeries.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.manga_series_catalogue",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/journey_open_manga.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-tankoban-series-view",
+      "kind": "page",
+      "display_name": "Tankoban series page (new)",
+      "aliases": [
+        "tankoban series view"
+      ],
+      "source_roots": [
+        "qml/TankobanSeriesView.qml",
+        "qml/TankobanChapterList.qml"
+      ],
+      "entry_points": [
+        "qml/TankobanSeriesView.qml"
+      ],
+      "qml_files": [
+        "qml/TankobanSeriesView.qml",
+        "qml/TankobanChapterList.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TankobanSeriesView.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TankobanSeriesView",
+          "path": "qml/TankobanSeriesView.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Tankoban series page (new).",
+          "provenance": [
+            {
+              "path": "qml/TankobanSeriesView.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.tankoban_chapter_migration",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/tankoban_chapter_migration.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-manga-tankoban-sources-page",
+      "kind": "page",
+      "display_name": "Manga sources page",
+      "aliases": [
+        "manga tankoban sources page"
+      ],
+      "source_roots": [
+        "qml/MangaTankobanSourcesPage.qml"
+      ],
+      "entry_points": [
+        "qml/MangaTankobanSourcesPage.qml"
+      ],
+      "qml_files": [
+        "qml/MangaTankobanSourcesPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TankobanWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Tankoban; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "MangaTankobanSourcesPage",
+          "path": "qml/MangaTankobanSourcesPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Manga sources page.",
+          "provenance": [
+            {
+              "path": "qml/MangaTankobanSourcesPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-tankoyomi-configuration-page",
+      "kind": "page",
+      "display_name": "Tankoyomi configuration",
+      "aliases": [
+        "tankoyomi configuration page"
+      ],
+      "source_roots": [
+        "qml/TankoyomiConfigurationPage.qml"
+      ],
+      "entry_points": [
+        "qml/TankoyomiConfigurationPage.qml"
+      ],
+      "qml_files": [
+        "qml/TankoyomiConfigurationPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TankobanWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Tankoban; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "TankoyomiConfigurationPage",
+          "path": "qml/TankoyomiConfigurationPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Tankoyomi configuration.",
+          "provenance": [
+            {
+              "path": "qml/TankoyomiConfigurationPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-comic-series",
+      "kind": "page",
+      "display_name": "Comic series",
+      "aliases": [
+        "comic series"
+      ],
+      "source_roots": [
+        "qml/ComicSeries.qml",
+        "qml/ComicSeriesPage.qml"
+      ],
+      "entry_points": [
+        "qml/ComicSeries.qml"
+      ],
+      "qml_files": [
+        "qml/ComicSeries.qml",
+        "qml/ComicSeriesPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"ComicSeries.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "ComicSeries",
+          "path": "qml/ComicSeries.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Comic series.",
+          "provenance": [
+            {
+              "path": "qml/ComicSeries.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/comics_catalogue_intelligence_smoke.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-comic-archive-board",
+      "kind": "page",
+      "display_name": "Comic archive board · index",
+      "aliases": [
+        "comic archive board"
+      ],
+      "source_roots": [
+        "qml/ComicArchiveBoard.qml",
+        "qml/ComicArchiveIndex.qml"
+      ],
+      "entry_points": [
+        "qml/ComicArchiveBoard.qml"
+      ],
+      "qml_files": [
+        "qml/ComicArchiveBoard.qml",
+        "qml/ComicArchiveIndex.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"ComicArchiveBoard.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "ComicArchiveBoard",
+          "path": "qml/ComicArchiveBoard.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Comic archive board · index.",
+          "provenance": [
+            {
+              "path": "qml/ComicArchiveBoard.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-comic-torrent-sources-page",
+      "kind": "page",
+      "display_name": "Comic torrent sources · archive picker",
+      "aliases": [
+        "comic torrent sources page"
+      ],
+      "source_roots": [
+        "qml/ComicTorrentSourcesPage.qml",
+        "qml/ComicTorrentArchivePicker.qml"
+      ],
+      "entry_points": [
+        "qml/ComicTorrentSourcesPage.qml"
+      ],
+      "qml_files": [
+        "qml/ComicTorrentSourcesPage.qml",
+        "qml/ComicTorrentArchivePicker.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TankobanWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Tankoban; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "ComicTorrentSourcesPage",
+          "path": "qml/ComicTorrentSourcesPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Comic torrent sources · archive picker.",
+          "provenance": [
+            {
+              "path": "qml/ComicTorrentSourcesPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-locg-publisher-page",
+      "kind": "page",
+      "display_name": "LOCG publisher page",
+      "aliases": [
+        "locg publisher page"
+      ],
+      "source_roots": [
+        "qml/LocgPublisherPage.qml"
+      ],
+      "entry_points": [
+        "qml/LocgPublisherPage.qml"
+      ],
+      "qml_files": [
+        "qml/LocgPublisherPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"LocgPublisherPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "LocgPublisherPage",
+          "path": "qml/LocgPublisherPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for LOCG publisher page.",
+          "provenance": [
+            {
+              "path": "qml/LocgPublisherPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-biblio-world",
+      "kind": "page",
+      "display_name": "Biblio world: Discover · Explore · Library",
+      "aliases": [
+        "biblio world"
+      ],
+      "source_roots": [
+        "qml/BiblioWorld.qml",
+        "qml/BiblioDiscoverPage.qml",
+        "qml/BiblioExplorePage.qml",
+        "qml/BiblioLibraryPage.qml"
+      ],
+      "entry_points": [
+        "qml/BiblioWorld.qml"
+      ],
+      "qml_files": [
+        "qml/BiblioWorld.qml",
+        "qml/BiblioDiscoverPage.qml",
+        "qml/BiblioExplorePage.qml",
+        "qml/BiblioLibraryPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"BiblioWorld.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "BiblioWorld",
+          "path": "qml/BiblioWorld.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Biblio world: Discover · Explore · Library.",
+          "provenance": [
+            {
+              "path": "qml/BiblioWorld.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.profile_preferences_sync",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/biblio_tab_probe.json",
+        "tests/lanista_scenarios/biblio_library_empty.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "biblio"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-biblio-genre-index",
+      "kind": "page",
+      "display_name": "Genre index · genre page",
+      "aliases": [
+        "biblio genre index"
+      ],
+      "source_roots": [
+        "qml/BiblioGenreIndex.qml",
+        "qml/BiblioGenrePage.qml"
+      ],
+      "entry_points": [
+        "qml/BiblioGenreIndex.qml"
+      ],
+      "qml_files": [
+        "qml/BiblioGenreIndex.qml",
+        "qml/BiblioGenrePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"BiblioGenreIndex.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "BiblioGenreIndex",
+          "path": "qml/BiblioGenreIndex.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Genre index · genre page.",
+          "provenance": [
+            {
+              "path": "qml/BiblioGenreIndex.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "biblio"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-biblio-book",
+      "kind": "page",
+      "display_name": "Book page",
+      "aliases": [
+        "biblio book"
+      ],
+      "source_roots": [
+        "qml/BiblioBook.qml",
+        "qml/BiblioBookRail.qml"
+      ],
+      "entry_points": [
+        "qml/BiblioBook.qml"
+      ],
+      "qml_files": [
+        "qml/BiblioBook.qml",
+        "qml/BiblioBookRail.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"BiblioBook.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "BiblioBook",
+          "path": "qml/BiblioBook.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Book page.",
+          "provenance": [
+            {
+              "path": "qml/BiblioBook.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/arc41_biblio_poster_route_return.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "biblio"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-bookshelf",
+      "kind": "page",
+      "display_name": "Bookshelf",
+      "aliases": [
+        "bookshelf"
+      ],
+      "source_roots": [
+        "qml/Bookshelf.qml"
+      ],
+      "entry_points": [
+        "qml/Bookshelf.qml"
+      ],
+      "qml_files": [
+        "qml/Bookshelf.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"Bookshelf.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "Bookshelf",
+          "path": "qml/Bookshelf.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Bookshelf.",
+          "provenance": [
+            {
+              "path": "qml/Bookshelf.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "biblio"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-genre-index",
+      "kind": "page",
+      "display_name": "Genre index · genre page (generic)",
+      "aliases": [
+        "genre index"
+      ],
+      "source_roots": [
+        "qml/GenreIndex.qml",
+        "qml/GenrePage.qml"
+      ],
+      "entry_points": [
+        "qml/GenreIndex.qml"
+      ],
+      "qml_files": [
+        "qml/GenreIndex.qml",
+        "qml/GenrePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"GenreIndex.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "GenreIndex",
+          "path": "qml/GenreIndex.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Genre index · genre page (generic).",
+          "provenance": [
+            {
+              "path": "qml/GenreIndex.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "search-discovery"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-personalize-page",
+      "kind": "page",
+      "display_name": "Personalize",
+      "aliases": [
+        "personalize page"
+      ],
+      "source_roots": [
+        "qml/PersonalizePage.qml"
+      ],
+      "entry_points": [
+        "qml/PersonalizePage.qml"
+      ],
+      "qml_files": [
+        "qml/PersonalizePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "return \"TheatreWorld.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Shared browsing; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "PersonalizePage",
+          "path": "qml/PersonalizePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Personalize.",
+          "provenance": [
+            {
+              "path": "qml/PersonalizePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "search-discovery"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-universe-hall-page",
+      "kind": "page",
+      "display_name": "Universe Hall",
+      "aliases": [
+        "universe hall page"
+      ],
+      "source_roots": [
+        "qml/UniverseHallPage.qml"
+      ],
+      "entry_points": [
+        "qml/UniverseHallPage.qml"
+      ],
+      "qml_files": [
+        "qml/UniverseHallPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"UniverseHallPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "UniverseHallPage",
+          "path": "qml/UniverseHallPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Universe Hall.",
+          "provenance": [
+            {
+              "path": "qml/UniverseHallPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/keyboard_universe_utilities_completion.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "universes"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-universe-page",
+      "kind": "page",
+      "display_name": "Universe page · extension universe",
+      "aliases": [
+        "universe page"
+      ],
+      "source_roots": [
+        "qml/UniversePage.qml",
+        "qml/UniverseExtensionPage.qml"
+      ],
+      "entry_points": [
+        "qml/UniversePage.qml"
+      ],
+      "qml_files": [
+        "qml/UniversePage.qml",
+        "qml/UniverseExtensionPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"UniverseExtensionPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "UniversePage",
+          "path": "qml/UniversePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Universe page · extension universe.",
+          "provenance": [
+            {
+              "path": "qml/UniversePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "universes"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-cosmere-universe-page",
+      "kind": "page",
+      "display_name": "Cosmere",
+      "aliases": [
+        "cosmere universe page"
+      ],
+      "source_roots": [
+        "qml/CosmereUniversePage.qml"
+      ],
+      "entry_points": [
+        "qml/CosmereUniversePage.qml"
+      ],
+      "qml_files": [
+        "qml/CosmereUniversePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"CosmereUniversePage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "CosmereUniversePage",
+          "path": "qml/CosmereUniversePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Cosmere.",
+          "provenance": [
+            {
+              "path": "qml/CosmereUniversePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "universes"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-d-c-a-u-universe-page",
+      "kind": "page",
+      "display_name": "DCAU (+ world pages, portals)",
+      "aliases": [
+        "d c a u universe page"
+      ],
+      "source_roots": [
+        "qml/DCAUUniversePage.qml",
+        "qml/DCAUWorldPage.qml",
+        "qml/DCAUWorldPortal.qml"
+      ],
+      "entry_points": [
+        "qml/DCAUUniversePage.qml"
+      ],
+      "qml_files": [
+        "qml/DCAUUniversePage.qml",
+        "qml/DCAUWorldPage.qml",
+        "qml/DCAUWorldPortal.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"DCAUUniversePage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "DCAUUniversePage",
+          "path": "qml/DCAUUniversePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for DCAU (+ world pages, portals).",
+          "provenance": [
+            {
+              "path": "qml/DCAUUniversePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/world_cold_navigation_qualification.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "universes"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-galaxy-universe-page",
+      "kind": "page",
+      "display_name": "Star Wars (Galaxy)",
+      "aliases": [
+        "galaxy universe page"
+      ],
+      "source_roots": [
+        "qml/GalaxyUniversePage.qml"
+      ],
+      "entry_points": [
+        "qml/GalaxyUniversePage.qml"
+      ],
+      "qml_files": [
+        "qml/GalaxyUniversePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"GalaxyUniversePage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "GalaxyUniversePage",
+          "path": "qml/GalaxyUniversePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Star Wars (Galaxy).",
+          "provenance": [
+            {
+              "path": "qml/GalaxyUniversePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "universes"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-one-piece-universe-page",
+      "kind": "page",
+      "display_name": "One Piece (+ arc pages)",
+      "aliases": [
+        "one piece universe page"
+      ],
+      "source_roots": [
+        "qml/OnePieceUniversePage.qml",
+        "qml/OnePieceArcPage.qml"
+      ],
+      "entry_points": [
+        "qml/OnePieceUniversePage.qml"
+      ],
+      "qml_files": [
+        "qml/OnePieceUniversePage.qml",
+        "qml/OnePieceArcPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"OnePieceUniversePage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "OnePieceUniversePage",
+          "path": "qml/OnePieceUniversePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for One Piece (+ arc pages).",
+          "provenance": [
+            {
+              "path": "qml/OnePieceUniversePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "universes"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-downloads-page",
+      "kind": "page",
+      "display_name": "Downloads",
+      "aliases": [
+        "downloads page"
+      ],
+      "source_roots": [
+        "qml/DownloadsPage.qml"
+      ],
+      "entry_points": [
+        "qml/DownloadsPage.qml"
+      ],
+      "qml_files": [
+        "qml/DownloadsPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"DownloadsPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "DownloadsPage",
+          "path": "qml/DownloadsPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Downloads.",
+          "provenance": [
+            {
+              "path": "qml/DownloadsPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.local_downloads_projection",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/keyboard_universe_utilities_completion.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "downloads"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-extensions-page",
+      "kind": "page",
+      "display_name": "Extensions",
+      "aliases": [
+        "extensions page"
+      ],
+      "source_roots": [
+        "qml/ExtensionsPage.qml"
+      ],
+      "entry_points": [
+        "qml/ExtensionsPage.qml"
+      ],
+      "qml_files": [
+        "qml/ExtensionsPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"ExtensionsPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "ExtensionsPage",
+          "path": "qml/ExtensionsPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Extensions.",
+          "provenance": [
+            {
+              "path": "qml/ExtensionsPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.extensions_first_run",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-update-page",
+      "kind": "page",
+      "display_name": "Update",
+      "aliases": [
+        "update page"
+      ],
+      "source_roots": [
+        "qml/UpdatePage.qml"
+      ],
+      "entry_points": [
+        "qml/UpdatePage.qml"
+      ],
+      "qml_files": [
+        "qml/UpdatePage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"UpdatePage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "UpdatePage",
+          "path": "qml/UpdatePage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Update.",
+          "provenance": [
+            {
+              "path": "qml/UpdatePage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.installed_chronicle",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/update_available.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "update"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-tracker-sync-center-page",
+      "kind": "page",
+      "display_name": "Connections",
+      "aliases": [
+        "tracker sync center page"
+      ],
+      "source_roots": [
+        "qml/TrackerSyncCenterPage.qml"
+      ],
+      "entry_points": [
+        "qml/TrackerSyncCenterPage.qml"
+      ],
+      "qml_files": [
+        "qml/TrackerSyncCenterPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"TrackerSyncCenterPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "TrackerSyncCenterPage",
+          "path": "qml/TrackerSyncCenterPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Connections.",
+          "provenance": [
+            {
+              "path": "qml/TrackerSyncCenterPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.tracker_sync_center",
+          "labels": []
+        },
+        {
+          "name": "colosseum.qml.tracker_sync_center",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/arc35_sync_center_route.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "account-sync"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-history-highlights-stats-page",
+      "kind": "page",
+      "display_name": "History & Stats",
+      "aliases": [
+        "history highlights stats page"
+      ],
+      "source_roots": [
+        "qml/HistoryHighlightsStatsPage.qml"
+      ],
+      "entry_points": [
+        "qml/HistoryHighlightsStatsPage.qml"
+      ],
+      "qml_files": [
+        "qml/HistoryHighlightsStatsPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"HistoryHighlightsStatsPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "HistoryHighlightsStatsPage",
+          "path": "qml/HistoryHighlightsStatsPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for History & Stats.",
+          "provenance": [
+            {
+              "path": "qml/HistoryHighlightsStatsPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.consumption_history",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-ratings-reviews-host",
+      "kind": "page",
+      "display_name": "Ratings & Reviews (+ provider detail)",
+      "aliases": [
+        "ratings reviews host",
+        "ratings & reviews"
+      ],
+      "source_roots": [
+        "qml/ratingsreviews/RatingsReviewsHost.qml",
+        "qml/ratingsreviews/RatingsReviewsProviderDetail.qml"
+      ],
+      "entry_points": [
+        "qml/ratingsreviews/RatingsReviewsHost.qml"
+      ],
+      "qml_files": [
+        "qml/ratingsreviews/RatingsReviewsHost.qml",
+        "qml/ratingsreviews/RatingsReviewsProviderDetail.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"ratingsreviews/RatingsReviewsHost.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "RatingsReviewsHost",
+          "path": "qml/ratingsreviews/RatingsReviewsHost.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Ratings & Reviews (+ provider detail).",
+          "provenance": [
+            {
+              "path": "qml/ratingsreviews/RatingsReviewsHost.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.ratings_reviews_journey",
+          "labels": []
+        },
+        {
+          "name": "colosseum.qml.ratings_reviews_journey",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/ratings_reviews_frieren_production.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "ratings-reviews"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-vault-page",
+      "kind": "page",
+      "display_name": "Vault (+ detail, identify, ceremony)",
+      "aliases": [
+        "vault page"
+      ],
+      "source_roots": [
+        "qml/VaultPage.qml",
+        "qml/VaultDetailSheet.qml",
+        "qml/VaultIdentifyDialog.qml",
+        "qml/VaultIdentityCeremonyDialog.qml"
+      ],
+      "entry_points": [
+        "qml/VaultPage.qml"
+      ],
+      "qml_files": [
+        "qml/VaultPage.qml",
+        "qml/VaultDetailSheet.qml",
+        "qml/VaultIdentifyDialog.qml",
+        "qml/VaultIdentityCeremonyDialog.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"VaultPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "VaultPage",
+          "path": "qml/VaultPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Vault (+ detail, identify, ceremony).",
+          "provenance": [
+            {
+              "path": "qml/VaultPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.vault_browse_detail",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/journey_vault_browse.json",
+        "tests/lanista_scenarios/journey_identify.json",
+        "tests/lanista_scenarios/journey_ceremony.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "vault"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-account-center",
+      "kind": "page",
+      "display_name": "Account Center (frame)",
+      "aliases": [
+        "account center"
+      ],
+      "source_roots": [
+        "qml/account/AccountCenter.qml",
+        "qml/account/AccountPageFrame.qml"
+      ],
+      "entry_points": [
+        "qml/account/AccountCenter.qml"
+      ],
+      "qml_files": [
+        "qml/account/AccountCenter.qml",
+        "qml/account/AccountPageFrame.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "AccountCenter {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "AccountCenter",
+          "path": "qml/account/AccountCenter.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Account Center (frame).",
+          "provenance": [
+            {
+              "path": "qml/account/AccountCenter.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.account_core",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/keyboard_arc41_account_system.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "account-sync"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-account-data-privacy-page",
+      "kind": "page",
+      "display_name": "Profile · Your Colosseum · Devices · Data & Privacy · Security · Recovery",
+      "aliases": [
+        "account data privacy page",
+        "profile page",
+        "your colosseum page",
+        "devices page",
+        "data & privacy page",
+        "security page",
+        "recovery page"
+      ],
+      "source_roots": [
+        "qml/account/AccountDataPrivacyPage.qml",
+        "qml/account/AccountDevicesPage.qml",
+        "qml/account/AccountProfilePage.qml",
+        "qml/account/AccountRecoveryPage.qml",
+        "qml/account/AccountSecurityPage.qml",
+        "qml/account/AccountYourColosseumPage.qml"
+      ],
+      "entry_points": [
+        "qml/account/AccountDataPrivacyPage.qml"
+      ],
+      "qml_files": [
+        "qml/account/AccountDataPrivacyPage.qml",
+        "qml/account/AccountDevicesPage.qml",
+        "qml/account/AccountProfilePage.qml",
+        "qml/account/AccountRecoveryPage.qml",
+        "qml/account/AccountSecurityPage.qml",
+        "qml/account/AccountYourColosseumPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "AccountCenter {",
+        "route": "nested",
+        "note": "Nested surface in Account; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "AccountDataPrivacyPage",
+          "path": "qml/account/AccountDataPrivacyPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Profile · Your Colosseum · Devices · Data & Privacy · Security · Recovery.",
+          "provenance": [
+            {
+              "path": "qml/account/AccountDataPrivacyPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.account_core",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "account-sync"
+      ],
+      "known_constraints": [
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-account-welcome",
+      "kind": "page",
+      "display_name": "Welcome · sign-in · create · onboarding · recovery key · device approval",
+      "aliases": [
+        "account welcome",
+        "welcome page",
+        "sign-in page",
+        "create account page",
+        "onboarding page",
+        "recovery key page",
+        "device approval page"
+      ],
+      "source_roots": [
+        "qml/account/AccountWelcome.qml",
+        "qml/account/AccountSignIn.qml",
+        "qml/account/AccountCreate.qml",
+        "qml/account/AccountOnboarding.qml",
+        "qml/account/AccountOnboardingHost.qml",
+        "qml/account/AccountRecoveryKey.qml",
+        "qml/account/AccountDeviceApproval.qml"
+      ],
+      "entry_points": [
+        "qml/account/AccountWelcome.qml"
+      ],
+      "qml_files": [
+        "qml/account/AccountWelcome.qml",
+        "qml/account/AccountSignIn.qml",
+        "qml/account/AccountCreate.qml",
+        "qml/account/AccountOnboarding.qml",
+        "qml/account/AccountOnboardingHost.qml",
+        "qml/account/AccountRecoveryKey.qml",
+        "qml/account/AccountDeviceApproval.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "AccountOnboardingHost {",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "AccountWelcome",
+          "path": "qml/account/AccountWelcome.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Welcome · sign-in · create · onboarding · recovery key · device approval.",
+          "provenance": [
+            {
+              "path": "qml/account/AccountWelcome.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.account_onboarding",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/account_create_happy_path.json",
+        "tests/lanista_scenarios/account_signin_happy_path.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "account-sync"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-feria-world",
+      "kind": "page",
+      "display_name": "Feria world · app page",
+      "aliases": [
+        "feria world"
+      ],
+      "source_roots": [
+        "qml/feria/FeriaWorld.qml",
+        "qml/feria/FeriaAppPage.qml"
+      ],
+      "entry_points": [
+        "qml/feria/FeriaWorld.qml"
+      ],
+      "qml_files": [
+        "qml/feria/FeriaWorld.qml",
+        "qml/feria/FeriaAppPage.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"feria/FeriaAppPage.qml\"",
+        "route": "direct",
+        "note": "Component referenced by Main.qml."
+      },
+      "owners": [
+        {
+          "name": "FeriaWorld",
+          "path": "qml/feria/FeriaWorld.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Feria world · app page.",
+          "provenance": [
+            {
+              "path": "qml/feria/FeriaWorld.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/feria_taskbar_web.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped."
+      ]
+    },
+    {
+      "id": "page-portico-account-history-slice-view",
+      "kind": "page",
+      "display_name": "Portico views (host, apps, account, search, title)",
+      "aliases": [
+        "portico account history slice view",
+        "portico views"
+      ],
+      "source_roots": [
+        "qml/feria/PorticoAccountHistorySliceView.qml",
+        "qml/feria/PorticoAccountStatsSliceView.qml",
+        "qml/feria/PorticoAccountView.qml",
+        "qml/feria/PorticoAppsSliceAccountView.qml",
+        "qml/feria/PorticoAppsView.qml",
+        "qml/feria/PorticoCombinedAccountView.qml",
+        "qml/feria/PorticoCombinedAppsView.qml",
+        "qml/feria/PorticoCombinedHostView.qml",
+        "qml/feria/PorticoCombinedParityAccountView.qml",
+        "qml/feria/PorticoCombinedParityAppsView.qml",
+        "qml/feria/PorticoCombinedParityHostView.qml",
+        "qml/feria/PorticoCombinedParitySearchView.qml",
+        "qml/feria/PorticoCombinedParityTitleView.qml",
+        "qml/feria/PorticoCombinedSearchView.qml",
+        "qml/feria/PorticoCombinedTitleView.qml",
+        "qml/feria/PorticoDiscoveryHostView.qml",
+        "qml/feria/PorticoDiscoveryTitleView.qml",
+        "qml/feria/PorticoHighlightsSliceAccountView.qml",
+        "qml/feria/PorticoHostView.qml",
+        "qml/feria/PorticoParityAccountView.qml",
+        "qml/feria/PorticoParityAppsView.qml",
+        "qml/feria/PorticoParityHostView.qml",
+        "qml/feria/PorticoParitySearchView.qml",
+        "qml/feria/PorticoParityTitleView.qml",
+        "qml/feria/PorticoSearchVariantView.qml",
+        "qml/feria/PorticoSearchView.qml",
+        "qml/feria/PorticoTitleView.qml"
+      ],
+      "entry_points": [
+        "qml/feria/PorticoAccountHistorySliceView.qml"
+      ],
+      "qml_files": [
+        "qml/feria/PorticoAccountHistorySliceView.qml",
+        "qml/feria/PorticoAccountStatsSliceView.qml",
+        "qml/feria/PorticoAccountView.qml",
+        "qml/feria/PorticoAppsSliceAccountView.qml",
+        "qml/feria/PorticoAppsView.qml",
+        "qml/feria/PorticoCombinedAccountView.qml",
+        "qml/feria/PorticoCombinedAppsView.qml",
+        "qml/feria/PorticoCombinedHostView.qml",
+        "qml/feria/PorticoCombinedParityAccountView.qml",
+        "qml/feria/PorticoCombinedParityAppsView.qml",
+        "qml/feria/PorticoCombinedParityHostView.qml",
+        "qml/feria/PorticoCombinedParitySearchView.qml",
+        "qml/feria/PorticoCombinedParityTitleView.qml",
+        "qml/feria/PorticoCombinedSearchView.qml",
+        "qml/feria/PorticoCombinedTitleView.qml",
+        "qml/feria/PorticoDiscoveryHostView.qml",
+        "qml/feria/PorticoDiscoveryTitleView.qml",
+        "qml/feria/PorticoHighlightsSliceAccountView.qml",
+        "qml/feria/PorticoHostView.qml",
+        "qml/feria/PorticoParityAccountView.qml",
+        "qml/feria/PorticoParityAppsView.qml",
+        "qml/feria/PorticoParityHostView.qml",
+        "qml/feria/PorticoParitySearchView.qml",
+        "qml/feria/PorticoParityTitleView.qml",
+        "qml/feria/PorticoSearchVariantView.qml",
+        "qml/feria/PorticoSearchView.qml",
+        "qml/feria/PorticoTitleView.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "source: \"feria/FeriaAppPage.qml\"",
+        "route": "nested",
+        "note": "Nested surface in Feria; Main.qml routes to its parent."
+      },
+      "owners": [
+        {
+          "name": "PorticoAccountHistorySliceView",
+          "path": "qml/feria/PorticoAccountHistorySliceView.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Portico views (host, apps, account, search, title).",
+          "provenance": [
+            {
+              "path": "qml/feria/PorticoAccountHistorySliceView.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "No page-specific registered CTest is mapped.",
+        "No page-specific Lanista journey is mapped."
+      ]
+    },
+    {
+      "id": "page-player",
+      "kind": "page",
+      "display_name": "Player",
+      "aliases": [
+        "player page"
+      ],
+      "source_roots": [
+        "qml/PlayerPage.qml",
+        "qml/PlayerLoadingScreen.qml",
+        "qml/WatchPartyPanel.qml",
+        "qml/ShortcutsSheet.qml"
+      ],
+      "entry_points": [
+        "qml/PlayerPage.qml"
+      ],
+      "qml_files": [
+        "qml/PlayerPage.qml",
+        "qml/PlayerLoadingScreen.qml",
+        "qml/WatchPartyPanel.qml",
+        "qml/ShortcutsSheet.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"PlayerPage.qml\"",
+        "route": "direct",
+        "note": "Native surface routed through Main.qml."
+      },
+      "owners": [
+        {
+          "name": "PlayerPage",
+          "path": "qml/PlayerPage.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Player.",
+          "provenance": [
+            {
+              "path": "qml/PlayerPage.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.journey_play_video",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/journey_play_video.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "video-playback"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-player-2",
+      "kind": "page",
+      "display_name": "Player 2",
+      "aliases": [
+        "player 2"
+      ],
+      "source_roots": [
+        "qml/player2host/Player2Page.qml",
+        "qml/player2host/ColosseumHostServices.qml",
+        "qml/player2/controls/CloseConfirm.qml",
+        "qml/player2/controls/EpisodeBrowser.qml",
+        "qml/player2/controls/OverflowMenu.qml",
+        "qml/player2/controls/PauseCard.qml",
+        "qml/player2/controls/PlaybackStatsCard.qml",
+        "qml/player2/controls/Player2Icon.qml",
+        "qml/player2/controls/SeekBar.qml",
+        "qml/player2/controls/ShortcutsSheet.qml",
+        "qml/player2/controls/SkipButton.qml",
+        "qml/player2/controls/SourceDrawer.qml",
+        "qml/player2/controls/StatsOverlay.qml",
+        "qml/player2/controls/SubtitleLayer.qml",
+        "qml/player2/controls/TopBar.qml",
+        "qml/player2/controls/TrackMenu.qml",
+        "qml/player2/controls/TransportBar.qml",
+        "qml/player2/Harness.qml",
+        "qml/player2/Player2Shell.qml",
+        "qml/player2/Theme.qml"
+      ],
+      "entry_points": [
+        "qml/player2host/Player2Page.qml"
+      ],
+      "qml_files": [
+        "qml/player2host/Player2Page.qml",
+        "qml/player2host/ColosseumHostServices.qml",
+        "qml/player2/controls/CloseConfirm.qml",
+        "qml/player2/controls/EpisodeBrowser.qml",
+        "qml/player2/controls/OverflowMenu.qml",
+        "qml/player2/controls/PauseCard.qml",
+        "qml/player2/controls/PlaybackStatsCard.qml",
+        "qml/player2/controls/Player2Icon.qml",
+        "qml/player2/controls/SeekBar.qml",
+        "qml/player2/controls/ShortcutsSheet.qml",
+        "qml/player2/controls/SkipButton.qml",
+        "qml/player2/controls/SourceDrawer.qml",
+        "qml/player2/controls/StatsOverlay.qml",
+        "qml/player2/controls/SubtitleLayer.qml",
+        "qml/player2/controls/TopBar.qml",
+        "qml/player2/controls/TrackMenu.qml",
+        "qml/player2/controls/TransportBar.qml",
+        "qml/player2/Harness.qml",
+        "qml/player2/Player2Shell.qml",
+        "qml/player2/Theme.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"player2host/Player2Page.qml\"",
+        "route": "direct",
+        "note": "Native surface routed through Main.qml."
+      },
+      "owners": [
+        {
+          "name": "Player2Page",
+          "path": "qml/player2host/Player2Page.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Player 2.",
+          "provenance": [
+            {
+              "path": "qml/player2host/Player2Page.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "video-playback"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-book-reader",
+      "kind": "page",
+      "display_name": "Book reader",
+      "aliases": [
+        "book reader"
+      ],
+      "source_roots": [
+        "qml/reader2/AppearancePanel.qml",
+        "qml/reader2/AudioGlyph.qml",
+        "qml/reader2/BottomRail.qml",
+        "qml/reader2/DictCard.qml",
+        "qml/reader2/FootnoteCard.qml",
+        "qml/reader2/Harness.qml",
+        "qml/reader2/HarnessShelf.qml",
+        "qml/reader2/LeftPanel.qml",
+        "qml/reader2/Paper.qml",
+        "qml/reader2/ReaderChrome.qml",
+        "qml/reader2/ReaderKeyboardArea.qml",
+        "qml/reader2/ReaderKeyboardCollectionController.qml",
+        "qml/reader2/ReaderKeyboardScrollController.qml",
+        "qml/reader2/ReaderShell.qml",
+        "qml/reader2/RulerOverlay.qml",
+        "qml/reader2/SearchSheet.qml",
+        "qml/reader2/SelectionMenu.qml",
+        "qml/reader2/Theme.qml",
+        "qml/reader2/TopBar.qml"
+      ],
+      "entry_points": [
+        "qml/reader2/AppearancePanel.qml"
+      ],
+      "qml_files": [
+        "qml/reader2/AppearancePanel.qml",
+        "qml/reader2/AudioGlyph.qml",
+        "qml/reader2/BottomRail.qml",
+        "qml/reader2/DictCard.qml",
+        "qml/reader2/FootnoteCard.qml",
+        "qml/reader2/Harness.qml",
+        "qml/reader2/HarnessShelf.qml",
+        "qml/reader2/LeftPanel.qml",
+        "qml/reader2/Paper.qml",
+        "qml/reader2/ReaderChrome.qml",
+        "qml/reader2/ReaderKeyboardArea.qml",
+        "qml/reader2/ReaderKeyboardCollectionController.qml",
+        "qml/reader2/ReaderKeyboardScrollController.qml",
+        "qml/reader2/ReaderShell.qml",
+        "qml/reader2/RulerOverlay.qml",
+        "qml/reader2/SearchSheet.qml",
+        "qml/reader2/SelectionMenu.qml",
+        "qml/reader2/Theme.qml",
+        "qml/reader2/TopBar.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"reader2/ReaderShell.qml\"",
+        "route": "direct",
+        "note": "Native surface routed through Main.qml."
+      },
+      "owners": [
+        {
+          "name": "AppearancePanel",
+          "path": "qml/reader2/AppearancePanel.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Book reader.",
+          "provenance": [
+            {
+              "path": "qml/reader2/AppearancePanel.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.reader2_runtime_contract",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/biblio_downloaded_epub_read_journey.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "biblio"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-comic-reader",
+      "kind": "page",
+      "display_name": "Comic reader",
+      "aliases": [
+        "comic reader"
+      ],
+      "source_roots": [
+        "qml/MangaReader.qml",
+        "qml/comicreader/ComicReaderCommandBar.qml",
+        "qml/comicreader/ComicReaderDoubleSurface.qml",
+        "qml/comicreader/ComicReaderHud.qml",
+        "qml/comicreader/ComicReaderIcon.qml",
+        "qml/comicreader/ComicReaderImagePopover.qml",
+        "qml/comicreader/ComicReaderInput.qml",
+        "qml/comicreader/ComicReaderKeyboardArea.qml",
+        "qml/comicreader/ComicReaderLayoutPopover.qml",
+        "qml/comicreader/ComicReaderLoupe.qml",
+        "qml/comicreader/ComicReaderPagesOverlay.qml",
+        "qml/comicreader/ComicReaderPreview.qml",
+        "qml/comicreader/ComicReaderSettingsSheet.qml",
+        "qml/comicreader/ComicReaderShell.qml",
+        "qml/comicreader/ComicReaderSingleSurface.qml",
+        "qml/comicreader/ComicReaderStripSurface.qml",
+        "qml/comicreader/ComicReaderSyncedResumeBridge.qml",
+        "qml/comicreader/ComicReaderUnitError.qml",
+        "qml/comicreader/ComicReaderUnitPlaceholder.qml",
+        "qml/comicreader/VaultComicReader.qml"
+      ],
+      "entry_points": [
+        "qml/MangaReader.qml"
+      ],
+      "qml_files": [
+        "qml/MangaReader.qml",
+        "qml/comicreader/ComicReaderCommandBar.qml",
+        "qml/comicreader/ComicReaderDoubleSurface.qml",
+        "qml/comicreader/ComicReaderHud.qml",
+        "qml/comicreader/ComicReaderIcon.qml",
+        "qml/comicreader/ComicReaderImagePopover.qml",
+        "qml/comicreader/ComicReaderInput.qml",
+        "qml/comicreader/ComicReaderKeyboardArea.qml",
+        "qml/comicreader/ComicReaderLayoutPopover.qml",
+        "qml/comicreader/ComicReaderLoupe.qml",
+        "qml/comicreader/ComicReaderPagesOverlay.qml",
+        "qml/comicreader/ComicReaderPreview.qml",
+        "qml/comicreader/ComicReaderSettingsSheet.qml",
+        "qml/comicreader/ComicReaderShell.qml",
+        "qml/comicreader/ComicReaderSingleSurface.qml",
+        "qml/comicreader/ComicReaderStripSurface.qml",
+        "qml/comicreader/ComicReaderSyncedResumeBridge.qml",
+        "qml/comicreader/ComicReaderUnitError.qml",
+        "qml/comicreader/ComicReaderUnitPlaceholder.qml",
+        "qml/comicreader/VaultComicReader.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "\"comicreader/VaultComicReader.qml\"",
+        "route": "direct",
+        "note": "Native surface routed through Main.qml."
+      },
+      "owners": [
+        {
+          "name": "MangaReader",
+          "path": "qml/MangaReader.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Comic reader.",
+          "provenance": [
+            {
+              "path": "qml/MangaReader.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.comicreader_sync_resume",
+          "labels": []
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/reader_boundary_navigation.json"
+      ],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "tankoban"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "page-audiobook-session",
+      "kind": "page",
+      "display_name": "Audiobook session",
+      "aliases": [
+        "audiobook session"
+      ],
+      "source_roots": [
+        "qml/AudiobookSession.qml"
+      ],
+      "entry_points": [
+        "qml/AudiobookSession.qml"
+      ],
+      "qml_files": [
+        "qml/AudiobookSession.qml"
+      ],
+      "host": {
+        "path": "qml/Main.qml",
+        "anchor": "AudiobookSession {",
+        "route": "direct",
+        "note": "Native surface routed through Main.qml."
+      },
+      "owners": [
+        {
+          "name": "AudiobookSession",
+          "path": "qml/AudiobookSession.qml",
+          "confidence": "observed",
+          "responsibility": "QML component for Audiobook session.",
+          "provenance": [
+            {
+              "path": "qml/AudiobookSession.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "biblio"
+      ],
+      "known_constraints": []
+    },
+    {
+      "id": "webui",
+      "display_name": "Developer WebUI",
+      "aliases": [
+        "developer webui",
+        "developer colosseum"
+      ],
+      "source_roots": [
+        "native/webui",
+        "web/developer-colosseum"
+      ],
+      "entry_points": [
+        "qml/Main.qml"
+      ],
+      "planned_paths": [
+        "native/webui",
+        "web/developer-colosseum"
+      ],
+      "feature_status": "absent_on_master",
+      "owners": [
+        {
+          "name": "Main.qml host",
+          "path": "qml/Main.qml",
+          "confidence": "inferred",
+          "responsibility": "Potential native host integration point; the developer WebUI is absent from master.",
+          "note": "The requested native/webui and web/developer-colosseum source trees exist only on the Arc 54 branch.",
+          "provenance": [
+            {
+              "path": "qml/Main.qml"
+            }
+          ]
+        }
+      ],
+      "ctests": [],
+      "checks": [],
+      "lanista_scenarios": [],
+      "context": [],
+      "platform_constraints": [],
+      "relations": [
+        "shell"
+      ],
+      "known_constraints": [
+        "native/webui and web/developer-colosseum are absent on master; no master CTest or Lanista journey is mapped."
       ]
     }
   ]

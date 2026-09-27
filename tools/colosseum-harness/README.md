@@ -55,6 +55,14 @@ The intelligence map lives at:
 `intelligence\colosseum-map.json`
 
 It is a high-signal routing index, not a complete compiler or QML AST.
+
+The map now includes page domains for every row of the 2026-09-27 Colosseum page
+inventory, plus the native player and reader groups. Page context includes QML
+files, the `Main.qml` host anchor, an observed QML owner, and only registered
+CTest or existing Lanista journeys. Empty verification lists mean no page-specific
+check is mapped. `webui` lists `native/webui` and `web/developer-colosseum` as
+planned paths because those trees are absent from `master`.
+
 ## Examples
 
 From `tools\colosseum-harness`:
@@ -188,7 +196,7 @@ A stale intelligence-map basis is surfaced explicitly. `context-for-task` and sc
 
 `inspect ratings` reflects the current read-only target checkout, including dirty working-tree implementation when it exists.
 
-After the Arc 49 Slices 1–2 map refresh (2026-09-24), the domain maps the uncommitted working-tree implementation:
+The Ratings & Reviews domain maps the current native and QML implementation:
 
 - owners: `native/engine/ColosseumTitleIdentityRegistry.cpp` (pair admission, seed pin, deterministic v5 ct1 derivation, comic rejection), `native/account/RatingsReviewsController.cpp`, `native/account/RatingsReviewsStore.cpp`, `qml/ratingsreviews/RatingsReviewsHost.qml` (approved page with the inline private editor), `qml/ratingsreviews/RatingsReviewsAction.qml` (title-detail entry row)
 - focused CTests: `colosseum.qttest.ratings_reviews_{journey,store,conversion,delivery,sync}` and `colosseum.qml.ratings_reviews_{journey,delivery,conversion}`
@@ -202,7 +210,7 @@ Supporting integration seams remain:
 - `qml/ShellBackPolicy.js`
 - shared composition through `qml/Main.qml`
 
-The harness distinguishes this dirty working-tree state from committed baseline through `status`. Unregistered selectors still fail with `TEST_NOT_FOUND`; `colosseum.qttest.ratings_reviews_delivery` is now registered and mapped because it actually exists. Category entry journeys (anime pivot, book, manga, vault film, comic absence) and the public community service (Slices 3–4) are not mapped because they do not exist yet, and RatingsWrapper stays deliberately unmapped until its API contract lands.
+The harness distinguishes working-tree changes from the committed baseline through `status`. Unregistered selectors still fail with `TEST_NOT_FOUND`; `colosseum.qttest.ratings_reviews_delivery` is registered and mapped. Category entry journeys (anime pivot, book, manga, vault film, comic absence) and the public community service (Slices 3–4) are not mapped because they do not exist yet, and RatingsWrapper stays deliberately unmapped until its API contract lands.
 ## MCP bridge
 
 Run:
