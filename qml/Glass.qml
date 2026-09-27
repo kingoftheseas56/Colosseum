@@ -17,6 +17,8 @@ Item {
     property real tint: 0.10          // glass white film
     property real scrim: 0.14         // adaptive scrim: keeps text legible over ANY wallpaper
     property real blurAmount: 1.0
+    property int blurMax: 48
+    property real blurMultiplier: 0.0
     property color edge: Qt.rgba(1, 1, 1, 0.18)
 
     // Bind to a scroll offset (e.g. flick.contentY) when this surface lives inside a scroller,
@@ -68,7 +70,8 @@ Item {
         autoPaddingEnabled: false
         blurEnabled: root.blurAffordable
         blur: root.blurAmount
-        blurMax: 48
+        blurMax: root.blurMax
+        blurMultiplier: root.blurMultiplier
         maskEnabled: true
         maskSource: maskItem
     }

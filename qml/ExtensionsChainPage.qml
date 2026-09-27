@@ -730,13 +730,14 @@ Item {
                     }
 
                     Rectangle {
+                        id: storeTab
                         width: 118
                         height: parent.height
                         radius: height / 2
-                        color: "transparent"
-                        opacity: 0.72
+                        color: storeTabMouse.containsMouse ? Qt.rgba(1,1,1,0.07) : "transparent"
+                        activeFocusOnTab: true
                         Accessible.role: Accessible.Button
-                        Accessible.name: "Store unavailable"
+                        Accessible.name: "Store"
                         Text {
                             anchors.centerIn: parent
                             text: "Store"
@@ -745,6 +746,15 @@ Item {
                             font.family: root.uiFamily
                             font.pixelSize: 17
                         }
+                        MouseArea {
+                            id: storeTabMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.sectionRequested("store")
+                        }
+                        Keys.onReturnPressed: root.sectionRequested("store")
+                        Keys.onSpacePressed: root.sectionRequested("store")
                     }
                 }
             }
