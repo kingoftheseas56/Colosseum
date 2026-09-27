@@ -115,8 +115,8 @@ if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
         LibtorrentRasterbar::torrent-rasterbar Boost::filesystem
         OpenSSL::SSL OpenSSL::Crypto)
     if(TARGET Boost::system)
-        # Boost::system is a real compiled-library target on the Windows Boost 1.84 install this
-        # project was built against. Ubuntu 26.04 packages Boost 1.90, where boost_system has been
+        # Boost::system is a real compiled-library target on older Windows Boost installs.
+        # Ubuntu 26.04 packages Boost 1.90, where boost_system has been
         # header-only (no compiled library, no CMake component target) since ~1.85; guard instead
         # of hard-requiring the target so the Linux configure does not fail on an artifact that
         # version no longer ships (arc-17 Linux port, first-configure discovery).
@@ -136,7 +136,7 @@ if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
     endif()
 elseif(WIN32)
     set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc" CACHE PATH "libtorrent MSVC install")
-    set(BOOST_ROOT "C:/tools/boost-1.84.0" CACHE PATH "Boost headers")
+    set(BOOST_ROOT "C:/tools/boost-1.90.0" CACHE PATH "Boost headers")
     set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc" CACHE PATH "OpenSSL MSVC install")
     find_path(LIBTORRENT_INCLUDE_DIR libtorrent/session.hpp HINTS "${LIBTORRENT_ROOT}/include")
     find_library(LIBTORRENT_LIBRARY torrent-rasterbar HINTS "${LIBTORRENT_ROOT}/lib")
