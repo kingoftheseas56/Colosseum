@@ -352,7 +352,7 @@ QUrl extensionUrl(const ExtCatalog &catalog, const QVariantMap &view)
 }
 
 QVariantList fetchExtension(const ExtCatalog &catalog, const QVariantMap &view,
-                            bool explicitContent)
+                            bool explicitContent, int maxItems = 100)
 {
     const WebFeedHttp::Reply reply = WebFeedHttp::request(extensionUrl(catalog, view));
     if (!reply.ok || !reply.json.isObject()) return {};
@@ -362,7 +362,7 @@ QVariantList fetchExtension(const ExtCatalog &catalog, const QVariantMap &view,
         if (!extensionVisible(meta, explicitContent)) continue;
         const QVariantMap item = extensionItem(meta, catalog);
         if (!item.value(QStringLiteral("title")).toString().isEmpty()) out.append(item);
-        if (out.size() >= 100) break;
+        if (out.size() >= maxItems) break;
     }
     return out;
 }
@@ -455,14 +455,18 @@ bool validView(const QString &tab, const QVariantMap &view)
         static const QSet<QString> allowed{
             QStringLiteral("catalogue"), QStringLiteral("facetAxis"),
             QStringLiteral("facetKey"), QStringLiteral("extraName"),
-            QStringLiteral("extraValue")};
+            QStringLiteral("extraValue"), QStringLiteral("limit")};
         for (auto it = view.cbegin(); it != view.cend(); ++it)
             if (!allowed.contains(it.key())) return false;
         return bounded(QStringLiteral("catalogue"), 2048)
             && bounded(QStringLiteral("facetAxis"), 128)
             && bounded(QStringLiteral("facetKey"), 256)
             && bounded(QStringLiteral("extraName"), 128)
-            && bounded(QStringLiteral("extraValue"), 256);
+            && bounded(QStringLiteral("extraValue"), 256)
+            && (!view.contains(QStringLiteral("limit"))
+                || (view.value(QStringLiteral("limit")).toInt() >= 24
+                    && view.value(QStringLiteral("limit")).toInt() <= 120
+                    && view.value(QStringLiteral("limit")).toInt() % 24 == 0));
     }
     if (tab == QLatin1String("explore")) {
         for (auto it = view.cbegin(); it != view.cend(); ++it)
@@ -595,7 +599,8 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
              {QStringLiteral("facetAxis"), QString()},
              {QStringLiteral("facetKey"), QString()},
              {QStringLiteral("extraName"), QString()},
-             {QStringLiteral("extraValue"), QString()}},
+             {QStringLiteral("extraValue"), QString()},
+             {QStringLiteral("limit"), 24}},
             catalogue == key, QStringLiteral("Biblio built-in catalogue")));
     for (const ExtCatalog &c : exts)
         catalogues.append(viewChoice(QStringLiteral("biblio:catalogue:ext:") + c.key,
@@ -604,7 +609,8 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
              {QStringLiteral("facetAxis"), QString()},
              {QStringLiteral("facetKey"), QString()},
              {QStringLiteral("extraName"), QString()},
-             {QStringLiteral("extraValue"), QString()}},
+             {QStringLiteral("extraValue"), QString()},
+             {QStringLiteral("limit"), 24}},
             catalogue == c.key, c.addonName));
     out.append(choices(QStringLiteral("biblio.discover.catalogues"), out.size(),
                        QStringLiteral("Catalogues"), catalogues));
@@ -618,13 +624,15 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
                 opts.append(viewChoice(QStringLiteral("biblio:extra:") + x.name + QStringLiteral(":all"),
                     QStringLiteral("All"),
                     {{QStringLiteral("extraName"), QString()},
-                     {QStringLiteral("extraValue"), QString()}},
+                     {QStringLiteral("extraValue"), QString()},
+             {QStringLiteral("limit"), 24}},
                     activeName.isEmpty()));
             for (const QString &value : x.options)
                 opts.append(viewChoice(QStringLiteral("biblio:extra:") + x.name + QLatin1Char(':') + value,
                     value,
                     {{QStringLiteral("extraName"), x.name},
-                     {QStringLiteral("extraValue"), value}},
+                     {QStringLiteral("extraValue"), value},
+                     {QStringLiteral("limit"), 24}},
                     activeName == x.name && activeValue == value));
             out.append(choices(QStringLiteral("biblio.discover.extra.") + x.name,
                                out.size(), x.label, opts));
@@ -645,7 +653,8 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
     const QString activeKey = view.value(QStringLiteral("facetKey")).toString();
     QVariantList filters;
     filters.append(viewChoice(QStringLiteral("biblio:facet:all"), QStringLiteral("All"),
-        {{QStringLiteral("facetAxis"), QString()}, {QStringLiteral("facetKey"), QString()}},
+        {{QStringLiteral("facetAxis"), QString()}, {QStringLiteral("facetKey"), QString()},
+         {QStringLiteral("limit"), 24}},
         activeAxis.isEmpty()));
     for (const QVariant &gv : store.filterGroups(ctx.showExplicit)) {
         const QVariantMap group = gv.toMap();
@@ -656,15 +665,17 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
             const QString key = facet.value(QStringLiteral("key")).toString();
             filters.append(viewChoice(QStringLiteral("biblio:facet:") + axis + QLatin1Char(':') + key,
                 facet.value(QStringLiteral("label"), key).toString(),
-                {{QStringLiteral("facetAxis"), axis}, {QStringLiteral("facetKey"), key}},
+                {{QStringLiteral("facetAxis"), axis}, {QStringLiteral("facetKey"), key},
+                 {QStringLiteral("limit"), 24}},
                 activeAxis == axis && activeKey == key, groupLabel));
         }
     }
     out.append(choices(QStringLiteral("biblio.discover.filters"), out.size(),
                        QStringLiteral("Filter"), filters));
 
+    const int limit = qBound(24, view.value(QStringLiteral("limit"), 24).toInt(), 120);
     const QVariantMap page = store.page(catalogue, activeAxis, activeKey,
-                                        ctx.showExplicit, 0, 100);
+                                        ctx.showExplicit, 0, limit);
     const QVariantList rows = page.value(QStringLiteral("items")).toList();
     QVariantMap section = WebFeedValue::section(
         QStringLiteral("biblio.discover.results"), out.size(), houseTitle(catalogue),
@@ -680,6 +691,11 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
         warning = QStringLiteral("That source is no longer available — showing the built-in catalogue instead.");
     if (!warning.isEmpty()) section.insert(QStringLiteral("error"), warning);
     out.append(section);
+    if (!page.value(QStringLiteral("exhausted"), true).toBool() && limit < 120) {
+        out.append(choices(QStringLiteral("biblio.discover.more"), out.size(), QString(),
+            {viewChoice(QStringLiteral("biblio:discover:more"), QStringLiteral("Load more"),
+                {{QStringLiteral("limit"), qMin(120, limit + 24)}}, false)}));
+    }
 }
 
 void explore(QVariantList &out, BiblioCatalogStore &store, bool ready,
@@ -964,7 +980,8 @@ QVariantList enrich(const FeedContext &ctx)
     if (tab == QLatin1String("discover")) {
         const ExtCatalog *ext = findExt(exts, view.value(QStringLiteral("catalogue")).toString());
         if (!ext) return out;
-        const QVariantList items = fetchExtension(*ext, view, ctx.showExplicit);
+        const int limit = qBound(24, view.value(QStringLiteral("limit"), 24).toInt(), 120);
+        const QVariantList items = fetchExtension(*ext, view, ctx.showExplicit, limit);
         for (int i = 0; i < out.size(); ++i) {
             QVariantMap section = out.at(i).toMap();
             if (section.value(QStringLiteral("id")).toString()
@@ -982,6 +999,16 @@ QVariantList enrich(const FeedContext &ctx)
             }
             out[i] = section;
             break;
+        }
+        for (int i = out.size() - 1; i >= 0; --i) {
+            if (out.at(i).toMap().value(QStringLiteral("id")).toString()
+                == QLatin1String("biblio.discover.more"))
+                out.removeAt(i);
+        }
+        if (items.size() >= limit && limit < 120) {
+            out.append(choices(QStringLiteral("biblio.discover.more"), out.size(), QString(),
+                {viewChoice(QStringLiteral("biblio:discover:more"), QStringLiteral("Load more"),
+                    {{QStringLiteral("limit"), qMin(120, limit + 24)}}, false)}));
         }
         return out;
     }
