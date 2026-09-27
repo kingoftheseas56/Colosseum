@@ -13,6 +13,7 @@ import QtQuick.Dialogs
 import "account"
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
+import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
@@ -2530,7 +2531,10 @@ Window {
     function resumeContinue(entry) {
         if (!entry) return
         var r = entry.resume || ({})
-        var title = entry.title || entry.caption || ""
+        var presentation = VideoPresentation.forEntry(entry,
+            typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
+        var title = entry.title || entry.caption || presentation.title || ""
+        var cover = entry.cover || presentation.cover || ""
         if (entry.kind === "video") {
             // A pre-teardown hosted-player (VidKing) watch: the hosted surface is gone
             // (House HTTP slice 4), so route to the Theatre detail — the user picks a real
@@ -2538,16 +2542,18 @@ Window {
             if (r.hostedPlayerId) {
                 win.openTheatreSeries({ "id": (r.imdbId || String(entry.id || "").split(":")[0]),
                                         "type": r.subType === "series" ? "series" : "movie",
-                                        "title": title, "cover": entry.cover || "" })
+                                        "title": title, "cover": cover })
                 return
             }
             // downloaded file first: resume the LOCAL copy at position, never a stream fetch
             if (r.localPath && String(r.localPath).length)
                 win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
-                                            "title": title, "art": entry.cover || "",
+                                            "title": title, "art": cover,
                                             "kind": r.subType === "series" ? "episode" : "movie",
                                             "position": r.position || 0 })
-            else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {}, r.position || 0)
+            else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, cover, r.subType || "", r.subId || "", [], {}, r.position || 0)
+            else if (presentation.type) win.openTheatreSeries({ id: String(entry.id).split(":")[0],
+                                                                type: presentation.type, title: title, cover: cover })
         } else if (entry.kind === "tankoban") {
             // a saved VOLUME read: same manga series, Tankoban Mode ON, the saved
             // volume id rides in resume.chapterId (curChapterId of the volume reader).
@@ -2573,7 +2579,10 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
-        var title = entry.title || entry.caption || ""
+        var presentation = VideoPresentation.forEntry(entry,
+            typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
+        var title = entry.title || entry.caption || presentation.title || ""
+        var cover = entry.cover || presentation.cover || ""
         if (entry.kind === "video") {
             var id = (entry.id || "").split(":")[0]                      // base tt id (strip episode suffix)
             if (id.indexOf("tt") !== 0) {
@@ -2585,10 +2594,14 @@ Window {
                 if (p.length >= 2 && /^(mal|kitsu|anilist|anidb)$/.test(p[0])) {
                     win.openTheatreSeries({ id: p[0] + ":" + p[1],
                                             type: entry.type === "movie" ? "movie" : "series",
-                                            title: title, cover: entry.cover || "" })
+                                            title: title, cover: cover })
                     return
                 }
                 win.resumeContinue(entry); return   // raw torrent, no detail page
+            }
+            if (presentation.type) {
+                win.openTheatreSeries({ id: id, type: presentation.type, title: title, cover: cover })
+                return
             }
             // Resolve movie vs series live from Cinemeta, then open the Theatre detail —
             // no stored type needed, so existing entries work too.
@@ -2603,7 +2616,7 @@ Window {
                 if (settled) return
                 settled = true
                 continueKindFloor.stop()
-                win.openTheatreSeries({ id: id, type: type, title: title, cover: entry.cover || "" })
+                win.openTheatreSeries({ id: id, type: type, title: title, cover: cover })
             }
             TheatreApi.loadMeta("movie", id, function(meta) { if (meta) settle("movie", meta) })
             TheatreApi.loadMeta("series", id, function(meta) { if (meta) settle("series", meta) })

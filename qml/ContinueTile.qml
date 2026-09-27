@@ -20,6 +20,7 @@
 import QtQuick
 import QtQuick.Effects
 import "ContinueCovers.js" as ContinueCovers
+import "ContinueVideoPresentation.js" as VideoPresentation
 import "CatalogueVisualMetrics.js" as Metrics
 
 Item {
@@ -41,16 +42,19 @@ Item {
 
     readonly property bool isHome: variant === "home"
     readonly property string kind: entry.kind !== undefined ? entry.kind : ""
+    readonly property var videoPresentation: VideoPresentation.forEntry(entry,
+        typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
     readonly property string label: (entry.title !== undefined && ("" + entry.title).length)
-                                    ? entry.title : (entry.caption !== undefined ? entry.caption : "")
+                                    ? entry.title : (entry.caption !== undefined && ("" + entry.caption).length
+                                                     ? entry.caption : videoPresentation.title || "")
     readonly property string sub: entry.sub !== undefined ? entry.sub : ""
     // optional source tag (comics: GetComics) — shown in the badge when set
     readonly property string source: entry.source !== undefined ? ("" + entry.source) : ""
     readonly property real prog: Math.max(0, Math.min(1, entry.progress !== undefined ? Number(entry.progress) : 0))
     readonly property bool watched: entry.watched === true
-    readonly property color c1: entry.c1 !== undefined ? entry.c1 : "#444"
-    readonly property color c2: entry.c2 !== undefined ? entry.c2 : "#111"
-    property string cover: (entry.cover !== undefined && ("" + entry.cover).length) ? entry.cover : ""
+    readonly property color c1: entry.c1 !== undefined ? entry.c1 : (videoPresentation.c1 || "#444")
+    readonly property color c2: entry.c2 !== undefined ? entry.c2 : (videoPresentation.c2 || "#111")
+    property string cover: (entry.cover !== undefined && ("" + entry.cover).length) ? entry.cover : (videoPresentation.cover || "")
 
     // "world" tiles share the catalogue gallery poster geometry (148x222) so Continue reads as one
     // family with the shelves below it; "home" keeps its 340x148 landscape glass card.

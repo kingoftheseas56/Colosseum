@@ -157,6 +157,16 @@ int main(int argc, char** argv)
         require(f.value("tt8").toMap().value("isAnime").toBool(), "facts isAnime");
         require(!f.contains("ttMISSING"), "missing id absent");
     }
+    { // sparse Continue video cards resolve presentation without changing progress
+        const auto movie = cat.titlePresentation("tt1");
+        require(movie.value("title").toString() == "Famous Classic"
+                    && movie.value("type").toString() == "movie", "continue movie presentation");
+        const auto series = cat.titlePresentation("tt7");
+        require(series.value("title").toString() == "Great Series"
+                    && series.value("type").toString() == "series", "continue series presentation");
+        require(cat.titlePresentation("ttMISSING").isEmpty(), "unknown continue id stays unknown");
+        require(cat.titlePresentation("tt1' OR 1=1 --").isEmpty(), "continue id is bound");
+    }
 
     QFile::remove(dbPath);
     std::cout << "PASS ImdbCatalog allowlisted paged query contract\n";

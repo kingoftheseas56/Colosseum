@@ -282,3 +282,14 @@ QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
     }
     return out;
 }
+
+QVariantMap ImdbCatalog::titlePresentation(const QString& id) const
+{
+    if (!m_ok || !id.startsWith(QStringLiteral("tt"))) return {};
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral("SELECT title, type FROM title WHERE tt = ?"));
+    q.addBindValue(id);
+    if (!q.exec() || !q.next()) return {};
+    return {{QStringLiteral("title"), q.value(0).toString()},
+            {QStringLiteral("type"), q.value(1).toString()}};
+}

@@ -38,6 +38,8 @@ public:
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 20) const;
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
+    // Small offline presentation lookup for sparse Continue video records.
+    Q_INVOKABLE QVariantMap titlePresentation(const QString& id) const;
 
 signals:
     void readyChanged();
