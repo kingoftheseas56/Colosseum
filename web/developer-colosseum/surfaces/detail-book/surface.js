@@ -7,7 +7,7 @@
   CW.router.register('detail.book', {
     mount(el, route, env) {
       const box = h('div.world-pane.db-page');
-      el.appendChild(h('div.db-ground', { 'aria-hidden': 'true' }), box);
+      el.append(h('div.db-ground', { 'aria-hidden': 'true' }), box);
 
       let sub = null;
       let params = route.params || {};
