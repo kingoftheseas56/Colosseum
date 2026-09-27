@@ -691,7 +691,7 @@ Window {
             bookReaderActive: bookReaderLayer.active,
             vaultComicActive: vaultComicLayer.active,
             comicReaderActive: win.embeddedComicReaderOpen(),
-            updateActive: updateLayer.active,
+            updateActive: false, // Update is web-owned; ShellBackPolicy no longer closes a native layer.
             syncCenterActive: false,
             keyboardGuideActive: keyboardGuideLayer.active,
             settingsActive: settingsLayer.active,
@@ -803,7 +803,6 @@ Window {
         case "player": win.requestPlayerEscape(); return
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
-        case "update": win.closeUpdatePage(); return
         case "keyboardGuide": win.closeKeyboardGuide(); return
         case "settings": win.closeSettingsPage(); return
         case "extensions":
@@ -1550,7 +1549,7 @@ Window {
         || vaultComicLayer.active || vaultLayer.active || universeLayer.active
         || onePieceArcLayer.active || universeHallLayer.active
         || extensionsLayer.active || downloadsLayer.active || settingsLayer.active
-        || wallpaperLayer.active || updateLayer.active
+        || wallpaperLayer.active
         || keyboardGuideLayer.active || genreLayer.active || genreIndexLayer.active
         || biblioGenreLayer.active || biblioGenreIndexLayer.active
         || theatreGenreLayer.active || theatreGenreIndexLayer.active
@@ -1712,7 +1711,6 @@ Window {
         extensionsLayer.active = false
         settingsLayer.active = false
         keyboardGuideLayer.active = false
-        updateLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
@@ -1731,7 +1729,6 @@ Window {
         extensionsLayer.active = false
         settingsLayer.active = false
         keyboardGuideLayer.active = false
-        updateLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
     }
@@ -1845,7 +1842,6 @@ Window {
         downloadsLayer.active = false
         settingsLayer.active = false
         keyboardGuideLayer.active = false
-        updateLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
@@ -1862,7 +1858,6 @@ Window {
         downloadsLayer.active = false
         extensionsLayer.active = false
         keyboardGuideLayer.active = false
-        updateLayer.active = false
         vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
@@ -1878,7 +1873,6 @@ Window {
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
-        updateLayer.active = false
         vaultLayer.active = false
         keyboardGuideLayer.active = true
         taskbar.open = false
@@ -1887,26 +1881,11 @@ Window {
     }
     function closeKeyboardGuide() { keyboardGuideLayer.active = false }
 
-    // ---- Update page: the verified release chronicle, mutually exclusive with the other
-    // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
+    // ---- Update page: web-owned release chronicle. The page itself marks the
+    // offered release seen through page.update.seen after its subscription mounts. ----
     function openUpdatePage() {
-        if (win.openWebPage("update")) return
-        win.bookRouteGeneration += 1
-        downloadsLayer.active = false
-        extensionsLayer.active = false
-        settingsLayer.active = false
-        keyboardGuideLayer.active = false
-        vaultLayer.active = false
-        updateLayer.active = true
-        // Full-bleed: the chronicle owns the whole page. The taskbar closes like
-        // every other full-page destination (Downloads/Vault/Extensions/Settings)
-        // and still reveals on hover for session switching. The Update entry point
-        // is the home topbar glyph now — no launcher in the taskbar dock.
-        taskbar.open = false
-        if (typeof Updates !== "undefined" && Updates.markSeen)
-            Updates.markSeen()
+        win.openWebPage("update")
     }
-    function closeUpdatePage() { updateLayer.active = false }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
@@ -3049,12 +3028,12 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: Qt.quit()
-        // Update glyph (home only, takes the retired search slot). Toggle mirrors
-        // the taskbar launcher: open when closed, close when already front.
+        // Update glyph (home only, takes the retired search slot). The release
+        // chronicle is web-owned; Back/Escape are handled by the web router.
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
-        onUpdateClicked: !updateLayer.active ? win.openUpdatePage() : win.closeUpdatePage()
+        onUpdateClicked: win.openUpdatePage()
         onBoundaryArrowRequested: (key, fromItem) => {
             if (key === Qt.Key_Down && page.visible)
                 homePageSpatialNav.moveFrom(fromItem, key)
@@ -4440,28 +4419,6 @@ Window {
             item.keyboardRegistry = keyboardRegistry
             item.backRequested.connect(win.closeKeyboardGuide)
             item.takeKeyboardFocus()
-        }
-    }
-
-    // ---- Update page: the release chronicle, entered from the permanent taskbar item ----
-    Loader {
-        id: updateLayer
-        objectName: "updateLayer"
-        anchors.fill: parent
-        z: 56
-        active: false
-        visible: active
-        source: "UpdatePage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.updates = typeof Updates !== "undefined" ? Updates : null
-            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            item.backRequested.connect(win.closeUpdatePage)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            if (item.takeKeyboardFocus)
-                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
