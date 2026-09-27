@@ -4546,9 +4546,12 @@ Window {
         z: 58     // full-page cover: intentionally above Ratings & Reviews (z:57)
         active: false
         visible: active
-        source: "ExtensionsPage.qml"
+        // The Extensions world: Svelte Chain, House and Store (worlds/extensions/), hosted in QML.
+        source: "ExtensionsWorldPage.qml"
         onLoaded: {
             item.backdrop = wall
+            if (item.universeHallRequested)
+                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openUniverseHall() })
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })

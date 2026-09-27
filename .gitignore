@@ -102,3 +102,4 @@ tests/_reality_shelves.txt
 
 # Brotherhood process evidence stays local to each checkout.
 .superpowers/
+worlds/node_modules/
