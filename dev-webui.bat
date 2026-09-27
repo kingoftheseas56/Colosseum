@@ -1,7 +1,7 @@
 @echo off
 setlocal
 set "WEBUI_ROOT=%~dp0"
-set "CANONICAL_ROOT=C:\Users\Suprabha\Desktop\Brotherhood\Colosseum"
+if not defined COLOSSEUM_CANONICAL_ROOT set "COLOSSEUM_CANONICAL_ROOT=%USERPROFILE%\Desktop\Brotherhood\Colosseum"\nset "CANONICAL_ROOT=%COLOSSEUM_CANONICAL_ROOT%"
 
 if not exist "%WEBUI_ROOT%native\build-msvc\colosseum.exe" (
   echo Web Colosseum has not been built in this worktree.
