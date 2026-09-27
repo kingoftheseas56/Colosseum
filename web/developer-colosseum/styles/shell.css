@@ -65,3 +65,18 @@ body.keys .homeback:focus,body.keys .ico:focus,body.keys .acct:focus,body.keys .
   .tb-left{align-items:flex-start}.clock .t{font-size:26px}
   .sys{gap:12px}.pills{top:54px;width:100%;justify-content:center}
 }
+
+/* page.update replaces the old full-window QML chronicle. Keep only its Back +
+   window controls in the shell chrome and give the stage the complete viewport. */
+#app[data-surface="page.update"] #topbar{top:21px;left:44px;right:var(--margin);height:33px}
+#app[data-surface="page.update"] .clock,
+#app[data-surface="page.update"] #world-nav,
+#app[data-surface="page.update"] #search-button,
+#app[data-surface="page.update"] #trackers-button,
+#app[data-surface="page.update"] #account-button,
+#app[data-surface="page.update"] #wallpaper-button{display:none}
+#app[data-surface="page.update"] .homeback{font-size:0;padding:0}
+#app[data-surface="page.update"] .tb-left{gap:0}
+#app[data-surface="page.update"] .sys{gap:22px}
+#app[data-surface="page.update"] #board{top:0;overflow-y:hidden}
+#app[data-surface="page.update"] #board>.col{padding:0;gap:0}
