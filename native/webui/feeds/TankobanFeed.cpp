@@ -8,6 +8,7 @@
 
 #include "../../CollectionStore.h"
 #include "../../ProgressStore.h"
+#include "../../engine/CatalogVaultClient.h"
 #include "../../engine/ComicsCatalog.h"
 #include "../../engine/MalCatalog.h"
 #include "../../engine/MangaDownloader.h"
@@ -550,13 +551,18 @@ QVariantList buildDiscover(const FeedContext &ctx, MalCatalog &mal,
         ? QStringLiteral("manga") : QStringLiteral("comic");
     const QVariantList items = mapRows(
         page.value(QStringLiteral("items")).toList(), publicKind, 24);
+    const bool currentReady = type == QLatin1String("manga")
+        ? mal.ready() : comics.ready();
+    const bool downloading = !currentReady
+        && ctx.nativeSnapshot.value(QStringLiteral("catalogueFetching")).toBool();
     QVariantMap wall = WebFeedValue::section(
         QStringLiteral("tankoban.discover.wall"), out.size(), {},
         QStringLiteral("grid"), items,
         items.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
     wall.insert(QStringLiteral("emptyTitle"),
-        key.isEmpty() ? QStringLiteral("This catalogue answered with nothing.")
-                      : QStringLiteral("No series match this filter."));
+        downloading ? QStringLiteral("Catalogue downloading…")
+        : key.isEmpty() ? QStringLiteral("This catalogue answered with nothing.")
+                        : QStringLiteral("No series match this filter."));
     out.append(wall);
     return out;
 }
@@ -1279,6 +1285,11 @@ void capturePersonalState(ColosseumWebBridge &bridge, FeedContext &ctx)
         ctx.nativeSnapshot.insert(QStringLiteral("volumesBySeries"),
                                   bySeries);
     }
+    if (auto *vault = qobject_cast<CatalogVaultClient *>(
+            bridge.service(QStringLiteral("CatalogVault")))) {
+        ctx.nativeSnapshot.insert(QStringLiteral("catalogueFetching"),
+                                  vault->isFetching());
+    }
 }
 
 QVariantList initial(const QVariantMap &params)
@@ -1385,14 +1396,10 @@ QVariantList build(const FeedContext &ctx)
             QStringLiteral("web_tankoban_discover_mal_")
                 + QUuid::createUuid().toString(QUuid::WithoutBraces));
         ComicsCatalog comics(ctx.paths.comics);
-        // TankobanDiscoverPage.qml:82-105 gates readiness by the CURRENT type.
-        // A first-run Comics vault fetch must not blank an already-ready Manga wall,
-        // and a missing MAL database must not suppress a ready Comics catalogue.
-        const QString type = ctx.params.value(QStringLiteral("view")).toMap()
-            .value(QStringLiteral("type"), QStringLiteral("manga")).toString();
-        if ((type == QLatin1String("comics") && comics.ready())
-            || (type != QLatin1String("comics") && mal.ready()))
-            body = buildDiscover(ctx, mal, comics);
+        // TankobanDiscoverPage.qml:82-105 keeps the current type alive while
+        // its vault database is landing. The adapter methods are empty-safe;
+        // buildDiscover emits the exact "Catalogue downloading…" empty state.
+        body = buildDiscover(ctx, mal, comics);
     } else if (tab == QLatin1String("manga")) {
         MalCatalog mal(ctx.paths.mal, nullptr,
             QStringLiteral("web_tankoban_manga_mal_")
@@ -1569,6 +1576,27 @@ QMetaObject::Connection bindVolumeFinished(QObject *owner, QObject *receiver,
         : QMetaObject::Connection{};
 }
 
+QMetaObject::Connection bindVaultFetching(QObject *owner, QObject *receiver,
+                                          std::function<void()> refresh)
+{
+    auto *vault = qobject_cast<CatalogVaultClient *>(owner);
+    return vault
+        ? QObject::connect(vault, &CatalogVaultClient::fetchingChanged,
+                           receiver, [refresh] { refresh(); })
+        : QMetaObject::Connection{};
+}
+
+QMetaObject::Connection bindVaultUpdated(QObject *owner, QObject *receiver,
+                                         std::function<void()> refresh)
+{
+    auto *vault = qobject_cast<CatalogVaultClient *>(owner);
+    return vault
+        ? QObject::connect(vault, &CatalogVaultClient::databaseUpdated,
+                           receiver,
+                           [refresh](const QString &, const QString &) { refresh(); })
+        : QMetaObject::Connection{};
+}
+
 const bool feedRegistered = [] {
     FeedRegistry::Entry entry;
     entry.name = QStringLiteral("world");
@@ -1586,7 +1614,9 @@ const bool feedRegistered = [] {
         {QStringLiteral("Downloads"), &bindDownloads},
         {QStringLiteral("Downloads"), &bindDownloadRemoved},
         {QStringLiteral("TankobanVolumes"), &bindVolumes},
-        {QStringLiteral("TankobanVolumes"), &bindVolumeFinished}
+        {QStringLiteral("TankobanVolumes"), &bindVolumeFinished},
+        {QStringLiteral("CatalogVault"), &bindVaultFetching},
+        {QStringLiteral("CatalogVault"), &bindVaultUpdated}
     };
     return FeedRegistry::add(entry);
 }();
