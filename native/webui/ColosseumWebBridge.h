@@ -71,6 +71,18 @@ signals:
                          int requestId);
 
 private:
+    struct FeedTiming {
+        QString tab;
+        qint64 subscribeNativeMs = 0;
+        qint64 resetStartMs = 0;
+        qint64 captureStartMs = 0;
+        qint64 captureEndMs = 0;
+        qint64 submittedMs = 0;
+        qint64 workerStartMs = 0;
+        qint64 workerEndMs = 0;
+        qint64 guiReadyMs = 0;
+        bool reported = false;
+    };
     struct Subscription {
         QString feed;
         QVariantMap params;
@@ -104,6 +116,7 @@ private:
     QPointer<ExtensionsStore> m_extensions;
     QPointer<SearchHistoryStore> m_history;
     QHash<int, Subscription> m_subscriptions;
+    QHash<int, QSharedPointer<FeedTiming>> m_feedTimings;
     QHash<int, QSharedPointer<QPromise<QVariantMap>>> m_pendingActions;
     QHash<int, std::function<void(const QVariantMap &)>> m_delegatedActions;
     QSet<QString> m_surfaces;

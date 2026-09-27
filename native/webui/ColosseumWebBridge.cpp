@@ -15,6 +15,7 @@
 
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFutureWatcher>
 #include <QJsonDocument>
@@ -25,6 +26,14 @@
 #include <QTimer>
 #include <QtConcurrentRun>
 #include <utility>
+
+namespace {
+bool theatrePerfEnabled()
+{
+    static const bool enabled = qEnvironmentVariableIntValue("COLOSSEUM_WEBUI_PERF") == 1;
+    return enabled;
+}
+}
 
 ColosseumWebBridge::ColosseumWebBridge(const WorldFeed::Paths &paths,
                                        WallpaperSchemeHandler *wallpapers,
@@ -343,6 +352,17 @@ QVariantMap ColosseumWebBridge::subscribe(const QString &feed, const QVariantMap
     sub.params = WebFeedValue::jsonMap(params);
     if (feed.startsWith(QLatin1String("detail."))) sub.visibleCount = 0;
     m_subscriptions.insert(id, sub);
+    if (theatrePerfEnabled() && feed == QLatin1String("world")
+        && params.value(QStringLiteral("world")).toString() == QLatin1String("Theatre")) {
+        const QString tab = params.value(QStringLiteral("tab")).toString();
+        if (tab == QLatin1String("movies") || tab == QLatin1String("shows")
+            || tab == QLatin1String("anime")) {
+            auto timing = QSharedPointer<FeedTiming>::create();
+            timing->tab = tab;
+            timing->subscribeNativeMs = QDateTime::currentMSecsSinceEpoch();
+            m_feedTimings.insert(id, timing);
+        }
+    }
     bindOwnerSignals(id);
     if (feed == QLatin1String("search") && m_history) {
         const QString query = params.value(QStringLiteral("query")).toString().trimmed();
@@ -359,6 +379,7 @@ void ColosseumWebBridge::unsubscribe(int id)
     auto it = m_subscriptions.find(id);
     if (it != m_subscriptions.end()) disconnectOwnerSignals(it.value());
     m_subscriptions.remove(id);
+    m_feedTimings.remove(id);
     m_recordedEvents.remove(id);
 }
 
@@ -427,6 +448,8 @@ void ColosseumWebBridge::reset(int id)
 {
     auto it = m_subscriptions.find(id);
     if (it == m_subscriptions.end()) return;
+    const auto timing = m_feedTimings.value(id);
+    if (timing) timing->resetStartMs = QDateTime::currentMSecsSinceEpoch();
     ++it->generation;
     it->seq = 0;
     ++it->requestVersion;
@@ -454,6 +477,21 @@ void ColosseumWebBridge::refresh(int id)
     const FeedRegistry::Entry entry = *registered;
     const int generation = it->generation;
     const int requestVersion = ++it->requestVersion;
+    QSharedPointer<FeedTiming> timing;
+    if (theatrePerfEnabled() && it->feed == QLatin1String("world")
+        && it->params.value(QStringLiteral("world")).toString() == QLatin1String("Theatre")) {
+        const QString tab = it->params.value(QStringLiteral("tab")).toString();
+        if (tab == QLatin1String("movies") || tab == QLatin1String("shows")
+            || tab == QLatin1String("anime")) {
+            timing = m_feedTimings.value(id);
+            if (!timing || timing->reported) {
+                timing = QSharedPointer<FeedTiming>::create();
+                timing->tab = tab;
+                m_feedTimings.insert(id, timing);
+            }
+            timing->captureStartMs = QDateTime::currentMSecsSinceEpoch();
+        }
+    }
     FeedContext context;
     context.params = it->params;
     context.subscriptionId = id;
@@ -512,9 +550,11 @@ void ColosseumWebBridge::refresh(int id)
             context.downloadedIds = downloaded.values();
         }
     }
+    if (timing) timing->captureEndMs = QDateTime::currentMSecsSinceEpoch();
     auto *watcher = new QFutureWatcher<QVariantList>(this);
     connect(watcher, &QFutureWatcher<QVariantList>::finished, this,
-            [this, watcher, id, generation, requestVersion, entry, context] {
+            [this, watcher, id, generation, requestVersion, entry, context, timing] {
+        if (timing) timing->guiReadyMs = QDateTime::currentMSecsSinceEpoch();
         const QVariantList sections = watcher->result();
         watcher->deleteLater();
         applySections(id, generation, requestVersion, sections);
@@ -537,8 +577,12 @@ void ColosseumWebBridge::refresh(int id)
             return entry.enrich(followUp);
         }));
     });
-    watcher->setFuture(QtConcurrent::run([entry, context] {
-        return entry.build(context);
+    if (timing) timing->submittedMs = QDateTime::currentMSecsSinceEpoch();
+    watcher->setFuture(QtConcurrent::run([entry, context, timing] {
+        if (timing) timing->workerStartMs = QDateTime::currentMSecsSinceEpoch();
+        const QVariantList sections = entry.build(context);
+        if (timing) timing->workerEndMs = QDateTime::currentMSecsSinceEpoch();
+        return sections;
     }));
 }
 
@@ -554,9 +598,46 @@ void ColosseumWebBridge::applySections(int id, int generation, int requestVersio
         const QString key = section.value(QStringLiteral("id")).toString();
         if (key.isEmpty()) continue;
         next.insert(key, section);
-        if (it->sections.value(key) != section)
-            publish(id, {{QStringLiteral("type"), QStringLiteral("section")},
-                         {QStringLiteral("section"), section}});
+        if (it->sections.value(key) != section) {
+            const QVariantMap event{{QStringLiteral("type"), QStringLiteral("section")},
+                                    {QStringLiteral("section"), section}};
+            const auto timing = m_feedTimings.value(id);
+            const bool firstShelf = timing && !timing->reported
+                && key == QStringLiteral("theatre.%1.top10").arg(timing->tab)
+                && section.value(QStringLiteral("state")) == QLatin1String("ready")
+                && !section.value(QStringLiteral("items")).toList().isEmpty();
+            qint64 serializeMs = 0;
+            if (firstShelf) {
+                const qint64 started = QDateTime::currentMSecsSinceEpoch();
+                const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(event))
+                                            .toJson(QJsonDocument::Compact);
+                serializeMs = QDateTime::currentMSecsSinceEpoch() - started;
+                Q_UNUSED(json);
+            }
+            const qint64 sendStartMs = firstShelf ? QDateTime::currentMSecsSinceEpoch() : 0;
+            publish(id, event);
+            if (firstShelf) {
+                timing->reported = true;
+                const qint64 sendReturnMs = QDateTime::currentMSecsSinceEpoch();
+                const QVariantMap sample{{QStringLiteral("tab"), timing->tab},
+                                         {QStringLiteral("id"), id},
+                                         {QStringLiteral("generation"), generation},
+                                         {QStringLiteral("subscribeNativeMs"), timing->subscribeNativeMs},
+                                         {QStringLiteral("resetStartMs"), timing->resetStartMs},
+                                         {QStringLiteral("captureStartMs"), timing->captureStartMs},
+                                         {QStringLiteral("captureEndMs"), timing->captureEndMs},
+                                         {QStringLiteral("submittedMs"), timing->submittedMs},
+                                         {QStringLiteral("workerStartMs"), timing->workerStartMs},
+                                         {QStringLiteral("workerEndMs"), timing->workerEndMs},
+                                         {QStringLiteral("guiReadyMs"), timing->guiReadyMs},
+                                         {QStringLiteral("serializationProbeMs"), serializeMs},
+                                         {QStringLiteral("sendStartMs"), sendStartMs},
+                                         {QStringLiteral("sendReturnMs"), sendReturnMs}};
+                qInfo().noquote() << "WEBUI_PERF"
+                                  << QJsonDocument(QJsonObject::fromVariantMap(sample))
+                                         .toJson(QJsonDocument::Compact);
+            }
+        }
     }
     const QStringList oldKeys = it->sections.keys();
     for (const QString &key : oldKeys) {
