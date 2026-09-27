@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harbor Detail Static Reference</title>
+<style>
+:root{
+  color-scheme:dark;
+  --canvas:oklch(0.18 0.004 260);
+  --surface:oklch(0.22 0.004 260);
+  --elevated:oklch(0.27 0.004 260);
+  --raised:oklch(0.32 0.004 260);
+  --ink:oklch(0.97 0.003 260);
+  --ink-muted:oklch(0.72 0.003 260);
+  --ink-subtle:oklch(0.65 0.003 260);
+  --edge:oklch(0.36 0.004 260 / .55);
+  --edge-soft:oklch(0.36 0.004 260 / .25);
+  --accent:oklch(0.78 0.13 60);
+  --success:oklch(0.68 0.15 150);
+  --display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:Inter,"Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--canvas);color:var(--ink);font-family:var(--sans)}
+body{overflow-y:auto;overflow-x:hidden}
+button{font:inherit}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+img{display:block;max-width:100%}
+#app{min-height:100vh;background:var(--canvas)}
+.hero{position:relative;height:78vh;min-height:640px;overflow:hidden}
+.hero-media{position:absolute;inset:0;background:var(--surface)}
+.hero-media img{width:100%;height:100%;object-fit:cover;object-position:center 30%}
+.hero-media:after{content:"";position:absolute;inset:0;background:
+  linear-gradient(to top,var(--canvas) 0%,oklch(0.18 0.004 260 / .55) 45%,transparent 100%),
+  linear-gradient(to right,oklch(0.18 0.004 260 / .85) 0%,oklch(0.18 0.004 260 / .35) 52%,transparent 100%)}
+.hero-copy{position:absolute;inset-inline:0;bottom:0;padding:0 48px 56px}
+.hero-inner{max-width:1040px}
+.tagline{margin:0 0 16px;font-size:14px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-subtle);text-shadow:0 1px 12px rgba(0,0,0,.7)}
+.title-plate{position:relative;min-height:124px;display:flex;align-items:flex-end}
+.title-logo{max-width:440px;max-height:124px;width:auto;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 6px 24px rgba(0,0,0,.45))}
+.title-text{margin:0;font-family:var(--display);font-size:80px;font-weight:500;line-height:.95;letter-spacing:-.035em;color:var(--ink)}
+.title-plate.has-logo .title-text{display:none}
+.hero-pills{margin-top:24px;display:flex;align-items:center;flex-wrap:wrap;gap:12px;max-width:900px;font-size:13px;font-weight:500;color:var(--ink-muted)}
+.pill{display:inline-flex;align-items:center;gap:7px;min-height:28px;padding:5px 10px;border:1px solid var(--edge);border-radius:999px;background:oklch(0.18 0.004 260 / .8);color:var(--ink-muted)}
+.rating-pill{gap:8px}
+.rating-mark{display:inline-grid;place-items:center;min-width:28px;height:19px;padding:0 5px;border-radius:4px;background:#f5c518;color:#111;font-size:10px;font-weight:900;letter-spacing:-.35px}
+.hero-actions{margin-top:36px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn{height:48px;border-radius:999px;border:1px solid var(--edge);display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 24px;background:oklch(0.18 0.004 260 / .8);color:var(--ink);font-size:15px;font-weight:500;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:transform .2s,background-color .2s,border-color .2s}
+.btn:hover{background:oklch(0.18 0.004 260 / .95);border-color:var(--ink-subtle)}
+.btn:active{transform:scale(.98)}
+.btn.primary{padding:0 28px;border-color:transparent;background:var(--ink);color:var(--canvas);font-weight:650;box-shadow:0 8px 24px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.65),inset 0 -1px 0 rgba(0,0,0,.18)}
+.btn.primary:hover{transform:scale(1.03)}
+.icon-btn{width:48px;padding:0}
+.icon{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.primary .icon.play{fill:currentColor}
+.content{padding:56px 48px 96px;display:flex;flex-direction:column;gap:64px}
+.synopsis-wrap{display:flex;gap:40px;align-items:flex-start}
+.synopsis{max-width:870px;margin:0;color:var(--ink-muted);font-size:15px;line-height:1.72}
+.section{min-width:0}
+.section-head{margin:0 0 22px;font-size:22px;font-weight:500;letter-spacing:-.02em}
+.watch-on{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.provider{height:42px;border:1px solid var(--edge-soft);border-radius:12px;padding:0 16px;display:flex;align-items:center;gap:10px;background:var(--surface);font-size:13px;color:var(--ink-muted)}
+.provider-badge{width:24px;height:24px;border-radius:7px;background:var(--raised);display:grid;place-items:center;color:var(--ink);font-size:9px;font-weight:800}
+.episodes{scroll-margin-top:24px}
+.episode-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px}
+.episode-toolbar-left,.episode-toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.episode-title{margin:0;font-size:22px;font-weight:500;letter-spacing:-.02em}
+.mini{height:34px;border:1px solid var(--edge-soft);border-radius:9px;padding:0 12px;background:var(--surface);color:var(--ink-muted);font-size:12px;cursor:pointer}
+.mini.on{background:var(--ink);color:var(--canvas);border-color:var(--ink)}
+.season-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.season{height:34px;border:1px solid var(--edge-soft);border-radius:999px;padding:0 14px;background:transparent;color:var(--ink-subtle);font-size:12.5px;cursor:pointer}
+.season.on{border-color:var(--ink);background:var(--ink);color:var(--canvas)}
+.season-meta{margin:0 0 10px;color:var(--ink-subtle);font-size:12px}
+.episode-list{display:flex;flex-direction:column}
+.episode{display:flex;gap:24px;border-radius:16px;padding:20px 16px;transition:background-color .2s}
+.episode:hover{background:oklch(0.27 0.004 260 / .3)}
+.episode-main{display:flex;gap:24px;min-width:0;flex:1;color:inherit;text-decoration:none}
+.episode-art{position:relative;width:200px;aspect-ratio:16/9;flex:0 0 200px;overflow:hidden;border-radius:8px;background:var(--surface)}
+.episode-art img{width:100%;height:100%;object-fit:cover}
+.episode-art:after{content:"";position:absolute;inset:0;background:oklch(0.18 0.004 260 / .4);opacity:0;transition:opacity .2s}
+.episode:hover .episode-art:after{opacity:1}
+.play-float{position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--canvas);opacity:0;transition:opacity .2s}
+.episode:hover .play-float{opacity:1}
+.ep-number{position:absolute;z-index:5;left:8px;top:8px;padding:3px 6px;border-radius:6px;background:oklch(0.18 0.004 260 / .95);font-size:11px;font-weight:650}
+.ep-rating{position:absolute;z-index:5;left:8px;bottom:8px;display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:6px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);font-size:11px;font-weight:650}
+.ep-rating b{background:#f5c518;color:#111;border-radius:3px;padding:2px 4px;font-size:8px}
+.ep-progress{position:absolute;z-index:5;inset-inline:0;bottom:0;height:3px;background:rgba(0,0,0,.55)}
+.ep-progress i{display:block;height:100%;background:var(--accent)}
+.episode-copy{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;padding-top:1px}
+.episode-name{margin:0;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.episode-meta{margin:0;font-size:12px;color:var(--ink-subtle);line-height:1.45}
+.episode-overview{margin:0;color:var(--ink-muted);font-size:13.5px;line-height:1.58;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.episode-stats{margin-top:7px;padding-top:9px;border-top:1px solid var(--edge-soft);display:flex;align-items:center;gap:18px;flex-wrap:wrap;color:var(--ink-subtle);font-size:11px}
+.stat{display:flex;align-items:baseline;gap:6px}
+.stat b{color:var(--ink);font-size:11.5px;font-weight:650}
+.stat-label{text-transform:uppercase;letter-spacing:.08em;font-size:9.5px}
+.episode-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.episode-actions .icon-btn{height:40px;width:40px;background:transparent;border:0;color:var(--ink-subtle);border-radius:999px;cursor:pointer}
+.episode-actions .icon-btn:hover{background:var(--elevated);color:var(--ink)}
+.credit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 48px;border-bottom:1px solid var(--edge-soft);padding-bottom:48px}
+.credit small,.info-item dt{display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.18em;font-size:11px;font-weight:600;color:var(--ink-subtle)}
+.credit strong{font-size:14.5px;font-weight:500;line-height:1.7}
+.cast-row,.poster-row{display:flex;gap:16px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.cast-row::-webkit-scrollbar,.poster-row::-webkit-scrollbar{display:none}
+.cast-card{width:128px;flex:0 0 128px}
+.cast-face{width:128px;height:160px;border-radius:12px;overflow:hidden;background:linear-gradient(145deg,var(--raised),var(--surface));display:grid;place-items:center;color:var(--ink-subtle);font-family:var(--display);font-size:32px}
+.cast-face img{width:100%;height:100%;object-fit:cover}
+.cast-name{margin:9px 0 2px;font-size:13.5px;font-weight:600}
+.cast-role{margin:0;font-size:11.5px;color:var(--ink-subtle)}
+.poster-card{width:164px;flex:0 0 164px}
+.poster{width:164px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;background:var(--surface)}
+.poster img{width:100%;height:100%;object-fit:cover}
+.poster-title{margin:9px 0 2px;font-size:13px;font-weight:600}
+.poster-year{margin:0;color:var(--ink-subtle);font-size:11.5px}
+.media-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.media-tile{height:220px;border-radius:14px;overflow:hidden;background:var(--surface)}
+.media-tile img{width:100%;height:100%;object-fit:cover}
+.info{border-top:1px solid var(--edge-soft);padding-top:48px}
+.info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 48px;margin:0}
+.info-item dd{margin:0;font-size:14.5px;color:var(--ink)}
+@media(max-width:900px){
+  .hero-copy,.content{padding-left:24px;padding-right:24px}
+  .hero{min-height:620px}
+  .title-text{font-size:56px}
+  .title-logo{max-width:70vw}
+  .synopsis-wrap{display:block}
+  .episode{padding-inline:0}
+  .episode-actions{display:none}
+  .credit-grid,.info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .media-grid{grid-template-columns:1fr 1fr}.media-grid .media-tile:first-child{grid-column:1/-1}
+}
+@media(max-width:640px){
+  .hero{height:720px}
+  .hero-copy{padding-bottom:34px}
+  .title-text{font-size:44px}
+  .episode-main{display:block}
+  .episode-art{width:100%;max-width:360px;margin-bottom:14px}
+  .credit-grid,.info-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<!--
+  Static Harbor detail reference. No fetch/XHR/API calls.
+  #tv (default) renders a TV detail page; #movie renders a movie detail page.
+  Source reference: harborstremio/harbor @ 0117755855d3f43960bad3f9f62b69ef851d5991.
+  Harbor MIT attribution is preserved in ../surfaces/title/NOTICE-harbor.md.
+-->
+<div id="app">
+  <section class="hero">
+    <div class="hero-media"><img id="hero-backdrop" alt=""></div>
+    <div class="hero-copy">
+      <div class="hero-inner">
+        <p class="tagline" id="tagline"></p>
+        <div class="title-plate" id="title-plate">
+          <img class="title-logo" id="title-logo" alt="">
+          <h1 class="title-text" id="title-text"></h1>
+        </div>
+        <div class="hero-pills" id="hero-pills"></div>
+        <div class="hero-actions">
+          <button class="btn primary"><svg class="icon play" viewBox="0 0 24 24"><path d="M6.5 4.8 19 12 6.5 19.2Z"></path></svg><span id="play-label">Play</span></button>
+          <button class="btn"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Add to Watchlist</button>
+          <button class="btn icon-btn" aria-label="Favorite"><svg class="icon" viewBox="0 0 24 24"><path d="m12 3 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 17.03l-5.5 2.89 1.05-6.12L3.1 9.47l6.15-.9Z"></path></svg></button>
+          <button class="btn icon-btn" aria-label="Add to list"><svg class="icon" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Zm8 9-8 4-8-4m16 5-8 4-8-4"></path></svg></button>
+          <button class="btn icon-btn" aria-label="Trailer"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="m10 9 5 3-5 3Z"></path></svg></button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <main class="content">
+    <div class="synopsis-wrap"><p class="synopsis" id="synopsis"></p></div>
+    <section class="section" id="watch-section">
+      <h2 class="section-head">Watch on</h2>
+      <div class="watch-on" id="watch-on"></div>
+    </section>
+    <section class="section episodes" id="episodes-section">
+      <div class="episode-toolbar">
+        <div class="episode-toolbar-left"><h2 class="episode-title">Episodes</h2></div>
+        <div class="episode-toolbar-right">
+          <button class="mini">Random episode</button>
+          <button class="mini on">List</button>
+          <button class="mini">Grid</button>
+          <button class="mini">Search</button>
+        </div>
+      </div>
+      <div class="season-strip" id="season-strip"></div>
+      <p class="season-meta" id="season-meta"></p>
+      <div class="episode-list" id="episode-list"></div>
+    </section>
+    <section class="section">
+      <div class="credit-grid" id="credits"></div>
+    </section>
+    <section class="section">
+      <h2 class="section-head" id="cast-title">Cast</h2>
+      <div class="cast-row" id="cast-row"></div>
+    </section>
+    <section class="section">
+      <h2 class="section-head">More Like This</h2>
+      <div class="poster-row" id="related-row"></div>
+    </section>
+    <section class="section">
+      <h2 class="section-head">Media</h2>
+      <div class="media-grid" id="media-grid"></div>
+    </section>
+    <section class="section info">
+      <h2 class="section-head">Information</h2>
+      <dl class="info-grid" id="info-grid"></dl>
+    </section>
+  </main>
+</div>
+<script>
+(function(){
+  'use strict';
+
+  var movie = {
+    mode:'movie',
+    title:'The Matrix',
+    tagline:'WELCOME TO THE REAL WORLD',
+    backdrop:'https://images.metahub.space/background/medium/tt0133093/img',
+    logo:'https://images.metahub.space/logo/medium/tt0133093/img',
+    year:'1999',
+    rating:'8.7',
+    runtime:'136 min',
+    genres:['Action','Sci-Fi'],
+    playLabel:'Play',
+    synopsis:'A computer hacker discovers that the world he knows is an artificial construct and is drawn into a fight over what is real, who controls it, and whether humanity can break free.',
+    providers:['MAX','Prime Video','Apple TV'],
+    credits:[
+      ['Directors','Lana Wachowski · Lilly Wachowski'],
+      ['Writers','Lana Wachowski · Lilly Wachowski'],
+      ['Music','Don Davis']
+    ],
+    cast:[
+      ['Keanu Reeves','Neo'],['Laurence Fishburne','Morpheus'],['Carrie-Anne Moss','Trinity'],
+      ['Hugo Weaving','Agent Smith'],['Gloria Foster','The Oracle'],['Joe Pantoliano','Cypher']
+    ],
+    related:[
+      ['The Matrix Reloaded','2003','tt0234215'],['The Matrix Revolutions','2003','tt0242653'],
+      ['John Wick','2014','tt2911666'],['Inception','2010','tt1375666'],
+      ['Blade Runner 2049','2017','tt1856101'],['Terminator 2','1991','tt0103064']
+    ],
+    info:[
+      ['Status','Released'],['Studio','Warner Bros. Pictures'],['Country','United States'],
+      ['Original language','English'],['Genres','Action · Science Fiction'],['Rating','8.7 · static demo']
+    ]
+  };
+
+  var tv = {
+    mode:'tv',
+    title:'Game of Thrones',
+    tagline:'WINTER IS COMING',
+    backdrop:'https://images.metahub.space/background/medium/tt0944947/img',
+    logo:'https://images.metahub.space/logo/medium/tt0944947/img',
+    year:'2011–2019',
+    rating:'9.2',
+    runtime:'57 min',
+    genres:['Action','Adventure','Drama'],
+    playLabel:'Resume S1:E3',
+    synopsis:'Great houses compete for power across Westeros while an older threat grows beyond the Wall. Alliances shift, families fracture, and the struggle for the throne becomes inseparable from survival.',
+    providers:['MAX','Prime Video','Apple TV'],
+    credits:[
+      ['Creators','David Benioff · D. B. Weiss'],
+      ['Writers','George R. R. Martin · David Benioff · D. B. Weiss'],
+      ['Music','Ramin Djawadi']
+    ],
+    cast:[
+      ['Emilia Clarke','Daenerys Targaryen'],['Peter Dinklage','Tyrion Lannister'],['Kit Harington','Jon Snow'],
+      ['Lena Headey','Cersei Lannister'],['Nikolaj Coster-Waldau','Jaime Lannister'],['Maisie Williams','Arya Stark'],
+      ['Sophie Turner','Sansa Stark'],['Sean Bean','Eddard Stark']
+    ],
+    related:[
+      ['House of the Dragon','2022','tt11198330'],['The Last Kingdom','2015','tt4179452'],
+      ['Vikings','2013','tt2306299'],['Chernobyl','2019','tt7366338'],
+      ['Westworld','2016','tt0475784'],['Rome','2005','tt0384766']
+    ],
+    info:[
+      ['Status','Ended'],['Seasons','8 · 73 episodes'],['First aired','2011-04-17'],
+      ['Last aired','2019-05-19'],['Network','HBO'],['Original language','English'],
+      ['Genres','Action · Adventure · Drama'],['Rating','9.2 · static demo']
+    ],
+    seasons:[['Season 1',1],['Season 2',2],['Season 3',3],['Season 4',4],['Season 5',5],['Season 6',6],['Season 7',7],['Season 8',8]],
+    episodes:[
+      {n:1,title:'Winter Is Coming',runtime:'62 min',air:'Apr 17, 2011',rating:'8.9',votes:'41.8k',progress:100,watched:'Watched',img:'https://episodes.metahub.space/tt0944947/1/1/w780.jpg',overview:'The Stark family receives a royal visit that pulls Winterfell into the politics of the capital.'},
+      {n:2,title:'The Kingsroad',runtime:'56 min',air:'Apr 24, 2011',rating:'8.6',votes:'33.1k',progress:100,watched:'Watched',img:'https://episodes.metahub.space/tt0944947/1/2/w780.jpg',overview:'The royal party travels south while consequences from the events at Winterfell begin to spread.'},
+      {n:3,title:'Lord Snow',runtime:'58 min',air:'May 1, 2011',rating:'8.5',votes:'31.4k',progress:68,watched:'68% watched',img:'https://episodes.metahub.space/tt0944947/1/3/w780.jpg',overview:'Ned enters the machinery of court, while Jon begins to understand the reality of life at the Wall.'},
+      {n:4,title:'Cripples, Bastards, and Broken Things',runtime:'56 min',air:'May 8, 2011',rating:'8.6',votes:'30.2k',progress:0,watched:'Not started',img:'https://episodes.metahub.space/tt0944947/1/4/w780.jpg',overview:'Investigations deepen in the capital and old histories begin to reveal why the present feels so dangerous.'},
+      {n:5,title:'The Wolf and the Lion',runtime:'55 min',air:'May 15, 2011',rating:'9.0',votes:'32.7k',progress:0,watched:'Not started',img:'https://episodes.metahub.space/tt0944947/1/5/w780.jpg',overview:'Tension between the Starks and Lannisters finally erupts as political maneuvering turns openly violent.'},
+      {n:6,title:'A Golden Crown',runtime:'53 min',air:'May 22, 2011',rating:'9.1',votes:'34.6k',progress:0,watched:'Not started',img:'https://episodes.metahub.space/tt0944947/1/6/w780.jpg',overview:'Promises made in distant places collide with ambitions at court, leaving several characters with irreversible choices.'}
+    ]
+  };
+
+  function initials(name){
+    return name.split(/\s+/).slice(0,2).map(function(x){return x.charAt(0);}).join('');
+  }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function providerHtml(name){
+    return '<div class="provider"><span class="provider-badge">'+esc(name.replace(/\s.*/,''))+'</span><span>'+esc(name)+'</span></div>';
+  }
+  function creditHtml(row){
+    return '<div class="credit"><small>'+esc(row[0])+'</small><strong>'+esc(row[1])+'</strong></div>';
+  }
+  function castHtml(row){
+    return '<article class="cast-card"><div class="cast-face">'+esc(initials(row[0]))+'</div><p class="cast-name">'+esc(row[0])+'</p><p class="cast-role">'+esc(row[1])+'</p></article>';
+  }
+  function relatedHtml(row){
+    var src='https://images.metahub.space/poster/small/'+encodeURIComponent(row[2])+'/img';
+    return '<article class="poster-card"><div class="poster"><img src="'+src+'" alt=""></div><p class="poster-title">'+esc(row[0])+'</p><p class="poster-year">'+esc(row[1])+'</p></article>';
+  }
+  function infoHtml(row){
+    return '<div class="info-item"><dt>'+esc(row[0])+'</dt><dd>'+esc(row[1])+'</dd></div>';
+  }
+  function episodeHtml(ep){
+    return '<article class="episode">'+
+      '<a class="episode-main" href="#" onclick="return false">'+
+        '<div class="episode-art"><img src="'+ep.img+'" alt=""><span class="ep-number">'+ep.n+'</span>'+
+          '<span class="ep-rating"><b>IMDb</b>'+ep.rating+'</span>'+
+          '<span class="play-float"><svg class="icon play" viewBox="0 0 24 24"><path d="M6.5 4.8 19 12 6.5 19.2Z"></path></svg></span>'+
+          (ep.progress>0?'<span class="ep-progress"><i style="width:'+ep.progress+'%"></i></span>':'')+
+        '</div>'+
+        '<div class="episode-copy">'+
+          '<h3 class="episode-name">'+esc(ep.title)+'</h3>'+
+          '<p class="episode-meta">S1 E'+ep.n+'  ·  '+esc(ep.runtime)+'  ·  '+esc(ep.air)+(ep.progress>0?'  ·  '+esc(ep.watched):'')+'</p>'+
+          '<p class="episode-overview">'+esc(ep.overview)+'</p>'+
+          '<div class="episode-stats">'+
+            '<span class="stat"><span class="stat-label">IMDb</span><b>'+esc(ep.rating)+'</b></span>'+
+            '<span class="stat"><span class="stat-label">Votes</span><b>'+esc(ep.votes)+'</b></span>'+
+            '<span class="stat"><span class="stat-label">Runtime</span><b>'+esc(ep.runtime)+'</b></span>'+
+            '<span class="stat"><span class="stat-label">Aired</span><b>'+esc(ep.air)+'</b></span>'+
+            '<span class="stat"><span class="stat-label">Progress</span><b>'+esc(ep.watched)+'</b></span>'+
+          '</div>'+
+        '</div>'+
+      '</a>'+
+      '<div class="episode-actions">'+
+        '<button class="icon-btn" aria-label="Episode details"><svg class="icon" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></button>'+
+        '<button class="icon-btn" aria-label="Download"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 20h14"></path></svg></button>'+
+      '</div>'+
+    '</article>';
+  }
+
+  function render(data){
+    document.title='Harbor '+(data.mode==='tv'?'TV':'Movie')+' Static Reference';
+    var backdrop=document.getElementById('hero-backdrop');
+    backdrop.src=data.backdrop;
+    backdrop.onerror=function(){backdrop.style.opacity='.16';};
+    document.getElementById('tagline').textContent=data.tagline;
+    document.getElementById('title-text').textContent=data.title;
+    var plate=document.getElementById('title-plate');
+    var logo=document.getElementById('title-logo');
+    plate.classList.remove('has-logo');
+    logo.src=data.logo;
+    logo.alt=data.title;
+    logo.onload=function(){plate.classList.add('has-logo');};
+    logo.onerror=function(){plate.classList.remove('has-logo');logo.removeAttribute('src');};
+    document.getElementById('hero-pills').innerHTML=
+      '<span class="pill">'+esc(data.year)+'</span>'+
+      '<span class="pill rating-pill"><b class="rating-mark">IMDb</b>'+esc(data.rating)+'</span>'+
+      '<span class="pill">'+esc(data.runtime)+'</span>'+
+      data.genres.map(function(g){return '<span class="pill">'+esc(g)+'</span>';}).join('');
+    document.getElementById('play-label').textContent=data.playLabel;
+    document.getElementById('synopsis').textContent=data.synopsis;
+    document.getElementById('watch-on').innerHTML=data.providers.map(providerHtml).join('');
+    document.getElementById('credits').innerHTML=data.credits.map(creditHtml).join('');
+    document.getElementById('cast-title').textContent='Cast · '+data.cast.length;
+    document.getElementById('cast-row').innerHTML=data.cast.map(castHtml).join('');
+    document.getElementById('related-row').innerHTML=data.related.map(relatedHtml).join('');
+    document.getElementById('info-grid').innerHTML=data.info.map(infoHtml).join('');
+    document.getElementById('media-grid').innerHTML=
+      '<div class="media-tile"><img src="'+data.backdrop+'" alt=""></div>'+
+      '<div class="media-tile"><img src="https://images.metahub.space/poster/small/'+(data.mode==='tv'?'tt0944947':'tt0133093')+'/img" alt=""></div>'+
+      '<div class="media-tile"><img src="'+data.backdrop+'" alt=""></div>';
+    var episodeSection=document.getElementById('episodes-section');
+    if(data.mode==='tv'){
+      episodeSection.style.display='';
+      document.getElementById('season-strip').innerHTML=data.seasons.map(function(s,i){
+        return '<button class="season'+(i===0?' on':'')+'">'+esc(s[0])+'</button>';
+      }).join('');
+      document.getElementById('season-meta').textContent='10 episodes · 2011';
+      document.getElementById('episode-list').innerHTML=data.episodes.map(episodeHtml).join('');
+    }else{
+      episodeSection.style.display='none';
+    }
+  }
+
+  function modeFromHash(){
+    return location.hash.toLowerCase()==='#movie'?'movie':'tv';
+  }
+  function rerender(){
+    render(modeFromHash()==='movie'?movie:tv);
+  }
+  window.addEventListener('hashchange',rerender);
+  window.addEventListener('keydown',function(e){
+    if(e.key==='1') location.hash='movie';
+    if(e.key==='2') location.hash='tv';
+  });
+  rerender();
+})();
+</script>
+</body>
+</html>
