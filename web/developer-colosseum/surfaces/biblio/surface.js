@@ -337,9 +337,10 @@
       return chain;
     }
 
-    function renderExploreCard(item, ranked) {
+    function renderExploreCard(item, ranked, sectionId) {
       const card = CW.cards.poster({ ...item, badge: null }, sectionCtx);
       card.classList.add('biblio-explore-card');
+      card.dataset.key = sectionId + ':' + item.key;
       const rev = card.querySelector('.rev');
       if (rev) {
         rev.replaceChildren();
@@ -356,7 +357,8 @@
       const customize = currentView().customize === true;
       const hidden = !!(section.pref && section.pref.hidden);
       const ranked = section.id === 'biblio.explore.top-10';
-      const cards = isReady(section) ? section.items.map(item => renderExploreCard(item, ranked)) : [];
+      const cards = isReady(section)
+        ? section.items.map(item => renderExploreCard(item, ranked, section.id)) : [];
       const bodyNode = section.state === 'loading'
         ? CW.h('div.biblio-explore-rail', {}, Array.from({ length: 6 }, () => CW.h('span.biblio-explore-skeleton')))
         : section.state === 'error' || !cards.length
