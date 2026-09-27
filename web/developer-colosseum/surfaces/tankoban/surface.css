@@ -121,7 +121,44 @@
 
 /* WorldTabBar.qml:73 -> 160 * four Tankoban tabs. */
 .tk-tabs .tabs {
-  width: min(100%, 640px); /* token? WorldTabBar.qml:73 */
+  width: min(100%, 640px); /* token? source parity from WorldTabBar.qml:73 */
+}
+
+/* ContinueRow.qml:112-123 + ContinueTile.qml:342-365. The shared web tile
+   stays intact; Tankoban only restores the source-owned hover remove control. */
+.tk-continue-card {
+  position: relative;
+  flex: 0 0 var(--poster-w);
+}
+
+.tk-continue-card > .ct {
+  width: 100%;
+}
+
+.tk-continue-remove {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  width: 24px; /* token? source parity from ContinueTile.qml:345 */
+  height: 24px; /* token? source parity from ContinueTile.qml:345 */
+  border-radius: var(--r-md);
+  background: rgba(0,0,0,.62); /* token? source parity from ContinueTile.qml:347 */
+  border: 1px solid var(--edge); /* token? source parity from ContinueTile.qml:348 */
+  color: var(--inkDim);
+  font-size: var(--t-xs);
+  opacity: 0;
+  transition: opacity 150ms; /* token? source parity from ContinueTile.qml:350 */
+  z-index: 4;
+}
+
+.tk-continue-card:hover .tk-continue-remove,
+.tk-continue-remove:hover {
+  opacity: 1;
+}
+
+.tk-continue-remove:hover {
+  background: rgba(0,0,0,.85); /* token? source parity from ContinueTile.qml:347 */
+  color: var(--ink);
 }
 
 /* ---------------- FeaturedCarousel / CarouselSlide parity ---------------- */
