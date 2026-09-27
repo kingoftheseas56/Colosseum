@@ -1,0 +1,208 @@
+/* Shared Account parts. QML is the only design authority; source values without global tokens are cited here. */
+@font-face{
+  font-family:"Fraunces";
+  src:url("../../../../assets/fonts/Fraunces-Regular.ttf") format("truetype");
+  font-style:normal;
+  font-weight:400;
+  font-display:block;
+}
+
+.ap-page-frame{
+  position:relative;width:100%;height:100%;min-height:100%;overflow:hidden;
+  color:var(--ink);font-family:var(--ui-stack);
+  /* token? layout metrics from qml/account/AccountPageFrame.qml:14-25,77,89-90,158-159 */
+  --ap-compact-breakpoint:1040;
+  --ap-panel-default-width:560;
+  --ap-panel-default-min-height:0;
+  --ap-compact-margin:34;
+  --ap-wide-margin:54;
+  --ap-intro-min-width:320;
+  --ap-wide-extra-gap:52;
+  --ap-compact-intro-y:42;
+  --ap-wide-intro-min-y:30;
+  --ap-wide-panel-min-y:26;
+  --ap-compact-panel-gap:44;
+  --ap-compact-bottom-space:52;
+  --ap-wide-bottom-space:20;
+  /* token? responsive headline metrics from qml/account/AccountPageFrame.qml:117 */
+  --ap-headline-compact:50;
+  --ap-headline-wide-min:56;
+  --ap-headline-wide-max:76;
+  --ap-headline-scale:.052;
+  --ap-headline-size:56px;
+}
+.ap-page-frame,.ap-page-frame *{box-sizing:border-box}
+.ap-page-wallpaper{position:absolute;inset:0;overflow:hidden}
+.ap-page-wallpaper-image{display:block;width:100%;height:100%;object-fit:cover}
+/* token? Qt.rgba(0.012,0.016,0.031,0.78) from qml/account/AccountPageFrame.qml:62-65 */
+.ap-page-veil{position:absolute;inset:0;background:rgb(1.2% 1.6% 3.1% / 78%)}
+.ap-page-scroll{
+  position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--edge) transparent;
+}
+.ap-page-scroll::after{
+  content:"";display:block;width:1px;height:var(--ap-content-height,100%);pointer-events:none;
+}
+.ap-page-intro,.ap-page-panel{position:absolute}
+.ap-page-intro{color:var(--ink)}
+.ap-page-eyebrow{
+  width:100%;color:var(--inkDimmer);font-family:var(--ui-stack);
+  /* token? 2.6px letter spacing from qml/account/AccountPageFrame.qml:106 */
+  font-size:var(--t-sm);font-weight:600;letter-spacing:2.6px;line-height:normal;overflow-wrap:anywhere;
+}
+/* token? 12px spacer from qml/account/AccountPageFrame.qml:110 */
+.ap-page-eyebrow-gap{height:12px}
+.ap-page-headline{
+  width:100%;color:var(--ink);font-family:var(--display-stack);
+  /* token? -1.2px letter spacing + .99 line height from qml/account/AccountPageFrame.qml:119-120 */
+  font-size:var(--ap-headline-size);font-weight:500;letter-spacing:-1.2px;line-height:.99;overflow-wrap:anywhere;
+}
+/* token? 26px spacer from qml/account/AccountPageFrame.qml:124 */
+.ap-page-headline-gap{height:26px}
+/* token? 34×3 radius 2 from qml/account/AccountPageFrame.qml:126-131 */
+.ap-page-rule{width:34px;height:3px;border-radius:2px;background:var(--gold)}
+/* token? 24px spacer from qml/account/AccountPageFrame.qml:133 */
+.ap-page-rule-gap{height:24px}
+.ap-page-detail{
+  /* token? 610px max width + 1.7 line height from qml/account/AccountPageFrame.qml:136,141 */
+  width:min(100%,610px);color:var(--inkDimmer);font-family:var(--ui-stack);
+  font-size:var(--t-base);line-height:1.7;overflow-wrap:anywhere;
+}
+/* AccountPageFrame.qml:147-170 + Glass.qml. Border is inset so QML's 34px content inset stays exact. */
+.ap-page-panel{
+  /* token? radius 18, tint .09, scrim .20 from qml/account/AccountPageFrame.qml:160-162 */
+  /* token? radius 18 + content inset 34 from qml/account/AccountPageFrame.qml:160,169 */
+  border-radius:18px;padding:34px;
+  background:linear-gradient(rgba(0,0,0,.20),rgba(0,0,0,.20)),rgba(255,255,255,.09);
+  box-shadow:inset 0 0 0 1px var(--edge);
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+}
+.ap-page-panel-content{width:100%;display:flex;flex-direction:column;align-items:stretch}
+.ap-panel-header{width:100%;display:flex;flex-direction:column}
+.ap-panel-kicker{
+  width:100%;color:var(--gold);font-family:var(--ui-stack);
+  /* token? 10px from qml/account/AccountPanelHeader.qml:23 */
+  /* token? 2.4px letter spacing from qml/account/AccountPanelHeader.qml:25 */
+  font-size:10px;font-weight:700;letter-spacing:2.4px;line-height:normal;overflow-wrap:anywhere;
+}
+/* token? 12px from qml/account/AccountPanelHeader.qml:29 */
+.ap-panel-kicker-gap{height:12px}
+.ap-panel-title{
+  width:100%;color:var(--ink);font-family:var(--display-stack);
+  /* token? 29px from qml/account/AccountPanelHeader.qml:36 */
+  font-size:29px;font-weight:500;line-height:normal;overflow-wrap:anywhere;
+}
+/* token? 10px from qml/account/AccountPanelHeader.qml:41 */
+.ap-panel-copy-gap{height:10px}
+.ap-panel-copy{
+  width:100%;color:var(--inkDimmer);font-family:var(--ui-stack);
+  /* token? 1.45 line height from qml/account/AccountPanelHeader.qml:50 */
+  font-size:var(--t-md);line-height:1.45;overflow-wrap:anywhere;
+}
+/* token? 400px implicit width from qml/account/AccountField.qml:26 */
+.ap-field{display:block;width:400px;max-width:100%;font-family:var(--ui-stack)}
+.ap-field-label{
+  display:block;color:var(--inkDim);font-size:var(--t-sm);font-weight:600;line-height:normal;
+}
+/* token? 4px top margin and 11px font from qml/account/AccountField.qml:46,51 */
+.ap-field-hint{
+  display:block;width:100%;margin-top:4px;color:var(--inkDimmer);
+  font-size:11px;line-height:normal;overflow-wrap:anywhere;
+}
+/* token? 10px gap and 46px height from qml/account/AccountField.qml:61-62 */
+.ap-field-control{
+  position:relative;display:block;width:100%;height:46px;margin-top:10px;
+}
+.ap-field-control::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  /* token? radius 12 + Qt.rgba(.015,.018,.03,.68) from qml/account/AccountField.qml:75-80 */
+  border-radius:var(--r-md);background:rgb(1.5% 1.8% 3% / 68%);box-shadow:inset 0 0 0 1px var(--edge);
+}
+.ap-field-control:has(.ap-field-input:focus)::before{box-shadow:inset 0 0 0 2px var(--gold)}
+.ap-field-input{
+  position:relative;z-index:1;display:block;width:100%;height:100%;margin:0;border:0;outline:0;
+  background:transparent;color:var(--ink);font-family:var(--ui-stack);font-size:var(--t-md);
+  /* token? left 14, normal right 14 from qml/account/AccountField.qml:63-64 */
+  padding:0 14px;
+}
+/* token? password right padding 48px from qml/account/AccountField.qml:64 */
+.ap-field-input[type="password"]{padding-right:48px}
+.ap-field-input::placeholder{color:var(--inkDimmer);opacity:1}
+/* token? reveal geometry from qml/account/AccountField.qml:91-114 */
+.ap-field-reveal{
+  position:absolute;z-index:2;right:8px;top:50%;width:32px;height:32px;transform:translateY(-50%);
+  display:grid;place-items:center;border:0;border-radius:7px;padding:0;background:transparent;
+  color:var(--inkDimmer);font-family:var(--ui-stack);font-size:15px;line-height:1;cursor:pointer;
+}
+/* token? Qt.rgba(1,1,1,.07) from qml/account/AccountField.qml:111-113 */
+.ap-field-reveal:hover{background:rgba(255,255,255,.07);color:var(--ink)}
+.ap-field-reveal:disabled{cursor:default}
+.ap-button{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  /* token? 46px height, min 160 and +34 implicit width from qml/account/AccountButton.qml:13-15 */
+  min-width:160px;height:46px;padding:0 17px;border:0;border-radius:var(--r-md);
+  box-shadow:inset 0 0 0 1px var(--edge);background:var(--glassTint);
+  color:var(--ink);font-family:var(--ui-stack);font-size:var(--t-md);font-weight:600;
+  cursor:pointer;
+  /* token? primaryInk #141207 from qml/account/AccountButton.qml:11 */
+  --ap-primary-ink:#141207;
+}
+.ap-button-label{
+  display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  text-align:center;opacity:1;
+}
+.ap-button:hover:not(:disabled){background:var(--glassHi)}
+/* token? Qt.rgba(1,1,1,.16) from qml/account/AccountButton.qml:41-43 */
+.ap-button:active:not(:disabled){background:rgba(255,255,255,.16)}
+.ap-button[data-variant="primary"]{
+  background:var(--gold);color:var(--ap-primary-ink);
+  /* token? Qt.rgba(.94,.77,.29,.50) from qml/account/AccountButton.qml:46-48 */
+  box-shadow:inset 0 0 0 1px rgb(94% 77% 29% / 50%);
+}
+.ap-button[data-variant="primary"]:hover:not(:disabled){background:var(--gold)}
+.ap-button[data-variant="primary"]:active:not(:disabled){
+  /* token? Qt.darker(theme.gold,1.12) from qml/account/AccountButton.qml:38 */
+  background:color-mix(in srgb,var(--gold) 89.285714%,black);
+}
+.ap-button[data-variant="link"]{
+  /* token? radius 6 from qml/account/AccountButton.qml:35 */
+  min-width:160px;border-radius:6px;box-shadow:none;background:transparent;
+}
+/* token? Qt.rgba(1,1,1,.07) from qml/account/AccountButton.qml:39-40 */
+.ap-button[data-variant="link"]:hover:not(:disabled){background:rgba(255,255,255,.07)}
+.ap-button[data-variant="link"]:active:not(:disabled){background:rgba(255,255,255,.07)}
+.ap-button:disabled{cursor:default}
+.ap-button:not([data-variant="primary"]):disabled{color:var(--inkDimmer)}
+.ap-button:disabled .ap-button-label{opacity:.58}
+/* token? focus ring margin -3, radius 14, border 2 from qml/account/AccountButton.qml:51-59 */
+.ap-button:focus::after{
+  content:"";position:absolute;inset:-3px;border:2px solid var(--gold);border-radius:14px;pointer-events:none;
+}
+
+.ap-choice{
+  /* token? height 76 + radius 14 + white alpha .045 from qml/account/AccountChoice.qml:14,51,54 */
+  position:relative;width:100%;height:76px;border:0;border-radius:var(--r-lg);padding:0;
+  background:rgb(100% 100% 100% / 4.5%);box-shadow:inset 0 0 0 1px var(--edge);
+  color:var(--ink);font-family:var(--ui-stack);text-align:left;cursor:pointer;
+}
+/* token? white alpha .09 from qml/account/AccountChoice.qml:52-54 */
+.ap-choice:hover:not(:disabled){background:rgb(100% 100% 100% / 9%)}
+.ap-choice:focus{box-shadow:inset 0 0 0 1px var(--gold)}
+.ap-choice:disabled{cursor:default}
+.ap-choice-content{
+  /* token? 18px side margins + 5px spacing from qml/account/AccountChoice.qml:25-27 */
+  position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:5px;
+}
+.ap-choice-title{
+  display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  /* token? 15px from qml/account/AccountChoice.qml:34 */
+  color:var(--ink);font-size:15px;font-weight:600;line-height:normal;
+}
+.ap-choice-detail{
+  display:block;width:100%;color:var(--inkDimmer);font-size:var(--t-sm);line-height:normal;overflow-wrap:anywhere;
+}
+@media (prefers-reduced-motion:reduce){
+  .ap-page-panel{backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+:root[data-power="low"] .ap-page-panel{backdrop-filter:none;-webkit-backdrop-filter:none}

@@ -1,0 +1,11 @@
+html,body,#parts-root{width:100%;height:100%;margin:0;overflow:hidden}
+body{background:var(--washBottom);color:var(--ink);font-family:var(--ui-stack)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus{outline:none}
+.ap-show-field{width:100%}
+/* Verification composition spacing mirrors ordinary Account callers; it is not a sixth shared component. */
+.ap-show-space-24{height:24px}
+.ap-show-space-20{height:20px}
+.ap-show-space-12{height:12px}
+.ap-show-actions{display:flex;align-items:center;gap:16px}
