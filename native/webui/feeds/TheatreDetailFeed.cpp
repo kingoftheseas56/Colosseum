@@ -7,6 +7,7 @@
 
 #include "../../CollectionStore.h"
 #include "../../ProgressStore.h"
+#include "../../anime/AnimeOrderService.h"
 #include "../../engine/ExtensionsStore.h"
 #include "../../engine/ImdbCatalog.h"
 #include "../../engine/MalCatalog.h"
@@ -205,13 +206,13 @@ bool valid(const QVariantMap &params)
 QVariantList initial(const QVariantMap &)
 {
     return {section(QStringLiteral("hero"), 0, QStringLiteral("Title"), QStringLiteral("loading")),
-            section(QStringLiteral("facts"), 1, QStringLiteral("Facts"), QStringLiteral("loading")),
-            section(QStringLiteral("seasons"), 2, QStringLiteral("Seasons"), QStringLiteral("loading")),
-            section(QStringLiteral("episodes"), 3, QStringLiteral("Episodes"), QStringLiteral("loading")),
-            section(QStringLiteral("cast"), 4, QStringLiteral("Cast"), QStringLiteral("loading")),
-            section(QStringLiteral("sources"), 5, QStringLiteral("Sources"), QStringLiteral("loading")),
-            WebFeedValue::section(QStringLiteral("related"), 6, QStringLiteral("More Like This"),
-                                  QStringLiteral("rail"), {}, QStringLiteral("loading"))};
+            section(QStringLiteral("seasons"), 1, QStringLiteral("Seasons"), QStringLiteral("loading")),
+            section(QStringLiteral("episodes"), 2, QStringLiteral("Episodes"), QStringLiteral("loading")),
+            section(QStringLiteral("cast"), 3, QStringLiteral("Cast"), QStringLiteral("loading")),
+            WebFeedValue::section(QStringLiteral("related"), 4, QStringLiteral("More Like This"),
+                                  QStringLiteral("rail"), {}, QStringLiteral("loading")),
+            section(QStringLiteral("facts"), 5, QStringLiteral("Information"), QStringLiteral("loading")),
+            section(QStringLiteral("sources"), 6, QStringLiteral("Sources"), QStringLiteral("loading"))};
 }
 
 void capture(ColosseumWebBridge &bridge, FeedContext &ctx)
@@ -246,6 +247,29 @@ void capture(ColosseumWebBridge &bridge, FeedContext &ctx)
     }
     if (auto *extensions = qobject_cast<ExtensionsStore *>(bridge.service(QStringLiteral("Extensions"))))
         ctx.extensions = extensions->installed();
+    if (auto *downloads = qobject_cast<DownloadStore *>(bridge.service(QStringLiteral("Download")))) {
+        QVariantMap states;
+        for (const QVariant &value : downloads->jobs()) {
+            const QVariantMap job = value.toMap();
+            const QString streamId = job.value(QStringLiteral("id")).toString();
+            if (streamId == id || streamId.startsWith(id + QLatin1Char(':')))
+                states.insert(streamId, QVariantMap{
+                    {QStringLiteral("state"), job.value(QStringLiteral("state"))},
+                    {QStringLiteral("progress"), job.value(QStringLiteral("ratio"))}});
+        }
+        for (const QVariant &value : downloads->downloadedVideos()) {
+            const QString streamId = value.toMap().value(QStringLiteral("id")).toString();
+            if (streamId == id || streamId.startsWith(id + QLatin1Char(':')))
+                states.insert(streamId, QVariantMap{{QStringLiteral("state"), QStringLiteral("downloaded")},
+                                                     {QStringLiteral("progress"), 1.0}});
+        }
+        ctx.nativeSnapshot.insert(QStringLiteral("downloadStates"), states);
+    }
+    // resolve() only reads the service's immutable index under its read lock. The service
+    // outlives subscriptions; pass its pointer to this worker build without copying the index.
+    if (auto *order = qobject_cast<AnimeOrderService *>(bridge.service(QStringLiteral("AnimeOrder"))))
+        ctx.nativeSnapshot.insert(QStringLiteral("animeOrderService"),
+                                  QVariant::fromValue(static_cast<QObject *>(order)));
 }
 
 QVariantList build(const FeedContext &ctx)
@@ -279,6 +303,18 @@ QVariantList build(const FeedContext &ctx)
         type == QLatin1String("movie") ? requested : QString()).toString();
     const QVariantList sourceRows = sourceTarget.isEmpty() ? QVariantList{} : resolveSources(ctx, sourceTarget);
     FeedContext projectionCtx = ctx;
+    if (type == QLatin1String("series")) {
+        auto *order = qobject_cast<AnimeOrderService *>(
+            ctx.nativeSnapshot.value(QStringLiteral("animeOrderService")).value<QObject *>());
+        if (order && !meta.value(QStringLiteral("videos")).toList().isEmpty()) {
+            QVariantMap identities{{QStringLiteral("sourceId"), requested},
+                                   {QStringLiteral("resolvedId"), resolvedId}};
+            if (resolvedId.startsWith(QLatin1String("tt")))
+                identities.insert(QStringLiteral("imdbIds"), QVariantList{resolvedId});
+            projectionCtx.nativeSnapshot.insert(QStringLiteral("animeOrder"),
+                order->resolve(identities, meta.value(QStringLiteral("videos")).toList()));
+        }
+    }
     if (requested.startsWith(QLatin1String("mal:")) && !ctx.paths.mal.isEmpty()) {
         bool validMalId = false;
         const int malId = requested.mid(4).toInt(&validMalId);
@@ -310,6 +346,35 @@ const bool feedRegistered = [] {
     entry.initial = &initial;
     entry.build = &build;
     entry.capture = &capture;
+    entry.ownerSignals.append({QStringLiteral("AnimeOrder"),
+        [](QObject *object, QObject *receiver, std::function<void()> changed) {
+            auto *order = qobject_cast<AnimeOrderService *>(object);
+            if (!order) return QMetaObject::Connection{};
+            return QObject::connect(order, &AnimeOrderService::changed, receiver,
+                [changed = std::move(changed)] { changed(); });
+        }});
+    entry.ownerSignals.append({QStringLiteral("Download"),
+        [](QObject *object, QObject *receiver, std::function<void()> changed) {
+            auto *downloads = qobject_cast<DownloadStore *>(object);
+            if (!downloads) return QMetaObject::Connection{};
+            const auto pending = QSharedPointer<bool>::create(false);
+            return QObject::connect(downloads, &DownloadStore::changed, receiver,
+                [pending, receiver, changed = std::move(changed)] {
+                    if (*pending) return;
+                    *pending = true;
+                    QTimer::singleShot(1000, receiver, [pending, changed] {
+                        *pending = false;
+                        changed();
+                    });
+                });
+        }});
+    entry.ownerSignals.append({QStringLiteral("Download"),
+        [](QObject *object, QObject *receiver, std::function<void()> changed) {
+            auto *downloads = qobject_cast<DownloadStore *>(object);
+            if (!downloads) return QMetaObject::Connection{};
+            return QObject::connect(downloads, &DownloadStore::libraryChanged, receiver,
+                [changed = std::move(changed)] { changed(); });
+        }});
     return FeedRegistry::add(entry);
 }();
 const bool seasonRegistered = ActionRegistry::add({QStringLiteral("detail.theatre.selectSeason"),
@@ -334,6 +399,42 @@ const bool sourcesRegistered = ActionRegistry::add({QStringLiteral("detail.theat
         if ((type == QLatin1String("movie") && target != id)
             || (type == QLatin1String("series") && episodeFor(id, target).isEmpty()))
             return unavailable(done, QStringLiteral("This episode is no longer available."));
+        if (p.value(QStringLiteral("intent"), QStringLiteral("play")) == QLatin1String("play")) {
+            if (auto *downloads = qobject_cast<DownloadStore *>(bridge.service(QStringLiteral("Download")))) {
+                const auto opened = [done](const QVariantMap &result) {
+                    if (!result.value(QStringLiteral("ok")).toBool()) return done(result);
+                    done({{QStringLiteral("ok"), true}, {QStringLiteral("result"), QVariantMap{
+                        {QStringLiteral("openedPlayback"), true}}}});
+                };
+                for (const QVariant &value : downloads->downloadedVideos()) {
+                    const QVariantMap video = value.toMap();
+                    if (video.value(QStringLiteral("id")) != target || video.value(QStringLiteral("missing")).toBool()
+                        || video.value(QStringLiteral("path")).toString().isEmpty()) continue;
+                    double position = 0;
+                    if (auto *progress = qobject_cast<ProgressStore *>(bridge.service(QStringLiteral("Progress"))))
+                        position = progress->get(QStringLiteral("video"), target).value(QStringLiteral("resume"))
+                            .toMap().value(QStringLiteral("position")).toDouble();
+                    bridge.delegateAction(QStringLiteral("detail.theatre.playLocal"),
+                        {{QStringLiteral("path"), video.value(QStringLiteral("path"))},
+                         {QStringLiteral("id"), target},
+                         {QStringLiteral("title"), video.value(QStringLiteral("title"),
+                             bridge.detailParams(kFeed, id).value(QStringLiteral("title")))},
+                         {QStringLiteral("art"), video.value(QStringLiteral("art"),
+                             bridge.detailParams(kFeed, id).value(QStringLiteral("cover")))},
+                         {QStringLiteral("kind"), type == QLatin1String("movie") ? QStringLiteral("movie")
+                             : QStringLiteral("episode")},
+                         {QStringLiteral("position"), position}}, opened);
+                    return;
+                }
+                for (const QVariant &value : downloads->jobs()) {
+                    const QVariantMap job = value.toMap();
+                    if (job.value(QStringLiteral("id")) != target || job.value(QStringLiteral("url")).toString().isEmpty())
+                        continue;
+                    bridge.delegateAction(QStringLiteral("detail.theatre.playArriving"), job, opened);
+                    return;
+                }
+            }
+        }
         const auto settled = QSharedPointer<bool>::create(false);
         const auto connection = QSharedPointer<QMetaObject::Connection>::create();
         *connection = QObject::connect(&bridge, &ColosseumWebBridge::feedEvent, &bridge,
@@ -451,6 +552,91 @@ const bool downloadRegistered = ActionRegistry::add({QStringLiteral("detail.thea
         if (!accepted) return unavailable(done, QStringLiteral("This download could not be queued."));
         done({{QStringLiteral("ok"), true}, {QStringLiteral("result"), QVariantMap{
             {QStringLiteral("jobId"), target}}}});
+    }});
+const bool seasonDownloadRegistered = ActionRegistry::add({QStringLiteral("detail.theatre.downloadSeason"),
+    [](const QVariantMap &p) { return identity(p) && p.contains(QStringLiteral("season")); },
+    [](ColosseumWebBridge &bridge, const QVariantMap &p, ActionRegistry::Completion done) {
+        const QString id = p.value(QStringLiteral("id")).toString();
+        if (!bridge.detailActive(kFeed, id))
+            return unavailable(done, QStringLiteral("This title is no longer open."));
+        const QVariantMap params = bridge.detailParams(kFeed, id);
+        if (params.value(QStringLiteral("type")) != QLatin1String("series"))
+            return unavailable(done, QStringLiteral("Season downloads need a series."));
+        auto *downloads = qobject_cast<DownloadStore *>(bridge.service(QStringLiteral("Download")));
+        if (!downloads) return unavailable(done, QStringLiteral("Video downloads are unavailable."));
+        const int season = p.value(QStringLiteral("season")).toInt();
+        QVariantList videos;
+        {
+            QMutexLocker lock(&sourceMutex);
+            videos = metaCache.value(id).value(QStringLiteral("videos")).toList();
+        }
+        QString pinHash;
+        const QString key = p.value(QStringLiteral("sourceKey")).toString();
+        if (!key.isEmpty()) {
+            if (bridge.detailRow(kFeed, id, QStringLiteral("sources"), key).isEmpty())
+                return unavailable(done, QStringLiteral("This source is no longer available."));
+            QVariantMap choice;
+            {
+                QMutexLocker lock(&sourceMutex);
+                choice = sourceChoices.value(key);
+            }
+            const QVariantMap choiceEpisode = episodeFor(id,
+                choice.value(QStringLiteral("targetId")).toString());
+            if (choice.value(QStringLiteral("titleId")) != id || choiceEpisode.isEmpty()
+                || choiceEpisode.value(QStringLiteral("season"),
+                    choiceEpisode.value(QStringLiteral("seasonNumber"))).toInt() != season)
+                return unavailable(done, QStringLiteral("This source is no longer available."));
+            pinHash = choice.value(QStringLiteral("infoHash")).toString();
+            if (pinHash.startsWith(QLatin1String("url:"))) pinHash.clear();
+        }
+        QVariantList requests;
+        bool foundSeason = false;
+        for (const QVariant &value : videos) {
+            const QVariantMap video = value.toMap();
+            const int rowSeason = video.value(QStringLiteral("season"),
+                video.value(QStringLiteral("seasonNumber"))).toInt();
+            if (rowSeason != season) continue;
+            foundSeason = true;
+            const QString streamId = video.value(QStringLiteral("id")).toString();
+            if (streamId.isEmpty() || downloads->hasVideo(streamId)) continue;
+            const int episode = video.value(QStringLiteral("episode"),
+                video.value(QStringLiteral("number"))).toInt();
+            QVariantMap request{{QStringLiteral("id"), streamId},
+                {QStringLiteral("kind"), QStringLiteral("episode")},
+                {QStringLiteral("title"), QStringLiteral("%1 - S%2E%3")
+                    .arg(params.value(QStringLiteral("title")).toString()).arg(season).arg(episode)},
+                {QStringLiteral("subtitle"), video.value(QStringLiteral("title"), video.value(QStringLiteral("name")))},
+                {QStringLiteral("seriesTitle"), params.value(QStringLiteral("title"))},
+                {QStringLiteral("season"), season}, {QStringLiteral("episode"), episode},
+                {QStringLiteral("art"), params.value(QStringLiteral("cover"))}};
+            if (!pinHash.isEmpty()) {
+                request.insert(QStringLiteral("infoHash"), pinHash);
+                request.insert(QStringLiteral("fileIdx"), -1);
+            }
+            requests.append(request);
+        }
+        if (!foundSeason) return unavailable(done, QStringLiteral("This season is no longer available."));
+        if (requests.isEmpty())
+            return done({{QStringLiteral("ok"), true},
+                         {QStringLiteral("result"), QVariantMap{{QStringLiteral("queued"), 0}}}});
+        downloads->enqueueBatch(requests);
+        int accepted = 0;
+        const QVariantList jobs = downloads->jobs();
+        for (const QVariant &request : requests) {
+            const QString streamId = request.toMap().value(QStringLiteral("id")).toString();
+            for (const QVariant &job : jobs)
+                if (job.toMap().value(QStringLiteral("id")) == streamId) { ++accepted; break; }
+        }
+        if (!accepted) return unavailable(done, QStringLiteral("This season could not be queued."));
+        if (auto *collection = qobject_cast<CollectionStore *>(bridge.service(QStringLiteral("Collection"))); collection
+            && !collection->has(QStringLiteral("theatre"), id))
+            collection->add(QStringLiteral("theatre"),
+                {{QStringLiteral("id"), id}, {QStringLiteral("type"), QStringLiteral("series")},
+                 {QStringLiteral("title"), params.value(QStringLiteral("title"))},
+                 {QStringLiteral("cover"), params.value(QStringLiteral("cover"))}});
+        bridge.updateDetail(kFeed, id, {});
+        done({{QStringLiteral("ok"), true},
+              {QStringLiteral("result"), QVariantMap{{QStringLiteral("queued"), accepted}}}});
     }});
 const bool collectionRegistered = ActionRegistry::add({QStringLiteral("detail.theatre.collection"),
     [](const QVariantMap &p) { return identity(p) && p.value(QStringLiteral("saved")).metaType().id() == QMetaType::Bool; },

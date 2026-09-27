@@ -4571,6 +4571,14 @@ Window {
                 } else {
                     ok = false; error = "Item destination is unavailable."
                 }
+            } else if (action === "detail.theatre.playLocal") {
+                if (!String(payload.path || "").length || !String(payload.id || "").length) {
+                    ok = false; error = "This download is unavailable."
+                } else win.openLocalVideoSession(payload)
+            } else if (action === "detail.theatre.playArriving") {
+                if (!String(payload.url || "").length || !String(payload.id || "").length) {
+                    ok = false; error = "This download is not ready to play."
+                } else win.routeArrivingPlay(payload)
             } else if (action === "detail.theatre.playSource") {
                 var sourceHash = String(payload.infoHash || "")
                 var sourceId = String(payload.subId || "")

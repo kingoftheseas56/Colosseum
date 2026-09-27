@@ -18,6 +18,7 @@
     const feedFns = [];
     const shellFns = [];
     const timers = new Map();
+    const paging = new Map();
     let nextId = 1;
 
     const recordings = fetch(base + 'index.json')
@@ -39,10 +40,12 @@
       const events = rec.events || [];
       const t0 = events.length ? events[0].t : 0;
       const handles = [];
-      let seq = 0;
+      const state = { rec, seq: 0, cursors: {} };
+      paging.set(id, state);
       events.forEach(e => {
         const delay = Math.min(1500, Math.max(0, (e.t - t0)));
-        handles.push(setTimeout(() => emit({ id, generation: e.generation || 1, seq: ++seq, event: e.event }), delay));
+        handles.push(setTimeout(() => emit({ id, generation: e.generation || 1,
+          seq: ++state.seq, event: e.event }), delay));
       });
       timers.set(id, handles);
     }
@@ -70,10 +73,22 @@
       unsubscribe(id) {
         (timers.get(id) || []).forEach(clearTimeout);
         timers.delete(id);
+        paging.delete(id);
       },
       /** dev only: change shell state, e.g. setShell({covered:true}) to rehearse a native destination. */
       setShell(patch) { shell = { ...shell, ...patch }; shellFns.forEach(fn => fn(shell)); },
-      more: () => Promise.resolve({ ok: false, error: 'Recorded data has no further pages.' }),
+      more(id, sectionId) {
+        // An explicit test recording may include recorded section windows to release per click.
+        const state = paging.get(id);
+        const pages = state?.rec.pages?.[sectionId] || [];
+        const cursor = state?.cursors[sectionId] || 0;
+        if (!state || cursor >= pages.length)
+          return Promise.resolve({ ok: false, error: 'Recorded data has no further pages.' });
+        state.cursors[sectionId] = cursor + 1;
+        emit({ id, generation: 1, seq: ++state.seq,
+          event: { type: 'section', section: pages[cursor] } });
+        return Promise.resolve({ ok: true });
+      },
       act(action, payload) {
         const what = payload && payload.item ? `${action} → ${payload.item.title}` : action;
         if (CW.toast) CW.toast(`Fixture mode: Colosseum would handle “${what}”`);

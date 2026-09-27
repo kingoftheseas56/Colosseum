@@ -250,10 +250,11 @@ async function runChecks(session, failures) {
     return true;
   })()`);
 
+  let probeResult = null;
   if (probeFile) {
-    const result = await evaluate(session, fs.readFileSync(probeFile, 'utf8'));
-    console.log('probe ' + JSON.stringify(result));
-    if (!result || !result.ok) failures.push('probe failed: ' + JSON.stringify(result));
+    probeResult = await evaluate(session, fs.readFileSync(probeFile, 'utf8'));
+    console.log('probe ' + JSON.stringify(probeResult));
+    if (!probeResult || !probeResult.ok) failures.push('probe failed: ' + JSON.stringify(probeResult));
   }
 
   await screenshot(session, path.join(OUT, `${label}.png`));          // the page as the app shows it
@@ -268,7 +269,14 @@ async function runChecks(session, failures) {
     try { await screenshot(session, path.join(OUT, `${label}-${w}.png`), w, h); }
     catch (e) { console.log(`note: ${w}×${h} shot failed (${e.message})`); }
   }
+  if (probeResult?.closeOverlayAfterCapture)
+    await evaluate(session, `document.querySelector('[data-focus-scope]')?.__close?.()`);
 
+  await evaluate(session, `(() => {
+    document.activeElement?.blur();
+    const board = document.getElementById('board');
+    if (board) board.scrollTop = 0;
+  })()`);
   const walk = await keyboardWalk(session);
   console.log(`keyboard: reached ${walk.reached}/${walk.total} focusables in ${walk.presses} presses`);
   if (walk.unreachable.length) failures.push(`unreachable by keyboard (${walk.unreachable.length}): ${walk.unreachable.slice(0, 15).join(' | ')}`);

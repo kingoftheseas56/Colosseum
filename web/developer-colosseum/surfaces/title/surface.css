@@ -116,3 +116,174 @@ button.title-action:hover .title-action-label,button.title-action:focus-visible 
 @media(max-width:1100px){.title-hero{min-height:620px}.title-hero-copy{width:min(720px,85vw);padding-bottom:40px}.title-hero:before{background:linear-gradient(90deg,rgba(0,0,0,.94),rgba(0,0,0,.54) 55%,rgba(0,0,0,.15)),linear-gradient(0deg,#000,transparent 75%)}}
 @media(max-width:700px){.title-hero{min-height:670px}.title-hero-copy{width:100%;padding:120px var(--margin) 42px}.title-logo{max-width:75vw}.title-name{font-size:42px}.title-actions{gap:var(--s-2)}.title-play{width:100%;justify-content:center}.title-pills{gap:5px}}
 @media(prefers-reduced-motion:reduce){.title-play,.title-action,.title-action-label{transition:none}}
+
+/* A unit is an episode today and can be a chapter when the title surface gains manga. */
+.title-page [data-section='seasons'],.title-page [data-section='episodes']{margin:0 var(--margin)}
+.title-page .dt-season-row{position:relative;padding:14px 0 22px;align-items:center;gap:22px}
+.title-page .dt-season{white-space:nowrap}
+.title-season-select{position:relative}
+.title-season-trigger{min-width:180px;display:flex;justify-content:space-between;gap:20px;align-items:center;padding:11px 15px;border:1px solid var(--edge);border-radius:var(--r-sm);background:var(--glassTint);color:var(--ink);font:600 var(--t-sm) var(--ui-stack)}
+.title-season-menu{position:absolute;top:calc(100% + 7px);left:0;z-index:12;width:240px;max-height:min(400px,65vh);overflow-y:auto;display:grid;padding:6px;border:1px solid var(--edge);border-radius:var(--r-md);background:#141414;box-shadow:0 24px 70px rgba(0,0,0,.75)}
+.title-season-option{display:flex;justify-content:space-between;align-items:center;gap:15px;width:100%;padding:11px 12px;color:var(--ink);text-align:left;font:var(--t-sm) var(--ui-stack);border-radius:var(--r-sm)}
+.title-season-option:hover,.title-season-option.on{background:var(--glassHi);color:var(--gold)}
+.title-season-option small{color:var(--inkDimmer)}
+.title-page .title-order{margin-left:auto}
+.title-page [data-section='episodes']{margin-top:0}
+.title-page .dt-episodes{display:grid;gap:0}
+.title-units-heading{display:flex;justify-content:space-between;align-items:end;gap:20px;padding:15px 0 18px;border-bottom:1px solid var(--edge)}
+.title-units-kicker{font:700 var(--t-xs) var(--ui-stack);letter-spacing:.23em;color:var(--gold)}
+.title-units-heading h2{margin:6px 0 0;font:600 clamp(26px,2.2vw,36px)/1.1 var(--display-stack)}
+.title-units-heading small{font:var(--t-sm) var(--ui-stack);color:var(--inkDimmer)}
+.title-unit{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr) auto;align-items:center;gap:22px;padding:20px 14px;border-bottom:1px solid var(--edge);transition:background var(--t-fast)}
+.title-unit:hover{background:var(--glassTint)}
+.title-unit.next{background:linear-gradient(90deg,rgba(245,197,24,.1),transparent 75%);border-left:3px solid var(--gold);padding-left:11px}
+.title-unit-art{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:var(--r-sm);background:var(--glassTint)}
+.title-unit-art .face,.title-unit-art img{width:100%;height:100%;object-fit:cover}
+.title-unit-next{position:absolute;left:9px;bottom:9px;padding:5px 7px;border-radius:var(--r-sm);background:var(--gold);color:var(--washBottom);font:800 10px var(--ui-stack);letter-spacing:.08em}
+.title-unit-copy{display:grid;align-content:center;gap:7px;min-width:0}
+.title-unit-eyebrow{display:flex;flex-wrap:wrap;gap:12px;color:var(--inkDimmer);font:600 var(--t-xs) var(--ui-stack);letter-spacing:.08em;text-transform:uppercase}
+.title-unit-eyebrow span+span:before{content:'·';margin-right:12px}
+.title-unit h3{margin:0;font:600 clamp(17px,1.25vw,22px)/1.2 var(--ui-stack);color:var(--ink)}
+.title-unit p{margin:0;max-width:70ch;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--inkDim);font:var(--t-sm)/1.45 var(--ui-stack)}
+.title-unit-state{color:var(--inkDimmer);font:600 var(--t-xs) var(--ui-stack);letter-spacing:.03em}
+.title-unit-progress{height:3px;max-width:280px;border-radius:var(--r-pill);overflow:hidden;background:var(--edge)}
+.title-unit-progress i{display:block;height:100%;background:var(--gold)}
+.title-unit-actions{display:flex;align-items:center;gap:9px}
+.title-unit-play,.title-unit-download{height:39px;border:1px solid var(--edge);border-radius:var(--r-pill);background:var(--glassTint);color:var(--ink);font:600 var(--t-sm) var(--ui-stack)}
+.title-unit-play{min-width:85px;padding:0 18px}
+.title-unit-download{width:39px;font-size:21px}
+.title-unit-play:hover,.title-unit-download:hover{border-color:var(--gold);color:var(--gold)}
+.title-page .dt-more{justify-self:center;margin:25px 0 5px}
+.title-page [data-section='sources']{margin:0}
+.title-source-overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.72)}
+.title-source-sheet{width:min(100%,980px);max-height:80vh;overflow:auto;padding:25px clamp(20px,3vw,42px) 38px;border:1px solid var(--edge);border-radius:var(--r-xl) var(--r-xl) 0 0;background:#111;box-shadow:0 -20px 80px rgba(0,0,0,.8)}
+.title-source-head,.title-source-row,.title-source-actions{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.title-source-head{padding-bottom:19px;border-bottom:1px solid var(--edge)}
+.title-source-head h2{margin:5px 0 0;font:600 30px var(--display-stack)}
+.title-source-close{width:38px;height:38px;border-radius:50%;border:1px solid var(--edge);color:var(--ink);font-size:25px}
+.title-source-list{display:grid}
+.title-source-row{padding:15px 0;border-bottom:1px solid var(--edge)}
+.title-source-row>div:first-child{display:grid;gap:5px}
+.title-source-row small{color:var(--inkDimmer)}
+.title-source-empty{color:var(--inkDim);margin:24px 0}
+@media(max-width:1050px){.title-unit{grid-template-columns:190px minmax(0,1fr);gap:16px}.title-unit-actions{grid-column:2}.title-unit p{-webkit-line-clamp:2}}
+@media(max-width:700px){.title-unit{grid-template-columns:120px minmax(0,1fr);padding:16px 0}.title-unit.next{padding-left:8px}.title-unit-actions{grid-column:1/-1}.title-unit p{display:none}.title-unit-eyebrow{gap:5px}.title-unit-eyebrow span+span:before{margin-right:5px}.title-source-row{align-items:flex-start;flex-direction:column}}
+
+/* Harbor series-episode-row: landscape still, small number badge, text stack and quiet side actions. */
+.title-unit{grid-template-columns:minmax(0,1fr) auto;gap:16px;border-radius:var(--r-lg);padding:20px 16px}
+.title-unit.next{padding-left:13px}
+.title-unit-main{display:grid;grid-template-columns:200px minmax(0,1fr);align-items:center;gap:24px;min-width:0;width:100%;padding:0;text-align:left;color:var(--ink)}
+.title-unit-art{width:200px;border-radius:var(--r-sm)}
+.title-unit-art-empty{background:linear-gradient(145deg,#243445,#17222d 62%,#111920)}
+.title-unit-art-empty .face .fb{padding:0;background:transparent}
+.title-unit-art .face{display:block;width:100%;height:100%}
+.title-unit-number,.title-unit-watched{position:absolute;top:8px;z-index:2;display:grid;place-items:center;min-width:23px;height:22px;border-radius:var(--r-sm);background:rgba(0,0,0,.88);color:var(--ink);font:700 11px var(--ui-stack)}
+.title-unit-number{left:8px}.title-unit-watched{right:8px;background:rgba(36,145,91,.55);color:#d1ffe0}
+.title-unit-next{bottom:11px;left:8px;font-size:9px}
+.title-unit-progress{position:absolute;left:0;right:0;bottom:0;max-width:none;height:3px;background:rgba(0,0,0,.7)}
+.title-unit-play-mark{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.36);color:#111;font-size:20px;opacity:0;transition:opacity var(--t-fast)}
+.title-unit-play-mark:before{content:'';position:absolute;width:48px;height:48px;border-radius:50%;background:var(--ink);z-index:-1}
+.title-unit-main:hover .title-unit-play-mark,.title-unit-main:focus-visible .title-unit-play-mark{opacity:1}
+.title-unit-copy{gap:7px}.title-unit h3{font:600 16px/1.25 var(--ui-stack)}
+.title-unit p.title-unit-meta{display:block;margin:0;color:var(--inkDimmer);font:12px/1.45 var(--ui-stack)}
+.title-unit p.title-unit-overview{display:-webkit-box;color:var(--inkDim);font:13.5px/1.5 var(--ui-stack)}
+.title-unit-actions{grid-column:auto;gap:5px}
+.title-unit-sources,.title-unit-download{display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:var(--inkDimmer);font:22px/1 var(--ui-stack)}
+.title-unit-sources:hover,.title-unit-download:hover{background:var(--glassHi);color:var(--ink)}
+@media(max-width:800px){.title-unit-main{grid-template-columns:150px minmax(0,1fr);gap:15px}.title-unit-art{width:150px}.title-unit{gap:6px;padding:15px 7px}.title-unit p.title-unit-overview{-webkit-line-clamp:2}}
+@media(max-width:560px){.title-unit-main{grid-template-columns:105px minmax(0,1fr);gap:10px}.title-unit-art{width:105px}.title-unit p.title-unit-overview{display:none}.title-unit h3{font-size:14px}.title-unit-actions{flex-direction:column}}
+.title-season-trigger{height:40px;min-width:165px;padding:0 14px 0 16px;border-radius:var(--r-pill);background:rgba(0,0,0,.9);font:500 13.5px var(--ui-stack)}
+.title-season-menu{position:fixed;z-index:100;width:288px;max-height:min(60vh,470px);border-radius:var(--r-lg);padding:6px;background:#111}
+.title-season-option{padding:10px 16px;border-radius:0}
+.title-season-option-copy{display:grid;gap:3px}
+.title-season-option-copy>span{font:500 13.5px var(--ui-stack)}
+.title-season-option-copy small{font:11.5px var(--ui-stack);color:var(--inkDimmer)}
+.title-units-tools{display:flex;align-items:center;gap:14px}
+.title-season-download{height:36px;padding:0 15px;border:1px solid var(--edge);border-radius:var(--r-pill);color:var(--inkDim);font:600 var(--t-sm) var(--ui-stack)}
+.title-season-download:hover,.title-season-download:focus-visible{border-color:var(--gold);color:var(--gold)}
+.title-season-auto{margin-top:18px;padding:11px 17px;border:1px solid var(--edge);border-radius:var(--r-pill);color:var(--ink);font:600 var(--t-sm) var(--ui-stack)}
+.title-season-auto:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Harbor episode list: wide stills, open rows, and the order picker beside Episodes. */
+.title-page [data-section='seasons']{height:0;min-height:0}
+.title-page .dt-episodes{padding:0}
+.title-units-heading{align-items:center;padding:16px 0 16px;border:0}
+.title-units-heading h2{margin:0;font:600 clamp(24px,1.5vw,29px)/1.2 var(--ui-stack)}
+.title-units-tools{gap:15px}
+.title-units-count{color:#74777a;font:clamp(12px,.68vw,13px) var(--ui-stack)}
+.title-season-download{display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid #393b3d;border-radius:50%;background:#202224;color:#aaadaf;font:22px/1 var(--ui-stack)}
+.title-season-trigger{height:clamp(40px,2.8vw,54px);min-width:110px;padding:0 16px;border:0;border-radius:var(--r-pill);background:#242628;font:600 clamp(13px,.78vw,15px) var(--ui-stack)}
+.title-season-menu{left:auto;display:flex;flex-direction:column;width:min(26.6vw,510px,calc(100vw - 32px));padding:0;border:1px solid #383a3c;border-radius:clamp(13px,1vw,19px);background:#282a2c;box-shadow:0 30px 75px rgba(0,0,0,.65);overflow:hidden}
+.title-season-modes{display:flex;align-items:center;gap:5px;padding:12px;border-bottom:1px solid #343638}
+.title-season-mode{height:46px;flex:1;border-radius:var(--r-pill);color:#a9abad;font:600 clamp(12px,.78vw,15px) var(--ui-stack)}
+.title-season-mode.on{background:#f0f1f2;color:#1c1d1e}
+.title-season-mode:hover:not(.on){color:#fff;background:#393b3d}
+.title-season-columns{display:flex;justify-content:space-between;padding:clamp(13px,1vw,19px) 23px 10px;color:#77797b;font:700 clamp(10px,.63vw,12px) var(--ui-stack);letter-spacing:.13em}
+.title-season-options{overflow-y:auto;min-height:0}
+.title-season-option{min-height:clamp(56px,4.3vw,83px);padding:10px 16px;border-radius:0;color:#b8babc;font:500 clamp(12px,.78vw,15px) var(--ui-stack)}
+.title-season-option.on{background:#3a3c3e;color:#fff}
+.title-season-option>span:last-child{color:#77797b}
+.title-season-option-copy{gap:5px}
+.title-season-option-copy>span{font:600 clamp(13px,.83vw,16px) var(--ui-stack)}
+.title-season-option-copy small{font:clamp(11px,.68vw,13px) var(--ui-stack);color:#858789}
+.title-page [data-section='episodes']{margin-left:9.3vw}
+.title-season-modes{justify-content:flex-start}
+.title-season-mode{flex:0 0 auto;padding:0 clamp(12px,1.15vw,22px)}
+.title-season-options{flex:1;overflow-y:auto}
+.title-unit{gap:24px;padding:20px 16px;border:0;border-radius:20px;background:transparent}
+.title-unit:hover,.title-unit:focus-within{background:#17191a}
+.title-unit.next{padding-left:16px;border-left:0;background:rgba(255,255,255,.018)}
+.title-unit.next:hover,.title-unit.next:focus-within{background:#17191a}
+.title-unit-main{grid-template-columns:clamp(200px,16vw,300px) minmax(0,1fr);gap:24px}
+.title-unit-art{width:100%;border-radius:19px}
+.title-unit-number{top:12px;left:12px;min-width:27px;height:27px;border-radius:50%;font-size:12px}
+.title-unit h3{font:600 clamp(16px,1.1vw,22px)/1.23 var(--ui-stack);color:#eee}
+.title-unit p.title-unit-meta{font:clamp(12px,.87vw,16px)/1.4 var(--ui-stack);color:#74777a}
+.title-unit p.title-unit-overview{font:clamp(13.5px,1.05vw,20px)/1.55 var(--ui-stack);max-width:none;color:#969a9d}
+.title-unit-copy{gap:13px}
+.title-unit-actions{opacity:.62}
+.title-unit-sources{opacity:0}
+.title-unit:hover .title-unit-sources,.title-unit:focus-within .title-unit-sources{opacity:1}
+.title-unit:hover .title-unit-actions,.title-unit:focus-within .title-unit-actions{opacity:1}
+@media(min-width:1500px){.title-unit{margin-right:30px}}
+@media(max-width:850px){.title-page [data-section='episodes']{margin-left:0}.title-unit-main{grid-template-columns:150px minmax(0,1fr);gap:16px}.title-unit{gap:5px}.title-units-heading{flex-wrap:wrap}.title-unit-copy{gap:6px}}
+@media(max-width:560px){.title-unit-main{grid-template-columns:105px minmax(0,1fr)}.title-unit-actions{flex-direction:column}}
+
+/* Lower title page: people, related posters, then only the information the feed has. */
+.title-page{display:flex;flex-direction:column;gap:0}
+.title-page [data-section='hero']{order:0}
+.title-page [data-section='seasons']{order:1}
+.title-page [data-section='episodes']{order:2}
+.title-page [data-section='cast']{order:3}
+.title-page [data-section='related']{order:4}
+.title-page [data-section='facts']{order:5}
+.title-page [data-section='sources']{order:6}
+.title-page [data-section='cast'],
+.title-page [data-section='related'],
+.title-page [data-section='facts']{margin:72px clamp(40px,4.4vw,84px) 0 9.3vw}
+.title-page [data-section='cast'][data-state='empty'],
+.title-page [data-section='related'][data-state='empty'],
+.title-page [data-section='facts'][data-state='empty']{display:none}
+.title-lower-heading{display:flex;align-items:baseline;gap:10px;margin-bottom:24px}
+.title-lower-heading h2,.title-information h2,
+.title-page [data-section='related'] .wh h2{margin:0;color:#eee;font:600 clamp(22px,1.35vw,27px)/1.2 var(--ui-stack)}
+.title-lower-heading small{color:#777a7d;font:13px var(--ui-stack)}
+.title-cast-rail{display:flex;gap:22px;overflow-x:auto;padding:0 0 14px;scrollbar-width:thin}
+.title-person{flex:0 0 clamp(112px,8.5vw,160px);display:grid;align-content:start;gap:8px;min-width:0}
+.title-person-art{width:100%;aspect-ratio:4/5;overflow:hidden;display:grid;place-items:center;border-radius:13px;background:#21272c}
+.title-person-art .face,.title-person-art img{width:100%;height:100%;object-fit:cover}
+.title-person-monogram{color:#d8dcdf;font:600 30px var(--ui-stack)}
+.title-person strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e7e8e9;font:600 14px var(--ui-stack)}
+.title-person small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#82868a;font:12px var(--ui-stack)}
+.title-cast-more{align-self:stretch;flex:0 0 100px;border:1px solid #34383b;border-radius:13px;color:#c6c9cb;font:600 13px var(--ui-stack)}
+.title-page [data-section='related'] .wh{display:flex;align-items:center;margin-bottom:24px}
+.title-page [data-section='related'] .rail-wrap{overflow:hidden}
+.title-page [data-section='related'] .rail{padding:0 0 14px;gap:18px;scrollbar-width:thin}
+.title-information{padding:30px 0 70px;border-top:1px solid #333638}
+.title-information h2{margin-bottom:28px}
+.title-information-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 48px}
+.title-information-fact{display:grid;align-content:start;gap:10px;min-width:0}
+.title-information-fact span{color:#777b7e;font:700 11px var(--ui-stack);letter-spacing:.14em;text-transform:uppercase}
+.title-information-fact strong{color:#dadddf;font:500 15px/1.45 var(--ui-stack);overflow-wrap:anywhere}
+@media(max-width:850px){.title-page [data-section='cast'],.title-page [data-section='related'],.title-page [data-section='facts']{margin-left:var(--margin);margin-right:var(--margin)}.title-information-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.title-information-grid{grid-template-columns:1fr}.title-person{flex-basis:112px}}

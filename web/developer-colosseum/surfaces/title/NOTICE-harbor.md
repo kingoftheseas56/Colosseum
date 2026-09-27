@@ -4,6 +4,15 @@ The title page layout is translated from Harbor's detail view and its HeroBackdr
 TitlePlate, and HeroRatings composition. No Harbor component is imported. Source:
 https://github.com/harborstremio/harbor/tree/main/src/views/detail
 
+The episode list follows the structure and visual hierarchy of Harbor's
+`series-episode-row.tsx`; the long-season picker follows `season-arc-picker.tsx`.
+The order tabs are modeled on Harbor's anime TVDB panel; this page displays
+only the Aired and Absolute modes backed by Colosseum's current ordering index.
+Sources:
+https://github.com/harborstremio/harbor/blob/main/src/views/detail/series-episode-row.tsx
+https://github.com/harborstremio/harbor/blob/main/src/views/detail/series-episodes/season-arc-picker.tsx
+https://github.com/harborstremio/harbor/blob/main/src/views/detail/anime-episodes/use-anime-tvdb-panel.ts
+
 MIT License
 
 Copyright (c) 2026 Harbor
