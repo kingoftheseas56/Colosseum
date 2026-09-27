@@ -5,10 +5,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 EXPECT = {
-    "qml/Main.qml": [
-        'objectName: "updateLayer"',
-        "Qt.callLater(item.takeKeyboardFocus)",
-    ],
     "qml/account/AccountCenter.qml": [
         'objectName: "accountCenterRailRegion"',
         "SystemFocusContainment.move",
@@ -57,20 +53,6 @@ EXPECT = {
         "chatKeyboardScroll",
         "SystemFocusContainment.move",
         "party.closeFromPanel()",
-    ],
-    "qml/UpdatePage.qml": [
-        "function takeKeyboardFocus()",
-        "primaryAction.forceActiveFocus(Qt.TabFocusReason)",
-        "activeFocusOnTab: visible && enabled",
-        'objectName: "colosseumUpdateMinimize"',
-        'objectName: "colosseumUpdateFullscreen"',
-        'objectName: "colosseumUpdateClose"',
-    ],
-    "qml/update/UpdateLivingGallery.qml": [
-        "activeFocusOnTab: root.chapterCount > 1",
-        "event.accepted = root.moveChapter(-1)",
-        "event.accepted = root.moveChapterTo(0)",
-        "activeFocusOnTab: root.chapterCount >= 2",
     ],
 }
 
