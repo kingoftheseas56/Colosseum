@@ -32,7 +32,7 @@
 namespace {
 
 constexpr int kPersonalLimit = 12;
-constexpr int kShelfLimit = 20;
+constexpr int kShelfLimit = 24;
 const QString kRemoveAction = QStringLiteral("world.tankoban.collection.remove");
 
 QVariantMap selectedChoice(const QString &key, const QString &label,
@@ -51,6 +51,23 @@ QVariantMap choiceSection(const QString &id, int index, const QString &title,
 {
     return WebFeedChoice::section(id, index, title, layout, choices,
         choices.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
+}
+
+QVariantMap discoverPinSection(const QString &sourceSectionId, int index,
+                               const QString &type, const QString &catalogue,
+                               const QString &filterGroup = {},
+                               const QString &filterKey = {})
+{
+    const QVariantMap patch{
+        {QStringLiteral("type"), type},
+        {QStringLiteral("catalogue"), catalogue},
+        {QStringLiteral("filterGroup"), filterGroup},
+        {QStringLiteral("filterKey"), filterKey}
+    };
+    return choiceSection(
+        QStringLiteral("tankoban.nav.") + sourceSectionId, index, {},
+        {selectedChoice(QStringLiteral("tankoban:nav:") + sourceSectionId,
+                        QStringLiteral("Explore"), patch, false)});
 }
 
 QVariantMap catalogueRoute(const QString &medium, const QString &catalogue,
@@ -521,15 +538,12 @@ QVariantList buildDiscover(const FeedContext &ctx, MalCatalog &mal,
     const QVariantList items = mapRows(
         page.value(QStringLiteral("items")).toList(), publicKind, 24);
     QVariantMap wall = WebFeedValue::section(
-        QStringLiteral("tankoban.discover.wall"), out.size(),
-        catalogueTitle(catalogue), QStringLiteral("grid"), items,
+        QStringLiteral("tankoban.discover.wall"), out.size(), {},
+        QStringLiteral("grid"), items,
         items.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
-    wall.insert(QStringLiteral("emptyTitle"), QStringLiteral("Nothing here yet"));
-    wall.insert(QStringLiteral("emptyText"),
+    wall.insert(QStringLiteral("emptyTitle"),
         key.isEmpty() ? QStringLiteral("This catalogue answered with nothing.")
                       : QStringLiteral("No series match this filter."));
-    setSeeAll(wall, catalogueRoute(publicKind, catalogue, axis, key,
-                                    ctx.showExplicit));
     out.append(wall);
     return out;
 }
@@ -592,14 +606,12 @@ QVariantList buildManga(const FeedContext &ctx, MalCatalog &mal)
         collectionLane(ctx, &mal, QStringLiteral("manga")));
     out.append(saved);
 
-    QVariantMap top = WebFeedValue::section(
-        QStringLiteral("tankoban.manga.top"), out.size(),
-        QStringLiteral("Top in Tankoban — Manga"), QStringLiteral("rail"),
-        topMangaItems(mal));
-    setSeeAll(top, catalogueRoute(QStringLiteral("manga"),
-                                  QStringLiteral("popular"), {}, {},
-                                  ctx.showExplicit));
-    out.append(top);
+    const QString topId = QStringLiteral("tankoban.manga.top");
+    out.append(WebFeedValue::section(
+        topId, out.size(), QStringLiteral("Top in Tankoban — Manga"),
+        QStringLiteral("rail"), topMangaItems(mal)));
+    out.append(discoverPinSection(
+        topId, out.size(), QStringLiteral("manga"), QStringLiteral("popular")));
 
     QVariantMap genres = choiceSection(
         QStringLiteral("tankoban.manga.genres"), out.size(),
@@ -622,10 +634,15 @@ QVariantList comicGenreChoices(ComicsCatalog &comics, bool showExplicit)
             continue;
         const QVariantList covers = row.value(QStringLiteral("covers")).toList();
         const QString art = covers.isEmpty() ? QString() : covers.first().toString();
+        const QVariantMap patch{
+            {QStringLiteral("type"), QStringLiteral("comics")},
+            {QStringLiteral("catalogue"), QStringLiteral("popular")},
+            {QStringLiteral("filterGroup"), QStringLiteral("Genres")},
+            {QStringLiteral("filterKey"), name.toLower()}
+        };
         out.append(WebFeedChoice::choice(
             QStringLiteral("tankoban:comic:genre:") + name.toLower(), name,
-            {{QStringLiteral("route"),
-              genreRoute(QStringLiteral("comic"), name, showExplicit)}},
+            {{QStringLiteral("view"), patch}},
             row.value(QStringLiteral("count")).toString(), art));
     }
     return out;
@@ -641,14 +658,13 @@ QVariantList buildComics(const FeedContext &ctx, ComicsCatalog &comics)
         QStringLiteral("Your Collection"), QStringLiteral("continue"),
         collectionLane(ctx, nullptr, QStringLiteral("comic"))));
 
-    QVariantMap top = WebFeedValue::section(
-        QStringLiteral("tankoban.comics.top"), out.size(),
-        QStringLiteral("Top in Tankoban — Comics"), QStringLiteral("rail"),
-        mapRows(comics.curatedRanked(), QStringLiteral("comic"), 10));
-    setSeeAll(top, catalogueRoute(QStringLiteral("comic"),
-                                  QStringLiteral("popular"), {}, {},
-                                  ctx.showExplicit));
-    out.append(top);
+    const QString topId = QStringLiteral("tankoban.comics.top");
+    out.append(WebFeedValue::section(
+        topId, out.size(), QStringLiteral("Top in Tankoban — Comics"),
+        QStringLiteral("rail"),
+        mapRows(comics.curatedRanked(), QStringLiteral("comic"), 10)));
+    out.append(discoverPinSection(
+        topId, out.size(), QStringLiteral("comics"), QStringLiteral("popular")));
 
     struct DiscoverShelf {
         const char *label;
@@ -671,16 +687,20 @@ QVariantList buildComics(const FeedContext &ctx, ComicsCatalog &comics)
         const QString key = QString::fromLatin1(spec.key);
         const QVariantMap page = comics.discoverPage(
             catalogue, axis, key, ctx.showExplicit, 0, kShelfLimit);
-        QVariantMap section = WebFeedValue::section(
+        const QString sectionId =
             QStringLiteral("tankoban.comics.catalogue.") + catalogue
-                + QLatin1Char(':') + (key.isEmpty() ? QStringLiteral("all") : key),
-            out.size(), QString::fromLatin1(spec.label), QStringLiteral("rail"),
+            + QLatin1Char(':') + (key.isEmpty() ? QStringLiteral("all") : key);
+        QVariantMap section = WebFeedValue::section(
+            sectionId, out.size(), QString::fromLatin1(spec.label),
+            QStringLiteral("rail"),
             mapRows(page.value(QStringLiteral("items")).toList(),
                     QStringLiteral("comic"), kShelfLimit));
-        setSeeAll(section, catalogueRoute(
-            QStringLiteral("comic"), catalogue, axis, key, ctx.showExplicit));
-        if (!section.value(QStringLiteral("items")).toList().isEmpty())
+        if (!section.value(QStringLiteral("items")).toList().isEmpty()) {
             out.append(section);
+            out.append(discoverPinSection(
+                sectionId, out.size(), QStringLiteral("comics"), catalogue,
+                displayGroup(axis), key));
+        }
     }
 
     struct Shelf {
@@ -701,23 +721,27 @@ QVariantList buildComics(const FeedContext &ctx, ComicsCatalog &comics)
     for (const Shelf &spec : shelves) {
         const QString kind = QString::fromLatin1(spec.kind);
         const QString arg = QString::fromLatin1(spec.arg);
-        QVariantMap section = WebFeedValue::section(
+        const QString sectionId =
             QStringLiteral("tankoban.comics.shelf.") + kind
-                + QLatin1Char(':') + arg.toLower(),
-            out.size(), QString::fromLatin1(spec.label), QStringLiteral("rail"),
+            + QLatin1Char(':') + arg.toLower();
+        QVariantMap section = WebFeedValue::section(
+            sectionId, out.size(), QString::fromLatin1(spec.label),
+            QStringLiteral("rail"),
             mapRows(comics.shelf(kind, arg, kShelfLimit),
                     QStringLiteral("comic"), kShelfLimit));
-        if (kind == QLatin1String("stocked")) {
-            setSeeAll(section, catalogueRoute(
-                QStringLiteral("comic"), QStringLiteral("most-stocked"),
-                {}, {}, ctx.showExplicit));
-        } else if (kind == QLatin1String("publisher")) {
-            setSeeAll(section, catalogueRoute(
-                QStringLiteral("comic"), QStringLiteral("popular"),
-                QStringLiteral("publisher"), arg.toLower(), ctx.showExplicit));
-        }
-        if (!section.value(QStringLiteral("items")).toList().isEmpty())
+        if (!section.value(QStringLiteral("items")).toList().isEmpty()) {
             out.append(section);
+            if (kind == QLatin1String("stocked")) {
+                out.append(discoverPinSection(
+                    sectionId, out.size(), QStringLiteral("comics"),
+                    QStringLiteral("most-stocked")));
+            } else if (kind == QLatin1String("publisher")) {
+                out.append(discoverPinSection(
+                    sectionId, out.size(), QStringLiteral("comics"),
+                    QStringLiteral("popular"), QStringLiteral("Publishers"),
+                    arg.toLower()));
+            }
+        }
     }
 
     QVariantMap genres = choiceSection(
