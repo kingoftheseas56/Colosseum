@@ -46,7 +46,8 @@ private slots:
         QCOMPARE(scores.first().toMap().value(QStringLiteral("provider")).toString(), QStringLiteral("imdb"));
         QCOMPARE(scores.first().toMap().value(QStringLiteral("value")).toDouble(), 8.7);
         QCOMPARE(data.value(QStringLiteral("watchedMark")).toInt(), 0);
-        QCOMPARE(data.value(QStringLiteral("primaryLabel")).toString(), QStringLiteral("Watch"));
+        QCOMPARE(data.value(QStringLiteral("primaryLabel")).toString(), QStringLiteral("Play"));
+        QCOMPARE(data.value(QStringLiteral("primaryTargetId")).toString(), QStringLiteral("tt0133093"));
         QVERIFY(!data.value(QStringLiteral("synopsis")).toString().isEmpty());
         QCOMPARE(section(sections, QStringLiteral("seasons")).value(QStringLiteral("state")).toString(), QStringLiteral("empty"));
         QCOMPARE(section(sections, QStringLiteral("related")).value(QStringLiteral("state")).toString(), QStringLiteral("empty"));
@@ -65,6 +66,9 @@ private slots:
         const QVariantMap episodes = section(sections, QStringLiteral("episodes")).value(QStringLiteral("data")).toMap();
         QVERIFY(!episodes.value(QStringLiteral("rows")).toList().isEmpty());
         QVERIFY(!episodes.value(QStringLiteral("nextUpId")).toString().isEmpty());
+        const QVariantMap hero = section(sections, QStringLiteral("hero")).value(QStringLiteral("data")).toMap();
+        QCOMPARE(hero.value(QStringLiteral("primaryLabel")).toString(), QStringLiteral("Play S2 E1"));
+        QCOMPARE(hero.value(QStringLiteral("primaryTargetId")).toString(), episodes.value(QStringLiteral("nextUpId")).toString());
         QCOMPARE(section(sections, QStringLiteral("related")).value(QStringLiteral("state")).toString(), QStringLiteral("ready"));
     }
     void animeMalIdentity() {
@@ -81,6 +85,7 @@ private slots:
         const QVariantMap hero = section(sections, QStringLiteral("hero")).value(QStringLiteral("data")).toMap();
         QCOMPARE(hero.value(QStringLiteral("id")).toString(), QStringLiteral("mal:21"));
         QCOMPARE(hero.value(QStringLiteral("title")).toString(), QStringLiteral("One Piece"));
+        QCOMPARE(hero.value(QStringLiteral("kind")).toString(), QStringLiteral("anime"));
         const QVariantList scores = hero.value(QStringLiteral("scores")).toList();
         QCOMPARE(scores.size(), 2);
         QCOMPARE(scores.at(0).toMap().value(QStringLiteral("provider")).toString(), QStringLiteral("mal"));
@@ -90,6 +95,20 @@ private slots:
         QCOMPARE(hero.value(QStringLiteral("watchedMark")).toInt(), 1);
         QVERIFY(!section(sections, QStringLiteral("episodes")).value(QStringLiteral("data")).toMap()
                      .value(QStringLiteral("rows")).toList().isEmpty());
+    }
+    void seriesResumeLabel() {
+        const QVariantMap meta = fixture(QStringLiteral("series"));
+        QVERIFY(!meta.isEmpty());
+        FeedContext ctx;
+        ctx.params = {{QStringLiteral("id"), QStringLiteral("tt0944947")},
+                      {QStringLiteral("type"), QStringLiteral("series")}};
+        ctx.nativeSnapshot.insert(QStringLiteral("recent"), QVariantList{
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("tt0944947:2:1")},
+                        {QStringLiteral("progress"), 0.42}}});
+        const QVariantMap hero = section(TheatreDetailProjection::build(ctx, meta, {}, {}),
+                                         QStringLiteral("hero")).value(QStringLiteral("data")).toMap();
+        QCOMPARE(hero.value(QStringLiteral("primaryLabel")).toString(), QStringLiteral("Resume S2 E1"));
+        QCOMPARE(hero.value(QStringLiteral("primaryTargetId")).toString(), QStringLiteral("tt0944947:2:1"));
     }
     void missingScores() {
         QVariantMap meta = fixture(QStringLiteral("movie"));

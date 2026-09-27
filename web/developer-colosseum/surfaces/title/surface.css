@@ -1,0 +1,118 @@
+.dt-page{gap:var(--s-7)}
+.dt-page .widget{background:var(--glassTint);border:solid var(--edge);border-width:thin;border-radius:var(--r-xl);overflow:hidden}
+.dt-page .widget[data-section="hero"]{background:transparent;border:none}
+.dt-hero{position:relative;display:grid;grid-template-columns:var(--poster-w) minmax(0,1fr);gap:var(--s-7);padding:var(--s-7);min-height:var(--hero-h);align-items:end;overflow:hidden}
+.dt-back{position:absolute;inset:0;opacity:.25;z-index:-1}.dt-back .face,.dt-back img{width:100%;height:100%;object-fit:cover}
+.dt-poster .face,.dt-poster img{display:block;width:var(--poster-w);height:var(--poster-h);object-fit:cover;border-radius:var(--r-md)}
+.dt-hero-copy{display:flex;flex-direction:column;align-items:start;gap:var(--s-3)}
+.dt-hero-copy h1{font:var(--t-hero) var(--display-stack);margin:0}.dt-kicker,.dt-episode-index{color:var(--gold);font:var(--t-xs) var(--ui-stack);letter-spacing:.2em}
+.dt-hero-meta,.dt-genres{color:var(--inkDim);margin:0}.dt-synopsis{max-width:70ch;line-height:1.5;color:var(--ink);margin:0}
+.dt-actions,.dt-episode-actions,.dt-season-row{display:flex;flex-wrap:wrap;gap:var(--s-2)}
+.dt-page button{cursor:pointer}.dt-page button:focus-visible{outline:solid var(--gold);outline-width:medium;outline-offset:var(--s-1)}
+.dt-primary,.dt-secondary,.dt-season,.dt-small,.dt-source,.dt-more{border:thin solid var(--edge);border-radius:var(--r-pill);padding:var(--s-3) var(--s-5);background:var(--glassTint);color:var(--ink)}
+.dt-primary,.dt-season.on{background:var(--gold);color:var(--washBottom);border-color:var(--gold)}
+.dt-facts{display:flex;flex-wrap:wrap;gap:var(--s-6)}.dt-fact{display:grid;gap:var(--s-1)}.dt-fact span,.dt-person small{color:var(--inkDimmer)}
+.dt-season-row{padding:var(--s-4)}.dt-season small{margin-left:var(--s-2)}
+.dt-episodes{display:grid;gap:var(--s-2);padding:var(--s-3)}
+.dt-episode{display:grid;grid-template-columns:var(--poster-w) minmax(0,1fr) auto;gap:var(--s-4);align-items:center;border-bottom:thin solid var(--edge);padding:var(--s-3)}
+.dt-episode-art .face,.dt-episode-art img{width:var(--poster-w);height:calc(var(--poster-w) * .56);object-fit:cover;border-radius:var(--r-sm)}
+.dt-episode-copy{display:grid;gap:var(--s-2)}.dt-episode-copy p{margin:0;color:var(--inkDim);line-height:1.4}.dt-episode-copy small{color:var(--inkDimmer)}
+.dt-episode-actions{justify-content:end;max-width:calc(var(--poster-w) * 2)}.dt-small{padding:var(--s-2) var(--s-3)}
+.dt-progress{width:100%;height:var(--s-1);border-radius:var(--r-pill);background:var(--edge);overflow:hidden}.dt-progress i{display:block;height:100%;background:var(--gold)}
+.dt-status{color:var(--inkDimmer);font:var(--t-xs) var(--ui-stack);letter-spacing:.1em}
+.dt-cast{display:flex;flex-wrap:wrap;gap:var(--s-5);padding:var(--s-4)}.dt-person{display:grid;gap:var(--s-2)}.dt-person .face{width:var(--poster-w);height:var(--poster-w)}
+.dt-sources{display:flex;flex-wrap:wrap;gap:var(--s-3);padding:var(--s-4)}.dt-source{display:grid;gap:var(--s-2);text-align:left;border:thin solid var(--edge);border-radius:var(--r-md);padding:var(--s-4);background:var(--glassTint)}.dt-source-actions{display:flex;gap:var(--s-2)}
+@media(max-width:70em){.dt-episode{grid-template-columns:minmax(0,1fr)}.dt-episode-art{display:none}.dt-episode-actions{justify-content:start;max-width:none}.dt-hero{grid-template-columns:minmax(0,1fr)}.dt-poster{display:none}}
+
+/* Detail chrome and masthead: TheatreSeries.qml:958-1323, 1760-2070. */
+#app:has(.dt-page) #wall{background:#000000} /* token? #000000 from TheatreSeries.qml:904 */
+#app:has(.dt-page) #topbar{top:0;left:var(--margin);right:var(--margin);height:58px} /* token? 58px from TheatreSeries.qml:941 */
+#app:has(.dt-page) .clock,#app:has(.dt-page) #world-nav,
+#app:has(.dt-page) #search-button,#app:has(.dt-page) #trackers-button,
+#app:has(.dt-page) #account-button,#app:has(.dt-page) #wallpaper-button{display:none}
+#app:has(.dt-page) #home-button{font-size:0}
+#app:has(.dt-page) #home-button:after{content:'Back';font-size:14px} /* token? 14px from BackAction.qml */
+#app:has(.dt-page) #board{top:0}
+#app:has(.dt-page) #col{padding:0 0 110px} /* token? 110px for scroll end; page QML content ends after related */
+.dt-page{gap:0;background:#000000} /* token? #000000 from TheatreSeries.qml:904 */
+.dt-page .widget{background:transparent;border:0;border-radius:0;overflow:visible;margin:0}
+.dt-page .wh{display:none}
+.dt-hero{display:block;padding:0;min-height:360px} /* token? 360px from TheatreSeries.qml:1068 */
+.dt-back{z-index:0;opacity:1}
+.dt-back:after{content:'';position:absolute;inset:0;background:linear-gradient(transparent,rgba(0,0,0,.5) 55%,rgba(0,0,0,.96))} /* token? stops from TheatreSeries.qml:1083-1085 */
+.dt-hero-copy{position:absolute;left:var(--margin);right:var(--margin);bottom:30px;gap:12px} /* token? 30px from TheatreSeries.qml:1098 */
+.dt-hero-copy h1{font:600 64px/1.1 var(--display-stack)} /* token? 64px from TheatreSeries.qml:1115 */
+.dt-kicker{font:11px var(--ui-stack);letter-spacing:3px} /* token? 11px and 3px from TheatreSeries.qml:1105-1106 */
+.dt-hero-meta{display:flex;align-items:center;gap:11px;font:14px var(--ui-stack);color:var(--inkDim)} /* token? 11px and 14px from TheatreSeries.qml:1122-1198 */
+.dt-hero-meta>*+*:before{content:'-';color:var(--inkDimmer);margin-right:11px}
+.dt-rating{display:inline-flex;align-items:center;gap:7px}
+.dt-rating i{font:900 10px var(--ui-stack);font-style:normal;letter-spacing:-.45px;background:#F5C518;color:#111111;padding:3px;border-radius:3px} /* token? IMDb plaque from TheatreSeries.qml:1158-1171 */
+.dt-actions{gap:12px;margin-top:8px}
+.dt-primary,.dt-secondary{height:42px;border-radius:11px;padding:0 20px;font:600 14px var(--ui-stack)} /* token? 42px, 11px, 20px, 14px from TheatreSeries.qml:1213-1265 */
+.dt-primary{background:var(--gold)}
+.dt-secondary{background:rgba(255,255,255,.05)} /* token? .05 from LibraryButton.qml */
+.dt-facts{display:grid;grid-template-columns:580px minmax(0,1fr);gap:56px;margin:0 var(--margin);padding:22px 0 6px} /* token? 580px, 56px, 22px, 6px from TheatreSeries.qml:1287-1312 */
+.dt-synopsis{font:15px/1.5 var(--ui-stack);color:var(--inkDim);margin:0}
+.dt-fact-list{display:grid;gap:10px}
+.dt-fact{display:grid;grid-template-columns:90px minmax(0,1fr);gap:18px;font:13px var(--ui-stack)} /* token? 90px, 18px, 13px from TheatreSeries.qml:1307-1316 */
+.dt-fact b{font-weight:400}
+.dt-season-row{padding:14px var(--margin) 0;gap:22px} /* token? 22px from TheatreSeries.qml:1989 */
+.dt-season{border:0;border-radius:0;background:transparent;padding:0 0 8px;color:var(--inkDim);font:14px var(--ui-stack)}
+.dt-season.on{background:transparent;border:0;border-bottom:2px solid var(--gold);color:var(--gold)}
+.dt-season small{display:none}
+.dt-page [data-section='episodes']{margin:12px var(--margin) 0}
+.dt-ledger h2{font:600 26px var(--ui-stack);margin:0 0 4px} /* token? 26px from TheatreSeries.qml:2053 */
+.dt-ledger small{color:var(--inkDimmer);font:11px var(--ui-stack)} /* token? 11px from TheatreSeries.qml:2060 */
+.dt-ledger-head{display:grid;grid-template-columns:276px minmax(0,1fr) 118px;border-bottom:1px solid var(--edge);height:30px;align-items:end;padding:0 12px 5px;font:600 10px var(--ui-stack);letter-spacing:1.3px;color:var(--inkDimmer)} /* token? 276px, 118px, 30px, 10px from TheatreSeries.qml:2321-2325 */
+.dt-episodes{padding:0;gap:0}
+.dt-page [data-section='cast'],.dt-page [data-section='related'],.dt-page [data-section='sources']{margin:0 var(--margin)}
+.dt-cast{display:block;padding:0;opacity:1;transition:opacity 420ms cubic-bezier(.215,.61,.355,1)} /* token? 420ms OutCubic from CastRow.qml:12 */
+.dt-cast-label{font:12px var(--ui-stack);letter-spacing:2.5px;color:var(--inkDim)} /* token? 12px, 2.5px from CastRow.qml:30 */
+.dt-cast-flow{display:flex;flex-wrap:wrap;gap:28px;margin-top:16px} /* token? 28px, 16px from CastRow.qml:6,34 */
+.dt-person{width:96px;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;font:12px var(--ui-stack)} /* token? 96px, 9px, 12px from CastRow.qml:41-72 */
+.dt-avatar{position:relative;width:78px;height:78px;border-radius:39px;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);overflow:hidden;display:grid;place-items:center;font:600 22px var(--ui-stack);color:var(--inkDim)} /* token? 78px, 39px, .13, .06, 22px from CastRow.qml:43-60 */
+.dt-avatar .face{width:100%;height:100%}
+.dt-avatar .fb{display:none}
+.dt-episode-art{position:relative;display:block;width:var(--poster-w);height:calc(var(--poster-w) * .56);overflow:hidden}
+.dt-person b{font-weight:400}
+.dt-person small{font:11px var(--ui-stack)} /* token? 11px from CastRow.qml:72 */
+.dt-cast-more{align-self:start}
+@media(max-width:70em){.dt-facts{grid-template-columns:minmax(0,1fr);gap:20px}} /* token? responsive fallback; QML keeps fixed columns */
+
+/* Title identity: the image spans the viewport; controls sit in a quiet left-hand column. */
+.title-page [data-section='hero']{min-height:0}
+.title-hero{position:relative;min-height:min(690px,100vh);display:flex;align-items:flex-end;isolation:isolate;overflow:hidden;background:var(--washBottom)}
+.title-backdrop{position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 72% 24%,rgba(81,98,125,.34),transparent 44%),var(--washBottom)}
+.title-backdrop-art{width:100%;height:100%;object-fit:cover;object-position:center 30%}
+.title-hero:before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.96) 0%,rgba(0,0,0,.76) 27%,rgba(0,0,0,.25) 67%,rgba(0,0,0,.05)),linear-gradient(0deg,#000 1%,rgba(0,0,0,.72) 18%,transparent 70%)}
+.title-hero-copy{position:relative;z-index:2;width:min(760px,66vw);padding:115px 0 48px var(--margin);display:grid;justify-items:start;gap:var(--s-5)}
+.title-kicker{font:600 var(--t-xs)/1 var(--ui-stack);letter-spacing:.25em;color:var(--gold)}
+.title-logo{display:block;max-width:min(520px,52vw);max-height:145px;object-fit:contain;object-position:left center;filter:drop-shadow(0 8px 28px rgba(0,0,0,.7))}
+.title-identity{position:relative;min-height:145px;display:flex;align-items:center}
+.title-identity .title-logo{position:absolute;left:0;top:50%;transform:translateY(-50%)}
+.title-identity.loaded .title-name{visibility:hidden}
+.title-name{font:600 clamp(42px,5.2vw,76px)/1.04 var(--display-stack);letter-spacing:-.035em;margin:0;max-width:12ch;text-wrap:balance;text-shadow:0 6px 26px rgba(0,0,0,.6)}
+.title-pills{display:flex;align-items:center;flex-wrap:wrap;gap:var(--s-2);min-height:30px;color:var(--ink)}
+.title-pill{display:inline-flex;align-items:center;min-height:28px;padding:5px 10px;border:1px solid var(--edge);border-radius:var(--r-pill);background:rgba(0,0,0,.37);font:500 var(--t-sm)/1 var(--ui-stack);white-space:nowrap}
+.title-score-group{display:inline-flex;align-items:center;gap:5px}
+.title-score{display:inline-flex;align-items:center;gap:7px;min-height:28px;padding:3px 9px 3px 4px;border:1px solid var(--edge);border-radius:var(--r-pill);background:rgba(0,0,0,.52);font:600 var(--t-sm)/1 var(--ui-stack)}
+.title-score-mark{padding:4px 6px;border-radius:var(--r-pill);background:var(--gold);color:var(--washBottom);font:800 10px/1 var(--ui-stack);letter-spacing:-.03em}
+.title-score[data-provider='mal'] .title-score-mark{background:#3978d9;color:var(--ink)}
+.title-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--s-3);margin-top:var(--s-2)}
+.title-play{height:52px;display:inline-flex;align-items:center;justify-content:center;gap:var(--s-3);padding:0 28px;background:var(--gold);border:1px solid var(--gold);border-radius:var(--r-pill);font:700 var(--t-base)/1 var(--ui-stack);color:var(--washBottom);white-space:nowrap;transition:transform var(--t-fast) var(--ease),filter var(--t-fast) var(--ease)}
+.title-play:hover{filter:brightness(1.12);transform:translateY(-2px)}
+.title-action{position:relative;width:48px;height:48px;display:grid;place-items:center;border:1px solid var(--edge);border-radius:50%;background:rgba(0,0,0,.46);color:var(--ink);transition:background var(--t-fast),border-color var(--t-fast)}
+button.title-action:hover,button.title-action:focus-visible{background:var(--glassHi);border-color:var(--gold)}
+.title-action[aria-pressed='true']{border-color:var(--gold);color:var(--gold)}
+.title-action-glyph{font:500 25px/1 var(--ui-stack)}
+.title-rate-pending{opacity:.55;cursor:default}
+.title-action-label{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);padding:7px 10px;border:1px solid var(--edge);border-radius:var(--r-sm);background:var(--washBottom);color:var(--ink);font:var(--t-xs)/1 var(--ui-stack);white-space:nowrap;opacity:0;pointer-events:none;transition:opacity var(--t-fast)}
+button.title-action:hover .title-action-label,button.title-action:focus-visible .title-action-label{opacity:1}
+.title-synopsis{max-width:68ch;color:var(--inkDim);font:var(--t-base)/1.55 var(--ui-stack)}
+.title-synopsis p{margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.title-synopsis p.expanded{-webkit-line-clamp:unset;display:block}
+.title-synopsis-more{margin-top:var(--s-2);color:var(--ink);font:600 var(--t-sm)/1 var(--ui-stack);text-decoration:underline;text-underline-offset:4px}
+.title-page button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media(max-width:1100px){.title-hero{min-height:620px}.title-hero-copy{width:min(720px,85vw);padding-bottom:40px}.title-hero:before{background:linear-gradient(90deg,rgba(0,0,0,.94),rgba(0,0,0,.54) 55%,rgba(0,0,0,.15)),linear-gradient(0deg,#000,transparent 75%)}}
+@media(max-width:700px){.title-hero{min-height:670px}.title-hero-copy{width:100%;padding:120px var(--margin) 42px}.title-logo{max-width:75vw}.title-name{font-size:42px}.title-actions{gap:var(--s-2)}.title-play{width:100%;justify-content:center}.title-pills{gap:5px}}
+@media(prefers-reduced-motion:reduce){.title-play,.title-action,.title-action-label{transition:none}}

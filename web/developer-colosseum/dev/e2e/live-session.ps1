@@ -8,7 +8,8 @@ param(
     [string]$QtBin,
     [string]$MpvBin,
     [string]$LibMpvBin,
-    [string]$ProbeFile
+    [string]$ProbeFile,
+    [string]$RecordDir
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +40,7 @@ $oldDrive = $env:COLOSSEUM_LANISTA_DRIVE
 $oldWeb = $env:COLOSSEUM_WEBUI
 $oldDebug = $env:QTWEBENGINE_REMOTE_DEBUGGING
 $oldDev = $env:COLOSSEUM_DEV
+$oldRecord = $env:COLOSSEUM_WEBUI_RECORD
 $app = $null
 try {
     $runtime = @($QtBin, $MpvBin, $LibMpvBin) | Where-Object { $_ }
@@ -48,6 +50,10 @@ try {
     $env:COLOSSEUM_LANISTA_DRIVE = '1'
     $env:COLOSSEUM_WEBUI = '1'
     $env:COLOSSEUM_DEV = '1'
+    if ($RecordDir) {
+        New-Item -ItemType Directory -Path $RecordDir -Force | Out-Null
+        $env:COLOSSEUM_WEBUI_RECORD = (Resolve-Path -LiteralPath $RecordDir).Path
+    }
     $env:QTWEBENGINE_REMOTE_DEBUGGING = [string]$port
     $app = Start-Process -FilePath $Exe -PassThru -WorkingDirectory $repo -RedirectStandardOutput (Join-Path $out "$Label-stdout.log") -RedirectStandardError (Join-Path $out "$Label-stderr.log")
     @{
@@ -80,4 +86,5 @@ try {
     $env:COLOSSEUM_WEBUI = $oldWeb
     $env:QTWEBENGINE_REMOTE_DEBUGGING = $oldDebug
     $env:COLOSSEUM_DEV = $oldDev
+    $env:COLOSSEUM_WEBUI_RECORD = $oldRecord
 }

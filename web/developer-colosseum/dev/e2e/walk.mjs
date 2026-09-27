@@ -33,6 +33,8 @@ try {
       const sections = await page.$$eval('#col [data-section]', ss => ss.map(s => `${s.dataset.section}:${s.dataset.state}`));
       console.log(`sections (${sections.length}): ${sections.join(', ') || 'none'}`);
       if (!sections.length) failures.push('no sections rendered');
+      if (route.name === 'detail' && !await page.locator('#col [data-section="hero"] [data-key="theatre.play"][data-focus]').count())
+        failures.push('title Play is absent from keyboard focus');
 
       const walk = await keyboardWalk(page);
       console.log(`keyboard: reached ${walk.reached}/${walk.total} focusables in ${walk.presses} presses`);

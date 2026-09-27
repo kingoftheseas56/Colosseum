@@ -241,6 +241,14 @@ async function runChecks(session, failures) {
     await wait(500);
   }
   if (!ready) failures.push('sections did not reach ready state');
+  if (route?.name === 'detail') await evaluate(session, `(async () => {
+    const images = [...document.querySelectorAll('.title-logo,.title-backdrop-art')];
+    await Promise.race([Promise.all(images.map(img => img.complete ? Promise.resolve() :
+      new Promise(resolve => { img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true }); }))),
+      new Promise(resolve => setTimeout(resolve, 3000))]);
+    return true;
+  })()`);
 
   if (probeFile) {
     const result = await evaluate(session, fs.readFileSync(probeFile, 'utf8'));
@@ -251,18 +259,20 @@ async function runChecks(session, failures) {
   await screenshot(session, path.join(OUT, `${label}.png`));          // the page as the app shows it
   const sections = await evaluate(session, `[...document.querySelectorAll('#col [data-section]')].map(s => s.dataset.section + ':' + s.dataset.state)`);
   console.log(`sections (${sections.length}): ${sections.join(', ') || 'none'}`);
+  if (route?.name === 'detail' && !await evaluate(session,
+    `!!document.querySelector('#col [data-section="hero"] [data-key="theatre.play"][data-focus]')`))
+    failures.push('title Play is absent from keyboard focus');
+
+  // Capture the opening viewport before the focus walk scrolls through lower sections.
+  for (const [w, h] of [[1920, 1080], [1280, 720]]) {
+    try { await screenshot(session, path.join(OUT, `${label}-${w}.png`), w, h); }
+    catch (e) { console.log(`note: ${w}×${h} shot failed (${e.message})`); }
+  }
 
   const walk = await keyboardWalk(session);
   console.log(`keyboard: reached ${walk.reached}/${walk.total} focusables in ${walk.presses} presses`);
   if (walk.unreachable.length) failures.push(`unreachable by keyboard (${walk.unreachable.length}): ${walk.unreachable.slice(0, 15).join(' | ')}`);
   if (walk.hiddenAfterMove.length) failures.push(`focus landed hidden under the TopBar/off the board: ${walk.hiddenAfterMove.slice(0, 10).join(' | ')}`);
-
-  // the two walk.mjs sizes, replayed through viewport emulation (the app window itself is
-  // untouched). Best-effort: a socket drop here must not sink the already-collected results.
-  for (const [w, h] of [[1920, 1080], [1280, 720]]) {
-    try { await screenshot(session, path.join(OUT, `${label}-${w}.png`), w, h); }
-    catch (e) { console.log(`note: ${w}×${h} shot failed (${e.message})`); }
-  }
 
   if (route && route.name !== 'home') {            // Escape must leave a pushed route (walk.mjs rule)
     const before = await evaluate(session, 'location.hash');

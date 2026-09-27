@@ -49,7 +49,7 @@ QVariantList build(const FeedContext &ctx, const QVariantMap &meta,
     std::sort(seasons.begin(), seasons.end(), [](int a, int b) { return a == 0 ? false : b == 0 ? true : a < b; });
     const QVariantMap view = ctx.params.value(QStringLiteral("view")).toMap();
     const QString order = view.value(QStringLiteral("order"), QStringLiteral("seasons")).toString();
-    int selected = view.value(QStringLiteral("season"), ctx.nativeSnapshot.value(QStringLiteral("lastSeason"))).toInt();
+    int selected = view.value(QStringLiteral("season"), ctx.nativeSnapshot.value(QStringLiteral("lastSeason"), -1)).toInt();
     if (!seen.contains(selected) && !seasons.isEmpty()) selected = seasons.first();
 
     QVariantList seasonRows;
@@ -99,6 +99,28 @@ QVariantList build(const FeedContext &ctx, const QVariantMap &meta,
             windowStart = (((nextIndex / 100) + (windowStart / 100)) % pageCount) * 100;
     }
     const QVariantList episodeWindow = allEpisodes.mid(windowStart, 100);
+    QString primaryLabel = QStringLiteral("Play");
+    QString primaryTargetId = type == QLatin1String("movie") ? requested : nextUp;
+    if (type == QLatin1String("movie")) {
+        const double position = progress.value(requested).value(QStringLiteral("progress")).toDouble();
+        if (position > 0 && position < 0.85) primaryLabel = QStringLiteral("Resume");
+    } else {
+        if (primaryTargetId.isEmpty() && !allEpisodes.isEmpty())
+            primaryTargetId = allEpisodes.first().toMap().value(QStringLiteral("id")).toString();
+        for (const QVariant &value : allEpisodes) {
+            const QVariantMap episode = value.toMap();
+            if (episode.value(QStringLiteral("id")) != primaryTargetId) continue;
+            const double position = episode.value(QStringLiteral("progress")).toDouble();
+            primaryLabel = QStringLiteral("%1 S%2 E%3")
+                .arg(position > 0 && position < 0.85 ? QStringLiteral("Resume") : QStringLiteral("Play"))
+                .arg(episode.value(QStringLiteral("season")).toInt())
+                .arg(episode.value(QStringLiteral("displayNumber")).toInt());
+            break;
+        }
+    }
+    QString logo = meta.value(QStringLiteral("logo")).toString();
+    if (logo.isEmpty() && resolvedId.startsWith(QLatin1String("tt")))
+        logo = QStringLiteral("https://images.metahub.space/logo/medium/%1/img").arg(resolvedId);
     QVariantList facts;
     for (const auto &pair : {qMakePair(QStringLiteral("Year"), meta.value(QStringLiteral("year")).toString()),
                              qMakePair(QStringLiteral("Runtime"), meta.value(QStringLiteral("runtime")).toString()),
@@ -123,7 +145,9 @@ QVariantList build(const FeedContext &ctx, const QVariantMap &meta,
          {QStringLiteral("resolvedId"), resolvedId}, {QStringLiteral("type"), type},
          {QStringLiteral("title"), title}, {QStringLiteral("banner"), meta.value(QStringLiteral("background")).toString()},
          {QStringLiteral("cover"), meta.value(QStringLiteral("poster"), ctx.params.value(QStringLiteral("cover"))).toString()},
-         {QStringLiteral("logo"), meta.value(QStringLiteral("logo")).toString()},
+         {QStringLiteral("logo"), logo},
+         {QStringLiteral("kind"), requested.startsWith(QLatin1String("mal:"))
+             || requested.startsWith(QLatin1String("kitsu:")) ? QStringLiteral("anime") : type},
          {QStringLiteral("year"), meta.value(QStringLiteral("year")).toString()},
          {QStringLiteral("genres"), genreList}, {QStringLiteral("rating"), meta.value(QStringLiteral("imdbRating")).toString()},
          {QStringLiteral("scores"), scores},
@@ -132,7 +156,8 @@ QVariantList build(const FeedContext &ctx, const QVariantMap &meta,
          {QStringLiteral("synopsis"), meta.value(QStringLiteral("description")).toString()},
          {QStringLiteral("saved"), ctx.nativeSnapshot.value(QStringLiteral("saved")).toBool()},
          {QStringLiteral("notify"), ctx.nativeSnapshot.value(QStringLiteral("notify"), true).toBool()},
-         {QStringLiteral("primaryLabel"), type == QLatin1String("movie") ? QStringLiteral("Watch") : QStringLiteral("Start Watching")}});
+         {QStringLiteral("primaryLabel"), primaryLabel},
+         {QStringLiteral("primaryTargetId"), primaryTargetId}});
     if (!resolved) hero.insert(QStringLiteral("error"), error);
     out.append(hero);
     out.append(section(QStringLiteral("facts"), 1, QStringLiteral("Facts"), facts.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"),
