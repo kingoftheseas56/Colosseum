@@ -1,4 +1,4 @@
-/* Main.qml Home: the hero leads, one Continue rail follows, then the three world intros and Vault. */
+/* Home: the hero leads, one Continue rail follows, then the three world intros. */
 .home-pane{gap:var(--s-8)}
 .home-pane .wh .home-enter{margin-left:auto}
 .home-pane .wh .home-enter + .more{margin-left:var(--s-4)}
@@ -12,7 +12,3 @@
 .home-pane [data-section="home.biblio"] .rail-wrap{
   border-bottom:var(--s-1) solid var(--glassTint);
 }
-.home-pane [data-section="home.vault"] .gm{grid-template-columns: minmax(0,1fr)}
-.home-pane [data-section="home.vault"] .gt{height:var(--hero-h);background:var(--glassTint)}
-.home-pane [data-section="home.vault"] .gt .n{left:var(--s-8);bottom:var(--s-8);font-size:var(--t-h1)}
-.home-pane [data-section="home.vault"] .gt:hover{background:var(--glassHi)}

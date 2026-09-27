@@ -1,4 +1,4 @@
-// Home keeps Main.qml:3290-3450's universe, Continue, and four intro sections in native order.
+// Home presents the universe hero, Continue, and three world intros in native order.
 // The feed owns the data and doors; this surface only presents the sections.
 (function (CW) {
   'use strict';

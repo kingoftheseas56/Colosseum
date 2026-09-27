@@ -102,7 +102,7 @@ QVariantList build(const FeedContext &ctx)
         }
     }
 
-    // Main.qml:3368-3432: Bookshelf, TheatreStrip, ReadingDesk, Vault order.
+    // Main.qml:3368-3432: Bookshelf, TheatreStrip, ReadingDesk order.
     // WorldFeed already owns the worker-local catalogue projections for these worlds.
     const QVariantList tankoban = WorldFeed::build(QStringLiteral("Tankoban"), QStringLiteral("discover"),
         ctx.paths, {}, ctx.showExplicit);
@@ -140,11 +140,6 @@ QVariantList build(const FeedContext &ctx)
         {}, QStringLiteral("Biblio"), QStringLiteral("book"), ctx.showExplicit);
     biblio.insert(QStringLiteral("state"), QStringLiteral("loading"));
     sections.append(biblio);
-    // Main.qml:3434-3450 / VaultHomeWidget.qml: the Home teaser is a Vault door.
-    sections.append(WebFeedChoice::section(QStringLiteral("home.vault"), sections.size(),
-        QStringLiteral("Vault"), QStringLiteral("tiles"),
-        {WebFeedChoice::choice(QStringLiteral("door:vault"), QStringLiteral("Open Vault"),
-            {{QStringLiteral("act"), QStringLiteral("open.vault")}})}));
     return sections;
 }
 
