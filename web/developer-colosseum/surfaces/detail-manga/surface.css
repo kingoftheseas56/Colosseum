@@ -19,3 +19,42 @@
 .dm-unit-copy{display:grid;gap:var(--s-2)}.dm-unit-copy b{font:var(--t-lg) var(--ui-stack)}.dm-unit-state{color:var(--inkDimmer)}
 .dm-unit-actions{justify-content:end}.dm-small{padding:var(--s-2) var(--s-3)}.dm-sources{padding:var(--s-4)}.dm-source{display:grid;gap:var(--s-1);text-align:left}
 @media(max-width:70em){.dm-volume,.dm-chapter{grid-template-columns:minmax(0,1fr)}.dm-volume-art{display:none}.dm-unit-actions{justify-content:start}.dm-hero{grid-template-columns:minmax(0,1fr)}.dm-cover{display:none}}
+
+/* MangaSeriesSharedHeader.qml:59-270 and MangaReadingRoom.qml:88-129. */
+#app:has(.dm-page) #wall{background:#050608} /* token? #050608 from MangaReadingRoom.qml:85 */
+#app:has(.dm-page) #topbar{top:0;left:var(--margin);right:var(--margin);height:58px} /* token? 58px from MangaSeriesSharedHeader.qml:63 */
+#app:has(.dm-page) #topbar:before{content:'Tankoban';position:absolute;left:50%;transform:translateX(-50%);font:600 15px var(--ui-stack)} /* token? 15px from MangaSeriesSharedHeader.qml:75 */
+#app:has(.dm-page) #topbar:after{content:'';position:fixed;left:0;right:0;top:57px;border-bottom:1px solid var(--edge);opacity:.33} /* token? 58px from MangaSeriesSharedHeader.qml:63 */
+#app:has(.dm-page) .clock,#app:has(.dm-page) #world-nav,
+#app:has(.dm-page) #search-button,#app:has(.dm-page) #trackers-button,
+#app:has(.dm-page) #account-button,#app:has(.dm-page) #wallpaper-button{display:none}
+#app:has(.dm-page) #home-button{font-size:0}
+#app:has(.dm-page) #home-button:after{content:'Back';font-size:14px} /* token? 14px from BackAction.qml */
+#app:has(.dm-page) #board{top:58px} /* token? 58px from MangaSeriesSharedHeader.qml:63 */
+#app:has(.dm-page) #col{padding:0 0 110px} /* token? trailing scroll space */
+.dm-page{display:block;position:relative;background:#050608} /* token? #050608 from MangaReadingRoom.qml:85 */
+.dm-page .widget{background:transparent;border:0;border-radius:0;overflow:visible;margin:0}
+.dm-page .wh{display:none}
+.dm-hero{display:block;min-height:205px;padding:0;position:relative} /* token? 205px from MangaSeriesSharedHeader.qml:90 */
+.dm-back{opacity:.28;z-index:0} /* token? .28 from MangaSeriesSharedHeader.qml:98 */
+.dm-back:after{content:'';position:absolute;inset:0;background:linear-gradient(rgba(5,6,10,.2),rgba(5,6,10,.58) 62%,rgba(5,6,10,.94))} /* token? stops from MangaSeriesSharedHeader.qml:102-105 */
+.dm-intro{position:absolute;left:var(--margin);top:22px;gap:5px;max-width:650px} /* token? 22px, 5px, 650px from MangaSeriesSharedHeader.qml:111-123 */
+.dm-kicker{font:10px var(--ui-stack);letter-spacing:2.4px} /* token? 10px, 2.4px from MangaSeriesSharedHeader.qml:114 */
+.dm-title-row{display:flex;align-items:center;gap:10px}
+.dm-intro h1{font:600 34px/1.2 var(--display-stack)} /* token? 34px from MangaSeriesSharedHeader.qml:122 */
+.dm-library{width:36px;height:36px;display:inline-grid;place-items:center;border-radius:9px;font:24px var(--ui-stack)} /* token? 36px, 9px from MangaSeriesSharedHeader.qml:130-145 */
+.dm-library:hover{background:rgba(255,255,255,.10)} /* token? .10 from MangaSeriesSharedHeader.qml:145 */
+.dm-meta{font:13px var(--ui-stack)} /* token? 13px from MangaSeriesSharedHeader.qml:187 */
+.dm-synopsis{font:13px/1.45 var(--ui-stack);max-width:calc(100vw - 600px)} /* token? 13px from MangaSeriesSharedHeader.qml:201 */
+.dm-page [data-section='modes']{position:absolute;z-index:3;top:31px;right:var(--margin);width:258px} /* token? 31px, 258px from MangaSeriesSharedHeader.qml:242-246 */
+.dm-mode-wrap{padding:0;gap:9px}
+.dm-modes,.dm-languages{width:258px;height:36px;border:1px solid var(--edge);border-radius:10px;background:rgba(15,16,19,.92);padding:4px;gap:0;flex-wrap:nowrap} /* token? 258px, 36px, 10px from MangaSeriesSharedHeader.qml:211-246 */
+.dm-mode{width:125px;height:28px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;font:12px var(--ui-stack)} /* token? 125px, 28px, 7px from MangaSeriesSharedHeader.qml:252-269 */
+.dm-mode.on{background:var(--gold);color:#191407} /* token? #191407 from MangaSeriesSharedHeader.qml:257 */
+.dm-languages{align-items:center;justify-content:space-between;padding:4px 5px 4px 12px}
+.dm-languages span{font:11px var(--ui-stack);color:var(--inkDimmer)} /* token? 11px from MangaSeriesSharedHeader.qml:215 */
+.dm-language{width:166px;height:28px;padding:0 10px;text-align:left;border-radius:7px;border:1px solid var(--edge);background:rgba(255,255,255,.018);font:12px var(--ui-stack)} /* token? 166px, 28px, 7px and .018 from MangaSeriesSharedHeader.qml:225-238 */
+.dm-language.on{background:rgba(255,255,255,.018);border-color:var(--edge);color:var(--inkDimmer)}
+.dm-page [data-section='volumes'] .empty-state{display:none} /* QML's shelf-less reading room shows no empty card: MangaTankobanLibrary.qml:74 */
+.dm-page [data-section='chapters'],.dm-page [data-section='sources'],.dm-page [data-section='downloads']{margin:0 var(--margin)}
+.dm-volume-art{position:relative;display:block;width:var(--poster-w);height:var(--poster-h);overflow:hidden}

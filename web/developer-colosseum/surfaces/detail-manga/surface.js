@@ -19,26 +19,17 @@
         const data = section.data || {};
         if (data.schema === 'manga.header')
           return h('div.dm-hero', {},
-            h('div.dm-back', {}, CW.face(data.banner || data.cover, data.title || 'Manga')),
-            h('div.dm-cover', {}, CW.face(data.cover, data.title || 'Manga')),
+            data.banner || data.cover ? h('div.dm-back', {}, CW.face(data.banner || data.cover, data.title || 'Manga')) : null,
             h('div.dm-intro', {},
               h('span.dm-kicker', {}, 'MANGA'),
-              h('h1', {}, data.title || 'Untitled'),
-              h('p.dm-meta', {}, [data.author, data.year, data.status].filter(Boolean).join(' · ')),
-              data.genres && data.genres.length ? h('p.dm-genres', {}, data.genres.join(' · ')) : null,
-              data.synopsis ? h('p.dm-synopsis', {}, data.synopsis) : null,
-              h('div.dm-actions', {},
-                h('button.dm-primary', { type: 'button', 'data-focus': true, 'data-key': 'manga.primary',
-                  onclick: () => {
-                    const volumes = box.querySelector('[data-section="volumes"]');
-                    const first = volumes && volumes.querySelector('[data-key^="manga.volume."]');
-                    if (first) first.focus({ preventScroll: false });
-                    else act('selectMode', { mode: 'chapters' });
-                  } }, data.primaryLabel || 'Read'),
-                h('button.dm-secondary', { type: 'button', 'data-focus': true, 'data-key': 'manga.collection',
+              h('div.dm-title-row', {}, h('h1', {}, data.title || 'Untitled'),
+                h('button.dm-library', { type: 'button', 'data-focus': true, 'data-key': 'manga.collection',
+                  'aria-label': data.saved ? 'Remove from Library' : 'Add to Library',
                   'aria-pressed': !!data.saved, onclick: () => act('collection', {
                     saved: !data.saved, title: data.title, cover: data.cover
-                  }) }, data.saved ? 'In Collection' : 'Add to Collection'))));
+                  }) }, data.saved ? '✓' : '+')),
+              h('p.dm-meta', {}, [data.author, data.status, data.year, data.score ? '★ ' + Number(data.score).toFixed(2) : ''].filter(Boolean).join(' · ')),
+              data.synopsis ? h('p.dm-synopsis', {}, data.synopsis) : null));
         if (data.schema === 'manga.modes') {
           mode = data.selected || mode;
           return h('div.dm-mode-wrap', {},
@@ -46,15 +37,15 @@
               h('button.dm-mode' + (choice === mode ? '.on' : ''), {
                 type: 'button', 'data-focus': true, 'data-key': 'manga.mode.' + choice,
                 'aria-pressed': choice === mode,
-                disabled: choice === 'chapters' && !data.chapterEnabled ? true : null,
                 onclick: () => act('selectMode', { mode: choice, language: data.selectedLanguage })
-              }, choice === 'volumes' ? 'Volumes' : 'Chapters'))),
-            mode === 'chapters' ? h('div.dm-languages', {}, (data.languages || []).map(language =>
+              }, choice === 'volumes' ? 'Tankoban Mode' : 'Chapter Mode'))),
+            h('div.dm-languages', {}, h('span', {}, 'Language'), (data.languages || []).map(language =>
               h('button.dm-language' + (language.code === data.selectedLanguage ? '.on' : ''), {
-                type: 'button', 'data-focus': true, 'data-key': 'manga.language.' + language.code,
+                type: 'button', 'data-focus': mode === 'chapters' ? true : null, 'data-key': 'manga.language.' + language.code,
                 'aria-pressed': language.code === data.selectedLanguage,
+                disabled: mode === 'volumes',
                 onclick: () => act('selectMode', { mode: 'chapters', language: language.code })
-              }, language.label || language.code))) : null);
+              }, language.label || language.code))));
         }
         if (data.schema === 'manga.volumes') {
           if (!(data.rows || []).length) return CW.section.note('No volume shelf yet', 'This catalogue has no proven volumes.');
@@ -75,11 +66,7 @@
                   volume.owned ? 'Read' : 'Get'),
                 h('button.dm-small', { type: 'button', 'data-focus': true,
                   'data-key': 'manga.volume.' + volume.id + '.download',
-                  onclick: () => act('loadVolumeSources', { unitId: volume.id }) }, 'Find source'),
-                h('button.dm-small', { type: 'button', 'data-focus': true,
-                  'data-key': 'manga.volume.' + volume.id + '.mark', 'aria-pressed': !!volume.read,
-                  onclick: () => act('markRead', { unitKind: 'volume', unitId: volume.id, read: !volume.read }) },
-                  volume.read ? 'Read ✓' : 'Mark read')))));
+                  onclick: () => act('loadVolumeSources', { unitId: volume.id }) }, 'Find source')))));
         }
         if (data.schema === 'manga.chapters') {
           const scope = [mode, data.sourceSeriesId, data.language].join(':');
@@ -99,11 +86,7 @@
                   onclick: () => act('read', { unitKind: 'chapter', unitId: chapter.id }) }, 'Read'),
                 h('button.dm-small', { type: 'button', 'data-focus': true,
                   'data-key': 'manga.chapter.' + chapter.id + '.download',
-                  onclick: () => act('download', { unitKind: 'chapter', unitId: chapter.id }) }, 'Download'),
-                h('button.dm-small', { type: 'button', 'data-focus': true,
-                  'data-key': 'manga.chapter.' + chapter.id + '.mark', 'aria-pressed': !!chapter.read,
-                  onclick: () => act('markRead', { unitKind: 'chapter', unitId: chapter.id, read: !chapter.read }) },
-                  chapter.read ? 'Read ✓' : 'Mark read')))),
+                  onclick: () => act('download', { unitKind: 'chapter', unitId: chapter.id }) }, 'Download')))),
             section.hasMore ? h('button.dm-more', { type: 'button', 'data-focus': true,
               'data-key': 'manga.chapters.more', onclick: () => sub && env.more(sub, section) }, 'More chapters') : null);
         }

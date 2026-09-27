@@ -23,3 +23,58 @@
 .dt-cast{display:flex;flex-wrap:wrap;gap:var(--s-5);padding:var(--s-4)}.dt-person{display:grid;gap:var(--s-2)}.dt-person .face{width:var(--poster-w);height:var(--poster-w)}
 .dt-sources{display:flex;flex-wrap:wrap;gap:var(--s-3);padding:var(--s-4)}.dt-source{display:grid;gap:var(--s-2);text-align:left;border:thin solid var(--edge);border-radius:var(--r-md);padding:var(--s-4);background:var(--glassTint)}.dt-source-actions{display:flex;gap:var(--s-2)}
 @media(max-width:70em){.dt-episode{grid-template-columns:minmax(0,1fr)}.dt-episode-art{display:none}.dt-episode-actions{justify-content:start;max-width:none}.dt-hero{grid-template-columns:minmax(0,1fr)}.dt-poster{display:none}}
+
+/* Detail chrome and masthead: TheatreSeries.qml:958-1323, 1760-2070. */
+#app:has(.dt-page) #wall{background:#000000} /* token? #000000 from TheatreSeries.qml:904 */
+#app:has(.dt-page) #topbar{top:0;left:var(--margin);right:var(--margin);height:58px} /* token? 58px from TheatreSeries.qml:941 */
+#app:has(.dt-page) .clock,#app:has(.dt-page) #world-nav,
+#app:has(.dt-page) #search-button,#app:has(.dt-page) #trackers-button,
+#app:has(.dt-page) #account-button,#app:has(.dt-page) #wallpaper-button{display:none}
+#app:has(.dt-page) #home-button{font-size:0}
+#app:has(.dt-page) #home-button:after{content:'Back';font-size:14px} /* token? 14px from BackAction.qml */
+#app:has(.dt-page) #board{top:0}
+#app:has(.dt-page) #col{padding:0 0 110px} /* token? 110px for scroll end; page QML content ends after related */
+.dt-page{gap:0;background:#000000} /* token? #000000 from TheatreSeries.qml:904 */
+.dt-page .widget{background:transparent;border:0;border-radius:0;overflow:visible;margin:0}
+.dt-page .wh{display:none}
+.dt-hero{display:block;padding:0;min-height:360px} /* token? 360px from TheatreSeries.qml:1068 */
+.dt-back{z-index:0;opacity:1}
+.dt-back:after{content:'';position:absolute;inset:0;background:linear-gradient(transparent,rgba(0,0,0,.5) 55%,rgba(0,0,0,.96))} /* token? stops from TheatreSeries.qml:1083-1085 */
+.dt-hero-copy{position:absolute;left:var(--margin);right:var(--margin);bottom:30px;gap:12px} /* token? 30px from TheatreSeries.qml:1098 */
+.dt-hero-copy h1{font:600 64px/1.1 var(--display-stack)} /* token? 64px from TheatreSeries.qml:1115 */
+.dt-kicker{font:11px var(--ui-stack);letter-spacing:3px} /* token? 11px and 3px from TheatreSeries.qml:1105-1106 */
+.dt-hero-meta{display:flex;align-items:center;gap:11px;font:14px var(--ui-stack);color:var(--inkDim)} /* token? 11px and 14px from TheatreSeries.qml:1122-1198 */
+.dt-hero-meta>*+*:before{content:'-';color:var(--inkDimmer);margin-right:11px}
+.dt-rating{display:inline-flex;align-items:center;gap:7px}
+.dt-rating i{font:900 10px var(--ui-stack);font-style:normal;letter-spacing:-.45px;background:#F5C518;color:#111111;padding:3px;border-radius:3px} /* token? IMDb plaque from TheatreSeries.qml:1158-1171 */
+.dt-actions{gap:12px;margin-top:8px}
+.dt-primary,.dt-secondary{height:42px;border-radius:11px;padding:0 20px;font:600 14px var(--ui-stack)} /* token? 42px, 11px, 20px, 14px from TheatreSeries.qml:1213-1265 */
+.dt-primary{background:var(--gold)}
+.dt-secondary{background:rgba(255,255,255,.05)} /* token? .05 from LibraryButton.qml */
+.dt-facts{display:grid;grid-template-columns:580px minmax(0,1fr);gap:56px;margin:0 var(--margin);padding:22px 0 6px} /* token? 580px, 56px, 22px, 6px from TheatreSeries.qml:1287-1312 */
+.dt-synopsis{font:15px/1.5 var(--ui-stack);color:var(--inkDim);margin:0}
+.dt-fact-list{display:grid;gap:10px}
+.dt-fact{display:grid;grid-template-columns:90px minmax(0,1fr);gap:18px;font:13px var(--ui-stack)} /* token? 90px, 18px, 13px from TheatreSeries.qml:1307-1316 */
+.dt-fact b{font-weight:400}
+.dt-season-row{padding:14px var(--margin) 0;gap:22px} /* token? 22px from TheatreSeries.qml:1989 */
+.dt-season{border:0;border-radius:0;background:transparent;padding:0 0 8px;color:var(--inkDim);font:14px var(--ui-stack)}
+.dt-season.on{background:transparent;border:0;border-bottom:2px solid var(--gold);color:var(--gold)}
+.dt-season small{display:none}
+.dt-page [data-section='episodes']{margin:12px var(--margin) 0}
+.dt-ledger h2{font:600 26px var(--ui-stack);margin:0 0 4px} /* token? 26px from TheatreSeries.qml:2053 */
+.dt-ledger small{color:var(--inkDimmer);font:11px var(--ui-stack)} /* token? 11px from TheatreSeries.qml:2060 */
+.dt-ledger-head{display:grid;grid-template-columns:276px minmax(0,1fr) 118px;border-bottom:1px solid var(--edge);height:30px;align-items:end;padding:0 12px 5px;font:600 10px var(--ui-stack);letter-spacing:1.3px;color:var(--inkDimmer)} /* token? 276px, 118px, 30px, 10px from TheatreSeries.qml:2321-2325 */
+.dt-episodes{padding:0;gap:0}
+.dt-page [data-section='cast'],.dt-page [data-section='related'],.dt-page [data-section='sources']{margin:0 var(--margin)}
+.dt-cast{display:block;padding:0;opacity:1;transition:opacity 420ms cubic-bezier(.215,.61,.355,1)} /* token? 420ms OutCubic from CastRow.qml:12 */
+.dt-cast-label{font:12px var(--ui-stack);letter-spacing:2.5px;color:var(--inkDim)} /* token? 12px, 2.5px from CastRow.qml:30 */
+.dt-cast-flow{display:flex;flex-wrap:wrap;gap:28px;margin-top:16px} /* token? 28px, 16px from CastRow.qml:6,34 */
+.dt-person{width:96px;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;font:12px var(--ui-stack)} /* token? 96px, 9px, 12px from CastRow.qml:41-72 */
+.dt-avatar{position:relative;width:78px;height:78px;border-radius:39px;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);overflow:hidden;display:grid;place-items:center;font:600 22px var(--ui-stack);color:var(--inkDim)} /* token? 78px, 39px, .13, .06, 22px from CastRow.qml:43-60 */
+.dt-avatar .face{width:100%;height:100%}
+.dt-avatar .fb{display:none}
+.dt-episode-art{position:relative;display:block;width:var(--poster-w);height:calc(var(--poster-w) * .56);overflow:hidden}
+.dt-person b{font-weight:400}
+.dt-person small{font:11px var(--ui-stack)} /* token? 11px from CastRow.qml:72 */
+.dt-cast-more{align-self:start}
+@media(max-width:70em){.dt-facts{grid-template-columns:minmax(0,1fr);gap:20px}} /* token? responsive fallback; QML keeps fixed columns */
