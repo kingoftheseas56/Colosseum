@@ -1,0 +1,45 @@
+/* Geometry parity: qml/update/UpdateLivingGallery.qml:149-421 and qml/UpdatePage.qml:178-283. */
+.update-page{width:100%;--up-edge:calc(var(--s-8) + var(--s-2));--up-mast:calc(var(--s-8) * 2 + var(--s-7) - var(--s-1) / 2);--up-hit:calc(var(--s-8) - var(--s-1) / 2);--up-nav-bottom:calc(var(--s-8) * 3 + var(--s-3) + var(--s-1) / 2);--up-status-bottom:calc(var(--s-8) + var(--s-7) + var(--s-2))}
+.update-page>.widget{margin:calc(var(--s-3) * -1) calc(var(--margin) * -1) calc(var(--s-8) * -2)}
+/* token? #000000 from qml/update/UpdateLivingGallery.qml:158-161 */
+.up-stage{position:relative;min-height:calc(100vh - var(--board));overflow:hidden;background:#000000}
+.up-stage>.face{position:absolute;inset:0}
+.up-stage>.face img{width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:0;transition:opacity 220ms cubic-bezier(.455,.03,.515,.955)}
+.up-stage>.face img.on{opacity:1}
+/* The QML fallback is captured-motion.jpg (UpdateLivingGallery.qml:65). That asset is not in the
+   frozen developer-WebUI qrc resource set; REQUEST-W2-1-UPDATE-FALLBACK-ART.md records the core seam. */
+.up-stage>.face .fb{align-items:center;justify-content:center;padding:var(--s-8);font:400 var(--t-hero)/1 var(--display-stack);color:color-mix(in srgb,var(--ink) 8%,transparent);background:var(--washBottom)}
+/* token? Qt.rgba black scrims from qml/update/UpdateLivingGallery.qml:192-208 */
+.up-wash{position:absolute;inset:0;background:linear-gradient(90deg,rgb(0 0 0 / 82%),rgb(0 0 0 / 34%) 43%,rgb(0 0 0 / 8%)),linear-gradient(180deg,rgb(0 0 0 / 50%),rgb(0 0 0 / 2%) 58%,rgb(0 0 0 / 70%))}
+.up-release{position:absolute;left:var(--up-mast);top:calc(var(--s-6) + var(--s-1))}
+.up-label,.up-section{display:block;color:color-mix(in srgb,var(--ink) 72%,transparent);font-size:var(--t-xs);font-weight:600}
+.up-label{letter-spacing:calc(var(--s-1) * .675)}
+.up-release h1{margin:var(--s-1) 0 0;color:var(--ink);font:400 clamp(calc(var(--s-7) + var(--s-1) / 2),5.5vw,calc(var(--s-8) + var(--s-5) + var(--s-1)))/1 var(--display-stack);letter-spacing:calc(var(--s-1) / -4)}
+.up-copy{position:absolute;left:var(--up-edge);bottom:calc(var(--s-8) * 4 + var(--s-7));width:min(max(calc(var(--poster-w) * 2 + var(--s-6) - var(--s-1) / 2),46%),calc(var(--poster-w) * 4 + var(--s-6) + var(--s-1) / 2));display:flex;flex-direction:column;gap:var(--s-2)}
+.up-section{letter-spacing:calc(var(--s-1) * .6)}
+.up-copy h2{margin:0;color:var(--ink);font:400 clamp(calc(var(--s-7) - var(--s-1) / 2),4.5vw,calc(var(--s-8) + var(--s-3)))/1 var(--display-stack);letter-spacing:calc(var(--s-1) * -.175)}
+.up-copy p{margin:0;color:color-mix(in srgb,var(--ink) 84%,transparent);font-size:calc(var(--t-base) + var(--s-1) / 4);line-height:1.22}
+.up-nav{position:absolute;left:var(--up-edge);right:var(--up-edge);bottom:var(--up-nav-bottom);min-height:var(--up-hit);display:flex;align-items:center;gap:calc(var(--s-2) + var(--s-1) / 2)}
+.up-count{color:color-mix(in srgb,var(--ink) 94%,transparent);font:400 var(--s-5)/1 var(--display-stack)}
+.up-nav-label{display:block;color:color-mix(in srgb,var(--ink) 62%,transparent);font-size:calc(var(--t-xs) - var(--s-1) / 2);font-weight:600;letter-spacing:calc(var(--s-1) * .45)}
+.up-divider{width:calc(var(--s-1) / 4);height:calc(var(--s-5) - var(--s-1) / 2);background:color-mix(in srgb,var(--ink) 26%,transparent)}
+.up-chapter,.up-next{position:relative;width:var(--up-hit);height:var(--up-hit);border-radius:var(--r-pill);display:grid;place-items:center;font-size:var(--t-xs);font-weight:600}
+.up-chapter{color:color-mix(in srgb,var(--ink) 56%,transparent)}
+.up-chapter.on{color:color-mix(in srgb,var(--ink) 98%,transparent)}
+.up-chapter:focus.on{border:calc(var(--s-1) / 4) solid color-mix(in srgb,var(--ink) 82%,transparent)}
+.up-chapter:after{content:"";position:absolute;left:50%;bottom:0;width:0;height:calc(var(--s-1) / 4);background:color-mix(in srgb,var(--ink) 92%,transparent);transform:translateX(-50%);transition:width 140ms cubic-bezier(.215,.61,.355,1)}
+.up-chapter.on:after{width:var(--s-4)}
+.up-next{border:calc(var(--s-1) / 4) solid color-mix(in srgb,var(--ink) 62%,transparent);color:color-mix(in srgb,var(--ink) 86%,transparent)}
+.up-primary:focus{box-shadow:var(--ring)}
+.up-status{position:absolute;left:var(--up-edge);right:var(--up-edge);bottom:var(--up-status-bottom);min-height:calc(var(--s-8) + var(--s-2) - var(--s-1) / 2);display:flex;align-items:center;gap:calc(var(--s-6) + var(--s-1) / 2)}
+.up-status-copy{display:flex;flex-direction:column;gap:var(--s-1)}
+.up-status-copy b{font-size:var(--t-base);font-weight:500}
+.up-status-copy span,.up-progress>span{color:var(--inkDim);font-size:var(--t-sm)}
+.up-progress{width:calc(var(--poster-w) + var(--s-8) + var(--s-7) + var(--s-6) + var(--s-1));display:flex;flex-direction:column;gap:calc(var(--s-2) - var(--s-1) / 2)}
+.up-track{display:block;width:100%;height:calc(var(--s-1) / 2);border-radius:calc(var(--s-1) / 4);overflow:hidden;background:color-mix(in srgb,var(--ink) 14%,transparent)}
+.up-track i{display:block;height:100%;border-radius:inherit;background:var(--ink);transition:width 240ms cubic-bezier(.455,.03,.515,.955)}
+.up-primary{margin-left:auto;min-height:var(--up-hit);padding:0 calc(var(--s-5) - var(--s-1) / 2);border-radius:var(--r-pill);background:color-mix(in srgb,var(--ink) 7%,transparent);border:calc(var(--s-1) / 4) solid color-mix(in srgb,var(--ink) 24%,transparent);font-size:var(--t-sm);font-weight:600}
+.up-primary:hover{background:color-mix(in srgb,var(--ink) 14%,transparent);border-color:color-mix(in srgb,var(--ink) 38%,transparent)}
+.up-primary:focus{background:color-mix(in srgb,var(--ink) 16%,transparent);border:calc(var(--s-1) / 2) solid var(--gold)}
+@media (prefers-reduced-motion:reduce){.up-stage>.face img,.up-chapter:after,.up-track i{transition:none}}
+:root[data-power="low"] .up-stage>.face img,:root[data-power="low"] .up-chapter:after,:root[data-power="low"] .up-track i{transition:none}
