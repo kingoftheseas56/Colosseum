@@ -42,8 +42,14 @@
         }
         chapterIndex = Math.max(0, Math.min(chapterIndex, Math.max(0, chapters.length - 1)));
         const chapter = chapters[chapterIndex] || {};
-        const art = Array.isArray(chapter.artwork) && chapter.artwork.length
+        const chapterArt = Array.isArray(chapter.artwork) && chapter.artwork.length
           ? String(chapter.artwork[0] || '') : '';
+        // QML UpdateLivingGallery.qml:65 uses captured-motion.jpg whenever the
+        // signed chapter has no art. qrc mode uses the embedded copy; browser
+        // fixture mode resolves the same source asset from the checkout.
+        const art = chapterArt || (location.protocol === 'qrc:'
+          ? 'qrc:///developer-webui/captured-motion.jpg'
+          : '../../assets/wallpaper/captured-motion.jpg');
         const version = release.version || data.latestVersion || data.installedVersion || release.title || '';
         const primary = data.primary || {};
 
