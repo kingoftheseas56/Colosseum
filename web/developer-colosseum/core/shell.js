@@ -70,7 +70,7 @@
     function mount(route, prev) {
       const name = router.surfaceName(route);
       const app = $('app');
-      app.dataset.surface = route.name === 'page' && route.page === 'update' ? 'page.update'
+      app.dataset.surface = route.name === 'page' ? 'page.' + route.page
         : (route.name === 'world' ? route.world : route.name);
       if (live && live.name === name && live.instance.update) {
         live.instance.update(route, prev);

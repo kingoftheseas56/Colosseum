@@ -1,0 +1,14 @@
+{
+  "name": "colosseum-web-svelte",
+  "private": true,
+  "type": "module",
+  "description": "Svelte 5 pages for the Colosseum web layer (CONTRACT §16). Built bundles are committed to ../surfaces/<name>/.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "svelte": "^5.0.0",
+    "vite": "^6.0.0"
+  }
+}
