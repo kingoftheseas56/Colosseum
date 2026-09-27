@@ -11,7 +11,23 @@
   const byId = (sections, id) => sections.find(s => s.id === id);
   const starts = (sections, prefix) => sections.filter(s => String(s.id || '').startsWith(prefix));
   const isReady = s => s && s.state === 'ready';
-  const esc = value => String(value == null ? '' : value);
+
+  function preserveFocus(container, mutate) {
+    const active = document.activeElement;
+    const key = active && container.contains(active) ? active.dataset.key : '';
+    mutate();
+    if (!key) return;
+    const next = container.querySelector('[data-key="' + CSS.escape(key) + '"]');
+    if (next) next.focus({ preventScroll: true });
+  }
+
+  function coverFace(url, label) {
+    const fallback = CW.h('span.biblio-cover-fallback', {}, (label || 'B').slice(0, 1));
+    if (!url) return fallback;
+    const image = CW.h('img', { src: url, alt: '', decoding: 'async' });
+    image.addEventListener('error', () => image.replaceWith(fallback));
+    return image;
+  }
 
   function mount(el, route, env) {
     const chrome = CW.h('div.biblio-chrome');
@@ -76,9 +92,8 @@
       resubscribe();
     }
 
-    function chooseView(choice) {
-      const patch = choice && choice.target && choice.target.view;
-      if (patch) applyView(patch);
+    function chooseView(choice, section) {
+      return env.choose(choice, section, null, applyView);
     }
 
     function openItem(item, intent) {
@@ -185,7 +200,7 @@
     };
 
     function renderChrome() {
-      CW.focus.preserve(chrome, () => {
+      preserveFocus(chrome, () => {
         const featured = byId(latest, 'biblio.chrome.featured');
         const continuing = byId(latest, 'biblio.chrome.continue');
         const nodes = [];
@@ -216,7 +231,7 @@
         CW.h('div.biblio-menu-head', {}, label),
         ...rows.map(choice => CW.h('button.biblio-menu-row' + (choice.selected ? '.on' : ''), {
           type: 'button', 'data-focus': true, 'data-key': choice.key,
-          onclick: () => chooseView(choice)
+          onclick: () => chooseView(choice, section)
         }, CW.h('span', {}, choice.label),
            choice.sublabel ? CW.h('small', {}, choice.sublabel) : null))
       ] : [];
@@ -242,7 +257,7 @@
               section.choices.forEach(choice => rows.push(
                 CW.h('button.biblio-menu-row' + (choice.selected ? '.on' : ''), {
                   type: 'button', 'data-focus': true, 'data-key': choice.key,
-                  onclick: () => chooseView(choice)
+                  onclick: () => chooseView(choice, section)
                 }, CW.h('span', {}, choice.label),
                    choice.sublabel ? CW.h('small', {}, choice.sublabel) : null)));
               return rows;
@@ -405,7 +420,7 @@
           onclick: () => env.choose(choice, section)
         },
           CW.h('span.biblio-mosaic-covers', {}, ...arts.slice(0, 7).map(art =>
-            CW.h('span.biblio-mosaic-cover', {}, CW.face(art, '')))),
+            CW.h('span.biblio-mosaic-cover', {}, coverFace(art, choice.label)))),
           CW.h('span.biblio-mosaic-title', {}, choice.label));
       }));
     }
@@ -427,7 +442,7 @@
           toggle ? CW.h('button.biblio-customize', {
             type: 'button', 'data-focus': true, 'data-key': toggle.key,
             'aria-label': customize ? 'Finish shelf customization' : 'Customize shelves',
-            onclick: () => chooseView(toggle)
+            onclick: () => chooseView(toggle, control)
           }, customize ? 'Done' : 'Customize shelves') : null),
         ...rows.map((section, index) => renderExploreRail(section, index, rows.length)),
         renderMosaics(mosaics));
@@ -439,7 +454,7 @@
         CW.h('button.biblio-library-pill' + (choice.selected ? '.on' : ''), {
           type: 'button', 'data-focus': true, 'data-key': choice.key,
           'aria-pressed': choice.selected ? 'true' : 'false',
-          onclick: () => chooseView(choice)
+          onclick: () => chooseView(choice, section)
         }, choice.label)));
     }
 
@@ -481,7 +496,7 @@
     }
 
     function renderBody() {
-      CW.focus.preserve(body, () => {
+      preserveFocus(body, () => {
         let node;
         if (activeTab === 'discover') node = renderDiscover();
         else if (activeTab === 'explore') node = renderExplore();
@@ -501,7 +516,7 @@
       tabs = CW.tabBar(TABS, tab, key => {
         if (key === activeTab) return;
         rememberScroll();
-        env.router.go({ name: 'world', world: 'Biblio', tab: key }, { replace: true });
+        subscribe(key);
       });
       tabsHost.replaceChildren(tabs);
     }
