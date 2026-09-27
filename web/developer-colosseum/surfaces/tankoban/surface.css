@@ -45,7 +45,8 @@
   --tk-rank-edge-w: 1px; /* token? PortraitTile.qml:131 */
   --tk-rank-focus-w: 2px; /* token? PortraitTile.qml:131 */
   --tk-rank-plate-a: rgba(0,0,0,.28); /* token? PortraitTile.qml:43 */
-  --tk-rank-plate-b: rgba(0,0,0,.10); /* token? PortraitTile.qml:48 */
+  --tk-rank-plate-b: rgba(0,0,0,.10); /* token? source parity from PortraitTile.qml:48 */
+  --tk-caption-outline: rgba(0,0,0,.85); /* token? source parity from PortraitTile.qml:103 */
 
   /* token? DiscoverBrowser.qml:456-820 / DiscoverPicker.qml:1-220. */
   --tk-discover-mast-h: 76px; /* token? DiscoverBrowser.qml:464 */
@@ -449,10 +450,10 @@
   font-weight: 600;
   line-height: 1.2;
   text-shadow:
-    -1px -1px 0 rgba(0,0,0,.85), /* token? PortraitTile.qml:103 outline */
-     1px -1px 0 rgba(0,0,0,.85),
-    -1px  1px 0 rgba(0,0,0,.85),
-     1px  1px 0 rgba(0,0,0,.85);
+    -1px -1px 0 var(--tk-caption-outline),
+     1px -1px 0 var(--tk-caption-outline),
+    -1px  1px 0 var(--tk-caption-outline),
+     1px  1px 0 var(--tk-caption-outline); /* token? source parity from PortraitTile.qml:103 */
   z-index: 2;
 }
 
