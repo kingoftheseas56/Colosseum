@@ -530,6 +530,19 @@ QVariantList buildDiscover(const FeedContext &ctx, MalCatalog &mal,
         QStringLiteral("Filter"),
         filterChoices(type, mal, comics, ctx.showExplicit, group, key)));
 
+    if (type == QLatin1String("manga")
+        && catalogue == QLatin1String("trending")) {
+        QVariantMap notice = WebFeedValue::section(
+            QStringLiteral("tankoban.discover.notice"), out.size(), {},
+            QStringLiteral("custom"), {}, QStringLiteral("ready"));
+        notice.insert(QStringLiteral("data"), QVariantMap{
+            {QStringLiteral("schema"), QStringLiteral("tankoban.notice")},
+            {QStringLiteral("text"),
+             QStringLiteral("Trending is using the latest popularity snapshot.")}
+        });
+        out.append(notice);
+    }
+
     const QVariantMap page = type == QLatin1String("manga")
         ? mal.discoverPage(catalogue, axis, key, ctx.showExplicit, 0, 24)
         : comics.discoverPage(catalogue, axis, key, ctx.showExplicit, 0, 24);
