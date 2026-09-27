@@ -14,7 +14,10 @@
 #include "../../engine/MangaDownloader.h"
 #include "../../engine/MangaTankobanService.h"
 
+#include <QDateTime>
 #include <QHash>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QRegularExpression>
@@ -34,7 +37,52 @@ namespace {
 
 constexpr int kPersonalLimit = 12;
 constexpr int kShelfLimit = 24;
+constexpr qint64 kLiveCacheMs = 15 * 60 * 1000;
 const QString kRemoveAction = QStringLiteral("world.tankoban.collection.remove");
+
+struct LiveCacheEntry {
+    qint64 fetchedAt = 0;
+    QHash<QString, QVariantMap> items;
+};
+QMutex liveCacheMutex;
+QHash<QString, LiveCacheEntry> liveCache;
+
+QString liveCacheKey(const QString &catalogue, const QString &filterGroup,
+                     const QString &filterKey, bool showExplicit)
+{
+    return catalogue + QLatin1Char('|') + filterGroup + QLatin1Char('|')
+        + filterKey + QLatin1Char('|')
+        + (showExplicit ? QStringLiteral("x") : QStringLiteral("s"));
+}
+
+QVariantList cachedMangaOverlay(QVariantList items, const QString &key)
+{
+    LiveCacheEntry cache;
+    {
+        QMutexLocker locker(&liveCacheMutex);
+        const auto it = liveCache.constFind(key);
+        if (it == liveCache.cend()
+            || QDateTime::currentMSecsSinceEpoch() - it->fetchedAt >= kLiveCacheMs)
+            return items;
+        cache = it.value();
+    }
+    for (QVariant &itemValue : items) {
+        QVariantMap item = itemValue.toMap();
+        const QVariantMap fresh = cache.items.value(
+            item.value(QStringLiteral("key")).toString());
+        if (fresh.isEmpty())
+            continue;
+        for (const QString &field : {
+                 QStringLiteral("title"), QStringLiteral("cover"),
+                 QStringLiteral("year"), QStringLiteral("rating")}) {
+            if (fresh.contains(field)
+                && !fresh.value(field).toString().isEmpty())
+                item.insert(field, fresh.value(field));
+        }
+        itemValue = item;
+    }
+    return items;
+}
 
 QVariantMap selectedChoice(const QString &key, const QString &label,
                            const QVariantMap &viewPatch, bool selected,
@@ -549,8 +597,12 @@ QVariantList buildDiscover(const FeedContext &ctx, MalCatalog &mal,
         : comics.discoverPage(catalogue, axis, key, ctx.showExplicit, 0, 24);
     const QString publicKind = type == QLatin1String("manga")
         ? QStringLiteral("manga") : QStringLiteral("comic");
-    const QVariantList items = mapRows(
+    QVariantList items = mapRows(
         page.value(QStringLiteral("items")).toList(), publicKind, 24);
+    if (type == QLatin1String("manga") && axis.isEmpty()) {
+        items = cachedMangaOverlay(
+            items, liveCacheKey(catalogue, group, key, ctx.showExplicit));
+    }
     const bool currentReady = type == QLatin1String("manga")
         ? mal.ready() : comics.ready();
     const bool downloading = !currentReady
@@ -1438,23 +1490,35 @@ QVariantList build(const FeedContext &ctx)
 
 QVariantList enrich(const FeedContext &ctx)
 {
-    // TankobanDiscoverApi.js:350-427. The bundled SQLite wall paints in the
-    // first worker pass; this second worker pass performs the non-blocking
-    // Jikan refresh and only enriches the same MAL identities in place.
+    // TankobanDiscoverApi.js:45-74,350-427. Bundled SQLite paints first.
+    // A live Jikan result is cached for 15 minutes and deliberately DOES NOT
+    // repaint the wall that triggered it; the next reload merges by stable
+    // MAL Item.key while preserving bundled order.
     if (ctx.params.value(QStringLiteral("tab")).toString()
             != QLatin1String("discover"))
         return ctx.baseSections;
     const QVariantMap view = ctx.params.value(QStringLiteral("view")).toMap();
     const QString type = view.value(
         QStringLiteral("type"), QStringLiteral("manga")).toString();
-    if (type != QLatin1String("manga")
-        || !view.value(QStringLiteral("filterKey")).toString().isEmpty())
+    const QString group = view.value(QStringLiteral("filterGroup")).toString();
+    const QString filterKey = view.value(QStringLiteral("filterKey"))
+        .toString().toLower().trimmed();
+    if (type != QLatin1String("manga") || !filterKey.isEmpty())
         return ctx.baseSections;
 
     QString catalogue = view.value(
         QStringLiteral("catalogue"), QStringLiteral("popular")).toString();
     if (!mangaCatalogues().contains(catalogue))
         catalogue = QStringLiteral("popular");
+    const QString cacheKey = liveCacheKey(
+        catalogue, group, filterKey, ctx.showExplicit);
+    {
+        QMutexLocker locker(&liveCacheMutex);
+        const auto it = liveCache.constFind(cacheKey);
+        if (it != liveCache.cend()
+            && QDateTime::currentMSecsSinceEpoch() - it->fetchedAt < kLiveCacheMs)
+            return ctx.baseSections;
+    }
 
     QUrl url(QStringLiteral("https://api.jikan.moe/v4/top/manga"));
     QUrlQuery query;
@@ -1472,44 +1536,20 @@ QVariantList enrich(const FeedContext &ctx)
     if (!reply.ok || !reply.json.isObject())
         return ctx.baseSections;
 
-    QHash<QString, QVariantMap> live;
+    LiveCacheEntry fresh;
+    fresh.fetchedAt = QDateTime::currentMSecsSinceEpoch();
     for (const QJsonValue &value : reply.json.object()
              .value(QStringLiteral("data")).toArray()) {
-        const QVariantMap row = value.toObject().toVariantMap();
-        const QVariantMap item = mangaItem(row);
-        if (!item.value(QStringLiteral("key")).toString().isEmpty())
-            live.insert(item.value(QStringLiteral("key")).toString(), item);
+        const QVariantMap item = mangaItem(value.toObject().toVariantMap());
+        const QString itemKey = item.value(QStringLiteral("key")).toString();
+        if (!itemKey.isEmpty())
+            fresh.items.insert(itemKey, item);
     }
-    if (live.isEmpty())
-        return ctx.baseSections;
-
-    QVariantList updated = ctx.baseSections;
-    for (QVariant &value : updated) {
-        QVariantMap section = value.toMap();
-        if (section.value(QStringLiteral("id")).toString()
-            != QLatin1String("tankoban.discover.wall"))
-            continue;
-        QVariantList items = section.value(QStringLiteral("items")).toList();
-        for (QVariant &itemValue : items) {
-            QVariantMap item = itemValue.toMap();
-            const QVariantMap fresh = live.value(
-                item.value(QStringLiteral("key")).toString());
-            if (fresh.isEmpty())
-                continue;
-            for (const QString &field : {
-                     QStringLiteral("title"), QStringLiteral("cover"),
-                     QStringLiteral("year"), QStringLiteral("rating")}) {
-                if (fresh.contains(field)
-                    && !fresh.value(field).toString().isEmpty())
-                    item.insert(field, fresh.value(field));
-            }
-            itemValue = item;
-        }
-        section.insert(QStringLiteral("items"), items);
-        value = section;
-        break;
+    if (!fresh.items.isEmpty()) {
+        QMutexLocker locker(&liveCacheMutex);
+        liveCache.insert(cacheKey, fresh);
     }
-    return updated;
+    return ctx.baseSections;
 }
 
 QMetaObject::Connection bindProgress(QObject *owner, QObject *receiver,
