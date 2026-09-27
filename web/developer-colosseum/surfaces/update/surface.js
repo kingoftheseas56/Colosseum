@@ -109,8 +109,17 @@
         more: section => sub ? env.more(sub, section) : Promise.resolve({ ok: false })
       };
 
-      sub = env.port.subscribe('page.update', route.params || {},
-        ev => CW.section.sync(box, ev, ctx));
+      let initialFocusDone = false;
+      sub = env.port.subscribe('page.update', route.params || {}, ev => {
+        CW.section.sync(box, ev, ctx);
+        if (!initialFocusDone && ev.sections && ev.sections.some(s => s.id === 'update.chronicle' && s.state === 'ready')) {
+          initialFocusDone = true;
+          requestAnimationFrame(() => {
+            const primary = box.querySelector('.up-primary');
+            if (primary) primary.focus({ preventScroll: true });
+          });
+        }
+      });
       env.act('page.update.seen', {});
 
       return {
