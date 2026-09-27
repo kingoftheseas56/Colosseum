@@ -70,7 +70,8 @@
     function mount(route, prev) {
       const name = router.surfaceName(route);
       const app = $('app');
-      app.dataset.surface = route.name === 'world' ? route.world : route.name;
+      app.dataset.surface = route.name === 'page' && route.page === 'update' ? 'page.update'
+        : (route.name === 'world' ? route.world : route.name);
       if (live && live.name === name && live.instance.update) {
         live.instance.update(route, prev);
       } else {
@@ -91,7 +92,8 @@
     }
 
     // ---- TopBar wiring ----
-    $('home-button').addEventListener('click', () => router.home());
+    $('home-button').addEventListener('click', () =>
+      router.current().name === 'page' && router.current().page === 'update' ? router.back() : router.home());
     document.querySelectorAll('#world-nav .pill[data-world]').forEach(p =>
       p.addEventListener('click', () => router.go({ name: 'world', world: p.dataset.world }, { replace: router.current().name === 'world' })));
     $('search-button').addEventListener('click', () =>
