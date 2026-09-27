@@ -196,13 +196,15 @@ const findTarget = async () => {
 };
 async function connect() {
   let lastErr = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // The session wrapper launches the app immediately before attaching. Poll CDP readiness
+  // until the WebEngine page target exists; no fixed boot delay is needed.
+  for (let attempt = 0; attempt < 60; attempt++) {
     try {
       const cdp = await Cdp.connect((await findTarget()).webSocketDebuggerUrl);
       await cdp.send('Runtime.enable');
       await cdp.send('Page.enable');
       return cdp;
-    } catch (e) { lastErr = e; cdpSafeClose(); await wait(1200); }
+    } catch (e) { lastErr = e; cdpSafeClose(); await wait(500); }
   }
   throw lastErr;
 }
@@ -230,11 +232,14 @@ async function runChecks(session, failures) {
   }
   // Live feeds land after the app's catalogs warm up (unlike replayed fixtures); wait for real
   // sections instead of a fixed sleep, then let the checks run.
-  for (let i = 0; i < 40; i++) {
-    const n = await evaluate(session, `document.querySelectorAll('#col [data-section]').length`);
-    if (n > 0) break;
+  let ready = false;
+  for (let i = 0; i < 120; i++) {
+    const state = await evaluate(session, `(() => ({ count: document.querySelectorAll('#col [data-section]').length,
+      hero: document.querySelector('#col [data-section="hero"]')?.dataset.state || '' }))()`);
+    if (state.count > 0 && (route?.name !== 'detail' || state.hero === 'ready')) { ready = true; break; }
     await wait(500);
   }
+  if (!ready) failures.push('sections did not reach ready state');
 
   await screenshot(session, path.join(OUT, `${label}.png`));          // the page as the app shows it
   const sections = await evaluate(session, `[...document.querySelectorAll('#col [data-section]')].map(s => s.dataset.section + ':' + s.dataset.state)`);
@@ -245,18 +250,18 @@ async function runChecks(session, failures) {
   if (walk.unreachable.length) failures.push(`unreachable by keyboard (${walk.unreachable.length}): ${walk.unreachable.slice(0, 15).join(' | ')}`);
   if (walk.hiddenAfterMove.length) failures.push(`focus landed hidden under the TopBar/off the board: ${walk.hiddenAfterMove.slice(0, 10).join(' | ')}`);
 
-  if (route && route.name !== 'home') {            // Escape must leave a pushed route (walk.mjs rule)
-    const before = await evaluate(session, 'location.hash');
-    await press(session, 'Escape');
-    await wait(300);
-    if (before === await evaluate(session, 'location.hash')) failures.push('Escape did not leave the page');
-  }
-
   // the two walk.mjs sizes, replayed through viewport emulation (the app window itself is
   // untouched). Best-effort: a socket drop here must not sink the already-collected results.
   for (const [w, h] of [[1920, 1080], [1280, 720]]) {
     try { await screenshot(session, path.join(OUT, `${label}-${w}.png`), w, h); }
     catch (e) { console.log(`note: ${w}×${h} shot failed (${e.message})`); }
+  }
+
+  if (route && route.name !== 'home') {            // Escape must leave a pushed route (walk.mjs rule)
+    const before = await evaluate(session, 'location.hash');
+    await press(session, 'Escape');
+    await wait(300);
+    if (before === await evaluate(session, 'location.hash')) failures.push('Escape did not leave the page');
   }
 
   await wait(200);                                // let late console messages arrive

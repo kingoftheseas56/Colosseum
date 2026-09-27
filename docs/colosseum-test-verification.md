@@ -1,5 +1,36 @@
 # Colosseum Test Verification — the native/QML test ledger
 
+## Arc 54 web layer (2026-09-27)
+
+From `web/developer-colosseum/dev/e2e/`:
+
+```powershell
+node selftest.mjs
+node walk.mjs <fixture-label>
+node attach.mjs 9222 '{"name":"detail","kind":"theatre","params":{"id":"tt0944947","type":"series"}}' slice0-theatre
+```
+
+`selftest.mjs` covers the offline web contract (30 checks). `walk.mjs` checks focus and
+overflow against a fixture in Edge. Neither proves the native feed or assembled app.
+`attach.mjs` uses raw CDP against a running Colosseum WebEngine page with
+`QTWEBENGINE_REMOTE_DEBUGGING=<port>`; it reattaches after live reload, polls for shell and
+sections, captures normal/1920×1080/1280×720 screenshots in `dev/e2e/out/`, and walks focus.
+It does not verify native player completion. Do not enable the CDP port on the daily app.
+
+For a tagged assembled-app session, keep the seed outside Git and run from the repository root:
+
+```powershell
+.\web\developer-colosseum\dev\e2e\live-session.ps1 -SeedDir '<private-seed-dir>' -Route '{"name":"detail","kind":"theatre","params":{"id":"tt0944947","type":"series"}}' -Label slice0-theatre -QtBin '<Qt-bin>' -MpvBin '<MpvQt-bin>' -LibMpvBin '<libmpv-bin>'
+```
+
+The wrapper chooses a fresh AppData tag, nondefault Lanista pipe and free CDP port, copies
+the seed only to the tagged root, calls `attach.mjs`, records Lanista `get-state` including
+`appDataRoot`, and closes that app window. It refuses a missing tag, default pipe, absent
+seed, or pre-existing tagged root. It requests window close and terminates only its own tagged
+process if the app stays in its tray. Session manifest, attach log, process logs and screenshots
+are private/ignored under `dev/e2e/out/<label>-*`. Lanista `get-state` proves native isolation
+and window state only; WebEngine DOM observation is still Planned in the Lanista ledger.
+
 > **What this is.** The honest inventory of Colosseum's native and QML test estate — the
 > counterpart to `colosseum-lanista-verification.md` (which owns bridge/runtime capability).
 > Planning consults BOTH before naming any test: this file controls what deterministic
