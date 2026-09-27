@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QHash>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -31,6 +32,7 @@
 #include <QStringList>
 #include <QTimer>
 #include <QVariant>
+#include <QVector>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -439,6 +441,19 @@ void LanistaServer::addWrite(const QString& name, Handler fn)
 
 void LanistaServer::registerSelfTestCommands()
 {
+    // Arc 54 parity capture is available only in a tagged selftest process.
+    addRead(QStringLiteral("parity-snapshot"), [this](const QJsonObject& p, Replier reply) {
+        QQuickItem* root = nullptr;
+        const QString target = p.value(QStringLiteral("target")).toString();
+        if (!target.isEmpty()) {
+            root = resolveTarget(target);
+            if (!root) { reply.fail("NO_SUCH_ITEM", target); return; }
+        }
+        reply.reply(cmdParitySnapshot(root));
+    });
+    addDrive(QStringLiteral("parity-set-size"), [this](const QJsonObject& p, Replier reply) {
+        cmdParitySetSize(p, std::move(reply));
+    });
     // Fixtures for tests/lanista_harness.cpp and NOTHING else. Registered only
     // when COLOSSEUM_LANISTA_SELFTEST=1, so the daily app never exposes them.
     // They exist so that the gate denials, the coded-error path and above all
@@ -1300,6 +1315,131 @@ void LanistaServer::cmdDumpUi(const QJsonObject& p, Replier reply)
                                            {QStringLiteral("height"), w->height()}})
                   : QJsonValue());
     reply.reply(std::move(body));
+}
+
+// A compact, dev-only projection of what is actually painted inside the window.
+// dump-ui intentionally describes structure; it does not carry Text.text or
+// distinguish the clipped part of an item from its full scene rect.
+QJsonObject LanistaServer::cmdParitySnapshot(QQuickItem* root)
+{
+    QQuickWindow* window = mainWindow();
+    QJsonArray words;
+    QJsonArray controls;
+    if (!window)
+        return {{QStringLiteral("words"), words}, {QStringLiteral("controls"), controls}};
+    beginNewGeneration();
+
+    const QRectF viewport(0, 0, window->width(), window->height());
+    auto visibleRect = [&](QQuickItem* item) {
+        QRectF rect = item->mapRectToScene(QRectF(0, 0, item->width(), item->height()));
+        rect = rect.intersected(viewport);
+        for (QQuickItem* ancestor = item; ancestor; ancestor = ancestor->parentItem()) {
+            if (!ancestor->isVisible() || ancestor->opacity() <= 0)
+                return QRectF();
+            if (ancestor != item && ancestor->clip()) {
+                const QRectF clip = ancestor->mapRectToScene(
+                    QRectF(0, 0, ancestor->width(), ancestor->height()));
+                rect = rect.intersected(clip);
+            }
+        }
+        return rect;
+    };
+    auto box = [](const QRectF& r) {
+        return QJsonObject{{QStringLiteral("x"), r.x()}, {QStringLiteral("y"), r.y()},
+                           {QStringLiteral("width"), r.width()},
+                           {QStringLiteral("height"), r.height()}};
+    };
+    auto ownText = [](QQuickItem* item) {
+        if (item->inherits("QQuickText") || item->inherits("QQuickTextInput")
+            || item->inherits("QQuickTextEdit"))
+            return item->property("text").toString();
+        return QString();
+    };
+    std::function<QString(QQuickItem*, int)> childText = [&](QQuickItem* item, int depth) {
+        if (depth > 3) return QString();
+        for (QQuickItem* child : item->childItems()) {
+            if (visibleRect(child).isEmpty()) continue;
+            const QString text = ownText(child).trimmed();
+            if (!text.isEmpty()) return text;
+            const QString nested = childText(child, depth + 1);
+            if (!nested.isEmpty()) return nested;
+        }
+        return QString();
+    };
+    QHash<QQuickItem*, QJsonObject> focusEntries;
+    QVector<QQuickItem*> focusItems;
+    walkVisual(root ? root : window->contentItem(), 0, [&](QQuickItem* item, int) {
+        const QRectF rect = visibleRect(item);
+        if (rect.isEmpty()) return false;
+        QString text = ownText(item).trimmed();
+        if (text.isEmpty() && item->inherits("QQuickTextInput"))
+            text = item->property("placeholderText").toString().trimmed();
+        if (!text.isEmpty())
+            words.append(QJsonObject{{QStringLiteral("text"), text}, {QStringLiteral("rect"), box(rect)}});
+
+        if (!item->activeFocusOnTab() || !item->isEnabled()) return false;
+        QString label = item->property("accessibleName").toString().trimmed();
+        if (label.isEmpty() && item->objectName() == QStringLiteral("theatreTabBar")) {
+            label = item->property("currentTab").toString().trimmed();
+            if (!label.isEmpty()) label[0] = label[0].toUpper();
+        }
+        if (label.isEmpty()) label = item->property("text").toString().trimmed();
+        if (label.isEmpty()) label = item->property("placeholderText").toString().trimmed();
+        if (label.isEmpty()) label = childText(item, 0);
+        if (label.isEmpty() && item->parentItem())
+            label = childText(item->parentItem(), 0);
+        if (label.isEmpty() && item->objectName().startsWith(QStringLiteral("theatreTab_")))
+            label = item->objectName().mid(11);
+        if (label.isEmpty() && item->parentItem()
+            && item->parentItem()->objectName().startsWith(QStringLiteral("theatreTab_")))
+            label = item->parentItem()->objectName().mid(11);
+        if (label.isEmpty()) return false;
+        focusItems.append(item);
+        focusEntries.insert(item, QJsonObject{{QStringLiteral("label"), label},
+            {QStringLiteral("rect"), box(rect)},
+            {QStringLiteral("objectName"), item->objectName()},
+            {QStringLiteral("handle"), mintOrReuseHandle(item)}});
+        return false;
+    });
+    if (!focusItems.isEmpty()) {
+        // Rotate Qt's real Tab chain to the topmost visible focus target, so
+        // screenshots at different routes have a stable starting point.
+        QQuickItem* anchor = *std::min_element(focusItems.cbegin(), focusItems.cend(),
+            [&](QQuickItem* a, QQuickItem* b) {
+                const QRectF ar = visibleRect(a), br = visibleRect(b);
+                return ar.y() == br.y() ? ar.x() < br.x() : ar.y() < br.y();
+            });
+        QSet<QQuickItem*> visited;
+        QQuickItem* current = anchor;
+        for (int hops = 0; current && !visited.contains(current) && hops < 10000; ++hops) {
+            visited.insert(current);
+            if (focusEntries.contains(current)) controls.append(focusEntries.value(current));
+            current = current->nextItemInFocusChain(true);
+        }
+        // Qt can expose separate focus scopes. Keep their visible controls in
+        // the capture, after the primary chain, instead of silently losing them.
+        for (QQuickItem* item : focusItems)
+            if (!visited.contains(item)) controls.append(focusEntries.value(item));
+    }
+    return {{QStringLiteral("width"), window->width()},
+            {QStringLiteral("height"), window->height()},
+            {QStringLiteral("words"), words}, {QStringLiteral("controls"), controls}};
+}
+
+void LanistaServer::cmdParitySetSize(const QJsonObject& p, Replier reply) const
+{
+    QQuickWindow* window = mainWindow();
+    if (!window) { reply.fail("NO_WINDOW", QStringLiteral("no root window")); return; }
+    const int width = p.value(QStringLiteral("width")).toInt();
+    const int height = p.value(QStringLiteral("height")).toInt();
+    if (width < 320 || height < 240 || width > 3840 || height > 2160) {
+        reply.fail("BAD_SIZE", QStringLiteral("size outside parity capture bounds"));
+        return;
+    }
+    window->showNormal();
+    window->resize(width, height);
+    reply.reply({{QStringLiteral("width"), window->width()},
+                 {QStringLiteral("height"), window->height()}});
 }
 
 // ui-snapshot: Playwright's model, QML-native. ONE call returns every element an

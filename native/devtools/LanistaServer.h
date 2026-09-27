@@ -201,6 +201,8 @@ private:
     // like the Task 3 fallible reads. ui-query lost its const for the same
     // reason: it now mints a handle for its target and clip-chain ancestors too.
     void cmdDumpUi(const QJsonObject& p, Replier reply);
+    QJsonObject cmdParitySnapshot(QQuickItem* root);
+    void cmdParitySetSize(const QJsonObject& p, Replier reply) const;
     void cmdUiQuery(const QJsonObject& p, Replier reply);
     // Task 4
     QJsonObject cmdUiSnapshot(const QJsonObject& p);

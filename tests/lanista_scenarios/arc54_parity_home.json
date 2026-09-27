@@ -1,0 +1,10 @@
+{
+  "name": "arc54-parity-home",
+  "comment": "Arc 54 parity: attached tagged real-library session reaches the native Home page before capture.",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "get-state", "expect": [{ "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest-parity-" }] },
+    { "cmd": "qml-get", "payload": { "object": "homePageFlickable", "props": ["visible"] },
+      "expect": [{ "path": "props.visible", "op": "==", "value": "true" }] }
+  ]
+}

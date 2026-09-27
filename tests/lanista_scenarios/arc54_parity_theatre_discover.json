@@ -1,0 +1,12 @@
+{
+  "name": "arc54-parity-theatre-discover",
+  "comment": "Arc 54 parity: the native Theatre Discover tab in an attached tagged real-library session.",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "get-state", "expect": [{ "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest-parity-" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreWorld", "prop": "visible", "value": true, "timeout_ms": 30000 },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }] },
+    { "cmd": "qml-get", "payload": { "object": "theatreWorld", "props": ["activeTab"] },
+      "expect": [{ "path": "props.activeTab", "op": "==", "value": "discover" }] }
+  ]
+}

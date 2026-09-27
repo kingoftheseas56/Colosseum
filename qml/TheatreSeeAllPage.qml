@@ -8,6 +8,7 @@ import "TheatreApi.js" as TheatreApi
 
 Item {
     id: seeAll
+    objectName: "theatreSeeAllPage"
 
     property var pin: null
     property var malCatalog: null

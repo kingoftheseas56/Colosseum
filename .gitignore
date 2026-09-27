@@ -36,6 +36,7 @@ tests/xoxo_fixtures.gen.js
 # Local handoffs, dataset probes, dev-tool mock HTML, and verification output.
 agents/
 # Verification run logs and dev-tool session output (lanista writes here at runtime).
+/web/developer-colosseum/dev/parity/out/
 artifacts/
 # Dev-only UI mock HTML pages and their generators.
 mocks/

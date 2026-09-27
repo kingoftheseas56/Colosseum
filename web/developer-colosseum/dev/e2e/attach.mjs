@@ -12,6 +12,7 @@
 // checks run against the live app with no Playwright session at all.
 import fs from 'node:fs';
 import path from 'node:path';
+import { Cdp, evaluate } from './cdp.mjs';
 import { OUT } from './lib.mjs';           // only the output-dir constant; no Playwright involved
 
 const port = process.argv[2] || '9222';
@@ -21,66 +22,6 @@ fs.mkdirSync(OUT, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ---- minimal CDP session over the page target's debugging websocket ----
-class Cdp {
-  constructor(ws) {
-    this.ws = ws;
-    this.seq = 0;
-    this.pending = new Map();
-    this.timers = new Map();
-    this.listeners = [];
-    ws.addEventListener('message', ev => {
-      const m = JSON.parse(ev.data);
-      if (m.id != null && this.pending.has(m.id)) {
-        const { resolve, reject } = this.pending.get(m.id);
-        this.pending.delete(m.id);
-        clearTimeout(this.timers.get(m.id));
-        this.timers.delete(m.id);
-        m.error ? reject(new Error(`${m.error.message || 'CDP error'}`)) : resolve(m.result);
-      } else if (m.method) {
-        for (const fn of this.listeners) fn(m);
-      }
-    });
-    ws.addEventListener('close', () => {
-      for (const id of [...this.pending.keys()]) {
-        clearTimeout(this.timers.get(id));
-        this.timers.delete(id);
-        this.pending.get(id).reject(new Error('CDP socket closed'));
-        this.pending.delete(id);
-      }
-    });
-  }
-  static async connect(url) {
-    const ws = new WebSocket(url);
-    await new Promise((resolve, reject) => {
-      ws.addEventListener('open', resolve, { once: true });
-      ws.addEventListener('error', () => reject(new Error(`cannot open ${url}`)), { once: true });
-    });
-    return new Cdp(ws);
-  }
-  send(method, params = {}) {
-    const id = ++this.seq;
-    this.ws.send(JSON.stringify({ id, method, params }));
-    // A dropped DevTools socket can die silently (no close frame), which would leave the
-    // top-level flow awaiting forever; every call settles one way or the other.
-    const timeout = new Promise((_, reject) => { this.timers.set(id, setTimeout(() => reject(new Error(`CDP ${method} timed out`)), 15000)); });
-    return Promise.race([
-      new Promise((resolve, reject) => this.pending.set(id, { resolve, reject })),
-      timeout
-    ]);
-  }
-  on(fn) { this.listeners.push(fn); }
-  close() { try { this.ws.close(); } catch (_) { /* already gone */ } }
-}
-
-const evaluate = async (cdp, expression) => {
-  const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: false });
-  if (r.exceptionDetails) {
-    const d = r.exceptionDetails;
-    throw new Error('page eval failed: ' + ((d.exception && d.exception.description) || d.text));
-  }
-  return r.result ? r.result.value : undefined;
-};
-
 // ---- the checks walk.mjs runs, restated over CDP ----
 function watchConsole(cdp, problems) {
   cdp.on(m => {
