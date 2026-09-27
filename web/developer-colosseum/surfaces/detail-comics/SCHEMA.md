@@ -59,3 +59,29 @@ Fields: `rows`, `windowStart`. Each row: `id` (`locg:<id>`), `title`, `cover`, `
 - `detail.comic.download {id,unitId}` validates the visible row, keeps the provider URL native-private, and queues `ComicDownloader`.
 - `detail.comic.read {id,unitId}` is the `ComicSeries.qml` consumption-intent behavior: if needed it acquires once, waits for completion, then delegates to the native comic reader.
 - Shared-core dependency `detail.comic.openReader` is tracked in `REQUEST-W2-8-COMIC-CORE-SEAMS.md`; W2-8 never sends the reader chain through web state.
+
+## `comic.sources`
+
+This is the web replacement for `ComicTorrentSourcesPage.qml` and `ComicTorrentArchivePicker.qml`, surfaced only for idle LOCG collected editions.
+
+Fields: `open`, `issueId`, `editionTitle`, `cover`, `identityLine`, `query`, `loading`, `complete`, `confirmingWeak`, `selectionState`, `pendingTitle`, `rows`, `archiveFiles`, `missingIssues`, `combinedCount`, `error`.
+
+`selectionState` is one of `results`, `inspecting`, `ambiguous`, `incomplete`, `combined`.
+
+Public source rows contain only display/ranking evidence: `id`, `title`, `sizeText`, `seeders`, `leechers`, `sourceName`, `confidence`, `matchTier`, `evidence`, `archiveHint`, `coverage`, `uploader`, `trustTier`. The magnet URI and info hash remain native-private.
+
+Archive-choice rows expose `index`, `name`, `extension`, `sizeText`; native validates the selected index before resuming acquisition.
+
+Additional source actions:
+- `detail.comic.openSources {id,unitId}`
+- `detail.comic.searchSources {id,query}`
+- `detail.comic.selectSource {id,sourceId}`
+- `detail.comic.confirmWeakSource {id}`
+- `detail.comic.cancelWeakSource {id}`
+- `detail.comic.chooseArchive {id,fileIndex}`
+- `detail.comic.rejectIncomplete {id,manual}`
+- `detail.comic.confirmCombined {id}`
+- `detail.comic.rejectCombined {id}`
+- `detail.comic.closeSources {id}`
+
+The action handlers call the existing `ComicDownloader` torrent APIs. Provider URLs, magnets, info hashes, filesystem paths and native reader chains never enter web state.
