@@ -253,6 +253,7 @@ QVariantMap bookItem(const QVariantMap &row, const QString &source = {}, int ran
     const QString published = row.value(QStringLiteral("canonicalFirstPublished")).toString();
     if (published.size() >= 4) copy.insert(QStringLiteral("year"), published.left(4).toInt());
     QVariantMap item = WebFeedValue::item(copy, kWorld, QStringLiteral("book"));
+    if (!source.isEmpty()) item.insert(QStringLiteral("source"), source);
     if (rank > 0) item.insert(QStringLiteral("badge"), QString::number(rank));
     return item;
 }
@@ -310,7 +311,10 @@ QVariantMap extensionItem(const QVariantMap &meta, const ExtCatalog &catalog)
     const QVariant year = meta.value(QStringLiteral("releaseInfo"),
                                      meta.value(QStringLiteral("year")));
     if (year.isValid()) row.insert(QStringLiteral("year"), year);
-    return WebFeedValue::item(row, kWorld, QStringLiteral("book"));
+    QVariantMap item = WebFeedValue::item(row, kWorld, QStringLiteral("book"));
+    if (!catalog.addonName.isEmpty())
+        item.insert(QStringLiteral("source"), catalog.addonName);
+    return item;
 }
 
 QString enc(const QString &s)
@@ -519,7 +523,16 @@ void appendChrome(QVariantList &out, BiblioCatalogStore &store, bool ready,
     if (ready) {
         const QVariantMap page = store.page(QStringLiteral("popular"), {}, {},
                                             ctx.showExplicit, 0, 4);
-        featured = bookItems(page.value(QStringLiteral("items")).toList());
+        for (const QVariant &value : page.value(QStringLiteral("items")).toList()) {
+            const QVariantMap row = value.toMap();
+            QVariantMap item = bookItem(row);
+            if (item.value(QStringLiteral("title")).toString().isEmpty()) continue;
+            const QString author = row.value(QStringLiteral("author")).toString();
+            item.insert(QStringLiteral("subtitle"), author.isEmpty()
+                ? QStringLiteral("Popular on Biblio.")
+                : QStringLiteral("By %1.").arg(author));
+            featured.append(item);
+        }
     }
     out.append(WebFeedValue::section(
         QStringLiteral("biblio.chrome.featured"), out.size(),
@@ -688,7 +701,8 @@ void explore(QVariantList &out, BiblioCatalogStore &store, bool ready,
             const QVariantList rows = store.top10(10, ctx.showExplicit);
             QVariantMap section = WebFeedValue::section(
                 QStringLiteral("biblio.explore.top-10"), out.size(), QStringLiteral("Top 10"),
-                QStringLiteral("rail"), bookItems(rows, QString(), true),
+                QStringLiteral("rail"),
+                bookItems(rows, QStringLiteral("Apple Books · Open Library"), true),
                 rows.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
             section.insert(QStringLiteral("seeAll"), QVariantMap{
                 {QStringLiteral("route"), nativeRoute(QStringLiteral("popular"), {}, {},
@@ -747,6 +761,12 @@ void explore(QVariantList &out, BiblioCatalogStore &store, bool ready,
                                   axis, facet, ctx.showExplicit)}}}};
         const QString art = rows.first().toMap().value(QStringLiteral("coverUrl")).toString();
         if (!art.isEmpty()) tile.insert(QStringLiteral("art"), art);
+        QVariantList artList;
+        for (int i = 0; i < rows.size() && i < 7; ++i) {
+            const QString cover = rows.at(i).toMap().value(QStringLiteral("coverUrl")).toString();
+            if (!cover.isEmpty()) artList.append(cover);
+        }
+        if (!artList.isEmpty()) tile.insert(QStringLiteral("artList"), artList);
         tiles.append(tile);
     }
     out.append(choices(QStringLiteral("biblio.explore.mosaics"), out.size(),
