@@ -53,6 +53,7 @@
       let discoverControls = [];
       let libraryControls = [];
       const views = { discover: {}, manga: {}, comics: {}, library: {} };
+      const discoverByType = { manga: null, comics: null };
 
       function viewFor(tab) {
         return views[tab] || (views[tab] = {});
@@ -68,7 +69,23 @@
       }
 
       function applyView(patch) {
-        views[route.tab] = { ...viewFor(route.tab), ...patch };
+        if (route.tab === 'discover') {
+          const current = viewFor('discover');
+          const currentType = current.type || 'manga';
+          if (patch.type && patch.type !== currentType) {
+            discoverByType[currentType] = { ...current, type: currentType };
+            const remembered = discoverByType[patch.type];
+            views.discover = remembered
+              ? { ...remembered, type: patch.type }
+              : { ...patch, type: patch.type };
+          } else {
+            views.discover = { ...current, ...patch };
+            const type = views.discover.type || 'manga';
+            discoverByType[type] = { ...views.discover, type };
+          }
+        } else {
+          views[route.tab] = { ...viewFor(route.tab), ...patch };
+        }
         subscribeTab();
       }
 
