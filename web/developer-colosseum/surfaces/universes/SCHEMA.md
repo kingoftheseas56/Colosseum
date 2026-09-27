@@ -54,3 +54,35 @@ DCAU Continue uses `layout:"continue"` with ordinary Continue Items. Loading, em
 ## One Piece boundary
 
 `detail.universe` rejects `com.colosseum.universe.onepiece`. One Piece stays native under CONTRACT §12.6. The shared `open` router currently decides the web route before subscribing; W2-2 records that core seam gap in the Arc 54 request file rather than inventing a surface-side routing workaround.
+
+## `universes.starters`
+
+Cosmere's authored three-entry gateway. `Section.items` holds only books that the native Apple lookup resolved.
+
+- `schema: "universes.starters"`
+- `title`
+- `entries: [{ key, short, label, note, itemKey? }]`
+
+`itemKey` points at an Item already in the same section. An unresolved authored gate stays visible but is not interactive.
+
+## `universes.duality`
+
+The Saga/generic READ / WATCH split. `Section.items` holds up to the two native-issued media destinations.
+
+- `schema: "universes.duality"`
+- `template`
+- `leftLabel`, `leftSub`, `leftKey?`
+- `rightLabel`, `rightSub`, `rightKey?`
+
+Keys refer only to Items in the same section.
+
+## `universes.eras`
+
+The Era template's canon columns. `Section.items` contains every resolved screen Item plus the optional comics door.
+
+- `schema: "universes.eras"`
+- `kicker`
+- `columns: [{ key, label, itemKeys, pending }]`
+- optional `comicKey`
+
+`itemKeys` / `comicKey` refer only to Items in the same section.
