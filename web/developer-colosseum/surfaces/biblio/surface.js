@@ -123,9 +123,7 @@
           : null;
         if (image) image.addEventListener('error', () => image.remove());
 
-        return CW.h('div.biblio-hero-slide' + (index === heroIndex ? '.on' : ''), {
-          'data-key': item.key
-        },
+        return CW.h('div.biblio-hero-slide' + (index === heroIndex ? '.on' : ''),
           image,
           CW.h('span.biblio-hero-wash'),
           CW.h('div.biblio-hero-copy', {},
