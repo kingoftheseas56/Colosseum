@@ -17,6 +17,7 @@ import { OUT } from './lib.mjs';           // only the output-dir constant; no P
 const port = process.argv[2] || '9222';
 const route = process.argv[3] ? JSON.parse(process.argv[3]) : null;
 const label = process.argv[4] || 'live';
+const probeFile = process.argv[5] || '';
 fs.mkdirSync(OUT, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -73,7 +74,7 @@ class Cdp {
 }
 
 const evaluate = async (cdp, expression) => {
-  const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: false });
+  const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
   if (r.exceptionDetails) {
     const d = r.exceptionDetails;
     throw new Error('page eval failed: ' + ((d.exception && d.exception.description) || d.text));
@@ -240,6 +241,12 @@ async function runChecks(session, failures) {
     await wait(500);
   }
   if (!ready) failures.push('sections did not reach ready state');
+
+  if (probeFile) {
+    const result = await evaluate(session, fs.readFileSync(probeFile, 'utf8'));
+    console.log('probe ' + JSON.stringify(result));
+    if (!result || !result.ok) failures.push('probe failed: ' + JSON.stringify(result));
+  }
 
   await screenshot(session, path.join(OUT, `${label}.png`));          // the page as the app shows it
   const sections = await evaluate(session, `[...document.querySelectorAll('#col [data-section]')].map(s => s.dataset.section + ':' + s.dataset.state)`);

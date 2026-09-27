@@ -24,6 +24,17 @@ QVariantList build(const FeedContext &ctx, const QVariantMap &meta,
     const QString resolvedId = meta.value(QStringLiteral("id"), requested).toString();
     const QVariantList videos = meta.value(QStringLiteral("videos")).toList();
     const QVariantList progressRows = ctx.nativeSnapshot.value(QStringLiteral("recent")).toList();
+    QVariantList scores;
+    const QVariantMap malScore = ctx.nativeSnapshot.value(QStringLiteral("malScore")).toMap();
+    if (malScore.value(QStringLiteral("score")).toDouble() > 0)
+        scores.append(QVariantMap{{QStringLiteral("provider"), QStringLiteral("mal")},
+            {QStringLiteral("value"), malScore.value(QStringLiteral("score"))},
+            {QStringLiteral("scale"), 10}, {QStringLiteral("votes"), malScore.value(QStringLiteral("scored_by"))}});
+    bool imdbOk = false;
+    const double imdbScore = meta.value(QStringLiteral("imdbRating")).toString().toDouble(&imdbOk);
+    if (imdbOk && imdbScore > 0)
+        scores.append(QVariantMap{{QStringLiteral("provider"), QStringLiteral("imdb")},
+            {QStringLiteral("value"), imdbScore}, {QStringLiteral("scale"), 10}});
     QHash<QString, QVariantMap> progress;
     for (const QVariant &value : progressRows) {
         const QVariantMap row = value.toMap();
@@ -115,6 +126,8 @@ QVariantList build(const FeedContext &ctx, const QVariantMap &meta,
          {QStringLiteral("logo"), meta.value(QStringLiteral("logo")).toString()},
          {QStringLiteral("year"), meta.value(QStringLiteral("year")).toString()},
          {QStringLiteral("genres"), genreList}, {QStringLiteral("rating"), meta.value(QStringLiteral("imdbRating")).toString()},
+         {QStringLiteral("scores"), scores},
+         {QStringLiteral("watchedMark"), ctx.nativeSnapshot.value(QStringLiteral("watchedMark")).toInt()},
          {QStringLiteral("runtime"), meta.value(QStringLiteral("runtime")).toString()},
          {QStringLiteral("synopsis"), meta.value(QStringLiteral("description")).toString()},
          {QStringLiteral("saved"), ctx.nativeSnapshot.value(QStringLiteral("saved")).toBool()},

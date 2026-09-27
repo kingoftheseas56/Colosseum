@@ -9,6 +9,7 @@
 #include "../../ProgressStore.h"
 #include "../../engine/ExtensionsStore.h"
 #include "../../engine/ImdbCatalog.h"
+#include "../../engine/MalCatalog.h"
 #include "../../player/DownloadStore.h"
 
 #include <QJsonArray>
@@ -229,6 +230,7 @@ void capture(ColosseumWebBridge &bridge, FeedContext &ctx)
         }
         ctx.nativeSnapshot.insert(QStringLiteral("recent"), exactRows);
         ctx.nativeSnapshot.insert(QStringLiteral("lastSeason"), progress->lastSeason(id));
+        ctx.nativeSnapshot.insert(QStringLiteral("watchedMark"), progress->watchedMark(id));
     }
     if (collection) {
         ctx.nativeSnapshot.insert(QStringLiteral("saved"), collection->has(QStringLiteral("theatre"), id));
@@ -276,7 +278,19 @@ QVariantList build(const FeedContext &ctx)
     const QString sourceTarget = ctx.params.value(QStringLiteral("sourceTarget"),
         type == QLatin1String("movie") ? requested : QString()).toString();
     const QVariantList sourceRows = sourceTarget.isEmpty() ? QVariantList{} : resolveSources(ctx, sourceTarget);
-    return TheatreDetailProjection::build(ctx, meta, related, sourceRows);
+    FeedContext projectionCtx = ctx;
+    if (requested.startsWith(QLatin1String("mal:")) && !ctx.paths.mal.isEmpty()) {
+        bool validMalId = false;
+        const int malId = requested.mid(4).toInt(&validMalId);
+        if (validMalId && malId > 0) {
+            MalCatalog mal(ctx.paths.mal, nullptr,
+                QStringLiteral("web_theatre_detail_mal_")
+                    + QUuid::createUuid().toString(QUuid::WithoutBraces));
+            if (mal.ready())
+                projectionCtx.nativeSnapshot.insert(QStringLiteral("malScore"), mal.animeScoreById(malId));
+        }
+    }
+    return TheatreDetailProjection::build(projectionCtx, meta, related, sourceRows);
 }
 
 bool identity(const QVariantMap &payload)
@@ -465,6 +479,27 @@ const bool collectionRegistered = ActionRegistry::add({QStringLiteral("detail.th
         const bool ok = saved ? collection->add(QStringLiteral("theatre"), entry)
                               : collection->remove(QStringLiteral("theatre"), id);
         if (!ok) return unavailable(done, QStringLiteral("Collection could not be saved."));
+        bridge.updateDetail(kFeed, id, {});
+        done({{QStringLiteral("ok"), true}});
+    }});
+const bool markWatchedRegistered = ActionRegistry::add({QStringLiteral("detail.theatre.markWatched"),
+    [](const QVariantMap &p) {
+        return identity(p) && p.value(QStringLiteral("watched")).metaType().id() == QMetaType::Bool;
+    },
+    [](ColosseumWebBridge &bridge, const QVariantMap &p, ActionRegistry::Completion done) {
+        const QString id = p.value(QStringLiteral("id")).toString();
+        if (!bridge.detailActive(kFeed, id))
+            return unavailable(done, QStringLiteral("This title is no longer open."));
+        auto *progress = qobject_cast<ProgressStore *>(bridge.service(QStringLiteral("Progress")));
+        if (!progress || !progress->healthy())
+            return unavailable(done, QStringLiteral("Progress is unavailable."));
+        const bool watched = p.value(QStringLiteral("watched")).toBool();
+        if (watched)
+            progress->forget(QStringLiteral("video"), id);
+        progress->setWatchedMark(id, watched);
+        if (progress->watchedMark(id) != (watched ? 1 : -1)
+            || !progress->watchedMarkIsManual(id))
+            return unavailable(done, QStringLiteral("The watched mark could not be saved."));
         bridge.updateDetail(kFeed, id, {});
         done({{QStringLiteral("ok"), true}});
     }});

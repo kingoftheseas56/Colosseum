@@ -27,7 +27,7 @@ bool buildFixture(const QString& path)
                 "CREATE TABLE anime ("
                 "mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT, "
                 "norm_title TEXT NOT NULL, norm_title_english TEXT NOT NULL, "
-                "type TEXT, score REAL, year INTEGER, cover TEXT, synopsis TEXT, "
+                "type TEXT, score REAL, scored_by INTEGER, year INTEGER, cover TEXT, synopsis TEXT, "
                 "credits TEXT, tags TEXT, episodes INTEGER)")))
             return false;
         if (!execSql(q, QStringLiteral(
@@ -39,9 +39,9 @@ bool buildFixture(const QString& path)
             return false;
         if (!execSql(q, QStringLiteral(
                 "INSERT INTO anime VALUES "
-                "(1,'The Matrix','','matrix','', 'TV',8.0,1999,'cover-1','synopsis-1','[]','[]',1),"
-                "(2,'Matrix','','matrix','', 'Movie',7.0,2003,'cover-2','synopsis-2','[]','[]',1),"
-                "(3,'Cowboy Bebop','','cowboy bebop','', 'TV',8.8,1998,'cover-3','synopsis-3','[]','[]',26)")))
+                "(1,'The Matrix','','matrix','', 'TV',8.0,1000,1999,'cover-1','synopsis-1','[]','[]',1),"
+                "(2,'Matrix','','matrix','', 'Movie',7.0,2000,2003,'cover-2','synopsis-2','[]','[]',1),"
+                "(3,'Cowboy Bebop','','cowboy bebop','', 'TV',8.8,3000,1998,'cover-3','synopsis-3','[]','[]',26)")))
             return false;
         if (!execSql(q, QStringLiteral(
                 "INSERT INTO manga VALUES "
@@ -71,6 +71,7 @@ private slots:
     void yearNarrowsAmbiguity();
     void mediumNarrowsTables();
     void missingDatabaseIsSafe();
+    void exactAnimeScore();
 
 private:
     QTemporaryDir m_dir;
@@ -95,6 +96,16 @@ void VaultMalMatchTest::normalizedPunctuationMatches()
     QCOMPARE(rows.at(0).toMap().value(QStringLiteral("medium")).toString(),
              QStringLiteral("anime"));
     QCOMPARE(rows.at(0).toMap().value(QStringLiteral("episodes")).toInt(), 26);
+}
+
+void VaultMalMatchTest::exactAnimeScore()
+{
+    MalCatalog catalog(m_dbPath);
+    QVERIFY(catalog.ready());
+    const QVariantMap score = catalog.animeScoreById(3);
+    QCOMPARE(score.value(QStringLiteral("score")).toDouble(), 8.8);
+    QCOMPARE(score.value(QStringLiteral("scored_by")).toInt(), 3000);
+    QVERIFY(catalog.animeScoreById(9999).isEmpty());
 }
 
 void VaultMalMatchTest::prefixSearchRanksCandidates()

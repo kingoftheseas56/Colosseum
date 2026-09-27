@@ -4,7 +4,7 @@ Subscribe with native route `params: { id: string, type: "movie"|"series", title
 
 | Section id | `data.schema` | Fields |
 |---|---|---|
-| `hero` | `theatre.hero` | `id`, `resolvedId`, `type`, `title`, `banner`, `cover`, `logo`, `year`, `genres: string[]`, `rating`, `runtime`, `synopsis`, `saved: boolean`, `notify: boolean`, `primaryLabel` |
+| `hero` | `theatre.hero` | `id`, `resolvedId`, `type`, `title`, `banner`, `cover`, `logo`, `year`, `genres: string[]`, `rating`, `scores: {provider:"mal"|"imdb",value:number,scale:10,votes?:number}[]` (MAL first), `runtime`, `synopsis`, `saved: boolean`, `notify: boolean`, `watchedMark: -1|0|1`, `primaryLabel` |
 | `facts` | `theatre.facts` | `rows: {label,value}[]` (only facts the native metadata actually has) |
 | `seasons` | `theatre.seasons` | `selected: number`, `order: "seasons"|"absolute"`, `absoluteAvailable: boolean`, `rows: {number,label,count}[]`; season 0 is Specials and is last |
 | `episodes` | `theatre.episodes` | `season: number`, `nextUpId`, `windowStart: number`, `rows: {id,season,number,displayNumber,title,overview,thumbnail,airDate,duration,progress,watched,downloadState,sourceState}[]`; `id` is the native stream/unit id, `windowStart` is this window's zero-based position, and `progress` is 0..1 |
@@ -22,5 +22,6 @@ Subscribe with native route `params: { id: string, type: "movie"|"series", title
 | `detail.theatre.play` | `{id, episodeId?:string, sourceKey?:string}` | Resolve after native player handoff succeeds or returns a plain error. Missing `episodeId` means movie/hero play. |
 | `detail.theatre.download` | `{id, episodeId?:string, sourceKey?:string}` | Resolve after the download request is accepted or fails; report the actual job id in `result`. |
 | `detail.theatre.collection` | `{id, saved:boolean, notify?:boolean}` | Resolve after CollectionStore persists the entry and notification preference. |
+| `detail.theatre.markWatched` | `{id, watched:boolean}` | Reject a stale title. When marking watched, forget its Continue progress, then persist the manual watched mark through ProgressStore; when marking unwatched, persist the manual unwatched mark. Resolve after the feed refresh is scheduled. |
 
 Every action checks the current native detail identity and rejects a stale or foreign `id`. A source pick is passed only by its opaque `sourceKey`; native resolves it against its current generation.

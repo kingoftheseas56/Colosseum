@@ -381,6 +381,19 @@ QVariantMap MalCatalog::mangaById(int malId) const
     return m;
 }
 
+QVariantMap MalCatalog::animeScoreById(int malId) const
+{
+    if (!m_ok || malId <= 0)
+        return {};
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral("SELECT score, scored_by FROM anime WHERE mal_id = ?"));
+    q.addBindValue(malId);
+    if (!q.exec() || !q.next() || q.value(0).isNull())
+        return {};
+    return {{QStringLiteral("score"), q.value(0).toDouble()},
+            {QStringLiteral("scored_by"), q.value(1).toInt()}};
+}
+
 QVariantList MalCatalog::search(const QString& text, int limit, const QString& medium) const
 {
     QVariantList out;

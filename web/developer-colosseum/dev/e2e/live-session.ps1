@@ -7,7 +7,8 @@ param(
     [string]$Exe,
     [string]$QtBin,
     [string]$MpvBin,
-    [string]$LibMpvBin
+    [string]$LibMpvBin,
+    [string]$ProbeFile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,7 +55,9 @@ try {
         appDataRoot = $appDataRoot; seed = (Resolve-Path $SeedDir).Path
         exe = (Resolve-Path $Exe).Path; route = ($Route | ConvertFrom-Json)
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $out "$Label-session.json")
-    & node (Join-Path $PSScriptRoot 'attach.mjs') $port $Route $Label *>&1 | Tee-Object -FilePath (Join-Path $out "$Label-attach.log")
+    $attachArgs = @((Join-Path $PSScriptRoot 'attach.mjs'), $port, $Route, $Label)
+    if ($ProbeFile) { $attachArgs += (Resolve-Path -LiteralPath $ProbeFile).Path }
+    & node @attachArgs *>&1 | Tee-Object -FilePath (Join-Path $out "$Label-attach.log")
     $attachExit = $LASTEXITCODE
     & $lanista get-state --pipe $Pipe | Set-Content -LiteralPath (Join-Path $out "$Label-state.json")
     if ($LASTEXITCODE -ne 0) { throw "get-state failed: $LASTEXITCODE" }

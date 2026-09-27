@@ -39,6 +39,17 @@ opened. It checks the seven-section envelope, hero fields, series episodes and r
 shape. Its boundary is the projection: HTTP metadata retrieval, SQLite related lookup,
 native action dispatch and assembled rendering need separate runtime evidence.
 
+The Theatre title-page slice 2 extends that projection test with MAL-first and IMDb-only
+score groups, missing-score omission, and tri-state `watchedMark`. The same `unit;qttest`
+gate also runs `colosseum.qttest.vault_mal_match`, which now checks an exact local MAL
+score/vote lookup. Focused CTest passed 2/2 in `dev/e2e/out/slice2-final-ctest.log`.
+Reversing the provider order in production projection code made only the anime-order
+assertion fail (`slice2-negative.log`); restored code passed again. The app rebuilt in
+`slice2-postcheck-build.log`. In the tagged session, `slice2-final-attach.log` shows
+stale detail `markWatched` rejection, a live Theatre Library card-menu Mark watched
+toggle to Mark unwatched, keyboard walk and both viewport captures. The full `-L unit`
+gate is deferred to the end of slice 5 by Hemanth's instruction.
+
 > **What this is.** The honest inventory of Colosseum's native and QML test estate — the
 > counterpart to `colosseum-lanista-verification.md` (which owns bridge/runtime capability).
 > Planning consults BOTH before naming any test: this file controls what deterministic
