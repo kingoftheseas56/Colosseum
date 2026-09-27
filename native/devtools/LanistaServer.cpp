@@ -1498,8 +1498,9 @@ void LanistaServer::cmdUiTextInput(const QJsonObject& p, Replier reply) const
 }
 
 // ui-scroll: a QWheelEvent with angleDelta QPoint(0, dy) (default dy -120) at the
-// item's scene center. The window delivers it to the Flickable/ListView under the
-// point, which moves its content. Drop the sendEvent and contentY never moves.
+// item's scene center by default. Optional xFraction/yFraction select a point
+// inside the same target for measurement journeys whose centered card owns wheel.
+// The window delivers it to the Flickable/ListView under that point.
 void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
 {
     const QString ref = p.value(QStringLiteral("target")).toString();
@@ -1515,8 +1516,16 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
     }
     const int dy = p.contains(QStringLiteral("dy"))
                        ? p.value(QStringLiteral("dy")).toInt() : -120;
-    const QPointF scenePos =
-        item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
+    const double xFraction = p.contains(QStringLiteral("xFraction"))
+                                 ? p.value(QStringLiteral("xFraction")).toDouble(-1) : 0.5;
+    const double yFraction = p.contains(QStringLiteral("yFraction"))
+                                 ? p.value(QStringLiteral("yFraction")).toDouble(-1) : 0.5;
+    if (xFraction < 0 || xFraction > 1 || yFraction < 0 || yFraction > 1) {
+        reply.fail("BAD_POINT", QStringLiteral("ui-scroll fractions must be in [0,1]"));
+        return;
+    }
+    const QPointF scenePos = item->mapToScene(
+        QPointF(item->width() * xFraction, item->height() * yFraction));
     const QPointF globalPos = w->mapToGlobal(scenePos.toPoint());
     QWheelEvent ev(scenePos, globalPos, QPoint(0, 0), QPoint(0, dy),
                    Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);

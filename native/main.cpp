@@ -99,6 +99,8 @@
 #include "net/Ipv4PinStore.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
+#include "net/PosterTimingProbe.h"
+#include "FrameTimingProbe.h"
 #include "net/BiblioImageDiag.h"
 #include <QNetworkProxyFactory>
 #include <QSet>
@@ -277,13 +279,15 @@ public:
     CachingNam(QStringList pinnedHosts, Ipv4PinStore *pinStore,
                QObject *parent = nullptr, bool useCache = true,
                PosterScoreboard *scoreboard = nullptr,
-               BiblioImageDiag *imageDiag = nullptr)
+               BiblioImageDiag *imageDiag = nullptr,
+               PosterTimingProbe *posterTiming = nullptr)
         : QNetworkAccessManager(parent),
           m_pinnedHosts(std::move(pinnedHosts)),
           m_pinStore(pinStore),
           m_useCache(useCache),
           m_scoreboard(scoreboard),
-          m_imageDiag(imageDiag) {
+          m_imageDiag(imageDiag),
+          m_posterTiming(posterTiming) {
         if (m_useCache) {
             auto *cache = new QNetworkDiskCache(this);
             const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
@@ -300,6 +304,7 @@ protected:
         QNetworkRequest r(req);
         QUrl u = r.url();
         const QString host = u.host();
+        const int timingId = m_posterTiming ? m_posterTiming->networkStart(req.url(), host) : 0;
 
         if (m_pinnedHosts.contains(host)) {
             r.setRawHeader("Host", host.toUtf8());
@@ -343,13 +348,13 @@ protected:
         if (host == QLatin1String("api.jikan.moe")) {
             r.setRawHeader("Accept-Encoding", "gzip");
             QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
-            watch(host, inner);   // watch the INNER reply: GunzipReply doesn't forward attributes
+            watch(host, inner, timingId);   // INNER reply carries the attributes
             if (m_imageDiag) m_imageDiag->track(inner, req.url());
             evictOnFailure(inner, r.url());
             return new GunzipReply(inner);
         }
         QNetworkReply *reply = QNetworkAccessManager::createRequest(op, r, outgoing);
-        watch(host, reply);
+        watch(host, reply, timingId);
         // Per-URL diagnostics keyed by the PRE-rewrite URL — the one QML's Image
         // asked for, so a card's `source` property matches its rows exactly.
         if (m_imageDiag) m_imageDiag->track(reply, req.url());
@@ -364,22 +369,45 @@ private:
     bool m_useCache = true;
     PosterScoreboard *m_scoreboard = nullptr;
     BiblioImageDiag *m_imageDiag = nullptr;
+    PosterTimingProbe *m_posterTiming = nullptr;
 
-    void watch(const QString &host, QNetworkReply *reply) {
-        if (!m_scoreboard)
-            return;
+    void watch(const QString &host, QNetworkReply *reply, int timingId) {
         PosterScoreboard *scoreboard = m_scoreboard;
+        if (!scoreboard && !timingId) return;
+        PosterTimingProbe *posterTiming = m_posterTiming;
+        std::shared_ptr<qint64> received;
+        if (timingId) {
+            received = std::make_shared<qint64>(-1);
+            QObject::connect(reply, &QNetworkReply::requestSent, [posterTiming, timingId] {
+                posterTiming->requestSent(timingId);
+            });
+            QObject::connect(reply, &QNetworkReply::metaDataChanged, [posterTiming, timingId] {
+                posterTiming->responseHeaders(timingId);
+            });
+            QObject::connect(reply, &QNetworkReply::downloadProgress,
+                             [received](qint64 bytes, qint64) { *received = bytes; });
+        }
         // No receiver context on purpose: the lambda runs on the reply's own thread and
         // record() is mutex-guarded. `host` is the ORIGINAL hostname — reply->url() may
         // carry the rewritten IPv4 literal for URL-pinned hosts.
-        QObject::connect(reply, &QNetworkReply::finished, [scoreboard, host, reply] {
+        QObject::connect(reply, &QNetworkReply::finished, [scoreboard, posterTiming, timingId, received, host, reply] {
             const int status =
                 reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
             const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
             const QVariant clen = reply->header(QNetworkRequest::ContentLengthHeader);
-            const qint64 bytes = clen.isValid() ? clen.toLongLong() : reply->bytesAvailable();
-            scoreboard->record(host, status, ct, bytes,
-                               reply->error() != QNetworkReply::NoError);
+            const qint64 bytes = received && *received >= 0 ? *received
+                : (clen.isValid() ? clen.toLongLong() : reply->bytesAvailable());
+            if (scoreboard)
+                scoreboard->record(host, status, ct, bytes,
+                                   reply->error() != QNetworkReply::NoError);
+            if (timingId) {
+                const bool cached = reply->attribute(QNetworkRequest::SourceIsFromCacheAttribute).toBool();
+                const QString protocol = cached ? QStringLiteral("cache")
+                    : (reply->attribute(QNetworkRequest::Http2WasUsedAttribute).toBool()
+                        ? QStringLiteral("h2") : QStringLiteral("h1"));
+                posterTiming->networkDone(timingId, bytes, ct, protocol,
+                                          cached ? QStringLiteral("hit") : QStringLiteral("miss"), status);
+            }
         });
     }
 
@@ -425,15 +453,16 @@ private:
 class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
 public:
     CachingNamFactory(QStringList pinnedHosts, Ipv4PinStore *pinStore,
-                      PosterScoreboard *scoreboard, BiblioImageDiag *imageDiag = nullptr)
+                      PosterScoreboard *scoreboard, BiblioImageDiag *imageDiag = nullptr,
+                      PosterTimingProbe *posterTiming = nullptr)
         : m_pinnedHosts(std::move(pinnedHosts)),
           m_pinStore(pinStore),
           m_scoreboard(scoreboard),
-          m_imageDiag(imageDiag) {}
+          m_imageDiag(imageDiag), m_posterTiming(posterTiming) {}
 
     QNetworkAccessManager *create(QObject *parent) override {
         return new CachingNam(m_pinnedHosts, m_pinStore, parent, /*useCache=*/true,
-                              m_scoreboard, m_imageDiag);
+                              m_scoreboard, m_imageDiag, m_posterTiming);
     }
 
 private:
@@ -441,6 +470,7 @@ private:
     Ipv4PinStore *m_pinStore = nullptr;
     PosterScoreboard *m_scoreboard = nullptr;   // owned by the app, outlives every NAM
     BiblioImageDiag *m_imageDiag = nullptr;     // same ownership contract as the scoreboard
+    PosterTimingProbe *m_posterTiming = nullptr;
 };
 
 // Dev-only QML live-reloader: watches the qml/ tree and reloads the root window
@@ -983,8 +1013,14 @@ int main(int argc, char *argv[]) {
     // Per-URL image diagnostics behind the Lanista biblio.imageDiag probe (decision
     // brief 2026-08-06 §4) — same lifetime contract as the scoreboard beside it.
     auto *imageDiag = new BiblioImageDiag(&app);
+    const bool posterTimingEnabled = qEnvironmentVariable("COLOSSEUM_POSTER_TIMING") == QLatin1String("1");
+    const bool frameProbeEnabled = qEnvironmentVariable("COLOSSEUM_FRAME_PROBE") == QLatin1String("1");
+    auto *posterTiming = new PosterTimingProbe(posterTimingEnabled, &app);
+    auto frameTiming = std::make_shared<FrameTimingProbe>(frameProbeEnabled);
+    if (posterTimingEnabled) app.installEventFilter(posterTiming);
     engine.setNetworkAccessManagerFactory(
-        new CachingNamFactory(namPinnedHosts, pinStore, scoreboard, imageDiag));
+        new CachingNamFactory(namPinnedHosts, pinStore, scoreboard, imageDiag,
+                              posterTimingEnabled ? posterTiming : nullptr));
     engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioImageDiag"), imageDiag);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {
@@ -993,6 +1029,19 @@ int main(int argc, char *argv[]) {
             qInfo("[net] poster scoreboard (arrived/failed/undecodable/bytes by host):\n%s",
                   qUtf8Printable(text));
     });
+    if (posterTimingEnabled || frameProbeEnabled) {
+        const QString probeDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                                 + QStringLiteral("/probes");
+        qInfo("[probe] poster=%d frame=%d output=%s", posterTimingEnabled, frameProbeEnabled,
+              qUtf8Printable(probeDir));
+        QObject::connect(&app, &QCoreApplication::aboutToQuit, &app,
+                         [posterTiming, frameTiming, probeDir] {
+            if (posterTiming->enabled())
+                posterTiming->writeArtifact(probeDir + QStringLiteral("/poster-timing.json"));
+            if (frameTiming->enabled())
+                frameTiming->writeArtifact(probeDir + QStringLiteral("/frame-timing.json"));
+        });
+    }
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
@@ -1935,6 +1984,10 @@ int main(int argc, char *argv[]) {
     }
 #endif
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
+        if (posterTimingEnabled) posterTiming->attach(rootWindow);
+        if (frameProbeEnabled)
+            QObject::connect(rootWindow, &QQuickWindow::frameSwapped, &app,
+                             [frameTiming] { frameTiming->recordSwap(); }, Qt::DirectConnection);
         QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
                          [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
             app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame"));

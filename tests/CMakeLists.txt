@@ -318,6 +318,21 @@ set_tests_properties(colosseum.qttest.gui_responsiveness_probe PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen"
     TIMEOUT 120)
 
+add_executable(tst_qml_smoothness_probes
+    auto/lanista/tst_qml_smoothness_probes.cpp
+    "${COLOSSEUM_NATIVE_DIR}/net/PosterTimingProbe.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/net/PosterTimingProbe.h"
+    "${COLOSSEUM_NATIVE_DIR}/FrameTimingProbe.h")
+target_include_directories(tst_qml_smoothness_probes PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_qml_smoothness_probes PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Network Qt6::Test)
+set_target_properties(tst_qml_smoothness_probes PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.qml_smoothness_probes COMMAND tst_qml_smoothness_probes)
+set_tests_properties(colosseum.qttest.qml_smoothness_probes PROPERTIES
+    LABELS "unit;qttest;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 120)
+
 # Lanista timing contract: schema/order checks for opt-in per-step and lifecycle timing.
 # Pure QtCore/QtTest; it does not boot an app or require a bridge.
 add_executable(tst_lanista_timing auto/lanista/tst_lanista_timing.cpp)
