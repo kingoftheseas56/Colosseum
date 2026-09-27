@@ -9,7 +9,8 @@
     const build = cls => h('div.tabs.glass' + (cls || ''), { role: 'tablist' }, tabs.map(t =>
       h('button.tab' + (t.key === active ? '.on' : ''), {
         type: 'button', role: 'tab', 'aria-selected': t.key === active ? 'true' : 'false',
-        'data-focus': true, 'data-key': 'tab:' + t.key, onclick: () => onPick(t.key)
+        'data-focus': true, 'data-key': 'tab:' + t.key, 'data-tab': t.key,
+        onclick: () => onPick(t.key)
       }, t.label)));
 
     const host = h('div.tabs-host', {}, build());
@@ -27,6 +28,17 @@
       }, { root: board, threshold: 0 });
       io.observe(host);
     }
+    host.setActive = key => {
+      active = key;
+      for (const root of [host, dock]) {
+        if (!root) continue;
+        root.querySelectorAll('button.tab').forEach(button => {
+          const selected = button.dataset.tab === key;
+          button.classList.toggle('on', selected);
+          button.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+      }
+    };
     host.dispose = () => {
       if (io) io.disconnect();
       document.body.classList.remove('docked');
