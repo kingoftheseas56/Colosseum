@@ -189,6 +189,33 @@
       }
     };
 
+    const nextCtx = { ...topCtx, forget: () => {} };
+
+    function renderContinueSection(s, ctx, remove) {
+      if (s.state === 'loading' || s.state === 'error')
+        return CW.section.render(s, ctx);
+      if (!s.items.length) return null;
+
+      const row = h('div.rail', {}, s.items.map(it => {
+        const card = CW.cards.continueTile(it, ctx);
+        return h('span.tk-continue-card', {},
+          card,
+          remove ? h('button.tk-continue-remove', {
+            type: 'button', tabindex: '-1',
+            'aria-label': 'Remove ' + it.title + ' from Continue',
+            onclick: e => { e.stopPropagation(); remove(it); }
+          }, '✕') : null);
+      }));
+      return h('section.widget.tk-continue-section', { 'data-section': s.id },
+        h('div.wh', {},
+          h('h2', {}, s.title),
+          s.seeAll ? h('button.more', {
+            type: 'button', 'data-focus': true, 'data-key': s.id + '#all',
+            onclick: () => env.seeAll(s)
+          }, 'See all', h('span.ch', { 'aria-hidden': true }, '›')) : null),
+        h('div.rail-wrap', {}, row));
+    }
+
     function renderHero(s) {
       if (s.state !== 'ready' || !s.items.length) {
         const clone = { ...s, title: '' };
@@ -300,14 +327,18 @@
       const next = section('tankoban.chrome.nextUp');
       const nodes = [];
       if (hero) nodes.push(renderHero(hero));
-      if (next && (next.state === 'loading' || next.items.length))
-        nodes.push(CW.section.render(next, topCtx));
+      if (next && (next.state === 'loading' || next.items.length)) {
+        const nextNode = renderContinueSection(next, nextCtx, null);
+        if (nextNode) nodes.push(nextNode);
+      }
       replacePreserving(top, ...nodes);
 
       const cont = section('tankoban.chrome.continue');
       const contNodes = [];
-      if (cont && (cont.state === 'loading' || cont.items.length))
-        contNodes.push(CW.section.render(cont, topCtx));
+      if (cont && (cont.state === 'loading' || cont.items.length)) {
+        const contNode = renderContinueSection(cont, topCtx, env.forget);
+        if (contNode) contNodes.push(contNode);
+      }
       replacePreserving(continuing, ...contNodes);
     }
 
@@ -654,8 +685,11 @@
       const nodes = [];
       bodySections.forEach(s => {
         if (isCollection(s)) {
-          if (s.state === 'loading' || s.items.length)
-            nodes.push(CW.section.render(s, paneCtx));
+          if (s.state === 'loading' || s.items.length) {
+            const collection = renderContinueSection(
+              { ...s, seeAll: null }, paneCtx, paneCtx.forget);
+            if (collection) nodes.push(collection);
+          }
           return;
         }
         if (isRanked(s)) {
