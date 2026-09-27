@@ -351,7 +351,15 @@
       }, '›');
 
       s.items.forEach((it, index) => {
-        const cover = image(it.cover, 'tk-rank-cover', rankedCaption(s, it));
+        const caption = rankedCaption(s, it);
+        const cover = h('span.tk-rank-cover', {},
+          it.cover ? (() => {
+            const art = h('img', { alt: '', decoding: 'async', loading: 'lazy', src: it.cover });
+            art.addEventListener('load', () => art.classList.add('on'));
+            art.addEventListener('error', () => art.remove());
+            return art;
+          })() : null,
+          h('span.tk-rank-caption', {}, caption));
         const item = h('button.tk-rank-item', {
           type: 'button', 'data-focus': true, 'data-key': it.key,
           onclick: () => env.open(it, it.primary || 'details')
@@ -627,6 +635,17 @@
         }
         const node = CW.section.render({ ...wall, title: '' }, paneCtx);
         node.classList.add('tk-discover-wall');
+        const grid = node.querySelector('.grid');
+        if (grid) {
+          grid.setAttribute('data-tk-disposable', '');
+          const ro = new ResizeObserver(() => {
+            const basis = Number(getComputedStyle(root).getPropertyValue('--tk-discover-column-basis'));
+            if (basis > 0)
+              grid.style.setProperty('--tk-discover-cols', String(Math.max(3, Math.floor(grid.clientWidth / basis))));
+          });
+          ro.observe(grid);
+          grid.__dispose = () => ro.disconnect();
+        }
         replacePreserving(pane, node);
         restoreScroll();
         return;
