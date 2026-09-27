@@ -1,500 +1,782 @@
 // surfaces/tankoban/surface.js — Tankoban browsing world.
-// QML parity: Featured → Next Up → Continue Reading → tabs → requested tab.
-// Native owns catalogue/filter/library decisions; this surface owns presentation only.
+// QML parity: Featured -> Next Up -> Continue Reading -> tabs -> requested tab.
+// All catalogue/filter/library decisions are native-issued. This file owns presentation only.
 (function (CW) {
   'use strict';
   const { h } = CW;
 
   const TABS = CW.contract.TABS.Tankoban;
-  const isHero = s => s.id === 'tankoban.chrome.featured';
-  const isPersonal = s => s.id === 'tankoban.chrome.nextUp' || s.id === 'tankoban.chrome.continue';
-  const isDiscoverControl = s => /^tankoban\.discover\.(types|catalogues|filters)$/.test(s.id);
-  const isLibraryControl = s => /^tankoban\.library\.(filters|sort)$/.test(s.id);
-  const isRanked = s => s.id === 'tankoban.manga.top' || s.id === 'tankoban.comics.top';
+  const TOP_PREFIX = 'tankoban.chrome.';
+  const NAV_PREFIX = 'tankoban.nav.';
 
-  function scoped(ev, keep) {
-    const sections = ev.sections.filter(keep);
-    if (ev.changed) {
-      const changed = ev.sections.find(s => s.id === ev.changed);
-      if (changed && !keep(changed)) return null;
-    }
-    return { type: ev.type, changed: ev.changed, sections };
+  const isTop = s => String(s.id || '').startsWith(TOP_PREFIX);
+  const isNav = s => String(s.id || '').startsWith(NAV_PREFIX);
+  const isDiscoverChrome = s => /^tankoban\.discover\.(types|catalogues|filters|notice)$/.test(String(s.id || ''));
+  const isCollection = s => /\.collection$/.test(String(s.id || ''));
+  const isGenre = s => /\.genres$/.test(String(s.id || ''));
+  const isRanked = s => {
+    const id = String(s.id || '');
+    return id === 'tankoban.manga.top'
+      || id === 'tankoban.comics.top'
+      || id.startsWith('tankoban.comics.catalogue.')
+      || id.startsWith('tankoban.comics.shelf.');
+  };
+
+  function choiceTail(choice) {
+    const label = String((choice && choice.label) || '');
+    const at = label.indexOf(' · ');
+    return at < 0 ? label : label.slice(at + 3);
   }
 
-  function image(url, cls) {
-    if (!url) return null;
-    const img = h('img' + (cls ? '.' + cls : ''), { alt: '', decoding: 'async', src: url });
+  function choiceGroup(choice) {
+    const label = String((choice && choice.label) || '');
+    const at = label.indexOf(' · ');
+    return at < 0 ? '' : label.slice(0, at);
+  }
+
+  function disposeInside(node) {
+    if (!node) return;
+    const all = [node, ...node.querySelectorAll('*')];
+    all.forEach(el => { if (typeof el.__dispose === 'function') el.__dispose(); });
+  }
+
+  function replacePreserving(host, ...nodes) {
+    CW.focus.preserve(host, () => {
+      disposeInside(host);
+      host.replaceChildren(...nodes);
+    });
+  }
+
+  function image(src, cls, title) {
+    const fallback = h('span.tk-art-fallback', {}, title || '');
+    const host = h('span.' + cls, {}, fallback);
+    if (!src) return host;
+    const img = h('img', { alt: '', decoding: 'async', loading: 'lazy', src });
+    img.addEventListener('load', () => { img.classList.add('on'); fallback.remove(); });
     img.addEventListener('error', () => img.remove());
-    return img;
+    host.appendChild(img);
+    return host;
   }
 
-  CW.router.register('tankoban', {
-    mount(el, route, env) {
-      const heroBox = h('div.tk-hero-box');
-      const personalBox = h('div.world-pane.tk-personal');
-      const tabsHost = h('div.tk-tabs');
-      const discoverHead = h('div.tk-discover-head', { hidden: true });
-      const libraryHead = h('div.tk-library-head', { hidden: true });
-      const pane = h('div.world-pane.tk-pane');
-      const root = h('div.tk-surface', {}, heroBox, personalBox, tabsHost,
-        discoverHead, libraryHead, pane);
-      el.appendChild(root);
+  function header(section, onExplore) {
+    return h('div.tk-widget-header', {},
+      h('h2', {}, section.title || ''),
+      onExplore
+        ? h('button.tk-explore', {
+            type: 'button', 'data-focus': true,
+            'data-key': section.id + '#explore', onclick: onExplore
+          }, h('span', {}, 'Explore'), h('span.tk-chevron', { 'aria-hidden': true }, '›'))
+        : null);
+  }
 
-      const libraryQuery = h('input.tk-library-query', {
-        type: 'search', autocomplete: 'off', placeholder: 'Search your library',
-        'aria-label': 'Search your library', 'data-focus': true,
-        'data-key': 'tankoban:library:query'
+  function mount(el, route, env) {
+    const top = h('div.world-pane.tk-top');
+    const continuing = h('div.world-pane.tk-continue');
+    const tabsHost = h('div.tk-tabs');
+    const discoverHead = h('div.tk-discover-head', { hidden: true });
+    const pane = h('div.world-pane.tk-pane');
+    const root = h('div.tk-surface', {}, top, continuing, tabsHost, discoverHead, pane);
+    el.appendChild(root);
+
+    let tabSub = null;
+    let bar = null;
+    let queryTimer = 0;
+    let openMenu = '';
+    let worldSections = [];
+    let currentDiscoverType = 'manga';
+    const views = { discover: {}, manga: {}, comics: {}, library: {} };
+    const discoverTypeViews = {};
+    const scrollByTab = {};
+    let restoreTab = '';
+
+    function section(id) {
+      return worldSections.find(s => s.id === id) || null;
+    }
+
+    function navSection(sourceId) {
+      return section(NAV_PREFIX + sourceId);
+    }
+
+    function navChoice(sourceId) {
+      const s = navSection(sourceId);
+      return s && Array.isArray(s.choices) && s.choices.length ? s.choices[0] : null;
+    }
+
+    function viewFor(tab) {
+      return views[tab] || (views[tab] = {});
+    }
+
+    function board() {
+      return document.getElementById('board');
+    }
+
+    function saveScroll(tab) {
+      const b = board();
+      if (b && tab) scrollByTab[tab] = b.scrollTop;
+    }
+
+    function restoreScroll() {
+      if (!restoreTab) return;
+      const tab = restoreTab;
+      restoreTab = '';
+      requestAnimationFrame(() => {
+        const b = board();
+        if (b && scrollByTab[tab] != null) b.scrollTop = scrollByTab[tab];
+      });
+    }
+
+    function subscribeTab() {
+      if (tabSub) tabSub.close();
+      const view = viewFor(route.tab);
+      const params = Object.keys(view).length
+        ? { world: 'Tankoban', tab: route.tab, view }
+        : { world: 'Tankoban', tab: route.tab };
+      tabSub = env.port.subscribe('world', params, onWorld);
+    }
+
+    function applyCurrentView(patch) {
+      views[route.tab] = { ...viewFor(route.tab), ...patch };
+      subscribeTab();
+    }
+
+    function applyDiscoverType(patch) {
+      const old = viewFor('discover');
+      const oldType = old.type || currentDiscoverType || 'manga';
+      if (Object.keys(old).length) discoverTypeViews[oldType] = { ...old };
+      const nextType = patch.type || oldType;
+      const saved = discoverTypeViews[nextType];
+      views.discover = saved ? { ...patch, ...saved, type: nextType }
+                             : { ...old, ...patch };
+      currentDiscoverType = nextType;
+      subscribeTab();
+    }
+
+    function applyDiscoverPin(patch) {
+      views.discover = { ...viewFor('discover'), ...patch };
+      if (patch.type) currentDiscoverType = patch.type;
+      if (route.tab === 'discover') subscribeTab();
+      else env.router.go({ name: 'world', world: 'Tankoban', tab: 'discover' }, { replace: true });
+    }
+
+    function chooseCurrent(choice, owningSection) {
+      return env.choose(choice, owningSection, null, patch => applyCurrentView(patch));
+    }
+
+    function chooseDiscoverPin(choice, owningSection) {
+      return env.choose(choice, owningSection, null, patch => applyDiscoverPin(patch));
+    }
+
+    const commonCtx = {
+      open: env.open,
+      seeAll: env.seeAll,
+      act: env.act,
+      more: s => tabSub ? env.more(tabSub, s) : Promise.resolve({ ok: false })
+    };
+
+    const topCtx = {
+      ...commonCtx,
+      forget: env.forget,
+      choose: (c, s) => chooseCurrent(c, s)
+    };
+
+    const paneCtx = {
+      ...commonCtx,
+      forget: item => env.act('world.tankoban.collection.remove', { item }),
+      choose: (c, s) => {
+        if (s && s.id === 'tankoban.comics.genres')
+          return chooseDiscoverPin(c, s);
+        return chooseCurrent(c, s);
+      }
+    };
+
+    const nextCtx = { ...topCtx, forget: () => {} };
+
+    function renderContinueSection(s, ctx, remove) {
+      if (s.state === 'loading' || s.state === 'error')
+        return CW.section.render(s, ctx);
+      if (!s.items.length) return null;
+
+      const row = h('div.rail', {}, s.items.map(it => {
+        const card = CW.cards.continueTile(it, ctx);
+        return h('span.tk-continue-card', {},
+          card,
+          remove ? h('button.tk-continue-remove', {
+            type: 'button', tabindex: '-1',
+            'aria-label': 'Remove ' + it.title + ' from Continue',
+            onclick: e => { e.stopPropagation(); remove(it); }
+          }, '✕') : null);
+      }));
+      return h('section.widget.tk-continue-section', { 'data-section': s.id },
+        h('div.wh', {},
+          h('h2', {}, s.title),
+          s.seeAll ? h('button.more', {
+            type: 'button', 'data-focus': true, 'data-key': s.id + '#all',
+            onclick: () => env.seeAll(s)
+          }, 'See all', h('span.ch', { 'aria-hidden': true }, '›')) : null),
+        h('div.rail-wrap', {}, row));
+    }
+
+    function renderHero(s) {
+      if (s.state !== 'ready' || !s.items.length) {
+        const clone = { ...s, title: '' };
+        return CW.section.render(clone, topCtx);
+      }
+
+      const scroller = h('div.tk-hero-scroller', { 'data-key': s.id + '#scroller' });
+      const dots = h('div.tk-hero-dots', {});
+      let dragging = null;
+
+      function at() {
+        return scroller.clientWidth ? Math.round(scroller.scrollLeft / scroller.clientWidth) : 0;
+      }
+
+      function syncDots() {
+        const current = Math.max(0, Math.min(s.items.length - 1, at()));
+        [...dots.children].forEach((dot, i) => dot.classList.toggle('on', i === current));
+      }
+
+      function show(index, smooth) {
+        const left = Math.max(0, Math.min(s.items.length - 1, index)) * scroller.clientWidth;
+        scroller.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
+      }
+
+      s.items.forEach((it, index) => {
+        const slide = h('article.tk-hero-slide', {
+          'data-key': it.key,
+          style: {
+            '--tk-hero-c1': it.c1 || 'var(--washTop)',
+            '--tk-hero-c2': it.c2 || 'var(--washBottom)'
+          }
+        });
+        const poster = it.artKind === 'poster';
+        const src = poster ? it.cover : (it.backdrop || it.cover);
+        if (src) {
+          const art = h('img.' + (poster ? 'tk-hero-poster' : 'tk-hero-art'), {
+            alt: '', decoding: 'async', src
+          });
+          art.addEventListener('load', () => art.classList.add('on'));
+          art.addEventListener('error', () => art.remove());
+          slide.appendChild(art);
+        }
+        slide.append(
+          h('span.tk-hero-wash'),
+          h('span.tk-hero-ghost', { 'aria-hidden': true }, it.ghost || ''),
+          h('div.tk-hero-copy', {},
+            h('span.tk-hero-kicker', {}, 'FEATURED IN TANKOBAN'),
+            h('h2', {}, it.title),
+            it.subtitle ? h('p', {}, it.subtitle) : null,
+            h('div.tk-hero-actions', {},
+              h('button.tk-hero-primary', {
+                type: 'button', 'data-focus': true, 'data-key': it.key + '#read',
+                onclick: () => env.open(it, 'details')
+              }, 'Read'),
+              h('button.tk-hero-secondary', {
+                type: 'button', 'data-focus': true, 'data-key': it.key + '#details',
+                onclick: () => env.open(it, 'details')
+              }, 'Details')
+            )
+          )
+        );
+        scroller.appendChild(slide);
+
+        dots.appendChild(h('button.tk-hero-dot' + (index === 0 ? '.on' : ''), {
+          type: 'button', tabindex: '-1', 'aria-label': 'Show ' + it.title,
+          onclick: () => show(index, true)
+        }));
       });
 
-      let tabSub = null;
-      let bar = null;
-      let queryTimer = 0;
-      let discoverMenu = '';
-      let discoverControls = [];
-      let libraryControls = [];
-      const views = { discover: {}, manga: {}, comics: {}, library: {} };
-      const discoverByType = { manga: null, comics: null };
+      let frame = 0;
+      scroller.addEventListener('scroll', () => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(syncDots);
+      }, { passive: true });
 
-      function viewFor(tab) {
-        return views[tab] || (views[tab] = {});
-      }
+      scroller.addEventListener('focusin', e => {
+        const slide = e.target.closest('.tk-hero-slide');
+        if (!slide) return;
+        const index = [...scroller.children].indexOf(slide);
+        if (index >= 0) show(index, true);
+      });
 
-      function subscribeTab() {
-        if (tabSub) tabSub.close();
-        const view = viewFor(route.tab);
-        const params = Object.keys(view).length
-          ? { world: 'Tankoban', tab: route.tab, view }
-          : { world: 'Tankoban', tab: route.tab };
-        tabSub = env.port.subscribe('world', params, onWorld);
-      }
-
-      function applyView(patch) {
-        if (route.tab === 'discover') {
-          const current = viewFor('discover');
-          const currentType = current.type || 'manga';
-          if (patch.type && patch.type !== currentType) {
-            discoverByType[currentType] = { ...current, type: currentType };
-            const remembered = discoverByType[patch.type];
-            views.discover = remembered
-              ? { ...remembered, type: patch.type }
-              : { ...patch, type: patch.type };
-          } else {
-            views.discover = { ...current, ...patch };
-            const type = views.discover.type || 'manga';
-            discoverByType[type] = { ...views.discover, type };
-          }
-        } else {
-          views[route.tab] = { ...viewFor(route.tab), ...patch };
-        }
-        subscribeTab();
-      }
-
-      function pick(choice, section) {
-        return env.choose(choice, section, null, patch => applyView(patch));
-      }
-
-      const ctx = {
-        open: env.open,
-        forget: item => env.act('world.tankoban.collection.remove', { item }),
-        seeAll: env.seeAll,
-        act: env.act,
-        choose: (c, s) => pick(c, s),
-        more: section => env.more(tabSub, section)
+      scroller.addEventListener('pointerdown', e => {
+        if (e.target.closest('button')) return;
+        dragging = { x: e.clientX, scroll: scroller.scrollLeft, id: e.pointerId };
+        scroller.setPointerCapture(e.pointerId);
+        scroller.classList.add('dragging');
+      });
+      scroller.addEventListener('pointermove', e => {
+        if (!dragging || dragging.id !== e.pointerId) return;
+        scroller.scrollLeft = dragging.scroll - (e.clientX - dragging.x);
+      });
+      const endDrag = e => {
+        if (!dragging || dragging.id !== e.pointerId) return;
+        const target = at();
+        dragging = null;
+        scroller.classList.remove('dragging');
+        show(target, true);
       };
+      scroller.addEventListener('pointerup', endDrag);
+      scroller.addEventListener('pointercancel', endDrag);
 
-      function renderHero(section) {
-        CW.focus.preserve(heroBox, () => {
-          if (!section || section.state === 'loading') {
-            heroBox.replaceChildren(CW.section.note('Loading Tankoban', 'Preparing Featured in Tankoban.'));
-            return;
-          }
-          if (section.state === 'error') {
-            heroBox.replaceChildren(CW.section.note('Couldn’t load this', section.error || 'Colosseum could not load this section.', 'err'));
-            return;
-          }
-          if (!section.items.length) {
-            heroBox.replaceChildren();
-            return;
-          }
+      return h('section.widget.tk-hero-widget', { 'data-section': s.id },
+        scroller, s.items.length > 1 ? dots : null);
+    }
 
-          let at = 0;
-          const slides = section.items.map((it, index) => {
-            const poster = it.artKind === 'poster';
-            const media = poster ? image(it.cover, 'tk-feature-poster') : image(it.backdrop || it.cover, 'tk-feature-art');
-            const slide = h('div.tk-feature-slide', {
-              'data-key': it.key,
-              style: { '--tk-c1': it.c1 || 'transparent', '--tk-c2': it.c2 || 'transparent' }
-            },
-              h('div.tk-feature-gradient'),
-              media,
-              poster ? h('div.tk-feature-vignette') : null,
-              h('div.tk-feature-wash'),
-              it.ghost ? h('span.tk-feature-ghost', {}, it.ghost) : null,
-              h('div.tk-feature-copy', {},
-                h('span.tk-feature-kicker', {}, 'FEATURED IN TANKOBAN'),
-                h('h2', {}, it.title),
-                it.subtitle ? h('p', {}, it.subtitle) : null,
-                h('div.tk-feature-actions', {},
-                  h('button.tk-feature-read', {
-                    type: 'button', 'data-focus': true, 'data-key': it.key + '#read',
-                    onclick: () => env.open(it, 'details')
-                  }, 'Read'),
-                  h('button.tk-feature-details', {
-                    type: 'button', 'data-focus': true, 'data-key': it.key + '#details',
-                    onclick: () => env.open(it, 'details')
-                  }, 'Details'))));
-            return slide;
-          });
+    function renderTop() {
+      const hero = section('tankoban.chrome.featured');
+      const next = section('tankoban.chrome.nextUp');
+      const nodes = [];
+      if (hero) nodes.push(renderHero(hero));
+      if (next && (next.state === 'loading' || next.items.length)) {
+        const nextNode = renderContinueSection(next, nextCtx, null);
+        if (nextNode) nodes.push(nextNode);
+      }
+      replacePreserving(top, ...nodes);
 
-          const track = h('div.tk-feature-track', {}, slides);
-          const dots = h('div.tk-feature-dots', {}, section.items.map((it, index) =>
-            h('button.tk-feature-dot', {
-              type: 'button', tabindex: '-1', 'aria-label': 'Show ' + it.title,
-              onclick: () => show(index)
-            })));
-          const carousel = h('section.widget.tk-feature', {
-            'data-section': section.id, 'data-layout': 'hero', 'data-state': section.state,
-            'data-arrows': true
-          }, track, dots);
+      const cont = section('tankoban.chrome.continue');
+      const contNodes = [];
+      if (cont && (cont.state === 'loading' || cont.items.length)) {
+        const contNode = renderContinueSection(cont, topCtx, env.forget);
+        if (contNode) contNodes.push(contNode);
+      }
+      replacePreserving(continuing, ...contNodes);
+    }
 
-          function show(index) {
-            at = (index + slides.length) % slides.length;
-            track.style.transform = 'translateX(' + (-100 * at) + '%)';
-            slides.forEach((slide, i) => { slide.inert = i !== at; });
-            [...dots.children].forEach((dot, i) => dot.classList.toggle('on', i === at));
-          }
+    function rankedCaption(s, it) {
+      const detailShelf = s.id.startsWith('tankoban.comics.catalogue.')
+        || s.id.startsWith('tankoban.comics.shelf.');
+      return detailShelf && it.year ? it.title + ' (' + it.year + ')' : it.title;
+    }
 
-          carousel.addEventListener('cw-arrow', e => {
-            const step = e.detail === 'right' ? 1 : e.detail === 'left' ? -1 : 0;
-            if (!step || at + step < 0 || at + step >= slides.length) return;
-            e.preventDefault();
-            show(at + step);
-            const target = slides[at].querySelector('[data-focus]');
-            if (target) target.focus({ preventScroll: true });
-          });
+    function animateScroll(scroller, target) {
+      const style = getComputedStyle(root);
+      const duration = Number(style.getPropertyValue('--tk-rank-slide-ms')) || 0;
+      if (!duration) { scroller.scrollLeft = target; return; }
+      const start = scroller.scrollLeft;
+      const delta = target - start;
+      const begun = performance.now();
+      function tick(now) {
+        const p = Math.min(1, (now - begun) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        scroller.scrollLeft = start + delta * eased;
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
 
-          let downX = null;
-          carousel.addEventListener('pointerdown', e => {
-            downX = e.clientX;
-            carousel.setPointerCapture && carousel.setPointerCapture(e.pointerId);
-          });
-          carousel.addEventListener('pointerup', e => {
-            if (downX == null) return;
-            const dx = e.clientX - downX;
-            downX = null;
-            if (Math.abs(dx) < 36) return;
-            show(Math.max(0, Math.min(slides.length - 1, at + (dx < 0 ? 1 : -1))));
-          });
-          show(0);
-          heroBox.replaceChildren(carousel);
-        });
+    function renderRanked(s) {
+      if (s.state === 'loading' || s.state === 'error')
+        return CW.section.render(s, paneCtx);
+
+      const nav = navSection(s.id);
+      const pick = navChoice(s.id);
+      const scroller = h('div.tk-rank-scroller');
+      const row = h('div.tk-rank-row');
+      const left = h('button.tk-rank-chevron.left', {
+        type: 'button', 'data-focus': true, 'data-key': s.id + '#earlier',
+        'aria-label': 'Show earlier items'
+      }, '‹');
+      const right = h('button.tk-rank-chevron.right', {
+        type: 'button', 'data-focus': true, 'data-key': s.id + '#later',
+        'aria-label': 'Show later items'
+      }, '›');
+
+      s.items.forEach((it, index) => {
+        const caption = rankedCaption(s, it);
+        const cover = h('span.tk-rank-cover', {},
+          it.cover ? (() => {
+            const art = h('img', { alt: '', decoding: 'async', loading: 'lazy', src: it.cover });
+            art.addEventListener('load', () => art.classList.add('on'));
+            art.addEventListener('error', () => art.remove());
+            return art;
+          })() : null,
+          h('span.tk-rank-caption', {}, caption));
+        const item = h('button.tk-rank-item', {
+          type: 'button', 'data-focus': true, 'data-key': it.key,
+          onclick: () => env.open(it, it.primary || 'details')
+        },
+        h('span.tk-rank-number', { 'aria-hidden': true }, String(index + 1)),
+        cover);
+        item.setAttribute('aria-label', rankedCaption(s, it));
+        row.appendChild(item);
+      });
+      scroller.appendChild(row);
+
+      function sync() {
+        const overflow = scroller.scrollWidth > scroller.clientWidth;
+        left.hidden = !overflow || scroller.scrollLeft <= 1;
+        right.hidden = !overflow
+          || scroller.scrollLeft >= scroller.scrollWidth - scroller.clientWidth - 1;
       }
 
-      function rankedSection(section) {
-        const rail = h('div.tk-ranked-rail');
-        const strip = h('div.tk-ranked-strip', { 'data-arrows': true }, rail);
-        const prev = h('button.tk-ranked-chevron.left', {
-          type: 'button', 'data-focus': true, 'data-key': section.id + '#prev',
-          'aria-label': 'Show earlier items', hidden: true
-        }, '‹');
-        const next = h('button.tk-ranked-chevron.right', {
-          type: 'button', 'data-focus': true, 'data-key': section.id + '#next',
-          'aria-label': 'Show later items', hidden: true
-        }, '›');
+      function page(dir) {
+        const max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+        const target = Math.max(0, Math.min(max, scroller.scrollLeft + dir * scroller.clientWidth * 0.8));
+        animateScroll(scroller, target);
+      }
 
-        section.items.forEach((it, index) => {
-          const card = h('button.tk-ranked-card', {
-            type: 'button', 'data-focus': true, 'data-key': it.key,
-            'aria-label': it.title, onclick: () => env.open(it, it.primary || 'details')
-          },
-            h('span.tk-ranked-num', {}, String(index + 1)),
-            h('span.tk-ranked-cover', {},
-              image(it.cover, 'tk-ranked-image'),
-              h('span.tk-ranked-title', {}, it.title)));
-          rail.appendChild(card);
-        });
+      left.addEventListener('click', () => page(-1));
+      right.addEventListener('click', () => page(1));
+      scroller.addEventListener('scroll', sync, { passive: true });
+      scroller.addEventListener('focusin', e => {
+        const item = e.target.closest('.tk-rank-item');
+        if (item) item.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+      });
+      requestAnimationFrame(sync);
 
-        const updateChevrons = () => {
-          prev.hidden = strip.scrollLeft <= 1;
-          next.hidden = strip.scrollLeft >= strip.scrollWidth - strip.clientWidth - 1;
-        };
-        const page = dir => strip.scrollBy({ left: dir * strip.clientWidth * 0.8, behavior: 'smooth' });
-        prev.addEventListener('click', () => page(-1));
-        next.addEventListener('click', () => page(1));
-        strip.addEventListener('scroll', updateChevrons, { passive: true });
+      const explore = pick && nav
+        ? () => chooseDiscoverPin(pick, nav)
+        : s.seeAll ? () => env.seeAll(s) : null;
 
-        strip.addEventListener('cw-arrow', e => {
-          if (e.detail !== 'left' && e.detail !== 'right') return;
-          const active = document.activeElement;
-          if (active === prev || active === next) {
-            e.preventDefault();
-            page(e.detail === 'right' ? 1 : -1);
+      return h('section.widget.tk-ranked', { 'data-section': s.id },
+        header(s, explore),
+        h('div.tk-rank-strip', {}, scroller, left, right));
+    }
+
+    function renderGenres(s) {
+      if (s.state === 'loading' || s.state === 'error')
+        return CW.section.render(s, paneCtx);
+
+      const grid = h('div.tk-genre-grid', {}, (s.choices || []).map(c =>
+        h('button.tk-genre-tile', {
+          type: 'button', 'data-focus': true, 'data-key': c.key,
+          onclick: () => paneCtx.choose(c, s)
+        },
+        c.art ? image(c.art, 'tk-genre-art', '') : null,
+        h('span.tk-genre-shade'),
+        h('span.tk-genre-name', {}, c.label),
+        c.sublabel ? h('span.tk-genre-count', {}, c.sublabel) : null)
+      ));
+      return h('section.widget.tk-genres', { 'data-section': s.id },
+        header(s, s.seeAll ? () => env.seeAll(s) : null), grid);
+    }
+
+    function menuRows(kind, choices, returnKey) {
+      if (openMenu !== kind) return null;
+      const nodes = [];
+      if (kind === 'catalogue') {
+        nodes.push(h('div.tk-menu-header', {}, 'TANKOBAN'));
+        choices.forEach(c => nodes.push(h('button.tk-menu-row' + (c.selected ? '.on' : ''), {
+          type: 'button', role: 'menuitem', 'data-focus': true, 'data-key': c.key,
+          onclick: () => {
+            openMenu = '';
+            chooseCurrent(c, section('tankoban.discover.catalogues'));
           }
-        });
-
-        const header = h('div.wh', {},
-          h('h2', {}, section.title),
-          section.seeAll ? h('button.more', {
-            type: 'button', 'data-focus': true, 'data-key': section.id + '#all',
-            onclick: () => env.seeAll(section)
-          }, 'Explore', h('span.ch', { 'aria-hidden': true }, '›')) : null);
-        const widget = h('section.widget.tk-ranked', {
-          'data-section': section.id, 'data-layout': 'rail', 'data-state': section.state
-        }, header, h('div.tk-ranked-wrap', {}, strip, prev, next));
-        queueMicrotask(updateChevrons);
-        return widget;
-      }
-
-      function replaceRanked(ev) {
-        if (ev.type === 'reset') pane.querySelectorAll('.tk-ranked').forEach(n => n.remove());
-        for (const section of ev.sections.filter(isRanked)) {
-          const old = pane.querySelector('[data-section="' + CSS.escape(section.id) + '"]');
-          const fresh = rankedSection(section);
-          if (old) old.replaceWith(fresh);
-          else pane.appendChild(fresh);
-        }
-      }
-
-      function discoverSection(id) {
-        return discoverControls.find(s => s.id === id) || null;
-      }
-
-      function closeDiscoverMenu(returnKey) {
-        discoverMenu = '';
-        renderDiscoverControls();
-        if (!returnKey) return;
-        const button = discoverHead.querySelector('[data-key="' + CSS.escape(returnKey) + '"]');
-        if (button) button.focus({ preventScroll: true });
-      }
-
-      function discoverMenuBox(name, choices, returnKey) {
-        if (discoverMenu !== name) return null;
-        const box = h('div.tk-menu', {
-          role: 'menu', 'data-focus-scope': true, 'data-key': 'tankoban:menu:' + name
-        }, choices.map(c =>
-          h('button.tk-menu-row' + (c.selected ? '.on' : ''), {
+        }, h('span', {}, c.label), c.sublabel ? h('small', {}, c.sublabel) : null)));
+      } else {
+        let lastGroup = '';
+        choices.forEach(c => {
+          const group = choiceGroup(c);
+          if (group && group !== lastGroup) {
+            nodes.push(h('div.tk-menu-header', {}, group.toUpperCase()));
+            lastGroup = group;
+          }
+          nodes.push(h('button.tk-menu-row' + (c.selected ? '.on' : ''), {
             type: 'button', role: 'menuitem', 'data-focus': true, 'data-key': c.key,
             onclick: () => {
-              discoverMenu = '';
-              pick(c, discoverSection(name === 'catalogue'
-                ? 'tankoban.discover.catalogues'
-                : 'tankoban.discover.filters'));
+              openMenu = '';
+              chooseCurrent(c, section('tankoban.discover.filters'));
             }
-          }, h('span', {}, c.label), c.sublabel ? h('small', {}, c.sublabel) : null)
-        ));
-        box.__close = () => closeDiscoverMenu(returnKey);
-        return box;
+          }, h('span', {}, choiceTail(c))));
+        });
+      }
+      const box = h('div.tk-menu', {
+        role: 'menu', 'data-focus-scope': true, 'data-key': 'tankoban:menu:' + kind
+      }, nodes);
+      box.__close = () => closeDiscoverMenu(returnKey);
+      return box;
+    }
+
+    function closeDiscoverMenu(returnKey) {
+      openMenu = '';
+      renderDiscoverControls();
+      if (!returnKey) return;
+      const button = discoverHead.querySelector('[data-key="' + CSS.escape(returnKey) + '"]');
+      if (button) button.focus({ preventScroll: true });
+    }
+
+    function openDiscoverMenu(kind, returnKey) {
+      openMenu = openMenu === kind ? '' : kind;
+      renderDiscoverControls();
+      if (!openMenu) return;
+      const first = discoverHead.querySelector('.tk-menu [data-focus]');
+      if (first) first.focus({ preventScroll: true });
+    }
+
+    function renderDiscoverControls() {
+      if (route.tab !== 'discover') {
+        discoverHead.hidden = true;
+        replacePreserving(discoverHead);
+        return;
+      }
+      discoverHead.hidden = false;
+      const types = section('tankoban.discover.types');
+      const catalogues = section('tankoban.discover.catalogues');
+      const filters = section('tankoban.discover.filters');
+      const notice = section('tankoban.discover.notice');
+      if (!types || !catalogues || !filters) {
+        replacePreserving(discoverHead,
+          CW.section.note('Loading Tankoban', 'Preparing the catalogue controls.'));
+        return;
       }
 
-      function replaceDiscover(...nodes) {
-        CW.focus.preserve(discoverHead, () => discoverHead.replaceChildren(...nodes));
+      const selectedType = types.choices.find(c => c.selected);
+      if (selectedType) currentDiscoverType = selectedType.label.toLowerCase();
+      const selectedCatalogue = catalogues.choices.find(c => c.selected) || catalogues.choices[0];
+      const selectedFilter = filters.choices.find(c => c.selected) || filters.choices[0];
+      const allFilter = filters.choices.find(c => c.label === 'All') || filters.choices[0];
+      const hasFilter = selectedFilter && selectedFilter.label !== 'All';
+
+      const typeLens = h('div.tk-type-lens', {}, types.choices.map(c =>
+        h('button.tk-type' + (c.selected ? '.on' : ''), {
+          type: 'button', 'data-focus': true, 'data-key': c.key,
+          'aria-pressed': c.selected ? 'true' : 'false',
+          onclick: () => env.choose(c, types, null, patch => applyDiscoverType(patch))
+        }, c.label)
+      ));
+
+      const catalogueKey = 'tankoban:discover:catalogue-menu';
+      const catalogueButton = h('button.tk-catalogue', {
+        type: 'button', 'data-focus': true, 'data-key': catalogueKey,
+        'aria-haspopup': 'menu', 'aria-expanded': openMenu === 'catalogue' ? 'true' : 'false',
+        onclick: () => openDiscoverMenu('catalogue', catalogueKey)
+      },
+      h('span.tk-kicker', {}, 'NOW BROWSING'),
+      h('span.tk-catalogue-name', {},
+        h('strong', {}, selectedCatalogue ? selectedCatalogue.label : '—'),
+        h('span.tk-catalogue-caret', { 'aria-hidden': true }, '▾')),
+      h('small', {}, (selectedCatalogue && selectedCatalogue.sublabel)
+        ? selectedCatalogue.sublabel + (hasFilter ? '   ·   ' + choiceTail(selectedFilter) : '')
+        : (hasFilter ? choiceTail(selectedFilter) : '')));
+
+      const filterKey = 'tankoban:discover:filter-menu';
+      const filterMain = h('button.tk-filter-main', {
+        type: 'button', 'data-focus': true, 'data-key': filterKey,
+        'aria-haspopup': 'menu', 'aria-expanded': openMenu === 'filter' ? 'true' : 'false',
+        onclick: () => openDiscoverMenu('filter', filterKey)
+      },
+      h('span', {}, hasFilter ? choiceTail(selectedFilter) : 'Filter'),
+      !hasFilter ? h('span.tk-filter-caret', { 'aria-hidden': true }, '▾') : null);
+      const filterWrap = h('div.tk-filter-wrap' + (hasFilter ? '.has-value' : ''), {},
+        filterMain,
+        hasFilter ? h('button.tk-filter-clear', {
+          type: 'button', 'data-focus': true, 'data-key': filterKey + '#clear',
+          'aria-label': 'Clear filter',
+          onclick: e => { e.stopPropagation(); chooseCurrent(allFilter, filters); }
+        }, '✕') : null,
+        menuRows('filter', filters.choices, filterKey));
+
+      const nodes = [
+        h('div.tk-mast', {},
+          typeLens,
+          h('div.tk-shelf', {}, catalogueButton,
+            menuRows('catalogue', catalogues.choices, catalogueKey))),
+        h('div.tk-filterbar', {},
+          h('span.tk-filter-label', {}, 'FILTER'),
+          filterWrap)
+      ];
+      if (notice && notice.data && notice.data.text) {
+        nodes.push(h('div.tk-discover-notice', {}, notice.data.text));
+      }
+      replacePreserving(discoverHead, ...nodes);
+    }
+
+    function renderLibrary() {
+      const filters = section('tankoban.library.filters');
+      const sorts = section('tankoban.library.sort');
+      const saved = section('tankoban.library.saved');
+      if (!filters || !sorts || !saved) {
+        replacePreserving(pane, CW.section.note('Loading Tankoban', 'Preparing your library.'));
+        return;
       }
 
-      function renderDiscoverControls() {
-        if (route.tab !== 'discover') {
-          discoverHead.hidden = true;
-          replaceDiscover();
-          return;
-        }
-        discoverHead.hidden = false;
-        const types = discoverSection('tankoban.discover.types');
-        const catalogues = discoverSection('tankoban.discover.catalogues');
-        const filters = discoverSection('tankoban.discover.filters');
-        if (!types || !catalogues || !filters) {
-          replaceDiscover(CW.section.note('Loading Tankoban', 'Preparing the catalogue controls.'));
-          return;
-        }
-
-        const selectedCatalogue = catalogues.choices.find(c => c.selected) || catalogues.choices[0];
-        const selectedFilter = filters.choices.find(c => c.selected) || filters.choices[0];
-        const typeLens = h('div.tk-type-lens', {}, types.choices.map(c =>
-          h('button.tk-type' + (c.selected ? '.on' : ''), {
-            type: 'button', 'data-focus': true, 'data-key': c.key,
-            'aria-pressed': c.selected ? 'true' : 'false', onclick: () => pick(c, types)
-          }, c.label)));
-
-        const catalogueKey = 'tankoban:discover:catalogue-menu';
-        const catalogueButton = h('button.tk-catalogue', {
-          type: 'button', 'data-focus': true, 'data-key': catalogueKey,
-          'aria-haspopup': 'menu', 'aria-expanded': discoverMenu === 'catalogue' ? 'true' : 'false',
-          onclick: () => {
-            discoverMenu = discoverMenu === 'catalogue' ? '' : 'catalogue';
-            renderDiscoverControls();
-            if (discoverMenu === 'catalogue') {
-              const first = discoverHead.querySelector('.tk-menu [data-focus]');
-              if (first) first.focus({ preventScroll: true });
-            }
-          }
-        },
-          h('span.tk-kicker', {}, 'NOW BROWSING'),
-          h('strong', {}, selectedCatalogue ? selectedCatalogue.label : '—'),
-          h('small', {}, selectedCatalogue && selectedCatalogue.sublabel
-            ? selectedCatalogue.sublabel : 'Tankoban built-in catalogue'));
-
-        const filterKey = 'tankoban:discover:filter-menu';
-        const filterButton = h('button.tk-filter', {
-          type: 'button', 'data-focus': true, 'data-key': filterKey,
-          'aria-haspopup': 'menu', 'aria-expanded': discoverMenu === 'filter' ? 'true' : 'false',
-          onclick: () => {
-            discoverMenu = discoverMenu === 'filter' ? '' : 'filter';
-            renderDiscoverControls();
-            if (discoverMenu === 'filter') {
-              const first = discoverHead.querySelector('.tk-menu [data-focus]');
-              if (first) first.focus({ preventScroll: true });
-            }
-          }
-        }, selectedFilter && selectedFilter.label !== 'All' ? selectedFilter.label : 'Filter');
-
-        replaceDiscover(
-          h('div.tk-mast', {},
-            typeLens,
-            h('div.tk-shelf', {}, catalogueButton,
-              discoverMenuBox('catalogue', catalogues.choices, catalogueKey))),
-          h('div.tk-filterbar', {},
-            h('span.tk-filter-label', {}, 'FILTER'),
-            filterButton,
-            discoverMenuBox('filter', filters.choices, filterKey)));
-      }
-
-      function librarySection(id) {
-        return libraryControls.find(s => s.id === id) || null;
-      }
-
-      function renderLibraryControls() {
-        if (route.tab !== 'library') {
-          libraryHead.hidden = true;
-          libraryHead.replaceChildren();
-          return;
-        }
-        libraryHead.hidden = false;
-        const filters = librarySection('tankoban.library.filters');
-        const sorts = librarySection('tankoban.library.sort');
-        if (!filters || !sorts) {
-          libraryHead.replaceChildren(CW.section.note('Loading Tankoban', 'Preparing your library.'));
-          return;
-        }
-
-        const pills = (section, cls) => h('div.' + cls, {}, section.choices.map(c =>
-          h('button.tk-library-pill' + (c.selected ? '.on' : ''), {
-            type: 'button', 'data-focus': true, 'data-key': c.key,
-            'aria-pressed': c.selected ? 'true' : 'false', onclick: () => pick(c, section)
-          }, c.label)));
-
-        CW.focus.preserve(libraryHead, () => libraryHead.replaceChildren(
-          h('div.tk-library-toolbar', {},
-            libraryQuery,
-            pills(filters, 'tk-library-filters'),
-            pills(sorts, 'tk-library-sorts'))));
-      }
-
-      function bodyEvent(ev) {
-        const next = scoped(ev, s => !isHero(s) && !isPersonal(s)
-          && !isDiscoverControl(s) && !isLibraryControl(s) && !isRanked(s));
-        if (!next) return null;
-        return {
-          ...next,
-          sections: next.sections.map(s => {
-            if (s.id !== 'tankoban.library.saved') return s;
-            return { ...s, items: s.items.map(it => {
-              const clean = { ...it };
-              delete clean.progress;
-              delete clean.badge;
-              delete clean.subtitle;
-              return clean;
-            }) };
-          })
-        };
-      }
-
-      function polishBody() {
-        const mangaGenres = pane.querySelector('[data-section="tankoban.manga.genres"] .more');
-        if (mangaGenres && mangaGenres.firstChild) mangaGenres.firstChild.nodeValue = 'Explore';
-      }
-
-      function onWorld(ev) {
-        const hero = ev.sections.find(isHero);
-        if (hero && (ev.type === 'reset' || ev.changed === hero.id)) renderHero(hero);
-
-        const personal = scoped(ev, isPersonal);
-        if (personal) CW.section.sync(personalBox, personal, ctx);
-
-        const dControls = ev.sections.filter(isDiscoverControl);
-        if (dControls.length || route.tab === 'discover') {
-          discoverControls = dControls;
-          renderDiscoverControls();
-        }
-
-        const lControls = ev.sections.filter(isLibraryControl);
-        if (lControls.length || route.tab === 'library') {
-          libraryControls = lControls;
-          renderLibraryControls();
-        }
-
-        const body = bodyEvent(ev);
-        if (body) CW.section.sync(pane, body, ctx);
-        replaceRanked(ev);
-        polishBody();
-      }
-
-      function makeBar(tab) {
-        return CW.tabBar(TABS, tab,
-          next => env.router.go({ name: 'world', world: 'Tankoban', tab: next }, { replace: true }));
-      }
-
-      function showTab(next) {
-        route = next;
-        discoverMenu = '';
-        discoverControls = [];
-        libraryControls = [];
-        discoverHead.hidden = route.tab !== 'discover';
-        libraryHead.hidden = route.tab !== 'library';
-        pane.dataset.tab = route.tab;
-        const query = viewFor('library').query || '';
-        if (libraryQuery.value !== query) libraryQuery.value = query;
-        pane.replaceChildren();
-        subscribeTab();
-      }
-
-      libraryQuery.addEventListener('input', () => {
+      const query = viewFor('library').query || '';
+      const input = h('input.tk-library-search', {
+        type: 'search', autocomplete: 'off', value: query,
+        placeholder: 'Search your library', 'aria-label': 'Search your library',
+        'data-focus': true, 'data-key': 'tankoban:library:query'
+      });
+      input.addEventListener('input', () => {
         clearTimeout(queryTimer);
         queryTimer = setTimeout(() => {
-          views.library = { ...viewFor('library'), query: libraryQuery.value };
-          if (route.tab === 'library') subscribeTab();
-        }, 250);
+          views.library = { ...viewFor('library'), query: input.value };
+          subscribeTab();
+        }, 0);
       });
-      libraryQuery.addEventListener('keydown', e => {
-        if (e.key !== 'Escape' || !libraryQuery.value) return;
-        e.stopPropagation();
-        libraryQuery.value = '';
-        views.library = { ...viewFor('library'), query: '' };
-        subscribeTab();
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          input.value = '';
+          views.library = { ...viewFor('library'), query: '' };
+          subscribeTab();
+        }
       }, true);
 
-      bar = makeBar(route.tab || 'discover');
-      tabsHost.replaceChildren(bar);
-      showTab({ ...route, tab: route.tab || 'discover' });
+      const pills = (s, cls) => h('div.' + cls, {}, s.choices.map(c =>
+        h('button.tk-library-pill' + (c.selected ? '.on' : ''), {
+          type: 'button', 'data-focus': true, 'data-key': c.key,
+          'aria-pressed': c.selected ? 'true' : 'false',
+          onclick: () => chooseCurrent(c, s)
+        }, c.label)
+      ));
 
-      return {
-        update(next) {
-          const tab = next.tab || 'discover';
-          if (tab === route.tab) return;
-          const hadFocus = bar.contains(document.activeElement);
-          const fresh = makeBar(tab);
-          bar.dispose();
-          bar.replaceWith(fresh);
-          bar = fresh;
-          if (hadFocus) {
-            const active = bar.querySelector('.tab.on');
-            if (active) active.focus({ preventScroll: true });
-          }
-          showTab({ ...next, tab });
-        },
-        unmount() {
-          clearTimeout(queryTimer);
-          if (tabSub) tabSub.close();
-          if (bar) bar.dispose();
-        }
-      };
+      const toolbar = h('div.tk-library-toolbar', {},
+        input,
+        pills(filters, 'tk-library-filters'),
+        pills(sorts, 'tk-library-sorts'));
+
+      let body;
+      if (saved.state === 'loading' || saved.state === 'error') {
+        body = CW.section.render({ ...saved, title: '' }, paneCtx);
+      } else if (!saved.items.length) {
+        body = CW.section.note(saved.emptyTitle || 'No matches',
+          saved.emptyText || null);
+      } else {
+        const grid = h('div.tk-library-grid', { 'data-tk-disposable': true },
+          saved.items.map(it => h('div.tk-library-cell', {}, CW.cards.poster(it, paneCtx))));
+        const ro = new ResizeObserver(() => {
+          const basis = Number(getComputedStyle(root).getPropertyValue('--tk-library-column-basis'));
+          if (basis > 0)
+            grid.style.setProperty('--tk-library-cols', String(Math.max(2, Math.floor(grid.clientWidth / basis))));
+        });
+        ro.observe(grid);
+        grid.__dispose = () => ro.disconnect();
+        body = grid;
+      }
+      replacePreserving(pane, toolbar, body);
+      restoreScroll();
     }
-  });
+
+    function renderPane() {
+      pane.dataset.tab = route.tab;
+
+      if (route.tab === 'library') {
+        renderLibrary();
+        return;
+      }
+
+      const bodySections = worldSections.filter(s =>
+        !isTop(s) && !isNav(s) && !isDiscoverChrome(s));
+
+      if (route.tab === 'discover') {
+        const wall = bodySections.find(s => s.id === 'tankoban.discover.wall')
+          || bodySections.find(s => s.state === 'error');
+        if (!wall) {
+          replacePreserving(pane, CW.section.note('Loading Tankoban', 'Preparing the catalogue.'));
+          return;
+        }
+        const node = CW.section.render({ ...wall, title: '' }, paneCtx);
+        node.classList.add('tk-discover-wall');
+        const grid = node.querySelector('.grid');
+        if (grid) {
+          grid.setAttribute('data-tk-disposable', '');
+          const ro = new ResizeObserver(() => {
+            const basis = Number(getComputedStyle(root).getPropertyValue('--tk-discover-column-basis'));
+            if (basis > 0)
+              grid.style.setProperty('--tk-discover-cols', String(Math.max(3, Math.floor(grid.clientWidth / basis))));
+          });
+          ro.observe(grid);
+          grid.__dispose = () => ro.disconnect();
+        }
+        replacePreserving(pane, node);
+        restoreScroll();
+        return;
+      }
+
+      const nodes = [];
+      bodySections.forEach(s => {
+        if (isCollection(s)) {
+          if (s.state === 'loading' || s.items.length) {
+            const collection = renderContinueSection(
+              { ...s, seeAll: null }, paneCtx, paneCtx.forget);
+            if (collection) nodes.push(collection);
+          }
+          return;
+        }
+        if (isRanked(s)) {
+          nodes.push(renderRanked(s));
+          return;
+        }
+        if (isGenre(s)) {
+          nodes.push(renderGenres(s));
+          return;
+        }
+        nodes.push(CW.section.render(s, paneCtx));
+      });
+      replacePreserving(pane, ...nodes);
+      restoreScroll();
+    }
+
+    function onWorld(ev) {
+      worldSections = ev.sections || [];
+
+      if (!ev.changed || String(ev.changed).startsWith(TOP_PREFIX))
+        renderTop();
+
+      if (!ev.changed
+          || isDiscoverChrome({ id: ev.changed })
+          || String(ev.changed).startsWith(NAV_PREFIX)) {
+        renderDiscoverControls();
+      }
+
+      if (!ev.changed
+          || !String(ev.changed).startsWith(TOP_PREFIX)) {
+        renderPane();
+      }
+    }
+
+    function makeBar(tab) {
+      return CW.tabBar(TABS, tab,
+        next => env.router.go(
+          { name: 'world', world: 'Tankoban', tab: next },
+          { replace: true }));
+    }
+
+    function showTab(next) {
+      if (route && route.tab) saveScroll(route.tab);
+      route = { ...next, tab: next.tab || 'discover' };
+      restoreTab = route.tab;
+      openMenu = '';
+      discoverHead.hidden = route.tab !== 'discover';
+      replacePreserving(pane);
+      subscribeTab();
+    }
+
+    root.addEventListener('pointerdown', e => {
+      if (!openMenu) return;
+      if (e.target.closest('.tk-menu')
+          || e.target.closest('.tk-catalogue')
+          || e.target.closest('.tk-filter-wrap')) return;
+      openMenu = '';
+      renderDiscoverControls();
+    }, true);
+
+    bar = makeBar(route.tab || 'discover');
+    tabsHost.replaceChildren(bar);
+    showTab({ ...route, tab: route.tab || 'discover' });
+
+    return {
+      update(next) {
+        const tab = next.tab || 'discover';
+        if (tab === route.tab) return;
+        const hadFocus = bar.contains(document.activeElement);
+        const fresh = makeBar(tab);
+        bar.dispose();
+        bar.replaceWith(fresh);
+        bar = fresh;
+        if (hadFocus) {
+          const active = bar.querySelector('.tab.on');
+          if (active) active.focus({ preventScroll: true });
+        }
+        showTab({ ...next, tab });
+      },
+      unmount() {
+        clearTimeout(queryTimer);
+        disposeInside(root);
+        if (tabSub) tabSub.close();
+        if (bar) bar.dispose();
+      }
+    };
+  }
+
+  CW.router.register('tankoban', { mount });
 })(window.CW = window.CW || {});
