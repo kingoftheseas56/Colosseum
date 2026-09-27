@@ -1,85 +1,623 @@
-/* Tankoban world parity layer. Every design value comes from shared tokens. */
+/* Tankoban world parity layer. Shared values use tokens; source-only values are cited inline. */
+.tk-surface {
+  /* token? WorldPage.qml:164 spacing:36 has an exact house spacing token. */
+  --tk-world-gap: var(--s-7);
+
+  /* token? CarouselSlide.qml:102-104. */
+  --tk-hero-copy-inset: 42px; /* token? no 42px geometry token; CarouselSlide.qml:102-104 */
+  --tk-hero-copy-max: 560px; /* token? CarouselSlide.qml:104 */
+  --tk-hero-poster-right: 56px; /* token? CarouselSlide.qml:70 */
+  --tk-hero-poster-vcut: 44px; /* token? CarouselSlide.qml:72 */
+  --tk-hero-ghost-size: 150px; /* token? CarouselSlide.qml:94 */
+  --tk-hero-ghost-right: 40px; /* token? CarouselSlide.qml:95 */
+  --tk-hero-ghost-top: -30px; /* token? CarouselSlide.qml:96 */
+  --tk-hero-button-h: 42px; /* token? CarouselSlide.qml:121,137 */
+  --tk-hero-button-r: 11px; /* token? CarouselSlide.qml:121,137 */
+  --tk-hero-button-pad: 18px; /* token? half of CarouselSlide.qml width +36 */
+  --tk-hero-action-gap: 10px; /* token? CarouselSlide.qml:119 */
+  --tk-hero-action-top: 6px; /* token? CarouselSlide.qml:119 */
+  --tk-hero-dot-back-h: 22px; /* token? FeaturedCarousel.qml:101 */
+  --tk-hero-dot-active: 22px; /* token? FeaturedCarousel.qml:111 */
+  --tk-hero-dot-rest: 7px; /* token? FeaturedCarousel.qml:111 */
+  --tk-hero-dot-gap: 7px; /* token? FeaturedCarousel.qml:106 */
+  --tk-hero-dot-ms: 150ms; /* token? FeaturedCarousel.qml:114 */
+  --tk-hero-art-ms: 300ms; /* token? CarouselSlide.qml:52,77 */
+  --tk-hero-wash-a: rgba(0,0,0,.78); /* token? CarouselSlide.qml:85 */
+  --tk-hero-wash-b: rgba(0,0,0,.30); /* token? CarouselSlide.qml:86 */
+  --tk-hero-ghost: rgba(255,255,255,.06); /* token? CarouselSlide.qml:93 */
+  --tk-hero-secondary-bg: rgba(255,255,255,.10); /* token? CarouselSlide.qml:138 */
+  --tk-hero-secondary-edge: rgba(255,255,255,.18); /* token? CarouselSlide.qml:138 */
+  --tk-hero-primary-ink: #1a1408; /* token? CarouselSlide.qml:122 */
+
+  /* token? TrendingTop10.qml:85-203 + PortraitTile.qml:39-159. */
+  --tk-rank-strip-h: 212px; /* token? TrendingTop10.qml:88 */
+  --tk-rank-row-gap: 30px; /* token? TrendingTop10.qml:146 */
+  --tk-rank-left-pad: 6px; /* token? TrendingTop10.qml:146 */
+  --tk-rank-num-size: 132px; /* token? TrendingTop10.qml:162 */
+  --tk-rank-num-bottom: -8px; /* token? TrendingTop10.qml:163 */
+  --tk-rank-cover-w: 132px; /* token? TrendingTop10.qml:167 */
+  --tk-rank-cover-h: 196px; /* token? TrendingTop10.qml:167 */
+  --tk-rank-overlap: -32px; /* token? TrendingTop10.qml:168 */
+  --tk-rank-chevron-w: 46px; /* token? TrendingTop10.qml:39 */
+  --tk-rank-chevron-size: 42px; /* token? TrendingTop10.qml:57 */
+  --tk-rank-slide-ms: 300; /* token? TrendingTop10.qml:187, unitless for surface animation */
+  --tk-rank-num-ink: rgba(255,255,255,.16); /* token? TrendingTop10.qml:161 */
+  --tk-rank-edge-w: 1px; /* token? PortraitTile.qml:131 */
+  --tk-rank-focus-w: 2px; /* token? PortraitTile.qml:131 */
+  --tk-rank-plate-a: rgba(0,0,0,.28); /* token? PortraitTile.qml:43 */
+  --tk-rank-plate-b: rgba(0,0,0,.10); /* token? PortraitTile.qml:48 */
+
+  /* token? DiscoverBrowser.qml:456-820 / DiscoverPicker.qml:1-220. */
+  --tk-discover-mast-h: 76px; /* token? DiscoverBrowser.qml:464 */
+  --tk-type-gap: 28px; /* token? DiscoverBrowser.qml typeSwitch spacing */
+  --tk-active-line: 3px; /* token? DiscoverBrowser.qml active type underline */
+  --tk-catalogue-name-size: 30px; /* token? DiscoverBrowser.qml catName */
+  --tk-kicker-size: 10px; /* token? DiscoverBrowser.qml kicker */
+  --tk-kicker-spacing: 2.5px; /* token? DiscoverBrowser.qml kicker */
+  --tk-menu-w: 300px; /* token? DiscoverBrowser.qml catalogMenu */
+  --tk-menu-max-h: 392px; /* token? DiscoverBrowser.qml catalogMenu */
+  --tk-menu-r: 13px; /* token? DiscoverBrowser.qml / DiscoverPicker.qml */
+  --tk-menu-pad: 6px; /* token? DiscoverBrowser.qml / DiscoverPicker.qml */
+  --tk-menu-header-h: 27px; /* token? DiscoverBrowser.qml menu header */
+  --tk-menu-row-h: 38px; /* token? DiscoverBrowser.qml menu row */
+  --tk-menu-row-r: 9px; /* token? DiscoverBrowser.qml menu row */
+  --tk-menu-bg: rgba(11,13,19,.98); /* token? derived from DiscoverBrowser.qml rgba(.045,.05,.075,.98) */
+  --tk-menu-selected: rgba(240,196,74,.16); /* token? DiscoverBrowser.qml mrow */
+  --tk-picker-min-w: 150px; /* token? DiscoverPicker.qml:15 */
+  --tk-picker-h: 40px; /* token? DiscoverPicker.qml:16 */
+  --tk-picker-bg: rgba(255,255,255,.05); /* token? DiscoverPicker.qml pill */
+  --tk-picker-active-bg: rgba(255,255,255,.10); /* token? DiscoverPicker.qml pill */
+  --tk-picker-active-edge: rgba(240,196,74,.55); /* token? DiscoverPicker.qml pill */
+  --tk-picker-left: 15px; /* token? DiscoverPicker.qml pillRow */
+  --tk-picker-right: 13px; /* token? DiscoverPicker.qml clear/caret */
+  --tk-notice-h: 52px; /* token? DiscoverBrowser.qml noticeBar */
+  --tk-notice-gap: 14px; /* token? DiscoverBrowser.qml noticeBar */
+  --tk-notice-bg: rgba(240,196,74,.08); /* token? DiscoverBrowser.qml noticeBar */
+  --tk-notice-edge: rgba(240,196,74,.40); /* token? DiscoverBrowser.qml noticeBar */
+  --tk-discover-wall-gap: 18px; /* token? DiscoverBrowser.qml wall anchors.topMargin */
+  --tk-discover-column-basis: 168; /* token? 148 gallery poster + 20 gallery cardGap, CatalogueVisualMetrics.js */
+  --tk-discover-cell-inset: 14px; /* token? DiscoverBrowser.qml delegate width = cellWidth - 14 */
+
+  /* token? GenreMosaic.qml:41-99. */
+  --tk-genre-h: 112px; /* token? GenreMosaic.qml:54 */
+  --tk-genre-name-size: 16px; /* token? GenreMosaic.qml:77 */
+  --tk-genre-name-inset: 13px; /* token? GenreMosaic.qml:78 */
+  --tk-genre-darken: rgba(0,0,0,.46); /* token? GenreMosaic.qml:73 */
+  --tk-genre-art-ms: 250ms; /* token? GenreMosaic.qml:71 */
+  --tk-genre-focus-w: 2px; /* token? GenreMosaic.qml:89 */
+
+  /* token? TankobanLibraryTab.qml:128-255. */
+  --tk-library-toolbar-h: 44px; /* token? TankobanLibraryTab.qml:132 */
+  --tk-library-search-w: 220px; /* token? TankobanLibraryTab.qml:140 */
+  --tk-library-search-h: 38px; /* token? TankobanLibraryTab.qml:140 */
+  --tk-library-search-r: 19px; /* token? TankobanLibraryTab.qml:145 */
+  --tk-library-search-pad: 16px; /* token? TankobanLibraryTab.qml:140 */
+  --tk-library-pill-h: 34px; /* token? TankobanLibraryTab.qml:323 */
+  --tk-library-pill-r: 14px; /* token? TankobanLibraryTab.qml:323 */
+  --tk-library-pill-x: 15px; /* token? half of TankobanLibraryTab.qml implicitWidth +30 */
+  --tk-library-pill-edge: rgba(255,255,255,.14); /* token? TankobanLibraryTab.qml:325 */
+  --tk-library-pill-hover: rgba(255,255,255,.10); /* token? TankobanLibraryTab.qml:324 */
+  --tk-library-pill-ms: 130ms; /* token? TankobanLibraryTab.qml:326 */
+  --tk-library-column-basis: 178; /* token? TankobanLibraryTab.qml:200 */
+  --tk-library-cell-inset: 16px; /* token? TankobanLibraryTab.qml:225 */
+  --tk-library-dots: 26px; /* token? TankobanLibraryTab.qml:238 */
+  --tk-library-dots-r: 8px; /* token? TankobanLibraryTab.qml:238 */
+  --tk-library-dots-bg: rgba(10,10,19,.82); /* token? TankobanLibraryTab.qml:238 */
+}
+
 .tk-surface,
 .tk-top,
 .tk-continue,
 .tk-pane {
   display: flex;
   flex-direction: column;
-}
-
-.tk-surface {
-  gap: var(--s-8);
-}
-
-.tk-top,
-.tk-continue,
-.tk-pane {
-  gap: var(--s-8);
+  gap: var(--tk-world-gap);
 }
 
 .tk-tabs {
   position: relative;
 }
 
-.tk-querybox {
-  align-self: stretch;
+/* WorldTabBar.qml:73 -> 160 * four Tankoban tabs. */
+.tk-tabs .tabs {
+  width: min(100%, 640px); /* token? WorldTabBar.qml:73 */
 }
 
-.tk-query {
+/* ---------------- FeaturedCarousel / CarouselSlide parity ---------------- */
+.tk-hero-widget {
+  position: relative;
+}
+
+.tk-hero-scroller {
+  position: relative;
+  display: flex;
+  height: var(--hero-h);
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: var(--r-xl);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
+}
+
+.tk-hero-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.tk-hero-scroller.dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+}
+
+.tk-hero-slide {
+  --tk-hero-c1: var(--washTop);
+  --tk-hero-c2: var(--washBottom);
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--edge); /* token? CarouselSlide.qml:29 */
+  background: linear-gradient(90deg, var(--tk-hero-c1), var(--tk-hero-c2));
+  scroll-snap-align: start;
+}
+
+.tk-hero-art {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
 }
 
-.tk-discover-head {
+.tk-hero-art img,
+.tk-hero-art,
+.tk-hero-poster {
+  object-fit: cover;
+  object-position: top;
+}
+
+.tk-hero-art,
+.tk-hero-poster {
+  opacity: 0;
+  transition: opacity var(--tk-hero-art-ms);
+}
+
+.tk-hero-art.on,
+.tk-hero-poster.on {
+  opacity: 1;
+}
+
+.tk-hero-poster {
+  position: absolute;
+  right: var(--tk-hero-poster-right);
+  top: calc(var(--tk-hero-poster-vcut) / 2);
+  height: calc(100% - var(--tk-hero-poster-vcut));
+  width: calc((100% - var(--tk-hero-poster-vcut)) * .66);
+  object-fit: contain;
+  object-position: center;
+}
+
+.tk-hero-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    var(--tk-hero-wash-a),
+    var(--tk-hero-wash-b) 55%, /* token? CarouselSlide.qml:86 */
+    transparent);
+}
+
+.tk-hero-ghost {
+  position: absolute;
+  right: var(--tk-hero-ghost-right);
+  top: var(--tk-hero-ghost-top);
+  color: var(--tk-hero-ghost);
+  font: 700 var(--tk-hero-ghost-size) var(--display-stack);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.tk-hero-copy {
+  position: absolute;
+  left: var(--tk-hero-copy-inset);
+  bottom: var(--tk-hero-copy-inset);
+  width: min(var(--tk-hero-copy-max), calc(100% - 2 * var(--tk-hero-copy-inset)));
   display: flex;
   flex-direction: column;
-  gap: var(--s-5);
+  gap: var(--s-2);
+}
+
+.tk-hero-kicker {
+  color: var(--gold);
+  font-family: var(--ui-stack);
+  font-size: var(--t-xs);
+  letter-spacing: 3px; /* token? CarouselSlide.qml:108 */
+}
+
+.tk-hero-copy h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 400 var(--t-h1)/.96 var(--display-stack);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tk-hero-copy p {
+  margin: 0;
+  color: var(--inkDim);
+  font: 400 var(--t-md)/1.25 var(--ui-stack);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tk-hero-actions {
+  display: flex;
+  gap: var(--tk-hero-action-gap);
+  padding-top: var(--tk-hero-action-top);
+}
+
+.tk-hero-primary,
+.tk-hero-secondary {
+  height: var(--tk-hero-button-h);
+  padding: 0 var(--tk-hero-button-pad);
+  border-radius: var(--tk-hero-button-r);
+  font-size: var(--t-base);
+  font-weight: 600;
+}
+
+.tk-hero-primary {
+  background: var(--gold);
+  color: var(--tk-hero-primary-ink);
+}
+
+.tk-hero-secondary {
+  background: var(--tk-hero-secondary-bg);
+  border: 1px solid var(--tk-hero-secondary-edge); /* token? CarouselSlide.qml:138 */
+  color: var(--ink);
+}
+
+.tk-hero-primary:focus,
+.tk-hero-secondary:focus {
+  box-shadow: var(--ring);
+}
+
+.tk-hero-dots {
+  position: absolute;
+  right: var(--s-6);
+  bottom: var(--s-6);
+  height: var(--tk-hero-dot-back-h);
+  padding: 0 calc(var(--tk-hero-dot-back-h) / 2);
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  gap: var(--tk-hero-dot-gap);
+  background: rgba(0,0,0,.42); /* token? FeaturedCarousel.qml:103 */
+}
+
+.tk-hero-dot {
+  width: var(--tk-hero-dot-rest);
+  height: var(--tk-hero-dot-rest);
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,.50); /* token? FeaturedCarousel.qml:113 */
+  transition: width var(--tk-hero-dot-ms);
+}
+
+.tk-hero-dot.on {
+  width: var(--tk-hero-dot-active);
+  background: var(--gold);
+}
+
+/* ---------------- WidgetHeader + TrendingTop10 parity ---------------- */
+.tk-widget-header {
+  min-height: 30px; /* token? WidgetHeader.qml:16 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tk-widget-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 400 var(--t-h3)/1 var(--display-stack);
+}
+
+.tk-explore {
+  min-height: 30px; /* token? WidgetHeader.qml:45 */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px; /* token? WidgetHeader.qml:49 */
+  color: var(--ink);
+  font: 400 var(--t-lg) var(--display-stack);
+}
+
+.tk-explore .tk-chevron {
+  color: var(--inkDim);
+  font-size: var(--t-h3);
+}
+
+.tk-explore:hover,
+.tk-explore:focus,
+.tk-explore:hover .tk-chevron,
+.tk-explore:focus .tk-chevron {
+  color: var(--gold);
+}
+
+.tk-explore:focus {
+  box-shadow: var(--ring);
+  border-radius: var(--r-sm);
+}
+
+.tk-ranked,
+.tk-genres {
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* token? TrendingTop10.qml:26 / GenreMosaic.qml:32 */
+}
+
+.tk-rank-strip {
   position: relative;
+  height: var(--tk-rank-strip-h);
+}
+
+.tk-rank-scroller {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.tk-rank-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.tk-rank-row {
+  min-width: max-content;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--tk-rank-row-gap);
+  padding-left: var(--tk-rank-left-pad);
+}
+
+.tk-rank-item {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: var(--tk-rank-strip-h);
+}
+
+.tk-rank-number {
+  color: var(--tk-rank-num-ink);
+  font: 700 var(--tk-rank-num-size)/1 var(--display-stack);
+  transform: translateY(calc(-1 * var(--tk-rank-num-bottom)));
+}
+
+.tk-rank-cover {
+  position: relative;
+  display: block;
+  width: var(--tk-rank-cover-w);
+  height: var(--tk-rank-cover-h);
+  margin-left: var(--tk-rank-overlap);
+  overflow: hidden;
+  border-radius: var(--r-md);
+  border: var(--tk-rank-edge-w) solid rgba(255,255,255,.08); /* token? PortraitTile.qml:133 */
+  background: linear-gradient(160deg, var(--glassHi), var(--washBottom));
+  z-index: 1;
+}
+
+.tk-rank-cover::before,
+.tk-rank-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.tk-rank-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 220ms; /* token? PortraitTile.qml:89 */
+}
+
+.tk-rank-cover img.on {
+  opacity: 1;
+}
+
+.tk-rank-caption,
+.tk-rank-cover .tk-art-fallback {
+  position: absolute;
+  left: 9px; /* token? PortraitTile.qml:100 */
+  right: 9px; /* token? PortraitTile.qml:100 */
+  bottom: 9px; /* token? PortraitTile.qml:100 */
+  color: var(--ink);
+  font-size: var(--t-md);
+  font-weight: 600;
+  line-height: 1.2;
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,.85), /* token? PortraitTile.qml:103 outline */
+     1px -1px 0 rgba(0,0,0,.85),
+    -1px  1px 0 rgba(0,0,0,.85),
+     1px  1px 0 rgba(0,0,0,.85);
   z-index: 2;
 }
 
+.tk-rank-item:hover .tk-rank-cover,
+.tk-rank-item:focus .tk-rank-cover {
+  border-width: var(--tk-rank-focus-w);
+  border-color: rgba(240,196,74,.55); /* token? PortraitTile.qml:132 */
+}
+
+.tk-rank-item:focus {
+  outline: none;
+}
+
+.tk-rank-chevron {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--tk-rank-chevron-w);
+  color: var(--ink);
+  font: 400 var(--tk-rank-chevron-size) var(--display-stack);
+  z-index: 3;
+}
+
+.tk-rank-chevron.left {
+  left: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,.42), transparent); /* token? TrendingTop10.qml:49 */
+}
+
+.tk-rank-chevron.right {
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.42)); /* token? TrendingTop10.qml:50 */
+}
+
+.tk-rank-chevron:hover,
+.tk-rank-chevron:focus {
+  color: var(--gold);
+}
+
+.tk-rank-chevron:focus {
+  box-shadow: var(--ring);
+}
+
+/* ---------------- GenreMosaic parity ---------------- */
+.tk-genre-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)); /* token? GenreMosaic.qml:26,41-46 */
+  gap: var(--s-4);
+}
+
+.tk-genre-tile {
+  position: relative;
+  height: var(--tk-genre-h);
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--edge); /* token? GenreMosaic.qml:60 */
+  background: linear-gradient(90deg, var(--glassHi), var(--washBottom));
+  text-align: left;
+}
+
+.tk-genre-art,
+.tk-genre-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tk-genre-art img {
+  object-fit: cover;
+  object-position: top;
+  opacity: 0;
+  transition: opacity var(--tk-genre-art-ms);
+}
+
+.tk-genre-art img.on {
+  opacity: 1;
+}
+
+.tk-genre-shade {
+  position: absolute;
+  inset: 0;
+  background: var(--tk-genre-darken);
+}
+
+.tk-genre-name {
+  position: absolute;
+  left: var(--tk-genre-name-inset);
+  bottom: var(--tk-genre-name-inset);
+  color: var(--ink);
+  font: 600 var(--tk-genre-name-size) var(--display-stack);
+  text-shadow: 0 1px 2px rgba(0,0,0,.60); /* token? GenreMosaic.qml:79 outline */
+}
+
+.tk-genre-count {
+  position: absolute;
+  right: var(--s-3);
+  top: var(--s-3);
+  color: rgba(255,255,255,.82); /* token? GenreMosaic.qml:83 */
+  font-size: var(--t-xs);
+}
+
+.tk-genre-tile:hover,
+.tk-genre-tile:focus {
+  border-width: var(--tk-genre-focus-w);
+  border-color: var(--gold);
+}
+
+.tk-genre-tile:focus {
+  box-shadow: var(--ring);
+}
+
+/* ---------------- Tankoban DiscoverBrowser parity ---------------- */
+.tk-discover-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
 .tk-mast {
+  position: relative;
+  height: var(--tk-discover-mast-h);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--s-7);
+  border-bottom: 1px solid rgba(255,255,255,.09); /* token? DiscoverBrowser.qml mastheadRule */
   padding-bottom: var(--s-3);
-  border-bottom: thin solid var(--edge);
-  position: relative;
 }
 
 .tk-type-lens {
   display: flex;
   align-items: flex-end;
-  gap: var(--s-7);
+  gap: var(--tk-type-gap);
 }
 
 .tk-type {
-  padding: 0 0 var(--s-2);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  position: relative;
+  padding: 0 0 9px; /* token? DiscoverBrowser.qml type delegate height = text + 9 */
   color: var(--inkDimmer);
-  font-family: var(--ui-stack);
   font-size: var(--t-lg);
   font-weight: 600;
 }
 
-.tk-type:hover,
-.tk-type:focus,
+.tk-type:hover {
+  color: var(--inkDim);
+}
+
 .tk-type.on {
   color: var(--ink);
 }
 
-.tk-type.on {
-  box-shadow: inset 0 calc(-1 * var(--s-1)) 0 var(--gold);
+.tk-type.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--tk-active-line);
+  border-radius: var(--r-sm);
+  background: var(--gold);
 }
 
 .tk-type:focus,
 .tk-catalogue:focus,
-.tk-filter:focus,
+.tk-filter-main:focus,
+.tk-filter-clear:focus,
 .tk-menu-row:focus {
-  outline: none;
   box-shadow: var(--ring);
+  border-radius: var(--r-sm);
 }
 
 .tk-shelf {
@@ -93,113 +631,329 @@
   flex-direction: column;
   align-items: flex-end;
   gap: var(--s-1);
-  padding: 0;
-  background: transparent;
-  border: 0;
   color: var(--ink);
 }
 
-.tk-kicker,
-.tk-filter-label {
+.tk-kicker {
   color: var(--inkDimmer);
-  font-family: var(--ui-stack);
-  font-size: var(--t-xs);
-  font-weight: 600;
+  font-size: var(--tk-kicker-size);
+  letter-spacing: var(--tk-kicker-spacing);
 }
 
-.tk-catalogue strong {
-  font-family: var(--display-stack);
-  font-size: var(--t-h2);
-  font-weight: 600;
+.tk-catalogue-name {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* token? DiscoverBrowser.qml nameRow spacing */
+}
+
+.tk-catalogue-name strong {
+  font: 600 var(--tk-catalogue-name-size) var(--display-stack);
+}
+
+.tk-catalogue-caret {
+  color: var(--inkDimmer);
+  font-size: var(--t-base);
+}
+
+.tk-catalogue:hover .tk-catalogue-caret,
+.tk-catalogue:focus .tk-catalogue-caret {
+  color: var(--gold);
 }
 
 .tk-catalogue small {
+  min-height: var(--t-md);
   color: var(--inkDim);
-  font-family: var(--ui-stack);
   font-size: var(--t-md);
 }
 
 .tk-filterbar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--s-3);
-  position: relative;
+  gap: 10px; /* token? DiscoverBrowser.qml filterRow spacing */
+  margin-top: var(--s-4);
 }
 
-.tk-filter {
-  padding: var(--s-2) var(--s-4);
-  border: thin solid var(--edge);
-  border-radius: var(--r-pill);
-  background: var(--glassTint);
-  color: var(--ink);
-  font-family: var(--ui-stack);
-  font-size: var(--t-md);
+.tk-filter-label {
+  height: var(--tk-picker-h);
+  display: flex;
+  align-items: center;
+  color: var(--inkDimmer);
+  font-size: var(--t-xs);
+  letter-spacing: 1.5px; /* token? DiscoverBrowser.qml filterRow label */
+}
+
+.tk-filter-wrap {
+  position: relative;
+  min-width: var(--tk-picker-min-w);
+  height: var(--tk-picker-h);
+  border-radius: var(--tk-menu-r);
+  background: var(--tk-picker-bg);
+  border: 1px solid var(--edge); /* token? DiscoverPicker.qml pill */
+}
+
+.tk-filter-wrap:hover,
+.tk-filter-wrap:focus-within,
+.tk-filter-wrap:has(.tk-menu) {
+  background: var(--tk-picker-active-bg);
+}
+
+.tk-filter-wrap.has-value {
+  border-color: var(--tk-picker-active-edge);
+}
+
+.tk-filter-main {
+  width: 100%;
+  height: 100%;
+  padding: 0 38px 0 var(--tk-picker-left); /* token? DiscoverPicker.qml: implicit +38 */
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--inkDim);
+  font-size: var(--t-base);
+}
+
+.tk-filter-wrap.has-value .tk-filter-main {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.tk-filter-caret {
+  position: absolute;
+  right: var(--tk-picker-right);
+  color: var(--inkDimmer);
+  font-size: var(--t-xs);
+}
+
+.tk-filter-clear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--s-7);
+  height: 100%;
+  color: var(--inkDim);
+  font-size: var(--t-sm);
+  z-index: 2;
 }
 
 .tk-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px); /* token? DiscoverBrowser.qml / DiscoverPicker.qml popup y */
   right: 0;
-  min-width: calc(var(--poster-w) * 2);
-  max-height: calc(var(--hero-h) + var(--s-7));
+  width: var(--tk-menu-w);
+  max-height: var(--tk-menu-max-h);
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--s-1);
-  margin-top: var(--s-2);
-  padding: var(--s-2);
-  border: thin solid var(--edge);
-  border-radius: var(--r-lg);
-  background: var(--washTop);
-  box-shadow: var(--lift);
-  z-index: 3;
+  padding: var(--tk-menu-pad);
+  border-radius: var(--tk-menu-r);
+  background: var(--tk-menu-bg);
+  border: 1px solid var(--edge); /* token? DiscoverBrowser.qml popup */
+  z-index: 60;
 }
 
-.tk-filterbar .tk-menu {
+.tk-filter-wrap .tk-menu {
   left: 0;
   right: auto;
+  width: max(100%, 280px); /* token? DiscoverPicker.qml popup min width */
+  max-height: 380px; /* token? DiscoverPicker.qml popup */
+}
+
+.tk-menu-header {
+  height: var(--tk-menu-header-h);
+  padding: 0 var(--s-3) 6px; /* token? DiscoverBrowser.qml header margins */
+  display: flex;
+  align-items: flex-end;
+  color: var(--inkDimmer);
+  font-size: var(--tk-kicker-size);
+  letter-spacing: 1.6px; /* token? DiscoverBrowser.qml header */
 }
 
 .tk-menu-row {
+  height: var(--tk-menu-row-h);
+  flex: 0 0 var(--tk-menu-row-h);
+  padding: 0 var(--s-3);
+  border-radius: var(--tk-menu-row-r);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-5);
-  padding: var(--s-2) var(--s-3);
-  border: 0;
-  border-radius: var(--r-sm);
-  background: transparent;
+  gap: var(--s-2);
   color: var(--ink);
-  text-align: left;
-  font-family: var(--ui-stack);
   font-size: var(--t-md);
-}
-
-.tk-menu-row:hover,
-.tk-menu-row.on {
-  background: var(--glassTint);
-}
-
-.tk-menu-row.on {
-  color: var(--gold);
 }
 
 .tk-menu-row small {
   color: var(--inkDimmer);
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tk-pane[data-tab="library"] [data-section="tankoban.library.filters"],
-.tk-pane[data-tab="library"] [data-section="tankoban.library.sort"] {
-  margin-bottom: calc(-1 * var(--s-6));
+.tk-menu-row:hover,
+.tk-menu-row:focus {
+  background: rgba(255,255,255,.08); /* token? DiscoverBrowser.qml mrow hover */
 }
 
-.tk-pane[data-tab="library"] .chip.on {
-  background: var(--gold);
-  color: var(--washBottom);
+.tk-menu-row.on {
+  background: var(--tk-menu-selected);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.tk-discover-notice {
+  height: var(--tk-notice-h);
+  margin-top: var(--tk-notice-gap);
+  padding: 0 var(--s-4);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  border: 1px solid var(--tk-notice-edge); /* token? DiscoverBrowser.qml noticeBar */
+  background: var(--tk-notice-bg);
+  color: var(--ink);
+  font-size: var(--t-md);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tk-discover-head + .tk-pane[data-tab="discover"] {
+  /* World board contributes 36px; DiscoverBrowser.qml wall wants 18px after the controls. */
+  margin-top: calc(var(--tk-discover-wall-gap) - var(--tk-world-gap));
+}
+
+.tk-discover-wall .wh {
+  display: none;
+}
+
+.tk-discover-wall .grid {
+  grid-template-columns: repeat(var(--tk-discover-cols, 3), minmax(0, 1fr));
+  column-gap: 0;
+  row-gap: 0;
+}
+
+.tk-discover-wall .pcw,
+.tk-discover-wall .pc {
+  width: calc(100% - var(--tk-discover-cell-inset));
+}
+
+.tk-discover-wall .pc > .sub {
+  display: none;
+}
+
+.tk-discover-wall .pc:focus:not(:hover) .rev {
+  opacity: 0;
+}
+
+/* ---------------- Tankoban Library parity ---------------- */
+.tk-pane[data-tab="library"] {
+  gap: 14px; /* token? TankobanLibraryTab.qml toolbar->wall top margin */
+}
+
+.tk-library-toolbar {
+  position: relative;
+  height: var(--tk-library-toolbar-h);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.tk-library-search {
+  justify-self: start;
+  width: var(--tk-library-search-w);
+  height: var(--tk-library-search-h);
+  padding: 0 var(--tk-library-search-pad);
+  border-radius: var(--tk-library-search-r);
+  border: 1px solid var(--edge); /* token? TankobanLibraryTab.qml:146 */
+  background: rgba(8,10,15,.62); /* token? TankobanLibraryTab.qml:145 */
+  color: var(--ink);
+  font-size: var(--t-base);
+}
+
+.tk-library-search::placeholder {
+  color: var(--inkDimmer);
+}
+
+.tk-library-search:focus {
   border-color: var(--gold);
 }
 
-.tk-pane[data-tab="library"] .chip.on .cs {
-  color: var(--washBottom);
+.tk-library-filters,
+.tk-library-sorts {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.tk-library-filters {
+  justify-self: center;
+}
+
+.tk-library-sorts {
+  justify-self: end;
+}
+
+.tk-library-pill {
+  height: var(--tk-library-pill-h);
+  padding: 0 var(--tk-library-pill-x);
+  border-radius: var(--tk-library-pill-r);
+  border: 1px solid var(--tk-library-pill-edge); /* token? TankobanLibraryTab.qml:325 */
+  color: var(--ink);
+  font-size: var(--t-md);
+  font-weight: 600;
+  transition: background var(--tk-library-pill-ms);
+}
+
+.tk-library-pill:hover {
+  background: var(--tk-library-pill-hover);
+}
+
+.tk-library-pill.on {
+  border-color: transparent;
+  background: var(--gold);
+  color: var(--tk-hero-primary-ink);
+}
+
+.tk-library-pill:focus {
+  box-shadow: var(--ring);
+}
+
+.tk-library-grid {
+  --tk-library-cols: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--tk-library-cols), minmax(0, 1fr));
+  gap: 0;
+}
+
+.tk-library-cell {
+  min-width: 0;
+  padding-right: var(--tk-library-cell-inset);
+  padding-bottom: 18px; /* token? TankobanLibraryTab.qml host height cellHeight - 18 */
+}
+
+.tk-library-cell .pcw,
+.tk-library-cell .pc {
+  width: 100%;
+}
+
+.tk-library-cell .pc > .sub {
+  display: none;
+}
+
+.tk-library-cell .pc:focus:not(:hover) .rev {
+  opacity: 0;
+}
+
+.tk-library-cell .pcm {
+  top: var(--s-2);
+  right: var(--s-2);
+  width: var(--tk-library-dots);
+  height: var(--tk-library-dots);
+  border-radius: var(--tk-library-dots-r);
+  background: var(--tk-library-dots-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-surface {
+    --tk-rank-slide-ms: 0;
+  }
 }
