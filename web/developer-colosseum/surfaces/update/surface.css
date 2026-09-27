@@ -1,8 +1,8 @@
 /* Geometry parity: qml/update/UpdateLivingGallery.qml:149-421 and qml/UpdatePage.qml:178-283. */
 .update-page{width:100%;--up-edge:calc(var(--s-8) + var(--s-2));--up-mast:calc(var(--s-8) * 2 + var(--s-7) - var(--s-1) / 2);--up-hit:calc(var(--s-8) - var(--s-1) / 2);--up-nav-bottom:calc(var(--s-8) * 3 + var(--s-3) + var(--s-1) / 2);--up-status-bottom:calc(var(--s-8) + var(--s-7) + var(--s-2))}
-.update-page>.widget{margin:calc(var(--s-3) * -1) calc(var(--margin) * -1) calc(var(--s-8) * -2)}
+.update-page>.widget{margin:0}
 /* token? #000000 from qml/update/UpdateLivingGallery.qml:158-161 */
-.up-stage{position:relative;min-height:calc(100vh - var(--board));overflow:hidden;background:#000000}
+.up-stage{position:relative;height:100vh;overflow:hidden;background:#000000}
 .up-stage>.face{position:absolute;inset:0}
 .up-stage>.face img{width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:0;transition:opacity 220ms cubic-bezier(.455,.03,.515,.955)}
 .up-stage>.face img.on{opacity:1}
