@@ -80,3 +80,11 @@ body.keys .homeback:focus,body.keys .ico:focus,body.keys .acct:focus,body.keys .
 #app[data-surface="page.update"] .sys{gap:22px}
 #app[data-surface="page.update"] #board{top:0;overflow-y:hidden}
 #app[data-surface="page.update"] #board>.col{padding:0;gap:0}
+
+/* Home Update door mirrors qml/TopBar.qml:272-307. Search occupies this slot on worlds. */
+.update-door{position:relative}
+.update-badge{position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#f2f2ef;border:1px solid #15151a;pointer-events:none}
+.update-badge.unseen{animation:update-badge-pulse 2300ms infinite}
+@keyframes update-badge-pulse{0%{transform:scale(1)}30.4%{transform:scale(1.22)}60.8%,100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.update-badge.unseen{animation:none}}
+:root[data-power="low"] .update-badge.unseen{animation:none}

@@ -33,6 +33,17 @@ if ($main -notmatch 'updateAvailable:\s*typeof Updates' -or $main -notmatch 'upd
 if ($index -notmatch 'surfaces/update/surface\.css' -or $index -notmatch 'surfaces/update/surface\.js') {
     throw 'Update web surface is not linked'
 }
+if ($index -notmatch 'id="update-button"' -or $index -notmatch 'id="update-badge"') {
+    throw 'Web TopBar has no visible Update door/badge'
+}
+if ($shell -notmatch "update-button'.*?env\.door\('update'\)" -or
+    $shell -notmatch "port\.subscribe\('page\.update'") {
+    throw 'Web TopBar Update door is not routed/status-bound to page.update'
+}
+if ($shell -notmatch "search-button'\)\.hidden\s*=\s*route\.name\s*!==\s*'world'" -or
+    $shell -notmatch "update-button'\)\.hidden\s*=\s*route\.name\s*!==\s*'home'") {
+    throw 'Search/Update do not swap in the Home/world TopBar slot'
+}
 if ($surface -notmatch "CW\.router\.register\('page\.update'") { throw 'page.update surface is not registered' }
 if ($surface -notmatch "env\.port\.subscribe\('page\.update'") { throw 'page.update does not subscribe to its native feed' }
 if ($surface -notmatch "'data-focus': true" -or $surface -notmatch "'data-key': 'update\.primary'") {

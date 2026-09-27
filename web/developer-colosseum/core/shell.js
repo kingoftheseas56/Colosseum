@@ -87,6 +87,8 @@
 
     function syncTopBar(route) {
       $('home-button').hidden = route.name === 'home';
+      $('search-button').hidden = route.name !== 'world';
+      $('update-button').hidden = route.name !== 'home';
       document.querySelectorAll('#world-nav .pill[data-world]').forEach(p =>
         p.classList.toggle('active', route.name === 'world' && p.dataset.world === route.world));
     }
@@ -98,12 +100,28 @@
       p.addEventListener('click', () => router.go({ name: 'world', world: p.dataset.world }, { replace: router.current().name === 'world' })));
     $('search-button').addEventListener('click', () =>
       router.go({ name: 'search', scope: router.current().world || 'all' }));
+    $('update-button').addEventListener('click', () => env.door('update'));
     $('account-button').addEventListener('click', () => env.door('account'));
     $('trackers-button').addEventListener('click', () => env.door('connections'));
     $('wallpaper-button').addEventListener('click', () => env.door('wallpaperSearch', { world: router.current().world || 'Home' }));
     $('minimize-button').addEventListener('click', () => port.act('window.minimize').then(report));
     $('fullscreen-button').addEventListener('click', () => port.act('window.fullscreen').then(report));
     $('close-button').addEventListener('click', () => port.act('window.close').then(report));
+
+    // The QML TopBar's update badge moved with the visible Web shell. Reuse the
+    // page.update projection so the door and page read one native owner.
+    const updateBadge = $('update-badge');
+    const updateButton = $('update-button');
+    port.subscribe('page.update', {}, ev => {
+      const section = (ev.sections || []).find(s => s.id === 'update.chronicle');
+      const data = section && section.data ? section.data : {};
+      const available = !!data.updateAvailable;
+      const unseen = available && !!data.unseenUpdate;
+      updateBadge.hidden = !available;
+      updateBadge.classList.toggle('unseen', unseen);
+      updateButton.setAttribute('aria-label', available ? 'Update available' : 'Updates');
+      updateButton.title = available ? 'Update available' : 'Updates';
+    });
 
     // ---- clock ----
     const tick = () => {
