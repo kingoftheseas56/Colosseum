@@ -21,6 +21,13 @@ This file is a practical inventory, not legal advice and not yet a complete bina
 | Legacy `stremio-runtime.exe` + `server.js` pair | A separate external runtime and not covered by Colosseum's MIT License. Trace the exact files to their upstream release and license before redistributing them; do not assume that the Addon SDK's MIT license applies to the streaming runtime. |
 | External APIs, addons, indexers, scrapers, catalogs, and media | Independent services and content. They are not part of the MIT-licensed Colosseum source and are not relicensed by this repository. |
 
+## Extensions Chain Colosseum photograph
+
+The Extensions Chain background at `assets/extensions/colosseum-night-cc0-1920x1080.jpg`
+is a center-cropped and downscaled derivative of **“Colosseo, Rome at night4.jpg”**
+by Ali Sabbagh, published on Wikimedia Commons under **CC0 1.0 Universal**.
+CC0 does not require attribution; this notice preserves provenance for the bundled artwork.
+
 ## VidKing hosted playback (Theatre extension)
 
 VidKing is an external hosted web player. Colosseum integrates it as an enabled-by-default,
