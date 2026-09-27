@@ -1194,8 +1194,18 @@ target_include_directories(reader2_autoattach_harness PRIVATE ${CMAKE_CURRENT_SO
 target_link_libraries(reader2_autoattach_harness PRIVATE Qt6::Core Qt6::Network)
 
 # Function 0007: focused Reader 2 harness builds must be runnable without first
-# building/deploying the full app. Stage their exact Qt runtime dependencies.
+# building/deploying the full app. Keep their copied Qt DLLs away from
+# colosseum.exe: a Qt6Core.dll beside the app redirects Qt's plugin lookup to
+# the build directory, where a source build has no platforms/ plugin.
 if(WIN32)
+    foreach(_reader2_harness IN ITEMS
+            reader2_stores_harness reader2_bridge_harness
+            reader2_profile_privacy_harness reader2_profile_runtime_harness
+            reader2_autoattach_harness)
+        set_target_properties(${_reader2_harness} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY
+                "${CMAKE_CURRENT_BINARY_DIR}/reader2-harnesses/${_reader2_harness}")
+    endforeach()
     add_custom_command(TARGET reader2_stores_harness POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:Qt6::Core>"
