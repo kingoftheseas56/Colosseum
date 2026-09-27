@@ -14,7 +14,8 @@ Rectangle {
     property int done: 0
     property bool prefetchStarted: false
     property bool completed: false
-    readonly property real progress: urls.length > 0 ? done / urls.length : 1
+    property bool prefetchEnabled: true
+    readonly property real progress: !prefetchEnabled || urls.length === 0 ? 1 : done / urls.length
 
     function complete() {
         if (splash.completed)
@@ -41,6 +42,11 @@ Rectangle {
         splash.urls = all
         splash.done = 0
         splash.prefetchStarted = true
+        // Keep the API and reveal timeout in the diagnostic arm. Only hidden image work changes.
+        if (!splash.prefetchEnabled) {
+            timeout.start()
+            return
+        }
         if (splash.urls.length === 0)
             complete()
         timeout.start()
@@ -60,7 +66,7 @@ Rectangle {
 
     // hidden prefetchers — same sourceSize the tiles use, so the cached decode is reused 1:1
     Repeater {
-        model: splash.prefetchStarted ? splash.urls : []
+        model: splash.prefetchEnabled && splash.prefetchStarted ? splash.urls : []
         delegate: Image {
             required property string modelData
             source: modelData

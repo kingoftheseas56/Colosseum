@@ -5027,6 +5027,7 @@ Window {
     // ---- OS-style boot loader: prefetch covers, then fade away to reveal the shell with art warm ----
     BootSplash {
         id: boot
+        prefetchEnabled: BootSplashPrefetchEnabled
         // Automation identity (Lanista): scenarios wait for `visible == false` here before
         // driving anything — the first pilot run proved every click lands "green" on the
         // occluded tree while this splash still owns the screen (vacuous pass, 2026-08-06).

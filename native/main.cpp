@@ -1946,6 +1946,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("AnimeOrder"), animeOrder);
     const bool devWorldWarmer = qEnvironmentVariableIntValue("COLOSSEUM_WORLD_WARMER") == 1;
     engine.rootContext()->setContextProperty(QStringLiteral("DevWorldWarmer"), devWorldWarmer);
+    // Diagnostic A/B: leave the normal catalog prefetch enabled unless explicitly disabled.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("BootSplashPrefetchEnabled"),
+        qEnvironmentVariable("COLOSSEUM_DISABLE_BOOT_PREFETCH") != QLatin1String("1"));
     GuiStallProbeBridge guiStallProbe(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("GuiStallProbe"), &guiStallProbe);
 
