@@ -46,7 +46,6 @@
     let catalogOpen = false;
     let filterOpen = false;
     let heroIndex = 0;
-    let heroTimer = 0;
 
     function currentView() {
       return views[activeTab] || (views[activeTab] = {});
@@ -115,8 +114,6 @@
       if (!isReady(section) || !section.items.length) return note(section, 'Nothing here yet');
       const items = section.items;
       heroIndex = Math.min(heroIndex, Math.max(0, items.length - 1));
-      clearInterval(heroTimer);
-
       const slides = items.map((item, index) => {
         const image = item.cover
           ? CW.h('img.biblio-hero-art', { src: item.cover, alt: '', decoding: 'async' })
@@ -170,12 +167,6 @@
         if (focus) focus.focus({ preventScroll: true });
       });
 
-      if (slides.length > 1) {
-        heroTimer = setInterval(() => {
-          if (!host.isConnected) return clearInterval(heroTimer);
-          if (!host.contains(document.activeElement)) show(heroIndex + 1);
-        }, 8000);
-      }
       return host;
     }
 
@@ -564,7 +555,6 @@
       unmount() {
         rememberScroll();
         clearTimeout(queryTimer);
-        clearInterval(heroTimer);
         if (sub) sub.close();
         if (tabs && tabs.dispose) tabs.dispose();
       }
