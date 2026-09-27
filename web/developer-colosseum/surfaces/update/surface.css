@@ -6,8 +6,6 @@
 .up-stage>.face{position:absolute;inset:0}
 .up-stage>.face img{width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:0;transition:opacity 220ms cubic-bezier(.455,.03,.515,.955)}
 .up-stage>.face img.on{opacity:1}
-/* The QML fallback is captured-motion.jpg (UpdateLivingGallery.qml:65). That asset is not in the
-   frozen developer-WebUI qrc resource set; REQUEST-W2-1-UPDATE-FALLBACK-ART.md records the core seam. */
 .up-stage>.face .fb{align-items:center;justify-content:center;padding:var(--s-8);font:400 var(--t-hero)/1 var(--display-stack);color:color-mix(in srgb,var(--ink) 8%,transparent);background:var(--washBottom)}
 /* token? Qt.rgba black scrims from qml/update/UpdateLivingGallery.qml:192-208 */
 .up-wash{position:absolute;inset:0;background:linear-gradient(90deg,rgb(0 0 0 / 82%),rgb(0 0 0 / 34%) 43%,rgb(0 0 0 / 8%)),linear-gradient(180deg,rgb(0 0 0 / 50%),rgb(0 0 0 / 2%) 58%,rgb(0 0 0 / 70%))}
@@ -43,3 +41,7 @@
 .up-primary:focus{background:color-mix(in srgb,var(--ink) 16%,transparent);border:calc(var(--s-1) / 2) solid var(--gold)}
 @media (prefers-reduced-motion:reduce){.up-stage>.face img,.up-chapter:after,.up-track i{transition:none}}
 :root[data-power="low"] .up-stage>.face img,:root[data-power="low"] .up-chapter:after,:root[data-power="low"] .up-track i{transition:none}
+
+/* Fixture controls are verification chrome, not part of the QML page. */
+html[data-adapter="fixture"] body:has(#app[data-surface="page.update"]) .devpanel,
+html[data-adapter="fixture"] body:has(#app[data-surface="page.update"]) #toast{display:none!important}
