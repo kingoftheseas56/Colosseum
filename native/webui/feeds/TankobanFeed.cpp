@@ -1611,28 +1611,6 @@ QMetaObject::Connection bindDownloadRemoved(QObject *owner, QObject *receiver,
         : QMetaObject::Connection{};
 }
 
-QMetaObject::Connection bindVolumes(QObject *owner, QObject *receiver,
-                                    std::function<void()> refresh)
-{
-    auto *volumes = qobject_cast<MangaTankobanService *>(owner);
-    return volumes
-        ? QObject::connect(volumes, &MangaTankobanService::volumesChanged,
-                           receiver,
-                           [refresh](const QString &) { refresh(); })
-        : QMetaObject::Connection{};
-}
-
-QMetaObject::Connection bindVolumeFinished(QObject *owner, QObject *receiver,
-                                           std::function<void()> refresh)
-{
-    auto *volumes = qobject_cast<MangaTankobanService *>(owner);
-    return volumes
-        ? QObject::connect(volumes, &MangaTankobanService::finished,
-                           receiver,
-                           [refresh](const QString &) { refresh(); })
-        : QMetaObject::Connection{};
-}
-
 QMetaObject::Connection bindVaultFetching(QObject *owner, QObject *receiver,
                                           std::function<void()> refresh)
 {
@@ -1671,8 +1649,10 @@ const bool feedRegistered = [] {
         {QStringLiteral("Progress"), &bindProgress},
         {QStringLiteral("Downloads"), &bindDownloads},
         {QStringLiteral("Downloads"), &bindDownloadRemoved},
-        {QStringLiteral("TankobanVolumes"), &bindVolumes},
-        {QStringLiteral("TankobanVolumes"), &bindVolumeFinished},
+        // TankobanWorld.qml re-evaluates Next Up from Progress.revision, not
+        // MangaTankobanService::volumesChanged. That broad signal also fires
+        // for lazy synopsis enrichment, which can otherwise invalidate every
+        // in-flight world build for minutes on long series.
         {QStringLiteral("CatalogVault"), &bindVaultFetching},
         {QStringLiteral("CatalogVault"), &bindVaultUpdated}
     };
