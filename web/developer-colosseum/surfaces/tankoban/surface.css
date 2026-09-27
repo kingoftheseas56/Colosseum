@@ -408,6 +408,10 @@
   border-radius: var(--r-md);
   border: var(--tk-rank-edge-w) solid rgba(255,255,255,.08); /* token? PortraitTile.qml:133 */
   background: linear-gradient(160deg, var(--glassHi), var(--washBottom));
+  box-shadow:
+    0 3px 0 var(--tk-rank-plate-a), /* token? PortraitTile.qml:42-43 */
+    -2px 7px 0 var(--tk-rank-plate-b); /* token? PortraitTile.qml:47-48 */
+  transition: box-shadow var(--t-med) var(--ease), border-color var(--t-med);
   z-index: 1;
 }
 
@@ -456,6 +460,9 @@
 .tk-rank-item:focus .tk-rank-cover {
   border-width: var(--tk-rank-focus-w);
   border-color: rgba(240,196,74,.55); /* token? PortraitTile.qml:132 */
+  box-shadow:
+    0 3px 0 rgba(0,0,0,.42), /* token? PortraitTile.qml:43 hover */
+    -2px 11px 0 rgba(0,0,0,.20); /* token? PortraitTile.qml:47-48 hover */
 }
 
 .tk-rank-item:focus {
@@ -833,8 +840,12 @@
 }
 
 .tk-discover-wall .pcw,
-.tk-discover-wall .pc {
+.tk-discover-wall > .grid > .pc {
   width: calc(100% - var(--tk-discover-cell-inset));
+}
+
+.tk-discover-wall .pcw .pc {
+  width: 100%;
 }
 
 .tk-discover-wall .pc > .sub {
