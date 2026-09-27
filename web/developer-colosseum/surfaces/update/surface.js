@@ -42,7 +42,10 @@
         }
         chapterIndex = Math.max(0, Math.min(chapterIndex, Math.max(0, chapters.length - 1)));
         const chapter = chapters[chapterIndex] || {};
-        const art = Array.isArray(chapter.artwork) && chapter.artwork.length ? chapter.artwork[0] : '';
+        const chapterArt = Array.isArray(chapter.artwork) && chapter.artwork.length ? String(chapter.artwork[0] || '') : '';
+        const art = chapterArt || (location.protocol === 'qrc:'
+          ? 'qrc:///developer-webui/captured-motion.jpg'
+          : '../../assets/wallpaper/captured-motion.jpg');
         const version = release.version || data.latestVersion || data.installedVersion || release.title || '';
         const primary = data.primary || {};
 
