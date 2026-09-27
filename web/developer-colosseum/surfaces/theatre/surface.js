@@ -57,15 +57,21 @@
         retiredPanes.splice(0).forEach(old => old.replaceChildren());
       }
 
-      function subscribeTab() {
+      function subscribeTab(deferStart = false) {
         if (tabSub) tabSub.close();
+        tabSub = null;
         ++paintEpoch;
+        const epoch = paintEpoch;
         clearTimeout(paintFallback);
         firstShelfPaintPending = false;
         firstShelfPainted = false;
         deferredTabEvents = [];
         const params = view ? { world: 'Theatre', tab: route.tab, view } : { world: 'Theatre', tab: route.tab };
-        tabSub = env.port.subscribe('world', params, onTabEvent);
+        const start = () => {
+          if (epoch === paintEpoch) tabSub = env.port.subscribe('world', params, onTabEvent);
+        };
+        if (deferStart) return start;
+        start();
       }
 
       const ctx = {
@@ -96,7 +102,7 @@
           top10Nodes.set(route.tab, pane.querySelector(`[data-section="${ev.changed}"][data-state="ready"]`));
       }
 
-      function holdUntilFirstPaint() {
+      function holdUntilFirstPaint(afterPaint) {
         // A warm feed can deliver every lower shelf in one burst. Let the first shelf paint
         // before building the rest of the DOM; a background WebView still flushes eventually.
         firstShelfPaintPending = true;
@@ -110,6 +116,7 @@
           deferredTabEvents = [];
           events.forEach(applyTabEvent);
           clearRetiredPanes();
+          if (afterPaint) afterPaint();
         };
         requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(flush, 0)));
         paintFallback = setTimeout(flush, 1000);
@@ -136,13 +143,13 @@
         view = null;                 // each tab starts from native defaults
         query.value = '';
         queryBox.hidden = r.tab !== 'library';
-        subscribeTab();
         const cachedNode = top10Nodes.get(r.tab);
         const cached = top10Cache.get(r.tab);
+        const startFeed = subscribeTab(!!(cachedNode || cached));
         if (cachedNode || cached) {
           if (cachedNode) pane.appendChild(cachedNode);
           else { CW.section.sync(pane, { type: 'reset', sections: [cached] }, ctx); mark(pane); }
-          holdUntilFirstPaint();
+          holdUntilFirstPaint(startFeed);
         }
       }
 
