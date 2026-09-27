@@ -1,6 +1,6 @@
 // Extensions world: Chain + House + Store, all Svelte, hosted by qml/ExtensionsWorldPage.qml over QWebChannel.
 // Channel objects: `extensions` = the app's ExtensionsStore, `host` = the thin native shell bridge
-// (back, universe hall, open a URL in the browser).
+// (back, universe hall, manage page, open a URL in the browser).
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { installSpatialFocus } from './focus.js';
@@ -24,7 +24,7 @@ function previewBridge() {
     install(url) { setTimeout(() => { rows = [...rows, { id: url, transportUrl: url, enabled: true }]; fire(); }, 600); },
     changed: { connect: fn => listeners.add(fn), disconnect: fn => listeners.delete(fn) }
   };
-  const host = { back() {}, openUniverseHall() {}, openExternal(url) { window.open(url, '_blank'); } };
+  const host = { back() {}, openUniverseHall() {}, openManage() { alert('In the app this opens the Manage page.'); }, openExternal(url) { window.open(url, '_blank'); } };
   return { store, host };
 }
 

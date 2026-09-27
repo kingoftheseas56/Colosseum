@@ -62,6 +62,9 @@
   <button type="button" class:on={tab === 'store'} data-focus onclick={() => setTab('store')}>Store</button>
 </nav>
 
+<button class="manage" class:beside-search={tab === 'store'} type="button" data-focus
+  onclick={() => host.openManage && host.openManage()}>Manage</button>
+
 {#if tab === 'chain'}
   <Chain {addons} {pending} {loading} ontoggle={toggle} />
 {:else if tab === 'house'}
@@ -75,5 +78,9 @@
   .extensions-picker button{min-width:118px;height:45px;border:0;border-radius:23px;background:transparent;color:rgba(255,255,255,.70);font-size:17px;cursor:pointer;transition:.16s}
   .extensions-picker button:hover{color:#fff;background:rgba(255,255,255,.07)}
   .extensions-picker button.on{background:#f0c44a;color:#15120b;font-weight:600;box-shadow:0 5px 18px rgba(0,0,0,.12)}
+  .manage{position:fixed;z-index:30;top:34px;right:44px;height:46px;padding:0 20px;border-radius:23px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px);color:rgba(255,255,255,.82);font:500 15px "Segoe UI",system-ui,sans-serif;cursor:pointer}
+  .manage.beside-search{right:calc(44px + min(360px,26vw) + 12px)}
+  .manage:hover{color:#fff;border-color:rgba(255,255,255,.24)}
+  .manage:focus-visible{outline:2px solid #f0c44a;outline-offset:3px}
   .extensions-picker button:focus-visible{outline:2px solid #f0c44a;outline-offset:3px}
 </style>

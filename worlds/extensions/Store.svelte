@@ -218,7 +218,7 @@
   .store{--gold:#efc15a;--ink:#f6f5f1;--dim:rgba(255,255,255,.58);--edge:rgba(255,255,255,.1);min-height:100vh;color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif;
     background:radial-gradient(1100px 620px at 50% -12%,rgba(239,193,90,.07),transparent 60%),linear-gradient(180deg,#0b0c11,#06070a 45%)}
   .page{width:min(1480px,calc(100vw - 120px));margin:0 auto;padding:118px 0 80px}
-  .search{position:fixed;z-index:40;right:44px;top:34px;width:min(360px,26vw);height:46px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:23px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px)}
+  .search{box-sizing:border-box;position:fixed;z-index:40;right:44px;top:34px;width:min(360px,26vw);height:46px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:23px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px)}
   .search svg{width:16px;height:16px;fill:none;stroke:rgba(255,255,255,.5);stroke-width:1.8;stroke-linecap:round}
   .search input{flex:1;min-width:0;border:0;outline:0;background:none;color:#fff;font:inherit;font-size:14px}
   .search:focus-within{border-color:rgba(239,193,90,.55)}
