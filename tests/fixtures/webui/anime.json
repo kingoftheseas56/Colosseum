@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "id": "mal:21",
+    "name": "One Piece",
+    "background": "https://assets.fanart.tv/fanart/one-piece-5f611e57dd3c7.jpg",
+    "poster": "https://media.kitsu.app/anime/poster_images/12/medium.jpg",
+    "logo": "https://assets.fanart.tv/fanart/one-piece-50634857c8263.png",
+    "year": "1999-",
+    "genres": [
+      "Comedy",
+      "Super Power",
+      "Fantasy",
+      "Drama",
+      "Action",
+      "Friendship",
+      "Adventure"
+    ],
+    "imdbRating": "8.4",
+    "runtime": "24 min",
+    "description": "Gol D. Roger was known as the \"Pirate King,\" the strongest and most infamous being to have sailed the Grand Line. The capture and death of Roger by the World Government brought a change throughout the world. His last words before his death revealed the existence of the greatest treasure in the world, One Piece. It was this revelation that brought about the Grand Age of Pirates, men who dreamed of finding One Piece—which promises an unlimited amount of riches and fame—and quite possibly the pinnacle of glory and the title of the Pirate King.\nEnter Monkey D. Luffy, a 17-year-old boy who defies your standard definition of a pirate. Rather than the popular persona of a wicked, hardened, toothless pirate ransacking villages for fun, Luffy’s reason for being a pirate is one of pure wonder: the thought of an exciting adventure that leads him to intriguing people and ultimately, the promised treasure. Following in the footsteps of his childhood hero, Luffy and his crew travel across the Grand Line, experiencing crazy adventures, unveiling dark mysteries and battling strong enemies, all in order to reach the most coveted of all fortunes—One Piece.",
+    "videos": [
+      {
+        "id": "kitsu:12:1",
+        "title": "I'm Luffy! The Man Who's Gonna Be King of the Pirates!",
+        "released": "1999-10-20T14:15:00.000Z",
+        "season": 1,
+        "episode": 1,
+        "thumbnail": "https://media.kitsu.app/episodes/thumbnails/103482/original.jpg",
+        "overview": "A group of pirates lead by Alvida plunder a ship, only to find a barrel which contains a strange boy named Luffy. Luffy is on a mission to find the legendary treasure \"One Piece\" and he befriends the ship's cabin-boy, Coby, who actually wants to become a marine officer. Luffy defeats Alvida and the two journey on in search of crewmates. ",
+        "imdb_id": "tt0388629",
+        "imdbSeason": 1,
+        "imdbEpisode": 1
+      },
+      {
+        "id": "kitsu:12:2",
+        "title": "Enter the Great Swordsman! Pirate Hunter Roronoa Zoro!",
+        "released": "1999-11-17T14:15:00.000Z",
+        "season": 1,
+        "episode": 2,
+        "thumbnail": "https://media.kitsu.app/episodes/thumbnails/103483/original.jpg",
+        "overview": "Luffy and Coby arrive at Shell Island, a Marine base. They meet the bounty hunter Roronoa Zoro, held under arrest by the infamous marine, Captain Morgan, and his son Helmeppo.",
+        "imdb_id": "tt0388629",
+        "imdbSeason": 1,
+        "imdbEpisode": 2
+      },
+      {
+        "id": "kitsu:12:3",
+        "title": "Morgan versus Luffy! Who's the Mysterious Pretty Girl?",
+        "released": "1999-11-24T14:15:00.000Z",
+        "season": 1,
+        "episode": 3,
+        "thumbnail": "https://media.kitsu.app/episodes/thumbnails/103484/original.jpg",
+        "overview": "Luffy convinces Zoro to join his crew, but they must first defeat Captain Morgan. After freeing the island from Morgan's oppressive rule, Coby is accepted as a marine while the other two continue on their journey. ",
+        "imdb_id": "tt0388629",
+        "imdbSeason": 1,
+        "imdbEpisode": 3
+      }
+    ],
+    "cast": []
+  }
+}

@@ -714,7 +714,16 @@ qt_add_resources(colosseum "tankoyomi_resources"
 
 set(DEVELOPER_WEBUI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../web/developer-colosseum")
 file(GLOB_RECURSE DEVELOPER_WEBUI_FILES CONFIGURE_DEPENDS
-    "${DEVELOPER_WEBUI_ROOT}/*")
+    "${DEVELOPER_WEBUI_ROOT}/adapters/*"
+    "${DEVELOPER_WEBUI_ROOT}/components/*"
+    "${DEVELOPER_WEBUI_ROOT}/core/*"
+    "${DEVELOPER_WEBUI_ROOT}/styles/*"
+    "${DEVELOPER_WEBUI_ROOT}/surfaces/*")
+list(APPEND DEVELOPER_WEBUI_FILES
+    "${DEVELOPER_WEBUI_ROOT}/app.js"
+    "${DEVELOPER_WEBUI_ROOT}/index.html"
+    "${DEVELOPER_WEBUI_ROOT}/README.md"
+    "${DEVELOPER_WEBUI_ROOT}/.gitignore")
 list(FILTER DEVELOPER_WEBUI_FILES EXCLUDE REGEX
     "/(fixtures|dev)/|/(bridge[.]js|styles[.]css)$")
 qt_add_resources(colosseum "developer_webui_resources"

@@ -1,0 +1,67 @@
+{
+  "meta": {
+    "id": "tt0944947",
+    "name": "Game of Thrones",
+    "background": "https://images.metahub.space/background/medium/tt0944947/img",
+    "poster": "https://images.metahub.space/poster/small/tt0944947/img",
+    "logo": "https://images.metahub.space/logo/medium/tt0944947/img",
+    "year": "2011–2019",
+    "genres": [
+      "Action",
+      "Adventure",
+      "Drama"
+    ],
+    "imdbRating": "9.2",
+    "runtime": "57 min",
+    "description": "Nine noble families fight for control over the lands of Westeros, while an ancient enemy returns after being dormant for millennia.",
+    "cast": [
+      "Emilia Clarke",
+      "Peter Dinklage",
+      "Kit Harington"
+    ],
+    "videos": [
+      {
+        "name": "Inside Game of Thrones",
+        "season": 0,
+        "number": 1,
+        "firstAired": "2010-12-06T05:00:00.000Z",
+        "tvdb_id": 3226241,
+        "rating": "0",
+        "overview": "A short look into the film-making process for the production Game of Thrones",
+        "thumbnail": "https://episodes.metahub.space/tt0944947/0/1/w780.jpg",
+        "id": "tt0944947:0:1",
+        "released": "2010-12-06T05:00:00.000Z",
+        "episode": 1,
+        "description": "A short look into the film-making process for the production Game of Thrones"
+      },
+      {
+        "name": "15-Minute Preview",
+        "season": 0,
+        "number": 2,
+        "firstAired": "2011-04-04T05:00:00.000Z",
+        "tvdb_id": 4045941,
+        "rating": "0",
+        "overview": "An approximately 15-minute preview of the first episode of Game of Thrones.",
+        "thumbnail": "https://episodes.metahub.space/tt0944947/0/2/w780.jpg",
+        "id": "tt0944947:0:2",
+        "released": "2011-04-04T05:00:00.000Z",
+        "episode": 2,
+        "description": "An approximately 15-minute preview of the first episode of Game of Thrones."
+      },
+      {
+        "name": "The North Remembers",
+        "season": 2,
+        "number": 1,
+        "firstAired": "2012-04-02T05:00:00.000Z",
+        "tvdb_id": 4161693,
+        "rating": "0",
+        "overview": "Tyrion arrives to save Joffrey's crown from threats old and new; Daenerys searches for allies and water in the Red Waste.",
+        "thumbnail": "https://episodes.metahub.space/tt0944947/2/1/w780.jpg",
+        "id": "tt0944947:2:1",
+        "released": "2012-04-02T05:00:00.000Z",
+        "episode": 1,
+        "description": "Tyrion arrives to save Joffrey's crown from threats old and new; Daenerys searches for allies and water in the Red Waste."
+      }
+    ]
+  }
+}

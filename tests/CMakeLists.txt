@@ -1665,6 +1665,19 @@ set_tests_properties(colosseum.qttest.installed_chronicle PROPERTIES
 # Qt6::Core, GUILESS; QStandardPaths::setTestModeEnabled(true) sandboxes every tagged
 # file this test creates — it never opens the real registry key (see the file's own
 # top-of-file safety-contract comment for why that's true even for the untagged case).
+add_executable(tst_theatre_detail_feed
+    auto/webui/tst_theatre_detail_feed.cpp
+    "${COLOSSEUM_NATIVE_DIR}/webui/feeds/TheatreDetailProjection.cpp")
+target_include_directories(tst_theatre_detail_feed PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_theatre_detail_feed PRIVATE
+    COLOSSEUM_WEBUI_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/webui")
+target_link_libraries(tst_theatre_detail_feed PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_theatre_detail_feed PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.theatre_detail_feed COMMAND tst_theatre_detail_feed)
+set_tests_properties(colosseum.qttest.theatre_detail_feed PROPERTIES
+    LABELS "unit;qttest" ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120)
+
 add_executable(tst_store_isolation
     auto/store_isolation/tst_store_isolation.cpp
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"

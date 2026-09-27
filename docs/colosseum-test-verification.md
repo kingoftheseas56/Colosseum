@@ -31,6 +31,14 @@ process if the app stays in its tray. Session manifest, attach log, process logs
 are private/ignored under `dev/e2e/out/<label>-*`. Lanista `get-state` proves native isolation
 and window state only; WebEngine DOM observation is still Planned in the Lanista ledger.
 
+`colosseum.qttest.theatre_detail_feed` (`tests/auto/webui/tst_theatre_detail_feed.cpp`,
+`TheatreDetailProjection.cpp`) is a deterministic Qt Test under the `unit;qttest` labels.
+It drives the same projection the native Theatre feed calls, with trimmed recorded movie,
+series, and `mal:` anime metadata in `tests/fixtures/webui/`; no network or AppData is
+opened. It checks the seven-section envelope, hero fields, series episodes and related
+shape. Its boundary is the projection: HTTP metadata retrieval, SQLite related lookup,
+native action dispatch and assembled rendering need separate runtime evidence.
+
 > **What this is.** The honest inventory of Colosseum's native and QML test estate — the
 > counterpart to `colosseum-lanista-verification.md` (which owns bridge/runtime capability).
 > Planning consults BOTH before naming any test: this file controls what deterministic

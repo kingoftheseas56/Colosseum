@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "id": "tt0133093",
+    "name": "The Matrix",
+    "background": "https://images.metahub.space/background/medium/tt0133093/img",
+    "poster": "https://images.metahub.space/poster/small/tt0133093/img",
+    "logo": "https://images.metahub.space/logo/medium/tt0133093/img",
+    "year": "1999",
+    "genres": [
+      "Action",
+      "Sci-Fi"
+    ],
+    "imdbRating": "8.7",
+    "runtime": "136 min",
+    "description": "When a beautiful stranger leads computer hacker Neo to a forbidding underworld, he discovers the shocking truth--the life he knows is the elaborate deception of an evil cyber-intelligence.",
+    "cast": [
+      "Keanu Reeves",
+      "Laurence Fishburne",
+      "Carrie-Anne Moss"
+    ],
+    "videos": []
+  }
+}
