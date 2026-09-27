@@ -19,6 +19,7 @@
 #include <QTimer>
 #include <QSet>
 #include <QUrl>
+#include <QUuid>
 #include <algorithm>
 
 namespace {
@@ -336,7 +337,11 @@ QVariantList build(const FeedContext &ctx)
     }
     QVariantList related;
     if (!genreList.isEmpty() && !ctx.paths.imdb.isEmpty()) {
-        ImdbCatalog imdb(ctx.paths.imdb);
+        // Feed builds run on worker threads while the GUI keeps its own imdb_catalog
+        // connection open. A distinct name is required for each concurrent build.
+        ImdbCatalog imdb(ctx.paths.imdb, nullptr,
+            QStringLiteral("web_theatre_detail_imdb_")
+                + QUuid::createUuid().toString(QUuid::WithoutBraces));
         if (imdb.ready()) {
             const QVariantList candidates = imdb.titleCatalog(
                 {{QStringLiteral("type"), type}, {QStringLiteral("genre"), genreList.first()},
