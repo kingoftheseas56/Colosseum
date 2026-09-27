@@ -157,7 +157,9 @@
           type: 'button', tabindex: '-1', 'aria-label': 'Show ' + item.title,
           onclick: () => show(i)
         })));
-      const host = CW.h('section.biblio-hero', { 'data-section': section.id }, ...slides,
+      const host = CW.h('section.biblio-hero', {
+        'data-section': section.id, 'data-state': section.state
+      }, ...slides,
         slides.length > 1 ? dots : null);
       show(heroIndex);
 
@@ -278,13 +280,27 @@
     function renderDiscoverResults(section) {
       if (!isReady(section) || !section.items.length) return note(section, 'This catalogue answered with nothing.');
       const grid = CW.h('div.biblio-discover-grid', {}, section.items.map(item => CW.cards.poster(item, sectionCtx)));
-      return CW.h('section.biblio-discover-results', { 'data-section': section.id },
+      return CW.h('section.biblio-discover-results', {
+        'data-section': section.id, 'data-state': section.state
+      },
         section.error ? CW.h('div.biblio-notice', {}, section.error) : null,
         grid,
         section.hasMore ? CW.h('button.loadmore', {
           type: 'button', 'data-focus': true, 'data-key': section.id + '#more',
           onclick: () => sectionCtx.more(section)
         }, 'Load more') : null);
+    }
+
+    function renderDiscoverMore() {
+      const more = byId(latest, 'biblio.discover.more');
+      const choice = more && more.choices && more.choices[0];
+      if (!choice) return null;
+      return CW.h('section.biblio-discover-more', {
+        'data-section': more.id, 'data-state': more.state
+      }, CW.h('button.loadmore', {
+        type: 'button', 'data-focus': true, 'data-key': choice.key,
+        onclick: () => chooseView(choice, more)
+      }, choice.label));
     }
 
     function renderDiscover() {
@@ -311,7 +327,8 @@
       return CW.h('div.biblio-discover-tab', {},
         masthead,
         renderDiscoverFilter(latest),
-        renderDiscoverResults(results));
+        renderDiscoverResults(results),
+        renderDiscoverMore());
     }
 
     function rowAction(action, section, extra) {
@@ -399,7 +416,7 @@
         : null;
 
       return CW.h('section.biblio-explore-row' + (hidden ? '.hidden-row' : ''), {
-        'data-section': section.id
+        'data-section': section.id, 'data-state': section.state
       },
         edit,
         CW.h('div.biblio-explore-row-head', {},
@@ -413,7 +430,9 @@
 
     function renderMosaics(section) {
       if (!section || !Array.isArray(section.choices) || !section.choices.length) return null;
-      return CW.h('div.biblio-mosaics', {}, section.choices.map(choice => {
+      return CW.h('section.biblio-mosaics', {
+        'data-section': section.id, 'data-state': section.state
+      }, section.choices.map(choice => {
         const arts = Array.isArray(choice.artList) ? choice.artList : (choice.art ? [choice.art] : []);
         return CW.h('button.biblio-mosaic', {
           type: 'button', 'data-focus': true, 'data-key': choice.key,
@@ -481,9 +500,13 @@
         }
       });
 
-      const grid = isReady(saved) && saved.items.length
+      const gridBody = isReady(saved) && saved.items.length
         ? CW.h('div.biblio-library-grid', {}, saved.items.map(item => CW.cards.poster(item, sectionCtx)))
         : note(saved, saved && saved.emptyTitle ? saved.emptyTitle : 'Your library is empty');
+      const grid = CW.h('section.biblio-library-results', {
+        'data-section': saved ? saved.id : 'biblio.library.saved',
+        'data-state': saved ? saved.state : 'loading'
+      }, gridBody);
 
       return CW.h('div.biblio-library-tab', {},
         CW.h('div.biblio-library-header', {},
