@@ -578,10 +578,13 @@ void canonicalFacet(BiblioCatalogStore &store, bool explicitContent, QVariantMap
 void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
               const QList<ExtCatalog> &exts, const FeedContext &ctx, QVariantMap view)
 {
-    QString catalogue = view.value(QStringLiteral("catalogue"),
-                                   QStringLiteral("popular")).toString();
+    const QString requestedCatalogue = view.value(QStringLiteral("catalogue")).toString();
+    QString catalogue = requestedCatalogue.isEmpty()
+        ? QStringLiteral("popular") : requestedCatalogue;
     const ExtCatalog *ext = findExt(exts, catalogue);
-    if (!kHouse.contains(catalogue) && !ext) catalogue = QStringLiteral("popular");
+    const bool missingCatalogue = !requestedCatalogue.isEmpty()
+        && !kHouse.contains(requestedCatalogue) && !ext;
+    if (missingCatalogue) catalogue = QStringLiteral("popular");
     view.insert(QStringLiteral("catalogue"), catalogue);
 
     QVariantList catalogues;
@@ -672,7 +675,9 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
             activeKey.isEmpty() ? QStringLiteral("This catalogue answered with nothing.")
                                 : QStringLiteral("No books match this filter."));
     }
-    const QString warning = page.value(QStringLiteral("warning")).toString();
+    QString warning = page.value(QStringLiteral("warning")).toString();
+    if (missingCatalogue)
+        warning = QStringLiteral("That source is no longer available — showing the built-in catalogue instead.");
     if (!warning.isEmpty()) section.insert(QStringLiteral("error"), warning);
     out.append(section);
 }
