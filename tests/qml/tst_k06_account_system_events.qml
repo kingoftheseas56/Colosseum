@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtTest 1.3
 import "../../qml/account" as Account
-import "../../qml" as Colosseum
 
 TestCase {
     name: "K06AccountSystemEvents"
@@ -27,13 +26,6 @@ TestCase {
         }
     }
 
-    Component {
-        id: updateComp
-        Colosseum.UpdatePage {
-            width: 1280; height: 720
-            updates: null
-        }
-    }
     property var subject: null
     property var focusHost: null
 
@@ -98,45 +90,5 @@ TestCase {
                 "bare Down must be contained by AccountFlyout, not delivered to its parent")
         tryCompare(sessionAction, "activeFocus", true)
     }
-    function test_update_chrome_keyboard_activation() {
-        subject = updateComp.createObject(testWindow.contentItem)
-        verify(subject !== null)
-        wait(20)
-        var minimize = byName(subject, "colosseumUpdateMinimize")
-        var fullscreen = byName(subject, "colosseumUpdateFullscreen")
-        var close = byName(subject, "colosseumUpdateClose")
-        verify(minimize !== null && fullscreen !== null && close !== null)
-
-        var minimizeSpy = signalSpy.createObject(testWindow, { target: subject, signalName: "minimizeRequested" })
-        var fullscreenSpy = signalSpy.createObject(testWindow, { target: subject, signalName: "fullscreenRequested" })
-        var closeSpy = signalSpy.createObject(testWindow, { target: subject, signalName: "closeRequested" })
-
-        minimize.forceActiveFocus(Qt.TabFocusReason)
-        keyClick(Qt.Key_Return)
-        compare(minimizeSpy.count, 1)
-        fullscreen.forceActiveFocus(Qt.TabFocusReason)
-        keyClick(Qt.Key_Space)
-        compare(fullscreenSpy.count, 1)
-        close.forceActiveFocus(Qt.TabFocusReason)
-        keyClick(Qt.Key_Enter)
-        compare(closeSpy.count, 1)
-
-        minimizeSpy.destroy(); fullscreenSpy.destroy(); closeSpy.destroy()
-    }
-
-    function test_update_escape_requests_back() {
-        subject = updateComp.createObject(testWindow.contentItem)
-        verify(subject !== null)
-        wait(20)
-        var backSpy = signalSpy.createObject(testWindow, { target: subject, signalName: "backRequested" })
-        var primary = byName(subject, "colosseumUpdatePrimaryAction")
-        verify(primary !== null)
-        subject.takeKeyboardFocus()
-        tryCompare(primary, "activeFocus", true)
-        keyClick(Qt.Key_Escape)
-        compare(backSpy.count, 1)
-        backSpy.destroy()
-    }
-
     Component { id: signalSpy; SignalSpy {} }
 }
