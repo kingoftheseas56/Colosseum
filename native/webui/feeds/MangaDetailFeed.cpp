@@ -393,6 +393,7 @@ const bool feedRegistered = [] {
     entry.initial = &initial;
     entry.build = &build;
     entry.capture = &capture;
+    entry.pageableSections.insert(QStringLiteral("chapters"), 100);
     return FeedRegistry::add(entry);
 }();
 const bool modeRegistered = ActionRegistry::add({QStringLiteral("detail.manga.selectMode"),

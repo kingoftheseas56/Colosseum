@@ -600,9 +600,14 @@ QVariantList build(const FeedContext &ctx)
     return sections;
 }
 
-const bool registered = FeedRegistry::add({QStringLiteral("seeAll"), {}, valid,
+const bool registered = [] {
+    FeedRegistry::Entry entry{QStringLiteral("seeAll"), {}, valid,
     [](const QVariantMap &) -> QVariantList {
         return {WebFeedValue::section(QStringLiteral("seeAll.results"), 0,
             QStringLiteral("See All"), QStringLiteral("grid"), {}, QStringLiteral("loading"))};
-    }, build, true, true});
+    }, build, true, true};
+    entry.pageableSections.insert(QStringLiteral("seeAll.results"), 24);
+    entry.pageableSections.insert(QStringLiteral("seeAll.collection"), 24);
+    return FeedRegistry::add(std::move(entry));
+}();
 } // namespace

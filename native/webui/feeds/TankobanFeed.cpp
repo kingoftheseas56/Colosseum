@@ -592,13 +592,29 @@ QVariantList buildDiscover(const FeedContext &ctx, MalCatalog &mal,
         out.append(notice);
     }
 
-    const QVariantMap page = type == QLatin1String("manga")
-        ? mal.discoverPage(catalogue, axis, key, ctx.showExplicit, 0, 24)
-        : comics.discoverPage(catalogue, axis, key, ctx.showExplicit, 0, 24);
+    const int visible = qBound(24, ctx.visibleCount, 5000);
+    QVariantList rawItems;
+    bool exhausted = false;
+    while (rawItems.size() < visible && !exhausted) {
+        const int count = qMin(24, visible - rawItems.size());
+        const QVariantMap page = type == QLatin1String("manga")
+            ? mal.discoverPage(catalogue, axis, key, ctx.showExplicit, rawItems.size(), count)
+            : comics.discoverPage(catalogue, axis, key, ctx.showExplicit, rawItems.size(), count);
+        const QVariantList chunk = page.value(QStringLiteral("items")).toList();
+        rawItems.append(chunk);
+        exhausted = page.value(QStringLiteral("exhausted"), true).toBool()
+            || chunk.size() < count;
+    }
+    if (!exhausted && rawItems.size() == visible) {
+        const QVariantMap probe = type == QLatin1String("manga")
+            ? mal.discoverPage(catalogue, axis, key, ctx.showExplicit, visible, 1)
+            : comics.discoverPage(catalogue, axis, key, ctx.showExplicit, visible, 1);
+        exhausted = probe.value(QStringLiteral("items")).toList().isEmpty();
+    }
     const QString publicKind = type == QLatin1String("manga")
         ? QStringLiteral("manga") : QStringLiteral("comic");
     QVariantList items = mapRows(
-        page.value(QStringLiteral("items")).toList(), publicKind, 24);
+        rawItems, publicKind, visible);
     if (type == QLatin1String("manga") && axis.isEmpty()) {
         items = cachedMangaOverlay(
             items, liveCacheKey(catalogue, group, key, ctx.showExplicit));
@@ -610,7 +626,8 @@ QVariantList buildDiscover(const FeedContext &ctx, MalCatalog &mal,
     QVariantMap wall = WebFeedValue::section(
         QStringLiteral("tankoban.discover.wall"), out.size(), {},
         QStringLiteral("grid"), items,
-        items.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
+        items.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"),
+        !exhausted && visible < 5000);
     wall.insert(QStringLiteral("emptyTitle"),
         downloading ? QStringLiteral("Catalogue downloading…")
         : key.isEmpty() ? QStringLiteral("This catalogue answered with nothing.")
@@ -1649,6 +1666,7 @@ const bool feedRegistered = [] {
     entry.needsExtensions = true;
     entry.enrich = &enrich;
     entry.capture = &capturePersonalState;
+    entry.pageableSections.insert(QStringLiteral("tankoban.discover.wall"), 24);
     entry.ownerSignals = {
         {QStringLiteral("Progress"), &bindProgress},
         {QStringLiteral("Downloads"), &bindDownloads},

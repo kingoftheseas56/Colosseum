@@ -9,7 +9,8 @@
 #include <QUuid>
 
 namespace {
-const bool registered = FeedRegistry::add({
+const bool registered = [] {
+    FeedRegistry::Entry entry{
     QStringLiteral("continue"), {},
     [](const QVariantMap &params) {
         return QStringList{QStringLiteral("all"), QStringLiteral("Tankoban"),
@@ -26,7 +27,12 @@ const bool registered = FeedRegistry::add({
         return ContinueFeed::build(ctx.recent,
             ctx.params.value(QStringLiteral("scope")).toString(),
             ctx.paths.imdb, ctx.visibleCount);
-    }, true, false});
+    }, true, false};
+    for (const QString &scope : {QStringLiteral("all"), QStringLiteral("Tankoban"),
+                                 QStringLiteral("Biblio"), QStringLiteral("Theatre")})
+        entry.pageableSections.insert(QStringLiteral("continue.%1.entries").arg(scope), 24);
+    return FeedRegistry::add(std::move(entry));
+}();
 } // namespace
 
 QVariantList ContinueFeed::build(const QVariantList &recent, const QString &scope,

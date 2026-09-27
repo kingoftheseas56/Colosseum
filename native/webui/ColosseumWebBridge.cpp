@@ -2,6 +2,7 @@
 #include "feeds/ActionRegistry.h"
 #include "feeds/FeedRegistry.h"
 #include "feeds/FeedValue.h"
+#include "feeds/ComicDetailRoutes.h"
 #include "WallpaperSchemeHandler.h"
 
 #include "../CollectionStore.h"
@@ -419,15 +420,27 @@ QVariantMap ColosseumWebBridge::more(int id, const QString &sectionId)
 {
     auto it = m_subscriptions.find(id);
     if (it == m_subscriptions.end()) return fail(QStringLiteral("Subscription is closed."));
-    if ((it->feed != QLatin1String("continue") && it->feed != QLatin1String("seeAll")
-         && it->feed != QLatin1String("detail.theatre")
-         && it->feed != QLatin1String("detail.manga"))
-        || !it->sections.contains(sectionId)
+    const auto *entry = FeedRegistry::find(it->feed, it->params);
+    const int pageSize = entry ? entry->pageableSections.value(sectionId) : 0;
+    if (pageSize <= 0 || !it->sections.contains(sectionId)
         || !it->sections.value(sectionId).value(QStringLiteral("hasMore")).toBool())
         return fail(QStringLiteral("No more items in that section."));
-    it->visibleCount += (it->feed.startsWith(QLatin1String("detail.")) ? 100 : 24);
+    it->visibleCount += pageSize;
     refresh(id);
     return {{QStringLiteral("ok"), true}};
+}
+
+QVariantMap ColosseumWebBridge::comicPackRoute(const QString &seriesId,
+                                               const QString &title,
+                                               const QString &resumeUnitId)
+{
+    return ComicDetailRoutes::pack(*this, seriesId, title, resumeUnitId);
+}
+
+QVariantMap ColosseumWebBridge::comicUniverseRoute(const QString &title,
+                                                   const QVariantList &posts, int year)
+{
+    return ComicDetailRoutes::universe(title, posts, year);
 }
 
 void ColosseumWebBridge::publish(int id, const QVariantMap &event)
@@ -868,7 +881,10 @@ QFuture<QVariantMap> ColosseumWebBridge::act(const QString &action,
             if (identity.isEmpty()) identity = ref.value(QStringLiteral("seriesId")).toString();
             params.insert(QStringLiteral("id"), identity);
         }
-        if (hasSurface(QStringLiteral("detail.") + kind) && !kind.isEmpty()) {
+        const bool nativeOnePiece = kind == QLatin1String("universe")
+            && params.value(QStringLiteral("extensionId")).toString()
+                == QLatin1String("com.colosseum.universe.onepiece");
+        if (!nativeOnePiece && hasSurface(QStringLiteral("detail.") + kind) && !kind.isEmpty()) {
             if (params.value(kind == QLatin1String("universe") ? QStringLiteral("extensionId") : QStringLiteral("id")).toString().isEmpty()) {
                 complete(fail(QStringLiteral("Item identity is missing.")));
                 return future;

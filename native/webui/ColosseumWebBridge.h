@@ -56,6 +56,11 @@ public:
     Q_INVOKABLE QVariantMap subscribe(const QString &feed, const QVariantMap &params);
     Q_INVOKABLE void unsubscribe(int id);
     Q_INVOKABLE QVariantMap more(int id, const QString &sectionId);
+    Q_INVOKABLE QVariantMap comicPackRoute(const QString &seriesId,
+                                           const QString &title,
+                                           const QString &resumeUnitId = QString());
+    Q_INVOKABLE QVariantMap comicUniverseRoute(const QString &title,
+                                               const QVariantList &posts, int year);
     Q_INVOKABLE QFuture<QVariantMap> act(const QString &action, const QVariantMap &payload);
     Q_INVOKABLE void clearSurfaces();
     Q_INVOKABLE bool hasSurface(const QString &name) const;

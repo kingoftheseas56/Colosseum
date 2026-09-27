@@ -1,6 +1,7 @@
 #include "ActionRegistry.h"
 #include "FeedRegistry.h"
 #include "FeedValue.h"
+#include "ComicDetailRoutes.h"
 #include "../ColosseumWebBridge.h"
 
 #include "../../CollectionStore.h"
@@ -9,6 +10,7 @@
 #include "../../engine/ComicsCatalog.h"
 
 #include <QCollator>
+#include <QCryptographicHash>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -68,6 +70,7 @@ struct AltSourceState {
 QHash<QString, RemoteState> remoteStates;
 QHash<QString, QVariantMap> privateRows;
 QHash<QString, QVariantList> readerChains;
+QHash<QString, QVariantMap> bakedRoutes;
 QHash<QString, AltSourceState> sourceStates;
 QHash<QString, QVariantMap> privateSourceRows;
 QSet<QString> terminalIssueIds;
@@ -264,9 +267,8 @@ using JsonDone = std::function<void(QJsonDocument, QVariantMap, QString)>;
 
 void getJson(ColosseumWebBridge &bridge, const QUrl &url, JsonDone done)
 {
-    // Main.cpp:239-425 owns the CachingNam pin/UA/cache policy. A private NAM here
-    // would bypass GetComics' IPv4 pin and revive the dead-AAAA failure. Codex C
-    // exposes that owner as WebNetwork; until then the section fails honestly.
+    // Use the app-owned CachingNam so feeds keep the QML network policy,
+    // including GetComics' pinned host and cache behavior.
     auto *network = qobject_cast<QNetworkAccessManager *>(
         bridge.service(QStringLiteral("WebNetwork")));
     if (!network) {
@@ -674,7 +676,9 @@ bool valid(const QVariantMap &params)
         || id.startsWith(QLatin1String("locg:"))
         || id == QLatin1String("comic:archives")
         || id.startsWith(QLatin1String("gcbox:"))
-        || id.startsWith(QLatin1String("publisher:"));
+        || id.startsWith(QLatin1String("publisher:"))
+        || id.startsWith(QLatin1String("pack:"))
+        || id.startsWith(QLatin1String("universe-comic:"));
     if (!known) return false;
     const QVariantMap view = params.value(QStringLiteral("view")).toMap();
     const QString sort = view.value(QStringLiteral("sort"), QStringLiteral("new")).toString();
@@ -779,7 +783,22 @@ void capture(ColosseumWebBridge &bridge, FeedContext &ctx)
     bool loading = false;
     QString error;
 
-    if (id.startsWith(QLatin1String("gc:"))) {
+    if (id.startsWith(QLatin1String("pack:"))
+        || id.startsWith(QLatin1String("universe-comic:"))) {
+        const QVariantMap baked = bakedRoutes.value(id);
+        const bool wrongProfile = id.startsWith(QLatin1String("pack:"))
+            && baked.value(QStringLiteral("profileRevision")).toInt()
+                != bridge.shellState().value(QStringLiteral("profileRevision")).toInt();
+        if (baked.isEmpty() || wrongProfile) {
+            error = QStringLiteral("This comic collection is no longer available.");
+        } else {
+            meta = baked.value(QStringLiteral("meta")).toMap();
+            rows = baked.value(QStringLiteral("rows")).toList();
+            readerSeriesId = baked.value(QStringLiteral("seriesId")).toString();
+            sourceLabel = id.startsWith(QLatin1String("pack:"))
+                ? QStringLiteral("Downloaded pack") : QStringLiteral("GetComics collection");
+        }
+    } else if (id.startsWith(QLatin1String("gc:"))) {
         const QString slug = id.mid(3);
         ensureGcSeries(bridge, id, slug, ctx.params.value(QStringLiteral("title")).toString());
         const RemoteState state = remoteStates.value(id);
@@ -879,6 +898,9 @@ void capture(ColosseumWebBridge &bridge, FeedContext &ctx)
             {QStringLiteral("date"), raw.value(QStringLiteral("date"))},
             {QStringLiteral("format"), raw.value(QStringLiteral("format"))},
             {QStringLiteral("pages"), raw.value(QStringLiteral("pages"))},
+            {QStringLiteral("packRole"), raw.value(QStringLiteral("packRole"))},
+            {QStringLiteral("packOrder"), raw.value(QStringLiteral("packOrder"))},
+            {QStringLiteral("packId"), raw.value(QStringLiteral("packId"))},
             {QStringLiteral("description"), raw.value(QStringLiteral("description"))},
             {QStringLiteral("group"), raw.value(QStringLiteral("format")).toString().isEmpty()
                 ? (raw.value(QStringLiteral("collection")).toBool()
@@ -913,8 +935,10 @@ void capture(ColosseumWebBridge &bridge, FeedContext &ctx)
              {QStringLiteral("isbn"), raw.value(QStringLiteral("isbn"))},
              {QStringLiteral("collects"), raw.value(QStringLiteral("collects"))},
              {QStringLiteral("format"), raw.value(QStringLiteral("format"))},
+             {QStringLiteral("packRole"), raw.value(QStringLiteral("packRole"))},
              {QStringLiteral("creators"), raw.value(QStringLiteral("creators"))}});
-        chain.append(QVariantMap{{QStringLiteral("id"), unitId},
+        if (raw.value(QStringLiteral("packRole")).toString() != QLatin1String("extra"))
+            chain.append(QVariantMap{{QStringLiteral("id"), unitId},
                                  {QStringLiteral("name"), raw.value(QStringLiteral("title"))},
                                  {QStringLiteral("url"), postUrl},
                                  {QStringLiteral("cover"), raw.value(QStringLiteral("cover"))},
@@ -1149,7 +1173,10 @@ void delegateReader(ColosseumWebBridge &bridge, const QString &routeId,
          {QStringLiteral("seriesCover"), row.value(QStringLiteral("cover"))},
          {QStringLiteral("unitId"), unitId},
          {QStringLiteral("unitLabel"), row.value(QStringLiteral("label"))},
-         {QStringLiteral("chapters"), readerChains.value(routeId)}}, done);
+         {QStringLiteral("chapters"), row.value(QStringLiteral("packRole")) == QLatin1String("extra")
+             ? QVariantList{QVariantMap{{QStringLiteral("id"), unitId},
+                                        {QStringLiteral("name"), row.value(QStringLiteral("label"))}}}
+             : readerChains.value(routeId)}}, done);
 }
 
 void addCollection(ColosseumWebBridge &bridge, const QString &routeId)
@@ -1310,6 +1337,8 @@ const bool feedRegistered = [] {
     entry.initial = initial;
     entry.build = build;
     entry.capture = capture;
+    entry.pageableSections.insert(QStringLiteral("releases"), 100);
+    entry.pageableSections.insert(QStringLiteral("content"), 100);
     entry.needsProgress = true;
     entry.needsCollection = true;
     entry.ownerSignals.append({QStringLiteral("Comics"), watchComicProgress});
@@ -1702,4 +1731,125 @@ const bool sourceCloseRegistered = ActionRegistry::add({QStringLiteral("detail.c
         }
         done({{QStringLiteral("ok"), true}});
     }});
+
+const bool universeCollectionRegistered = ActionRegistry::add({
+    QStringLiteral("detail.universe.openCollection"),
+    [](const QVariantMap &p) {
+        return !p.value(QStringLiteral("title")).toString().trimmed().isEmpty()
+            && p.value(QStringLiteral("title")).toString().size() <= 220
+            && !p.value(QStringLiteral("posts")).toList().isEmpty();
+    },
+    [](ColosseumWebBridge &bridge, const QVariantMap &p, ActionRegistry::Completion done) {
+        if (!bridge.hasSurface(QStringLiteral("detail.comic")))
+            return unavailable(done, QStringLiteral("The comic detail page is unavailable."));
+        done(ComicDetailRoutes::universe(p.value(QStringLiteral("title")).toString(),
+                                         p.value(QStringLiteral("posts")).toList(),
+                                         p.value(QStringLiteral("year")).toInt()));
+    }});
 } // namespace
+
+namespace ComicDetailRoutes {
+namespace {
+QVariantMap failed(const QString &message)
+{
+    return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), message}};
+}
+
+QVariantMap opened(const QString &id, const QString &title,
+                   const QString &resumeUnitId = {})
+{
+    return {{QStringLiteral("ok"), true},
+            {QStringLiteral("result"), QVariantMap{
+                {QStringLiteral("route"), QVariantMap{
+                    {QStringLiteral("name"), QStringLiteral("detail")},
+                    {QStringLiteral("kind"), QStringLiteral("comic")},
+                    {QStringLiteral("params"), QVariantMap{
+                        {QStringLiteral("id"), id},
+                        {QStringLiteral("title"), title},
+                        {QStringLiteral("resumeUnitId"), resumeUnitId}}}}}}}};
+}
+
+QString opaqueId(const QString &prefix, const QByteArray &source)
+{
+    return prefix + QString::fromLatin1(
+        QCryptographicHash::hash(source, QCryptographicHash::Sha256).toHex());
+}
+} // namespace
+
+QVariantMap pack(ColosseumWebBridge &bridge, const QString &seriesId,
+                 const QString &title, const QString &resumeUnitId)
+{
+    if (seriesId.isEmpty() || seriesId.size() > 220)
+        return failed(QStringLiteral("This downloaded series is unavailable."));
+    auto *downloads = qobject_cast<ComicDownloader *>(bridge.service(QStringLiteral("Comics")));
+    if (!downloads) return failed(QStringLiteral("Comic downloads are unavailable."));
+    const QVariantMap volumes = downloads->packVolumes(seriesId);
+    const QVariantList mains = volumes.value(QStringLiteral("mains")).toList();
+    const QVariantList extras = volumes.value(QStringLiteral("extras")).toList();
+    if (mains.isEmpty() && extras.isEmpty())
+        return failed(QStringLiteral("This downloaded pack has no volumes."));
+    QVariantList rows;
+    auto append = [&rows](const QVariantList &volumes, const QString &role) {
+        for (const QVariant &value : volumes) {
+            const QVariantMap unit = value.toMap();
+            const QString id = unit.value(QStringLiteral("id")).toString();
+            if (id.isEmpty()) continue;
+            rows.append(QVariantMap{
+                {QStringLiteral("id"), id},
+                {QStringLiteral("title"), unit.value(QStringLiteral("label"))},
+                {QStringLiteral("cover"), unit.value(QStringLiteral("art"))},
+                {QStringLiteral("pages"), unit.value(QStringLiteral("pages"))},
+                {QStringLiteral("packId"), id},
+                {QStringLiteral("packRole"), role},
+                {QStringLiteral("packOrder"), unit.value(QStringLiteral("packOrder"))}});
+        }
+    };
+    // The native reader's chapter chain is newest-first. Extras remain solo.
+    for (auto it = mains.crbegin(); it != mains.crend(); ++it)
+        append(QVariantList{*it}, QStringLiteral("main"));
+    append(extras, QStringLiteral("extra"));
+    if (rows.isEmpty()) return failed(QStringLiteral("This downloaded pack has no volumes."));
+    const QString id = opaqueId(QStringLiteral("pack:"), seriesId.toUtf8());
+    const QString displayTitle = title.trimmed().isEmpty() ? seriesId : title.trimmed();
+    bakedRoutes.insert(id, {{QStringLiteral("seriesId"), seriesId},
+                            {QStringLiteral("profileRevision"), bridge.shellState().value(QStringLiteral("profileRevision"))},
+                            {QStringLiteral("meta"), QVariantMap{{QStringLiteral("title"), displayTitle}}},
+                            {QStringLiteral("rows"), rows}});
+    return opened(id, displayTitle, resumeUnitId);
+}
+
+QVariantMap universe(const QString &title, const QVariantList &posts, int year)
+{
+    const QString displayTitle = title.trimmed();
+    if (displayTitle.isEmpty() || displayTitle.size() > 220 || posts.isEmpty()
+        || posts.size() > 100)
+        return failed(QStringLiteral("This comic collection is unavailable."));
+    QVariantList rows;
+    QStringList ids;
+    for (const QVariant &value : posts) {
+        bool valid = false;
+        const int post = value.toString().toInt(&valid);
+        if (!valid || post <= 0)
+            return failed(QStringLiteral("This comic collection has an invalid post."));
+        const QString postId = QString::number(post);
+        if (ids.contains(postId)) continue;
+        ids.append(postId);
+        rows.append(QVariantMap{{QStringLiteral("id"), postId},
+                                {QStringLiteral("title"), displayTitle},
+                                {QStringLiteral("postUrl"), QStringLiteral("https://getcomics.org/?p=") + postId},
+                                {QStringLiteral("year"), year},
+                                {QStringLiteral("collection"), true}});
+    }
+    const QString id = opaqueId(QStringLiteral("universe-comic:"),
+                                (displayTitle + QLatin1Char('|') + QString::number(year)
+                                 + QLatin1Char('|') + ids.join(QLatin1Char(','))).toUtf8());
+    const QString readerId = QStringLiteral("gc:curated:") + id.mid(QStringLiteral("universe-comic:").size());
+    const QString pageTitle = year > 0 ? QStringLiteral("%1 (%2)").arg(displayTitle).arg(year)
+                                       : displayTitle;
+    bakedRoutes.insert(id, {{QStringLiteral("seriesId"), readerId},
+                            {QStringLiteral("meta"), QVariantMap{{QStringLiteral("title"), pageTitle},
+                                                                   {QStringLiteral("year"), year}}},
+                            {QStringLiteral("rows"), rows}});
+    return opened(id, pageTitle);
+}
+} // namespace ComicDetailRoutes

@@ -690,7 +690,7 @@ Window {
             playerOpen: win.playerOpen,
             bookReaderActive: bookReaderLayer.active,
             vaultComicActive: vaultComicLayer.active,
-            comicReaderActive: win.embeddedComicReaderOpen(),
+            comicReaderActive: win.embeddedComicReaderOpen() || standaloneComicLayer.active,
             updateActive: false, // Update is web-owned; ShellBackPolicy no longer closes a native layer.
             syncCenterActive: false,
             keyboardGuideActive: keyboardGuideLayer.active,
@@ -758,6 +758,9 @@ Window {
     function requestComicReaderEscape() {
         if (vaultComicLayer.active && vaultComicLayer.item && vaultComicLayer.item.requestEscape) {
             vaultComicLayer.item.requestEscape(); return
+        }
+        if (standaloneComicLayer.active && standaloneComicLayer.item) {
+            standaloneComicLayer.item.requestEscape(); return
         }
         if (comicSeriesLayer.active && comicSeriesLayer.item
                 && String(comicSeriesLayer.item.openChapterId || "").length
@@ -1330,6 +1333,16 @@ Window {
     function openPackSeries(d) {
         var seriesId = String((d && d.seriesId) || "")
         if (!seriesId.length) { console.warn("pack: openPackSeries — no seriesId"); return }
+        if (developerWebUiLayer.item && ColosseumWebBridge.hasSurface("detail.comic")) {
+            var packRoute = ColosseumWebBridge.comicPackRoute(seriesId,
+                String((d && d.seriesTitle) || ""), String((d && d.resumeChapterId) || ""))
+            if (packRoute.ok && packRoute.result && packRoute.result.route) {
+                developerWebUiLayer.item.openRoute(packRoute.result.route)
+                return
+            }
+            console.warn("pack: comic detail route failed", packRoute.error || "Unavailable")
+            return
+        }
         var pv = (typeof Comics !== "undefined") ? Comics.packVolumes(seriesId) : { mains: [], extras: [] }
         var rel = []
         var mains = pv.mains || []
@@ -1360,6 +1373,17 @@ Window {
     function openUniverseComic(d) {
         var posts = (d && d.posts) || []
         if (!posts.length) { console.warn("universes: openUniverseComic — no posts for", (d && d.title) || "(untitled)"); return }
+        if (developerWebUiLayer.item && ColosseumWebBridge.hasSurface("detail.comic")) {
+            var collectionRoute = ColosseumWebBridge.comicUniverseRoute(
+                String((d && d.title) || ""), posts, Number((d && d.year) || 0))
+            if (collectionRoute.ok && collectionRoute.result && collectionRoute.result.route) {
+                developerWebUiLayer.item.openRoute(collectionRoute.result.route)
+                win.closeUniverse()
+                return
+            }
+            console.warn("universes: comic detail route failed", collectionRoute.error || "Unavailable")
+            return
+        }
         var rel = []
         for (var i = 0; i < posts.length; i++)
             rel.push({ id: String(posts[i]),
@@ -1535,6 +1559,7 @@ Window {
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
         || vaultComicLayer.active
+        || standaloneComicLayer.active
         || seriesLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
@@ -1546,7 +1571,8 @@ Window {
     readonly property bool webCovered: win.playerOpen
         || seriesLayer.active || westernLayer.active || comicSeriesLayer.active
         || theatreSeriesLayer.active || bookLayer.active || bookReaderLayer.active
-        || vaultComicLayer.active || vaultLayer.active || universeLayer.active
+        || vaultComicLayer.active || standaloneComicLayer.active
+        || vaultLayer.active || universeLayer.active
         || onePieceArcLayer.active || universeHallLayer.active
         || extensionsLayer.active || downloadsLayer.active || settingsLayer.active
         || wallpaperLayer.active
@@ -2737,6 +2763,61 @@ Window {
         if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
         else vaultComicLayer.active = false
     }
+    function mountStandaloneComicReader(payload) {
+        var seriesId = String(payload.seriesId || "")
+        var unitId = String(payload.unitId || "")
+        var title = String(payload.seriesTitle || "")
+        var chapters = payload.chapters || []
+        if (!seriesId.length || !unitId.length || !title.length || !chapters.length)
+            return false
+        var found = false
+        for (var i = 0; i < chapters.length; ++i)
+            if (String(chapters[i].id || "") === unitId) { found = true; break }
+        if (!found) return false
+        standaloneComicLayer.seriesId = seriesId
+        standaloneComicLayer.seriesTitle = title
+        standaloneComicLayer.seriesCover = String(payload.seriesCover || "")
+        standaloneComicLayer.unitLabel = String(payload.unitLabel || "")
+        standaloneComicLayer.chapters = chapters
+        if (standaloneComicLayer.active && standaloneComicLayer.item) {
+            standaloneComicLayer.item.unitId = ""
+            standaloneComicLayer.item.seriesId = seriesId
+            standaloneComicLayer.item.seriesTitle = title
+            standaloneComicLayer.item.seriesCover = standaloneComicLayer.seriesCover
+            standaloneComicLayer.item.unitLabel = standaloneComicLayer.unitLabel
+            standaloneComicLayer.item.chapters = chapters
+            standaloneComicLayer.item.unitId = unitId
+        } else {
+            standaloneComicLayer.unitId = unitId
+            standaloneComicLayer.active = true
+        }
+        return standaloneComicLayer.active && standaloneComicLayer.item !== null
+    }
+    function openStandaloneComicReader(payload) {
+        var seriesId = String(payload.seriesId || "")
+        var unitId = String(payload.unitId || "")
+        var title = String(payload.seriesTitle || "")
+        var chapters = payload.chapters || []
+        if (!seriesId.length || !unitId.length || !title.length || !chapters.length)
+            return false
+        var found = false
+        for (var i = 0; i < chapters.length; ++i)
+            if (String(chapters[i].id || "") === unitId) { found = true; break }
+        if (!found) return false
+        var sessionId = Sessions.openOrSwitch({
+            "appType": "tankoban", "contentKind": "comic", "title": title,
+            "target": { "seriesId": seriesId, "chapterId": unitId,
+                        "entryKind": "webComic", "title": title,
+                        "seriesCover": String(payload.seriesCover || ""),
+                        "unitLabel": String(payload.unitLabel || ""),
+                        "chapters": chapters }
+        })
+        // A repeat open of the already active tile does not emit activeChanged.
+        if (!standaloneComicLayer.active) win.mountStandaloneComicReader(payload)
+        var opened = standaloneComicLayer.active && standaloneComicLayer.item !== null
+        if (!opened) Sessions.close(sessionId)
+        return opened
+    }
     // Book minimize is BACK (2026-07-18, Hemanth — the swap had dropped the affordance):
     // the fresh reader's chrome carries a minimize icon → minimized() lands here. Every
     // live open path registers a session first (openBookSession), so this is normally just
@@ -2808,6 +2889,13 @@ Window {
             }
             win.activateMovieSession(rec)
         } else if (rec.contentKind === "comic") {
+            if (t.entryKind === "webComic") {
+                win.mountStandaloneComicReader({ seriesId: t.seriesId,
+                    seriesTitle: t.title || rec.title, seriesCover: t.seriesCover,
+                    unitId: st.chapterId || t.chapterId, unitLabel: t.unitLabel,
+                    chapters: t.chapters || [] })
+                return
+            }
             if (t.vaultPath && String(t.vaultPath).length) {
                 // a loose local comic (Vault): no series page — mount the standalone reader
                 // host with the injected VaultPageStore (execution plan Slice 8).
@@ -2888,7 +2976,8 @@ Window {
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
         if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — capture from whichever is live
-            var lay = comicSeriesLayer.active ? comicSeriesLayer
+            var lay = standaloneComicLayer.active ? standaloneComicLayer
+                    : comicSeriesLayer.active ? comicSeriesLayer
                     : (westernLayer.active ? westernLayer : seriesLayer)
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
@@ -2911,7 +3000,8 @@ Window {
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — drop whichever is live
-            if (vaultComicLayer.active) vaultComicLayer.active = false
+            if (standaloneComicLayer.active) standaloneComicLayer.active = false
+            else if (vaultComicLayer.active) vaultComicLayer.active = false
             else if (comicSeriesLayer.active) comicSeriesLayer.active = false
             else if (westernLayer.active) westernLayer.active = false
             else seriesLayer.active = false
@@ -4086,6 +4176,33 @@ Window {
         }
     }
 
+    Loader {
+        id: standaloneComicLayer
+        anchors.fill: parent
+        z: 58
+        active: false
+        visible: active
+        property string seriesId: ""
+        property string seriesTitle: ""
+        property string seriesCover: ""
+        property string unitId: ""
+        property string unitLabel: ""
+        property var chapters: []
+        source: "comicreader/StandaloneComicReader.qml"
+        onLoaded: {
+            item.seriesId = standaloneComicLayer.seriesId
+            item.seriesTitle = standaloneComicLayer.seriesTitle
+            item.seriesCover = standaloneComicLayer.seriesCover
+            item.unitLabel = standaloneComicLayer.unitLabel
+            item.chapters = standaloneComicLayer.chapters
+            item.unitId = standaloneComicLayer.unitId
+            item.backRequested.connect(win.closeComicReader)
+            item.closeRequested.connect(win.closeComicReader)
+            item.minimizeRequested.connect(function() { Sessions.switchTo("") })
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+        }
+    }
+
     // (The standalone audiobook player layer is retired — 2026-07-18, Hemanth: the reader
     // IS the audiobook player. AudiobookSession above stays: it is the ENGINE the reader's
     // HUD transport and Audio tab drive.)
@@ -4543,6 +4660,16 @@ Window {
                     }
                 } else if (ref.continueGroupKey) {
                     win.detailContinue(entry)
+                } else if (item.kind === "universe") {
+                    var nativeUniverseId = String(ref.extensionId || "")
+                    ok = false
+                    for (var u = 0; u < win.installedUniverses.length; ++u) {
+                        if (win.installedUniverses[u].extensionId === nativeUniverseId) {
+                            win.openUniverse(nativeUniverseId, win.installedUniverses[u].name)
+                            ok = true; break
+                        }
+                    }
+                    if (!ok) error = "Universe is unavailable."
                 } else if (item.world === "Theatre") {
                     var theatreId = ref.tt || ref.id || ""
                     if (item.kind === "anime" && ref.mal_id)
@@ -4604,6 +4731,9 @@ Window {
                         seriesLayer.item.resumeTankobanVolume(readerUnitId)
                     } else seriesLayer.active = true
                 } else { ok = false; error = "This reading unit is unavailable." }
+            } else if (action === "detail.comic.openReader") {
+                ok = win.openStandaloneComicReader(payload)
+                if (!ok) error = "This comic issue could not be opened."
             } else if (action === "open.vault") {
                 win.openVaultPage()
             } else if (action === "open.universe") {

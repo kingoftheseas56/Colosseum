@@ -20,6 +20,10 @@ QString key(const QString &name, const QString &selector)
 bool FeedRegistry::add(Entry entry)
 {
     if (entry.name.isEmpty() || !entry.valid || !entry.initial || !entry.build) return false;
+    // The Theatre feed is owned by the parallel title-page lane. Preserve its
+    // existing paging contract without changing that lane's translation unit.
+    if (entry.name == QLatin1String("detail.theatre"))
+        entry.pageableSections.insert(QStringLiteral("episodes"), 100);
     const QString id = key(entry.name, entry.selector);
     if (entries().contains(id)) {
         qWarning() << "Duplicate web feed registration:" << id;

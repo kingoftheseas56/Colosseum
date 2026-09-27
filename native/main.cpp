@@ -955,6 +955,11 @@ int main(int argc, char *argv[]) {
     auto *imageDiag = new BiblioImageDiag(&app);
     engine.setNetworkAccessManagerFactory(
         new CachingNamFactory(namPinnedHosts, pinStore, scoreboard, imageDiag));
+    // Feed and action services use the same pinned-host, UA and healing policy
+    // as QML requests. The app owns this manager for the bridge's lifetime.
+    auto *webNetwork = new CachingNam(namPinnedHosts, pinStore, &app,
+                                      /*useCache=*/true, scoreboard, imageDiag);
+    engine.rootContext()->setContextProperty(QStringLiteral("WebNetwork"), webNetwork);
     engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioImageDiag"), imageDiag);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {

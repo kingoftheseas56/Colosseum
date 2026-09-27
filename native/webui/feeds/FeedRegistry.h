@@ -4,6 +4,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QHash>
 #include <QMetaObject>
 #include <QVector>
 #include <QVariantList>
@@ -60,6 +61,7 @@ public:
         Capture capture = nullptr; // GUI-thread snapshot before the worker builds sections
         Capture enrichCapture = nullptr; // GUI-thread snapshot after first worker result
         QVector<OwnerSignal> ownerSignals; // profile-bound invalidation, never sent to worker
+        QHash<QString, int> pageableSections; // section id -> rows advanced by more()
     };
 
     static bool add(Entry entry);
