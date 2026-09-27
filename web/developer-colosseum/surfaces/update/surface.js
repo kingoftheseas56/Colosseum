@@ -65,6 +65,7 @@
               h('button.up-chapter' + (index === chapterIndex ? '.on' : ''), {
                 type: 'button', 'data-focus': true, 'data-key': 'update.chapter.' + index,
                 'aria-label': 'Chapter ' + (index + 1) + ': ' + (item.title || 'Chapter'),
+                'aria-description': index === chapterIndex ? 'Selected' : null,
                 onclick: () => {
                   chapterIndex = index;
                   redraw(section, 'update.chapter.' + index);
@@ -72,6 +73,7 @@
               }, String(index + 1).padStart(2, '0'))) : null,
             chapters.length > 1 ? h('button.up-next', {
               type: 'button', 'data-focus': true, 'data-key': 'update.next',
+              'aria-label': 'Next chapter',
               onclick: () => {
                 chapterIndex = (chapterIndex + 1) % chapters.length;
                 redraw(section, 'update.next');
