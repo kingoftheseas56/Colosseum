@@ -654,6 +654,11 @@ void discover(QVariantList &out, BiblioCatalogStore &store, bool ready,
         QStringLiteral("biblio.discover.results"), out.size(), houseTitle(catalogue),
         QStringLiteral("grid"), bookItems(rows),
         rows.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
+    if (rows.isEmpty()) {
+        section.insert(QStringLiteral("emptyTitle"),
+            activeKey.isEmpty() ? QStringLiteral("This catalogue answered with nothing.")
+                                : QStringLiteral("No books match this filter."));
+    }
     const QString warning = page.value(QStringLiteral("warning")).toString();
     if (!warning.isEmpty()) section.insert(QStringLiteral("error"), warning);
     out.append(section);
@@ -769,6 +774,8 @@ QVariantMap libraryRow(const QVariantMap &entry, const QVariantList &recent)
                                       .value(QStringLiteral("book")).toMap();
     if (row.value(QStringLiteral("title")).toString().isEmpty())
         row.insert(QStringLiteral("title"), book.value(QStringLiteral("title")));
+    if (row.value(QStringLiteral("title")).toString().isEmpty())
+        row.insert(QStringLiteral("title"), QStringLiteral("Untitled"));
     if (row.value(QStringLiteral("cover")).toString().isEmpty())
         row.insert(QStringLiteral("cover"), book.value(QStringLiteral("cover")));
     QString author = row.value(QStringLiteral("author")).toString();
@@ -873,11 +880,10 @@ void library(QVariantList &out, const FeedContext &ctx, QVariantMap view)
     out.append(choices(QStringLiteral("biblio.library.filters"), out.size(),
         QStringLiteral("Filter"),
         {viewChoice(QStringLiteral("biblio:library:filter:all"), QStringLiteral("All"),
-                    {{QStringLiteral("filter"), QString()}}, filter.isEmpty(),
-                    QString::number(rows.size())),
+                    {{QStringLiteral("filter"), QString()}}, filter.isEmpty()),
          viewChoice(QStringLiteral("biblio:library:filter:progress"), QStringLiteral("In Progress"),
                     {{QStringLiteral("filter"), QStringLiteral("inProgress")}},
-                    filter == QLatin1String("inProgress"), QString::number(inProgress))}));
+                    filter == QLatin1String("inProgress"))}));
     out.append(choices(QStringLiteral("biblio.library.sort"), out.size(),
         QStringLiteral("Sort"),
         {viewChoice(QStringLiteral("biblio:library:sort:added"), QStringLiteral("Recently added"),
@@ -886,7 +892,7 @@ void library(QVariantList &out, const FeedContext &ctx, QVariantMap view)
          viewChoice(QStringLiteral("biblio:library:sort:last"), QStringLiteral("Last read"),
                     {{QStringLiteral("sort"), QStringLiteral("lastRead")}},
                     sort == QLatin1String("lastRead")),
-         viewChoice(QStringLiteral("biblio:library:sort:az"), QStringLiteral("A-Z"),
+         viewChoice(QStringLiteral("biblio:library:sort:az"), QStringLiteral("A–Z"),
                     {{QStringLiteral("sort"), QStringLiteral("az")}},
                     sort == QLatin1String("az"))}));
     const QVariantList filtered = filterLibrary(rows, view);
@@ -896,8 +902,13 @@ void library(QVariantList &out, const FeedContext &ctx, QVariantMap view)
         QStringLiteral("biblio.library.saved"), out.size(), QStringLiteral("Library"),
         QStringLiteral("grid"), items,
         items.isEmpty() ? QStringLiteral("empty") : QStringLiteral("ready"));
-    if (!rows.isEmpty() && items.isEmpty())
-        section.insert(QStringLiteral("error"), QStringLiteral("Nothing matches"));
+    if (rows.isEmpty()) {
+        section.insert(QStringLiteral("emptyTitle"), QStringLiteral("Your library is empty"));
+        section.insert(QStringLiteral("emptyText"),
+                       QStringLiteral("Save a book with + Library — it lands here."));
+    } else if (items.isEmpty()) {
+        section.insert(QStringLiteral("emptyTitle"), QStringLiteral("Nothing matches"));
+    }
     out.append(section);
 }
 
@@ -937,6 +948,13 @@ QVariantList enrich(const FeedContext &ctx)
             section.insert(QStringLiteral("items"), items);
             section.insert(QStringLiteral("state"), items.isEmpty()
                 ? QStringLiteral("empty") : QStringLiteral("ready"));
+            if (items.isEmpty()) {
+                const bool filtered = !view.value(QStringLiteral("extraName")).toString().isEmpty()
+                    && !view.value(QStringLiteral("extraValue")).toString().isEmpty();
+                section.insert(QStringLiteral("emptyTitle"),
+                    filtered ? QStringLiteral("No books match this filter.")
+                             : QStringLiteral("This catalogue answered with nothing."));
+            }
             out[i] = section;
             break;
         }
