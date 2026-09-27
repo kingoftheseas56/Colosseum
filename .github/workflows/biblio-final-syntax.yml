@@ -1,0 +1,51 @@
+name: biblio-final-syntax
+
+on:
+  push:
+    branches:
+      - verify/biblio-final-0d06e73
+
+permissions:
+  contents: read
+
+jobs:
+  biblio-feed-msvc:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: '6.11.1'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
+      - name: Enable MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: x64
+      - name: Compile Biblio feed translation unit
+        shell: pwsh
+        run: |
+          $headers = (& qmake -query QT_INSTALL_HEADERS).Trim()
+          $args = @(
+            '/nologo', '/c', '/std:c++17', '/EHsc', '/permissive-',
+            '/Zc:__cplusplus', '/utf-8',
+            '/I', 'native',
+            '/I', $headers,
+            '/I', "$headers\QtCore",
+            '/I', "$headers\QtNetwork",
+            '/I', "$headers\QtSql",
+            '/I', "$headers\QtWebChannel",
+            '/I', "$headers\QtWebEngineCore",
+            'native\webui\feeds\BiblioFeed.cpp',
+            "/Fo:$env:RUNNER_TEMP\BiblioFeed.obj"
+          )
+          & cl.exe @args
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
