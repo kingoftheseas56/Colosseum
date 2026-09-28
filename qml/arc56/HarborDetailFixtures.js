@@ -57,12 +57,30 @@ function movie() {
             { id: "tt0816692", title: "Interstellar", year: "2014", poster: "https://images.metahub.space/poster/small/tt0816692/img" },
             { id: "tt0468569", title: "The Dark Knight", year: "2008", poster: "https://images.metahub.space/poster/small/tt0468569/img" }
         ],
-        media: [
-            "https://images.metahub.space/background/medium/tt0133093/img",
-            "https://images.metahub.space/poster/medium/tt0133093/img",
-            "https://images.metahub.space/background/medium/tt0133093/img"
+        media: {
+            videos: [{ name: "Official Trailer", type: "Trailer", image: "https://images.metahub.space/background/medium/tt0133093/img" }],
+            backdrops: [
+                "https://images.metahub.space/background/medium/tt0133093/img",
+                "https://images.metahub.space/background/medium/tt0133093/img"
+            ],
+            posters: ["https://images.metahub.space/poster/medium/tt0133093/img"],
+            logos: ["https://images.metahub.space/logo/medium/tt0133093/img"]
+        },
+        heroAward: {
+            headline: "ACADEMY AWARD WINNER",
+            lines: ["4 Oscars"]
+        },
+        awards: [
+            {
+                title: "Academy Awards", wins: 4, nominations: 0, years: "2000",
+                entries: [
+                    { year: "2000", category: "Best Film Editing", recipient: "Zach Staenberg", won: true },
+                    { year: "2000", category: "Best Sound", recipient: "", won: true },
+                    { year: "2000", category: "Best Sound Editing", recipient: "", won: true },
+                    { year: "2000", category: "Best Visual Effects", recipient: "", won: true }
+                ]
+            }
         ],
-        awards: "Academy Awards · 4 wins · Film Editing · Sound · Sound Editing · Visual Effects",
         info: [
             { label: "Status", value: "Released" },
             { label: "Studio", value: "Warner Bros. Pictures" },
@@ -129,12 +147,37 @@ function series() {
             { id: "tt0903747", title: "Breaking Bad", year: "2008", poster: "https://images.metahub.space/poster/small/tt0903747/img" },
             { id: "tt2861424", title: "Rick and Morty", year: "2013", poster: "https://images.metahub.space/poster/small/tt2861424/img" }
         ],
-        media: [
-            "https://images.metahub.space/background/medium/tt0944947/img",
-            "https://images.metahub.space/poster/medium/tt0944947/img",
-            "https://images.metahub.space/background/medium/tt0944947/img"
+        media: {
+            videos: [{ name: "Official Trailer", type: "Trailer", image: "https://images.metahub.space/background/medium/tt0944947/img" }],
+            backdrops: [
+                "https://images.metahub.space/background/medium/tt0944947/img",
+                "https://images.metahub.space/background/medium/tt0944947/img"
+            ],
+            posters: ["https://images.metahub.space/poster/medium/tt0944947/img"],
+            logos: ["https://images.metahub.space/logo/medium/tt0944947/img"]
+        },
+        heroAward: {
+            headline: "PRIMETIME EMMY WINNER",
+            lines: ["12 Emmys · 9 nominations", "1 Golden Globe"]
+        },
+        awards: [
+            {
+                title: "Primetime Emmys", wins: 12, nominations: 9, years: "2011–2019",
+                entries: [
+                    { year: "2019", category: "Outstanding Drama Series", recipient: "", won: true },
+                    { year: "2019", category: "Outstanding Supporting Actor in a Drama Series", recipient: "Peter Dinklage", won: true },
+                    { year: "2016", category: "Outstanding Writing for a Drama Series", recipient: "David Benioff, D. B. Weiss", won: true },
+                    { year: "2015", category: "Outstanding Directing for a Drama Series", recipient: "David Nutter", won: true },
+                    { year: "2014", category: "Outstanding Drama Series", recipient: "", won: false }
+                ]
+            },
+            {
+                title: "Golden Globes", wins: 1, nominations: 0, years: "2012",
+                entries: [
+                    { year: "2012", category: "Best Supporting Actor – Series, Miniseries or Television Film", recipient: "Peter Dinklage", won: true }
+                ]
+            }
         ],
-        awards: "Emmy Awards · 59 wins · Outstanding Drama Series · Casting · Costume · Visual Effects",
         info: [
             { label: "Status", value: "Ended" },
             { label: "Seasons", value: "8 · 73 episodes" },

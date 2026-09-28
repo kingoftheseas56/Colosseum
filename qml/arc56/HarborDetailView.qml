@@ -15,7 +15,7 @@ Item {
     signal itemRequested(var item)
     signal episodeDetailsRequested(var episode)
 
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     function initials(name) {
         var parts = String(name || "").trim().split(/\s+/)
@@ -26,7 +26,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#06070b"
+        color: "#111213"
     }
 
     Flickable {
@@ -78,13 +78,15 @@ Item {
                     spacing: 64
 
                     Text {
-                        width: Math.min(900, parent.width)
+                        width: Math.min(768, parent.width)
                         text: root.detailData.synopsis || ""
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 15
-                        lineHeight: 1.55
+                        font.pixelSize: 16
+                        lineHeight: 1.5
                         wrapMode: Text.WordWrap
+                        maximumLineCount: 4
+                        elide: Text.ElideRight
                     }
 
                     Column {
@@ -178,26 +180,21 @@ Item {
                     Column {
                         visible: (root.detailData.credits || []).length > 0
                         width: parent.width
-                        spacing: 24
+                        spacing: 48
 
-                        Text {
-                            text: "Crew"
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 22
-                            font.weight: Font.Medium
-                        }
-
-                        Flow {
+                        Grid {
+                            id: crewGrid
                             width: parent.width
-                            spacing: 28
+                            columns: width >= 1000 ? 3 : (width >= 620 ? 2 : 1)
+                            columnSpacing: 48
+                            rowSpacing: 24
 
                             Repeater {
                                 model: root.detailData.credits || []
 
                                 delegate: Column {
                                     required property var modelData
-                                    width: Math.max(230, (detailColumn.width - 96) / 3)
+                                    width: (crewGrid.width - (crewGrid.columns - 1) * crewGrid.columnSpacing) / crewGrid.columns
                                     spacing: 6
 
                                     Text {
@@ -243,8 +240,11 @@ Item {
                         }
 
                         Flickable {
+                            id: castStrip
                             width: parent.width
-                            height: 222
+                            readonly property int fitCount: Math.max(1, Math.floor((width + 20) / (128 + 20)))
+                            readonly property real cellWidth: (width - (fitCount - 1) * 20) / fitCount
+                            height: cellWidth * 1.5 + 58
                             contentWidth: castRow.implicitWidth
                             contentHeight: height
                             clip: true
@@ -252,7 +252,7 @@ Item {
 
                             Row {
                                 id: castRow
-                                spacing: 16
+                                spacing: 20
 
                                 Repeater {
                                     model: root.detailData.cast || []
@@ -260,13 +260,13 @@ Item {
                                     delegate: Item {
                                         id: castCard
                                         required property var modelData
-                                        width: 128
-                                        height: 216
+                                        width: castStrip.cellWidth
+                                        height: castStrip.cellWidth * 1.5 + 54
 
                                         Rectangle {
                                             id: castFace
-                                            width: 128
-                                            height: 160
+                                            width: parent.width
+                                            height: parent.width * 1.5
                                             radius: 12
                                             color: Qt.rgba(1, 1, 1, 0.06)
                                             border.width: castAction.activeFocus ? 2 : 0
@@ -352,81 +352,18 @@ Item {
                         onItemRequested: item => root.itemRequested(item)
                     }
 
-                    Column {
-                        visible: (root.detailData.media || []).length > 0
+                    HarborMediaGallery {
                         width: parent.width
-                        spacing: 20
-
-                        Text {
-                            text: "Media"
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 22
-                            font.weight: Font.Medium
-                        }
-
-                        Row {
-                            width: parent.width
-                            height: 220
-                            spacing: 12
-
-                            Repeater {
-                                model: root.detailData.media || []
-
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    required property int index
-                                    width: index === 0 ? (parent.width - 24) * 0.5
-                                                       : (parent.width - 24) * 0.25
-                                    height: parent.height
-                                    radius: 14
-                                    color: Qt.rgba(1, 1, 1, 0.06)
-                                    clip: true
-
-                                    Image {
-                                        anchors.fill: parent
-                                        source: modelData
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
-                                        cache: true
-                                    }
-                                }
-                            }
-                        }
+                        media: root.detailData.media || ({})
+                        visible: availableTabs().length > 0
+                        height: visible ? implicitHeight : 0
                     }
 
-                    Column {
-                        visible: String(root.detailData.awards || "").length > 0
+                    HarborAwardsBlock {
                         width: parent.width
-                        spacing: 18
-
-                        Text {
-                            text: "Awards & Recognition"
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 22
-                            font.weight: Font.Medium
-                        }
-
-                        Rectangle {
-                            width: parent.width
-                            height: 86
-                            radius: 16
-                            color: Qt.rgba(1, 1, 1, 0.035)
-                            border.width: 1
-                            border.color: Qt.rgba(1, 1, 1, 0.08)
-
-                            Text {
-                                anchors.fill: parent
-                                anchors.margins: 20
-                                text: root.detailData.awards || ""
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 14
-                                wrapMode: Text.WordWrap
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
+                        groups: root.detailData.awards || []
+                        visible: groups.length > 0
+                        height: visible ? implicitHeight : 0
                     }
 
                     Column {
@@ -440,6 +377,8 @@ Item {
                             color: Qt.rgba(1, 1, 1, 0.08)
                         }
 
+                        Item { width: 1; height: 24 }
+
                         Text {
                             text: "Information"
                             color: theme.ink
@@ -448,16 +387,19 @@ Item {
                             font.weight: Font.Medium
                         }
 
-                        Flow {
+                        Grid {
+                            id: infoGrid
                             width: parent.width
-                            spacing: 28
+                            columns: width >= 1000 ? 3 : (width >= 620 ? 2 : 1)
+                            columnSpacing: 48
+                            rowSpacing: 20
 
                             Repeater {
                                 model: root.detailData.info || []
 
                                 delegate: Column {
                                     required property var modelData
-                                    width: Math.max(230, (detailColumn.width - 96) / 3)
+                                    width: (infoGrid.width - (infoGrid.columns - 1) * infoGrid.columnSpacing) / infoGrid.columns
                                     spacing: 6
 
                                     Text {
@@ -474,7 +416,7 @@ Item {
                                         text: modelData.value || ""
                                         color: theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 14
+                                        font.pixelSize: 15
                                         wrapMode: Text.WordWrap
                                     }
                                 }

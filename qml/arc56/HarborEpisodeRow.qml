@@ -11,9 +11,9 @@ Item {
     signal detailsRequested(var episode)
     signal downloadRequested(var episode)
 
-    implicitHeight: 166
+    implicitHeight: 184
     height: implicitHeight
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     Rectangle {
         anchors.fill: parent
@@ -41,7 +41,7 @@ Item {
             Item {
                 id: artBox
                 width: 200
-                height: 112
+                height: 112.5
 
                 Rectangle {
                     anchors.fill: parent
@@ -61,7 +61,7 @@ Item {
 
                     Rectangle {
                         anchors.fill: parent
-                        color: Qt.rgba(0.024, 0.027, 0.043, 0.40)
+                        color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.40)
                         opacity: mainAction.interactionActive ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 160 } }
                     }
@@ -92,7 +92,7 @@ Item {
                         width: episodeNo.implicitWidth + 12
                         height: 23
                         radius: 6
-                        color: Qt.rgba(0.024, 0.027, 0.043, 0.95)
+                        color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.95)
                         Text {
                             id: episodeNo
                             anchors.centerIn: parent
@@ -245,28 +245,38 @@ Item {
         }
     }
 
-    Row {
+    Item {
         id: actions
         anchors.right: parent.right
-        anchors.rightMargin: 16
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: 4
+        anchors.rightMargin: 0
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 104
 
         HarborActionButton {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
             width: 40
             height: 40
             compact: true
+            flat: true
             iconKind: "eye"
             label: "Episode details"
             onTriggered: row.detailsRequested(row.episode)
         }
 
         HarborActionButton {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: 20
             width: 40
             height: 40
             compact: true
+            flat: true
             iconKind: "download"
             label: "Download episode"
+            opacity: mainAction.interactionActive || activeFocus ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 160 } }
             onTriggered: row.downloadRequested(row.episode)
         }
     }

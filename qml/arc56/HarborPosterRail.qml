@@ -6,13 +6,16 @@ Item {
     id: rail
     property string title: ""
     property var items: []
-    property real cardWidth: 164
+    property real minCardWidth: 144
+    readonly property int fitCount: Math.max(1, Math.floor((width + 20) / (minCardWidth + 20)))
+    readonly property real cardWidth: (width - (fitCount - 1) * 20) / fitCount
+    readonly property real cardHeight: cardWidth * 1.5 + 40
     signal itemRequested(var item)
 
-    implicitHeight: titleText.implicitHeight + 20 + 286
+    implicitHeight: titleText.implicitHeight + 20 + cardHeight
     height: implicitHeight
 
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     Text {
         id: titleText
@@ -31,7 +34,7 @@ Item {
         anchors.right: parent.right
         anchors.top: titleText.bottom
         anchors.topMargin: 20
-        height: 286
+        height: rail.cardHeight
         contentWidth: cards.implicitWidth
         contentHeight: height
         clip: true
@@ -39,7 +42,7 @@ Item {
 
         Row {
             id: cards
-            spacing: 16
+            spacing: 20
 
             Repeater {
                 model: rail.items
@@ -48,7 +51,7 @@ Item {
                     id: card
                     required property var modelData
                     width: rail.cardWidth
-                    height: 282
+                    height: rail.cardHeight
 
                     Rectangle {
                         id: poster
@@ -64,7 +67,7 @@ Item {
                         y: cardAction.hovered ? -6 : 0
 
                         Behavior on y {
-                            NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
+                            NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
                         }
 
                         Image {
@@ -75,12 +78,6 @@ Item {
                             cache: true
                             opacity: status === Image.Ready ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 220 } }
-                        }
-
-                        Rectangle {
-                            anchors.fill: parent
-                            color: Qt.rgba(0, 0, 0, cardAction.hovered ? 0.06 : 0)
-                            Behavior on color { ColorAnimation { duration: 160 } }
                         }
                     }
 
@@ -93,7 +90,7 @@ Item {
                         color: theme.ink
                         font.family: theme.ui
                         font.pixelSize: 13
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Medium
                         elide: Text.ElideRight
                     }
 

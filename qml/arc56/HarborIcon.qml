@@ -5,6 +5,7 @@ Item {
     property string kind: "play"
     property color ink: "#f7f7f5"
     property bool darkGlyph: false
+    property bool filled: false
     property real iconSize: Math.min(width, height)
     Accessible.name: ""
 
@@ -31,11 +32,21 @@ Item {
         anchors.centerIn: parent
         width: root.iconSize
         height: root.iconSize
+        visible: root.kind !== "star"
         sourceSize.width: Math.max(2, Math.round(width * 2))
         sourceSize.height: Math.max(2, Math.round(height * 2))
         source: Qt.resolvedUrl(root.sourceForKind(root.kind))
         fillMode: Image.PreserveAspectFit
         smooth: true
         cache: true
+    }
+
+    Text {
+        anchors.centerIn: parent
+        visible: root.kind === "star"
+        text: root.filled ? "★" : "☆"
+        color: root.ink
+        font.family: "Segoe UI Symbol"
+        font.pixelSize: root.iconSize + 2
     }
 }

@@ -12,7 +12,7 @@ Rectangle {
     implicitWidth: text.implicitWidth + 24
     implicitHeight: 28
     radius: height / 2
-    color: selected ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(0.024, 0.027, 0.043, 0.85)
+    color: selected ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.85)
     border.width: 1
     border.color: selected ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.12)
     scale: action.interactionActive && interactive ? 1.04 : 1.0
@@ -20,7 +20,7 @@ Rectangle {
     Behavior on scale { NumberAnimation { duration: 150 } }
     Behavior on color { ColorAnimation { duration: 150 } }
 
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     Text {
         id: text

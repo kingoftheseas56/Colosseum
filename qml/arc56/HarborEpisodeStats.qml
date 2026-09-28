@@ -6,7 +6,7 @@ Item {
     id: stats
     property var episode: ({})
     implicitHeight: statFlow.implicitHeight
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     function progressText() {
         var ratio = Number(stats.episode.progress || 0)

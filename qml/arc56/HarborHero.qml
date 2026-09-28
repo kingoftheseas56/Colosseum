@@ -21,7 +21,7 @@ Item {
     implicitHeight: Math.max(640, viewportHeight * 0.78)
     height: implicitHeight
 
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     Image {
         id: backdrop
@@ -40,19 +40,29 @@ Item {
         anchors.fill: parent
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: Qt.rgba(0.024, 0.027, 0.043, 0.86) }
-            GradientStop { position: 0.52; color: Qt.rgba(0.024, 0.027, 0.043, 0.35) }
-            GradientStop { position: 1.0; color: Qt.rgba(0.024, 0.027, 0.043, 0.0) }
+            GradientStop { position: 0.0; color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.86) }
+            GradientStop { position: 0.52; color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.35) }
+            GradientStop { position: 1.0; color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.0) }
         }
     }
 
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0.024, 0.027, 0.043, 0.0) }
-            GradientStop { position: 0.45; color: Qt.rgba(0.024, 0.027, 0.043, 0.55) }
-            GradientStop { position: 1.0; color: "#06070b" }
+            GradientStop { position: 0.0; color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.0) }
+            GradientStop { position: 0.45; color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.55) }
+            GradientStop { position: 1.0; color: "#111213" }
         }
+    }
+
+    HarborHeroAwardsCorner {
+        anchors.right: parent.right
+        anchors.rightMargin: 48
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 138
+        width: 300
+        award: hero.detailData.heroAward || ({})
+        visible: hero.width >= 900 && String((hero.detailData.heroAward || {}).headline || "").length > 0
     }
 
     Column {
@@ -133,7 +143,7 @@ Item {
                 implicitWidth: ratingRow.implicitWidth + 20
                 implicitHeight: 28
                 radius: height / 2
-                color: Qt.rgba(0.024, 0.027, 0.043, 0.85)
+                color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.85)
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, 0.12)
 

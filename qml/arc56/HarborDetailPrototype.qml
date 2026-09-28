@@ -5,7 +5,7 @@ Rectangle {
     id: window
     width: 1440
     height: 900
-    color: "#06070b"
+    color: "#111213"
     objectName: "arc56HarborDetailPrototype"
 
     property string mode: "series"
@@ -47,6 +47,9 @@ Rectangle {
 
     FontLoader { source: "../../assets/fonts/Fraunces-Regular.ttf" }
     FontLoader { source: "../../assets/fonts/Switzer-Regular.otf" }
+    FontLoader { source: "../../assets/fonts/Switzer-Medium.otf" }
+    FontLoader { source: "../../assets/fonts/Switzer-Semibold.otf" }
+    FontLoader { source: "../../assets/fonts/Switzer-Bold.otf" }
     FontLoader { source: "../../assets/fonts/Inter-Regular.otf" }
 
     HarborDetailView {
@@ -79,7 +82,7 @@ Rectangle {
         height: 34
         radius: 17
         z: 100
-        color: Qt.rgba(0.024, 0.027, 0.043, 0.78)
+        color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.78)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.12)
 

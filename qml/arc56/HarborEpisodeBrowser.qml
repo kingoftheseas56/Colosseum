@@ -20,7 +20,7 @@ Item {
 
     implicitHeight: content.implicitHeight
     height: implicitHeight
-    Theme { id: theme }
+    HarborTheme { id: theme }
 
     function currentSeasonRecord() {
         for (var i = 0; i < seasons.length; ++i)
@@ -75,7 +75,7 @@ Item {
                 height: 40
                 radius: 20
                 color: seasonAction.interactionActive ? Qt.rgba(1, 1, 1, 0.08)
-                                                      : Qt.rgba(0.024, 0.027, 0.043, 0.90)
+                                                      : Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.90)
                 border.width: 1
                 border.color: theme.edge
                 anchors.verticalCenter: parent.verticalCenter
@@ -116,36 +116,33 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
 
                 Rectangle {
-                    width: randomLabel.implicitWidth + 26
-                    height: 40
-                    radius: 20
-                    color: randomAction.interactionActive ? Qt.rgba(1, 1, 1, 0.08)
-                                                          : Qt.rgba(0.024, 0.027, 0.043, 0.90)
-                    border.width: 1
-                    border.color: theme.edge
-                    Text {
-                        id: randomLabel
+                    width: 36
+                    height: 36
+                    radius: 18
+                    color: randomAction.interactionActive ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+
+                    HarborEpisodeLayoutGlyph {
                         anchors.centerIn: parent
-                        text: "Random episode"
-                        color: theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        font.weight: Font.Medium
+                        width: 18
+                        height: 18
+                        kind: "shuffle"
+                        ink: randomAction.interactionActive ? theme.ink : theme.inkDimmer
                     }
+
                     KeyboardAction {
                         id: randomAction
                         anchors.fill: parent
-                        accessibleName: "Random episode"
+                        accessibleName: "Play a random episode"
                         focusRadius: parent.radius
                         onTriggered: browser.selectRandomEpisode()
                     }
                 }
 
                 Rectangle {
-                    width: 152
+                    width: 108
                     height: 40
                     radius: 20
-                    color: Qt.rgba(0.024, 0.027, 0.043, 0.90)
+                    color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.90)
                     border.width: 1
                     border.color: theme.edge
 
@@ -156,30 +153,30 @@ Item {
                         Repeater {
                             model: [
                                 { key: "list", label: "List" },
-                                { key: "strip", label: "Strip" },
+                                { key: "strip", label: "Horizontal" },
                                 { key: "grid", label: "Grid" }
                             ]
                             delegate: Rectangle {
+                                id: layoutChoice
                                 required property var modelData
-                                width: 48
+                                width: 32
                                 height: 32
                                 radius: 16
                                 color: browser.layoutMode === modelData.key ? theme.ink : "transparent"
 
-                                Text {
+                                HarborEpisodeLayoutGlyph {
                                     anchors.centerIn: parent
-                                    text: modelData.label
-                                    color: browser.layoutMode === modelData.key ? "#17181c" : theme.inkDim
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
+                                    width: 16
+                                    height: 16
+                                    kind: layoutChoice.modelData.key
+                                    ink: browser.layoutMode === layoutChoice.modelData.key ? "#17181c" : theme.inkDim
                                 }
 
                                 KeyboardAction {
                                     anchors.fill: parent
-                                    accessibleName: modelData.label + " view"
+                                    accessibleName: layoutChoice.modelData.label + " view"
                                     focusRadius: parent.radius
-                                    onTriggered: browser.layoutMode = modelData.key
+                                    onTriggered: browser.layoutMode = layoutChoice.modelData.key
                                 }
                             }
                         }
@@ -187,22 +184,40 @@ Item {
                 }
 
                 Rectangle {
-                    width: sortLabel.implicitWidth + 24
+                    width: sortRow.implicitWidth + 26
                     height: 40
                     radius: 20
                     color: sortAction.interactionActive ? Qt.rgba(1, 1, 1, 0.08)
-                                                        : Qt.rgba(0.024, 0.027, 0.043, 0.90)
+                                                        : Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.90)
                     border.width: 1
                     border.color: theme.edge
-                    Text {
-                        id: sortLabel
+
+                    Row {
+                        id: sortRow
                         anchors.centerIn: parent
-                        text: browser.sortMode === "oldest" ? "Oldest" : "Newest"
-                        color: theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        font.weight: Font.Medium
+                        spacing: 7
+
+                        Text {
+                            text: "⇅"
+                            color: theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: 14
+                        }
+                        Text {
+                            text: browser.sortMode === "oldest" ? "Oldest" : "Newest"
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                        }
+                        Text {
+                            text: "⌄"
+                            color: theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                        }
                     }
+
                     KeyboardAction {
                         id: sortAction
                         anchors.fill: parent
@@ -308,7 +323,7 @@ Item {
             width: parent.width
             height: 44
             radius: 12
-            color: Qt.rgba(0.024, 0.027, 0.043, 0.90)
+            color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.90)
             border.width: 1
             border.color: searchField.activeFocus ? theme.inkDimmer : theme.edge
 
