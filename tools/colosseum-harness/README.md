@@ -56,12 +56,16 @@ The intelligence map lives at:
 
 It is a high-signal routing index, not a complete compiler or QML AST.
 
-The map now includes page domains for every row of the 2026-09-27 Colosseum page
-inventory, plus the native player and reader groups. Page context includes QML
-files, the `Main.qml` host anchor, an observed QML owner, and only registered
+The map reflects the current 2026-09-28 QML application surface on `master`,
+plus native/backend domains and the player/reader groups. Page context includes
+QML files, the `Main.qml` host anchor, an observed QML owner, and only registered
 CTest or existing Lanista journeys. Empty verification lists mean no page-specific
-check is mapped. `webui` lists `native/webui` and `web/developer-colosseum` as
-planned paths because those trees are absent from `master`.
+check is mapped. Retired Feria/Portico and the abandoned Developer WebUI direction
+are not current domains; the Ratings & Reviews full page is also retired while its
+native storage, delivery, and sync domain remains.
+
+Freshness now watches the mapped QML, native, server, extension, and test trees so
+new architecture-bearing files cannot slip past the semantic fingerprint.
 
 ## Examples
 
@@ -192,25 +196,34 @@ Generated registry missing/stale:
 - `RUNNER_MISSING`: the selector is registered, but the CTest executable cannot be resolved for real execution.
 
 A stale intelligence-map basis is surfaced explicitly. `context-for-task` and scoped verification fail closed unless the map is `FRESH`; a v0 map with no semantic fingerprint is `UNKNOWN`, not authoritative. Current source remains the authority.
+## Current 1.1.7 routing additions
+
+- Extensions routes through `ExtensionsStorePage.qml` and its House, store rail/card,
+  See All/search, setup, and Store API surfaces.
+- Connections maps the `trakt_via_stremio_connections.json` Lanista journey and
+  `account-sync` now includes the registered `colosseum.qttest.stremio_sync` test.
+- `smoothness-probes` owns the opt-in `FrameTimingProbe` and `PosterTimingProbe`
+  instrumentation plus `colosseum.qttest.qml_smoothness_probes`.
+
 ## Ratings & Reviews discovery
 
-`inspect ratings` reflects the current read-only target checkout, including dirty working-tree implementation when it exists.
+`inspect ratings` reflects the current native-only domain. The full Ratings &
+Reviews page and its page-level Lanista journeys were retired on 2026-09-28.
 
-The Ratings & Reviews domain maps the current native and QML implementation:
+The domain keeps the live native owners:
 
-- owners: `native/engine/ColosseumTitleIdentityRegistry.cpp` (pair admission, seed pin, deterministic v5 ct1 derivation, comic rejection), `native/account/RatingsReviewsController.cpp`, `native/account/RatingsReviewsStore.cpp`, `qml/ratingsreviews/RatingsReviewsHost.qml` (approved page with the inline private editor), `qml/ratingsreviews/RatingsReviewsAction.qml` (title-detail entry row)
-- focused CTests: `colosseum.qttest.ratings_reviews_{journey,store,conversion,delivery,sync}` and `colosseum.qml.ratings_reviews_{journey,delivery,conversion}`
-- Lanista journeys: `ratings-reviews-frieren-production` (runtime-validated path) plus the two test-build delivery fixture journeys
-
-Supporting integration seams remain:
-
+- `native/engine/ColosseumTitleIdentityRegistry.cpp`
+- `native/account/RatingsReviewsController.cpp`
+- `native/account/RatingsReviewsStore.cpp`
 - `native/account/SyncEngine.cpp`
 - `native/account/FirstAccountProfileCoordinator.cpp`
 - `native/account/ProfilePreferencesStore.cpp`
-- `qml/ShellBackPolicy.js`
-- shared composition through `qml/Main.qml`
 
-The harness distinguishes working-tree changes from the committed baseline through `status`. Unregistered selectors still fail with `TEST_NOT_FOUND`; `colosseum.qttest.ratings_reviews_delivery` is registered and mapped. Category entry journeys (anime pivot, book, manga, vault film, comic absence) and the public community service (Slices 3–4) are not mapped because they do not exist yet, and RatingsWrapper stays deliberately unmapped until its API contract lands.
+The registered native CTests remain mapped, including store, delivery, sync,
+conversion, and native journey coverage. There is no current Ratings page journey.
+The planned title-page rating integration, public community service, and
+RatingsWrapper remain unmapped until they exist in current Colosseum source.
+
 ## MCP bridge
 
 Run:

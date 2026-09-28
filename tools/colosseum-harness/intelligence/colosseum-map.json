@@ -2,7 +2,7 @@
   "schema_version": 1,
   "map_id": "colosseum-intelligence-v0",
   "repo_basis": {
-    "head": "d0825e88b43be5d6b4d65673254627c621103336",
+    "head": "36498faa7cbcf1c6f47bdea042806b1aa8135f7e",
     "branch": "master",
     "path_semantics": "repo-relative",
     "source_of_truth": [
@@ -18,19 +18,13 @@
       "algorithm": "sha256-git-semantic-v2",
       "watch_scopes": [
         "qml",
-        "tests/CMakeLists.txt",
-        "tests/lanista_scenarios",
-        "native/webui",
-        "web/developer-colosseum",
-        "native/engine/ColosseumTitleIdentityRegistry.h",
-        "native/engine/ColosseumTitleIdentityRegistry.cpp",
-        "native/account/RatingsReviewsStore.h",
-        "native/account/RatingsReviewsStore.cpp",
-        "native/account/RatingsReviewsController.h",
-        "native/account/RatingsReviewsController.cpp",
+        "native",
+        "server",
+        "extensions",
+        "tests",
         "data/title-identities-v1.json"
       ],
-      "fingerprint": "c215c15dde7b915801f9b318096e3ac575960051c6f494601f441b0302a270d7"
+      "fingerprint": "dc096b9caa8a54cff77d8e46cd8441791c201051fe803997b2514c175d7cb4a7"
     }
   },
   "donors": {
@@ -44,14 +38,9 @@
     "CTest/check lists are high-signal subsets, not a complete assignment of the test estate.",
     "Referenced Lanista entries are required to exist and parse as JSON, but this does not imply current green runtime status.",
     "Preflight Function Atlas pointers are audit context on their recorded basis; current Colosseum source/tests win.",
-    "Ratings & Reviews category-wide runtime entry (anime pivot, book, manga, vault film, comic absence) awaits dedicated Lanista scenarios; only the registered Frieren production and fixture delivery journeys are mapped.",
+    "Ratings & Reviews is native storage/delivery/sync only on this basis; title-page rating integration is pending and has no current page-level Lanista journey.",
     "RatingsWrapper and the public community service do not exist yet; no owners, endpoints, or capabilities are mapped for them.",
-    "Page domains enumerate COLOSSEUM-PAGES.md on 2026-09-27; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage.",
-    "Developer WebUI source paths are branch-only and absent on master; planned paths are informational until integrated.",
-    "Page domains enumerate COLOSSEUM-PAGES.md on 2026-09-27; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage.",
-    "Developer WebUI source paths are branch-only and absent on master; planned paths are informational until integrated.",
-    "Page domains enumerate COLOSSEUM-PAGES.md on 2026-09-27; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage.",
-    "Developer WebUI source paths are branch-only and absent on master; planned paths are informational until integrated."
+    "Page domains reflect the current QML application surface on 2026-09-28; empty CTest or Lanista lists mean no page-specific registration or journey was identified, not verified coverage."
   ],
   "domains": [
     {
@@ -813,6 +802,16 @@
             "sync",
             "domain",
             "history"
+          ]
+        },
+        {
+          "name": "colosseum.qttest.stremio_sync",
+          "labels": [
+            "unit",
+            "qttest",
+            "stremio",
+            "sync",
+            "windows"
           ]
         }
       ],
@@ -3625,16 +3624,29 @@
       "kind": "page",
       "display_name": "Extensions",
       "aliases": [
-        "extensions page"
+        "extensions page",
+        "extensions store",
+        "addons store"
       ],
       "source_roots": [
-        "qml/ExtensionsStorePage.qml"
+        "qml/ExtensionsStorePage.qml",
+        "qml/ExtensionsHouseHero.qml",
+        "qml/ExtensionsSeeAllPage.qml",
+        "qml/ExtensionsSetupSheet.qml",
+        "qml/ExtensionsStoreCard.qml",
+        "qml/ExtensionsStoreRail.qml",
+        "qml/ExtensionsStoreApi.js"
       ],
       "entry_points": [
         "qml/ExtensionsStorePage.qml"
       ],
       "qml_files": [
-        "qml/ExtensionsStorePage.qml"
+        "qml/ExtensionsStorePage.qml",
+        "qml/ExtensionsHouseHero.qml",
+        "qml/ExtensionsSeeAllPage.qml",
+        "qml/ExtensionsSetupSheet.qml",
+        "qml/ExtensionsStoreCard.qml",
+        "qml/ExtensionsStoreRail.qml"
       ],
       "host": {
         "path": "qml/Main.qml",
@@ -3647,7 +3659,7 @@
           "name": "ExtensionsStorePage",
           "path": "qml/ExtensionsStorePage.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Extensions.",
+          "responsibility": "QML host for the Extensions world, including House, Essentials/store rails, See All/search, and in-app setup surfaces.",
           "provenance": [
             {
               "path": "qml/ExtensionsStorePage.qml"
@@ -3729,7 +3741,10 @@
       "kind": "page",
       "display_name": "Connections",
       "aliases": [
-        "tracker sync center page"
+        "tracker sync center page",
+        "connections",
+        "trakt",
+        "trakt via stremio"
       ],
       "source_roots": [
         "qml/TrackerSyncCenterPage.qml"
@@ -3771,14 +3786,16 @@
       ],
       "checks": [],
       "lanista_scenarios": [
-        "tests/lanista_scenarios/arc35_sync_center_route.json"
+        "tests/lanista_scenarios/arc35_sync_center_route.json",
+        "tests/lanista_scenarios/trakt_via_stremio_connections.json"
       ],
       "context": [],
       "platform_constraints": [],
       "relations": [
         "account-sync"
       ],
-      "known_constraints": []
+      "known_constraints": [],
+      "feature_status": "Connections exposes Trakt through the linked Stremio account on the 1.1.7 basis; MyAnimeList and AniList remain coming-soon surfaces and Simkl remains unchanged."
     },
     {
       "id": "page-history-highlights-stats-page",
@@ -4450,48 +4467,84 @@
       "known_constraints": []
     },
     {
-      "id": "webui",
-      "display_name": "Developer WebUI",
+      "id": "smoothness-probes",
+      "display_name": "QML Smoothness Probes",
       "aliases": [
-        "developer webui",
-        "developer colosseum"
+        "smoothness",
+        "scroll smoothness",
+        "jank",
+        "frame timing",
+        "poster timing",
+        "poster loading"
       ],
+      "feature_status": "Opt-in runtime diagnostics for frame intervals and poster network/decode/visible-paint timing.",
       "source_roots": [
-        "native/webui",
-        "web/developer-colosseum"
+        "native/FrameTimingProbe.h",
+        "native/net/PosterTimingProbe.h",
+        "native/net/PosterTimingProbe.cpp"
       ],
       "entry_points": [
-        "qml/Main.qml"
+        "native/main.cpp"
       ],
-      "planned_paths": [
-        "native/webui",
-        "web/developer-colosseum"
+      "related_files": [
+        "tests/auto/lanista/tst_qml_smoothness_probes.cpp",
+        "tests/CMakeLists.txt"
       ],
-      "feature_status": "absent_on_master",
       "owners": [
         {
-          "name": "Main.qml host",
-          "path": "qml/Main.qml",
-          "confidence": "inferred",
-          "responsibility": "Potential native host integration point; the developer WebUI is absent from master.",
-          "note": "The requested native/webui and web/developer-colosseum source trees exist only on the Arc 54 branch.",
+          "name": "FrameTimingProbe",
+          "path": "native/FrameTimingProbe.h",
+          "confidence": "observed",
+          "responsibility": "Captures opt-in frameSwapped intervals and emits bounded frame-timing artifacts.",
           "provenance": [
             {
-              "path": "qml/Main.qml"
+              "path": "native/FrameTimingProbe.h",
+              "contains": "class FrameTimingProbe"
+            }
+          ]
+        },
+        {
+          "name": "PosterTimingProbe",
+          "path": "native/net/PosterTimingProbe.cpp",
+          "confidence": "observed",
+          "responsibility": "Captures opt-in poster request, decode, viewport observation, and visible-paint timing.",
+          "provenance": [
+            {
+              "path": "native/net/PosterTimingProbe.h",
+              "contains": "class PosterTimingProbe"
             }
           ]
         }
       ],
-      "ctests": [],
+      "ctests": [
+        {
+          "name": "colosseum.qttest.qml_smoothness_probes",
+          "labels": [
+            "unit",
+            "qttest",
+            "responsiveness"
+          ]
+        }
+      ],
       "checks": [],
       "lanista_scenarios": [],
-      "context": [],
-      "platform_constraints": [],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "tests/auto/lanista/tst_qml_smoothness_probes.cpp",
+          "role": "verification",
+          "authority": "supporting"
+        }
+      ],
+      "platform_constraints": [
+        "Runtime capture is opt-in through COLOSSEUM_POSTER_TIMING=1 and/or COLOSSEUM_FRAME_PROBE=1."
+      ],
       "relations": [
         "shell"
       ],
       "known_constraints": [
-        "native/webui and web/developer-colosseum are absent on master; no master CTest or Lanista journey is mapped."
+        "Frame intervals are meaningful as jank evidence only when samples are bounded to an active journey.",
+        "Poster request-time visibility remains unknown unless it is sampled at the request boundary."
       ]
     }
   ]

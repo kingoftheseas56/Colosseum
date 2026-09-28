@@ -52,6 +52,23 @@ class PageDomainsTest(unittest.TestCase):
         for domain_id, path in required.items():
             self.assertIn(path, self.domains[domain_id]["qml_files"])
 
+        extensions = self.domains["page-extensions-page"]
+        for path in (
+            "qml/ExtensionsHouseHero.qml",
+            "qml/ExtensionsSeeAllPage.qml",
+            "qml/ExtensionsSetupSheet.qml",
+            "qml/ExtensionsStoreCard.qml",
+            "qml/ExtensionsStoreRail.qml",
+        ):
+            self.assertIn(path, extensions["qml_files"])
+        self.assertIn("qml/ExtensionsStoreApi.js", extensions["source_roots"])
+
+        connections = self.domains["page-tracker-sync-center-page"]
+        self.assertIn(
+            "tests/lanista_scenarios/trakt_via_stremio_connections.json",
+            connections["lanista_scenarios"],
+        )
+
     def test_map_uses_registered_verification_and_is_fresh(self) -> None:
         result = validate_map(self.doc, ROOT)
         self.assertEqual(result["errors"], [])
@@ -79,25 +96,37 @@ class PageDomainsTest(unittest.TestCase):
         self.assertIn({"kind": "ctest", "selector": "colosseum.qttest.local_downloads_projection"}, downloads["verification"])
         self.assertIn({"kind": "journey", "selector": "tests/lanista_scenarios/keyboard_universe_utilities_completion.json"}, downloads["verification"])
 
-    def test_webui_reports_branch_only_paths(self) -> None:
-        result = context_for_task(ROOT, str(MAP), "webui")
-        self.assertEqual([domain["id"] for domain in result["domains"]], ["webui"])
-        domain = result["domains"][0]
-        self.assertEqual(domain["featureStatus"], "absent_on_master")
-        self.assertEqual(domain["plannedPaths"], ["native/webui", "web/developer-colosseum"])
-        self.assertEqual(domain["sourceRoots"], domain["plannedPaths"])
-        self.assertEqual(domain["verification"], [])
+    def test_current_v117_architecture_and_probe_domains(self) -> None:
+        self.assertNotIn("webui", self.domains)
         scopes = self.doc["repo_basis"]["semantic_worktree"]["watch_scopes"]
-        self.assertIn("native/webui", scopes)
-        self.assertIn("web/developer-colosseum", scopes)
+        self.assertEqual(
+            scopes,
+            ["qml", "native", "server", "extensions", "tests", "data/title-identities-v1.json"],
+        )
+
+        account_sync = self.domains["account-sync"]
+        self.assertIn(
+            "colosseum.qttest.stremio_sync",
+            {item["name"] for item in account_sync["ctests"]},
+        )
+
+        smoothness = self.domains["smoothness-probes"]
+        self.assertEqual(smoothness["entry_points"], ["native/main.cpp"])
+        self.assertEqual(
+            [item["name"] for item in smoothness["ctests"]],
+            ["colosseum.qttest.qml_smoothness_probes"],
+        )
+        self.assertIn("native/FrameTimingProbe.h", smoothness["source_roots"])
+        self.assertIn("native/net/PosterTimingProbe.cpp", smoothness["source_roots"])
 
     def test_page_host_and_planned_paths_are_validated(self) -> None:
         bad_host = copy.deepcopy(self.doc)
-        bad_host["domains"][-2]["host"]["anchor"] = "missing Main.qml route"
+        bad_host_domain = next(item for item in bad_host["domains"] if item["id"] == "page-audiobook-session")
+        bad_host_domain["host"]["anchor"] = "missing Main.qml route"
         self.assertTrue(any("host.anchor" in error for error in validate_map(bad_host, ROOT)["errors"]))
 
         bad_path = copy.deepcopy(self.doc)
-        bad_path["domains"][-1]["planned_paths"] = ["../elsewhere"]
+        bad_path["domains"][0]["planned_paths"] = ["../elsewhere"]
         self.assertTrue(any("planned_paths" in error for error in validate_map(bad_path, ROOT)["errors"]))
 
     def test_run_py_contract_routes_a_page(self) -> None:
