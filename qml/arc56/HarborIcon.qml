@@ -32,7 +32,7 @@ Item {
         anchors.centerIn: parent
         width: root.iconSize
         height: root.iconSize
-        visible: root.kind !== "star"
+        visible: root.kind !== "star" && root.kind !== "layers" && root.kind !== "preview"
         sourceSize.width: Math.max(2, Math.round(width * 2))
         sourceSize.height: Math.max(2, Math.round(height * 2))
         source: Qt.resolvedUrl(root.sourceForKind(root.kind))
@@ -48,5 +48,68 @@ Item {
         color: root.ink
         font.family: "Segoe UI Symbol"
         font.pixelSize: root.iconSize + 2
+    }
+
+    Item {
+        visible: root.kind === "preview"
+        anchors.centerIn: parent
+        width: root.iconSize
+        height: root.iconSize
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.max(14, root.iconSize)
+            height: Math.max(10, root.iconSize * 0.72)
+            radius: 3
+            color: "transparent"
+            border.width: 1
+            border.color: root.ink
+        }
+
+        Text {
+            anchors.centerIn: parent
+            text: "▶"
+            color: root.ink
+            font.family: "Segoe UI Symbol"
+            font.pixelSize: Math.max(7, root.iconSize * 0.42)
+        }
+    }
+
+    Item {
+        visible: root.kind === "layers"
+        anchors.centerIn: parent
+        width: root.iconSize
+        height: root.iconSize
+
+        Rectangle {
+            x: 2
+            y: 2
+            width: Math.max(12, root.iconSize - 4)
+            height: Math.max(7, root.iconSize * 0.42)
+            radius: 2
+            color: "transparent"
+            border.width: 1
+            border.color: root.ink
+        }
+        Rectangle {
+            x: 2
+            y: Math.round(root.iconSize * 0.33)
+            width: Math.max(12, root.iconSize - 4)
+            height: Math.max(7, root.iconSize * 0.42)
+            radius: 2
+            color: "transparent"
+            border.width: 1
+            border.color: root.ink
+        }
+        Rectangle {
+            x: 2
+            y: Math.round(root.iconSize * 0.58)
+            width: Math.max(12, root.iconSize - 4)
+            height: Math.max(7, root.iconSize * 0.42)
+            radius: 2
+            color: "transparent"
+            border.width: 1
+            border.color: root.ink
+        }
     }
 }

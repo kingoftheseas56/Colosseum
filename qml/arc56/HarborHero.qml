@@ -220,7 +220,7 @@ Item {
 
             HarborActionButton {
                 compact: true
-                iconKind: "bookmark"
+                iconKind: "layers"
                 label: "Add to list"
                 onTriggered: hero.listRequested()
             }
@@ -236,7 +236,7 @@ Item {
 
             HarborActionButton {
                 compact: true
-                iconKind: "eye"
+                iconKind: "preview"
                 label: "Watch trailer"
                 onTriggered: hero.trailerRequested()
             }

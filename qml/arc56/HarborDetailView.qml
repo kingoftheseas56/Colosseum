@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import ".."
 
 Item {
@@ -8,6 +7,7 @@ Item {
     property bool inWatchlist: false
     property bool favorite: false
     property bool watched: false
+    property bool layoutEdit: false
     property alias contentY: flick.contentY
 
     signal playRequested(var item)
@@ -17,11 +17,12 @@ Item {
 
     HarborTheme { id: theme }
 
-    function initials(name) {
-        var parts = String(name || "").trim().split(/\s+/)
-        if (!parts.length) return "?"
-        if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
-        return String(parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+    function plateHue(seed) {
+        var value = String(seed || "")
+        var hash = 0
+        for (var i = 0; i < value.length; ++i)
+            hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0
+        return (Math.abs(hash) % 360) / 360.0
     }
 
     Rectangle {
@@ -36,9 +37,6 @@ Item {
         contentHeight: pageColumn.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar {
-            policy: flick.contentHeight > flick.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-        }
 
         Column {
             id: pageColumn
@@ -177,6 +175,41 @@ Item {
                         onDownloadRequested: episode => root.downloadRequested(episode)
                     }
 
+                    Item {
+                        width: parent.width
+                        height: 32
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            height: 32
+                            width: customizeText.implicitWidth + 24
+                            radius: 8
+                            color: customizeAction.interactionActive
+                                   ? (root.layoutEdit ? theme.ink : Qt.rgba(1, 1, 1, 0.055))
+                                   : (root.layoutEdit ? theme.ink : Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.80))
+                            border.width: 1
+                            border.color: root.layoutEdit ? theme.ink : theme.edgeSoft
+
+                            Text {
+                                id: customizeText
+                                anchors.centerIn: parent
+                                text: root.layoutEdit ? "Done editing" : "Customize layout"
+                                color: root.layoutEdit ? theme.canvas : theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
+                            }
+
+                            KeyboardAction {
+                                id: customizeAction
+                                anchors.fill: parent
+                                accessibleName: customizeText.text
+                                focusRadius: parent.radius
+                                onTriggered: root.layoutEdit = !root.layoutEdit
+                            }
+                        }
+                    }
+
                     Column {
                         visible: (root.detailData.credits || []).length > 0
                         width: parent.width
@@ -268,21 +301,27 @@ Item {
                                             width: parent.width
                                             height: parent.width * 1.5
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.06)
                                             border.width: castAction.activeFocus ? 2 : 0
                                             border.color: theme.gold
-                                            y: castAction.hovered ? -6 : 0
+                                            y: castAction.hovered ? -8 : 0
 
-                                            Behavior on y {
-                                                NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
+                                            gradient: Gradient {
+                                                GradientStop {
+                                                    position: 0.0
+                                                    color: Qt.hsla(root.plateHue(castCard.modelData.name), 0.50, 0.24, 1)
+                                                }
+                                                GradientStop {
+                                                    position: 0.55
+                                                    color: Qt.hsla((root.plateHue(castCard.modelData.name) + 0.38) % 1.0, 0.42, 0.17, 1)
+                                                }
+                                                GradientStop {
+                                                    position: 1.0
+                                                    color: Qt.hsla((root.plateHue(castCard.modelData.name) + 0.17) % 1.0, 0.30, 0.09, 1)
+                                                }
                                             }
 
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: root.initials(castCard.modelData.name)
-                                                color: theme.inkDimmer
-                                                font.family: theme.display
-                                                font.pixelSize: 34
+                                            Behavior on y {
+                                                NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
                                             }
                                         }
 
@@ -329,7 +368,8 @@ Item {
                         visible: (root.detailData.collection || []).length > 0
                         width: parent.width
                         height: visible ? implicitHeight : 0
-                        title: "Collection"
+                        title: root.detailData.collectionTitle || "Collection"
+                        titleChevron: true
                         items: root.detailData.collection || []
                         onItemRequested: item => root.itemRequested(item)
                     }
@@ -425,6 +465,41 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    Rectangle {
+        id: backToTop
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 20
+        anchors.bottomMargin: 20
+        width: 36
+        height: 36
+        radius: 18
+        z: 80
+        visible: flick.contentY > root.height * 0.85
+        opacity: visible ? 1 : 0
+        color: Qt.rgba(17 / 255, 18 / 255, 19 / 255, 0.88)
+        border.width: 1
+        border.color: theme.edgeSoft
+
+        Behavior on opacity { NumberAnimation { duration: 160 } }
+
+        Text {
+            anchors.centerIn: parent
+            text: "↑"
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 17
+            font.weight: Font.Medium
+        }
+
+        KeyboardAction {
+            anchors.fill: parent
+            accessibleName: "Back to top"
+            focusRadius: parent.radius
+            onTriggered: flick.contentY = 0
         }
     }
 }

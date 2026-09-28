@@ -6,6 +6,7 @@ Item {
     id: rail
     property string title: ""
     property var items: []
+    property bool titleChevron: false
     property real minCardWidth: 144
     readonly property int fitCount: Math.max(1, Math.floor((width + 20) / (minCardWidth + 20)))
     readonly property real cardWidth: (width - (fitCount - 1) * 20) / fitCount
@@ -17,22 +18,37 @@ Item {
 
     HarborTheme { id: theme }
 
-    Text {
-        id: titleText
+    Row {
+        id: titleRow
         anchors.left: parent.left
         anchors.top: parent.top
-        text: rail.title
-        color: theme.ink
-        font.family: theme.ui
-        font.pixelSize: 22
-        font.weight: Font.Medium
+        spacing: 7
+
+        Text {
+            id: titleText
+            text: rail.title
+            color: theme.ink
+            font.family: theme.ui
+            font.pixelSize: 22
+            font.weight: Font.Medium
+        }
+
+        Text {
+            visible: rail.titleChevron
+            anchors.verticalCenter: titleText.verticalCenter
+            text: "›"
+            color: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 24
+            font.weight: Font.Medium
+        }
     }
 
     Flickable {
         id: strip
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: titleText.bottom
+        anchors.top: titleRow.bottom
         anchors.topMargin: 20
         height: rail.cardHeight
         contentWidth: cards.implicitWidth

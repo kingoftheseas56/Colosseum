@@ -38,6 +38,7 @@ function movie() {
             { name: "Joe Pantoliano", role: "Cypher" },
             { name: "Marcus Chong", role: "Tank" }
         ],
+        collectionTitle: "The Matrix Collection",
         collection: [
             { id: "tt0133093", title: "The Matrix", year: "1999", poster: "https://images.metahub.space/poster/small/tt0133093/img" },
             { id: "tt0234215", title: "The Matrix Reloaded", year: "2003", poster: "https://images.metahub.space/poster/small/tt0234215/img" },
@@ -100,11 +101,11 @@ function series() {
         type: "series",
         title: "Game of Thrones",
         tagline: "WINTER IS COMING",
-        year: "2011–2019",
+        year: "2011",
         rating: "9.2",
         ratingVotes: "2.4M votes",
-        runtime: "57 min",
-        genres: ["Action", "Adventure", "Drama"],
+        runtime: "57 min episodes",
+        genres: ["Action & Adventure", "Drama", "Sci-Fi & Fantasy"],
         backdrop: "https://images.metahub.space/background/medium/tt0944947/img",
         poster: "https://images.metahub.space/poster/small/tt0944947/img",
         logo: "https://images.metahub.space/logo/medium/tt0944947/img",
@@ -186,7 +187,7 @@ function series() {
             { label: "Network", value: "HBO" },
             { label: "Country", value: "United States" },
             { label: "Original language", value: "English" },
-            { label: "Genres", value: "Action · Adventure · Drama" },
+            { label: "Genres", value: "Action & Adventure · Drama · Sci-Fi & Fantasy" },
             { label: "Rating", value: "9.2 · 2.4M votes" }
         ],
         seasons: [

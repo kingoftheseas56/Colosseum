@@ -44,7 +44,8 @@ Item {
     }
 
     Column {
-        width: parent.width
+        x: 9
+        width: Math.max(0, parent.width - 9)
         spacing: 20
 
         Row {
