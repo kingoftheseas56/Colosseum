@@ -220,7 +220,7 @@ Item {
     function providerSubject(providerKey) {
         if (providerKey === "simkl") return "Movies, series, and anime"
         if (providerKey === "mal") return "Anime and manga"
-        if (providerKey === "trakt") return "Movies and series"
+        if (providerKey === "trakt") return "Via your Stremio account"
         if (providerKey === "anilist") return "Anime and manga"
         return ""
     }
@@ -258,6 +258,13 @@ Item {
         if (status === "Healthy") return "Confirmed"
         if (status === "Owner unavailable") return "Needs attention"
         return status || "Unknown"
+    }
+    function providerStatus(providerKey, status) {
+        if (providerKey === "trakt")
+            return stremioConnected && stremioState.hasTrakt === true ? "Linked" : "Not linked"
+        if (providerKey === "mal" || providerKey === "anilist")
+            return "Coming soon"
+        return displayStatus(status)
     }
 
     function lastSyncLabel(timestamp) {
@@ -2370,7 +2377,7 @@ Item {
                             padding: 15
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
-                                             + (modelData.status || "Unavailable")
+                                             + root.providerStatus(modelData.providerKey, modelData.status)
                             onClicked: root.openDossier(modelData.providerKey, catalogueCard)
 
                             background: Rectangle {
@@ -2428,8 +2435,14 @@ Item {
                                     border.color: theme.edge
                                     Text {
                                         id: catalogueStateText
+                                        objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
                                         anchors.centerIn: parent
-                                        text: catalogueCard.modelData.available
+                                        text: catalogueCard.modelData.providerKey === "trakt"
+                                              || catalogueCard.modelData.providerKey === "mal"
+                                              || catalogueCard.modelData.providerKey === "anilist"
+                                              ? root.providerStatus(catalogueCard.modelData.providerKey,
+                                                                    catalogueCard.modelData.status)
+                                              : catalogueCard.modelData.available
                                               ? (catalogueCard.modelData.connected ? "Connected"
                                                  : (catalogueCard.modelData.pendingWork === true
                                                     ? "Needs attention" : "Connect"))
@@ -2611,7 +2624,8 @@ Item {
                                     Text {
                                         id: dossierStatus
                                         objectName: "trackerDossierStatus"
-                                        text: root.displayStatus(root.selectedDossier.status)
+                                        text: root.providerStatus(root.selectedProviderKey,
+                                                                  root.selectedDossier.status)
                                         color: root.selectedDossier.status === "Attention" ? theme.gold : theme.ink
                                         font.family: theme.ui
                                         font.pixelSize: 14
@@ -2627,7 +2641,14 @@ Item {
                                     }
                                 }
                                 Text {
-                                    text: root.selectedProviderKey === "global"
+                                    text: root.selectedProviderKey === "trakt"
+                                          ? (root.stremioConnected && root.stremioState.hasTrakt === true
+                                             ? "Trakt is linked through your Stremio account. Playback scrobbles through Stremio."
+                                             : "Link Trakt at web.stremio.com in your Stremio account, then sync Colosseum.")
+                                          : (root.selectedProviderKey === "mal"
+                                             || root.selectedProviderKey === "anilist")
+                                          ? "Coming soon."
+                                          : root.selectedProviderKey === "global"
                                           ? "Trackers are optional. Colosseum saves local changes first."
                                           : (!root.selectedDossier.available
                                              ? "This provider is unavailable in this build. Colosseum's native progress, History, and activity remain available."
@@ -2649,10 +2670,20 @@ Item {
                                              && root.selectedDossier.connected !== true
                                     enabled: root.selectedDossier.connectEnabled === true
                                              && root.selectedDossier.available === true
-                                    text: root.selectedDossier.pendingWork === true
+                                    text: root.selectedProviderKey === "trakt"
+                                          ? "Via your Stremio account"
+                                          : (root.selectedProviderKey === "mal"
+                                             || root.selectedProviderKey === "anilist")
+                                          ? "Coming soon"
+                                          : root.selectedDossier.pendingWork === true
                                           ? "Reconnect to recover pending work"
                                           : (root.selectedDossier.available ? "Connect" : "Not available")
-                                    Accessible.name: root.selectedDossier.available
+                                    Accessible.name: root.selectedProviderKey === "trakt"
+                                                     ? "Via your Stremio account"
+                                                     : (root.selectedProviderKey === "mal"
+                                                        || root.selectedProviderKey === "anilist")
+                                                     ? "Coming soon"
+                                                     : root.selectedDossier.available
                                                      ? (root.selectedDossier.pendingWork === true
                                                         ? "Reconnect the same "
                                                           + (root.selectedDossier.providerName || "tracker")

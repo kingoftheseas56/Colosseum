@@ -40,6 +40,37 @@ Item {
 
     // --- what we're playing -------------------------------------------------------------------
     property string mediaId: ""
+    property bool traktPlaying: false
+    property string traktVideoId: ""
+    property string traktTitle: ""
+    property string traktType: ""
+    onMediaIdChanged: if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
+    function sendTraktPlayback(playing) {
+        if (typeof stremioSyncState === "undefined" || !stremioSyncState.linkedAccount
+                || !stremioSyncState.hasTrakt || !backend.session)
+            return
+        if (playing && page.traktPlaying && page.mediaId === page.traktVideoId)
+            return
+        if (!playing && !page.traktPlaying) return
+        var id = playing ? page.mediaId : page.traktVideoId
+        var type = playing ? page.subStreamType : page.traktType
+        if (type !== "series") type = "movie"
+        if (type === "series" ? !/^tt\d+:\d+:\d+$/.test(id) : !/^tt\d+$/.test(id))
+            return
+        if (!(backend.session.duration > 0)) return
+        if (stremioSyncState.sendTraktEvent(playing ? "traktPlaying" : "traktPaused", {
+                "mediaId": id, "type": type,
+                "title": playing ? page.mediaTitle : page.traktTitle,
+                "position": Math.max(0, backend.session.position),
+                "duration": backend.session.duration })) {
+            page.traktPlaying = playing
+            if (playing) {
+                page.traktVideoId = id
+                page.traktTitle = page.mediaTitle
+                page.traktType = type
+            }
+        }
+    }
     property string mediaTitle: ""
     property string mediaArt: ""
     property string subStreamType: ""
@@ -109,6 +140,20 @@ Item {
     readonly property bool isSeries: page.subStreamType === "series"
 
     Player2Backend { id: backend }
+    Connections {
+        target: backend.session
+        ignoreUnknownSignals: true
+        function onDurationChanged() {
+            if (backend.session && backend.session.state === 3 && !page.traktPlaying)
+                page.sendTraktPlayback(true)
+        }
+        function onStateChanged() {
+            var state = backend.session ? backend.session.state : 0
+            if (state === 3 && !page.traktPlaying) page.sendTraktPlayback(true)
+            else if ((state === 4 || state === 6 || state === 8 || state === 0)
+                     && page.traktPlaying) page.sendTraktPlayback(false)
+        }
+    }
 
     // --- the engine surface + chrome ----------------------------------------------------------
     Rectangle {
@@ -258,7 +303,10 @@ Item {
 
     Component.onCompleted: backend.attachVideoItem(videoSurface)
     // Never leave the display-sleep inhibit held after the page goes away (PlayerPage.qml:2633).
-    Component.onDestruction: if (typeof Power !== "undefined") Power.release()
+    Component.onDestruction: {
+        page.sendTraktPlayback(false)
+        if (typeof Power !== "undefined") Power.release()
+    }
 
     // --- the six entry points Main.qml uses ---------------------------------------------------
 
@@ -269,7 +317,9 @@ Item {
         page.subStreamType = subType || ""
         page.subStreamId = subId || ""
         page.playbackContext = playbackContext || ({})
-        page.mediaId = page.subStreamId.length ? page.subStreamId : String(infoHash || "")
+        var movieMatch = String(posterUrl || "").match(/\/(tt\d+)\//)
+        page.mediaId = page.subStreamId.length ? page.subStreamId
+                     : (movieMatch ? movieMatch[1] : String(infoHash || ""))
         page._applyLoaderIdentity(playbackContext, posterUrl)
         hostServices.streamCandidates = streamCandidates || []
         hostServices.mediaResumeHash = String(infoHash || "")
@@ -320,6 +370,7 @@ Item {
     }
 
     function stop() {
+        page.sendTraktPlayback(false)
         backend.stop()
     }
 
@@ -381,6 +432,7 @@ Item {
     }
 
     function _reset() {
+        page.sendTraktPlayback(false)
         page.pendingSeekSec = 0
         page.errorText = ""
         // A new playback earns the loader again from scratch.

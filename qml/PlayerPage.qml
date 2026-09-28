@@ -1,7 +1,8 @@
 pragma ComponentBehavior: Bound
 
 // PlayerPage - Harbor/TB3-style fullscreen player chrome on top of Colosseum's mpvqt MpvItem.
-// Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI.
+// Streaming remains behind the Stream.play -> streamReady seam. This page owns playback
+// transitions, including best-effort Stremio Trakt events for IMDb-identified titles.
 import QtQuick
 import QtQuick.Window
 import QtCore
@@ -161,6 +162,37 @@ Item {
     property string mediaYear: ""
     // --- continue/resume identity (set by openPlayer; fed to the Progress store) ---
     property string mediaId: ""           // stable id (Cinemeta ttXXXX if known, else infoHash)
+    property bool traktPlaying: false
+    property string traktVideoId: ""
+    property string traktTitle: ""
+    property string traktType: ""
+    onMediaIdChanged: if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
+    function sendTraktPlayback(playing) {
+        if (typeof stremioSyncState === "undefined" || !stremioSyncState.linkedAccount
+                || !stremioSyncState.hasTrakt)
+            return
+        if (playing && root.traktPlaying && root.mediaId === root.traktVideoId)
+            return
+        if (!playing && !root.traktPlaying)
+            return
+        var id = playing ? root.mediaId : root.traktVideoId
+        var type = playing ? root.subStreamType : root.traktType
+        if (type !== "series") type = "movie"
+        if (type === "series" ? !/^tt\d+:\d+:\d+$/.test(id) : !/^tt\d+$/.test(id))
+            return
+        if (!(mpv.duration > 0)) return
+        if (stremioSyncState.sendTraktEvent(playing ? "traktPlaying" : "traktPaused", {
+                "mediaId": id, "type": type,
+                "title": playing ? root.mediaTitle : root.traktTitle,
+                "position": Math.max(0, mpv.position), "duration": mpv.duration })) {
+            root.traktPlaying = playing
+            if (playing) {
+                root.traktVideoId = id
+                root.traktTitle = root.mediaTitle
+                root.traktType = type
+            }
+        }
+    }
     property string mediaArt: ""          // poster url, for the Continue card cover
     // --- per-show startup-loader identity (Task 4); missing values degrade to poster/subtitle ---
     property string mediaLogo: ""         // show logo (transparent art) centered on the loader
@@ -947,6 +979,7 @@ Item {
         // file and playback can begin" — this is exactly that moment (fires once per genuine
         // starting->false transition). A same-identity reload/recovery is a no-op here.
         root.activityBeginIfNeeded()
+        root.sendTraktPlayback(true)
     }
     property bool starting: false
     property bool errored: false
@@ -2679,6 +2712,7 @@ Item {
 
     function stop() {
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
+        root.sendTraktPlayback(false)
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
         root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
@@ -3348,7 +3382,10 @@ Item {
         root.syncPowerInhibit()
         mpv.setAudioNormalization(root.loudnessMode)   // apply the persisted mode at startup
     }
-    Component.onDestruction: if (typeof Power !== "undefined") Power.release()
+    Component.onDestruction: {
+        root.sendTraktPlayback(false)
+        if (typeof Power !== "undefined") Power.release()
+    }
     onVisibleChanged: {
         if (visible)
             root.forceActiveFocus()
@@ -3649,6 +3686,7 @@ Item {
                     return
                 }
                 root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
+                root.sendTraktPlayback(false)
                 root.recordProgress()
                 if (root.handleSleepEpisodeEnd())
                     return
@@ -3656,6 +3694,9 @@ Item {
             }
         }
         onPauseChanged: {
+            if (mpv.pause) root.sendTraktPlayback(false)
+            else if (!root.starting && root.fileReady && mpv.position > 0.25)
+                root.sendTraktPlayback(true)
             root.activityTracker.playbackStateChanged(!mpv.pause,
                 Math.round(mpv.position * 1000), Math.round(mpv.duration * 1000))
             if (mpv.pause)

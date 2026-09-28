@@ -125,6 +125,7 @@ private:
         quint64 incarnation,
         const QJsonArray &addons);
     bool runStremioSync(bool reviveFailedIntents);
+    void syncTraktAddon();
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
@@ -160,6 +161,9 @@ private:
         m_downloadIntentSyncAdapter;
     LocalDownloads *m_downloadSource = nullptr;
     ExtensionsStore *m_extensionsStore = nullptr;
+    QString m_traktAddonUrl;
+    bool m_traktAddonRequested = false;
+    QString m_traktAddonPendingUrl;
     SyncEngine m_syncEngine;
     StremioSync m_stremioSync;
     std::unique_ptr<StremioTheatreImporter> m_stremioTheatreImporter;

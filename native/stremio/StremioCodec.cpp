@@ -10,6 +10,7 @@
 #include <QUrlQuery>
 
 #include <cmath>
+#include <limits>
 
 namespace {
 constexpr qsizetype kMaximumCallbackBytes = 16 * 1024;
@@ -348,7 +349,30 @@ bool StremioCodec::decodeGetUserResult(
     }
     identity->accountId = accountId;
     identity->displayName = displayName;
+    identity->traktExpiresAtMs = 0;
+    const QJsonObject trakt = object.value(QStringLiteral("trakt")).toObject();
+    const QJsonValue created = trakt.value(QStringLiteral("created_at"));
+    const QJsonValue lifetime = trakt.value(QStringLiteral("expires_in"));
+    if (created.isDouble() && lifetime.isDouble()) {
+        const double expirySeconds = created.toDouble() + lifetime.toDouble();
+        if (std::isfinite(expirySeconds) && expirySeconds > 0
+            && expirySeconds < static_cast<double>(std::numeric_limits<qint64>::max() / 1000)) {
+            identity->traktExpiresAtMs = static_cast<qint64>(expirySeconds * 1000);
+        }
+    }
     return true;
+}
+
+QJsonObject StremioCodec::traktEvent(const QString &name, const QJsonObject &player,
+                                     qint64 eventTimeMs, quint64 eventNumber,
+                                     const QJsonObject &app) {
+    if (name != QLatin1String("traktPlaying") && name != QLatin1String("traktPaused"))
+        return {};
+    return {{QStringLiteral("player"), player},
+            {QStringLiteral("eventName"), name},
+            {QStringLiteral("eventTime"), eventTimeMs},
+            {QStringLiteral("eventNumber"), static_cast<qint64>(eventNumber)},
+            {QStringLiteral("app"), app}};
 }
 
 QStringList StremioCodec::decodeLibraryItemMeta(

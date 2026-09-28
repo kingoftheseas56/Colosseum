@@ -75,10 +75,16 @@ public:
 
     void replyIdentity(
         const QString &accountId = QStringLiteral("fixture-account"),
-        const QString &displayName = QStringLiteral("Fixture Person")) {
-        const QJsonObject payload{{QStringLiteral("result"), QJsonObject{
+        const QString &displayName = QStringLiteral("Fixture Person"),
+        bool traktLinked = false) {
+        QJsonObject user{
             {QStringLiteral("_id"), accountId},
-            {QStringLiteral("fullname"), displayName}}}};
+            {QStringLiteral("fullname"), displayName}};
+        if (traktLinked)
+            user.insert(QStringLiteral("trakt"), QJsonObject{
+                {QStringLiteral("created_at"), 1700000000},
+                {QStringLiteral("expires_in"), 3600}});
+        const QJsonObject payload{{QStringLiteral("result"), user}};
         const QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
         const QByteArray response = QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
             + QByteArray::number(body.size())
@@ -194,6 +200,8 @@ class tst_stremio_sync final : public QObject {
 
 private slots:
     void callbackRejectsForgedReplayAndAmbiguousCredential();
+    void traktIdentityAndEventMatchStremioCoreWire();
+    void traktPlayingAndPausedPostThroughBoundAuthKey();
     void callbackRejectsOversizedRequest();
     void productionEndpointsRequireHttps();
     void journalRejectsMalformedDataWithoutReseeding();
@@ -267,6 +275,111 @@ private slots:
     void episodeMetadataBridgeBindsOneShotRepliesToActiveProfile();
     void episodeMetadataBridgeAcceptsLongRunningSeries();
 };
+
+void tst_stremio_sync::traktIdentityAndEventMatchStremioCoreWire() {
+    // stremio-core: types/profile/user.rs, models/player.rs, analytics.rs.
+    StremioAccountIdentity identity;
+    QVERIFY(StremioCodec::decodeGetUserResult(QJsonObject{
+        {QStringLiteral("result"), QJsonObject{
+            {QStringLiteral("_id"), QStringLiteral("fixture-user")},
+            {QStringLiteral("fullname"), QStringLiteral("Fixture User")},
+            {QStringLiteral("trakt"), QJsonObject{
+                {QStringLiteral("created_at"), 1700000000},
+                {QStringLiteral("expires_in"), 3600},
+                {QStringLiteral("access_token"), QStringLiteral("never-retain-this")}}}}}},
+        &identity));
+    QCOMPARE(identity.accountId, QStringLiteral("fixture-user"));
+    QCOMPARE(identity.traktExpiresAtMs, 1700003600000LL);
+    const QJsonObject player{
+        {QStringLiteral("libItemID"), QStringLiteral("tt1234567")},
+        {QStringLiteral("libItemType"), QStringLiteral("series")},
+        {QStringLiteral("libItemName"), QStringLiteral("Fixture")},
+        {QStringLiteral("libItemVideoID"), QStringLiteral("tt1234567:1:2")},
+        {QStringLiteral("libItemTimeOffset"), 120000},
+        {QStringLiteral("libItemTimeDuration"), 3600000},
+        {QStringLiteral("deviceType"), QStringLiteral("desktop")},
+        {QStringLiteral("deviceName"), QStringLiteral("Colosseum")},
+        {QStringLiteral("playerDuration"), 3600000},
+        {QStringLiteral("playerVideoWidth"), 0},
+        {QStringLiteral("playerVideoHeight"), 0},
+        {QStringLiteral("hasTrakt"), true}};
+    const QJsonObject app{{QStringLiteral("appType"), QStringLiteral("colosseum")}};
+    const QJsonObject event = StremioCodec::traktEvent(
+        QStringLiteral("traktPlaying"), player, 1700000000123LL, 1, app);
+    QCOMPARE(event, (QJsonObject{
+        {QStringLiteral("player"), player},
+        {QStringLiteral("eventName"), QStringLiteral("traktPlaying")},
+        {QStringLiteral("eventTime"), 1700000000123LL},
+        {QStringLiteral("eventNumber"), 1},
+        {QStringLiteral("app"), app}}));
+    QCOMPARE(StremioCodec::traktEvent(QStringLiteral("traktPaused"), player,
+                                      1700000001123LL, 2, app)
+                 .value(QStringLiteral("eventName")).toString(),
+             QStringLiteral("traktPaused"));
+    QVERIFY(StremioCodec::traktEvent(QStringLiteral("unknown"), player, 0, 3, app).isEmpty());
+}
+
+void tst_stremio_sync::traktPlayingAndPausedPostThroughBoundAuthKey() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-trakt-events"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    QUrl login;
+    QByteArray storedKey;
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.clock = [] { return 1700000001000LL; };
+    options.browserOpener = [&login](const QUrl &url) { login = url; };
+    options.saveCredential = [&storedKey](const QString &, const QString &, const QByteArray &key) {
+        storedKey = key;
+        return true;
+    };
+    options.clearCredential = [&storedKey](const QString &) {
+        storedKey.clear();
+        return true;
+    };
+    options.loadCredential = [&storedKey](const QString &, const QString &)
+        -> std::optional<QByteArray> { return storedKey; };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    QVERIFY(sync.startBrowserAuthentication());
+    QVERIFY(sendLoopbackCallback(login, QByteArrayLiteral("fixture-auth-key")));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("POST /api/getUser")));
+    api.replyIdentity(QStringLiteral("fixture-account"), QStringLiteral("Fixture Person"), true);
+    QTRY_VERIFY(sync.hasTrakt());
+    QVERIFY(sync.sendTraktEvent(QStringLiteral("traktPlaying"), {
+        {QStringLiteral("mediaId"), QStringLiteral("tt1234567:1:2")},
+        {QStringLiteral("type"), QStringLiteral("series")},
+        {QStringLiteral("title"), QStringLiteral("Fixture")},
+        {QStringLiteral("position"), 120.0},
+        {QStringLiteral("duration"), 3600.0}}));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("\"eventName\":\"traktPlaying\"")));
+    const int requestStart = api.request().lastIndexOf(QByteArrayLiteral("POST /api/events"));
+    QVERIFY(requestStart >= 0);
+    const int bodyStart = api.request().indexOf(QByteArrayLiteral("\r\n\r\n"), requestStart) + 4;
+    const QJsonObject body = QJsonDocument::fromJson(api.request().mid(bodyStart)).object();
+    QCOMPARE(body.value(QStringLiteral("authKey")).toString(), QStringLiteral("fixture-auth-key"));
+    const QJsonObject event = body.value(QStringLiteral("events")).toArray().first().toObject();
+    QCOMPARE(event.value(QStringLiteral("eventNumber")).toInt(), 1);
+    QCOMPARE(event.value(QStringLiteral("eventTime")).toVariant().toLongLong(), 1700000001000LL);
+    QCOMPARE(event.value(QStringLiteral("player")).toObject().value(QStringLiteral("libItemID")).toString(),
+             QStringLiteral("tt1234567"));
+    QCOMPARE(event.value(QStringLiteral("player")).toObject().value(QStringLiteral("libItemVideoID")).toString(),
+             QStringLiteral("tt1234567:1:2"));
+    QCOMPARE(event.value(QStringLiteral("player")).toObject().value(QStringLiteral("libItemTimeOffset")).toInt(),
+             120000);
+    QCOMPARE(event.value(QStringLiteral("player")).toObject().value(QStringLiteral("hasTrakt")).toBool(), true);
+    QVERIFY(sync.sendTraktEvent(QStringLiteral("traktPaused"), {
+        {QStringLiteral("mediaId"), QStringLiteral("tt1234567:1:2")},
+        {QStringLiteral("type"), QStringLiteral("series")},
+        {QStringLiteral("title"), QStringLiteral("Fixture")},
+        {QStringLiteral("position"), 121.0},
+        {QStringLiteral("duration"), 3600.0}}));
+    QTRY_VERIFY(api.request().contains(QByteArrayLiteral("\"eventName\":\"traktPaused\"")));
+}
 
 void tst_stremio_sync::callbackRejectsForgedReplayAndAmbiguousCredential() {
     const QString callbackPath = QStringLiteral("/stremio/nonce-bound-to-attempt");

@@ -920,6 +920,21 @@ TestCase {
         compare(page.selectedProviderKey, "simkl")
     }
 
+    function test_trakt_uses_stremio_link_and_future_cards_say_coming_soon() {
+        compare(findChild(page, "trackerCatalogueStatus_trakt").text, "Not linked")
+        compare(findChild(page, "trackerCatalogueStatus_mal").text, "Coming soon")
+        compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")
+        compare(findChild(page, "trackerCatalogueStatus_simkl").text,
+                "Unavailable in this build")
+        page.stremioState = ({ linkedAccount: true, hasTrakt: true })
+        compare(findChild(page, "trackerCatalogueStatus_trakt").text, "Linked")
+        revealCatalogueCards()
+        mouseClick(findChild(page, "trackerCatalogue_trakt"))
+        compare(findChild(page, "trackerDossierStatus").text, "Linked")
+        compare(findChild(page, "trackerConnectButton").text,
+                "Via your Stremio account")
+    }
+
     function test_connection_heading_and_summary_scope_third_party_trackers() {
         compare(findChild(page, "trackerSyncPageTitle").text, "Connections")
         page.stremioState = ({ linkedAccount: true })
@@ -986,7 +1001,7 @@ TestCase {
         mouseClick(findChild(page, "trackerCard_trakt"))
         wait(0)
         compare(page.dossierOpen, true)
-        compare(findChild(page, "trackerDossierStatus").text, "Waiting")
+        compare(findChild(page, "trackerDossierStatus").text, "Not linked")
         compare(page.dossierCapabilities.length, 2)
         compare(findChild(page, "trackerDeliveryQueueSection").visible, true)
         compare(findChild(page, "trackerDeliveryState").text, "Checking delivery")

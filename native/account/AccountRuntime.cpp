@@ -26,6 +26,7 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QTimer>
+#include <QUrl>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
@@ -676,6 +677,8 @@ AccountRuntime::AccountRuntime(
                 return std::nullopt;
             return credential->authKey;
         });
+    connect(&m_stremioSync, &StremioSync::stateChanged,
+            this, &AccountRuntime::syncTraktAddon);
     connect(
         &m_stremioSync,
         &StremioSync::profileLinkValidated,
@@ -697,6 +700,11 @@ AccountRuntime::AccountRuntime(
         &StremioSync::profileDisconnected,
         this,
         [this](const QString &profileId) {
+            if (m_extensionsStore && m_extensionsStore->activeProfileId() == profileId
+                && !m_traktAddonUrl.isEmpty()) {
+                m_extensionsStore->removeInstance(m_traktAddonUrl);
+                m_traktAddonUrl.clear();
+            }
             ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
             if (!preferences
                 || m_profileStores.activeProfile().profileId() != profileId) {
@@ -1694,9 +1702,58 @@ void AccountRuntime::setExtensionsStore(ExtensionsStore *extensions) {
             &ExtensionsStore::changed,
             this,
             [this] { scheduleStremioAddonReconcile(); });
+        connect(m_extensionsStore, &ExtensionsStore::installFinished,
+                this, [this](const QString &, const QString &) {
+                    if (m_traktAddonPendingUrl.isEmpty() || !m_extensionsStore
+                        || !m_extensionsStore->isInstalled(m_traktAddonPendingUrl))
+                        return;
+                    const QString installedUrl = m_traktAddonPendingUrl;
+                    m_traktAddonPendingUrl.clear();
+                    m_traktAddonRequested = false;
+                    const QString currentUser = m_stremioSync.stremioUserId();
+                    const QString expectedUrl = QStringLiteral("https://www.strem.io/trakt/addon/")
+                        + QString::fromLatin1(QUrl::toPercentEncoding(currentUser))
+                        + QStringLiteral("/manifest.json");
+                    if (!installedUrl.isEmpty() && m_extensionsStore
+                        && m_extensionsStore->isInstalled(installedUrl)
+                        && (!m_stremioSync.hasTrakt() || installedUrl != expectedUrl)) {
+                        m_extensionsStore->removeInstance(installedUrl);
+                    }
+                    syncTraktAddon();
+                });
+        connect(m_extensionsStore, &ExtensionsStore::installFailed,
+                this, [this](const QString &url, const QString &) {
+                    if (url != m_traktAddonPendingUrl)
+                        return;
+                    m_traktAddonPendingUrl.clear();
+                    m_traktAddonRequested = false;
+                });
     }
     activateExtensionsProfile();
+    syncTraktAddon();
     scheduleStremioAddonReconcile();
+}
+
+void AccountRuntime::syncTraktAddon() {
+    if (!m_extensionsStore || !m_stremioSync.traktLinkKnown()
+        || m_extensionsStore->activeProfileId() != m_stremioSync.activeProfileId())
+        return;
+    const QString userId = m_stremioSync.stremioUserId();
+    if (userId.isEmpty())
+        return;
+    const QString url = QStringLiteral("https://www.strem.io/trakt/addon/")
+        + QString::fromLatin1(QUrl::toPercentEncoding(userId))
+        + QStringLiteral("/manifest.json");
+    m_traktAddonUrl = url;
+    if (m_stremioSync.hasTrakt()) {
+        if (!m_traktAddonRequested && !m_extensionsStore->isInstalled(url)) {
+            m_traktAddonRequested = true;
+            m_traktAddonPendingUrl = url;
+            m_extensionsStore->install(url);
+        }
+    } else if (m_extensionsStore->isInstalled(url)) {
+        m_extensionsStore->removeInstance(url);
+    }
 }
 
 AccountRecoveryKeyPresenter *
@@ -2495,6 +2552,8 @@ void AccountRuntime::activateStremioProfile() {
 void AccountRuntime::activateExtensionsProfile() {
     if (!m_extensionsStore)
         return;
+    m_traktAddonUrl.clear();
+    m_traktAddonRequested = !m_traktAddonPendingUrl.isEmpty();
     const ProfilePaths profile = m_profileStores.activeProfile();
     const QString profileRoot = profile.kind() == ProfilePaths::Kind::LegacyLocal
         ? m_profileStores.legacyStorage().devicePrivateProfileRoot()

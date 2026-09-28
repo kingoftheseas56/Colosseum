@@ -1,12 +1,14 @@
 #include "StremioSync.h"
 
 #include <QDateTime>
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QTcpSocket>
 #include <QUuid>
 
@@ -372,6 +374,8 @@ StremioSync::StremioSync(const StremioSyncOptions &options, QObject *parent)
       m_options(options),
       m_stateStore(this) {
     setObjectName(QStringLiteral("stremioSyncState"));
+    m_traktVisitId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    m_traktInstallationId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     m_authTimeout.setSingleShot(true);
     m_retryTimer.setSingleShot(true);
     if (!m_options.clock)
@@ -413,6 +417,134 @@ QString StremioSync::lastResultSummary() const { return m_lastResultSummary; }
 bool StremioSync::linkedAccount() const {
     return m_markerLinked && !m_state.accountId.isEmpty();
 }
+bool StremioSync::hasTrakt() const {
+    return linkedAccount() && m_traktLinkKnown
+        && m_options.clock() < m_traktExpiresAtMs;
+}
+bool StremioSync::traktLinkKnown() const { return m_traktLinkKnown; }
+QString StremioSync::stremioUserId() const {
+    return linkedAccount() ? m_state.accountId : QString();
+}
+
+void StremioSync::refreshTraktLink() {
+    if (!linkedAccount() || !m_hasUsableCredential || !m_dispatchAllowed
+        || !m_options.loadCredential || !endpointAllowed() || m_traktIdentityReply)
+        return;
+    const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
+    if (!credential || credential->isEmpty())
+        return;
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const QString accountId = m_state.accountId;
+    QUrl endpoint = m_options.apiEndpoint;
+    QString path = endpoint.path();
+    if (!path.endsWith(QLatin1Char('/')))
+        path += QLatin1Char('/');
+    endpoint.setPath(path + QStringLiteral("getUser"));
+    QNetworkRequest request(endpoint);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(10000);
+    QNetworkReply *reply = m_network.post(request, QJsonDocument(QJsonObject{
+        {QStringLiteral("authKey"), QString::fromUtf8(*credential)}}).toJson(QJsonDocument::Compact));
+    m_traktIdentityReply = reply;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, binding, accountId] {
+        const bool current = bindingCurrent(binding) && reply == m_traktIdentityReply
+            && m_state.accountId == accountId;
+        const bool success = reply->error() == QNetworkReply::NoError
+            && !reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid();
+        const QByteArray payload = success ? reply->read(kMaximumIdentityResponseBytes + 1)
+                                           : QByteArray();
+        reply->deleteLater();
+        if (!current)
+            return;
+        m_traktIdentityReply = nullptr;
+        if (!success || payload.size() > kMaximumIdentityResponseBytes)
+            return;
+        const QJsonDocument response = QJsonDocument::fromJson(payload);
+        StremioAccountIdentity identity;
+        if (!response.isObject()
+            || !StremioCodec::decodeGetUserResult(response.object(), &identity)
+            || identity.accountId != accountId)
+            return;
+        m_traktLinkKnown = true;
+        m_traktExpiresAtMs = identity.traktExpiresAtMs;
+        emit stateChanged();
+    });
+}
+
+bool StremioSync::sendTraktEvent(const QString &name, const QVariantMap &context) {
+    if (!hasTrakt() || !m_hasUsableCredential || !m_dispatchAllowed
+        || !m_options.loadCredential || !endpointAllowed()
+        || m_traktEventReplies.size() >= 4)
+        return false;
+    static const QRegularExpression movie(QStringLiteral("^tt[0-9]+$"));
+    static const QRegularExpression episode(QStringLiteral("^(tt[0-9]+):[0-9]+:[0-9]+$"));
+    const QString videoId = context.value(QStringLiteral("mediaId")).toString();
+    const bool series = context.value(QStringLiteral("type")).toString() == QLatin1String("series");
+    const auto episodeMatch = episode.match(videoId);
+    if ((series && !episodeMatch.hasMatch()) || (!series && !movie.match(videoId).hasMatch()))
+        return false;
+    const double position = context.value(QStringLiteral("position")).toDouble();
+    const double duration = context.value(QStringLiteral("duration")).toDouble();
+    if (!std::isfinite(position) || !std::isfinite(duration)
+        || position < 0 || duration <= 0
+        || duration > static_cast<double>(std::numeric_limits<qint64>::max() / 1000))
+        return false;
+    const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
+    if (!credential || credential->isEmpty())
+        return false;
+    const qint64 positionMs = static_cast<qint64>(std::min(position, duration) * 1000);
+    const qint64 durationMs = static_cast<qint64>(duration * 1000);
+    const QJsonObject player{
+        {QStringLiteral("libItemID"), series ? episodeMatch.captured(1) : videoId},
+        {QStringLiteral("libItemType"), series ? QStringLiteral("series") : QStringLiteral("movie")},
+        {QStringLiteral("libItemName"), context.value(QStringLiteral("title")).toString().left(256)},
+        {QStringLiteral("libItemVideoID"), videoId},
+        {QStringLiteral("libItemTimeOffset"), positionMs},
+        {QStringLiteral("libItemTimeDuration"), durationMs},
+        {QStringLiteral("deviceType"), QStringLiteral("desktop")},
+        {QStringLiteral("deviceName"), QStringLiteral("Colosseum")},
+        {QStringLiteral("playerDuration"), durationMs},
+        {QStringLiteral("playerVideoWidth"), 0},
+        {QStringLiteral("playerVideoHeight"), 0},
+        {QStringLiteral("hasTrakt"), true}};
+    const QJsonObject app{
+        {QStringLiteral("appType"), QStringLiteral("colosseum")},
+        {QStringLiteral("appVersion"), QCoreApplication::applicationVersion()},
+        {QStringLiteral("serverVersion"), QJsonValue::Null},
+        {QStringLiteral("shellVersion"), QJsonValue::Null},
+        {QStringLiteral("systemLanguage"), QJsonValue::Null},
+        {QStringLiteral("appLanguage"), QStringLiteral("en")},
+        {QStringLiteral("installationID"), m_traktInstallationId},
+        {QStringLiteral("visitID"), m_traktVisitId},
+        {QStringLiteral("url"), QStringLiteral("/player")}};
+    const QJsonObject event = StremioCodec::traktEvent(
+        name, player, m_options.clock(), ++m_traktEventNumber, app);
+    if (event.isEmpty())
+        return false;
+    QUrl endpoint = m_options.apiEndpoint;
+    QString path = endpoint.path();
+    if (!path.endsWith(QLatin1Char('/')))
+        path += QLatin1Char('/');
+    endpoint.setPath(path + QStringLiteral("events"));
+    QNetworkRequest request(endpoint);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(10000);
+    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    QNetworkReply *reply = m_network.post(request, QJsonDocument(QJsonObject{
+        {QStringLiteral("authKey"), QString::fromUtf8(*credential)},
+        {QStringLiteral("events"), QJsonArray{event}}}).toJson(QJsonDocument::Compact));
+    m_traktEventReplies.insert(reply);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, binding] {
+        reply->deleteLater();
+        if (bindingCurrent(binding))
+            m_traktEventReplies.remove(reply);
+    });
+    return true;
+}
 
 bool StremioSync::activateProfile(
     const QString &profileId,
@@ -449,6 +581,8 @@ bool StremioSync::activateProfile(
     m_state.bindingGeneration = m_bindingGeneration;
     m_hasUsableCredential = false;
     m_markerLinked = false;
+    m_traktLinkKnown = false;
+    m_traktExpiresAtMs = 0;
     m_dispatchAllowed = !m_state.reconnectRequired
         && !m_failedPersistencePaths.contains(statePath);
     m_inFlightOperations.clear();
@@ -458,6 +592,7 @@ bool StremioSync::activateProfile(
     }
     updateConnectionStatus();
     emit stateChanged();
+    QTimer::singleShot(0, this, [this] { refreshTraktLink(); });
     return true;
 }
 
@@ -475,8 +610,17 @@ void StremioSync::deactivateProfile() {
     m_profileId.clear();
     m_statePath.clear();
     m_state = {};
+    if (m_traktIdentityReply) {
+        m_traktIdentityReply->abort();
+        m_traktIdentityReply = nullptr;
+    }
+    for (QNetworkReply *reply : std::as_const(m_traktEventReplies))
+        reply->abort();
+    m_traktEventReplies.clear();
     m_hasUsableCredential = false;
     m_markerLinked = false;
+    m_traktLinkKnown = false;
+    m_traktExpiresAtMs = 0;
     m_dispatchAllowed = false;
     m_inFlightOperations.clear();
     m_addonCollectionReconcileActive = false;
@@ -579,6 +723,13 @@ bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
     // emit finished synchronously on this thread. Every cancellation callback
     // must therefore already observe a stale generation.
     ++m_bindingGeneration;
+    if (m_traktIdentityReply) {
+        m_traktIdentityReply->abort();
+        m_traktIdentityReply = nullptr;
+    }
+    for (QNetworkReply *reply : std::as_const(m_traktEventReplies))
+        reply->abort();
+    m_traktEventReplies.clear();
     m_inFlightOperations.clear();
     m_addonCollectionReconcileActive = false;
     m_visibleSyncActive = false;
@@ -613,6 +764,8 @@ bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
     m_state.bindingGeneration = m_bindingGeneration;
     m_hasUsableCredential = false;
     m_markerLinked = false;
+    m_traktLinkKnown = false;
+    m_traktExpiresAtMs = 0;
     m_dispatchAllowed = false;
     m_failedPersistencePaths.remove(m_statePath);
     updateConnectionStatus();
@@ -671,6 +824,7 @@ bool StremioSync::beginVisibleSync(bool reviveFailedIntents) {
     m_lastResultSummary.clear();
     m_pendingVisibleSyncSummary.clear();
     setStatus(QStringLiteral("syncing"));
+    refreshTraktLink();
     if (revived)
         persist();
     emit stateChanged();
@@ -1898,7 +2052,7 @@ void StremioSync::validateAuthKey(
         m_state.displayName = identity.displayName;
         m_state.bindingGeneration = binding.generation;
         m_state.reconnectRequired = false;
-        persist([this, binding, attempt](bool committed) {
+        persist([this, binding, attempt, identity](bool committed) {
             const bool current = bindingCurrent(binding) && attempt == m_authAttempt;
             if (!committed || !current) {
                 const bool isProvisional = m_provisionalCredential.has_value()
@@ -1919,6 +2073,8 @@ void StremioSync::validateAuthKey(
             m_provisionalCredential.reset();
             m_hasUsableCredential = true;
             m_dispatchAllowed = true;
+            m_traktLinkKnown = true;
+            m_traktExpiresAtMs = identity.traktExpiresAtMs;
             m_authTimeout.stop();
             m_markerLinked = true;
             emit profileLinkValidated(binding.profileId);

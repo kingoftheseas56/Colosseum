@@ -1,0 +1,21 @@
+{
+  "name": "trakt-via-stremio-connections",
+  "comment": "Tagged local profile verifies Connections copy and unchanged Simkl availability. A linked Stremio account is tested separately by its owner.",
+  "steps": [
+    { "cmd": "ping", "label": "isolated app answers", "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" }, { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "boot splash releases input", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "fresh profile offers local mode", "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "continue locally", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "account welcome closes", "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 10000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "open taskbar", "payload": { "target": "colosseumTaskbarHomeButton" } },
+    { "cmd": "ui-click", "label": "open Connections", "payload": { "target": "topBarTrackersButton" } },
+    { "cmd": "ui-wait-for", "label": "Connections opens", "payload": { "object": "syncCenterLayer", "prop": "active", "value": true, "timeout_ms": 5000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "Trakt is not linked on a local profile", "payload": { "object": "trackerCatalogueStatus_trakt", "props": ["text"] }, "expect": [ { "path": "props.text", "op": "==", "value": "Not linked" } ] },
+    { "cmd": "qml-get", "label": "MyAnimeList says Coming soon", "payload": { "object": "trackerCatalogueStatus_mal", "props": ["text"] }, "expect": [ { "path": "props.text", "op": "==", "value": "Coming soon" } ] },
+    { "cmd": "qml-get", "label": "AniList says Coming soon", "payload": { "object": "trackerCatalogueStatus_anilist", "props": ["text"] }, "expect": [ { "path": "props.text", "op": "==", "value": "Coming soon" } ] },
+    { "cmd": "qml-get", "label": "Simkl is unchanged", "payload": { "object": "trackerCatalogueStatus_simkl", "props": ["text"] }, "expect": [ { "path": "props.text", "op": "==", "value": "Unavailable in this build" } ] },
+    { "cmd": "ui-scroll", "label": "show tracker catalogue", "payload": { "target": "trackerSyncCenterScroll", "dy": -800 } },
+    { "cmd": "ui-wait-for", "label": "catalogue scroll settles", "payload": { "object": "trackerSyncCenterScroll", "prop": "moving", "value": false, "timeout_ms": 4000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-query", "label": "capture Connections catalogue", "payload": { "object": "trackerSyncCenterPage", "grab": { "target": "window", "timeoutMs": 4000 } }, "expect": [ { "path": "grabPath", "op": "exists" } ] }
+  ]
+}

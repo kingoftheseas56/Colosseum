@@ -54,6 +54,9 @@ class StremioSync final : public QObject {
     Q_PROPERTY(QString accountDisplayName READ accountDisplayName NOTIFY stateChanged)
     Q_PROPERTY(QString lastResultSummary READ lastResultSummary NOTIFY stateChanged)
     Q_PROPERTY(bool linkedAccount READ linkedAccount NOTIFY stateChanged)
+    Q_PROPERTY(bool hasTrakt READ hasTrakt NOTIFY stateChanged)
+    Q_PROPERTY(bool traktLinkKnown READ traktLinkKnown NOTIFY stateChanged)
+    Q_PROPERTY(QString stremioUserId READ stremioUserId NOTIFY stateChanged)
 
 public:
     explicit StremioSync(
@@ -69,6 +72,11 @@ public:
     QString accountDisplayName() const;
     QString lastResultSummary() const;
     bool linkedAccount() const;
+    bool hasTrakt() const;
+    bool traktLinkKnown() const;
+    QString stremioUserId() const;
+    Q_INVOKABLE bool sendTraktEvent(const QString &name, const QVariantMap &context);
+    void refreshTraktLink();
 
     bool activateProfile(
         const QString &profileId,
@@ -312,6 +320,8 @@ private:
     QPointer<QTcpSocket> m_callbackSocket;
     QByteArray m_callbackBuffer;
     QPointer<QNetworkReply> m_identityReply;
+    QPointer<QNetworkReply> m_traktIdentityReply;
+    QSet<QNetworkReply *> m_traktEventReplies;
     QByteArray m_identityResponse;
     bool m_identityResponseTooLarge = false;
     QPointer<QNetworkReply> m_datastoreReply;
@@ -332,6 +342,11 @@ private:
     QString m_status = QStringLiteral("notConnected");
     bool m_hasUsableCredential = false;
     bool m_markerLinked = false;
+    bool m_traktLinkKnown = false;
+    qint64 m_traktExpiresAtMs = 0;
+    quint64 m_traktEventNumber = 0;
+    QString m_traktVisitId;
+    QString m_traktInstallationId;
     bool m_dispatchAllowed = true;
     std::optional<ProvisionalCredential> m_provisionalCredential;
     StremioPersistentState m_state;

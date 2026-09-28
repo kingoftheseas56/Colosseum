@@ -21,6 +21,7 @@ struct StremioLoopbackCallback {
 struct StremioAccountIdentity {
     QString accountId;
     QString displayName;
+    qint64 traktExpiresAtMs = 0;
 };
 
 // The datastore protocol returns opaque Stremio media IDs.  They remain
@@ -95,6 +96,9 @@ bool decodeGetUserResult(
     const QJsonObject &response,
     StremioAccountIdentity *identity,
     QString *error = nullptr);
+QJsonObject traktEvent(const QString &name, const QJsonObject &player,
+                       qint64 eventTimeMs, quint64 eventNumber,
+                       const QJsonObject &app);
 
 // Stremio account datastore support. Meta is intentionally lightweight;
 // callers fetch detailed `libraryItem` rows in capped batches and treat a bad
