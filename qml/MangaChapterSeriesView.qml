@@ -69,7 +69,6 @@ Item {
     signal chapterLanguageRequested(string code)
     signal readChapterRequested(string chapterId, string chapterLabel)
     signal openExtensionsRequested()
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     function requestExtensions() { root.openExtensionsRequested() }
     function setPageMenuOpen(open) {
@@ -117,9 +116,6 @@ Item {
         onCloseRequested: root.closeRequested()
         onTankobanRequested: root.tankobanRequested()
         onChapterLanguageRequested: (code) => root.chapterLanguageRequested(code)
-        onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
-            root.ratingsReviewsRequested(context, invokingItem, fallbackItem)
-        }
     }
 
     Flickable {

@@ -26,7 +26,7 @@ class PageDomainsTest(unittest.TestCase):
 
     def test_page_inventory_and_live_references(self) -> None:
         pages = [item for item in self.doc["domains"] if item.get("kind") == "page"]
-        self.assertEqual(len(pages), 62)  # 57 inventory rows plus five native-by-design groups.
+        self.assertEqual(len(pages), 59)  # 57 inventory rows plus five native-by-design groups, minus Feria (2) and the retired Ratings page (2026-09-28).
         for domain in pages:
             with self.subTest(domain=domain["id"]):
                 self.assertTrue(domain["qml_files"])
@@ -45,9 +45,7 @@ class PageDomainsTest(unittest.TestCase):
             "page-biblio-book": "qml/BiblioBook.qml",
             "page-d-c-a-u-universe-page": "qml/DCAUUniversePage.qml",
             "page-tracker-sync-center-page": "qml/TrackerSyncCenterPage.qml",
-            "page-ratings-reviews-host": "qml/ratingsreviews/RatingsReviewsHost.qml",
             "page-account-data-privacy-page": "qml/account/AccountProfilePage.qml",
-            "page-portico-account-history-slice-view": "qml/feria/PorticoHostView.qml",
             "page-book-reader": "qml/reader2/ReaderShell.qml",
             "page-player-2": "qml/player2/controls/ShortcutsSheet.qml",
         }
@@ -65,7 +63,6 @@ class PageDomainsTest(unittest.TestCase):
         examples = {
             "Theatre Library": ("page-library-page", "qml/LibraryPage.qml"),
             "Downloads": ("page-downloads-page", "qml/DownloadsPage.qml"),
-            "Ratings & Reviews (+ provider detail)": ("page-ratings-reviews-host", "qml/ratingsreviews/RatingsReviewsProviderDetail.qml"),
             "Account Center (frame)": ("page-account-center", "qml/account/AccountCenter.qml"),
             "Player 2": ("page-player-2", "qml/player2host/Player2Page.qml"),
         }

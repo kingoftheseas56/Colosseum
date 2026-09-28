@@ -155,8 +155,7 @@
         "account-sync",
         "downloads",
         "update",
-        "universes",
-        "ratings-reviews"
+        "universes"
       ]
     },
     {
@@ -846,8 +845,7 @@
         "biblio",
         "theatre",
         "downloads",
-        "search-discovery",
-        "ratings-reviews"
+        "search-discovery"
       ]
     },
     {
@@ -1124,7 +1122,7 @@
         "review",
         "ratings/reviews"
       ],
-      "feature_status": "Arc 49 Slices 1-2 are implemented in the working tree (uncommitted): the title identity registry derives deterministic ct1 ids for admitted pairs and rejects comics, the controller/store private flow keeps its ownership, and the native QML host/action present the approved page with the inline private review editor. The Frieren production journey is runtime-validated; category entry journeys are not yet registered.",
+      "feature_status": "Native rating store, delivery and sync. The Ratings & Reviews page was retired 2026-09-28; the Colosseum rating moves onto the Harbor title page (Arc 56).",
       "source_roots": [
         "native/engine/ColosseumTitleIdentityRegistry.h",
         "native/engine/ColosseumTitleIdentityRegistry.cpp",
@@ -1132,13 +1130,9 @@
         "native/account/RatingsReviewsController.cpp",
         "native/account/RatingsReviewsStore.h",
         "native/account/RatingsReviewsStore.cpp",
-        "qml/ratingsreviews/RatingsReviewsHost.qml",
-        "qml/ratingsreviews/RatingsReviewsAction.qml",
         "data/title-identities-v1.json"
       ],
       "entry_points": [
-        "qml/ratingsreviews/RatingsReviewsAction.qml",
-        "qml/ratingsreviews/RatingsReviewsHost.qml",
         "native/engine/ColosseumTitleIdentityRegistry.cpp"
       ],
       "related_files": [
@@ -1157,9 +1151,6 @@
         "native/account/ProfilePreferencesStore.cpp",
         "qml/ShellBackPolicy.js",
         "tests/auto/ratings_reviews_journey",
-        "tests/qml/ratings_reviews_journey",
-        "tests/qml/ratings_reviews_delivery",
-        "tests/qml/ratings_reviews_conversion",
         "qml/TheatreSeries.qml",
         "qml/ComicSeries.qml",
         "qml/ComicSeriesPage.qml",
@@ -1199,30 +1190,6 @@
             {
               "path": "native/account/RatingsReviewsController.h",
               "contains": "class RatingsReviewsController final : public QObject"
-            }
-          ]
-        },
-        {
-          "name": "RatingsReviewsHost.qml",
-          "path": "qml/ratingsreviews/RatingsReviewsHost.qml",
-          "confidence": "observed",
-          "responsibility": "The Ratings & Reviews title page: artwork hero over the house scrim, read-only overall Colosseum rating placeholder, ten-star personal rating with a 0-10 half-step field, inline private review editor (Save privately, Cancel, explicit delete, dirty-exit choices), honest provider score badges, and the community-held area; the legacy full-page composer remains only as the fixture-mode delivery surface.",
-          "provenance": [
-            {
-              "path": "qml/ratingsreviews/RatingsReviewsHost.qml",
-              "contains": "objectName: \"ratingsReviewsHost\""
-            }
-          ]
-        },
-        {
-          "name": "RatingsReviewsAction.qml",
-          "path": "qml/ratingsreviews/RatingsReviewsAction.qml",
-          "confidence": "observed",
-          "responsibility": "Compact house-styled title-detail entry row (star glyph, label, chevron); resolves the title through the identity registry and emits the route request with return-focus target, or shows the greyed unavailable form.",
-          "provenance": [
-            {
-              "path": "qml/ratingsreviews/RatingsReviewsAction.qml",
-              "contains": "signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)"
             }
           ]
         }
@@ -1309,43 +1276,12 @@
             "sync",
             "ratings-reviews"
           ]
-        },
-        {
-          "name": "colosseum.qml.ratings_reviews_journey",
-          "labels": [
-            "qml",
-            "windows",
-            "ratings-reviews",
-            "journey"
-          ]
-        },
-        {
-          "name": "colosseum.qml.ratings_reviews_delivery",
-          "labels": [
-            "qml",
-            "windows",
-            "ratings-reviews",
-            "delivery"
-          ]
-        },
-        {
-          "name": "colosseum.qml.ratings_reviews_conversion",
-          "labels": [
-            "qml",
-            "windows",
-            "ratings-reviews",
-            "conversion"
-          ]
         }
       ],
       "checks": [
         "tests/test_shell_back_arbitration_p0.ps1"
       ],
-      "lanista_scenarios": [
-        "tests/lanista_scenarios/ratings_reviews_frieren_production.json",
-        "tests/lanista_scenarios/ratings_reviews_delivery.json",
-        "tests/lanista_scenarios/ratings_reviews_delivery_restart.json"
-      ],
+      "lanista_scenarios": [],
       "context": [
         {
           "scope": "repo",
@@ -3897,65 +3833,6 @@
       ]
     },
     {
-      "id": "page-ratings-reviews-host",
-      "kind": "page",
-      "display_name": "Ratings & Reviews (+ provider detail)",
-      "aliases": [
-        "ratings reviews host",
-        "ratings & reviews"
-      ],
-      "source_roots": [
-        "qml/ratingsreviews/RatingsReviewsHost.qml",
-        "qml/ratingsreviews/RatingsReviewsProviderDetail.qml"
-      ],
-      "entry_points": [
-        "qml/ratingsreviews/RatingsReviewsHost.qml"
-      ],
-      "qml_files": [
-        "qml/ratingsreviews/RatingsReviewsHost.qml",
-        "qml/ratingsreviews/RatingsReviewsProviderDetail.qml"
-      ],
-      "host": {
-        "path": "qml/Main.qml",
-        "anchor": "\"ratingsreviews/RatingsReviewsHost.qml\"",
-        "route": "direct",
-        "note": "Component referenced by Main.qml."
-      },
-      "owners": [
-        {
-          "name": "RatingsReviewsHost",
-          "path": "qml/ratingsreviews/RatingsReviewsHost.qml",
-          "confidence": "observed",
-          "responsibility": "QML component for Ratings & Reviews (+ provider detail).",
-          "provenance": [
-            {
-              "path": "qml/ratingsreviews/RatingsReviewsHost.qml"
-            }
-          ]
-        }
-      ],
-      "ctests": [
-        {
-          "name": "colosseum.qttest.ratings_reviews_journey",
-          "labels": []
-        },
-        {
-          "name": "colosseum.qml.ratings_reviews_journey",
-          "labels": []
-        }
-      ],
-      "checks": [],
-      "lanista_scenarios": [
-        "tests/lanista_scenarios/ratings_reviews_frieren_production.json"
-      ],
-      "context": [],
-      "platform_constraints": [],
-      "relations": [
-        "ratings-reviews"
-      ],
-      "known_constraints": []
-    },
-    {
       "id": "page-vault-page",
       "kind": "page",
       "display_name": "Vault (+ detail, identify, ceremony)",
@@ -4207,158 +4084,6 @@
         "account-sync"
       ],
       "known_constraints": []
-    },
-    {
-      "id": "page-feria-world",
-      "kind": "page",
-      "display_name": "Feria world · app page",
-      "aliases": [
-        "feria world"
-      ],
-      "source_roots": [
-        "qml/feria/FeriaWorld.qml",
-        "qml/feria/FeriaAppPage.qml"
-      ],
-      "entry_points": [
-        "qml/feria/FeriaWorld.qml"
-      ],
-      "qml_files": [
-        "qml/feria/FeriaWorld.qml",
-        "qml/feria/FeriaAppPage.qml"
-      ],
-      "host": {
-        "path": "qml/Main.qml",
-        "anchor": "\"feria/FeriaAppPage.qml\"",
-        "route": "direct",
-        "note": "Component referenced by Main.qml."
-      },
-      "owners": [
-        {
-          "name": "FeriaWorld",
-          "path": "qml/feria/FeriaWorld.qml",
-          "confidence": "observed",
-          "responsibility": "QML component for Feria world · app page.",
-          "provenance": [
-            {
-              "path": "qml/feria/FeriaWorld.qml"
-            }
-          ]
-        }
-      ],
-      "ctests": [],
-      "checks": [],
-      "lanista_scenarios": [
-        "tests/lanista_scenarios/feria_taskbar_web.json"
-      ],
-      "context": [],
-      "platform_constraints": [],
-      "relations": [
-        "shell"
-      ],
-      "known_constraints": [
-        "No page-specific registered CTest is mapped."
-      ]
-    },
-    {
-      "id": "page-portico-account-history-slice-view",
-      "kind": "page",
-      "display_name": "Portico views (host, apps, account, search, title)",
-      "aliases": [
-        "portico account history slice view",
-        "portico views"
-      ],
-      "source_roots": [
-        "qml/feria/PorticoAccountHistorySliceView.qml",
-        "qml/feria/PorticoAccountStatsSliceView.qml",
-        "qml/feria/PorticoAccountView.qml",
-        "qml/feria/PorticoAppsSliceAccountView.qml",
-        "qml/feria/PorticoAppsView.qml",
-        "qml/feria/PorticoCombinedAccountView.qml",
-        "qml/feria/PorticoCombinedAppsView.qml",
-        "qml/feria/PorticoCombinedHostView.qml",
-        "qml/feria/PorticoCombinedParityAccountView.qml",
-        "qml/feria/PorticoCombinedParityAppsView.qml",
-        "qml/feria/PorticoCombinedParityHostView.qml",
-        "qml/feria/PorticoCombinedParitySearchView.qml",
-        "qml/feria/PorticoCombinedParityTitleView.qml",
-        "qml/feria/PorticoCombinedSearchView.qml",
-        "qml/feria/PorticoCombinedTitleView.qml",
-        "qml/feria/PorticoDiscoveryHostView.qml",
-        "qml/feria/PorticoDiscoveryTitleView.qml",
-        "qml/feria/PorticoHighlightsSliceAccountView.qml",
-        "qml/feria/PorticoHostView.qml",
-        "qml/feria/PorticoParityAccountView.qml",
-        "qml/feria/PorticoParityAppsView.qml",
-        "qml/feria/PorticoParityHostView.qml",
-        "qml/feria/PorticoParitySearchView.qml",
-        "qml/feria/PorticoParityTitleView.qml",
-        "qml/feria/PorticoSearchVariantView.qml",
-        "qml/feria/PorticoSearchView.qml",
-        "qml/feria/PorticoTitleView.qml"
-      ],
-      "entry_points": [
-        "qml/feria/PorticoAccountHistorySliceView.qml"
-      ],
-      "qml_files": [
-        "qml/feria/PorticoAccountHistorySliceView.qml",
-        "qml/feria/PorticoAccountStatsSliceView.qml",
-        "qml/feria/PorticoAccountView.qml",
-        "qml/feria/PorticoAppsSliceAccountView.qml",
-        "qml/feria/PorticoAppsView.qml",
-        "qml/feria/PorticoCombinedAccountView.qml",
-        "qml/feria/PorticoCombinedAppsView.qml",
-        "qml/feria/PorticoCombinedHostView.qml",
-        "qml/feria/PorticoCombinedParityAccountView.qml",
-        "qml/feria/PorticoCombinedParityAppsView.qml",
-        "qml/feria/PorticoCombinedParityHostView.qml",
-        "qml/feria/PorticoCombinedParitySearchView.qml",
-        "qml/feria/PorticoCombinedParityTitleView.qml",
-        "qml/feria/PorticoCombinedSearchView.qml",
-        "qml/feria/PorticoCombinedTitleView.qml",
-        "qml/feria/PorticoDiscoveryHostView.qml",
-        "qml/feria/PorticoDiscoveryTitleView.qml",
-        "qml/feria/PorticoHighlightsSliceAccountView.qml",
-        "qml/feria/PorticoHostView.qml",
-        "qml/feria/PorticoParityAccountView.qml",
-        "qml/feria/PorticoParityAppsView.qml",
-        "qml/feria/PorticoParityHostView.qml",
-        "qml/feria/PorticoParitySearchView.qml",
-        "qml/feria/PorticoParityTitleView.qml",
-        "qml/feria/PorticoSearchVariantView.qml",
-        "qml/feria/PorticoSearchView.qml",
-        "qml/feria/PorticoTitleView.qml"
-      ],
-      "host": {
-        "path": "qml/Main.qml",
-        "anchor": "source: \"feria/FeriaAppPage.qml\"",
-        "route": "nested",
-        "note": "Nested surface in Feria; Main.qml routes to its parent."
-      },
-      "owners": [
-        {
-          "name": "PorticoAccountHistorySliceView",
-          "path": "qml/feria/PorticoAccountHistorySliceView.qml",
-          "confidence": "observed",
-          "responsibility": "QML component for Portico views (host, apps, account, search, title).",
-          "provenance": [
-            {
-              "path": "qml/feria/PorticoAccountHistorySliceView.qml"
-            }
-          ]
-        }
-      ],
-      "ctests": [],
-      "checks": [],
-      "lanista_scenarios": [],
-      "context": [],
-      "platform_constraints": [],
-      "relations": [
-        "shell"
-      ],
-      "known_constraints": [
-        "No page-specific registered CTest is mapped.",
-        "No page-specific Lanista journey is mapped."
-      ]
     },
     {
       "id": "page-player",

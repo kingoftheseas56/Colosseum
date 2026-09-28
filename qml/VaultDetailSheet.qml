@@ -15,7 +15,6 @@
 // no app.
 import QtQuick
 import QtQuick.Controls
-import "ratingsreviews"
 
 Item {
     id: sheet
@@ -64,7 +63,6 @@ Item {
     // identifyAgainRequested follows. A catalogue/container row's empty id hides both verbs;
     // "Mark unwatched" is the CLEAR verb (never a pinned -1).
     signal markWatchedRequested(string vaultId, bool watched)
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     readonly property bool found: !!(detail && detail.found)
     readonly property var copies: (detail && detail.copies) ? detail.copies : []
@@ -449,30 +447,6 @@ Item {
                             }
                         }
 
-                        RatingsReviewsAction {
-                            objectName: "vaultRatingsReviewsAction"
-                            width: 176; height: 42
-                            visible: sheet.mediaKind === "video"
-                            titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
-                                           ? RatingsReviewsIdentity : null
-                            world: "vault"
-                            kind: "film"
-                            directId: ""
-                            aliases: sheet.identityStateOfRow === "identified"
-                                     && sheet.detail && sheet.detail.identitySourceId
-                                     ? [{ namespace: "vault-source-id",
-                                          value: String(sheet.detail.identitySourceId) }] : []
-                            titleText: sheet.detail ? String(sheet.detail.displayTitle || "") : ""
-                            year: sheet.detail ? Number(sheet.detail.year || 0) : 0
-                            artwork: sheet.detail ? String(sheet.detail.coverRef || "") : ""
-                            origin: "vault-film-detail"
-                            readIds: ({ imdb: sheet.detail && String(sheet.detail.identitySourceId || "").indexOf("imdb:") === 0
-                                                ? String(sheet.detail.identitySourceId).substring(5) : "" })
-                            returnTarget: hideKey
-                            onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
-                                sheet.ratingsReviewsRequested(context, invokingItem, fallbackItem)
-                            }
-                        }
 
                         Text {
                             objectName: "vaultBrowseSheetReveal"

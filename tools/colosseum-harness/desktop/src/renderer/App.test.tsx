@@ -15,8 +15,6 @@ test("renders the permanent Slice 1 cockpit", async () => {
   render(<App />);
 
   expect(screen.getByText("Colosseum Harness")).toBeInTheDocument();
-  expect(screen.getAllByText("Feria").length).toBeGreaterThanOrEqual(1);
-  expect(screen.getByText("Ratings & Reviews")).toBeInTheDocument();
   expect(screen.getByText("The cockpit is awake.")).toBeInTheDocument();
   expect(screen.getByText("Codex: offline")).toBeInTheDocument();
   expect(screen.getByText("Harness: offline")).toBeInTheDocument();

@@ -79,7 +79,6 @@ Item {
     signal sourcesRequested(var context)
     signal batchRequested(var numbers, string label)
     signal chapterModeRequested()
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     Theme { id: theme }
 
@@ -105,9 +104,6 @@ Item {
         onFullscreenRequested: root.fullscreenRequested()
         onCloseRequested: root.closeRequested()
         onChapterRequested: root.chapterModeRequested()
-        onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
-            root.ratingsReviewsRequested(context, invokingItem, fallbackItem)
-        }
     }
 
     Item {

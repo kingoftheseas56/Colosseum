@@ -41,11 +41,6 @@ Window {
     property string currentSurface: "Home"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
-    property int rrRouteGeneration: 0
-    property var rrInvokingItem: null
-    property var rrFallbackItem: null
-    property var rrRouteContext: null
-    property var rrOpenResult: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
     // return snapshot so closing it restores the live page item and bounded
     // offsets without introducing a global focus history service.
@@ -134,66 +129,6 @@ Window {
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
         theatreRemoval.shown = true
-    }
-
-    function openRatingsReviews(context, invokingItem, fallbackItem) {
-        if (typeof RatingsReviewsController === "undefined" || !RatingsReviewsController)
-            return false
-        var generation = win.rrRouteGeneration + 1
-        var result = RatingsReviewsController.open(context || ({}), generation)
-        if (!result || result.ok !== true)
-            return false
-        win.rrRouteGeneration = generation
-        win.rrRouteContext = context || ({})
-        win.rrOpenResult = result
-        win.rrInvokingItem = invokingItem || null
-        win.rrFallbackItem = fallbackItem || null
-        ratingsReviewsLayer.active = true
-        if (ratingsReviewsLayer.item && ratingsReviewsLayer.item.beginRoute)
-            ratingsReviewsLayer.item.beginRoute(win.rrRouteContext, win.rrOpenResult, generation)
-        taskbar.open = false
-        return true
-    }
-
-    function ratingsReviewsDetailFallback(origin) {
-        if (origin === "theatre-detail" && theatreSeriesLayer.item) return theatreSeriesLayer.item
-        if (origin === "biblio-detail" && bookLayer.item) return bookLayer.item
-        if (origin === "tankoban-manga-detail" && seriesLayer.item) return seriesLayer.item
-        if (origin === "western-comic-detail" && westernLayer.item) return westernLayer.item
-        if (origin === "locg-comic-detail" && comicSeriesLayer.item) return comicSeriesLayer.item
-        if (origin === "vault-film-detail" && vaultLayer.item) return vaultLayer.item
-        return null
-    }
-
-    function restoreRatingsReviewsFocus() {
-        var exact = win.rrInvokingItem
-        var fallback = win.rrFallbackItem
-        var origin = win.rrRouteContext ? String(win.rrRouteContext.origin || "") : ""
-        var detail = win.ratingsReviewsDetailFallback(origin)
-        win.rrInvokingItem = null
-        win.rrFallbackItem = null
-        Qt.callLater(function() {
-            if (exact && exact.visible && exact.enabled !== false && exact.forceActiveFocus) {
-                exact.forceActiveFocus(Qt.BacktabFocusReason); return
-            }
-            if (fallback && fallback.visible && fallback.enabled !== false && fallback.forceActiveFocus) {
-                fallback.forceActiveFocus(Qt.BacktabFocusReason); return
-            }
-            if (detail && detail.visible && detail.enabled !== false && detail.forceActiveFocus) {
-                detail.forceActiveFocus(Qt.BacktabFocusReason); return
-            }
-            keyboardIgnition.forceActiveFocus(Qt.BacktabFocusReason)
-        })
-    }
-
-    function closeRatingsReviews() {
-        var generation = win.rrRouteGeneration
-        if (typeof RatingsReviewsController !== "undefined" && RatingsReviewsController)
-            RatingsReviewsController.close(generation)
-        ratingsReviewsLayer.active = false
-        win.restoreRatingsReviewsFocus()
-        win.rrRouteContext = null
-        win.rrOpenResult = null
     }
 
     // The existing Theatre metadata reader is the only QML participant in
@@ -784,7 +719,6 @@ Window {
             historyStatsActive: historyStatsLayer.active,
             syncCenterActive: syncCenterLayer.active,
             extensionsActive: extensionsLayer.active,
-            ratingsReviewsActive: ratingsReviewsLayer.active,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
             bookActive: bookLayer.active,
@@ -878,12 +812,6 @@ Window {
         identityCeremonyDialog.close()
     }
     function handleEscape() {
-        if (feriaLayer.active && !taskbar.open && !accountFlyout.visible
-                && !accountCenter.visible) {
-            if (feriaLayer.item) feriaLayer.item.requestEscape()
-            else win.closeFeriaPage()
-            return
-        }
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
         case "consume": return
@@ -910,10 +838,6 @@ Window {
             if (extensionsLayer.item && extensionsLayer.item.requestEscape
                     && extensionsLayer.item.requestEscape()) return
             win.closeExtensionsPage(); return
-        case "ratingsReviews":
-            if (ratingsReviewsLayer.item && ratingsReviewsLayer.item.handleBack)
-                ratingsReviewsLayer.item.handleBack()
-            return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
         case "book": win.closeBook(); return
@@ -1781,24 +1705,6 @@ Window {
     }
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
-    function openFeriaPage() {
-        win.bookRouteGeneration += 1
-        downloadsLayer.active = false
-        vaultLayer.active = false
-        extensionsLayer.active = false
-        updateLayer.active = false
-        historyStatsLayer.active = false
-        syncCenterLayer.active = false
-        feriaLayer.active = true
-        taskbar.open = false
-        if (feriaLayer.item) Qt.callLater(feriaLayer.item.takeKeyboardFocus)
-    }
-    function closeFeriaPage() {
-        feriaLayer.active = false
-        taskbar.focusFeriaAction()
-    }
-
-    // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -1806,7 +1712,6 @@ Window {
         extensionsLayer.active = false
         updateLayer.active = false
         historyStatsLayer.active = false
-        feriaLayer.active = false
         syncCenterLayer.active = true
         taskbar.open = false
         if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
@@ -1842,7 +1747,6 @@ Window {
         extensionsLayer.active = false
         updateLayer.active = false
         syncCenterLayer.active = false
-        feriaLayer.active = false
         historyStatsLayer.active = true
         taskbar.open = false
         if (historyStatsLayer.item && historyStatsLayer.item.takeKeyboardFocus)
@@ -1863,7 +1767,6 @@ Window {
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
-        feriaLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
@@ -1883,7 +1786,6 @@ Window {
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
-        feriaLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
     }
@@ -1987,7 +1889,6 @@ Window {
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
-        feriaLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
@@ -2006,7 +1907,6 @@ Window {
         vaultLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
-        feriaLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
         // every other full-page destination (Downloads/Vault/Extensions)
@@ -3851,8 +3751,6 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
-            if (item.ratingsReviewsRequested)
-                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
@@ -3917,8 +3815,6 @@ Window {
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
-            if (item.ratingsReviewsRequested)
-                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
         }
     }
 
@@ -3947,8 +3843,6 @@ Window {
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
-            if (item.ratingsReviewsRequested)
-                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }
@@ -4085,8 +3979,6 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
-            if (item.ratingsReviewsRequested)
-                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
                 item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })
@@ -4182,8 +4074,6 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readRequested.connect(win.openBookSession)
-            if (item.ratingsReviewsRequested)
-                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             // (listenRequested retired — the reader carries audiobook playback now)
         }
     }
@@ -4370,8 +4260,6 @@ Window {
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.viewWorldRequested.connect(win.openVaultIdentity)
-            if (item.ratingsReviewsRequested)
-                item.ratingsReviewsRequested.connect(win.openRatingsReviews)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
@@ -4518,45 +4406,12 @@ Window {
         }
     }
 
-    // ---- Ratings & Reviews: same-window title journey over the retained detail page. ----
-    Loader {
-        id: ratingsReviewsLayer
-        objectName: "ratingsReviewsLayer"
-        anchors.fill: parent
-        z: 57
-        active: false
-        visible: active
-        source: "ratingsreviews/RatingsReviewsHost.qml"
-        onLoaded: {
-            item.controller = (typeof RatingsReviewsController !== "undefined")
-                              ? RatingsReviewsController : null
-            item.closeRequested.connect(win.closeRatingsReviews)
-            if (win.rrRouteContext && win.rrOpenResult)
-                item.beginRoute(win.rrRouteContext, win.rrOpenResult, win.rrRouteGeneration)
-        }
-    }
-
-    // ---- Feria: bundled web UI on the existing native discovery backend. ----
-    Loader {
-        id: feriaLayer
-        objectName: "feriaLayer"
-        anchors.fill: parent
-        z: 58
-        active: false
-        visible: active
-        source: "feria/FeriaAppPage.qml"
-        onLoaded: {
-            item.backRequested.connect(win.closeFeriaPage)
-            item.takeKeyboardFocus()
-        }
-    }
-
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
         objectName: "extensionsLayer"
         anchors.fill: parent
-        z: 58     // full-page cover: intentionally above Ratings & Reviews (z:57)
+        z: 58     // full-page cover
         active: false
         visible: active
         // The Extensions world: House, Essentials and the Store rows (live from stremio-addons.net).
@@ -4707,8 +4562,6 @@ Window {
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
         historyStatsActive: historyStatsLayer.active
         onHistoryStatsClicked: !historyStatsLayer.active ? win.openHistoryStatsPage() : win.closeHistoryStatsPage()
-        feriaActive: feriaLayer.active
-        onFeriaClicked: !feriaLayer.active ? win.openFeriaPage() : win.closeFeriaPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.

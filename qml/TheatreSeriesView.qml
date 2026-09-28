@@ -14,7 +14,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import "ratingsreviews"
 import "TheatreApi.js" as TheatreApi
 import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
 import "TheatreFacts.js" as TheatreFacts
@@ -33,7 +32,6 @@ Item {
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
     signal worldRequested(string world)
     signal searchRequested()
     // Where Back goes, named in the Back pill ("Theatre", "Search", a title). Main sets it.
@@ -1244,46 +1242,6 @@ Item {
                             world: "theatre"
                             entry: page.collectionEntry()
                             onRemoveRequested: (entry) => page.libraryRemovalRequested(entry)
-                        }
-                        RatingsReviewsAction {
-                            objectName: "theatreRatingsReviewsAction"
-                            width: 176; height: 42
-                            titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
-                                           ? RatingsReviewsIdentity : null
-                            world: "theatre"
-                            kind: page.mediaType === "series" ? "series" : "movie"
-                            directId: (page.itemData && String(page.itemData.id || "").indexOf("ct1:") === 0)
-                                      ? String(page.itemData.id) : ""
-                            aliases: {
-                                // Same identity rules as TheatreSeries.qml: both the door we entered
-                                // by and the pivoted Cinemeta id travel as aliases, but only once the
-                                // meta load has settled, so a title never splits under two ids.
-                                var orig = (page.itemData && page.itemData.id)
-                                           ? String(page.itemData.id) : ""
-                                if (orig.length && orig.indexOf("tt") !== 0
-                                        && (page.loading || page.resolvedId.length === 0))
-                                    return []
-                                var out = []
-                                var rid = page.currentId()
-                                if (rid.length)
-                                    out.push({ namespace: "theatre-source-id", value: rid })
-                                if (orig.length && orig !== rid)
-                                    out.push({ namespace: "theatre-source-id", value: orig })
-                                return out
-                            }
-                            titleText: page.title
-                            subtitleText: page.genresLine
-                            year: Number(page.year || 0)
-                            artwork: page.banner.length ? page.banner : page.cover
-                            origin: "theatre-detail"
-                            readIds: ({ imdb: page.currentId().indexOf("tt") === 0 ? page.currentId() : "",
-                                        tmdb: page.tmdbId > 0 ? String(page.tmdbId) : "",
-                                        fixtureVariant: (typeof RatingsReviewsProviderFixture !== "undefined")
-                                                        ? String(RatingsReviewsProviderFixture || "") : "" })
-                            returnTarget: titleBar.backItem
-                            onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
-                                page.ratingsReviewsRequested(context, invokingItem, fallbackItem)
-                            }
                         }
                         // Notify-about-new-episodes toggle — only for SAVED series (spec §4.5).
                         Rectangle {

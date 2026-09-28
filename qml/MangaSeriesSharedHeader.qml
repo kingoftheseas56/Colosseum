@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
-import "ratingsreviews"
 
 Item {
     id: root
@@ -35,7 +34,6 @@ Item {
     signal tankobanRequested()
     signal chapterRequested()
     signal chapterLanguageRequested(string code)
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
 
     function languageIndex(code) {
         var wanted = String(code || "en")
@@ -195,30 +193,6 @@ Item {
         }
 
 
-        RatingsReviewsAction {
-            objectName: "tankobanRatingsReviewsAction"
-            anchors.right: parent.right
-            anchors.rightMargin: theme.margin
-            anchors.top: parent.top
-            anchors.topMargin: 24
-            titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
-                           ? RatingsReviewsIdentity : null
-            world: "tankoban"
-            kind: "manga"
-            directId: root.collectionEntry && String(root.collectionEntry.id || "").indexOf("ct1:") === 0
-                      ? String(root.collectionEntry.id) : ""
-            aliases: root.collectionEntry && root.collectionEntry.id
-                     ? [{ namespace: "tankoban-source-id", value: String(root.collectionEntry.id) }] : []
-            titleText: root.seriesTitle
-            subtitleText: root.author
-            year: root.year
-            artwork: root.banner.length ? root.banner : root.cover
-            origin: "tankoban-manga-detail"
-            returnTarget: sharedHeaderBack
-            onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
-                root.ratingsReviewsRequested(context, invokingItem, fallbackItem)
-            }
-        }
 
         Rectangle {
             id: languageSelector

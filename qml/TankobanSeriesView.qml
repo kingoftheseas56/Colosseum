@@ -14,7 +14,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import "ratingsreviews"
 
 Item {
     id: page
@@ -38,7 +37,6 @@ Item {
     // underneath); it now raises upward like the other three verbs, so Main.qml can route it
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
     signal worldRequested(string world)
     signal searchRequested()
     // Where Back goes, named in the Back pill ("Tankoban", "Search", a title). Main sets it.
@@ -1198,25 +1196,6 @@ Item {
                         focusRadius: parent.radius
                         showFocusFrame: false
                         onTriggered: page.readPrimary()
-                    }
-                }
-                RatingsReviewsAction {
-                    objectName: "tankobanRatingsReviewsAction"
-                    titleRegistry: (typeof RatingsReviewsIdentity !== "undefined")
-                                   ? RatingsReviewsIdentity : null
-                    world: "tankoban"
-                    kind: "manga"
-                    directId: page.seriesId.indexOf("ct1:") === 0 ? page.seriesId : ""
-                    aliases: page.seriesId.length
-                             ? [{ namespace: "tankoban-source-id", value: page.seriesId }] : []
-                    titleText: page.seriesTitle
-                    subtitleText: page.author
-                    year: page.year
-                    artwork: page.banner.length ? page.banner : page.cover
-                    origin: "tankoban-manga-detail"
-                    returnTarget: titleBar.backItem
-                    onRatingsReviewsRequested: function(context, invokingItem, fallbackItem) {
-                        page.ratingsReviewsRequested(context, invokingItem, fallbackItem)
                     }
                 }
             }

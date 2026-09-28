@@ -6,8 +6,6 @@ import {
 } from "../shared/desktopApi";
 
 const tasks = [
-  { id: "feria", name: "Feria", detail: "Streaming world integration" },
-  { id: "ratings", name: "Ratings & Reviews", detail: "Delivery + parity" },
   { id: "player2", name: "Player 2", detail: "Holy Grail lane" }
 ];
 

@@ -22,9 +22,9 @@ Item {
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
-    // Permanent buttons: Colosseum, Feria, Vault.
-    // 8 left + 48 home + 14 + 46 Feria + 14 + 46 Vault + 14 right = 190.
-    readonly property int closedWidth: 190
+    // Permanent buttons: Colosseum, Vault.
+    // 8 left + 48 home + 14 + 46 Vault + 14 right = 130.
+    readonly property int closedWidth: 130
 
     signal switchRequested(string id)
     signal closeRequested(string id)
@@ -46,8 +46,6 @@ Item {
     property bool extensionsActive: false // the Extensions page is the front surface
     signal historyStatsClicked()
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
-    signal feriaClicked()
-    property bool feriaActive: false
     // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
     onOpenChanged: if (!open) fan.visible = false
@@ -69,14 +67,6 @@ Item {
         Qt.callLater(function() {
             if (historyStatsInput.visible && historyStatsInput.enabled)
                 historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
-        })
-    }
-    function focusFeriaAction() {
-        bar.autoRevealed = false
-        idleTimer.stop()
-        Qt.callLater(function() {
-            if (feriaInput.visible && feriaInput.enabled)
-                feriaInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
     Timer {
@@ -186,47 +176,6 @@ Item {
                 Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
                 Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
                 Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
-            }
-
-            // Feria stays between Colosseum and Vault even when the dock is closed.
-            Item {
-                objectName: "taskbarFeria"
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 13
-                    color: feriaInput.interactionActive || bar.feriaActive
-                           ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: feriaInput.activeFocus ? 1 : 0
-                    border.color: theme.gold
-                }
-                // The web TV OS: a TV whose antenna flies the fair pennant.
-                Image {
-                    objectName: "taskbarFeriaIcon"
-                    anchors.centerIn: parent
-                    width: 22; height: 22
-                    sourceSize.width: 44; sourceSize.height: 44
-                    source: "../assets/icons/feria-tv.svg"
-                    fillMode: Image.PreserveAspectFit
-                    opacity: feriaInput.interactionActive || bar.feriaActive ? 1 : 0.75
-                }
-                Rectangle {
-                    visible: bar.feriaActive
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
-                    color: theme.gold
-                }
-                KeyboardAction {
-                    id: feriaInput
-                    anchors.fill: parent
-                    accessibleName: "Feria"
-                    spaceActivates: true
-                    focusRadius: 13
-                    onTriggered: bar.feriaClicked()
-                }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).

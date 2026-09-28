@@ -13,9 +13,6 @@
 # no GUI-platform traps. Registrations grow deliberately — never register
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
-if(WIN32)
-    add_subdirectory(feria_host_probe)
-endif()
 
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
@@ -1522,30 +1519,6 @@ set_tests_properties(colosseum.qml PROPERTIES
     LABELS "qml;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
-
-add_test(NAME colosseum.qml.ratings_reviews_conversion
-         COMMAND colosseum_qml_tests -input
-                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/ratings_reviews_conversion")
-set_tests_properties(colosseum.qml.ratings_reviews_conversion PROPERTIES
-    LABELS "qml;windows;ratings-reviews;conversion"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
-    TIMEOUT 120)
-
-add_test(NAME colosseum.qml.ratings_reviews_journey
-         COMMAND colosseum_qml_tests -input
-                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/ratings_reviews_journey")
-set_tests_properties(colosseum.qml.ratings_reviews_journey PROPERTIES
-    LABELS "qml;windows;ratings-reviews;journey"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
-    TIMEOUT 120)
-
-add_test(NAME colosseum.qml.ratings_reviews_delivery
-         COMMAND colosseum_qml_tests -input
-                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/ratings_reviews_delivery")
-set_tests_properties(colosseum.qml.ratings_reviews_delivery PROPERTIES
-    LABELS "qml;windows;ratings-reviews;delivery"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
-    TIMEOUT 120)
 
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input

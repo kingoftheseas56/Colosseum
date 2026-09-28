@@ -16,7 +16,6 @@
 
 import QtQuick
 import QtQuick.Controls
-import "ratingsreviews"
 import "ComicResolve.js" as Resolve
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -41,7 +40,6 @@ Item {
     // underneath); it now raises upward like the other three verbs, so Main.qml can route it
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
-    signal ratingsReviewsRequested(var context, var invokingItem, var fallbackItem)
     Keys.onPressed: comicSeriesPageKeys.handle(event)
     Keys.onReleased: comicSeriesPageKeys.handleRelease(event)
 
