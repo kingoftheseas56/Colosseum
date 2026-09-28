@@ -40,7 +40,7 @@ $migrated = @(
     "qml/TopBar.qml", "qml/SearchSurface.qml", "qml/BiblioSearch.qml",
     "qml/GenrePage.qml", "qml/GenreIndex.qml", "qml/TheatreGenrePage.qml",
     "qml/TheatreGenreIndex.qml", "qml/BiblioGenrePage.qml", "qml/BiblioGenreIndex.qml",
-    "qml/UniversePage.qml", "qml/ExtensionsPage.qml",
+    "qml/UniversePage.qml", "qml/ExtensionsSeeAllPage.qml",
     # The reader's back control moved at the Task 13 cutover: qml/MangaReader.qml is now a thin
     # ComicReaderShell wrapper and owns no chrome. The reader HUD is where the back control lives.
     "qml/comicreader/ComicReaderHud.qml"

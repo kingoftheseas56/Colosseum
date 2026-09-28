@@ -4563,12 +4563,6 @@ Window {
         source: "ExtensionsStorePage.qml"
         onLoaded: {
             item.backdrop = wall
-            if (item.worldRequested)
-                item.worldRequested.connect(function(m) { win.closeExtensionsPage(); win.openWorld(m) })
-            if (item.trackersRequested)
-                item.trackersRequested.connect(function() { win.closeExtensionsPage(); win.openSyncCenterPage() })
-            if (item.accountRequested)
-                item.accountRequested.connect(function(r, b) { accountFlyout.toggleAt(r, b) })
             if (item.universeHallRequested)
                 item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openUniverseHall() })
             // Same global preference Discover/genres/search read — a live binding so

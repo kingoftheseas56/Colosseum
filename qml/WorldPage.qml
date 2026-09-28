@@ -59,7 +59,9 @@ Item {
     }
     onEnabledChanged: if (!enabled) keyboardSections.clear()
     property string medium: ""               // which library pill reads as selected
-    property bool showWorldPills: true
+    property bool topBarBackOnly: false       // Extensions: the bar keeps only Back and the page's name
+    property string topBarTitle: ""
+    property string topBarSubtitle: ""
     property string initialFocusName: ""
     // Main binds this to the current world. Bare page harnesses keep the default true, while
     // retained hidden worlds can stop timers, paging and refresh work without being destroyed.
@@ -119,7 +121,9 @@ Item {
         id: topbar
         backdrop: world.backdrop
         activeMedium: world.medium
-        showWorldPills: world.showWorldPills
+        backOnly: world.topBarBackOnly
+        pageTitle: world.topBarTitle
+        pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         x: theme.margin; y: 30
         width: world.width - theme.margin * 2

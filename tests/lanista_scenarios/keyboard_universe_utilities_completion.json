@@ -276,7 +276,7 @@
       "cmd": "qml-get",
       "label": "Extensions owns page focus",
       "payload": {
-        "object": "extensionsPageScroll",
+        "object": "extensionsStoreWorld",
         "props": [
           "activeFocus"
         ]
@@ -286,85 +286,6 @@
           "path": "props.activeFocus",
           "op": "==",
           "value": "true"
-        }
-      ]
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "Tab enters Extensions tabs",
-      "payload": {
-        "key": "Tab"
-      }
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "Right selects Browse",
-      "payload": {
-        "key": "Right"
-      }
-    },
-    {
-      "cmd": "qml-get",
-      "label": "Browse pane selected",
-      "payload": {
-        "object": "extensionsPage",
-        "props": [
-          "pane"
-        ]
-      },
-      "expect": [
-        {
-          "path": "props.pane",
-          "op": "==",
-          "value": "browse"
-        }
-      ]
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "End selects Installed",
-      "payload": {
-        "key": "End"
-      }
-    },
-    {
-      "cmd": "qml-get",
-      "label": "Installed pane selected",
-      "payload": {
-        "object": "extensionsPage",
-        "props": [
-          "pane"
-        ]
-      },
-      "expect": [
-        {
-          "path": "props.pane",
-          "op": "==",
-          "value": "installed"
-        }
-      ]
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "Home restores Sources",
-      "payload": {
-        "key": "Home"
-      }
-    },
-    {
-      "cmd": "qml-get",
-      "label": "Sources pane restored",
-      "payload": {
-        "object": "extensionsPage",
-        "props": [
-          "pane"
-        ]
-      },
-      "expect": [
-        {
-          "path": "props.pane",
-          "op": "==",
-          "value": "sources"
         }
       ]
     },

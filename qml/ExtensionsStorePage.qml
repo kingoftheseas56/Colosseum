@@ -1,9 +1,8 @@
 // ExtensionsStorePage — Extensions as a world (agents/colosseum-extensions-world-mock.html):
-// the world top bar, the House hero, the Essentials row, then the Store rows filled live from
-// stremio-addons.net (ExtensionsStoreApi.js). An add-on that needs setup is set up inside the app
-// (ExtensionsSetupSheet), never in the outside browser. Manage opens the previous Extensions page.
-//
-// Keeps ExtensionsPage.qml's surface so Main.qml's extensionsLayer wiring is unchanged.
+// a top bar with only Back and the page name (as Your Colosseum), the House hero, the Essentials row, then the Store rows filled
+// live from stremio-addons.net (ExtensionsStoreApi.js). Search lives in the House corner. An
+// add-on that needs setup is set up inside the app (ExtensionsSetupSheet), never in the outside
+// browser; Tankoyomi's own settings open from its House tile (TankoyomiConfigurationPage).
 import QtQuick
 import "ExtensionsStoreApi.js" as StoreApi
 
@@ -20,16 +19,13 @@ Item {
     signal closeRequested()
     signal searchClicked()
     signal universeHallRequested()
-    signal worldRequested(string medium)
-    signal trackersRequested()
-    signal accountRequested(real anchorRight, real anchorBottom)
 
     property var catalogue: []               // every cleaned add-on, most starred first
     property string loadError: ""
     property bool loading: true
     property int revision: 0                 // bumps on every Extensions change
     property var busy: ({})                  // slug -> true while an install is in flight
-    property bool manageOpen: false
+    property string configuringExtensionId: ""   // a House source whose settings page is open
     property var seeAllRow: null             // a row whose "See all ›" is open
     property bool searching: false           // the Store's own search is open
     readonly property var searchPool: root.catalogue.filter(function(a) { return StoreApi.visible(a, root.showExplicit) })
@@ -65,24 +61,24 @@ Item {
         })
     }
 
+    function openConfiguration(extensionId) { root.configuringExtensionId = extensionId }
+    function closeConfiguration() { root.configuringExtensionId = "" }
+
     function takeKeyboardFocus() {
-        if (root.manageOpen && manage.item && manage.item.takeKeyboardFocus) manage.item.takeKeyboardFocus()
+        if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
+        else if (seeAll.visible) seeAll.takeKeyboardFocus()
         else storeWorld.forceActiveFocus()
     }
-    // Main asks first: setup closes, then Manage, then the world itself.
+    // Main asks first: setup closes, then a settings page, then search / See all, then the world.
     function requestEscape() {
         if (setup.open) { setup.addon = null; return true }
+        if (root.configuringExtensionId.length) { root.closeConfiguration(); return true }
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
-        if (root.manageOpen) {
-            if (manage.item && manage.item.requestEscape && manage.item.requestEscape()) return true
-            root.manageOpen = false
-            return true
-        }
         return false
     }
 
     Component.onCompleted: root.load()
-    onManageOpenChanged: Qt.callLater(root.takeKeyboardFocus)
+    onConfiguringExtensionIdChanged: Qt.callLater(root.takeKeyboardFocus)
 
     Connections {
         target: (typeof Extensions !== "undefined") ? Extensions : null
@@ -121,24 +117,21 @@ Item {
 
     WorldPage {
         id: storeWorld
+        objectName: "extensionsStoreWorld"
         anchors.fill: parent
-        visible: !root.manageOpen && !seeAll.visible
+        visible: !seeAll.visible && !tankoyomiConfiguration.visible
         medium: "Extensions"
-        showWorldPills: false
+        topBarBackOnly: true
+        topBarTitle: "Extensions"
+        topBarSubtitle: "Add-ons and sources for every world."
         backdrop: night
         onHomeRequested: root.backRequested()
-        onMediumSelected: (m) => root.worldRequested(m)
-        onSearchClicked: root.searching = true     // the Store searches add-ons, not the library
-        onTrackersClicked: root.trackersRequested()
-        onAccountClicked: (r, b) => root.accountRequested(r, b)
-        onFullscreenClicked: root.fullscreenRequested()
-        onMinimizeClicked: root.minimizeRequested()
-        onPowerClicked: root.closeRequested()
 
         ExtensionsHouseHero {
             revision: root.revision
             onUniversesRequested: root.universeHallRequested()
-            onManageRequested: root.manageOpen = true
+            onSearchRequested: root.searching = true
+            onConfigureRequested: (id) => root.openConfiguration(id)
         }
 
         Text {
@@ -212,23 +205,17 @@ Item {
         onInstallRequested: (url) => Extensions.install(url)
     }
 
-    // Manage = the previous Extensions page (source ranking, Tankoyomi setup, install by link).
-    Loader {
-        id: manage
+    // Tankoyomi's own settings (source languages and providers), from its House tile.
+    TankoyomiConfigurationPage {
+        id: tankoyomiConfiguration
         anchors.fill: parent
         z: 30
-        active: root.manageOpen
-        visible: active
-        source: "ExtensionsPage.qml"
-        onLoaded: {
-            item.backdrop = root.backdrop
-            item.showExplicit = Qt.binding(function() { return root.showExplicit })
-            item.world = root.world
-            item.backRequested.connect(function() { root.manageOpen = false })
-            item.minimizeRequested.connect(root.minimizeRequested)
-            item.fullscreenRequested.connect(root.fullscreenRequested)
-            item.closeRequested.connect(root.closeRequested)
-            item.searchClicked.connect(root.searchClicked)
-        }
+        visible: root.configuringExtensionId === "colosseum.well.tankoyomi"
+        backdrop: night
+        onBackRequested: root.closeConfiguration()
+        onSearchClicked: root.searchClicked()
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onCloseRequested: root.closeRequested()
     }
 }

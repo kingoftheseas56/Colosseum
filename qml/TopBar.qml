@@ -21,7 +21,10 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
-    property bool showWorldPills: true       // Extensions hides them (its mock has none)
+    property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
+    // With backOnly, the page names itself beside the arrow (as Your Colosseum does).
+    property string pageTitle: ""
+    property string pageSubtitle: ""
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
@@ -215,7 +218,7 @@ Item {
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            label: "Home"
+            label: bar.backOnly && bar.pageTitle.length ? "" : "Home"
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink
@@ -223,6 +226,17 @@ Item {
             onTriggered: bar.homeRequested()
         }
         Column {
+            visible: bar.backOnly && bar.pageTitle.length > 0
+            spacing: 2
+            anchors.verticalCenter: parent.verticalCenter
+            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+            Text {
+                visible: bar.pageSubtitle.length > 0
+                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+            }
+        }
+        Column {
+            visible: !bar.backOnly
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
@@ -237,7 +251,7 @@ Item {
 
     // ---- center: library pills in a glass capsule ----
     Glass {
-        visible: bar.showWorldPills
+        visible: !bar.backOnly
         backdrop: bar.backdrop
         anchors.centerIn: parent
         radius: 999
@@ -259,6 +273,7 @@ Item {
     // are gated on activeMedium, the same home/world discriminator BackAction
     // uses above, so only one is ever present in the slot.
     Row {
+        visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: 20
         // Search — worlds only.

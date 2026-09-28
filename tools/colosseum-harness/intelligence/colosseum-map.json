@@ -3692,29 +3692,29 @@
         "extensions page"
       ],
       "source_roots": [
-        "qml/ExtensionsPage.qml"
+        "qml/ExtensionsStorePage.qml"
       ],
       "entry_points": [
-        "qml/ExtensionsPage.qml"
+        "qml/ExtensionsStorePage.qml"
       ],
       "qml_files": [
-        "qml/ExtensionsPage.qml"
+        "qml/ExtensionsStorePage.qml"
       ],
       "host": {
         "path": "qml/Main.qml",
-        "anchor": "\"ExtensionsPage.qml\"",
+        "anchor": "\"ExtensionsStorePage.qml\"",
         "route": "direct",
         "note": "Component referenced by Main.qml."
       },
       "owners": [
         {
-          "name": "ExtensionsPage",
-          "path": "qml/ExtensionsPage.qml",
+          "name": "ExtensionsStorePage",
+          "path": "qml/ExtensionsStorePage.qml",
           "confidence": "observed",
           "responsibility": "QML component for Extensions.",
           "provenance": [
             {
-              "path": "qml/ExtensionsPage.qml"
+              "path": "qml/ExtensionsStorePage.qml"
             }
           ]
         }

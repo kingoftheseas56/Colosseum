@@ -1,6 +1,7 @@
 // ExtensionsHouseHero — the Store's top card (agents/colosseum-extensions-world-mock.html): the
 // universe banners crossfade behind a glass tray of Colosseum's own House apps. Universes opens the
-// Hall; each House source has its install toggle; Manage opens the previous Extensions page.
+// Hall, Tankoyomi opens its settings, each House source has its add / on button; Search sits in
+// the corner (the Store's top bar carries only Back).
 // Tile data and toggles come from ExtensionsHousePage.qml (the full-page House it grew out of).
 pragma ComponentBehavior: Bound
 
@@ -12,7 +13,8 @@ Item {
 
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
-    signal manageRequested()
+    signal searchRequested()
+    signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
     property int universeIndex: 0
@@ -92,29 +94,40 @@ Item {
         Rectangle { anchors.fill: parent; radius: 28; color: "black" }
     }
 
-    // ---- Manage: the previous Extensions page (source ranking, Tankoyomi setup, links) ----
+    // ---- Search: the Store's add-on search ----
     Rectangle {
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 26; anchors.topMargin: 20
-        width: manageText.implicitWidth + 36; height: 34
+        width: searchRow.implicitWidth + 36; height: 34
         radius: 17
         color: Qt.rgba(15 / 255, 16 / 255, 22 / 255, 0.78)
         border.width: 1
-        border.color: manageAction.interactionActive ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12)
-        Text {
-            id: manageText
+        border.color: searchAction.interactionActive ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12)
+        Row {
+            id: searchRow
             anchors.centerIn: parent
-            text: "Manage"
-            color: manageAction.interactionActive ? theme.ink : Qt.rgba(1, 1, 1, 0.78)
-            font.family: theme.ui; font.pixelSize: 14
+            spacing: 8
+            Image {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 15; height: 15
+                source: "../assets/icons/search.svg"
+                sourceSize.width: 30; sourceSize.height: 30
+                opacity: searchAction.interactionActive ? 1 : 0.78
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Search"
+                color: searchAction.interactionActive ? theme.ink : Qt.rgba(1, 1, 1, 0.78)
+                font.family: theme.ui; font.pixelSize: 14
+            }
         }
         KeyboardAction {
-            id: manageAction
-            objectName: "extensionsManageButton"
+            id: searchAction
+            objectName: "extensionsSearchButton"
             anchors.fill: parent
-            accessibleName: "Manage extensions"
+            accessibleName: "Search add-ons"
             focusRadius: 17
-            onTriggered: hero.manageRequested()
+            onTriggered: hero.searchRequested()
         }
     }
 
@@ -195,11 +208,15 @@ Item {
                         }
                         KeyboardAction {
                             id: tileAction
+                            objectName: "houseTile_" + (tile.modelData.id || tile.modelData.kind)
                             anchors.fill: parent
-                            enabled: tile.modelData.kind === "universes"
-                            accessibleName: tile.modelData.name
+                            // Universes opens the Hall; Tankoyomi opens its own settings page.
+                            enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
+                            accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
+                                                                                 : tile.modelData.name + " settings"
                             focusRadius: 19
-                            onTriggered: hero.universesRequested()
+                            onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
+                                                                             : hero.configureRequested(tile.modelData.id)
                         }
                     }
                     // Name chip, and for a House source its own add / on button beside it, with room.
@@ -223,12 +240,14 @@ Item {
                             }
                         }
                         Rectangle {
+                            objectName: tile.modelData.kind === "source" ? "houseToggle_" + tile.modelData.id : ""
+                            readonly property bool checked: tile.installed   // automation reads this
                             visible: tile.modelData.kind === "source"
                             width: 28; height: 28; radius: 14
                             y: toggleAction.interactionActive ? -2 : 0
-                            color: tile.installed ? Qt.rgba(87 / 255, 207 / 255, 145 / 255, 0.34) : Qt.rgba(1, 1, 1, 0.18)
+                            color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
-                            border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.38) : Qt.rgba(1, 1, 1, 0.25)
+                            border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
                             opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
                             Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {

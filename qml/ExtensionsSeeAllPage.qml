@@ -82,6 +82,7 @@ Item {
                 color: box.activeFocus ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.6) : Qt.rgba(1, 1, 1, 0.18)
             }
             onTextChanged: page.query = text
+            Keys.onEscapePressed: page.backRequested()
             Keys.onDownPressed: if (page.items.length) grid.forceActiveFocus()
             Keys.onReturnPressed: if (page.items.length) grid.forceActiveFocus()
         }
@@ -123,6 +124,7 @@ Item {
             else event.accepted = false
         }
         Keys.onEnterPressed: page.addonActivated(page.items[grid.currentIndex])
+        Keys.onEscapePressed: page.backRequested()
         delegate: ExtensionsStoreCard {
             required property var modelData
             required property int index

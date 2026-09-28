@@ -22,7 +22,6 @@ NeedCount 'qml\OpenRecentPanel.qml' 'KeyboardAction {' 2 'Recent rows and Clear 
 Need 'qml\CalendarPage.qml' 'id: comingKeys' 'Coming Up must be a horizontal keyboard collection.'
 Need 'qml\CalendarPage.qml' 'id: monthGrid' 'Calendar month must be a spatial keyboard region.'
 Need 'qml\CalendarPage.qml' 'id: dayListFocus' 'Selected-day rows need vertical keyboard traversal.'
-NeedCount 'qml\ExtensionsSources.qml' 'KeyboardAction {' 5 'Source reorder/toggle/remove/configure actions need keyboard twins.'
 Need 'qml\PersonalizePage.qml' 'id: laneRow' 'Personalize lanes need one arrow-driven focus region.'
 Need 'qml\PersonalizePage.qml' 'id: gridKeys' 'Personalize tiles need grid navigation.'
 

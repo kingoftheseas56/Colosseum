@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 
 const page = fs.readFileSync('qml/TankoyomiConfigurationPage.qml', 'utf8');
-const extensions = fs.readFileSync('qml/ExtensionsPage.qml', 'utf8');
+const extensions = fs.readFileSync('qml/ExtensionsStorePage.qml', 'utf8');
+const hero = fs.readFileSync('qml/ExtensionsHouseHero.qml', 'utf8');
 const main = fs.readFileSync('qml/Main.qml', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('extensions/tankoyomi/manifest.json', 'utf8'));
 const store = fs.readFileSync('native/engine/ExtensionsStore.cpp', 'utf8');
@@ -57,14 +58,15 @@ check(!/WeebCentral|VoraToon|Kiryuu|Manga Night/.test(page),
   'page does not hard-code oracle demo provider inventory');
 
 check(extensions.includes('configuringExtensionId'),
-  'ExtensionsPage owns configuration subpage state');
+  'the Store owns configuration subpage state');
 check(extensions.includes('colosseum.well.tankoyomi')
       && extensions.includes('TankoyomiConfigurationPage'),
-  'ExtensionsPage routes the Tankoyomi house row into the native subpage');
+  'the Store routes Tankoyomi into the native subpage');
 check(extensions.includes('function openConfiguration'),
-  'ExtensionsPage exposes a testable configuration route');
-check(/onConfigureRequested:[\s\S]{0,260}root\.openConfiguration\(entry\)/.test(extensions),
-  'ExtensionsSources routes Tankoyomi Settings into the in-app page');
+  'the Store exposes a testable configuration route');
+check(/onConfigureRequested:[\s\S]{0,80}root\.openConfiguration\(id\)/.test(extensions)
+      && hero.includes('colosseum.well.tankoyomi') && hero.includes('configureRequested('),
+  'the House Tankoyomi tile opens the in-app settings page');
 check(page.includes('../assets/addon-logos/tankoyomi.png')
       && page.includes('asynchronous: true') && page.includes('cache: true'),
   'configuration header uses the real bundled Tankoyomi logo');
