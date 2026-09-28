@@ -679,6 +679,13 @@ AccountRuntime::AccountRuntime(
         });
     connect(&m_stremioSync, &StremioSync::stateChanged,
             this, &AccountRuntime::syncTraktAddon);
+    connect(&m_stremioSync, &StremioSync::stateChanged, this, [this] {
+        if (m_stremioSync.status() == QLatin1String("syncing")
+            || !std::exchange(m_stremioAddonReconcileDeferred, false)) {
+            return;
+        }
+        QTimer::singleShot(0, this, [this] { scheduleStremioAddonReconcile(); });
+    });
     connect(
         &m_stremioSync,
         &StremioSync::profileLinkValidated,
@@ -2319,7 +2326,8 @@ void AccountRuntime::scheduleStremioAddonReconcile()
         || preferences->mainSyncProvider() != QLatin1String("stremio")) {
         return;
     }
-    if (m_stremioAddonApplyInProgress) {
+    if (m_stremioAddonApplyInProgress
+        || m_stremioSync.status() == QLatin1String("syncing")) {
         m_stremioAddonReconcileDeferred = true;
         return;
     }
@@ -2340,6 +2348,10 @@ void AccountRuntime::reconcileStremioAddonCollection(
     if (!m_extensionsStore
         || profileId != m_profileStores.activeProfile().profileId()
         || incarnation != m_stremioProfileIncarnation) {
+        return;
+    }
+    if (m_stremioSync.status() == QLatin1String("syncing")) {
+        m_stremioAddonReconcileDeferred = true;
         return;
     }
     const int ownerRevision = m_extensionsStore->revision();

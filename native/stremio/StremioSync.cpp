@@ -1323,11 +1323,25 @@ bool StremioSync::pullLibraryItems(
     std::function<void(bool, QList<StremioLibraryItem>)> completion) {
     const ProfileBinding binding{m_profileId, m_bindingGeneration};
     if (!bindingCurrent(binding) || !m_markerLinked || !m_hasUsableCredential
-        || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential
-        || m_datastoreReply) {
+        || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential) {
         if (completion)
             completion(false, {});
         return false;
+    }
+    if (m_datastoreReply || m_addonCollectionReconcileActive) {
+        // An automatic addon round may already own the single datastore slot
+        // when a visible sync starts. Wait for it instead of failing the pull.
+        const bool visibleSync = m_visibleSyncActive;
+        QTimer::singleShot(50, this,
+            [this, binding, visibleSync, completion = std::move(completion)]() mutable {
+                if (!bindingCurrent(binding) || (visibleSync && !m_visibleSyncActive)) {
+                    if (completion)
+                        completion(false, {});
+                    return;
+                }
+                pullLibraryItems(std::move(completion));
+            });
+        return true;
     }
     const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
     const StremioDatastoreRequest meta = credential.has_value()
