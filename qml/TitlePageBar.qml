@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 // TitlePageBar — the one top bar every title page wears (world feel design, 2026-09-24,
 // docs/superpowers/specs/2026-09-24-colosseum-world-feel-design.md, "The shared frame").
 //
-// Left: a Back pill that names where Back goes. Centre: the Tankoban · Biblio · Theatre
-// pills — Hemanth's one-app rule keeps them on every page except the readers and the
-// player. Right: search and ONE system menu (minimize / fullscreen / quit) so the window
+// Left: a Back pill that names where Back goes. No world pills (removed 2026-09-28 at Hemanth's
+// call; the worlds keep theirs in TopBar). Right: search and ONE system menu (minimize /
+// fullscreen / quit) so the window
 // controls stop sitting in the focus path, and Quit asks before it closes the app.
 //
 // The bar is transparent over a hero and turns solid once the page scrolls (`solid`).
@@ -111,57 +111,6 @@ Item {
         idleColor: theme.ink
         hoverColor: theme.gold
         onTriggered: bar.backRequested()
-    }
-
-    // ---- centre: the world pills (compact) ----
-    Rectangle {
-        id: pillCapsule
-        anchors.centerIn: parent
-        height: 42
-        width: pillRow.implicitWidth + 12
-        radius: 21
-        color: Qt.rgba(1, 1, 1, 0.07)
-        border.width: 1
-        border.color: theme.edge
-        Row {
-            id: pillRow
-            anchors.centerIn: parent
-            spacing: 4
-            Repeater {
-                model: ["Tankoban", "Biblio", "Theatre"]
-                delegate: Item {
-                    id: pill
-                    required property string modelData
-                    readonly property bool active: bar.world === pill.modelData
-                    width: pillText.implicitWidth + 30
-                    height: 32
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 16
-                        color: pill.active ? theme.gold
-                             : (pillAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                    }
-                    Text {
-                        id: pillText
-                        anchors.centerIn: parent
-                        text: pill.modelData
-                        color: pill.active ? "#1a1408" : (pillAction.interactionActive ? theme.ink : theme.inkDim)
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        font.weight: pill.active ? Font.DemiBold : Font.Medium
-                    }
-                    KeyboardAction {
-                        id: pillAction
-                        objectName: "titleBarPill_" + pill.modelData
-                        anchors.fill: parent
-                        accessibleName: pill.modelData
-                        focusRadius: 16
-                        focusColor: bar.focusGold
-                        onTriggered: bar.worldRequested(pill.modelData)
-                    }
-                }
-            }
-        }
     }
 
     // ---- right: search + the one system menu ----
