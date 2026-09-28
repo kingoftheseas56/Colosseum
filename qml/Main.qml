@@ -3024,12 +3024,14 @@ Window {
                 return !win.immersiveSurfaceOpen && win.visibility !== Window.Minimized
             })
         }
-        // gentle global vignette so chrome + text read against the wallpaper, bright or dark
+        // gentle global vignette so chrome + text read against the wallpaper, bright or dark.
+        // The middle stop carries the world tab strips and catalogue headings; at 0.10 they
+        // washed out on light wallpapers (parchment maps), so it holds 0.28 (2026-09-28).
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.34) }
-                GradientStop { position: 0.5; color: Qt.rgba(0,0,0,0.10) }
+                GradientStop { position: 0.5; color: Qt.rgba(0,0,0,0.28) }
                 GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.46) }
             }
         }
