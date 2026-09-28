@@ -7,23 +7,23 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseInstallerSmokeContract(unittest.TestCase):
-    def test_release_metadata_targets_1_1_6(self):
+    def test_release_metadata_targets_1_1_7(self):
         cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
-        self.assertIn('project(colosseum VERSION 1.1.6 ', cmake)
-        self.assertIn("default: \"1.1.6\"", workflow)
+        self.assertIn('project(colosseum VERSION 1.1.7 ', cmake)
+        self.assertIn("default: \"1.1.7\"", workflow)
         for relative in ('native/update/UpdateReleaseClient.cpp', 'native/update/UpdateDownload.cpp', 'native/main.cpp'):
             source = (ROOT / relative).read_text(encoding='utf-8')
             self.assertNotIn('Colosseum/1.1.4', source, relative)
-        self.assertTrue((ROOT / 'docs/release-notes/v1.1.6.md').is_file())
-        self.assertTrue((ROOT / 'release/presentation/1.1.6.json').is_file())
-        presentation = load_presentation(ROOT / 'release/presentation/1.1.6.json', '1.1.6')
-        self.assertEqual(presentation['title'], 'Colosseum 1.1.6')
+        self.assertTrue((ROOT / 'docs/release-notes/v1.1.7.md').is_file())
+        self.assertTrue((ROOT / 'release/presentation/1.1.7.json').is_file())
+        presentation = load_presentation(ROOT / 'release/presentation/1.1.7.json', '1.1.7')
+        self.assertEqual(presentation['title'], 'Colosseum 1.1.7')
         self.assertEqual(len(presentation['highlights']), 6)
-        notes = (ROOT / 'docs/release-notes/v1.1.6.md').read_text(encoding='utf-8').lower()
-        self.assertIn('manual', notes)
+        notes = (ROOT / 'docs/release-notes/v1.1.7.md').read_text(encoding='utf-8').lower()
+        # 1.1.7 keeps the 1.1.6 trust root: users on 1.1.5 or earlier are still pointed at the manual step.
         self.assertIn('1.1.5', notes)
-        self.assertIn('manual', presentation['highlights'][-1]['body'].lower())
+        self.assertIn('manual', notes)
 
     def test_installer_branding_is_product_named_and_iconed(self):
         installer = (ROOT / 'scripts/installer/colosseum.nsi').read_text(encoding='utf-8')

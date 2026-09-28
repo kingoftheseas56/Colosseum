@@ -1,0 +1,51 @@
+{
+  "eyebrow": "EXTERNAL SYNC",
+  "title": "Colosseum 1.1.7",
+  "summary": "Stremio sync, tracker connections, a new Extensions Store, your own history and stats, and redesigned subtitles.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.7",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "SYNC",
+      "title": "Stremio comes with you",
+      "body": "Connect Stremio and your library, progress and watch history come into Colosseum, then keep moving on both sides.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "TRACKERS",
+      "title": "Tracker connections",
+      "body": "The Sync Center connects Trakt, Simkl, MyAnimeList and AniList to your profile, separate from Stremio sync.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "EXTENSIONS",
+      "title": "The Extensions Store",
+      "body": "A world of its own: the House, the Essentials and rows from the stremio-addons.net catalogue, with setup kept inside Colosseum.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "HISTORY",
+      "title": "Your Colosseum",
+      "body": "Highlights and stats from what you read, watched and listened to, recorded by Colosseum on this profile.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "PLAYER",
+      "title": "Subtitles redesigned",
+      "body": "New subtitle controls with font selection and a tidier appearance panel.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "THEATRE",
+      "title": "Continue Watching is back",
+      "body": "Continue Watching cards from the IMDb catalogue return, and world text reads better on light wallpapers.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}
