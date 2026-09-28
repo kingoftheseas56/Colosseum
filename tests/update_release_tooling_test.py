@@ -59,7 +59,7 @@ class FakeGitHub:
 
 
 class UpdateReleaseToolingTests(unittest.TestCase):
-    def test_production_chronicle_matches_embedded_key_and_1_1_6(self):
+    def test_production_chronicle_matches_embedded_key_and_1_1_7(self):
         manifest = ROOT / "resources/installed-chronicle/installed-manifest.json"
         signature = ROOT / "resources/installed-chronicle/installed-manifest.json.sig"
         with tempfile.TemporaryDirectory() as temp:
@@ -68,13 +68,13 @@ class UpdateReleaseToolingTests(unittest.TestCase):
                 DER_PREFIX + cpp_header_key(ROOT / "native/update/UpdatePublicKey.h"))
             verify_signature(manifest, signature, public_der)
             data = json.loads(manifest.read_text(encoding="utf-8"))
-            self.assertEqual(data["version"], "1.1.6")
-            self.assertEqual(data["tag"], "v1.1.6")
+            self.assertEqual(data["version"], "1.1.7")
+            self.assertEqual(data["tag"], "v1.1.7")
             self.assertEqual(len(data["highlights"]), 6)
             mutated = Path(temp) / "mutated.json"
-            marker = b'"version":"1.1.6"'
+            marker = b'"version":"1.1.7"'
             self.assertEqual(manifest.read_bytes().count(marker), 1)
-            mutated.write_bytes(manifest.read_bytes().replace(marker, b'"version":"1.1.7"', 1))
+            mutated.write_bytes(manifest.read_bytes().replace(marker, b'"version":"1.1.8"', 1))
             with self.assertRaises(subprocess.CalledProcessError):
                 verify_signature(mutated, signature, public_der)
 
