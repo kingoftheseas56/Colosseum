@@ -62,7 +62,7 @@
   <button type="button" class:on={tab === 'store'} data-focus onclick={() => setTab('store')}>Store</button>
 </nav>
 
-<button class="manage" class:beside-search={tab === 'store'} type="button" data-focus
+<button class="manage" type="button" data-focus
   onclick={() => host.openManage && host.openManage()}>Manage</button>
 
 {#if tab === 'chain'}
@@ -74,12 +74,13 @@
 {/if}
 
 <style>
-  .extensions-picker{position:fixed;z-index:30;top:31px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:7px;border-radius:30px;background:rgba(105,105,105,.28);border:1px solid rgba(255,255,255,.07);backdrop-filter:blur(24px) saturate(1.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.12);font-family:"Segoe UI",system-ui,sans-serif}
-  .extensions-picker button{min-width:118px;height:45px;border:0;border-radius:23px;background:transparent;color:rgba(255,255,255,.70);font-size:17px;cursor:pointer;transition:.16s}
+  /* Same size as the Tankoban · Biblio · Theatre pills (qml/TopBar.qml): 46px capsule, 34px pills, 14px text.
+     Absolute, not fixed: the top bar scrolls away with the page instead of floating over it. */
+  .extensions-picker{position:absolute;z-index:30;top:15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;height:46px;box-sizing:border-box;padding:0 6px;border-radius:999px;background:rgba(105,105,105,.28);border:1px solid rgba(255,255,255,.07);backdrop-filter:blur(24px) saturate(1.05);font-family:"Segoe UI",system-ui,sans-serif}
+  .extensions-picker button{height:34px;padding:0 17px;border:0;border-radius:999px;background:transparent;color:rgba(255,255,255,.62);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:.16s}
   .extensions-picker button:hover{color:#fff;background:rgba(255,255,255,.07)}
-  .extensions-picker button.on{background:#f0c44a;color:#15120b;font-weight:600;box-shadow:0 5px 18px rgba(0,0,0,.12)}
-  .manage{position:fixed;z-index:30;top:34px;right:44px;height:46px;padding:0 20px;border-radius:23px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px);color:rgba(255,255,255,.82);font:500 15px "Segoe UI",system-ui,sans-serif;cursor:pointer}
-  .manage.beside-search{right:calc(44px + min(360px,26vw) + 12px)}
+  .extensions-picker button.on{background:#f0c44a;color:#1a1408;font-weight:600}
+  .manage{position:absolute;z-index:30;top:21px;right:44px;height:34px;padding:0 17px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px);color:rgba(255,255,255,.78);font:500 14px "Segoe UI",system-ui,sans-serif;cursor:pointer}
   .manage:hover{color:#fff;border-color:rgba(255,255,255,.24)}
   .manage:focus-visible{outline:2px solid #f0c44a;outline-offset:3px}
   .extensions-picker button:focus-visible{outline:2px solid #f0c44a;outline-offset:3px}

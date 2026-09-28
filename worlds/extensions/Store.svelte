@@ -1,6 +1,6 @@
 <script>
   // Store — Hemanth's ledger (Brotherhood/agents/extensions-store-decision-ledger.md):
-  // one carousel, three rows (Essentials, Most popular, Get something to watch), six banners; inside a banner the
+  // the Essentials carousel, two rows (Most popular, Get something to watch), six banners; inside a banner the
   // crown jewels by popularity, then an App Store list; search is the power tool. Data: stremio-addons.net snapshot.
   import CATALOG, { SNAPSHOT } from './catalog.js';
   import { onMount } from 'svelte';
@@ -42,8 +42,8 @@
   const essentials = $derived(ESSENTIALS.map(byName).filter(Boolean));
   const popular = $derived(visible.filter(a => !ESSENTIALS.includes(a.n)).sort((x, y) => y.s - x.s).slice(0, 12));
   const toWatch = $derived(visible.filter(BANNERS[1].test).sort((x, y) => y.s - x.s).slice(0, 12));
-  const fresh = $derived(visible.filter(a => a.cr >= '2026-09-07').sort((x, y) => y.s - x.s).slice(0, 5));
 
+  const logo = a => (a.l || '').replace(/^http:\/\//, 'https://');   // the page only loads https images
   const nice = n => n.replace(/\s*\|\s*ElfHosted$/i, '');
   const oneLine = a => { const s = (a.d || '').split(/(?<=[.!?])\s/)[0]; return s.length > 120 ? s.slice(0, 117).trimEnd() + '…' : s; };
   const stars = n => n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K' : String(n);
@@ -78,7 +78,7 @@
   });
 
   onMount(() => {
-    const t = setInterval(() => { if (view.name === 'home' && !query && fresh.length) slide = (slide + 1) % fresh.length; }, 8000);
+    const t = setInterval(() => { if (view.name === 'home' && !query && essentials.length) slide = (slide + 1) % essentials.length; }, 8000);
     const k = e => { if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') { e.preventDefault(); document.getElementById('store-q')?.focus(); } };
     addEventListener('keydown', k);
     return () => { clearInterval(t); removeEventListener('keydown', k); };
@@ -87,7 +87,7 @@
 
 {#snippet icon(a, size)}
   <span class="icon" style:width="{size}px" style:height="{size}px">
-    {#if a.l}<img src={a.l} alt="" onerror={e => e.currentTarget.replaceWith(document.createTextNode(nice(a.n)[0]))}>{:else}{nice(a.n)[0]}{/if}
+    {#if a.l}<img src={logo(a)} alt="" onerror={e => e.currentTarget.replaceWith(document.createTextNode(nice(a.n)[0]))}>{:else}{nice(a.n)[0]}{/if}
   </span>
 {/snippet}
 
@@ -97,7 +97,7 @@
 
 {#snippet feature(a)}
   <article class="feature">
-    <span class="feature-bg" style:background-image={a.l ? `url("${a.l}")` : 'none'}></span>
+    <span class="feature-bg" style:background-image={a.l ? `url("${logo(a)}")` : 'none'}></span>
     <span class="feature-shade"></span>
     <div class="feature-copy">
       {@render icon(a, 88)}
@@ -118,13 +118,12 @@
 {/snippet}
 
 <div class="store">
+  <main class="page">
   <label class="search">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
     <input id="store-q" bind:value={query} placeholder="Search {visible.length} add-ons" aria-label="Search add-ons" data-focus>
     <kbd>/</kbd>
   </label>
-
-  <main class="page">
     {#if query.trim()}
       <section class="results">
         <h1>Results for “{query.trim()}”</h1>
@@ -167,22 +166,16 @@
       </section>
 
     {:else}
-      {#if fresh.length}
-        <section class="carousel home-carousel" aria-label="New this week">
-          {@render feature(fresh[slide % fresh.length])}
-          <div class="dots">{#each fresh as f, i}<button type="button" class:on={i === slide % fresh.length} data-focus aria-label="Show {nice(f.n)}" onclick={() => (slide = i)}></button>{/each}</div>
+      {#if essentials.length}
+        <section class="home-carousel" aria-label="Essentials">
+          <h2>Essentials</h2>
+          <p class="lede">The five a fresh Colosseum needs, in case you skipped the Chain.</p>
+          <div class="carousel">
+            {@render feature(essentials[slide % essentials.length])}
+            <div class="dots">{#each essentials as f, i}<button type="button" class:on={i === slide % essentials.length} data-focus aria-label="Show {nice(f.n)}" onclick={() => (slide = i)}></button>{/each}</div>
+          </div>
         </section>
       {/if}
-
-      <section class="shelf">
-        <h2>Essentials</h2>
-        <p class="lede">The five a fresh Colosseum needs, in case you skipped the Chain.</p>
-        <div class="tiles">
-          {#each essentials as a (a.slug)}
-            <div class="tile">{@render icon(a, 64)}<strong>{nice(a.n)}</strong><span>{oneLine(a)}</span><div class="tile-foot"><span class="stars">★ {stars(a.s)}</span>{@render button(a)}</div></div>
-          {/each}
-        </div>
-      </section>
 
       <section class="shelf">
         <h2>Most popular</h2>
@@ -217,8 +210,8 @@
 <style>
   .store{--gold:#efc15a;--ink:#f6f5f1;--dim:rgba(255,255,255,.58);--edge:rgba(255,255,255,.1);min-height:100vh;color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif;
     background:radial-gradient(1100px 620px at 50% -12%,rgba(239,193,90,.07),transparent 60%),linear-gradient(180deg,#0b0c11,#06070a 45%)}
-  .page{width:min(1480px,calc(100vw - 120px));margin:0 auto;padding:118px 0 80px}
-  .search{box-sizing:border-box;position:fixed;z-index:40;right:44px;top:34px;width:min(360px,26vw);height:46px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:23px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px)}
+  .page{width:min(1480px,calc(100vw - 120px));margin:0 auto;padding:104px 0 80px}
+  .search{box-sizing:border-box;width:min(520px,100%);height:46px;margin:0 0 34px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:23px;border:1px solid rgba(255,255,255,.12);background:rgba(15,16,22,.8);backdrop-filter:blur(22px)}
   .search svg{width:16px;height:16px;fill:none;stroke:rgba(255,255,255,.5);stroke-width:1.8;stroke-linecap:round}
   .search input{flex:1;min-width:0;border:0;outline:0;background:none;color:#fff;font:inherit;font-size:14px}
   .search:focus-within{border-color:rgba(239,193,90,.55)}
@@ -228,7 +221,7 @@
   .lede{color:var(--dim);margin:0 0 20px;font-size:15px}
   .shelf{margin-top:56px}
   .icon{display:inline-grid;place-items:center;flex:0 0 auto;border-radius:22%;overflow:hidden;background:#1a1b21;border:1px solid var(--edge);font:600 22px Georgia,serif;color:var(--dim)}
-  .icon img{width:100%;height:100%;object-fit:cover}
+  .icon img{width:100%;height:100%;object-fit:contain}
   .stars{color:var(--gold);font-size:13px;font-weight:600;white-space:nowrap}
   .get{height:34px;min-width:88px;padding:0 16px;border-radius:17px;border:0;background:#f5f3ee;color:#111217;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
   .get.done{background:rgba(255,255,255,.08);color:var(--dim);cursor:default}
@@ -246,11 +239,6 @@
   .dots button{width:26px;height:6px;border-radius:3px;border:0;background:rgba(255,255,255,.2);cursor:pointer;padding:0}
   .dots button.on{background:var(--gold)}
 
-  .tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
-  .tile{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:22px;border:1px solid var(--edge);background:rgba(255,255,255,.035)}
-  .tile strong{font-size:16px}
-  .tile>span:not(.icon){color:var(--dim);font-size:13px;line-height:1.45;flex:1}
-  .tile-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
 
   .list{display:grid;grid-template-columns:1fr;gap:2px}
   .list.two{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:36px}
@@ -282,5 +270,5 @@
   .more{margin:20px auto 0;display:block;height:40px;padding:0 22px;border-radius:20px;border:1px solid var(--edge);background:transparent;color:var(--ink);font:inherit;cursor:pointer}
   .empty{color:var(--dim);margin-top:30px}
   .credit{margin-top:60px;color:rgba(255,255,255,.34);font-size:12px}
-  @media(max-width:1300px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.banners{grid-template-columns:repeat(2,minmax(0,1fr))}.list.two{grid-template-columns:1fr}.page{width:calc(100vw - 64px)}}
+  @media(max-width:1300px){.banners{grid-template-columns:repeat(2,minmax(0,1fr))}.list.two{grid-template-columns:1fr}.page{width:calc(100vw - 64px)}}
 </style>
