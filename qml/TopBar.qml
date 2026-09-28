@@ -21,6 +21,7 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
+    property bool showWorldPills: true       // Extensions hides them (its mock has none)
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
@@ -236,6 +237,7 @@ Item {
 
     // ---- center: library pills in a glass capsule ----
     Glass {
+        visible: bar.showWorldPills
         backdrop: bar.backdrop
         anchors.centerIn: parent
         radius: 999
