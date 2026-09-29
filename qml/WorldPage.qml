@@ -17,6 +17,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 
 Item {
     id: world
@@ -219,6 +220,17 @@ Item {
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
+        // Soft top edge (2026-09-29): content leaving under the top bar fades out over 28px
+        // instead of being sliced by the clip line mid-glyph (the catalogue name, "Popular").
+        // Only layered once the page has scrolled, so the resting page renders as before.
+        layer.enabled: page.contentY > 0
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: pageTopFade
+            // min 0.5 + spread 1.0 = smoothstep(0, 1, maskAlpha): the ramp passes through as-is
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1.0
+        }
 
         Column {
             id: board
@@ -226,6 +238,22 @@ Item {
             width: world.width - theme.margin * 2
             topPadding: 12; bottomPadding: 24
             spacing: 36
+        }
+    }
+
+    // Alpha ramp for the page's soft top edge: clear at the clip line, opaque 28px below.
+    Item {
+        id: pageTopFade
+        width: page.width; height: page.height
+        visible: false
+        layer.enabled: true
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 28 / Math.max(28, pageTopFade.height); color: "black" }
+                GradientStop { position: 1.0; color: "black" }
+            }
         }
     }
 

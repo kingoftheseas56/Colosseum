@@ -85,7 +85,9 @@ Item {
         id: pill
         anchors.fill: parent
         radius: 13
-        color: ma.containsMouse || picker.open ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+        // dark tint, not a white wash: a near-clear pill let warm/bright wallpapers through and
+        // the placeholder sank into them (2026-09-29, Hemanth's sunset wallpaper)
+        color: ma.containsMouse || picker.open ? Qt.rgba(0, 0, 0, 0.46) : Qt.rgba(0, 0, 0, 0.34)
         border.width: 1
         border.color: picker.open ? theme.gold
                     : picker.hasValue ? Qt.rgba(240/255, 196/255, 74/255, 0.55)
@@ -99,7 +101,7 @@ Item {
             Text {
                 visible: picker.label.length > 0 && !picker.hasValue
                 text: picker.label
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                color: theme.ink; font.family: theme.ui; font.pixelSize: 14
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
@@ -112,14 +114,14 @@ Item {
             Text {
                 visible: picker.hasValue && !!picker.current.sub
                 text: picker.hasValue && picker.current.sub ? picker.current.sub : ""
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
         readonly property bool showClear: picker.hasValue && picker.clearable
         Text {
             text: pill.showClear ? "✕" : "▾"
-            color: pill.showClear ? theme.inkDim : theme.inkDimmer
+            color: pill.showClear ? theme.ink : theme.inkDim
             font.pixelSize: pill.showClear ? 12 : 11
             anchors.right: parent.right; anchors.rightMargin: 13
             anchors.verticalCenter: parent.verticalCenter
