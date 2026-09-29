@@ -3048,15 +3048,29 @@ Window {
                 return !win.immersiveSurfaceOpen && win.visibility !== Window.Minimized
             })
         }
-        // gentle global vignette so chrome + text read against the wallpaper, bright or dark.
+        // Global vignette so chrome + text read against the wallpaper, bright or dark.
         // The middle stop carries the world tab strips and catalogue headings; at 0.10 they
         // washed out on light wallpapers (parchment maps), so it holds 0.28 (2026-09-28).
+        // Adaptive (2026-09-29, Hemanth's call over a curated roster or a per-text restyle):
+        // wallpaper search is open-ended, so the vignette reads each pick's brightness and
+        // deepens on bright ones — from luma 0.50 up to full at 0.85, every stop capped at 0.55
+        // so a bright image still looks like itself. Dark picks keep the baseline untouched.
+        WallpaperLuma {
+            id: wallLuma
+            objectName: "wallLuma"
+            visible: false
+            source: win.wallpaperIsNative ? "" : Qt.resolvedUrl(win.wallpaperSource)
+        }
         Rectangle {
+            id: wallVignette
+            objectName: "wallVignette"
+            property real extra: 0.27 * Math.max(0, Math.min(1, (wallLuma.luma - 0.50) / 0.35))
+            Behavior on extra { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.34) }
-                GradientStop { position: 0.5; color: Qt.rgba(0,0,0,0.28) }
-                GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.46) }
+                GradientStop { position: 0.0; color: Qt.rgba(0,0,0, Math.min(0.55, 0.34 + wallVignette.extra)) }
+                GradientStop { position: 0.5; color: Qt.rgba(0,0,0, Math.min(0.55, 0.28 + wallVignette.extra)) }
+                GradientStop { position: 1.0; color: Qt.rgba(0,0,0, Math.min(0.55, 0.46 + wallVignette.extra)) }
             }
         }
     }
