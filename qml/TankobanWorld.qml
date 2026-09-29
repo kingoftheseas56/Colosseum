@@ -293,7 +293,8 @@ WorldPage {
         visible: tanko.activeTab === "library"
         active: tanko.lifecycleActive && visible
         width: parent.width
-        height: visible ? Math.max(620, tanko.height - 200) : 0
+        pageFlick: tanko.pageFlickable
+        height: visible ? libraryPage.flowHeight : 0
         onDetailRequested: function(entry) { tanko.collectionOpenRequested(entry) }
         // TB-002: a started row's tap emits the row's Progress record up through the
         // existing continueResumeRequested door (already wired in Main.qml to route a

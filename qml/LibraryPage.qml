@@ -18,6 +18,26 @@ Item {
     // library model is only needed while its tab is active. A hidden page therefore keeps its
     // shell state without synchronously scanning Collection/Progress/LocalDownloads.
     property bool active: true
+    property Flickable pageFlick: null
+    readonly property bool pageFlow: pageFlick !== null
+    readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 18
+    NumberAnimation {
+        id: pageParkAnim
+        target: root.pageFlick; property: "contentY"
+        duration: 220; easing.type: Easing.OutCubic
+    }
+    function revealCell(index) {
+        if (!pageFlow || index < 0) return
+        var row = Math.floor(index / Math.max(1, wall.columnCount))
+        var rowTop = wallHost.mapToItem(pageFlick.contentItem, 0, 0).y + row * wall.cellHeight
+        var target = Math.max(0, Math.min(pageFlick.contentHeight - pageFlick.height,
+                                          rowTop - 64 - 14))
+        if (Math.abs(target - pageFlick.contentY) < 1) return
+        pageParkAnim.stop()
+        pageParkAnim.from = pageFlick.contentY
+        pageParkAnim.to = target
+        pageParkAnim.start()
+    }
 
     // ── page state (the ledger + quiet bar drive these) ──
     property string sortMode: "lastWatched"   // lastWatched | added | az | year
@@ -267,6 +287,7 @@ Item {
                          { key: "az", label: "A–Z" }, { key: "year", label: "Year" } ]
                 delegate: FilterPill {
                     required property var modelData
+                    objectName: "theatreLibrarySort_" + modelData.key
                     label: modelData.label; active: root.sortMode === modelData.key
                     onPicked: root.sortMode = modelData.key
                 }
@@ -276,6 +297,7 @@ Item {
                 model: [ { key: "", label: "All" }, { key: "movie", label: "Movies" }, { key: "series", label: "Series" } ]
                 delegate: FilterPill {
                     required property var modelData
+                    objectName: "theatreLibraryType_" + (modelData.key || "all")
                     label: modelData.label; active: root.typeFilter === modelData.key
                     onPicked: root.typeFilter = modelData.key
                 }
@@ -293,13 +315,35 @@ Item {
     }
 
     // ── the wall ──
+    Item {
+        id: wallHost
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: filterBar.bottom; anchors.topMargin: 22
+        anchors.bottom: root.pageFlow ? undefined : parent.bottom
+        anchors.bottomMargin: 18
+        height: root.pageFlow ? flowContentHeight : implicitHeight
+        readonly property real flowContentHeight: Math.max(420,
+            Math.ceil(root.visibleRows.length / Math.max(1, wall.columnCount)) * wall.cellHeight)
+        readonly property real visibleTop: {
+            if (!root.pageFlow) return 0
+            root.pageFlick.contentY; root.pageFlick.contentHeight; wallHost.y
+            return root.pageFlick.contentY - wallHost.mapToItem(root.pageFlick.contentItem, 0, 0).y
+        }
+        readonly property real windowHeight: root.pageFlow
+            ? Math.min(flowContentHeight, root.pageFlick.height) : height
+        readonly property real windowTop: root.pageFlow
+            ? Math.max(0, Math.min(visibleTop, flowContentHeight - windowHeight)) : 0
     GridView {
         id: wall
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.top: filterBar.bottom; anchors.bottom: parent.bottom
+        anchors.top: root.pageFlow ? undefined : parent.top
+        anchors.bottom: root.pageFlow ? undefined : parent.bottom
+        y: root.pageFlow ? wallHost.windowTop : 0
+        height: root.pageFlow ? wallHost.windowHeight : parent.height
         anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
-        anchors.topMargin: 22; anchors.bottomMargin: 18
         clip: true; boundsBehavior: Flickable.StopAtBounds
+        interactive: !root.pageFlow
+        highlightFollowsCurrentItem: !root.pageFlow
         model: root.visibleRows
         // fixed gallery poster size (148×222) matches ContinueTile / discover shelves — the
         // deliberate, consistent card size that reads as one family with the rest of the app.
@@ -309,12 +353,20 @@ Item {
         cellWidth: Math.floor(width / columnCount)
         cellHeight: posterH + 60
         cacheBuffer: cellHeight * 2
-        ScrollBar.vertical: HouseScrollBar { flick: wall }
+        ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !root.pageFlow }
+        Binding {
+            target: wall; property: "contentY"
+            value: wall.originY + wallHost.windowTop
+            when: root.pageFlow
+            restoreMode: Binding.RestoreNone
+        }
         onContentYChanged: if (root.menuRow) root.closeMenu(false)
+        onCurrentIndexChanged: if (root.pageFlow && activeFocus) root.revealCell(currentIndex)
         focusPolicy: root.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => wallKeys.handle(event)
         KeyboardCollectionController {
             id: wallKeys; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
+            positionIndexFn: root.pageFlow ? root.revealCell : null
             count: root.visibleRows.length; contextEnabled: true
             modelRevision: root.collRev * 100000 + root.progRev
             identityForIndex: root.wallIdentityAt
@@ -496,7 +548,7 @@ Item {
             }
         }
     }
-    ScrollGlide { flick: wall }
+    ScrollGlide { flick: root.pageFlow ? null : wall }
 
     // ── empty states ──
     Column {
@@ -519,6 +571,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing matches these filters"
             color: theme.ink; font.family: theme.display; font.pixelSize: 30
         }
+    }
     }
 
     // ── the floating ⋮ menu (root level — the wall clips) ──

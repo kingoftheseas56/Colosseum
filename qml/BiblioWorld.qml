@@ -215,7 +215,8 @@ WorldPage {
         visible: biblio.activeTab === "library"
         active: biblio.lifecycleActive && visible
         width: parent.width
-        height: visible ? Math.max(620, biblio.height - 200) : 0
+        pageFlick: biblio.pageFlickable
+        height: visible ? libraryPage.flowHeight : 0
         onResumeRequested: (record) => biblio.continueResumeRequested(record)
         onDetailRequested: (entry) => biblio.collectionOpenRequested(entry)
         onRemoveRequested: (entry) => {

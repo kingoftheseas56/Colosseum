@@ -270,10 +270,12 @@ WorldPage {
 
     // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
     LibraryPage {
+        id: libraryPage
         visible: theatre.activeTab === "library"
         active: theatre.lifecycleActive && visible
         width: parent.width
-        height: visible ? Math.max(620, theatre.height - 200) : 0
+        pageFlick: theatre.pageFlickable
+        height: visible ? libraryPage.flowHeight : 0
         onResumeRequested: (e) => theatre.libraryResumeRequested(e)
         onDetailRequested: (e) => theatre.collectionOpenRequested(e)
         onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.forget("video", String(e.id)) }
