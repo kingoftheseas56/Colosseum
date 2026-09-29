@@ -862,10 +862,34 @@ Window {
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
         case "world": win.closeWorld(); return
-        default: Qt.quit(); return
+        default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
     Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
+    // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
+    // shortcut), and the Vault keeps its own Backspace (folder up), so it is off while Vault is open.
+    Shortcut {
+        sequence: "Backspace"
+        enabled: !vaultLayer.active
+        onActivated: escapeCommand.invoke("backspace")
+    }
+
+    // The mouse's Back button is Back too (world-feel Slice 6). A full-window item that only
+    // accepts the Back button: every other button, hover and wheel pass straight through it.
+    Item {
+        anchors.fill: parent
+        z: 100000
+        TapHandler {
+            acceptedButtons: Qt.BackButton
+            onTapped: escapeCommand.invoke("mouseBack")
+        }
+    }
+
+    // Home is the bottom of the Back ladder: scroll Home to its top and focus its first control.
+    function goHomeTop() {
+        homeGlide.toTop()
+        win.focusHomePrimary()
+    }
     Shortcut { sequences: quitCommand.sequences; onActivated: quitCommand.invoke("shortcut") }
 
     // Home has an intentional console-style focus origin: the current Universe hero's
@@ -3178,7 +3202,7 @@ Window {
         Keys.onReleased: function(event) { homePageSpatialNav.handleRelease(event) }
         // the HOME page never had the eased wheel — the one surface scrolled most was the
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
-        ScrollGlide { flick: page }
+        ScrollGlide { id: homeGlide; flick: page }
 
         Column {
             id: contentCol

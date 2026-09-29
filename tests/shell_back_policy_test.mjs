@@ -47,9 +47,8 @@ eq(action({ syncCenterActive: true, historyStatsActive: true }), 'historyStats',
 eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
 eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
 eq(action({ extensionsActive: true, vaultActive: true }), 'extensions', 'extensions wins a broken same-z overlap');
-eq(action({ ratingsReviewsActive: true, vaultActive: true }), 'ratingsReviews', 'RR owns Escape above retained Vault');
-eq(action({ ratingsReviewsActive: true, downloadsActive: true }), 'ratingsReviews', 'RR owns Escape above retained Downloads');
-eq(action({ ratingsReviewsActive: false, vaultActive: true }), 'vault', 'after RR closes the next Escape returns to Vault');
+// Ratings & Reviews was retired in 1.1.7 (3928d0d2); its Escape rows went with it.
+eq(action({ vaultActive: true }), 'vault', 'Vault owns Escape when open');
 eq(action({ vaultActive: true, downloadsActive: true }), 'vault', 'Vault wins a broken same-z overlap');
 eq(action({ downloadsActive: true, bookActive: true }), 'downloads', 'taskbar full-page beats detail page');
 eq(action({ bookActive: true, theatreSeriesActive: true }), 'book', 'book detail is highest z53 sibling');
@@ -66,9 +65,9 @@ eq(action({ theatreGenreActive: true, theatreGenreIndexActive: true }), 'theatre
 eq(action({ biblioGenreActive: true, biblioGenreIndexActive: true }), 'biblioGenre', 'Biblio genre page beats its index');
 eq(action({ genreActive: true, genreIndexActive: true }), 'genre', 'manga genre page beats its index');
 
-// Bottom of the stack is world -> Home -> quit.
+// Bottom of the stack is world -> Home -> Home top. Back never quits (world-feel Slice 6).
 eq(action({ worldOpen: true }), 'world', 'world exits to Home');
-eq(action({}), 'quit', 'empty Home stack quits');
+eq(action({}), 'homeTop', 'empty Home stack returns to the top of Home, never quits');
 
 console.log('PASS shell back policy matrix');
 process.exit(0);

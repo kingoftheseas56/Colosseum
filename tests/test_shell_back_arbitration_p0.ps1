@@ -51,12 +51,7 @@ Assert-Contains $main 'item.backRequested.connect(win.closeVaultPage)' `
     "VaultPage terminal Back must retain the existing shell exit seam."
 Assert-Contains $main 'vaultLayer.item.handleBack()' `
     "Shell Escape must delegate into VaultPage instead of blindly deactivating it."
-Assert-Contains $main 'ratingsReviewsActive: ratingsReviewsLayer.active,' `
-    "Ratings Reviews must participate in the one shell Escape state snapshot."
-Assert-Contains $main 'case "ratingsReviews":' `
-    "Shell Escape must expose one Ratings Reviews arbitration branch."
-Assert-Contains $main 'ratingsReviewsLayer.item.handleBack()' `
-    "The Ratings Reviews branch must delegate to the host Back contract."
+# Ratings & Reviews was retired in 1.1.7 (3928d0d2); its Escape branch asserts went with it.
 Assert-Contains $main 'syncCenterActive: syncCenterLayer.active,' `
     "Sync Center must participate in the one shell Escape state snapshot."
 Assert-Contains $main 'case "syncCenter":' `
@@ -79,9 +74,6 @@ Assert-Contains $main 'onTrackersClicked: win.toggleSyncCenterPage()' `
     "The home trackers door must toggle only the Sync Center route."
 Assert-Contains $main 'item.trackersClicked.connect(win.toggleSyncCenterPage)' `
     "Every world's trackers door must toggle only the Sync Center route."
-if ([regex]::Matches($main, [regex]::Escape('ratingsReviewsLayer.item.handleBack()')).Count -ne 1) {
-    throw "Shell Escape must call the Ratings Reviews host exactly once per branch."
-}
 
 $vault = Read-File "qml/VaultPage.qml"
 Assert-Contains $vault 'function handleBack()' `

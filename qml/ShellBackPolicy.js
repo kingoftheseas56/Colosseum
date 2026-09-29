@@ -65,7 +65,9 @@ function actionFor(state) {
     if (on(s.genreIndexActive)) return "genreIndex"
 
     if (on(s.worldOpen)) return "world"
-    return "quit"
+    // Back never quits (world-feel Slice 6): on Home it returns to the top of Home and stops.
+    // Quitting is Ctrl+Q or the Quit control, never a Back press.
+    return "homeTop"
 }
 
 
