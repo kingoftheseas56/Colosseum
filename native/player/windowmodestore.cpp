@@ -7,6 +7,11 @@
 #include <QQuickWindow>
 #include <QScreen>
 
+namespace {
+// Bumped when saved windowed state must be reinterpreted; see the constructor.
+constexpr int kFillPolicyVersion = 2;
+}
+
 WindowModeStore::WindowModeStore(QObject *parent)
     : QObject(parent) {
     // Load only recognized, untrusted persisted values. Anything corrupt or missing
@@ -18,8 +23,14 @@ WindowModeStore::WindowModeStore(QObject *parent)
     m_shellWindowed = mode == QStringLiteral("windowed");
     m_normalGeometry = m_settings.value(
         QStringLiteral("window/normalGeometry")).toRect();
-    m_windowedMaximized = m_settings.value(
-        QStringLiteral("window/maximized"), false).toBool();
+    // Windowed mode fills the work area (maximized) unless the user deliberately restored,
+    // resized or snapped it (Hemanth, 2026-09-29). State saved before this policy holds
+    // sizes nobody chose (the old 1280x720 default, transition captures), so it starts
+    // maximized once; the saved rectangle is kept for a later restore-down.
+    const bool currentPolicy = m_settings.value(
+        QStringLiteral("window/fillPolicy"), 0).toInt() >= kFillPolicyVersion;
+    m_windowedMaximized = !currentPolicy || m_settings.value(
+        QStringLiteral("window/maximized"), true).toBool();
 
     // Persist normal geometry only after movement/resize settles, never on every
     // raw pointer event.
@@ -305,6 +316,7 @@ void WindowModeStore::persistStableState() {
                             m_normalGeometry);
     m_settings.setValue(QStringLiteral("window/maximized"),
                         m_windowedMaximized);
+    m_settings.setValue(QStringLiteral("window/fillPolicy"), kFillPolicyVersion);
     m_settings.sync();
     if (m_settings.status() != QSettings::NoError)
         qWarning("[window] failed to persist stable shell state");

@@ -13,6 +13,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QRect>
@@ -27,6 +28,13 @@ namespace {
 void require(bool condition, const char *message) {
     if (!condition)
         qFatal("window_shell_gui_harness: %s", message);
+}
+
+void settleFor(int ms) {
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < ms)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
 }
 
 void settleEvents() {
@@ -65,6 +73,7 @@ int main(int argc, char **argv) {
         s.setValue(QStringLiteral("window/baseMode"), QStringLiteral("windowed"));
         s.setValue(QStringLiteral("window/normalGeometry"), geom);
         s.setValue(QStringLiteral("window/maximized"), false);
+        s.setValue(QStringLiteral("window/fillPolicy"), 2);  // a deliberate user-sized window
         s.sync();
     };
 
@@ -233,6 +242,63 @@ int main(int argc, char **argv) {
                 "PiP sits in Windowed visibility and must be left alone by the reassert");
     }
     qInfo("window_shell_gui_harness: windowed/PiP restore untouched OK");
+
+    // --- Test G: windowed mode fills the work area by default (Hemanth, 2026-09-29) ---
+    {
+        clearSettings();
+        WindowModeStore store;
+        QQuickWindow win;
+        win.setVisible(false);
+        store.initializeShell(&win);
+        store.toggleShellMode(&win);
+        settleEvents();
+        require(store.shellWindowed(), "toggle from fullscreen enters windowed mode");
+        require(win.visibility() == QWindow::Maximized,
+                "clean settings: leaving fullscreen must fill the screen (maximized)");
+        require(win.geometry() == win.screen()->availableGeometry(),
+                "maximized frameless shell must cover exactly the work area");
+    }
+    qInfo("window_shell_gui_harness: windowed fills the work area OK");
+
+    // --- Test H: pre-policy saved sizes start maximized; a deliberate restore-down sticks ---
+    {
+        const QRect legacy(0, 13, 1255, 659);
+        {
+            QSettings s;
+            s.clear();
+            s.setValue(QStringLiteral("window/baseMode"), QStringLiteral("windowed"));
+            s.setValue(QStringLiteral("window/normalGeometry"), legacy);
+            s.setValue(QStringLiteral("window/maximized"), false);
+            s.sync();
+        }
+        {
+            WindowModeStore store;
+            QQuickWindow win;
+            win.setVisible(false);
+            store.initializeShell(&win);
+            settleEvents();
+            require(win.visibility() == QWindow::Maximized,
+                    "a size saved before the fill policy must not be restored at launch");
+            // Kept (validated against the screens present) for a later restore-down.
+            const QRect normal = store.savedNormalGeometry();
+            require(normal.isValid(), "the old rectangle is kept for a later restore-down");
+            settleFor(500);   // a person restores down seconds after launch, not instantly
+            store.toggleMaximized(&win);   // the user deliberately restores down
+            settleFor(300);
+            require(win.visibility() == QWindow::Windowed, "restore-down leaves maximized");
+            require(win.geometry() == normal, "restore-down lands on the saved rectangle");
+        }
+        {
+            WindowModeStore store;
+            QQuickWindow win;
+            win.setVisible(false);
+            store.initializeShell(&win);
+            settleEvents();
+            require(win.visibility() == QWindow::Windowed && !store.savedMaximized(),
+                    "a deliberate restore-down must be respected on the next launch");
+        }
+    }
+    qInfo("window_shell_gui_harness: pre-policy sizes reset, deliberate size kept OK");
 
     qInfo("window_shell_gui_harness: PASS");
     return 0;
