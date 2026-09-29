@@ -25,6 +25,13 @@ Item {
     // so the blurred backdrop region recomputes as the panel moves. Static surfaces leave it 0.
     property real track: 0
 
+    // Optional second layer: content that scrolls UNDER this surface (the world page beneath the
+    // docked tab bar). Blurred over the backdrop blur, so the glass frosts the posters passing
+    // behind it like the mock's backdrop-filter, not just the wallpaper. Bind contentTrack to the
+    // content's scroll offset so the grab follows it.
+    property Item contentBackdrop: null
+    property real contentTrack: 0
+
     default property alias content: holder.data
 
     // GPU TEXTURE CEILING. The blur costs TWO textures the size of this whole item (the
@@ -56,12 +63,24 @@ Item {
         sourceItem: root.blurAffordable ? root.backdrop : null
         sourceRect: Qt.rect(root._origin.x, root._origin.y, root.width, root.height)
     }
-    Item {
+    // The rounded-corner mask, captured explicitly. The documented form (a hidden item with
+    // layer.enabled) rendered EMPTY inside the full app scene (it works in isolation), which
+    // masked the blur away on every Glass surface: only the tint and scrim ever showed
+    // (found 2026-09-29, Hemanth: "our tabs don't have the glass effect").
+    Rectangle {
+        id: maskShape
+        anchors.fill: parent
+        radius: root.radius
+        color: "white"
+        visible: root.blurAffordable
+    }
+    ShaderEffectSource {
         id: maskItem
         anchors.fill: parent
         visible: false
-        layer.enabled: root.blurAffordable
-        Rectangle { anchors.fill: parent; radius: root.radius; color: "white" }
+        hideSource: true
+        live: root.blurAffordable
+        sourceItem: root.blurAffordable ? maskShape : null
     }
     MultiEffect {
         anchors.fill: parent
@@ -69,6 +88,31 @@ Item {
         source: grab
         autoPaddingEnabled: false
         blurEnabled: root.blurAffordable
+        blur: root.blurAmount
+        blurMax: root.blurMax
+        blurMultiplier: root.blurMultiplier
+        maskEnabled: true
+        maskSource: maskItem
+    }
+    readonly property point _contentOrigin: {
+        root.contentTrack; root.track;
+        return root.contentBackdrop ? root.mapToItem(root.contentBackdrop, 0, 0) : Qt.point(0, 0);
+    }
+    ShaderEffectSource {
+        id: contentGrab
+        anchors.fill: parent
+        visible: false
+        live: root.blurAffordable && root.contentBackdrop !== null
+        hideSource: false
+        sourceItem: root.blurAffordable ? root.contentBackdrop : null
+        sourceRect: Qt.rect(root._contentOrigin.x, root._contentOrigin.y, root.width, root.height)
+    }
+    MultiEffect {
+        anchors.fill: parent
+        visible: root.blurAffordable && root.contentBackdrop !== null
+        source: contentGrab
+        autoPaddingEnabled: false
+        blurEnabled: true
         blur: root.blurAmount
         blurMax: root.blurMax
         blurMultiplier: root.blurMultiplier

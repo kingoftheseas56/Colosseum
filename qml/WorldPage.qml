@@ -264,6 +264,8 @@ Item {
         visible: world.tabsDocked
         backdrop: world.backdrop
         track: page.contentY
+        contentBackdrop: page
+        contentTrack: page.contentY
         tabModel: world.tabBarSource ? world.tabBarSource.tabModel : []
         currentTab: world.tabBarSource ? world.tabBarSource.currentTab : ""
         onTabRequested: (tab) => { if (world.tabBarSource) world.tabBarSource.tabRequested(tab) }

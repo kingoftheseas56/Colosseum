@@ -13,6 +13,9 @@ Item {
     // The world's scroll offset. The glass re-samples the wallpaper behind the bar as the page
     // scrolls; without it the sample stayed at the bar's first position (Glass "track").
     property real track: 0
+    // Docked only: the scrolling content under the bar and its scroll offset (Glass contentBackdrop).
+    property Item contentBackdrop: null
+    property real contentTrack: 0
     // The docked copy WorldPage pins under the TopBar is the mock's smaller bar.
     property bool compact: false
     property var tabModel: []            // [{ key, label }, …]
@@ -94,10 +97,11 @@ Item {
         track: tabs.track
         radius: tabs.compact ? 15 : 18
         tint: 0.08
-        // Docked (compact) the bar floats over scrolled posters, not the wallpaper its glass
-        // blurs, so it needs a dark backing to stay readable (the mock's dock is dark frosted
-        // glass with a shadow). In flow it keeps the light film.
-        scrim: tabs.compact ? 0.72 : 0.18
+        scrim: 0.18                       // the mock's .tabs film, docked or in flow
+        // Docked, the bar floats over the scrolling page: frost the posters passing under it
+        // too, like the mock's backdrop-filter (the wallpaper-only blur let them show sharp).
+        contentBackdrop: tabs.contentBackdrop
+        contentTrack: tabs.contentTrack
 
         Row {
             anchors.fill: parent
