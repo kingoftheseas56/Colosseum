@@ -11,6 +11,7 @@
 //
 // Touch/drag remains Flickable-owned. ScrollGlide only owns wheel backlog.
 import QtQuick
+import "ScrollGlideRegistry.js" as Registry
 
 Item {
     id: glide
@@ -41,6 +42,16 @@ Item {
     // Suppresses our own contentY write from being mistaken for an external move.
     property bool _draining: false
 
+    // Diagnostic (COLOSSEUM_SCROLL_PROBE=1, native/ScrollProbe.h): log wheel input received,
+    // every drained frame, and every backlog discarded with its reason. Off = no work.
+    readonly property bool _probe: typeof ScrollProbeEnabled !== "undefined" && ScrollProbeEnabled === true
+    function _plog(msg) {
+        if (!glide._probe)
+            return
+        var name = glide.flick ? (glide.flick.objectName || String(glide.flick)) : "none"
+        console.info("SCROLL_PROBE glide t=" + Date.now() + " flick=" + name + " " + msg)
+    }
+
     function _maxY() {
         if (!glide.flick)
             return 0
@@ -56,7 +67,11 @@ Item {
         return glide.flick.originY - glide.flick.topMargin
     }
 
-    function cancelGlide() {
+    function cancelGlide(reason) {
+        if (glide._probe && glide._pendingPx !== 0)
+            glide._plog("cancel reason=" + (reason || "api") + " lostPx=" + glide._pendingPx.toFixed(1)
+                        + " y=" + (glide.flick ? glide.flick.contentY.toFixed(1) : "-")
+                        + " smoothY=" + glide._smoothY.toFixed(1))
         scrollDrain.running = false
         glide._pendingPx = 0
 
@@ -95,7 +110,7 @@ Item {
     // as an argument also gives the deterministic harness a synchronous seam.
     function _drainWheel(frameTimeSeconds) {
         if (!glide.flick) {
-            glide.cancelGlide()
+            glide.cancelGlide("noflick")
             return
         }
 
@@ -117,7 +132,7 @@ Item {
         // The user's/new owner's move wins and stale wheel momentum is discarded.
         if (Math.abs(glide.flick.contentY - glide._smoothY)
                 > glide.externalRebaseTolerancePx) {
-            glide.cancelGlide()
+            glide.cancelGlide("drain-rebase")
             return
         }
 
@@ -147,6 +162,9 @@ Item {
             y = Math.max(glide._minY(), Math.min(maxY, y))
 
             // Never carry hidden momentum beyond a hard boundary.
+            if (glide._probe && Math.abs(glide._pendingPx - take) > 1)
+                glide._plog("cancel reason=bound lostPx=" + (glide._pendingPx - take).toFixed(1)
+                            + " y=" + y.toFixed(1))
             glide._pendingPx = 0
         } else {
             glide._pendingPx -= take
@@ -157,6 +175,11 @@ Item {
         glide._draining = true
         glide.flick.contentY = y
         glide._draining = false
+
+        if (glide._probe)
+            glide._plog("frame dtMs=" + (dt * 1000).toFixed(1) + " take=" + take.toFixed(1)
+                        + " y=" + y.toFixed(1) + " pending=" + glide._pendingPx.toFixed(1)
+                        + " h=" + glide.flick.contentHeight.toFixed(0) + " vh=" + glide.flick.height.toFixed(0))
 
         if (glide._pendingPx === 0)
             scrollDrain.running = false
@@ -175,13 +198,18 @@ Item {
         // authority and cancels queued wheel momentum.
         function onMovingChanged() {
             if (glide.flick && glide.flick.moving && !glide._draining)
-                glide.cancelGlide()
+                glide.cancelGlide("moving")
         }
 
         // Scrollbar / seek / other direct repositioning must also rebase.
         function onContentYChanged() {
             if (!glide.flick || glide._draining)
                 return
+
+            if (glide._probe)
+                glide._plog("external y=" + glide.flick.contentY.toFixed(1)
+                            + " delta=" + (glide.flick.contentY - glide._smoothY).toFixed(1)
+                            + " gliding=" + (scrollDrain.running ? 1 : 0))
 
             if (!scrollDrain.running) {
                 glide._smoothY = glide.flick.contentY
@@ -190,36 +218,80 @@ Item {
 
             if (Math.abs(glide.flick.contentY - glide._smoothY)
                     > glide.externalRebaseTolerancePx) {
-                glide.cancelGlide()
+                glide.cancelGlide("external")
             }
         }
     }
 
     // A reused component must not carry a backlog from its previous Flickable.
-    onFlickChanged: glide.cancelGlide()
+    onFlickChanged: {
+        glide.cancelGlide("flickChanged")
+        glide._attachWheel()
+    }
+    Component.onCompleted: glide._attachWheel()
+    Component.onDestruction: {
+        Registry.unregister(glide)
+        if (glide._wheel)
+            glide._wheel.destroy()
+    }
 
-    WheelHandler {
-        target: glide.flick
-        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        acceptedModifiers: Qt.NoModifier
+    // The wheel handler must live ON the Flickable. A pointer handler only sees events inside its
+    // parent item, and ScrollGlide is usually a zero-size sibling of its Flickable: declared here,
+    // the handler never saw a wheel and Qt's own Flickable wheel (~29 px/notch) ran instead
+    // (SCROLL_PROBE recording, 2026-09-29). So it is created with the Flickable as its parent.
+    property var _wheel: null
+    function _attachWheel() {
+        if (glide._wheel) {
+            glide._wheel.destroy()
+            glide._wheel = null
+        }
+        Registry.register(glide.flick, glide)
+        if (glide.flick)
+            glide._wheel = wheelComponent.createObject(glide.flick)
+    }
 
-        onWheel: function(e) {
-            if (!glide.flick)
-                return
+    function _onWheel(e) {
+        if (!glide.flick)
+            return
 
-            // Trackpads already report pixels. Do not multiply them by speed.
-            var dy = e.pixelDelta.y
+        // Trackpads already report pixels. Do not multiply them by speed.
+        var dy = e.pixelDelta.y
 
-            // Mouse wheel fallback.
-            if (dy === 0)
-                dy = e.angleDelta.y * glide.speed
+        // Mouse wheel fallback.
+        if (dy === 0)
+            dy = e.angleDelta.y * glide.speed
 
-            if (dy === 0)
-                return
+        if (glide._probe)
+            glide._plog("wheel ad=" + e.angleDelta.y + " pd=" + e.pixelDelta.y + " dy=" + dy
+                        + " dev=" + (e.device ? e.device.type : "-")
+                        + " y=" + glide.flick.contentY.toFixed(1) + " pendingBefore=" + glide._pendingPx.toFixed(1))
 
-            // Wheel-down is negative input delta and must increase contentY.
-            glide.smoothScrollBy(-dy)
-            e.accepted = true
+        if (dy === 0)
+            return
+
+        // Already at the end in this direction with nothing queued: hand the wheel to the outer
+        // scroller (a nested wall at its bottom passes it to the page), as browsers do.
+        var y = glide.flick.contentY
+        if ((dy < 0 && glide._pendingPx >= 0 && y >= glide._maxY() - 0.5)
+                || (dy > 0 && glide._pendingPx <= 0 && y <= glide._minY() + 0.5)) {
+            var outer = Registry.outerGlide(glide.flick)
+            if (outer)
+                outer._onWheel(e)
+            return
+        }
+
+        // Wheel-down is negative input delta and must increase contentY.
+        glide.smoothScrollBy(-dy)
+        e.accepted = true
+    }
+
+    Component {
+        id: wheelComponent
+        WheelHandler {
+            target: null
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            acceptedModifiers: Qt.NoModifier
+            onWheel: function(e) { glide._onWheel(e) }
         }
     }
 
@@ -231,7 +303,7 @@ Item {
         var maxY = glide._maxY()
         var target = Math.max(glide._minY(), Math.min(maxY, absoluteY))
         // Absolute commands replace any wheel target already in flight.
-        glide.cancelGlide()
+        glide.cancelGlide("absolute")
         glide.smoothScrollBy(target - glide.flick.contentY)
     }
     function pageUp() { if (glide.flick) glide._animateTo(glide.flick.contentY - glide.flick.height * 0.85) }

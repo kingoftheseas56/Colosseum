@@ -134,6 +134,7 @@
 // NOT Player-2 stuff: the stall probe is the app's own QGuiApplication subclass, used
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
 // compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
+#include "ScrollProbe.h"     // diagnostic wheel-input probe (env-gated; see header)
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -1956,6 +1957,11 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("BootSplashPrefetchEnabled"),
         qEnvironmentVariable("COLOSSEUM_DISABLE_BOOT_PREFETCH") != QLatin1String("1"));
+    const bool scrollProbeEnabled = ScrollProbe::enabledFromEnv();
+    ScrollProbe scrollProbe;
+    if (scrollProbeEnabled)
+        app.installEventFilter(&scrollProbe);
+    engine.rootContext()->setContextProperty(QStringLiteral("ScrollProbeEnabled"), scrollProbeEnabled);
     GuiStallProbeBridge guiStallProbe(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("GuiStallProbe"), &guiStallProbe);
 
