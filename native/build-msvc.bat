@@ -7,7 +7,7 @@ REM  Tankoban 2's foliate EPUB reader (QWebEngineView + QWebChannel), which only
 REM  builds under Qt WebEngine = MSVC on Windows.  See the homeward-foundry recap.
 REM
 REM  Loads the MSVC 2022 toolchain, configures native\build-msvc, builds it.
-REM  Output -> build-msvc\colosseum.exe   (run it via Colosseum.bat / dev.bat).
+REM  Output -> build-msvc\colosseum.exe   (run it via launch.bat / dev.bat).
 REM ============================================================================
 setlocal
 cd /d "%~dp0"
