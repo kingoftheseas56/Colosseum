@@ -89,6 +89,12 @@ public:
                                          const QString& filterKey,
                                          bool includeExplicit,
                                          int offset, int limit) const;
+    // Same page, any number of filters ANDed: filters = [{axis, key}, ...] (one per axis;
+    // Discover sidebar: one filter per group). discoverPage() is this with one pair.
+    Q_INVOKABLE QVariantMap discoverPageFiltered(const QString& catalogId,
+                                                 const QVariantList& filters,
+                                                 bool includeExplicit,
+                                                 int offset, int limit) const;
 
 signals:
     void readyChanged();

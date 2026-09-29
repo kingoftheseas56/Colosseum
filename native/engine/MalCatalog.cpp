@@ -542,6 +542,16 @@ QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& fi
                                      const QString& filterKey, bool includeExplicit,
                                      int offset, int limit) const
 {
+    QVariantList filters;
+    if (!filterAxis.isEmpty() || !filterKey.isEmpty())
+        filters.append(QVariantMap{{QStringLiteral("axis"), filterAxis},
+                                   {QStringLiteral("key"), filterKey}});
+    return discoverPageFiltered(catalogId, filters, includeExplicit, offset, limit);
+}
+
+QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVariantList& filters,
+                                             bool includeExplicit, int offset, int limit) const
+{
     // Deterministic vote-confidence floor for the Top Rated Bayesian weight (m in
     // WR = (v/(v+m))*R + (m/(v+m))*C). A few thousand votes is the confidence bar:
     // a 9.9 from ~120 voters is pulled hard toward the catalogue mean C and cannot
@@ -569,14 +579,23 @@ QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& fi
         QStringLiteral("new-releases"), QStringLiteral("trending")};
     if (!catalogs.contains(catalogId))
         return pack({});
-    if (!(filterAxis.isEmpty() || filterAxis == QStringLiteral("genre")
-          || filterAxis == QStringLiteral("demographic")))
-        return pack({});
+    // Allowlisted axes only; an empty key is "no filter" for that entry.
+    QList<QPair<QString, QString>> facets;
+    for (const QVariant& f : filters) {
+        const QVariantMap fm = f.toMap();
+        const QString axis = fm.value(QStringLiteral("axis")).toString();
+        const QString key = fm.value(QStringLiteral("key")).toString();
+        if (!(axis.isEmpty() || axis == QStringLiteral("genre")
+              || axis == QStringLiteral("demographic")))
+            return pack({});
+        if (!axis.isEmpty() && !key.isEmpty())
+            facets.append({axis, key});
+    }
+    const QString filterAxis = facets.isEmpty() ? QString() : facets.first().first;
+    const QString filterKey = facets.isEmpty() ? QString() : facets.first().second;
 
-    // FROM (+ optional classification join for the facet filter; value is BOUND).
-    const bool joinClass =
-        (filterAxis == QStringLiteral("genre") || filterAxis == QStringLiteral("demographic"))
-        && !filterKey.isEmpty();
+    // FROM (+ optional classification join for the first facet filter; value is BOUND).
+    const bool joinClass = !facets.isEmpty();
     QString from = QStringLiteral("manga m");
     QStringList where;
     QVariantList binds;
@@ -589,6 +608,12 @@ QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& fi
         // filter (2026-08-02: the Discover Romance filter painted an empty wall).
         where << QStringLiteral("c.medium = 'manga' AND c.axis = ? AND LOWER(c.value) = LOWER(?)");
         binds << filterAxis << filterKey;
+    }
+    // Every further facet narrows the same set: a non-correlated IN, evaluated once per query.
+    for (int i = 1; i < facets.size(); ++i) {
+        where << QStringLiteral("m.mal_id IN (SELECT c2.mal_id FROM classification c2 "
+                                "WHERE c2.medium = 'manga' AND c2.axis = ? AND LOWER(c2.value) = LOWER(?))");
+        binds << facets.at(i).first << facets.at(i).second;
     }
     if (!includeExplicit)
         where << QStringLiteral("m.explicit = 0");

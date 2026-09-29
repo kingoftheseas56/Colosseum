@@ -173,6 +173,9 @@ public:
     Q_INVOKABLE QVariantMap discoverPage(const QString &catalogId, const QString &facetAxis,
                                          const QString &facetKey, bool includeExplicit,
                                          int offset, int limit) const;
+    // Same page, any number of facets ANDed: filters = [{axis, key}, ...] (Discover sidebar).
+    Q_INVOKABLE QVariantMap discoverPageFiltered(const QString &catalogId, const QVariantList &filters,
+                                                 bool includeExplicit, int offset, int limit) const;
 
     // The controlled filter axes/values (BiblioCatalogStore::filterGroups).
     Q_INVOKABLE QVariantList filterGroups(bool includeExplicit) const;

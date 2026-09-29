@@ -415,6 +415,26 @@ int main(int argc, char** argv) {
         const QVariantList dcLc = disco.discoverPage("popular", "publisher", "dc", true, 0, 100).value("items").toList();
         if (dcLc.size() != 2) return fail("lower-case publisher key resolves (case-insensitive publisher facet)");
 
+        // --- combined facets (Discover sidebar: one filter per group, ANDed) ---
+        auto facet = [](const char* axis, const char* key) {
+            return QVariant(QVariantMap{{QStringLiteral("axis"), QString::fromLatin1(axis)},
+                                        {QStringLiteral("key"), QString::fromLatin1(key)}});
+        };
+        const QVariantList horrorBlackMask = disco.discoverPageFiltered(
+            "popular", QVariantList{facet("genre", "horror"), facet("publisher", "black mask")}, true, 0, 100)
+            .value("items").toList();
+        if (horrorBlackMask.size() != 1 || idxOf(horrorBlackMask, "mr") != 0)
+            return fail("Horror AND Black Mask = Mature Mayhem only");
+        if (!disco.discoverPageFiltered("popular", QVariantList{facet("genre", "Horror"), facet("publisher", "DC")},
+                                        true, 0, 100).value("items").toList().isEmpty())
+            return fail("Horror AND DC matches nothing");
+        if (disco.discoverPageFiltered("popular", QVariantList{facet("genre", "Horror")}, true, 0, 100)
+                .value("items").toList().size() != 2)
+            return fail("a one-facet list equals the single-filter page");
+        if (!disco.discoverPageFiltered("popular", QVariantList{facet("genre", "Horror"), facet("bogus", "x")},
+                                        true, 0, 100).value("items").toList().isEmpty())
+            return fail("an unknown axis anywhere in the list yields no items");
+
         // --- includeExplicit is a documented NO-OP; horror/Mature title stays VISIBLE ---
         const QVariantList popF = disco.discoverPage("popular", "", "", false, 0, 100).value("items").toList();
         if (popF.size() != pop.size()) return fail("includeExplicit must be a no-op for comics (same result set)");

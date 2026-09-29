@@ -697,6 +697,16 @@ QVariantMap BiblioCatalogStore::page(const QString &catalogId, const QString &fa
                                      const QString &facetKey, bool includeExplicit,
                                      int offset, int limit) const
 {
+    QVariantList filters;
+    if (!facetAxis.isEmpty() || !facetKey.isEmpty())
+        filters.append(QVariantMap{{QStringLiteral("axis"), facetAxis},
+                                   {QStringLiteral("key"), facetKey}});
+    return pageFiltered(catalogId, filters, includeExplicit, offset, limit);
+}
+
+QVariantMap BiblioCatalogStore::pageFiltered(const QString &catalogId, const QVariantList &filters,
+                                             bool includeExplicit, int offset, int limit) const
+{
     const int lim = std::clamp(limit, 1, kPageLimitMax);
     const int off = std::max(0, offset);
 
@@ -709,11 +719,19 @@ QVariantMap BiblioCatalogStore::page(const QString &catalogId, const QString &fa
         return packPage({}, off, 0, QStringLiteral("none"),
                         QStringLiteral("unknown catalogue id"));
 
-    // Allowlist the facet axis (empty means "no filter").
-    const bool hasFilter = !facetAxis.isEmpty() && !facetKey.isEmpty();
-    if (hasFilter && !allowedFacetAxes().contains(facetAxis))
-        return packPage({}, off, 0, QStringLiteral("none"),
-                        QStringLiteral("unknown facet axis"));
+    // Allowlist every facet axis (an empty axis or key means "no filter" for that entry).
+    QList<QPair<QString, QString>> facets;
+    for (const QVariant &f : filters) {
+        const QVariantMap fm = f.toMap();
+        const QString facetAxis = fm.value(QStringLiteral("axis")).toString();
+        const QString facetKey = fm.value(QStringLiteral("key")).toString();
+        if (facetAxis.isEmpty() || facetKey.isEmpty())
+            continue;
+        if (!allowedFacetAxes().contains(facetAxis))
+            return packPage({}, off, 0, QStringLiteral("none"),
+                            QStringLiteral("unknown facet axis"));
+        facets.append({facetAxis, facetKey});
+    }
 
     QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
     if (!db.isOpen())
@@ -738,7 +756,7 @@ QVariantMap BiblioCatalogStore::page(const QString &catalogId, const QString &fa
         " from rankings r join works w"
         "   on w.snapshot_id = r.snapshot_id and w.canonical_id = r.canonical_id"
         " where r.snapshot_id = ? and r.catalog_id = ?");
-    if (hasFilter)
+    for (int i = 0; i < facets.size(); ++i)
         sql += QStringLiteral(
             " and exists (select 1 from work_facets f"
             "             where f.snapshot_id = r.snapshot_id"
@@ -755,9 +773,9 @@ QVariantMap BiblioCatalogStore::page(const QString &catalogId, const QString &fa
     }
     q.addBindValue(snapshotId);
     q.addBindValue(catalogId);
-    if (hasFilter) {
-        q.addBindValue(facetAxis);
-        q.addBindValue(facetKey); // BOUND, never concatenated
+    for (const auto &facet : facets) {
+        q.addBindValue(facet.first);
+        q.addBindValue(facet.second); // BOUND, never concatenated
     }
     if (!q.exec()) {
         m_lastWarning = q.lastError().text();

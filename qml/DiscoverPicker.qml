@@ -14,6 +14,9 @@ Item {
     property bool open: false
     property bool clearable: true             // an active filter shows an ✕ that resets it
     property Item focusReturn: null
+    // Lanista identity stem, world-namespaced by the host ("" = unnamed): <stem>Pill and
+    // <stem>Option_<index>. Discover sidebar plan Slice 1 regression; the picker goes in Slice 3.
+    property string automationName: ""
     signal picked(string key)
     signal cleared()
 
@@ -128,6 +131,7 @@ Item {
         }
         MouseArea {
             id: ma
+            objectName: picker.automationName.length ? picker.automationName + "Pill" : ""
             anchors.fill: parent
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: picker.togglePopup(pillAction)
@@ -246,6 +250,7 @@ Item {
                     }
                     MouseArea {
                         id: rowMa
+                        objectName: picker.automationName.length ? picker.automationName + "Option_" + opt.index : ""
                         anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: picker.choose(opt.index)

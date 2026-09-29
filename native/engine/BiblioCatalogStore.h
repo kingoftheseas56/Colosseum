@@ -169,6 +169,9 @@ public:
     QVariantMap page(const QString &catalogId, const QString &facetAxis,
                      const QString &facetKey, bool includeExplicit,
                      int offset, int limit) const;
+    // Same page with any number of facets ANDed: [{axis, key}] (Discover sidebar: one per group).
+    QVariantMap pageFiltered(const QString &catalogId, const QVariantList &filters,
+                             bool includeExplicit, int offset, int limit) const;
 
     // The controlled filter axes/values the taxonomy advertises, gated by
     // explicit (publisher values are data-derived from the active snapshot).

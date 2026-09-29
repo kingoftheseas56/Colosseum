@@ -279,6 +279,22 @@ void testExactFacetFiltering()
             "unmatched facet key returns no items");
     require(unmatched.value(QStringLiteral("exhausted")).toBool(),
             "unmatched facet key exhausts immediately");
+
+    // Combined facets (Discover sidebar: one filter per group, ANDed).
+    auto facet = [](const QString &axis, const QString &key) {
+        return QVariant(QVariantMap{{QStringLiteral("axis"), axis}, {QStringLiteral("key"), key}});
+    };
+    const QString genre = QStringLiteral("genre");
+    const QString sf = QStringLiteral("science-fiction");
+    require(store.pageFiltered(catalog, QVariantList{facet(genre, sf)}, true, 0, 100)
+                .value(QStringLiteral("items")).toList().size() == 4,
+            "a one-facet list equals the single-facet page");
+    require(store.pageFiltered(catalog, QVariantList{facet(genre, sf), facet(genre, QStringLiteral("nonexistent-key"))},
+                               true, 0, 100).value(QStringLiteral("items")).toList().empty(),
+            "facets are ANDed: a matching and a non-matching facet match nothing");
+    require(store.pageFiltered(catalog, QVariantList{facet(genre, sf), facet(QStringLiteral("bogus"), QStringLiteral("x"))},
+                               true, 0, 100).value(QStringLiteral("items")).toList().empty(),
+            "an unknown axis anywhere in the list yields no items");
 }
 
 void testExplicitGating()

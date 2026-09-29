@@ -12,8 +12,11 @@
 //   filters(type, catalog)  -> [{ group, options: [{ key, label }] }]
 //   defaultCatalog(type)    -> string key
 //   resolvePin(pin)         -> { missing, type, catalogKey, filterGroup, filterKey, missingName }
+//                              (optionally `filters: { group: key }` instead of the single pair)
+//   combinesFilters(type, catalog) -> bool (optional; default false = one filter at a time)
 //   fetchPage(state, cursor, generation, done)   // done(generation, page)
-//     state = { type, catalogKey, filterGroup, filterKey }
+//     state = { type, catalogKey, filters: { group: key }, filterGroup, filterKey }
+//     (filterGroup/filterKey = the first active pair, for single-filter sources)
 //     page  = { items, nextCursor, exhausted, freshness, warning }
 //
 // Normalized card shape the wall renders:
@@ -39,7 +42,11 @@ Item {
     readonly property string automationType: currentType
     // Active filters as one stable string ("Group=key;Group=key", groups sorted, "" when none):
     // the bridge waits on strict equality only.
-    readonly property string automationFilterSummary: filterKey.length ? (filterGroup + "=" + filterKey) : ""
+    readonly property string automationFilterSummary: {
+        var ks = Object.keys(filters).sort(), out = [];
+        for (var i = 0; i < ks.length; i++) out.push(ks[i] + "=" + filters[ks[i]]);
+        return out.join(";");
+    }
     readonly property int automationItemCount: items.length
     // How many legacy pickers (catalogue popup, filter picker) still exist. The sidebar slices
     // remove them; counting named items proves it (the bridge has no absence assertion).
@@ -98,8 +105,13 @@ Item {
     // ── generic browsing state ──
     property string currentType: ""
     property string currentCatalogKey: ""
-    property string filterGroup: ""
-    property string filterKey: ""
+    // Active filters, one per group: { group: key }. Whether a second group ADDS or REPLACES is the
+    // adapter's call (combinesFilters; Discover sidebar plan Slice 1). filterGroup/filterKey are the
+    // first active pair, kept for single-selection readers (the legacy picker, pins).
+    property var filters: ({})
+    readonly property string filterGroup: { var ks = Object.keys(filters).sort(); return ks.length ? ks[0] : "" }
+    readonly property string filterKey: filterGroup.length ? String(filters[filterGroup]) : ""
+    readonly property int activeFilterCount: Object.keys(filters).length
     property var cursor: null
     property int fetchGen: 0                 // stale-response fence
     property bool initialized: false
@@ -192,17 +204,16 @@ Item {
     // the active filter's human label (for the byline) — key equals label in the flat worlds,
     // but resolve it honestly through the descriptor so multi-option worlds read right too.
     readonly property string activeFilterLabel: {
-        if (!filterKey.length) return "";
-        var groups = filterGroups;
-        for (var g = 0; g < groups.length; g++)
-            if (groups[g].group === filterGroup)
-                for (var o = 0; o < groups[g].options.length; o++)
-                    if (groups[g].options[o].key === filterKey) return groups[g].options[o].label;
-        return filterKey;
+        var ks = Object.keys(filters).sort();
+        if (!ks.length) return "";
+        var groups = filterGroups, labels = [];
+        for (var i = 0; i < ks.length; i++)
+            labels.push(browser.filterOptionLabel(ks[i], filters[ks[i]]));
+        return labels.join("   ·   ");
     }
 
     readonly property string emptyMessage: !currentCatalog ? textNoCatalogue
-        : (filterKey.length ? textFilterEmpty : textCatalogueEmpty)
+        : (activeFilterCount > 0 ? textFilterEmpty : textCatalogueEmpty)
     readonly property bool showOfflineNotice: offlineWarning.length > 0 && warning === offlineWarning
     readonly property string bannerText: showOfflineNotice ? warning : noticeText
     readonly property bool bannerVisible: showOfflineNotice || noticeText.length > 0
@@ -292,7 +303,7 @@ Item {
         var t = ts.length ? ts[0].key : fallbackType
         currentType = t
         currentCatalogKey = adapter.defaultCatalog(t)
-        filterGroup = ""; filterKey = ""; noticeText = ""
+        filters = ({}); noticeText = ""
         reloadForCatalog()
     }
 
@@ -308,7 +319,7 @@ Item {
             restoreTypeState(typeStates[t])
         } else {
             currentCatalogKey = adapter ? adapter.defaultCatalog(t) : ""
-            filterGroup = ""; filterKey = ""; noticeText = ""
+            filters = ({}); noticeText = ""
             reloadForCatalog()
         }
     }
@@ -317,32 +328,67 @@ Item {
         cancelPageRequest()
         fetchGen++
         currentCatalogKey = key
-        filterGroup = ""; filterKey = ""; noticeText = ""
+        filters = ({}); noticeText = ""
         catalogMenuOpen = false
         reloadForCatalog()
     }
 
+    function filterOptionLabel(group, key) {
+        var groups = filterGroups;
+        for (var g = 0; g < groups.length; g++)
+            if (groups[g].group === group)
+                for (var o = 0; o < groups[g].options.length; o++)
+                    if (groups[g].options[o].key === key) return groups[g].options[o].label;
+        return String(key);
+    }
+
+    // Can this catalogue take one filter per group at once? (adapter's call; default: one at a time)
+    function combinesFilters() {
+        return !!(adapter && adapter.combinesFilters && currentCatalogKey.length
+                  && adapter.combinesFilters(currentType, currentCatalogKey));
+    }
+
+    // Set one group's filter. A catalogue that combines keeps the other groups; one that does not
+    // replaces them. An empty key clears that group.
     function setFilter(group, key) {
+        if (!key || !String(key).length) { clearFilter(group); return }
         cancelPageRequest()
         fetchGen++
-        if (key && key.length) { filterGroup = group; filterKey = key }
-        else { filterGroup = ""; filterKey = "" }
+        var next = {};
+        if (combinesFilters())
+            for (var k in filters) next[k] = filters[k];
+        next[group] = key;
+        filters = next
         reloadForCatalog()
     }
 
-    function clearFilter() {
+    // clearFilter(group) clears one group; clearFilter() with no group clears them all.
+    function clearFilter(group) {
         cancelPageRequest()
         fetchGen++
-        filterGroup = ""; filterKey = ""
+        if (group === undefined || group === null) {
+            filters = ({})
+        } else {
+            var next = {};
+            for (var k in filters) if (k !== group) next[k] = filters[k];
+            filters = next
+        }
         reloadForCatalog()
     }
+    function clearFilters() { clearFilter() }
 
     // split a picker option key (group + SEP + key) back into a filter selection
+    // The legacy picker chooses ONE filter at a time: it replaces the whole selection.
     function _applyFilterKey(encoded) {
         if (!encoded || !encoded.length) { clearFilter(); return }
         var i = encoded.indexOf(_filterSep)
-        if (i < 0) { setFilter("", encoded); return }
-        setFilter(encoded.substring(0, i), encoded.substring(i + _filterSep.length))
+        var group = i < 0 ? "" : encoded.substring(0, i)
+        var key = i < 0 ? encoded : encoded.substring(i + _filterSep.length)
+        cancelPageRequest()
+        fetchGen++
+        var next = {}; next[group] = key
+        filters = next
+        reloadForCatalog()
     }
 
     function applyPin(pin) {
@@ -357,7 +403,7 @@ Item {
             // an invalid filter cleared, and one explanatory notice.
             currentType = res.type
             currentCatalogKey = adapter.defaultCatalog(res.type)
-            filterGroup = ""; filterKey = ""
+            filters = ({})
             noticeText = noticeMissingFormat.arg(
                 (res.missingName && res.missingName.length) ? res.missingName : "That source")
             reloadForCatalog()
@@ -366,8 +412,13 @@ Item {
         noticeText = ""
         currentType = res.type
         currentCatalogKey = res.catalogKey
-        filterGroup = res.filterGroup || ""
-        filterKey = res.filterKey || ""
+        if (res.filters) {
+            filters = res.filters
+        } else {
+            var pinned = {}
+            if (res.filterKey && res.filterKey.length) pinned[res.filterGroup || ""] = res.filterKey
+            filters = pinned
+        }
         reloadForCatalog()
     }
 
@@ -383,7 +434,7 @@ Item {
         cancelPageRequest()
         fetchGen++
         currentCatalogKey = adapter.defaultCatalog(currentType)
-        filterGroup = ""; filterKey = ""; noticeText = ""
+        filters = ({}); noticeText = ""
         reloadForCatalog()
     }
 
@@ -406,7 +457,7 @@ Item {
         if (!currentType.length) return
         var s = {}
         for (var k in typeStates) s[k] = typeStates[k]
-        s[currentType] = { catalogKey: currentCatalogKey, filterGroup: filterGroup, filterKey: filterKey,
+        s[currentType] = { catalogKey: currentCatalogKey, filters: filters,
                            items: items, cursor: cursor, exhausted: exhausted,
                            warning: warning, freshness: freshness, noticeText: noticeText,
                            pageResumePending: _pageResumePending,
@@ -425,7 +476,7 @@ Item {
 
     function restoreTypeState(st) {
         currentCatalogKey = st.catalogKey
-        filterGroup = st.filterGroup; filterKey = st.filterKey
+        filters = st.filters || ({})
         items = st.items; cursor = st.cursor; exhausted = st.exhausted
         warning = st.warning || ""; freshness = st.freshness || ""; noticeText = st.noticeText || ""
         loading = false
@@ -457,8 +508,10 @@ Item {
         _pageResumePending = false
         loading = true
         var gen = ++fetchGen
-        var st = { type: currentType, catalogKey: currentCatalogKey,
-                   filterGroup: filterGroup, filterKey: filterKey }
+        var chosen = {}
+        for (var k in filters) chosen[k] = filters[k]
+        var st = { type: currentType, catalogKey: currentCatalogKey, filters: chosen,
+                   filterGroup: filterGroup, filterKey: filterKey }   // first pair: single-filter adapters
         var handle = adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
             if (!browser.active || replyGen !== browser.fetchGen) return
             browser._pageCancel = null
@@ -803,6 +856,7 @@ Item {
         DiscoverPicker {
             id: filterPicker
             objectName: "discoverFilterPicker"
+            automationName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverFilterPicker" : ""
             label: browser.filterPickerLabel
             clearable: true
             options: browser.filterMenuModel

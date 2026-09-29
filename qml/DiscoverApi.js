@@ -256,6 +256,25 @@ function selectionsForFilter(catalog, filterGroup, filterKey) {
     return sel;
 }
 
+// The Discover sidebar holds one filter per group ({ label: key }). Required extras keep their
+// auto-picked default unless a filter names them; an unselected optional extra stays unset.
+function selectionsForFilters(catalog, filters) {
+    var extras = extrasFor(catalog);
+    var sel = defaultSelections(extras);
+    for (var i = 0; i < extras.length; i++) {
+        var key = filters ? filters[extras[i].label] : undefined;
+        if (key !== undefined && key !== null && String(key).length) sel[extras[i].name] = String(key);
+        else if (!extras[i].isRequired) sel[extras[i].name] = null;
+    }
+    return sel;
+}
+
+// A catalogue combines filters only when its manifest declares more than one filterable extra
+// (most declare just genre, so Theatre mostly stays one filter at a time — the approved rule).
+function combinesFilters(catalog) {
+    return extrasFor(catalog).length > 1;
+}
+
 // a Stremio/Cinemeta meta preview -> the shell's normalized card. The DISPLAYED values match
 // the old Discover card exactly (title/year/rating/cover fallbacks in the SAME order); `raw`
 // keeps the original meta so the Theatre wrapper can re-emit it untouched to the detail page.

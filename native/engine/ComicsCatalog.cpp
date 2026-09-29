@@ -643,8 +643,17 @@ QVariantList ComicsCatalog::discoverFiltersUncached(const QString& axis) const {
 }
 
 QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString& filterAxis,
-                                        const QString& filterKey, bool /*includeExplicit*/,
+                                        const QString& filterKey, bool includeExplicit,
                                         int offset, int limit) const {
+    QVariantList filters;
+    if (!filterAxis.isEmpty() || !filterKey.isEmpty())
+        filters.append(QVariantMap{{QStringLiteral("axis"), filterAxis},
+                                   {QStringLiteral("key"), filterKey}});
+    return discoverPageFiltered(catalogId, filters, includeExplicit, offset, limit);
+}
+
+QVariantMap ComicsCatalog::discoverPageFiltered(const QString& catalogId, const QVariantList& filters,
+                                                bool /*includeExplicit*/, int offset, int limit) const {
     const int lim = std::clamp(limit, 1, kPageLimitMax);
     const int off = std::max(0, offset);
     auto pack = [&](const QVariantList& items, int total) {
@@ -668,16 +677,41 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
         || catalogId == QStringLiteral("near-complete")
         || catalogId == QStringLiteral("community-collections");
     if (coverageCatalog && !hasCoverage) return pack({}, 0);
-    if (!(filterAxis.isEmpty() || filterAxis == QStringLiteral("genre")
-          || filterAxis == QStringLiteral("publisher") || filterAxis == QStringLiteral("format")
-          || filterAxis == QStringLiteral("availability")))
-        return pack({}, 0);
-    if (filterAxis == QStringLiteral("availability") && !hasCoverage) return pack({}, 0);
-
-    const bool facetGenre = filterAxis == QStringLiteral("genre") && !filterKey.isEmpty();
-    const bool facetPublisher = filterAxis == QStringLiteral("publisher") && !filterKey.isEmpty();
-    const bool facetFormat = filterAxis == QStringLiteral("format") && !filterKey.isEmpty();
-    const bool facetAvailability = filterAxis == QStringLiteral("availability") && !filterKey.isEmpty();
+    // Allowlisted axes only; every active facet is ANDed as its own bound condition.
+    QStringList conditions;
+    QVariantList binds;
+    QString formatKey;   // the active Format facet, echoed on each row (as the single-filter page did)
+    for (const QVariant& f : filters) {
+        const QVariantMap fm = f.toMap();
+        const QString filterAxis = fm.value(QStringLiteral("axis")).toString();
+        const QString filterKey = fm.value(QStringLiteral("key")).toString();
+        if (!(filterAxis.isEmpty() || filterAxis == QStringLiteral("genre")
+              || filterAxis == QStringLiteral("publisher") || filterAxis == QStringLiteral("format")
+              || filterAxis == QStringLiteral("availability")))
+            return pack({}, 0);
+        if (filterAxis == QStringLiteral("availability") && !hasCoverage) return pack({}, 0);
+        if (filterAxis.isEmpty() || filterKey.isEmpty()) continue;
+        if (filterAxis == QStringLiteral("genre")) {
+            conditions << QStringLiteral("exists(select 1 from curated_genre gf where gf.locg_id = s.locg_id"
+                                         " and lower(gf.genre) = lower(?))");
+            binds << filterKey;
+        } else if (filterAxis == QStringLiteral("publisher")) {
+            conditions << QStringLiteral("lower(s.publisher) = lower(?)");
+            binds << filterKey;
+        } else if (filterAxis == QStringLiteral("format")) {
+            conditions << QStringLiteral("exists(select 1 from curated_edition ef where ef.locg_id = s.locg_id"
+                                         " and lower(trim(ef.format)) = lower(?))");
+            binds << filterKey;
+            formatKey = filterKey;
+        } else if (filterKey == QStringLiteral("available")) {
+            conditions << QStringLiteral("exists(select 1 from curated_series_coverage cf"
+                                         " where cf.locg_id = s.locg_id and cf.official_source_count > 0)");
+        } else {
+            conditions << QStringLiteral("exists(select 1 from curated_series_coverage cf"
+                                         " where cf.locg_id = s.locg_id and lower(cf.availability_state) = lower(?))");
+            binds << filterKey;
+        }
+    }
 
     QString sql = QStringLiteral(
         "select s.locg_id, s.rank, s.title, s.norm_title, s.year, s.publisher, s.cover, s.synopsis,"
@@ -687,25 +721,13 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
         "       (select count(*) from curated_edition e where e.locg_id = s.locg_id"
         "        and e.available = 1 and e.getcomics_post != '') as avail_count"
         " from curated_series s");
-    if (facetGenre)
-        sql += QStringLiteral(" join curated_genre gf on gf.locg_id = s.locg_id where lower(gf.genre) = lower(?)");
-    else if (facetPublisher)
-        sql += QStringLiteral(" where lower(s.publisher) = lower(?)");
-    else if (facetFormat)
-        sql += QStringLiteral(" where exists(select 1 from curated_edition ef where ef.locg_id = s.locg_id"
-                              " and lower(trim(ef.format)) = lower(?))");
-    else if (facetAvailability && filterKey == QStringLiteral("available"))
-        sql += QStringLiteral(" where exists(select 1 from curated_series_coverage cf"
-                              " where cf.locg_id = s.locg_id and cf.official_source_count > 0)");
-    else if (facetAvailability)
-        sql += QStringLiteral(" where exists(select 1 from curated_series_coverage cf"
-                              " where cf.locg_id = s.locg_id and lower(cf.availability_state) = lower(?))");
+    if (!conditions.isEmpty())
+        sql += QStringLiteral(" where ") + conditions.join(QStringLiteral(" and "));
 
     QSqlQuery q(m_db);
     q.prepare(sql);
-    if (facetGenre || facetPublisher || facetFormat
-        || (facetAvailability && filterKey != QStringLiteral("available")))
-        q.addBindValue(filterKey);
+    for (const QVariant& b : binds)
+        q.addBindValue(b);
     if (!q.exec()) return pack({}, 0);
 
     std::vector<DiscoRow> rows;
@@ -881,7 +903,7 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
         m.insert(QStringLiteral("publisher"), r.publisher);
         m.insert(QStringLiteral("cover"), r.cover);
         m.insert(QStringLiteral("genres"), r.genres);
-        m.insert(QStringLiteral("format"), facetFormat ? filterKey : QString());
+        m.insert(QStringLiteral("format"), formatKey);
         m.insert(QStringLiteral("availability"), available);
         m.insert(QStringLiteral("availabilityState"), r.availabilityState);
         m.insert(QStringLiteral("coverageRatio"), r.coverageRatio);

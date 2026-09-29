@@ -49,13 +49,19 @@ Item {
             return cat ? Api.shellFilters(cat) : []
         }
         function resolvePin(pin) { return Api.shellResolvePin(installed, pin) }
+        function combinesFilters(type, catalogKey) {
+            var cat = Api.catalogByKey(installed, type, catalogKey)
+            return cat ? Api.combinesFilters(cat) : false
+        }
 
         function fetchPage(state, cursor, generation, done) {
             var cat = Api.catalogByKey(installed, state.type, state.catalogKey)
             if (!cat) { done(generation, { items: [], nextCursor: null, exhausted: true, freshness: "", warning: "" }); return }
             // rebuild the FULL selections map (required extras kept) then override with the
-            // shell's single active filter — this is the Theatre-preserving translation.
-            var selections = Api.selectionsForFilter(cat, state.filterGroup, state.filterKey)
+            // shell's active filters (one per group) — the Theatre-preserving translation.
+            var selections = state.filters
+                ? Api.selectionsForFilters(cat, state.filters)
+                : Api.selectionsForFilter(cat, state.filterGroup, state.filterKey)
             var skip = cursor || 0
             return Api.loadPage(cat, selections, skip, function(metas) {
                 // Task 9: apply the global Explicit Content preference. Policy.visible

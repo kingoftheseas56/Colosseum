@@ -304,6 +304,12 @@ QVariantMap BiblioCatalog::discoverPage(const QString &catalogId, const QString 
     return m_store.page(catalogId, facetAxis, facetKey, includeExplicit, offset, limit);
 }
 
+QVariantMap BiblioCatalog::discoverPageFiltered(const QString &catalogId, const QVariantList &filters,
+                                                bool includeExplicit, int offset, int limit) const
+{
+    return m_store.pageFiltered(catalogId, filters, includeExplicit, offset, limit);
+}
+
 QVariantList BiblioCatalog::filterGroups(bool includeExplicit) const
 {
     return m_store.filterGroups(includeExplicit);

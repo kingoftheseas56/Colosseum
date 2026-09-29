@@ -51,8 +51,40 @@ var liveCache = {};
 var liveInFlight = {};
 var CACHE_MS = 15 * 60 * 1000;
 function liveCacheKey(state, showExplicit) {
-    return state.catalogKey + "|" + state.filterGroup + "|" + state.filterKey
+    return state.catalogKey + "|" + filterSignature(state)
          + "|" + (showExplicit ? "x" : "s");
+}
+
+// The active filters of a shell state as a stable string (groups sorted). Falls back to the
+// legacy single pair for callers that predate state.filters (Discover sidebar plan Slice 1).
+function activeFilters(state) {
+    var out = [];
+    var f = state.filters;
+    if (f) {
+        var ks = Object.keys(f).sort();
+        for (var i = 0; i < ks.length; i++)
+            if (f[ks[i]] !== undefined && String(f[ks[i]]).length) out.push({ group: ks[i], key: String(f[ks[i]]) });
+    } else if (state.filterKey && state.filterKey.length) {
+        out.push({ group: state.filterGroup || "", key: state.filterKey });
+    }
+    return out;
+}
+function filterSignature(state) {
+    return activeFilters(state).map(function(p) { return p.group + "=" + p.key }).join(";");
+}
+// [{axis, key}] for the native discoverPageFiltered; an unknown group maps to no axis.
+function nativeFilters(state, axisFor) {
+    var pairs = activeFilters(state), out = [];
+    for (var i = 0; i < pairs.length; i++) {
+        var axis = axisFor(pairs[i].group);
+        if (axis.length) out.push({ axis: axis, key: pairs[i].key });
+    }
+    return out;
+}
+function isBuiltinCatalog(type, catalogKey) {
+    var list = (type === "manga") ? MANGA_CATALOGS : (type === "comics") ? COMICS_CATALOGS : [];
+    for (var i = 0; i < list.length; i++) if (list[i].key === catalogKey) return true;
+    return false;
 }
 
 // Jikan endpoint base. sfw derives from the global preference (spec 5.3/6.3):
@@ -354,14 +386,17 @@ function comicsAxis(filterGroup) {
 
 function fetchMangaPage(deps, state, cursor, generation, done) {
     var mal = deps.malCatalog;
-    var axis = mangaAxis(state.filterGroup);
+    var facets = nativeFilters(state, mangaAxis);
+    var axis = facets.length ? facets[0].axis : "";
     // cursor is the offset (bundled MAL paging is offset-based)
     var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
     var limit = 24;
     if (!mal) { done(generation, { items: [], nextCursor: null, exhausted: true, freshness: "bundled", warning: "" }); return }
 
-    var native = mal.discoverPage(state.catalogKey, axis, state.filterKey,
-                                  deps.showExplicit, offset, limit);
+    var native = mal.discoverPageFiltered
+        ? mal.discoverPageFiltered(state.catalogKey, facets, deps.showExplicit, offset, limit)
+        : mal.discoverPage(state.catalogKey, axis, facets.length ? facets[0].key : "",
+                           deps.showExplicit, offset, limit);
     var rows = (native && native.items) || [];
     var items = [];
     for (var i = 0; i < rows.length; i++) {
@@ -439,13 +474,16 @@ function parseJikanResponse(text) {
 
 function fetchComicsPage(deps, state, cursor, generation, done) {
     var comics = deps.comicsCatalog;
-    var axis = comicsAxis(state.filterGroup);
+    var facets = nativeFilters(state, comicsAxis);
+    var axis = facets.length ? facets[0].axis : "";
     var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
     var limit = 24;
     if (!comics) { done(generation, { items: [], nextCursor: null, exhausted: true, freshness: "bundled", warning: "" }); return }
 
-    var native = comics.discoverPage(state.catalogKey, axis, state.filterKey,
-                                     deps.showExplicit, offset, limit);
+    var native = comics.discoverPageFiltered
+        ? comics.discoverPageFiltered(state.catalogKey, facets, deps.showExplicit, offset, limit)
+        : comics.discoverPage(state.catalogKey, axis, facets.length ? facets[0].key : "",
+                              deps.showExplicit, offset, limit);
     var rows = (native && native.items) || [];
     var items = [];
     for (var i = 0; i < rows.length; i++) {
@@ -485,6 +523,8 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
             return filtersForType(type, catalogKey, deps.malCatalog, deps.comicsCatalog, deps.showExplicit);
         },
         defaultCatalog: function(type) { return "popular"; },
+        // The bundled MAL / comics databases AND every active group (Discover sidebar).
+        combinesFilters: function(type, catalogKey) { return isBuiltinCatalog(type, catalogKey); },
         resolvePin: function(pin) {
             var p = pin || {};
             var base = resolvePin(p, deps.extensions);

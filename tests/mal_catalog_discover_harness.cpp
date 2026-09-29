@@ -303,6 +303,28 @@ int main(int argc, char** argv)
         require(idsOf(excl) == (QList<int>{1}), "Seinen facet drops the explicit title when hidden");
     }
 
+    // ── combined facets (Discover sidebar: one filter per group, ANDed) ──────
+    {
+        auto facet = [](const char* axis, const char* key) {
+            return QVariant(QVariantMap{{QStringLiteral("axis"), QString::fromLatin1(axis)},
+                                        {QStringLiteral("key"), QString::fromLatin1(key)}});
+        };
+        const QVariantList seinenAction{facet("genre", "action"), facet("demographic", "Seinen")};
+        require(idsOf(cat.discoverPageFiltered("popular", seinenAction, true, 0, 100).value("items").toList())
+                    == (QList<int>{1}), "Action AND Seinen = Berserk only");
+        const QVariantList shounenAction{facet("genre", "Action"), facet("demographic", "shounen")};
+        require(idsOf(cat.discoverPageFiltered("popular", shounenAction, true, 0, 100).value("items").toList())
+                    == (QList<int>{5}), "Action AND Shounen = Established only");
+        const QVariantList one{facet("genre", "Action")};
+        require(idsOf(cat.discoverPageFiltered("popular", one, true, 0, 100).value("items").toList())
+                    == (QList<int>{1, 2, 5, 7, 3}), "a one-facet list equals the single-filter page");
+        const QVariantList bogus{facet("genre", "Action"), facet("bogus", "x")};
+        require(cat.discoverPageFiltered("popular", bogus, true, 0, 100).value("items").toList().isEmpty(),
+                "an unknown axis anywhere in the list yields no items");
+        require(idsOf(cat.discoverPageFiltered("top-rated", seinenAction, true, 0, 100).value("items").toList())
+                    == (QList<int>{1}), "combined facets also scope Top Rated");
+    }
+
     // ── includeExplicit gating on the unfiltered catalog ─────────────────────
     {
         const QVariantList incl = cat.discoverPage("popular", "", "", true, 0, 100).value("items").toList();

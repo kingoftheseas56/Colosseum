@@ -326,3 +326,25 @@ Append per-slice gate numbers, session ids, witness verdicts and status changes 
   negative control (summary separator) red. Lanista `discover_sidebar_seams.json` 28/28 (tag ds0seams6, session
   20260929-204939-2ede66ce); `WARNING_GATE_OK`. Plan corrected: `loading == false` is true before init, so the
   completion signal waits on `automationType` first. qmllint unchanged. Status: done (internal).
+
+- 2026-09-29 — Slice 1 (one filter per group). Reality vs plan: the manga, comics and Biblio native queries each
+  took ONE axis, so "build the query with every active group" needed native work: new
+  `discoverPageFiltered(catalogId, [{axis,key}], …)` on `MalCatalog`, `ComicsCatalog`, `BiblioCatalog`
+  (+ `BiblioCatalogStore::pageFiltered`); the old single-filter calls delegate to it. Manga keeps its driving
+  join for the first facet and ANDs the rest with a non-correlated `IN` (the LOWER() match cannot use the index);
+  comics/Biblio AND bound conditions. Browser: `filters {group: key}`, `setFilter` combines or replaces per
+  `adapter.combinesFilters`, `clearFilter(group)`, per-type memory, pins; adapters: Tankoban (builtin catalogues
+  combine), Biblio (built-in combine, addon catalogues single), Theatre (combine only when the catalogue declares
+  >1 filterable extra; `selectionsForFilters`). Bug found by the page harnesses and fixed: a local named `active`
+  in `requestPage` shadowed the browser's `active` (hoisted) and stopped every first page.
+  Gates: Qt Quick `tst_discover_sidebar` 10/10 (negative control: combine forced off -> 2 red); native harnesses
+  `mal_catalog_discover` / `comics_catalog_engine` / `biblio_catalog_store` OK with new combined-facet cases
+  (negative control: extra-facet loop off -> "Action AND Seinen" red); existing `discover_api`,
+  `tankoban_discover_api`, `biblio_discover_api`, `tankoban_discover_page` harnesses OK; `biblio_discover_page`
+  1 failure identical on HEAD (fixedGalleryWidth, pre-existing). G-keys green. Lanista
+  `discover_sidebar_filter_regression.json`: fresh tag ds1reg2 (session 20260929-224748-e0012303) Theatre +
+  Tankoban 100%, Biblio's fresh-tag catalogue is empty (page too short to scroll); tag claude-scroll (session
+  20260929-224904-de65a195) Biblio + Tankoban 100%, Theatre's only red is the scroll-settle wait (that tag keeps
+  an earlier scroll) while its filter steps pass. WARNING_GATE_OK. Temporary seam: the legacy `DiscoverPicker`
+  got `automationName` (`<prefix>DiscoverFilterPickerPill`/`Option_<i>`); qmllint +2 "unqualified" warnings on
+  the option-row name line, accepted because Slice 3 deletes the picker. Status: done (internal).

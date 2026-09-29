@@ -239,15 +239,27 @@ function fetchBuiltinPage(deps, state, cursor, generation, done) {
         return;
     }
     var groups = filterGroupsFor(bc, deps.showExplicit);
-    var canonical = canonicalFilterGroup(state.filterGroup, groups);
-    var axis = "";
-    for (var i = 0; i < groups.length; i++)
-        if (groups[i].group === canonical) { axis = groups[i].axis; break; }
-    var facetKey = axis.length ? state.filterKey : "";
+    // Every active group -> its controlled axis (Discover sidebar: one filter per group, ANDed).
+    var active = [];
+    if (state.filters) {
+        var ks = Object.keys(state.filters).sort();
+        for (var a = 0; a < ks.length; a++) active.push({ group: ks[a], key: String(state.filters[ks[a]]) });
+    } else if (state.filterKey && state.filterKey.length) {
+        active.push({ group: state.filterGroup, key: state.filterKey });
+    }
+    var facets = [];
+    for (var f = 0; f < active.length; f++) {
+        var canonical = canonicalFilterGroup(active[f].group, groups);
+        for (var i = 0; i < groups.length; i++)
+            if (groups[i].group === canonical) { facets.push({ axis: groups[i].axis, key: active[f].key }); break; }
+    }
 
     // Synchronous native invokable — call it and pass the result straight to done(), no
     // XHR/callback indirection (unlike Tankoban's async MAL path).
-    var native = bc.discoverPage(state.catalogKey, axis, facetKey, deps.showExplicit, offset, limit);
+    var native = bc.discoverPageFiltered
+        ? bc.discoverPageFiltered(state.catalogKey, facets, deps.showExplicit, offset, limit)
+        : bc.discoverPage(state.catalogKey, facets.length ? facets[0].axis : "",
+                          facets.length ? facets[0].key : "", deps.showExplicit, offset, limit);
     var rows = (native && native.items) || [];
     var items = [];
     for (var j = 0; j < rows.length; j++) items.push(normalizeBook(rows[j]));
@@ -315,6 +327,10 @@ function create(biblioCatalog, extensions, showExplicit) {
             return type === "book" ? filterGroupsFor(deps.biblioCatalog, deps.showExplicit) : [];
         },
         defaultCatalog: function(type) { return "popular"; },
+        // The bundled Biblio store ANDs every active facet (Discover sidebar).
+        combinesFilters: function(type, catalogKey) {
+            return type === "book" && String(catalogKey || "").indexOf("|book|") < 0;   // addon catalogues: one at a time
+        },
         resolvePin: function(pin) { return resolvePin(pin, deps); },
         fetchPage: function(state, cursor, generation, done) {
             return fetchPage(deps, state, cursor, generation, done);
