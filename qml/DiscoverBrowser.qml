@@ -804,7 +804,7 @@ Item {
 
         // Page flow: every row's height, and the window of it the page viewport currently shows.
         readonly property real flowContentHeight:
-            Math.max(1, Math.ceil(wall.count / Math.max(1, wall.columnCount))) * wall.cellHeight
+            Math.max(1, Math.ceil(wall.cellTarget / Math.max(1, wall.columnCount))) * wall.cellHeight
         readonly property real _visibleTop: {
             if (!browser.pageFlow)
                 return 0
@@ -860,12 +860,13 @@ Item {
                 ? (Math.floor((cellWidth - 14) * browser._galleryMetrics.posterRatio)
                    + 10 + browser._galleryMetrics.titleMinHeight + 14 + 6)
                 : (Math.floor(cellWidth * 1.62) + 34)
-            cacheBuffer: cellHeight * 2
+            cacheBuffer: browser.pageFlow ? 0 : cellHeight * 2
             // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
             // fill the viewport on the first page, one trailing row while paging.
             readonly property int skelCount: !browser.loading ? 0
                 : (browser.items.length === 0
-                   ? columnCount * Math.max(2, Math.ceil(height / cellHeight))
+                   ? columnCount * Math.max(2, Math.ceil((browser.pageFlow
+                       ? browser.pageFlick.height : height) / cellHeight))
                    : columnCount)
             // One row per cell (card or skeleton). A plain count here was a new model on every
             // page and every loading flip, so the GridView rebuilt ALL its cards each time
@@ -899,7 +900,7 @@ Item {
             onCurrentIndexChanged: if (browser.pageFlow && browser.keyboardMode) browser.revealCell(wall.currentIndex)
             onContentYChanged: {
                 if (contentHeight > height
-                    && contentY > contentHeight - height * 1.6)
+                    && contentY + height >= contentHeight - 2 * cellHeight)
                     browser.requestPage()
             }
             Keys.onPressed: (event) => {
