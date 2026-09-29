@@ -30,6 +30,33 @@ import "CatalogueVisualMetrics.js" as Metrics
 Item {
     id: browser
 
+    // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
+    // World-namespaced by the host (theatre/biblio/tankoban): a bare shared stem would resolve
+    // DFS-first into another world's hidden, pre-warmed browser (ledger naming rule).
+    property string automationPrefix: ""
+    objectName: automationPrefix.length ? automationPrefix + "DiscoverBrowser" : ""
+    readonly property string automationCatalogKey: currentCatalogKey
+    readonly property string automationType: currentType
+    // Active filters as one stable string ("Group=key;Group=key", groups sorted, "" when none):
+    // the bridge waits on strict equality only.
+    readonly property string automationFilterSummary: filterKey.length ? (filterGroup + "=" + filterKey) : ""
+    readonly property int automationItemCount: items.length
+    // How many legacy pickers (catalogue popup, filter picker) still exist. The sidebar slices
+    // remove them; counting named items proves it (the bridge has no absence assertion).
+    readonly property int automationLegacyPickerCount: {
+        var _ = adapterRev;
+        var names = ["discoverCatalogMenu", "discoverFilterPicker"];
+        var found = 0;
+        function walk(node) {
+            if (!node) return;
+            if (names.indexOf(node.objectName) >= 0) found++;
+            var kids = node.children || [];
+            for (var i = 0; i < kids.length; i++) walk(kids[i]);
+        }
+        walk(browser);
+        return found;
+    }
+
     // ── injected world seam ──
     property var adapter: null
     // Retained worlds stay instantiated for state preservation. The host drives this seam so a
@@ -641,6 +668,7 @@ Item {
         // ── catalog menu — the shelf-name drop-down (sectioned, gold-active) ──
         Rectangle {
             id: catalogMenu
+            objectName: "discoverCatalogMenu"
             visible: browser.catalogMenuOpen
             anchors.right: parent.right
             anchors.top: parent.bottom
@@ -774,6 +802,7 @@ Item {
         }
         DiscoverPicker {
             id: filterPicker
+            objectName: "discoverFilterPicker"
             label: browser.filterPickerLabel
             clearable: true
             options: browser.filterMenuModel
@@ -832,6 +861,7 @@ Item {
 
         GridView {
             id: wall
+            objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverWall" : ""
             anchors.top: browser.pageFlow ? undefined : parent.top
             anchors.bottom: browser.pageFlow ? undefined : parent.bottom
             y: browser.pageFlow ? wallHost.windowTop : 0

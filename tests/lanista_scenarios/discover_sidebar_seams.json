@@ -1,0 +1,394 @@
+{
+ "name": "discover-sidebar-seams",
+ "comment": "Discover sidebar plan Slice 0: world-namespaced browser/wall names and automation properties resolve in Theatre, Biblio and Tankoban; the two legacy pickers still exist (count 2) until Slices 2-3. Item counts are not asserted: a fresh tag's Biblio built-in catalogue can answer empty until its data lands (seen 2026-09-29, session 20260929-204857-772ab603); Slice 2+ scenarios wait on catalogue state instead.",
+ "steps": [
+  {
+   "cmd": "ping",
+   "label": "session answers, drive on",
+   "expect": [
+    {
+     "path": "gates.drive",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "isolated data root",
+   "expect": [
+    {
+     "path": "appDataRoot",
+     "op": "contains",
+     "value": "Colosseum-dltest"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "boot splash gone",
+   "payload": {
+    "object": "bootSplash",
+    "prop": "visible",
+    "value": false,
+    "timeout_ms": 60000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "continue without an account (no-op when onboarding is clear)",
+   "payload": {
+    "target": "accountWelcomeContinueLocal"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter theatre",
+   "payload": {
+    "target": "modePill_Theatre"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre tab bar up",
+   "payload": {
+    "object": "theatreTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre Discover tab",
+   "payload": {
+    "target": "theatreTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre Discover initialised (type set; loading alone is false before init)",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationType",
+    "value": "movie",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre Discover finished loading",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "theatre seams resolve; both legacy pickers still present",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "automationLegacyPickerCount",
+     "automationType",
+     "automationCatalogKey",
+     "automationItemCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationLegacyPickerCount",
+     "op": "==",
+     "value": "2"
+    },
+    {
+     "path": "props.automationCatalogKey",
+     "op": "!=",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "theatre wall name resolves",
+   "payload": {
+    "object": "theatreDiscoverWall",
+    "props": [
+     "visible"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.visible",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "back to Home",
+   "payload": {
+    "key": "Escape"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter biblio",
+   "payload": {
+    "target": "modePill_Biblio"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio tab bar up",
+   "payload": {
+    "object": "biblioTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "biblio Discover tab",
+   "payload": {
+    "target": "biblioTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio Discover initialised (type set; loading alone is false before init)",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "prop": "automationType",
+    "value": "book",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio Discover finished loading",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "biblio seams resolve; both legacy pickers still present",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "props": [
+     "automationLegacyPickerCount",
+     "automationType",
+     "automationCatalogKey",
+     "automationItemCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationLegacyPickerCount",
+     "op": "==",
+     "value": "2"
+    },
+    {
+     "path": "props.automationCatalogKey",
+     "op": "!=",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "biblio wall name resolves",
+   "payload": {
+    "object": "biblioDiscoverWall",
+    "props": [
+     "visible"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.visible",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "back to Home",
+   "payload": {
+    "key": "Escape"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter tankoban",
+   "payload": {
+    "target": "modePill_Tankoban"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban tab bar up",
+   "payload": {
+    "object": "tankobanTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "tankoban Discover tab",
+   "payload": {
+    "target": "tankobanTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban Discover initialised (type set; loading alone is false before init)",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "prop": "automationType",
+    "value": "manga",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban Discover finished loading",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "tankoban seams resolve; both legacy pickers still present",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "props": [
+     "automationLegacyPickerCount",
+     "automationType",
+     "automationCatalogKey",
+     "automationItemCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationLegacyPickerCount",
+     "op": "==",
+     "value": "2"
+    },
+    {
+     "path": "props.automationCatalogKey",
+     "op": "!=",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "tankoban wall name resolves",
+   "payload": {
+    "object": "tankobanDiscoverWall",
+    "props": [
+     "visible"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.visible",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "back to Home",
+   "payload": {
+    "key": "Escape"
+   }
+  }
+ ]
+}

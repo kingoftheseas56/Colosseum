@@ -94,6 +94,7 @@ Item {
 
     DiscoverBrowser {
         id: browser
+        automationPrefix: "biblio"             // Lanista identity: biblioDiscoverBrowser / biblioDiscoverWall
         pageFlick: root.pageFlick
         anchors.fill: parent
         adapter: root.adapter

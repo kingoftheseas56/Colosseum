@@ -141,6 +141,7 @@ Item {
 
     DiscoverBrowser {
         id: browser
+        automationPrefix: "tankoban"             // Lanista identity: tankobanDiscoverBrowser / tankobanDiscoverWall
         pageFlick: root.pageFlick
         anchors.fill: parent
         adapter: root.adapter

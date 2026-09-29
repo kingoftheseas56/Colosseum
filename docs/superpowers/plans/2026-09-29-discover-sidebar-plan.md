@@ -79,7 +79,8 @@ Focused tests:
   - Negative control: break the summary sort order → the summary case goes red.
 Test seam status: available (new file under the registered `colosseum.qml` runner).
 Lanista actions: `tankoban_discover_depth.json` replay; `qml-get tankobanDiscoverBrowser automationLegacyPickerCount`.
-Completion signal: `ui-wait-for tankobanDiscoverBrowser.loading == false` after the Discover tab opens.
+Completion signal: `ui-wait-for <prefix>DiscoverBrowser.automationType == <world's default type>` (movie / book /
+manga), THEN `loading == false` — `loading` alone is false before the browser initialises (found in execution).
 State / events / probes: `automationLegacyPickerCount == 2` (pickers still present).
 Visual evidence: none needed (no visible change).
 Regression paths: Discover in all three worlds opens and pages as before.
@@ -314,3 +315,14 @@ each map to a green step or a recorded witness.
 ## Execution log
 
 Append per-slice gate numbers, session ids, witness verdicts and status changes here.
+
+- 2026-09-29 — Slice 0 (seams). Baseline: `tankoban_discover_depth.json` 17/18 (tag ds0base, session
+  20260929-204205-bb3c2337) — the rank-11 wait fails BEFORE any sidebar change (today's wheel fix scrolls 168 px per
+  notch and Codex's `cacheBuffer: 0` wall window, so the scripted scrolls pass rank 11; rank 18 still reached).
+  Comics route confirmed: Tankoban Discover, type `comics` (one `DiscoverBrowser`, prefix `tankoban`).
+  Implemented: `automationPrefix` + `<prefix>DiscoverBrowser`/`<prefix>DiscoverWall`, automation properties,
+  legacy-picker counter (named `discoverCatalogMenu`/`discoverFilterPicker`); hosts set theatre/biblio/tankoban.
+  Qt Quick Test `tst_discover_sidebar.qml` 3/3 (registered runner `colosseum_qml_tests.exe`, real windows);
+  negative control (summary separator) red. Lanista `discover_sidebar_seams.json` 28/28 (tag ds0seams6, session
+  20260929-204939-2ede66ce); `WARNING_GATE_OK`. Plan corrected: `loading == false` is true before init, so the
+  completion signal waits on `automationType` first. qmllint unchanged. Status: done (internal).

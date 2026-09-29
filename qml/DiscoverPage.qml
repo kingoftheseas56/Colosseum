@@ -82,6 +82,7 @@ Item {
 
     DiscoverBrowser {
         id: browser
+        automationPrefix: "theatre"             // Lanista identity: theatreDiscoverBrowser / theatreDiscoverWall
         pageFlick: disco.pageFlick
         anchors.fill: parent
         adapter: theatreAdapter
