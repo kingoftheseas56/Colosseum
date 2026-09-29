@@ -479,23 +479,33 @@ Item {
         return true
     }
 
-    function _scrollControllerFor(flick) {
+    // `cache` (a Map, optional) memoizes flick -> controller for one navigation step. An
+    // unregistered flick costs a breadth-first walk of the whole tree, and targetFrom asks
+    // once per candidate: ~1000 walks per key press on Tankoban Comics (4 s, profiled
+    // 2026-09-29) without it.
+    function _scrollControllerFor(flick, cache) {
         if (!nav.root || !flick)
             return null
-        var registered = Viewport.controllerFor(flick)
-        if (registered)
-            return registered
-        var pending = [nav.root]
-        while (pending.length > 0) {
-            var node = pending.shift()
-            if (node !== nav && node.flick !== undefined && node.flick === flick
-                    && node.lineStep !== undefined && node.arrowScrolling !== undefined)
-                return node
-            var children = node.children || []
-            for (var i = 0; i < children.length; ++i)
-                pending.push(children[i])
+        if (cache && cache.has(flick))
+            return cache.get(flick)
+        var found = Viewport.controllerFor(flick) || null
+        if (!found) {
+            var pending = [nav.root]
+            for (var head = 0; head < pending.length && !found; ++head) {
+                var node = pending[head]
+                if (node !== nav && node.flick !== undefined && node.flick === flick
+                        && node.lineStep !== undefined && node.arrowScrolling !== undefined) {
+                    found = node
+                    break
+                }
+                var children = node.children || []
+                for (var i = 0; i < children.length; ++i)
+                    pending.push(children[i])
+            }
         }
-        return null
+        if (cache)
+            cache.set(flick, found)
+        return found
     }
 
     function _flickableOwner(item) {
@@ -857,6 +867,7 @@ Item {
         var sourceIndex = sourceOwner ? nav._collectionIndex(sourceOwner, fromItem) : -1
         var bestItem = null
         var bestMetric = null
+        var controllerCache = new Map()
         for (var i = 0; i < items.length; i++) {
             var candidate = items[i]
             if (candidate === fromItem)
@@ -870,7 +881,7 @@ Item {
             if (sourceOwner && candidateOwner === sourceOwner && sourceIndex >= 0
                     && nav._collectionIndex(candidateOwner, candidate) === sourceIndex)
                 continue
-            if (!nav._candidateAllowed(candidate, includeOffscreen === true))
+            if (!nav._candidateAllowed(candidate, includeOffscreen === true, controllerCache))
                 continue
             if (includeOffscreen && Viewport.revealPlan(candidate, nav.root,
                     key === Qt.Key_Left || key === Qt.Key_Right) === null)
@@ -884,11 +895,11 @@ Item {
         return bestItem
     }
 
-    function _candidateAllowed(candidate, includeOffscreen) {
+    function _candidateAllowed(candidate, includeOffscreen, controllerCache) {
         if (!candidate || nav._hasUnsupportedTransform(candidate))
             return false
         var owner = nav._flickableOwner(candidate)
-        var controller = owner ? nav._scrollControllerFor(owner) : null
+        var controller = owner ? nav._scrollControllerFor(owner, controllerCache) : null
         if (controller && controller.arrowScrolling === false)
             return false
         return includeOffscreen ? nav._eligible(candidate) : nav._landingEligible(candidate)
