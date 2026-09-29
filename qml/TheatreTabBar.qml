@@ -9,6 +9,9 @@ Item {
     objectName: "theatreTabBar"
 
     required property Item backdrop
+    // The world's scroll offset. The glass re-samples the wallpaper behind the bar as the page
+    // scrolls; without it the sample stayed at the bar's first position (Glass "track").
+    property real track: 0
     property string currentTab: "discover"
     signal tabRequested(string tab)
 
@@ -73,6 +76,7 @@ Item {
         width: Math.min(parent.width, 760)
         height: 54
         backdrop: tabs.backdrop
+        track: tabs.track
         radius: 18
         tint: 0.08
         scrim: 0.18

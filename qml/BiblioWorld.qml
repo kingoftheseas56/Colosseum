@@ -140,6 +140,7 @@ WorldPage {
         // worlds too) — biblioTab_<key> is unique to this bar. See WorldTabBar.tabPrefix.
         tabPrefix: "biblioTab"
         backdrop: biblio.backdrop
+        track: biblio.viewportContentY
         currentTab: biblio.activeTab
         tabModel: [ { key: "discover", label: "Discover" },
                     { key: "explore", label: "Explore" },

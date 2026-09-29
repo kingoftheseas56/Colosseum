@@ -224,6 +224,7 @@ WorldPage {
 
     TheatreTabBar {
         backdrop: theatre.backdrop
+        track: theatre.viewportContentY
         currentTab: theatre.activeTab
         onTabRequested: (tab) => theatre.activeTab = tab
     }

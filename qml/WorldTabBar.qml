@@ -9,6 +9,9 @@ Item {
     id: tabs
 
     required property Item backdrop
+    // The world's scroll offset. The glass re-samples the wallpaper behind the bar as the page
+    // scrolls; without it the sample stayed at the bar's first position (Glass "track").
+    property real track: 0
     property var tabModel: []            // [{ key, label }, …]
     property string currentTab: ""
     // Stem for each pill's objectName: "<tabPrefix>_<key>". Defaults to the historical
@@ -74,6 +77,7 @@ Item {
         width: Math.min(parent.width, 160 * Math.max(1, tabs.tabModel.length))
         height: 54
         backdrop: tabs.backdrop
+        track: tabs.track
         radius: 18
         tint: 0.08
         scrim: 0.18

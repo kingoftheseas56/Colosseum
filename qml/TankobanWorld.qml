@@ -243,6 +243,7 @@ WorldPage {
         objectName: "tankobanTabBar"
         tabPrefix: "tankobanTab"
         backdrop: tanko.backdrop
+        track: tanko.viewportContentY
         currentTab: tanko.activeTab
         tabModel: [ { key: "discover", label: "Discover" },
                     { key: "manga", label: "Manga" },
