@@ -24,7 +24,57 @@ Item {
     // Shared world-shell D-pad router. Child rails/grids keep first claim on arrows;
     // when they hit a boundary, the unaccepted key bubbles here and moves to the
     // nearest visible focus region in that direction (including the pinned TopBar).
-    KeyboardSpatialNavigator { id: spatialNav; root: world }
+    KeyboardSpatialNavigator {
+        id: spatialNav
+        root: world
+        onLanded: (target, key) => {
+            if (key === Qt.Key_Up || key === Qt.Key_Down)
+                world.parkRow(target)
+        }
+    }
+
+    // Rows park (world-feel Slice 8, the mock's "park"): after Up/Down lands focus, the page glides
+    // so the landed row (its whole section, header included) sits just under the docked tab bar.
+    // Landing on the tab bar parks the bar at the top; anything above the tab bar (the carousel)
+    // returns the page to its top. A row taller than the room below the dock parks the landed
+    // item itself instead.
+    readonly property real parkDockSpace: 64
+    readonly property real parkGap: 14
+    function _inside(item, ancestor) {
+        for (var node = item; node; node = node.parent) {
+            if (node === ancestor)
+                return true
+        }
+        return false
+    }
+    function parkY(item) {
+        if (!item || !world._inside(item, page.contentItem))
+            return NaN
+        var bar = world.tabBarSource
+        var top = item.mapToItem(page.contentItem, 0, 0).y
+        if (bar && bar.visible) {
+            var barTop = bar.mapToItem(page.contentItem, 0, 0).y
+            if (world._inside(item, bar))
+                return barTop - 12
+            if (top + item.height <= barTop)
+                return 0
+        }
+        var dock = bar && bar.visible ? world.parkDockSpace : 0
+        var room = page.height - dock - world.parkGap
+        var anchor = item
+        for (var node = item.parent; node && node !== page.contentItem && node !== board; node = node.parent) {
+            if (node.height > room)
+                break
+            if (node.height > 0)
+                anchor = node
+        }
+        return anchor.mapToItem(page.contentItem, 0, 0).y - dock - world.parkGap
+    }
+    function parkRow(item) {
+        var y = world.parkY(item)
+        if (isFinite(y))
+            pageGlide.glideTo(y)
+    }
     Keys.onPressed: function(event) {
         // A routed world can receive its first arrow while the world root owns
         // focus. Use that ordinary key to land the declared entry region; the

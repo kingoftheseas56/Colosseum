@@ -313,6 +313,19 @@ Item {
         glide._keyboardGlide = true
     }
 
+    // Keyboard glide to an absolute position (WorldPage parks a focused row); settled like
+    // glideFrom when the next key arrives.
+    function glideTo(y) {
+        if (!glide.flick)
+            return
+        var target = Math.max(glide._minY(), Math.min(glide._maxY(), y))
+        glide.cancelGlide("keyboard")
+        if (Math.abs(target - glide.flick.contentY) < 1)
+            return
+        glide.smoothScrollBy(target - glide.flick.contentY)
+        glide._keyboardGlide = true
+    }
+
     // Jump a keyboard glide to its end (the next key press needs the settled geometry).
     property bool _keyboardGlide: false
     function settleKeyboardGlide() {

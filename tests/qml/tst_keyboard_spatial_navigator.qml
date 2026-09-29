@@ -87,7 +87,11 @@ TestCase {
         verify(source.activeFocus)
     }
 
-    function test_direction_alignment_beats_raw_distance() {
+    // World-feel (2026-09-29, the mock's rule): Down takes the nearest row first. Before, an
+    // aligned stop two rows away beat the nearer row (a sparse Comics row was skipped).
+    function test_down_takes_the_nearest_row_before_alignment() {
+        verify(spatial.move(Qt.Key_Down))
+        verify(closeDiagonal.activeFocus)
         verify(spatial.move(Qt.Key_Down))
         verify(alignedDown.activeFocus)
     }
@@ -105,9 +109,11 @@ TestCase {
         compare(boundarySpy.signalArguments[0][0], Qt.Key_Right)
     }
 
-    function test_up_returns_to_geometrically_aligned_source() {
+    function test_up_takes_the_nearest_row_then_returns_to_source() {
         alignedDown.forceActiveFocus(Qt.OtherFocusReason)
         wait(5)
+        verify(spatial.move(Qt.Key_Up))
+        verify(closeDiagonal.activeFocus)
         verify(spatial.move(Qt.Key_Up))
         verify(source.activeFocus)
     }

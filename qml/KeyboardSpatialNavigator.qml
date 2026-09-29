@@ -49,6 +49,8 @@ Item {
 
     signal boundaryRequested(int key, Item fromItem)
     signal navigationCancelled(string reason)
+    // A directional landing succeeded (the page's owner may park the landed row, WorldPage).
+    signal landed(Item target, int key)
 
     visible: false
     width: 0
@@ -434,10 +436,11 @@ Item {
             var controller = nav._scrollControllerFor(owner)
             if (controller && controller.arrowScrolling === false)
                 return false
+            var sectionHorizontal = pending.key === Qt.Key_Left || pending.key === Qt.Key_Right
+            var sectionFlick = nav._flickableOwner(target) || owner
             var ok = nav._land(target, pending.key, pending.reason,
-                               nav._directionalStep(owner,
-                                   pending.key === Qt.Key_Left || pending.key === Qt.Key_Right,
-                                   controller))
+                               nav._landingBudget(sectionFlick, sectionHorizontal,
+                                   nav._directionalStep(owner, sectionHorizontal, controller)))
             if (ok && coordinator && coordinator.clear)
                 coordinator.clear()
             return ok
@@ -445,7 +448,8 @@ Item {
         var owner = nav._flickableOwner(pending.target)
         var controller = owner ? nav._scrollControllerFor(owner) : null
         var horizontal = pending.key === Qt.Key_Left || pending.key === Qt.Key_Right
-        var budget = owner ? nav._directionalStep(owner, horizontal, controller)
+        var budget = owner ? nav._landingBudget(owner, horizontal,
+                                                nav._directionalStep(owner, horizontal, controller))
                            : nav.scrollStep
         if (controller && controller.arrowScrolling === false)
             return false
@@ -727,18 +731,37 @@ Item {
         }
         target = owner.keyboardItemAtIndex ? owner.keyboardItemAtIndex(index)
                 : (owner.itemAtIndex ? owner.itemAtIndex(index) : target)
+        // Rows park (WorldPage) can have scrolled the remembered section out of the page; bring it
+        // back within the one-screen landing budget, gliding like any other landing.
+        var before = []
+        if (target && !nav._centerVisibleThroughClips(target)) {
+            var plan = Viewport.revealPlan(target, nav.root, false)
+            var pageFlick = nav._flickableOwner(owner.parent)
+            if (plan !== null && pageFlick && nav._planAuthorized(plan)) {
+                for (var p = 0; p < plan.length; ++p)
+                    before.push({ flick: plan[p].flick, position: Viewport.position(plan[p].flick, false) })
+                if (!Viewport.applyPlan(plan, false, nav._landingBudget(pageFlick, false, nav.scrollStep)))
+                    before = []
+            }
+        }
         if (!target || !nav._centerVisibleThroughClips(target))
             return false
         var targetOwner = nav._collectionFocusOwner(target)
         if (targetOwner && nav._selectCollectionItem(targetOwner, target)) {
             targetOwner.forceActiveFocus(reason)
-            if (targetOwner.activeFocus === true)
+            nav._glideLanding(before, false)
+            if (targetOwner.activeFocus === true) {
                 coordinator.clear()
+                nav.landed(target, key)
+            }
             return targetOwner.activeFocus === true
         }
         target.forceActiveFocus(reason)
-        if (target.activeFocus === true)
+        nav._glideLanding(before, false)
+        if (target.activeFocus === true) {
             coordinator.clear()
+            nav.landed(target, key)
+        }
         return target.activeFocus === true
     }
 
@@ -925,6 +948,11 @@ Item {
                     key === Qt.Key_Left || key === Qt.Key_Right) === null)
                 continue
             if (vertical) {
+                // Up/Down scroll the page vertically only, so a stop cut off at the side of its
+                // rail can never be revealed by them (the mock never offers rail items past the
+                // rail's edge); only stops fully visible across the page count.
+                if (includeOffscreen && !nav._crossAxisVisible(candidate))
+                    continue
                 if (candidate.keyboardHeaderLink === true
                         && (key === Qt.Key_Down || !nav._withinHeaderRow(fromItem, candidate)))
                     continue
@@ -944,12 +972,21 @@ Item {
         return vertical ? nav._nearestRowTarget(rowPool, fromRect) : bestItem
     }
 
-    // Up/Down follow the world-feel mock: the nearest row in that direction first (every stop
-    // whose edge gap is within rowBandTolerance of the closest), then the stop in it closest
-    // horizontally. Scoring by alignment first let a far but perfectly aligned stop (a column of
-    // right-aligned "Explore" links) beat the row directly below. Stops sharing the current
-    // stop's vertical lane are preferred, so a small control just below and off to the side
-    // (carousel dots) never beats the one directly underneath.
+    function _crossAxisVisible(item) {
+        for (var ancestor = item.parent; ancestor; ancestor = ancestor.parent) {
+            if (ancestor.clip === true || ancestor === nav.root) {
+                var rect = nav._rectIn(item, ancestor)
+                var width = Number(ancestor.width)
+                if (rect.right - rect.left <= width + 0.000001
+                        && (rect.left < -0.5 || rect.right > width + 0.5))
+                    return false
+            }
+            if (ancestor === nav.root)
+                break
+        }
+        return true
+    }
+
     function _withinHeaderRow(item, headerLink) {
         var row = headerLink.keyboardHeaderRow
         if (!row)
@@ -961,21 +998,27 @@ Item {
         return false
     }
 
+    // Up/Down follow the world-feel mock: the nearest row in that direction first (every stop
+    // whose edge gap is within rowBandTolerance of the closest), then within it a stop sharing
+    // the current stop's lane, else the one closest horizontally. Scoring by alignment first let
+    // a far but perfectly aligned stop (a column of right-aligned "Explore" links) beat the row
+    // directly below, and preferring the lane across rows skipped a sparse row off to the side.
     function _nearestRowTarget(allStops, fromRect) {
-        var lane = allStops.filter(function(stop) {
+        if (allStops.length === 0)
+            return null
+        var nearestGap = allStops[0].gap
+        for (var i = 1; i < allStops.length; ++i)
+            nearestGap = Math.min(nearestGap, allStops[i].gap)
+        var row = allStops.filter(function(stop) {
+            return stop.gap <= nearestGap + nav.rowBandTolerance
+        })
+        var lane = row.filter(function(stop) {
             return stop.rect.right >= fromRect.left && stop.rect.left <= fromRect.right
         })
-        var pool = lane.length > 0 ? lane : allStops
-        if (pool.length === 0)
-            return null
-        var nearestGap = pool[0].gap
-        for (var i = 1; i < pool.length; ++i)
-            nearestGap = Math.min(nearestGap, pool[i].gap)
+        var pool = lane.length > 0 ? lane : row
         var best = null
         var bestCross = 0
         for (var j = 0; j < pool.length; ++j) {
-            if (pool[j].gap > nearestGap + nav.rowBandTolerance)
-                continue
             var cross = Math.abs(pool[j].rect.cx - fromRect.cx)
             if (!best || cross < bestCross - 0.000001) {
                 best = pool[j].item
@@ -1124,10 +1167,14 @@ Item {
         if (collectionOwner && nav._selectCollectionItem(collectionOwner, target)) {
             collectionOwner.forceActiveFocus(reason)
             nav._glideLanding(before, horizontal)
+            if (collectionOwner.activeFocus === true)
+                nav.landed(target, key)
             return collectionOwner.activeFocus === true
         }
         target.forceActiveFocus(reason)
         nav._glideLanding(before, horizontal)
+        if (target.activeFocus === true)
+            nav.landed(target, key)
         return target.activeFocus === true
     }
 
