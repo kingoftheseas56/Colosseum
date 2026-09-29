@@ -20,9 +20,11 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <QThread>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -215,6 +217,20 @@ int main(int argc, char** argv)
 
     MalCatalog cat(dbPath);
     require(cat.ready(), "MalCatalog opens the discover fixture read-only");
+    // The UI reads only the worker-warmed facets; it must receive both explicit
+    // variants without a synchronous database scan on page construction.
+    QElapsedTimer facetWait;
+    facetWait.start();
+    while (cat.cachedDiscoverFilters("genre", false).isEmpty() && facetWait.elapsed() < 5000) {
+        QCoreApplication::processEvents();
+        QThread::msleep(1);
+    }
+    require(facetCount(cat.cachedDiscoverFilters("genre", false), "Action") == 5,
+            "worker cache supplies browsable facets");
+    require(facetCount(cat.cachedDiscoverFilters("genre", false), "Hentai") == -1,
+            "worker cache prunes explicit-only facets");
+    require(facetCount(cat.cachedDiscoverFilters("genre", true), "Hentai") == 1,
+            "worker cache includes explicit facets when allowed");
 
     // ── Popular: members DESC ───────────────────────────────────────────────
     {

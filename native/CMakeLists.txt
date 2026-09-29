@@ -2381,7 +2381,7 @@ add_executable(mal_catalog_rows_harness
     engine/VaultKit.cpp
     engine/VaultKit.h)
 target_include_directories(mal_catalog_rows_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql)
+target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent)
 
 # ── Deep Theatre catalogue (spec 2026-08-02): imdb index query contract ──
 add_executable(imdb_catalog_harness
@@ -2401,7 +2401,7 @@ add_executable(mal_catalog_discover_harness
     engine/VaultKit.cpp
     engine/VaultKit.h)
 target_include_directories(mal_catalog_discover_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql)
+target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent)
 
 # Live triage probe (2026-07-18): the audiobook delivery chain end-to-end —
 # real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.

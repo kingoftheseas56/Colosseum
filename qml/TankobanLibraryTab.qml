@@ -20,6 +20,26 @@ Item {
     // The retained Library tab keeps its filter state, but hidden worlds must not scan all three
     // Progress lanes or probe Downloads while the tab is not visible.
     property bool active: true
+    property Flickable pageFlick: null
+    readonly property bool pageFlow: pageFlick !== null
+    readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 18
+    NumberAnimation {
+        id: pageParkAnim
+        target: root.pageFlick; property: "contentY"
+        duration: 220; easing.type: Easing.OutCubic
+    }
+    function revealCell(index) {
+        if (!pageFlow || index < 0) return
+        var row = Math.floor(index / Math.max(1, wall.columnCount))
+        var rowTop = wallHost.mapToItem(pageFlick.contentItem, 0, 0).y + row * wall.cellHeight
+        var target = Math.max(0, Math.min(pageFlick.contentHeight - pageFlick.height,
+                                          rowTop - 64 - 14))
+        if (Math.abs(target - pageFlick.contentY) < 1) return
+        pageParkAnim.stop()
+        pageParkAnim.from = pageFlick.contentY
+        pageParkAnim.to = target
+        pageParkAnim.start()
+    }
 
     // ── reactive data (recompute on Collection OR Progress OR Downloads change).
     //    Progress.revision is one global counter across all kinds, so naming it in the
@@ -189,25 +209,55 @@ Item {
     }
 
     // ── the wall ──
+    Item {
+        id: wallHost
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: toolbar.bottom; anchors.topMargin: 14
+        anchors.bottom: root.pageFlow ? undefined : parent.bottom
+        anchors.bottomMargin: 18
+        height: root.pageFlow ? flowContentHeight : implicitHeight
+        readonly property real flowContentHeight: Math.max(420,
+            Math.ceil(root.visibleRows.length / Math.max(1, wall.columnCount)) * wall.cellHeight)
+        readonly property real visibleTop: {
+            if (!root.pageFlow) return 0
+            root.pageFlick.contentY; root.pageFlick.contentHeight; wallHost.y
+            return root.pageFlick.contentY - wallHost.mapToItem(root.pageFlick.contentItem, 0, 0).y
+        }
+        readonly property real windowHeight: root.pageFlow
+            ? Math.min(flowContentHeight, root.pageFlick.height) : height
+        readonly property real windowTop: root.pageFlow
+            ? Math.max(0, Math.min(visibleTop, flowContentHeight - windowHeight)) : 0
     GridView {
         id: wall
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.top: toolbar.bottom; anchors.bottom: parent.bottom
+        anchors.top: root.pageFlow ? undefined : parent.top
+        anchors.bottom: root.pageFlow ? undefined : parent.bottom
+        y: root.pageFlow ? wallHost.windowTop : 0
+        height: root.pageFlow ? wallHost.windowHeight : parent.height
         anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
-        anchors.topMargin: 14; anchors.bottomMargin: 18
         clip: true; boundsBehavior: Flickable.StopAtBounds
+        interactive: !root.pageFlow
+        highlightFollowsCurrentItem: !root.pageFlow
         model: root.visibleRows
         readonly property int columnCount: Math.max(2, Math.floor(width / 178))
         cellWidth: Math.floor(width / columnCount)
         cellHeight: Math.floor((cellWidth - 16) * 1.5) + 56
         cacheBuffer: cellHeight * 2
-        ScrollBar.vertical: HouseScrollBar { flick: wall }
+        ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !root.pageFlow }
+        Binding {
+            target: wall; property: "contentY"
+            value: wall.originY + wallHost.windowTop
+            when: root.pageFlow
+            restoreMode: Binding.RestoreNone
+        }
         // closing the menu on scroll stops a stale-positioned popup following a flick
         onContentYChanged: if (root.menuRow) root.closeMenu(false)
+        onCurrentIndexChanged: if (root.pageFlow && activeFocus) root.revealCell(currentIndex)
         focusPolicy: root.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => wallKeys.handle(event)
         KeyboardCollectionController {
             id: wallKeys; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
+            positionIndexFn: root.pageFlow ? root.revealCell : null
             count: root.visibleRows.length; contextEnabled: true
             onActivated: (index) => root.handleCardTap(root.visibleRows[index])
             onContextRequested: (index) => {
@@ -252,7 +302,7 @@ Item {
             }
         }
     }
-    ScrollGlide { flick: wall }
+    ScrollGlide { flick: root.pageFlow ? null : wall }
 
     // ── empty states ──
     // TB-001: empty Collection ("Your library is empty"). TB-005 adds the no-match state
@@ -273,6 +323,7 @@ Item {
                 : "Try a different filter or search."
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
         }
+    }
     }
 
     // ── TB-005 ⋮ menu panel (root-level so wall.clip doesn't clip it) ──

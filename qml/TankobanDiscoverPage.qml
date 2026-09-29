@@ -125,7 +125,9 @@ Item {
     // catalogue, including a previously settled empty one. Populated walls are never reloaded.
     Connections {
         target: root.malCatalog
+        ignoreUnknownSignals: true // QML harness catalogues need not implement the async cache signal.
         function onReadyChanged() { root._handleCatalogueReady("manga", root.malCatalog) }
+        function onFilterCacheReady() { if (root.active && root._ready) browser.refresh() }
     }
     Connections {
         target: root.comicsCatalog
