@@ -8,6 +8,7 @@
 // Missing db => ready()==false and every accessor returns empty — the pages
 // fall through to their live Jikan/AniList/Kitsu ladder untouched.
 #include <QObject>
+#include <QHash>
 #include <QSqlDatabase>
 #include <QVariantList>
 #include <QVariantMap>
@@ -92,8 +93,11 @@ signals:
 
 private:
     bool openAt(const QString& dbPath);
+    QVariantList discoverFiltersUncached(const QString& axis, bool includeExplicit) const;
 
     QSqlDatabase m_db;
     bool m_ok = false;
-    QString m_conn;
+    QString m_conn;    // discoverFilters() answers per axis/explicit flag, computed once per opened database:
+    // each is a GROUP BY over the whole catalogue (~0.45 s) and Discover asks repeatedly.
+    mutable QHash<QString, QVariantList> m_filterCache;
 };

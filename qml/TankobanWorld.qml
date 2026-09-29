@@ -96,13 +96,23 @@ WorldPage {
         ["#3f785a","#16281e"], ["#78703f","#2e2a16"], ["#783f5a","#301624"],
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
-    function initializeComicCatalogue() {
-        if (tanko._catalogueInitialized) return
-        tanko._catalogueInitialized = true
+    property bool _comicEngineOk: false
+    // Cheap, and other pages rely on it (ComicsDb.ready() for series pages), so it runs when
+    // the world goes live.
+    function wireComicEngine() {
         // The curated catalogue rides the ComicsCatalog engine now (P4 seam, 2026-07-18) —
         // behind Main's keep-alive world Loader, same as the old gen.js import was. Root
         // startup never touches this; the multi-megabyte gen.js parse is gone.
-        var catalogOk = ComicsDb.setEngine(typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null)
+        tanko._comicEngineOk = ComicsDb.setEngine(typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null)
+    }
+    // ~17 synchronous catalogue queries (profiled 1.8 s on the GUI thread) that only the
+    // Comics tab shows, so they wait until that tab is first opened rather than blocking
+    // the world's first open.
+    function initializeComicCatalogue() {
+        if (tanko._catalogueInitialized) return
+        tanko._catalogueInitialized = true
+        if (!tanko._comicEngineOk) tanko.wireComicEngine()
+        var catalogOk = tanko._comicEngineOk
         tanko.comicRows = catalogOk ? ComicsDb.rankedSeries() : Catalog.topComics
         if (catalogOk) console.log("ComicsDb: engine live, " + tanko.comicRows.length + " series")
         else console.warn("ComicsDb: catalogue engine unavailable — using curated fallback")
@@ -163,8 +173,9 @@ WorldPage {
             tanko.comicCovers = []
         }
     }
-    Component.onCompleted: if (tanko.lifecycleActive) tanko.initializeComicCatalogue()
-    onLifecycleActiveChanged: if (tanko.lifecycleActive) tanko.initializeComicCatalogue()
+    Component.onCompleted: if (tanko.lifecycleActive) tanko.wireComicEngine()
+    onLifecycleActiveChanged: if (tanko.lifecycleActive) tanko.wireComicEngine()
+    onActiveTabChanged: if (tanko.activeTab === "comics") tanko.initializeComicCatalogue()
 
     property string activeTab: "discover"
 

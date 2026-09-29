@@ -45,6 +45,7 @@ bool validMedium(const QString& m) {
 
 bool MalCatalog::openAt(const QString& dbPath)
 {
+    m_filterCache.clear();
     // resolve beside the exe first (deployed), then the repo layout (dev run)
     QString path = dbPath;
     if (!QFileInfo::exists(path)) {
@@ -444,6 +445,18 @@ QVariantList MalCatalog::search(const QString& text, int limit, const QString& m
 }
 
 QVariantList MalCatalog::discoverFilters(const QString& axis, bool includeExplicit) const
+{
+    const QString cacheKey = axis + (includeExplicit ? QStringLiteral("|x") : QStringLiteral("|"));
+    const auto cached = m_filterCache.constFind(cacheKey);
+    if (cached != m_filterCache.constEnd())
+        return cached.value();
+    const QVariantList out = discoverFiltersUncached(axis, includeExplicit);
+    if (!out.isEmpty())
+        m_filterCache.insert(cacheKey, out);
+    return out;
+}
+
+QVariantList MalCatalog::discoverFiltersUncached(const QString& axis, bool includeExplicit) const
 {
     QVariantList out;
     // Only the two browsable axes; empty/unknown returns no facets.

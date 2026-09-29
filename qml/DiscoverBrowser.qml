@@ -836,7 +836,26 @@ Item {
                 : (browser.items.length === 0
                    ? columnCount * Math.max(2, Math.ceil(height / cellHeight))
                    : columnCount)
-            model: browser.items.length + skelCount
+            // One row per cell (card or skeleton). A plain count here was a new model on every
+            // page and every loading flip, so the GridView rebuilt ALL its cards each time
+            // (profiled 2026-09-29: 228 card creations, ~2 s). Rows are only appended/removed at
+            // the end, so existing cards stay put; each card reads browser.items[index].
+            readonly property int cellTarget: browser.items.length + skelCount
+            onCellTargetChanged: wall.syncCells()
+            Component.onCompleted: wall.syncCells()
+            function syncCells() {
+                var n = wall.cellTarget
+                if (n < wallCells.count)
+                    wallCells.remove(n, wallCells.count - n)
+                if (wallCells.count < n) {
+                    var rows = []                      // one insert, not one per row
+                    for (var i = wallCells.count; i < n; i++)
+                        rows.push({ cell: i })
+                    wallCells.append(rows)
+                }
+            }
+            ListModel { id: wallCells }
+            model: wallCells
             ScrollBar.vertical: HouseScrollBar { flick: wall }
             onContentYChanged: {
                 if (contentHeight > height

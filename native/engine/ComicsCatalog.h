@@ -7,6 +7,7 @@
 // Missing/invalid db => ready()==false and every accessor returns empty (the app
 // runs on without the catalogue — it is pipeline-deployed, not shipped).
 #include <QObject>
+#include <QHash>
 #include <QSqlDatabase>
 #include <QVariantList>
 #include <QVariantMap>
@@ -103,8 +104,11 @@ signals:
 
 private:
     bool openAt(const QString& dbPath);
+    QVariantList discoverFiltersUncached(const QString& axis) const;
 
     QSqlDatabase m_db;
     QString m_conn;
-    bool m_ok = false;
+    bool m_ok = false;    // discoverFilters() answers per axis/explicit flag, computed once per opened database:
+    // each is a GROUP BY over the whole catalogue (~0.45 s) and Discover asks repeatedly.
+    mutable QHash<QString, QVariantList> m_filterCache;
 };

@@ -13,6 +13,7 @@
 #include <vector>
 
 bool ComicsCatalog::openAt(const QString& dbPath) {
+    m_filterCache.clear();
     if (!QFileInfo::exists(dbPath)) {
         qInfo("[comics-catalog] no db at %s — catalogue lane dormant", qUtf8Printable(dbPath));
         return false;
@@ -576,7 +577,18 @@ struct DiscoRow {
 
 } // namespace
 
-QVariantList ComicsCatalog::discoverFilters(const QString& axis, bool /*includeExplicit*/) const {
+QVariantList ComicsCatalog::discoverFilters(const QString& axis, bool includeExplicit) const {
+    const QString cacheKey = axis + (includeExplicit ? QStringLiteral("|x") : QStringLiteral("|"));
+    const auto cached = m_filterCache.constFind(cacheKey);
+    if (cached != m_filterCache.constEnd())
+        return cached.value();
+    const QVariantList out = discoverFiltersUncached(axis);
+    if (!out.isEmpty())                        // an empty answer may be a catalogue still arriving
+        m_filterCache.insert(cacheKey, out);
+    return out;
+}
+
+QVariantList ComicsCatalog::discoverFiltersUncached(const QString& axis) const {
     QVariantList out;
     if (!curatedReady()) return out;
     QString sql;
