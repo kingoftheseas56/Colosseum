@@ -1,10 +1,10 @@
 $ErrorActionPreference = 'Stop'
 
 $packageName  = 'colosseum'
-$url          = 'https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.3/Colosseum-1.1.3-setup.exe'
+$url          = 'https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.7/Colosseum-1.1.7-setup.exe'
 
-# SHA-256 of Colosseum-1.1.3-setup.exe (269,338,695 bytes) from the official v1.1.3 release.
-$checksum     = '140cefc39a47b932558cabb15adfacd7e991fda7e1762c2681c48a0be9272ee7'
+# SHA-256 of Colosseum-1.1.7-setup.exe (254,834,672 bytes) from the official v1.1.7 release.
+$checksum     = '66c5dfcc9607176cd890c14dc65a3ecdf72bc9e1b3852d968b87b6fae09b37a7'
 $checksumType = 'sha256'
 
 $packageArgs = @{
