@@ -59,6 +59,7 @@ private:
     void captureStableWindowState();
     void persistStableState();
     QList<QRect> availableScreenGeometries() const;
+    QRect activeAvailableGeometry(QQuickWindow *window) const;
     QRect primaryAvailableGeometry() const;
 
     QPointer<QQuickWindow> m_window;

@@ -54,7 +54,7 @@ void WindowModeStore::enterPip(QQuickWindow *window) {
         return;
     // Snapshot the stable normal rectangle first when the base shell is normal
     // windowed, so exiting PiP restores it exactly.
-    if (!m_pipMode && m_shellWindowed
+    if (!m_pipMode && m_shellWindowed && !m_windowedMaximized
         && window->visibility() == QWindow::Windowed)
         m_normalGeometry = window->geometry();
 
@@ -197,29 +197,27 @@ void WindowModeStore::applyWindowed(QQuickWindow *window) {
     // via the new topbar toggle). Flags/min-size are set BEFORE any show so
     // they can never force a second visible reconfigure; setFlags is a no-op
     // when unchanged (both modes share the frameless flags).
-    if (m_windowedMaximized) {
-        window->setFlags(Qt::Window | Qt::FramelessWindowHint);
-        window->setMinimumSize(WindowStatePolicy::minimumSize());
-        window->showMaximized();
-        window->requestActivate();
-    } else {
-        applyBorderlessGeometry(window, restored, WindowStatePolicy::minimumSize());
-    }
+    // Filled is the work area on the same borderless Windowed surface fullscreen uses, not
+    // native maximize: un-maximizing lands on the remembered full-monitor rectangle, which Qt
+    // then misreads as native FullScreen (2026-09-29).
+    applyBorderlessGeometry(window,
+                            m_windowedMaximized ? activeAvailableGeometry(window) : restored,
+                            WindowStatePolicy::minimumSize());
 }
 
 void WindowModeStore::toggleMaximized(QQuickWindow *window) {
     // Only meaningful inside normal windowed mode; PiP and fullscreen ignore it.
     if (!window || !m_shellWindowed || m_pipMode)
         return;
-    if (window->visibility() == QWindow::Maximized) {
+    if (m_windowedMaximized || window->visibility() == QWindow::Maximized) {
         m_windowedMaximized = false;
-        window->showNormal();
-        window->setGeometry(m_normalGeometry);
+        applyBorderlessGeometry(window, m_normalGeometry, WindowStatePolicy::minimumSize());
     } else {
         if (window->visibility() == QWindow::Windowed)
             m_normalGeometry = window->geometry();
         m_windowedMaximized = true;
-        window->showMaximized();
+        applyBorderlessGeometry(window, activeAvailableGeometry(window),
+                                WindowStatePolicy::minimumSize());
     }
     persistStableState();
     emit changed();
@@ -291,12 +289,21 @@ void WindowModeStore::captureStableWindowState() {
     }
     if (vis != QWindow::Windowed)
         return;  // minimized / fullscreen / hidden must never touch normal geometry
+    const QRect geom = window->geometry();
+    // Filling the work area is the filled state, never a size the user chose.
+    if (geom == activeAvailableGeometry(window)) {
+        if (!m_windowedMaximized) {
+            m_windowedMaximized = true;
+            persistStableState();
+            emit changed();
+        }
+        return;
+    }
     bool dirty = false;
     if (m_windowedMaximized) {
         m_windowedMaximized = false;
         dirty = true;
     }
-    const QRect geom = window->geometry();
     if (geom.isValid() && geom != m_normalGeometry) {
         m_normalGeometry = geom;
         dirty = true;
@@ -330,6 +337,11 @@ QList<QRect> WindowModeStore::availableScreenGeometries() const {
         if (screen)
             geoms.append(screen->availableGeometry());
     return geoms;
+}
+
+QRect WindowModeStore::activeAvailableGeometry(QQuickWindow *window) const {
+    QScreen *screen = window ? window->screen() : nullptr;
+    return screen ? screen->availableGeometry() : primaryAvailableGeometry();
 }
 
 QRect WindowModeStore::primaryAvailableGeometry() const {

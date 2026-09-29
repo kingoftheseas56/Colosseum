@@ -253,16 +253,25 @@ int main(int argc, char **argv) {
         store.toggleShellMode(&win);
         settleEvents();
         require(store.shellWindowed(), "toggle from fullscreen enters windowed mode");
-        require(win.visibility() == QWindow::Maximized,
-                "clean settings: leaving fullscreen must fill the screen (maximized)");
+        require(win.visibility() == QWindow::Windowed && store.savedMaximized(),
+                "clean settings: leaving fullscreen fills the screen on the borderless surface");
         require(win.geometry() == win.screen()->availableGeometry(),
-                "maximized frameless shell must cover exactly the work area");
+                "the filled shell must cover exactly the work area");
+        const WId filledId = win.winId();
+        store.toggleShellMode(&win);   // back to fullscreen, from filled
+        settleEvents();
+        require(!store.shellWindowed() && win.visibility() == QWindow::Windowed,
+                "fullscreen from filled must stay a Windowed native surface");
+        require(win.geometry() == win.screen()->geometry(),
+                "fullscreen from filled must cover the whole monitor");
+        require(win.winId() == filledId, "filled <-> fullscreen keeps one native window");
     }
     qInfo("window_shell_gui_harness: windowed fills the work area OK");
 
     // --- Test H: pre-policy saved sizes start maximized; a deliberate restore-down sticks ---
     {
         const QRect legacy(0, 13, 1255, 659);
+        QRect normal;
         {
             QSettings s;
             s.clear();
@@ -277,15 +286,15 @@ int main(int argc, char **argv) {
             win.setVisible(false);
             store.initializeShell(&win);
             settleEvents();
-            require(win.visibility() == QWindow::Maximized,
+            require(win.geometry() == win.screen()->availableGeometry() && store.savedMaximized(),
                     "a size saved before the fill policy must not be restored at launch");
             // Kept (validated against the screens present) for a later restore-down.
-            const QRect normal = store.savedNormalGeometry();
+            normal = store.savedNormalGeometry();
             require(normal.isValid(), "the old rectangle is kept for a later restore-down");
             settleFor(500);   // a person restores down seconds after launch, not instantly
             store.toggleMaximized(&win);   // the user deliberately restores down
             settleFor(300);
-            require(win.visibility() == QWindow::Windowed, "restore-down leaves maximized");
+            require(!store.savedMaximized(), "restore-down leaves the filled state");
             require(win.geometry() == normal, "restore-down lands on the saved rectangle");
         }
         {
@@ -294,7 +303,7 @@ int main(int argc, char **argv) {
             win.setVisible(false);
             store.initializeShell(&win);
             settleEvents();
-            require(win.visibility() == QWindow::Windowed && !store.savedMaximized(),
+            require(!store.savedMaximized() && win.geometry() == normal,
                     "a deliberate restore-down must be respected on the next launch");
         }
     }
