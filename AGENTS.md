@@ -1,56 +1,53 @@
-# Colosseum repository instructions
+# Colosseum Agent Instructions
 
-These instructions apply to contributors and automation working in this repository.
+## Authority
+- Follow the user's current task first.
+- Use live source, tests, build files, and runtime evidence for implementation facts.
+- Treat plans, handoffs, recaps, memory, and Git history as optional context; read them only when the task requires them.
+- Do not preload documentation, skills, or historical context "just in case."
 
-## Source of truth
+## Task discipline
+- Treat the current conversation as one bounded task.
+- Inspect only enough of the repository to understand the surface being changed.
+- Use the fewest tool calls that materially improve correctness.
+- Do not turn a small task into a repository audit.
+- Make the smallest complete change that satisfies the request.
+- Do not add cleanup, refactors, migrations, documentation, or tests outside the requested scope unless correctness requires them.
+- Continue through reversible in-scope work without asking for permission.
+- Stop when the requested outcome is complete.
 
-Use this order when evidence disagrees:
-
-1. The current task, issue, or maintainer instruction.
-2. Live source, tests, build files, and runtime evidence for implementation facts.
-3. This file and `docs/terminology.md` for repository procedure and shared vocabulary.
-4. Current public documentation and ADRs for intended behavior.
-5. Git history and older plans as historical context only.
-
-Read the implementation that owns a behavior before changing it. Do not infer current behavior from an old plan, generated index, or stale test name.
+## Repository map
+- `qml/`: Qt Quick/QML application UI and remaining QML/JavaScript glue.
+- `native/`: C++ application entry, services, state, playback, readers, networking, and native integrations.
+- `tests/`: native, QML, JavaScript, integration, and regression tests.
+- `scripts/`: repository automation and quality utilities.
+- `tools/`: development, diagnostics, previews, and Colosseum Harness tooling.
+- `server/`: Colosseum server-side services.
 
 ## Reality anchors
+- Application entry and native wiring: `native/main.cpp`.
+- QML application root: `qml/Main.qml`.
+- Native build graph: `native/CMakeLists.txt`.
+- Test build graph: `tests/CMakeLists.txt`.
+- Preserve the current QML application UI direction; do not introduce a parallel web UI unless the task explicitly requires it.
+- Prefer C++ for durable backend/business machinery and QML for presentation and interaction, while respecting current ownership where migration has not occurred.
 
-The primary application anchors are:
+## Read only when relevant
+- Windows build/setup: `docs/build/windows.md`.
+- Repository terminology: `docs/terminology.md`.
+- Verification references: `docs/README.md`.
+- Security-sensitive work: `SECURITY.md`.
+- Harness-backed runtime work: `tools/colosseum-harness/README.md`.
 
-- native application entry and service wiring: `native/main.cpp`;
-- QML application root: `qml/Main.qml`;
-- native build and harness graph: `native/CMakeLists.txt`;
-- verification surfaces: `tests/`.
-
-Colosseum uses Qt 6 Quick/QML with substantial native C++ state and services. QML/JavaScript still owns some provider and network glue. Treat "QML paints/interacts; C++ owns durable machinery" as a design direction, not a description of every current path.
-
-## Working rules
-
-- Preserve unrelated working-tree changes. Inspect status and the relevant diff before editing.
-- Prefer the smallest complete change that follows an existing repository pattern.
-- Trace direct callers, consumers, build wiring, and relevant tests before changing shared behavior.
-- Do not introduce user-specific absolute paths, credentials, tokens, or machine-local service endpoints into tracked files.
-- Keep generated output, caches, local databases, screenshots, and diagnostic logs out of source control unless they are intentional fixtures or public documentation.
-- Use `docs/build/windows.md` for the supported Windows source-build path.
-- Use `docs/terminology.md` when Collection, Library, Progress, reading lanes, or `seriesId` terminology matters.
-
-## Git discipline
-
-The normal branch is `master`. Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task. Commit and push once the work is done — no separate confirmation step. Commit with an explicit pathspec so unrelated staged work is never swept in.
+## Working-tree safety
+- Preserve unrelated modified, staged, and untracked work.
+- Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task.
+- Do not commit credentials, tokens, machine-specific paths, local databases, caches, logs, screenshots, or build output unless they are intentional repository artifacts.
 
 ## Verification
-
-Before declaring work complete:
-
-- consult `tools/colosseum-harness/README.md` and get scoped task context/verification routing for Colosseum engineering work;
-- for a mapped user-visible runtime change, record the explicit changed paths before editing, bind an isolated Lanista session to the run, attach PID-bound desktop evidence, and execute the run's frozen checks and production journey; require `completionReady=true` and `completionBlockers=[]` before claiming Harness-backed runtime completion;
-- inspect the final diff for every file you touched;
-- run the narrowest relevant test or harness, then the surrounding checks needed for the touched surface;
-- use the build wiring in `native/CMakeLists.txt` when compilation evidence is required;
-- run QML-specific inspection or lint when QML changed and the tool is available;
-- search for equivalent occurrences before claiming a defect class is completely fixed;
-- keep authored, compiled, tested, and runtime-verified states distinct.
-
-A successful edit is not runtime proof, and a successful compile is not behavioral proof.
-If Harness mapping or runtime is unavailable, use the strongest applicable direct checks and report the exact gap. Do not claim a Harness pass from dry-run output, a different source snapshot, or a journey against an unbound session.
+- Start with the smallest meaningful check for the changed surface.
+- Broaden testing only when affected dependencies, failures, risk, or the task itself justify it.
+- Do not run full builds, full suites, runtime harnesses, or broad searches by default.
+- Inspect the final diff for the files changed.
+- Keep authored, inspected, built, tested, runtime-verified, committed, pushed, and released states distinct.
+- State exactly what was verified and any material gap.
