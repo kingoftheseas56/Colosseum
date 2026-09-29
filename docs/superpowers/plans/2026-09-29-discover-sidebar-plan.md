@@ -423,3 +423,11 @@ Append per-slice gate numbers, session ids, witness verdicts and status changes 
   picker, Language's filter options, 7/6 columns, dock x 322; `discover_sidebar_seams.json` 34/34 (three worlds'
   source names, 7 columns); `discover_sidebar_filter_regression.json` 52/52 on claude-scroll (fresh-tag Biblio
   catalogue empty as documented). WARNING_GATE_OK on all. Status: Implemented, verification pending (Hemanth's eyes).
+
+- 2026-09-30 — Source names corrected (Hemanth: "the catalogue for manga is not colosseum database, it's jikan").
+  Manga built-ins = "Jikan" (MyAnimeList data baked into mal_catalog.db, refreshed live from Jikan; the Grand
+  Database only delivers the file); comics stay "Colosseum Grand Database"; Biblio splits into "Apple Books"
+  (popular/top-rated/new-releases/trending) and "Open Library" (most-read/classics). Jikan's own icon bundled as
+  `assets/addon-logos/jikan.png` (jikan.moe apple-touch-icon, 180 px, Hemanth approved the download); Open Library
+  has no bundled logo yet (letter plate). Seams 34/34 (WARNING_GATE_OK), three-world run 52/52 on claude-scroll,
+  `tst_discover_sidebar` 18/18, harnesses green.

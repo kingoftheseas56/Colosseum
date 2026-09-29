@@ -41,9 +41,12 @@ var COMICS_CATALOGS = [
 ];
 var BUILTIN_SECTION = "Tankoban";
 var BUILTIN_ATTRIBUTION = "Tankoban built-in catalogue";
-// The Discover sidebar lists sources as addons: the built-ins are the Grand Database's.
-var BUILTIN_SOURCE = "Colosseum Grand Database";
-var BUILTIN_SOURCE_ID = "colosseum.catalogue.vault";
+// The Discover sidebar lists sources as addons. Manga is MyAnimeList data served by Jikan (baked
+// into mal_catalog.db, refreshed live from Jikan); comics are the Grand Database's own catalogue.
+var MANGA_SOURCE = "Jikan";
+var MANGA_SOURCE_ID = "jikan";
+var COMICS_SOURCE = "Colosseum Grand Database";
+var COMICS_SOURCE_ID = "colosseum.catalogue.vault";
 
 // in-session live-refresh cache (spec 5.4). Keyed by catalog+filter+explicit flag so a
 // refresh is deduplicated per state (a sfw=true response never serves an opted-in
@@ -286,7 +289,8 @@ function catalogsForType(type, extensions) {
             sourceKind: builtins[i].sourceKind,
             section: BUILTIN_SECTION,
             attribution: BUILTIN_ATTRIBUTION,
-            sourceName: BUILTIN_SOURCE, addonId: BUILTIN_SOURCE_ID
+            sourceName: type === "manga" ? MANGA_SOURCE : COMICS_SOURCE,
+            addonId: type === "manga" ? MANGA_SOURCE_ID : COMICS_SOURCE_ID
         });
     }
     var exts = extensionCatalogs(type, extensions || []);

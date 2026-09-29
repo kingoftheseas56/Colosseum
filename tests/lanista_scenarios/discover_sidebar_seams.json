@@ -312,6 +312,11 @@
      "path": "props.collapsed",
      "op": "==",
      "value": "true"
+    },
+    {
+     "path": "props.automationRows",
+     "op": "contains",
+     "value": "Open Library"
     }
    ]
   },
@@ -460,7 +465,7 @@
     {
      "path": "props.automationRows",
      "op": "contains",
-     "value": "Colosseum Grand Database"
+     "value": "Jikan"
     },
     {
      "path": "props.collapsed",

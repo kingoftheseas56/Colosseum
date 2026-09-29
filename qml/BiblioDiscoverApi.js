@@ -32,14 +32,17 @@ var BOOK_CATALOGS = [
     { key: "top-rated",    title: "Top Rated",    sourceKind: "builtin" },
     { key: "new-releases", title: "New Releases", sourceKind: "builtin" },
     { key: "trending",     title: "Trending",     sourceKind: "builtin" },
-    { key: "most-read",    title: "Most Read",    sourceKind: "builtin" },
-    { key: "classics",     title: "Classics",     sourceKind: "builtin" }
+    { key: "most-read",    title: "Most Read",    sourceKind: "builtin", openLibrary: true },
+    { key: "classics",     title: "Classics",     sourceKind: "builtin", openLibrary: true }
 ];
 var BUILTIN_SECTION = "Biblio";
 var BUILTIN_ATTRIBUTION = "Biblio built-in catalogue";
-// The Discover sidebar lists sources as addons: the built-ins are Apple Books'.
+// The Discover sidebar lists sources as addons: the Apple Books built-ins, and the two
+// Open Library-seeded ones under Open Library.
 var BUILTIN_SOURCE = "Apple Books";
 var BUILTIN_SOURCE_ID = "colosseum.catalogue.applebooks";
+var OPEN_LIBRARY_SOURCE = "Open Library";
+var OPEN_LIBRARY_SOURCE_ID = "openlibrary";
 var EXTENSIONS_SECTION = "From Your Extensions";
 // the shell's default offlineWarning text (DiscoverBrowser.qml) — matched EXACTLY so a stale
 // snapshot's offline notice actually trips the shell's showOfflineNotice banner.
@@ -97,7 +100,8 @@ function catalogsForType(extensions) {
             sourceKind: BOOK_CATALOGS[i].sourceKind,
             section: BUILTIN_SECTION,
             attribution: BUILTIN_ATTRIBUTION,
-            sourceName: BUILTIN_SOURCE, addonId: BUILTIN_SOURCE_ID
+            sourceName: BOOK_CATALOGS[i].openLibrary ? OPEN_LIBRARY_SOURCE : BUILTIN_SOURCE,
+            addonId: BOOK_CATALOGS[i].openLibrary ? OPEN_LIBRARY_SOURCE_ID : BUILTIN_SOURCE_ID
         });
     }
     var exts = extensionCatalogs(extensions || []);
