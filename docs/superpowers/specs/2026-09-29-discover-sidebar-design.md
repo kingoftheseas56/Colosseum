@@ -2,7 +2,8 @@
 
 Status: **Approved by Hemanth 2026-09-29** (Claude, brotherhood-brainstorming).
 Scope: the Discover page of Theatre, Biblio, Tankoban Manga and Tankoban Comics (all one `DiscoverBrowser`).
-Reference look: `C:\Users\Suprabha\Downloads\colosseum-theatre-sidebar-concept.html` (the `worldnav` rail).
+Reference look: `C:\Users\Suprabha\Downloads\colosseum-theatre-sidebar-concept.html` (the `worldnav` rail) and, for retracting,
+`colosseum-theatre-sidebar-concept (1).html` (Hemanth, 2026-09-29).
 
 ## 1. Experience promise and scope
 
@@ -25,7 +26,9 @@ the wall: the page title and the **summary line**. Nothing else sits above the w
 Anime switch, the catalogue dropdown and the Genre picker are gone from there.
 
 Sidebar, top to bottom:
-1. **Collapse chevron** (top right of the rail).
+1. **Retract toggle** — a 28 px round glass button straddling the rail's right edge near its top (the
+   retractable concept, `colosseum-theatre-sidebar-concept (1).html`: `right:-14px; top:18px`), chevron
+   pointing left; it rotates 180° when retracted.
 2. **Type switch** — the world's types as a segmented row (Theatre: Movie · Series · Anime; Tankoban: its
    types; Biblio has a single type, so the row is hidden).
 3. **Catalogues**, grouped by source. Each group has a small header with the source's logo and name
@@ -53,9 +56,11 @@ Groups with more than 40 options show a small search box at the top of the expan
 **Scrolling:** the sidebar is pinned. As the page scrolls, it stays beside the wall, its top just under the
 docked tab bar; the rail's own list scrolls independently when it is taller than the window.
 
-**Collapse:** the chevron folds the rail to a 62 px strip showing the type initials and the catalogue sources'
-logos (a logo click expands the rail at that group). The wall gains its column back. The choice is remembered
-per world across launches. The summary line keeps active choices visible while collapsed.
+**Retract (per the retractable concept):** the toggle animates the rail to a 52 px strip: labels and group
+titles fade, rows become 44 px icon buttons (type initials, the catalogue sources' logos; a logo click expands
+the rail at that group), the gold active bar stays. The wall and the docked tab bar slide left to use the freed
+width, so the wall gains its column back. The choice is remembered per world across launches. The summary line
+keeps active choices visible while retracted.
 
 ## 3. States, interruptions, recovery, edge cases
 
@@ -69,7 +74,7 @@ per world across launches. The summary line keeps active choices visible while c
 - **Catalogue with no filters:** the Filters section is hidden entirely.
 - **Many addons:** the catalogue block scrolls with the rail; groups can be collapsed by clicking their header
   (remembered per world). No limit on the number of addons.
-- **Small windows (under ~1250 px wide):** the rail starts collapsed; under ~900 px it hides and the summary
+- **Small windows (under ~1250 px wide):** the rail starts retracted (the concept's narrow rule); under ~900 px it hides and the summary
   line's catalogue part becomes a button that opens the rail as an overlay (the concept's breakpoints).
 
 ## 4. Controls, feedback, accessibility, integration
@@ -101,7 +106,8 @@ per world across launches. The summary line keeps active choices visible while c
 - The dropdown (`catalogMenu`) and `filterPicker` are removed; the masthead keeps the title and gains the summary
   line.
 - Pinned rail: positioned against the world page viewport (like the dock), not a second scroller for the wall.
-- Collapse state and group-collapse state persist per world (existing Settings store).
+- Retract state and group-fold state persist per world (existing Settings store). While the sidebar is present,
+  the docked tab bar centres over the content column (right of the rail), as in the concept.
 
 ## 6. Acceptance criteria, non-goals, deferred
 
@@ -113,7 +119,8 @@ Acceptance (runtime, isolated Lanista session per world, plus Hemanth's eye):
    it. Theatre: choosing a second genre replaces the first.
 4. Publishers shows eight + "Show all (N)"; expanding shows the search box (N > 40) and it filters the list.
 5. Scrolled to wall row 20, the sidebar is still beside the wall and switching a genre works without scrolling.
-6. Collapse folds to the logo strip, the wall gains a column, and the state survives a restart.
+6. The edge toggle retracts the rail to the 52 px strip (chevron flipped), the wall gains a column, and the
+   state survives a restart.
 7. Keyboard: from the wall's first column ← enters the sidebar at the current catalogue; ↑/↓/Enter change it;
    → returns to the card focus left; ↓ never lands in the TopBar.
 8. Empty filter result shows the message and Clear filters works.

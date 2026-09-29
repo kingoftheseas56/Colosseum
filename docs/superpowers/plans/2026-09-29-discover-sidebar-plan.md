@@ -214,19 +214,22 @@ Bridge status: available.
 Completion criterion: waits green, gates green, `human-witnessed:` Hemanth sets Marvel + Omnibus in Comics, clears
 one from the summary, and expands Publishers. `Runtime-validated (human-witnessed)`.
 
-### Slice 4: Collapse to a logo strip, remembered; narrow windows (user-visible)
+### Slice 4: Retract to a logo strip, remembered; narrow windows (user-visible)
 
-Purpose: the chevron folds the rail to a 62 px strip (type initials + source logos), the wall gains a column, the
-choice survives restarts; narrow windows start collapsed or use an overlay.
+Purpose: the edge toggle retracts the rail to a 52 px strip (type initials + source logos), the wall and the docked
+tab bar slide left and gain a column, the choice survives restarts; narrow windows start retracted or use an
+overlay. Reference: `colosseum-theatre-sidebar-concept (1).html` (`.worldnav-toggle`, `body.worldnav-collapsed`).
 Dependencies: Slice 3.
-Implementation guidance: collapse state and group-fold state in the existing Settings store, per world
-(`<prefix>`). Strip items: type initials, one logo per source (click → expand at that group). Breakpoints on the
+Implementation guidance: toggle = 28 px round glass button at the rail's right edge (`right:-14`, `top:18`),
+chevron rotates 180° when retracted; width animates 184 ↔ 52 with the concept's easing; labels fade, rows become
+44 px icon buttons, gold bar stays. While the sidebar is present the dock centres over the content column.
+Retract state and group-fold state in the existing Settings store, per world (`<prefix>`). Strip items: type initials, one logo per source (click → expand at that group). Breakpoints on the
 browser's width: < 1250 start collapsed; < 900 rail hidden, summary line's catalogue part opens the rail as an
 overlay (Esc/click-outside closes).
 Behavior to preserve: summary line always visible; wall page flow; keyboard reachability of the strip.
 Baseline: record wall `columnCount` with the rail open (qml-get on the wall seam).
 Focused tests:
-  - Qt Quick Test: collapse toggles width 184 ↔ 62 and wall columns +1; setting write happens through an injected
+  - Qt Quick Test: retract toggles width 184 ↔ 52 and wall columns +1; chevron rotation 0 ↔ 180; setting write happens through an injected
     record layer (ledger learning: never race the Settings batch timer); width 1200 starts collapsed; width 880 hides
     the rail and the summary opens the overlay.
   - Negative control: skip the persisted read → the restore case goes red.
