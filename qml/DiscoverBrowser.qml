@@ -763,11 +763,13 @@ Item {
         anchors.left: parent.left
         spacing: 10
         Text {
+            objectName: "discoverFilterLabel"
             text: "FILTER"
             height: 40; verticalAlignment: Text.AlignVCenter
-            color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
-            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+            // full ink + DemiBold: at 11px regular inkDim it still sank into warm wallpapers
+            color: theme.ink
+            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 1.5
+            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.85)
             font.capitalization: Font.AllUppercase
         }
         DiscoverPicker {
