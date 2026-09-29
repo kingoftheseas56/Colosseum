@@ -7,12 +7,15 @@
 #include <QDate>
 #include <QDir>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSet>
 #include <QSqlQuery>
 #include <QStringList>
 #include <QVariantMap>
+#include <QtConcurrent>
+#include <QUuid>
 
 #include <algorithm>
 
@@ -41,10 +44,36 @@ bool validMedium(const QString& m) {
     return m == QStringLiteral("anime") || m == QStringLiteral("manga");
 }
 
+QVariantList queryDiscoverFilters(const QSqlDatabase& db, const QString& axis,
+                                  bool includeExplicit)
+{
+    QVariantList out;
+    if (!(axis == QStringLiteral("genre") || axis == QStringLiteral("demographic")))
+        return out;
+    QString sql = QStringLiteral(
+        "SELECT c.value, COUNT(*) AS total "
+        "FROM classification c "
+        "WHERE c.medium = 'manga' AND c.axis = ? "
+        "AND c.mal_id IN (SELECT mal_id FROM manga");
+    if (!includeExplicit)
+        sql += QStringLiteral(" WHERE explicit = 0");
+    sql += QStringLiteral(") GROUP BY c.value ORDER BY total DESC, c.value ASC");
+    QSqlQuery q(db);
+    q.prepare(sql);
+    q.addBindValue(axis);
+    if (!q.exec())
+        return out;
+    while (q.next())
+        out.append(QVariantMap{{QStringLiteral("value"), q.value(0).toString()},
+                               {QStringLiteral("count"), q.value(1).toInt()}});
+    return out;
+}
+
 } // namespace
 
 bool MalCatalog::openAt(const QString& dbPath)
 {
+    ++m_filterGeneration;
     m_filterCache.clear();
     // resolve beside the exe first (deployed), then the repo layout (dev run)
     QString path = dbPath;
@@ -65,6 +94,7 @@ MalCatalog::MalCatalog(const QString& dbPath, QObject* parent)
     : QObject(parent), m_conn(QStringLiteral("mal_catalog"))
 {
     m_ok = openAt(dbPath);
+    warmDiscoverFilters();
 }
 
 MalCatalog::~MalCatalog()
@@ -84,6 +114,7 @@ bool MalCatalog::reopen(const QString& dbPath)
     if (QSqlDatabase::contains(m_conn))
         QSqlDatabase::removeDatabase(m_conn);
     m_ok = openAt(dbPath);
+    warmDiscoverFilters();
     if (m_ok != wasOk || m_ok)
         emit readyChanged();
     return m_ok;
@@ -91,6 +122,8 @@ bool MalCatalog::reopen(const QString& dbPath)
 
 void MalCatalog::closeForSwap()
 {
+    ++m_filterGeneration;
+    m_filterCache.clear();
     if (m_db.isOpen())
         m_db.close();
     m_db = QSqlDatabase();
@@ -456,33 +489,53 @@ QVariantList MalCatalog::discoverFilters(const QString& axis, bool includeExplic
     return out;
 }
 
+QVariantList MalCatalog::cachedDiscoverFilters(const QString& axis, bool includeExplicit) const
+{
+    return m_filterCache.value(axis + (includeExplicit ? QStringLiteral("|x") : QStringLiteral("|")));
+}
+
+void MalCatalog::warmDiscoverFilters()
+{
+    if (!m_ok)
+        return;
+    const QString path = m_db.databaseName();
+    const int generation = m_filterGeneration;
+    auto* watcher = new QFutureWatcher<QHash<QString, QVariantList>>(this);
+    connect(watcher, &QFutureWatcherBase::finished, this, [this, watcher, generation] {
+        if (generation == m_filterGeneration && m_ok) {
+            const auto facets = watcher->result();
+            for (auto it = facets.cbegin(); it != facets.cend(); ++it)
+                m_filterCache.insert(it.key(), it.value());
+            emit filterCacheReady();
+        }
+        watcher->deleteLater();
+    });
+    watcher->setFuture(QtConcurrent::run([path] {
+        QHash<QString, QVariantList> facets;
+        const QString conn = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), conn);
+            db.setDatabaseName(path);
+            db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
+            if (db.open()) {
+                for (const auto& axis : {QStringLiteral("genre"), QStringLiteral("demographic")}) {
+                    for (bool explicitContent : {false, true}) {
+                        const auto rows = queryDiscoverFilters(db, axis, explicitContent);
+                        if (!rows.isEmpty())
+                            facets.insert(axis + (explicitContent ? QStringLiteral("|x") : QStringLiteral("|")), rows);
+                    }
+                }
+            }
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(conn);
+        return facets;
+    }));
+}
+
 QVariantList MalCatalog::discoverFiltersUncached(const QString& axis, bool includeExplicit) const
 {
-    QVariantList out;
-    // Only the two browsable axes; empty/unknown returns no facets.
-    if (!m_ok || !(axis == QStringLiteral("genre") || axis == QStringLiteral("demographic")))
-        return out;
-
-    // Facets reflect the browsable manga slice. The JOIN to manga both scopes the
-    // count to baked rows and lets includeExplicit=false prune explicit titles —
-    // which also drops facets (e.g. Hentai) that exist ONLY on explicit titles.
-    QString sql = QStringLiteral(
-        "SELECT c.value, COUNT(*) AS total "
-        "FROM classification c JOIN manga m ON m.mal_id = c.mal_id "
-        "WHERE c.medium = 'manga' AND c.axis = ?");
-    if (!includeExplicit)
-        sql += QStringLiteral(" AND m.explicit = 0");
-    sql += QStringLiteral(" GROUP BY c.value ORDER BY total DESC, c.value ASC");
-
-    QSqlQuery q(m_db);
-    q.prepare(sql);
-    q.addBindValue(axis);
-    if (!q.exec())
-        return out;
-    while (q.next())
-        out.append(QVariantMap{{QStringLiteral("value"), q.value(0).toString()},
-                               {QStringLiteral("count"), q.value(1).toInt()}});
-    return out;
+    return m_ok ? queryDiscoverFilters(m_db, axis, includeExplicit) : QVariantList{};
 }
 
 QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& filterAxis,

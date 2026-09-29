@@ -191,9 +191,14 @@ function filtersForType(type, catalog, malCatalog, comicsCatalog, showExplicit) 
     if (!catalog || catalog.length === 0) return [];
     if (type === "manga") {
         if (!malCatalog) return [];
+        // The native catalogue warms these facets on a worker. Never run the full
+        // classification scan while constructing the Tankoban page on the GUI thread.
+        var readFilters = typeof malCatalog.cachedDiscoverFilters === "function"
+                        ? function(axis) { return malCatalog.cachedDiscoverFilters(axis, showExplicit) }
+                        : function(axis) { return malCatalog.discoverFilters(axis, showExplicit) };
         return [
-            { group: "Genres",      options: buildFilterOptions(malCatalog.discoverFilters("genre", showExplicit)) },
-            { group: "Demographics", options: buildFilterOptions(malCatalog.discoverFilters("demographic", showExplicit)) }
+            { group: "Genres",      options: buildFilterOptions(readFilters("genre")) },
+            { group: "Demographics", options: buildFilterOptions(readFilters("demographic")) }
         ].filter(function(g){ return g.options.length > 0 });
     }
     if (type === "comics") {

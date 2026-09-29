@@ -75,6 +75,8 @@ public:
     // anything else returns an empty facet list. Each facet is {value, count};
     // includeExplicit=false prunes facets that only exist on explicit titles.
     Q_INVOKABLE QVariantList discoverFilters(const QString& axis, bool includeExplicit) const;
+    // UI-safe read of facets warmed on a worker. Empty until filterCacheReady fires.
+    Q_INVOKABLE QVariantList cachedDiscoverFilters(const QString& axis, bool includeExplicit) const;
     // catalogId ∈ {popular, top-rated, new-releases, trending}; filterAxis ∈
     // {genre, demographic, ""}. filterKey is BOUND (never concatenated). offset is
     // clamped >= 0, limit to [1,100]. Returns
@@ -90,9 +92,11 @@ public:
 
 signals:
     void readyChanged();
+    void filterCacheReady();
 
 private:
     bool openAt(const QString& dbPath);
+    void warmDiscoverFilters();
     QVariantList discoverFiltersUncached(const QString& axis, bool includeExplicit) const;
 
     QSqlDatabase m_db;
@@ -100,4 +104,5 @@ private:
     QString m_conn;    // discoverFilters() answers per axis/explicit flag, computed once per opened database:
     // each is a GROUP BY over the whole catalogue (~0.45 s) and Discover asks repeatedly.
     mutable QHash<QString, QVariantList> m_filterCache;
+    int m_filterGeneration = 0;
 };
