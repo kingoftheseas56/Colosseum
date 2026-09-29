@@ -94,6 +94,32 @@ Column {
 
         Keys.onPressed: (event) => top10Keys.handle(event)
 
+        // Entered by the spatial navigator (it lands on a card's face): the first visit selects the
+        // item nearest that landing, like the mock; later visits keep the rail's own place.
+        property bool keyboardVisited: false
+        onActiveFocusChanged: if (strip.activeFocus) strip.keyboardVisited = true
+        function keyboardEnterAt(sceneX) {
+            if (strip.keyboardVisited)
+                return
+            var best = -1
+            var bestDistance = 0
+            for (var i = 0; i < rankRepeater.count; ++i) {
+                var item = rankRepeater.itemAt(i)
+                if (!item)
+                    continue
+                var left = item.mapToItem(flick, 0, 0).x
+                if (left + item.width < 0 || left > flick.width)
+                    continue                                   // off the rail's visible strip
+                var distance = Math.abs(item.mapToItem(null, item.width / 2, 0).x - sceneX)
+                if (best < 0 || distance < bestDistance) {
+                    best = i
+                    bestDistance = distance
+                }
+            }
+            if (best >= 0)
+                strip.currentIndex = best
+        }
+
         KeyboardCollectionController {
             id: top10Keys
             view: strip

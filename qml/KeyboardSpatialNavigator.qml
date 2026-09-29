@@ -1112,6 +1112,14 @@ Item {
         // Collection-managed rails keep focus on their Flickable owner while delegates
         // remain semantic selection faces. Land the owner after the visible target has
         // passed policy/geometry checks; do not ask a non-focusable delegate to own focus.
+        // A rail whose current item lives in the rail (not in the focused face) learns which of
+        // its items the navigator landed on, so the next Left/Right continues from there.
+        for (var railOwner = target; railOwner && railOwner !== nav.root; railOwner = railOwner.parent) {
+            if (typeof railOwner.keyboardEnterAt === "function") {
+                railOwner.keyboardEnterAt(target.mapToItem(null, Number(target.width) / 2, 0).x)
+                break
+            }
+        }
         var collectionOwner = nav._collectionFocusOwner(target)
         if (collectionOwner && nav._selectCollectionItem(collectionOwner, target)) {
             collectionOwner.forceActiveFocus(reason)
