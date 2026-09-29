@@ -56,7 +56,6 @@ Those parts share Home, Continue, Collection, Downloads, settings, and open sess
 
 Also new:
 
-- Extensions is now its own world.
 - Subtitle controls were redesigned.
 - IMDb Continue Watching cards are back.
 - Better text contrast on light wallpapers.
