@@ -1945,6 +1945,13 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("AnimeOrder"), animeOrder);
     const bool devWorldWarmer = qEnvironmentVariableIntValue("COLOSSEUM_WORLD_WARMER") == 1;
     engine.rootContext()->setContextProperty(QStringLiteral("DevWorldWarmer"), devWorldWarmer);
+    // KeyboardSpatialNavigator's focus seams walk the whole item tree and re-run on every
+    // child/focus/geometry change; only an automation session driving the app reads them.
+    // COLOSSEUM_AUTOMATION_FOCUS_SEAMS=0 keeps them off in a driven session that measures
+    // performance as users get it.
+    engine.rootContext()->setContextProperty(QStringLiteral("AutomationFocusSeams"),
+        qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_DRIVE") == 1   // LanistaServer's drive gate
+            && qEnvironmentVariable("COLOSSEUM_AUTOMATION_FOCUS_SEAMS") != QLatin1String("0"));
     // Diagnostic A/B: leave the normal catalog prefetch enabled unless explicitly disabled.
     engine.rootContext()->setContextProperty(
         QStringLiteral("BootSplashPrefetchEnabled"),

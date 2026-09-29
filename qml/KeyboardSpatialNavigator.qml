@@ -31,8 +31,16 @@ Item {
     // Read-only runtime seam for assembled-app evidence. It reports the focused
     // semantic face by objectName, falling back to its accessible name when a
     // legacy control has no explicit automation id.
-    readonly property string automationActiveFocusIdentity: _automationFocusIdentity(nav.root)
-    readonly property bool automationActiveFocusFullyVisible: _automationFocusFullyVisible(nav.root)
+    // Both walk the whole item tree, so as live bindings they re-run on every child, focus and
+    // geometry change: millions of calls while scrolling (profiled 2026-09-29). They are paid
+    // for only where something reads them: automation sessions (AutomationFocusSeams, set by
+    // the native host) and QML tests (no host, so on).
+    readonly property bool automationSeamsEnabled: typeof AutomationFocusSeams === "undefined"
+                                                   || AutomationFocusSeams === true
+    readonly property string automationActiveFocusIdentity:
+        nav.automationSeamsEnabled ? _automationFocusIdentity(nav.root) : ""
+    readonly property bool automationActiveFocusFullyVisible:
+        nav.automationSeamsEnabled && _automationFocusFullyVisible(nav.root)
 
     signal boundaryRequested(int key, Item fromItem)
     signal navigationCancelled(string reason)
