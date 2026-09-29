@@ -175,7 +175,9 @@ WorldPage {
     }
     Component.onCompleted: if (tanko.lifecycleActive) tanko.wireComicEngine()
     onLifecycleActiveChanged: if (tanko.lifecycleActive) tanko.wireComicEngine()
-    onActiveTabChanged: if (tanko.activeTab === "comics") tanko.initializeComicCatalogue()
+    // The shelf queries wait one frame so the tab reacts to the click before they run.
+    onActiveTabChanged: if (tanko.activeTab === "comics") comicCatalogueTimer.restart()
+    Timer { id: comicCatalogueTimer; interval: 30; onTriggered: tanko.initializeComicCatalogue() }
 
     property string activeTab: "discover"
 
@@ -310,13 +312,16 @@ WorldPage {
               : tanko.activeTab === "manga" ? "TankobanMangaTab.qml"
               : ""
         active: tanko.lifecycleActive && (tanko.activeTab === "manga" || tanko.activeTab === "comics")
+        // Built across frames: the Comics tab took ~0.5 s to create in one block (profiled).
+        asynchronous: true
         onLoaded: {
             if (item.collectionOpenRequested) item.collectionOpenRequested.connect(tanko.collectionOpenRequested)
             // Task 8: a See-all pin from either browse tab routes into the in-tab Discover
             // wall — switch to Discover and apply the pin (the adapter validates/drops a
             // stale filter). Both tabs declare discoverPinRequested(var pin).
             if (item.discoverPinRequested) item.discoverPinRequested.connect(tanko.openDiscoverPin)
-            if (tanko.activeTab === "comics") {
+            // Keyed to what was loaded, not activeTab: an async load finishes after the click.
+            if (String(tabContent.source).indexOf("TankobanComicsTab") >= 0) {
                 item.comicRows   = Qt.binding(function() { return tanko.comicRows })
                 item.comicShelves = Qt.binding(function() { return tanko.comicShelves })
                 item.comicBoxes  = Qt.binding(function() { return tanko.comicBoxes })
