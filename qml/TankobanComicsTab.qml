@@ -14,6 +14,10 @@ Column {
     property var comicShelves: []    // [{label, rows}] browse shelves
     property var comicBoxes: []      // explore mosaic boxes (GetComics taxonomy)
     property var comicCovers: []     // explore mosaic art pool
+    // The world's viewport in this tab's coordinates, bound by TankobanWorld. A height of 0
+    // means unknown, and every shelf builds (harnesses, tests).
+    property real viewportTop: 0
+    property real viewportHeight: 0
 
     signal westernRequested(string title)
     signal westernExploreRequested(var box)
@@ -55,33 +59,54 @@ Column {
     // Pinnable shelves (Task 8): Most Stocked → {comics,most-stocked}; Marvel/DC/Image →
     //   {comics,popular,publisher:<lowercase arg>}. Non-pinnable shelves (decade/deep/fanmade)
     //   have no honest Discover filter, so they keep navigable:false and no See-all door.
+    // ~15 shelves of up to 24 covers each. Built all at once they froze the first Comics
+    // open (~0.8 s, profiled 2026-09-29), so each slot reserves the shelf's exact height and
+    // builds its shelf once it comes within a screen of view, then keeps it.
     Repeater {
         model: comicsTab.comicShelves
-        delegate: TrendingTop10 {
+        delegate: Item {
+            id: shelfSlot
             required property var modelData
-            title: modelData.label
-            // Most Stocked and the three publishers are pinnable; everything else is not.
-            navigable: !!modelData.catalogId || modelData.kind === "stocked" || modelData.kind === "publisher"
-            items: modelData.rows
-            visible: modelData.rows.length > 0
-            onItemClicked: (i) => {
-                var it = modelData.rows[i]
-                if (!it) return
-                if (it.locgId) comicsTab.comicSeriesRequested({ id: it.locgId, title: it.title, cover: it.cover })
-                else comicsTab.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
-            }
-            onExploreClicked: {
-                if (modelData.catalogId)
-                    comicsTab.discoverPinRequested({ type: "comics", catalogId: modelData.catalogId,
-                                                    filterGroup: modelData.filterGroup || "",
-                                                    filterKey: String(modelData.filterKey || "").toLowerCase() })
-                else if (modelData.kind === "stocked")
-                    comicsTab.discoverPinRequested({ type: "comics", catalogId: "most-stocked",
-                                                    filterGroup: "", filterKey: "" })
-                else if (modelData.kind === "publisher")
-                    comicsTab.discoverPinRequested({ type: "comics", catalogId: "popular",
-                                                    filterGroup: "publisher",
-                                                    filterKey: String(modelData.arg || "").toLowerCase() })
+            width: comicsTab.width
+            visible: shelfSlot.modelData.rows.length > 0
+            height: 30 + 14 + 212        // WidgetHeader + TrendingTop10 spacing + strip
+            property bool built: false
+            readonly property bool near: comicsTab.viewportHeight <= 0
+                || (shelfSlot.y < comicsTab.viewportTop + 2 * comicsTab.viewportHeight
+                    && shelfSlot.y + shelfSlot.height > comicsTab.viewportTop - comicsTab.viewportHeight)
+            onNearChanged: if (shelfSlot.near) shelfSlot.built = true
+            Component.onCompleted: if (shelfSlot.near) shelfSlot.built = true
+
+            Loader {
+                width: parent.width
+                active: shelfSlot.built
+                asynchronous: true
+                sourceComponent: TrendingTop10 {
+                    readonly property var modelData: shelfSlot.modelData
+                    title: modelData.label
+                    // Most Stocked and the three publishers are pinnable; everything else is not.
+                    navigable: !!modelData.catalogId || modelData.kind === "stocked" || modelData.kind === "publisher"
+                    items: modelData.rows
+                    onItemClicked: (i) => {
+                        var it = modelData.rows[i]
+                        if (!it) return
+                        if (it.locgId) comicsTab.comicSeriesRequested({ id: it.locgId, title: it.title, cover: it.cover })
+                        else comicsTab.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
+                    }
+                    onExploreClicked: {
+                        if (modelData.catalogId)
+                            comicsTab.discoverPinRequested({ type: "comics", catalogId: modelData.catalogId,
+                                                            filterGroup: modelData.filterGroup || "",
+                                                            filterKey: String(modelData.filterKey || "").toLowerCase() })
+                        else if (modelData.kind === "stocked")
+                            comicsTab.discoverPinRequested({ type: "comics", catalogId: "most-stocked",
+                                                            filterGroup: "", filterKey: "" })
+                        else if (modelData.kind === "publisher")
+                            comicsTab.discoverPinRequested({ type: "comics", catalogId: "popular",
+                                                            filterGroup: "publisher",
+                                                            filterKey: String(modelData.arg || "").toLowerCase() })
+                    }
+                }
             }
         }
     }

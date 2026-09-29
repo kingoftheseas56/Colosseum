@@ -326,6 +326,8 @@ WorldPage {
                 item.comicShelves = Qt.binding(function() { return tanko.comicShelves })
                 item.comicBoxes  = Qt.binding(function() { return tanko.comicBoxes })
                 item.comicCovers = Qt.binding(function() { return tanko.comicCovers })
+                item.viewportTop = Qt.binding(function() { return tanko.viewportContentY - tabContent.y })
+                item.viewportHeight = Qt.binding(function() { return tanko.viewportHeight })
                 item.gcdSeriesRequested.connect(tanko.gcdSeriesRequested)
                 item.comicSeriesRequested.connect(tanko.comicSeriesRequested)
                 item.westernRequested.connect(tanko.westernRequested)
