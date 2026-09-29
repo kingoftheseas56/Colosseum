@@ -167,6 +167,25 @@ Item {
         page.chaptersError = ""
         page._tankobanPrepared = false
         page.tankobanReaderEntries = []
+        page._chapterForced = false
+        Qt.callLater(page._applyChapterOnly)
+    }
+
+    // A series with no volume data in the catalogue has nothing for Tankoban Mode to show
+    // (it used to fall back to a "Search nyaa" masthead), so it opens straight in Chapter
+    // Mode and the mode switch is hidden (Hemanth, 2026-09-29). If the shelf turns up late
+    // (catalogue still warming), a forced Chapter Mode hands back to Tankoban Mode.
+    readonly property bool chapterOnly: !page.loading && !page.hasShelf
+    property bool _chapterForced: false
+    onChapterOnlyChanged: Qt.callLater(page._applyChapterOnly)
+    function _applyChapterOnly() {
+        if (page.chapterOnly && !page.chapterMode) {
+            page._chapterForced = true
+            page._enterChapterMode()
+        } else if (!page.chapterOnly && page._chapterForced && page.chapterMode) {
+            page._chapterForced = false
+            page._enterTankobanMode()
+        }
     }
 
     function _invalidateChapterRequest() {
@@ -1213,6 +1232,7 @@ Item {
             Rectangle {
                 id: modeSwitch
                 objectName: "mangaSeriesModeSwitch"
+                visible: !page.chapterOnly           // no volume data: Chapter Mode is the only mode
                 width: parent.width
                 height: 42
                 radius: 21
