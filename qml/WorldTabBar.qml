@@ -102,8 +102,10 @@ Item {
                     height: parent.height
                     radius: 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                    border.width: pill.modelData.key === tabs.currentTab ? 0 : (pill.keyboardFocused ? 2 : 1)
-                    border.color: pill.keyboardFocused ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
+                    border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
+                    border.color: Qt.rgba(1, 1, 1, 0.10)
+
+                    FocusRing { anchors.fill: parent; radius: pill.radius; shown: pill.keyboardFocused }
 
                     Text {
                         anchors.centerIn: parent

@@ -86,8 +86,12 @@ Column {
                 }
                 Rectangle {
                     anchors.fill: parent; radius: parent.radius; color: "transparent"
-                    border.width: ma.containsMouse || (gm.activeFocus && gm.currentIndex === cell.index) ? 2 : 0
+                    border.width: ma.containsMouse ? 2 : 0
                     border.color: theme.gold
+                }
+                FocusRing {
+                    anchors.fill: parent; radius: parent.radius
+                    shown: gm.activeFocus && gm.currentIndex === cell.index
                 }
                 MouseArea {
                     id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

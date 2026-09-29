@@ -147,13 +147,5 @@ Item {
         focusRadius: tile._r
         onTriggered: tile.clicked()
     }
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: -3
-        radius: tile._r + 2
-        color: "transparent"
-        border.width: 2
-        border.color: theme.gold
-        visible: tile.keyboardFocused
-    }
+    FocusRing { anchors.fill: parent; radius: tile._r; shown: tile.keyboardFocused }
 }

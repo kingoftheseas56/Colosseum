@@ -19,7 +19,10 @@ Item {
     property bool showFocusFrame: true
     property real focusRadius: 10
     property real focusInset: -2
+    // Retained for callers; the ring is always FocusRing's gold (one look everywhere).
     property color focusColor: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.28)
+    // Gold buttons (Watch / Read): FocusRing's dark gap keeps the gold ring visible.
+    property bool focusPrimary: false
     property int cursorShape: Qt.PointingHandCursor
 
     readonly property bool hovered: hover.hovered
@@ -91,29 +94,13 @@ Item {
         onTapped: action.requestContext(Qt.MouseFocusReason)
     }
 
-    // Keyboard focus should read as a quiet aura, not a selection plate.
-    // Keep the paint outside the control so labels/icons stay visually untouched.
-    Rectangle {
+    // Colosseum's one focus look (world-feel R1): a solid gold ring outside the control.
+    FocusRing {
         anchors.fill: parent
-        anchors.margins: action.focusInset - 5
-        radius: action.focusRadius + 4
-        visible: action.showFocusFrame && action.activeFocus
-        color: "transparent"
-        border.width: 3
-        border.color: Qt.rgba(action.focusColor.r, action.focusColor.g,
-                              action.focusColor.b, action.focusColor.a * 0.32)
-        z: 10000
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: action.focusInset - 2
-        radius: action.focusRadius + 1
-        visible: action.showFocusFrame && action.activeFocus
-        color: "transparent"
-        border.width: 1
-        border.color: action.focusColor
-        z: 10001
+        anchors.margins: action.focusInset + 2
+        radius: action.focusRadius
+        primary: action.focusPrimary
+        shown: action.showFocusFrame && action.activeFocus
     }
 
     Accessible.role: Accessible.Button

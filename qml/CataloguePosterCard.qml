@@ -88,7 +88,7 @@ Item {
         height: Math.floor(width * card._m.posterRatio)
 
         transform: Translate {
-            y: card.effectiveHovered ? -card._m.hoverLift : 0
+            y: (card.effectiveHovered || card.keyboardFocused) ? -card._m.hoverLift : 0
             Behavior on y { NumberAnimation { duration: card._m.hoverDuration; easing.type: Easing.OutCubic } }
         }
 
@@ -120,6 +120,9 @@ Item {
             hovered: card.effectiveHovered
             sources: card.coverCandidates
         }
+
+        // Colosseum's one focus look, riding the poster plane so it lifts with the art.
+        FocusRing { anchors.fill: parent; radius: card._m.posterRadius; shown: card.keyboardFocused }
 
         // ── hover reveal: a rounded scrim + metadata (and, classic only, the centered play ring) ──
         Item {
@@ -215,19 +218,6 @@ Item {
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
                 }
             }
-        }
-    }
-
-    // keyboard focus ring — a DOUBLE soft-gold halo overlay (never triggers the hover reveal, no lift)
-    Rectangle {
-        anchors.fill: frame; radius: card._m.posterRadius
-        visible: card.keyboardFocused
-        color: "transparent"
-        border.width: 2; border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
-        Rectangle {
-            anchors.fill: parent; anchors.margins: -3
-            radius: card._m.posterRadius + 2; color: "transparent"
-            border.width: 3; border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.18)
         }
     }
 

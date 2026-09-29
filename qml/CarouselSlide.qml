@@ -128,6 +128,8 @@ Item {
                         objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
                         pointerEnabled: false
+                        focusRadius: 11
+                        focusPrimary: true
                         accessibleName: slideRoot.primaryLabel
                         onTriggered: slideRoot.primaryClicked()
                     }
@@ -145,6 +147,7 @@ Item {
                         objectName: slideRoot.slideIndex >= 0 ? "featuredSecondaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
                         pointerEnabled: false
+                        focusRadius: 11
                         focusEnabled: slideRoot.secondaryLabel.length > 0
                         accessibleName: slideRoot.secondaryLabel
                         onTriggered: slideRoot.secondaryClicked()
