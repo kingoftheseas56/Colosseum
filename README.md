@@ -48,11 +48,18 @@ Those parts share Home, Continue, Collection, Downloads, settings, and open sess
 
 ## What's in 1.1.7
 
-- Your Colosseum now shows highlights and stats from activity recorded by Colosseum.
-- Stremio sync brings over your library, progress, and watched state and keeps them in sync.
-- Theatre can send playback history to Trakt through a linked Stremio account. Colosseum does not store Trakt credentials.
+**Your Colosseum** now shows highlights and stats from what you read, watch, and listen to, using activity recorded by Colosseum.
+
+**Stremio sync** brings over your library, progress, and watched state and keeps them in sync.
+
+**Trakt** works through your linked Stremio account. Theatre sends playback history through that connection, and Colosseum does not store your Trakt credentials.
+
+Also new:
+
 - Extensions is now its own world.
-- Subtitle controls were redesigned, IMDb Continue Watching cards are back, and world text has better contrast on light wallpapers.
+- Subtitle controls were redesigned.
+- IMDb Continue Watching cards are back.
+- Better text contrast on light wallpapers.
 
 Full release notes: [docs/release-notes/v1.1.7.md](docs/release-notes/v1.1.7.md).
 
