@@ -162,10 +162,40 @@ TestCase {
         compare(browser.automationFilterSummary, "Formats=omnibus", "the old picker replaces the selection")
     }
 
-    // ── Slice 2: the rail — type switch and catalogues grouped by source ──
-    function test_slice2_rail_groups_catalogues_by_source_in_order() {
+    // ── Slice 2: the rail — catalogues grouped by source; the type lens stays above the wall ──
+    function openRail() {
         var rail = findChild(browser, "stubDiscoverSidebar")
-        verify(rail !== null, "the rail carries the prefixed name")
+        rail.collapsed = false
+        tryCompare(rail, "width", 184, 2000)
+        return rail
+    }
+
+    function test_slice2_rail_starts_closed_and_the_toggle_opens_it() {
+        var fresh = createTemporaryObject(browserComponent, win,
+            { width: 1100, height: 700, automationPrefix: "fresh", adapter: testCase.stubAdapter })
+        var rail = findChild(fresh, "freshDiscoverSidebar")
+        verify(rail.collapsed, "every Discover starts with the rail closed")
+        compare(rail.width, 52)
+        compare(fresh.contentLeft, 52 + 28)
+        verify(findChild(fresh, "freshDiscoverSidebarSource_Cinemeta") !== null, "closed: one logo per source")
+        mouseClick(findChild(fresh, "freshDiscoverSidebarCollapse"))
+        verify(!rail.collapsed)
+        tryCompare(rail, "width", 184, 2000)
+        compare(fresh.contentLeft, 184 + 28)
+        mouseClick(findChild(fresh, "freshDiscoverSidebarCollapse"))
+        tryCompare(rail, "width", 52, 2000)
+    }
+
+    function test_slice2_a_source_logo_opens_the_rail() {
+        var fresh = createTemporaryObject(browserComponent, win,
+            { width: 1100, height: 700, automationPrefix: "logo", adapter: testCase.stubAdapter })
+        var rail = findChild(fresh, "logoDiscoverSidebar")
+        mouseClick(findChild(fresh, "logoDiscoverSidebarSource_Streaming_Catalogs"))
+        verify(!rail.collapsed)
+    }
+
+    function test_slice2_rail_groups_catalogues_by_source_in_order() {
+        var rail = openRail()
         verify(rail.visible)
         var r = rail.rows
         compare(r.length, 5, "two source headers + three catalogues")
@@ -178,6 +208,7 @@ TestCase {
     }
 
     function test_slice2_clicking_a_catalogue_switches_the_wall_with_one_request() {
+        openRail()
         var row = findChild(browser, "stubDiscoverCatalog_movie_hbo")
         verify(row !== null)
         verify(!row.current)
@@ -194,32 +225,25 @@ TestCase {
         browser.selectCatalog("movie-popular")
     }
 
-    function test_slice2_type_switch_swaps_the_catalogue_list() {
-        var seg = findChild(browser, "stubDiscoverType_series")
-        verify(seg !== null && seg.visible)
-        mouseClick(seg)
+    function test_slice2_type_lens_above_the_wall_swaps_the_rail() {
+        openRail()
+        var lens = findChild(browser, "stubDiscoverType_series")
+        verify(lens !== null && lens.visible)
+        var rail = findChild(browser, "stubDiscoverSidebar")
+        var p = lens.parent, inRail = false
+        while (p) { if (p === rail) inRail = true; p = p.parent }
+        verify(!inRail, "the type selector is not part of the sidebar")
+        mouseClick(lens)
         compare(browser.currentType, "series")
         verify(findChild(browser, "stubDiscoverCatalog_series_popular") !== null)
         compare(findChild(browser, "stubDiscoverCatalog_movie_popular"), null)
-        verify(findChild(browser, "stubDiscoverType_series").current)
-    }
-
-    function test_slice2_single_type_world_hides_the_switch() {
-        var one = createTemporaryObject(browserComponent, win,
-            { width: 900, height: 600, automationPrefix: "one", adapter: testCase.singleTypeAdapter })
-        verify(one !== null)
-        var seg = findChild(one, "oneDiscoverType_book")
-        verify(seg !== null)
-        verify(!seg.visible, "one type: no switch")
-        verify(findChild(one, "oneDiscoverCatalog_book_top") !== null)
     }
 
     function test_slice2_content_sits_right_of_the_rail() {
-        var rail = findChild(browser, "stubDiscoverSidebar")
-        compare(rail.width, 184)
+        var rail = openRail()
         compare(browser.contentLeft, 184 + 28)
         var wall = findChild(browser, "stubDiscoverWall")
         verify(wall.mapToItem(browser, 0, 0).x >= browser.contentLeft, "the wall starts right of the rail")
-        verify(findChild(browser, "stubDiscoverSummary").mapToItem(browser, 0, 0).x >= browser.contentLeft)
+        verify(findChild(browser, "stubDiscoverType_movie").mapToItem(browser, 0, 0).x >= browser.contentLeft)
     }
 }

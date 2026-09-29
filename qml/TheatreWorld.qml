@@ -14,6 +14,7 @@ import "VaultApi.js" as VaultApi
 
 WorldPage {
     id: theatre
+    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft : 0   // dock sits right of the Discover rail
     objectName: "theatreWorld"
     medium: "Theatre"
     tabBarSource: theatreTabBar          // docks under the TopBar when scrolled past (WorldPage)

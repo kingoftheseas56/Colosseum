@@ -137,7 +137,8 @@ Item {
     // One scroller (world-feel Slice 7): the host world's page Flickable; the page then sizes
     // this page to flowHeight so the wall scrolls with the world instead of inside its own box.
     property Flickable pageFlick: null
-    property Item backdrop: null            // the world's wallpaper, for the sidebar's glass
+    property Item backdrop: null            // the world's wallpaper, for the sidebar's toggle
+    readonly property real contentLeft: browser.contentLeft   // the wall's left edge, right of the rail
     readonly property real flowHeight: browser.flowHeight
 
     DiscoverBrowser {

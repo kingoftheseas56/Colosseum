@@ -1,7 +1,7 @@
 // DiscoverBrowser — the WORLD-NEUTRAL Discover shell (Task 3, arc 2026-08-01).
 //
 // This is the generic browsing surface carved out of DiscoverPage.qml: the pinned sidebar
-// (type switch + catalogues by source, DiscoverSidebar.qml), the masthead (summary line +
+// (catalogues by source, DiscoverSidebar.qml), the masthead (type lens + summary line +
 // byline), the filter picker, the missing/offline notice, and the full-width poster wall with
 // skeletons, hover reveal, keyboard focus ring and skip-paging. It knows NOTHING about Manga/Comics/Movies/Shows,
 // Cinemeta, Extensions or any transport — every derivation and every fetch rides an
@@ -100,7 +100,7 @@ Item {
     readonly property real flowHeight: Math.max(wallHost.y + wallHost.flowContentHeight + 24, sidebar.naturalHeight)
     // Test-only introspection: the actual rendered delegate box, so an offscreen harness can prove
     // the geometry contract without a screenshot or a live pointer. Production code never reads these.
-    readonly property int _galleryDelegateWidthForTest: wall ? wall.cellWidth - 14 : 0
+    readonly property int _galleryDelegateWidthForTest: wall ? wall.cellWidth - wall.gapX : 0
     readonly property int _galleryColumnCountForTest: wall ? wall.columnCount : 0
 
     // ── generic browsing state ──
@@ -131,7 +131,7 @@ Item {
 
     property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
 
-    // ── the sidebar (Discover sidebar plan Slice 2): types + catalogues live in a pinned rail ──
+    // ── the sidebar (Discover sidebar plan Slice 2): catalogues live in a pinned rail ──
     property Item backdrop: null             // the world's wallpaper, for the rail's glass
     readonly property real contentLeft: sidebar.visible ? sidebar.width + 28 : 0
 
@@ -513,7 +513,7 @@ Item {
         visible: browser.adapter !== null
     }
 
-    // ═══ masthead — what fills the wall: the catalogue, then any active filter ═══
+    // ═══ masthead — the type lens (left) + what fills the wall (right) ═══
     Item {
         id: masthead
         anchors.top: parent.top
@@ -530,13 +530,14 @@ Item {
             color: Qt.rgba(1, 1, 1, 0.09)
         }
 
-        // ── optional back affordance (Biblio's Explore-return, Task 5) — right edge, level with
-        // the summary; invisible/no-op for every world that leaves showBackAction off. ──
+        // ── optional back affordance (Biblio's Explore-return, Task 5) — top-left, above
+        // the type lens; invisible/no-op for every world that leaves showBackAction off. ──
         Text {
             id: backAction
             visible: browser.showBackAction
-            anchors.right: parent.right
-            anchors.verticalCenter: shelf.verticalCenter
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.topMargin: 6
             text: "‹ Back"
             color: backMa.containsMouse ? theme.gold : theme.inkDim
             font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
@@ -552,10 +553,77 @@ Item {
                 accessibleName: "Back"; focusRadius: 7; onTriggered: browser.backRequested() }
         }
 
-        // ── the shelf: kicker + the summary line + the owning source ──
+        // ── type lens: underlined text tabs (NOT filled pills) ──
+        Row {
+            id: typeSwitch
+            anchors.left: parent.left
+            anchors.bottom: mastheadRule.top
+            anchors.bottomMargin: 12
+            spacing: 28
+            property int currentIndex: 0
+            focusPolicy: typeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
+            function syncCurrent() {
+                var types = browser.adapter ? browser.adapter.types() : []
+                for (var i = 0; i < types.length; ++i)
+                    if (types[i].key === browser.currentType) { currentIndex = i; return }
+                currentIndex = types.length ? 0 : -1
+            }
+            Keys.onPressed: (event) => typeKeys.handle(event)
+            KeyboardCollectionController {
+                id: typeKeys; view: typeSwitch; orientation: "horizontal"; count: typeRepeater.count
+                onActivated: (index) => { const tab = typeRepeater.itemAt(index); if (tab) browser.selectType(tab.modelData.key) }
+            }
+            Component.onCompleted: syncCurrent()
+            Connections { target: browser; function onCurrentTypeChanged() { typeSwitch.syncCurrent() } }
+            Repeater {
+                id: typeRepeater
+                model: (browser.adapterRev, browser.adapter ? browser.adapter.types() : [])
+                delegate: Item {
+                    id: typeTab
+                    required property var modelData
+                    required property int index
+                    readonly property bool active: browser.currentType === typeTab.modelData.key
+                    readonly property bool keyboardSelected: typeSwitch.activeFocus && typeSwitch.currentIndex === typeTab.index
+                    objectName: browser.automationPrefix.length
+                                ? browser.automationPrefix + "DiscoverType_" + typeTab.modelData.key : ""
+                    width: tlabel.implicitWidth
+                    height: tlabel.implicitHeight + 9
+                    Text {
+                        id: tlabel
+                        anchors.top: parent.top
+                        text: typeTab.modelData.label
+                        color: typeTab.active ? theme.ink
+                             : (tHov.hovered ? theme.ink : theme.inkDim)
+                        font.family: theme.ui; font.pixelSize: 17; font.weight: Font.DemiBold
+                        // readable on any wallpaper (2026-09-29): the idle lenses sat at inkDimmer
+                        // and vanished into bright/warm art; a soft drop shadow carries them.
+                        style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    }
+                    Rectangle {                       // gold underline marks the active lens
+                        visible: typeTab.active
+                        anchors.left: tlabel.left; anchors.right: tlabel.right
+                        anchors.bottom: parent.bottom
+                        height: 3; radius: 2; color: theme.gold
+                    }
+                    Rectangle {
+                        visible: typeTab.keyboardSelected
+                        anchors.fill: parent; anchors.margins: -6; radius: 7
+                        color: "transparent"; border.width: 2; border.color: Qt.rgba(240/255,196/255,74/255,0.72)
+                    }
+                    HoverHandler { id: tHov }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: browser.selectType(typeTab.modelData.key)
+                    }
+                }
+            }
+        }
+
+        // ── the shelf (right): kicker + the summary line + the owning source ──
         Item {
             id: shelf
-            anchors.left: parent.left
+            anchors.right: parent.right
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: 9
             width: Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth)
@@ -563,7 +631,7 @@ Item {
 
             Text {
                 id: kicker
-                anchors.left: parent.left; anchors.top: parent.top
+                anchors.right: parent.right; anchors.top: parent.top
                 text: "NOW BROWSING"
                 color: theme.inkDim
                 font.family: theme.ui; font.pixelSize: 10; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
@@ -579,7 +647,7 @@ Item {
                     var f = browser.activeFilterLabel
                     return f.length ? (t + "   ·   " + f) : t
                 }
-                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.top: kicker.bottom; anchors.topMargin: 4
                 spacing: 16
                 Text {
@@ -598,7 +666,7 @@ Item {
             }
             Text {
                 id: byline
-                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.top: summary.bottom; anchors.topMargin: 7
                 // honest attribution — the owning source. NO invented total.
                 text: browser.currentCatalog ? browser.currentCatalog.attribution : ""
@@ -715,7 +783,8 @@ Item {
             anchors.leftMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
                 ? Math.max(0, Math.floor((parent.width - columnCount * cellWidth) / 2)) : 0
             anchors.rightMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
-                ? Math.max(0, Math.ceil((parent.width - columnCount * cellWidth) / 2)) : 0
+                ? Math.max(0, Math.ceil((parent.width - columnCount * cellWidth) / 2))
+                : (mockGrid ? -gapX : 0)   // the last column's trailing gap falls past the edge
             clip: true
             // In page flow the world's page owns the wheel and the scroll; the wall only follows.
             interactive: !browser.pageFlow
@@ -731,17 +800,29 @@ Item {
             // gallery derives its stride/height from the gallery tokens (wider tiles + two-line title).
             // columnCount/cellWidth read the HOST's width (parent, not wall's own width) so they
             // stay well-defined when wall.width above is itself derived from columnCount*cellWidth.
-            readonly property int columnCount: Math.max(3, Math.floor(parent.width / (browser._galleryPosters
-                ? (browser._galleryMetrics.posterWidth + browser._galleryMetrics.cardGap) : 146)))
-            cellWidth: (browser.fixedGalleryWidth && browser._galleryPosters)
+            // The gallery wall is the concept's grid (Hemanth, 2026-09-29: "reduce the thumbnails
+            // to how it's here"): repeat(auto-fill, minmax(148px, 1fr)) with 20 px between cards and
+            // 26 px between rows. Each cell carries its card plus one gap; the wall runs one gap past
+            // its host so the last card ends on the edge.
+            readonly property bool mockGrid: browser._galleryPosters && !browser.fixedGalleryWidth
+            readonly property int gapX: mockGrid ? browser._galleryMetrics.cardGap : 14
+            readonly property int gapY: mockGrid ? 26 : 14
+            // Every gallery wall counts columns the concept's way (fixedGalleryWidth then centres
+            // exact-token cards in them); classic keeps its ~146 px stride.
+            readonly property int columnCount: browser._galleryPosters
+                ? Math.max(3, Math.floor((parent.width + browser._galleryMetrics.cardGap)
+                                         / (browser._galleryMetrics.posterWidth + browser._galleryMetrics.cardGap)))
+                : Math.max(3, Math.floor(parent.width / 146))
+            cellWidth: mockGrid ? Math.floor((parent.width + gapX) / columnCount)
+                : (browser.fixedGalleryWidth && browser._galleryPosters)
                 // "-14" below is the existing, unchanged delegate-inset convention (see the
                 // delegate's width binding) — adding it back here is what makes the delegate land
                 // on EXACTLY posterWidth, not floor(width/columnCount)'s residual-inflated value.
                 ? (browser._galleryMetrics.posterWidth + 14)
                 : Math.floor(parent.width / columnCount)
             cellHeight: browser._galleryPosters
-                ? (Math.floor((cellWidth - 14) * browser._galleryMetrics.posterRatio)
-                   + 10 + browser._galleryMetrics.titleMinHeight + 14 + 6)
+                ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
+                   + 10 + browser._galleryMetrics.titleMinHeight + gapY + 6)
                 : (Math.floor(cellWidth * 1.62) + 34)
             cacheBuffer: browser.pageFlow ? 0 : cellHeight * 2
             // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
@@ -836,8 +917,8 @@ Item {
                                + String(card.item.id !== undefined && String(card.item.id).length > 0
                                         ? card.item.id : card.item.title))
                             : ""
-                width: wall.cellWidth - 14
-                height: wall.cellHeight - 14
+                width: wall.cellWidth - wall.gapX
+                height: wall.cellHeight - wall.gapY
                 visualProfile: browser.posterVisualProfile
                 showAuthorAtRest: browser.showAuthorAtRest
                 hoverSourceText: (browser.showSourceOnReveal && card.item && card.item.source) ? card.item.source : ""

@@ -380,3 +380,27 @@ Append per-slice gate numbers, session ids, witness verdicts and status changes 
   WARNING_GATE_OK. Grabs in `artifacts/discover-sidebar/slice2/`. Not bridge-driven: opening a title and Back
   (card names are live ids) — part of the witness. Status: Implemented, verification pending (awaiting the
   `human-witnessed:` pass: Theatre Discover, two catalogue switches, Movie -> Series, scroll with the rail staying).
+
+- 2026-09-29 — Slice 2 REDONE to the concept after Hemanth's review of `9b1c323a` ("Absolutely not"; "Why can't
+  you simply follow the mock"). His calls, recorded: (1) the type selector (Movie/Series/Anime, Manga/Comics) stays
+  above the wall as the underlined lens — not in the rail; (2) the rail is ALWAYS closed by default (not
+  remembered); (3) posters sized like the concept; (4) "mock look, catalogues in rail" (asked: the concept's rail
+  holds Home/Watch Party/Activity/Stats; he chose the concept's look with our catalogues). Built: `DiscoverSidebar`
+  now copies `#worldnav` from `colosseum-theatre-sidebar-concept (1).html` — no glass panel, 1 px fading right edge,
+  shell padding 22/16/18/0, "WORLD" + world name heading, 46 px items with 19 px icon (source logo) + 14/600 label,
+  .09 plate + 3 px gold bar, 184 open / 52 closed eased 240 ms, closed = one 44 px icon per source, 28 px round toggle
+  at right:-14 top:18 (`<prefix>DiscoverSidebarCollapse`), pinned 12 below the board top like the concept; the
+  docked tab bar sits right of the rail (`WorldPage.dockContentLeft`, concept `.dock` left = margin + rail + gap).
+  Wall = the concept's grid: auto-fill minmax(148, 1fr), 20 px column gap, 26 px row gap (measured in the concept at
+  1280 wide with the rail closed: 6 columns of 164 x 245; the app now lays 6 x 165). Every gallery wall counts
+  columns this way (the fixed-width Biblio path too, so the two agree). Kept from the plan: catalogue grouping,
+  automation names. Deviation: the rail's bottom stays 92 px above the window edge (the taskbar's Colosseum button;
+  the concept has no taskbar, its bottom is 62). Also: ScrollGlide's whole-pixel snap now covers the path where the
+  last take ends the glide (the wheel step itself was -503.99999999999994); three probes land on 504.
+  Gates: `tst_discover_sidebar` 16/16 (closed by default, toggle and logo open it, lens not inside the rail); G-keys
+  green; qmllint sidebar 0, WorldPage unchanged (5); harnesses as before (Biblio page's known red only); Lanista
+  `discover_sidebar_catalogues.json` 41/41 twice (ds2z1/ds2z2, sessions 20260929-235451-c9de3c91,
+  20260929-235519-1ab9a011; checks closed at start, toggle opens to 184, dock x = 266) WARNING_GATE_OK;
+  `discover_sidebar_seams.json` 28/28 OK; `discover_sidebar_filter_regression.json` 49/49 on claude-scroll (the
+  gate's flags there are all 16:00-17:45 profiling lines from earlier sessions on that profile, none from this run).
+  Status: Implemented, verification pending (Hemanth's eyes).

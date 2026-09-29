@@ -268,6 +268,10 @@ Item {
     // compact copy pins at the top of the board and the in-flow bar keeps its space, hidden.
     // A world opts in by pointing tabBarSource at its in-flow tab bar.
     property Item tabBarSource: null
+    // Where the content column starts inside the board when a page puts a rail beside it (the
+    // Discover sidebar): the docked bar then sits over that column, right of the rail, as in the
+    // retractable concept (.dock left = margin + rail + gap, right = margin). 0 = full width.
+    property real dockContentLeft: 0
     readonly property bool tabsDocked: {
         page.contentY;       // re-evaluate as the page scrolls
         page.contentHeight;  // …and as content above the bar changes size
@@ -288,6 +292,8 @@ Item {
         tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
         compact: true
         anchors.left: parent.left; anchors.right: parent.right
+        anchors.leftMargin: world.dockContentLeft > 0 ? theme.margin + world.dockContentLeft : 0
+        anchors.rightMargin: world.dockContentLeft > 0 ? theme.margin : 0
         y: page.y + 4
         visible: world.tabsDocked
         backdrop: world.backdrop

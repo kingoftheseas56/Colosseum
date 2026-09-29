@@ -17,6 +17,7 @@ import "NextUp.js" as NextUp
 
 WorldPage {
     id: tanko
+    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft : 0   // dock sits right of the Discover rail
     objectName: "tankobanWorld"
     medium: "Tankoban"
     tabBarSource: tankobanTabBarItem          // docks under the TopBar when scrolled past (WorldPage)

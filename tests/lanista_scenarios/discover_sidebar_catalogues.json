@@ -1,6 +1,6 @@
 {
  "name": "discover-sidebar-catalogues",
- "comment": "Discover sidebar plan Slice 2 (Theatre): the rail lists catalogues grouped by source, one click switches the wall, one click switches Movie -> Series and back (each type keeps its catalogue), the rail holds its pinned line while the wall scrolls, and Discover keeps catalogue + type across a world round trip. Run with --seed tests/lanista-seeds/discover-sidebar-addons-v1 (Cinemeta + Torrent Catalogs); a fresh profile has only one Theatre catalogue per type. Not driven here: opening a title and Back (card names are live ids), which is part of the human-witnessed pass.",
+ "comment": "Discover sidebar plan Slice 2 (Theatre): the rail starts closed and the edge toggle opens it, it lists catalogues grouped by source, one click switches the wall, one click switches Movie -> Series and back (each type keeps its catalogue), the rail holds its pinned line while the wall scrolls, and Discover keeps catalogue + type across a world round trip. Run with --seed tests/lanista-seeds/discover-sidebar-addons-v1 (Cinemeta + Torrent Catalogs); a fresh profile has only one Theatre catalogue per type. Not driven here: opening a title and Back (card names are live ids), which is part of the human-witnessed pass.",
  "steps": [
   {
    "cmd": "ping",
@@ -172,7 +172,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "summary line names the catalogue; grab: rail at rest",
+   "label": "summary line names the catalogue; grab: rail closed at rest",
    "payload": {
     "object": "theatreDiscoverSummary",
     "props": [
@@ -233,6 +233,78 @@
     {
      "path": "props.contentY",
      "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "the rail starts closed (52 px strip); grab: closed strip beside the wall",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "props": [
+     "collapsed",
+     "width"
+    ],
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "props.collapsed",
+     "op": "==",
+     "value": "true"
+    },
+    {
+     "path": "props.width",
+     "op": "==",
+     "value": "52"
+    },
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "open it with the edge toggle",
+   "payload": {
+    "target": "theatreDiscoverSidebarCollapse"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail is open (184 px)",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "prop": "width",
+    "value": 184,
+    "timeout_ms": 3000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the docked tab bar moved right of the rail (54 margin + 184 + 28)",
+   "payload": {
+    "object": "theatreTabDock",
+    "prop": "x",
+    "value": 266,
+    "timeout_ms": 3000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
     }
    ]
   },
@@ -303,8 +375,33 @@
    ]
   },
   {
+   "cmd": "ui-scroll",
+   "label": "back to the top: the type lens scrolls with the page (it sits above the wall)",
+   "payload": {
+    "target": "theatreWorldScroll",
+    "dy": 1200
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "page back at the top",
+   "payload": {
+    "object": "theatreWorldScroll",
+    "prop": "contentY",
+    "value": 0,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
    "cmd": "ui-click",
-   "label": "one click Movie -> Series",
+   "label": "one click Movie -> Series (the lens above the wall)",
    "payload": {
     "target": "theatreDiscoverType_series"
    }

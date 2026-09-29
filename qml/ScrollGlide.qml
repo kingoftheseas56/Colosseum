@@ -175,6 +175,9 @@ Item {
             glide._pendingPx -= take
         }
 
+        // The last take ends the glide without the settle branch: same whole-pixel rule.
+        if (glide._pendingPx === 0 && Math.abs(y - Math.round(y)) < 1e-6)
+            y = Math.round(y)
         glide._smoothY = y
 
         glide._draining = true
