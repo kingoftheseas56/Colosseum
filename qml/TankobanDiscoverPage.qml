@@ -19,7 +19,7 @@
 //
 // Public surface for TankobanWorld + the page harness: applyPin(pin),
 // mangaSeriesRequested(item), comicSeriesRequested(item), currentType, keyboardMode,
-// catalogMenuOpen, catalogMenuModel, items, loading.
+// catalogMenuModel, items, loading.
 import QtQuick
 import "TankobanDiscoverApi.js" as Api
 
@@ -137,12 +137,14 @@ Item {
     // One scroller (world-feel Slice 7): the host world's page Flickable; the page then sizes
     // this page to flowHeight so the wall scrolls with the world instead of inside its own box.
     property Flickable pageFlick: null
+    property Item backdrop: null            // the world's wallpaper, for the sidebar's glass
     readonly property real flowHeight: browser.flowHeight
 
     DiscoverBrowser {
         id: browser
         automationPrefix: "tankoban"             // Lanista identity: tankobanDiscoverBrowser / tankobanDiscoverWall
         pageFlick: root.pageFlick
+        backdrop: root.backdrop
         anchors.fill: parent
         adapter: root.adapter
         active: root.active
@@ -169,7 +171,6 @@ Item {
     // ── public aliases kept for TankobanWorld + the page harness ──
     property alias currentType: browser.currentType
     property alias keyboardMode: browser.keyboardMode
-    property alias catalogMenuOpen: browser.catalogMenuOpen
     readonly property alias catalogMenuModel: browser.catalogMenuModel
     property alias items: browser.items
     property alias loading: browser.loading

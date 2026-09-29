@@ -11,8 +11,7 @@ Item {
             var fails = [];
             if (p.currentType !== "movie") fails.push("currentType default: " + p.currentType);
             if (p.keyboardMode !== false) fails.push("keyboardMode default: " + p.keyboardMode);
-            // overhaul 2026-07-25: masthead catalog menu starts closed; its model is always an array
-            if (p.catalogMenuOpen !== false) fails.push("catalogMenuOpen default: " + p.catalogMenuOpen);
+            // the catalogue model (the sidebar's source since 2026-09-29) is always an array
             if (!Array.isArray(p.catalogMenuModel)) fails.push("catalogMenuModel not array: " + p.catalogMenuModel);
             if (fails.length) console.log("FAILS: " + fails.join("; "));
             else console.log("discover_page_harness: ALL PASS");

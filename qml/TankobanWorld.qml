@@ -264,6 +264,7 @@ WorldPage {
         visible: tanko.activeTab === "discover"
         width: parent.width
         pageFlick: tanko.pageFlickable
+        backdrop: tanko.backdrop
         height: visible ? discoverPage.flowHeight : 0
         active: tanko.lifecycleActive && visible
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null

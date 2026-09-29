@@ -10,7 +10,7 @@
 // map (required-extra defaults included) before every loadPage.
 //
 // Public surface kept for its consumers (TheatreWorld + the page harness): applyPin(pin),
-// itemOpenRequested(item), currentType, keyboardMode, catalogMenuOpen, catalogMenuModel.
+// itemOpenRequested(item), currentType, keyboardMode, catalogMenuModel.
 // itemOpenRequested re-emits the RAW meta so the detail page receives the exact object it
 // always did.
 import QtQuick
@@ -84,12 +84,14 @@ Item {
     // One scroller (world-feel Slice 7): the host world's page Flickable; the page then sizes
     // this page to flowHeight so the wall scrolls with the world instead of inside its own box.
     property Flickable pageFlick: null
+    property Item backdrop: null            // the world's wallpaper, for the sidebar's glass
     readonly property real flowHeight: browser.flowHeight
 
     DiscoverBrowser {
         id: browser
         automationPrefix: "theatre"             // Lanista identity: theatreDiscoverBrowser / theatreDiscoverWall
         pageFlick: disco.pageFlick
+        backdrop: disco.backdrop
         anchors.fill: parent
         adapter: theatreAdapter
         active: disco.active
@@ -109,7 +111,6 @@ Item {
     // ── public aliases kept for TheatreWorld + the regression harnesses ──
     property alias currentType: browser.currentType
     property alias keyboardMode: browser.keyboardMode
-    property alias catalogMenuOpen: browser.catalogMenuOpen
     readonly property alias catalogMenuModel: browser.catalogMenuModel
     property alias items: browser.items
     property alias loading: browser.loading

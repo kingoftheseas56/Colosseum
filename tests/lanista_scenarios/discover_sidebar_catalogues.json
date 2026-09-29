@@ -1,0 +1,521 @@
+{
+ "name": "discover-sidebar-catalogues",
+ "comment": "Discover sidebar plan Slice 2 (Theatre): the rail lists catalogues grouped by source, one click switches the wall, one click switches Movie -> Series and back (each type keeps its catalogue), the rail holds its pinned line while the wall scrolls, and Discover keeps catalogue + type across a world round trip. Run with --seed tests/lanista-seeds/discover-sidebar-addons-v1 (Cinemeta + Torrent Catalogs); a fresh profile has only one Theatre catalogue per type. Not driven here: opening a title and Back (card names are live ids), which is part of the human-witnessed pass.",
+ "steps": [
+  {
+   "cmd": "ping",
+   "label": "session answers, drive on",
+   "expect": [
+    {
+     "path": "gates.drive",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "isolated data root",
+   "expect": [
+    {
+     "path": "appDataRoot",
+     "op": "contains",
+     "value": "Colosseum-dltest"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "boot splash gone",
+   "payload": {
+    "object": "bootSplash",
+    "prop": "visible",
+    "value": false,
+    "timeout_ms": 60000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "continue without an account (no-op when onboarding is clear)",
+   "payload": {
+    "target": "accountWelcomeContinueLocal"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter theatre",
+   "payload": {
+    "target": "modePill_Theatre"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre tab bar up",
+   "payload": {
+    "object": "theatreTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre Discover tab",
+   "payload": {
+    "target": "theatreTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre Discover initialised (type set; loading alone is false before init)",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationType",
+    "value": "movie",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre Discover finished loading",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail is up",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "rail lists both sources for Movie",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "props": [
+     "automationRows"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationRows",
+     "op": "==",
+     "value": "#Cinemeta\nhttps://cinemeta-catalogs.strem.io/top/manifest.json|movie|top\n#Torrent Catalogs\nhttps://torrent-catalogs.strem.fun/manifest.json|movie|top-movies"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "starting catalogue; the dropdown is gone (one legacy picker left: the filter picker)",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "automationCatalogKey",
+     "automationLegacyPickerCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationCatalogKey",
+     "op": "==",
+     "value": "https://cinemeta-catalogs.strem.io/top/manifest.json|movie|top"
+    },
+    {
+     "path": "props.automationLegacyPickerCount",
+     "op": "==",
+     "value": "1"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "summary line names the catalogue; grab: rail at rest",
+   "payload": {
+    "object": "theatreDiscoverSummary",
+    "props": [
+     "text"
+    ],
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "props.text",
+     "op": "==",
+     "value": "Popular"
+    },
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "bring the rail's rows on screen (dy -360 = 504 px)",
+   "payload": {
+    "target": "theatreWorldScroll",
+    "dy": -360
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail reached its pinned line under the docked tab bar",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "prop": "automationSidebarPinned",
+    "value": true,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "record the page offset",
+   "payload": {
+    "object": "theatreWorldScroll",
+    "props": [
+     "contentY"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.contentY",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "one click on the second catalogue",
+   "payload": {
+    "target": "theatreDiscoverCatalog_https___torrent_catalogs_strem_fun_manifest_json_movie_top_movies"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the wall switched to it",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationCatalogKey",
+    "value": "https://torrent-catalogs.strem.fun/manifest.json|movie|top-movies",
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "its first page settled",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "summary line follows; grab: after switching catalogue",
+   "payload": {
+    "object": "theatreDiscoverSummary",
+    "props": [
+     "text"
+    ],
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "props.text",
+     "op": "==",
+     "value": "Top seeded"
+    },
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "one click Movie -> Series",
+   "payload": {
+    "target": "theatreDiscoverType_series"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "type is Series",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationType",
+    "value": "series",
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "the catalogue list swapped to Series",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "props": [
+     "automationRows"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationRows",
+     "op": "contains",
+     "value": "https://torrent-catalogs.strem.fun/manifest.json|series|top-series"
+    },
+    {
+     "path": "props.automationRows",
+     "op": "contains",
+     "value": "|series|top"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "series first page settled",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "back to Movie",
+   "payload": {
+    "target": "theatreDiscoverType_movie"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "type is Movie",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationType",
+    "value": "movie",
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "Movie kept its catalogue (per-type memory)",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "automationCatalogKey"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationCatalogKey",
+     "op": "==",
+     "value": "https://torrent-catalogs.strem.fun/manifest.json|movie|top-movies"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "scroll the wall down four notches (~670 px; Top seeded is a short wall, and past its end the rail rides up with it by design)",
+   "payload": {
+    "target": "theatreWorldScroll",
+    "dy": -480
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail holds its pinned line beside the wall",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "prop": "automationSidebarPinned",
+    "value": true,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "grab: scrolled, rail pinned beside the rows",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "props": [
+     "automationSidebarPinned",
+     "y",
+     "height"
+    ],
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "props.automationSidebarPinned",
+     "op": "==",
+     "value": "true"
+    },
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "regression: leave for Home",
+   "payload": {
+    "key": "Escape"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "and come back to Theatre",
+   "payload": {
+    "target": "modePill_Theatre"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "Discover kept its catalogue across the world round trip",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationCatalogKey",
+    "value": "https://torrent-catalogs.strem.fun/manifest.json|movie|top-movies",
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "and its type",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "automationType"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationType",
+     "op": "==",
+     "value": "movie"
+    }
+   ]
+  },
+  {
+   "cmd": "ping",
+   "label": "process alive after the whole flow",
+   "expect": [
+    {
+     "path": "gates.drive",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  }
+ ]
+}

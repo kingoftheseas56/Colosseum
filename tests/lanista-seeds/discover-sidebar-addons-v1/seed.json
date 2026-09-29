@@ -1,0 +1,24 @@
+{
+ "name": "discover-sidebar-addons-v1",
+ "version": 1,
+ "provenance": {
+  "bug": "Theatre Discover's catalogue dropdown hid the list and overflowed the screen once a few addons were installed (Hemanth, 2026-09-29); the Discover sidebar replaces it and needs a profile with more than one catalogue source to prove switching",
+  "date": "2026-09-29",
+  "dossier": "docs/superpowers/plans/2026-09-29-discover-sidebar-plan.md"
+ },
+ "placement": [
+  {
+   "content": "profiles",
+   "destination": "roaming",
+   "relPath": "profiles/legacy/extensions/installed.json"
+  }
+ ],
+ "expectedOnBoot": [
+  {
+   "surface": "theatreDiscoverSidebar",
+   "property": "automationRows",
+   "value": "(Cinemeta group, then Torrent Catalogs group; see discover_sidebar_catalogues.json)"
+  }
+ ],
+ "contents": "A fresh local profile's Theatre addon list (Cinemeta, Torrentio, NoTorrent, Anime Kitsu, OpenSubtitles v3 defaults) plus the public Torrent Catalogs addon copied from Hemanth's profile. No account data, no tokens (his Trakt addon's URL carries one and was left out)."
+}

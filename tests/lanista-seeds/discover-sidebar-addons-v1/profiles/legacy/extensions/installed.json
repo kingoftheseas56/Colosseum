@@ -1,0 +1,187 @@
+{
+ "extensions": [
+  {
+   "core": true,
+   "enabled": true,
+   "id": "com.linvo.cinemeta",
+   "installedAt": 1790703383,
+   "manifest": {
+    "description": "The canonical catalog — every movie and show row Theatre wakes up with.",
+    "id": "com.linvo.cinemeta",
+    "idPrefixes": [
+     "tt"
+    ],
+    "name": "Cinemeta",
+    "resources": [
+     "catalog",
+     "meta"
+    ],
+    "types": [
+     "movie",
+     "series"
+    ]
+   },
+   "transportUrl": "https://v3-cinemeta.strem.io/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": false,
+   "id": "com.stremio.torrentio.addon",
+   "installedAt": 1790703383,
+   "manifest": {
+    "behaviorHints": {
+     "configurable": true
+    },
+    "description": "Play sources from twelve indexers, sorted by quality and health.",
+    "id": "com.stremio.torrentio.addon",
+    "idPrefixes": [
+     "tt",
+     "kitsu"
+    ],
+    "name": "Torrentio",
+    "resources": [
+     "stream"
+    ],
+    "types": [
+     "movie",
+     "series",
+     "anime"
+    ]
+   },
+   "transportUrl": "https://torrentio.strem.fun/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": false,
+   "id": "com.notorrent.addon",
+   "installedAt": 1790703383,
+   "manifest": {
+    "description": "Direct HTTP streams — movies and shows that play instantly, no torrent, no seeding.",
+    "id": "com.notorrent.addon",
+    "idPrefixes": [
+     "tt",
+     "tmdb_"
+    ],
+    "name": "NoTorrent",
+    "resources": [
+     "stream"
+    ],
+    "types": [
+     "movie",
+     "series"
+    ]
+   },
+   "transportUrl": "https://addon.notorrent2.workers.dev/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": true,
+   "id": "community.anime.kitsu",
+   "installedAt": 1790703383,
+   "manifest": {
+    "description": "The anime shelf's brain — proper seasons, splits and episode orders.",
+    "id": "community.anime.kitsu",
+    "idPrefixes": [
+     "kitsu",
+     "mal"
+    ],
+    "name": "Anime Kitsu",
+    "resources": [
+     "catalog",
+     "meta"
+    ],
+    "types": [
+     "series",
+     "movie",
+     "anime"
+    ]
+   },
+   "transportUrl": "https://anime-kitsu.strem.fun/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": true,
+   "id": "org.stremio.opensubtitlesv3",
+   "installedAt": 1790703383,
+   "manifest": {
+    "description": "Subtitles in every language, matched to the exact episode playing.",
+    "id": "org.stremio.opensubtitlesv3",
+    "name": "OpenSubtitles v3",
+    "resources": [
+     "subtitles"
+    ],
+    "types": [
+     "movie",
+     "series"
+    ]
+   },
+   "transportUrl": "https://opensubtitles-v3.strem.io/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": true,
+   "id": "com.stremio.torrentio.catalog.addon",
+   "installedAt": 1790651137,
+   "manifest": {
+    "catalogs": [
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "top-movies",
+      "name": "Top seeded",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "top-series",
+      "name": "Top seeded",
+      "type": "series"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "top-anime",
+      "name": "Top seeded",
+      "type": "anime"
+     }
+    ],
+    "description": "Provides catalogs for movies/series/anime based on top seeded torrents. Requires Kitsu addon for anime.",
+    "id": "com.stremio.torrentio.catalog.addon",
+    "logo": "https://i.ibb.co/w4BnkC9/GwxAcDV.png",
+    "name": "Torrent Catalogs",
+    "resources": [
+     "catalog"
+    ],
+    "types": [
+     "movie",
+     "series",
+     "anime"
+    ],
+    "version": "1.0.2"
+   },
+   "transportName": "Torrent Catalogs",
+   "transportUrl": "https://torrent-catalogs.strem.fun/manifest.json"
+  }
+ ],
+ "profileId": "legacy",
+ "version": 1
+}

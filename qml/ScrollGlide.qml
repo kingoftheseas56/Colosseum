@@ -120,6 +120,10 @@ Item {
                 glide._minY(),
                 Math.min(glide._maxY(), glide._smoothY + glide._pendingPx)
             )
+            // Frame-time-weighted takes leave float residue (503.9999999999999 for 504):
+            // settle on the whole pixel so "the glide ended at Y" is an exact, waitable fact.
+            if (Math.abs(settledY - Math.round(settledY)) < 1e-6)
+                settledY = Math.round(settledY)
             glide._smoothY = settledY
             glide._draining = true
             glide.flick.contentY = settledY

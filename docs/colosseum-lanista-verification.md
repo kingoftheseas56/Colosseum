@@ -294,6 +294,9 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
   **As of 2026-08-27 there are 52**, adding `biblio_downloaded_epub_read_journey.json`.
   **As of 2026-08-28 there are 55**: `origin/master` measured 53, and account hardening adds
   `account_create_happy_path.json` plus `account_signin_happy_path.json`.
+  **As of 2026-09-29 there are 90**, the latest being `discover_sidebar_catalogues.json` (Discover sidebar Slice 2),
+  which runs with the new seed `tests/lanista-seeds/discover-sidebar-addons-v1` (a fresh profile has one Theatre
+  catalogue per type; the seed adds the public Torrent Catalogs addon).
 - **`tests/lanista-seeds/`** is the versioned fixture zoo: one folder per real-bug seed, each
   carrying a `seed.json` manifest (`{name, version, provenance, placement, expectedOnBoot}` — see
   `tests/lanista-seeds/README.md` for the full journey contract). A seed is admitted only when a

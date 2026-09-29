@@ -237,6 +237,7 @@ WorldPage {
         visible: theatre.activeTab === "discover"
         width: parent.width
         pageFlick: theatre.pageFlickable
+        backdrop: theatre.backdrop
         height: visible ? discoverPage.flowHeight : 0
         active: theatre.lifecycleActive && visible
         // Task 9: inherit the global Explicit Content preference (Main.qml binds it on this world).

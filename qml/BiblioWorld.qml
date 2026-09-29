@@ -162,6 +162,7 @@ WorldPage {
         visible: biblio.activeTab === "discover"
         width: parent.width
         pageFlick: biblio.pageFlickable
+        backdrop: biblio.backdrop
         height: visible ? discoverPage.flowHeight : 0
         active: biblio.lifecycleActive && visible
         biblioCatalog: (typeof BiblioCatalog !== "undefined") ? BiblioCatalog : null

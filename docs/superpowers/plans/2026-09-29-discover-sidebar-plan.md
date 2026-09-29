@@ -348,3 +348,35 @@ Append per-slice gate numbers, session ids, witness verdicts and status changes 
   an earlier scroll) while its filter steps pass. WARNING_GATE_OK. Temporary seam: the legacy `DiscoverPicker`
   got `automationName` (`<prefix>DiscoverFilterPickerPill`/`Option_<i>`); qmllint +2 "unqualified" warnings on
   the option-row name line, accepted because Slice 3 deletes the picker. Status: done (internal).
+
+- 2026-09-29 — Slice 2 (the rail: type switch + catalogues). Baseline: Theatre Discover at rest (tag ds2base,
+  session 20260929-225857-1a625752): `Popular`/Cinemeta, 49 cards, legacy pickers 2; the dropdown's trigger had no
+  name, so its open state is Hemanth's screenshot, not a grab. Implemented: `DiscoverSidebar.qml` (glass rail,
+  184 px + 28 gap; segmented type switch hidden for one type; catalogues grouped by source — extension catalogues
+  under their addon (`attribution`), built-ins under `section` — with `AddonLogo` headers; rows 46 px, gold bar
+  when current; pinned against the world page viewport under the dock, fixed pinned height so the glass is not
+  re-allocated per scroll frame, bottom clear of the taskbar's Colosseum button; its own list scrolls; clicks do
+  not move focus, so no ring on a mouse pick). `DiscoverBrowser`: dropdown + type lens removed; masthead is the
+  left-aligned summary line (`<prefix>DiscoverSummary`, catalogue then filters) + attribution byline; content
+  column starts at `contentLeft`; `flowHeight` never below the rail's natural height; worlds pass `backdrop`.
+  Reality vs plan: (1) a fresh profile has ONE Theatre catalogue per type, so the scenario uses a new seed
+  `tests/lanista-seeds/discover-sidebar-addons-v1` (fresh defaults + the public Torrent Catalogs addon; Hemanth's
+  Trakt addon URL carries a token and was left out); (2) Top seeded is a short wall, so the pinned check scrolls
+  dy -480 (past the end the rail rides up with the wall by design); (3) the `contentY == 504` settle waits failed
+  because ScrollGlide settled at 503.9999999999999 — fixed at the source (settle snaps sub-1e-6 residue to the whole
+  pixel); (4) G-warn caught the plan's named `windowTop` binding loop — fixed where it lives (the wall's paging
+  request from `onContentYChanged` is deferred with `Qt.callLater`). The docked tab bar centring over the content
+  column stays with Slice 4 (its guidance).
+  Gates: Qt Quick `tst_discover_sidebar` 15/15 (registered runner), negative control (row click no-op) red on the
+  click case; G-keys all green (`tst_world_keyboard_journey` has an intermittent focus flake, 6/6 green both with
+  and without this slice's glide change); qmllint `DiscoverSidebar` 0, `DiscoverBrowser` 39 -> 14, hosts equal or
+  fewer; harnesses `discover_browser/page/picker/api`, `tankoban_discover_api/page`, `biblio_discover_api` OK,
+  `biblio_discover_page` the known fixedGalleryWidth red; `test_scroll_glide_p0`, `scroll_glide_harness`,
+  `scroll_glide_math_test` green; `ctest -L unit` 154/160, the 6 reds (reader2 runtime, startup deferral/
+  responsiveness, manga downloader responsiveness, core_sync_adapters, video_source_handoff_p0) read none of this
+  slice's files. Lanista `discover_sidebar_catalogues.json` 35/35 twice (tags ds2cat5/ds2cat6, sessions
+  20260929-232413-ba8d4dfb, 20260929-232440-4cf98216), WARNING_GATE_OK both; `discover_sidebar_seams.json` 28/28
+  (count now 1); `discover_sidebar_filter_regression.json` 49/49 fresh (tag ds2freg2, 20260929-232154-72ee5bc9),
+  WARNING_GATE_OK. Grabs in `artifacts/discover-sidebar/slice2/`. Not bridge-driven: opening a title and Back
+  (card names are live ids) — part of the witness. Status: Implemented, verification pending (awaiting the
+  `human-witnessed:` pass: Theatre Discover, two catalogue switches, Movie -> Series, scroll with the rail staying).

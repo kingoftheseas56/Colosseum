@@ -47,6 +47,22 @@ TestCase {
         }
     })
 
+    property var singleTypeAdapter: ({
+        types: function() { return [{ key: "book", label: "Books" }] },
+        catalogs: function(type) { return [{ key: "book-top", title: "Top", section: "Biblio", attribution: "Biblio" }] },
+        defaultCatalog: function(type) { return "book-top" },
+        filters: function() { return [] },
+        resolvePin: function() { return { missing: true } },
+        fetchPage: function(state, cursor, generation, done) {
+            done(generation, { items: [], nextCursor: null, exhausted: true, freshness: "", warning: "" })
+        }
+    })
+
+    Component {
+        id: browserComponent
+        Colosseum.DiscoverBrowser { }
+    }
+
     Window {
         id: win
         width: 1280
@@ -96,8 +112,8 @@ TestCase {
     }
 
     function test_slice0_legacy_pickers_are_counted() {
-        // Slices 2 and 3 remove the catalogue popup and the filter picker; this count proves it.
-        compare(browser.automationLegacyPickerCount, 2)
+        // Slice 2 removed the catalogue popup; Slice 3 removes the filter picker.
+        compare(browser.automationLegacyPickerCount, 1)
     }
 
     // ── Slice 1: one filter per group; the source decides combine vs replace ──
@@ -144,5 +160,66 @@ TestCase {
         browser.setFilter("Genres", "action")
         browser._applyFilterKey("Formats" + browser._filterSep + "omnibus")
         compare(browser.automationFilterSummary, "Formats=omnibus", "the old picker replaces the selection")
+    }
+
+    // ── Slice 2: the rail — type switch and catalogues grouped by source ──
+    function test_slice2_rail_groups_catalogues_by_source_in_order() {
+        var rail = findChild(browser, "stubDiscoverSidebar")
+        verify(rail !== null, "the rail carries the prefixed name")
+        verify(rail.visible)
+        var r = rail.rows
+        compare(r.length, 5, "two source headers + three catalogues")
+        compare(r[0].header, "Cinemeta")
+        compare(r[1].key, "movie-popular")
+        compare(r[2].header, "Streaming Catalogs")
+        compare(r[3].key, "movie-netflix")
+        compare(r[4].key, "movie-hbo")
+        verify(findChild(browser, "stubDiscoverCatalog_movie_netflix") !== null)
+    }
+
+    function test_slice2_clicking_a_catalogue_switches_the_wall_with_one_request() {
+        var row = findChild(browser, "stubDiscoverCatalog_movie_hbo")
+        verify(row !== null)
+        verify(!row.current)
+        testCase.fetches = []
+        mouseClick(row)
+        compare(browser.currentCatalogKey, "movie-hbo")
+        compare(testCase.fetches.length, 1, "one page request per switch")
+        compare(testCase.fetches[0].catalogKey, "movie-hbo")
+        verify(row.current, "the chosen row carries the active state")
+        verify(!findChild(browser, "stubDiscoverCatalog_movie_popular").current)
+        compare(findChild(browser, "stubDiscoverSummary").text, "HBO Max", "the summary line names the catalogue")
+        mouseClick(row)
+        compare(testCase.fetches.length, 1, "clicking the current catalogue does not reload it")
+        browser.selectCatalog("movie-popular")
+    }
+
+    function test_slice2_type_switch_swaps_the_catalogue_list() {
+        var seg = findChild(browser, "stubDiscoverType_series")
+        verify(seg !== null && seg.visible)
+        mouseClick(seg)
+        compare(browser.currentType, "series")
+        verify(findChild(browser, "stubDiscoverCatalog_series_popular") !== null)
+        compare(findChild(browser, "stubDiscoverCatalog_movie_popular"), null)
+        verify(findChild(browser, "stubDiscoverType_series").current)
+    }
+
+    function test_slice2_single_type_world_hides_the_switch() {
+        var one = createTemporaryObject(browserComponent, win,
+            { width: 900, height: 600, automationPrefix: "one", adapter: testCase.singleTypeAdapter })
+        verify(one !== null)
+        var seg = findChild(one, "oneDiscoverType_book")
+        verify(seg !== null)
+        verify(!seg.visible, "one type: no switch")
+        verify(findChild(one, "oneDiscoverCatalog_book_top") !== null)
+    }
+
+    function test_slice2_content_sits_right_of_the_rail() {
+        var rail = findChild(browser, "stubDiscoverSidebar")
+        compare(rail.width, 184)
+        compare(browser.contentLeft, 184 + 28)
+        var wall = findChild(browser, "stubDiscoverWall")
+        verify(wall.mapToItem(browser, 0, 0).x >= browser.contentLeft, "the wall starts right of the rail")
+        verify(findChild(browser, "stubDiscoverSummary").mapToItem(browser, 0, 0).x >= browser.contentLeft)
     }
 }

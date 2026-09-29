@@ -1,6 +1,6 @@
 {
  "name": "discover-sidebar-seams",
- "comment": "Discover sidebar plan Slice 0: world-namespaced browser/wall names and automation properties resolve in Theatre, Biblio and Tankoban; the two legacy pickers still exist (count 2) until Slices 2-3. Item counts are not asserted: a fresh tag's Biblio built-in catalogue can answer empty until its data lands (seen 2026-09-29, session 20260929-204857-772ab603); Slice 2+ scenarios wait on catalogue state instead.",
+ "comment": "Discover sidebar plan Slice 0: world-namespaced browser/wall names and automation properties resolve in Theatre, Biblio and Tankoban; the legacy picker count is 1 since Slice 2 removed the catalogue popup (the filter picker goes in Slice 3). Item counts are not asserted: a fresh tag's Biblio built-in catalogue can answer empty until its data lands (seen 2026-09-29, session 20260929-204857-772ab603); Slice 2+ scenarios wait on catalogue state instead.",
  "steps": [
   {
    "cmd": "ping",
@@ -115,7 +115,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "theatre seams resolve; both legacy pickers still present",
+   "label": "theatre seams resolve; one legacy picker left (the filter picker; Slice 2 removed the catalogue popup)",
    "payload": {
     "object": "theatreDiscoverBrowser",
     "props": [
@@ -129,7 +129,7 @@
     {
      "path": "props.automationLegacyPickerCount",
      "op": "==",
-     "value": "2"
+     "value": "1"
     },
     {
      "path": "props.automationCatalogKey",
@@ -229,7 +229,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "biblio seams resolve; both legacy pickers still present",
+   "label": "biblio seams resolve; one legacy picker left (the filter picker; Slice 2 removed the catalogue popup)",
    "payload": {
     "object": "biblioDiscoverBrowser",
     "props": [
@@ -243,7 +243,7 @@
     {
      "path": "props.automationLegacyPickerCount",
      "op": "==",
-     "value": "2"
+     "value": "1"
     },
     {
      "path": "props.automationCatalogKey",
@@ -343,7 +343,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "tankoban seams resolve; both legacy pickers still present",
+   "label": "tankoban seams resolve; one legacy picker left (the filter picker; Slice 2 removed the catalogue popup)",
    "payload": {
     "object": "tankobanDiscoverBrowser",
     "props": [
@@ -357,7 +357,7 @@
     {
      "path": "props.automationLegacyPickerCount",
      "op": "==",
-     "value": "2"
+     "value": "1"
     },
     {
      "path": "props.automationCatalogKey",
