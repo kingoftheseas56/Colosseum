@@ -3,6 +3,7 @@
 // semantic activation/context/reorder requests. Boundary arrows remain unaccepted so a parent
 // FocusScope can move focus to the neighbouring region.
 import QtQuick
+import "ScrollGlideRegistry.js" as GlideRegistry
 
 Item {
     id: nav
@@ -295,6 +296,7 @@ Item {
     function handle(event) {
         if (!event)
             return false
+        GlideRegistry.settleKeyboardGlides()
         // Keys handlers do not use a JavaScript return value to control Qt's
         // accepted flag. Clear it before trying the collection so an
         // exhausted boundary can bubble to the owning spatial/page handler.

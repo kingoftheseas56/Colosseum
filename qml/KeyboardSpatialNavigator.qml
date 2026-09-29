@@ -8,12 +8,17 @@
 // owner to handle.
 import QtQuick
 import "KeyboardViewport.js" as Viewport
+import "ScrollGlideRegistry.js" as GlideRegistry
 
 Item {
     id: nav
 
     required property Item root
     property real minimumPrimaryDistance: 6
+    // Up/Down rows (the mock's numbers): stops overlapping the current one by more than this are
+    // not "below"/"above" it; stops whose edge gap is within the band of the nearest form its row.
+    property real rowOverlapTolerance: 4
+    property real rowBandTolerance: 24
     property bool preserveEditableArrows: true
     property real scrollStep: 72
     // A target larger than a clip remains identifiable only when at least one
@@ -747,6 +752,17 @@ Item {
         return horizontal ? Math.abs(after.x - before.x) : Math.abs(after.y - before.y)
     }
 
+    // The world-feel mock's flow: the next stop within one screen lands on this key and its row
+    // scrolls into view. Only a stop farther than a screen away is revealed a step at a time
+    // (reading down long text). Before, any stop not already fully visible cost extra presses
+    // that only scrolled while focus stayed put ("stuck on Explore", 2026-09-29).
+    function _landingBudget(flick, horizontal, step) {
+        var extent = horizontal ? Number(flick.width) : Number(flick.height)
+        if (!isFinite(extent) || extent <= 0)
+            return step
+        return Math.max(step, nav._rootDistanceForLocalDelta(flick, horizontal, extent))
+    }
+
     function _localDistanceForRootBudget(flick, horizontal, rootDistance) {
         var unit = nav._rootDistanceForLocalDelta(flick, horizontal, 1)
         return unit > 0.000001 ? Number(rootDistance) / unit : Number(rootDistance)
@@ -875,11 +891,13 @@ Item {
         var items = []
         nav._appendFocusable(scope || nav.root, items, includeOffscreen === true)
         var fromRect = nav._rect(fromItem)
+        var vertical = key === Qt.Key_Up || key === Qt.Key_Down
+        var rowPool = []
         // A viewport holding pure-scroll focus enters from the opposite edge,
         // rather than selecting relative to its large centre rectangle.
         if (Viewport.isFlickable(fromItem)) {
-            if (key === Qt.Key_Down) fromRect.cy = fromRect.top
-            if (key === Qt.Key_Up) fromRect.cy = fromRect.bottom
+            if (key === Qt.Key_Down) { fromRect.cy = fromRect.top; fromRect.bottom = fromRect.top }
+            if (key === Qt.Key_Up) { fromRect.cy = fromRect.bottom; fromRect.top = fromRect.bottom }
             if (key === Qt.Key_Right) fromRect.cx = fromRect.left
             if (key === Qt.Key_Left) fromRect.cx = fromRect.right
         }
@@ -906,13 +924,65 @@ Item {
             if (includeOffscreen && Viewport.revealPlan(candidate, nav.root,
                     key === Qt.Key_Left || key === Qt.Key_Right) === null)
                 continue
+            if (vertical) {
+                if (candidate.keyboardHeaderLink === true
+                        && (key === Qt.Key_Down || !nav._withinHeaderRow(fromItem, candidate)))
+                    continue
+                var rowRect = nav._rect(candidate)
+                var gap = key === Qt.Key_Down ? rowRect.top - fromRect.bottom
+                                              : fromRect.top - rowRect.bottom
+                if (gap >= -nav.rowOverlapTolerance)
+                    rowPool.push({ item: candidate, rect: rowRect, gap: gap })
+                continue
+            }
             var metric = nav._metric(fromRect, nav._rect(candidate), key, i)
             if (metric && nav._metricBefore(metric, bestMetric)) {
                 bestMetric = metric
                 bestItem = candidate
             }
         }
-        return bestItem
+        return vertical ? nav._nearestRowTarget(rowPool, fromRect) : bestItem
+    }
+
+    // Up/Down follow the world-feel mock: the nearest row in that direction first (every stop
+    // whose edge gap is within rowBandTolerance of the closest), then the stop in it closest
+    // horizontally. Scoring by alignment first let a far but perfectly aligned stop (a column of
+    // right-aligned "Explore" links) beat the row directly below. Stops sharing the current
+    // stop's vertical lane are preferred, so a small control just below and off to the side
+    // (carousel dots) never beats the one directly underneath.
+    function _withinHeaderRow(item, headerLink) {
+        var row = headerLink.keyboardHeaderRow
+        if (!row)
+            return true
+        for (var node = item; node; node = node.parent) {
+            if (node === row)
+                return true
+        }
+        return false
+    }
+
+    function _nearestRowTarget(allStops, fromRect) {
+        var lane = allStops.filter(function(stop) {
+            return stop.rect.right >= fromRect.left && stop.rect.left <= fromRect.right
+        })
+        var pool = lane.length > 0 ? lane : allStops
+        if (pool.length === 0)
+            return null
+        var nearestGap = pool[0].gap
+        for (var i = 1; i < pool.length; ++i)
+            nearestGap = Math.min(nearestGap, pool[i].gap)
+        var best = null
+        var bestCross = 0
+        for (var j = 0; j < pool.length; ++j) {
+            if (pool[j].gap > nearestGap + nav.rowBandTolerance)
+                continue
+            var cross = Math.abs(pool[j].rect.cx - fromRect.cx)
+            if (!best || cross < bestCross - 0.000001) {
+                best = pool[j].item
+                bestCross = cross
+            }
+        }
+        return best
     }
 
     function _candidateAllowed(candidate, includeOffscreen, controllerCache) {
@@ -952,7 +1022,8 @@ Item {
                 var local = nav.targetFrom(fromItem, key, owner.contentItem, false)
                 if (!local)
                     local = nav.targetFrom(fromItem, key, owner.contentItem, true)
-                if (local && nav._land(local, key, reason, step)) {
+                if (local && nav._land(local, key, reason,
+                                       nav._landingBudget(owner, horizontal, step))) {
                     nav._rememberSectionTransition(fromItem, local)
                     return true
                 }
@@ -992,7 +1063,8 @@ Item {
             if (targetController && targetController.arrowScrolling === false)
                 return false
             var targetStep = nav._directionalStep(targetOwner, horizontal, targetController)
-            if (!nav._land(target, key, reason, targetStep)) {
+            if (!nav._land(target, key, reason,
+                           nav._landingBudget(targetOwner, horizontal, targetStep))) {
                 if (targetStep > 0 && Viewport.setPosition(targetOwner, horizontal,
                         Viewport.position(targetOwner, horizontal)
                         + (forward ? 1 : -1)
@@ -1030,6 +1102,9 @@ Item {
             return false
         if (!nav._planAuthorized(plan))
             return false
+        var before = []
+        for (var p = 0; p < plan.length; ++p)
+            before.push({ flick: plan[p].flick, position: Viewport.position(plan[p].flick, horizontal) })
         if (!Viewport.applyPlan(plan, horizontal, maxDistance))
             return false
         if (!nav._landingEligible(semanticTarget))
@@ -1040,10 +1115,24 @@ Item {
         var collectionOwner = nav._collectionFocusOwner(target)
         if (collectionOwner && nav._selectCollectionItem(collectionOwner, target)) {
             collectionOwner.forceActiveFocus(reason)
+            nav._glideLanding(before, horizontal)
             return collectionOwner.activeFocus === true
         }
         target.forceActiveFocus(reason)
+        nav._glideLanding(before, horizontal)
         return target.activeFocus === true
+    }
+
+    // A landing moved its viewports instantly; a vertical viewport with a ScrollGlide replays the
+    // move as a glide so the page travels to the new row instead of jumping.
+    function _glideLanding(before, horizontal) {
+        if (horizontal)
+            return
+        for (var i = 0; i < before.length; ++i) {
+            var glide = GlideRegistry.glideFor(before[i].flick)
+            if (glide)
+                glide.glideFrom(before[i].position)
+        }
     }
 
     function move(key) {
@@ -1053,6 +1142,7 @@ Item {
     function handle(event) {
         if (!event || !nav.isDirectionalKey(event.key))
             return false
+        GlideRegistry.settleKeyboardGlides()
         event.accepted = false
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             return false

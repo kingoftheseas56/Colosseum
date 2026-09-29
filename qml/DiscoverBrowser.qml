@@ -747,6 +747,13 @@ Item {
     Row {
         id: filterRow
         z: 90
+        // Down from the filter row goes straight into the wall below, like the mock. The wall
+        // usually starts off screen, and the spatial navigator only lands on stops already on
+        // screen, so it used to spend presses scrolling while focus stayed on "Genre".
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Down && event.modifiers === Qt.NoModifier && browser.enterWall())
+                event.accepted = true
+        }
         visible: browser.filterHasOptions
         anchors.top: masthead.bottom
         anchors.topMargin: 16
@@ -844,6 +851,9 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             focus: true
             keyNavigationEnabled: true
+            // The wall is ONE D-pad stop (its cards are not focusable; the GridView moves its own
+            // currentIndex), like the Library walls, so Tab and the spatial navigator can land on it.
+            focusPolicy: browser.items.length > 0 ? Qt.TabFocus : Qt.NoFocus
             // Classic keeps its exact prior tuning (~132px tiles, matching the Top-list rails);
             // gallery derives its stride/height from the gallery tokens (wider tiles + two-line title).
             // columnCount/cellWidth read the HOST's width (parent, not wall's own width) so they
@@ -991,6 +1001,17 @@ Item {
         duration: 220
         easing.type: Easing.OutCubic
     }
+    // Keyboard entry into the wall: focus it (the ring shows on the current card) and park that
+    // row under the docked tab bar.
+    function enterWall() {
+        if (browser.items.length === 0 || !wall.visible)
+            return false
+        wall.forceActiveFocus(Qt.TabFocusReason)
+        browser.keyboardMode = true
+        browser.revealCell(Math.max(0, wall.currentIndex))
+        return wall.activeFocus
+    }
+
     // Scroll the world page so cell i's row sits just under the docked tab bar (the mock's
     // "rows park"): the TopBar region is the page's top edge, the dock takes ~64 px of it.
     function revealCell(i) {

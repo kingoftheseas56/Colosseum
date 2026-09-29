@@ -2,6 +2,7 @@
 // tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now
 // and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint.
 import QtQuick
+import QtQuick.Effects
 
 pragma ComponentBehavior: Bound
 
@@ -73,7 +74,18 @@ Item {
 
     Theme { id: theme }
 
+    // The docked bar lifts off the content like the mock's dock (0 14px 30px rgba(0,0,0,.35)).
+    RectangularShadow {
+        visible: tabs.compact
+        anchors.fill: bar
+        radius: bar.radius
+        offset.y: 14
+        blur: 30
+        color: Qt.rgba(0, 0, 0, 0.35)
+    }
+
     Glass {
+        id: bar
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(parent.width, (tabs.compact ? 130 : 160) * Math.max(1, tabs.tabModel.length))
@@ -82,7 +94,10 @@ Item {
         track: tabs.track
         radius: tabs.compact ? 15 : 18
         tint: 0.08
-        scrim: 0.18
+        // Docked (compact) the bar floats over scrolled posters, not the wallpaper its glass
+        // blurs, so it needs a dark backing to stay readable (the mock's dock is dark frosted
+        // glass with a shadow). In flow it keeps the light film.
+        scrim: tabs.compact ? 0.72 : 0.18
 
         Row {
             anchors.fill: parent
@@ -107,7 +122,9 @@ Item {
                     width: (parent.width - 6 * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
                     height: parent.height
                     radius: tabs.compact ? 11 : 14
-                    color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                    color: pill.modelData.key === tabs.currentTab ? theme.gold
+                         : (ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12)
+                         : tabs.compact ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
                     border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
                     border.color: Qt.rgba(1, 1, 1, 0.10)
 

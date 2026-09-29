@@ -112,6 +112,49 @@ TestCase {
         verify(source.activeFocus)
     }
 
+    // World-feel (2026-09-29): right-aligned row header links ("Explore") must not form a column
+    // that Down runs along. Down takes the nearest row (the cards), and a header link is reached
+    // by Up from its own row, never by Down.
+    function test_down_takes_nearest_row_not_aligned_header_links() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 520; height: 300;'
+            + 'property alias navigator: nav; property alias explore1: explore1; property alias explore2: explore2;'
+            + 'property alias card3: card3;'
+            + 'C.KeyboardAction { id: explore1; x: 400; y: 10; width: 80; height: 30; pointerEnabled: false; readonly property bool keyboardHeaderLink: true }'
+            + 'C.KeyboardAction { x: 0; y: 60; width: 100; height: 90; pointerEnabled: false }'
+            + 'C.KeyboardAction { x: 120; y: 60; width: 100; height: 90; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: card3; x: 240; y: 60; width: 100; height: 90; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: explore2; x: 400; y: 170; width: 80; height: 30; pointerEnabled: false; readonly property bool keyboardHeaderLink: true }'
+            + 'C.KeyboardAction { x: 0; y: 210; width: 100; height: 80; pointerEnabled: false }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.explore1.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator.moveFrom(fixture.explore1, Qt.Key_Down))
+        verify(fixture.card3.activeFocus, "Down from a header link enters its row, closest card")
+        verify(!fixture.explore2.activeFocus)
+        verify(fixture.navigator.moveFrom(fixture.card3, Qt.Key_Up))
+        verify(fixture.explore1.activeFocus, "Up from a row reaches its header link")
+        fixture.destroy()
+    }
+
+    function test_up_reaches_a_header_link_only_from_its_own_row() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item { width: 520; height: 320;'
+            + 'property alias navigator: nav; property alias explore1: explore1; property alias card1: card1;'
+            + 'property alias explore2: explore2;'
+            + 'Item { id: row1; width: 520; height: 150;'
+            + '  C.KeyboardAction { id: explore1; x: 400; y: 10; width: 80; height: 30; pointerEnabled: false;'
+            + '    readonly property bool keyboardHeaderLink: true; readonly property Item keyboardHeaderRow: row1 }'
+            + '  C.KeyboardAction { id: card1; x: 0; y: 60; width: 100; height: 80; pointerEnabled: false } }'
+            + 'Item { id: row2; y: 160; width: 520; height: 150;'
+            + '  C.KeyboardAction { id: explore2; x: 400; y: 10; width: 80; height: 30; pointerEnabled: false;'
+            + '    readonly property bool keyboardHeaderLink: true; readonly property Item keyboardHeaderRow: row2 } }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: parent } }', focusRoot)
+        fixture.explore2.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navigator.moveFrom(fixture.explore2, Qt.Key_Up))
+        verify(fixture.card1.activeFocus, "Up from a header link goes to the row above, not its header link")
+        fixture.destroy()
+    }
+
     function test_named_focus_origin_is_deterministic() {
         verify(spatial.focusNamed("alignedDown", Qt.TabFocusReason))
         verify(alignedDown.activeFocus)

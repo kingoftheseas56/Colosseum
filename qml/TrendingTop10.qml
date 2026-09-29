@@ -68,7 +68,10 @@ Column {
             id: chevronKeyboard
             anchors.fill: parent
             pointerEnabled: false
-            focusEnabled: chev.shown
+            // Not a keyboard stop (world-feel, like the mock's rail edges): Left/Right move through
+            // the rail's cards, and as a stop the chevron sat between rows and caught Up/Down.
+            enabled: false
+            focusEnabled: false
             accessibleName: chev.atRight ? qsTr("Show later items") : qsTr("Show earlier items")
             onTriggered: chev.tapped()
         }

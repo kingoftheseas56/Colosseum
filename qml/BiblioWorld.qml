@@ -25,6 +25,7 @@ import "VaultApi.js" as VaultApi
 
 WorldPage {
     id: biblio
+    objectName: "biblioWorld"   // automation identity, like theatreWorld / tankobanWorld
     medium: "Biblio"
     tabBarSource: biblioTabBarItem          // docks under the TopBar when scrolled past (WorldPage)
 

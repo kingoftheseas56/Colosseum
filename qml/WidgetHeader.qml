@@ -70,6 +70,10 @@ Item {
             anchors.margins: -8
             accessibleName: head.moreLabel !== "" ? head.moreLabel + " " + head.title : "Open " + head.title
             focusRadius: 7
+            // A row's header link is reached by Up from its own row, never by Down (the mock's rule;
+            // otherwise the right-aligned links formed a column the arrows ran along, skipping rows).
+            readonly property bool keyboardHeaderLink: true
+            readonly property Item keyboardHeaderRow: head.parent
             onTriggered: head.moreClicked()
         }
     }

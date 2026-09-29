@@ -522,12 +522,30 @@ TestCase {
         fixture.destroy()
     }
 
-    function test_two_stage_reveal_never_spends_two_directional_budgets() {
+    // World-feel (2026-09-29): the next stop within one screen lands on this key, its reveal
+    // being the whole move; a stop farther than a screen away is still revealed one step per key.
+    function test_stop_within_one_screen_lands_on_one_key() {
         var fixture = Qt.createQmlObject(
             'import QtQuick 2.15; import "../../qml" as C; Item {'
             + 'width: 300; height: 300; Flickable { id: fl; width: 300; height: 300; contentWidth: 300; contentHeight: 500; clip: true;'
             + 'Item { width: 300; height: 500; C.KeyboardAction { id: src; y: 20; width: 100; height: 40; pointerEnabled: false }'
             + 'C.KeyboardAction { id: target; y: 350; width: 100; height: 40; pointerEnabled: false } } }'
+            + 'C.KeyboardScrollController { id: scroll; flick: fl; lineStep: 72 }'
+            + 'C.KeyboardSpatialNavigator { id: nav; root: fl } property alias src: src; property alias target: target;'
+            + 'property alias flick: fl; property alias navItem: nav }', scrollRegion)
+        fixture.src.forceActiveFocus(Qt.OtherFocusReason)
+        verify(fixture.navItem.moveFrom(fixture.src, Qt.Key_Down))
+        verify(fixture.target.activeFocus)
+        compare(fixture.flick.contentY, 90)     // exactly the reveal, no extra step
+        fixture.destroy()
+    }
+
+    function test_stop_beyond_one_screen_spends_one_directional_budget() {
+        var fixture = Qt.createQmlObject(
+            'import QtQuick 2.15; import "../../qml" as C; Item {'
+            + 'width: 300; height: 300; Flickable { id: fl; width: 300; height: 300; contentWidth: 300; contentHeight: 900; clip: true;'
+            + 'Item { width: 300; height: 900; C.KeyboardAction { id: src; y: 20; width: 100; height: 40; pointerEnabled: false }'
+            + 'C.KeyboardAction { id: target; y: 700; width: 100; height: 40; pointerEnabled: false } } }'
             + 'C.KeyboardScrollController { id: scroll; flick: fl; lineStep: 72 }'
             + 'C.KeyboardSpatialNavigator { id: nav; root: fl } property alias src: src; property alias target: target;'
             + 'property alias flick: fl; property alias navItem: nav }', scrollRegion)
@@ -620,7 +638,9 @@ TestCase {
         wait(10)
         verify(fixture.source.activeFocus)
         fixture.navigator.moveFrom(fixture.source, Qt.Key_Down)
-        verify(fixture.flick.contentY <= 72)
+        // The target is within one (scaled) screen, so it lands; the owner moves by exactly the
+        // local reveal (350 + 40 - 300), not by a root-unit amount.
+        compare(fixture.flick.contentY, 90)
         fixture.destroy()
     }
 

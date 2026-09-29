@@ -68,6 +68,7 @@ Item {
     }
 
     function cancelGlide(reason) {
+        glide._keyboardGlide = false
         if (glide._probe && glide._pendingPx !== 0)
             glide._plog("cancel reason=" + (reason || "api") + " lostPx=" + glide._pendingPx.toFixed(1)
                         + " y=" + (glide.flick ? glide.flick.contentY.toFixed(1) : "-")
@@ -293,6 +294,40 @@ Item {
             acceptedModifiers: Qt.NoModifier
             onWheel: function(e) { glide._onWheel(e) }
         }
+    }
+
+    // The keyboard navigator places contentY at its landing position at once (its visibility
+    // checks need the final geometry); this replays that jump as a glide from where the page was.
+    function glideFrom(fromY) {
+        if (!glide.flick)
+            return
+        var target = glide.flick.contentY
+        if (Math.abs(target - fromY) < 1)
+            return
+        glide.cancelGlide("keyboard")
+        glide._draining = true
+        glide.flick.contentY = fromY
+        glide._draining = false
+        glide._smoothY = fromY
+        glide.smoothScrollBy(target - fromY)
+        glide._keyboardGlide = true
+    }
+
+    // Jump a keyboard glide to its end (the next key press needs the settled geometry).
+    property bool _keyboardGlide: false
+    function settleKeyboardGlide() {
+        if (!glide._keyboardGlide)
+            return
+        glide._keyboardGlide = false
+        if (!glide.flick || !scrollDrain.running)
+            return
+        var y = Math.max(glide._minY(), Math.min(glide._maxY(), glide._smoothY + glide._pendingPx))
+        scrollDrain.running = false
+        glide._pendingPx = 0
+        glide._smoothY = y
+        glide._draining = true
+        glide.flick.contentY = y
+        glide._draining = false
     }
 
     // Existing vertical GridView callers use these page-step entry points. They
