@@ -495,7 +495,7 @@ Item {
             anchors.topMargin: 6
             text: "‹ Back"
             color: backMa.containsMouse ? theme.gold : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             MouseArea {
                 id: backMa
                 anchors.fill: parent
@@ -546,8 +546,11 @@ Item {
                         anchors.top: parent.top
                         text: typeTab.modelData.label
                         color: typeTab.active ? theme.ink
-                             : (tHov.hovered ? theme.inkDim : theme.inkDimmer)
+                             : (tHov.hovered ? theme.ink : theme.inkDim)
                         font.family: theme.ui; font.pixelSize: 17; font.weight: Font.DemiBold
+                        // readable on any wallpaper (2026-09-29): the idle lenses sat at inkDimmer
+                        // and vanished into bright/warm art; a soft drop shadow carries them.
+                        style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                     }
                     Rectangle {                       // gold underline marks the active lens
                         visible: typeTab.active
@@ -583,8 +586,8 @@ Item {
                 id: kicker
                 anchors.right: parent.right; anchors.top: parent.top
                 text: "NOW BROWSING"
-                color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 10
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 10; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 font.letterSpacing: 2.5; font.capitalization: Font.AllUppercase
             }
             Row {
@@ -597,7 +600,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: browser.currentCatalog ? browser.currentCatalog.title : "—"
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
-                    font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold
+                    font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -631,7 +634,7 @@ Item {
                     return f.length ? (a + "   ·   " + f) : a
                 }
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: 13; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             }
         }
 
@@ -762,8 +765,9 @@ Item {
         Text {
             text: "FILTER"
             height: 40; verticalAlignment: Text.AlignVCenter
-            color: theme.inkDimmer
+            color: theme.inkDim
             font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
+            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             font.capitalization: Font.AllUppercase
         }
         DiscoverPicker {
