@@ -34,11 +34,15 @@ function Stage-RoundedPoster {
     $src = Get-Content -Raw (Join-Path $root "qml\RoundedPosterImage.qml")
     # Match INSTANTIATION (Type {) not the bare word, so a documenting comment can name the very
     # things it forbids without tripping the guard — the same discipline the MultiEffect count uses.
-    $me = ([regex]::Matches($src, "MultiEffect\s*\{")).Count
-    if ($me -ne 1) { throw "RoundedPosterImage must use exactly one MultiEffect (found $me)" }
+    # 2026-09-29: the single pass is one ShaderEffect (shaders/roundedposter.frag), which replaced
+    # a MultiEffect mask over two layer FBOs (~8 ms creation per card). No offscreen layer at all.
+    $se = ([regex]::Matches($src, "(?<![A-Za-z])ShaderEffect\s*\{")).Count
+    if ($se -ne 1) { throw "RoundedPosterImage must use exactly one ShaderEffect pass (found $se)" }
+    if ($src -notmatch 'fragmentShader:\s*"shaders/roundedposter\.frag\.qsb"') { throw "RoundedPosterImage must use the rounded-poster shader" }
+    if ($src -match "MultiEffect\s*\{") { throw "RoundedPosterImage must not instantiate MultiEffect" }
     if ($src -match "ShaderEffectSource\s*\{") { throw "RoundedPosterImage must not instantiate ShaderEffectSource" }
-    if ($src -match "blurEnabled\s*:\s*true") { throw "RoundedPosterImage must not enable MultiEffect blur" }
-    if ($src -match "shadowEnabled\s*:\s*true") { throw "RoundedPosterImage must not enable MultiEffect shadow" }
+    if ($src -match "layer\.enabled\s*:\s*true") { throw "RoundedPosterImage must not enable an offscreen layer" }
+    if (-not (Test-Path (Join-Path $root "qml\shaders\roundedposter.frag.qsb"))) { throw "compiled rounded-poster shader missing" }
     Write-Host "ROUNDED_POSTER_RENDER_CHAIN_OK"
 }
 function Stage-GalleryRail {

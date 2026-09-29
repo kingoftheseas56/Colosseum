@@ -1,12 +1,11 @@
 // RoundedPosterImage — the bounded, genuinely-rounded poster art primitive (Catalogue Poster &
 // Shelf Polish, Task 2). It owns: the stable neutral placeholder, honest candidate fallback, a
 // decode-size cap (never keep a texture larger than 2× the rendered poster), the ready fade, ONE
-// rounded MultiEffect mask pass, the inset edge, and two CHEAP offset shadow plates (flat rounded
-// rectangles — NOT GPU blur). Forbidden by contract and by the static guard in the runner: a
-// second MultiEffect, any ShaderEffectSource, MultiEffect blur/shadow, or an animated mask.
+// rounded shader pass (shaders/roundedposter.frag), the inset edge, and two CHEAP offset shadow
+// plates (flat rounded rectangles — NOT GPU blur). Forbidden by contract and by the static guard in
+// the runner: a second render pass, any layer/ShaderEffectSource/MultiEffect, or an animated mask.
 // The card above owns interaction, title, and metadata; this component knows only how to draw art.
 import QtQuick
-import QtQuick.Effects
 
 Item {
     id: root
@@ -37,7 +36,7 @@ Item {
     // an exhausted card keeps the stable placeholder, never a broken-image icon or a transparent hole.
     readonly property bool placeholderVisible: !ready
     // contract marker: this renderer uses exactly one rounded mask pass. The runner statically
-    // proves the source really contains one MultiEffect and no forbidden chain.
+    // proves the source really contains one rounded ShaderEffect and no forbidden chain.
     readonly property int maskPassCount: 1
 
     onSourcesChanged: { candidateIndex = 0; _exhausted = false; }
@@ -68,55 +67,47 @@ Item {
         Behavior on color { ColorAnimation { duration: 260 } }
     }
 
-    // ── the content that gets rounded: stable placeholder + the decoded art. Rendered ONLY through
-    //    the single MultiEffect mask (layer.effect), so the 12px crop is genuine and the art can
-    //    never paint over the inset edge. ──
-    Item {
-        id: content
+    // ── the decoded art: a texture provider only, never drawn directly. The rounded pass below
+    //    samples it, so the art can never paint over the inset edge. ──
+    Image {
+        id: art
+        // Automation identity (Lanista): the decode-truth surface (status/sourceSize/painted
+        // size live HERE, not on the wrapper). Named only when the owner named the wrapper.
+        objectName: root.objectName.length > 0 ? root.objectName + "_img" : ""
         anchors.fill: parent
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            maskEnabled: true
-            maskSource: maskShape
-            maskThresholdMin: 0.5      // crisp 50% cutoff on the AA'd rounded-rect mask texture
-        }
-
-        Rectangle {                    // stable neutral placeholder (design §4.2)
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "#191b21" }
-                GradientStop { position: 0.5; color: "#101218" }
-                GradientStop { position: 1.0; color: "#17171b" }
-            }
-        }
-        Image {
-            id: art
-            // Automation identity (Lanista): the decode-truth surface (status/sourceSize/painted
-            // size live HERE, not on the wrapper). Named only when the owner named the wrapper.
-            objectName: root.objectName.length > 0 ? root.objectName + "_img" : ""
-            anchors.fill: parent
-            source: root.activeSource
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: true
-            smooth: true
-            mipmap: true               // mipmap only on the BOUNDED decoded image, never an unbounded original
-            sourceSize.width: root.decodeWidth
-            sourceSize.height: root.decodeHeight
-            opacity: status === Image.Ready ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: root.revealDuration; easing.type: Easing.OutCubic } }
-            // exactly once per failed candidate; exhaustion stops the walk (no retry loop).
-            onStatusChanged: if (status === Image.Error) root.advanceCandidate()
-        }
+        visible: false
+        source: root.activeSource
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        smooth: true
+        mipmap: true               // mipmap only on the BOUNDED decoded image, never an unbounded original
+        sourceSize.width: root.decodeWidth
+        sourceSize.height: root.decodeHeight
+        opacity: status === Image.Ready ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: root.revealDuration; easing.type: Easing.OutCubic } }
+        // exactly once per failed candidate; exhaustion stops the walk (no retry loop).
+        onStatusChanged: if (status === Image.Error) root.advanceCandidate()
     }
 
-    // ── stable rounded mask source (no animation) — a texture provider, not drawn directly ──
-    Item {
-        id: maskShape
+    // ── the ONE rounded pass: placeholder gradient + centred aspect-crop art + rounded mask, in a
+    //    single shader. It replaced a MultiEffect mask over two layer FBOs, whose creation cost
+    //    ~8 ms per card (QML profile, 2026-09-29). ──
+    ShaderEffect {
+        id: roundedPass
         anchors.fill: parent
-        layer.enabled: true
-        visible: false
-        Rectangle { anchors.fill: parent; radius: root.radius; color: "black" }
+        readonly property real _texW: Math.max(1, art.implicitWidth)
+        readonly property real _texH: Math.max(1, art.implicitHeight)
+        readonly property real _texAspect: _texW / _texH
+        readonly property real _itemAspect: Math.max(1, width) / Math.max(1, height)
+        property var source: art
+        property size itemSize: Qt.size(width, height)
+        property real radius: root.radius
+        property real artMix: art.status === Image.Ready ? art.opacity : 0
+        property point uvScale: _texAspect > _itemAspect ? Qt.point(_itemAspect / _texAspect, 1)
+                                                         : Qt.point(1, _texAspect / _itemAspect)
+        property point uvOffset: Qt.point((1 - uvScale.x) / 2, (1 - uvScale.y) / 2)
+        fragmentShader: "shaders/roundedposter.frag.qsb"
     }
 
     // ── inset edge, painted ABOVE the masked art: 1px white 8% at rest, 2px soft gold on hover ──
