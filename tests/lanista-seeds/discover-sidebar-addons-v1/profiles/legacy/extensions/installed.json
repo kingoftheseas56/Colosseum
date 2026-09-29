@@ -180,6 +180,267 @@
    },
    "transportName": "Torrent Catalogs",
    "transportUrl": "https://torrent-catalogs.strem.fun/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": true,
+   "id": "pw.ers.netflix-catalog",
+   "installedAt": 1790692018,
+   "manifest": {
+    "behaviorHints": {
+     "configurable": true
+    },
+    "catalogs": [
+     {
+      "id": "nfx",
+      "name": "Netflix",
+      "type": "movie"
+     },
+     {
+      "id": "nfx",
+      "name": "Netflix",
+      "type": "series"
+     },
+     {
+      "id": "hbm",
+      "name": "HBO Max",
+      "type": "movie"
+     },
+     {
+      "id": "hbm",
+      "name": "HBO Max",
+      "type": "series"
+     },
+     {
+      "id": "dnp",
+      "name": "Disney+",
+      "type": "movie"
+     },
+     {
+      "id": "dnp",
+      "name": "Disney+",
+      "type": "series"
+     },
+     {
+      "id": "amp",
+      "name": "Prime  Video",
+      "type": "movie"
+     },
+     {
+      "id": "amp",
+      "name": "Prime Video",
+      "type": "series"
+     },
+     {
+      "id": "atp",
+      "name": "Apple TV+",
+      "type": "movie"
+     },
+     {
+      "id": "atp",
+      "name": "Apple TV+",
+      "type": "series"
+     }
+    ],
+    "description": "Trending movies and series on Netflix, HBO Max, Disney+, Apple TV+ and more. Configure to choose your favourite services.",
+    "id": "pw.ers.netflix-catalog",
+    "idPrefixes": [
+     "tt"
+    ],
+    "logo": "https://play-lh.googleusercontent.com/TBRwjS_qfJCSj1m7zZB93FnpJM5fSpMA_wUlFDLxWAb45T9RmwBvQd5cWR5viJJOhkI",
+    "name": "Streaming Catalogs",
+    "resources": [
+     "catalog"
+    ],
+    "types": [
+     "movie",
+     "series"
+    ],
+    "version": "1.1.1"
+   },
+   "transportUrl": "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json"
+  },
+  {
+   "core": false,
+   "enabled": true,
+   "id": "tmdb-addon",
+   "installedAt": 1790692206,
+   "manifest": {
+    "behaviorHints": {
+     "configurable": true
+    },
+    "catalogs": [
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.top",
+      "name": "Popular",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.top",
+      "name": "Popular",
+      "type": "series"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.year",
+      "name": "Year",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.year",
+      "name": "Year",
+      "type": "series"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.language",
+      "name": "Language",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.language",
+      "name": "Language",
+      "type": "series"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.trending",
+      "name": "Trending",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.trending",
+      "name": "Trending",
+      "type": "series"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.latest",
+      "name": "Latest Releases",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "name": "genre"
+       },
+       {
+        "name": "skip"
+       }
+      ],
+      "id": "tmdb.latest",
+      "name": "Latest Releases",
+      "type": "series"
+     },
+     {
+      "extra": [
+       {
+        "isRequired": true,
+        "name": "search"
+       }
+      ],
+      "id": "tmdb.search",
+      "name": "Search",
+      "type": "movie"
+     },
+     {
+      "extra": [
+       {
+        "isRequired": true,
+        "name": "search"
+       }
+      ],
+      "id": "tmdb.search",
+      "name": "Search",
+      "type": "series"
+     }
+    ],
+    "description": "Stremio addon that provides rich metadata for movies and TV shows from TMDB, featuring customizable catalogs, multi-language support, favorites lists, watchlist, ratings, and IMDb integration. Current settings: Language: en-US | TMDB Account: Not Connected | Trakt Integration: Not Connected | MDBList Integration: Not Connected | IMDb Integration: Disabled | RPDB Integration: Disabled | Top Posters",
+    "id": "tmdb-addon",
+    "idPrefixes": [
+     "tmdb:"
+    ],
+    "logo": "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/logo.png",
+    "name": "The Movie Database Addon",
+    "resources": [
+     "catalog",
+     "meta"
+    ],
+    "types": [
+     "movie",
+     "series"
+    ],
+    "version": "3.1.7"
+   },
+   "transportUrl": "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json"
   }
  ],
  "profileId": "legacy",

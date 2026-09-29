@@ -24,6 +24,7 @@
 #include <QTemporaryDir>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtTest>
@@ -93,6 +94,7 @@ public:
     }
 
     void holdResponses(bool hold) { m_holdResponses = hold; }
+    void setBody(const QByteArray &body) { m_body = body; }
     int heldRequestCount() const { return m_heldResponses.size(); }
     void releaseHeldResponses()
     {
@@ -104,13 +106,11 @@ public:
     }
 
 private:
-    static void respond(QTcpSocket *socket)
+    void respond(QTcpSocket *socket) const
     {
         if (!socket)
             return;
-        const QByteArray body = QByteArrayLiteral(
-            "{\"id\":\"fixture.same-manifest\",\"name\":\"Fixture addon\","
-            "\"resources\":[\"catalog\"],\"types\":[\"movie\"]}");
+        const QByteArray body = m_body;
         socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\n"
                                          "Content-Type: application/json\r\n"
                                          "Content-Length: ")
@@ -121,6 +121,9 @@ private:
     }
 
     QTcpServer m_server;
+    QByteArray m_body = QByteArrayLiteral(
+        "{\"id\":\"fixture.same-manifest\",\"name\":\"Fixture addon\","
+        "\"resources\":[\"catalog\"],\"types\":[\"movie\"]}");
     bool m_holdResponses = false;
     QList<QPointer<QTcpSocket>> m_heldResponses;
 };
@@ -824,6 +827,88 @@ private slots:
         QVERIFY(findByTransportUrl(store.installed(), instance).isEmpty());
         QVERIFY(activateProfile(&store, QStringLiteral("profile-a"), profileA));
         QVERIFY(findByTransportUrl(store.installed(), instance).isEmpty());
+    }
+
+    // Discover's filters read each catalogue's extra `options` (genres, years, languages) and the
+    // legacy `genres`. The saved manifest copy used to drop both, so installed addons offered no
+    // filter at all (Hemanth, 2026-09-30: The Movie Database's Language with no languages).
+    static QByteArray filteredManifest()
+    {
+        return QByteArrayLiteral(
+            "{\"id\":\"fixture.same-manifest\",\"name\":\"Fixture addon\","
+            "\"resources\":[\"catalog\"],\"types\":[\"movie\"],"
+            "\"catalogs\":[{\"type\":\"movie\",\"id\":\"fx.language\",\"name\":\"Language\","
+            "\"extra\":[{\"name\":\"genre\",\"options\":[\"English\",\"French\"],\"optionsLimit\":1},"
+            "{\"name\":\"skip\"}],\"genres\":[\"English\",\"French\"]}]}");
+    }
+    static QVariantMap firstCatalog(const QVariantMap &row)
+    {
+        return row.value(QStringLiteral("manifest")).toMap()
+            .value(QStringLiteral("catalogs")).toList().value(0).toMap();
+    }
+
+    void install_keeps_catalogue_filter_options()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        ManifestFixture fixture;
+        fixture.setBody(filteredManifest());
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        ExtensionsStore store(&network);
+        QVERIFY(activateProfile(&store, QStringLiteral("filters"), profile.filePath(QStringLiteral("installed.json"))));
+        const QString transportUrl = store.normalizeUrl(fixture.configuredUrl(QStringLiteral("/Filters/manifest.json")));
+        QSignalSpy installed(&store, &ExtensionsStore::installFinished);
+        store.install(transportUrl);
+        QTRY_COMPARE(installed.count(), 1);
+
+        const QVariantMap cat = firstCatalog(findByTransportUrl(store.installed(), transportUrl));
+        const QVariantMap genre = cat.value(QStringLiteral("extra")).toList().value(0).toMap();
+        QCOMPARE(genre.value(QStringLiteral("name")).toString(), QStringLiteral("genre"));
+        QCOMPARE(genre.value(QStringLiteral("options")).toStringList(),
+                 QStringList({QStringLiteral("English"), QStringLiteral("French")}));
+        QCOMPARE(genre.value(QStringLiteral("optionsLimit")).toInt(), 1);
+        QCOMPARE(cat.value(QStringLiteral("genres")).toStringList(),
+                 QStringList({QStringLiteral("English"), QStringLiteral("French")}));
+    }
+
+    // A row saved by the old slimming (no options, no slimVersion) is re-fetched once when its
+    // profile opens; only the manifest changes, the row keeps its switch and install time.
+    void stale_manifest_copy_refreshes_when_the_profile_opens()
+    {
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        ManifestFixture fixture;
+        fixture.setBody(filteredManifest());
+        QVERIFY(fixture.listen());
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy::NoProxy);
+        const QString indexPath = profile.filePath(QStringLiteral("installed.json"));
+        const QString transportUrl = ExtensionsStore(nullptr).normalizeUrl(
+            fixture.configuredUrl(QStringLiteral("/Stale/manifest.json")));
+        {
+            ExtensionsStore seedStore(nullptr);
+            QVERIFY(activateProfile(&seedStore, QStringLiteral("stale"), indexPath));
+            QVariantMap stale = theatreFixture(transportUrl, QStringLiteral("fixture.same-manifest"));
+            stale.insert(QStringLiteral("enabled"), false);
+            bool committed = false;
+            QVERIFY(applyTheatreRows(seedStore, QVariantList{stale},
+                                     [&](bool ok, const QString &) { committed = ok; }));
+            QTRY_VERIFY(committed);
+        }
+        ExtensionsStore store(&network);
+        QVERIFY(activateProfile(&store, QStringLiteral("stale"), indexPath));
+        QTRY_VERIFY(!firstCatalog(findByTransportUrl(store.installed(), transportUrl)).isEmpty());
+        const QVariantMap row = findByTransportUrl(store.installed(), transportUrl);
+        QCOMPARE(firstCatalog(row).value(QStringLiteral("extra")).toList().value(0).toMap()
+                     .value(QStringLiteral("options")).toStringList().size(), 2);
+        QCOMPARE(row.value(QStringLiteral("enabled")).toBool(), false);
+        QCOMPARE(row.value(QStringLiteral("installedAt")).toLongLong(), qint64(1));
+
+        ExtensionsStore reopened(nullptr);            // and it was saved, not just held in memory
+        QVERIFY(activateProfile(&reopened, QStringLiteral("stale"), indexPath));
+        QVERIFY(!firstCatalog(findByTransportUrl(reopened.installed(), transportUrl)).isEmpty());
     }
 };
 

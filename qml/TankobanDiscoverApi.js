@@ -41,6 +41,9 @@ var COMICS_CATALOGS = [
 ];
 var BUILTIN_SECTION = "Tankoban";
 var BUILTIN_ATTRIBUTION = "Tankoban built-in catalogue";
+// The Discover sidebar lists sources as addons: the built-ins are the Grand Database's.
+var BUILTIN_SOURCE = "Colosseum Grand Database";
+var BUILTIN_SOURCE_ID = "colosseum.catalogue.vault";
 
 // in-session live-refresh cache (spec 5.4). Keyed by catalog+filter+explicit flag so a
 // refresh is deduplicated per state (a sfw=true response never serves an opted-in
@@ -265,7 +268,8 @@ function extensionCatalogs(type, extensions) {
                 title: c.name || c.id || "Extension catalogue",
                 sourceKind: "extension",
                 section: "Extensions",
-                attribution: m.name || m.id || "Extension"
+                attribution: m.name || m.id || "Extension",
+                addonId: m.id || "", logo: m.logo || ""       // the sidebar draws the addon's real icon
             });
         }
     }
@@ -281,7 +285,8 @@ function catalogsForType(type, extensions) {
             title: builtins[i].title,
             sourceKind: builtins[i].sourceKind,
             section: BUILTIN_SECTION,
-            attribution: BUILTIN_ATTRIBUTION
+            attribution: BUILTIN_ATTRIBUTION,
+            sourceName: BUILTIN_SOURCE, addonId: BUILTIN_SOURCE_ID
         });
     }
     var exts = extensionCatalogs(type, extensions || []);

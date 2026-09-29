@@ -76,6 +76,9 @@ Item {
     property string posterVisualProfile: "classic"
     readonly property bool _galleryPosters: browser.posterVisualProfile === "gallery"
     readonly property var _galleryMetrics: Metrics.gallery
+    // The Discover wall's poster token (Hemanth, 2026-09-30: smaller than the shelves' 148):
+    // seven across with the sidebar closed at 1280, six with it open.
+    property int wallPosterWidth: 132
 
     // ── optional per-world card hooks (Biblio, Task 5, arc 2026-08-01) ──
     // Every hook defaults OFF so a shared-shell edit never silently restyles a world that
@@ -84,7 +87,7 @@ Item {
     property bool showSourceOnReveal: false   // render item.source in the reveal, on hover OR keyboard focus
     property bool showBackAction: false       // render a back affordance in the masthead
     signal backRequested()                    // "user wants to go back" — the shell never acts on this itself
-    // Pin the gallery delegate to EXACTLY _galleryMetrics.posterWidth instead of stretching to fill
+    // Pin the gallery delegate to EXACTLY wallPosterWidth instead of stretching to fill
     // residual column width (the bug behind Biblio's oversized/blurry cards, 2026-08-06). OFF by
     // default: Theatre/Tankoban keep today's fill-to-width gallery layout unless they opt in too.
     // No effect outside the gallery profile (classic is untouched either way).
@@ -130,6 +133,8 @@ Item {
     property var pinValue: null
 
     property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
+    property bool catalogMenuOpen: false     // the Fraunces catalogue name opens the category picker
+    property Item catalogFocusReturn: null   // invoker restored when the picker closes
 
     // ── the sidebar (Discover sidebar plan Slice 2): catalogues live in a pinned rail ──
     property Item backdrop: null             // the world's wallpaper, for the rail's glass
@@ -181,6 +186,49 @@ Item {
     }
     readonly property bool hasCatalogs: catalogMenuModel.length > 0
 
+    // ── sources (Hemanth, 2026-09-30): the sidebar lists the addons (and built-in sections) that
+    // own the current type's catalogues; the category picker (top right) lists only the current
+    // source's catalogues; the filter picker holds that catalogue's genres/years/languages. ──
+    // a descriptor may name its source outright (built-ins: the addon that owns them)
+    function sourceNameOf(c) {
+        return c.sourceName || (c.sourceKind === "extension" ? c.attribution : c.section) || c.attribution || c.section || ""
+    }
+    readonly property var sources: {
+        var _ = adapterRev;
+        var cats = (adapter && currentType.length) ? adapter.catalogs(currentType) : [];
+        var out = [], at = {};
+        for (var i = 0; i < cats.length; i++) {
+            var c = cats[i], name = sourceNameOf(c);
+            if (at[name] === undefined) {
+                at[name] = out.length;
+                out.push({ name: name, addonId: c.addonId || "", logo: c.logo || "", catalogs: [] });
+            }
+            out[at[name]].catalogs.push({ key: c.key, title: c.title });
+        }
+        return out;
+    }
+    readonly property string currentSource: currentCatalog ? sourceNameOf(currentCatalog) : ""
+    // the category picker's rows: the current source's catalogues only
+    readonly property var sourceCatalogs: {
+        var srcs = sources;
+        for (var i = 0; i < srcs.length; i++)
+            if (srcs[i].name === currentSource) {
+                var out = [];
+                for (var k = 0; k < srcs[i].catalogs.length; k++)
+                    out.push({ key: srcs[i].catalogs[k].key, text: srcs[i].catalogs[k].title });
+                return out;
+            }
+        return [];
+    }
+    readonly property bool categoryPickable: sourceCatalogs.length > 1
+    // One click on a source: its first category (the source's own default order).
+    function selectSource(name) {
+        if (name === currentSource) return
+        var srcs = sources
+        for (var i = 0; i < srcs.length; i++)
+            if (srcs[i].name === name && srcs[i].catalogs.length) { selectCatalog(srcs[i].catalogs[0].key); return }
+    }
+
     // the filter groups for the current catalogue, concatenated into ONE picker menu:
     // a leading "All" (clears), then each group's options — with a section header only when
     // more than one group exists (a single group reads exactly like the old genre picker).
@@ -228,6 +276,32 @@ Item {
         itemOpenRequested(items[i])
     }
 
+    function openCatalogMenu(invoker) {
+        if (!categoryPickable) return
+        filterPicker.open = false
+        catalogFocusReturn = invoker || null
+        catalogMenuOpen = true
+        var at = 0
+        for (var i = 0; i < sourceCatalogs.length; i++) if (sourceCatalogs[i].key === currentCatalogKey) at = i
+        menuList.currentIndex = at
+        menuList.positionViewAtIndex(at, ListView.Contain)
+        Qt.callLater(function() { menuList.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeCatalogMenu(restoreFocus) {
+        const target = catalogFocusReturn
+        catalogFocusReturn = null
+        catalogMenuOpen = false
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function chooseCatalog(index) {
+        if (index < 0 || index >= sourceCatalogs.length) return
+        const target = catalogFocusReturn || catalogAction
+        catalogFocusReturn = null
+        selectCatalog(sourceCatalogs[index].key)
+        Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+
     onVisibleChanged: if (visible && active && wall) wall.forceActiveFocus()
 
     Component.onCompleted: if (active) init()
@@ -242,6 +316,7 @@ Item {
             browser.cancelPageRequest()
             fetchGen++
             loading = false
+            catalogMenuOpen = false
             return
         }
         if (!initialized) {
@@ -277,6 +352,7 @@ Item {
         fetchGen++                       // fence any in-flight fetch bound to the leaving type
         saveTypeState()
         currentType = t
+        catalogMenuOpen = false
         if (typeStates[t]) {
             restoreTypeState(typeStates[t])
         } else {
@@ -291,6 +367,7 @@ Item {
         fetchGen++
         currentCatalogKey = key
         filters = ({}); noticeText = ""
+        catalogMenuOpen = false
         reloadForCatalog()
     }
 
@@ -358,6 +435,7 @@ Item {
         cancelPageRequest()
         fetchGen++
         var res = adapter.resolvePin(pin)
+        catalogMenuOpen = false
         if (res.missing) {
             // a missing pinned extension/catalogue -> the same type's built-in default,
             // an invalid filter cleared, and one explanatory notice.
@@ -505,7 +583,10 @@ Item {
     }
 
 
-    // ═══ the rail — type switch + catalogues grouped by source, pinned beside the wall ═══
+    // opening the category picker closes the filter picker (one drop-down family)
+    onCatalogMenuOpenChanged: if (catalogMenuOpen) filterPicker.open = false
+
+    // ═══ the rail — the sources (addons), pinned beside the wall ═══
     DiscoverSidebar {
         id: sidebar
         host: browser
@@ -514,8 +595,10 @@ Item {
     }
 
     // ═══ masthead — the type lens (left) + what fills the wall (right) ═══
+    // z above the wall: the category picker drops INTO the wall region and must paint over it.
     Item {
         id: masthead
+        z: 100
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.leftMargin: browser.contentLeft
@@ -620,7 +703,7 @@ Item {
             }
         }
 
-        // ── the shelf (right): kicker + the summary line + the owning source ──
+        // ── the shelf (right): kicker + the catalogue name (= the category picker) + byline ──
         Item {
             id: shelf
             anchors.right: parent.right
@@ -637,7 +720,6 @@ Item {
                 font.family: theme.ui; font.pixelSize: 10; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 font.letterSpacing: 2.5; font.capitalization: Font.AllUppercase
             }
-            // The summary line: the current catalogue, then each active filter.
             Row {
                 id: summary
                 objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverSummary" : ""
@@ -649,31 +731,128 @@ Item {
                 }
                 anchors.right: parent.right
                 anchors.top: kicker.bottom; anchors.topMargin: 4
-                spacing: 16
+                spacing: 10
                 Text {
                     id: catName
+                    anchors.verticalCenter: parent.verticalCenter
                     text: browser.currentCatalog ? browser.currentCatalog.title : "—"
-                    color: theme.ink
+                    color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
                     font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 }
                 Text {
-                    visible: browser.activeFilterLabel.length > 0
-                    anchors.baseline: catName.baseline
-                    text: browser.activeFilterLabel
-                    color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    visible: browser.categoryPickable
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "▾"
+                    color: (catMa.containsMouse || browser.catalogMenuOpen) ? theme.gold : theme.inkDimmer
+                    font.pixelSize: 14
                 }
+            }
+            MouseArea {
+                id: catMa
+                objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverCategoryPicker" : ""
+                anchors.fill: summary
+                hoverEnabled: true
+                cursorShape: browser.categoryPickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                enabled: browser.categoryPickable
+                onClicked: browser.catalogMenuOpen ? browser.closeCatalogMenu(false) : browser.openCatalogMenu(catalogAction)
+            }
+            KeyboardAction {
+                id: catalogAction
+                anchors.fill: summary; pointerEnabled: false; focusEnabled: browser.categoryPickable
+                accessibleName: "Choose category"; focusRadius: 8
+                onTriggered: browser.catalogMenuOpen ? browser.closeCatalogMenu(true) : browser.openCatalogMenu(catalogAction)
             }
             Text {
                 id: byline
                 anchors.right: parent.right
                 anchors.top: summary.bottom; anchors.topMargin: 7
-                // honest attribution — the owning source. NO invented total.
-                text: browser.currentCatalog ? browser.currentCatalog.attribution : ""
+                // honest attribution — the owning source (as the sidebar names it). NO invented total.
+                text: browser.currentSource
                 color: theme.inkDim
                 font.family: theme.ui; font.pixelSize: 13; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             }
         }
+
+        // ── category picker — the current source's catalogues (gold-active) ──
+        Rectangle {
+            id: catalogMenu
+            objectName: "discoverCatalogMenu"
+            visible: browser.catalogMenuOpen
+            anchors.right: parent.right
+            anchors.top: parent.bottom
+            anchors.topMargin: 6
+            width: 260
+            height: Math.min(392, menuList.contentHeight + 12)
+            radius: 13
+            z: 60
+            color: Qt.rgba(0.045, 0.05, 0.075, 0.98)
+            border.width: 1; border.color: theme.edge
+            MouseArea { anchors.fill: parent }   // swallow taps inside the menu
+
+            ListView {
+                id: menuList
+                anchors.fill: parent; anchors.margins: 6
+                clip: true
+                model: browser.sourceCatalogs
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: HouseScrollBar { flick: menuList }
+                Keys.onPressed: (event) => {
+                    var n = browser.sourceCatalogs.length
+                    if (event.key === Qt.Key_Down || (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))) {
+                        menuList.currentIndex = (menuList.currentIndex + 1) % n; event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Up || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+                        menuList.currentIndex = (menuList.currentIndex - 1 + n) % n; event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Home) { menuList.currentIndex = 0; event.accepted = true; return }
+                    if (event.key === Qt.Key_End) { menuList.currentIndex = n - 1; event.accepted = true; return }
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        browser.chooseCatalog(menuList.currentIndex); event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Escape) { browser.closeCatalogMenu(true); event.accepted = true }
+                }
+                delegate: Rectangle {
+                    id: mrow
+                    required property var modelData
+                    required property int index
+                    readonly property bool sel: mrow.modelData.key === browser.currentCatalogKey
+                    readonly property bool keyboardSelected: menuList.activeFocus && menuList.currentIndex === mrow.index
+                    objectName: browser.automationPrefix.length
+                                ? browser.automationPrefix + "DiscoverCategory_" + String(mrow.modelData.key).replace(/[^A-Za-z0-9]/g, "_") : ""
+                    width: menuList.width
+                    height: 38
+                    radius: 9
+                    color: mrow.sel ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
+                         : (mrowMa.containsMouse || mrow.keyboardSelected) ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                    border.width: mrow.keyboardSelected ? 2 : 0
+                    border.color: theme.gold
+                    Text {
+                        text: mrow.modelData.text
+                        color: mrow.sel ? theme.gold : theme.ink
+                        font.family: theme.ui; font.pixelSize: 13
+                        font.weight: mrow.sel ? Font.DemiBold : Font.Normal
+                        anchors.left: parent.left; anchors.leftMargin: 12
+                        anchors.right: parent.right; anchors.rightMargin: 12
+                        elide: Text.ElideRight
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    MouseArea {
+                        id: mrowMa
+                        anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: browser.chooseCatalog(mrow.index)
+                    }
+                }
+            }
+        }
+    }
+
+    // click-off catcher — a tap anywhere outside the open category picker closes it
+    MouseArea {
+        anchors.fill: parent
+        z: 95
+        visible: browser.catalogMenuOpen
+        onClicked: browser.closeCatalogMenu(true)
     }
 
     // ═══ filter chips — the genuine filters collapsed to ONE active selection ═══
@@ -713,6 +892,7 @@ Item {
             currentKey: browser.filterKey.length ? (browser.filterGroup + browser._filterSep + browser.filterKey) : ""
             onPicked: (key) => browser._applyFilterKey(key)
             onCleared: browser.clearFilter()
+            onOpenChanged: if (open && browser.catalogMenuOpen) browser.closeCatalogMenu(true)
         }
     }
 
@@ -811,14 +991,14 @@ Item {
             // exact-token cards in them); classic keeps its ~146 px stride.
             readonly property int columnCount: browser._galleryPosters
                 ? Math.max(3, Math.floor((parent.width + browser._galleryMetrics.cardGap)
-                                         / (browser._galleryMetrics.posterWidth + browser._galleryMetrics.cardGap)))
+                                         / (browser.wallPosterWidth + browser._galleryMetrics.cardGap)))
                 : Math.max(3, Math.floor(parent.width / 146))
             cellWidth: mockGrid ? Math.floor((parent.width + gapX) / columnCount)
                 : (browser.fixedGalleryWidth && browser._galleryPosters)
                 // "-14" below is the existing, unchanged delegate-inset convention (see the
                 // delegate's width binding) — adding it back here is what makes the delegate land
-                // on EXACTLY posterWidth, not floor(width/columnCount)'s residual-inflated value.
-                ? (browser._galleryMetrics.posterWidth + 14)
+                // on EXACTLY wallPosterWidth, not floor(width/columnCount)'s residual-inflated value.
+                ? (browser.wallPosterWidth + 14)
                 : Math.floor(parent.width / columnCount)
             cellHeight: browser._galleryPosters
                 ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)

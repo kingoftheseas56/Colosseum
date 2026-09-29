@@ -24,6 +24,11 @@
 namespace {
 constexpr int kManifestTimeoutMs = 12000;
 constexpr int kDescriptionCap = 400;
+// The slimmed-manifest shape. 1 (unmarked) dropped every extra's `options` and the catalog's
+// `genres`, so installed addons offered no genres, years or languages in Discover. 2 keeps them;
+// an installed row still on 1 is re-fetched once (refreshStaleManifests).
+constexpr int kSlimVersion = 2;
+constexpr int kMaxExtraOptions = 1000;
 constexpr int kMaxProfileTheatreRows = 64;
 constexpr int kMaxProfileTransportUrlLength = 2048;
 
@@ -386,7 +391,60 @@ bool ExtensionsStore::activateProfile(const QString& profileId,
     m_previewCache.clear();
     rebuildActiveItems();
     bump();
+    refreshStaleManifests();
     return true;
+}
+
+// Installed Theatre addons whose manifest copy predates kSlimVersion lost their filter options.
+// Re-fetch each one quietly and replace only its manifest (switch, order, install time stay).
+// A failed fetch keeps the old copy and tries again next launch.
+void ExtensionsStore::refreshStaleManifests()
+{
+    if (!m_nam)
+        return;
+    for (const QVariantMap& item : std::as_const(m_profileTheatreItems)) {
+        if (item.value(QStringLiteral("core")).toBool())
+            continue;
+        const QVariantMap manifest = item.value(QStringLiteral("manifest")).toMap();
+        if (manifest.value(QStringLiteral("slimVersion")).toInt() >= kSlimVersion)
+            continue;
+        const QString transportUrl = item.value(QStringLiteral("transportUrl")).toString();
+        const QUrl url(transportUrl);
+        if (url.scheme() != QStringLiteral("https") && url.scheme() != QStringLiteral("http"))
+            continue;
+        const quint64 generation = m_profileGeneration;
+        QNetworkRequest req{ url };
+        req.setRawHeader("Accept", "application/json");
+        req.setTransferTimeout(kManifestTimeoutMs);
+        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::NoLessSafeRedirectPolicy);
+        QNetworkReply* reply = m_nam->get(req);
+        connect(reply, &QNetworkReply::finished, this, [this, reply, transportUrl, generation]() {
+            reply->deleteLater();
+            if (generation != m_profileGeneration || reply->error() != QNetworkReply::NoError)
+                return;
+            const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+            if (!doc.isObject())
+                return;
+            const QVariantMap slim = slimManifest(doc.object());
+            const int at = indexOfTransportUrl(transportUrl);
+            if (at < 0)
+                return;
+            QVariantMap entry = m_items.at(at);
+            const QString oldId = entry.value(QStringLiteral("manifest")).toMap()
+                .value(QStringLiteral("id")).toString();
+            if (slim.value(QStringLiteral("id")).toString() != oldId)
+                return;                       // the address now serves another addon: leave it
+            const QList<QVariantMap> previousItems = m_items;
+            entry.insert(QStringLiteral("manifest"), slim);
+            m_items[at] = entry;
+            if (!saveIndex()) {
+                m_items = previousItems;
+                return;
+            }
+            bump();
+        });
+    }
 }
 
 void ExtensionsStore::deactivateProfile()
@@ -1018,7 +1076,8 @@ QVariantMap ExtensionsStore::slimManifest(const QJsonObject& m)
         out.insert(QStringLiteral("idPrefixes"),
                    m.value(QStringLiteral("idPrefixes")).toArray().toVariantList());
 
-    // catalogs slimmed to what row-loading needs: id, type, name, extra name+isRequired
+    // catalogs slimmed to what row-loading and Discover's filters need: id, type, name, extra
+    // name + isRequired + options (+ optionsLimit), legacy genres
     if (m.contains(QStringLiteral("catalogs"))) {
         QVariantList cats;
         const QJsonArray inCats = m.value(QStringLiteral("catalogs")).toArray();
@@ -1036,14 +1095,31 @@ QVariantMap ExtensionsStore::slimManifest(const QJsonObject& m)
                 e.insert(QStringLiteral("name"), ex.value(QStringLiteral("name")).toString());
                 if (ex.value(QStringLiteral("isRequired")).toBool())
                     e.insert(QStringLiteral("isRequired"), true);
+                QVariantList options;
+                for (const QJsonValue& ov : ex.value(QStringLiteral("options")).toArray()) {
+                    if (ov.isString() && options.size() < kMaxExtraOptions)
+                        options.append(ov.toString());
+                }
+                if (!options.isEmpty())
+                    e.insert(QStringLiteral("options"), options);
+                if (ex.contains(QStringLiteral("optionsLimit")))
+                    e.insert(QStringLiteral("optionsLimit"), ex.value(QStringLiteral("optionsLimit")).toInt());
                 extras.append(e);
             }
             if (!extras.isEmpty())
                 cat.insert(QStringLiteral("extra"), extras);
+            QVariantList genres;
+            for (const QJsonValue& gv : c.value(QStringLiteral("genres")).toArray()) {
+                if (gv.isString() && genres.size() < kMaxExtraOptions)
+                    genres.append(gv.toString());
+            }
+            if (!genres.isEmpty())
+                cat.insert(QStringLiteral("genres"), genres);
             cats.append(cat);
         }
         out.insert(QStringLiteral("catalogs"), cats);
     }
+    out.insert(QStringLiteral("slimVersion"), kSlimVersion);
 
     const QJsonObject hintsIn = m.value(QStringLiteral("behaviorHints")).toObject();
     if (!hintsIn.isEmpty()) {

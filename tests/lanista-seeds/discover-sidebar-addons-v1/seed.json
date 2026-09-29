@@ -20,5 +20,5 @@
    "value": "(Cinemeta group, then Torrent Catalogs group; see discover_sidebar_catalogues.json)"
   }
  ],
- "contents": "A fresh local profile's Theatre addon list (Cinemeta, Torrentio, NoTorrent, Anime Kitsu, OpenSubtitles v3 defaults) plus the public Torrent Catalogs addon copied from Hemanth's profile. No account data, no tokens (his Trakt addon's URL carries one and was left out)."
+ "contents": "A fresh local profile's Theatre addon list (Cinemeta, Torrentio, NoTorrent, Anime Kitsu, OpenSubtitles v3 defaults) plus three public addons copied from Hemanth's profiles: Torrent Catalogs, Streaming Catalogs (Netflix/HBO/... categories) and The Movie Database (Popular/Year/Language/... categories). Their manifest copies are the old slimmed shape (no filter options), so a build with the store refresh re-fetches them. No account data, no tokens (his Trakt addon's URL carries one and was left out)."
 }

@@ -99,7 +99,7 @@ function typesFor(installed) {
     return out.concat(rest);
 }
 
-// picker model: [{key, title, addonName, transportUrl, type, catalogId, extra, genres, core}]
+// picker model: [{key, title, addonName, addonId, logo, transportUrl, type, catalogId, extra, genres, core}]
 function catalogsFor(installed, type) {
     var specs = AddonClient.discoverCatalogSpecs(_effectiveInstalled(installed), type);
     var out = [];
@@ -107,7 +107,7 @@ function catalogsFor(installed, type) {
         var s = specs[i];
         out.push({
             key: s.transportUrl + "|" + s.type + "|" + s.catalogId,
-            title: s.title, addonName: s.extName,
+            title: s.title, addonName: s.extName, addonId: s.extId || "", logo: s.logo || "",
             transportUrl: s.transportUrl, type: s.type, catalogId: s.catalogId,
             extra: s.extra, genres: s.genres, core: s.core
         });
@@ -191,7 +191,8 @@ function shellCatalogs(installed, type) {
             key: c.key, title: c.title,
             sourceKind: c.core ? "builtin" : "extension",
             section: c.core ? c.addonName : "Your addons",
-            attribution: c.addonName
+            attribution: c.addonName,
+            addonId: c.addonId || "", logo: c.logo || ""     // the sidebar draws the addon's real icon
         });
     }
     return out;

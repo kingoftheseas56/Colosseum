@@ -355,12 +355,12 @@ Item {
             //    root cause behind Biblio's oversized/blurry cards. Off by default (Theatre/Tankoban
             //    unaffected); a wrapper opts in per-world, mirroring showAuthorAtRest etc. ──
             ok(browser7.fixedGalleryWidth === false, "fixedGalleryWidth defaults off");
-            ok(browser7._galleryDelegateWidthForTest !== 148,
-               "default (off) still stretches past the 148px token at a wide width, got "
+            ok(browser7._galleryDelegateWidthForTest !== browser7.wallPosterWidth,
+               "default (off) still stretches past the wall token at a wide width, got "
                + browser7._galleryDelegateWidthForTest);
             browser7.fixedGalleryWidth = true;
-            ok(browser7._galleryDelegateWidthForTest === 148,
-               "fixedGalleryWidth pins the delegate to EXACTLY the posterWidth token, got "
+            ok(browser7._galleryDelegateWidthForTest === browser7.wallPosterWidth,
+               "fixedGalleryWidth pins the delegate to EXACTLY the wall poster token, got "
                + browser7._galleryDelegateWidthForTest);
             // residual width becomes centered outer margin, not lost and not extra columns:
             // columnCount must be identical on vs off (same host width feeds both formulas).

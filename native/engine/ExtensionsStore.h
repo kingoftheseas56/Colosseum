@@ -144,6 +144,7 @@ private:
     QString indexPath() const;         // <appdata>/extensions/installed.json
 
     void fetchManifest(const QString& transportUrl, bool thenInstall);
+    void refreshStaleManifests();      // re-fetch Theatre rows saved before kSlimVersion
     void finishInstall(const QString& transportUrl, const QVariantMap& slim);
     static QVariantMap slimManifest(const QJsonObject& m);
     static bool manifestIsAdult(const QVariantMap& slim);

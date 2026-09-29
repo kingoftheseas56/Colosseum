@@ -1,14 +1,16 @@
 // DiscoverSidebar — the rail on the left of every Discover wall, drawn exactly like the
-// retractable concept's world nav (colosseum-theatre-sidebar-concept (1).html, `#worldnav`),
-// holding the current type's catalogues grouped by source (Hemanth, 2026-09-29: "mock look,
-// catalogues in rail"). One click switches the wall. The type selector stays above the wall.
-// Everything comes from the browser's adapter: no per-world code lives here.
+// retractable concept's world nav (colosseum-theatre-sidebar-concept (1).html, `#worldnav`).
+// It lists the SOURCES only — the addons (and built-in sections) that own the current type's
+// catalogues — by icon and name (Hemanth, 2026-09-30: "the sidebar should just be a list of
+// addon extensions"). A source's categories live in the category picker (top right) and a
+// category's genres/years/languages in the filter picker. One click on a source switches the
+// wall to its first category. Everything comes from the browser: no per-world code lives here.
 //
-// Concept geometry: 184 px open / 52 px closed (width eased over 240 ms); shell padding
+// Concept geometry: 240 px open (the concept's 184, widened) / 52 px closed (width eased over 240 ms); shell padding
 // 22/16/18/0 with a 1 px fading line on its right edge; "WORLD" kicker + world name; items
 // 46 px tall, 12 px radius, icon 19 px + label 14/600 inkDim, the current one lit with a
-// .09 plate and a 3 px gold bar with glow. Closed: the heading fades, items become 44 px icon
-// buttons (one per source). The round 28 px toggle straddles the right edge at top 18.
+// .09 plate and a 3 px gold bar with glow. Closed: the heading and labels fade, items become
+// 44 px icon buttons. The round 28 px toggle straddles the right edge at top 18.
 // Every Discover starts closed; the choice is not remembered.
 //
 // Pinned: in page flow the rail tracks the world page's viewport (the concept's rail sits 12
@@ -30,13 +32,15 @@ Item {
 
     // ── open / closed ──
     property bool collapsed: true
-    readonly property int openWidth: 184
+    // 240 open (the concept's 184, widened by Hemanth 2026-09-30 so addon names fit)
+    readonly property int openWidth: 240
     readonly property int closedWidth: 52
     width: collapsed ? closedWidth : openWidth
     Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.Bezier; easing.bezierCurve: [0.2, 0.7, 0.2, 1, 1, 1] } }
     // the shell's right padding (16 open, 4 closed); the list's own right padding (16 / 0)
     readonly property int _shellPadRight: collapsed ? 4 : 16
     readonly property int _listPadRight: collapsed ? 0 : 16
+    readonly property bool _labelsShown: width > openWidth - 24
 
     // ── pinned geometry (against the world page viewport) ──
     // The concept's rail top is 12 below the board's top edge; the docked tab bar moves right
@@ -55,7 +59,7 @@ Item {
     readonly property real pinnedHeight: _flow ? Math.max(160, rail.host.pageFlick.height - pinLine - bottomGap) : 0
     readonly property real _wantedY: _flow ? Math.max(0, pinLine - _browserTop) : 0
     // How tall the rail wants to be, independent of the browser's height (the browser grows to
-    // at least this, so a short wall never crops the catalogue list).
+    // at least this, so a short wall never crops the list).
     readonly property real naturalHeight: _flow ? Math.min(pinnedHeight, list.y + list.contentHeight + 18) : 0
 
     x: 0
@@ -64,38 +68,10 @@ Item {
     // On its pinned line: the browser's top has scrolled above it and the rail is held there.
     readonly property bool automationSidebarPinned: _flow && _wantedY > 0.5 && Math.abs(y - _wantedY) < 0.5
 
-    // ── model: the current type's catalogues grouped by source ──
-    // Extension catalogues group under their addon (attribution); built-ins under their section.
-    readonly property var groups: {
-        var _ = rail.host.adapterRev
-        var cats = (rail.host.adapter && rail.host.currentType.length) ? rail.host.adapter.catalogs(rail.host.currentType) : []
-        var order = [], byGroup = {}
-        for (var i = 0; i < cats.length; i++) {
-            var c = cats[i]
-            var g = (c.sourceKind === "extension" ? c.attribution : c.section) || c.attribution || c.section || ""
-            if (!byGroup[g]) { byGroup[g] = []; order.push(g) }
-            byGroup[g].push({ key: c.key, title: c.title, group: g })
-        }
-        var out = []
-        for (var o = 0; o < order.length; o++) out.push({ name: order[o], rows: byGroup[order[o]] })
-        return out
-    }
-    // Flat rows for the open list: { header } then { key, title, group } per catalogue.
-    readonly property var rows: {
-        var out = []
-        for (var g = 0; g < groups.length; g++) {
-            out.push({ header: groups[g].name })
-            for (var r = 0; r < groups[g].rows.length; r++) out.push(groups[g].rows[r])
-        }
-        return out
-    }
-
-    // The rows as one string for the bridge (it cannot read a JS array): "#Source" per header,
-    // the catalogue key per row, newline-separated.
+    // The source names as one string for the bridge (it cannot read a JS array), newline-separated.
     readonly property string automationRows: {
-        var out = []
-        for (var i = 0; i < rows.length; i++)
-            out.push(rows[i].header !== undefined ? "#" + rows[i].header : rows[i].key)
+        var out = [], srcs = rail.host.sources
+        for (var i = 0; i < srcs.length; i++) out.push(srcs[i].name)
         return out.join("\n")
     }
 
@@ -105,24 +81,6 @@ Item {
     }
 
     function _sanitise(key) { return String(key).replace(/[^A-Za-z0-9]/g, "_") }
-    function _groupHoldsCurrent(group) {
-        for (var i = 0; i < group.rows.length; i++)
-            if (group.rows[i].key === rail.host.currentCatalogKey) return true
-        return false
-    }
-    // Open the rail at one source's group (a logo in the closed strip).
-    function openAt(groupName) {
-        rail.collapsed = false
-        Qt.callLater(function() {
-            for (var i = 0; i < rail.rows.length; i++) {
-                var it = openRepeater.itemAt(i)
-                if (it && rail.rows[i].header === groupName) {
-                    list.contentY = Math.max(0, Math.min(it.y, list.contentHeight - list.height))
-                    return
-                }
-            }
-        })
-    }
 
     // the shell's right edge: a 1 px line fading in and out (.worldnav-shell:after)
     Rectangle {
@@ -171,59 +129,20 @@ Item {
         y: brand.y + brand.height
         width: rail.width - rail._shellPadRight
         height: rail.height - y - 18
-        contentHeight: rail.collapsed ? strip.implicitHeight : col.implicitHeight
+        contentHeight: col.implicitHeight
         clip: true
         interactive: contentHeight > height
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: list; visible: list.interactive && !rail.collapsed }
 
-        // ── closed: one 44 px icon button per source; the source holding the current catalogue is lit ──
-        Column {
-            id: strip
-            visible: rail.collapsed
-            width: 44
-            spacing: 4
-            Repeater {
-                model: rail.groups
-                delegate: Item {
-                    id: src
-                    required property var modelData
-                    readonly property bool current: rail._groupHoldsCurrent(src.modelData)
-                    objectName: rail.host.automationPrefix.length
-                                ? rail.host.automationPrefix + "DiscoverSidebarSource_" + rail._sanitise(src.modelData.name) : ""
-                    width: 44
-                    height: 46
-                    NavItemPlate { anchors.fill: parent; on: src.current; hot: srcAction.interactionActive; barX: -2 }
-                    AddonLogo {
-                        anchors.centerIn: parent
-                        size: 19
-                        radius: 5
-                        opacity: src.current ? 1 : 0.78
-                        addonName: src.modelData.name
-                    }
-                    KeyboardAction {
-                        id: srcAction
-                        anchors.fill: parent
-                        accessibleName: "Open the sidebar at " + src.modelData.name
-                        focusRadius: 12
-                        focusOnPointer: false
-                        onTriggered: rail.openAt(src.modelData.name)
-                    }
-                }
-            }
-        }
-
-        // ── open: a small source heading, then one item per catalogue ──
+        // ── the sources: one .worldnav-item each (icon + name; icon only when closed) ──
         Column {
             id: col
-            visible: !rail.collapsed
-            opacity: rail.width > rail.openWidth - 24 ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: 150 } }
             width: list.width - rail._listPadRight
             spacing: 4
 
             Text {
-                visible: rail.rows.length === 0
+                visible: rail.host.sources.length === 0 && !rail.collapsed
                 width: parent.width
                 leftPadding: 12
                 text: rail.host.textNoCatalogue
@@ -232,66 +151,67 @@ Item {
             }
 
             Repeater {
-                id: openRepeater
-                model: rail.rows
+                model: rail.host.sources
                 delegate: Item {
-                    id: entry
+                    id: src
                     required property var modelData
-                    required property int index
-                    readonly property bool isHeader: entry.modelData.header !== undefined
-                    readonly property bool current: !entry.isHeader && entry.modelData.key === rail.host.currentCatalogKey
-                    objectName: (entry.isHeader || !rail.host.automationPrefix.length) ? ""
-                                : rail.host.automationPrefix + "DiscoverCatalog_" + rail._sanitise(entry.modelData.key)
-                    width: col.width
-                    height: entry.isHeader ? (entry.index === 0 ? 18 : 30) : 46
+                    readonly property bool current: src.modelData.name === rail.host.currentSource
+                    objectName: rail.host.automationPrefix.length
+                                ? rail.host.automationPrefix + "DiscoverSource_" + rail._sanitise(src.modelData.name) : ""
+                    width: rail.collapsed ? 44 : col.width
+                    height: 46
 
-                    Text {                                    // source heading
-                        visible: entry.isHeader
-                        anchors.left: parent.left; anchors.leftMargin: 12
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                        text: entry.isHeader ? entry.modelData.header : ""
-                        elide: Text.ElideRight
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 10
-                        font.letterSpacing: 2.8; font.capitalization: Font.AllUppercase
+                    // plate: hover .07, current .09 with the gold bar and its glow
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 12
+                        color: src.current ? Qt.rgba(1, 1, 1, 0.09)
+                             : srcAction.interactionActive ? Qt.rgba(1, 1, 1, 0.07) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 160 } }
                     }
-
-                    // the concept's .worldnav-item: plate, gold bar, icon 19 + label 14/600
-                    NavItemPlate { visible: !entry.isHeader; anchors.fill: parent; on: entry.current; hot: rowAction.interactionActive }
+                    Rectangle {                                  // glow (box-shadow 0 0 18px gold .32)
+                        visible: src.current
+                        x: (rail.collapsed ? -2 : -1) - 6; y: 4; width: 15; height: parent.height - 8; radius: 7
+                        color: Qt.rgba(240/255, 196/255, 74/255, 0.14)
+                    }
+                    Rectangle {                                  // the gold bar
+                        visible: src.current
+                        x: rail.collapsed ? -2 : -1; y: 10; width: 3; height: parent.height - 20; radius: 4
+                        color: theme.gold
+                    }
                     Row {
-                        visible: !entry.isHeader
-                        anchors.left: parent.left; anchors.leftMargin: 12
-                        anchors.right: parent.right; anchors.rightMargin: 12
+                        x: rail.collapsed ? (44 - 19) / 2 : 12
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 12
+                        // the addon's real icon: bundled logo, else its manifest logo, else its initial
                         AddonLogo {
                             anchors.verticalCenter: parent.verticalCenter
                             size: 19
                             radius: 5
-                            opacity: entry.current ? 1 : 0.78
-                            addonName: entry.isHeader ? "" : entry.modelData.group
+                            opacity: src.current ? 1 : 0.78
+                            addonId: src.modelData.addonId
+                            addonName: src.modelData.name
+                            manifestLogo: src.modelData.logo
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 19 - 12
-                            text: entry.isHeader ? "" : entry.modelData.title
+                            visible: rail._labelsShown
+                            width: col.width - 12 - 19 - 12 - 12
+                            // every entry is an addon: "The Movie Database Addon" reads "The Movie Database"
+                            text: String(src.modelData.name).replace(/\s+add-?on$/i, "")
                             elide: Text.ElideRight
-                            color: (entry.current || rowAction.interactionActive) ? theme.ink : theme.inkDim
+                            color: (src.current || srcAction.interactionActive) ? theme.ink : theme.inkDim
                             Behavior on color { ColorAnimation { duration: 160 } }
                             font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                         }
                     }
                     KeyboardAction {
-                        id: rowAction
-                        visible: !entry.isHeader
+                        id: srcAction
                         anchors.fill: parent
-                        accessibleName: entry.isHeader ? ""
-                            : "Catalogue " + entry.modelData.title + ", " + entry.modelData.group
-                              + (entry.current ? ", selected" : "")
+                        accessibleName: "Source " + src.modelData.name + (src.current ? ", selected" : "")
                         focusRadius: 12
                         focusOnPointer: false   // the gold bar marks the choice; no ring on a click
-                        onTriggered: if (!entry.current) rail.host.selectCatalog(entry.modelData.key)
+                        onTriggered: rail.host.selectSource(src.modelData.name)
                     }
                 }
             }
@@ -334,30 +254,6 @@ Item {
             focusRadius: 14
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed
-        }
-    }
-
-    // one plate for both item kinds: hover .07, current .09 with the gold bar and its glow
-    component NavItemPlate: Item {
-        id: plate
-        property bool on: false
-        property bool hot: false
-        property real barX: -1
-        Rectangle {
-            anchors.fill: parent
-            radius: 12
-            color: plate.on ? Qt.rgba(1, 1, 1, 0.09) : plate.hot ? Qt.rgba(1, 1, 1, 0.07) : "transparent"
-            Behavior on color { ColorAnimation { duration: 160 } }
-        }
-        Rectangle {                                          // glow (box-shadow 0 0 18px gold .32)
-            visible: plate.on
-            x: plate.barX - 6; y: 4; width: 15; height: plate.height - 8; radius: 7
-            color: Qt.rgba(240/255, 196/255, 74/255, 0.14)
-        }
-        Rectangle {                                          // the gold bar
-            visible: plate.on
-            x: plate.barX; y: 10; width: 3; height: plate.height - 20; radius: 4
-            color: theme.gold
         }
     }
 }

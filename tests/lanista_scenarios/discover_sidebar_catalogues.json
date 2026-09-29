@@ -1,6 +1,6 @@
 {
  "name": "discover-sidebar-catalogues",
- "comment": "Discover sidebar plan Slice 2 (Theatre): the rail starts closed and the edge toggle opens it, it lists catalogues grouped by source, one click switches the wall, one click switches Movie -> Series and back (each type keeps its catalogue), the rail holds its pinned line while the wall scrolls, and Discover keeps catalogue + type across a world round trip. Run with --seed tests/lanista-seeds/discover-sidebar-addons-v1 (Cinemeta + Torrent Catalogs); a fresh profile has only one Theatre catalogue per type. Not driven here: opening a title and Back (card names are live ids), which is part of the human-witnessed pass.",
+ "comment": "Discover sidebar Slice 2 as redefined by Hemanth 2026-09-30 (Theatre): the rail lists the sources (addons) with their icons and starts closed; one click on a source switches the wall to its first category; the category picker (top right) lists only that source's categories; the filter dropdown offers the category's options (The Movie Database's Language needs the store to keep and refresh manifest options - native build required); the type lens stays above the wall; the rail pins and the docked tab bar moves right of it. Run with --seed tests/lanista-seeds/discover-sidebar-addons-v1. Not driven here: opening a title and Back (card names are live ids).",
  "steps": [
   {
    "cmd": "ping",
@@ -132,7 +132,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "rail lists both sources for Movie",
+   "label": "the rail lists the sources (addons), not their categories",
    "payload": {
     "object": "theatreDiscoverSidebar",
     "props": [
@@ -142,14 +142,34 @@
    "expect": [
     {
      "path": "props.automationRows",
-     "op": "==",
-     "value": "#Cinemeta\nhttps://cinemeta-catalogs.strem.io/top/manifest.json|movie|top\n#Torrent Catalogs\nhttps://torrent-catalogs.strem.fun/manifest.json|movie|top-movies"
+     "op": "contains",
+     "value": "Cinemeta"
+    },
+    {
+     "path": "props.automationRows",
+     "op": "contains",
+     "value": "Torrent Catalogs"
+    },
+    {
+     "path": "props.automationRows",
+     "op": "contains",
+     "value": "Streaming Catalogs"
+    },
+    {
+     "path": "props.automationRows",
+     "op": "contains",
+     "value": "The Movie Database Addon"
+    },
+    {
+     "path": "props.automationRows",
+     "op": "matches",
+     "value": "^[^|]+$"
     }
    ]
   },
   {
    "cmd": "qml-get",
-   "label": "starting catalogue; the dropdown is gone (one legacy picker left: the filter picker)",
+   "label": "starting catalogue; both pickers present (categories + filters)",
    "payload": {
     "object": "theatreDiscoverBrowser",
     "props": [
@@ -166,13 +186,13 @@
     {
      "path": "props.automationLegacyPickerCount",
      "op": "==",
-     "value": "1"
+     "value": "2"
     }
    ]
   },
   {
    "cmd": "qml-get",
-   "label": "summary line names the catalogue; grab: rail closed at rest",
+   "label": "summary names the catalogue; grab: at rest",
    "payload": {
     "object": "theatreDiscoverSummary",
     "props": [
@@ -197,7 +217,7 @@
   },
   {
    "cmd": "ui-scroll",
-   "label": "bring the rail's rows on screen (dy -360 = 504 px)",
+   "label": "bring the rail beside the wall (dy -360)",
    "payload": {
     "target": "theatreWorldScroll",
     "dy": -360
@@ -205,7 +225,7 @@
   },
   {
    "cmd": "ui-wait-for",
-   "label": "the rail reached its pinned line under the docked tab bar",
+   "label": "the rail reached its pinned line",
    "payload": {
     "object": "theatreDiscoverSidebar",
     "prop": "automationSidebarPinned",
@@ -222,23 +242,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "record the page offset",
-   "payload": {
-    "object": "theatreWorldScroll",
-    "props": [
-     "contentY"
-    ]
-   },
-   "expect": [
-    {
-     "path": "props.contentY",
-     "op": "exists"
-    }
-   ]
-  },
-  {
-   "cmd": "qml-get",
-   "label": "the rail starts closed (52 px strip); grab: closed strip beside the wall",
+   "label": "the rail starts closed (52 px strip); grab",
    "payload": {
     "object": "theatreDiscoverSidebar",
     "props": [
@@ -268,60 +272,42 @@
    ]
   },
   {
-   "cmd": "ui-click",
-   "label": "open it with the edge toggle",
+   "cmd": "qml-get",
+   "label": "posters at the Discover wall size: seven across with the rail closed",
    "payload": {
-    "target": "theatreDiscoverSidebarCollapse"
-   }
-  },
-  {
-   "cmd": "ui-wait-for",
-   "label": "the rail is open (184 px)",
-   "payload": {
-    "object": "theatreDiscoverSidebar",
-    "prop": "width",
-    "value": 184,
-    "timeout_ms": 3000
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "_galleryColumnCountForTest",
+     "_galleryDelegateWidthForTest"
+    ]
    },
    "expect": [
     {
-     "path": "matched",
+     "path": "props._galleryColumnCountForTest",
      "op": "==",
-     "value": "true"
-    }
-   ]
-  },
-  {
-   "cmd": "ui-wait-for",
-   "label": "the docked tab bar moved right of the rail (54 margin + 184 + 28)",
-   "payload": {
-    "object": "theatreTabDock",
-    "prop": "x",
-    "value": 266,
-    "timeout_ms": 3000
-   },
-   "expect": [
+     "value": "7"
+    },
     {
-     "path": "matched",
-     "op": "==",
-     "value": "true"
+     "path": "props._galleryDelegateWidthForTest",
+     "op": "<=",
+     "value": "140"
     }
    ]
   },
   {
    "cmd": "ui-click",
-   "label": "one click on the second catalogue",
+   "label": "one click on The Movie Database's icon (closed strip)",
    "payload": {
-    "target": "theatreDiscoverCatalog_https___torrent_catalogs_strem_fun_manifest_json_movie_top_movies"
+    "target": "theatreDiscoverSource_The_Movie_Database_Addon"
    }
   },
   {
    "cmd": "ui-wait-for",
-   "label": "the wall switched to it",
+   "label": "the wall switched to its first category",
    "payload": {
     "object": "theatreDiscoverBrowser",
     "prop": "automationCatalogKey",
-    "value": "https://torrent-catalogs.strem.fun/manifest.json|movie|top-movies",
+    "value": "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json|movie|tmdb.top",
     "timeout_ms": 10000
    },
    "expect": [
@@ -350,12 +336,70 @@
    ]
   },
   {
-   "cmd": "qml-get",
-   "label": "summary line follows; grab: after switching catalogue",
+   "cmd": "ui-click",
+   "label": "open the rail with the edge toggle",
    "payload": {
-    "object": "theatreDiscoverSummary",
+    "target": "theatreDiscoverSidebarCollapse"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail is open (240 px)",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "prop": "width",
+    "value": 240,
+    "timeout_ms": 3000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the docked tab bar sits right of the rail (54 + 240 + 28)",
+   "payload": {
+    "object": "theatreTabDock",
+    "prop": "x",
+    "value": 322,
+    "timeout_ms": 3000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "six across with the rail open",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
     "props": [
-     "text"
+     "_galleryColumnCountForTest"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props._galleryColumnCountForTest",
+     "op": "==",
+     "value": "6"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "grab: rail open, sources with their icons",
+   "payload": {
+    "object": "theatreDiscoverSidebar",
+    "props": [
+     "automationRows"
     ],
     "grab": {
      "target": "window",
@@ -364,9 +408,8 @@
    },
    "expect": [
     {
-     "path": "props.text",
-     "op": "==",
-     "value": "Top seeded"
+     "path": "props.automationRows",
+     "op": "exists"
     },
     {
      "path": "grabPath",
@@ -376,7 +419,7 @@
   },
   {
    "cmd": "ui-scroll",
-   "label": "back to the top: the type lens scrolls with the page (it sits above the wall)",
+   "label": "back to the top",
    "payload": {
     "target": "theatreWorldScroll",
     "dy": 1200
@@ -384,7 +427,7 @@
   },
   {
    "cmd": "ui-wait-for",
-   "label": "page back at the top",
+   "label": "page at the top",
    "payload": {
     "object": "theatreWorldScroll",
     "prop": "contentY",
@@ -396,6 +439,179 @@
      "path": "matched",
      "op": "==",
      "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "bring the masthead just under the tab bar (dy -240 = 336 px)",
+   "payload": {
+    "target": "theatreWorldScroll",
+    "dy": -240
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "scroll settled",
+   "payload": {
+    "object": "theatreWorldScroll",
+    "prop": "contentY",
+    "value": 336,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "open the category picker (top right)",
+   "payload": {
+    "target": "theatreDiscoverCategoryPicker"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the picker is open",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "catalogMenuOpen",
+    "value": true,
+    "timeout_ms": 3000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "grab: the picker lists The Movie Database's categories",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "catalogMenuOpen"
+    ],
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "props.catalogMenuOpen",
+     "op": "==",
+     "value": "true"
+    },
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "pick Language",
+   "payload": {
+    "target": "theatreDiscoverCategory_https___94c8cb9f702d_tmdb_addon_baby_beamup_club_manifest_json_movie_tmdb_language"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the wall switched to Language",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationCatalogKey",
+    "value": "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json|movie|tmdb.language",
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "Language's first page settled",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "summary line reads Language; the picker closed",
+   "payload": {
+    "object": "theatreDiscoverSummary",
+    "props": [
+     "text"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.text",
+     "op": "==",
+     "value": "Language"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "Language offers its options in the filter dropdown (store keeps and refreshes manifest options)",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "filterHasOptions",
+    "value": true,
+    "timeout_ms": 20000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "grab: Language with its filter dropdown",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "filterPickerLabel"
+    ],
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "props.filterPickerLabel",
+     "op": "exists"
+    },
+    {
+     "path": "grabPath",
+     "op": "exists"
     }
    ]
   },
@@ -420,28 +636,6 @@
      "path": "matched",
      "op": "==",
      "value": "true"
-    }
-   ]
-  },
-  {
-   "cmd": "qml-get",
-   "label": "the catalogue list swapped to Series",
-   "payload": {
-    "object": "theatreDiscoverSidebar",
-    "props": [
-     "automationRows"
-    ]
-   },
-   "expect": [
-    {
-     "path": "props.automationRows",
-     "op": "contains",
-     "value": "https://torrent-catalogs.strem.fun/manifest.json|series|top-series"
-    },
-    {
-     "path": "props.automationRows",
-     "op": "contains",
-     "value": "|series|top"
     }
    ]
   },
@@ -488,7 +682,7 @@
   },
   {
    "cmd": "qml-get",
-   "label": "Movie kept its catalogue (per-type memory)",
+   "label": "Movie kept The Movie Database's Language (per-type memory)",
    "payload": {
     "object": "theatreDiscoverBrowser",
     "props": [
@@ -499,13 +693,13 @@
     {
      "path": "props.automationCatalogKey",
      "op": "==",
-     "value": "https://torrent-catalogs.strem.fun/manifest.json|movie|top-movies"
+     "value": "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json|movie|tmdb.language"
     }
    ]
   },
   {
    "cmd": "ui-scroll",
-   "label": "scroll the wall down four notches (~670 px; Top seeded is a short wall, and past its end the rail rides up with it by design)",
+   "label": "scroll the wall down (dy -480)",
    "payload": {
     "target": "theatreWorldScroll",
     "dy": -480
@@ -534,9 +728,7 @@
    "payload": {
     "object": "theatreDiscoverSidebar",
     "props": [
-     "automationSidebarPinned",
-     "y",
-     "height"
+     "automationSidebarPinned"
     ],
     "grab": {
      "target": "window",
@@ -575,7 +767,7 @@
    "payload": {
     "object": "theatreDiscoverBrowser",
     "prop": "automationCatalogKey",
-    "value": "https://torrent-catalogs.strem.fun/manifest.json|movie|top-movies",
+    "value": "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json|movie|tmdb.language",
     "timeout_ms": 15000
    },
    "expect": [
@@ -583,23 +775,6 @@
      "path": "matched",
      "op": "==",
      "value": "true"
-    }
-   ]
-  },
-  {
-   "cmd": "qml-get",
-   "label": "and its type",
-   "payload": {
-    "object": "theatreDiscoverBrowser",
-    "props": [
-     "automationType"
-    ]
-   },
-   "expect": [
-    {
-     "path": "props.automationType",
-     "op": "==",
-     "value": "movie"
     }
    ]
   },

@@ -557,7 +557,7 @@ function discoverBrowsable(catalog) {
     return true;
 }
 
-// [{extName, transportUrl, type, catalogId, title, extra, genres, core}] for one
+// [{extName, extId, logo, transportUrl, type, catalogId, title, extra, genres, core}] for one
 // content type, in installed (ask) order. Used by DiscoverApi only.
 function discoverCatalogSpecs(installedList, contentType) {
     var out = [];
@@ -572,6 +572,8 @@ function discoverCatalogSpecs(installedList, contentType) {
             if (!discoverBrowsable(c)) continue;
             out.push({
                 extName: m.name || e.id,
+                extId: m.id || e.id || "",
+                logo: m.logo || "",
                 transportUrl: String(e.transportUrl),
                 type: c.type,
                 catalogId: String(c.id),

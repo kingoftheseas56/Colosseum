@@ -52,6 +52,7 @@ var TABLE = [
     { file: "dc.png",          m: function (id, n) { return id.indexOf("dcaddon") >= 0 || /\bdc universe\b/i.test(n); } },
     { file: "morelikethis.png", m: function (id, n) { return id.indexOf("morelikethis") >= 0 || /more.?like.?this/i.test(n); } },
     { file: "streaming-catalogs.png", m: function (id, n) { return id.indexOf("streaming-catalogs") >= 0 || /streaming.catalog/i.test(n); } },
+    { file: "tmdb.png",        m: function (id, n) { return id === "tmdb-addon" || id.indexOf("tmdb") >= 0 || /the movie database/i.test(n); } },
 
     // ---- subtitles / details / extras ----
     { file: "opensubtitles.png", m: function (id, n) { return id.indexOf("opensubtitles") >= 0 || /opensubtitles/i.test(n); } },

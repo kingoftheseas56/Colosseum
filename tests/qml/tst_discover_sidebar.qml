@@ -49,7 +49,8 @@ TestCase {
 
     property var singleTypeAdapter: ({
         types: function() { return [{ key: "book", label: "Books" }] },
-        catalogs: function(type) { return [{ key: "book-top", title: "Top", section: "Biblio", attribution: "Biblio" }] },
+        catalogs: function(type) { return [{ key: "book-top", title: "Top", section: "Biblio", attribution: "Biblio",
+                                             sourceName: "Apple Books", addonId: "colosseum.catalogue.applebooks" }] },
         defaultCatalog: function(type) { return "book-top" },
         filters: function() { return [] },
         resolvePin: function() { return { missing: true } },
@@ -112,8 +113,8 @@ TestCase {
     }
 
     function test_slice0_legacy_pickers_are_counted() {
-        // Slice 2 removed the catalogue popup; Slice 3 removes the filter picker.
-        compare(browser.automationLegacyPickerCount, 1)
+        // Both pickers stay (Hemanth, 2026-09-30): categories top right, filters in their dropdown.
+        compare(browser.automationLegacyPickerCount, 2)
     }
 
     // ── Slice 1: one filter per group; the source decides combine vs replace ──
@@ -162,11 +163,12 @@ TestCase {
         compare(browser.automationFilterSummary, "Formats=omnibus", "the old picker replaces the selection")
     }
 
-    // ── Slice 2: the rail — catalogues grouped by source; the type lens stays above the wall ──
+    // ── Slice 2: the rail lists the SOURCES; a source's categories live in the picker (top right);
+    // a category's genres in the filter dropdown; the type lens stays above the wall ──
     function openRail() {
         var rail = findChild(browser, "stubDiscoverSidebar")
         rail.collapsed = false
-        tryCompare(rail, "width", 184, 2000)
+        tryCompare(rail, "width", 240, 2000)
         return rail
     }
 
@@ -177,56 +179,61 @@ TestCase {
         verify(rail.collapsed, "every Discover starts with the rail closed")
         compare(rail.width, 52)
         compare(fresh.contentLeft, 52 + 28)
-        verify(findChild(fresh, "freshDiscoverSidebarSource_Cinemeta") !== null, "closed: one logo per source")
+        verify(findChild(fresh, "freshDiscoverSource_Cinemeta") !== null, "closed: one icon per source")
         mouseClick(findChild(fresh, "freshDiscoverSidebarCollapse"))
         verify(!rail.collapsed)
-        tryCompare(rail, "width", 184, 2000)
-        compare(fresh.contentLeft, 184 + 28)
+        tryCompare(rail, "width", 240, 2000)
+        compare(fresh.contentLeft, 240 + 28)
         mouseClick(findChild(fresh, "freshDiscoverSidebarCollapse"))
         tryCompare(rail, "width", 52, 2000)
     }
 
-    function test_slice2_a_source_logo_opens_the_rail() {
-        var fresh = createTemporaryObject(browserComponent, win,
-            { width: 1100, height: 700, automationPrefix: "logo", adapter: testCase.stubAdapter })
-        var rail = findChild(fresh, "logoDiscoverSidebar")
-        mouseClick(findChild(fresh, "logoDiscoverSidebarSource_Streaming_Catalogs"))
-        verify(!rail.collapsed)
-    }
-
-    function test_slice2_rail_groups_catalogues_by_source_in_order() {
+    function test_slice2_rail_lists_sources_only() {
         var rail = openRail()
-        verify(rail.visible)
-        var r = rail.rows
-        compare(r.length, 5, "two source headers + three catalogues")
-        compare(r[0].header, "Cinemeta")
-        compare(r[1].key, "movie-popular")
-        compare(r[2].header, "Streaming Catalogs")
-        compare(r[3].key, "movie-netflix")
-        compare(r[4].key, "movie-hbo")
-        verify(findChild(browser, "stubDiscoverCatalog_movie_netflix") !== null)
+        compare(rail.automationRows, "Cinemeta
+Streaming Catalogs", "one row per source, in order")
+        compare(findChild(browser, "stubDiscoverCatalog_movie_netflix"), null, "no category rows in the rail")
+        verify(findChild(browser, "stubDiscoverSource_Cinemeta").current, "the current catalogue's source is lit")
     }
 
-    function test_slice2_clicking_a_catalogue_switches_the_wall_with_one_request() {
+    function test_slice2_a_source_click_switches_to_its_first_category() {
         openRail()
-        var row = findChild(browser, "stubDiscoverCatalog_movie_hbo")
-        verify(row !== null)
-        verify(!row.current)
         testCase.fetches = []
-        mouseClick(row)
-        compare(browser.currentCatalogKey, "movie-hbo")
+        mouseClick(findChild(browser, "stubDiscoverSource_Streaming_Catalogs"))
+        compare(browser.currentCatalogKey, "movie-netflix")
         compare(testCase.fetches.length, 1, "one page request per switch")
-        compare(testCase.fetches[0].catalogKey, "movie-hbo")
-        verify(row.current, "the chosen row carries the active state")
-        verify(!findChild(browser, "stubDiscoverCatalog_movie_popular").current)
-        compare(findChild(browser, "stubDiscoverSummary").text, "HBO Max", "the summary line names the catalogue")
-        mouseClick(row)
-        compare(testCase.fetches.length, 1, "clicking the current catalogue does not reload it")
+        compare(browser.currentSource, "Streaming Catalogs")
+        verify(findChild(browser, "stubDiscoverSource_Streaming_Catalogs").current)
+        mouseClick(findChild(browser, "stubDiscoverSource_Streaming_Catalogs"))
+        compare(testCase.fetches.length, 1, "clicking the current source does not reload it")
         browser.selectCatalog("movie-popular")
     }
 
-    function test_slice2_type_lens_above_the_wall_swaps_the_rail() {
-        openRail()
+    function test_slice2_the_category_picker_lists_the_current_sources_categories() {
+        browser.selectSource("Streaming Catalogs")
+        compare(browser.sourceCatalogs.length, 2)
+        compare(browser.sourceCatalogs[0].key, "movie-netflix")
+        compare(browser.sourceCatalogs[1].key, "movie-hbo")
+        verify(browser.categoryPickable)
+        mouseClick(findChild(browser, "stubDiscoverCategoryPicker"))
+        verify(browser.catalogMenuOpen)
+        var hbo = findChild(browser, "stubDiscoverCategory_movie_hbo")
+        verify(hbo !== null)
+        compare(findChild(browser, "stubDiscoverCategory_movie_popular"), null, "another source's category is not offered")
+        mouseClick(hbo)
+        compare(browser.currentCatalogKey, "movie-hbo")
+        verify(!browser.catalogMenuOpen)
+        compare(findChild(browser, "stubDiscoverSummary").text, "HBO Max")
+        browser.selectCatalog("movie-popular")
+        verify(!browser.categoryPickable, "a one-category source has nothing to pick")
+    }
+
+    function test_slice2_the_filter_dropdown_stays() {
+        var picker = findChild(browser, "discoverFilterPicker")
+        verify(picker !== null && picker.visible, "the catalogue's filters keep their own dropdown")
+    }
+
+    function test_slice2_type_lens_above_the_wall_swaps_the_sources() {
         var lens = findChild(browser, "stubDiscoverType_series")
         verify(lens !== null && lens.visible)
         var rail = findChild(browser, "stubDiscoverSidebar")
@@ -235,13 +242,20 @@ TestCase {
         verify(!inRail, "the type selector is not part of the sidebar")
         mouseClick(lens)
         compare(browser.currentType, "series")
-        verify(findChild(browser, "stubDiscoverCatalog_series_popular") !== null)
-        compare(findChild(browser, "stubDiscoverCatalog_movie_popular"), null)
+        compare(browser.currentCatalogKey, "series-popular")
+    }
+
+    // Tankoban/Biblio built-ins name their owning addon (Colosseum Grand Database, Apple Books)
+    function test_slice2_a_builtin_names_its_source_addon() {
+        var one = createTemporaryObject(browserComponent, win,
+            { width: 900, height: 600, automationPrefix: "books", adapter: testCase.singleTypeAdapter })
+        compare(one.currentSource, "Apple Books")
+        verify(findChild(one, "booksDiscoverSource_Apple_Books") !== null)
     }
 
     function test_slice2_content_sits_right_of_the_rail() {
-        var rail = openRail()
-        compare(browser.contentLeft, 184 + 28)
+        openRail()
+        compare(browser.contentLeft, 240 + 28)
         var wall = findChild(browser, "stubDiscoverWall")
         verify(wall.mapToItem(browser, 0, 0).x >= browser.contentLeft, "the wall starts right of the rail")
         verify(findChild(browser, "stubDiscoverType_movie").mapToItem(browser, 0, 0).x >= browser.contentLeft)

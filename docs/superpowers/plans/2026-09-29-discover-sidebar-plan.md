@@ -404,3 +404,22 @@ Append per-slice gate numbers, session ids, witness verdicts and status changes 
   `discover_sidebar_seams.json` 28/28 OK; `discover_sidebar_filter_regression.json` 49/49 on claude-scroll (the
   gate's flags there are all 16:00-17:45 profiling lines from earlier sessions on that profile, none from this run).
   Status: Implemented, verification pending (Hemanth's eyes).
+
+- 2026-09-30 — Slice 2 REDEFINED by Hemanth after `02127773` ("there really is no proper definition behind what
+  the sidebar is meant to do... understuff"). The definition now: the SIDEBAR lists the sources only (addons, plus
+  the built-in source named as its addon: Colosseum Grand Database for Tankoban, Apple Books for Biblio), by real
+  icon and name; one click switches the wall to that source's first category. The CATEGORY PICKER returns top right
+  ("Popular ▾") and lists only the current source's categories. The FILTER dropdown stays for genres/years/languages.
+  Rail widened to 240 (names fit; a trailing "Addon" is dropped from rail labels). Discover posters use a wall token
+  of 132 px: seven across with the rail closed, six open, in all three worlds. Root cause found for "Language with
+  no languages": `ExtensionsStore::slimManifest` discarded every extra's `options` and the catalog's `genres` since
+  install, so installed addons showed no filters; it now keeps them (`slimVersion` 2) and re-fetches rows saved in
+  the old shape once when the profile opens (live TMDB Language offers 72 languages). `tmdb.png` was bundled but not
+  mapped in `AddonLogos.js`; mapped. Sidebar row index for Movies/Shows/Anime, Manga/Comics and Biblio Explore is
+  the next piece (Hemanth: "an index to all the rows").
+  Gates: `tst_extensions_first_run` 23/23 (two new cases; negative control red), `tst_discover_sidebar` 18/18
+  (negative control red), G-keys green, harnesses as before (Biblio page's known red), JS contracts green.
+  Lanista (new build, TARGET_BUILD_OK): `discover_sidebar_catalogues.json` 51/51 twice (ds3c1/ds3c2) incl. category
+  picker, Language's filter options, 7/6 columns, dock x 322; `discover_sidebar_seams.json` 34/34 (three worlds'
+  source names, 7 columns); `discover_sidebar_filter_regression.json` 52/52 on claude-scroll (fresh-tag Biblio
+  catalogue empty as documented). WARNING_GATE_OK on all. Status: Implemented, verification pending (Hemanth's eyes).

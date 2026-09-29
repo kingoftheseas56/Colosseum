@@ -37,6 +37,9 @@ var BOOK_CATALOGS = [
 ];
 var BUILTIN_SECTION = "Biblio";
 var BUILTIN_ATTRIBUTION = "Biblio built-in catalogue";
+// The Discover sidebar lists sources as addons: the built-ins are Apple Books'.
+var BUILTIN_SOURCE = "Apple Books";
+var BUILTIN_SOURCE_ID = "colosseum.catalogue.applebooks";
 var EXTENSIONS_SECTION = "From Your Extensions";
 // the shell's default offlineWarning text (DiscoverBrowser.qml) — matched EXACTLY so a stale
 // snapshot's offline notice actually trips the shell's showOfflineNotice banner.
@@ -77,7 +80,8 @@ function extensionCatalogs(extensions) {
                 title: c.name || m.name || "Catalog",
                 sourceKind: "extension",
                 section: EXTENSIONS_SECTION,
-                attribution: m.name || e.id || "Extension"
+                attribution: m.name || e.id || "Extension",
+                addonId: m.id || e.id || "", logo: m.logo || ""   // the sidebar draws the addon's real icon
             });
         }
     }
@@ -92,7 +96,8 @@ function catalogsForType(extensions) {
             title: BOOK_CATALOGS[i].title,
             sourceKind: BOOK_CATALOGS[i].sourceKind,
             section: BUILTIN_SECTION,
-            attribution: BUILTIN_ATTRIBUTION
+            attribution: BUILTIN_ATTRIBUTION,
+            sourceName: BUILTIN_SOURCE, addonId: BUILTIN_SOURCE_ID
         });
     }
     var exts = extensionCatalogs(extensions || []);
