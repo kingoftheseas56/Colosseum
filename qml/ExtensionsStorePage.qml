@@ -46,8 +46,11 @@ Item {
         root.busy = next
     }
     function activate(a) {
-        if (!a || root.isInstalled(a) || root.busy[a.slug]) return
-        if (a.setupRequired) { setup.addon = a; return }
+        if (!a || root.busy[a.slug]) return
+        // An add-on with a setup page opens it in-app, installed or not: a bare install of
+        // Comet/MediaFusion finds nothing, and an installed one is set up again from its card.
+        if (a.configurable) { setup.addon = a; return }
+        if (root.isInstalled(a)) return
         root.setBusy(a.slug, true)
         Extensions.install(a.manifestUrl)
     }
@@ -85,13 +88,24 @@ Item {
         function onChanged() { root.revision++ }
         function onInstallFinished(id, name) {
             root.busy = ({})
-            if (setup.open) setup.addon = null
+            if (setup.open) {
+                // A set-up link is a new row beside the old bare one; the bare row only
+                // errors (Comet answers 403), so it goes once the configured one is in.
+                var bare = Extensions.normalizeUrl(setup.addon.manifestUrl)
+                if (setup.pendingUrl.length && setup.pendingUrl !== bare && Extensions.isInstalled(bare))
+                    Extensions.removeInstance(bare)
+                setup.addon = null
+            }
         }
         function onInstallFailed(url, reason) {
             root.busy = ({})
             if (setup.open) setup.status = "Couldn't add it: " + reason
+            else { root.installError = "Couldn't add it: " + reason; installErrorTimer.restart() }
         }
     }
+    // A direct install that fails says so (it used to clear the busy badge and nothing else).
+    property string installError: ""
+    Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
 
     // The Store's own wallpaper (Hemanth's pick, 2026-09-28): the Jolly Roger, under a dark veil
     // so the cards read over it. It stays put while the board scrolls, like a world wallpaper.
@@ -197,12 +211,34 @@ Item {
                           else Qt.callLater(root.takeKeyboardFocus)
     }
 
+    Rectangle {
+        visible: root.installError.length > 0
+        z: 15
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 40
+        width: Math.min(errorText.implicitWidth + 44, parent.width - 120); height: 44; radius: 22
+        color: Qt.rgba(0.045, 0.05, 0.075, 0.96)
+        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
+        Text {
+            id: errorText
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width - 44)
+            elide: Text.ElideRight
+            text: root.installError
+            color: theme.ink
+            font.family: theme.ui; font.pixelSize: 13
+        }
+    }
+
     ExtensionsSetupSheet {
         id: setup
         anchors.fill: parent
         z: 20
         onCloseRequested: setup.addon = null
-        onInstallRequested: (url) => Extensions.install(url)
+        onInstallRequested: (url) => {
+            setup.pendingUrl = Extensions.normalizeUrl(url)
+            Extensions.install(url)
+        }
     }
 
     // Tankoyomi's own settings (source languages and providers), from its House tile.

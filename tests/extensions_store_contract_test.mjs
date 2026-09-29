@@ -51,6 +51,9 @@ check(!shown.includes('Blue Film') && names(api.rows(all, true)).includes('Blue 
 check(all.find(a => a.name === 'MediaFusion').logo.startsWith('https://'), 'http logos are upgraded to https');
 check(all.find(a => a.name === 'Comet | ElfHosted').title === 'Comet', 'the ElfHosted suffix is dropped from titles');
 check(all.find(a => a.name === 'Setup Me').setupRequired === true, 'configurationRequired marks an add-on as Set up');
+check(all.find(a => a.name === 'Setup Me').configurable === true, 'configurationRequired also opens the setup page');
+check(api.normalize(row('Opt Setup', { hints: { configurable: true } })).configurable === true,
+  'an optional-setup add-on (Comet, MediaFusion) opens its setup page instead of a bare install');
 const anime = api.rows(all, false).find(r => r.title === 'Anime');
 check(anime && anime.items.some(a => a.name === 'AnimeOnly') && !anime.items.some(a => a.name === 'MediaFusion'),
   'the Anime row takes focused add-ons, not general sources');

@@ -69,6 +69,9 @@ function normalize(raw) {
         manifestUrl: String(raw.manifestUrl || ""),
         configureUrl: String(raw.configureUrl || ""),
         setupRequired: hints.configurationRequired === true,
+        // Has its own setup page (Stremio's "Configure"). Comet, MediaFusion, AIOStreams et al.
+        // only find streams once set up, so the Store opens that page instead of a bare install.
+        configurable: hints.configurable === true || hints.configurationRequired === true,
         adult: hints.adult === true
     }
 }
