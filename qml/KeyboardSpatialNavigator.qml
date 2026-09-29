@@ -201,12 +201,16 @@ Item {
     }
 
     function _isFocusable(item, includeOffscreen) {
-        if (!item || item === nav || item === nav.root
-                || !(includeOffscreen ? nav._eligible(item) : nav._landingEligible(item)))
+        if (!item || item === nav || item === nav.root)
             return false
-        if (item.focusPolicy !== undefined)
-            return item.focusPolicy !== Qt.NoFocus
-        return item.activeFocusOnTab === true
+        // The focus policy is a property read; eligibility maps geometry through every clipping
+        // ancestor. Most of a page (text, images, plates) is never focusable, so ask the cheap
+        // question first (~36k geometry checks per key press on Tankoban Comics before).
+        var focusable = item.focusPolicy !== undefined ? item.focusPolicy !== Qt.NoFocus
+                                                       : item.activeFocusOnTab === true
+        if (!focusable)
+            return false
+        return includeOffscreen ? nav._eligible(item) : nav._landingEligible(item)
     }
 
     function _appendFocusable(node, result, includeOffscreen) {
@@ -489,7 +493,23 @@ Item {
         if (cache && cache.has(flick))
             return cache.get(flick)
         var found = Viewport.controllerFor(flick) || null
-        if (!found) {
+        if (!found && cache) {
+            // One walk indexes every controller in the tree; later misses are answered by it.
+            if (!cache.has(nav)) {
+                cache.set(nav, true)
+                var all = [nav.root]
+                for (var k = 0; k < all.length; ++k) {
+                    var n = all[k]
+                    if (n !== nav && n.flick && n.lineStep !== undefined
+                            && n.arrowScrolling !== undefined && !cache.has(n.flick))
+                        cache.set(n.flick, n)
+                    var kids = n.children || []
+                    for (var j = 0; j < kids.length; ++j)
+                        all.push(kids[j])
+                }
+            }
+            found = cache.has(flick) ? cache.get(flick) : null
+        } else if (!found) {
             var pending = [nav.root]
             for (var head = 0; head < pending.length && !found; ++head) {
                 var node = pending[head]
