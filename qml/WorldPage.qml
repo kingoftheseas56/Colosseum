@@ -181,4 +181,47 @@ Item {
     // its keyboard face so nested collection boundaries can spend their
     // directional budget on this viewport before exporting to another route.
     KeyboardScrollController { id: pageKeys; flick: page; glide: pageGlide }
+
+    // ---- the docked tab bar (world-feel Slice 8, the halfway mock's dock) ----
+    // The world's own tab bar scrolls with the page. Once it slides under the TopBar, this
+    // compact copy pins at the top of the board and the in-flow bar keeps its space, hidden.
+    // A world opts in by pointing tabBarSource at its in-flow tab bar.
+    property Item tabBarSource: null
+    readonly property bool tabsDocked: {
+        page.contentY;       // re-evaluate as the page scrolls
+        page.contentHeight;  // …and as content above the bar changes size
+        if (!world.tabBarSource || !world.tabBarSource.visible || !world.lifecycleActive)
+            return false
+        return world.tabBarSource.mapToItem(world, 0, 0).y < page.y
+    }
+    Binding {
+        target: world.tabBarSource
+        property: "opacity"
+        value: 0
+        when: world.tabsDocked && world.tabBarSource !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    WorldTabBar {
+        id: tabDock
+        objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
+        tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
+        compact: true
+        anchors.left: parent.left; anchors.right: parent.right
+        y: page.y + 4
+        visible: world.tabsDocked
+        backdrop: world.backdrop
+        track: page.contentY
+        tabModel: world.tabBarSource ? world.tabBarSource.tabModel : []
+        currentTab: world.tabBarSource ? world.tabBarSource.currentTab : ""
+        onTabRequested: (tab) => { if (world.tabBarSource) world.tabBarSource.tabRequested(tab) }
+    }
+    // Keyboard focus follows the bar the user can see when it docks or undocks.
+    onTabsDockedChanged: {
+        var from = world.tabsDocked ? world.tabBarSource : tabDock
+        var to = world.tabsDocked ? tabDock : world.tabBarSource
+        if (from && to && from.activeFocus) {
+            to.keyboardIndex = from.keyboardIndex
+            to.forceActiveFocus(Qt.OtherFocusReason)
+        }
+    }
 }

@@ -26,6 +26,7 @@ import "VaultApi.js" as VaultApi
 WorldPage {
     id: biblio
     medium: "Biblio"
+    tabBarSource: biblioTabBarItem          // docks under the TopBar when scrolled past (WorldPage)
 
     // Discover is always the entry tab — never restored from settings, every fresh load of
     // Biblio starts here (plan interface: "no persistence of which tab was last open").
@@ -135,6 +136,7 @@ WorldPage {
     // 2026-08-06-biblio-library-tab-theatre-parity.md, Slice 2): one Collection entry → one card.
     WorldTabBar {
         objectName: "biblioTabBar"
+        id: biblioTabBarItem
         // Biblio-scoped pill stem: worldTab_<key> collides with Tankoban's Library/Manga/Comics
         // pills when the warmer pre-builds Tankoban's world (resolveTarget's DFS walks hidden
         // worlds too) — biblioTab_<key> is unique to this bar. See WorldTabBar.tabPrefix.

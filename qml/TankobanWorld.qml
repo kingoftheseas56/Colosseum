@@ -19,6 +19,7 @@ WorldPage {
     id: tanko
     objectName: "tankobanWorld"
     medium: "Tankoban"
+    tabBarSource: tankobanTabBarItem          // docks under the TopBar when scrolled past (WorldPage)
     initialFocusName: "tankobanFeaturedCarousel"
 
     // Bubbles a tap on a Your Collection tile (from either tab) up to Main's openCollectionEntry door.
@@ -241,6 +242,7 @@ WorldPage {
     // (Brotherhood#1) — TB-001 slice: mixed wall + Details routing only.
     WorldTabBar {
         objectName: "tankobanTabBar"
+        id: tankobanTabBarItem
         tabPrefix: "tankobanTab"
         backdrop: tanko.backdrop
         track: tanko.viewportContentY

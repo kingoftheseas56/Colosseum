@@ -16,6 +16,7 @@ WorldPage {
     id: theatre
     objectName: "theatreWorld"
     medium: "Theatre"
+    tabBarSource: theatreTabBar          // docks under the TopBar when scrolled past (WorldPage)
 
     // Theatre carries the full tile object (Cinemeta id + type) up to Main for detail routing.
     signal theatreItemRequested(var item)
@@ -223,6 +224,7 @@ WorldPage {
     }
 
     TheatreTabBar {
+        id: theatreTabBar
         backdrop: theatre.backdrop
         track: theatre.viewportContentY
         currentTab: theatre.activeTab

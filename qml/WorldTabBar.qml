@@ -12,6 +12,8 @@ Item {
     // The world's scroll offset. The glass re-samples the wallpaper behind the bar as the page
     // scrolls; without it the sample stayed at the bar's first position (Glass "track").
     property real track: 0
+    // The docked copy WorldPage pins under the TopBar is the mock's smaller bar.
+    property bool compact: false
     property var tabModel: []            // [{ key, label }, …]
     property string currentTab: ""
     // Stem for each pill's objectName: "<tabPrefix>_<key>". Defaults to the historical
@@ -67,18 +69,18 @@ Item {
     }
 
     width: parent ? parent.width : 900
-    height: 58
+    height: tabs.compact ? 50 : 58
 
     Theme { id: theme }
 
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width, 160 * Math.max(1, tabs.tabModel.length))
-        height: 54
+        width: Math.min(parent.width, (tabs.compact ? 130 : 160) * Math.max(1, tabs.tabModel.length))
+        height: tabs.compact ? 46 : 54
         backdrop: tabs.backdrop
         track: tabs.track
-        radius: 18
+        radius: tabs.compact ? 15 : 18
         tint: 0.08
         scrim: 0.18
 
@@ -104,7 +106,7 @@ Item {
 
                     width: (parent.width - 6 * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
                     height: parent.height
-                    radius: 14
+                    radius: tabs.compact ? 11 : 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
                     border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
                     border.color: Qt.rgba(1, 1, 1, 0.10)
@@ -116,7 +118,7 @@ Item {
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: tabs.compact ? 13 : 14
                         font.weight: Font.DemiBold
                     }
 
