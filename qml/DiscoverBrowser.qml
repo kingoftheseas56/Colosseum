@@ -55,6 +55,14 @@ Item {
     // default: Theatre/Tankoban keep today's fill-to-width gallery layout unless they opt in too.
     // No effect outside the gallery profile (classic is untouched either way).
     property bool fixedGalleryWidth: false
+    // ── one scroller (world-feel Slice 7) ──
+    // Given the host world's page Flickable, the wall stops scrolling inside its own box: the
+    // browser grows to the wall's full content height (flowHeight) so the world's single scroll
+    // moves through it, and the GridView becomes a window over its content that follows the page
+    // viewport, so only rows near the viewport are built. Harnesses leave it null (self-scrolling).
+    property Flickable pageFlick: null
+    readonly property bool pageFlow: browser.pageFlick !== null
+    readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 24
     // Test-only introspection: the actual rendered delegate box, so an offscreen harness can prove
     // the geometry contract without a screenshot or a live pointer. Production code never reads these.
     readonly property int _galleryDelegateWidthForTest: wall ? wall.cellWidth - 14 : 0
@@ -785,15 +793,36 @@ Item {
 
     // ─── the wall — full-width Stremio grid (no side pane; a click opens the title) ───
     Item {
+        id: wallHost
         anchors.top: noticeBar.visible ? noticeBar.bottom
                    : filterRow.visible ? filterRow.bottom
                    : masthead.bottom
         anchors.topMargin: 18
-        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.bottom: browser.pageFlow ? undefined : parent.bottom
+        height: browser.pageFlow ? flowContentHeight : implicitHeight
+
+        // Page flow: every row's height, and the window of it the page viewport currently shows.
+        readonly property real flowContentHeight:
+            Math.max(1, Math.ceil(wall.count / Math.max(1, wall.columnCount))) * wall.cellHeight
+        readonly property real _visibleTop: {
+            if (!browser.pageFlow)
+                return 0
+            browser.pageFlick.contentY; browser.pageFlick.contentHeight; wallHost.y   // dependencies
+            return browser.pageFlick.contentY
+                   - wallHost.mapToItem(browser.pageFlick.contentItem, 0, 0).y
+        }
+        readonly property real windowHeight: browser.pageFlow
+            ? Math.max(wall.cellHeight, Math.min(flowContentHeight, browser.pageFlick.height)) : height
+        readonly property real windowTop: browser.pageFlow
+            ? Math.max(0, Math.min(_visibleTop, flowContentHeight - windowHeight)) : 0
 
         GridView {
             id: wall
-            anchors.top: parent.top; anchors.bottom: parent.bottom
+            anchors.top: browser.pageFlow ? undefined : parent.top
+            anchors.bottom: browser.pageFlow ? undefined : parent.bottom
+            y: browser.pageFlow ? wallHost.windowTop : 0
+            height: browser.pageFlow ? wallHost.windowHeight : parent.height
             // Always left+right anchored (never swapped for horizontalCenter — mixing anchor
             // TYPES on a toggle is a real Qt anchor conflict, confirmed at runtime, not just a
             // style choice). Default: zero margins, fills the host's full width exactly as
@@ -808,7 +837,9 @@ Item {
             anchors.rightMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
                 ? Math.max(0, Math.ceil((parent.width - columnCount * cellWidth) / 2)) : 0
             clip: true
-            interactive: true
+            // In page flow the world's page owns the wheel and the scroll; the wall only follows.
+            interactive: !browser.pageFlow
+            highlightFollowsCurrentItem: !browser.pageFlow
             pixelAligned: false
             boundsBehavior: Flickable.StopAtBounds
             focus: true
@@ -856,7 +887,16 @@ Item {
             }
             ListModel { id: wallCells }
             model: wallCells
-            ScrollBar.vertical: HouseScrollBar { flick: wall }
+            ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !browser.pageFlow }
+            Binding {
+                target: wall
+                property: "contentY"
+                value: wall.originY + wallHost.windowTop
+                when: browser.pageFlow
+                restoreMode: Binding.RestoreNone
+            }
+            // Arrow keys park the focused row under the docked tab bar, like the mock.
+            onCurrentIndexChanged: if (browser.pageFlow && browser.keyboardMode) browser.revealCell(wall.currentIndex)
             onContentYChanged: {
                 if (contentHeight > height
                     && contentY > contentHeight - height * 1.6)
@@ -871,6 +911,9 @@ Item {
                     browser.keyboardMode = true
                     browser.activateIndex(wall.currentIndex)
                     event.accepted = true
+                } else if (browser.pageFlow && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
+                           || event.key === Qt.Key_Home || event.key === Qt.Key_End)) {
+                    event.accepted = false                // the world page scrolls
                 } else if (event.key === Qt.Key_PageUp) {
                     wallGlide.pageUp(); event.accepted = true
                 } else if (event.key === Qt.Key_PageDown) {
@@ -938,6 +981,30 @@ Item {
 
         // Shared wheel controller — unifies the wall's scroll feel with every landing page and
         // the See-all grids (fast accumulator drain, no double-scroll with GridView's wheel).
-        ScrollGlide { id: wallGlide; flick: wall }
+        ScrollGlide { id: wallGlide; flick: browser.pageFlow ? null : wall }
+    }
+
+    NumberAnimation {
+        id: pageParkAnim
+        target: browser.pageFlick
+        property: "contentY"
+        duration: 220
+        easing.type: Easing.OutCubic
+    }
+    // Scroll the world page so cell i's row sits just under the docked tab bar (the mock's
+    // "rows park"): the TopBar region is the page's top edge, the dock takes ~64 px of it.
+    function revealCell(i) {
+        if (!browser.pageFlow || i < 0)
+            return
+        var row = Math.floor(i / Math.max(1, wall.columnCount))
+        var rowTop = wallHost.mapToItem(browser.pageFlick.contentItem, 0, 0).y + row * wall.cellHeight
+        var maxY = Math.max(0, browser.pageFlick.contentHeight - browser.pageFlick.height)
+        var target = Math.max(0, Math.min(maxY, rowTop - 64 - 14))
+        if (Math.abs(target - browser.pageFlick.contentY) < 1)
+            return
+        pageParkAnim.stop()
+        pageParkAnim.from = browser.pageFlick.contentY
+        pageParkAnim.to = target
+        pageParkAnim.start()
     }
 }

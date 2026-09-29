@@ -87,8 +87,14 @@ Item {
 
     onActiveChanged: if (active && root._ready && browser.adapter) browser.refresh()
 
+    // One scroller (world-feel Slice 7): the host world's page Flickable; the page then sizes
+    // this page to flowHeight so the wall scrolls with the world instead of inside its own box.
+    property Flickable pageFlick: null
+    readonly property real flowHeight: browser.flowHeight
+
     DiscoverBrowser {
         id: browser
+        pageFlick: root.pageFlick
         anchors.fill: parent
         adapter: root.adapter
         active: root.active
@@ -100,10 +106,8 @@ Item {
         // keyboard focus").
         showAuthorAtRest: true
         showSourceOnReveal: true
-        // Pin cards to the approved 148px gallery token instead of stretching to fill residual
-        // column width — book covers are small-source art, so overstretching them is what turns
-        // an ordinary cover blurry (2026-08-06 shelf-quality pass).
-        fixedGalleryWidth: true
+        // The wall is the same left-aligned, full-width grid as Tankoban and Theatre (the halfway
+        // mock; Hemanth 2026-09-29). It used to pin 148 px cards in a centred, narrower grid.
         // the back affordance shows only when this page actually has somewhere to return to.
         showBackAction: root._returnArmed
         // Biblio copy — the wall's empty-state wording.

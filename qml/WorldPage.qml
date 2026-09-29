@@ -148,6 +148,9 @@ Item {
     // touching the scroll controller — WorldPage stays the only vertical scroll owner.
     readonly property real viewportContentY: page.contentY
     readonly property real viewportHeight: page.height
+    // The one vertical scroller itself, for content that must scroll WITH the page rather than
+    // inside its own box (the Discover walls, world-feel Slice 7).
+    readonly property Flickable pageFlickable: page
 
     // ---- the widget board (scrolls vertically) ----
     Flickable {

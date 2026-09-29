@@ -160,7 +160,8 @@ WorldPage {
         objectName: "biblioDiscoverPage"
         visible: biblio.activeTab === "discover"
         width: parent.width
-        height: visible ? Math.max(620, biblio.height - 200) : 0
+        pageFlick: biblio.pageFlickable
+        height: visible ? discoverPage.flowHeight : 0
         active: biblio.lifecycleActive && visible
         biblioCatalog: (typeof BiblioCatalog !== "undefined") ? BiblioCatalog : null
         extensions: (typeof Extensions !== "undefined") ? Extensions.installed() : []

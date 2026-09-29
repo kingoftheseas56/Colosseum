@@ -263,7 +263,8 @@ WorldPage {
         id: discoverPage
         visible: tanko.activeTab === "discover"
         width: parent.width
-        height: visible ? Math.max(620, tanko.height - 200) : 0
+        pageFlick: tanko.pageFlickable
+        height: visible ? discoverPage.flowHeight : 0
         active: tanko.lifecycleActive && visible
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
         comicsCatalog: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null

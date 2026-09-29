@@ -132,8 +132,14 @@ Item {
         function onReadyChanged() { root._handleCatalogueReady("comics", root.comicsCatalog) }
     }
 
+    // One scroller (world-feel Slice 7): the host world's page Flickable; the page then sizes
+    // this page to flowHeight so the wall scrolls with the world instead of inside its own box.
+    property Flickable pageFlick: null
+    readonly property real flowHeight: browser.flowHeight
+
     DiscoverBrowser {
         id: browser
+        pageFlick: root.pageFlick
         anchors.fill: parent
         adapter: root.adapter
         active: root.active
