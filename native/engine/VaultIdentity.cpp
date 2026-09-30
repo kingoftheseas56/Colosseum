@@ -1,6 +1,7 @@
 #include "VaultIdentity.h"
 
 #include "VaultStoreIo.h"
+#include "VaultLocation.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -17,11 +18,7 @@ VaultIdentity::VaultIdentity(QString vaultDir, QObject* parent)
 
 QString VaultIdentity::normalizePath(const QString& path)
 {
-    QString n = QDir::cleanPath(path);
-#ifdef Q_OS_WIN
-    n = n.toLower();
-#endif
-    return n;
+    return VaultLocation::normalize(path);
 }
 
 QString VaultIdentity::computeId(const QString& path, qint64 size, qint64 mtimeMs)

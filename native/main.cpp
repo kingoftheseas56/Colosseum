@@ -18,7 +18,9 @@
 #include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
+#if !defined(Q_OS_ANDROID)
 #include <QtWebEngineQuick/QtWebEngineQuick>
+#endif
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -52,16 +54,20 @@
 #include "account/RatingsReviewsController.h"
 #include "account/RatingsReviewsDelivery.h"
 #include "account/ProfilePreferencesStore.h"
+#if !defined(Q_OS_ANDROID)
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
 #include "update/UpdateReleaseClient.h"
 #include "update/UpdateService.h"
-#include "update/UpdateUserAgent.h"
 #include "update/UpdateTrust.h"
+#endif
+#include "update/UpdateUserAgent.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
 #include "work/ForegroundPriorityGovernor.h"
+#include "platform/BackgroundDownloadBridge.h"
+#include "platform/PlatformRuntime.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "devtools/LanistaServer.h"
@@ -94,7 +100,9 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
+#endif
 #include "net/LoopbackPinProxy.h"
 #include "net/Ipv4PinStore.h"
 #include "net/PinProxyFactory.h"
@@ -117,8 +125,13 @@
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
+#if defined(Q_OS_ANDROID)
+#include "player/androidmedia3item.h"
+#include "player/androidseekthumbnailer.h"
+#else
 #include "player/mpvitem.h"
 #include "player/seekthumbnailer.h"
+#endif
 #include "player/powerstore.h"
 #include "player/roomstore.h"
 #include "watchparty/WatchPartyPlayerSync.h"
@@ -126,7 +139,11 @@
 #include "watchparty/WatchPartyServiceEndpoint.h"
 #include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
+#if defined(Q_OS_ANDROID)
+#include "platform/AndroidWindowModeAdapter.h"
+#else
 #include "player/windowmodestore.h"
+#endif
 #include "torrent/TankorentSearchService.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
@@ -571,7 +588,9 @@ int main(int argc, char *argv[]) {
     // Not compiled in: there is nothing to boot, and the old player is the only engine present.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
+#if !defined(Q_OS_ANDROID)
     QtWebEngineQuick::initialize();
+#endif
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
     // customize a control's contentItem/background — so HouseScrollBar's overrides were IGNORED
@@ -643,9 +662,37 @@ int main(int argc, char *argv[]) {
               qUtf8Printable(appDataMigration.logPath));
     }
 
-    // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
+    QString startupManifestPathOverride;
+#if defined(Q_OS_ANDROID)
+    // Android packages the filtered source-shaped runtime under assets:/. Materialize
+    // it once per content hash into app-private storage before any owner resolves
+    // checkout-relative qml/assets/resources paths.
+    QString runtimeBundleError;
+    const QString runtimeCacheRoot = QDir(instanceAppData).filePath(QStringLiteral("runtime"));
+    const auto runtimeRoot = materializeRuntimeBundle(
+        QStringLiteral("assets:/colosseum-runtime"), runtimeCacheRoot, &runtimeBundleError);
+    if (!runtimeRoot) {
+        qCritical("[boot] Android runtime bundle rejected: %s",
+                  qUtf8Printable(runtimeBundleError));
+        return -1;
+    }
+    if (!QDir::setCurrent(*runtimeRoot)) {
+        qCritical("[boot] Android runtime root unavailable: %s", qUtf8Printable(*runtimeRoot));
+        return -1;
+    }
+    startupManifestPathOverride =
+        QDir(*runtimeRoot).filePath(QStringLiteral("qml-build.manifest"));
+#endif
+
+    // Shared QML binds to PlayerItem; each host supplies its native playback engine.
+#if defined(Q_OS_ANDROID)
+    qmlRegisterType<AndroidMedia3Item>("Colosseum.Player", 1, 0, "PlayerItem");
+    qmlRegisterType<AndroidSeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#else
+    qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "PlayerItem");
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#endif
 #ifdef COLOSSEUM_PLAYER2
     // The Player 2 backend, opt-in (build flag COLOSSEUM_PLAYER2_IN_APP). Registering the types costs
     // nothing at runtime — the engine is only constructed if QML instantiates Player2Page.
@@ -663,22 +710,32 @@ int main(int argc, char *argv[]) {
 
     QQmlApplicationEngine engine;
 
-    // Auto-update is a post-first-paint service.  It has its own network manager,
-    // cache, and installer bridge so release traffic never shares a catalogue lane
-    // and no check can block construction of the QML tree.
-    auto *updateNam = new QNetworkAccessManager(&app);
+    // One host/platform facade for lifecycle, Android Back, safe insets,
+    // keyboard visibility, permissions/SAF requests and capability truth.
+    // Product navigation remains in Main.qml; this object only forwards OS events.
+    auto *platformRuntime = new Colosseum::Platform::Runtime(&app);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("PlatformRuntime"), platformRuntime);
+
+    // Shared catalogue networking exists on every host. Desktop updater traffic
+    // may reuse it, but Android does not construct updater/installer services.
+    auto *catalogNam = new QNetworkAccessManager(&app);
+
+#if !defined(Q_OS_ANDROID)
+    // Auto-update is a post-first-paint desktop service. It reuses the plain
+    // catalogue network manager but keeps its own cache and installer bridge.
     auto updateCacheOwner = std::make_unique<Colosseum::Update::UpdateCache>(
         Colosseum::Update::UpdateCache::productionRoot());
     auto *updateCache = updateCacheOwner.get();
     auto *updateDownloader = new Colosseum::Update::UpdateDownload(
-        updateNam, std::move(updateCacheOwner), &app);
+        catalogNam, std::move(updateCacheOwner), &app);
     Colosseum::Update::ReleaseClientConfig updateConfig;
     updateConfig.latestReleaseUrl = QUrl(
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest"));
     updateConfig.repository = QStringLiteral("kingoftheseas56/Colosseum");
     updateConfig.publicKey = QByteArray(Colosseum::Update::embeddedUpdatePublicKey().data(),
                                         Colosseum::Update::embeddedUpdatePublicKey().size());
-    Colosseum::Update::UpdateReleaseClient updateClientStorage(updateNam, updateConfig, &app);
+    Colosseum::Update::UpdateReleaseClient updateClientStorage(catalogNam, updateConfig, &app);
     auto *updateClient = &updateClientStorage;
     Colosseum::Update::UpdateInstallBridge updateBridgeStorage(&app);
     auto *updateBridge = &updateBridgeStorage;
@@ -730,7 +787,7 @@ int main(int argc, char *argv[]) {
     // Installer waits on /WAITPID=<our PID>; queue the quit so it runs after
     // this call stack (and any QML state signals from setState) unwind.
     updateHooks.requestShutdown = [&app] { QTimer::singleShot(0, &app, &QCoreApplication::quit); };
-    updateHooks.fetchArtwork = [updateNam](const QString&, const QUrl& url, qint64 cap,
+    updateHooks.fetchArtwork = [catalogNam](const QString&, const QUrl& url, qint64 cap,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkCompleted done,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkFailed failed) {
         if (!url.isValid() || url.scheme() != QLatin1String("https")) {
@@ -741,7 +798,7 @@ int main(int argc, char *argv[]) {
         request.setRawHeader("User-Agent", Colosseum::Update::updateUserAgent());
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::NoLessSafeRedirectPolicy);
-        QNetworkReply *reply = updateNam->get(request);
+        QNetworkReply *reply = catalogNam->get(request);
         const auto bytes = std::make_shared<QByteArray>();
         const auto settled = std::make_shared<bool>(false);
         QObject::connect(reply, &QNetworkReply::readyRead, reply, [reply, bytes, settled, cap, failed] {
@@ -873,9 +930,11 @@ int main(int argc, char *argv[]) {
 #endif
     if (!installedUpdateEligible && !updateTestingBuild)
         qInfo("[update] automatic checks disabled (source/dev build or missing installed layout)");
+#endif
     QString startupLayoutError;
     const auto startupLayout = resolveStartupLayout(
-        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(), &startupLayoutError);
+        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(),
+        &startupLayoutError, startupManifestPathOverride);
     if (!startupLayout) {
         qCritical("[boot] startup layout rejected: %s", qUtf8Printable(startupLayoutError));
         return -1;
@@ -1185,6 +1244,7 @@ int main(int argc, char *argv[]) {
         }
         vaultVideoEnrichRerun = false;
         QList<VaultIndex::FileRow> todo;
+#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
@@ -1201,6 +1261,7 @@ int main(int argc, char *argv[]) {
         (void)QtConcurrent::run([vaultEnricher, todo, cancel]() {
             vaultEnricher->enrich(todo, cancel);
         });
+#endif
     };
     // An immersive surface opening mid-pass cancels the pass between files (the probe
     // itself admits no cancellation; the enrich loop guard does) and reruns on close.
@@ -1252,12 +1313,14 @@ int main(int argc, char *argv[]) {
                 && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
+#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
+#endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
@@ -1298,7 +1361,9 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("corrupt");
                         r.errorDetail = cf.errorDetail;
                     }
-                } else if (r.kind == QLatin1String("video")) {
+                }
+#if !defined(Q_OS_ANDROID)
+                else if (r.kind == QLatin1String("video")) {
                     const MediaAdmissionProbe::Result admission =
                         MediaAdmissionProbe::probe(r.path);
                     switch (admission.verdict) {
@@ -1323,7 +1388,9 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("rejected");
                         r.errorDetail = admission.detail;
                     }
-                } else if (r.kind == QLatin1String("book")) {
+                }
+#endif
+                else if (r.kind == QLatin1String("book")) {
                     r.format = QFileInfo(r.path).suffix().toLower();
                     const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
                     if (book.ok) {
@@ -1473,7 +1540,7 @@ int main(int argc, char *argv[]) {
     // takes the zero-network devOverridden branch before ever building a request. Caught
     // live in Slice 4's first-launch runtime session (an empty AppData + no reachable
     // data/ never fetched at all — WAIT_TIMEOUT on catalogVaultState.fetching==true).
-    auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir,
+    auto *catalogVaultClient = new CatalogVaultClient(catalogNam, catalogVaultDir,
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"), &app);
     catalogVaultClient->setManagedNames(catalogManagedNames);
     engine.rootContext()->setContextProperty(QStringLiteral("CatalogVault"), catalogVaultClient);
@@ -1610,6 +1677,13 @@ int main(int argc, char *argv[]) {
     auto *localDownloads = new LocalDownloads(downloads, books, comics, download,
                                               tankobanVolumes, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
+
+    // OS-facing download progress seam. Android owns the notification/service
+    // implementation; Colosseum publishes only the unified active-job snapshot.
+    auto *platformDownloads = new Colosseum::Platform::BackgroundDownloadBridge(
+        localDownloads, &app);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("PlatformDownloads"), platformDownloads);
 
     // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from
     // Colosseum's own download backbones (videos + CBZ comics + CBZ tankoban
@@ -1757,8 +1831,13 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartyUi"),
                                              watchPartyUi);
 
-    // Native player window modes exposed to QML as `WindowMode` for PiP/fullscreen parity.
+    // Keep the QML WindowMode contract stable while preventing desktop window/PiP
+    // implementation from entering the Android runtime path.
+#if defined(Q_OS_ANDROID)
+    auto *windowMode = new Colosseum::Platform::AndroidWindowModeAdapter(&app);
+#else
     auto *windowMode = new WindowModeStore(&app);
+#endif
     engine.rootContext()->setContextProperty(QStringLiteral("WindowMode"), windowMode);
 
     // Playback power-inhibit exposed to QML as `Power`, matching Harbor's play-only
@@ -1997,31 +2076,43 @@ int main(int argc, char *argv[]) {
         }
     }
 #endif
+    QObject::connect(platformRuntime, &Colosseum::Platform::Runtime::backRequested,
+                     rootObject, [rootObject] {
+        if (!QMetaObject::invokeMethod(rootObject, "handleEscape", Qt::QueuedConnection))
+            qWarning("[platform] root QML does not expose handleEscape()");
+    });
+#if !defined(Q_OS_ANDROID)
+    const auto acknowledgeFirstFrame = [&app, &guiStallProbe, updateBridge,
+                                        launchArguments, biblioCatalog](const QString &context) {
+        app.setStallContext(QStringLiteral("startup"), context);
+        app.markFirstFrame();
+        guiStallProbe.notifyFirstFrame();
+        updateBridge->acknowledgeHealthyBoot(launchArguments);
+        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
+    };
+#else
+    const auto acknowledgeFirstFrame = [&app, &guiStallProbe,
+                                        biblioCatalog](const QString &context) {
+        app.setStallContext(QStringLiteral("startup"), context);
+        app.markFirstFrame();
+        guiStallProbe.notifyFirstFrame();
+        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
+    };
+#endif
+
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
+        platformRuntime->attachWindow(rootWindow);
         if (posterTimingEnabled) posterTiming->attach(rootWindow);
         if (frameProbeEnabled)
             QObject::connect(rootWindow, &QQuickWindow::frameSwapped, &app,
                              [frameTiming] { frameTiming->recordSwap(); }, Qt::DirectConnection);
-        QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
-                         [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
-            app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame"));
-            app.markFirstFrame();
-            guiStallProbe.notifyFirstFrame();
-            updateBridge->acknowledgeHealthyBoot(launchArguments);
-            QTimer::singleShot(0, biblioCatalog, [biblioCatalog] {
-                biblioCatalog->refreshIfDue();
-            });
+        QObject::connect(rootWindow, &QQuickWindow::frameSwapped, &app,
+                         [acknowledgeFirstFrame] {
+            acknowledgeFirstFrame(QStringLiteral("first-frame"));
         }, Qt::SingleShotConnection);
     } else {
-        QTimer::singleShot(0, updateBridge,
-                           [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
-            app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame-fallback"));
-            app.markFirstFrame();
-            guiStallProbe.notifyFirstFrame();
-            updateBridge->acknowledgeHealthyBoot(launchArguments);
-            QTimer::singleShot(0, biblioCatalog, [biblioCatalog] {
-                biblioCatalog->refreshIfDue();
-            });
+        QTimer::singleShot(0, &app, [acknowledgeFirstFrame] {
+            acknowledgeFirstFrame(QStringLiteral("first-frame-fallback"));
         });
     }
 
@@ -2046,8 +2137,10 @@ int main(int argc, char *argv[]) {
         });
     }
 
+#if !defined(Q_OS_ANDROID)
     if (installedUpdateEligible && !updateTestingBuild)
         QTimer::singleShot(0, updates, &Colosseum::Update::UpdateService::startAutomaticChecks);
+#endif
 
     // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
     // 2026-08-01 §3). Local named pipe only, never a network port. Driving and

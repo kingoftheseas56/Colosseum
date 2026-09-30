@@ -9,6 +9,7 @@
 // In BOTH profiles the IMDb rating is POINTER-HOVER-ONLY; keyboard focus draws the focus halo but
 // never the hover reveal. Gallery has NO centered play ring and NO Unicode poster-control glyph.
 import QtQuick
+import QtQuick.Window
 import "PosterSourcePolicy.js" as PosterPolicy
 import "CatalogueVisualMetrics.js" as Metrics
 
@@ -35,6 +36,10 @@ Item {
 
     readonly property var _m: Metrics.profile(card.visualProfile)
     readonly property bool _gallery: card.visualProfile === "gallery"
+    readonly property bool televisionMode: {
+        const w = card.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
 
     readonly property bool effectiveHovered: hov.hovered || card.testHovered
     // the reveal block opens on pointer hover always, and ALSO on keyboard focus when a

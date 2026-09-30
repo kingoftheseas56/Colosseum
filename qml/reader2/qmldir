@@ -2,9 +2,11 @@
 # singleton (referenced as `Theme.gold`, not instantiated). Once a qmldir exists,
 # Qt stops auto-scanning the folder for types, so EVERY reader2 component that is
 # referenced by name must be listed below â€” otherwise sibling references (e.g.
-# Harness -> ReaderShell -> Paper/ReaderChrome) fail to resolve.
+# Harness -> ReaderShell -> ReaderPaper/ReaderChrome) fail to resolve.
 singleton Theme Theme.qml
 Paper Paper.qml
+ReaderPaper ReaderPaper.qml
+AndroidPaper AndroidPaper.qml
 ReaderShell ReaderShell.qml
 ReaderChrome ReaderChrome.qml
 TopBar TopBar.qml

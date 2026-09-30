@@ -52,7 +52,7 @@ public:
     QString cachedThumbPath(const QString& path, qint64 size, qint64 mtimeMs) const;
 
     // Test/diagnostic seam: how many ffmpeg grabs are currently running.
-    int inFlightCount() const { return m_jobs.size(); }
+    int inFlightCount() const { return m_jobs.size() + m_asyncInFlight; }
 
 Q_SIGNALS:
     // Fired once, on a FRESH grab only (never on a cache hit — that returns
@@ -81,6 +81,7 @@ private:
     void pumpQueue();
 
     QString m_cacheDir;
+    int m_asyncInFlight = 0;
     QHash<QProcess*, Job> m_jobs;
     QSet<QString> m_activeKeys;     // keys with a job running OR queued (never double-spawned)
     QQueue<PendingRequest> m_pending;

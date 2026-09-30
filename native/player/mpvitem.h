@@ -14,9 +14,11 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "playerbackendcontract.h"
+
 class QProcess;
 
-class MpvItem : public MpvAbstractItem
+class MpvItem : public MpvAbstractItem, public PlayerBackendContract
 {
     Q_OBJECT
 public:
@@ -33,6 +35,9 @@ public:
         StatsBatch = 100,
     };
     Q_ENUM(AsyncIds)
+
+    Q_PROPERTY(QVariantMap capabilities READ capabilities CONSTANT)
+    QVariantMap capabilities() const override;
 
     Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
     QString mediaTitle();
@@ -144,6 +149,18 @@ public:
     // requires a Referer/Origin actually plays. loadFile clears the field, so headers set here can
     // never leak into a later plain load. (Theatre House HTTP Source, slice 1.)
     Q_INVOKABLE void loadFileWithHeaders(const QString &url, const QVariantMap &headers);
+    // Backend-neutral PlayerItem contract used by shared QML. Android supplies the
+    // same surface without inheriting MpvQt.
+    Q_INVOKABLE void loadSource(const QString &url);
+    Q_INVOKABLE void loadSource(const QString &url, const QVariantMap &headers) override;
+    Q_INVOKABLE void stopPlayback() override;
+    Q_INVOKABLE void setHostLifecycleState(const QString &state) override;
+    Q_INVOKABLE void setAudioFocusState(const QString &state) override;
+    Q_INVOKABLE void releaseVideoSurface() override;
+    Q_INVOKABLE void restoreVideoSurface() override;
+    Q_INVOKABLE void applyPlaybackProfile();
+    Q_INVOKABLE void refreshAudioOutput();
+    Q_INVOKABLE QVariant playbackStat(const QString &name);
     Q_INVOKABLE void seekExact(double value);
     Q_INVOKABLE void seekStep(double delta);
     Q_INVOKABLE void frameStep();

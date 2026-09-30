@@ -1,3 +1,4 @@
+#include "account/DownloadIntentStore.h"
 #include "engine/BookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/MangaDownloader.h"

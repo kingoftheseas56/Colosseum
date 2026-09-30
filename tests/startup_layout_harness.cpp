@@ -1,6 +1,7 @@
 #include "../native/bootstrap/StartupLayout.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -23,6 +24,22 @@ static void writeManifest(const QString& path, const QString& fingerprint)
     writeFile(path,
               QByteArrayLiteral("schema=1\nqmlTreeSha256=")
                   + fingerprint.toLatin1() + QByteArrayLiteral("\n"));
+}
+
+static void writeRuntimeManifest(const QString& root, const QStringList& files)
+{
+    QByteArray material;
+    QByteArray lines = QByteArrayLiteral("schema=1\n");
+    for (const QString& relative : files) {
+        QFile file(QDir(root).filePath(relative));
+        file.open(QIODevice::ReadOnly);
+        const QByteArray hash = QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha256).toHex();
+        material += relative.toUtf8() + '\n' + hash + '\n';
+        lines += QByteArrayLiteral("file=") + relative.toUtf8() + '\t' + hash + '\n';
+    }
+    const QByteArray bundleHash = QCryptographicHash::hash(material, QCryptographicHash::Sha256).toHex();
+    writeFile(QDir(root).filePath(QStringLiteral("runtime-files.manifest")),
+              QByteArrayLiteral("schema=1\nbundleSha256=") + bundleHash + '\n' + lines.mid(9));
 }
 
 int main(int argc, char** argv)
@@ -76,6 +93,41 @@ int main(int argc, char** argv)
     CHECK(outOfTree && outOfTree->resourceRoot == QFileInfo(repoRoot).absoluteFilePath(),
           "out-of-tree Linux launch retains source-shaped resource root");
     CHECK(QDir::setCurrent(originalCwd), "working directory restored after out-of-tree proof");
+
+    const QString packagedRoot = QDir(temp.path()).filePath(QStringLiteral("packaged-runtime"));
+    const QString packagedQml = QDir(packagedRoot).filePath(QStringLiteral("qml"));
+    writeFile(QDir(packagedQml).filePath(QStringLiteral("Main.qml")),
+              "import QtQuick\nQtObject { property string bundled: \"yes\" }\n");
+    writeFile(QDir(packagedRoot).filePath(QStringLiteral("assets/icon.txt")), "icon\n");
+    writeFile(QDir(packagedRoot).filePath(QStringLiteral("resources/data.json")), "{}\n");
+    const QString packagedFingerprint = qmlTreeFingerprint(packagedQml, &error);
+    writeManifest(QDir(packagedRoot).filePath(QStringLiteral("qml-build.manifest")),
+                  packagedFingerprint);
+    writeRuntimeManifest(packagedRoot,
+                         {QStringLiteral("assets/icon.txt"),
+                          QStringLiteral("qml/Main.qml"),
+                          QStringLiteral("qml-build.manifest"),
+                          QStringLiteral("resources/data.json")});
+    const QString bundleCache = QDir(temp.path()).filePath(QStringLiteral("runtime-cache"));
+    const auto materialized = materializeRuntimeBundle(packagedRoot, bundleCache, &error);
+    CHECK(materialized.has_value(), "packaged runtime materializes into writable cache");
+    CHECK(materialized && QFileInfo(QDir(*materialized).filePath(QStringLiteral("qml/Main.qml"))).isFile(),
+          "materialized runtime contains Main.qml");
+    CHECK(materialized && QFileInfo(QDir(*materialized).filePath(QStringLiteral("assets/icon.txt"))).isFile(),
+          "materialized runtime preserves sibling assets");
+    CHECK(materialized && QFileInfo(QDir(*materialized).filePath(QStringLiteral("resources/data.json"))).isFile(),
+          "materialized runtime preserves sibling resources");
+
+    const QString packagedAppDir = QDir(temp.path()).filePath(QStringLiteral("apk/lib/arm64"));
+    QDir().mkpath(packagedAppDir);
+    CHECK(materialized && QDir::setCurrent(*materialized), "materialized runtime selected as working root");
+    const auto packaged = resolveStartupLayout(
+        {QStringLiteral("libcolosseum.so")}, packagedAppDir, &error,
+        materialized ? QDir(*materialized).filePath(QStringLiteral("qml-build.manifest")) : QString());
+    CHECK(packaged.has_value(), "packaged runtime resolves with extracted build manifest");
+    CHECK(packaged && packaged->resourceRoot == QFileInfo(*materialized).absoluteFilePath(),
+          "packaged runtime becomes the source-shaped resource root");
+    CHECK(QDir::setCurrent(originalCwd), "working directory restored after packaged-runtime proof");
 
     const auto flagged = resolveStartupLayout(
         {QStringLiteral("colosseum.exe"), QStringLiteral("--update-result=success")}, appDir, &error);

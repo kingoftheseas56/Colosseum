@@ -2,6 +2,7 @@
 // Atomic controls route pointer, keyboard and accessibility through `triggered()`.
 // Complex controls may set pointerEnabled=false and keep specialized pointer handlers.
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: action
@@ -17,6 +18,10 @@ Item {
     property bool contextEnabled: false
     property QtObject command: null
     property bool showFocusFrame: true
+    readonly property bool televisionMode: {
+        const w = action.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
     property real focusRadius: 10
     property real focusInset: -2
     // Retained for callers; the ring is always FocusRing's gold (one look everywhere).
@@ -59,7 +64,7 @@ Item {
     }
 
     Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Select
                 || (action.spaceActivates && event.key === Qt.Key_Space)) {
             action.activate(Qt.ShortcutFocusReason)
             event.accepted = true

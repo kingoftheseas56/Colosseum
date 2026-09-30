@@ -3,6 +3,7 @@
 // and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint.
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Window
 
 pragma ComponentBehavior: Bound
 
@@ -30,7 +31,13 @@ Item {
     signal tabRequested(string tab)
 
     property int keyboardIndex: 0
+    readonly property bool televisionMode: {
+        const w = tabs.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
     focusPolicy: Qt.TabFocus
+    readonly property bool compactLayout: width < 600
+    readonly property int pillSpacing: compactLayout ? 3 : 6
 
     function syncKeyboardIndex() {
         for (var i = 0; i < tabs.tabModel.length; ++i) {
@@ -58,7 +65,7 @@ Item {
         else if (event.key === Qt.Key_Right) next++
         else if (event.key === Qt.Key_Home) next = 0
         else if (event.key === Qt.Key_End) next = tabs.tabModel.length - 1
-        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
             tabs.requestIndex(tabs.keyboardIndex, Qt.ShortcutFocusReason)
             event.accepted = true
             return
@@ -105,8 +112,8 @@ Item {
 
         Row {
             anchors.fill: parent
-            anchors.margins: 6
-            spacing: 6
+            anchors.margins: tabs.compactLayout ? 4 : 6
+            spacing: tabs.pillSpacing
 
             Repeater {
                 model: tabs.tabModel
@@ -123,7 +130,7 @@ Item {
                     objectName: tabs.tabPrefix + "_" + pill.modelData.key
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
-                    width: (parent.width - 6 * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
+                    width: (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
                     height: parent.height
                     radius: tabs.compact ? 11 : 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold
