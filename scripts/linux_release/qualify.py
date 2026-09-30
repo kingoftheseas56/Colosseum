@@ -68,7 +68,7 @@ def closure(appdir, evidence, env):
         for path in sorted(appdir.rglob('*')):
             if path.is_symlink() or not is_elf(path):
                 continue
-            result = subprocess.run(['ldd', str(path)], env=env, text=True, capture_output=True)
+            result = subprocess.run(['ldd', str(path)], env=env, text=True, capture_output=True, timeout=30)
             log.write(str(path.relative_to(appdir)) + '\n' + result.stdout + result.stderr)
             failures.extend(loader_errors(result.stdout + result.stderr, appdir))
             if result.returncode and 'statically linked' not in result.stdout + result.stderr:

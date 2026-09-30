@@ -29,6 +29,31 @@ class SourcePatchContract(unittest.TestCase):
         self.assertIn('-DCMAKE_C_COMPILER_LAUNCHER=ccache', build)
         self.assertIn('ccache --show-stats', workflow)
 
+    def assert_linux_preview_errors(self, source):
+        paths = ['native/account/AccountController.cpp',
+                 'native/trackers/SimklConnectionController.cpp']
+        for path in paths:
+            original = subprocess.check_output(
+                ['git', '-C', str(source), 'show', 'HEAD:' + path], text=True)
+            patched = (source / path).read_text()
+            # No Qt headers required for a preprocessor-level platform check.
+            def preprocess(text, platform):
+                text = re.sub(r'^\s*#include[^\n]*', '', text, flags=re.M)
+                command = ['c++', '-E', '-P', '-x', 'c++', '-']
+                if platform:
+                    command.insert(1, '-D' + platform + '=1')
+                return subprocess.check_output(command, input=text, text=True)
+            for platform in [None, 'Q_OS_WIN', 'Q_OS_MACOS']:
+                self.assertEqual(preprocess(original, platform), preprocess(patched, platform))
+            linux = preprocess(patched, 'Q_OS_LINUX')
+            self.assertIn('unsupported in this Linux preview', linux)
+            if 'Simkl' in path:
+                self.assertNotIn('Windows could not safely store', linux)
+                self.assertIn('m_vault->isAvailable()', linux)
+            else:
+                self.assertIn('secure_store_unavailable', linux)
+                self.assertIn('m_credentialStore->isAvailable()', linux)
+
     def test_patch_is_exact_and_detects_extra_edits(self):
         path = ROOT / 'scripts/linux_release/source_patches.py'
         self.assertTrue(path.is_file(), 'explicit patch provenance helper missing')
@@ -45,7 +70,8 @@ class SourcePatchContract(unittest.TestCase):
             subprocess.run([sys.executable, str(path), '--source', str(source), '--evidence', str(evidence)], check=True)
             info = module.verify(source)
             self.assertEqual(info['source_base_sha'], module.BASE)
-            self.assertEqual(len(info['source_patches']), 4)
+            self.assertEqual(len(info['source_patches']), 5)
+            self.assert_linux_preview_errors(source)
             delivery = (source / 'native/account/RatingsReviewsDelivery.cpp').read_text()
             publish = delivery.split('RatingsReviewsPublishResult RatingsReviewsDelivery::publishCommitted(', 1)[1].split('bool RatingsReviewsDelivery::retryOperation(', 1)[0]
             # Preprocess both variants: production has no fixture-only state;

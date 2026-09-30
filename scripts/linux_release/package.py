@@ -38,6 +38,16 @@ def copy_qt_runtime(source, destination):
                     ignore=shutil.ignore_patterns('*.o', '*.obj', '*.a', '*.prl', '*.la'))
 
 
+def stage_preview_notice(stage):
+    """Ship the preview scope from the controller, not the pinned source archive."""
+    shutil.copy2(Path(__file__).resolve().parent / 'PREVIEW.md', stage / 'PREVIEW.md')
+    return {'release_channel': 'linux-preview',
+            'display_name': 'Colosseum 1.1.7 Linux PREVIEW',
+            'derived_from_version': '1.1.7', 'preview_notice': 'PREVIEW.md',
+            'unsupported_features': ['account credential persistence',
+                                     'tracker credential persistence']}
+
+
 def main():
     parser = argparse.ArgumentParser()
     for name in ['source', 'build', 'qt', 'mpvqt', 'out']:
@@ -155,11 +165,12 @@ exec "$APPDIR/usr/bin/colosseum" "$@"
     for name, root in [('mpvqt', mpvqt), ('qt', qt)]:
         (stage / (name + '-prefix.txt')).write_text(str(root) + '\n')
     (stage / 'DEPENDENCY-VERSIONS.txt').write_text(run('dpkg-query', '-W') + '\n')
-    (stage / 'PACKAGE.json').write_text(json.dumps({**source_provenance, 'source_sha': SOURCE, 'version': '1.1.7', 'qt': '6.11.1',
+    (stage / 'PACKAGE.json').write_text(json.dumps({**source_provenance, **stage_preview_notice(stage), 'source_sha': SOURCE, 'version': '1.1.7', 'qt': '6.11.1',
         'ecm': '6.15.0', 'mpvqt': '1.2.0', 'format': 'tar.gz', 'target': 'Ubuntu 24.04 x86_64',
         'created': True, 'qualified': False, 'released': False,
         'host_requirements': ['glibc 2.39 / Ubuntu 24.04', 'X11 display', 'Mesa/OpenGL drivers', 'fonts', 'CA certificates'],
-        'limitations': ['X11 only; no Wayland package qualification', 'No standalone mpv/DVR',
+        'limitations': ['Account, tracker and Stremio credential persistence unsupported; no plaintext fallback',
+                        'X11 only; no Wayland package qualification', 'No standalone mpv/DVR',
                         'No bundled Stremio service; its routes unqualified', 'No hardware/audio/DRM qualification',
                         'WebEngine resources bundled; reader runtime unverified',
                         'Catalog coverage is live movie production requests, not visual UI/offline data/all providers'],

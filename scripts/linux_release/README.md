@@ -1,4 +1,11 @@
-# Linux 1.1.7 candidate pipeline
+# Linux 1.1.7 PREVIEW candidate pipeline
+
+The packaged user-facing scope is [PREVIEW.md](PREVIEW.md). `PACKAGE.json` and
+that notice identify the archive as Linux PREVIEW derived from 1.1.7; the app
+version, upstream tag, archive filename and clean-host workflow globs do not
+change. Account, tracker and Stremio credential persistence are unsupported,
+with no plaintext fallback. The preview label does not suppress failing tests
+or turn pending core runtime checks into passes.
 
 No application binary is included in this change. Windows source and build
 commands are unchanged. The two broad push workflows exclude only the dedicated

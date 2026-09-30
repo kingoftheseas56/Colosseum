@@ -15,6 +15,7 @@ PATCHES = [
     HERE / 'patches/0002-account-first-light-delivery-link.patch',
     HERE / 'patches/0003-linux-clang-tidy-reviewed-findings.patch',
     HERE / 'patches/0004-portable-account-test-fixtures.patch',
+    HERE / 'patches/0005-linux-preview-credential-errors.patch',
 ]
 
 

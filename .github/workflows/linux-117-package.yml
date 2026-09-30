@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: linux-117-package
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   linux:
@@ -111,6 +111,7 @@ jobs:
             --mpvqt "$DEPS/mpvqt-install" --out "$OUT" \
             2>&1 | tee "$EVIDENCE/package.log"
       - name: Qualify extracted package in clean Ubuntu
+        timeout-minutes: 30
         id: runtime
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         run: bash controller/scripts/linux_release/clean.sh
