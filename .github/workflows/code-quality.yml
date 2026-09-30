@@ -2,6 +2,7 @@ name: code-quality
 
 on:
   push:
+    branches-ignore: [linux-117-package]
   pull_request:
   workflow_dispatch:
 

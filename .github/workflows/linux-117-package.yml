@@ -1,0 +1,167 @@
+name: Linux 1.1.7 candidate qualification
+
+on:
+  push:
+    branches: [linux-117-package]
+    paths:
+      - '.github/workflows/linux-117-package.yml'
+      - 'scripts/linux_release/**'
+      - 'tests/test_linux_release_qualification.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-117-package
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      SOURCE: ${{ github.workspace }}/source
+      BUILD: ${{ runner.temp }}/linux-117-build
+      DEPS: ${{ runner.temp }}/linux-117-deps
+      OUT: ${{ runner.temp }}/linux-117-out
+      EVIDENCE: ${{ runner.temp }}/linux-117-evidence
+    steps:
+      # Controller scripts come from the explicitly dispatched workflow commit.
+      # Application sources are a separate, immutable checkout of the release.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: controller
+          persist-credentials: false
+      - name: Initialize evidence
+        run: |
+          mkdir -p "$EVIDENCE" "$OUT"
+          git -C controller rev-parse HEAD > "$EVIDENCE/controller-sha.txt"
+          cp /etc/os-release "$EVIDENCE/os-release.txt"
+          printf 'Package creation does not establish qualification. No public release.\n' > "$EVIDENCE/STATUS.txt"
+      - uses: actions/checkout@v7
+        with:
+          repository: kingoftheseas56/Colosseum
+          ref: 36498faa7cbcf1c6f47bdea042806b1aa8135f7e
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Qt SDK
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: '6.11.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
+      - name: Install Linux tools and native dependencies
+        run: |
+          set -o pipefail
+          { sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+              build-essential cmake ninja-build pkg-config ccache clang-tidy-20 \
+              libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+              libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
+              xvfb xauth ffmpeg p7zip-full libarchive-tools patchelf
+          } 2>&1 | tee "$EVIDENCE/apt.log"
+      - name: Build pinned application and test targets
+        id: build
+        run: bash controller/scripts/linux_release/build.sh
+      - name: Linux contract tests and CTests
+        id: tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: bash controller/scripts/linux_release/test.sh
+      - name: Pinned clang-tidy correctness gate
+        id: tidy
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cd "$SOURCE"
+          python scripts/clang_tidy_quality_gate.py \
+            --clang-tidy "$(command -v clang-tidy-20)" \
+            --compile-commands "$BUILD/compile_commands.json" \
+            --source-root native --allowlist .github/clang-tidy-allowlist.txt \
+            --required-version 20.1.2 --jobs 1 --min-files 184 \
+            2>&1 | tee "$EVIDENCE/clang-tidy.log"
+      - name: Assemble candidate package
+        id: package
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python controller/scripts/linux_release/package.py \
+            --source "$SOURCE" --build "$BUILD" --qt "$QT_ROOT_DIR" \
+            --mpvqt "$DEPS/mpvqt-install" --out "$OUT" \
+            2>&1 | tee "$EVIDENCE/package.log"
+      - name: Qualify extracted package in clean Ubuntu
+        id: runtime
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        continue-on-error: true
+        run: bash controller/scripts/linux_release/clean.sh
+      - name: Record final verdict
+        if: always()
+        env:
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          TEST_RESULT: ${{ steps.tests.outcome }}
+          TIDY_RESULT: ${{ steps.tidy.outcome }}
+          PACKAGE_RESULT: ${{ steps.package.outcome }}
+          RUNTIME_RESULT: ${{ steps.runtime.outcome }}
+        run: |
+          mkdir -p "$EVIDENCE"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          names = ['BUILD', 'TEST', 'TIDY', 'PACKAGE', 'RUNTIME']
+          results = {name.lower(): os.environ.get(name + '_RESULT', 'not_run') for name in names}
+          verdict = {'source_sha': '36498faa7cbcf1c6f47bdea042806b1aa8135f7e',
+                     'controller_sha': os.environ['GITHUB_SHA'], 'steps': results,
+                     'qualified': all(value == 'success' for value in results.values()),
+                     'released': False,
+                     'scope': 'Ubuntu 24.04 x86_64, X11/Mesa software OpenGL; see runtime/qualification.json for limitations'}
+          path = Path(os.environ['EVIDENCE']) / 'verdict.json'
+          path.write_text(json.dumps(verdict, indent=2) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('```json\n' + path.read_text() + '```\n')
+          PY
+          if [ -d "$BUILD/Testing" ]; then cp -a "$BUILD/Testing" "$EVIDENCE/ctest"; fi
+          if [ -f "$BUILD/CMakeCache.txt" ]; then cp "$BUILD/CMakeCache.txt" "$EVIDENCE/"; fi
+      - name: Upload candidate even when qualification fails
+        if: ${{ always() && steps.package.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.1.7-linux-x86_64-candidate-${{ github.run_id }}
+          path: |
+            ${{ env.OUT }}/*-candidate.tar.gz
+            ${{ env.OUT }}/*.sha256
+            ${{ env.EVIDENCE }}/verdict.json
+            ${{ env.EVIDENCE }}/runtime/qualification.json
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload evidence on success or failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.1.7-linux-evidence-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE }}
+            !${{ env.EVIDENCE }}/runtime/profile/**
+          if-no-files-found: error
+          retention-days: 14
+      - name: Fail closed unless all gates passed
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          verdict = json.loads((Path(os.environ['EVIDENCE']) / 'verdict.json').read_text())
+          if verdict['qualified'] is not True:
+              raise SystemExit('Candidate is NOT qualified; inspect preserved evidence.')
+          PY
