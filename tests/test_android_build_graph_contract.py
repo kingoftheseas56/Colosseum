@@ -118,7 +118,7 @@ class AndroidBuildGraphContract(unittest.TestCase):
         self.assertIsNotNone(android_block, "Android target composition block must exist")
         block = android_block.group(1)
         for token in (
-            'QT_ANDROID_ABIS "arm64-v8a"',
+            'QT_ANDROID_ABIS "${ANDROID_ABI}"',
             "QT_ANDROID_MIN_SDK_VERSION 28",
             "QT_ANDROID_COMPILE_SDK_VERSION 36",
             "QT_ANDROID_TARGET_SDK_VERSION 36",

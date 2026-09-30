@@ -880,10 +880,11 @@ if(ANDROID)
     set_property(TARGET colosseum PROPERTY QT_QML_ROOT_PATH "${COLOSSEUM_ANDROID_QML_ROOT}")
     set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
         "${COLOSSEUM_ANDROID_PACKAGE_DIR}")
-    # First-APK contract: one supported ABI on Qt 6.11's Android 9/API 28 floor,
-    # compiled and targeted against the installed API 36 platform.
+    # First-APK contract: one ABI per APK (the configured Qt kit's ABI: arm64-v8a for
+    # devices, x86_64 for emulators) on Qt 6.11's Android 9/API 28 floor, compiled and
+    # targeted against the installed API 36 platform.
     set_target_properties(colosseum PROPERTIES
-        QT_ANDROID_ABIS "arm64-v8a"
+        QT_ANDROID_ABIS "${ANDROID_ABI}"
         QT_ANDROID_MIN_SDK_VERSION 28
         QT_ANDROID_COMPILE_SDK_VERSION 36
         QT_ANDROID_TARGET_SDK_VERSION 36

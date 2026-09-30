@@ -1,0 +1,169 @@
+name: android
+
+# First installable Android lane. Deliberately limited to the android/installable branch.
+on:
+  push:
+    branches: [android/installable]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: "6.11.1"
+  COLOSSEUM_ANDROID_TOOLCHAIN: ${{ github.workspace }}/../colosseum-android
+  COLOSSEUM_ANDROID_DEPS: ${{ github.workspace }}/../colosseum-android-deps
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift || true
+          df -h "$GITHUB_WORKSPACE" | tail -1
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build ccache
+          ccache --max-size=2G
+
+      - name: Restore toolchain (Qt, SDK, NDK)
+        id: toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.COLOSSEUM_ANDROID_TOOLCHAIN }}/Qt
+            ${{ env.COLOSSEUM_ANDROID_TOOLCHAIN }}/android-sdk
+          key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
+
+      - name: Install toolchain
+        run: scripts/android/install_toolchain.sh
+
+      - name: Restore dependency prefixes
+        id: deps-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.COLOSSEUM_ANDROID_DEPS }}
+          key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
+
+      - name: Build OpenSSL / Boost / libtorrent (cache miss only)
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          scripts/android/build_deps.sh arm64-v8a x86_64
+
+      - name: Decode stable test signing key
+        # Test-only keystore shared by every CI build so a new APK installs over the previous one.
+        # Secrets: ANDROID_TEST_KEYSTORE_B64 (base64 .jks) and ANDROID_TEST_KEYSTORE_PASSWORD.
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_TEST_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::warning::ANDROID_TEST_KEYSTORE_B64/PASSWORD secrets are not set; APKs keep a per-run debug signature and will not install over each other."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/colosseum-test.jks"
+          echo "COLOSSEUM_ANDROID_KEYSTORE=$RUNNER_TEMP/colosseum-test.jks" >> "$GITHUB_ENV"
+
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: android-ccache-v1-${{ github.sha }}
+          restore-keys: android-ccache-v1-
+
+      - name: Build x86_64 APK
+        env:
+          COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          scripts/android/build_apk.sh x86_64 apk-out 2>&1 | tee build-x86_64.log | grep -E "error:|FAILED:|^\[android|sha256|\.apk" | head -80
+          test "${PIPESTATUS[0]}" = 0 || { grep -E "error:|FAILED:|fatal" build-x86_64.log | head -60; exit 1; }
+
+      - name: Build arm64-v8a APK
+        env:
+          COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          scripts/android/build_apk.sh arm64-v8a apk-out 2>&1 | tee build-arm64-v8a.log | grep -E "error:|FAILED:|^\[android|sha256|\.apk" | head -80
+          test "${PIPESTATUS[0]}" = 0 || { grep -E "error:|FAILED:|fatal" build-arm64-v8a.log | head -60; exit 1; }
+
+      - name: Save compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: android-ccache-v1-${{ github.sha }}
+
+      - name: APK checksums
+        run: cat apk-out/*.sha256 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colosseum-x86_64-debug-apk
+          path: |
+            apk-out/colosseum-x86_64-debug.apk
+            apk-out/colosseum-x86_64-debug.apk.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colosseum-arm64-v8a-debug-apk
+          path: |
+            apk-out/colosseum-arm64-v8a-debug.apk
+            apk-out/colosseum-arm64-v8a-debug.apk.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: android-build-logs
+          path: build-*.log
+
+  emulator-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: colosseum-x86_64-debug-apk
+          path: apk
+      - name: Verify APK checksum
+        run: cd apk && sha256sum -c colosseum-x86_64-debug.apk.sha256
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install, launch, and hold for 60 s on an API 34 x86_64 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash scripts/android/emulator_smoke.sh apk/colosseum-x86_64-debug.apk smoke-artifacts 60
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-smoke-x86_64
+          path: smoke-artifacts
