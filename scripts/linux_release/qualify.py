@@ -49,10 +49,17 @@ def qml_errors(log):
 
 
 def is_elf(path):
+    """Select runtime ELF images (ET_EXEC/ET_DYN), not SDK ET_REL objects."""
     if not path.is_file():
         return False
     with path.open('rb') as stream:
-        return stream.read(4) == b'\x7fELF'
+        header = stream.read(18)
+    # e_type follows the 16-byte identification in both ELF32 and ELF64.
+    if (len(header) < 18 or header[:4] != b'\x7fELF'
+            or header[4] not in (1, 2) or header[5] not in (1, 2)):
+        return False
+    byteorder = 'little' if header[5] == 1 else 'big'
+    return int.from_bytes(header[16:18], byteorder) in (2, 3)
 
 
 def closure(appdir, evidence, env):

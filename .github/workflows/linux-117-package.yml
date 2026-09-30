@@ -100,25 +100,10 @@ jobs:
       - name: Linux contract tests and CTests
         id: tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        continue-on-error: true
         run: bash controller/scripts/linux_release/test.sh
-      - name: Pinned clang-tidy correctness gate
-        id: tidy
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          cd "$SOURCE"
-          python scripts/clang_tidy_quality_gate.py \
-            --clang-tidy "$(command -v clang-tidy-20)" \
-            --compile-commands "$BUILD/compile_commands.json" \
-            --source-root native --allowlist .github/clang-tidy-allowlist.txt \
-            --required-version 20.1.2 --jobs 1 --min-files 184 \
-            2>&1 | tee "$EVIDENCE/clang-tidy.log"
       - name: Assemble candidate package
         id: package
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        continue-on-error: true
         run: |
           set -o pipefail
           python controller/scripts/linux_release/package.py \
@@ -128,8 +113,19 @@ jobs:
       - name: Qualify extracted package in clean Ubuntu
         id: runtime
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        continue-on-error: true
         run: bash controller/scripts/linux_release/clean.sh
+      - name: Pinned clang-tidy correctness gate
+        id: tidy
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          cd "$SOURCE"
+          python scripts/clang_tidy_quality_gate.py \
+            --clang-tidy "$(command -v clang-tidy-20)" \
+            --compile-commands "$BUILD/compile_commands.json" \
+            --source-root native --allowlist .github/clang-tidy-allowlist.txt \
+            --required-version 20.1.2 --jobs 1 --min-files 184 \
+            2>&1 | tee "$EVIDENCE/clang-tidy.log"
       - name: Record final verdict
         if: always()
         env:

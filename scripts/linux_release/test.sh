@@ -38,6 +38,13 @@ neutral=$?
 QT_QPA_PLATFORM=xcb QT_FORCE_STDERR_LOGGING=1 LIBGL_ALWAYS_SOFTWARE=1 \
   xvfb-run -a ctest --test-dir "$BUILD" -L requires-x11 -LE windows --output-on-failure --parallel 1
 x11=$?
+# Diagnostic only: compare the existing keyboard test on a real virtual X11 display.
+# Its result does not erase the original offscreen failure or alter the gate.
+QT_QPA_PLATFORM=xcb QT_FORCE_STDERR_LOGGING=1 LIBGL_ALWAYS_SOFTWARE=1 \
+  xvfb-run -a ctest --test-dir "$BUILD" -R '^colosseum\.qttest\.keyboard_key_events$' \
+    --output-on-failure --parallel 1 2>&1 | tee "$EVIDENCE/keyboard-x11-diagnostic.log"
+keyboard_x11=$?
+printf 'keyboard_x11_diagnostic_exit=%s\n' "$keyboard_x11" > "$EVIDENCE/keyboard-diagnostic-status.txt"
 set -e
 printf 'neutral_ctest_exit=%s\nx11_ctest_exit=%s\n' "$neutral" "$x11" > "$EVIDENCE/ctest-status.txt"
 test "$neutral:$x11" = 0:0

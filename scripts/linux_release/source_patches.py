@@ -13,6 +13,8 @@ HERE = Path(__file__).resolve().parent
 PATCHES = [
     HERE / 'patches/0001-reader2-profile-runtime-link.patch',
     HERE / 'patches/0002-account-first-light-delivery-link.patch',
+    HERE / 'patches/0003-linux-clang-tidy-reviewed-findings.patch',
+    HERE / 'patches/0004-portable-account-test-fixtures.patch',
 ]
 
 

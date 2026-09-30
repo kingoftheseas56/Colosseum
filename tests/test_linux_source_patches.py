@@ -45,7 +45,33 @@ class SourcePatchContract(unittest.TestCase):
             subprocess.run([sys.executable, str(path), '--source', str(source), '--evidence', str(evidence)], check=True)
             info = module.verify(source)
             self.assertEqual(info['source_base_sha'], module.BASE)
-            self.assertEqual(len(info['source_patches']), 2)
+            self.assertEqual(len(info['source_patches']), 4)
+            delivery = (source / 'native/account/RatingsReviewsDelivery.cpp').read_text()
+            publish = delivery.split('RatingsReviewsPublishResult RatingsReviewsDelivery::publishCommitted(', 1)[1].split('bool RatingsReviewsDelivery::retryOperation(', 1)[0]
+            # Preprocess both variants: production has no fixture-only state;
+            # testing retains declaration, assignment, and the existing phase update.
+            for testing in (False, True):
+                command = ['c++', '-E', '-P', '-x', 'c++', '-']
+                if testing:
+                    command.insert(1, '-DCOLOSSEUM_RATINGS_REVIEWS_TESTING=1')
+                output = subprocess.check_output(command, input=publish, text=True)
+                self.assertEqual(output.count('spoilerBlocked'), 3 if testing else 0)
+                self.assertIn('This provider cannot preserve spoiler protection.', output)
+            from scripts.clang_tidy_quality_gate import Diagnostic, load_allowlist
+            reviewed = load_allowlist(source / '.github/clang-tidy-allowlist.txt')
+            expected = {
+                Diagnostic('native/engine/BiblioCatalog.cpp', 1186, 'clang-analyzer-cplusplus.NewDeleteLeaks', "Potential leak of memory pointed to by 'canonicalWatcher'"),
+                Diagnostic('native/engine/MangaDownloader.cpp', 503, 'clang-analyzer-cplusplus.NewDeleteLeaks', "Potential leak of memory pointed to by 'scope'"),
+                Diagnostic('native/main.cpp', 965, 'clang-analyzer-cplusplus.NewDeleteLeaks', 'Potential memory leak'),
+                Diagnostic('native/main.cpp', 1346, 'clang-analyzer-cplusplus.NewDeleteLeaks', "Potential leak of memory pointed to by 'watcher'"),
+                Diagnostic('native/main.cpp', 1961, 'clang-analyzer-cplusplus.NewDeleteLeaks', "Potential leak of memory pointed to by 'posterTiming'"),
+            }
+            self.assertTrue(expected <= reviewed)
+            self.assertEqual(len(reviewed), 9)
+            for finding in expected:
+                self.assertNotIn(Diagnostic(finding.path, finding.line + 1, finding.check, finding.message), reviewed)
+                self.assertNotIn(Diagnostic(finding.path, finding.line, finding.check, 'different leak'), reviewed)
+            self.assertFalse(any(f.check == 'clang-analyzer-deadcode.DeadStores' for f in reviewed))
             cmake = (source / 'native/CMakeLists.txt').read_text()
             block = cmake.split('add_executable(reader2_profile_runtime_harness', 1)[1].split('# Task 12:', 1)[0]
             for unit in ['RatingsReviewsStore', 'TrackerDeliveryRuntime', 'TrackerScrobbleRuntime', 'TrackerSyncCenterModel', 'SimklApiClient', 'SimklConnectionController', 'SimklSyncRuntime']:

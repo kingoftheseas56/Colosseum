@@ -31,6 +31,13 @@ def copy_library(source, destination):
         shutil.copy2(source, destination, follow_symlinks=True)
 
 
+def copy_qt_runtime(source, destination):
+    # The SDK QML tree also contains build objects and static link metadata.
+    # Keep QML/import metadata and shared plugins, but omit development artifacts.
+    shutil.copytree(source, destination, symlinks=False,
+                    ignore=shutil.ignore_patterns('*.o', '*.obj', '*.a', '*.prl', '*.la'))
+
+
 def main():
     parser = argparse.ArgumentParser()
     for name in ['source', 'build', 'qt', 'mpvqt', 'out']:
@@ -67,9 +74,9 @@ def main():
     for name, path in runtime_tools.items():
         shutil.copy2(path, binary / name)
     for name in ['qml', 'resources', 'translations', 'libexec']:
-        shutil.copytree(qt / name, stage / 'usr' / name, symlinks=False)
+        copy_qt_runtime(qt / name, stage / 'usr' / name)
     for group in ['platforms', 'imageformats', 'iconengines', 'tls', 'xcbglintegrations']:
-        shutil.copytree(qt / 'plugins' / group, stage / 'usr/plugins' / group, symlinks=False)
+        copy_qt_runtime(qt / 'plugins' / group, stage / 'usr/plugins' / group)
     # SQLite is the app's SQL backend. Do not ship unused SQL drivers whose
     # vendor clients (Oracle/MySQL/PostgreSQL) would enlarge the runtime contract.
     (stage / 'usr/plugins/sqldrivers').mkdir(parents=True)

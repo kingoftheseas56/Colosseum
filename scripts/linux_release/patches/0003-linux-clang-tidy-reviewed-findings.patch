@@ -1,0 +1,45 @@
+--- a/native/account/RatingsReviewsDelivery.cpp
++++ b/native/account/RatingsReviewsDelivery.cpp
+@@ -348,7 +348,9 @@
+     const RatingsReviewsPublishIntent &intent)
+ {
+     RatingsReviewsPublishResult result;
++#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
+     bool spoilerBlocked = false;
++#endif
+     if (!active() || intent.canonicalKey.isEmpty()
+         || !ratingsReviewsDeliveryIsSha256(intent.canonicalPayloadDigest)) {
+         return result;
+@@ -373,7 +375,9 @@
+         } else if (destination.reviewSelected && record->spoiler
+                    && !fixture->capability.spoilerMetadata) {
+             providerResult.reason = QStringLiteral("This provider cannot preserve spoiler protection.");
++#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
+             spoilerBlocked = true;
++#endif
+         } else {
+             QList<RatingsReviewsDeliveryOperation> created;
+             const auto createOperation = [&](const QString &type,
+--- a/.github/clang-tidy-allowlist.txt
++++ b/.github/clang-tidy-allowlist.txt
+@@ -4,3 +4,20 @@
+ native/main.cpp|1260|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+ native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+ native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
++# Reviewed for Linux clang-tidy 20.1.2, source 36498faa7cbcf1c6f47bdea042806b1aa8135f7e.
++# BiblioCatalog.cpp:1096 parents canonicalWatcher to this; finished deletes it
++# at 1101 before stale-generation/empty-result returns. Parent also owns teardown.
++native/engine/BiblioCatalog.cpp|1186|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'canonicalWatcher'
++# MangaDownloader.cpp:482 parents scope to this; matching success/failure
++# callbacks deleteLater at 488/500. Parent owns it if a request never settles.
++native/engine/MangaDownloader.cpp|503|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'scope'
++# main.cpp:958-960 transfers new PinProxyFactory to Qt's ownership-taking
++# QNetworkProxyFactory::setApplicationProxyFactory. The summarized diagnostic
++# is anonymous; allocation attribution is based on the immediate handoff site.
++native/main.cpp|965|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
++# main.cpp:1272 parents watcher to vaultIndex; finished deletes it at 1277.
++# vaultIndex is app-owned at 1138, so incomplete work also has an owner.
++native/main.cpp|1346|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
++# main.cpp:1017 parents posterTiming to stack app (588); constructor forwards
++# QObject(parent), PosterTimingProbe.cpp:18. Early return 1961 destroys app.
++native/main.cpp|1961|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'posterTiming'
