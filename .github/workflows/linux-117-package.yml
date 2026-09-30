@@ -170,6 +170,14 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 14
+      - name: Prepare readable evidence without private runtime profile
+        if: always()
+        run: |
+          mkdir -p "$EVIDENCE" "$OUT"
+          if [ -d "$EVIDENCE/runtime/profile" ]; then
+            sudo mv "$EVIDENCE/runtime/profile" "$OUT/private-runtime-profile"
+          fi
+          sudo chown -R "$(id -u):$(id -g)" "$EVIDENCE"
       - name: Upload evidence on success or failure
         if: always()
         uses: actions/upload-artifact@v4

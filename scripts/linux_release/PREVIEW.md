@@ -63,8 +63,11 @@ unsupported; this preview does not turn them into passes or remove them.
 Separately, that run failed `account_core` (a missing fixture handoff),
 `account_attachment_coordinator` (two Windows-specific read-only receipt-lock
 fixtures) and `keyboard_key_events` (scroll position). Patch 0004 addresses the
-first two fixture issues; a passing native rerun is still required. The keyboard
-failure is unresolved. An X11 diagnostic does not erase an offscreen failure.
+first two fixture issues; both targets passed in run `36744998735`. Patch 0006
+fixes the keyboard test's missing layout-readiness wait, and patch 0007 fixes
+per-connection framing in the datastore test server used by `core_sync_adapters`.
+Their native reruns remain authoritative. An X11 diagnostic does not erase an
+offscreen failure.
 Use newer exact-run evidence to update these outcomes; build and runtime results
 for newer candidate bytes cannot be inferred from that baseline.
 

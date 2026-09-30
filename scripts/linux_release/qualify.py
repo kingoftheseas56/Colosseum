@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import time
@@ -68,8 +69,11 @@ def closure(appdir, evidence, env):
         for path in sorted(appdir.rglob('*')):
             if path.is_symlink() or not is_elf(path):
                 continue
+            log.write(str(path.relative_to(appdir)) + '\n')
+            log.flush()  # Keep the blocked path even if ldd or the job times out.
             result = subprocess.run(['ldd', str(path)], env=env, text=True, capture_output=True, timeout=30)
-            log.write(str(path.relative_to(appdir)) + '\n' + result.stdout + result.stderr)
+            log.write(result.stdout + result.stderr)
+            log.flush()
             failures.extend(loader_errors(result.stdout + result.stderr, appdir))
             if result.returncode and 'statically linked' not in result.stdout + result.stderr:
                 failures.append('ldd failed: ' + str(path))
@@ -85,35 +89,28 @@ def main():
     args = parser.parse_args()
     appdir, evidence = args.appdir.resolve(), args.evidence.resolve()
     evidence.mkdir(parents=True, exist_ok=True)
-    statuses = {key: 'NOT_RUN' for key in ['elf_closure', 'launch', 'qml', 'catalog', 'playback']}
+    statuses = {key: 'NOT_RUN' for key in ['setup', 'elf_closure', 'launch', 'qml', 'catalog', 'playback']}
     report = {'checks': statuses, 'qualified': False, 'scope': 'Ubuntu 24.04 x86_64; Xvfb/Mesa software OpenGL',
               'limitations': ['No hardware GPU or audible-output qualification',
                               'Local fixture playback only; no remote stream, DRM, DVR or Stremio service qualification',
                               'Catalog check is a real live movie-catalog production request; not visual catalog UI, offline data or all providers',
                               'WebEngine assets are bundled; reader runtime is unverified',
                               'Direct PID-bound Lanista checks; not a Harness completionReady receipt']}
-    tag = 'linux-' + uuid.uuid4().hex[:12]
-    profile = evidence / 'profile'
-    profile.mkdir()
-    env = {'PATH': '/usr/bin:/bin', 'HOME': str(profile), 'LANG': 'C.UTF-8',
-           'DISPLAY': os.environ['DISPLAY'], 'XAUTHORITY': os.environ.get('XAUTHORITY', ''),
-           'XDG_DATA_HOME': str(profile / 'data'), 'XDG_CONFIG_HOME': str(profile / 'config'),
-           'XDG_CACHE_HOME': str(profile / 'cache'), 'XDG_RUNTIME_DIR': str(profile / 'run'),
-           'LD_LIBRARY_PATH': str(appdir / 'usr/lib'), 'LIBGL_ALWAYS_SOFTWARE': '1',
-           'QT_QPA_PLATFORM': 'xcb', 'QT_FORCE_STDERR_LOGGING': '1',
-           'COLOSSEUM_APPDATA_TAG': tag, 'COLOSSEUM_LANISTA_DRIVE': '1',
-           'COLOSSEUM_LANISTA_PIPE': str(profile / 'bridge.sock'),
-           'COLOSSEUM_CATALOG_SELFTEST': 'movies'}
-    Path(env['XDG_RUNTIME_DIR']).mkdir(mode=0o700)
-    # Seed only the production Recent route, rewriting the Windows-only fixture
-    # path to a generated Linux fixture. Catalog data is deliberately not seeded.
-    data = Path(env['XDG_DATA_HOME']) / 'Brotherhood' / ('Colosseum-dltest-' + tag)
-    (data / 'vault').mkdir(parents=True)
-    (data / 'vault/open-recent.json').write_text(json.dumps({'items': [{
-        'path': str(args.fixture.resolve()), 'title': 'Linux package playback fixture',
-        'kind': 'video', 'vaultId': 'vault:linux-package-fixture'}]}))
+    def checkpoint(phase):
+        report['phase'] = phase
+        report['updated_at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        temporary = evidence / 'qualification.json.tmp'
+        temporary.write_text(json.dumps(report, indent=2) + '\n')
+        temporary.replace(evidence / 'qualification.json')
+        print(report['updated_at'] + ' qualifier: ' + phase, flush=True)
+
+    def interrupted(signum, frame):
+        raise RuntimeError('qualification interrupted by signal ' + str(signum))
+
+    signal.signal(signal.SIGTERM, interrupted)
     process = None
-    active = 'elf_closure'
+    active = 'setup'
+    checkpoint(active)  # Persist before profile, DISPLAY or any subprocess setup.
     sequence = 0
     def call(cmd, payload=None):
         nonlocal sequence
@@ -144,10 +141,34 @@ def main():
             raise RuntimeError('property not reached: ' + str(reply))
 
     try:
+        tag = 'linux-' + uuid.uuid4().hex[:12]
+        profile = evidence / 'profile'
+        profile.mkdir()
+        env = {'PATH': '/usr/bin:/bin', 'HOME': str(profile), 'LANG': 'C.UTF-8',
+               'DISPLAY': os.environ['DISPLAY'], 'XAUTHORITY': os.environ.get('XAUTHORITY', ''),
+               'XDG_DATA_HOME': str(profile / 'data'), 'XDG_CONFIG_HOME': str(profile / 'config'),
+               'XDG_CACHE_HOME': str(profile / 'cache'), 'XDG_RUNTIME_DIR': str(profile / 'run'),
+               'LD_LIBRARY_PATH': str(appdir / 'usr/lib'), 'LIBGL_ALWAYS_SOFTWARE': '1',
+               'QT_QPA_PLATFORM': 'xcb', 'QT_FORCE_STDERR_LOGGING': '1',
+               'COLOSSEUM_APPDATA_TAG': tag, 'COLOSSEUM_LANISTA_DRIVE': '1',
+               'COLOSSEUM_LANISTA_PIPE': str(profile / 'bridge.sock'),
+               'COLOSSEUM_CATALOG_SELFTEST': 'movies'}
+        Path(env['XDG_RUNTIME_DIR']).mkdir(mode=0o700)
+        # Seed only the production Recent route, rewriting the Windows-only fixture
+        # path to a generated Linux fixture. Catalog data is deliberately not seeded.
+        data = Path(env['XDG_DATA_HOME']) / 'Brotherhood' / ('Colosseum-dltest-' + tag)
+        (data / 'vault').mkdir(parents=True)
+        (data / 'vault/open-recent.json').write_text(json.dumps({'items': [{
+            'path': str(args.fixture.resolve()), 'title': 'Linux package playback fixture',
+            'kind': 'video', 'vaultId': 'vault:linux-package-fixture'}]}))
+        statuses[active] = 'PASS'
+        active = 'elf_closure'
+        checkpoint(active)
         required_tools(appdir / 'usr/bin')
         closure(appdir, evidence, env)
         statuses[active] = 'PASS'
         active = 'launch'
+        checkpoint(active)
         with (evidence / 'app.log').open('w') as log:
             # AppRun execs the binary, preserving PID. No QML argument: the
             # production manifest fingerprint and relative resource layout apply.
@@ -167,6 +188,7 @@ def main():
                 raise RuntimeError('unexpected profile root; no isolation proof')
             statuses[active] = 'PASS'
             active = 'qml'
+            checkpoint(active)
             wait_prop('bootSplash', 'visible', False, 60000)
             call('ui-keypress', {'key': 'Enter'})
             wait_prop('accountHost', 'visible', False)
@@ -174,6 +196,7 @@ def main():
                 raise RuntimeError('QML load errors; see app.log')
             statuses[active] = 'PASS'
             active = 'playback'
+            checkpoint(active)
             # Same UI entry point as the tagged journey_play_video scenario.
             call('ui-click', {'target': 'colosseumTaskbarHomeButton'})
             wait_prop('taskbarOpenMedia', 'width', 46, 5000)
@@ -197,6 +220,7 @@ def main():
             shutil.copy2(screenshot, evidence / 'playback.png')
             statuses[active] = 'PASS'
             active = 'catalog'
+            checkpoint(active)
             deadline = time.monotonic() + 180
             while not catalog_ready((evidence / 'app.log').read_text(errors='replace')):
                 if process.poll() is not None or time.monotonic() > deadline:
@@ -222,7 +246,7 @@ def main():
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
-        (evidence / 'qualification.json').write_text(json.dumps(report, indent=2) + '\n')
+        checkpoint('complete' if report['qualified'] else 'failed')
         print(json.dumps(report, indent=2))
     return 0 if report['qualified'] else 1
 

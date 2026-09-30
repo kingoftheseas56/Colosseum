@@ -16,6 +16,8 @@ PATCHES = [
     HERE / 'patches/0003-linux-clang-tidy-reviewed-findings.patch',
     HERE / 'patches/0004-portable-account-test-fixtures.patch',
     HERE / 'patches/0005-linux-preview-credential-errors.patch',
+    HERE / 'patches/0006-keyboard-test-layout-readiness.patch',
+    HERE / 'patches/0007-datastore-test-socket-lifetime.patch',
 ]
 
 
