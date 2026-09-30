@@ -2,7 +2,7 @@
 
 Status: **Approved by Hemanth 2026-09-29** (Claude, brotherhood-brainstorming).
 Scope: the Discover page of Theatre, Biblio, Tankoban Manga and Tankoban Comics (all one `DiscoverBrowser`).
-Reference look: `C:\Users\Suprabha\Downloads\colosseum-theatre-sidebar-concept.html` (the `worldnav` rail) and, for retracting,
+Reference look: `colosseum-theatre-sidebar-concept.html` (maintainer-local file) (the `worldnav` rail) and, for retracting,
 `colosseum-theatre-sidebar-concept (1).html` (Hemanth, 2026-09-29).
 
 ## 1. Experience promise and scope
