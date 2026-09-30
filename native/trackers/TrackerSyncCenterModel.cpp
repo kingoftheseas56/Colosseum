@@ -475,10 +475,10 @@ QVariantMap TrackerSyncCenterModel::providerDossier(const QString &providerKey)
             {QStringLiteral("livePlaybackSettingEnabled"), isConnected && provider->available
                     && global.trackerSyncEnabled
                     && capabilities.testFlag(TrackerProviderCapability::Scrobble)},
-            // No verified native authentication action is composed in the
-            // production runtime yet. Descriptor availability alone must not
-            // turn the visible Connect control into a dead enabled button.
-            {QStringLiteral("connectEnabled"), false},
+            // Match the catalogue/card gate: a provider is connectable only
+            // when this profile owns a live native authentication action.
+            {QStringLiteral("connectEnabled"), provider->available
+                    && m_connectAvailable && m_profileAvailable},
             {QStringLiteral("pendingWork"), current
                     && current->state == TrackerConnectionState::Disconnected
                     && (counts.pending > 0 || counts.unresolved > 0)},

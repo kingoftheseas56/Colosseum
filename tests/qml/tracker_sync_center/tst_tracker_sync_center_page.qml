@@ -508,6 +508,45 @@ TestCase {
         function refresh() {}
     }
 
+    QtObject {
+        id: fixtureConnector
+        signal connectionEstablished(string providerKey)
+        property bool available: true
+        property bool busy: false
+        property bool moveAvailable: false
+        property string phase: "idle"
+        property string userCode: ""
+        property string verificationUrl: ""
+        property string statusMessage: ""
+        property int beginCalls: 0
+        property string lastProviderKey: ""
+
+        function beginConnection(providerKey) {
+            beginCalls++
+            lastProviderKey = providerKey
+            if (providerKey !== "simkl")
+                return false
+            phase = "connected"
+            statusMessage = "SIMKL is connected to this Colosseum profile."
+            connectionEstablished(providerKey)
+            return true
+        }
+
+        function openApprovalPage() { return true }
+        function moveConnectionToThisProfile() { return false }
+        function cancel() {
+            busy = false
+            phase = "cancelled"
+        }
+        function dismiss() {
+            busy = false
+            phase = "idle"
+            userCode = ""
+            verificationUrl = ""
+            statusMessage = ""
+        }
+    }
+
     Component {
         id: pageComponent
         Colosseum.TrackerSyncCenterPage {
@@ -584,6 +623,15 @@ TestCase {
         fixtureModel.lastDisconnectProvider = ""
         fixtureModel.lastDisconnectChoice = ""
         fixtureModel.lastActionResult = ({ accepted: false, code: "idle" })
+        fixtureConnector.available = true
+        fixtureConnector.busy = false
+        fixtureConnector.moveAvailable = false
+        fixtureConnector.phase = "idle"
+        fixtureConnector.userCode = ""
+        fixtureConnector.verificationUrl = ""
+        fixtureConnector.statusMessage = ""
+        fixtureConnector.beginCalls = 0
+        fixtureConnector.lastProviderKey = ""
     }
 
     function init() {
@@ -918,6 +966,70 @@ TestCase {
                 "Unavailable in this build")
         compare(findChild(page, "trackerConnectButton").enabled, false)
         compare(page.selectedProviderKey, "simkl")
+    }
+
+    function test_simkl_connect_button_invokes_native_connector_and_exposes_success() {
+        page.selectedProviderKey = ""
+        page.selectedDossier = ({})
+        modelUnderTest = fixtureModel
+        page.trackerConnector = fixtureConnector
+        fixtureModel.catalogue = [{
+            providerKey: "simkl",
+            providerName: "SIMKL",
+            status: "Not connected",
+            capabilities: ["read_history", "read_progress", "write_progress",
+                           "write_completion", "scrobble"],
+            available: true,
+            connected: false,
+            pendingWork: false,
+            waitingCount: 0,
+            unresolvedCount: 0,
+            connectEnabled: true
+        }]
+        fixtureModel.dossiers = ({
+            simkl: {
+                found: true,
+                providerKey: "simkl",
+                providerName: "SIMKL",
+                available: true,
+                status: "Not connected",
+                connected: false,
+                accountLabel: "",
+                capabilities: ["read_history", "read_progress", "write_progress",
+                               "write_completion", "scrobble"],
+                connectEnabled: true,
+                pendingWork: false,
+                syncEnabled: false,
+                disconnectEnabled: false,
+                cleanupEnabled: false,
+                removeImportedEnabled: false,
+                removeImportedPending: false,
+                importedHistoryCount: 0,
+                importedProgressCount: 0
+            }
+        })
+        fixtureModel.modelChanged()
+        wait(0)
+
+        var card = findChild(page, "trackerCatalogue_simkl")
+        verify(card !== null)
+        revealScrollableItem(card)
+        mouseClick(card)
+        tryCompare(page, "selectedProviderKey", "simkl")
+
+        var connect = findChild(page, "trackerConnectButton")
+        verify(connect !== null)
+        compare(connect.enabled, true)
+        compare(connect.text, "Connect")
+        mouseClick(connect)
+        wait(0)
+
+        compare(fixtureConnector.beginCalls, 1)
+        compare(fixtureConnector.lastProviderKey, "simkl")
+        compare(fixtureConnector.phase, "connected")
+        compare(page.connectionPanelOpen, true)
+        compare(findChild(page, "trackerConnectionApprovalLayer").visible, true)
+        compare(findChild(page, "trackerSimklDismiss").text, "Done")
     }
 
     function test_trakt_uses_stremio_link_and_future_cards_say_coming_soon() {

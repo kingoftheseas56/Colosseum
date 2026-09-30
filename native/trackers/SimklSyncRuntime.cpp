@@ -490,24 +490,32 @@ void SimklSyncRuntime::pullSimkl(bool explicitRequest)
 
 void SimklSyncRuntime::fetchNext(const std::shared_ptr<PullState> &state)
 {
-    static const QStringList paths{
-        QStringLiteral("/sync/all-items/movies"),
-        QStringLiteral("/sync/all-items/shows"),
-        QStringLiteral("/sync/all-items/anime"),
-        QStringLiteral("/sync/playback")};
+    const QStringList paths = state->initial
+        ? QStringList{QStringLiteral("/sync/all-items/movies"),
+                      QStringLiteral("/sync/all-items/shows"),
+                      QStringLiteral("/sync/all-items/anime"),
+                      QStringLiteral("/sync/playback")}
+        : QStringList{QStringLiteral("/sync/all-items"),
+                      QStringLiteral("/sync/playback")};
     if (state->nextRequest >= paths.size()) {
         finishPull(state);
         return;
     }
+
+    const int requestIndex = state->nextRequest;
+    const bool allItemsRequest = state->initial ? requestIndex < 3 : requestIndex == 0;
+    const bool episodeRichRequest = state->initial
+        ? (requestIndex == 1 || requestIndex == 2) : requestIndex == 0;
     QUrlQuery query;
-    if (state->nextRequest == 1 || state->nextRequest == 2) {
+    if (episodeRichRequest) {
         query.addQueryItem(QStringLiteral("extended"), QStringLiteral("full"));
         query.addQueryItem(QStringLiteral("episode_watched_at"), QStringLiteral("yes"));
         query.addQueryItem(QStringLiteral("include_all_episodes"), QStringLiteral("original"));
         query.addQueryItem(QStringLiteral("language"), QStringLiteral("en"));
     }
-    if (!state->initial && state->nextRequest < 3)
+    if (!state->initial && allItemsRequest)
         query.addQueryItem(QStringLiteral("date_from"), state->baseCursor);
+
     const QString path = paths.at(state->nextRequest++);
     m_api->get(path, query,
         guarded(QPointer<SimklSyncRuntime>(this),
@@ -527,12 +535,23 @@ void SimklSyncRuntime::fetchNext(const std::shared_ptr<PullState> &state)
 void SimklSyncRuntime::finishPull(const std::shared_ptr<PullState> &state)
 {
     QList<ParsedRemoteFact> parsed;
-    for (int i = 0; i < qMin(3, static_cast<int>(state->documents.size())); ++i)
-        parsed.append(parseAllItems(state->documents.at(i), TrackerProviderId::Simkl,
+    int playbackIndex = -1;
+    if (state->initial) {
+        for (int i = 0; i < qMin(3, static_cast<int>(state->documents.size())); ++i) {
+            parsed.append(parseAllItems(state->documents.at(i), TrackerProviderId::Simkl,
+                                        state->connection.remoteAccountId));
+        }
+        playbackIndex = 3;
+    } else if (!state->documents.isEmpty()) {
+        parsed.append(parseAllItems(state->documents.first(), TrackerProviderId::Simkl,
                                     state->connection.remoteAccountId));
-    if (state->documents.size() > 3)
-        parsed.append(parsePlaybacks(state->documents.at(3), TrackerProviderId::Simkl,
+        playbackIndex = 1;
+    }
+    if (playbackIndex >= 0 && state->documents.size() > playbackIndex) {
+        parsed.append(parsePlaybacks(state->documents.at(playbackIndex),
+                                     TrackerProviderId::Simkl,
                                      state->connection.remoteAccountId));
+    }
 
     QByteArray snapshotMaterial;
     for (const QJsonDocument &document : state->documents)

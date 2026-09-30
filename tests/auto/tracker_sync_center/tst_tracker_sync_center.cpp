@@ -309,7 +309,7 @@ private slots:
     void syncReceiptPreservesReviewDependentPullDefault();
     void adoptionCopiesOnlyWhenDestinationHasNoSettings();
     void accountlessCatalogueProjectionIsSafeAndInert();
-    void connectStaysDisabledWithoutNativeAuthenticationAction();
+    void connectAvailabilityTracksNativeAuthenticationAction();
     void safeDtoKeysMatchAllowlist();
     void connectedCardUsesSafeLabelAndEffectiveCapabilities();
     void importReviewUsesOpaqueIdsAndRevalidatesRevision();
@@ -496,16 +496,35 @@ void TrackerSyncCenterTest::accountlessCatalogueProjectionIsSafeAndInert()
              QStringLiteral("owner_unavailable"));
 }
 
-void TrackerSyncCenterTest::connectStaysDisabledWithoutNativeAuthenticationAction()
+void TrackerSyncCenterTest::connectAvailabilityTracksNativeAuthenticationAction()
 {
     TrackerSyncCenterFixture fixture;
     QVERIFY(fixture.valid());
-    const QVariantMap dossier = fixture.model->providerDossier(QStringLiteral("simkl"));
-    QVERIFY(dossier.value(QStringLiteral("available")).toBool());
-    QVERIFY(!dossier.value(QStringLiteral("connectEnabled")).toBool());
-    const QVariantList catalogue = fixture.model->catalogue();
-    QVERIFY(!catalogue.isEmpty());
-    QVERIFY(!catalogue.first().toMap().value(QStringLiteral("connectEnabled")).toBool());
+
+    auto simklDossier = fixture.model->providerDossier(QStringLiteral("simkl"));
+    QVERIFY(simklDossier.value(QStringLiteral("available")).toBool());
+    QVERIFY(!simklDossier.value(QStringLiteral("connectEnabled")).toBool());
+
+    fixture.model->setConnectAvailable(true);
+    simklDossier = fixture.model->providerDossier(QStringLiteral("simkl"));
+    QVERIFY(simklDossier.value(QStringLiteral("connectEnabled")).toBool());
+
+    bool sawSimkl = false;
+    for (const QVariant &rowValue : fixture.model->catalogue()) {
+        const QVariantMap row = rowValue.toMap();
+        const QString providerKey = row.value(QStringLiteral("providerKey")).toString();
+        if (providerKey == QLatin1String("simkl")) {
+            sawSimkl = true;
+            QVERIFY(row.value(QStringLiteral("connectEnabled")).toBool());
+        } else {
+            QVERIFY(!row.value(QStringLiteral("connectEnabled")).toBool());
+        }
+    }
+    QVERIFY(sawSimkl);
+
+    fixture.model->setConnectAvailable(false);
+    QVERIFY(!fixture.model->providerDossier(QStringLiteral("simkl"))
+                 .value(QStringLiteral("connectEnabled")).toBool());
 }
 
 void TrackerSyncCenterTest::connectedCardUsesSafeLabelAndEffectiveCapabilities()
