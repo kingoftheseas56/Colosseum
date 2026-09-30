@@ -26,6 +26,8 @@ jobs:
       DEPS: ${{ github.workspace }}/.linux-117-work/linux-117-deps
       OUT: ${{ github.workspace }}/.linux-117-work/linux-117-out
       EVIDENCE: ${{ github.workspace }}/.linux-117-work/linux-117-evidence
+      CCACHE_DIR: ${{ github.workspace }}/.linux-117-work/ccache
+      CCACHE_COMPILERCHECK: content
     steps:
       # Controller scripts come from the explicitly dispatched workflow commit.
       # Application sources are a separate, immutable checkout of the release.
@@ -69,9 +71,32 @@ jobs:
               libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
               xvfb xauth ffmpeg p7zip-full libarchive-tools patchelf
           } 2>&1 | tee "$EVIDENCE/apt.log"
+      - name: Identify compiler cache namespace
+        id: ccache-key
+        run: |
+          prefix="linux117-ubuntu24.04-x86_64-qt6.11.1-gcc$(c++ -dumpfullversion)-base36498faa7cbcf1c6f47bdea042806b1aa8135f7e"
+          echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
+          mkdir -p "$CCACHE_DIR"
+      - name: Restore compiler cache
+        id: ccache-restore
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.ccache-key.outputs.prefix }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ steps.ccache-key.outputs.prefix }}-
       - name: Build pinned application and test targets
         id: build
         run: bash controller/scripts/linux_release/build.sh
+      - name: Record compiler cache statistics
+        if: ${{ always() && steps.ccache-key.outcome == 'success' }}
+        run: ccache --show-stats | tee "$EVIDENCE/ccache-stats.txt"
+      - name: Save compiler cache including failed builds
+        if: ${{ always() && steps.ccache-key.outcome == 'success' && steps.ccache-restore.outputs.cache-primary-key != '' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
       - name: Linux contract tests and CTests
         id: tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

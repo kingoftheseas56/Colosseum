@@ -10,7 +10,10 @@ import tempfile
 
 BASE = '36498faa7cbcf1c6f47bdea042806b1aa8135f7e'
 HERE = Path(__file__).resolve().parent
-PATCHES = [HERE / 'patches/0001-reader2-profile-runtime-link.patch']
+PATCHES = [
+    HERE / 'patches/0001-reader2-profile-runtime-link.patch',
+    HERE / 'patches/0002-account-first-light-delivery-link.patch',
+]
 
 
 def git(source, *args, **kwargs):
