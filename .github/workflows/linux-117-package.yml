@@ -125,6 +125,9 @@ jobs:
                      'qualified': all(value == 'success' for value in results.values()),
                      'released': False,
                      'scope': 'Ubuntu 24.04 x86_64, X11/Mesa software OpenGL; see runtime/qualification.json for limitations'}
+          provenance = Path(os.environ['EVIDENCE']) / 'source-provenance.json'
+          if provenance.exists():
+              verdict.update(json.loads(provenance.read_text()))
           path = Path(os.environ['EVIDENCE']) / 'verdict.json'
           path.write_text(json.dumps(verdict, indent=2) + '\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:

@@ -7,6 +7,8 @@ test "$(git -C "$SOURCE" rev-parse HEAD)" = 36498faa7cbcf1c6f47bdea042806b1aa813
 test -z "$(git -C "$SOURCE" status --porcelain --untracked-files=all)"
 git -C "$SOURCE" ls-remote origin refs/tags/v1.1.7 | tee "$EVIDENCE/remote-tag.txt"
 grep -q '^36498faa7cbcf1c6f47bdea042806b1aa8135f7e[[:space:]]' "$EVIDENCE/remote-tag.txt"
+# Apply the reviewed source delta only after validating the pristine pinned tag.
+python "$(dirname "${BASH_SOURCE[0]}")/source_patches.py" --source "$SOURCE" --evidence "$EVIDENCE"
 . /etc/os-release
 test "$ID:$VERSION_ID:$(uname -m)" = ubuntu:24.04:x86_64
 test "$("$QT_ROOT_DIR/bin/qmake" -query QT_VERSION)" = 6.11.1

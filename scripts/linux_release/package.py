@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tarfile
 
+from source_patches import verify as verify_source
 from qualify import HOST_ABI, is_elf, loader_errors, required_tools
 
 SOURCE = '36498faa7cbcf1c6f47bdea042806b1aa8135f7e'
@@ -39,8 +40,7 @@ def main():
     runtime_tools = required_tools()
     if run('git', '-C', str(source), 'rev-parse', 'HEAD') != SOURCE:
         raise RuntimeError('source SHA mismatch')
-    if run('git', '-C', str(source), 'status', '--porcelain', '--untracked-files=all'):
-        raise RuntimeError('dirty application checkout')
+    source_provenance = verify_source(source)
     cache = (build / 'CMakeCache.txt').read_text()
     for key, value in [('CMAKE_BUILD_TYPE', 'Release'), ('COLOSSEUM_BUILD_PLAYER2', 'OFF'),
                        ('COLOSSEUM_PLAYER2_IN_APP', 'OFF'), ('COLOSSEUM_UPDATE_TESTING', 'OFF')]:
@@ -52,8 +52,8 @@ def main():
     stage = out / 'Colosseum-1.1.7-linux-x86_64'
     stage.mkdir()  # refuse to merge stale staging output
     # Preserve every tracked resource and its relative layout. Deliberately include
-    # the tagged source instead of guessing which JS/scripts/assets are unused.
-    archive = subprocess.check_output(['git', '-C', str(source), 'archive', SOURCE])
+    # the exact patched source instead of guessing which JS/scripts/assets are unused.
+    archive = subprocess.check_output(['git', '-C', str(source), 'archive', source_provenance['source_tree_sha']])
     with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
         stream.extractall(stage, filter='data')
     lib = stage / 'usr/lib'
@@ -148,7 +148,7 @@ exec "$APPDIR/usr/bin/colosseum" "$@"
     for name, root in [('mpvqt', mpvqt), ('qt', qt)]:
         (stage / (name + '-prefix.txt')).write_text(str(root) + '\n')
     (stage / 'DEPENDENCY-VERSIONS.txt').write_text(run('dpkg-query', '-W') + '\n')
-    (stage / 'PACKAGE.json').write_text(json.dumps({'source_sha': SOURCE, 'version': '1.1.7', 'qt': '6.11.1',
+    (stage / 'PACKAGE.json').write_text(json.dumps({**source_provenance, 'source_sha': SOURCE, 'version': '1.1.7', 'qt': '6.11.1',
         'ecm': '6.15.0', 'mpvqt': '1.2.0', 'format': 'tar.gz', 'target': 'Ubuntu 24.04 x86_64',
         'created': True, 'qualified': False, 'released': False,
         'host_requirements': ['glibc 2.39 / Ubuntu 24.04', 'X11 display', 'Mesa/OpenGL drivers', 'fonts', 'CA certificates'],
