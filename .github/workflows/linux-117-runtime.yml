@@ -33,14 +33,14 @@ jobs:
         run: |
           mkdir -p "$EVIDENCE/runtime" "$WORK/download" "$WORK/extract"
           git -C controller rev-parse HEAD > "$EVIDENCE/diagnostic-controller-sha.txt"
-          printf 'Runtime diagnostic of preserved run 36744998735 only. Not full qualification or final preview.\n' > "$EVIDENCE/STATUS.txt"
+          printf 'Runtime diagnostic of preserved run 36754421665 only. Not full qualification or final preview.\n' > "$EVIDENCE/STATUS.txt"
       - name: Fetch immutable candidate and verify ZIP digest
         timeout-minutes: 10
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/11115041404"
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/11119705439"
           curl --fail --silent --show-error --location --retry 2 --max-time 300 \
             -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
             "$api" -o "$EVIDENCE/artifact.json"
@@ -48,16 +48,16 @@ jobs:
           import json, os
           from pathlib import Path
           metadata = json.loads((Path(os.environ['EVIDENCE']) / 'artifact.json').read_text())
-          assert metadata['id'] == 11115041404
-          assert metadata['name'] == 'Colosseum-1.1.7-linux-x86_64-candidate-36744998735'
-          assert metadata['workflow_run']['id'] == 36744998735
-          assert metadata['size_in_bytes'] == 754917099
+          assert metadata['id'] == 11119705439
+          assert metadata['name'] == 'Colosseum-1.1.7-linux-x86_64-candidate-36754421665'
+          assert metadata['workflow_run']['id'] == 36754421665
+          assert metadata['size_in_bytes'] == 754924363
           assert not metadata['expired']
           PY
           curl --fail --silent --show-error --location --retry 2 --max-time 300 \
             -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
             "$api/zip" -o "$WORK/candidate.zip"
-          printf '%s  %s\n' 2d9b422df9d6123c9b1c6ce99611e0f48ebff9fdc7d9e6fb71f85f45493e69e9 "$WORK/candidate.zip" | sha256sum -c -
+          printf '%s  %s\n' 8f5df7d647f4bae97030dacc3c45bbe92522c143d7f6017b8ea5da381c58e168 "$WORK/candidate.zip" | sha256sum -c -
           unzip -q "$WORK/candidate.zip" -d "$WORK/download"
       - name: Verify package checksum and original source provenance
         run: |
@@ -78,20 +78,11 @@ jobs:
           assert digest == expected
           with tarfile.open(archive) as tar:
               metadata = json.load(tar.extractfile('Colosseum-1.1.7-linux-x86_64/PACKAGE.json'))
-          expected_provenance = {
-              'source_base_sha': '36498faa7cbcf1c6f47bdea042806b1aa8135f7e',
-              'source_tree_sha': '1e8fa44af7dea8ff189eef1cea3d2e49050b92d9',
-              'controller_sha': '11cb6cbdb0bc123bed22e59923362c97c433a86c',
-              'source_diff_sha256': 'c498237e6805eb6b5dbb57e420856e62002ce5e483d142e1561c55adbc615df0',
-              'source_patches': [
-                  {'name': '0001-reader2-profile-runtime-link.patch', 'sha256': 'adb76f75816f0cb7e53fe95412db9838e58da4b799c10aa3a15c589a2eb3a7a5'},
-                  {'name': '0002-account-first-light-delivery-link.patch', 'sha256': '2f25e584ebebf207d7a3683c2c852337cda455ff9d9f842d80c6f736a8242de4'},
-                  {'name': '0003-linux-clang-tidy-reviewed-findings.patch', 'sha256': '45713fe69a804bc2ac402a1332874a11a5741bc9a0603a8a123e71c5c0cd0282'},
-                  {'name': '0004-portable-account-test-fixtures.patch', 'sha256': '67f8be3bb8c4acff533bfb6f99cd64cf60b79c63194c9c4dff0ca51efa30c7de'}]}
+          expected_provenance = {'source_base_sha': '36498faa7cbcf1c6f47bdea042806b1aa8135f7e', 'source_tree_sha': '2a94af5ada133459e3898b9252434f849ff3ff0f', 'controller_sha': 'eb55a8bb7b8c0315d3bdac2f426e49b65a971ff2', 'source_patches': [{'name': '0001-reader2-profile-runtime-link.patch', 'sha256': 'adb76f75816f0cb7e53fe95412db9838e58da4b799c10aa3a15c589a2eb3a7a5'}, {'name': '0002-account-first-light-delivery-link.patch', 'sha256': '2f25e584ebebf207d7a3683c2c852337cda455ff9d9f842d80c6f736a8242de4'}, {'name': '0003-linux-clang-tidy-reviewed-findings.patch', 'sha256': '45713fe69a804bc2ac402a1332874a11a5741bc9a0603a8a123e71c5c0cd0282'}, {'name': '0004-portable-account-test-fixtures.patch', 'sha256': '67f8be3bb8c4acff533bfb6f99cd64cf60b79c63194c9c4dff0ca51efa30c7de'}, {'name': '0005-linux-preview-credential-errors.patch', 'sha256': '75e96ced13eae9f65c40cd6dbdb8083dbaa5be9de7593d01e5cedf908b72bfad'}, {'name': '0006-keyboard-test-layout-readiness.patch', 'sha256': '1dd46aeca7c4e11a2022b84530f2c7c5849b207a41289c718be4b5424dbc2454'}, {'name': '0007-datastore-test-socket-lifetime.patch', 'sha256': '2302b77863b7b956f76acfeca9a790e256b3dfac78c9784c42ace03870e2e04b'}], 'source_diff_sha256': '16e489444423e1bd09465ebfacf797b6dc333c392f8f10d89530fe0c1250a7fb'}
           for key, value in expected_provenance.items():
               assert metadata[key] == value, key
           (evidence / 'tested-package.json').write_text(json.dumps({
-              'artifact_id': 11115041404, 'source_run_id': 36744998735,
+              'artifact_id': 11119705439, 'source_run_id': 36754421665,
               'archive_sha256': digest, 'package': metadata,
               'full_qualification': False, 'released': False}, indent=2) + '\n')
           with open(os.environ['GITHUB_ENV'], 'a') as env:
@@ -110,7 +101,7 @@ jobs:
           docker build -f controller/scripts/linux_release/clean-runtime.Dockerfile \
             -t colosseum-117-runtime-diagnostic controller/scripts/linux_release
           docker image inspect colosseum-117-runtime-diagnostic > "$EVIDENCE/runtime-image.json"
-          sha256sum controller/scripts/linux_release/qualify.py > "$EVIDENCE/qualifier.sha256"
+          sha256sum controller/scripts/linux_runtime_diagnostics/qualify_playback.py > "$EVIDENCE/qualifier.sha256"
       - name: Qualify unchanged package with init and startup diagnostics
         id: runtime
         timeout-minutes: 23
@@ -122,7 +113,7 @@ jobs:
           sudo chown -R 1000:1000 "$EVIDENCE/runtime"
           docker run --rm --init -i --cap-drop=ALL --security-opt=no-new-privileges --shm-size=1g \
             --mount "type=bind,source=$WORK/extract/Colosseum-1.1.7-linux-x86_64,target=/opt/colosseum,readonly" \
-            --mount "type=bind,source=$GITHUB_WORKSPACE/controller/scripts/linux_release/qualify.py,target=/qualify.py,readonly" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/controller/scripts/linux_runtime_diagnostics/qualify_playback.py,target=/qualify.py,readonly" \
             --mount "type=bind,source=$WORK/playback-fixture.mp4,target=/fixture.mp4,readonly" \
             --mount "type=bind,source=$EVIDENCE/runtime,target=/evidence" \
             colosseum-117-runtime-diagnostic sh -s <<'CONTAINER'
@@ -162,11 +153,15 @@ jobs:
           RUNTIME_RESULT: ${{ steps.runtime.outcome }}
         run: |
           mkdir -p "$EVIDENCE"
+          if [ -d "$EVIDENCE/runtime/profile" ]; then
+            sudo mv "$EVIDENCE/runtime/profile" "$WORK/private-runtime-profile"
+          fi
+          sudo chown -R "$(id -u):$(id -g)" "$EVIDENCE"
           python3 - <<'PY'
           import json, os
           from pathlib import Path
           evidence = Path(os.environ['EVIDENCE'])
-          report = {'source_run_id': 36744998735, 'artifact_id': 11115041404,
+          report = {'source_run_id': 36754421665, 'artifact_id': 11119705439,
                     'diagnostic_controller_sha': os.environ['GITHUB_SHA'],
                     'runtime_step': os.environ['RUNTIME_RESULT'],
                     'full_qualification': False, 'released': False}
@@ -176,7 +171,7 @@ jobs:
                   report[key] = json.loads(path.read_text())
           (evidence / 'diagnostic-result.json').write_text(json.dumps(report, indent=2) + '\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Runtime diagnostic only. Source run 36744998735. No release or full qualification.\n\n')
+              summary.write('Runtime diagnostic only. Source run 36754421665. No release or full qualification.\n\n')
               summary.write('Runtime step: ' + report['runtime_step'] + '\n')
           PY
       - name: Upload diagnostic evidence on success or failure
