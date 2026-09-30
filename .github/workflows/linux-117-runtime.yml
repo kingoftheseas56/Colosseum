@@ -1,0 +1,191 @@
+name: Linux 1.1.7 preserved-package runtime diagnostic
+
+on:
+  push:
+    branches: [linux-117-package]
+    paths:
+      - '.github/workflows/linux-117-runtime.yml'
+      - 'scripts/linux_runtime_diagnostics/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: linux-117-runtime-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      WORK: ${{ github.workspace }}/runtime-diagnostic
+      EVIDENCE: ${{ github.workspace }}/runtime-diagnostic/evidence
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: controller
+          persist-credentials: false
+      - name: Initialize diagnostic evidence
+        run: |
+          mkdir -p "$EVIDENCE/runtime" "$WORK/download" "$WORK/extract"
+          git -C controller rev-parse HEAD > "$EVIDENCE/diagnostic-controller-sha.txt"
+          printf 'Runtime diagnostic of preserved run 36744998735 only. Not full qualification or final preview.\n' > "$EVIDENCE/STATUS.txt"
+      - name: Fetch immutable candidate and verify ZIP digest
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/11115041404"
+          curl --fail --silent --show-error --location --retry 2 --max-time 300 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            "$api" -o "$EVIDENCE/artifact.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          metadata = json.loads((Path(os.environ['EVIDENCE']) / 'artifact.json').read_text())
+          assert metadata['id'] == 11115041404
+          assert metadata['name'] == 'Colosseum-1.1.7-linux-x86_64-candidate-36744998735'
+          assert metadata['workflow_run']['id'] == 36744998735
+          assert metadata['size_in_bytes'] == 754917099
+          assert not metadata['expired']
+          PY
+          curl --fail --silent --show-error --location --retry 2 --max-time 300 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            "$api/zip" -o "$WORK/candidate.zip"
+          printf '%s  %s\n' 2d9b422df9d6123c9b1c6ce99611e0f48ebff9fdc7d9e6fb71f85f45493e69e9 "$WORK/candidate.zip" | sha256sum -c -
+          unzip -q "$WORK/candidate.zip" -d "$WORK/download"
+      - name: Verify package checksum and original source provenance
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, tarfile
+          from pathlib import Path
+          work, evidence = Path(os.environ['WORK']), Path(os.environ['EVIDENCE'])
+          name = 'Colosseum-1.1.7-linux-x86_64-candidate.tar.gz'
+          archives = list((work / 'download').rglob(name))
+          checksums = list((work / 'download').rglob(name + '.sha256'))
+          assert len(archives) == len(checksums) == 1
+          archive = archives[0]
+          expected, filename = checksums[0].read_text().strip().split()
+          assert filename == name
+          with archive.open('rb') as stream:
+              digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+          assert digest == expected
+          with tarfile.open(archive) as tar:
+              metadata = json.load(tar.extractfile('Colosseum-1.1.7-linux-x86_64/PACKAGE.json'))
+          expected_provenance = {
+              'source_base_sha': '36498faa7cbcf1c6f47bdea042806b1aa8135f7e',
+              'source_tree_sha': '1e8fa44af7dea8ff189eef1cea3d2e49050b92d9',
+              'controller_sha': '11cb6cbdb0bc123bed22e59923362c97c433a86c',
+              'source_diff_sha256': 'c498237e6805eb6b5dbb57e420856e62002ce5e483d142e1561c55adbc615df0',
+              'source_patches': [
+                  {'name': '0001-reader2-profile-runtime-link.patch', 'sha256': 'adb76f75816f0cb7e53fe95412db9838e58da4b799c10aa3a15c589a2eb3a7a5'},
+                  {'name': '0002-account-first-light-delivery-link.patch', 'sha256': '2f25e584ebebf207d7a3683c2c852337cda455ff9d9f842d80c6f736a8242de4'},
+                  {'name': '0003-linux-clang-tidy-reviewed-findings.patch', 'sha256': '45713fe69a804bc2ac402a1332874a11a5741bc9a0603a8a123e71c5c0cd0282'},
+                  {'name': '0004-portable-account-test-fixtures.patch', 'sha256': '67f8be3bb8c4acff533bfb6f99cd64cf60b79c63194c9c4dff0ca51efa30c7de'}]}
+          for key, value in expected_provenance.items():
+              assert metadata[key] == value, key
+          (evidence / 'tested-package.json').write_text(json.dumps({
+              'artifact_id': 11115041404, 'source_run_id': 36744998735,
+              'archive_sha256': digest, 'package': metadata,
+              'full_qualification': False, 'released': False}, indent=2) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('ARCHIVE=' + str(archive) + '\n')
+          PY
+          archive=$(find "$WORK/download" -type f -name Colosseum-1.1.7-linux-x86_64-candidate.tar.gz)
+          tar -xzf "$archive" -C "$WORK/extract"
+      - name: Prepare display image and local playback fixture
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg
+          ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=64x64:rate=24 \
+            -t 120 -c:v libx264 -pix_fmt yuv420p "$WORK/playback-fixture.mp4"
+          docker build -f controller/scripts/linux_release/clean-runtime.Dockerfile \
+            -t colosseum-117-runtime-diagnostic controller/scripts/linux_release
+          docker image inspect colosseum-117-runtime-diagnostic > "$EVIDENCE/runtime-image.json"
+          sha256sum controller/scripts/linux_release/qualify.py > "$EVIDENCE/qualifier.sha256"
+      - name: Qualify unchanged package with init and startup diagnostics
+        id: runtime
+        timeout-minutes: 23
+        run: |
+          set -euo pipefail
+          exec > >(tee "$EVIDENCE/clean-runtime.log") 2>&1
+          trap 'rc=$?; printf "runtime_exit=%s\n" "$rc" > "$EVIDENCE/runtime-status.txt"' EXIT
+          printf '%s host: starting init-backed container\n' "$(date -u +%FT%TZ)" > "$EVIDENCE/runtime/startup.log"
+          sudo chown -R 1000:1000 "$EVIDENCE/runtime"
+          docker run --rm --init -i --cap-drop=ALL --security-opt=no-new-privileges --shm-size=1g \
+            --mount "type=bind,source=$WORK/extract/Colosseum-1.1.7-linux-x86_64,target=/opt/colosseum,readonly" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/controller/scripts/linux_release/qualify.py,target=/qualify.py,readonly" \
+            --mount "type=bind,source=$WORK/playback-fixture.mp4,target=/fixture.mp4,readonly" \
+            --mount "type=bind,source=$EVIDENCE/runtime,target=/evidence" \
+            colosseum-117-runtime-diagnostic sh -s <<'CONTAINER'
+          set -eu
+          log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" | tee -a /evidence/startup.log; }
+          trap 'rc=$?; log "container: exit=$rc"' EXIT
+          log "container: entered uid=$(id -u) gid=$(id -g) pid=$$"
+          log 'xvfb: starting; 60s startup limit, 20m full limit'
+          timeout --kill-after=10s 20m xvfb-run -a -e /evidence/xvfb.log \
+            -s '-screen 0 1280x900x24' sh -c '
+              date -u +%FT%TZ > /evidence/qualifier-started.txt
+              exec python3 -u /qualify.py --appdir /opt/colosseum --evidence /evidence --fixture /fixture.mp4
+            ' &
+          runner=$!
+          trap 'kill -TERM "$runner" 2>/dev/null || :; wait "$runner" || :; exit 143' TERM
+          trap 'kill -TERM "$runner" 2>/dev/null || :; wait "$runner" || :; exit 130' INT
+          for second in $(seq 1 60); do
+            [ ! -f /evidence/qualifier-started.txt ] || break
+            kill -0 "$runner" 2>/dev/null || break
+            sleep 1
+          done
+          if [ ! -f /evidence/qualifier-started.txt ]; then
+            log 'qualifier did not start; preserving startup process diagnostics'
+            for status in /proc/[0-9]*/status; do
+              [ ! -r "$status" ] || cat "$status"
+            done > /evidence/startup-processes.txt
+            kill -TERM "$runner" 2>/dev/null || :
+            wait "$runner" || :
+            exit 1
+          fi
+          log 'xvfb: ready; qualifier entered'
+          wait "$runner"
+          CONTAINER
+      - name: Record diagnostic outcome
+        if: always()
+        env:
+          RUNTIME_RESULT: ${{ steps.runtime.outcome }}
+        run: |
+          mkdir -p "$EVIDENCE"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          evidence = Path(os.environ['EVIDENCE'])
+          report = {'source_run_id': 36744998735, 'artifact_id': 11115041404,
+                    'diagnostic_controller_sha': os.environ['GITHUB_SHA'],
+                    'runtime_step': os.environ['RUNTIME_RESULT'],
+                    'full_qualification': False, 'released': False}
+          for filename, key in [('tested-package.json', 'tested_package'), ('runtime/qualification.json', 'runtime_qualification')]:
+              path = evidence / filename
+              if path.exists():
+                  report[key] = json.loads(path.read_text())
+          (evidence / 'diagnostic-result.json').write_text(json.dumps(report, indent=2) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Runtime diagnostic only. Source run 36744998735. No release or full qualification.\n\n')
+              summary.write('Runtime step: ' + report['runtime_step'] + '\n')
+          PY
+      - name: Upload diagnostic evidence on success or failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.1.7-linux-runtime-diagnostic-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE }}
+            !${{ env.EVIDENCE }}/runtime/profile/**
+          if-no-files-found: error
+          retention-days: 14
