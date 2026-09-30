@@ -22,10 +22,10 @@ jobs:
     timeout-minutes: 240
     env:
       SOURCE: ${{ github.workspace }}/source
-      BUILD: ${{ runner.temp }}/linux-117-build
-      DEPS: ${{ runner.temp }}/linux-117-deps
-      OUT: ${{ runner.temp }}/linux-117-out
-      EVIDENCE: ${{ runner.temp }}/linux-117-evidence
+      BUILD: ${{ github.workspace }}/.linux-117-work/linux-117-build
+      DEPS: ${{ github.workspace }}/.linux-117-work/linux-117-deps
+      OUT: ${{ github.workspace }}/.linux-117-work/linux-117-out
+      EVIDENCE: ${{ github.workspace }}/.linux-117-work/linux-117-evidence
     steps:
       # Controller scripts come from the explicitly dispatched workflow commit.
       # Application sources are a separate, immutable checkout of the release.
