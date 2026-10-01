@@ -1,0 +1,51 @@
+{
+  "eyebrow": "DIRECT TRACKER CONNECTIONS",
+  "title": "Colosseum 1.1.8",
+  "summary": "Connect your Trakt, SIMKL or MyAnimeList account directly, without a Stremio account.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.8",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "DIRECT TRACKERS",
+      "title": "Connect directly",
+      "body": "Connect your Trakt, SIMKL or MyAnimeList account directly, without a Stremio account.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "DIRECT TRACKERS",
+      "title": "Sign in your way",
+      "body": "Trakt and SIMKL use device codes. MyAnimeList opens in the app, with an external-browser fallback.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "DISCOVER",
+      "title": "Catalogue row index",
+      "body": "Browse add-on catalogue rows from the Discover sidebar and shared row sidebars.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "WORLD FEEL",
+      "title": "Scroll, glass and keyboard flow",
+      "body": "Smoother scrolling, clearer focus, improved glass surfaces and a docked tab bar.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "ADD-ONS",
+      "title": "Set up inside Colosseum",
+      "body": "Configure supported add-ons inside the app.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "TANKOBAN",
+      "title": "Chapter Mode when needed",
+      "body": "Series without volume data open in Chapter Mode.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}

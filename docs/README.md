@@ -15,6 +15,7 @@ This is the public documentation front door for Colosseum. The [root README](../
 
 ## Release notes
 
+- [1.1.8](release-notes/v1.1.8.md)
 - [1.1.7](release-notes/v1.1.7.md)
 - [1.1.6](release-notes/v1.1.6.md)
 - [1.1.5](release-notes/v1.1.5.md)

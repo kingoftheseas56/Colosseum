@@ -42,25 +42,22 @@ Colosseum is a native Qt desktop app for keeping different kinds of media in one
 Those parts share Home, Continue, Collection, Downloads, settings, and open sessions, but each medium keeps its own reader or player. Comics use the comic reader, books use Reader2 with audiobook support, and Theatre uses the mpv-based player. Downloaded media stays local, and Vault does not move the files it indexes.
 
 > [!IMPORTANT]
-> Colosseum 1.1.7 is the current stable Windows 10/11 release.
+> Colosseum 1.1.8 is the current stable Windows 10/11 release.
 >
-> If you are upgrading from 1.1.5 or earlier, install 1.1.7 manually once from [Releases](https://github.com/kingoftheseas56/Colosseum/releases). 1.1.6 moved to a new Ed25519 update-signing trust root, so older versions cannot authenticate newer releases.
+> If you are upgrading from 1.1.5 or earlier, install 1.1.8 manually once from [Releases](https://github.com/kingoftheseas56/Colosseum/releases). 1.1.6 moved to a new Ed25519 update-signing trust root, so older versions cannot authenticate newer releases.
 
-## What's in 1.1.7
+## What's in 1.1.8
 
-**Your Colosseum** now shows highlights and stats from what you read, watch, and listen to, using activity recorded by Colosseum.
-
-**Stremio sync** brings over your library, progress, and watched state and keeps them in sync.
-
-**Trakt** works through your linked Stremio account. Theatre sends playback history through that connection, and Colosseum does not store your Trakt credentials.
+**Direct tracker connections** let you connect your Trakt, SIMKL or MyAnimeList account directly, without a Stremio account. Trakt and SIMKL use device-code sign-in; MyAnimeList opens its login page in the app with an external-browser fallback. The Stremio-linked Trakt path remains available.
 
 Also new:
 
-- Subtitle controls were redesigned.
-- IMDb Continue Watching cards are back.
-- Better text contrast on light wallpapers.
+- A Discover sidebar indexes add-on catalogue rows, with shared row sidebars.
+- Smoother scrolling, glass surfaces, keyboard navigation, and a docked tab bar.
+- In-app setup for configurable add-ons.
+- Tankoban opens series without volume data in Chapter Mode.
 
-Full release notes: [docs/release-notes/v1.1.7.md](docs/release-notes/v1.1.7.md).
+Full release notes: [docs/release-notes/v1.1.8.md](docs/release-notes/v1.1.8.md).
 
 ## Screenshots
 
@@ -140,7 +137,7 @@ Tankoban and Biblio can use compatible extension catalogues for discovery, while
 
 ## Accounts and sync
 
-Colosseum 1.1.7 contains the desktop account client and uses an app-owned account-service endpoint by default. `COLOSSEUM_ACCOUNT_SERVICE_URL` can override it at runtime, and source builds can provide `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>` when they need a different service. The Go service lives at [`server/account-service`](server/account-service), with its deployment contract in [`server/account-service/DEPLOYMENT.md`](server/account-service/DEPLOYMENT.md).
+Colosseum 1.1.8 contains the desktop account client and uses an app-owned account-service endpoint by default. `COLOSSEUM_ACCOUNT_SERVICE_URL` can override it at runtime, and source builds can provide `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>` when they need a different service. The Go service lives at [`server/account-service`](server/account-service), with its deployment contract in [`server/account-service/DEPLOYMENT.md`](server/account-service/DEPLOYMENT.md).
 
 An account is optional for local use. Vault, local media, readers, playback, and the rest of the on-device library still work without one. Hosted account features depend on the service being reachable; the repository does not treat provider-side deployment state as something the desktop build can prove. For local account testing, run [`tests/mock-account-service`](tests/mock-account-service) and point `COLOSSEUM_ACCOUNT_SERVICE_URL` at it.
 
@@ -150,7 +147,7 @@ Portable sync covers Collection, Continue/progress, ordinary history, and profil
 
 ## Development on `master`
 
-`master` has moved past the v1.1.7 tag, so source builds can differ from the stable 1.1.7 installer.
+Source builds can differ from the stable 1.1.8 installer.
 
 ## Wallpapers
 
@@ -179,15 +176,15 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ### Windows installer
 
-Download `Colosseum-1.1.7-setup.exe` from [Releases](https://github.com/kingoftheseas56/Colosseum/releases). It installs per user on Windows 10/11 and does not need administrator access.
+Download `Colosseum-1.1.8-setup.exe` from [Releases](https://github.com/kingoftheseas56/Colosseum/releases). It installs per user on Windows 10/11 and does not need administrator access.
 
-If you are on 1.1.5 or earlier, install 1.1.7 manually once because the update-signing trust root changed in 1.1.6.
+If you are on 1.1.5 or earlier, install 1.1.8 manually once because the update-signing trust root changed in 1.1.6.
 
 The updater checks the stable GitHub Releases channel. When a newer signed release is available, the Home top bar shows an Update control. The update page downloads into a resumable cache, verifies the signed manifest and installer hash, and then launches the installer. Drafts, prereleases, malformed manifests, unsigned assets, wrong hashes, and unsafe URLs are rejected. Source-tree development launches do not perform normal automatic update checks.
 
 ### Build from source
 
-The published 1.1.7 installer is Windows-only. Source-build guides are maintained for Windows, macOS, and Linux. Linux is currently a beta/source-build track.
+The published 1.1.8 installer is Windows-only. Source-build guides are maintained for Windows, macOS, and Linux. Linux has a separate Ubuntu 24.04 x86_64 X11 alpha tester release; direct trackers are Windows-only for now.
 
 Windows builds use Visual Studio 2022 C++ Build Tools, CMake/Ninja, Qt 6.11.1 MSVC 2022 64-bit, MpvQt/libmpv, and libtorrent/Boost/OpenSSL. Pass your dependency locations explicitly when configuring the build.
 
