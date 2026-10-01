@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.21)
+project(LinuxPackagePluginProbe LANGUAGES CXX)
+find_package(Qt6 6.11.1 EXACT REQUIRED COMPONENTS Gui)
+add_executable(package-plugin-probe main.cpp)
+target_link_libraries(package-plugin-probe PRIVATE Qt6::Gui)
+target_compile_features(package-plugin-probe PRIVATE cxx_std_17)

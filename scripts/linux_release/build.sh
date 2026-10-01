@@ -51,4 +51,7 @@ cmake -S "$SOURCE/native" -B "$BUILD" -G Ninja \
   -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$DEPS/ecm-install;$DEPS/mpvqt-install" \
   -DMPVQT_PREFIX="$DEPS/mpvqt-install"
 cmake --build "$BUILD" --parallel 2
+cmake -S "$(dirname "${BASH_SOURCE[0]}")/plugin_probe" -B "$BUILD/package-probe" -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+cmake --build "$BUILD/package-probe" --parallel 2
 cp "$BUILD/CMakeCache.txt" "$EVIDENCE/"

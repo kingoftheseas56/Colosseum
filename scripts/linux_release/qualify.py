@@ -86,11 +86,12 @@ def main():
     parser.add_argument('--appdir', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--fixture', type=Path, required=True)
+    parser.add_argument('--platform', choices=['xcb', 'wayland'], default='xcb')
     args = parser.parse_args()
     appdir, evidence = args.appdir.resolve(), args.evidence.resolve()
     evidence.mkdir(parents=True, exist_ok=True)
-    statuses = {key: 'NOT_RUN' for key in ['setup', 'elf_closure', 'launch', 'qml', 'catalog', 'playback']}
-    report = {'checks': statuses, 'qualified': False, 'scope': 'Ubuntu 24.04 x86_64; Xvfb/Mesa software OpenGL',
+    statuses = {key: 'NOT_RUN' for key in ['setup', 'elf_closure', 'plugins', 'launch', 'qml', 'catalog', 'playback']}
+    report = {'checks': statuses, 'qualified': False, 'scope': 'Ubuntu 24.04 x86_64; ' + args.platform + '/Mesa software OpenGL',
               'limitations': ['No hardware GPU or audible-output qualification',
                               'Local fixture playback only; no remote stream, DRM, DVR or Stremio service qualification',
                               'Catalog check is a real live movie-catalog production request; not visual catalog UI, offline data or all providers',
@@ -145,15 +146,22 @@ def main():
         profile = evidence / 'profile'
         profile.mkdir()
         env = {'PATH': '/usr/bin:/bin', 'HOME': str(profile), 'LANG': 'C.UTF-8',
-               'DISPLAY': os.environ['DISPLAY'], 'XAUTHORITY': os.environ.get('XAUTHORITY', ''),
+               'XAUTHORITY': os.environ.get('XAUTHORITY', ''),
                'XDG_DATA_HOME': str(profile / 'data'), 'XDG_CONFIG_HOME': str(profile / 'config'),
                'XDG_CACHE_HOME': str(profile / 'cache'), 'XDG_RUNTIME_DIR': str(profile / 'run'),
                'LD_LIBRARY_PATH': str(appdir / 'usr/lib'), 'LIBGL_ALWAYS_SOFTWARE': '1',
-               'QT_QPA_PLATFORM': 'xcb', 'QT_FORCE_STDERR_LOGGING': '1',
+               'QT_QPA_PLATFORM': args.platform, 'QT_FORCE_STDERR_LOGGING': '1',
                'COLOSSEUM_APPDATA_TAG': tag, 'COLOSSEUM_LANISTA_DRIVE': '1',
                'COLOSSEUM_LANISTA_PIPE': str(profile / 'bridge.sock'),
                'COLOSSEUM_CATALOG_SELFTEST': 'movies'}
         Path(env['XDG_RUNTIME_DIR']).mkdir(mode=0o700)
+        if args.platform == 'xcb':
+            env['DISPLAY'] = os.environ['DISPLAY']
+        else:
+            # Absolute socket path preserves a private application runtime dir.
+            env['WAYLAND_DISPLAY'] = os.environ['WAYLAND_DISPLAY']
+            env['XDG_SESSION_TYPE'] = 'wayland'
+        env['QT_DEBUG_PLUGINS'] = '1'
         # Seed only the production Recent route, rewriting the Windows-only fixture
         # path to a generated Linux fixture. Catalog data is deliberately not seeded.
         data = Path(env['XDG_DATA_HOME']) / 'Brotherhood' / ('Colosseum-dltest-' + tag)
@@ -166,6 +174,15 @@ def main():
         checkpoint(active)
         required_tools(appdir / 'usr/bin')
         closure(appdir, evidence, env)
+        statuses[active] = 'PASS'
+        active = 'plugins'
+        checkpoint(active)
+        probe = subprocess.run([str(appdir / 'usr/bin/package-plugin-probe')],
+                               env=env, text=True, capture_output=True, timeout=60)
+        (evidence / 'plugins.json').write_text(probe.stdout)
+        (evidence / 'plugins.log').write_text(probe.stderr)
+        if probe.returncode or json.loads(probe.stdout).get('passed') is not True:
+            raise RuntimeError('packaged Qt plugin load/WebP decode failed; see plugins.log')
         statuses[active] = 'PASS'
         active = 'launch'
         checkpoint(active)
@@ -207,7 +224,14 @@ def main():
             wait_prop('player', 'playerActive', True, 20000)
             wait_prop('player', 'decodedWidth', 64, 20000)
             wait_prop('player', 'decodedHeight', 64, 20000)
-            frame = call('qml-get', {'object': 'player', 'props': ['decodedWidth', 'decodedHeight', 'playerReady', 'sourceIdentity'],
+            wait_prop('player', 'playbackStarted', True, 20000)
+            before = float(call('qml-get', {'object': 'player', 'props': ['playbackPosition']}).get('props', {}).get('playbackPosition', -1))
+            time.sleep(1.2)
+            after = float(call('qml-get', {'object': 'player', 'props': ['playbackPosition']}).get('props', {}).get('playbackPosition', -1))
+            if before < 0.25 or not after > before + 0.25:
+                raise RuntimeError('playback timeline did not advance: ' + str((before, after)))
+            report['playback_progress'] = {'first_seconds': before, 'second_seconds': after, 'sample_interval_seconds': 1.2}
+            frame = call('qml-get', {'object': 'player', 'props': ['decodedWidth', 'decodedHeight', 'playerReady', 'sourceIdentity', 'playbackPosition'],
                                      'grab': {'target': 'window', 'timeoutMs': 4000}})
             props = frame.get('props', {})
             if props.get('playerReady') is not True or props.get('decodedWidth') != 64 or props.get('decodedHeight') != 64:

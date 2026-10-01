@@ -9,6 +9,34 @@ from unittest.mock import patch
 
 
 class LinuxReleaseQualification(unittest.TestCase):
+    def test_required_image_and_wayland_plugins_are_staged_or_fail_closed(self):
+        scripts = pathlib.Path(__file__).parents[1] / 'scripts/linux_release'
+        with patch.object(sys, 'path', [str(scripts), *sys.path]):
+            import package
+        required = ['imageformats/libqwebp.so', 'platforms/libqxcb.so',
+                    'platforms/libqoffscreen.so', 'platforms/libqwayland.so',
+                    'wayland-graphics-integration-client/libqt-plugin-wayland-egl.so',
+                    'wayland-shell-integration/libxdg-shell.so',
+                    'wayland-decoration-client/libbradient.so']
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name in required + ['platforms/libqvnc.so', 'tls/libqopensslbackend.so']:
+                path = root / 'sdk' / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(name)
+            for group in ['iconengines', 'xcbglintegrations']:
+                (root / 'sdk' / group).mkdir()
+            package.stage_qt_plugins(root / 'sdk', root / 'staged')
+            for name in required:
+                self.assertTrue((root / 'staged' / name).is_file(), name)
+            self.assertFalse((root / 'staged/platforms/libqvnc.so').exists())
+            for name in required:
+                path = root / 'sdk' / name
+                path.unlink()
+                with self.assertRaisesRegex(RuntimeError, re.escape(name)):
+                    package.stage_qt_plugins(root / 'sdk', root / 'missing')
+                path.write_text(name)
+
     def module(self):
         path = pathlib.Path(__file__).parents[1] / 'scripts/linux_release/qualify.py'
         self.assertTrue(path.is_file(), 'Linux package qualifier is not implemented')
@@ -88,6 +116,14 @@ class LinuxReleaseQualification(unittest.TestCase):
     def test_workflow_reports_failures_and_continues_independent_gates(self):
         workflow = (pathlib.Path(__file__).parents[1] / '.github/workflows/linux-117-package.yml').read_text()
         steps = re.split(r'^      - ', workflow, flags=re.M)[1:]
+        regression = next(step for step in steps if re.search(r'^        id: controller-tests$', step, re.M))
+        self.assertNotIn('continue-on-error:', regression)
+        self.assertIn('test_linux_release_qualification.py', regression)
+        self.assertLess(workflow.index('id: controller-tests'), workflow.index('id: build'))
+        self.assertIn("CONTROLLER_TEST_RESULT: ${{ steps.controller-tests.outcome }}", workflow)
+        modules = re.search(r"modules: '([^']+)'", workflow).group(1).split()
+        self.assertIn('qtimageformats', modules)
+        self.assertNotIn('qtwayland', modules)
         for gate, prerequisite in [('tests', 'build'), ('package', 'build'), ('runtime', 'package'), ('tidy', 'build')]:
             step = next(step for step in steps if re.search(r'^        id: ' + gate + r'$', step, re.M))
             with self.subTest(gate=gate):
@@ -98,7 +134,7 @@ class LinuxReleaseQualification(unittest.TestCase):
             self.assertIn('if: always()', step)
         self.assertLess(workflow.index('id: runtime'), workflow.index('id: tidy'))
         self.assertIn("all(value == 'success' for value in results.values())", workflow)
-        self.assertIn("names = ['BUILD', 'TEST', 'TIDY', 'PACKAGE', 'RUNTIME']", workflow)
+        self.assertIn("names = ['CONTROLLER_TEST', 'BUILD', 'TEST', 'TIDY', 'PACKAGE', 'RUNTIME']", workflow)
 
     def test_loader_rejects_missing_library(self):
         q = self.module()

@@ -54,5 +54,30 @@ if [ ! -f /evidence/qualification.json ]; then
   exit 1
 fi
 log 'qualifier: initialized; see qualification.json and elf-closure.log'
-wait "$runner"
+xcb_result=0
+wait "$runner" || xcb_result=$?
+# Exercise the actual app over Wayland, without DISPLAY/XWayland fallback.
+mkdir -m 700 /evidence/compositor-run
+mkdir /evidence/wayland
+export XDG_RUNTIME_DIR=/evidence/compositor-run
+weston --version > /evidence/weston-version.txt
+weston --backend=headless-backend.so --renderer=gl --width=1280 --height=900 \
+  --idle-time=0 --no-config --socket=wayland-test --log=/evidence/weston.log &
+compositor=$!
+trap 'rc=$?; kill "$compositor" 2>/dev/null || :; log "container: exit=$rc"' EXIT
+wayland_result=1
+for second in $(seq 1 30); do
+  [ ! -S "$XDG_RUNTIME_DIR/wayland-test" ] || break
+  kill -0 "$compositor" 2>/dev/null || break
+  sleep 1
+done
+if [ -S "$XDG_RUNTIME_DIR/wayland-test" ]; then
+  WAYLAND_DISPLAY="$XDG_RUNTIME_DIR/wayland-test" timeout --kill-after=10s 20m \
+    python3 -u /qualify.py --platform wayland --appdir /opt/colosseum \
+    --evidence /evidence/wayland --fixture /fixture.mp4 && wayland_result=0 || wayland_result=$?
+else
+  printf '%s\n' 'Wayland compositor failed to initialize; see weston.log' > /evidence/wayland/error.txt
+fi
+printf 'xcb=%s\nwayland=%s\n' "$xcb_result" "$wayland_result" > /evidence/backend-results.txt
+[ "$xcb_result" -eq 0 ] && [ "$wayland_result" -eq 0 ]
 CONTAINER

@@ -8,7 +8,7 @@ upstream tag remain 1.1.7. This is not a fully supported Linux release.
 ## Start here
 
 Extract the archive and run `./AppRun` from its extracted directory. Target:
-Ubuntu 24.04 x86_64, X11, glibc 2.39, working Mesa/OpenGL drivers, fonts and CA
+Ubuntu 24.04 x86_64, X11 or Wayland, glibc 2.39, working Mesa/OpenGL drivers, fonts and CA
 certificates. Use local-only mode. Package creation alone is not qualification;
 check the matching archive checksum and separate build/test/runtime verdict.
 
@@ -16,8 +16,8 @@ check the matching archive checksum and separate build/test/runtime verdict.
 
 - Persistent Colosseum account sessions and account-backed sync are unsupported.
   The production account credential store uses Windows Credential Manager; on
-  Linux it reports unavailable and refuses writes. A server sign-in may be
-  attempted, but its returned session cannot be securely adopted. Do not use
+  Linux it reports unavailable and refuses writes. New create/sign-in requests
+  are rejected before contacting the server when storage is unavailable. Do not use
   account creation or sign-in as a supported preview workflow.
 - Tracker credential persistence and authenticated SIMKL connections are
   unsupported. The production tracker vault is Windows-only. SIMKL availability
@@ -38,7 +38,9 @@ to repair Windows or repeatedly retry Linux sign-in.
 
 ## Runtime scope and limitations
 
-- X11 only; Wayland is unqualified. Player2 options are OFF.
+- X11 and Wayland plugins are bundled. Consult the matching clean-runtime
+  evidence for Xvfb and headless Weston results; this does not qualify all
+  compositors or physical desktops. Player2 options are OFF.
 - No standalone mpv/DVR, DRM, audible audio or hardware-graphics qualification.
 - Software-Mesa decoded-frame and live movie-catalog checks, if passed in the
   matching evidence, cover only those paths. They do not establish all-provider,
@@ -57,8 +59,11 @@ skips must be reported separately from executed tests.
 Known failed baseline: Actions run `36736450789` recorded failures in
 `colosseum.qttest.account_attachment_runtime` (six cases reaching unavailable
 Linux secure storage) and `colosseum.qttest.tracker_lifecycle` (two SIMKL cadence
-cases requiring the Windows vault). These production-capability tests remain
-unsupported; this preview does not turn them into passes or remove them.
+cases with irrelevant credential-availability preconditions). The six successful-
+account runtime cases remain unsupported and their failures remain visible.
+The cadence cases exercise a credential-independent scheduler: patch 0008 removes
+only those availability preconditions and retains all timing assertions. Their
+rerun results, including new unavailable-vault guards, remain authoritative.
 
 Separately, that run failed `account_core` (a missing fixture handoff),
 `account_attachment_coordinator` (two Windows-specific read-only receipt-lock

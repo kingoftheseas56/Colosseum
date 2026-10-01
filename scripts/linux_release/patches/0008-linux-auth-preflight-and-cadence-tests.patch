@@ -1,0 +1,268 @@
+diff --git a/native/account/AccountController.cpp b/native/account/AccountController.cpp
+index caf71c97..8af8e745 100644
+--- a/native/account/AccountController.cpp
++++ b/native/account/AccountController.cpp
+@@ -574,6 +574,18 @@ void AccountController::createAccount(
+     if (!m_refreshToken.isEmpty())
+         return;
+ 
++    if (!m_credentialStore->isAvailable()) {
++        setError(ErrorCategory::Storage,
++                 QStringLiteral("secure_store_unavailable"),
++#ifdef Q_OS_LINUX
++                 QStringLiteral("Secure account storage is unsupported in this Linux preview. Use local-only mode."),
++#else
++                 QStringLiteral("Secure account storage is unavailable."),
++#endif
++                 true);
++        return;
++    }
++
+     advanceGeneration();
+     clearError();
+     m_refreshTimer.stop();
+@@ -594,6 +606,18 @@ void AccountController::signIn(
+     if (!m_refreshToken.isEmpty())
+         return;
+ 
++    if (!m_credentialStore->isAvailable()) {
++        setError(ErrorCategory::Storage,
++                 QStringLiteral("secure_store_unavailable"),
++#ifdef Q_OS_LINUX
++                 QStringLiteral("Secure account storage is unsupported in this Linux preview. Use local-only mode."),
++#else
++                 QStringLiteral("Secure account storage is unavailable."),
++#endif
++                 true);
++        return;
++    }
++
+     advanceGeneration();
+     clearError();
+     m_refreshTimer.stop();
+diff --git a/tests/auto/account_identity/tst_account_identity.cpp b/tests/auto/account_identity/tst_account_identity.cpp
+index 1e1124f8..6d75b770 100644
+--- a/tests/auto/account_identity/tst_account_identity.cpp
++++ b/tests/auto/account_identity/tst_account_identity.cpp
+@@ -446,6 +446,8 @@ private slots:
+ 
+     void createAccountKeepsSecretsOutOfOrdinaryState();
+     void secureStoreFailureFailsClosed();
++    void unavailableStoreRejectsAuthBeforeNetwork();
++    void storeLostDuringAuthStillRevokesReturnedToken();
+     void staleSignInReplyCannotUndoLocalOnlyChoice();
+     void protectedSignInPersistsNothingBeforeApproval();
+     void trustedRecoveryUsesNativeOnlySecretSink();
+@@ -2045,6 +2047,117 @@ void tst_account_identity::createAccountKeepsSecretsOutOfOrdinaryState() {
+                 .toUtf8()));
+ }
+ 
++
++void tst_account_identity::unavailableStoreRejectsAuthBeforeNetwork() {
++    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
++    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-unavailable-preflight"));
++    for (bool create : {false, true}) {
++        for (bool pendingClear : {false, true}) {
++            QTemporaryDir temp;
++            QVERIFY(temp.isValid());
++            CapturingTransport transport;
++            MemoryAccountCredentialStore credentials;
++            StoredAccountCredential oldCredential;
++            oldCredential.accountId = QString::fromLatin1(kAccountId);
++            oldCredential.deviceId = QString::fromLatin1(kDeviceId);
++            oldCredential.refreshToken = QByteArrayLiteral("old-private-token");
++            if (pendingClear)
++                QVERIFY(credentials.saveActive(oldCredential));
++            credentials.setAvailable(false);
++            MemoryAccountOneTimeSecretSink secretSink;
++            AccountClient client(&transport);
++            AccountDeviceIdentity identity(temp.path() + QLatin1String("/device.ini"));
++            AccountBootstrapStore bootstrap(temp.path() + QLatin1String("/bootstrap.ini"));
++            QVERIFY(bootstrap.setCredentialClearPending(pendingClear));
++            QVERIFY(bootstrap.setLocalOnlyChosen(false));
++            QVERIFY(bootstrap.setOnboardingCompleted(false));
++            const QByteArray before = ordinaryStateBytes(temp.path());
++            {
++                AccountController controller(&client, &credentials, &identity, &bootstrap, &secretSink);
++                controller.setAutomaticPollingEnabled(false);
++                QSignalSpy signedIn(&controller, &AccountController::signedIn);
++                QSignalSpy syncReady(&controller, &AccountController::accountProfileReadyForSync);
++                if (create)
++                    controller.createAccount(QStringLiteral("TestUser"), QStringLiteral("password long enough 123"));
++                else
++                    controller.signIn(QStringLiteral("TestUser"), QStringLiteral("password long enough 123"));
++                QCoreApplication::processEvents();
++                QCOMPARE(transport.sendCount, 0);
++                QCOMPARE(controller.mode(), QStringLiteral("error"));
++                QCOMPARE(controller.errorCategory(), QStringLiteral("storage"));
++                QCOMPARE(controller.lastErrorCode(), QStringLiteral("secure_store_unavailable"));
++                QCOMPARE(signedIn.count(), 0);
++                QCOMPARE(syncReady.count(), 0);
++                QVERIFY(client.accessToken().isEmpty());
++                QCOMPARE(secretSink.presentCount(), 0);
++                QCOMPARE(bootstrap.credentialClearPending(), pendingClear);
++                QVERIFY(!bootstrap.localOnlyChosen());
++                QVERIFY(!bootstrap.onboardingCompleted());
++                QCOMPARE(ordinaryStateBytes(temp.path()), before);
++                controller.continueWithoutAccount();
++                QCOMPARE(controller.mode(), QStringLiteral("localOnly"));
++                QCOMPARE(bootstrap.credentialClearPending(), pendingClear);
++            }
++            AccountBootstrapStore restartedBootstrap(bootstrap.settingsPath());
++            AccountController restarted(&client, &credentials, &identity, &restartedBootstrap, &secretSink);
++            restarted.setAutomaticPollingEnabled(false);
++            restarted.restoreRememberedSession();
++            QCOMPARE(transport.sendCount, 0);
++            if (pendingClear) {
++                QCOMPARE(restarted.lastErrorCode(), QStringLiteral("secure_store_clear_pending"));
++                QVERIFY(restartedBootstrap.credentialClearPending());
++                credentials.setAvailable(true);
++                QVERIFY(credentials.loadActive().has_value());
++                restarted.restoreRememberedSession();
++                QVERIFY(!credentials.loadActive().has_value());
++            }
++            QCOMPARE(restarted.mode(), QStringLiteral("localOnly"));
++            QVERIFY(!restartedBootstrap.credentialClearPending());
++            QVERIFY(client.accessToken().isEmpty());
++        }
++    }
++}
++
++void tst_account_identity::storeLostDuringAuthStillRevokesReturnedToken() {
++    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
++    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-midflight-store-loss"));
++    QTemporaryDir temp;
++    QVERIFY(temp.isValid());
++    DeferredAccountTransport transport;
++    MemoryAccountCredentialStore credentials;
++    MemoryAccountOneTimeSecretSink secretSink;
++    AccountClient client(&transport);
++    AccountDeviceIdentity identity(temp.path() + QLatin1String("/device.ini"));
++    AccountBootstrapStore bootstrap(temp.path() + QLatin1String("/bootstrap.ini"));
++    AccountController controller(&client, &credentials, &identity, &bootstrap, &secretSink);
++    controller.setAutomaticPollingEnabled(false);
++    QSignalSpy signedIn(&controller, &AccountController::signedIn);
++    QSignalSpy syncReady(&controller, &AccountController::accountProfileReadyForSync);
++    controller.signIn(QStringLiteral("TestUser"), QStringLiteral("password long enough 123"));
++    const quint64 first = transport.requestIdFor(QByteArrayLiteral("POST"), QStringLiteral("/v1/sessions"));
++    QVERIFY(first != 0);
++    credentials.setAvailable(false);
++    controller.createAccount(QStringLiteral("TestUser"), QStringLiteral("password long enough 123"));
++    QCOMPARE(transport.pending.size(), 1);
++    QCOMPARE(controller.lastErrorCode(), QStringLiteral("secure_store_unavailable"));
++    // The rejected second request must not invalidate the first request's
++    // generation: adoption must still clean up its newly issued server token.
++    transport.complete(first, okReply(200, QJsonObject{
++        {QStringLiteral("status"), QStringLiteral("signed_in")},
++        {QStringLiteral("session"), sessionObject(QStringLiteral("TestUser"),
++             QStringLiteral("access-midflight"), QStringLiteral("refresh-midflight"))}}));
++    QTRY_COMPARE(transport.pendingCount(QByteArrayLiteral("POST"),
++                                       QStringLiteral("/v1/sessions/revoke-refresh")), 1);
++    const auto request = transport.pending.first().request;
++    QCOMPARE(request.body.value(QStringLiteral("refresh_token")).toString(), QStringLiteral("refresh-midflight"));
++    QCOMPARE(signedIn.count(), 0);
++    QCOMPARE(syncReady.count(), 0);
++    QVERIFY(client.accessToken().isEmpty());
++    QVERIFY(!credentials.loadActive().has_value());
++    QVERIFY(bootstrap.credentialClearPending());
++    QCOMPARE(secretSink.presentCount(), 0);
++}
++
+ void tst_account_identity::secureStoreFailureFailsClosed() {
+     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+     Fixture fixture;
+diff --git a/tests/auto/tracker_lifecycle/tst_tracker_lifecycle.cpp b/tests/auto/tracker_lifecycle/tst_tracker_lifecycle.cpp
+index e73d5fde..7467b514 100644
+--- a/tests/auto/tracker_lifecycle/tst_tracker_lifecycle.cpp
++++ b/tests/auto/tracker_lifecycle/tst_tracker_lifecycle.cpp
+@@ -17,6 +17,9 @@
+ #include <QFile>
+ #include <QFileInfo>
+ #include <QTemporaryDir>
++#include <QNetworkProxy>
++#include <QTcpServer>
++#include <QSignalSpy>
+ #include <QThread>
+ #include <QTimer>
+ #include <QUrl>
+@@ -256,6 +259,9 @@ private slots:
+     void decliningMoveRestoresPriorCredentialAndSurfacesRestoreFailure();
+     void moveOperatesFromLocalOnlySourceWithExpiredSourceToken();
+     void simklClientReservesWriteCadenceSlotsInOrder();
++#ifdef Q_OS_LINUX
++    void unavailableLinuxVaultBlocksAuthenticatedRequests();
++#endif
+     void simklClientGateSpacesSendsAfterEventLoopStall();
+     void connectionRollbackSurvivesControllerTeardown();
+     void connectionDeactivationGateRollsBackPendingCredential();
+@@ -851,13 +857,60 @@ void TrackerLifecycleTest::moveOperatesFromLocalOnlySourceWithExpiredSourceToken
+              TrackerConnectionState::Disconnected);
+ }
+ 
++
++#ifdef Q_OS_LINUX
++void TrackerLifecycleTest::unavailableLinuxVaultBlocksAuthenticatedRequests()
++{
++    QTemporaryDir root;
++    QVERIFY(root.isValid());
++    const ProfilePaths profile = ProfilePaths::localOnly(root.path());
++    WindowsTrackerCredentialVault vault;
++    QVERIFY(!vault.isAvailable());
++    QTcpServer proxy;
++    QVERIFY(proxy.listen(QHostAddress::LocalHost, 0));
++    QSignalSpy connections(&proxy, &QTcpServer::newConnection);
++    // Route any accidental HTTP attempt to a local observer, never the provider.
++    struct RestoreProxy {
++        QNetworkProxy old = QNetworkProxy::applicationProxy();
++        ~RestoreProxy() { QNetworkProxy::setApplicationProxy(old); }
++    } restoreProxy;
++    QNetworkProxy::setApplicationProxy(QNetworkProxy(QNetworkProxy::HttpProxy,
++                                                   QStringLiteral("127.0.0.1"), proxy.serverPort()));
++    SimklApiClient client(profile, testAuthConfiguration());
++    QVERIFY(!client.available());
++    int completed = 0;
++    const auto rejected = [&completed](const SimklApiResult &result) {
++        QCOMPARE(result.statusCode, 401);
++        QVERIFY(!result.succeeded());
++        ++completed;
++    };
++    client.get(QStringLiteral("/users/settings"), {}, rejected);
++    client.post(QStringLiteral("/sync/history"), {}, QJsonDocument(QJsonObject{}), rejected);
++    QTRY_COMPARE(completed, 2);
++    TrackerConnectionStore store(profile);
++    FakeBrowser browser;
++    FakeAuthTransport transport;
++    WallClock clock;
++    SimklConnectionController controller(profile, &store, nullptr, testAuthConfiguration(),
++                                         &vault, &browser, &transport, &clock);
++    QVERIFY(!controller.available());
++    QVERIFY(!controller.beginConnection(QStringLiteral("simkl")));
++    QVERIFY(!controller.busy());
++    QCOMPARE(controller.phase(), QStringLiteral("attention"));
++    QVERIFY(controller.statusMessage().contains(QStringLiteral("unsupported in this Linux preview")));
++    QTest::qWait(100);
++    QCOMPARE(connections.count(), 0);
++    QVERIFY(!proxy.hasPendingConnections());
++}
++#endif
++
+ void TrackerLifecycleTest::simklClientReservesWriteCadenceSlotsInOrder()
+ {
+     QTemporaryDir root;
+     QVERIFY(root.isValid());
+     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
+     SimklApiClient client(profile, testAuthConfiguration());
+-    QVERIFY(client.available());
++    // postAtCadence is a credential-independent scheduler; retain all timing checks.
+ 
+     QElapsedTimer elapsed;
+     elapsed.start();
+@@ -886,7 +939,7 @@ void TrackerLifecycleTest::simklClientGateSpacesSendsAfterEventLoopStall()
+     QVERIFY(root.isValid());
+     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
+     SimklApiClient client(profile, testAuthConfiguration());
+-    QVERIFY(client.available());
++    // postAtCadence is a credential-independent scheduler; retain all timing checks.
+ 
+     QElapsedTimer elapsed;
+     elapsed.start();
