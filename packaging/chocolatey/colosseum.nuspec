@@ -5,19 +5,19 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>colosseum</id>
-    <version>1.1.7</version>
+    <version>1.1.8</version>
     <packageSourceUrl>https://github.com/kingoftheseas56/Colosseum/tree/master/packaging/chocolatey</packageSourceUrl>
     <owners>kingoftheseas56</owners>
 
     <title>Colosseum</title>
     <authors>Hemanth Ganneni</authors>
     <projectUrl>https://github.com/kingoftheseas56/Colosseum</projectUrl>
-    <iconUrl>https://cdn.jsdelivr.net/gh/kingoftheseas56/Colosseum@v1.1.7/assets/icons/colosseum.svg</iconUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/kingoftheseas56/Colosseum@v1.1.8/assets/icons/colosseum.svg</iconUrl>
     <copyright>2026 Hemanth Ganneni</copyright>
-    <licenseUrl>https://github.com/kingoftheseas56/Colosseum/blob/v1.1.7/LICENSE</licenseUrl>
+    <licenseUrl>https://github.com/kingoftheseas56/Colosseum/blob/v1.1.8/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/kingoftheseas56/Colosseum</projectSourceUrl>
-    <docsUrl>https://github.com/kingoftheseas56/Colosseum/blob/v1.1.7/README.md</docsUrl>
+    <docsUrl>https://github.com/kingoftheseas56/Colosseum/blob/v1.1.8/README.md</docsUrl>
     <bugTrackerUrl>https://github.com/kingoftheseas56/Colosseum/issues</bugTrackerUrl>
     <tags>colosseum media manga comics books audiobooks movies tv anime reader video-player ebook qt desktop foss</tags>
     <summary>One native desktop home for your manga and comics, books and audiobooks, movies, shows, and anime.</summary>
@@ -58,7 +58,7 @@ offline.
 The installer is downloaded directly from the official GitHub release and verified by SHA-256
 checksum. See `tools\VERIFICATION.txt` in the package for details.
 ]]></description>
-    <releaseNotes>https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.7</releaseNotes>
+    <releaseNotes>https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.8</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />

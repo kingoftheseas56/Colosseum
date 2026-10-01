@@ -10,17 +10,17 @@ Package software author / vendor: Hemanth Ganneni
 Project / source: https://github.com/kingoftheseas56/Colosseum
 
 Installer downloaded by this package:
-  URL:    https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.7/Colosseum-1.1.7-setup.exe
-  Size:   254834672 bytes
-  SHA256: 66c5dfcc9607176cd890c14dc65a3ecdf72bc9e1b3852d968b87b6fae09b37a7
+  URL:    https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.8/Colosseum-1.1.8-setup.exe
+  Size:   255013376 bytes
+  SHA256: 34360219e74da238d1c281391396f6e2ff223f27dd7cb221f4e772ae2660382e
 
 To verify the checksum yourself:
 
   PowerShell:
-    Get-FileHash -Algorithm SHA256 .\Colosseum-1.1.7-setup.exe
+    Get-FileHash -Algorithm SHA256 .\Colosseum-1.1.8-setup.exe
 
   Chocolatey:
-    checksum.exe -t sha256 -f .\Colosseum-1.1.7-setup.exe
+    checksum.exe -t sha256 -f .\Colosseum-1.1.8-setup.exe
 
 The value it prints must equal the SHA256 above (and the value embedded in
 tools\chocolateyinstall.ps1).
@@ -29,4 +29,4 @@ LICENSE
 
 Colosseum is licensed under the MIT License. A copy of the license text is included in
 this package as tools\LICENSE.txt and is published at:
-  https://github.com/kingoftheseas56/Colosseum/blob/v1.1.7/LICENSE
+  https://github.com/kingoftheseas56/Colosseum/blob/v1.1.8/LICENSE
