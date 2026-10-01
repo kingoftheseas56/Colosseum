@@ -1065,6 +1065,24 @@ TestCase {
     }
 
     function test_trakt_uses_stremio_link_and_future_cards_say_coming_soon() {
+        if (Qt.platform.os === "linux") {
+            for (var key of ["trakt", "simkl", "mal"]) {
+                compare(findChild(page, "trackerCatalogueStatus_" + key).text,
+                        "Unavailable on Linux")
+                revealCatalogueCards()
+                mouseClick(findChild(page, "trackerCatalogue_" + key))
+                compare(findChild(page, "trackerDossierStatus").text,
+                        "Unavailable on Linux")
+                var connect = findChild(page, "trackerConnectButton")
+                compare(connect.enabled, false)
+                compare(connect.text, "Unavailable on Linux")
+                mouseClick(connect)
+                compare(fixtureConnector.beginCalls, 0)
+                page.closeDossier()
+            }
+            compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")
+            return
+        }
         compare(findChild(page, "trackerCatalogueStatus_trakt").text, "Not linked")
         compare(findChild(page, "trackerCatalogueStatus_mal").text, "Coming soon")
         compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")

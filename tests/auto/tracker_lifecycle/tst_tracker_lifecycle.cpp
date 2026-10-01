@@ -858,7 +858,8 @@ void TrackerLifecycleTest::simklClientReservesWriteCadenceSlotsInOrder()
     QVERIFY(root.isValid());
     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
     SimklApiClient client(profile, testAuthConfiguration());
-    QVERIFY(client.available());
+    // Cadence is portable; authentication remains gated by the platform vault.
+    QCOMPARE(client.available(), WindowsTrackerCredentialVault().isAvailable());
 
     QElapsedTimer elapsed;
     elapsed.start();
@@ -887,7 +888,8 @@ void TrackerLifecycleTest::simklClientGateSpacesSendsAfterEventLoopStall()
     QVERIFY(root.isValid());
     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
     SimklApiClient client(profile, testAuthConfiguration());
-    QVERIFY(client.available());
+    // Cadence is portable; authentication remains gated by the platform vault.
+    QCOMPARE(client.available(), WindowsTrackerCredentialVault().isAvailable());
 
     QElapsedTimer elapsed;
     elapsed.start();

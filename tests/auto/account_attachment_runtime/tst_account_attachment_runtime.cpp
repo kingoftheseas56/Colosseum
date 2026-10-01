@@ -9,7 +9,7 @@
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfileStoreRuntime.h"
-#include "account/WindowsAccountCredentialStore.h"
+#include "../../support/account/MemoryAccountCredentialStore.h"
 #include "engine/ExtensionsStore.h"
 #include "stremio/StremioState.h"
 #include "stremio/StremioCodec.h"
@@ -87,11 +87,30 @@ private:
     QByteArray m_previous;
 };
 
-class ScopedActiveAccountCredentialCleanup {
+class MemoryRuntimeCredentials {
 public:
-    ~ScopedActiveAccountCredentialCleanup() {
-        WindowsAccountCredentialStore().clearActive();
+    AccountRuntimeCredentialOptions options() {
+        return {&account, {
+            [this](const QString &profileId, const QString &accountId) -> std::optional<QByteArray> {
+                const auto found = stremio.constFind(profileId);
+                if (found == stremio.cend() || found->accountId != accountId)
+                    return std::nullopt;
+                return found->authKey;
+            },
+            [this](const QString &profileId, const QString &accountId, const QByteArray &authKey) {
+                return saveStremio({profileId, accountId, authKey});
+            },
+            [this](const QString &profileId) { stremio.remove(profileId); return true; }
+        }};
     }
+
+    bool saveStremio(const StoredStremioCredential &credential) {
+        stremio.insert(credential.profileId, credential);
+        return true;
+    }
+
+    MemoryAccountCredentialStore account;
+    QHash<QString, StoredStremioCredential> stremio;
 };
 
 class LoopbackAccountService final : public QObject {
@@ -591,7 +610,7 @@ private:
 };
 
 // Bounded native-only datastore fixture for the composed runtime relay. It
-// returns one canonical row and records method paths; no credential or raw
+// returns requested canonical rows and records method paths; no credential or raw
 // request body is projected into QML or an account-sync record.
 class LoopbackStremioDatastore final : public QObject {
 public:
@@ -603,26 +622,44 @@ public:
                     continue;
                 m_buffers.insert(socket, {});
                 connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
+                    if (!m_buffers.contains(socket))
+                        return;
                     QByteArray &buffer = m_buffers[socket];
                     buffer.append(socket->readAll());
                     const qsizetype headerEnd = buffer.indexOf("\r\n\r\n");
                     if (headerEnd < 0)
                         return;
+                    int contentLength = 0;
+                    for (const QByteArray &header : buffer.left(headerEnd).split('\n')) {
+                        if (header.toLower().startsWith("content-length:"))
+                            contentLength = header.mid(qstrlen("content-length:")).trimmed().toInt();
+                    }
+                    if (buffer.size() < headerEnd + 4 + contentLength)
+                        return;
                     const QByteArray firstLine = buffer.left(headerEnd)
                         .left(buffer.left(headerEnd).indexOf("\r\n"));
                     m_requests.append(firstLine);
+                    QJsonValue result = m_result;
                     if (firstLine.startsWith("POST /api/datastoreGet ")) {
                         const QJsonDocument request = QJsonDocument::fromJson(
-                            buffer.mid(headerEnd + 4));
-                        for (const QJsonValue &id : request.object().value(
-                                 QStringLiteral("ids")).toArray()) {
+                            buffer.mid(headerEnd + 4, contentLength));
+                        QStringList requestedIds;
+                        for (const QJsonValue &id : request.object().value(QStringLiteral("ids")).toArray()) {
                             if (id.isString())
-                                m_getIds.append(id.toString());
+                                requestedIds.append(id.toString());
                         }
+                        m_getIds.append(requestedIds);
+                        QJsonArray rows;
+                        for (const QJsonValue &row : m_result.toArray()) {
+                            if (requestedIds.contains(row.toObject().value(QStringLiteral("_id")).toString()))
+                                rows.append(row);
+                        }
+                        result = rows;
                     }
                     const QByteArray body = QJsonDocument(QJsonObject{
-                        {QStringLiteral("result"), m_result}})
+                        {QStringLiteral("result"), result}})
                         .toJson(QJsonDocument::Compact);
+                    m_buffers.remove(socket);
                     socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
                         + QByteArray::number(body.size())
                         + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body);
@@ -680,6 +717,8 @@ class tst_account_attachment_runtime final : public QObject {
     Q_OBJECT
 
 private slots:
+    void unavailableCredentialStoreFailsClosed();
+    void defaultLinuxRuntimeHasNoPlaintextCredentialFallback();
     void createNewAccountAdoptionWaitsForAttachmentVerificationBeforeRetiringSource();
     void createNewAccountRetiresSourceOnlyAfterFreshExportAbsorption();
     void createNewAccountAcceptsConcurrentHistoryMergeAfterCommit();
@@ -700,6 +739,51 @@ private slots:
     void stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho();
     void extensionsOwnerFollowsTheActiveProfile();
 };
+
+void tst_account_attachment_runtime::unavailableCredentialStoreFailsClosed() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    ScopedEnvironmentVariable restoreEndpoint("COLOSSEUM_ACCOUNT_SERVICE_URL");
+    QStandardPaths::setTestModeEnabled(true);
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("runtime-unavailable-credential-fixture"));
+    LoopbackAccountService service;
+    QString error;
+    QVERIFY2(service.listen(&error), qPrintable(error));
+    qputenv("COLOSSEUM_ACCOUNT_SERVICE_URL",
+            QStringLiteral("http://127.0.0.1:%1").arg(service.port()).toLatin1());
+    MemoryRuntimeCredentials credentials;
+    credentials.account.setAvailable(false);
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
+    QSignalSpy ready(runtime.controller(), &AccountController::accountProfileReadyForSync);
+    runtime.controller()->createAccount(QStringLiteral("unavailable-fixture"),
+                                       QStringLiteral("correct horse battery staple 884"));
+    QTRY_COMPARE(runtime.controller()->lastErrorCode(), QStringLiteral("secure_store_unavailable"));
+    QCOMPARE(ready.count(), 0);
+    QVERIFY(!credentials.account.loadActive().has_value());
+}
+
+void tst_account_attachment_runtime::defaultLinuxRuntimeHasNoPlaintextCredentialFallback() {
+#ifndef Q_OS_LINUX
+    QSKIP("Checks the Linux preview's unsupported platform credential backend.");
+#else
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    ScopedEnvironmentVariable restoreEndpoint("COLOSSEUM_ACCOUNT_SERVICE_URL");
+    QStandardPaths::setTestModeEnabled(true);
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("runtime-linux-default-credential-fixture"));
+    LoopbackAccountService service;
+    QString error;
+    QVERIFY2(service.listen(&error), qPrintable(error));
+    qputenv("COLOSSEUM_ACCOUNT_SERVICE_URL",
+            QStringLiteral("http://127.0.0.1:%1").arg(service.port()).toLatin1());
+    AccountRuntime runtime;
+    QSignalSpy ready(runtime.controller(), &AccountController::accountProfileReadyForSync);
+    runtime.controller()->createAccount(QStringLiteral("default-linux-fixture"),
+                                       QStringLiteral("correct horse battery staple 884"));
+    QTRY_COMPARE(runtime.controller()->lastErrorCode(), QStringLiteral("secure_store_unavailable"));
+    QCOMPARE(runtime.controller()->lastErrorMessage(),
+             QStringLiteral("The account session could not be stored securely."));
+    QCOMPARE(ready.count(), 0);
+#endif
+}
 
 void tst_account_attachment_runtime::
 ratingsReviewsAccountRuntimeCompositionContract() {
@@ -1475,7 +1559,7 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
 
     LoopbackStremioDatastore datastore;
     QVERIFY(datastore.listen());
-    datastore.setResult(QJsonArray{QJsonObject{
+    const QJsonObject movieProviderRow{
         {QStringLiteral("_id"), QStringLiteral("tt-runtime-two-device")},
         {QStringLiteral("type"), QStringLiteral("movie")},
         {QStringLiteral("removed"), false},
@@ -1484,7 +1568,8 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
             {QStringLiteral("video_id"), QStringLiteral("tt-runtime-two-device")},
             {QStringLiteral("timeOffset"), 120000},
             {QStringLiteral("duration"), 300000},
-            {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}}});
+            {QStringLiteral("lastWatched"), QStringLiteral("2025-01-02T03:04:05.000Z")}}}};
+    datastore.setResult(QJsonArray{movieProviderRow});
 
     StremioSyncOptions stremioOptions;
     stremioOptions.apiEndpoint = datastore.endpoint();
@@ -1492,6 +1577,7 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
 
     const auto provisionStremio = [](AccountRuntime &runtime,
                                      QQmlApplicationEngine &engine,
+                                     MemoryRuntimeCredentials &credentials,
                                      StremioSync **out) {
         QVERIFY(out);
         const ProfilePaths profile = runtime.profileStores()->activeProfile();
@@ -1504,11 +1590,8 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
         QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
         writer.saveAsync(profile.stremioSyncStatePath(), state);
         QTRY_COMPARE(committed.count(), 1);
-        // AccountRuntime owns the production vault callback; seed its
-        // tag-isolated credential rather than bypassing that boundary with a
-        // test lambda.
-        WindowsAccountCredentialStore vault;
-        QVERIFY(vault.saveStremio(StoredStremioCredential{
+        // Seed the injected store; AccountRuntime still owns callback wiring.
+        QVERIFY(credentials.saveStremio(StoredStremioCredential{
             profile.profileId(), state.accountId, QByteArrayLiteral("runtime-fixture-key")}));
         StremioSync *sync = qobject_cast<StremioSync *>(
             engine.rootContext()->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
@@ -1525,7 +1608,8 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
     qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-a"));
     QCoreApplication::setApplicationName(QStringLiteral("Colosseum-runtime-relay-a-%1")
                                              .arg(QString::fromLatin1(tag)));
-    AccountRuntime runtimeA(stremioOptions);
+    MemoryRuntimeCredentials credentialsA;
+    AccountRuntime runtimeA(stremioOptions, credentialsA.options());
     QQmlApplicationEngine engineA;
     runtimeA.prepareForQml(&engineA);
     QSignalSpy profileReadyA(runtimeA.controller(), &AccountController::accountProfileReadyForSync);
@@ -1533,14 +1617,15 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
         QStringLiteral("runtime-relay-a"), QStringLiteral("correct horse battery staple 884"));
     QTRY_COMPARE(profileReadyA.count(), 1);
     StremioSync *syncA = nullptr;
-    provisionStremio(runtimeA, engineA, &syncA);
+    provisionStremio(runtimeA, engineA, credentialsA, &syncA);
     QVERIFY(syncA);
     const ProfilePaths aProfile = runtimeA.profileStores()->activeProfile();
 
     qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-b"));
     QCoreApplication::setApplicationName(QStringLiteral("Colosseum-runtime-relay-b-%1")
                                              .arg(QString::fromLatin1(tag)));
-    AccountRuntime runtimeB(stremioOptions);
+    MemoryRuntimeCredentials credentialsB;
+    AccountRuntime runtimeB(stremioOptions, credentialsB.options());
     QQmlApplicationEngine engineB;
     runtimeB.prepareForQml(&engineB);
     QSignalSpy profileReadyB(runtimeB.controller(), &AccountController::accountProfileReadyForSync);
@@ -1548,7 +1633,7 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
         QStringLiteral("runtime-relay-b"), QStringLiteral("correct horse battery staple 884"));
     QTRY_COMPARE(profileReadyB.count(), 1);
     StremioSync *syncB = nullptr;
-    provisionStremio(runtimeB, engineB, &syncB);
+    provisionStremio(runtimeB, engineB, credentialsB, &syncB);
     QVERIFY(syncB);
     const ProfilePaths bProfile = runtimeB.profileStores()->activeProfile();
     Q_UNUSED(syncA);
@@ -1663,7 +1748,7 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
         {QStringLiteral("removed"), false},
         {QStringLiteral("temp"), false},
         {QStringLiteral("state"), seriesState}};
-    datastore.setResult(QJsonArray{seriesProviderRow});
+    datastore.setResult(QJsonArray{movieProviderRow, seriesProviderRow});
     StremioLibraryItem inboundSeries;
     inboundSeries.id = seriesId;
     inboundSeries.type = QStringLiteral("series");
@@ -1681,6 +1766,7 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
 
     const int seriesGetsBefore = datastore.getCount();
     const int seriesIdsBefore = datastore.getIds().size();
+    const int seriesRootGetsBefore = datastore.getIds().count(seriesId);
     bProgress->recordSilent(QVariantMap{
         {QStringLiteral("kind"), QStringLiteral("video")},
         {QStringLiteral("id"), QStringLiteral("series-relay-trigger")},
@@ -1695,10 +1781,15 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
     QTRY_COMPARE(bProgress->get(QStringLiteral("video"), seriesVideos.at(1).videoId).value(
                      QStringLiteral("progress")).toDouble(), 1.0);
     QTRY_VERIFY(datastore.getCount() > seriesGetsBefore);
-    QTRY_VERIFY(datastore.getIds().size() > seriesIdsBefore);
+    QTRY_VERIFY(datastore.getIds().count(seriesId) > seriesRootGetsBefore);
     const QStringList seriesGetIds = datastore.getIds();
-    for (qsizetype index = seriesIdsBefore; index < seriesGetIds.size(); ++index)
-        QCOMPARE(seriesGetIds.at(index), seriesId);
+    // Reconciliation covers both canonical owners. A queued movie readback
+    // may finish here; series reads must still use the root, never an episode.
+    for (qsizetype index = seriesIdsBefore; index < seriesGetIds.size(); ++index) {
+        const QString requestedId = seriesGetIds.at(index);
+        QVERIFY2(requestedId == seriesId || requestedId == inbound.id,
+                 qPrintable(requestedId));
+    }
     QCOMPARE(datastore.putCount(), 0);
     QTRY_COMPARE(syncB->pendingCount(), 0);
 
@@ -1726,13 +1817,7 @@ stremioRuntimeRelaysAcrossAccountDevicesWithoutEcho() {
     QTRY_COMPARE(syncB->pendingCount(), 0);
     QCOMPARE(datastore.putCount(), 0);
 
-    // The Windows credential target is globally visible outside its profile
-    // directory, so remove both unique tagged fixture credentials explicitly.
-    WindowsAccountCredentialStore vault;
-    qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-a"));
-    QVERIFY(vault.clearStremio(aProfile.profileId()));
-    qputenv("COLOSSEUM_APPDATA_TAG", tag + QByteArrayLiteral("-b"));
-    QVERIFY(vault.clearStremio(bProfile.profileId()));
+    // Fixture credentials are memory-only and die with their owning runtime.
     QCoreApplication::setApplicationName(previousApplication);
 }
 
@@ -1746,7 +1831,6 @@ createNewAccountAdoptionWaitsForAttachmentVerificationBeforeRetiringSource() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
-    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1776,7 +1860,8 @@ createNewAccountAdoptionWaitsForAttachmentVerificationBeforeRetiringSource() {
     QVERIFY2(before.has_value(), qPrintable(error));
     QVERIFY(!before->isEmpty());
 
-    AccountRuntime runtime;
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
     QSignalSpy profileReady(
         runtime.controller(),
         &AccountController::accountProfileReadyForSync);
@@ -1825,7 +1910,6 @@ createNewAccountRetiresSourceOnlyAfterFreshExportAbsorption() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-complete-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
-    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1856,7 +1940,8 @@ createNewAccountRetiresSourceOnlyAfterFreshExportAbsorption() {
     QVERIFY2(before.has_value(), qPrintable(error));
     QVERIFY(!before->isEmpty());
 
-    AccountRuntime runtime;
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
     QSignalSpy profileReady(
         runtime.controller(),
         &AccountController::accountProfileReadyForSync);
@@ -1911,7 +1996,6 @@ createNewAccountAcceptsConcurrentHistoryMergeAfterCommit() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-history-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
-    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -1950,7 +2034,8 @@ createNewAccountAcceptsConcurrentHistoryMergeAfterCommit() {
     QVERIFY2(before.has_value(), qPrintable(error));
     QVERIFY(!before->historyRecords.isEmpty());
 
-    AccountRuntime runtime;
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
     QSignalSpy profileReady(
         runtime.controller(),
         &AccountController::accountProfileReadyForSync);
@@ -1988,7 +2073,6 @@ createNewAccountAcceptsCertifiedLwwSupersession() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-lww-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
-    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -2022,7 +2106,8 @@ createNewAccountAcceptsCertifiedLwwSupersession() {
     QVERIFY2(before.has_value(), qPrintable(error));
     QVERIFY(!before->collectionEntries.isEmpty());
 
-    AccountRuntime runtime;
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
     QSignalSpy profileReady(
         runtime.controller(),
         &AccountController::accountProfileReadyForSync);
@@ -2060,7 +2145,6 @@ activitySourceClearRemovesLedgerAfterAttachmentCompletion() {
     const QByteArray tag = QByteArrayLiteral("f03-runtime-activity-")
         + QByteArray::number(QCoreApplication::applicationPid());
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
-    const ScopedActiveAccountCredentialCleanup clearCredential;
     QCoreApplication::setOrganizationName(
         QStringLiteral("Brotherhood-F03"));
     QCoreApplication::setApplicationName(
@@ -2101,7 +2185,8 @@ activitySourceClearRemovesLedgerAfterAttachmentCompletion() {
     }
     QVERIFY(QFileInfo::exists(legacy.activityDbPath()));
 
-    AccountRuntime runtime;
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
     QSignalSpy profileReady(
         runtime.controller(),
         &AccountController::accountProfileReadyForSync);

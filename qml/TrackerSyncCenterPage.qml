@@ -228,7 +228,8 @@ Item {
         if (providerKey === "simkl") return "Movies, series, and anime"
         if (providerKey === "mal") return "Anime and manga"
         if (providerKey === "trakt")
-            return available === true ? "Movies and series" : "Via your Stremio account"
+            return available === true || platformUnavailable(providerKey, available)
+                    ? "Movies and series" : "Via your Stremio account"
         if (providerKey === "anilist") return "Anime and manga"
         return ""
     }
@@ -267,13 +268,20 @@ Item {
         if (status === "Owner unavailable") return "Needs attention"
         return status || "Unknown"
     }
-    // MyAnimeList is a real provider once this build carries its
-    // registration; until then it reads as "Coming soon" like AniList.
+    function platformUnavailable(providerKey, available) {
+        return Qt.platform.os === "linux" && available !== true
+                && (providerKey === "trakt" || providerKey === "simkl" || providerKey === "mal")
+    }
+    // Linux has no secure tracker vault. Missing Windows registrations retain
+    // their existing future-provider and Stremio-linked presentation.
     function comingSoon(providerKey, available) {
         return providerKey === "anilist"
-                || (providerKey === "mal" && available !== true)
+                || (providerKey === "mal" && available !== true
+                    && !platformUnavailable(providerKey, available))
     }
     function providerStatus(providerKey, status, available) {
+        if (platformUnavailable(providerKey, available))
+            return "Unavailable on Linux"
         if (providerKey === "trakt" && available !== true)
             return stremioConnected && stremioState.hasTrakt === true ? "Linked" : "Not linked"
         if (comingSoon(providerKey, available))
@@ -2453,7 +2461,9 @@ Item {
                                         id: catalogueStateText
                                         objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
                                         anchors.centerIn: parent
-                                        text: (catalogueCard.modelData.providerKey === "trakt"
+                                        text: root.platformUnavailable(catalogueCard.modelData.providerKey,
+                                                                       catalogueCard.modelData.available)
+                                              || (catalogueCard.modelData.providerKey === "trakt"
                                                && catalogueCard.modelData.available !== true)
                                               || root.comingSoon(catalogueCard.modelData.providerKey,
                                                                  catalogueCard.modelData.available)
@@ -2660,7 +2670,10 @@ Item {
                                     }
                                 }
                                 Text {
-                                    text: root.selectedProviderKey === "trakt"
+                                    text: root.platformUnavailable(root.selectedProviderKey,
+                                                                   root.selectedDossier.available)
+                                          ? "Tracker connections are Windows-only for now. Colosseum's local progress and History remain available."
+                                          : root.selectedProviderKey === "trakt"
                                           && root.selectedDossier.available !== true
                                           ? (root.stremioConnected && root.stremioState.hasTrakt === true
                                              ? "Trakt is linked through your Stremio account. Playback scrobbles through Stremio."
@@ -2709,7 +2722,10 @@ Item {
                                              && root.selectedDossier.connected !== true
                                     enabled: root.selectedDossier.connectEnabled === true
                                              && root.selectedDossier.available === true
-                                    text: root.selectedProviderKey === "trakt"
+                                    text: root.platformUnavailable(root.selectedProviderKey,
+                                                                   root.selectedDossier.available)
+                                          ? "Unavailable on Linux"
+                                          : root.selectedProviderKey === "trakt"
                                           && root.selectedDossier.available !== true
                                           ? "Via your Stremio account"
                                           : root.comingSoon(root.selectedProviderKey,
@@ -2718,7 +2734,10 @@ Item {
                                           : root.selectedDossier.pendingWork === true
                                           ? "Reconnect to recover pending work"
                                           : (root.selectedDossier.available ? "Connect" : "Not available")
-                                    Accessible.name: root.selectedProviderKey === "trakt"
+                                    Accessible.name: root.platformUnavailable(root.selectedProviderKey,
+                                                                              root.selectedDossier.available)
+                                                     ? "Unavailable on Linux"
+                                                     : root.selectedProviderKey === "trakt"
                                                      && root.selectedDossier.available !== true
                                                      ? "Via your Stremio account"
                                                      : root.comingSoon(root.selectedProviderKey,
