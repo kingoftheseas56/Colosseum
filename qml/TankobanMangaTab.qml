@@ -6,8 +6,33 @@ import "Catalog.js" as Catalog
 
 Column {
     id: mangaTab
-    width: parent ? parent.width : 0
+    property Flickable pageFlick: null
+    property Item backdrop: null
+    property var parkRowHandler: null
+    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property real _availableWidth: parent ? parent.width : 0
+    readonly property var rowIndexRows: [
+        { key: "collection", title: "Your Collection", target: collectionRow },
+        { key: "top-manga", title: "Top in Tankoban — Manga", target: topMangaRow },
+        { key: "genres", title: "Explore by Genre — Manga", target: genreRow }
+    ]
+    x: mangaTab.contentLeft
+    width: Math.max(0, mangaTab._availableWidth - mangaTab.contentLeft)
     spacing: 36
+
+    RowIndexSidebar {
+        id: rowIndex
+        parent: mangaTab.parent
+        z: 2
+        x: 0
+        pageFlick: mangaTab.pageFlick
+        flowHost: mangaTab
+        backdrop: mangaTab.backdrop
+        worldName: "Tankoban"
+        automationPrefix: "tankobanRowIndex"
+        rows: mangaTab.rowIndexRows
+        onRowRequested: (target) => { if (mangaTab.parkRowHandler) mangaTab.parkRowHandler(target) }
+    }
 
     signal seriesRequested(string title)
     signal genreRequested(string name)
@@ -17,8 +42,11 @@ Column {
     // Task 8: a See-all door on a Manga shelf emits a Discover pin. The world switches to
     // Discover and applies it. Pin shape (spec 3.6): {type,catalogId,filterGroup,filterKey}.
     signal discoverPinRequested(var pin)
+    signal contentLeftUpdated(real value)
+    onContentLeftChanged: mangaTab.contentLeftUpdated(mangaTab.contentLeft)
 
     ContinueRow {
+        id: collectionRow
         title: "Your Collection"
         showSeeAll: false
         items: (Collection.revision, Collection.items("tankoban").filter(function(e) { return e.type === "manga" }))
@@ -31,6 +59,7 @@ Column {
     // pinned to the Popular manga catalogue. A tile tap still routes to the series page
     // (the existing direct door is unchanged).
     TrendingTop10 {
+        id: topMangaRow
         title: "Top in Tankoban — Manga"
         items: Catalog.topManga
         // World-namespaced automation reach (catalogue-independence Slice 3, 2026-08-20):
@@ -44,6 +73,7 @@ Column {
     }
 
     GenreMosaic {
+        id: genreRow
         title: "Explore by Genre — Manga"
         genres: Catalog.genresManga
         // A genre tile opens the existing GenrePage (unchanged direct route). The genre

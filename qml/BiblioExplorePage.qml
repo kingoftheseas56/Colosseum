@@ -43,6 +43,7 @@ Item {
     property int top10Limit: 10
     property int mosaicLimit: 14
     property bool editMode: false
+    property Item backdrop: null
     // Explore remains mounted beside Discover/Library for scroll-state preservation. Extension
     // transport is only useful while this retained page is active.
     property bool active: true
@@ -54,6 +55,7 @@ Item {
     // tab switch within the same running session (Task 8's BiblioWorld reads/writes this) — a
     // plain property, NOT QSettings; it does not survive an app restart, by design.
     property real contentY: 0
+    readonly property real contentLeft: rowIndex.contentLeft
 
     signal itemRequested(var work)
     signal discoverPinRequested(var pin)
@@ -393,6 +395,25 @@ Item {
     // Stable scalar projection for runtime verification and diagnostics. The order itself
     // remains owned by BiblioExplorePreferences; this only exposes the live effective sequence.
     readonly property string rowOrderSignature: page.customizableRowKeys.join(",")
+    readonly property var rowIndexRows: {
+        page.displayRows
+        rowRepeater.count
+        mosaicRepeater.count
+        var out = []
+        for (var i = 0; i < rowRepeater.count; i++) {
+            var row = rowRepeater.itemAt(i)
+            var descriptor = page.displayRows[i]
+            if (row && row.visible && descriptor && descriptor.hidden !== true)
+                out.push({ key: descriptor.key, title: descriptor.title, target: row })
+        }
+        for (var j = 0; j < mosaicRepeater.count; j++) {
+            var mosaic = mosaicRepeater.itemAt(j)
+            var spec = page.mosaicSpecs[j]
+            if (mosaic && mosaic.visible && spec)
+                out.push({ key: spec.key, title: spec.title, target: mosaic })
+        }
+        return out
+    }
     function canMoveUp(key) {
         var i = page.customizableRowKeys.indexOf(key);
         return i > 0;
@@ -483,12 +504,20 @@ Item {
         return { type: "book", catalogId: "popular", filterGroup: spec.axis, filterKey: spec.facetKey,
                  sourceKind: "builtin" };
     }
+    function parkRow(target) {
+        if (!target)
+            return
+        var top = target.mapToItem(mainFlick.contentItem, 0, 0).y
+        pageGlide.glideTo(top - 14)
+    }
 
     // ═══════════════════════════════ visual tree ═══════════════════════════════
     Flickable {
         id: mainFlick
         objectName: "biblioExploreFlick"
-        anchors.fill: parent
+        x: page.contentLeft
+        width: Math.max(0, page.width - x)
+        height: page.height
         contentWidth: width
         contentHeight: content.height
         clip: true
@@ -693,6 +722,7 @@ Item {
                 spacing: 20
 
                 Repeater {
+                    id: mosaicRepeater
                     model: page.mosaicSpecs
                     delegate: Rectangle {
                         id: tile
@@ -750,6 +780,19 @@ Item {
                 }
             }
         }
+    }
+
+    RowIndexSidebar {
+        id: rowIndex
+        z: 2
+        pageFlick: mainFlick
+        backdrop: page.backdrop
+        worldName: "Biblio"
+        automationPrefix: "biblioRowIndex"
+        rows: page.rowIndexRows
+        fixedTopInset: 76
+        currentOffset: 14
+        onRowRequested: (target) => page.parkRow(target)
     }
 
     ScrollGlide { id: pageGlide; flick: mainFlick }

@@ -23,6 +23,9 @@ Column {
     property var imdbCatalog: null
     property var rowPreferences: null
     property var catalogLoader: null
+    property Flickable pageFlick: null
+    property Item backdrop: null
+    property var parkRowHandler: null
     property bool editMode: false
     // TheatreWorld retains this page for fast tab switches, but catalogue transport should wait
     // until the world/tab is active.
@@ -48,7 +51,10 @@ Column {
     signal genreIndexRequested(string kind)
     signal seeAllRequested(var pin)
 
-    width: parent ? parent.width : 900
+    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property real _availableWidth: parent ? parent.width : 900
+    x: page.contentLeft
+    width: Math.max(0, page._availableWidth - page.contentLeft)
     // gallery uses the approved 46px shelf-to-shelf rhythm; the lazy host reserves no extra gap so
     // the effective distance is exactly the page spacing, never host-gap + page-gap.
     spacing: page.visualProfile === "gallery" ? 46 : 26
@@ -78,6 +84,20 @@ Column {
     TheatreRowPreferences { id: internalPrefs }
     readonly property var _prefsStore: page.rowPreferences ? page.rowPreferences : internalPrefs
 
+    RowIndexSidebar {
+        id: rowIndex
+        parent: page.parent ? page.parent.parent : null
+        z: 2
+        x: page.mapToItem(parent, -page.contentLeft, 0).x
+        pageFlick: page.pageFlick
+        flowHost: page
+        backdrop: page.backdrop
+        worldName: "Theatre"
+        automationPrefix: "theatreRowIndex"
+        rows: page.rowIndexRows
+        onRowRequested: (target) => { if (page.parkRowHandler) page.parkRowHandler(target) }
+    }
+
     readonly property string mediaKind: pageKey === "movies" ? "movie"
                                        : pageKey === "shows" ? "series" : "anime"
     readonly property string genreBoxTitle: pageKey === "movies" ? "Movie Genres"
@@ -106,6 +126,31 @@ Column {
     }
     readonly property var mainKeys: {
         var out = []; for (var i = 0; i < mainRows.length; i++) out.push(mainRows[i].key); return out;
+    }
+    readonly property var rowIndexRows: {
+        page.mainRows
+        page.extensionRows
+        mainShelfRepeater.count
+        extShelfRepeater.count
+        var out = []
+        if (loadingSkeleton.visible)
+            out.push({ key: "loading", title: "Loading", target: loadingSkeleton })
+        for (var i = 0; i < mainShelfRepeater.count; i++) {
+            var main = mainShelfRepeater.itemAt(i)
+            var mainRow = page.mainRows[i]
+            if (main && main.visible && mainRow && mainRow.hidden !== true)
+                out.push({ key: mainRow.key, title: mainRow.title, target: main })
+        }
+        for (var j = 0; j < extShelfRepeater.count; j++) {
+            var extension = extShelfRepeater.itemAt(j)
+            var extensionRow = page.extensionRows[j]
+            if (extension && extension.visible && extensionRow)
+                out.push({ key: extensionRow.key || ("extension-" + j),
+                           title: extensionRow.title, target: extension })
+        }
+        if (genreMosaic.visible)
+            out.push({ key: "genres", title: page.genreBoxTitle, target: genreMosaic })
+        return out
     }
 
     // the source-aware explicit gate, applied by the API before ranking AND See-all paging.
@@ -216,6 +261,7 @@ Column {
 
     // ── loading skeleton (only before the first rows land) — gallery poster width/gap ──
     Item {
+        id: loadingSkeleton
         visible: page.loading && page.mainRows.length === 0
         width: parent.width; height: page.visualProfile === "gallery" ? 267 : 236
         Row {

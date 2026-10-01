@@ -14,7 +14,8 @@ import "VaultApi.js" as VaultApi
 
 WorldPage {
     id: theatre
-    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft : 0   // dock sits right of the Discover rail
+    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft
+                     : theatreCatalog.visible ? theatreCatalog.contentLeft : 0
     objectName: "theatreWorld"
     medium: "Theatre"
     tabBarSource: theatreTabBar          // docks under the TopBar when scrolled past (WorldPage)
@@ -256,6 +257,9 @@ WorldPage {
         pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")
                  ? theatre.activeTab : "movies"
         contentPreferences: theatre.contentPreferences
+        pageFlick: theatre.pageFlickable
+        backdrop: theatre.backdrop
+        parkRowHandler: function(target) { theatre.parkRow(target) }
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
         imdbCatalog: (typeof ImdbCatalog !== "undefined") ? ImdbCatalog : null
         // Theatre is the gallery pilot; the viewport (converted from board coords to this page's

@@ -7,8 +7,44 @@ import QtQuick
 
 Column {
     id: comicsTab
-    width: parent ? parent.width : 0
+    property Flickable pageFlick: null
+    property Item backdrop: null
+    property var parkRowHandler: null
+    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property real _availableWidth: parent ? parent.width : 0
+    readonly property var rowIndexRows: {
+        comicsTab.comicShelves
+        shelfRepeater.count
+        var out = [
+            { key: "collection", title: "Your Collection", target: collectionRow },
+            { key: "top-comics", title: "Top in Tankoban — Comics", target: topComicsRow }
+        ]
+        for (var i = 0; i < shelfRepeater.count; i++) {
+            var shelf = shelfRepeater.itemAt(i)
+            var shelfRow = comicsTab.comicShelves[i]
+            if (shelf && shelf.visible && shelfRow)
+                out.push({ key: "shelf-" + i, title: shelfRow.label, target: shelf })
+        }
+        out.push({ key: "explore", title: "Explore Comics", target: genreRow })
+        return out
+    }
+    x: comicsTab.contentLeft
+    width: Math.max(0, comicsTab._availableWidth - comicsTab.contentLeft)
     spacing: 36
+
+    RowIndexSidebar {
+        id: rowIndex
+        parent: comicsTab.parent
+        z: 2
+        x: 0
+        pageFlick: comicsTab.pageFlick
+        flowHost: comicsTab
+        backdrop: comicsTab.backdrop
+        worldName: "Tankoban"
+        automationPrefix: "tankobanRowIndex"
+        rows: comicsTab.rowIndexRows
+        onRowRequested: (target) => { if (comicsTab.parkRowHandler) comicsTab.parkRowHandler(target) }
+    }
 
     property var comicRows: []       // top-comics list (RCO-ranked, from the world)
     property var comicShelves: []    // [{label, rows}] browse shelves
@@ -28,8 +64,11 @@ Column {
     // Task 8: a See-all door on a Comics shelf emits a Discover pin. The world switches to
     // Discover and applies it. Pin shape (spec 3.6): {type,catalogId,filterGroup,filterKey}.
     signal discoverPinRequested(var pin)
+    signal contentLeftUpdated(real value)
+    onContentLeftChanged: comicsTab.contentLeftUpdated(comicsTab.contentLeft)
 
     ContinueRow {
+        id: collectionRow
         title: "Your Collection"
         showSeeAll: false
         items: (Collection.revision, Collection.items("tankoban").filter(function(e) { return e.type === "comic" }))
@@ -42,6 +81,7 @@ Column {
     // for the OLD fetch-all model; Task 8 re-arms it as a Discover pin into the Popular
     // comics catalogue. A tile tap still routes to the LOCG/GCD series door (unchanged).
     TrendingTop10 {
+        id: topComicsRow
         title: "Top in Tankoban — Comics"
         items: comicsTab.comicRows.slice(0, 10)
         onItemClicked: (i) => {
@@ -63,6 +103,7 @@ Column {
     // open (~0.8 s, profiled 2026-09-29), so each slot reserves the shelf's exact height and
     // builds its shelf once it comes within a screen of view, then keeps it.
     Repeater {
+        id: shelfRepeater
         model: comicsTab.comicShelves
         delegate: Item {
             id: shelfSlot
@@ -112,6 +153,7 @@ Column {
     }
 
     GenreMosaic {
+        id: genreRow
         title: "Explore Comics"
         genres: comicsTab.comicBoxes
         covers: comicsTab.comicCovers
