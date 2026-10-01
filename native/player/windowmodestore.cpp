@@ -170,6 +170,12 @@ void WindowModeStore::applyBorderlessGeometry(QQuickWindow *window,
         return;
     window->setFlags(Qt::Window | Qt::FramelessWindowHint);
     window->setMinimumSize(minimumSize);
+#ifdef Q_OS_LINUX
+    // Create the X11 surface at its intended size. Showing the default 160x160
+    // window first lets WSLg's initial configure overwrite the later resize.
+    if (!window->isVisible())
+        window->setGeometry(geometry);
+#endif
     if (window->visibility() != QWindow::Windowed)
         window->showNormal();
     window->setGeometry(geometry);
