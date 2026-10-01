@@ -28,6 +28,16 @@ set(COLOSSEUM_ACCOUNT_SERVICE_URL "" CACHE STRING
 set(COLOSSEUM_SIMKL_CLIENT_ID "" CACHE STRING
     "Public SIMKL AUTH V2 client_id for Colosseum; empty keeps SIMKL unavailable")
 
+# MyAnimeList desktop OAuth. Prefer an app registration with no client secret.
+# A confidential client must use COLOSSEUM_MAL_TOKEN_BROKER_URL; never compile
+# a MAL client_secret into Colosseum.
+set(COLOSSEUM_MAL_CLIENT_ID "" CACHE STRING
+    "Public MyAnimeList client_id; empty keeps MAL unavailable")
+set(COLOSSEUM_MAL_REDIRECT_URI "" CACHE STRING
+    "Registered fixed loopback redirect URI, e.g. http://127.0.0.1:38191/oauth/mal/callback")
+set(COLOSSEUM_MAL_TOKEN_BROKER_URL "" CACHE STRING
+    "Optional HTTPS Colosseum-owned confidential-client token broker")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -263,6 +273,14 @@ add_executable(colosseum
     trackers/SimklConnectionController.cpp
     trackers/SimklApiClient.cpp
     trackers/SimklSyncRuntime.cpp
+    trackers/MalProtocol.cpp
+    trackers/MalLoopbackServer.cpp
+    trackers/MalHttpTransport.cpp
+    trackers/MalApiClient.cpp
+    trackers/MalListStateStore.cpp
+    trackers/MalConnectionController.cpp
+    trackers/MalSyncRuntime.cpp
+    trackers/TrackerConnectionRouter.cpp
     trackers/TrackerMappingStore.cpp
     trackers/TrackerHistoryEvidenceStore.cpp
     trackers/TrackerImportStore.cpp
@@ -357,6 +375,14 @@ add_executable(colosseum
     trackers/TrackerScrobbleRuntime.h
     trackers/SimklApiClient.h
     trackers/SimklSyncRuntime.h
+    trackers/MalProtocol.h
+    trackers/MalLoopbackServer.h
+    trackers/MalHttpTransport.h
+    trackers/MalApiClient.h
+    trackers/MalListStateStore.h
+    trackers/MalConnectionController.h
+    trackers/MalSyncRuntime.h
+    trackers/TrackerConnectionRouter.h
     trackers/TrackerCanonicalDeliverySource.h
     trackers/TrackerDeliveryRuntime.h
     trackers/TrackerSyncSettingsStore.h
@@ -755,6 +781,38 @@ if(COLOSSEUM_SIMKL_CLIENT_ID)
     message(STATUS "SIMKL AUTH V2 enabled for this build")
 else()
     message(STATUS "SIMKL AUTH V2 disabled: COLOSSEUM_SIMKL_CLIENT_ID is empty")
+endif()
+if(COLOSSEUM_MAL_CLIENT_ID OR COLOSSEUM_MAL_REDIRECT_URI OR COLOSSEUM_MAL_TOKEN_BROKER_URL)
+    string(STRIP "${COLOSSEUM_MAL_CLIENT_ID}" colosseum_mal_client_id)
+    string(STRIP "${COLOSSEUM_MAL_REDIRECT_URI}" colosseum_mal_redirect_uri)
+    string(STRIP "${COLOSSEUM_MAL_TOKEN_BROKER_URL}" colosseum_mal_token_broker_url)
+
+    if(colosseum_mal_client_id STREQUAL "" OR colosseum_mal_redirect_uri STREQUAL "")
+        message(FATAL_ERROR "MAL requires both COLOSSEUM_MAL_CLIENT_ID and COLOSSEUM_MAL_REDIRECT_URI")
+    endif()
+    if(colosseum_mal_client_id MATCHES "[\"\\\\]"
+       OR colosseum_mal_redirect_uri MATCHES "[\"\\\\]"
+       OR colosseum_mal_token_broker_url MATCHES "[\"\\\\]")
+        message(FATAL_ERROR "MAL build configuration contains unsafe quoting")
+    endif()
+    if(NOT colosseum_mal_redirect_uri MATCHES "^http://(localhost|127[.]0[.]0[.]1|\\[::1\\]):[0-9]+/")
+        message(FATAL_ERROR "COLOSSEUM_MAL_REDIRECT_URI must be a fixed loopback HTTP URI with a port")
+    endif()
+    if(NOT colosseum_mal_token_broker_url STREQUAL ""
+       AND NOT colosseum_mal_token_broker_url MATCHES "^https://")
+        message(FATAL_ERROR "COLOSSEUM_MAL_TOKEN_BROKER_URL must be HTTPS")
+    endif()
+
+    target_compile_definitions(colosseum PRIVATE
+        COLOSSEUM_MAL_CLIENT_ID="${colosseum_mal_client_id}"
+        COLOSSEUM_MAL_REDIRECT_URI="${colosseum_mal_redirect_uri}")
+    if(NOT colosseum_mal_token_broker_url STREQUAL "")
+        target_compile_definitions(colosseum PRIVATE
+            COLOSSEUM_MAL_TOKEN_BROKER_URL="${colosseum_mal_token_broker_url}")
+    endif()
+    message(STATUS "MyAnimeList tracker enabled for this build")
+else()
+    message(STATUS "MyAnimeList tracker disabled: registration is not configured")
 endif()
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)

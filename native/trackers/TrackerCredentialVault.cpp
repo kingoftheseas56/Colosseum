@@ -48,9 +48,14 @@ bool validRemoteAccountId(const QString &remoteAccountId)
     return normalized != QLatin1String("0");
 }
 
-bool validScopes(const QStringList &scopes)
+bool validScopes(TrackerProviderId providerId, const QStringList &scopes)
 {
     if (scopes.isEmpty() || scopes.size() > kMaximumScopeCount)
+        return false;
+    // MAL issues no granular scopes; "mal:api" is Colosseum's own sentinel.
+    if (providerId == TrackerProviderId::Mal)
+        return scopes == QStringList{QStringLiteral("mal:api")};
+    if (providerId != TrackerProviderId::Simkl)
         return false;
     for (const QString &scope : scopes) {
         if (scope != QLatin1String("media:read")
@@ -63,7 +68,8 @@ bool validScopes(const QStringList &scopes)
 
 bool validCredential(const TrackerCredential &credential)
 {
-    return credential.slot.providerId == TrackerProviderId::Simkl
+    return (credential.slot.providerId == TrackerProviderId::Simkl
+            || credential.slot.providerId == TrackerProviderId::Mal)
         && validProfileId(credential.slot.profileId)
         && validRemoteAccountId(credential.slot.remoteAccountId)
         && !credential.accessToken.isEmpty()
@@ -72,7 +78,7 @@ bool validCredential(const TrackerCredential &credential)
         && credential.refreshToken.size() <= kMaximumTokenBytes
         && credential.accessTokenExpiresAtMs > 0
         && credential.refreshTokenExpiresAtMs > credential.accessTokenExpiresAtMs
-        && validScopes(credential.grantedScopes);
+        && validScopes(credential.slot.providerId, credential.grantedScopes);
 }
 
 QByteArray encodeCredential(const TrackerCredential &credential)
@@ -266,8 +272,11 @@ QString WindowsTrackerCredentialVault::targetName(
     const QString &profileId,
     TrackerProviderId providerId)
 {
-    if (!validProfileId(profileId) || providerId != TrackerProviderId::Simkl)
+    if (!validProfileId(profileId)
+        || (providerId != TrackerProviderId::Simkl
+            && providerId != TrackerProviderId::Mal)) {
         return {};
+    }
     const QString profileHash = QString::fromLatin1(QCryptographicHash::hash(
         profileId.toUtf8(), QCryptographicHash::Sha256).toHex());
     QString target = QString::fromLatin1(kCredentialPrefix)

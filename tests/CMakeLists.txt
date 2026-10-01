@@ -175,7 +175,23 @@ function(colosseum_add_tracker_delivery_runtime_sources target)
         "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.cpp"
-        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.h")
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalLoopbackServer.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalLoopbackServer.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionRouter.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionRouter.h")
     # The SIMKL composition needs QtGui (QDesktopServices browser launch) and
     # QtNetwork (AUTH V2 transport) wherever ProfileStoreRuntime is compiled.
     target_link_libraries(${target} PRIVATE Qt6::Gui Qt6::Network)
@@ -4034,6 +4050,50 @@ add_test(NAME colosseum.qttest.tracker_auth
          COMMAND tst_tracker_auth)
 set_tests_properties(colosseum.qttest.tracker_auth PROPERTIES
     LABELS "unit;qttest;tracker;auth;simkl"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 60: native MyAnimeList protocol, token refresh, vault admission, and
+# list-state contracts. No production MAL build definitions reach this target,
+# so its unconfigured case proves an unregistered build stays fail-closed.
+add_executable(tst_tracker_mal
+    auto/tracker_mal/tst_tracker_mal.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.h")
+target_include_directories(tst_tracker_mal PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_mal PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::Test)
+set_target_properties(tst_tracker_mal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_mal PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_mal POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:tst_tracker_mal>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_mal
+         COMMAND tst_tracker_mal)
+set_tests_properties(colosseum.qttest.tracker_mal PROPERTIES
+    LABELS "unit;qttest;tracker;mal"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
 

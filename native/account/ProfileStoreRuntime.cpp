@@ -13,6 +13,11 @@
 #include "trackers/SimklConnectionController.h"
 #include "trackers/SimklApiClient.h"
 #include "trackers/SimklSyncRuntime.h"
+#include "trackers/MalApiClient.h"
+#include "trackers/MalConnectionController.h"
+#include "trackers/MalListStateStore.h"
+#include "trackers/MalSyncRuntime.h"
+#include "trackers/TrackerConnectionRouter.h"
 #include "trackers/TrackerLifecycleCoordinator.h"
 #include "trackers/TrackerScrobbleRuntime.h"
 #include "trackers/TrackerSyncCenterModel.h"
@@ -55,10 +60,15 @@ struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<TrackerProgressImportOwner> trackerImportOwner;
     std::unique_ptr<TrackerHistoryEvidenceStore> trackerHistoryEvidence;
     std::unique_ptr<SimklApiClient> simklApi;
+    std::unique_ptr<MalApiClient> malApi;
+    std::unique_ptr<MalListStateStore> malListState;
     std::unique_ptr<TrackerScrobbleRuntime> trackerScrobble;
     std::unique_ptr<TrackerSyncCenterModel> trackerSyncCenter;
     std::unique_ptr<SimklSyncRuntime> simklSync;
     std::unique_ptr<SimklConnectionController> simklConnection;
+    std::unique_ptr<MalSyncRuntime> malSync;
+    std::unique_ptr<MalConnectionController> malConnection;
+    std::unique_ptr<TrackerConnectionRouter> trackerConnectionRouter;
 };
 
 ProfileStoreRuntime::ProfileStoreRuntime(
@@ -219,10 +229,10 @@ bool ProfileStoreRuntime::prepareTrackerForDeactivation(QString *error) {
             ? QStringLiteral("Tracker playback could not be finalized before profile change.")
             : detail);
     }
-    if (m_stores && m_stores->simklConnection
-        && !m_stores->simklConnection->prepareForProfileDeactivation()) {
+    if (m_stores && m_stores->trackerConnectionRouter
+        && !m_stores->trackerConnectionRouter->prepareForProfileDeactivation()) {
         return setError(error, QStringLiteral(
-            "The SIMKL connection change could not be finalized before profile change."));
+            "A tracker connection change could not be finalized before profile change."));
     }
     emit profileDeactivationCommitted();
     return true;
@@ -668,6 +678,12 @@ ProfileStoreRuntime::createProfileStores(
         stores->simklApi = std::make_unique<SimklApiClient>(
             paths, *simklConfiguration);
     }
+    const auto malConfiguration = malProductionConfiguration();
+    if (malConfiguration) {
+        stores->malApi = std::make_unique<MalApiClient>(
+            paths, *malConfiguration);
+        stores->malListState = std::make_unique<MalListStateStore>(paths);
+    }
     stores->trackerScrobble = std::make_unique<TrackerScrobbleRuntime>(
         paths, stores->trackerDelivery->connectionStore(),
         stores->trackerDelivery->mappingStore(), stores->simklApi.get());
@@ -685,7 +701,8 @@ ProfileStoreRuntime::createProfileStores(
         },
         [scrobbleRuntime] { scrobbleRuntime->resumeAfterGlobalSyncEnabled(); },
         [paths, deliveryRuntime = stores->trackerDelivery.get(), scrobbleRuntime,
-         simklApi = stores->simklApi.get()](
+         simklApi = stores->simklApi.get(), malApi = stores->malApi.get(),
+         malListState = stores->malListState.get()](
             const QString &providerKey, const QString &choice, QString *error) {
             const auto providerId = trackerProviderIdFromKey(providerKey);
             if (!providerId) {
@@ -705,14 +722,22 @@ ProfileStoreRuntime::createProfileStores(
             }
             WindowsTrackerCredentialVault vault;
             const auto disconnect = [&] {
-                return TrackerLifecycleCoordinator::disconnect(
+                const bool disconnected = TrackerLifecycleCoordinator::disconnect(
                     paths, *providerId, disconnectChoice, vault,
                     *deliveryRuntime->connectionStore(), *deliveryRuntime->mappingStore(),
                     *deliveryRuntime->deliveryStore(), *scrobbleRuntime->store(), error);
+                if (disconnected && *providerId == TrackerProviderId::Mal
+                    && malListState) {
+                    QString ignored;
+                    malListState->clear(&ignored);
+                }
+                return disconnected;
             };
-            return *providerId == TrackerProviderId::Simkl && simklApi
-                ? simklApi->disconnectThenRevoke(disconnect)
-                : disconnect();
+            if (*providerId == TrackerProviderId::Simkl && simklApi)
+                return simklApi->disconnectThenRevoke(disconnect);
+            if (*providerId == TrackerProviderId::Mal && malApi)
+                return malApi->disconnectThenForget(disconnect);
+            return disconnect();
         }, stores->trackerHistoryEvidence.get(),
         [deliveryRuntime = stores->trackerDelivery.get()](QString *error) {
             return deliveryRuntime->refreshCurrentFacts(error);
@@ -728,18 +753,44 @@ ProfileStoreRuntime::createProfileStores(
             stores->trackerDelivery->deliveryStore(),
             stores->trackerDelivery->canonicalSource(), stores->trackerSettings.get(),
             stores->trackerSyncCenter.get(), stores->simklApi.get());
-        SimklSyncRuntime *simklSync = stores->simklSync.get();
-        stores->trackerSyncCenter->setExportReview(
-            stores->trackerDelivery->canonicalSource(),
-            [simklSync](const TrackerConnection &connection,
-                        const QList<TrackerDeliveryFact> &facts,
-                        TrackerSyncCenterModel::ExportSnapshotCompletion completion) {
-                simklSync->readExportSnapshotAsync(connection, facts,
-                                                   std::move(completion));
-            });
         QObject::connect(stores->trackerSyncCenter.get(),
                          &TrackerSyncCenterModel::syncAllRequested,
-                         simklSync, &SimklSyncRuntime::syncAll);
+                         stores->simklSync.get(), &SimklSyncRuntime::syncAll);
+    }
+    if (stores->malApi && stores->malListState) {
+        stores->malSync = std::make_unique<MalSyncRuntime>(
+            stores->trackerDelivery->connectionStore(),
+            stores->trackerDelivery->mappingStore(), stores->trackerImports.get(),
+            stores->trackerImportOwner.get(),
+            stores->trackerDelivery->deliveryStore(),
+            stores->trackerDelivery->canonicalSource(), stores->trackerSettings.get(),
+            stores->trackerSyncCenter.get(), stores->malApi.get(),
+            stores->malListState.get());
+        QObject::connect(stores->trackerSyncCenter.get(),
+                         &TrackerSyncCenterModel::syncAllRequested,
+                         stores->malSync.get(), &MalSyncRuntime::syncAll);
+    }
+    if (stores->simklSync || stores->malSync) {
+        SimklSyncRuntime *simklSync = stores->simklSync.get();
+        MalSyncRuntime *malSync = stores->malSync.get();
+        stores->trackerSyncCenter->setExportReview(
+            stores->trackerDelivery->canonicalSource(),
+            [simklSync, malSync](
+                const TrackerConnection &connection,
+                const QList<TrackerDeliveryFact> &facts,
+                TrackerSyncCenterModel::ExportSnapshotCompletion completion) {
+                if (connection.providerId == TrackerProviderId::Simkl && simklSync) {
+                    simklSync->readExportSnapshotAsync(connection, facts,
+                                                       std::move(completion));
+                    return;
+                }
+                if (connection.providerId == TrackerProviderId::Mal && malSync) {
+                    malSync->readExportSnapshotAsync(connection, facts,
+                                                     std::move(completion));
+                    return;
+                }
+                completion(std::nullopt);
+            });
     } else {
         stores->trackerSyncCenter->setExportReview(
             stores->trackerDelivery->canonicalSource(), {});
@@ -747,14 +798,27 @@ ProfileStoreRuntime::createProfileStores(
     stores->simklConnection = std::make_unique<SimklConnectionController>(
         paths, stores->trackerDelivery->connectionStore(),
         stores->trackerSyncCenter.get());
+    stores->malConnection = std::make_unique<MalConnectionController>(
+        paths, stores->trackerDelivery->connectionStore(),
+        stores->trackerSyncCenter.get());
+    stores->trackerConnectionRouter = std::make_unique<TrackerConnectionRouter>(
+        stores->simklConnection.get(), stores->malConnection.get());
     stores->trackerSyncCenter->setConnectAvailable(
-        stores->simklConnection->available());
+        stores->simklConnection->available()
+        || stores->malConnection->available());
     if (stores->simklSync) {
-        QObject::connect(stores->simklConnection.get(),
-                         &SimklConnectionController::connectionEstablished,
+        QObject::connect(stores->trackerConnectionRouter.get(),
+                         &TrackerConnectionRouter::connectionEstablished,
                          stores->simklSync.get(),
                          &SimklSyncRuntime::connectionEstablished);
         stores->simklSync->start();
+    }
+    if (stores->malSync) {
+        QObject::connect(stores->trackerConnectionRouter.get(),
+                         &TrackerConnectionRouter::connectionEstablished,
+                         stores->malSync.get(),
+                         &MalSyncRuntime::connectionEstablished);
+        stores->malSync->start();
     }
     QObject::connect(stores->progress.get(), &ProgressStore::healthChanged,
                      stores->trackerSyncCenter.get(), &TrackerSyncCenterModel::refresh);
@@ -795,7 +859,7 @@ void ProfileStoreRuntime::bindContextProperties() {
         m_stores->trackerSyncCenter.get());
     m_qmlContext->setContextProperty(
         QStringLiteral("TrackerConnection"),
-        m_stores->simklConnection.get());
+        m_stores->trackerConnectionRouter.get());
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileConsumptionHistory"),
         m_stores->consumptionHistory.get());

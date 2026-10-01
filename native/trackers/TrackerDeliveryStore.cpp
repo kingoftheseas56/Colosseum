@@ -191,13 +191,19 @@ std::optional<TrackerMediaDomain> mediaDomainFromKey(const QString &key)
 
 bool providerSupportsDelivery(TrackerProviderId providerId, TrackerMediaDomain domain)
 {
-    // Arc 35's current provider gate enables only SIMKL's documented TV, movie,
-    // and anime sync domains. Other providers remain unavailable until their
+    // SIMKL covers its documented TV, movie, and anime sync domains; MAL
+    // covers anime and manga. Other providers remain unavailable until their
     // security/terms gates are explicitly cleared.
-    return providerId == TrackerProviderId::Simkl
-        && (domain == TrackerMediaDomain::Anime
+    if (providerId == TrackerProviderId::Simkl) {
+        return domain == TrackerMediaDomain::Anime
             || domain == TrackerMediaDomain::Movie
-            || domain == TrackerMediaDomain::Television);
+            || domain == TrackerMediaDomain::Television;
+    }
+    if (providerId == TrackerProviderId::Mal) {
+        return domain == TrackerMediaDomain::Anime
+            || domain == TrackerMediaDomain::Manga;
+    }
+    return false;
 }
 
 bool providerSupportsMappedDelivery(TrackerProviderId providerId,
@@ -208,6 +214,22 @@ bool providerSupportsMappedDelivery(TrackerProviderId providerId,
         return false;
     const QStringList parts = remoteMediaId.split(QLatin1Char(':'));
     bool numeric = false;
+    if (providerId == TrackerProviderId::Mal) {
+        // Only exact unit identities are deliverable; aggregate list IDs are not.
+        if (parts.size() != 4)
+            return false;
+        parts.at(1).toULongLong(&numeric);
+        bool unitOk = false;
+        const int unit = parts.at(3).toInt(&unitOk);
+        if (!numeric || !unitOk || unit <= 0)
+            return false;
+        return (domain == TrackerMediaDomain::Anime
+                && parts.at(0) == QLatin1String("anime")
+                && parts.at(2) == QLatin1String("episode"))
+            || (domain == TrackerMediaDomain::Manga
+                && parts.at(0) == QLatin1String("manga")
+                && parts.at(2) == QLatin1String("chapter"));
+    }
     if (domain == TrackerMediaDomain::Movie) {
         const QString id = parts.size() == 2 && parts.first() == QLatin1String("movie")
             ? parts.at(1) : remoteMediaId;
