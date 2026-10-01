@@ -5,6 +5,7 @@
 
 class MalConnectionController;
 class SimklConnectionController;
+class TraktConnectionController;
 
 class TrackerConnectionRouter final : public QObject
 {
@@ -22,6 +23,10 @@ public:
     TrackerConnectionRouter(SimklConnectionController *simkl,
                             MalConnectionController *mal,
                             QObject *parent = nullptr);
+    TrackerConnectionRouter(SimklConnectionController *simkl,
+                            MalConnectionController *mal,
+                            TraktConnectionController *trakt,
+                            QObject *parent);
 
     bool available() const;
     bool busy() const;
@@ -49,8 +54,13 @@ private:
     {
         return m_activeProviderKey == QLatin1String("mal");
     }
+    bool traktActive() const
+    {
+        return m_activeProviderKey == QLatin1String("trakt");
+    }
 
     SimklConnectionController *m_simkl = nullptr;
     MalConnectionController *m_mal = nullptr;
+    TraktConnectionController *m_trakt = nullptr;
     QString m_activeProviderKey = QStringLiteral("simkl");
 };

@@ -36,11 +36,15 @@ bool validProfileId(const QString &profileId)
         || (!uuid.isNull() && normalized == uuid.toString(QUuid::WithoutBraces).toLower());
 }
 
-bool validRemoteAccountId(const QString &remoteAccountId)
+bool validRemoteAccountId(TrackerProviderId providerId, const QString &remoteAccountId)
 {
     const QString normalized = remoteAccountId.trimmed();
     if (normalized.isEmpty() || normalized != remoteAccountId || normalized.size() > 64)
         return false;
+    if (providerId == TrackerProviderId::Trakt) {
+        const QUuid uuid(normalized);
+        return !uuid.isNull() && normalized == uuid.toString(QUuid::WithoutBraces).toLower();
+    }
     for (const QChar character : normalized) {
         if (!character.isDigit())
             return false;
@@ -50,6 +54,8 @@ bool validRemoteAccountId(const QString &remoteAccountId)
 
 bool validScopes(TrackerProviderId providerId, const QStringList &scopes)
 {
+    if (providerId == TrackerProviderId::Trakt)
+        return scopes.isEmpty();
     if (scopes.isEmpty() || scopes.size() > kMaximumScopeCount)
         return false;
     // MAL issues no granular scopes; "mal:api" is Colosseum's own sentinel.
@@ -69,9 +75,10 @@ bool validScopes(TrackerProviderId providerId, const QStringList &scopes)
 bool validCredential(const TrackerCredential &credential)
 {
     return (credential.slot.providerId == TrackerProviderId::Simkl
-            || credential.slot.providerId == TrackerProviderId::Mal)
+            || credential.slot.providerId == TrackerProviderId::Mal
+            || credential.slot.providerId == TrackerProviderId::Trakt)
         && validProfileId(credential.slot.profileId)
-        && validRemoteAccountId(credential.slot.remoteAccountId)
+        && validRemoteAccountId(credential.slot.providerId, credential.slot.remoteAccountId)
         && !credential.accessToken.isEmpty()
         && credential.accessToken.size() <= kMaximumTokenBytes
         && !credential.refreshToken.isEmpty()
@@ -274,7 +281,8 @@ QString WindowsTrackerCredentialVault::targetName(
 {
     if (!validProfileId(profileId)
         || (providerId != TrackerProviderId::Simkl
-            && providerId != TrackerProviderId::Mal)) {
+            && providerId != TrackerProviderId::Mal
+            && providerId != TrackerProviderId::Trakt)) {
         return {};
     }
     const QString profileHash = QString::fromLatin1(QCryptographicHash::hash(

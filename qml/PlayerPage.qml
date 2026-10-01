@@ -168,6 +168,11 @@ Item {
     property string traktType: ""
     onMediaIdChanged: if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
     function sendTraktPlayback(playing) {
+        if (typeof ProfileTrackers !== "undefined"
+                && ProfileTrackers.suppressLegacyTrackerPlaybackRelay === true) {
+            root.traktPlaying = false
+            return
+        }
         if (typeof stremioSyncState === "undefined" || !stremioSyncState.linkedAccount
                 || !stremioSyncState.hasTrakt)
             return

@@ -224,10 +224,11 @@ Item {
         return ""
     }
 
-    function providerSubject(providerKey) {
+    function providerSubject(providerKey, available) {
         if (providerKey === "simkl") return "Movies, series, and anime"
         if (providerKey === "mal") return "Anime and manga"
-        if (providerKey === "trakt") return "Via your Stremio account"
+        if (providerKey === "trakt")
+            return available === true ? "Movies and series" : "Via your Stremio account"
         if (providerKey === "anilist") return "Anime and manga"
         return ""
     }
@@ -273,7 +274,7 @@ Item {
                 || (providerKey === "mal" && available !== true)
     }
     function providerStatus(providerKey, status, available) {
-        if (providerKey === "trakt")
+        if (providerKey === "trakt" && available !== true)
             return stremioConnected && stremioState.hasTrakt === true ? "Linked" : "Not linked"
         if (comingSoon(providerKey, available))
             return "Coming soon"
@@ -2430,7 +2431,8 @@ Item {
                                             elide: Text.ElideRight
                                         }
                                         Text {
-                                            text: root.providerSubject(catalogueCard.modelData.providerKey)
+                                            text: root.providerSubject(catalogueCard.modelData.providerKey,
+                                                                       catalogueCard.modelData.available)
                                             color: theme.inkDimmer
                                             font.family: theme.ui
                                             font.pixelSize: 11
@@ -2451,7 +2453,8 @@ Item {
                                         id: catalogueStateText
                                         objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
                                         anchors.centerIn: parent
-                                        text: catalogueCard.modelData.providerKey === "trakt"
+                                        text: (catalogueCard.modelData.providerKey === "trakt"
+                                               && catalogueCard.modelData.available !== true)
                                               || root.comingSoon(catalogueCard.modelData.providerKey,
                                                                  catalogueCard.modelData.available)
                                               ? root.providerStatus(catalogueCard.modelData.providerKey,
@@ -2658,9 +2661,16 @@ Item {
                                 }
                                 Text {
                                     text: root.selectedProviderKey === "trakt"
+                                          && root.selectedDossier.available !== true
                                           ? (root.stremioConnected && root.stremioState.hasTrakt === true
                                              ? "Trakt is linked through your Stremio account. Playback scrobbles through Stremio."
                                              : "Link Trakt at web.stremio.com in your Stremio account, then sync Colosseum.")
+                                          : root.selectedProviderKey === "trakt"
+                                            && root.selectedDossier.available === true
+                                            && root.selectedDossier.pendingWork !== true
+                                          ? (root.selectedDossier.connected
+                                             ? "Trakt is connected directly to this Colosseum profile."
+                                             : "Connect Trakt to this Colosseum profile to import history and track playback.")
                                           : root.comingSoon(root.selectedProviderKey,
                                                             root.selectedDossier.available)
                                           ? "Coming soon."
@@ -2679,6 +2689,19 @@ Item {
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
+                                Text {
+                                    objectName: "trackerTraktStremioLinkState"
+                                    visible: root.selectedProviderKey === "trakt"
+                                             && root.selectedDossier.available === true
+                                    text: "Stremio link: "
+                                          + (root.stremioConnected && root.stremioState.hasTrakt === true
+                                             ? "Linked" : "Not linked")
+                                    color: theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
                                 Button {
                                     id: connectButton
                                     objectName: "trackerConnectButton"
@@ -2687,6 +2710,7 @@ Item {
                                     enabled: root.selectedDossier.connectEnabled === true
                                              && root.selectedDossier.available === true
                                     text: root.selectedProviderKey === "trakt"
+                                          && root.selectedDossier.available !== true
                                           ? "Via your Stremio account"
                                           : root.comingSoon(root.selectedProviderKey,
                                                             root.selectedDossier.available)
@@ -2695,6 +2719,7 @@ Item {
                                           ? "Reconnect to recover pending work"
                                           : (root.selectedDossier.available ? "Connect" : "Not available")
                                     Accessible.name: root.selectedProviderKey === "trakt"
+                                                     && root.selectedDossier.available !== true
                                                      ? "Via your Stremio account"
                                                      : root.comingSoon(root.selectedProviderKey,
                                                                        root.selectedDossier.available)

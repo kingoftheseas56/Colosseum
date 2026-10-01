@@ -636,7 +636,7 @@ bool TrackerLifecycleCoordinator::disconnect(
     }
 
     std::optional<TrackerCredential> savedCredential;
-    if (providerId == TrackerProviderId::Simkl) {
+    if (providerId == TrackerProviderId::Simkl || providerId == TrackerProviderId::Trakt) {
         if (!vault.isAvailable())
             return setError(error, QStringLiteral(
                 "The tracker credential vault is unavailable; the connection remains active."));
@@ -644,7 +644,7 @@ bool TrackerLifecycleCoordinator::disconnect(
         if (savedCredential
             && savedCredential->slot.remoteAccountId != connection->remoteAccountId) {
             return setError(error, QStringLiteral(
-                "The saved SIMKL credential belongs to a different account."));
+                "The saved %1 credential belongs to a different account.").arg(trackerProviderDisplayName(providerId)));
         }
         if (!vault.clearForProfile(profile.profileId(), providerId)) {
             if (savedCredential && !vault.saveAndVerify(*savedCredential)) {
@@ -657,7 +657,7 @@ bool TrackerLifecycleCoordinator::disconnect(
     }
 
     const auto restoreCredential = [&]() {
-        if (providerId == TrackerProviderId::Simkl && savedCredential
+        if ((providerId == TrackerProviderId::Simkl || providerId == TrackerProviderId::Trakt) && savedCredential
             && !vault.saveAndVerify(*savedCredential)) {
             return setError(error, QStringLiteral(
                 "The tracker action stopped, but its previous credential could not be restored."));
@@ -711,9 +711,8 @@ bool TrackerLifecycleCoordinator::removeProfilePrivateStateForPermanentDeletion(
         return setError(error, QStringLiteral("Tracker-private profile removal is unavailable."));
     if (!vault.isAvailable())
         return setError(error, QStringLiteral("The tracker credential vault is unavailable."));
-    // The current vault owns only the SIMKL namespace. Add each future
-    // provider here when its credential namespace is implemented.
-    if (!vault.clearForProfile(profile.profileId(), TrackerProviderId::Simkl)) {
+    if (!vault.clearForProfile(profile.profileId(), TrackerProviderId::Simkl)
+        || !vault.clearForProfile(profile.profileId(), TrackerProviderId::Trakt)) {
         return setError(error, QStringLiteral(
             "Tracker credentials could not be removed from the local vault."));
     }

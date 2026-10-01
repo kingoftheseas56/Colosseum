@@ -77,12 +77,21 @@ QList<TrackerProviderDescriptor> trackerBuiltInProviderCatalog()
         | TrackerProviderCapability::WriteProgress
         | TrackerProviderCapability::WriteCompletion;
 #endif
+    TrackerProviderCapabilities trakt;
+#if defined(COLOSSEUM_TRAKT_CLIENT_ID) && defined(COLOSSEUM_TRAKT_TOKEN_BROKER_URL)
+    trakt = TrackerProviderCapability::ReadHistory
+        | TrackerProviderCapability::ReadProgress
+        | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion
+        | TrackerProviderCapability::Scrobble;
+#endif
     return {
         {TrackerProviderId::Simkl, trackerProviderDisplayName(TrackerProviderId::Simkl),
          simkl, simkl != TrackerProviderCapabilities{}},
         {TrackerProviderId::Mal, trackerProviderDisplayName(TrackerProviderId::Mal),
          mal, mal != TrackerProviderCapabilities{}},
-        {TrackerProviderId::Trakt, trackerProviderDisplayName(TrackerProviderId::Trakt), {}, false},
+        {TrackerProviderId::Trakt, trackerProviderDisplayName(TrackerProviderId::Trakt),
+         trakt, trakt != TrackerProviderCapabilities{}},
         {TrackerProviderId::AniList, trackerProviderDisplayName(TrackerProviderId::AniList), {}, false}
     };
 }

@@ -191,10 +191,8 @@ std::optional<TrackerMediaDomain> mediaDomainFromKey(const QString &key)
 
 bool providerSupportsDelivery(TrackerProviderId providerId, TrackerMediaDomain domain)
 {
-    // SIMKL covers its documented TV, movie, and anime sync domains; MAL
-    // covers anime and manga. Other providers remain unavailable until their
-    // security/terms gates are explicitly cleared.
-    if (providerId == TrackerProviderId::Simkl) {
+    // SIMKL and Trakt cover TV, movie, and anime; MAL covers anime and manga.
+    if (providerId == TrackerProviderId::Simkl || providerId == TrackerProviderId::Trakt) {
         return domain == TrackerMediaDomain::Anime
             || domain == TrackerMediaDomain::Movie
             || domain == TrackerMediaDomain::Television;
@@ -214,6 +212,17 @@ bool providerSupportsMappedDelivery(TrackerProviderId providerId,
         return false;
     const QStringList parts = remoteMediaId.split(QLatin1Char(':'));
     bool numeric = false;
+    if (providerId == TrackerProviderId::Trakt) {
+        if (parts.size() != 2)
+            return false;
+        const qulonglong id = parts.at(1).toULongLong(&numeric);
+        if (!numeric || id == 0 || id > 9007199254740991ULL
+            || QString::number(id) != parts.at(1))
+            return false;
+        return domain == TrackerMediaDomain::Movie
+            ? parts.first() == QLatin1String("movie")
+            : parts.first() == QLatin1String("episode");
+    }
     if (providerId == TrackerProviderId::Mal) {
         // Only exact unit identities are deliverable; aggregate list IDs are not.
         if (parts.size() != 4)
@@ -494,9 +503,7 @@ std::optional<TrackerTitleMapping> uniqueMapping(const TrackerMappingStore *mapp
     for (const TrackerTitleMapping &mapping : mappings->mappings()) {
         if (mapping.remote.providerId != providerId
             || mapping.remote.remoteAccountId != remoteAccountId
-            || mapping.canonical.canonicalMediaId != fact.canonicalMediaId
-            || mapping.canonical.historyKind != fact.historyKind
-            || mapping.canonical.historyId != fact.historyId) {
+            || !TrackerDeliveryStore::mappingMatchesFact(mapping, fact)) {
             continue;
         }
         if (found) {
@@ -635,9 +642,7 @@ std::optional<TrackerDeliveryOperation> operationFromJson(const QJsonObject &obj
         || std::floor(rawAttempts) != rawAttempts || rawAttempts < 0
         || rawAttempts > kMaximumAttempts || mapping->remote.providerId != *provider
         || mapping->remote.remoteAccountId != object.value(QStringLiteral("remoteAccountId")).toString()
-        || mapping->canonical.canonicalMediaId != fact->canonicalMediaId
-        || mapping->canonical.historyKind != fact->historyKind
-        || mapping->canonical.historyId != fact->historyId
+        || !TrackerDeliveryStore::mappingMatchesFact(*mapping, *fact)
         || fact->origin != TrackerDeliveryOrigin::NativeLocal
         || (!reviewedSnapshotId.isEmpty() && (!safeText(reviewedSnapshotId, 256)
             || !safeText(reviewedStateFingerprint, 128)))
@@ -753,6 +758,23 @@ qint64 retryDelayMs(const QString &operationId, int attemptCount)
 }
 
 } // namespace
+
+bool TrackerDeliveryStore::mappingMatchesFact(const TrackerTitleMapping &mapping,
+                                              const TrackerDeliveryFact &fact)
+{
+    if (mapping.canonical.historyId != fact.historyId)
+        return false;
+    if (mapping.canonical.canonicalMediaId == fact.canonicalMediaId
+        && mapping.canonical.historyKind == fact.historyKind)
+        return true;
+    // Progress uses video; witnessed Theatre completions retain movie/episode.
+    return mapping.remote.providerId == TrackerProviderId::Trakt
+        && (fact.historyKind == QLatin1String("movie") || fact.historyKind == QLatin1String("episode"))
+        && fact.canonicalMediaId == fact.historyKind + QLatin1Char(':') + fact.historyId
+        && mapping.canonical.historyKind == QLatin1String("video")
+        && mapping.canonical.canonicalMediaId == QStringLiteral("video:") + fact.historyId
+        && mapping.remote.remoteMediaId.startsWith(fact.historyKind + QLatin1Char(':'));
+}
 
 bool TrackerDeliveryStore::supportsProviderDelivery(TrackerProviderId providerId,
                                                     TrackerMediaDomain domain)
@@ -1593,9 +1615,7 @@ bool TrackerDeliveryStore::enqueueFact(const TrackerDeliveryFact &fact,
                                             mapping.remote.remoteMediaId)
         || !validMapping(mapping) || mapping.remote.providerId != providerId
         || mapping.remote.remoteAccountId != remoteAccountId
-        || mapping.canonical.canonicalMediaId != fact.canonicalMediaId
-        || mapping.canonical.historyKind != fact.historyKind
-        || mapping.canonical.historyId != fact.historyId) {
+        || !TrackerDeliveryStore::mappingMatchesFact(mapping, fact)) {
         return setError(out, QStringLiteral("Tracker delivery binding is invalid."));
     }
     const auto connection = m_connections->connection(providerId);

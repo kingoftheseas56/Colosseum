@@ -13,6 +13,12 @@ namespace {
 
 std::atomic<quint64> g_playbackScopeGeneration{0};
 
+QString providerAccountKey(TrackerProviderId providerId, const QString &account)
+{
+    return trackerProviderKey(providerId) + QChar(0x1f) + account;
+}
+
+
 bool safeKey(const QString &value, int maximum = 512)
 {
     return !value.isEmpty() && value == value.trimmed() && value.size() <= maximum
@@ -29,6 +35,22 @@ bool positiveSimklId(const QString &value)
     bool ok = false;
     const qulonglong parsed = numeric.toULongLong(&ok);
     return ok && parsed > 0 && QString::number(parsed) == numeric;
+}
+
+bool positiveTraktId(const QString &value, const QString &kind)
+{
+    const QStringList parts = value.split(QLatin1Char(':'));
+    if (parts.size() != 2)
+        return false;
+    bool ok = false;
+    const qulonglong id = parts.at(1).toULongLong(&ok);
+    if (!ok || id == 0 || id > 9007199254740991ULL || QString::number(id) != parts.at(1))
+        return false;
+    if (kind == QLatin1String("video"))
+        return parts.first() == QLatin1String("movie")
+            || parts.first() == QLatin1String("episode");
+    return (kind == QLatin1String("movie") || kind == QLatin1String("episode"))
+        && parts.first() == kind;
 }
 
 quint64 asUnsigned(const QVariant &value, bool *ok)
@@ -74,14 +96,47 @@ TrackerScrobbleRuntime::TrackerScrobbleRuntime(const ProfilePaths &profile,
       m_profile(profile),
       m_connections(connections),
       m_mappings(mappings),
-      m_transport(transport),
       m_store(profile),
       m_playbackScopeGeneration(g_playbackScopeGeneration.fetch_add(
           1, std::memory_order_relaxed) + 1)
 {
+    setProviderTransport(TrackerProviderId::Simkl, transport);
     if (m_playbackScopeGeneration == 0)
         m_playbackScopeGeneration = g_playbackScopeGeneration.fetch_add(
             1, std::memory_order_relaxed) + 1;
+}
+
+void TrackerScrobbleRuntime::setProviderTransport(TrackerProviderId providerId,
+                                                  SimklScrobbleTransport *transport)
+{
+    if (providerId == TrackerProviderId::Simkl || providerId == TrackerProviderId::Trakt)
+        m_transports.insert(trackerProviderKey(providerId), transport);
+}
+
+bool TrackerScrobbleRuntime::suppressLegacyTrackerPlaybackRelay() const
+{
+    return m_started && globalSyncEnabled()
+        && livePlaybackTrackingEnabled(QStringLiteral("trakt"));
+}
+
+void TrackerScrobbleRuntime::refreshLegacyPlaybackRelaySuppression()
+{
+    const auto connection = m_connections
+        ? m_connections->connection(TrackerProviderId::Trakt) : std::nullopt;
+    for (auto active = m_activePlaybacks.begin(); active != m_activePlaybacks.end();) {
+        if (active->providerId == TrackerProviderId::Trakt
+            && (!connection || connection->state != TrackerConnectionState::Connected
+                || active->remoteAccountId != connection->remoteAccountId
+                || active->connectionGeneration != connection->connectionGeneration))
+            active = m_activePlaybacks.erase(active);
+        else
+            ++active;
+    }
+    const bool suppress = suppressLegacyTrackerPlaybackRelay();
+    if (m_lastRelaySuppression == suppress)
+        return;
+    m_lastRelaySuppression = suppress;
+    emit suppressLegacyTrackerPlaybackRelayChanged();
 }
 
 bool TrackerScrobbleRuntime::start(QString *out)
@@ -143,7 +198,7 @@ void TrackerScrobbleRuntime::resumeAfterGlobalSyncEnabled()
     for (const TrackerConnection &connection : m_connections->connections()) {
         if (connection.state == TrackerConnectionState::Connected
             && connection.capabilities.testFlag(TrackerProviderCapability::Scrobble)) {
-            dispatchNextPending(connection.remoteAccountId);
+            dispatchNextPending(connection.providerId, connection.remoteAccountId);
         }
     }
 }
@@ -159,10 +214,11 @@ bool TrackerScrobbleRuntime::prepareForProfileDeactivation()
         if (active == m_activePlaybacks.cend())
             continue;
         if (!closeActivePlayback(source, active.value())) {
-            setError(QStringLiteral("The live SIMKL session could not be safely finalized before profile change."));
+            setError(QStringLiteral("The live Tracker session could not be safely finalized before profile change."));
             return false;
         }
     }
+    refreshLegacyPlaybackRelaySuppression();
     return true;
 }
 
@@ -179,14 +235,16 @@ bool TrackerScrobbleRuntime::snapshotPlaybackPosition(
         || positionMs < 0 || durationMs <= 0) {
         return false;
     }
-    auto active = m_activePlaybacks.find(source);
-    if (active == m_activePlaybacks.end() || active->sessionId != sessionId)
-        return false;
-
-    active->durationMs = durationMs;
-    active->positionMs = qBound<qint64>(0, positionMs, durationMs);
-    active->completedLocally = active->completedLocally || completedLocally;
-    return true;
+    bool updated = false;
+    for (auto active = m_activePlaybacks.begin(); active != m_activePlaybacks.end(); ++active) {
+        if (active->source != source || active->sessionId != sessionId)
+            continue;
+        active->durationMs = durationMs;
+        active->positionMs = qBound<qint64>(0, positionMs, durationMs);
+        active->completedLocally = active->completedLocally || completedLocally;
+        updated = true;
+    }
+    return updated;
 }
 
 bool TrackerScrobbleRuntime::setLivePlaybackTrackingEnabled(const QString &providerKey,
@@ -207,13 +265,13 @@ bool TrackerScrobbleRuntime::setLivePlaybackTrackingEnabled(const QString &provi
     if (!enabledValue && m_store.enabled(*providerId, connection->remoteAccountId)) {
         QStringList activeSources;
         for (auto it = m_activePlaybacks.cbegin(); it != m_activePlaybacks.cend(); ++it) {
-            if (it->remoteAccountId == connection->remoteAccountId)
+            if (it->providerId == *providerId && it->remoteAccountId == connection->remoteAccountId)
                 activeSources.append(it.key());
         }
         for (const QString &source : activeSources) {
             const auto active = m_activePlaybacks.value(source);
             if (!closeActivePlayback(source, active)) {
-                setError(QStringLiteral("The live SIMKL session could not be safely closed; tracking remains enabled."));
+                setError(QStringLiteral("The live Tracker session could not be safely closed; tracking remains enabled."));
                 return false;
             }
         }
@@ -222,6 +280,7 @@ bool TrackerScrobbleRuntime::setLivePlaybackTrackingEnabled(const QString &provi
         setError(error);
         return false;
     }
+    refreshLegacyPlaybackRelaySuppression();
     m_error.clear();
     emit lastErrorChanged();
     return true;
@@ -238,22 +297,31 @@ bool TrackerScrobbleRuntime::livePlaybackTrackingEnabled(const QString &provider
         && m_store.enabled(*providerId, connection->remoteAccountId);
 }
 
-std::optional<TrackerTitleMapping> TrackerScrobbleRuntime::exactMovieMapping(
+std::optional<TrackerTitleMapping> TrackerScrobbleRuntime::exactMapping(
     TrackerProviderId providerId,
     const QString &remoteAccountId,
+    const QString &kind,
     const QString &itemKey) const
 {
     if (!m_mappings || !safeKey(itemKey))
         return std::nullopt;
-    const QString canonicalId = QStringLiteral("movie:") + itemKey;
+    const QString canonicalId = kind + QLatin1Char(':') + itemKey;
     std::optional<TrackerTitleMapping> exact;
     for (const TrackerTitleMapping &mapping : m_mappings->mappings()) {
+        const bool matchesCanonical = mapping.canonical.canonicalMediaId == canonicalId
+            && mapping.canonical.historyKind == kind;
+        const bool matchesVideoAlias = providerId == TrackerProviderId::Trakt
+            && (kind == QLatin1String("movie") || kind == QLatin1String("episode"))
+            && mapping.canonical.historyKind == QLatin1String("video")
+            && mapping.canonical.canonicalMediaId == QStringLiteral("video:") + itemKey;
         if (mapping.remote.providerId == providerId
             && mapping.remote.remoteAccountId == remoteAccountId
-            && mapping.canonical.canonicalMediaId == canonicalId
-            && mapping.canonical.historyKind == QLatin1String("movie")
+            && (matchesCanonical || matchesVideoAlias)
             && mapping.canonical.historyId == itemKey) {
-            if (exact || !positiveSimklId(mapping.remote.remoteMediaId))
+            const bool supported = providerId == TrackerProviderId::Simkl
+                ? kind == QLatin1String("movie") && positiveSimklId(mapping.remote.remoteMediaId)
+                : positiveTraktId(mapping.remote.remoteMediaId, kind);
+            if (exact || !supported)
                 return std::nullopt;
             exact = mapping;
         }
@@ -271,6 +339,14 @@ int TrackerScrobbleRuntime::progressHundredths(qint64 positionMs, qint64 duratio
 }
 
 void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
+{
+    observePlaybackLifecycleForProvider(event, TrackerProviderId::Simkl);
+    if (livePlaybackTrackingEnabled(QStringLiteral("trakt")))
+        observePlaybackLifecycleForProvider(event, TrackerProviderId::Trakt);
+}
+
+void TrackerScrobbleRuntime::observePlaybackLifecycleForProvider(const QVariantMap &event,
+                                                               TrackerProviderId providerId)
 {
     if (!m_started)
         return;
@@ -307,10 +383,11 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
         return;
     }
 
-    const bool hasActivePlayback = m_activePlaybacks.contains(source);
-    const ActivePlayback active = m_activePlaybacks.value(source);
+    const QString activeKey = providerAccountKey(providerId, source);
+    const bool hasActivePlayback = m_activePlaybacks.contains(activeKey);
+    const ActivePlayback active = m_activePlaybacks.value(activeKey);
     if (isStart) {
-        if (generation <= m_playbackGenerationFloorBySource.value(source, 0)
+        if (generation <= m_playbackGenerationFloorBySource.value(activeKey, 0)
             || hasActivePlayback) {
             setError(QStringLiteral("A stale playback generation was ignored."));
             return;
@@ -321,30 +398,38 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
         return;
     }
 
-    const auto connection = m_connections->connection(TrackerProviderId::Simkl);
+    const auto connection = m_connections->connection(providerId);
     if (!connection || connection->state != TrackerConnectionState::Connected
         || !connection->capabilities.testFlag(TrackerProviderCapability::Scrobble)
-        || !m_store.enabled(TrackerProviderId::Simkl, connection->remoteAccountId)) {
+        || !m_store.enabled(providerId, connection->remoteAccountId)) {
         if (isClose)
-            m_activePlaybacks.remove(source);
+            m_activePlaybacks.remove(activeKey);
         return; // default-off and disconnected playback remain entirely local
     }
 
-    if (kind != QLatin1String("movie")) {
-        setError(QStringLiteral("SIMKL playback tracking is not enabled for this mapped media shape."));
+    if ((providerId == TrackerProviderId::Simkl && kind != QLatin1String("movie"))
+        || (providerId == TrackerProviderId::Trakt && kind != QLatin1String("movie")
+            && kind != QLatin1String("episode") && kind != QLatin1String("video"))) {
+        setError(QStringLiteral("Tracker playback tracking is not enabled for this mapped media shape."));
         if (isClose)
-            m_activePlaybacks.remove(source);
+            m_activePlaybacks.remove(activeKey);
         return;
     }
 
     const qint64 positionMs = event.value(QStringLiteral("positionMs")).toLongLong();
     const qint64 durationMs = event.value(QStringLiteral("durationMs")).toLongLong();
-    const int progress = progressHundredths(positionMs, durationMs);
+    int progress = progressHundredths(positionMs, durationMs);
     if (progress < 0) {
         setError(QStringLiteral("Playback tracking needs a confirmed media duration."));
         return;
     }
-    const QString action = actionForIntent(eventAction, completedLocally, progress);
+    QString action = actionForIntent(eventAction, completedLocally, progress);
+    if (providerId == TrackerProviderId::Trakt && isClose) {
+        // Harbor's exit threshold changes remote tracking only; canonical completion stays local.
+        action = progress >= 7000 ? QStringLiteral("stop") : QStringLiteral("pause");
+        if (action == QLatin1String("stop"))
+            progress = 10000;
+    }
     if (action.isEmpty()) {
         setError(QStringLiteral("A playback lifecycle event was malformed and ignored."));
         return;
@@ -352,17 +437,17 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
 
     if (isStart || isResume) {
         const bool anotherSessionMayBeOpen = m_store.hasOpenPlayback(
-            TrackerProviderId::Simkl, connection->remoteAccountId, sessionId);
+            providerId, connection->remoteAccountId, sessionId);
         if (anotherSessionMayBeOpen) {
             bool protectedByQueuedClose = false;
             for (const TrackerScrobbleIntent &pending : m_store.intents()) {
-                if (pending.providerId != TrackerProviderId::Simkl
+                if (pending.providerId != providerId
                     || pending.remoteAccountId != connection->remoteAccountId
                     || pending.playbackSessionId == sessionId || !pending.closesSession
                     || pending.state == TrackerScrobbleState::Succeeded
                     || pending.state == TrackerScrobbleState::Superseded
                     || !m_store.hasOpenPlaybackForSession(
-                        TrackerProviderId::Simkl, connection->remoteAccountId,
+                        providerId, connection->remoteAccountId,
                         pending.playbackSessionId)) {
                     continue;
                 }
@@ -370,7 +455,7 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
                 break;
             }
             if (!protectedByQueuedClose) {
-                setError(QStringLiteral("Another SIMKL playback session must close before this one starts."));
+                setError(QStringLiteral("Another Tracker playback session must close before this one starts."));
                 return;
             }
         }
@@ -380,10 +465,9 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
     QString canonicalMediaId;
     quint64 mappingRevision = 0;
     if (isStart) {
-        const auto mapping = exactMovieMapping(TrackerProviderId::Simkl,
-                                                connection->remoteAccountId, itemKey);
+        const auto mapping = exactMapping(providerId, connection->remoteAccountId, kind, itemKey);
         if (!mapping) {
-            setError(QStringLiteral("This movie needs one exact SIMKL match before playback tracking."));
+            setError(QStringLiteral("This movie needs one exact Tracker match before playback tracking."));
             return;
         }
         remoteMediaId = mapping->remote.remoteMediaId;
@@ -392,10 +476,11 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
     } else {
         if (active.remoteAccountId != connection->remoteAccountId
             || active.connectionGeneration != connection->connectionGeneration
-            || active.canonicalMediaId != QStringLiteral("movie:") + itemKey) {
-            setError(QStringLiteral("The SIMKL account or playback identity changed during this session."));
+            || active.identity.value(QStringLiteral("kind")).toString() != kind
+            || active.identity.value(QStringLiteral("itemKey")).toString() != itemKey) {
+            setError(QStringLiteral("The Tracker account or playback identity changed during this session."));
             if (isClose)
-                m_activePlaybacks.remove(source);
+                m_activePlaybacks.remove(activeKey);
             return;
         }
         remoteMediaId = active.remoteMediaId;
@@ -416,6 +501,7 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
         nextActive.completedLocally = nextActive.completedLocally || completedLocally;
     }
 
+    nextActive.providerId = providerId;
     const auto previousIntent = m_store.intent(active.lastOperationId);
     if (isClose && action == QStringLiteral("pause")
         && active.lastAction == QLatin1String("pause")
@@ -427,16 +513,16 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
             setError(error);
             return;
         }
-        m_activePlaybacks.remove(source);
+        m_activePlaybacks.remove(activeKey);
         m_error.clear();
         emit lastErrorChanged();
         return;
     }
 
-    if (!supersedeUnsentBeforeCurrentEvent(connection->remoteAccountId, sessionId))
+    if (!supersedeUnsentBeforeCurrentEvent(providerId, connection->remoteAccountId, sessionId))
         return;
 
-    const QString material = trackerProviderKey(TrackerProviderId::Simkl) + QChar(0x1f)
+    const QString material = trackerProviderKey(providerId) + QChar(0x1f)
         + connection->remoteAccountId + QChar(0x1f)
         + QString::number(connection->connectionGeneration) + QChar(0x1f)
         + canonicalMediaId + QChar(0x1f)
@@ -448,7 +534,7 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
 
     TrackerScrobbleIntent intent;
     intent.operationId = operationId;
-    intent.providerId = TrackerProviderId::Simkl;
+    intent.providerId = providerId;
     intent.remoteAccountId = connection->remoteAccountId;
     intent.connectionGeneration = connection->connectionGeneration;
     intent.mappingRevision = mappingRevision;
@@ -472,36 +558,37 @@ void TrackerScrobbleRuntime::observePlaybackLifecycle(const QVariantMap &event)
         // Keep the source's high-water mark after its active session closes.
         // Otherwise a delayed start from an older playback can look new after
         // m_activePlaybacks has removed the only generation record.
-        m_playbackGenerationFloorBySource.insert(source, generation);
+        m_playbackGenerationFloorBySource.insert(activeKey, generation);
     }
     nextActive.lastAction = action;
     nextActive.lastProgressHundredths = progress;
     nextActive.lastOperationId = operationId;
-    m_activePlaybacks.insert(source, nextActive);
+    m_activePlaybacks.insert(activeKey, nextActive);
     m_error.clear();
     emit lastErrorChanged();
     if (globalSyncEnabled())
         emit intentReadyForDispatch(operationId);
-    if (!retryProtectiveClosesForLaterSessionEvent(connection->remoteAccountId, sessionId))
+    if (!retryProtectiveClosesForLaterSessionEvent(providerId, connection->remoteAccountId, sessionId))
         return;
-    dispatchNextPending(connection->remoteAccountId);
+    dispatchNextPending(providerId, connection->remoteAccountId);
     if (isClose)
-        m_activePlaybacks.remove(source);
+        m_activePlaybacks.remove(activeKey);
 }
 
-void TrackerScrobbleRuntime::dispatchNextPending(const QString &remoteAccountId)
+void TrackerScrobbleRuntime::dispatchNextPending(TrackerProviderId providerId, const QString &remoteAccountId)
 {
-    if (!m_started || !globalSyncEnabled() || m_inFlightAccounts.contains(remoteAccountId))
+    SimklScrobbleTransport *transport = m_transports.value(trackerProviderKey(providerId));
+    if (!m_started || !globalSyncEnabled() || m_inFlightAccounts.contains(providerAccountKey(providerId, remoteAccountId)))
         return;
     for (const TrackerScrobbleIntent &intent : m_store.intents()) {
-        if (intent.providerId != TrackerProviderId::Simkl
+        if (intent.providerId != providerId
             || intent.remoteAccountId != remoteAccountId)
             continue;
         if (intent.state == TrackerScrobbleState::Succeeded
             || intent.state == TrackerScrobbleState::Superseded)
             continue;
         const auto connection = m_connections
-            ? m_connections->connection(TrackerProviderId::Simkl) : std::nullopt;
+            ? m_connections->connection(providerId) : std::nullopt;
         if (!connection || connection->state != TrackerConnectionState::Connected
             || connection->remoteAccountId != intent.remoteAccountId
             || connection->connectionGeneration != intent.connectionGeneration
@@ -515,7 +602,7 @@ void TrackerScrobbleRuntime::dispatchNextPending(const QString &remoteAccountId)
             }
             return;
         }
-        const bool enabledForAccount = m_store.enabled(TrackerProviderId::Simkl,
+        const bool enabledForAccount = m_store.enabled(providerId,
                                                         intent.remoteAccountId);
         if (!enabledForAccount && !intent.closesSession) {
             if (intent.state == TrackerScrobbleState::Pending
@@ -528,11 +615,11 @@ void TrackerScrobbleRuntime::dispatchNextPending(const QString &remoteAccountId)
             return;
         }
         if (intent.state == TrackerScrobbleState::UnknownOutcome) {
-            if (!m_transport)
+            if (!transport)
                 return;
-            m_inFlightAccounts.insert(intent.remoteAccountId);
+            m_inFlightAccounts.insert(providerAccountKey(providerId, intent.remoteAccountId));
             const QPointer<TrackerScrobbleRuntime> guard(this);
-            m_transport->readback(intent, [guard, operationId = intent.operationId](
+            transport->readback(intent, [guard, operationId = intent.operationId](
                                               SimklScrobbleReadbackResult result) {
                 if (guard)
                     guard->completeReadback(operationId, result);
@@ -546,7 +633,7 @@ void TrackerScrobbleRuntime::dispatchNextPending(const QString &remoteAccountId)
                                                 TrackerScrobbleReason::MappingChanged, &error))
                     setError(error);
                 else
-                    setError(QStringLiteral("The exact SIMKL match changed before playback tracking could be sent."));
+                    setError(QStringLiteral("The exact Tracker match changed before playback tracking could be sent."));
                 return;
             }
             dispatchIntent(intent);
@@ -557,22 +644,31 @@ void TrackerScrobbleRuntime::dispatchNextPending(const QString &remoteAccountId)
 
 bool TrackerScrobbleRuntime::isCurrentMapping(const TrackerScrobbleIntent &intent) const
 {
-    constexpr auto prefix = "movie:";
-    if (!intent.canonicalMediaId.startsWith(QLatin1String(prefix)))
+    std::optional<TrackerTitleMapping> exact;
+    for (const TrackerTitleMapping &mapping : m_mappings->mappings()) {
+        if (mapping.remote.providerId != intent.providerId
+            || mapping.remote.remoteAccountId != intent.remoteAccountId
+            || mapping.canonical.canonicalMediaId != intent.canonicalMediaId)
+            continue;
+        if (exact)
+            return false;
+        exact = mapping;
+    }
+    if (!exact)
         return false;
-    const QString itemKey = intent.canonicalMediaId.mid(int(sizeof("movie:") - 1));
-    const auto mapping = exactMovieMapping(intent.providerId, intent.remoteAccountId, itemKey);
-    return mapping && mapping->remote.remoteMediaId == intent.remoteMediaId
-        && mapping->canonical.canonicalMediaId == intent.canonicalMediaId
-        && mapping->revision == intent.mappingRevision;
+    const auto current = exactMapping(intent.providerId, intent.remoteAccountId,
+                                     exact->canonical.historyKind, exact->canonical.historyId);
+    return current && current->canonical.canonicalMediaId == intent.canonicalMediaId
+        && current->remote.remoteMediaId == intent.remoteMediaId
+        && current->revision == intent.mappingRevision;
 }
 
 bool TrackerScrobbleRuntime::supersedeUnsentBeforeCurrentEvent(
-    const QString &remoteAccountId,
+    TrackerProviderId providerId, const QString &remoteAccountId,
     const QString &currentSessionId)
 {
     for (const TrackerScrobbleIntent &intent : m_store.intents()) {
-        if (intent.providerId != TrackerProviderId::Simkl
+        if (intent.providerId != providerId
             || intent.remoteAccountId != remoteAccountId)
             continue;
         if (intent.state != TrackerScrobbleState::Pending
@@ -593,16 +689,16 @@ bool TrackerScrobbleRuntime::supersedeUnsentBeforeCurrentEvent(
 }
 
 bool TrackerScrobbleRuntime::retryProtectiveClosesForLaterSessionEvent(
-    const QString &remoteAccountId,
+    TrackerProviderId providerId, const QString &remoteAccountId,
     const QString &currentSessionId)
 {
     // Preserve the wait state; without a transport, requeueing an already
     // attempted close cannot be deferred without consuming or corrupting its retry budget.
-    if (!m_transport)
+    if (!m_transports.value(trackerProviderKey(providerId)))
         return true;
 
     for (const TrackerScrobbleIntent &intent : m_store.intents()) {
-        if (intent.providerId != TrackerProviderId::Simkl
+        if (intent.providerId != providerId
             || intent.remoteAccountId != remoteAccountId
             || intent.playbackSessionId == currentSessionId || !intent.closesSession
             || intent.state != TrackerScrobbleState::Waiting
@@ -626,9 +722,10 @@ bool TrackerScrobbleRuntime::retryProtectiveClosesForLaterSessionEvent(
 
 void TrackerScrobbleRuntime::dispatchIntent(const TrackerScrobbleIntent &intent)
 {
+    SimklScrobbleTransport *transport = m_transports.value(trackerProviderKey(intent.providerId));
     if (!globalSyncEnabled())
         return;
-    if (!m_transport) {
+    if (!transport) {
         QString error;
         if (!m_store.deferWithoutAttempt(intent.operationId,
                                          TrackerScrobbleReason::ProviderUnavailable,
@@ -643,9 +740,9 @@ void TrackerScrobbleRuntime::dispatchIntent(const TrackerScrobbleIntent &intent)
         setError(error);
         return;
     }
-    m_inFlightAccounts.insert(intent.remoteAccountId);
+    m_inFlightAccounts.insert(providerAccountKey(intent.providerId, intent.remoteAccountId));
     const QPointer<TrackerScrobbleRuntime> guard(this);
-    m_transport->send(intent, [guard, operationId = intent.operationId](
+    transport->send(intent, [guard, operationId = intent.operationId](
                                   SimklScrobbleSendResult result) {
         if (guard)
             guard->completeSend(operationId, result);
@@ -689,28 +786,33 @@ void TrackerScrobbleRuntime::completeSend(const QString &operationId,
     QString error;
     if (!m_store.recordAttemptResult(operationId, storedResult, reason, &error)) {
         setError(error);
-        m_inFlightAccounts.remove(intent->remoteAccountId);
+        m_inFlightAccounts.remove(providerAccountKey(intent->providerId, intent->remoteAccountId));
         return;
     }
     if (result == SimklScrobbleSendResult::UnknownOutcome) {
         if (!globalSyncEnabled()) {
-            // The send may have reached SIMKL, so preserve the uncertainty,
+            // The send may have reached Tracker, so preserve the uncertainty,
             // but do not start a new provider request while global Sync is
             // paused. Explicit resume routes this journaled state through
             // dispatchNextPending(), which performs the required readback.
-            m_inFlightAccounts.remove(intent->remoteAccountId);
+            m_inFlightAccounts.remove(providerAccountKey(intent->providerId, intent->remoteAccountId));
             return;
         }
         const QPointer<TrackerScrobbleRuntime> guard(this);
-        m_transport->readback(*intent, [guard, operationId](SimklScrobbleReadbackResult readback) {
+        auto *transport = m_transports.value(trackerProviderKey(intent->providerId));
+        if (!transport) {
+            m_inFlightAccounts.remove(providerAccountKey(intent->providerId, intent->remoteAccountId));
+            return;
+        }
+        transport->readback(*intent, [guard, operationId](SimklScrobbleReadbackResult readback) {
             if (guard)
                 guard->completeReadback(operationId, readback);
         });
         return;
     }
-    m_inFlightAccounts.remove(intent->remoteAccountId);
+    m_inFlightAccounts.remove(providerAccountKey(intent->providerId, intent->remoteAccountId));
     if (result == SimklScrobbleSendResult::Succeeded)
-        dispatchNextPending(intent->remoteAccountId);
+        dispatchNextPending(intent->providerId, intent->remoteAccountId);
     else if (result == SimklScrobbleSendResult::KnownNotApplied) {
         const QList<TrackerScrobbleIntent> intents = m_store.intents();
         bool afterFailedIntent = false;
@@ -721,7 +823,7 @@ void TrackerScrobbleRuntime::completeSend(const QString &operationId,
                 afterFailedIntent = true;
                 continue;
             }
-            if (afterFailedIntent && candidate.providerId == TrackerProviderId::Simkl
+            if (afterFailedIntent && candidate.providerId == intent->providerId
                 && candidate.remoteAccountId == intent->remoteAccountId
                 && candidate.state != TrackerScrobbleState::Succeeded
                 && candidate.state != TrackerScrobbleState::Superseded) {
@@ -742,24 +844,24 @@ void TrackerScrobbleRuntime::completeSend(const QString &operationId,
                 setError(error);
                 return;
             }
-            dispatchNextPending(intent->remoteAccountId);
+            dispatchNextPending(intent->providerId, intent->remoteAccountId);
         } else if (hasLaterDifferentSessionEvent && protectiveClose) {
-            setError(QStringLiteral("The previous SIMKL playback must be resolved before another can start."));
+            setError(QStringLiteral("The previous Tracker playback must be resolved before another can start."));
         } else if (hasLaterPending && failedIntent
                    && failedIntent->state == TrackerScrobbleState::Waiting) {
             if (!m_store.supersedeIfNeverApplied(operationId, &error)) {
                 setError(error);
                 return;
             }
-            dispatchNextPending(intent->remoteAccountId);
+            dispatchNextPending(intent->providerId, intent->remoteAccountId);
         } else {
-            setError(QStringLiteral("SIMKL did not confirm playback tracking; the event is held for recovery."));
+            setError(QStringLiteral("Tracker did not confirm playback tracking; the event is held for recovery."));
         }
     }
-    else if (!m_store.enabled(TrackerProviderId::Simkl, intent->remoteAccountId))
-        dispatchNextPending(intent->remoteAccountId);
+    else if (!m_store.enabled(intent->providerId, intent->remoteAccountId))
+        dispatchNextPending(intent->providerId, intent->remoteAccountId);
     else
-        setError(QStringLiteral("SIMKL did not confirm playback tracking; the event is held for recovery."));
+        setError(QStringLiteral("Tracker did not confirm playback tracking; the event is held for recovery."));
 }
 
 void TrackerScrobbleRuntime::completeReadback(const QString &operationId,
@@ -783,23 +885,23 @@ void TrackerScrobbleRuntime::completeReadback(const QString &operationId,
     QString error;
     if (!m_store.reconcileUnknown(operationId, storeResult, &error)) {
         setError(error);
-        m_inFlightAccounts.remove(intent->remoteAccountId);
+        m_inFlightAccounts.remove(providerAccountKey(intent->providerId, intent->remoteAccountId));
         return;
     }
-    m_inFlightAccounts.remove(intent->remoteAccountId);
+    m_inFlightAccounts.remove(providerAccountKey(intent->providerId, intent->remoteAccountId));
     const auto resolved = m_store.intent(operationId);
     if (resolved && (resolved->state == TrackerScrobbleState::Succeeded
                      || resolved->state == TrackerScrobbleState::Superseded))
-        dispatchNextPending(intent->remoteAccountId);
+        dispatchNextPending(intent->providerId, intent->remoteAccountId);
     else
-        setError(QStringLiteral("SIMKL playback delivery needs attention; it will not be resent automatically."));
+        setError(QStringLiteral("Tracker playback delivery needs attention; it will not be resent automatically."));
 }
 
 bool TrackerScrobbleRuntime::closeActivePlayback(const QString &source,
                                                  const ActivePlayback &active)
 {
     QVariantMap identity = active.identity;
-    identity.insert(QStringLiteral("source"), source);
+    identity.insert(QStringLiteral("source"), active.source);
     QVariantMap event{{QStringLiteral("action"), QStringLiteral("close")},
                       {QStringLiteral("identity"), identity},
                       {QStringLiteral("sessionId"), active.sessionId},
@@ -809,14 +911,14 @@ bool TrackerScrobbleRuntime::closeActivePlayback(const QString &source,
                       {QStringLiteral("positionMs"), active.positionMs},
                       {QStringLiteral("durationMs"), active.durationMs},
                       {QStringLiteral("completedLocally"), active.completedLocally}};
-    observePlaybackLifecycle(event);
+    observePlaybackLifecycleForProvider(event, active.providerId);
     return !m_activePlaybacks.contains(source);
 }
 
 void TrackerScrobbleRuntime::setError(const QString &error)
 {
     const QString value = error.isEmpty()
-        ? QStringLiteral("SIMKL playback tracking could not save this event.")
+        ? QStringLiteral("Tracker playback tracking could not save this event.")
         : error;
     if (m_error == value)
         return;

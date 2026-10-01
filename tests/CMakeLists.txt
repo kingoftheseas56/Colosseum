@@ -190,6 +190,18 @@ function(colosseum_add_tracker_delivery_runtime_sources target)
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktCodec.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktCodec.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktSyncRuntime.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionRouter.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionRouter.h")
     # The SIMKL composition needs QtGui (QDesktopServices browser launch) and
@@ -4096,6 +4108,58 @@ set_tests_properties(colosseum.qttest.tracker_mal PROPERTIES
     LABELS "unit;qttest;tracker;mal"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
+
+# Direct Trakt keeps production registration defines out of the fixture build.
+add_executable(tst_trakt_direct
+    auto/trakt_direct/tst_trakt_direct.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+colosseum_add_tracker_delivery_runtime_sources(tst_trakt_direct)
+target_include_directories(tst_trakt_direct PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_trakt_direct PRIVATE
+    COLOSSEUM_TRACKER_DELIVERY_TESTING=1)
+target_link_libraries(tst_trakt_direct PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_trakt_direct PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_trakt_direct PRIVATE advapi32)
+    add_custom_command(TARGET tst_trakt_direct POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Sql>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_trakt_direct>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.trakt_direct COMMAND tst_trakt_direct)
+set_tests_properties(colosseum.qttest.trakt_direct PROPERTIES
+    LABELS "unit;qttest;tracker;trakt;auth;delivery"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+find_program(COLOSSEUM_TRAKT_TEST_NODE NAMES node)
+if(COLOSSEUM_TRAKT_TEST_NODE)
+    add_test(NAME colosseum.trakt_player_relay
+        COMMAND "${COLOSSEUM_TRAKT_TEST_NODE}" --test
+                "${CMAKE_CURRENT_SOURCE_DIR}/trakt_player_relay_test.mjs")
+    set_tests_properties(colosseum.trakt_player_relay PROPERTIES
+        LABELS "unit;tracker;trakt;player" TIMEOUT 30)
+endif()
 
 # Arc 35 Slice 3: exact provider mapping and tracker-only imported History
 # evidence. This is deliberately separate from the native witnessed-History

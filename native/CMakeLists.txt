@@ -40,6 +40,13 @@ set(COLOSSEUM_MAL_REDIRECT_URI "http://127.0.0.1:38191/oauth/mal/callback" CACHE
 set(COLOSSEUM_MAL_TOKEN_BROKER_URL "" CACHE STRING
     "Optional HTTPS Colosseum-owned confidential-client token broker")
 
+# Trakt device OAuth requires Colosseum's own public registration and HTTPS
+# broker; confidential provider credentials remain on the broker.
+set(COLOSSEUM_TRAKT_CLIENT_ID "" CACHE STRING
+    "Public Trakt client_id; empty keeps direct Trakt unavailable")
+set(COLOSSEUM_TRAKT_TOKEN_BROKER_URL "" CACHE STRING
+    "HTTPS Colosseum-owned Trakt token broker; empty keeps direct Trakt unavailable")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -282,6 +289,12 @@ add_executable(colosseum
     trackers/MalListStateStore.cpp
     trackers/MalConnectionController.cpp
     trackers/MalSyncRuntime.cpp
+    trackers/TraktAuth.cpp
+    trackers/TraktCodec.cpp
+    trackers/TraktHttpTransport.cpp
+    trackers/TraktApiClient.cpp
+    trackers/TraktConnectionController.cpp
+    trackers/TraktSyncRuntime.cpp
     trackers/TrackerConnectionRouter.cpp
     trackers/TrackerMappingStore.cpp
     trackers/TrackerHistoryEvidenceStore.cpp
@@ -384,6 +397,12 @@ add_executable(colosseum
     trackers/MalListStateStore.h
     trackers/MalConnectionController.h
     trackers/MalSyncRuntime.h
+    trackers/TraktAuth.h
+    trackers/TraktCodec.h
+    trackers/TraktHttpTransport.h
+    trackers/TraktApiClient.h
+    trackers/TraktConnectionController.h
+    trackers/TraktSyncRuntime.h
     trackers/TrackerConnectionRouter.h
     trackers/TrackerCanonicalDeliverySource.h
     trackers/TrackerDeliveryRuntime.h
@@ -815,6 +834,19 @@ if(COLOSSEUM_MAL_CLIENT_ID OR COLOSSEUM_MAL_REDIRECT_URI OR COLOSSEUM_MAL_TOKEN_
     message(STATUS "MyAnimeList tracker enabled for this build")
 else()
     message(STATUS "MyAnimeList tracker disabled: registration is not configured")
+endif()
+if(COLOSSEUM_TRAKT_CLIENT_ID OR COLOSSEUM_TRAKT_TOKEN_BROKER_URL)
+    if(NOT COLOSSEUM_TRAKT_CLIENT_ID MATCHES "^[A-Za-z0-9_-]+$"
+       OR NOT COLOSSEUM_TRAKT_TOKEN_BROKER_URL MATCHES "^https://[^/?#@ ]+"
+       OR COLOSSEUM_TRAKT_TOKEN_BROKER_URL MATCHES "[\"\\\\; \t\r\n?#@]")
+        message(FATAL_ERROR "Direct Trakt requires a public client_id and a valid HTTPS token broker URL")
+    endif()
+    target_compile_definitions(colosseum PRIVATE
+        COLOSSEUM_TRAKT_CLIENT_ID="${COLOSSEUM_TRAKT_CLIENT_ID}"
+        COLOSSEUM_TRAKT_TOKEN_BROKER_URL="${COLOSSEUM_TRAKT_TOKEN_BROKER_URL}")
+    message(STATUS "Direct Trakt enabled for this build")
+else()
+    message(STATUS "Direct Trakt disabled: registration and token broker are not configured")
 endif()
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)

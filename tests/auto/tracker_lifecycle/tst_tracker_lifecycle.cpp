@@ -63,7 +63,8 @@ public:
     {
         ++clearCount;
         clearedProviders.append(providerId);
-        if (failClear || (rejectUnsupportedClear && providerId != TrackerProviderId::Simkl))
+        if (failClear || (rejectUnsupportedClear && providerId != TrackerProviderId::Simkl
+            && providerId != TrackerProviderId::Trakt))
             return false;
         credentials.remove(key(profileId, providerId));
         return true;
@@ -1973,7 +1974,8 @@ void TrackerLifecycleTest::profileRemovalUsesSupportedVaultNamespace()
     QVERIFY(vault.saveAndVerify(credential(profile.profileId(), QStringLiteral("12345"))));
 
     QVERIFY(TrackerLifecycleCoordinator::removeProfilePrivateStateForPermanentDeletion(profile, vault));
-    QCOMPARE(vault.clearedProviders, QList<TrackerProviderId>{TrackerProviderId::Simkl});
+    const QList<TrackerProviderId> expected{TrackerProviderId::Simkl, TrackerProviderId::Trakt};
+    QCOMPARE(vault.clearedProviders, expected);
     QVERIFY(!vault.loadForProfile(profile.profileId(), TrackerProviderId::Simkl));
     QVERIFY(!QFileInfo::exists(trackerPath));
 }
