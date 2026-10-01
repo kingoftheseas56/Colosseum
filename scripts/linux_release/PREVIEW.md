@@ -57,8 +57,12 @@ skips must be reported separately from executed tests.
 Known failed baseline: Actions run `36736450789` recorded failures in
 `colosseum.qttest.account_attachment_runtime` (six cases reaching unavailable
 Linux secure storage) and `colosseum.qttest.tracker_lifecycle` (two SIMKL cadence
-cases requiring the Windows vault). These production-capability tests remain
-unsupported; this preview does not turn them into passes or remove them.
+cases requiring the Windows vault). Patch 0008 supplies isolated in-memory
+credentials to the account integration fixtures and removes the unrelated
+credential-vault prerequisite from the SIMKL cadence fixtures. Their behavioral
+assertions remain, and new negative tests verify that unavailable storage fails
+closed and that the default Linux runtime has no plaintext fallback. Passing
+these fixtures does not establish production Linux credential persistence.
 
 Separately, that run failed `account_core` (a missing fixture handoff),
 `account_attachment_coordinator` (two Windows-specific read-only receipt-lock

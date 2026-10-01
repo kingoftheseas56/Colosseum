@@ -48,6 +48,38 @@ def stage_preview_notice(stage):
                                      'tracker credential persistence']}
 
 
+def stage_qt_plugins(qt, stage):
+    for required in ['imageformats/libqwebp.so', 'platforms/libqxcb.so', 'sqldrivers/libqsqlite.so']:
+        if not (qt / 'plugins' / required).is_file():
+            raise RuntimeError('required Qt runtime plugin missing: ' + required)
+    for group in ['platforms', 'imageformats', 'iconengines', 'tls', 'xcbglintegrations']:
+        copy_qt_runtime(qt / 'plugins' / group, stage / 'usr/plugins' / group)
+    (stage / 'usr/plugins/sqldrivers').mkdir(parents=True)
+    shutil.copy2(qt / 'plugins/sqldrivers/libqsqlite.so', stage / 'usr/plugins/sqldrivers/libqsqlite.so')
+    for plugin in (stage / 'usr/plugins/platforms').iterdir():
+        if plugin.name not in ['libqxcb.so', 'libqoffscreen.so']:
+            plugin.unlink()
+
+
+def write_launcher(stage):
+    (stage / 'AppRun').write_text('''#!/bin/sh
+set -eu
+APPDIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
+export LD_LIBRARY_PATH="$APPDIR/usr/lib"
+export QT_PLUGIN_PATH="$APPDIR/usr/plugins"
+export QML2_IMPORT_PATH="$APPDIR/usr/qml"
+export QML_IMPORT_PATH="$APPDIR/usr/qml"
+export QTWEBENGINEPROCESS_PATH="$APPDIR/usr/libexec/QtWebEngineProcess"
+export QTWEBENGINE_RESOURCES_PATH="$APPDIR/usr/resources"
+export QTWEBENGINE_LOCALES_PATH="$APPDIR/usr/translations/qtwebengine_locales"
+export PATH="$APPDIR/usr/bin:$PATH"
+cd "$APPDIR"
+exec "$APPDIR/usr/bin/colosseum" "$@"
+''')
+    (stage / 'AppRun').chmod(0o755)
+
+
 def main():
     parser = argparse.ArgumentParser()
     for name in ['source', 'build', 'qt', 'mpvqt', 'out']:
@@ -85,16 +117,10 @@ def main():
         shutil.copy2(path, binary / name)
     for name in ['qml', 'resources', 'translations', 'libexec']:
         copy_qt_runtime(qt / name, stage / 'usr' / name)
-    for group in ['platforms', 'imageformats', 'iconengines', 'tls', 'xcbglintegrations']:
-        copy_qt_runtime(qt / 'plugins' / group, stage / 'usr/plugins' / group)
     # SQLite is the app's SQL backend. Do not ship unused SQL drivers whose
     # vendor clients (Oracle/MySQL/PostgreSQL) would enlarge the runtime contract.
-    (stage / 'usr/plugins/sqldrivers').mkdir(parents=True)
-    shutil.copy2(qt / 'plugins/sqldrivers/libqsqlite.so', stage / 'usr/plugins/sqldrivers/libqsqlite.so')
     # Optional platform plugins bring unrelated Wayland/minimal/VNC dependencies.
-    for plugin in (stage / 'usr/plugins/platforms').iterdir():
-        if plugin.name not in ['libqxcb.so', 'libqoffscreen.so']:
-            plugin.unlink()
+    stage_qt_plugins(qt, stage)
     for prefix in [qt / 'lib', mpvqt / 'lib', mpvqt / 'lib64']:
         if prefix.is_dir():
             for item in prefix.glob('*.so*'):
@@ -142,21 +168,7 @@ def main():
                     '-P', str(source / 'native/bootstrap/write_qml_build_manifest.cmake')], check=True)
     if (out / 'staged-qml.manifest').read_bytes() != (binary / 'qml-build.manifest').read_bytes():
         raise RuntimeError('binary/QML fingerprint mismatch')
-    (stage / 'AppRun').write_text('''#!/bin/sh
-set -eu
-APPDIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-export LD_LIBRARY_PATH="$APPDIR/usr/lib"
-export QT_PLUGIN_PATH="$APPDIR/usr/plugins"
-export QML2_IMPORT_PATH="$APPDIR/usr/qml"
-export QML_IMPORT_PATH="$APPDIR/usr/qml"
-export QTWEBENGINEPROCESS_PATH="$APPDIR/usr/libexec/QtWebEngineProcess"
-export QTWEBENGINE_RESOURCES_PATH="$APPDIR/usr/resources"
-export QTWEBENGINE_LOCALES_PATH="$APPDIR/usr/translations/qtwebengine_locales"
-export PATH="$APPDIR/usr/bin:$PATH"
-cd "$APPDIR"
-exec "$APPDIR/usr/bin/colosseum" "$@"
-''')
-    (stage / 'AppRun').chmod(0o755)
+    write_launcher(stage)
     # Preserve license texts and exact installed dependency versions. This package
     # is a review candidate; redistribution license/source obligations need review.
     shutil.copytree('/usr/share/doc', stage / 'usr/share/doc', symlinks=True)

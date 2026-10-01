@@ -58,7 +58,7 @@ jobs:
           host: linux
           target: desktop
           arch: linux_gcc_64
-          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning'
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
           cache: true
       - name: Install Linux tools and native dependencies
@@ -69,6 +69,7 @@ jobs:
               build-essential cmake ninja-build pkg-config ccache clang-tidy-20 \
               libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
               libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
+                libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-xkb1 libnss3 libnspr4 \
               xvfb xauth ffmpeg p7zip-full libarchive-tools patchelf
           } 2>&1 | tee "$EVIDENCE/apt.log"
       - name: Identify compiler cache namespace
