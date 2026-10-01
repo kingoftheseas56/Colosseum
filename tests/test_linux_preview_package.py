@@ -29,11 +29,12 @@ class LinuxPreviewPackage(unittest.TestCase):
             for group in ['platforms', 'imageformats', 'iconengines', 'tls', 'xcbglintegrations', 'sqldrivers']:
                 (qt / 'plugins' / group).mkdir(parents=True)
             for group, names in {'platforms': ['libqxcb.so', 'libqoffscreen.so', 'libqwayland.so'],
-                                 'imageformats': ['libqwebp.so'], 'sqldrivers': ['libqsqlite.so']}.items():
+                                 'imageformats': ['libqwebp.so', 'libqtiff.so'], 'sqldrivers': ['libqsqlite.so']}.items():
                 for name in names:
                     (qt / 'plugins' / group / name).write_bytes(b'fixture plugin')
             package.stage_qt_plugins(qt, stage)
             self.assertEqual((stage / 'usr/plugins/imageformats/libqwebp.so').read_bytes(), b'fixture plugin')
+            self.assertFalse((stage / 'usr/plugins/imageformats/libqtiff.so').exists())
             self.assertEqual({p.name for p in (stage / 'usr/plugins/platforms').iterdir()},
                              {'libqxcb.so', 'libqoffscreen.so'})
             (qt / 'plugins/imageformats/libqwebp.so').unlink()

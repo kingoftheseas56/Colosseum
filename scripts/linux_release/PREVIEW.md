@@ -45,6 +45,8 @@ to repair Windows or repeatedly retry Linux sign-in.
   visual catalogue UI, offline-data or real-device playback support.
 - WebEngine resources are bundled; reader runtime is unverified. The normal
   WebEngine sandbox remains enabled. Host sandbox failures remain failures.
+- TIFF decoding is unavailable: the SDK plugin requires `libtiff.so.5`, which
+  Ubuntu 24.04 does not provide. WebP and the base image plugins are bundled.
 - Dependency license/source redistribution obligations require separate review.
 
 ## Reading test results honestly

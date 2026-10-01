@@ -54,6 +54,9 @@ def stage_qt_plugins(qt, stage):
             raise RuntimeError('required Qt runtime plugin missing: ' + required)
     for group in ['platforms', 'imageformats', 'iconengines', 'tls', 'xcbglintegrations']:
         copy_qt_runtime(qt / 'plugins' / group, stage / 'usr/plugins' / group)
+    # The Qt SDK TIFF plugin links libtiff.so.5; Ubuntu 24.04 supplies .6.
+    # TIFF decoding is outside this preview rather than importing an older ABI.
+    (stage / 'usr/plugins/imageformats/libqtiff.so').unlink(missing_ok=True)
     (stage / 'usr/plugins/sqldrivers').mkdir(parents=True)
     shutil.copy2(qt / 'plugins/sqldrivers/libqsqlite.so', stage / 'usr/plugins/sqldrivers/libqsqlite.so')
     for plugin in (stage / 'usr/plugins/platforms').iterdir():
@@ -184,7 +187,7 @@ def main():
         'limitations': ['Account, tracker and Stremio credential persistence unsupported; no plaintext fallback',
                         'X11 only; no Wayland package qualification', 'No standalone mpv/DVR',
                         'No bundled Stremio service; its routes unqualified', 'No hardware/audio/DRM qualification',
-                        'WebEngine resources bundled; reader runtime unverified',
+                        'WebEngine resources bundled; reader runtime unverified; TIFF decoding unavailable',
                         'Catalog coverage is live movie production requests, not visual UI/offline data/all providers'],
         'library_origins': provenance}, indent=2) + '\n')
     target = out / (stage.name + '-candidate.tar.gz')
