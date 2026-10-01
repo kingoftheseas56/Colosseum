@@ -180,6 +180,14 @@ QRect WindowModeStore::activeFullScreenGeometry(QQuickWindow *window) const {
     QScreen *screen = window ? window->screen() : nullptr;
     if (!screen)
         screen = QGuiApplication::primaryScreen();
+#ifdef Q_OS_LINUX
+    // WSLg's Xwayland output can be a 160x160 placeholder rather than a
+    // desktop monitor. A borderless shell must still expose its controls.
+    if (screen && qEnvironmentVariableIsSet("WSL_DISTRO_NAME")
+        && (screen->geometry().width() < WindowStatePolicy::minimumSize().width()
+            || screen->geometry().height() < WindowStatePolicy::minimumSize().height()))
+        return QRect(screen->geometry().topLeft(), WindowStatePolicy::defaultSize());
+#endif
     return WindowStatePolicy::fullscreenGeometry(
         screen ? screen->geometry() : QRect(), QRect(0, 0, 1920, 1080));
 }
