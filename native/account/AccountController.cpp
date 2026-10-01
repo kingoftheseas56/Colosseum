@@ -478,7 +478,11 @@ void AccountController::restoreRememberedSession() {
         setError(
             ErrorCategory::Storage,
             QStringLiteral("secure_store_unavailable"),
+#ifdef Q_OS_LINUX
+            QStringLiteral("Secure account storage is unsupported in this Linux preview. Use local-only mode."),
+#else
             QStringLiteral("Secure account storage is unavailable."),
+#endif
             true);
         return;
     }

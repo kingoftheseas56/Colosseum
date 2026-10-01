@@ -1198,8 +1198,52 @@ add_executable(reader2_profile_runtime_harness
     account/ProfilePreferencesStore.h
     account/RatingsReviewsConversionMap.cpp
     account/RatingsReviewsConversionMap.h
+    account/RatingsReviewsStore.cpp
+    account/RatingsReviewsStore.h
     account/ProfileStoreRuntime.cpp
     account/ProfileStoreRuntime.h
+    trackers/TrackerTypes.cpp
+    trackers/TrackerTypes.h
+    trackers/TrackerConnectionStore.cpp
+    trackers/TrackerConnectionStore.h
+    trackers/TrackerConnectionService.cpp
+    trackers/TrackerConnectionService.h
+    trackers/TrackerCredentialVault.cpp
+    trackers/TrackerCredentialVault.h
+    trackers/TrackerMappingStore.cpp
+    trackers/TrackerMappingStore.h
+    trackers/TrackerHistoryEvidenceStore.cpp
+    trackers/TrackerHistoryEvidenceStore.h
+    trackers/TrackerDeliveryStore.cpp
+    trackers/TrackerDeliveryStore.h
+    trackers/TrackerCanonicalDeliverySource.cpp
+    trackers/TrackerCanonicalDeliverySource.h
+    trackers/TrackerDeliveryRuntime.cpp
+    trackers/TrackerDeliveryRuntime.h
+    trackers/TrackerScrobbleStore.cpp
+    trackers/TrackerScrobbleStore.h
+    trackers/TrackerScrobbleRuntime.cpp
+    trackers/TrackerScrobbleRuntime.h
+    trackers/TrackerImportStore.cpp
+    trackers/TrackerImportStore.h
+    trackers/TrackerProgressImportOwner.cpp
+    trackers/TrackerProgressImportOwner.h
+    trackers/TrackerLifecycleCoordinator.cpp
+    trackers/TrackerLifecycleCoordinator.h
+    trackers/TrackerSyncSettingsStore.cpp
+    trackers/TrackerSyncSettingsStore.h
+    trackers/TrackerSyncCenterModel.cpp
+    trackers/TrackerSyncCenterModel.h
+    trackers/SimklAuth.cpp
+    trackers/SimklAuth.h
+    trackers/SimklHttpTransport.cpp
+    trackers/SimklHttpTransport.h
+    trackers/SimklApiClient.cpp
+    trackers/SimklApiClient.h
+    trackers/SimklConnectionController.cpp
+    trackers/SimklConnectionController.h
+    trackers/SimklSyncRuntime.cpp
+    trackers/SimklSyncRuntime.h
     ProgressStore.h
     CollectionStore.h
     SearchHistoryStore.h
@@ -1209,7 +1253,7 @@ target_include_directories(reader2_profile_runtime_harness PRIVATE ${CMAKE_CURRE
 target_compile_definitions(reader2_profile_runtime_harness PRIVATE
     COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 target_link_libraries(reader2_profile_runtime_harness PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 
 # Task 12: audiobook auto-attach on download completion. Offline/deterministic —
 # StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,
@@ -1250,6 +1294,7 @@ if(WIN32)
     add_custom_command(TARGET reader2_profile_runtime_harness POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
                 "$<TARGET_FILE:Qt6::Network>"
                 "$<TARGET_FILE:Qt6::Qml>"
                 "$<TARGET_FILE:Qt6::Sql>"

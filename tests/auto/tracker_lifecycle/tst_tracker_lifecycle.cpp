@@ -857,7 +857,7 @@ void TrackerLifecycleTest::simklClientReservesWriteCadenceSlotsInOrder()
     QVERIFY(root.isValid());
     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
     SimklApiClient client(profile, testAuthConfiguration());
-    QVERIFY(client.available());
+    // Cadence scheduling is independent of the platform credential vault.
 
     QElapsedTimer elapsed;
     elapsed.start();
@@ -886,7 +886,7 @@ void TrackerLifecycleTest::simklClientGateSpacesSendsAfterEventLoopStall()
     QVERIFY(root.isValid());
     const ProfilePaths profile = ProfilePaths::localOnly(root.path());
     SimklApiClient client(profile, testAuthConfiguration());
-    QVERIFY(client.available());
+    // Exercise actual send spacing even on hosts without a credential vault.
 
     QElapsedTimer elapsed;
     elapsed.start();

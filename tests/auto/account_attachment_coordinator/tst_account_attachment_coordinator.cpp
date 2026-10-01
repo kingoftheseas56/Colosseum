@@ -31,6 +31,7 @@
 #include <QSaveFile>
 #include <QSet>
 #include <QTemporaryDir>
+#include <QTemporaryFile>
 #include <QTest>
 #include <QUrl>
 
@@ -38,6 +39,61 @@
 #include <memory>
 
 namespace {
+// Block atomic receipt replacement without hiding or corrupting the old receipt.
+// Windows denies replacement while this read handle is open. POSIX permits that
+// rename, so deny temporary-file creation in the receipt-only directory instead.
+class ReceiptWriteBlocker {
+public:
+    ~ReceiptWriteBlocker() { release(); }
+
+    bool acquire(const QString &receiptPath) {
+#ifdef Q_OS_WIN
+        m_file.setFileName(receiptPath);
+        return m_file.open(QIODevice::ReadOnly);
+#else
+        m_directory = QFileInfo(receiptPath).absolutePath();
+        m_permissions = QFileInfo(m_directory).permissions();
+        const auto noWrite = m_permissions
+            & ~(QFileDevice::WriteOwner | QFileDevice::WriteUser
+                | QFileDevice::WriteGroup | QFileDevice::WriteOther);
+        if (!QFile::setPermissions(m_directory, noWrite)) {
+            m_directory.clear();
+            return false;
+        }
+        // Fail the fixture explicitly if privileges/ACLs bypass the restriction.
+        // Never mistake a successful production write for a retirement defect.
+        QTemporaryFile probe(m_directory + QStringLiteral("/write-probe-XXXXXX"));
+        if (probe.open()) {
+            probe.remove();
+            release();
+            return false;
+        }
+        return true;
+#endif
+    }
+
+    bool release() {
+#ifdef Q_OS_WIN
+        m_file.close();
+        return true;
+#else
+        if (m_directory.isEmpty())
+            return true;
+        if (!QFile::setPermissions(m_directory, m_permissions))
+            return false;
+        m_directory.clear();
+        return true;
+#endif
+    }
+
+private:
+#ifdef Q_OS_WIN
+    QFile m_file;
+#else
+    QString m_directory;
+    QFileDevice::Permissions m_permissions;
+#endif
+};
 constexpr auto kAccountA =
     "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 constexpr auto kDeviceA =
@@ -3227,10 +3283,10 @@ void tst_account_attachment_coordinator::
             return true;
         });
 
-    // Lock the receipt file the moment retirement starts. On Windows a
-    // read handle without FILE_SHARE_DELETE blocks the QSaveFile replace,
-    // so the retire write fails before any clear can remove the file.
-    std::unique_ptr<QFile> receiptLock;
+    // Block receipt replacement the moment retirement starts, preserving
+    // the existing readable receipt on both Windows and POSIX.
+    std::unique_ptr<ReceiptWriteBlocker> receiptLock;
+    bool receiptWriteBlocked = false;
     QObject::connect(
         &coordinator,
         &AccountAttachmentCoordinator::
@@ -3241,16 +3297,9 @@ void tst_account_attachment_coordinator::
                     == AccountAttachmentCoordinator::
                         State::Retiring
                 && !receiptLock) {
-                receiptLock =
-                    std::make_unique<
-                        QFile>(
-                        profile
-                            .cloudAttachmentReceiptPath());
-                const bool lockHeld =
-                    receiptLock->open(
-                        QIODevice::
-                            ReadOnly);
-                Q_UNUSED(lockHeld)
+                receiptLock = std::make_unique<ReceiptWriteBlocker>();
+                receiptWriteBlocked = receiptLock->acquire(
+                    profile.cloudAttachmentReceiptPath());
             }
         });
 
@@ -3267,6 +3316,9 @@ void tst_account_attachment_coordinator::
     QTRY_COMPARE(
         recording.finishedCount,
         1);
+
+    QVERIFY2(receiptWriteBlocked,
+             "The fixture could not block atomic receipt writes.");
 
     // The server committed and the flow reached retirement, but the
     // retire write failed closed: the receipt survives with the source
@@ -3295,6 +3347,7 @@ void tst_account_attachment_coordinator::
     QVERIFY(
         !pending.data.sourceRetired);
 
+    QVERIFY(receiptLock->release());
     receiptLock.reset();
 
     // The pending receipt resumes through the idempotent commit and
@@ -3347,7 +3400,8 @@ void tst_account_attachment_coordinator::
 
     bool sourcePresent = true;
     bool historicalActivityDigestObserved = false;
-    std::unique_ptr<QFile> receiptLock;
+    std::unique_ptr<ReceiptWriteBlocker> receiptLock;
+    bool receiptWriteBlocked = false;
 
     {
         SyntheticAdapter adapter;
@@ -3375,9 +3429,10 @@ void tst_account_attachment_coordinator::
             },
             [&](const AccountAttachmentReceiptData &, QString *error) {
                 sourcePresent = false;
-                receiptLock = std::make_unique<QFile>(
+                receiptLock = std::make_unique<ReceiptWriteBlocker>();
+                receiptWriteBlocked = receiptLock->acquire(
                     profile.cloudAttachmentReceiptPath());
-                if (!receiptLock->open(QIODevice::ReadOnly)) {
+                if (!receiptWriteBlocked) {
                     if (error)
                         *error = QStringLiteral(
                             "The receipt lock could not be acquired after source clear.");
@@ -3396,6 +3451,8 @@ void tst_account_attachment_coordinator::
         run.engine.setNetworkEnabled(true);
         QTRY_COMPARE(recording.finishedCount, 1);
 
+        QVERIFY2(receiptWriteBlocked,
+                 "The fixture could not block atomic receipt writes.");
         QVERIFY(!recording.succeeded);
         QCOMPARE(
             recording.errorCode,
@@ -3413,6 +3470,7 @@ void tst_account_attachment_coordinator::
         QVERIFY(!pending.data.sourceRetired);
     }
 
+    QVERIFY(receiptLock->release());
     receiptLock.reset();
 
     {

@@ -133,6 +133,13 @@ QString SimklConnectionController::statusMessage() const { return m_statusMessag
 
 bool SimklConnectionController::beginConnection(const QString &providerKey)
 {
+#ifdef Q_OS_LINUX
+    if (providerKey.trimmed().toLower() == QLatin1String("simkl") && !m_vault->isAvailable()) {
+        setPresentation(QStringLiteral("attention"),
+                        QStringLiteral("Secure SIMKL credential storage is unsupported in this Linux preview. Connecting is disabled."));
+        return false;
+    }
+#endif
     if (providerKey.trimmed().toLower() != QLatin1String("simkl") || !available()) {
         setPresentation(QStringLiteral("attention"),
                         QStringLiteral("SIMKL is not configured for this build."));
@@ -428,7 +435,11 @@ QString SimklConnectionController::messageForError(SimklAuthError error) const
         return QStringLiteral("Disconnect the current SIMKL account before connecting another one.");
     case SimklAuthError::CredentialStore:
     case SimklAuthError::CredentialRecoveryFailed:
+#ifdef Q_OS_LINUX
+        return QStringLiteral("Secure SIMKL credential storage is unsupported in this Linux preview. The connection cannot be saved.");
+#else
         return QStringLiteral("Windows could not safely store the SIMKL connection. Try again.");
+#endif
     case SimklAuthError::Expired:
         return QStringLiteral("The SIMKL approval expired. Start again for a new code.");
     case SimklAuthError::RateLimited:

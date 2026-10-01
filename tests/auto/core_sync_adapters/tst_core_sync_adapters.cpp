@@ -371,13 +371,30 @@ public:
                 if (!socket)
                     return;
                 m_clients.append(socket);
-                QObject::connect(socket, &QTcpSocket::readyRead, [this, socket] {
-                    m_request += socket->readAll();
-                    if (m_replied.contains(socket)
-                        || !m_request.contains(QByteArrayLiteral("\r\n\r\n"))) {
+                QObject::connect(socket, &QTcpSocket::readyRead, socket,
+                    [this, socket, request = QByteArray{}, replied = false]() mutable {
+                    const QByteArray bytes = socket->readAll();
+                    m_request += bytes;
+                    request += bytes;
+                    const qsizetype headerEnd = request.indexOf(QByteArrayLiteral("\r\n\r\n"));
+                    if (replied || headerEnd < 0)
                         return;
+                    qint64 contentLength = 0;
+                    for (const QByteArray &line : request.left(headerEnd).split('\n')) {
+                        const QByteArray header = line.trimmed().toLower();
+                        if (header.startsWith(QByteArrayLiteral("content-length:"))) {
+                            bool ok = false;
+                            contentLength = header.mid(sizeof("content-length:") - 1)
+                                .trimmed().toLongLong(&ok);
+                            if (!ok || contentLength < 0)
+                                return;
+                        }
                     }
-                    m_replied.insert(socket);
+                    if (request.size() - headerEnd - 4 < contentLength)
+                        return;
+                    // State belongs to this live connection, never a recycled
+                    // socket address or the aggregate request history.
+                    replied = true;
                     const QByteArray body = QJsonDocument(QJsonObject{
                         {QStringLiteral("result"), m_result}}).toJson(QJsonDocument::Compact);
                     socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
@@ -414,7 +431,6 @@ public:
 private:
     QTcpServer m_server;
     QList<QPointer<QTcpSocket>> m_clients;
-    QSet<QTcpSocket *> m_replied;
     QByteArray m_request;
     QJsonValue m_result;
 };
@@ -671,6 +687,7 @@ private slots:
     void watchStateAdapterSkipsFilesystemIdentity();
     void twoReplicaCollectionConverges();
     void twoReplicaProgressConvergesAfterSilentOfflineTick();
+    void datastoreFixtureFramesEachConnectionIndependently();
     void stremioTwoReplicasProviderEqualitySettlesWithoutEcho();
 };
 
@@ -3043,6 +3060,31 @@ twoReplicaProgressConvergesAfterSilentOfflineTick() {
                 QStringLiteral("progress"))
             .toDouble(),
         0.75);
+}
+
+void tst_core_sync_adapters::datastoreFixtureFramesEachConnectionIndependently() {
+    FixtureDatastoreApi datastore;
+    QVERIFY(datastore.listen());
+    datastore.setResult(QJsonArray{});
+    for (int connection = 0; connection < 3; ++connection) {
+        QTcpSocket socket;
+        socket.connectToHost(QHostAddress::LocalHost, datastore.endpoint().port());
+        QTRY_COMPARE(socket.state(), QAbstractSocket::ConnectedState);
+        const qsizetype before = datastore.request().size();
+        const QByteArray headers = QByteArrayLiteral(
+            "POST /api/datastoreGet HTTP/1.1\r\nContent-Length: 2\r\n\r\n");
+        QCOMPARE(socket.write(headers), qint64(headers.size()));
+        QTRY_COMPARE(datastore.request().size(), before + headers.size());
+        QTest::qWait(20);
+        QCOMPARE(socket.bytesAvailable(), qint64(0));
+        QCOMPARE(socket.state(), QAbstractSocket::ConnectedState);
+        QCOMPARE(socket.write(QByteArrayLiteral("{}")), qint64(2));
+        QTRY_COMPARE(socket.state(), QAbstractSocket::UnconnectedState);
+        const QByteArray response = socket.readAll();
+        QVERIFY(response.startsWith(QByteArrayLiteral("HTTP/1.1 200 OK\r\n")));
+        QVERIFY(response.endsWith(QByteArrayLiteral("{\"result\":[]}")));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
 }
 
 void tst_core_sync_adapters::

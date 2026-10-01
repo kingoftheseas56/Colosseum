@@ -73,6 +73,7 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
     QVERIFY(window);
     window->show();
     window->requestActivate();
+    QVERIFY(QTest::qWaitForWindowExposed(window));
     auto *accountPage = window->findChild<QQuickItem *>(QStringLiteral("accountPageFrame"));
     QVERIFY(accountPage);
     auto *accountScroll = window->findChild<QQuickItem *>(QStringLiteral("accountPageFrameScrollRegion"));
@@ -81,6 +82,9 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
     QVERIFY(accountActionA);
     auto *accountActionB = window->findChild<QQuickItem *>(QStringLiteral("accountActionB"));
     QVERIFY(accountActionB);
+    // Before the first layout, contentHeight can exceed a zero-height viewport.
+    // Wait for the anchored viewport to settle before delivering the first key.
+    QTRY_COMPARE_WITH_TIMEOUT(accountScroll->height(), qreal(window->height()), 2000);
     QTRY_VERIFY_WITH_TIMEOUT(accountScroll->property("contentHeight").toReal()
                                  > accountScroll->property("height").toReal(),
                              2000);

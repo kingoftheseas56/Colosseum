@@ -44,6 +44,13 @@ namespace Colosseum::WatchParty {
 class IWatchPartyAccountBridge;
 }
 
+// Native composition only. Supplied stores and callback owners must outlive
+// the runtime. Empty options retain the production platform credential store.
+struct AccountRuntimeCredentialOptions {
+    AccountCredentialStore *accountStore = nullptr;
+    StremioCredentialAdoptionCallbacks stremio;
+};
+
 class AccountRuntime final : public QObject {
     Q_OBJECT
 
@@ -54,6 +61,10 @@ public:
     // loopback option object used by StremioSync itself. No option crosses QML.
     explicit AccountRuntime(
         const StremioSyncOptions &stremioOptions,
+        QObject *parent = nullptr);
+    AccountRuntime(
+        const StremioSyncOptions &stremioOptions,
+        const AccountRuntimeCredentialOptions &credentials,
         QObject *parent = nullptr);
 
     AccountController *controller();
@@ -130,6 +141,7 @@ private:
     AccountHttpTransport m_transport;
     AccountClient m_client;
     WindowsAccountCredentialStore m_credentialStore;
+    StremioCredentialAdoptionCallbacks m_stremioCredentials;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;
     WindowsAccountSensitiveClipboard m_sensitiveClipboard;

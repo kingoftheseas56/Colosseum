@@ -348,7 +348,9 @@ RatingsReviewsPublishResult RatingsReviewsDelivery::publishCommitted(
     const RatingsReviewsPublishIntent &intent)
 {
     RatingsReviewsPublishResult result;
+#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     bool spoilerBlocked = false;
+#endif
     if (!active() || intent.canonicalKey.isEmpty()
         || !ratingsReviewsDeliveryIsSha256(intent.canonicalPayloadDigest)) {
         return result;
@@ -373,7 +375,9 @@ RatingsReviewsPublishResult RatingsReviewsDelivery::publishCommitted(
         } else if (destination.reviewSelected && record->spoiler
                    && !fixture->capability.spoilerMetadata) {
             providerResult.reason = QStringLiteral("This provider cannot preserve spoiler protection.");
+#ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
             spoilerBlocked = true;
+#endif
         } else {
             QList<RatingsReviewsDeliveryOperation> created;
             const auto createOperation = [&](const QString &type,
