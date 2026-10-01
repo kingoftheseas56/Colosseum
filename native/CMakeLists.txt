@@ -31,10 +31,12 @@ set(COLOSSEUM_SIMKL_CLIENT_ID "" CACHE STRING
 # MyAnimeList desktop OAuth. Prefer an app registration with no client secret.
 # A confidential client must use COLOSSEUM_MAL_TOKEN_BROKER_URL; never compile
 # a MAL client_secret into Colosseum.
-set(COLOSSEUM_MAL_CLIENT_ID "" CACHE STRING
+# The defaults are Colosseum's own secretless ("other" type) MAL registration:
+# a public identifier that is meant to ship. Set both to "" to build without MAL.
+set(COLOSSEUM_MAL_CLIENT_ID "6bd232aab8b5ff253b75b32332a6d6d2" CACHE STRING
     "Public MyAnimeList client_id; empty keeps MAL unavailable")
-set(COLOSSEUM_MAL_REDIRECT_URI "" CACHE STRING
-    "Registered fixed loopback redirect URI, e.g. http://127.0.0.1:38191/oauth/mal/callback")
+set(COLOSSEUM_MAL_REDIRECT_URI "http://127.0.0.1:38191/oauth/mal/callback" CACHE STRING
+    "Registered fixed loopback redirect URI")
 set(COLOSSEUM_MAL_TOKEN_BROKER_URL "" CACHE STRING
     "Optional HTTPS Colosseum-owned confidential-client token broker")
 
