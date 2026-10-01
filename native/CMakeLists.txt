@@ -25,7 +25,9 @@ set(COLOSSEUM_ACCOUNT_SERVICE_URL "" CACHE STRING
 # SIMKL AUTH V2 uses a public client identifier for desktop/device clients.
 # It is safe to ship, but the provider remains fail-closed when this value is
 # absent so an unregistered build can never present a false Connect action.
-set(COLOSSEUM_SIMKL_CLIENT_ID "" CACHE STRING
+# The default is Colosseum's own public SIMKL client ID; set it to "" to build
+# without SIMKL.
+set(COLOSSEUM_SIMKL_CLIENT_ID "eb9f0eeabf3c5a9cbca24b9b7d479ffb34d365a0e2dcc245878761a7578ab35d" CACHE STRING
     "Public SIMKL AUTH V2 client_id for Colosseum; empty keeps SIMKL unavailable")
 
 # MyAnimeList desktop OAuth. Prefer an app registration with no client secret.
