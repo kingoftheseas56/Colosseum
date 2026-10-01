@@ -411,6 +411,12 @@ void TraktDirectTest::stableUuidRequired()
     QCOMPARE(session.snapshot().error, TraktAuthError::MissingStableAccount); QCOMPARE(vault.saves, 0);
     QVERIFY(traktSettingsUuid(QJsonDocument(QJsonObject{{QStringLiteral("user"), QJsonObject{
         {QStringLiteral("username"), QStringLiteral("fixture-user")}}}})).isEmpty());
+    // Trakt's real "uuid" is an opaque 40-character hex identifier, not an
+    // RFC 4122 UUID; it must be accepted as the stable account identity.
+    const QString opaqueId = QStringLiteral("b6589fc6ab0dc82cf12099d1c2d40ab994e8410c");
+    QVERIFY(traktAccountUuidIsCanonical(opaqueId));
+    QCOMPARE(traktSettingsUuid(QJsonDocument(QJsonObject{{QStringLiteral("user"), QJsonObject{
+        {QStringLiteral("ids"), QJsonObject{{QStringLiteral("uuid"), opaqueId}}}}}})), opaqueId);
 }
 
 void TraktDirectTest::profileOwnershipAndMove()

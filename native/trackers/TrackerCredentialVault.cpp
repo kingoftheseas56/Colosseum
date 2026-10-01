@@ -42,8 +42,15 @@ bool validRemoteAccountId(TrackerProviderId providerId, const QString &remoteAcc
     if (normalized.isEmpty() || normalized != remoteAccountId || normalized.size() > 64)
         return false;
     if (providerId == TrackerProviderId::Trakt) {
-        const QUuid uuid(normalized);
-        return !uuid.isNull() && normalized == uuid.toString(QUuid::WithoutBraces).toLower();
+        // Opaque lowercase hex account identifier; see traktAccountUuidIsCanonical.
+        if (normalized.size() < 16)
+            return false;
+        for (const QChar character : normalized) {
+            const char16_t c = character.unicode();
+            if (!((c >= u'0' && c <= u'9') || (c >= u'a' && c <= u'f') || c == u'-'))
+                return false;
+        }
+        return true;
     }
     for (const QChar character : normalized) {
         if (!character.isDigit())

@@ -126,9 +126,8 @@ QString traktSettingsUuid(const QJsonDocument &document)
 {
     if (!document.isObject()) return {};
     const QJsonObject root = document.object();
-    QString uuid = root.value(QStringLiteral("user")).toObject().value(QStringLiteral("ids")).toObject().value(QStringLiteral("uuid")).toString().trimmed();
-    const QUuid parsed(uuid);
-    return parsed.isNull() ? QString() : parsed.toString(QUuid::WithoutBraces).toLower();
+    QString uuid = root.value(QStringLiteral("user")).toObject().value(QStringLiteral("ids")).toObject().value(QStringLiteral("uuid")).toString().trimmed().toLower();
+    return traktAccountUuidIsCanonical(uuid) ? uuid : QString();
 }
 
 QList<TraktRemoteFact> traktParseHistory(const QJsonDocument &document)

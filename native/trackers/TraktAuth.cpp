@@ -56,8 +56,16 @@ bool traktConfigurationIsValid(const TraktAuthConfiguration &configuration)
 
 bool traktAccountUuidIsCanonical(const QString &accountId)
 {
-    const QUuid parsed(accountId);
-    return !parsed.isNull() && accountId == parsed.toString(QUuid::WithoutBraces).toLower();
+    // Trakt's stable "uuid" is an opaque lowercase hex identifier (40 hex
+    // characters in practice), not an RFC 4122 UUID.
+    if (accountId.size() < 16 || accountId.size() > 64)
+        return false;
+    for (const QChar character : accountId) {
+        const char16_t c = character.unicode();
+        if (!((c >= u'0' && c <= u'9') || (c >= u'a' && c <= u'f') || c == u'-'))
+            return false;
+    }
+    return true;
 }
 
 bool TraktAuthSession::configurationValid() const

@@ -42,9 +42,11 @@ set(COLOSSEUM_MAL_TOKEN_BROKER_URL "" CACHE STRING
 
 # Trakt device OAuth requires Colosseum's own public registration and HTTPS
 # broker; confidential provider credentials remain on the broker.
-set(COLOSSEUM_TRAKT_CLIENT_ID "" CACHE STRING
+# The defaults are Colosseum's own public Trakt client ID and its hosted token
+# broker; both are meant to ship. Set both to "" to build without direct Trakt.
+set(COLOSSEUM_TRAKT_CLIENT_ID "AZQUUtagNQxy1B1TmvY2Qo3FjxqR31iYLwIxi0OORyo" CACHE STRING
     "Public Trakt client_id; empty keeps direct Trakt unavailable")
-set(COLOSSEUM_TRAKT_TOKEN_BROKER_URL "" CACHE STRING
+set(COLOSSEUM_TRAKT_TOKEN_BROKER_URL "https://colosseum-tj1t.onrender.com" CACHE STRING
     "HTTPS Colosseum-owned Trakt token broker; empty keeps direct Trakt unavailable")
 
 set(CMAKE_CXX_STANDARD 17)
