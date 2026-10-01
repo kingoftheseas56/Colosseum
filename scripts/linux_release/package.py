@@ -23,6 +23,8 @@ def run(*args, **kwargs):
 
 def copy_library(source, destination):
     source, destination = Path(source), Path(destination)
+    if source == destination:
+        return  # ldd already resolved this library inside the staged package.
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
         if hashlib.sha256(source.read_bytes()).digest() != hashlib.sha256(destination.read_bytes()).digest():

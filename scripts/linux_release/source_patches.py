@@ -19,6 +19,7 @@ PATCHES = [
     HERE / 'patches/0006-keyboard-test-layout-readiness.patch',
     HERE / 'patches/0007-datastore-test-socket-lifetime.patch',
     HERE / 'patches/0008-portable-runtime-credential-fixtures.patch',
+    HERE / 'patches/0009-player-activity-tracker-scope.patch',
 ]
 
 

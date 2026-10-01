@@ -46,7 +46,7 @@ def catalog_ready(log):
 
 
 def qml_errors(log):
-    return re.findall(r'^.*(?:QQmlApplicationEngine failed|module ["\'].+["\'] is not installed|Type \S+ unavailable|ReferenceError:|SyntaxError:|startup layout rejected|Cannot load library|Failed to load platform plugin).*$', log, re.M)
+    return re.findall(r'^.*(?:QQmlApplicationEngine failed|module ["\'].+["\'] is not installed|Type \S+ unavailable|ReferenceError:|TypeError:|SyntaxError:|startup layout rejected|Cannot load library|Failed to load platform plugin).*$', log, re.M)
 
 
 def is_elf(path):

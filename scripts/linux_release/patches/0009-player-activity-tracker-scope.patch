@@ -1,0 +1,13 @@
+diff --git a/qml/PlayerPage.qml b/qml/PlayerPage.qml
+index 3be644a..9c0d5aa 100644
+--- a/qml/PlayerPage.qml
++++ b/qml/PlayerPage.qml
+@@ -3697,7 +3697,7 @@ Item {
+             if (mpv.pause) root.sendTraktPlayback(false)
+             else if (!root.starting && root.fileReady && mpv.position > 0.25)
+                 root.sendTraktPlayback(true)
+-            root.activityTracker.playbackStateChanged(!mpv.pause,
++            activityTracker.playbackStateChanged(!mpv.pause,
+                 Math.round(mpv.position * 1000), Math.round(mpv.duration * 1000))
+             if (mpv.pause)
+                 root.wakeChrome()

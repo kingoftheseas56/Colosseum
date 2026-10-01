@@ -122,6 +122,7 @@ class LinuxReleaseQualification(unittest.TestCase):
         q = self.module()
         self.assertTrue(q.qml_errors('module "QtWebEngine" is not installed'))
         self.assertTrue(q.qml_errors('QQmlApplicationEngine failed to load component'))
+        self.assertTrue(q.qml_errors("file:///opt/app/qml/PlayerPage.qml:3700: TypeError: Cannot call method 'playbackStateChanged' of undefined"))
         self.assertFalse(q.qml_errors('CatalogVaultClient: manifest fetch failed'))
 
     def test_missing_extractor_rejected_even_with_media_tools(self):

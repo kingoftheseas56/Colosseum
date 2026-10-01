@@ -70,7 +70,7 @@ class SourcePatchContract(unittest.TestCase):
             subprocess.run([sys.executable, str(path), '--source', str(source), '--evidence', str(evidence)], check=True)
             info = module.verify(source)
             self.assertEqual(info['source_base_sha'], module.BASE)
-            self.assertEqual(len(info['source_patches']), 8)
+            self.assertEqual(len(info['source_patches']), 9)
             self.assert_linux_preview_errors(source)
             delivery = (source / 'native/account/RatingsReviewsDelivery.cpp').read_text()
             publish = delivery.split('RatingsReviewsPublishResult RatingsReviewsDelivery::publishCommitted(', 1)[1].split('bool RatingsReviewsDelivery::retryOperation(', 1)[0]
