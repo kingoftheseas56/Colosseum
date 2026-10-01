@@ -23,6 +23,12 @@ Item {
     property string selectedProviderKey: ""
     property var selectedDossier: ({})
     property string connectionProviderName: String(selectedDossier.providerName || "tracker")
+    // MyAnimeList approval is a web sign-in with no device code, so it runs
+    // inside the app rather than in the outside browser.
+    readonly property bool embeddedApproval: selectedProviderKey === "mal"
+                                             && trackerConnector
+                                             && trackerConnector.phase === "awaiting_approval"
+                                             && trackerConnector.verificationUrl.length > 0
     property Item dossierInvoker: null
     property bool recoveryRouteActive: false
     property string recoveryRouteProviderKey: ""
@@ -4584,7 +4590,7 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            width: Math.min(parent.width - 48, 540)
+            width: Math.min(parent.width - 48, root.embeddedApproval ? 820 : 540)
             implicitHeight: connectionApprovalContent.implicitHeight + 54
             radius: 18
             color: "#111318"
@@ -4616,6 +4622,18 @@ Item {
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+                Loader {
+                    id: approvalWebLoader
+                    objectName: "trackerApprovalWebLoader"
+                    active: root.embeddedApproval && root.connectionPanelOpen
+                    visible: active
+                    source: "TrackerApprovalWebView.qml"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: active
+                                            ? Math.max(320, Math.min(connectionApprovalLayer.height - 260, 620))
+                                            : 0
+                    onLoaded: item.approvalUrl = root.trackerConnector.verificationUrl
                 }
                 Rectangle {
                     visible: root.trackerConnector
@@ -4652,6 +4670,7 @@ Item {
                 Text {
                     visible: root.trackerConnector
                              && root.trackerConnector.verificationUrl.length > 0
+                             && root.trackerConnector.userCode.length > 0
                     text: "The browser page is prefilled. The code remains here as a fallback."
                     color: theme.inkDimmer
                     font.family: theme.ui
@@ -4696,7 +4715,9 @@ Item {
                         objectName: "trackerSimklOpenApproval"
                         visible: root.trackerConnector
                                  && root.trackerConnector.verificationUrl.length > 0
-                        text: "Open " + root.connectionProviderName
+                        text: root.embeddedApproval
+                              ? "Open in browser instead"
+                              : "Open " + root.connectionProviderName
                         onClicked: root.trackerConnector.openApprovalPage()
                     }
                     Item { Layout.fillWidth: true }

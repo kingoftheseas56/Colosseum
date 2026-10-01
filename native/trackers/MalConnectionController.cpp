@@ -183,17 +183,12 @@ bool MalConnectionController::beginConnection(
         return false;
     }
 
+    // The Sync Center shows the approval page inside the app. The outside
+    // browser is only used when the user asks for it (openApprovalPage).
     setPresentation(
         QStringLiteral("awaiting_approval"),
-        QStringLiteral("Approve Colosseum in MyAnimeList. This window will finish automatically when the browser returns."),
+        QStringLiteral("Sign in to MyAnimeList and approve Colosseum. This window finishes automatically."),
         m_verificationUrl);
-    if (!m_browserOpen(m_verificationUrl)) {
-        // The user can still use the visible Open button.
-        setPresentation(
-            QStringLiteral("awaiting_approval"),
-            QStringLiteral("Open MyAnimeList to approve Colosseum, then return here."),
-            m_verificationUrl);
-    }
     return true;
 }
 
