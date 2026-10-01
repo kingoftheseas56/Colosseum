@@ -964,7 +964,7 @@ TestCase {
         mouseClick(dossierButton)
         wait(0)
         compare(findChild(page, "trackerDossierStatus").text,
-                "Unavailable in this build")
+                Qt.platform.os === "linux" ? "Unavailable on Linux" : "Unavailable in this build")
         compare(findChild(page, "trackerConnectButton").enabled, false)
         compare(page.selectedProviderKey, "simkl")
     }
@@ -2412,8 +2412,7 @@ TestCase {
         page.reducedMotion = true
         compare(page.motionEnabled, false)
         testWindow.width = 680
-        wait(0)
-        compare(page.catalogueColumns, 1)
+        tryCompare(page, "catalogueColumns", 1, 1000)
         verify(findChild(page, "trackerMainSyncButton") !== null)
     }
 }

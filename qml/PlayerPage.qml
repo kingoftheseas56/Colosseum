@@ -169,6 +169,7 @@ Item {
     onMediaIdChanged: if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
     function sendTraktPlayback(playing) {
         if (typeof ProfileTrackers !== "undefined"
+                && ProfileTrackers
                 && ProfileTrackers.suppressLegacyTrackerPlaybackRelay === true) {
             root.traktPlaying = false
             return
