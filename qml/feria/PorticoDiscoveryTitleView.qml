@@ -131,13 +131,13 @@ Item {
                     text:root.it?root.it.t:""
                     color:controller.ink
                     font.family:controller.displayFont
-                    font.pixelSize: root.it && root.it.t.length>40 ? 2.3*u : (root.it && root.it.t.length>22 ? 3*u : 4.2*u)
-                    font.letterSpacing: -0.025 * (root.it && root.it.t.length>40 ? 2.3*u : (root.it && root.it.t.length>22 ? 3*u : 4.2*u))
+                    font.pixelSize: 42
+                    font.letterSpacing: 0
                     font.weight:Font.Medium
                     lineHeight:1.02
                     wrapMode:Text.WordWrap
                 }
-                Text { text:root.it?root.it.by:""; color:controller.mist; font.family:controller.uiFont; font.pixelSize:1.15*u }
+                Text { text:root.it?root.it.by:""; color:controller.mist; font.family:controller.uiFont; font.pixelSize:14 }
                 Row {
                     spacing:1.2*u
                     Text {
@@ -162,11 +162,11 @@ Item {
                     text:root.it?root.it.s:""
                     color:controller.mist
                     font.family:controller.uiFont
-                    font.pixelSize:1.05*u
+                    font.pixelSize:14
                     lineHeight:1.6
                     wrapMode:Text.WordWrap
                 }
-                Text { topPadding:1.2*u; text:"Where to " + (root.it?Data.VERB[root.it.k]:"watch"); color:controller.ink; font.family:controller.displayFont; font.pixelSize:1.55*u; font.weight:Font.Medium }
+                Text { topPadding:1.2*u; text:"Where to " + (root.it?Data.VERB[root.it.k]:"watch"); color:controller.ink; font.family:controller.displayFont; font.pixelSize:22; font.weight:Font.Medium }
                 Text { visible:root.offerGroups.length===0; text:"No provider options are listed for this title yet."; color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u }
                 Column {
                     id: offerSections
@@ -271,7 +271,7 @@ Item {
                     text:root.it && root.it.k==="artist"?"Albums":"In other media"
                     color:controller.ink
                     font.family:controller.displayFont
-                    font.pixelSize:1.55*u
+                    font.pixelSize:22
                     font.weight:Font.Medium
                 }
                 Row {

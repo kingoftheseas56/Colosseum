@@ -14,33 +14,31 @@ Item {
     signal triggered()
     signal entered()
 
+    Colosseum.Theme { id: theme }
+
     implicitHeight: (compact ? 2.1 : 2.625) * unit
     implicitWidth: labelText.implicitWidth + (compact ? 1.8 : 2.75) * unit
 
     Rectangle {
         anchors.fill: parent
-        radius: height / 2
-        color: root.selected ? Qt.rgba(1,1,1,0.14) : "transparent"
+        radius: root.compact ? 11 : 14
+        color: root.selected ? root.gold : "transparent"
         border.width: root.compact ? 1 : 0
         border.color: root.compact ? Qt.rgba(1,1,1,0.12) : "transparent"
     }
-    Rectangle {
+    Colosseum.FocusRing {
         anchors.fill: parent
-        anchors.margins: -0.1875 * unit
-        radius: height / 2 + 0.1875 * unit
-        color: "transparent"
-        border.width: 0.1875 * unit
-        border.color: root.focusedState ? root.gold : "transparent"
-        visible: root.focusedState
+        radius: root.compact ? 11 : 14
+        shown: root.focusedState
     }
     Text {
         id: labelText
         anchors.centerIn: parent
         text: root.label
-        color: root.selected ? root.gold : root.mist
-        font.family: controller.uiFont
-        font.pixelSize: (root.compact ? 0.85 : 1.125) * root.unit
-        font.weight: root.selected ? Font.Medium : Font.Normal
+        color: root.selected ? "#1a1408" : root.mist
+        font.family: theme.ui
+        font.pixelSize: root.compact ? 13 : 14
+        font.weight: Font.DemiBold
     }
     Colosseum.KeyboardAction {
         id: input

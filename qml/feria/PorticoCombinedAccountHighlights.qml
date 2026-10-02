@@ -277,14 +277,14 @@ Item {
                     text: root.monthName
                     color: controller.ink
                     font.family: controller.displayFont
-                    font.pixelSize: 5.6 * u
+                    font.pixelSize: 42
                     font.weight: Font.Medium
                 }
                 Text {
                     text: root.yearName
                     color: controller.slate
                     font.family: controller.displayFont
-                    font.pixelSize: 5.6 * u
+                    font.pixelSize: 42
                 }
                 Grid {
                     topPadding: 2.6 * u
@@ -334,7 +334,7 @@ Item {
                     text: root.monthName + " highlights"
                     color: controller.ink
                     font.family: controller.displayFont
-                    font.pixelSize: 1.6 * u
+                    font.pixelSize: 22
                 }
                 Row {
                     visible: root.cards.length > 0

@@ -1,5 +1,6 @@
 import QtQuick
 import ".." as Colosseum
+import "../CatalogueVisualMetrics.js" as Metrics
 
 Item {
     id: root
@@ -20,11 +21,27 @@ Item {
     signal triggered()
     signal entered()
 
-    readonly property real artHeight: shape === "poster" ? width * 1.5 : width
-    height: artHeight + 3.8 * unit
+    Colosseum.Theme { id: theme }
 
+    readonly property real artHeight: shape === "poster" ? width * 1.5 : width
+    height: Metrics.gallery.hoverLift + artHeight + 10 + Metrics.gallery.titleMinHeight + 24
+
+    Loader {
+        anchors.fill: parent
+        anchors.topMargin: Metrics.gallery.hoverLift
+        active: root.shape === "poster"
+        sourceComponent: Colosseum.CataloguePosterCard {
+            item: ({title: root.title, cover: root.artSource, author: root.sub})
+            visualProfile: "gallery"
+            showAuthorAtRest: true
+            keyboardFocused: root.selected
+            onActivated: root.triggered()
+        }
+    }
     Rectangle {
         id: art
+        y: Metrics.gallery.hoverLift
+        visible: root.shape !== "poster"
         width: root.width
         height: root.artHeight
         radius: root.shape === "circle" ? width / 2 : (root.shape === "square" ? 0.55 * root.unit : 0.75 * root.unit)
@@ -32,9 +49,10 @@ Item {
         color: Qt.rgba(1,1,1,0.05)
         border.width: 1
         border.color: Qt.rgba(1,1,1,0.08)
-        scale: root.selected ? 1.06 : 1
-        transformOrigin: Item.Center
-        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        transform: Translate {
+            y: root.selected ? -Metrics.gallery.hoverLift : 0
+            Behavior on y { NumberAnimation { duration: Metrics.gallery.hoverDuration; easing.type: Easing.OutCubic } }
+        }
 
         Rectangle {
             anchors.fill: parent
@@ -91,11 +109,12 @@ Item {
     }
     Text {
         id: titleText
+        visible: root.shape !== "poster"
         anchors { left: parent.left; right: parent.right; top: art.bottom; topMargin: 0.7 * root.unit }
         text: root.title
         color: root.ink
-        font.family: controller.uiFont
-        font.pixelSize: (root.shape === "poster" ? 0.8125 : 0.98) * root.unit
+        font.family: theme.ui
+        font.pixelSize: Metrics.gallery.titlePixels
         font.weight: Font.DemiBold
         wrapMode: Text.WordWrap
         maximumLineCount: 2
@@ -103,13 +122,24 @@ Item {
         horizontalAlignment: root.shape === "circle" ? Text.AlignHCenter : Text.AlignLeft
     }
     Text {
+        visible: root.shape !== "poster"
         anchors { left: parent.left; right: parent.right; top: titleText.bottom; topMargin: 0.15 * root.unit }
         text: root.sub
         color: root.shape === "poster" ? root.mist : root.slate
-        font.family: controller.uiFont
-        font.pixelSize: (root.shape === "poster" ? 0.75 : 0.82) * root.unit
+        font.family: theme.ui
+        font.pixelSize: 11
         elide: Text.ElideRight
         horizontalAlignment: root.shape === "circle" ? Text.AlignHCenter : Text.AlignLeft
+    }
+    Text {
+        visible: root.shape === "poster" && root.rankText.length > 0
+        x: 10; y: 8 + (root.selected ? 0 : Metrics.gallery.hoverLift)
+        text: root.rankText
+        color: root.ink
+        font.family: root.displayFont
+        font.pixelSize: 22
+        style: Text.Raised
+        styleColor: "#99000000"
     }
     Colosseum.KeyboardAction {
         id: input

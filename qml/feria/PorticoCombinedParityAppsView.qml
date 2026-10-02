@@ -35,7 +35,7 @@ Item {
                     width:done.implicitWidth+1.7*u;height:2.5*u;radius:height/2;color:Qt.rgba(0,0,0,0.45);border.width:1;border.color:Qt.rgba(1,1,1,0.16)
                     Colosseum.BackAction { id:done;anchors.centerIn:parent;variant:"plain";label:"Done";idleColor:controller.mist;hoverColor:controller.ink;labelSize:0.9*u;onTriggered:controller.back() }
                 }
-                Text { topPadding:0.9*u;text:"Your apps";color:controller.ink;font.family:controller.displayFont;font.pixelSize:2.2*u;font.weight:Font.Medium }
+                Text { topPadding:0.9*u;text:"Your apps";color:controller.ink;font.family:controller.displayFont;font.pixelSize: 30;font.weight:Font.Medium }
                 Text {
                     width:parent.width
                     text:"Apps you turn on appear in the row and feed their shelves. Each service keeps its own sign-in inside its page; Colosseum never signs in for you."
@@ -47,7 +47,7 @@ Item {
                         required property string modelData
                         width:body.width
                         spacing:0.25*u
-                        Text { topPadding:0.9*u;text:modelData[0].toUpperCase()+modelData.slice(1);color:controller.mist;font.family:controller.displayFont;font.pixelSize:1.3*u;font.weight:Font.Medium }
+                        Text { topPadding:0.9*u;text:modelData[0].toUpperCase()+modelData.slice(1);color:controller.mist;font.family:controller.displayFont;font.pixelSize: 22;font.weight:Font.Medium }
                         Repeater {
                             model:Data.CATALOG[modelData]
                             delegate:Rectangle {

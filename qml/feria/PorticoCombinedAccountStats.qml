@@ -107,7 +107,7 @@ Item {
             }
             RowLayout {
                 width: parent.width
-                Text { text: "Since " + root.period(); color: controller.ink; font.family: controller.displayFont; font.pixelSize: 1.6*u; Layout.fillWidth: true }
+                Text { text: "Since " + root.period(); color: controller.ink; font.family: controller.displayFont; font.pixelSize: 22; Layout.fillWidth: true }
                 Repeater {
                     id: groupRepeater
                     model: [{k:"title",t:"By title"},{k:"app",t:"By app"}]

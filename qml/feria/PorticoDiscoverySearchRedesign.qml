@@ -17,8 +17,8 @@ Item {
     readonly property bool hasQuery: controller.query.trim().length > 0
     readonly property bool hasHits: hits.length > 0
     readonly property int totalChoices: hits.length + apps.length
-    readonly property real resultGap: 1.0 * u
-    readonly property int resultColumns: Math.max(3, Math.floor((scroll.width + resultGap) / (17 * u + resultGap)))
+    readonly property real resultGap: controller.galleryMetrics.cardGap
+    readonly property int resultColumns: Math.max(3, Math.floor((scroll.width + resultGap) / (controller.galleryMetrics.posterWidth + resultGap)))
     readonly property real resultCardWidth: (scroll.width - (resultColumns - 1) * resultGap) / resultColumns
 
     property alias searchField: input
@@ -132,7 +132,7 @@ Item {
                 text: "Search"
                 color: controller.ink
                 font.family: controller.displayFont
-                font.pixelSize: 2.2 * u
+                font.pixelSize: 30
                 font.weight: Font.Medium
                 Layout.alignment: Qt.AlignVCenter
             }
@@ -239,7 +239,7 @@ Item {
                     text: "Find something worth opening."
                     color: controller.ink
                     font.family: controller.displayFont
-                    font.pixelSize: 2.45 * u
+                    font.pixelSize: 30
                     font.weight: Font.Medium
                 }
 
@@ -288,7 +288,7 @@ Item {
                         text: root.hits.length + (root.hits.length === 1 ? " match" : " matches")
                         color: controller.ink
                         font.family: controller.displayFont
-                        font.pixelSize: 1.8 * u
+                        font.pixelSize: 22
                         font.weight: Font.Medium
                     }
 
@@ -797,135 +797,23 @@ Item {
     Component {
         id: resultDelegate
 
-        Item {
+        PorticoCombinedMediaCard {
             required property string modelData
             required property int index
-
+            readonly property var resultItem: controller.titleObj(modelData)
             objectName: "search-result-" + (index + 1)
             width: root.resultCardWidth
-            height: artBox.height + 3.45 * u
-
-            property var resultItem: controller.titleObj(modelData)
-            property string resultShape: resultItem ? controller.shapeFor(resultItem) : "poster"
-            property bool selected: controller.searchResultIndex === index + 1
-
-            Rectangle {
-                id: artBox
-                width: parent.width
-                height: parent.resultShape === "poster" ? parent.width * 1.28 : parent.width
-                radius: parent.resultShape === "circle" ? width / 2
-                                                        : (parent.resultShape === "square" ? 0.62 * u : 0.78 * u)
-                clip: true
-                color: Qt.rgba(1,1,1,0.05)
-                border.width: parent.selected ? Math.max(2, 0.15 * u) : 1
-                border.color: parent.selected ? controller.gold : Qt.rgba(1,1,1,0.09)
-                scale: parent.selected ? 1.025 : 1
-                transformOrigin: Item.Center
-
-                Behavior on scale {
-                    NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: parent.radius
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0; color: controller.toneFor(modelData)[0] }
-                        GradientStop { position: 1; color: controller.toneFor(modelData)[1] }
-                    }
-                }
-
-                Text {
-                    anchors {
-                        left: parent.left
-                        right: parent.right
-                        bottom: parent.bottom
-                        margins: 0.75 * u
-                    }
-                    text: resultItem ? resultItem.t : ""
-                    color: controller.ink
-                    font.family: controller.displayFont
-                    font.pixelSize: 1.02 * u
-                    font.weight: Font.Medium
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 3
-                    elide: Text.ElideRight
-                }
-
-                Image {
-                    anchors.fill: parent
-                    source: resultItem ? controller.artUrl(resultItem, false) : ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    cache: true
-                    visible: status === Image.Ready
-                }
-
-                Rectangle {
-                    x: 0.48 * u
-                    y: 0.48 * u
-                    height: 1.55 * u
-                    width: kindText.implicitWidth + 0.85 * u
-                    radius: height / 2
-                    color: Qt.rgba(4/255, 5/255, 9/255, 0.82)
-                    border.width: 1
-                    border.color: Qt.rgba(1,1,1,0.12)
-
-                    Text {
-                        id: kindText
-                        anchors.centerIn: parent
-                        text: resultItem ? Data.KIND[resultItem.k].toUpperCase() : ""
-                        color: controller.ink
-                        font.family: controller.uiFont
-                        font.pixelSize: 0.62 * u
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.45
-                    }
-                }
-            }
-
-            Text {
-                id: resultTitle
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: artBox.bottom
-                    topMargin: 0.58 * u
-                }
-                text: parent.resultItem ? parent.resultItem.t : ""
-                color: parent.selected ? controller.ink : controller.mist
-                font.family: controller.uiFont
-                font.pixelSize: 0.88 * u
-                font.weight: Font.DemiBold
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-            }
-
-            Text {
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: resultTitle.bottom
-                    topMargin: 0.15 * u
-                }
-                text: parent.resultItem
-                      ? (parent.resultItem.y ? parent.resultItem.y + "   ·   " : "")
-                        + Data.KIND[parent.resultItem.k]
-                      : ""
-                color: parent.selected ? controller.gold : controller.slate
-                font.family: controller.uiFont
-                font.pixelSize: 0.7 * u
-                elide: Text.ElideRight
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                onEntered: controller.searchResultIndex = index + 1
-                onClicked: controller.openTitle(modelData)
-            }
+            unit: u
+            title: resultItem ? resultItem.t : ""
+            sub: resultItem ? (resultItem.y ? resultItem.y + " · " : "") + Data.KIND[resultItem.k] : ""
+            shape: resultItem ? controller.shapeFor(resultItem) : "poster"
+            artSource: controller.artUrl(resultItem, false)
+            selected: controller.searchResultIndex === index + 1
+            toneA: controller.toneFor(modelData)[0]
+            toneB: controller.toneFor(modelData)[1]
+            displayFont: controller.displayFont
+            onEntered: controller.searchResultIndex = index + 1
+            onTriggered: controller.openTitle(modelData)
         }
     }
 

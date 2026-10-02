@@ -1,5 +1,6 @@
 import QtQuick
 import ".." as Colosseum
+import "../CatalogueVisualMetrics.js" as Metrics
 
 Item {
     id: root
@@ -16,18 +17,23 @@ Item {
     property color slate: "#9a99a5"
     property color gold: "#f0c44a"
     property string displayFont: "Fraunces"
-    property string uiFont: "Inter"
+    property string uiFont: theme.ui
+    Colosseum.Theme { id: theme }
     signal triggered()
     signal entered()
 
-    scale: moving ? 1.14 : (selected ? 1.08 : 1.0)
+    scale: moving ? 1.04 : 1.0
+    transform: Translate {
+        y: root.selected ? -Metrics.gallery.hoverLift : 0
+        Behavior on y { NumberAnimation { duration: Metrics.gallery.hoverDuration; easing.type: Easing.OutCubic } }
+    }
     z: moving ? 6 : (selected ? 4 : 1)
     transformOrigin: Item.Center
     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
     Rectangle {
         anchors.fill: parent
-        radius: 1.2 * root.unit
+        radius: Metrics.gallery.posterRadius
         color: root.addMode ? "transparent"
                             : (root.selected ? Qt.rgba(1,1,1,0.13) : Qt.rgba(1,1,1,0.045))
         border.width: 1
@@ -35,17 +41,17 @@ Item {
     }
     Rectangle {
         anchors.fill: parent
-        anchors.margins: -0.1875 * root.unit
-        radius: 1.38 * root.unit
+        anchors.margins: -2
+        radius: Metrics.gallery.posterRadius + 2
         color: "transparent"
-        border.width: 0.1875 * root.unit
+        border.width: 2
         border.color: root.selected ? root.gold : "transparent"
         visible: root.selected
         z: 10
     }
     Rectangle {
         anchors.fill: parent
-        radius: 1.2 * root.unit
+        radius: Metrics.gallery.posterRadius
         visible: root.selected && !root.addMode
         gradient: Gradient {
             orientation: Gradient.Horizontal
@@ -79,10 +85,9 @@ Item {
             width: Math.max(1, root.width - 1.2 * root.unit)
             text: root.title
             color: root.selected ? root.ink : root.mist
-            font.family: root.displayFont
-            font.pixelSize: 1.28 * root.unit
-            font.letterSpacing: -0.0128 * root.unit
-            font.weight: Font.Medium
+            font.family: root.uiFont
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
         }

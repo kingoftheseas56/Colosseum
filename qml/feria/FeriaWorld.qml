@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtCore
 import "PorticoData.js" as Data
 import ".." as Colosseum
+import "../CatalogueVisualMetrics.js" as Metrics
 
 Item {
     id: shell
@@ -35,8 +36,10 @@ Item {
     Colosseum.Theme { id: theme }
     FontLoader { id: displayLoader; source: Qt.resolvedUrl("../../assets/fonts/Fraunces-Regular.ttf") }
 
-    readonly property real unit: Math.max(9, Math.min(width / 120, 32))
-    readonly property real marginX: 3.375 * unit
+    // Qt already handles display DPI. Resize the layout, not its text and controls.
+    readonly property real unit: 16
+    readonly property real marginX: theme.margin
+    readonly property var galleryMetrics: Metrics.gallery
     readonly property color night: theme.biblioWashBottom
     readonly property color dusk: theme.biblioWashTop
     readonly property color ink: theme.ink
@@ -291,7 +294,7 @@ Item {
         }).sort(function(a,b) { return Number(Data.T[b].t.toLowerCase().startsWith(q)) - Number(Data.T[a].t.toLowerCase().startsWith(q)) }).slice(0, 40)
     }
     function searchableApps() { return activeApps.filter(function(pk) { return Data.P[pk] && Data.P[pk].sp }) }
-    function appColumns() { return width > 1100 ? 7 : (width > 760 ? 5 : 3) }
+    function appColumns() { return Math.max(1, Math.floor((width - 2 * marginX + galleryMetrics.cardGap) / (180 + galleryMetrics.cardGap))) }
     function toggleSaved(id) {
         var next = saved.slice(); var p = next.indexOf(id)
         if (p < 0) next.unshift(id); else next.splice(p, 1)

@@ -42,7 +42,7 @@ Item {
             text: "Feria"
             color: controller.ink
             font.family: controller.displayFont
-            font.pixelSize: 2.35 * u
+            font.pixelSize: 30
             font.letterSpacing: -0.047 * u
             font.weight: Font.Medium
             Layout.leftMargin: 0.1 * u
@@ -127,7 +127,7 @@ Item {
             text: controller.clockText()
             color: controller.ink
             font.family: controller.displayFont
-            font.pixelSize: 1.7 * u
+            font.pixelSize: 22
             font.weight: Font.Medium
         }
         Text {

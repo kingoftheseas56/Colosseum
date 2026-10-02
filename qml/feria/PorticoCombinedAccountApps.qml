@@ -8,6 +8,7 @@ Item {
     required property var controller
     readonly property real u: controller.unit
     readonly property real m: controller.marginX
+    readonly property real sidebarWidth: Math.min(24 * u, width * 0.32)
     readonly property var catalogue: Data.CATALOG.watch.concat(Data.CATALOG.listen, Data.CATALOG.read)
     readonly property var others: catalogue.filter(function(k) { return !Data.P[k].app && controller.activeApps.indexOf(k) < 0 })
     readonly property var appOnly: catalogue.filter(function(k) { return Data.P[k].app })
@@ -342,7 +343,7 @@ Item {
             spacing: 1.3 * u
 
             Rectangle {
-                width: 24 * u
+                width: root.sidebarWidth
                 height: list.implicitHeight + 1.2 * u
                 radius: 1.2 * u
                 color: Qt.rgba(1,1,1,0.035)
@@ -474,7 +475,7 @@ Item {
             }
 
             Rectangle {
-                width: columns.width - 24 * u - 1.3 * u
+                width: columns.width - root.sidebarWidth - 1.3 * u
                 height: Math.max(42 * u, detail.implicitHeight + 3.6 * u)
                 radius: 1.2 * u
                 color: Qt.rgba(1,1,1,0.035)
@@ -511,7 +512,7 @@ Item {
                                 text: controller.accountApp === "region" ? "Catalogue region" : controller.providerName(controller.accountApp)
                                 color: controller.ink
                                 font.family: controller.displayFont
-                                font.pixelSize: 2.3 * u
+                                font.pixelSize: 30
                             }
                             Text {
                                 text: controller.accountApp === "region" ? controller.region
@@ -626,14 +627,15 @@ Item {
                         delegate: Rectangle {
                             required property string modelData
                             width: detail.width
-                            height: modelData === "Shelves it feeds" ? 8 * u : 10 * u
+                            height: Math.max(modelData === "Shelves it feeds" ? 8 * u : 10 * u, panelContent.implicitHeight + 2.8 * u)
                             radius: u
                             color: Qt.rgba(1,1,1,0.04)
                             border.width: 1
                             border.color: Qt.rgba(1,1,1,0.1)
 
                             Column {
-                                anchors { fill: parent; margins: 1.4 * u }
+                                id: panelContent
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1.4 * u }
                                 spacing: 0.6 * u
                                 Text {
                                     text: modelData
@@ -666,7 +668,8 @@ Item {
                                     color: controller.gold; font.family: controller.uiFont; font.pixelSize: 0.92 * u
                                     Accessible.role: Accessible.StaticText
                                 }
-                                Row {
+                                Flow {
+                                    width: parent.width
                                     visible: modelData === "Sign-in" || modelData === "Your row" || modelData === "Your time here"
                                     spacing: 0.6 * u
                                     Repeater {

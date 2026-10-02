@@ -69,7 +69,7 @@ Item {
         var item = appRepeater.itemAt(index)
         if (!item)
             return
-        var finalScale = controller.movingApp ? 1.14 : 1.08
+        var finalScale = controller.movingApp ? 1.04 : 1.0
         var currentScale = Math.max(0.01, item.scale)
         var factor = Math.max(1.0, finalScale / currentScale)
         var extraX = item.width * (factor - 1) / 2
@@ -81,7 +81,7 @@ Item {
     function revealShelf(index) {
         var item = shelfRepeater.itemAt(index)
         if (item)
-            ensureVisibleRect(item, Qt.rect(0, 5.0 * u, item.width, 20.8 * u))
+            ensureVisibleRect(item, Qt.rect(0, 0, item.width, item.height - controller.galleryMetrics.shelfGap))
     }
     function revealLens() { ensureVisible(lensRail) }
     function focusLens() {
@@ -106,7 +106,7 @@ Item {
         if (!item)
             return Qt.rect(0, 0, 0, 0)
         var localRect = controller.focusArea === "shelf"
-                ? Qt.rect(0, 5.0 * u, item.width, 20.8 * u)
+                ? Qt.rect(0, 0, item.width, item.height - controller.galleryMetrics.shelfGap)
                 : Qt.rect(0, 0, item.width, item.height)
         var rect = mappedRect(item, homeColumn, localRect)
         return Qt.rect(rect.x, rect.y - page.contentY, rect.width, rect.height)
@@ -212,16 +212,16 @@ Item {
             Item {
                 id: topHalf
                 width: parent.width
-                height: Math.max(44 * u, page.height - 12 * u)
+                height: 108 + feature.height + 20 + appsGrid.implicitHeight + 36
 
                 Column {
-                    anchors { left:parent.left; right:parent.right; bottom:parent.bottom; leftMargin:m; rightMargin:m; bottomMargin:1.2*u }
-                    spacing: 0.9 * u
+                    anchors { left:parent.left; right:parent.right; top:parent.top; leftMargin:m; rightMargin:m; topMargin:108 }
+                    spacing: 20
 
                     Item {
                         id: feature
                         width: Math.min(52 * u, parent.width)
-                        height: 15.3 * u
+                        height: 330
                         Column {
                             anchors { left:parent.left; right:parent.right; bottom:parent.bottom; bottomMargin:3.35*u }
                             spacing: 0.5 * u
@@ -237,7 +237,7 @@ Item {
                                     text: controller.featured().source
                                     color: controller.mist
                                     font.family: controller.uiFont
-                                    font.pixelSize: 0.95 * u
+                                    font.pixelSize: 13
                                 }
                             }
                             Text {
@@ -245,8 +245,8 @@ Item {
                                 text: controller.featured().item ? controller.featured().item.t : controller.providerName(controller.selectedApp)
                                 color: controller.ink
                                 font.family: controller.displayFont
-                                font.pixelSize: 4 * u
-                                font.letterSpacing: -0.1 * u
+                                font.pixelSize: 42
+                                font.letterSpacing: 0
                                 font.weight: Font.Medium
                                 elide: Text.ElideRight
                             }
@@ -261,7 +261,7 @@ Item {
                                         text: modelData
                                         color: index === 0 ? controller.ink : controller.mist
                                         font.family: controller.uiFont
-                                        font.pixelSize: 0.95 * u
+                                        font.pixelSize: 13
                                     }
                                 }
                             }
@@ -270,7 +270,7 @@ Item {
                                 text: controller.featured().item ? controller.featured().item.s : "Browse " + controller.providerName(controller.selectedApp) + " in Feria."
                                 color: controller.mist
                                 font.family: controller.uiFont
-                                font.pixelSize: 1.02 * u
+                                font.pixelSize: 14
                                 lineHeight: 1.55
                                 wrapMode: Text.WordWrap
                                 maximumLineCount: 2
@@ -278,9 +278,9 @@ Item {
                             }
                             Rectangle {
                                 visible: controller.focusArea === "feature"
-                                width: 7 * u; height: 2.2 * u; radius:0.65*u
+                                width: 112; height: 42; radius:11
                                 color: controller.gold
-                                Text { anchors.centerIn:parent; text:controller.featured().item ? "Details" : "Open"; color:Qt.rgba(0,0,0,0.86); font.family:controller.uiFont; font.pixelSize:0.85*u; font.weight:Font.Bold }
+                                Text { anchors.centerIn:parent; text:controller.featured().item ? "Details" : "Open"; color:Qt.rgba(0,0,0,0.86); font.family:controller.uiFont; font.pixelSize:14; font.weight:Font.Bold }
                             }
                         }
                         MouseArea {
@@ -293,10 +293,10 @@ Item {
 
                     GridLayout {
                         id: appsGrid
-                        width: parent.width
+                        width: Math.min(parent.width, columns * 180 + (columns - 1) * columnSpacing)
                         columns: controller.appColumns()
-                        columnSpacing: 1.2 * u
-                        rowSpacing: 1.2 * u
+                        columnSpacing: controller.galleryMetrics.cardGap
+                        rowSpacing: controller.galleryMetrics.cardGap
                         Repeater {
                             id: appRepeater
                             model: controller.activeApps.length + 1
@@ -313,6 +313,7 @@ Item {
                                 moving: controller.movingApp && selected
                                 addMode: !pk
                                 displayFont: controller.displayFont
+                                uiFont: controller.uiFont
                                 ink: controller.ink; mist:controller.mist; slate:controller.slate; gold:controller.gold
                                 onEntered: { controller.selectApp(index) }
                                 onTriggered: {
@@ -368,6 +369,7 @@ Item {
             FeriaContinueRow {
                 x: m; width: parent.width - 2 * m
                 controller: home.controller
+                bottomPadding: 36
             }
 
             Repeater {
@@ -378,32 +380,20 @@ Item {
                     required property var modelData
                     required property int index
                     width: homeColumn.width
-                    height: 25.5 * u
+                    height: 50 + rail.height + controller.galleryMetrics.shelfGap
 
-                    Row {
+                    Colosseum.WidgetHeader {
                         x: m
-                        y: 1.7 * u
-                        spacing: 1 * u
-                        Text {
-                            text: modelData.title
-                            color: controller.ink
-                            font.family: controller.displayFont
-                            font.pixelSize: 1.75 * u
-                            font.letterSpacing: -0.02625 * u
-                            font.weight: Font.Medium
-                        }
-                        Text {
-                            anchors.baseline: parent.children[0].baseline
-                            text: modelData.chips ? controller.providerName(controller.chipSelection[modelData.id]) + " chart" : (modelData.src || "")
-                            color: controller.slate
-                            font.family: controller.uiFont
-                            font.pixelSize: 0.85 * u
-                        }
+                        width: parent.width - 2 * m - (shelf.modelData.chips ? providerChips.width + 20 : 0)
+                        title: shelf.modelData.title
+                        sub: shelf.modelData.chips ? controller.providerName(controller.chipSelection[shelf.modelData.id]) + " chart" : (shelf.modelData.src || "")
+                        navigable: false
                     }
 
                     Row {
+                        id: providerChips
                         visible: !!modelData.chips
-                        anchors { right:parent.right; rightMargin:m; top:parent.top; topMargin:1.15*u }
+                        anchors { right:parent.right; rightMargin:m; top:parent.top; topMargin:0 }
                         spacing: 0.4 * u
                         Repeater {
                             model: modelData.chips ? Object.keys(modelData.chips).filter(function(pk){ return controller.activeApps.indexOf(pk)>=0 }) : []
@@ -424,10 +414,10 @@ Item {
 
                     ListView {
                         id: rail
-                        anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:5.0*u }
-                        height: 20.8 * u
+                        anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:50 }
+                        height: controller.galleryMetrics.posterWidth * controller.galleryMetrics.posterRatio + 10 + controller.galleryMetrics.titleMinHeight + 24 + controller.galleryMetrics.hoverLift
                         orientation: ListView.Horizontal
-                        spacing: 1.25 * u
+                        spacing: controller.galleryMetrics.cardGap
                         leftMargin: m
                         rightMargin: m
                         clip: true
@@ -438,7 +428,7 @@ Item {
                             required property int index
                             property var it: controller.titleObj(modelData)
                             unit: u
-                            width: it && it.k === "album" ? 13*u : (it && it.k === "artist" ? 10.5*u : 9.25*u)
+                            width: controller.galleryMetrics.posterWidth
                             title: it ? it.t : ""
                             sub: it ? (it.k === "artist" ? (it.f[0] || it.by || "") : (it.k === "album" ? (it.by || "") : (it.y ? it.y + "   " : "") + controller.kindLabel(it))) : ""
                             artSource: controller.artUrl(it, false)

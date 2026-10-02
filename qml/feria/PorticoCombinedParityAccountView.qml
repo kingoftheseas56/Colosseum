@@ -41,7 +41,7 @@ Item {
     Item {
         id: head
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: 6.2 * u
+        height: root.width < 1100 ? 140 : 6.2 * u
         z: 4
 
         Rectangle {
@@ -54,7 +54,9 @@ Item {
         }
 
         Row {
-            anchors { left: parent.left; leftMargin: m; verticalCenter: parent.verticalCenter }
+            anchors { left: parent.left; leftMargin: m }
+            height: 44
+            y: root.width < 1100 ? 16 : (parent.height - height) / 2
             spacing: 1.2 * u
             Rectangle {
                 objectName: "account-back"
@@ -96,16 +98,18 @@ Item {
                 text: "Your Feria"
                 color: controller.ink
                 font.family: controller.displayFont
-                font.pixelSize: 2.35 * u
+                font.pixelSize: 30
                 font.weight: Font.Medium
             }
         }
 
         Rectangle {
-            anchors.centerIn: parent
+            objectName: "feriaAccountTabs"
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: root.width < 1100 ? parent.height - height - 12 : (parent.height - height) / 2
             height: 3.25 * u
             width: tabs.implicitWidth + 0.625 * u
-            radius: height / 2
+            radius: 18
             color: Qt.rgba(1,1,1,0.10)
             border.width: 1
             border.color: Qt.rgba(1,1,1,0.18)
