@@ -1421,6 +1421,9 @@ add_executable(reader2_profile_runtime_harness
     SearchHistoryStore.h
     AudioPairingStore.h
 )
+target_sources(reader2_profile_runtime_harness PRIVATE
+    account/RatingsReviewsStore.cpp
+    account/RatingsReviewsStore.h)
 target_include_directories(reader2_profile_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(reader2_profile_runtime_harness PRIVATE
     COLOSSEUM_READER2_PROFILE_RUNTIME=1)

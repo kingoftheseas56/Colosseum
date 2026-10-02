@@ -4259,6 +4259,7 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
 
 foreach(_tracker_profile_target IN ITEMS
         account_first_light
+        reader2_profile_runtime_harness
         tst_privacy_policy
         tst_account_attachment_runtime
         tst_account_adoption
