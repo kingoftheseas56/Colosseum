@@ -130,7 +130,9 @@ else()
     find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
 endif()
 find_package(OpenSSL QUIET)
-if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
+# libtorrent may already have loaded OpenSSL's config package. Its exported targets
+# remain authoritative if a later FindOpenSSL module reports a different FOUND flag.
+if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto)
     message(STATUS "libtorrent + Boost + OpenSSL found via find_package")
     target_link_libraries(colosseum_libtorrent INTERFACE
         LibtorrentRasterbar::torrent-rasterbar Boost::filesystem

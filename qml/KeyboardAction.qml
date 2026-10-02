@@ -94,6 +94,7 @@ Item {
     }
     TapHandler {
         enabled: action.pointerEnabled && action.contextEnabled && action.enabled
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         acceptedButtons: Qt.RightButton
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: action.requestContext(Qt.MouseFocusReason)

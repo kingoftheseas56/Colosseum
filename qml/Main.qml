@@ -888,6 +888,8 @@ Window {
         anchors.fill: parent
         z: 100000
         TapHandler {
+            // acceptedButtons filters mouse buttons only; touch would otherwise trigger Back.
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             acceptedButtons: Qt.BackButton
             onTapped: escapeCommand.invoke("mouseBack")
         }
