@@ -62,7 +62,7 @@ Item {
         }
     }
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     implicitHeight: row.implicitHeight
     implicitWidth: row.implicitWidth

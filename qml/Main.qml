@@ -719,6 +719,7 @@ Window {
             historyStatsActive: historyStatsLayer.active,
             syncCenterActive: syncCenterLayer.active,
             extensionsActive: extensionsLayer.active,
+            feriaActive: feriaLayer.active,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
             bookActive: bookLayer.active,
@@ -838,6 +839,10 @@ Window {
             if (extensionsLayer.item && extensionsLayer.item.requestEscape
                     && extensionsLayer.item.requestEscape()) return
             win.closeExtensionsPage(); return
+        case "feria":
+            if (feriaLayer.item) feriaLayer.item.back()
+            else win.closeFeriaPage()
+            return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
         case "book": win.closeBook(); return
@@ -1728,8 +1733,26 @@ Window {
         }
     }
 
+    // ---- Feria: discovery surface entered from the permanent dock button ----
+    function openFeriaPage() {
+        win.bookRouteGeneration += 1
+        downloadsLayer.active = false
+        vaultLayer.active = false
+        extensionsLayer.active = false
+        updateLayer.active = false
+        historyStatsLayer.active = false
+        syncCenterLayer.active = false
+        feriaLayer.active = true
+        taskbar.open = false
+    }
+    function closeFeriaPage() {
+        feriaLayer.active = false
+        taskbar.focusFeriaAction()
+    }
+
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
+        feriaLayer.active = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1765,6 +1788,7 @@ Window {
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
+        feriaLayer.active = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1785,6 +1809,7 @@ Window {
     // Downloads and Extensions are taskbar full-pages; opening either one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        feriaLayer.active = false
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
@@ -1804,6 +1829,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        feriaLayer.active = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -1908,6 +1934,7 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
+        feriaLayer.active = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         updateLayer.active = false
@@ -1925,6 +1952,7 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
+        feriaLayer.active = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -4446,6 +4474,32 @@ Window {
         }
     }
 
+    // ---- Feria: its own native app, entered from the taskbar. ----
+    Loader {
+        id: feriaLayer
+        objectName: "feriaLayer"
+        anchors.fill: parent
+        z: 58
+        active: false
+        visible: active
+        source: "feria/FeriaWorld.qml"
+        Binding {
+            target: feriaLayer.item
+            property: "browserSuppressed"
+            value: taskbar.open || accountFlyout.visible || accountHost.visible
+                || watchPartyJoinSheet.opened || openRecentPanel.visible
+            when: feriaLayer.item !== null
+        }
+        onLoaded: {
+            item.backdrop = wall
+            item.lifecycleActive = true
+            item.homeRequested.connect(win.closeFeriaPage)
+            item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                accountFlyout.toggleAt(anchorRight, anchorBottom)
+            })
+        }
+    }
+
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
@@ -4602,6 +4656,8 @@ Window {
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
         historyStatsActive: historyStatsLayer.active
         onHistoryStatsClicked: !historyStatsLayer.active ? win.openHistoryStatsPage() : win.closeHistoryStatsPage()
+        feriaActive: feriaLayer.active
+        onFeriaClicked: !feriaLayer.active ? win.openFeriaPage() : win.closeFeriaPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.

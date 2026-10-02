@@ -322,7 +322,7 @@ TestCase {
         mouseClick(toggle)
         tryCompare(rail, "expanded", true, 600)
         wait(250)   // let the width Behavior (160ms) settle before asserting the expanded size
-        compare(rail.width, 236)
+        compare(rail.width, 228)
     }
 
     // ── 5. the carousel is present with >=1 slide when arrivals are non-empty; the blurb slot

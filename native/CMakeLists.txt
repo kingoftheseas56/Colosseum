@@ -889,6 +889,19 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
 
+if(WIN32)
+    find_package(unofficial-webview2 CONFIG QUIET)
+endif()
+add_subdirectory(feria)
+target_link_libraries(colosseum PRIVATE feria_discovery)
+if(TARGET unofficial::webview2::webview2)
+    add_custom_command(TARGET colosseum POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:unofficial::webview2::webview2>"
+            "$<TARGET_FILE_DIR:colosseum>/WebView2Loader.dll"
+        VERBATIM)
+endif()
+
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.

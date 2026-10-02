@@ -38,6 +38,7 @@ function actionFor(state) {
     if (on(s.historyStatsActive)) return "historyStats"
     if (on(s.syncCenterActive)) return "syncCenter"
     if (on(s.extensionsActive)) return "extensions"
+    if (on(s.feriaActive)) return "feria"
     if (on(s.vaultActive)) return "vault"
     if (on(s.downloadsActive)) return "downloads"
 

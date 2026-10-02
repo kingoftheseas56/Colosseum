@@ -42,6 +42,23 @@ TestCase {
         wait(30)
         return c
     }
+
+    function test_compact_row_title_opens_same_item_and_away_stays_disabled() {
+        var row = { key: "compact-film", nodeType: "film", displayTitle: "A local film",
+                    state: "identified", away: false, physicalFact: "2024", coverRef: "" }
+        var c = posterComp.createObject(testWindow, { row: row, compact: true, cardWidth: 600 })
+        verify(c !== null)
+        openSpy.target = c
+        wait(30)
+        mouseClick(c, 220, 24)
+        compare(openSpy.count, 1)
+        compare(openSpy.signalArguments[0][0].key, "compact-film")
+        c.row = { key: "compact-film", nodeType: "film", displayTitle: "A local film",
+                  state: "identified", away: true, physicalFact: "Drive disconnected", coverRef: "" }
+        mouseClick(c, 220, 24)
+        compare(openSpy.count, 1)
+        c.destroy()
+    }
     function findChild(root, objectName) {
         if (!root) return null
         if (root.objectName === objectName) return root

@@ -14,6 +14,10 @@
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
 
+if(WIN32)
+    add_subdirectory(feria_host_probe)
+endif()
+
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})

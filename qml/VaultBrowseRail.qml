@@ -113,7 +113,7 @@ Item {
     onDisplayRootsChanged: rail.closeRowMenu()
 
     readonly property int collapsedWidth: 62
-    readonly property int expandedWidth: 236
+    readonly property int expandedWidth: 228
     width: rail.expanded ? rail.expandedWidth : rail.collapsedWidth
     Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
     // A plain Item has no implicit size of its own — VaultPage.qml always anchors both top AND
@@ -122,13 +122,13 @@ Item {
     implicitHeight: col.implicitHeight
     clip: true
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(1, 1, 1, 0.02)
-        radius: 14
-        border.width: 1
+        color: theme.sidebar
+        radius: 0
+        border.width: 0
         border.color: theme.edge
     }
 
@@ -233,20 +233,20 @@ Item {
                 readonly property bool hasNeedsAttention: rootRow.errorCount > 0
                                                           || rootRow.watcherDegraded
                 width: col.width
-                height: 40
+                height: 52
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 10
+                    radius: 6
                     color: rootRow.rootPath === rail.selectedRootPath && !rail.hiddenActive
-                           ? theme.glassHi : (rowMa.containsMouse ? theme.glassTint : "transparent")
+                           ? "#12eab45a" : (rowMa.containsMouse ? theme.glassTint : "transparent")
                 }
                 // S15 — the keyboard focus ring: house ink, only while the row itself holds
                 // keyboard focus (a mouse click never sets focus, so ring and hover stay
                 // structurally independent — the grid's own focus-ring law).
                 Rectangle {
                     anchors.fill: parent
-                    radius: 10
+                    radius: 6
                     color: "transparent"
                     border.width: 2
                     border.color: theme.inkDim
@@ -267,8 +267,7 @@ Item {
                     Item {
                         id: rootIcon
                         width: 26; height: 26
-                        anchors.left: parent.left
-                        anchors.horizontalCenter: rail.expanded ? undefined : parent.horizontalCenter
+                        x: rail.expanded ? 0 : (parent.width - width) / 2
                         Image {
                             objectName: "vaultBrowseRailRootGlyph"
                             anchors.centerIn: parent
@@ -324,10 +323,9 @@ Item {
                         Text {
                             width: parent.width
                             elide: Text.ElideRight
-                            text: (rootRow.modelData.itemCount || 0) + " items · "
-                                  + (rootRow.modelData.fileCount || 0) + " files"
+                            text: rootRow.available ? ((rootRow.modelData.itemCount || 0) + " items · " + (rootRow.modelData.fileCount || 0) + " files") : "Drive disconnected"
                             color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 12
+                            font.family: theme.ui; font.pixelSize: 10
                         }
                     }
                 }
@@ -403,11 +401,11 @@ Item {
             id: hiddenRow
             objectName: "vaultBrowseRailHidden"
             width: col.width
-            height: 40
+            height: 52
 
             Rectangle {
                 anchors.fill: parent
-                radius: 10
+                radius: 6
                 color: rail.hiddenActive ? theme.glassHi : (hiddenMa.containsMouse ? theme.glassTint : "transparent")
             }
             Item {
@@ -419,8 +417,7 @@ Item {
                 Item {
                     id: hiddenIcon
                     width: 26; height: 26
-                    anchors.left: parent.left
-                    anchors.horizontalCenter: rail.expanded ? undefined : parent.horizontalCenter
+                    x: rail.expanded ? 0 : (parent.width - width) / 2
                     // hand-drawn eye-slash — a slashed ellipse, the same two-primitive technique
                     // the card's away glyph already uses (no icon asset invented for this).
                     Item {
@@ -472,11 +469,11 @@ Item {
             id: addRow
             objectName: "vaultBrowseRailAdd"
             width: col.width
-            height: 40
+            height: 52
 
             Rectangle {
                 anchors.fill: parent
-                radius: 10
+                radius: 6
                 color: "transparent"
                 border.width: 1
                 border.color: theme.edge
@@ -490,8 +487,7 @@ Item {
                 Item {
                     id: addIcon
                     width: 26; height: 26
-                    anchors.left: parent.left
-                    anchors.horizontalCenter: rail.expanded ? undefined : parent.horizontalCenter
+                    x: rail.expanded ? 0 : (parent.width - width) / 2
                     Rectangle { anchors.centerIn: parent; width: 12; height: 1.6; color: theme.inkDimmer }
                     Rectangle { anchors.centerIn: parent; width: 1.6; height: 12; color: theme.inkDimmer }
                 }
@@ -581,7 +577,7 @@ Item {
                     : attentionColumn.implicitHeight + 16
             y: Math.min(rail.menuRowY + 42, rail.height - height - 6)
             radius: 12
-            color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
+            color: theme.panel
             border.width: 1
             border.color: theme.edge
 
@@ -960,7 +956,7 @@ Item {
             // the old 8px bottom inset put Save/Cancel physically underneath that dock.
             y: Math.max(8, rail.height - height - 88)
             radius: 12
-            color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
+            color: theme.panel
             border.width: 1
             border.color: theme.edge
 

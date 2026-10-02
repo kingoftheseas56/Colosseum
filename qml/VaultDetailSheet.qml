@@ -78,7 +78,7 @@ Item {
     readonly property string identityLabel: (detail && detail.identityLabel) ? detail.identityLabel : ""
     readonly property string playPath: (detail && detail.playPath) ? detail.playPath : ""
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     Keys.onPressed: (event) => {
         if (event.key === Qt.Key_Escape || event.key === Qt.Key_Backspace) {
@@ -101,483 +101,196 @@ Item {
         }
     }
     onVisibleChanged: if (visible) Qt.callLater(function() {
-        if (playKey.enabled) playKey.forceActiveFocus(Qt.TabFocusReason)
-        else hideKey.forceActiveFocus(Qt.TabFocusReason)
+        if (playKey.enabled) playKey.keyboardAction.forceActiveFocus(Qt.TabFocusReason)
+        else hideKey.keyboardAction.forceActiveFocus(Qt.TabFocusReason)
     })
 
     function copiesHeldLabel(n) { return n + (n === 1 ? " copy held" : " copies held") }
 
-    // ── dimmed Vault behind + veil (modal over the browse face, the VaultConfirmCard convention) ──
     Rectangle {
-        anchors.fill: parent
-        color: Qt.rgba(0.02, 0.024, 0.035, 0.62)
+        anchors.fill: parent; color: "#d107090c"
         MouseArea { anchors.fill: parent; onClicked: sheet.backRequested() }
     }
-
     Rectangle {
         id: panel
-        width: Math.min(760, parent.width - 80)
-        height: Math.min(bodyCol.implicitHeight + 64, parent.height - 100)
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: Math.max(40, parent.height * 0.08)
-        radius: 20
-        color: Qt.rgba(0.071, 0.082, 0.110, 0.99)
-        border.width: 1
-        border.color: theme.edge
+        anchors.centerIn: parent
+        width: Math.min(880, parent.width - 40)
+        height: Math.min(body.implicitHeight + 84, parent.height - 64)
+        radius: 12; color: "#1b1e23"; border.width: 1; border.color: theme.edge
         clip: true
-        MouseArea { anchors.fill: parent } // swallow so the veil below never sees a click-through
-
+        MouseArea { anchors.fill: parent }
+        Image {
+            width: parent.width; height: 210
+            source: sheet.detail.coverRef || ""; fillMode: Image.PreserveAspectCrop
+            asynchronous: true; opacity: 0.22
+        }
+        Rectangle {
+            width: parent.width; height: 212
+            gradient: Gradient {
+                GradientStop { position: 0; color: "#001b1e23" }
+                GradientStop { position: 1; color: "#1b1e23" }
+            }
+        }
         Flickable {
             id: flick
-            anchors.fill: parent
-            anchors.margins: 30
+            anchors.fill: parent; anchors.margins: 30; anchors.topMargin: 54
+            clip: true; contentWidth: width; contentHeight: body.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
             activeFocusOnTab: true
             Keys.onPressed: (event) => flickKeys.handle(event)
             Keys.onReleased: (event) => flickKeys.handleRelease(event)
-            contentWidth: width
-            contentHeight: bodyCol.implicitHeight
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: HouseScrollBar { flick: flick }
             KeyboardScrollController { id: flickKeys; flick: flick }
-
-            Row {
-                id: bodyCol
-                width: flick.width
-                spacing: 26
-
-                // ── poster / artwork ──
-                Rectangle {
-                    id: posterBox
-                    width: 172; height: Math.round(width * 3 / 2)
-                    radius: 5
-                    color: Qt.rgba(1, 1, 1, 0.06)
-                    clip: true
-                    Image {
-                        anchors.fill: parent
-                        visible: !!(sheet.detail && sheet.detail.coverRef)
-                        source: (sheet.detail && sheet.detail.coverRef) ? sheet.detail.coverRef : ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true; cache: true
-                    }
-                    Text {
-                        // Typographic-title fallback (ux uplift S8) — the cards' own permanent
-                        // floor (VaultPosterCard's settled layer: real title, centered, wrapped,
-                        // elided) instead of the literal placeholder word "artwork". Never an
-                        // empty frame; real art (S5's file:// poster refs) paints on top.
-                        objectName: "vaultBrowseSheetPosterTitle"
-                        anchors.centerIn: parent
-                        visible: !(sheet.detail && sheet.detail.coverRef)
-                        width: parent.width - 24
-                        text: (sheet.detail && sheet.detail.displayTitle) ? sheet.detail.displayTitle : ""
-                        color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                        elide: Text.ElideRight
-                        maximumLineCount: 4
-                    }
-                }
-
-                Column {
-                    width: bodyCol.width - posterBox.width - bodyCol.spacing
-                    spacing: 0
-
-                    Text {
-                        id: titleText
-                        width: parent.width
-                        text: (sheet.detail && sheet.detail.displayTitle) ? sheet.detail.displayTitle : ""
-                        color: theme.ink
-                        font.family: theme.display; font.pixelSize: 33; font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Row {
-                        topPadding: 10
-                        spacing: 9
+            ScrollBar.vertical: HouseScrollBar { flick: flick }
+            Column {
+                id: body; width: flick.width; spacing: 22; bottomPadding: 8
+                Row {
+                    width: parent.width; spacing: 22
+                    Rectangle {
+                        width: panel.width < 600 ? 90 : 120; height: width * 1.5; radius: 6
+                        color: theme.panel; clip: true
                         Text {
-                            visible: !!(sheet.detail && sheet.detail.year > 0)
-                            text: (sheet.detail && sheet.detail.year > 0) ? String(sheet.detail.year) : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                            objectName: "vaultBrowseSheetPosterTitle"
+                            anchors.fill: parent; anchors.margins: 12
+                            text: sheet.detail.displayTitle || ""
+                            visible: !sheet.detail.coverRef
+                            verticalAlignment: Text.AlignVCenter; horizontalAlignment: Text.AlignHCenter
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
                         }
-                        Text {
-                            // Runtime (ux uplift S8) — durationSec as the engine formatted it
-                            // ("1h 47m"); the engine OMITS the key while unknown, so no "-1"/"0m"
-                            // can ever reach this line.
-                            objectName: "vaultBrowseSheetRuntime"
-                            visible: !!(sheet.detail && sheet.detail.runtimeText)
-                            text: (sheet.detail && sheet.detail.runtimeText) ? sheet.detail.runtimeText : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                        }
-                        Text {
-                            objectName: "vaultBrowseSheetCopiesHeld"
-                            text: sheet.copiesHeldLabel(sheet.copies.length)
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                        }
+                        Image { anchors.fill: parent; source: sheet.detail.coverRef || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                    }
+                    Column {
+                        width: parent.width - (panel.width < 600 ? 90 : 120) - 22; spacing: 12
+                        topPadding: 12
                         Text {
                             objectName: "vaultBrowseSheetIdentityLabel"
-                            text: (sheet.detail && sheet.detail.identityLabel) ? sheet.detail.identityLabel : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                            width: parent.width; text: sheet.detail.identityLabel || ""
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: 11; wrapMode: Text.WordWrap
                         }
                         Text {
-                            // Phase-4 G1 ruling (2026-08-25): the adopted identity's rating,
-                            // provenance-badged inline ("IMDb 8.1"). The engine OMITS the key
-                            // while the identity carries no rating, so no "0"/"0.0" renders.
-                            objectName: "vaultBrowseSheetRating"
-                            visible: !!(sheet.detail && sheet.detail.ratingText)
-                            text: (sheet.detail && sheet.detail.ratingText) ? sheet.detail.ratingText : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                        }
-                    }
-                    // Phase-4 G1 — the genre list, one dim line under the meta row (identity
-                    // facts; never a synopsis — the G1 ruling, like decision #11, bans prose).
-                    Text {
-                        objectName: "vaultBrowseSheetGenres"
-                        width: parent.width
-                        visible: !!(sheet.detail && sheet.detail.genresLine)
-                        text: (sheet.detail && sheet.detail.genresLine) ? sheet.detail.genresLine : ""
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    }
-
-                    // ── Copies you hold ──
-                    Column {
-                        width: parent.width
-                        topPadding: 24
-                        spacing: 10
-                        visible: sheet.copies.length > 0
-                        Text {
-                            text: "COPIES YOU HOLD"
-                            color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
-                        }
-                        Repeater {
-                            model: sheet.copies
-                            delegate: Rectangle {
-                                id: copyDelegate
-                                required property var modelData
-                                required property int index
-                                objectName: "vaultBrowseSheetCopy_" + index
-                                width: parent.width
-                                height: copyCol.implicitHeight + 24
-                                radius: 10
-                                color: Qt.rgba(1, 1, 1, 0.042)
-                                border.width: 1; border.color: theme.edge
-                                opacity: modelData.away ? 0.55 : 1.0
-
-                                readonly property string quality: modelData.quality || ""
-                                readonly property string whereText: modelData.where || ""
-                                readonly property string sizeText: modelData.sizeText || ""
-                                readonly property bool away: !!modelData.away
-
-                                Column {
-                                    id: copyCol
-                                    anchors.left: parent.left; anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.leftMargin: 14; anchors.rightMargin: 14
-                                    spacing: 5
-
-                                    Row {
-                                        id: copyRow
-                                        width: parent.width
-                                        spacing: 14
-                                        Text {
-                                            text: (modelData.quality && modelData.quality.length) ? modelData.quality
-                                                  : modelData.away ? "Drive not connected" : "Quality unknown"
-                                            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
-                                            width: 130; elide: Text.ElideRight
-                                        }
-                                        Text {
-                                            text: modelData.where || ""
-                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                                            width: parent.width - 130 - 90 - 28
-                                            elide: Text.ElideMiddle
-                                        }
-                                        Text {
-                                            text: modelData.sizeText || ""
-                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                                            width: 90; horizontalAlignment: Text.AlignRight
-                                        }
-                                    }
-
-                                    // Honest failure (ux uplift S8): a rejected/errored copy's
-                                    // own recorded reason, quiet and factual — never a bare
-                                    // verdict code. Empty for a healthy copy; the Column drops
-                                    // the invisible line, so nothing shifts.
-                                    Text {
-                                        objectName: "vaultBrowseSheetCopyStatus_" + copyDelegate.index
-                                        width: parent.width
-                                        visible: !!(copyDelegate.modelData.statusDetail
-                                                    && copyDelegate.modelData.statusDetail.length)
-                                        text: visible ? copyDelegate.modelData.statusDetail : ""
-                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
-                                        wrapMode: Text.WordWrap
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── Companions ──
-                    Column {
-                        width: parent.width
-                        topPadding: 22
-                        spacing: 10
-                        visible: sheet.companionsList.length > 0
-                        Text {
-                            text: "COMPANIONS"
-                            color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
+                            width: parent.width; text: sheet.detail.displayTitle || ""
+                            color: theme.ink; font.family: theme.display; font.pixelSize: panel.width < 600 ? 25 : 33
+                            font.weight: Font.DemiBold; wrapMode: Text.WordWrap
                         }
                         Flow {
-                            width: parent.width
-                            spacing: 8
-                            Repeater {
-                                model: sheet.companionsList
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    width: chipText.implicitWidth + 22; height: 30; radius: 8
-                                    color: Qt.rgba(1, 1, 1, 0.042)
-                                    border.width: 1; border.color: theme.edge
-                                    Text {
-                                        id: chipText
-                                        anchors.centerIn: parent
-                                        text: modelData
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
-                                    }
-                                }
-                            }
+                            width: parent.width; spacing: 12
+                            Text { text: sheet.detail.year > 0 ? String(sheet.detail.year) : ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                            Text { objectName: "vaultBrowseSheetRuntime"; text: sheet.detail.runtimeText || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                            Text { objectName: "vaultBrowseSheetCopiesHeld"; text: sheet.copiesHeldLabel(sheet.copies.length); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                            Text { objectName: "vaultBrowseSheetRating"; text: sheet.detail.ratingText || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
                         }
+                        Text { objectName: "vaultBrowseSheetGenres"; width: parent.width; text: sheet.detail.genresLine || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap }
                     }
-
-                    // ── Extras (folded out of the grid, listed here, playable) ──
-                    Column {
-                        width: parent.width
-                        topPadding: 22
-                        spacing: 8
-                        visible: sheet.extrasList.length > 0
-                        Text {
-                            text: "EXTRAS"
-                            color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
-                        }
-                        Repeater {
-                            model: sheet.extrasList
-                            delegate: Row {
-                                required property var modelData
-                                spacing: 8
+                }
+                Flow {
+                    width: parent.width; spacing: 10
+                    VaultAction {
+                        id: playKey; objectName: "vaultBrowseSheetPlay"
+                        text: sheet.mediaKind === "book" || sheet.mediaKind === "comic" ? "Read" : "▶  Play"
+                        primary: true; enabled: !!sheet.playPath
+                        previousFocus: closeAction.keyboardAction
+                        onTriggered: sheet.playRequested(sheet.playPath)
+                    }
+                    VaultAction {
+                        objectName: "vaultBrowseSheetReveal"; text: "Reveal in Explorer"
+                        visible: !!sheet.playPath; onTriggered: sheet.revealRequested(sheet.playPath)
+                    }
+                    VaultAction {
+                        objectName: "vaultBrowseSheetMarkWatched"; text: "Mark watched"
+                        visible: sheet.rowVaultId.length > 0 && !sheet.rowIsWatched
+                        onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, true)
+                    }
+                    VaultAction {
+                        objectName: "vaultBrowseSheetMarkUnwatched"; text: "Mark unwatched"
+                        visible: sheet.rowVaultId.length > 0 && sheet.rowIsWatched
+                        onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, false)
+                    }
+                }
+                Rectangle { width: parent.width; height: 1; color: theme.edge }
+                Column {
+                    width: parent.width; spacing: 10; visible: sheet.copies.length > 0
+                    Text { text: "Copies you hold"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Repeater {
+                        model: sheet.copies
+                        delegate: Rectangle {
+                            id: copyDelegate
+                            required property var modelData
+                            required property int index
+                            objectName: "vaultBrowseSheetCopy_" + index
+                            readonly property string quality: modelData.quality || ""
+                            readonly property string whereText: modelData.where || ""
+                            readonly property string sizeText: modelData.sizeText || ""
+                            readonly property bool away: !!modelData.away
+                            width: parent.width; height: copyInfo.implicitHeight + 28; radius: 6
+                            color: theme.glassTint; border.width: 1; border.color: theme.edge
+                            Column {
+                                id: copyInfo
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter; anchors.margins: 14
+                                spacing: 7
+                                Flow {
+                                    width: parent.width; spacing: 16
+                                    Text { text: copyDelegate.quality || "Quality unknown"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+                                    Text { text: copyDelegate.sizeText; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                                    Text { text: copyDelegate.away ? "Drive not connected" : "Available"; color: copyDelegate.away ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                                }
+                                Text { width: parent.width; text: copyDelegate.modelData.path || copyDelegate.whereText; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
                                 Text {
-                                    text: modelData.title || ""
-                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                                }
-                                MouseArea {
-                                    width: 60; height: playLabel.implicitHeight
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (modelData.path) sheet.playRequested(modelData.path)
-                                    Text {
-                                        id: playLabel
-                                        text: "Play"
-                                        color: theme.gold; font.family: theme.ui; font.pixelSize: 12
-                                    }
-                                    KeyboardAction {
-                                        anchors.fill: parent
-                                        pointerEnabled: false
-                                        enabled: !!modelData.path
-                                        accessibleName: "Play " + (modelData.title || "Vault extra")
-                                        onTriggered: if (modelData.path) sheet.playRequested(modelData.path)
-                                    }
+                                    objectName: "vaultBrowseSheetCopyStatus_" + copyDelegate.index
+                                    width: parent.width; text: copyDelegate.modelData.statusDetail || ""
+                                    visible: text.length > 0; wrapMode: Text.WordWrap
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 12
                                 }
                             }
                         }
                     }
-
-                    // ── Why Vault believes this ──
-                    Column {
-                        width: parent.width
-                        topPadding: 22
-                        spacing: 8
-                        visible: !!(sheet.detail && sheet.detail.evidence)
-                        Text {
-                            text: "WHY VAULT BELIEVES THIS"
-                            color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
-                        }
-                        Text {
-                            objectName: "vaultBrowseSheetEvidence"
-                            width: parent.width
-                            text: (sheet.detail && sheet.detail.evidence) ? sheet.detail.evidence : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                            lineHeight: 1.5; wrapMode: Text.WordWrap
-                        }
+                }
+                Column {
+                    width: parent.width; spacing: 10; visible: sheet.companionsList.length > 0
+                    Text { text: "Companions"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Repeater {
+                        model: sheet.companionsList
+                        Text { required property var modelData; width: parent.width; text: modelData; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
                     }
-
-                    // ── actions: Play (primary) + the reachable capabilities the design requires ──
-                    Row {
-                        topPadding: 22
-                        spacing: 18
-
-                        Rectangle {
-                            objectName: "vaultBrowseSheetPlay"
-                            width: playRowLabel.implicitWidth + 42; height: 42; radius: 10
-                            color: playMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.92) : theme.gold
-                            Row {
-                                id: playRowLabel
-                                anchors.centerIn: parent
-                                spacing: 9
-                                Text { text: "▶"; color: "#17120a"; font.pixelSize: 13 }
-                                Text { text: "Play"; color: "#17120a"; font.family: theme.ui
-                                       font.pixelSize: 14; font.weight: Font.DemiBold }
-                            }
-                            MouseArea {
-                                id: playMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                enabled: !!(sheet.detail && sheet.detail.playPath)
-                                onClicked: sheet.playRequested(sheet.detail.playPath)
-                            }
-                            KeyboardAction {
-                                id: playKey
-                                anchors.fill: parent
-                                pointerEnabled: false
-                                enabled: !!(sheet.detail && sheet.detail.playPath)
-                                accessibleName: "Play Vault media"
-                                KeyNavigation.backtab: markUnwatchedKey.enabled ? markUnwatchedKey
-                                    : markWatchedKey.enabled ? markWatchedKey : hideKey
-                                onTriggered: sheet.playRequested(sheet.detail.playPath)
-                            }
-                        }
-
-
-                        Text {
-                            objectName: "vaultBrowseSheetReveal"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Reveal in Explorer"
-                            visible: !!(sheet.detail && sheet.detail.playPath)
-                            color: revealMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: revealMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.revealRequested(sheet.detail.playPath) }
-                            KeyboardAction { id: revealKey; anchors.fill: parent; pointerEnabled: false
-                                enabled: parent.visible; accessibleName: "Reveal Vault media in Explorer"
-                                onTriggered: sheet.revealRequested(sheet.detail.playPath) }
-                        }
-
-                        Text {
-                            objectName: "vaultBrowseSheetIdentify"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Identify…"
-                            visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"
-                            color: identifyMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: identifyMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.identifyRequested(sheet.detail.key || "") }
-                            KeyboardAction { id: identifyKey; anchors.fill: parent; pointerEnabled: false
-                                enabled: parent.visible; accessibleName: "Identify Vault media"
-                                onTriggered: sheet.identifyRequested(sheet.detail.key || "") }
-                        }
-
-                        Text {
-                            // "Identify again" (ux uplift S8) — the one-shot conservative retry
-                            // beside the manual picker: VaultLibrary::identifyGroup() re-runs the
-                            // certainty gate for this one group (auto-adopt on a single match,
-                            // durably record ambiguity and stay honest on several). The handler
-                            // is VaultPage.qml's, not this sheet's — see the signal's own comment.
-                            objectName: "vaultBrowseSheetIdentifyAgain"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Identify again"
-                            visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"
-                            color: identifyAgainMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: identifyAgainMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.identifyAgainRequested(sheet.detail.key || "") }
-                            KeyboardAction { id: identifyAgainKey; anchors.fill: parent; pointerEnabled: false
-                                enabled: parent.visible; accessibleName: "Identify Vault media again"
-                                onTriggered: sheet.identifyAgainRequested(sheet.detail.key || "") }
-                        }
-
-                        Text {
-                            objectName: "vaultBrowseSheetUnidentify"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Un-identify"
-                            visible: sheet.identityStateOfRow === "identified"
-                            color: unidentifyMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: unidentifyMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.unidentifyRequested(sheet.detail.key || "") }
-                            KeyboardAction { id: unidentifyKey; anchors.fill: parent; pointerEnabled: false
-                                enabled: parent.visible; accessibleName: "Un-identify Vault media"
-                                onTriggered: sheet.unidentifyRequested(sheet.detail.key || "") }
-                        }
-
-                        Text {
-                            objectName: "vaultBrowseSheetHide"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Hide"
-                            color: hideMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: hideMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.hideRequested(sheet.detail.key || "") }
-                            KeyboardAction { id: hideKey; anchors.fill: parent; pointerEnabled: false
-                                accessibleName: "Hide Vault media"
-                                KeyNavigation.tab: markUnwatchedKey.enabled ? markUnwatchedKey
-                                    : markWatchedKey.enabled ? markWatchedKey : playKey
-                                onTriggered: sheet.hideRequested(sheet.detail.key || "") }
-                        }
+                }
+                Column {
+                    width: parent.width; spacing: 10; visible: sheet.extrasList.length > 0
+                    Text { text: "Extras"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Repeater {
+                        model: sheet.extrasList
+                        VaultAction { required property var modelData; width: Math.min(parent.width, implicitWidth); text: "▶  " + (modelData.title || "Play extra"); enabled: !!modelData.path; onTriggered: sheet.playRequested(modelData.path) }
                     }
-
-                    // S7 — the watched verbs, in their own row: the actions row above already
-                    // carries six affordances at the panel's width budget, and the verbs are the
-                    // pair that must collapse to NOTHING (not an empty slot) for a non-vault row.
-                    // S7's own spacing matches the actions row's so the verbs read as one family.
-                    Row {
-                        topPadding: 10
-                        spacing: 18
-                        Text {
-                            objectName: "vaultBrowseSheetMarkWatched"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Mark watched"
-                            visible: sheet.rowVaultId.length > 0 && !sheet.rowIsWatched
-                            color: markWatchedMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: markWatchedMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.markWatchedRequested(sheet.rowVaultId, true) }
-                            KeyboardAction { id: markWatchedKey; anchors.fill: parent; pointerEnabled: false
-                                enabled: parent.visible; accessibleName: "Mark Vault media watched"
-                                KeyNavigation.tab: playKey
-                                onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, true) }
-                        }
-                        Text {
-                            objectName: "vaultBrowseSheetMarkUnwatched"
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Mark unwatched"
-                            visible: sheet.rowVaultId.length > 0 && sheet.rowIsWatched
-                            color: markUnwatchedMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            MouseArea { id: markUnwatchedMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: sheet.markWatchedRequested(sheet.rowVaultId, false) }
-                            KeyboardAction { id: markUnwatchedKey; anchors.fill: parent; pointerEnabled: false
-                                enabled: parent.visible; accessibleName: "Mark Vault media unwatched"
-                                KeyNavigation.tab: playKey
-                                onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, false) }
-                        }
+                }
+                Rectangle { width: parent.width; height: 1; color: theme.edge; visible: sheet.evidenceText.length > 0 }
+                Column {
+                    width: parent.width; spacing: 10; visible: sheet.evidenceText.length > 0
+                    Text { text: "Why Vault believes this"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { objectName: "vaultBrowseSheetEvidence"; width: parent.width; text: sheet.evidenceText; wrapMode: Text.WordWrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; lineHeight: 1.5 }
+                }
+                Flow {
+                    width: parent.width; spacing: 10
+                    VaultAction {
+                        objectName: "vaultBrowseSheetIdentify"; text: "Identify…"
+                        visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"
+                        onTriggered: sheet.identifyRequested(sheet.detail.key || "")
                     }
+                    VaultAction { objectName: "vaultBrowseSheetIdentifyAgain"; text: "Identify again"; quiet: true; visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"; onTriggered: sheet.identifyAgainRequested(sheet.detail.key || "") }
+                    VaultAction {
+                        objectName: "vaultBrowseSheetUnidentify"; text: "Un-identify"; quiet: true
+                        visible: sheet.identityStateOfRow === "identified"
+                        onTriggered: sheet.unidentifyRequested(sheet.detail.key || "")
+                    }
+                    VaultAction { id: hideKey; objectName: "vaultBrowseSheetHide"; text: "Hide"; quiet: true; nextFocus: closeAction.keyboardAction; onTriggered: sheet.hideRequested(sheet.detail.key || "") }
                 }
             }
         }
-    }
-
-    BackAction {
-        objectName: "vaultBrowseSheetBack"
-        variant: "capsule"; tip: "Back"
-        anchors.top: parent.top; anchors.left: parent.left
-        anchors.topMargin: 21; anchors.leftMargin: theme.margin - 10
-        onTriggered: sheet.backRequested()
+        VaultAction {
+            id: closeAction
+            objectName: "vaultBrowseSheetClose"
+            anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
+            width: 32; height: 32; text: "×"; accessibleName: "Close Vault details"; quiet: true
+            nextFocus: playKey.enabled ? playKey.keyboardAction : hideKey.keyboardAction
+            previousFocus: hideKey.keyboardAction
+            onTriggered: sheet.backRequested()
+        }
     }
 }

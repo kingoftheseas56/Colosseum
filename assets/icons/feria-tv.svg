@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Feria: the web TV OS. A TV whose antenna flies the fair pennant. -->
+  <rect x="3" y="8.5" width="18" height="11.5" rx="2.6"/>
+  <path d="M12 8.5V2.8"/>
+  <path d="M12 2.8l5 1.7-5 1.7" fill="#ffffff" stroke-width="1.2"/>
+  <path d="M8 22.2h8"/>
+</svg>

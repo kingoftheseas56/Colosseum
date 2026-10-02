@@ -40,11 +40,11 @@ Popup {
 
     background: Rectangle {
         radius: 16
-        color: Qt.rgba(0.055, 0.065, 0.09, 0.99)
+        color: theme.panel
         border.width: 1
         border.color: theme.edge
     }
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     contentItem: Column {
         anchors.fill: parent

@@ -135,6 +135,8 @@
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
 // compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
 #include "ScrollProbe.h"     // diagnostic wheel-input probe (env-gated; see header)
+#include "feria/PorticoComposition.h"
+#include "feria/FeriaBrowserPolicy.h"
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -1969,6 +1971,11 @@ int main(int argc, char *argv[]) {
     // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback
     // stalls without adding work to every event delivery.
     app.setStallContext(QStringLiteral("startup"), QStringLiteral("qml-load"));
+    PorticoComposition feriaDiscovery;
+    feriaDiscovery.exposeTo(engine.rootContext());
+    auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
+    FeriaBrowserPolicy::registerTypes();
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;

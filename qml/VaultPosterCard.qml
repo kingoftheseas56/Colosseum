@@ -1,15 +1,5 @@
-// VaultPosterCard — the 2:3 poster face for folder/show/season/film rows (Vault Browse face,
-// execution plan Slice 4). Consumes ONE browseAt() row and paints the locked design's card
-// language (design §6.3) exactly: artwork edge to edge with nothing printed over it; a centered
-// one-line title below with elision; a dimmer physical-fact line beneath, in the slot Jellyfin
-// uses for the year; near-square corners (~5px); circular corner indicators, never rectangular
-// badges; hover dims the art and reveals a play affordance; gold reserved for the uncertainty
-// mark only; away reads as reduced ink + desaturation with no hover and no open signal;
-// resolving shows the filename on plain ground and crossfades to the settled face in place.
-//
-// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,
-// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the
-// Lanista/Quick-Test vocabulary Slices 5-9 read.
+// Vault poster/list card. Live browse and progress facts control artwork, status,
+// identification, availability, and activation; no metadata is fabricated.
 import QtQuick
 import QtQuick.Effects
 
@@ -17,6 +7,7 @@ Item {
     id: card
     required property var row              // {key,nodeType,displayTitle,physicalFact,path,
                                              //  counts:{items},coverRef,state,away}
+    property bool compact: false
     property int cardWidth: 150
 
     // ---- the Lanista/Quick-Test vocabulary ---------------------------------------------------
@@ -82,21 +73,21 @@ Item {
 
     objectName: "vaultBrowseCard_" + card.nodeKey
     width: cardWidth
-    height: artBox.height + textBlock.height + 9
+    height: compact ? 82 : artBox.height + textBlock.height + 9
     opacity: card.away ? 0.62 : 1.0
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     Rectangle {
         id: artBox
         objectName: "vaultBrowseCard_" + card.nodeKey + "_art"
-        width: parent.width
+        width: card.compact ? 52 : parent.width
         height: Math.round(width * 3 / 2)   // 2:3 poster
         radius: 5                            // near-square corners, not the app's larger panels
         clip: true
-        color: Qt.rgba(1, 1, 1, 0.035)
-        border.width: card.showIndicator && card.indicatorKind === "uncertain" ? 1 : 0
-        border.color: Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.45)
+        color: "#292d34"
+        border.width: 1
+        border.color: cardMa.containsMouse ? theme.gold : theme.edge
 
         // ── FILENAME LAYER (resolving): the raw name on plain ground, nothing else printed. ──
         Text {
@@ -225,20 +216,23 @@ Item {
         // ── circular corner indicator: away glyph, uncertainty mark, or a plain item count. ──
         Rectangle {
             id: indicator
-            visible: card.showIndicator
+            visible: card.showIndicator && !card.compact
             anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 7
-            width: 22; height: 22; radius: 11
+            width: indicatorText.implicitWidth + (card.indicatorKind === "watched" ? 28 : 12); height: 22; radius: 4
             color: Qt.rgba(0, 0, 0, 0.62)
             border.width: 1
             border.color: card.indicatorKind === "uncertain"
                 ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.5) : theme.edge
 
             Text {
-                visible: card.indicatorKind === "uncertain" || card.indicatorKind === "count"
+                id: indicatorText
                 anchors.centerIn: parent
-                text: card.indicatorKind === "uncertain" ? "?" : String(card.itemCount)
-                color: card.indicatorKind === "uncertain" ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                anchors.horizontalCenterOffset: card.indicatorKind === "watched" ? 7 : 0
+                text: card.indicatorKind === "uncertain" ? "Identify"
+                    : card.indicatorKind === "away" ? "Away"
+                    : card.indicatorKind === "watched" ? "Watched" : String(card.itemCount)
+                color: card.indicatorKind === "uncertain" ? theme.gold : theme.ink
+                font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
             }
             // Vault ux uplift S6 — the watched tick (S3's durable mark): a plain check in the
             // house ink, never gold (gold stays the uncertainty mark's alone).
@@ -247,12 +241,13 @@ Item {
                 visible: card.indicatorKind === "watched"
                 anchors.centerIn: parent
                 text: "✓"
+                anchors.horizontalCenterOffset: -indicatorText.implicitWidth / 2 - 3
                 color: theme.inkDim
                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
             }
             // away glyph: a slashed circle — no icon asset invented for this, two primitives.
             Item {
-                visible: card.indicatorKind === "away"
+                visible: false // Availability is stated by the badge text.
                 anchors.centerIn: parent
                 width: 12; height: 12
                 Rectangle {
@@ -284,28 +279,31 @@ Item {
 
     Column {
         id: textBlock
-        anchors.top: artBox.bottom
-        anchors.topMargin: 9
-        width: parent.width
+        anchors.top: card.compact ? parent.top : artBox.bottom
+        anchors.topMargin: card.compact ? 12 : 10
+        anchors.left: card.compact ? artBox.right : parent.left
+        anchors.leftMargin: card.compact ? 16 : 0
+        width: card.compact ? parent.width - artBox.width - 24 : parent.width
         spacing: 3
 
         Text {
             id: titleText
             objectName: "vaultBrowseCard_" + card.nodeKey + "_title"
             width: parent.width
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: Text.AlignLeft
             elide: Text.ElideRight
             maximumLineCount: 1
             text: card.faceState === "filename" ? qsTr("Resolving…") : card.displayTitle
             color: card.faceState === "filename" ? theme.inkDimmer : theme.ink
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
         }
         Text {
             id: factText
             objectName: "vaultBrowseCard_" + card.nodeKey + "_fact"
             width: parent.width
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: Text.AlignLeft
             elide: Text.ElideRight
             maximumLineCount: 1
             // Column excludes invisible children from layout on its own; no manual height
@@ -313,10 +311,18 @@ Item {
             // created a self-referential binding loop QML warned about — the fix is to trust
             // the positioner instead of fighting it).
             visible: card.faceState === "settled" && card.physicalFact.length > 0
-            text: card.physicalFact
+            text: card.physicalFact + (card.compact ? (card.away ? " · Drive disconnected"
+                : card.state === "uncertain" ? " · Identify needed" : card.watched ? " · Watched" : "") : "")
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 13
+            font.pixelSize: 11
         }
+    }
+    MouseArea {
+        visible: card.compact
+        anchors.left: artBox.right; anchors.right: parent.right
+        anchors.top: parent.top; anchors.bottom: parent.bottom
+        enabled: !card.away; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        onClicked: card.openRequested(card.row)
     }
 }

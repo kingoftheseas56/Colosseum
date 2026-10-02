@@ -1,9 +1,5 @@
-// VaultPage — "On this machine": the local-media Vault as a host-owned full page, entered from
-// the taskbar folder door. Slice 10 lands the permanent door + this page's EMPTY state (nothing
-// indexed yet): eyebrow, title, and a dashed Add-folder drop surface. It paints from the
-// VaultLibrary read-model (itemCount/scanning); the shelves that fill a populated Vault, and the
-// folder-scan ingest behind Add folder, land in Slice 11. Same chrome vocabulary as
-// Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages.
+// Vault — local storage, continue shelves, and a virtualized media library.
+// Backend ownership, navigation, identity, and launch signals stay in their existing services.
 import QtQuick
 import QtQuick.Controls
 import QtCore
@@ -25,7 +21,7 @@ Item {
     signal openMediaRequested(string path)
     signal viewWorldRequested(var identity)
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     // ---- read-model: the Vault's published truth (revision-driven refresh) ----
     // Touch revision so every shelf/count re-reads on a committed publish; itemCount/scanning drive
@@ -75,7 +71,8 @@ Item {
         id: browseSettings
         category: "vaultBrowseV1"
         property string lastCrumbJson: "[]"
-        property bool railExpanded: false
+        property bool railExpanded: true
+        property bool listPresentation: false
         // Vault ux uplift S12 — per-level sort choices ({levelKey: mode}; natural levels
         // store nothing — it is the default).
         property string sortPerLevel: "{}"
@@ -88,14 +85,19 @@ Item {
     // a view state that replaces the grid's population while the crumb trail beneath stays
     // intact, so leaving returns exactly where the user was). Escape leaves it FIRST (the
     // Main.qml Escape chain's own precedence), Enter opens the first hit.
+    property bool recentShelfExpanded: false
+    property bool narrowRailExpanded: false
     property bool searchViewActive: false
+    onSearchViewActiveChanged: {
+        if (!searchViewActive && typeof searchInput !== "undefined") searchInput.text = ""
+    }
     property string searchQuery: ""
     function openSearch() {
         root.rememberCurrentScroll()
         root.hiddenViewActive = false
         root.searchViewActive = true
         root.searchQuery = ""
-        browseSearchField.text = ""
+        searchInput.text = ""
         Qt.callLater(function() { searchInput.forceActiveFocus(Qt.ShortcutFocusReason) })
     }
     function leaveSearchView() {
@@ -103,6 +105,7 @@ Item {
         root.rememberCurrentScroll()
         root.searchViewActive = false
         root.searchQuery = ""
+        searchInput.text = ""
         Qt.callLater(function() { if (grid.visible) grid.forceActiveFocus(Qt.BacktabFocusReason) })
     }
     property var contextRow: null            // the row a card's right-click context menu targets
@@ -355,9 +358,9 @@ Item {
     property real sortMenuY: 0
     function toggleSortMenu(fromKeyboard) {
         if (root.sortMenuOpen) { root.sortMenuOpen = false; return }
-        const p = browseSortControl.mapToItem(root, 0, browseSortControl.height)
+        const p = grid.headerItem.sortControl.mapToItem(root, 0, grid.headerItem.sortControl.height)
         root.sortMenuX = Math.max(10, Math.min(p.x, root.width - 220))
-        root.sortMenuY = p.y + 6
+        root.sortMenuY = Math.max(8, Math.min(p.y + 6, root.height - 210))
         root.sortMenuKeyboardOpened = !!fromKeyboard
         root.sortMenuOpen = true
         if (root.sortMenuKeyboardOpened) Qt.callLater(function() {
@@ -367,7 +370,7 @@ Item {
     }
     onSortMenuOpenChanged: if (!sortMenuOpen && sortMenuKeyboardOpened) {
         sortMenuKeyboardOpened = false
-        Qt.callLater(function() { sortControlKey.forceActiveFocus(Qt.TabFocusReason) })
+        Qt.callLater(function() { grid.headerItem.sortControl.keyboardAction.forceActiveFocus(Qt.TabFocusReason) })
     }
     // S13 — the filter panel's open state + position (the sort menu's own pattern).
     property bool filterMenuOpen: false
@@ -376,16 +379,16 @@ Item {
     property real filterMenuY: 0
     function toggleFilterMenu(fromKeyboard) {
         if (root.filterMenuOpen) { root.filterMenuOpen = false; return }
-        const p = browseFilterControl.mapToItem(root, 0, browseFilterControl.height)
+        const p = grid.headerItem.filterControl.mapToItem(root, 0, grid.headerItem.filterControl.height)
         root.filterMenuX = Math.max(10, Math.min(p.x - 120, root.width - 260))
-        root.filterMenuY = p.y + 6
+        root.filterMenuY = Math.max(8, Math.min(p.y + 6, root.height - 410))
         root.filterMenuKeyboardOpened = !!fromKeyboard
         root.filterMenuOpen = true
         if (root.filterMenuKeyboardOpened) Qt.callLater(function() { filterKindVideoChip.keyboardAction.forceActiveFocus(Qt.TabFocusReason) })
     }
     onFilterMenuOpenChanged: if (!filterMenuOpen && filterMenuKeyboardOpened) {
         filterMenuKeyboardOpened = false
-        Qt.callLater(function() { filterControlKey.forceActiveFocus(Qt.TabFocusReason) })
+        Qt.callLater(function() { grid.headerItem.filterControl.keyboardAction.forceActiveFocus(Qt.TabFocusReason) })
     }
     // One chip row per predicate axis: label + mutually exclusive options ("" = the axis is
     // off). Clicking the active option turns the axis off again (a chip toggle, not a lock).
@@ -540,8 +543,12 @@ Item {
     // touching it here would yank a live in-progress scroll back to the remembered position on
     // every unrelated background repaint, e.g. a resolve tick landing while the user scrolls).
     property string gridSyncedLevelKey: "//__unsynced__//"
+    readonly property var browseFolderRows: !root.hiddenViewActive && !root.searchViewActive
+        ? root.browseGridRows.filter(function(row) { return row.nodeType === "folder" }) : []
     function syncGridModel(rows) {
         rows = rows || []
+        if (!root.hiddenViewActive && !root.searchViewActive)
+            rows = rows.filter(function(row) { return row.nodeType !== "folder" })
         const levelKey = root.searchViewActive ? "search:"
             : root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
         const levelChanged = levelKey !== root.gridSyncedLevelKey
@@ -600,10 +607,10 @@ Item {
     }
     readonly property bool browseGridWide: root.browseGridRows.length > 0
         && (root.browseGridRows[0].nodeType === "episode" || root.browseGridRows[0].nodeType === "clip")
-    readonly property int posterCellWidth: 170
-    readonly property int posterCellHeight: 300
-    readonly property int wideCellWidth: 320
-    readonly property int wideCellHeight: 250
+    readonly property int posterCellWidth: Math.floor(grid.width / Math.max(1, Math.floor(grid.width / 180)))
+    readonly property int posterCellHeight: Math.round((posterCellWidth - 20) * 1.5) + 64
+    readonly property int wideCellWidth: Math.floor(grid.width / Math.max(1, Math.floor(grid.width / 310)))
+    readonly property int wideCellHeight: Math.round((wideCellWidth - 20) * 9 / 16) + 64
 
     function browseSettings_setLastCrumb() {
         browseSettings.lastCrumbJson = JSON.stringify(root.crumbStack)
@@ -611,12 +618,15 @@ Item {
     function rememberCurrentScroll() {
         const key = root.searchViewActive ? "search:"
             : root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
-        if (key && typeof grid !== "undefined" && grid) VaultBrowseState.rememberScroll(key, grid.contentY)
+        if (key && typeof grid !== "undefined" && grid) VaultBrowseState.rememberScroll(key, Math.max(0, grid.contentY - grid.originY))
     }
     function restoreGridScroll() {
         const key = root.searchViewActive ? "search:"
             : root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
-        if (typeof grid !== "undefined" && grid) grid.contentY = VaultBrowseState.scrollFor(key)
+        if (typeof grid !== "undefined" && grid) {
+            grid.positionViewAtBeginning()
+            grid.contentY += VaultBrowseState.scrollFor(key)
+        }
     }
     function selectRoot(path, name) {
         root.rememberCurrentScroll()
@@ -836,73 +846,80 @@ Item {
     // Shape from VaultApi.continueRail: { id, kind, path, title, cover, progressFraction }.
     Component {
         id: vaultContinueTileComp
-        Column {
+        Rectangle {
+            id: continueTile
             required property var modelData
-            spacing: 8
+            width: Math.max(220, Math.min(360, (ListView.view.width - 32) / 3))
+            height: 204
+            radius: 7
+            color: theme.panel
+            border.width: 1
+            border.color: continueAction.interactionActive ? theme.gold : theme.edge
+            clip: true
             Rectangle {
-                width: 150; height: 208; radius: 12; clip: true
-                border.width: 1; border.color: theme.edge
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(0.16, 0.14, 0.20, 1) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.060, 0.090, 1) }
-                }
+                id: continueArt
+                anchors.top: parent.top; width: parent.width; height: 145
+                color: "#292d34"
                 Image {
+                    id: continueImage
                     anchors.fill: parent
-                    visible: !!modelData.cover
-                    source: modelData.cover || ""
+                    source: continueTile.modelData.cover || ""
                     fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
                 }
                 Image {
-                    anchors.centerIn: parent; width: 34; height: 34; opacity: 0.4
-                    visible: !modelData.cover
-                    source: modelData.kind === "book" ? "../assets/icons/book-library.svg"
-                          : modelData.kind === "video" ? "../assets/icons/projector-theatre.svg"
-                          : "../assets/icons/comic-book.svg"
-                    fillMode: Image.PreserveAspectFit
+                    anchors.centerIn: parent; width: 34; height: 34; opacity: 0.45
+                    visible: continueImage.status !== Image.Ready
+                    source: continueTile.modelData.kind === "book" ? "../assets/icons/book-library.svg"
+                        : continueTile.modelData.kind === "video" ? "../assets/icons/projector-theatre.svg"
+                        : "../assets/icons/comic-book.svg"
                 }
-                Rectangle {   // kind badge, top-left
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 8
-                    radius: 99; height: 20; width: contBadgeT.implicitWidth + 16
-                    color: Qt.rgba(0, 0, 0, 0.62); border.width: 1; border.color: theme.edge
-                    Text {
-                        id: contBadgeT; anchors.centerIn: parent
-                        text: modelData.kind === "comic" ? "COMIC" : modelData.kind === "book" ? "BOOK" : "VIDEO"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
-                    }
-                }
-                Rectangle {   // scrim behind the title
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 76
+                Rectangle {
+                    anchors.fill: parent
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.82) }
+                        GradientStop { position: 0; color: "transparent" }
+                        GradientStop { position: 1; color: "#99000000" }
                     }
+                }
+                Rectangle {
+                    anchors.left: parent.left; anchors.bottom: parent.bottom
+                    anchors.margins: 14
+                    width: 32; height: 32; radius: 16
+                    color: "#66000000"; border.width: 1; border.color: "#99ffffff"
+                    Text { anchors.centerIn: parent; text: "▶"; color: theme.ink; font.pixelSize: 12 }
                 }
                 Text {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    anchors.leftMargin: 9; anchors.rightMargin: 9; anchors.bottomMargin: 12
-                    text: modelData.title || ""
-                    color: "#f2f2f0"; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                    elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
-                    style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.9)
+                    anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 16
+                    text: Math.round((continueTile.modelData.progressFraction || 0) * 100) + "% complete"
+                    visible: (continueTile.modelData.progressFraction || 0) > 0
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 11
                 }
-                Rectangle {   // gold resume hairline — the real read/watch position
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 3; color: Qt.rgba(1, 1, 1, 0.14)
+                Rectangle {
+                    anchors.bottom: parent.bottom; width: parent.width; height: 3; color: "#40ffffff"
                     Rectangle {
-                        anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-                        width: parent.width * Math.max(0, Math.min(1, modelData.progressFraction || 0))
+                        height: parent.height
+                        width: parent.width * Math.max(0, Math.min(1, continueTile.modelData.progressFraction || 0))
                         color: theme.gold
                     }
                 }
-                MouseArea {
-                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: if (modelData.path) root.openMediaRequested(modelData.path)
+            }
+            Column {
+                anchors.top: continueArt.bottom; anchors.topMargin: 10
+                anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 14
+                spacing: 4
+                Text {
+                    width: parent.width; text: continueTile.modelData.title || ""
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                    font.weight: Font.DemiBold; elide: Text.ElideRight
+                }
+                Text {
+                    text: continueTile.modelData.kind === "video" ? "Continue watching" : "Continue reading"
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
                 }
             }
-            Text {
-                text: modelData.kind === "comic" ? "Comic" : modelData.kind === "book" ? "Book" : "Video"
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
+            KeyboardAction {
+                id: continueAction; anchors.fill: parent
+                accessibleName: "Continue " + (continueTile.modelData.title || "")
+                onTriggered: if (continueTile.modelData.path) root.openMediaRequested(continueTile.modelData.path)
             }
         }
     }
@@ -924,23 +941,7 @@ Item {
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
-    Rectangle { anchors.fill: parent; color: "#000000" }
-
-    // ---- live shell wallpaper (the same backdrop sampling the other full pages use) ----
-    Item {
-        anchors.fill: parent
-        ShaderEffectSource {
-            anchors.fill: parent
-            sourceItem: root.backdrop
-            live: true
-            hideSource: false
-            visible: root.backdrop !== null
-        }
-        Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/captured-motion.jpg"
-                fillMode: Image.PreserveAspectCrop; cache: true }
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.03, 0.04, 0.07, 0.86) }
-    }
+    Rectangle { anchors.fill: parent; color: theme.background }
 
     Flickable {
         id: page
@@ -966,7 +967,7 @@ Item {
             id: col
             x: theme.margin
             width: root.width - theme.margin * 2
-            topPadding: 14
+            topPadding: 106
             spacing: 0
 
             // ---- header (no-storage/scanning states only — the browse face leads with the carousel) ----
@@ -1099,139 +1100,28 @@ Item {
         anchors.fill: parent
         focus: root.hasConfirmedStorage
         Keys.onPressed: (event) => {
-            if (event.key === Qt.Key_Backspace) {
-                root.ascendBrowse()
-                event.accepted = true
-                return
-            }
-            // S14: "/" or Ctrl+F opens the in-vault search from anywhere in the browse face
-            // (the grid's own key handling doesn't consume them, so they bubble here; a
-            // focused text field consumes "/" itself, so the shortcut never re-triggers
-            // while typing). Multi-select/bulk actions stay out of scope.
-            if (!root.searchViewActive
-                && ((event.key === Qt.Key_Slash && !(event.modifiers & ~Qt.KeypadModifier))
-                    || ((event.modifiers & Qt.ControlModifier)
-                        && event.key === Qt.Key_F))) {
-                root.openSearch()
-                event.accepted = true
+            if (event.key === Qt.Key_Backspace) { root.ascendBrowse(); event.accepted = true }
+            else if (!root.searchViewActive && (event.key === Qt.Key_Slash
+                || ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_F))) {
+                root.openSearch(); event.accepted = true
             }
         }
-
-        FeaturedCarousel {
-            id: browseCarousel
-            objectName: "vaultBrowseCarousel"
-            anchors.top: parent.top; anchors.topMargin: 20
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-            // S14: the search results view replaces the browse face's level chrome — the
-            // carousel and the Continue rail collapse (the rail's own empty-state pattern:
-            // height follows visible) so the flat results grid owns the viewport.
-            implicitHeight: root.searchViewActive ? 0 : 330
-            visible: !root.searchViewActive
-            // S15 (ux uplift): the carousel is keyboard-reachable — Left/Right move the slide,
-            // Return fires the slide's primary (Play), the ring paints only under keyboard.
-            focus: true
-            activeFocusOnTab: true
-            Keys.onLeftPressed: (event) => { browseCarousel.index = (browseCarousel.index + browseCarousel.slides.length - 1) % Math.max(1, browseCarousel.slides.length); event.accepted = true }
-            Keys.onRightPressed: (event) => { browseCarousel.index = (browseCarousel.index + 1) % Math.max(1, browseCarousel.slides.length); event.accepted = true }
-            Keys.onReturnPressed: (event) => { browseCarousel.primaryClicked(browseCarousel.index); event.accepted = true }
-            Keys.onEnterPressed: (event) => { browseCarousel.primaryClicked(browseCarousel.index); event.accepted = true }
-            Rectangle {
-                anchors.fill: parent
-                radius: 14
-                color: "transparent"
-                border.width: 2
-                border.color: theme.inkDim
-                visible: browseCarousel.activeFocus
-                opacity: 0.5
-            }
-            slides: root.carouselSlides
-            kicker: "Just arrived"
-            primaryLabel: "Play"
-            secondaryLabel: "Details"
-            onPrimaryClicked: (idx) => {
-                const s = root.carouselSlides[idx]
-                if (s && s.__row) root.handleCarouselPrimary(s.__row)
-            }
-            // Slice 7: Details opens the detail sheet for a film slide (design decision #11).
-            // A show/season slide has no sheet in this slice (series drill is Slice 8's
-            // business) — Details stays a no-op for those, named honestly rather than faked.
-            onSecondaryClicked: (idx) => {
-                const s = root.carouselSlides[idx]
-                if (s && s.__row && s.__row.nodeType === "film") root.openDetailSheet(s.__row)
-            }
+        Rectangle {
+            anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+            width: browseRail.width; color: theme.sidebar
+            Rectangle { anchors.right: parent.right; height: parent.height; width: 1; color: theme.edge }
         }
-
-        // ---- Vault ux uplift S6: the Continue rail — the mid-way locals (spec §4.5 places it
-        //      here, between "Just arrived" and the grid). Data from root.continueItems
-        //      (VaultApi.continueRail over the live Progress store: admitted vault videos
-        //      with a resumable path only); tiles are the existing vaultContinueTileComp
-        //      (cover, kind badge, gold resume hairline — written with Slice 14's rail, never
-        //      instantiated until now). Entirely absent while there is nothing to resume —
-        //      the carousel leads an empty Vault. ----
-        Item {
-            id: continueRail
-            objectName: "vaultContinueRail"
-            visible: root.continueItems.length > 0 && !root.searchViewActive
-            anchors.top: browseCarousel.bottom; anchors.topMargin: 18
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-            height: visible ? 270 : 0
-
-            Text {
-                objectName: "vaultContinueRailKicker"
-                anchors.top: parent.top; anchors.left: parent.left
-                text: "CONTINUE"
-                color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
-                font.weight: Font.DemiBold
-            }
-            // PosterRail's own house shape: a clipped horizontal ListView, StopAtBounds,
-            // no scrollbar of its own (drag to move; 18 tiles is the cap VaultApi is fed).
-            ListView {
-                id: continueList
-                objectName: "vaultContinueRailList"
-                anchors.top: parent.top; anchors.topMargin: 28
-                anchors.left: parent.left; anchors.right: parent.right
-                height: 242
-                orientation: ListView.Horizontal
-                spacing: 14
-                clip: true
-                cacheBuffer: width * 0.5
-                boundsBehavior: Flickable.StopAtBounds
-                activeFocusOnTab: visible
-                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
-                Keys.onPressed: (event) => continueKeys.handle(event)
-                model: root.continueItems
-                delegate: vaultContinueTileComp
-                highlight: Rectangle {
-                    color: "transparent"; radius: 12; border.width: 2; border.color: theme.inkDim
-                    visible: continueList.activeFocus
-                }
-                KeyboardCollectionController {
-                    id: continueKeys
-                    view: continueList
-                    orientation: "horizontal"
-                    onActivated: (index) => {
-                        const row = root.continueItems[index]
-                        if (row && row.path) root.openMediaRequested(row.path)
-                    }
-                }
-            }
+        Text {
+            visible: browseRail.expanded
+            x: 76; y: 30; text: "COLOSSEUM"
+            color: theme.ink; font.family: theme.display; font.pixelSize: 12; font.letterSpacing: 1.8
         }
-
-        Item {
-            id: browseBody
-            anchors.top: continueRail.bottom; anchors.topMargin: continueRail.visible ? 20 : 4
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 24
-            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-
             VaultBrowseRail {
                 id: browseRail
                 anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                anchors.topMargin: 92; anchors.bottomMargin: 80
                 roots: root.browseRootsDetail
-                expanded: browseSettings.railExpanded
+                expanded: root.width < 860 ? root.narrowRailExpanded : browseSettings.railExpanded
                 selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
                 hiddenActive: root.hiddenViewActive
                 hiddenCount: root.hiddenSeriesRows.length
@@ -1265,271 +1155,44 @@ Item {
                 }
                 onHiddenRequested: root.openHidden()
                 onAddRequested: root.addFolderRequested()
-                onToggleRequested: browseSettings.railExpanded = !browseSettings.railExpanded
+                onToggleRequested: {
+                    if (root.width < 860) root.narrowRailExpanded = !root.narrowRailExpanded
+                    else browseSettings.railExpanded = !browseSettings.railExpanded
+                }
                 // Slice 9 (design §4.9): Tab from the grid reaches the rail; Shift+Tab returns.
                 // `grid` is declared further down in this same file — QML resolves ids
                 // document-wide, so the forward reference is valid.
                 // S15 (ux uplift): the rail → crumb → grid Tab cycle, alongside Slice 9's grid
                 // → rail. Each focusable surface is part of ONE loop; the crumb's internal
                 // segments Tab-cycle inside it (the crumb's own FocusScope).
-                KeyNavigation.backtab: grid
-                KeyNavigation.tab: browseCrumb
             }
-
-            Item {
-                id: mainArea
-                anchors.left: browseRail.right; anchors.leftMargin: 24
-                anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-
-                VaultBrowseCrumb {
-                    id: browseCrumb
-                    anchors.top: parent.top; anchors.left: parent.left
-                    // S12/S13: the sort + filter controls own the row's right edge now.
-                    anchors.right: browseFilterControl.left; anchors.rightMargin: 14
-                    visible: !root.searchViewActive
-                    stack: root.displayedCrumbStack
-                    onSegmentClicked: (index) => root.goToCrumb(index)
-                    // S15: the crumb is one stop in the rail → crumb → grid cycle.
-                    KeyNavigation.tab: grid
-                    KeyNavigation.backtab: browseRail
-                }
-
-                // ── Vault ux uplift S14 — the search field, replacing the crumb row while the
-                //    search pseudo-level is up (live results; Enter opens the first hit; the
-                //    window-level Escape chain leaves the view — a field-local Escape handler
-                //    would never fire, the S2 Shortcut-precedence lesson). Hand-rolled like the
-                //    rail's needle editor: Rectangle + TextInput, no Quick Controls styling. ──
-                Item {
-                    id: browseSearchField
-                    objectName: "vaultBrowseSearchField"
-                    visible: root.searchViewActive
-                    anchors.top: parent.top; anchors.left: parent.left
-                    anchors.right: browseFilterControl.left; anchors.rightMargin: 14
-                    height: browseCrumb.height
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 9
-                        color: Qt.rgba(1, 1, 1, 0.04)
-                        border.width: 1
-                        border.color: searchInput.activeFocus ? theme.inkDimmer : theme.edge
-                    }
-                    TextInput {
-                        id: searchInput
-                        objectName: "vaultBrowseSearchInput"
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        clip: true
-                        color: theme.ink
-                        selectionColor: theme.gold
-                        selectedTextColor: "#141207"
-                        font.family: theme.ui; font.pixelSize: 13
-                        verticalAlignment: TextInput.AlignVCenter
-                        // live results — the plan's "≤3 keystrokes" law
-                        onTextChanged: root.searchQuery = text
-                        onAccepted: {
-                            if (root.searchRowsJoined.length > 0)
-                                root.handleBrowseCardOpen(root.searchRowsJoined[0])
-                        }
-                    }
-                    Text {
-                        visible: searchInput.length === 0
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        verticalAlignment: Text.AlignVCenter
-                        text: "Search the Vault — titles, identities, filenames"
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13
-                        elide: Text.ElideRight
-                        MouseArea { anchors.fill: parent; onClicked: searchInput.forceActiveFocus() }
-                    }
-                    Text {
-                        objectName: "vaultBrowseSearchCount"
-                        visible: root.searchQuery.length > 0
-                        anchors.right: parent.right; anchors.rightMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.searchRowsJoined.length === 60 ? "60+"
-                              : String(root.searchRowsJoined.length)
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 11
-                    }
-                }
-
-                // ── Vault ux uplift S14 — the search open button (the "/" and Ctrl+F
-                //    shortcuts' mouse twin): a quiet glyph left of the filter control. ──
-                Item {
-                    id: browseSearchOpenBtn
-                    objectName: "vaultBrowseSearchOpen"
-                    visible: !root.hiddenViewActive && !root.searchViewActive
-                    anchors.top: parent.top
-                    anchors.right: browseFilterControl.left; anchors.rightMargin: 16
-                    width: searchOpenGlyph.implicitWidth + 6
-                    height: browseCrumb.height
-                    Text {
-                        id: searchOpenGlyph
-                        anchors.centerIn: parent
-                        text: "⌕"
-                        color: searchOpenMa.containsMouse ? theme.ink : theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
-                    }
-                    MouseArea {
-                        id: searchOpenMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.openSearch()
-                    }
-                    KeyboardAction {
-                        anchors.fill: parent
-                        pointerEnabled: false
-                        accessibleName: "Search the Vault"
-                        onTriggered: root.openSearch()
-                    }
-                }
-
-                // ── Vault ux uplift S13 — the filter control: a quiet pill left of the sort
-                //    control ("⧩ Filter", with a count when predicates are active), opening a
-                //    chip panel. Hidden in the Hidden view (that shelf is never filtered) and
-                //    in search (results carry their own newest-first order). ──
-                Item {
-                    id: browseFilterControl
-                    objectName: "vaultBrowseFilterControl"
-                    visible: !root.hiddenViewActive && !root.searchViewActive
-                    anchors.top: parent.top
-                    anchors.right: browseSortControl.left; anchors.rightMargin: 18
-                    width: filterFaceRow.implicitWidth + 6
-                    height: browseCrumb.height
-
-                    Row {
-                        id: filterFaceRow
-                        anchors.centerIn: parent
-                        spacing: 7
-                        Text {
-                            text: "⧩"
-                            color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 13
-                        }
-                        Text {
-                            objectName: "vaultBrowseFilterLabel"
-                            text: root.activeFilterCount > 0
-                                  ? ("Filter · " + root.activeFilterCount) : "Filter"
-                            color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
-                        }
-                    }
-                    MouseArea {
-                        id: filterFaceMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleFilterMenu(false)
-                    }
-                    KeyboardAction {
-                        id: filterControlKey
-                        anchors.fill: parent
-                        pointerEnabled: false
-                        accessibleName: "Filter Vault items"
-                        onTriggered: root.toggleFilterMenu(true)
-                    }
-                }
-
-                // ── Vault ux uplift S12 — the sort control: a quiet label button right of the
-                //    breadcrumb ("⇅ Newest arrival"), natural order by default. Clicking opens
-                //    the vocabulary menu (hand-rolled like every house popup). Hidden in the
-                //    Hidden view — that shelf keeps its own fixed order — and in search. ──
-                Item {
-                    id: browseSortControl
-                    objectName: "vaultBrowseSortControl"
-                    visible: !root.hiddenViewActive && !root.searchViewActive
-                    anchors.top: parent.top; anchors.right: parent.right
-                    width: sortFaceRow.implicitWidth + 6
-                    height: browseCrumb.height
-
-                    Row {
-                        id: sortFaceRow
-                        anchors.centerIn: parent
-                        spacing: 7
-                        Text {
-                            text: "⇅"
-                            color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 13
-                        }
-                        Text {
-                            objectName: "vaultBrowseSortLabel"
-                            text: root.sortLabelOf(root.sortMode)
-                            color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
-                        }
-                    }
-                    MouseArea {
-                        id: sortFaceMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleSortMenu(false)
-                    }
-                    KeyboardAction {
-                        id: sortControlKey
-                        anchors.fill: parent
-                        pointerEnabled: false
-                        accessibleName: "Sort Vault items"
-                        onTriggered: root.toggleSortMenu(true)
-                    }
-                }
-
-                // ── Vault ux uplift S17 — the NEXT UP row on the show page: the first
-                //    unwatched episode of the derived season sequence, one tile (the Continue
-                //    rail's own tile component — it degrades to a plain open tile when a
-                //    progress hairline has nothing to paint). Finished show → absent.
-                Item {
-                    id: showNextUp
-                    objectName: "vaultShowNextUp"
-                    visible: root.showPageActive && root.showNextUpRows.length > 0
-                    anchors.top: browseCrumb.bottom; anchors.topMargin: 16
-                    anchors.left: parent.left; anchors.right: parent.right
-                    height: visible ? 158 : 0
-
-                    Text {
-                        objectName: "vaultShowNextUpKicker"
-                        anchors.top: parent.top; anchors.left: parent.left
-                        text: "NEXT UP"
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
-                        font.weight: Font.DemiBold
-                    }
-                    ListView {
-                        id: nextUpList
-                        anchors.top: parent.top; anchors.topMargin: 20
-                        anchors.left: parent.left; anchors.right: parent.right
-                        height: 126
-                        orientation: ListView.Horizontal
-                        spacing: 14
-                        activeFocusOnTab: visible
-                        onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
-                        Keys.onPressed: (event) => nextUpKeys.handle(event)
-                        model: root.showNextUpRows
-                        delegate: vaultContinueTileComp
-                        highlight: Rectangle {
-                            color: "transparent"; radius: 12; border.width: 2; border.color: theme.inkDim
-                            visible: nextUpList.activeFocus
-                        }
-                        KeyboardCollectionController {
-                            id: nextUpKeys
-                            view: nextUpList
-                            orientation: "horizontal"
-                            onActivated: (index) => {
-                                const row = root.showNextUpRows[index]
-                                if (row && row.path) root.openMediaRequested(row.path)
-                            }
-                        }
-                    }
-                }
-
+        Text {
+            visible: browseRail.expanded
+            anchors.left: parent.left; anchors.leftMargin: 24
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 36
+            text: root.scanning ? "●  Scanning your library…" : "●  On this machine"
+            color: root.scanning ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+        }
+        Item {
+            id: mainArea
+            anchors.left: browseRail.right; anchors.leftMargin: root.width < 1000 ? 22 : 40
+            anchors.right: parent.right; anchors.rightMargin: root.width < 1000 ? 22 : 40
+            anchors.top: parent.top; anchors.topMargin: 88
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 24
+            VaultBrowseCrumb {
+                id: browseCrumb
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                stack: root.displayedCrumbStack
+                onSegmentClicked: (index) => root.goToCrumb(index)
+            }
                 Component {
                     id: posterDelegateComp
                     VaultPosterCard {
                         required property var modelData
                         row: modelData
+                        compact: browseSettings.listPresentation
+                        cardWidth: browseSettings.listPresentation ? grid.width - 12
+                            : (root.browseGridWide ? root.wideCellWidth : root.posterCellWidth) - 20
                         onOpenRequested: (r) => root.handleBrowseCardOpen(r)
                         onIdentifyRequested: (r) => root.identifyBrowseRow(r)
                         MouseArea {
@@ -1544,6 +1207,9 @@ Item {
                     VaultWideCard {
                         required property var modelData
                         row: modelData
+                        compact: browseSettings.listPresentation
+                        cardWidth: browseSettings.listPresentation ? grid.width - 12
+                            : (root.browseGridWide ? root.wideCellWidth : root.posterCellWidth) - 20
                         onOpenRequested: (r) => root.handleBrowseCardOpen(r)
                         onIdentifyRequested: (r) => root.identifyBrowseRow(r)
                         MouseArea {
@@ -1559,19 +1225,191 @@ Item {
                 // binding (Slice 5's original `model: root.browseGridRows`) can't stay key-stable.
                 ListModel { id: gridModel }
 
+
                 GridView {
                     id: grid
                     objectName: "vaultBrowseGrid"
+                    property real previousOriginY: 0
+                    onOriginYChanged: {
+                        const wasAtBeginning = contentY <= previousOriginY + 1
+                        previousOriginY = originY
+                        if (wasAtBeginning) Qt.callLater(function() { grid.positionViewAtBeginning() })
+                    }
                     anchors.top: browseCrumb.bottom
-                    anchors.topMargin: showNextUp.visible ? (16 + showNextUp.height) : 16
+                    anchors.topMargin: 18
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     clip: true
-                    cellWidth: root.browseGridWide ? root.wideCellWidth : root.posterCellWidth
-                    cellHeight: root.browseGridWide ? root.wideCellHeight : root.posterCellHeight
+                    cellWidth: browseSettings.listPresentation ? width : root.browseGridWide ? root.wideCellWidth : root.posterCellWidth
+                    cellHeight: browseSettings.listPresentation ? 92 : root.browseGridWide ? root.wideCellHeight : root.posterCellHeight
                     cacheBuffer: 900   // virtualization headroom at Gintama scale (367 episodes)
                     model: gridModel
                     ScrollBar.vertical: HouseScrollBar { flick: grid }
                     delegate: root.browseGridWide ? wideDelegateComp : posterDelegateComp
+
+                    header: Column {
+                        id: libraryHeader
+                        objectName: "vaultLibraryHeader"
+                        property alias sortControl: browseSortControl
+                        property alias filterControl: browseFilterControl
+                        width: grid.width
+                        spacing: 22
+                        bottomPadding: 20
+                        Item {
+                            width: parent.width; height: 50
+                            Text {
+                                objectName: "vaultLibraryTitle"
+                                anchors.left: parent.left; anchors.right: headerActions.left
+                                anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
+                                text: root.searchViewActive ? "Search results" : root.hiddenViewActive ? "Hidden items"
+                                    : root.crumbStack.length ? root.crumbStack[root.crumbStack.length - 1].displayTitle : "Vault"
+                                color: theme.ink; font.family: theme.display; font.pixelSize: 32
+                                font.weight: Font.DemiBold; elide: Text.ElideRight
+                            }
+                            Row {
+                                id: headerActions
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                spacing: 8
+                                VaultAction {
+                                    text: "Just arrived"; quiet: true; selected: root.recentShelfExpanded
+                                    visible: root.continueItems.length > 0 && root.carouselSlides.length > 0 && grid.width > 570
+                                    onTriggered: root.recentShelfExpanded = !root.recentShelfExpanded
+                                }
+                                VaultAction {
+                                    text: root.scanning ? "Scanning…" : "↻  Rescan"
+                                    quiet: true; visible: grid.width > 570
+                                    enabled: !root.scanning && root.crumbStack.length > 0
+                                    onTriggered: if (typeof VaultLibrary !== "undefined")
+                                        VaultLibrary.rescanRoot(root.crumbStack[0].key)
+                                }
+                                VaultAction { text: "+  Add folder"; onTriggered: root.addFolderRequested() }
+                            }
+                        }
+                        Column {
+                            id: continueRail
+                            objectName: "vaultContinueRail"
+                            width: parent.width; spacing: 14
+                            visible: root.continueItems.length > 0 && !root.searchViewActive && !root.hiddenViewActive
+                            Text {
+                                objectName: "vaultContinueRailKicker"
+                                text: "Pick up where you left off"
+                                color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                            }
+                            ListView {
+                                id: continueList
+                                objectName: "vaultContinueRailList"
+                                width: parent.width; height: 214
+                                orientation: ListView.Horizontal; spacing: 16; clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: root.continueItems; delegate: vaultContinueTileComp
+                                ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                            }
+                        }
+                        // Recent arrivals retain the original carousel's Play and Details routes,
+                        // in a compact shelf instead of a 330px promotional banner.
+                        Column {
+                            width: parent.width; spacing: 14
+                            visible: (root.continueItems.length === 0 || root.recentShelfExpanded) && root.carouselSlides.length > 0
+                                && !root.searchViewActive && !root.hiddenViewActive
+                            Text { text: "Just arrived"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            ListView {
+                                id: arrivals; objectName: "vaultBrowseCarousel"
+                                width: parent.width; height: 174
+                                orientation: ListView.Horizontal; spacing: 16; clip: true
+                                model: root.carouselSlides
+                                ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: Math.max(240, (arrivals.width - 32) / 3); height: 164; radius: 7
+                                    color: theme.panel; clip: true
+                                    Image { anchors.fill: parent; source: modelData.art || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                    Rectangle { anchors.fill: parent; gradient: Gradient { GradientStop { position: 0; color: "#22000000" } GradientStop { position: 1; color: "#ef101215" } } }
+                                    Column {
+                                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 14
+                                        spacing: 12
+                                        Text { width: parent.width; text: modelData.__row.displayTitle || ""; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                        Row {
+                                            spacing: 8
+                                            VaultAction { text: "▶  Play"; primary: true; enabled: !modelData.__row.away; onTriggered: root.handleCarouselPrimary(modelData.__row) }
+                                            VaultAction { text: "Details"; visible: modelData.__row.nodeType === "film"; onTriggered: root.openDetailSheet(modelData.__row) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Column {
+                            width: parent.width; spacing: 14
+                            visible: root.browseFolderRows.length > 0
+                            Text { text: "Your folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            ListView {
+                                id: foldersList
+                                width: parent.width; height: 80; spacing: 12
+                                orientation: ListView.Horizontal; clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                activeFocusOnTab: true
+                                Keys.onPressed: (event) => folderKeys.handle(event)
+                                model: root.browseFolderRows
+                                ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                                KeyboardCollectionController {
+                                    id: folderKeys; view: foldersList; orientation: "horizontal"
+                                    onActivated: (index) => root.handleBrowseCardOpen(root.browseFolderRows[index])
+                                }
+                                    delegate: Rectangle {
+                                        id: folderTile
+                                        required property var modelData
+                                        width: Math.max(200, (foldersList.width - 36) / 4)
+                                        height: 68; radius: 6
+                                        color: folderAction.interactionActive ? theme.glassHi : theme.panel
+                                        border.width: 1; border.color: theme.edge
+                                        Image { anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter; width: 22; height: 22; source: "../assets/icons/vault-folder.svg" }
+                                        Column {
+                                            anchors.left: parent.left; anchors.right: parent.right
+                                            anchors.leftMargin: 48; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 5
+                                            Text { width: parent.width; text: folderTile.modelData.displayTitle || ""; elide: Text.ElideRight; color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
+                                            Text { width: parent.width; text: folderTile.modelData.physicalFact || "Folder"; elide: Text.ElideRight; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+                                        }
+                                        KeyboardAction {
+                                            id: folderAction; anchors.fill: parent; contextEnabled: true
+                                            accessibleName: folderTile.modelData.displayTitle || "Folder"
+                                            onTriggered: root.handleBrowseCardOpen(folderTile.modelData)
+                                            onContextRequested: root.openCardContextMenu(folderTile.modelData, true)
+                                        }
+                                    }
+                            }
+                        }
+                        Column {
+                            id: showNextUp; objectName: "vaultShowNextUp"
+                            width: parent.width; spacing: 14
+                            visible: root.showPageActive && root.showNextUpRows.length > 0 && !root.searchViewActive && !root.hiddenViewActive
+                            Text { objectName: "vaultShowNextUpKicker"; text: "Next up"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            ListView { width: parent.width; height: 214; orientation: ListView.Horizontal; model: root.showNextUpRows; delegate: vaultContinueTileComp }
+                        }
+                        Item {
+                            width: parent.width; height: grid.width < 630 ? 82 : 38
+                            Text {
+                                anchors.left: parent.left; y: 8
+                                text: "In your library  ·  " + grid.count
+                                color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                            }
+                            Row {
+                                anchors.right: parent.right; anchors.bottom: parent.bottom; spacing: 8
+                                VaultAction {
+                                    id: browseFilterControl; objectName: "vaultBrowseFilterControl"
+                                    visible: !root.hiddenViewActive && !root.searchViewActive
+                                    text: root.activeFilterCount ? "Filters · " + root.activeFilterCount : "Filters"
+                                    selected: root.filterMenuOpen || root.activeFilterCount > 0
+                                    onTriggered: root.toggleFilterMenu(browseFilterControl.keyboardAction.activeFocus)
+                                }
+                                VaultAction {
+                                    id: browseSortControl; objectName: "vaultBrowseSortControl"
+                                    visible: !root.hiddenViewActive && !root.searchViewActive
+                                    text: root.sortLabelOf(root.sortMode) + "  ⌄"
+                                    onTriggered: root.toggleSortMenu(browseSortControl.keyboardAction.activeFocus)
+                                }
+                                VaultAction { text: "▦"; accessibleName: "Poster view"; selected: !browseSettings.listPresentation; onTriggered: browseSettings.listPresentation = false }
+                                VaultAction { text: "☷"; accessibleName: "List view"; selected: browseSettings.listPresentation; onTriggered: browseSettings.listPresentation = true }
+                            }
+                        }
+                    }
 
                     // ---- Slice 9: keyboard reach (design §4.9) — arrow keys move within the
                     // grid (GridView's own built-in key handling, matching model/visual order),
@@ -1582,16 +1420,15 @@ Item {
                     // (`grid.activeFocus`) — a mouse hover/click never sets it, since no card's
                     // MouseArea ever requests focus, keeping the ring and the hover play-glyph
                     // structurally independent, exactly as the design requires. ----
-                    focus: true
+                    focus: false
                     activeFocusOnTab: true
-                    KeyNavigation.tab: browseRail
                     onActiveFocusChanged: if (grid.activeFocus && grid.currentIndex < 0 && grid.count > 0)
                                               grid.currentIndex = 0
                     highlight: Rectangle {
                         color: "transparent"
                         radius: 8
                         border.width: 2
-                        border.color: theme.inkDim
+                        border.color: theme.gold
                         visible: grid.activeFocus
                     }
                     Keys.onReturnPressed: (event) => { root.openFocusedGridCard(); event.accepted = true }
@@ -1605,6 +1442,9 @@ Item {
                         }
                     }
 
+                    footer: Item {
+                        width: grid.width
+                        height: grid.count === 0 && root.browseFolderRows.length === 0 ? 240 : 28
                     // ---- empty states (design §4.5/§9): distinct copy per cause, keyed off the
                     // C++ projection (VaultLibrary::browseEmptyCause) — this QML never infers the
                     // cause itself. "Nothing is hidden" is a separate, pre-existing state for the
@@ -1614,7 +1454,7 @@ Item {
                         id: gridEmptyState
                         objectName: "vaultBrowseGridEmpty"
                         anchors.fill: parent
-                        visible: grid.count === 0 && !root.hiddenViewActive
+                        visible: grid.count === 0 && root.browseFolderRows.length === 0 && !root.hiddenViewActive
                                  && !root.searchViewActive
                         cause: root.browseEmptyCause
                         itemsCount: root.browseEmptyAwayCount
@@ -1640,10 +1480,64 @@ Item {
                         color: theme.inkDimmer
                         font.family: theme.ui; font.pixelSize: 14
                     }
+                                    }
                 }
+        }
+    }
+
+    // Permanent search and title strip; the window controls keep their existing signals.
+    Rectangle {
+        anchors.left: parent.left; anchors.leftMargin: root.hasConfirmedStorage ? browseRail.width : 100
+        anchors.right: parent.right
+        height: 70; color: theme.background
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
+        Text {
+            anchors.left: parent.left; anchors.leftMargin: 40; anchors.verticalCenter: parent.verticalCenter
+            text: "Vault"; color: theme.ink; font.family: theme.display; font.pixelSize: 22; font.weight: Font.DemiBold
+        }
+        Rectangle {
+            id: browseSearchField; objectName: "vaultBrowseSearchField"
+            anchors.right: parent.right; anchors.rightMargin: 180; anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(150, Math.min(350, parent.width - 330)); height: 36; radius: 6
+            color: theme.glassTint; border.width: 1
+            border.color: searchInput.activeFocus ? theme.gold : theme.edge
+            TextInput {
+                id: searchInput; objectName: "vaultBrowseSearchInput"
+                anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 36
+                color: theme.ink; font.family: theme.ui; font.pixelSize: 12
+                verticalAlignment: TextInput.AlignVCenter; clip: true
+                selectionColor: theme.gold; selectedTextColor: theme.background
+                Accessible.name: "Search the Vault"
+                onTextChanged: {
+                    if (inputMethodComposing) return
+                    if (text.length > 0 && !root.searchViewActive) {
+                        root.rememberCurrentScroll(); root.hiddenViewActive = false; root.searchViewActive = true
+                    }
+                    root.searchQuery = text
+                }
+                onInputMethodComposingChanged: if (!inputMethodComposing) {
+                    if (text.length && !root.searchViewActive) {
+                        root.rememberCurrentScroll(); root.hiddenViewActive = false; root.searchViewActive = true
+                    }
+                    root.searchQuery = text
+                }
+                onAccepted: if (root.searchRowsJoined.length) root.handleBrowseCardOpen(root.searchRowsJoined[0])
+                Keys.onEscapePressed: (event) => { root.leaveSearchView(); event.accepted = true }
+            }
+            Text {
+                anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 12
+                verticalAlignment: Text.AlignVCenter; visible: searchInput.length === 0
+                text: "Search titles, identities, filenames"; elide: Text.ElideRight
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+            }
+            VaultAction {
+                anchors.right: parent.right; width: 34; height: parent.height
+                text: "×"; accessibleName: "Clear search"; quiet: true; visible: searchInput.length > 0
+                onTriggered: { root.leaveSearchView(); searchInput.forceActiveFocus() }
             }
         }
     }
+
 
     // Card right-click context menu — Reveal in Explorer (always, when the row carries a real
     // path) plus the reachable identify/hide affordances the old shelves also exposed.
@@ -1735,7 +1629,7 @@ Item {
             width: 204
             height: sortMenuColumn.implicitHeight + 16
             radius: 12
-            color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
+            color: theme.panel
             border.width: 1
             border.color: theme.edge
 
@@ -1816,7 +1710,7 @@ Item {
             width: 252
             height: filterMenuColumn.implicitHeight + 16
             radius: 12
-            color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
+            color: theme.panel
             border.width: 1
             border.color: theme.edge
 
@@ -2108,7 +2002,7 @@ Item {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: 21
-        anchors.leftMargin: theme.margin - 10
+        anchors.leftMargin: 14
         // The visible Back control and shell Escape share the exact same Vault-local
         // arbitration, including sheets, folder detail and browse ancestry.
         onTriggered: root.handleBack()
