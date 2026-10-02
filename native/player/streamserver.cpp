@@ -81,11 +81,19 @@ StreamServer::~StreamServer()
         // stopping the owned runtime so an intentional exit cannot emit the
         // fail-before-ready warning path while this object is being destroyed.
         disconnect(m_proc, nullptr, this, nullptr);
+#ifdef Q_OS_WIN
+        // The owned node runtime is a console process without a WM_CLOSE handler.
+        // QProcess::terminate cannot stop it on Windows; waiting only delays exit.
+        // An adopted external service has no m_proc and is never stopped here.
+        m_proc->kill();
+        m_proc->waitForFinished(2000);
+#else
         m_proc->terminate();
         if (!m_proc->waitForFinished(2000)) {
             m_proc->kill();
             m_proc->waitForFinished(2000);
         }
+#endif
     }
 }
 
