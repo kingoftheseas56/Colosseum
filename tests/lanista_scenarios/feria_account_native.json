@@ -1,0 +1,417 @@
+{
+  "name": "feria-account-native",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated app answers",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash leaves",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local entry is available",
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue locally",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell is ready",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open original Feria through the taskbar",
+      "payload": {
+        "target": "taskbarFeria"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "original Feria app is active",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "lifecycleActive",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "home Apps button opens the mock account manager",
+      "payload": {
+        "target": "feriaApp_manage"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Apps tab selected from home",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "accountTab",
+        "value": "apps",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "return home from Apps",
+      "payload": {
+        "target": "account-back"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Feria account centre",
+      "payload": {
+        "target": "feriaAccountButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Feria account screen visible",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "account",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open real stats",
+      "payload": {
+        "target": "account-tab-stats"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "stats selected",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "accountTab",
+        "value": "stats",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open monthly highlights",
+      "payload": {
+        "target": "account-tab-highlights"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "highlights selected",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "accountTab",
+        "value": "highlights",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Apps as in the mock",
+      "payload": {
+        "target": "account-tab-apps"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Netflix is in the home row",
+      "payload": {
+        "object": "account-apps-content",
+        "prop": "inRow",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "remove Netflix from the row",
+      "payload": {
+        "target": "account-apps-action-3"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "removed provider stays available to add",
+      "payload": {
+        "object": "account-apps-content",
+        "prop": "inRow",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "capture Apps manager",
+      "payload": {
+        "object": "feriaAppPage",
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open real history",
+      "payload": {
+        "target": "account-tab-history"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "pause recording",
+      "payload": {
+        "target": "account-history-pause"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "recording paused",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "recording",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "resume recording",
+      "payload": {
+        "target": "account-history-pause"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "recording resumed",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "recording",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "capture account centre",
+      "payload": {
+        "object": "feriaAppPage",
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "return to Feria home",
+      "payload": {
+        "target": "account-back"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "back stays in Feria",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "home",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "reopen Feria account",
+      "payload": {
+        "target": "feriaAccountButton"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "reopen Apps",
+      "payload": {
+        "target": "account-tab-apps"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "removal retained after reopening",
+      "payload": {
+        "object": "account-apps-content",
+        "prop": "inRow",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "add Netflix back to row",
+      "payload": {
+        "target": "account-apps-action-1"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "provider restored to home row",
+      "payload": {
+        "object": "account-apps-content",
+        "prop": "inRow",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

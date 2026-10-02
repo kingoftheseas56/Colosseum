@@ -1,12 +1,31 @@
 import QtQuick
 import QtQuick.Window
 import QtWebEngine
+import "FeriaPlayback.js" as Playback
 
 WebEngineView {
     id: browser
     objectName: "feriaQtWebEngine"
     required property url sourceUrl
     required property string profilePath
+    signal playbackObserved(var observation)
+    property real resumePosition: 0
+    property bool observationEnabled: true
+    function samplePlayback() {
+        var generation = navigationGeneration
+        runJavaScript(Playback.sample, function(sample) {
+            if (!sample || generation !== navigationGeneration || !observationEnabled) return
+            if (resumePosition > 0 && sample.duration > 0 && !sample.ad && Playback.sameDestination(sample.href, sourceUrl)) {
+                runJavaScript(Playback.seek(resumePosition), function(success) {
+                    if (success && generation === navigationGeneration) resumePosition = 0
+                })
+            } else playbackObserved(sample)
+        })
+    }
+    Timer {
+        interval: 2000; repeat: true; running: browser.observationEnabled
+        onTriggered: browser.samplePlayback()
+    }
     property bool suppressed: false
     readonly property bool ready: true
     property var popups: []

@@ -7,7 +7,7 @@ Item {
     required property var controller
     readonly property real u: controller.unit
     readonly property real m: controller.marginX
-    property var sessions: controller.allSessions()
+    property var sessions: controller.allSessions().slice(0, 60)
 
     function sessionIndexForAction(actionIndex) {
         var target = actionIndex - 2
@@ -66,7 +66,7 @@ Item {
                 spacing:0.7*u
                 Text {
                     Layout.fillWidth:true
-                    text:"Recorded by Feria from your first visit: what you opened, on which service, and how long its page stayed open. Feria can't see anything from before, or inside a service's page."
+                    text:"Playback and reading places recorded in Feria on this profile. Playback time is measured where the provider exposes a player. Reading places are saved manually."
                     color:controller.slate;font.family:controller.uiFont;font.pixelSize:0.9*u;lineHeight:1.5;wrapMode:Text.WordWrap
                 }
                 Rectangle {
@@ -110,7 +110,7 @@ Item {
             Text {
                 visible: root.sessions.length === 0
                 width: parent.width
-                text: "Nothing recorded yet. Open something from Feria and it appears here."
+                text: "No activity yet. Play something in Feria or save your reading place."
                 color: controller.mist
                 font.family: controller.uiFont
                 font.pixelSize: 1.2*u
@@ -148,18 +148,18 @@ Item {
                             anchors { fill: parent; leftMargin: 0.7*u; rightMargin: 1.3*u }
                             spacing: 1.2*u
                             Rectangle {
-                                Layout.preferredWidth:3.4*u;Layout.preferredHeight:3.4*u;radius:modelData.id&&Data.T[modelData.id]&&Data.T[modelData.id].k==="artist"?1.7*u:0.55*u;clip:true;color:Qt.rgba(1,1,1,0.05)
-                                Image{anchors.fill:parent;visible:modelData.id&&status===Image.Ready;source:modelData.id?controller.artUrl(Data.T[modelData.id],false):"";fillMode:Image.PreserveAspectCrop;asynchronous:true}
+                                Layout.preferredWidth:3.4*u;Layout.preferredHeight:3.4*u;radius:modelData.id&&controller.titleObj(modelData.id)&&controller.titleObj(modelData.id).k==="artist"?1.7*u:0.55*u;clip:true;color:Qt.rgba(1,1,1,0.05)
+                                Image{anchors.fill:parent;visible:modelData.id&&status===Image.Ready;source:modelData.id?controller.artUrl(controller.titleObj(modelData.id),false):"";fillMode:Image.PreserveAspectCrop;asynchronous:true}
                                 PorticoCombinedGlyph{anchors.centerIn:parent;width:1.7*u;height:1.7*u;visible:!modelData.id;glyphKey:modelData.pk;tone:controller.ink}
                             }
                             ColumnLayout {
                                 Layout.fillWidth:true;spacing:0.25*u
-                                Text{text:modelData.id?Data.T[modelData.id].t:controller.providerName(modelData.pk)+" home page";color:controller.ink;font.family:controller.uiFont;font.pixelSize:1.08*u;font.weight:Font.DemiBold;elide:Text.ElideRight;Layout.fillWidth:true}
-                                Text{text:"Opened on "+controller.providerName(modelData.pk)+" at "+Qt.formatTime(new Date(modelData.at),"h:mm AP")+(modelData.sample?"":"  ·  Recorded in this prototype");color:controller.slate;font.family:controller.uiFont;font.pixelSize:0.88*u}
+                                Text{text:modelData.id?controller.titleObj(modelData.id).t:controller.providerName(modelData.pk)+" home page";color:controller.ink;font.family:controller.uiFont;font.pixelSize:1.08*u;font.weight:Font.DemiBold;elide:Text.ElideRight;Layout.fillWidth:true}
+                                Text{text:"On "+controller.providerName(modelData.pk)+" at "+Qt.formatTime(new Date(modelData.at),"h:mm AP");color:controller.slate;font.family:controller.uiFont;font.pixelSize:0.88*u}
                             }
                             Column {
                                 Layout.alignment:Qt.AlignRight|Qt.AlignVCenter
-                                Text{text:controller.durationText(modelData.mins);color:controller.ink;font.family:controller.displayFont;font.pixelSize:1.45*u;font.weight:Font.Medium;horizontalAlignment:Text.AlignRight;width:implicitWidth}
+                                Text{text:modelData.kind === "book" ? "Saved place" : controller.durationText(modelData.mins);color:controller.ink;font.family:controller.displayFont;font.pixelSize:1.45*u;font.weight:Font.Medium;horizontalAlignment:Text.AlignRight;width:implicitWidth}
                                 Text{text:"on "+controller.providerName(modelData.pk);color:controller.slate;font.family:controller.uiFont;font.pixelSize:0.8*u;horizontalAlignment:Text.AlignRight;width:parent.width}
                             }
                         }

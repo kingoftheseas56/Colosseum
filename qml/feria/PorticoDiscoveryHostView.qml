@@ -16,6 +16,16 @@ Item {
     property bool loading: false
     property bool loadSucceeded: false
     property string errorText: ""
+    property string pageTitle: ""
+    function receivePlayback(sample) {
+        if (!sample || !controller.accountStore || !controller.recording) return
+        pageTitle = sample.title || ""
+        // Script results come from the browser's current top document, never page messages.
+        if (FeriaBrowserPolicy.allowsNavigation(sample.href)) {
+            currentUrl = sample.href
+            controller.accountStore.observe(sample)
+        }
+    }
     readonly property bool browserReady: browserLoader.item ? browserLoader.item.ready : false
     Settings {
         id: preferences
@@ -33,6 +43,8 @@ Item {
     }
     function tryOtherBrowser() {
         if (!FeriaBrowserPolicy.webView2Available) return
+        var resume = controller.continueItems.find(function(item) { return item.url === root.currentUrl })
+        controller.hostResumePosition = resume ? resume.position : 0
         var next = engine === "webview2" ? "qtwebengine" : "webview2"
         var values = JSON.parse(JSON.stringify(enginePreferences))
         values[controller.hostApp] = next
@@ -91,6 +103,17 @@ Item {
                 elide: Text.ElideMiddle
             }
             Button {
+                objectName: "feriaSaveReadingPlace"
+                text: "Save reading place"
+                visible: controller.isReadingProvider(controller.hostApp)
+                enabled: controller.recording && root.loadSucceeded
+                onClicked: {
+                    if (controller.accountStore.saveReadingPlace(root.currentUrl, root.pageTitle))
+                        controller.setToast("Reading place saved to Continue")
+                    else controller.setToast("This page cannot be saved. Open the book or chapter first.")
+                }
+            }
+            Button {
                 objectName: "feriaBrowserSwitch"
                 visible: FeriaBrowserPolicy.webView2Available
                 text: "Try other browser"
@@ -102,18 +125,21 @@ Item {
         id: browserLoader
         objectName: "feriaBrowserLoader"
         anchors { left: parent.left; right: parent.right; top: strip.bottom; bottom: parent.bottom; bottomMargin: 84 }
-        active: root.visible && controller.lifecycleActive && controller.hostUrl.length > 0
+        active: root.visible && controller.lifecycleActive && controller.hostUrl.length > 0 && FeriaBrowserPolicy.storageRoot.length > 0
         onActiveChanged: if (active) loadBrowser()
         Connections {
             target: root
             function onEngineChanged() { if (browserLoader.active) browserLoader.loadBrowser() }
         }
         function loadBrowser() {
+            controller.beginHostVisit()
             root.loading = true
             root.errorText = ""
             setSource(root.engine === "webview2" ? "FeriaWebView2.qml" : "FeriaQtWebEngine.qml", {
-                sourceUrl: controller.hostUrl,
+                sourceUrl: root.currentUrl || controller.hostUrl,
                 profilePath: FeriaBrowserPolicy.storageRoot,
+                resumePosition: controller.hostResumePosition,
+                observationEnabled: Qt.binding(function() { return controller.recording }),
                 suppressed: Qt.binding(function() { return controller.browserSuppressed })
             })
         }
@@ -125,7 +151,9 @@ Item {
     }
     Connections {
         target: browserLoader.item
+        function onPlaybackObserved(sample) { root.receivePlayback(sample) }
         function onStarted(location) {
+            root.pageTitle = ""
             root.currentUrl = location
             root.loading = true
             root.loadSucceeded = false

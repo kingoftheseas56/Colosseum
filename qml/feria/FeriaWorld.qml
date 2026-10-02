@@ -24,6 +24,7 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
     onLifecycleActiveChanged: {
+        if (!lifecycleActive && accountStore) accountStore.endVisit()
         if (lifecycleActive && liveDiscovery && !discoveryStarted) {
             discoveryStarted = true
             discovery.refresh()
@@ -83,10 +84,13 @@ Item {
     readonly property var regionCodes: ({ "United States": "US", "United Kingdom": "GB",
                                    "India": "IN", "Canada": "CA", "Australia": "AU",
                                    "Germany": "DE", "Japan": "JP", "Brazil": "BR" })
-    property bool recording: true
-    property string accountMonth: "2026-09"
-    property var recordedSessions: []
-    property bool showSampleHistory: false
+    readonly property bool recording: accountStore && accountStore.recording && activityAllowed
+    property string accountMonth: Qt.formatDate(new Date(), "yyyy-MM")
+    readonly property var accountStore: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
+    readonly property var recordedSessions: accountStore ? accountStore.sessions : []
+    readonly property var continueItems: accountStore ? accountStore.continueItems : []
+    property real hostResumePosition: 0
+    readonly property bool activityAllowed: typeof ProfilePreferences === "undefined" || ProfilePreferences.keepActivityHistory
     property bool clearPending: false
     property string toast: ""
 
@@ -95,9 +99,6 @@ Item {
         category: "Feria"
         property string appsJson: ""
         property string savedJson: ""
-        property string sessionsJson: ""
-        property bool historySamples: false
-        property bool historyRecording: true
         property string catalogueRegion: "United States"
     }
     Timer { id: toastTimer; interval: 2200; onTriggered: shell.toast = "" }
@@ -115,8 +116,12 @@ Item {
     onLensChanged: if (liveDiscovery) discovery.lens = lens
     onRegionChanged: if (liveDiscovery) discovery.region = regionCodes[region] || "US"
     function providerName(pk) { return Data.P[pk] ? Data.P[pk].n : (contentStore ? contentStore.providerLabel(pk) : pk) }
+    function isReadingProvider(pk) { return !!Data.P[pk] && Data.P[pk].v === "read" }
     function titleObj(id) {
-        if (liveDiscovery) { contentStore.revision; var live = contentStore.title(id); return live && live.t ? live : null }
+        if (liveDiscovery) { contentStore.revision; var live = contentStore.title(id); if (live && live.t) return live; }
+        var recorded = recordedSessions.find(function(s) { return s.id === id })
+        if (recorded) return {t:recorded.title,k:recorded.kind,imageUrl:recorded.cover,_trend:true,resume:recorded}
+        if (liveDiscovery) return null
         return Data.T[id] || null
     }
     function kindLabel(it) { return it ? (it._trend && contentStore ? contentStore.kindLabel(it.k) : Data.KIND[it.k] || it.k) : "" }
@@ -296,6 +301,7 @@ Item {
     }
     function openTitle(id) {
         if (!titleObj(id)) return
+        if (titleObj(id).resume) { resumeSession(titleObj(id).resume); return }
         titleHistory = titleHistory.concat([{state:viewState,id:selectedTitle}])
         selectedTitle = id; titleActionIndex = 0; viewState = "title"; content.forceActiveFocus()
     }
@@ -305,7 +311,8 @@ Item {
             if (searchView.searchField) searchView.searchField.forceActiveFocus()
         })
     }
-    function openHost(pk,id,mode,url) {
+    function openHost(pk,id,mode,url,position) {
+        hostResumePosition = position || 0
         var provider = Data.P[pk]
         var destination = url || (provider && provider.d ? "https://" + provider.d : "")
         if (!url && mode === "search" && provider && provider.sp && query.trim().length)
@@ -314,7 +321,16 @@ Item {
             setToast("This service has no web destination.")
             return
         }
+        if (accountStore) {
+            var title = titleObj(id)
+            accountStore.beginVisit({pk:pk,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
+        }
         hostReturnState = viewState; hostApp = pk; hostTitle = id || ""; hostMode = mode || "home"; hostUrl = destination; providerWebViewReady = false; viewState = "host"; content.forceActiveFocus()
+    }
+    function beginHostVisit() {
+        if (!accountStore) return
+        var title = titleObj(hostTitle)
+        accountStore.beginVisit({pk:hostApp,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
     }
     function goHome() {
         if (viewState === "home") { homeRequested(); return }
@@ -332,7 +348,7 @@ Item {
         else if (viewState === "title") {
             var previous = titleHistory.length ? titleHistory[titleHistory.length - 1] : {state:"home",id:""}
             titleHistory = titleHistory.slice(0, -1); viewState = previous.state; selectedTitle = previous.id
-        } else if (viewState === "search" || viewState === "apps") viewState = "home"
+        } else if (viewState === "search" || viewState === "apps" || viewState === "account") viewState = "home"
         else if (focusArea === "shelf") { focusArea = "app"; shelfIndex = 0; shelfCardIndex = 0; homeView.revealApp(focusIndex) }
         else { homeRequested(); return }
         if (viewState === "search") Qt.callLater(function() { searchView.searchField.forceActiveFocus() })
@@ -367,7 +383,7 @@ Item {
         accountShellFocusIndex = Math.max(0, Math.min(4, index))
     }
     function historyActionSessionIndices() {
-        var sessions = allSessions()
+        var sessions = allSessions().slice(0, 60)
         var indices = []
         for (var i = 0; i < sessions.length; ++i)
             if (sessions[i].id) indices.push(i)
@@ -415,9 +431,7 @@ Item {
         if (tab) accountTab = tab
     }
     onViewStateChanged: {
-        // The legacy Feria account mock is never a live destination. The shared
-        // TopBar emits accountClicked into Main.qml's real account flyout.
-        if (viewState === "account") { viewState = "home"; return }
+        if (viewState !== "host" && accountStore) accountStore.endVisit()
         accountHistoryFocusIndex = -1
         accountContentFocusActive = false
     }
@@ -427,25 +441,23 @@ Item {
         if (viewState === "account")
             accountShellFocusIndex = accountFocusForTab(accountTab)
     }
-    function sampleSessions() {
-        return [
-            ["2026-09-24","07:40","frieren","crunchyroll",48],["2026-09-23","22:05","severance","appletv",112],["2026-09-23","19:30","","youtube",35],
-            ["2026-09-22","21:15","dune2","hbomax",171],["2026-09-21","18:02","gnx","spotify",44],["2026-09-20","23:10","kagurabachi","mangaplus",22],
-            ["2026-09-19","20:45","severance","appletv",96],["2026-09-17","08:15","dtmf","spotify",61],["2026-09-15","22:40","phm","kindle",75],
-            ["2026-09-14","21:00","frieren","crunchyroll",94],["2026-09-12","16:20","opmanga","mangaplus",31],["2026-09-10","21:30","thebear","disney",64],
-            ["2026-09-08","20:10","phm","kindle",58],["2026-09-03","22:00","frieren","crunchyroll",72],
-            ["2026-08-30","21:40","lastofus","hbomax",118],["2026-08-28","19:05","showgirl","spotify",46],["2026-08-25","22:30","arcane","netflix",130],
-            ["2026-08-22","20:15","arcane","netflix",84],["2026-08-19","09:00","wok","kindle",88],["2026-08-16","21:45","shogun","disney",121],
-            ["2026-08-12","18:30","","youtube",52],["2026-08-09","23:00","dandadan","mangaplus",19],["2026-08-05","21:10","fallout","prime",109],
-            ["2026-08-02","20:00","wok","kindle",66],
-            ["2026-07-29","21:20","squid","netflix",140],["2026-07-24","19:00","hmhas","spotify",39],["2026-07-20","22:10","theboys","prime",98],
-            ["2026-07-14","20:30","lore","webtoon",27],["2026-07-08","21:00","andor","disney",105]
-        ].map(function(x) { return {at:new Date(x[0]+"T"+x[1]+":00").getTime(),id:x[2],pk:x[3],mins:x[4],sample:true} })
+    function openAccount() {
+        viewState = "account"
+        accountShellFocusIndex = accountFocusForTab(accountTab)
+        content.forceActiveFocus()
     }
-    function allSessions() {
-        return (showSampleHistory ? sampleSessions() : []).concat(recordedSessions).filter(function(s) {
-            return Data.P[s.pk] && (!s.id || titleObj(s.id))
-        }).sort(function(a,b) { return b.at-a.at })
+    function openApps() {
+        accountTab = "apps"
+        accountApp = activeApps.length ? activeApps[0] : "region"
+        openAccount()
+    }
+    function resumeSession(session) {
+        openHost(session.pk, "", "resume", session.url, session.completed ? 0 : session.position)
+    }
+    function allSessions() { return recordedSessions }
+    Connections {
+        target: shell.accountStore
+        function onProfileChanged() { shell.viewState = "home" }
     }
     function sessionDay(s) {
         var d = new Date(s.at), n = new Date(), y = new Date(n)
@@ -474,12 +486,16 @@ Item {
         if (key>=earliest && key<=Qt.formatDate(new Date(),"yyyy-MM")) accountMonth=key
     }
     function setRegion(value) { region=value; settings.catalogueRegion=value }
-    function toggleRecording() { recording=!recording; settings.historyRecording=recording; clearPending=false }
+    function toggleRecording() {
+        if (!activityAllowed) { setToast("Enable activity history in Account Centre → Data & privacy first."); return }
+        if (accountStore) accountStore.setRecording(!recording)
+        clearPending=false
+    }
     function clearHistory() {
         if (!clearPending) { clearPending=true; setToast("Press Clear history again to confirm"); return }
-        recordedSessions=[]; showSampleHistory=false; settings.sessionsJson="[]"; settings.historySamples=false; clearPending=false
+        if (accountStore && accountStore.clearHistory()) clearPending=false
     }
-    function durationText(m) { return m < 1 ? "Under a minute" : m < 60 ? Math.round(m) + " min" : Math.floor(m / 60) + "h " + String(Math.round(m % 60)).padStart(2,"0") + "m" }
+    function durationText(m) { return m <= 0 ? "0 min" : m < 1 ? "Under a minute" : m < 60 ? Math.round(m) + " min" : Math.floor(m / 60) + "h " + String(Math.round(m % 60)).padStart(2,"0") + "m" }
     function clockText() { clockRevision; return Qt.formatTime(new Date(), "h:mm") }
     function clockSuffix() { clockRevision; return Qt.formatTime(new Date(), "AP") }
 
@@ -493,13 +509,7 @@ Item {
                 })
                 saved = loadedSaved.filter(function(k) { return k && (liveDiscovery || Data.T[k]) })
             }
-            if (settings.sessionsJson) {
-                var loadedSessions = JSON.parse(settings.sessionsJson)
-                recordedSessions = identityBridge && liveDiscovery ? identityBridge.migrateSessions(loadedSessions) : loadedSessions
-            }
         } catch (e) { activeApps = Data.DEFAULT_APPS.slice(); saved = [] }
-        showSampleHistory=settings.historySamples
-        recording=settings.historyRecording
         region=settings.catalogueRegion
         if (liveDiscovery) {
             discovery.lens = lens
@@ -662,7 +672,7 @@ Item {
                 }
                 else if (shell.focusArea === "app") {
                     if (shell.focusIndex < shell.activeApps.length) shell.openHost(shell.activeApps[shell.focusIndex], "", "home")
-                    else shell.viewState = "apps"
+                    else shell.openApps()
                 } else if (shell.focusArea === "shelf") {
                     var sh = shell.shownShelves()[shell.shelfIndex], ids = shell.shelfItems(sh)
                     if (ids[shell.shelfCardIndex]) shell.openTitle(ids[shell.shelfCardIndex])
@@ -713,8 +723,8 @@ Item {
                 id: accountView
                 anchors.fill: parent
                 controller: shell
-                visible: false
-                enabled: false
+                visible: shell.viewState === "account"
+                enabled: visible
             }
             PorticoDiscoveryHostView {
                 id: hostView

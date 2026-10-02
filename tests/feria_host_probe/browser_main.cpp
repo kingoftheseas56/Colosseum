@@ -1,4 +1,5 @@
 #include "FeriaBrowserPolicy.h"
+#include "FeriaAccountStore.h"
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -45,9 +46,13 @@ int main(int argc, char **argv) {
     if (!targets.isArray() || targets.array().isEmpty()) return 5;
     FeriaBrowserPolicy::registerTypes();
     FeriaBrowserPolicy policy;
+    policy.setStorageRoot(QString::fromLocal8Bit(argv[4]) + "/browser");
+    FeriaAccountStore account;
+    account.setStoragePath(QString::fromLocal8Bit(argv[4]) + "/account-" + QString::fromLocal8Bit(argv[2]) + ".json");
     BrowserReporter reporter;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("FeriaBrowserPolicy", &policy);
+    engine.rootContext()->setContextProperty("FeriaAccount", &account);
     engine.rootContext()->setContextProperty("browserReporter", &reporter);
     engine.rootContext()->setContextProperty("smokeEngine", QString::fromLocal8Bit(argv[2]));
     engine.rootContext()->setContextProperty("smokeUrls", targets.toVariant().toList());

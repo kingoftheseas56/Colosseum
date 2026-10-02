@@ -8,15 +8,19 @@
 class FeriaBrowserPolicy final : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(QString storageRoot READ storageRoot CONSTANT)
+    Q_PROPERTY(QString storageRoot READ storageRoot NOTIFY storageRootChanged)
     Q_PROPERTY(bool webView2Available READ webView2Available CONSTANT)
 public:
     using QObject::QObject;
 
     QString storageRoot() const
     {
-        return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
-            + QStringLiteral("/feria/browser");
+        return m_storageRoot;
+    }
+    void setStorageRoot(const QString &path) {
+        if (path == m_storageRoot) return;
+        m_storageRoot = path;
+        emit storageRootChanged();
     }
 
     bool webView2Available() const;
@@ -40,4 +44,9 @@ public:
         }
         return false;
     }
+signals:
+    void storageRootChanged();
+private:
+    QString m_storageRoot = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+        + QStringLiteral("/feria/browser");
 };

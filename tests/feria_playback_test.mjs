@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+
+const scope = vm.createContext({});
+vm.runInContext(fs.readFileSync(new URL('../qml/feria/FeriaPlayback.js', import.meta.url), 'utf8'), scope);
+assert.equal(scope.sameDestination('https://provider.test/watch?id=1', 'https://provider.test/watch?id=1'), true);
+assert.equal(scope.sameDestination('https://provider.test/login', 'https://provider.test/watch?id=1'), false);
+assert.equal(scope.sameDestination('https://provider.test/watch?id=2', 'https://provider.test/watch?id=1'), false);
+assert.equal(scope.sameDestination('https://provider.test/#/episode/2', 'https://provider.test/#/episode/1'), false);
+const paused = {paused:true, duration:1000, currentTime:0};
+const playing = {paused:false, duration:100, currentTime:5};
+scope.document = {querySelectorAll:() => [paused, playing], querySelector:() => null};
+assert.equal(vm.runInContext(scope.seek(40), scope), true);
+assert.equal(playing.currentTime, 40);
+assert.equal(paused.currentTime, 0);
+scope.document.querySelector = () => ({});
+assert.equal(vm.runInContext(scope.seek(60), scope), false);
+assert.equal(playing.currentTime, 40);
+console.log('Feria resume destination, active-player selection, and ad guard checks pass');

@@ -159,7 +159,7 @@
       "payload": {
         "object": "feriaAppPage",
         "prop": "viewState",
-        "value": "apps",
+        "value": "account",
         "timeout_ms": 15000
       },
       "expect": [

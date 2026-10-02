@@ -13,6 +13,8 @@ file(GLOB FERIA_BACKEND_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/identity-state/*.h")
 
 add_library(feria_discovery STATIC
+    FeriaAccountStore.cpp
+    FeriaAccountStore.h
     FeriaBrowserPolicy.h
     FeriaBrowserPolicy.cpp
     PorticoComposition.cpp

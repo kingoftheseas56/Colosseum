@@ -119,8 +119,7 @@ Item {
                 anchors.fill: parent
                 accessibleName: "Account"
                 onTriggered: {
-                    var point = accountButton.mapToItem(null, accountButton.width, accountButton.height)
-                    controller.accountClicked(point.x, point.y)
+                    controller.openAccount()
                 }
             }
         }

@@ -137,6 +137,7 @@
 #include "ScrollProbe.h"     // diagnostic wheel-input probe (env-gated; see header)
 #include "feria/PorticoComposition.h"
 #include "feria/FeriaBrowserPolicy.h"
+#include "feria/FeriaAccountStore.h"
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -1975,6 +1976,24 @@ int main(int argc, char *argv[]) {
     feriaDiscovery.exposeTo(engine.rootContext());
     auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
     engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
+    auto *feriaAccount = new FeriaAccountStore(&engine);
+    auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime] {
+        const auto &profile = accountRuntime->profileStores()->activeProfile();
+        QString root = profile.profileRoot();
+        if (profile.kind() == ProfilePaths::Kind::LegacyLocal)
+            root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
+        feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
+    };
+    bindFeriaProfile();
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     feriaAccount, [feriaAccount, feriaBrowserPolicy] {
+                         feriaAccount->setStoragePath({});
+                         feriaBrowserPolicy->setStorageRoot({});
+                     });
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     feriaAccount, bindFeriaProfile);
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
     FeriaBrowserPolicy::registerTypes();
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())

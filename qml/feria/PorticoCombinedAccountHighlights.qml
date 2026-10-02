@@ -22,14 +22,14 @@ Item {
             return !titles.length || x.key !== titles[0].key
         })
         if (often)
-            out.push({key:often.key, label:"Opened most", value:often.n + " times", app:false})
+            out.push({key:often.key, label:"Most sessions", value:often.n + " times", app:false})
         if (apps.length)
             out.push({key:apps[0].key, label:"Top app", value:controller.durationText(apps[0].mins), app:true})
         var fresh = titles.slice().reverse().find(function(x) {
             return !out.some(function(c) { return !c.app && c.key === x.key })
         })
         if (fresh)
-            out.push({key:fresh.key, label:"New this month", value:"First opened here", app:false})
+            out.push({key:fresh.key, label:"More this month", value:"Recorded in Feria", app:false})
         return out
     }
 
@@ -294,8 +294,8 @@ Item {
                     columnSpacing: 1.5 * u
                     Repeater {
                         model: [
-                            {v:controller.durationText(controller.totalMins(root.sessions)), l:"Time in your apps"},
-                            {v:controller.distinct(root.sessions,"id"), l:"Titles opened"},
+                            {v:controller.durationText(controller.totalMins(root.sessions)), l:"Playback time"},
+                            {v:controller.distinct(root.sessions,"id"), l:"Titles"},
                             {v:Array.from(new Set(root.sessions.map(function(s) {
                                 return new Date(s.at).toDateString()
                             }))).length, l:"Active days"},
@@ -362,7 +362,7 @@ Item {
                                 Image {
                                     id: cover
                                     anchors.fill: parent
-                                    source: modelData.app ? "" : controller.artUrl(Data.T[modelData.key], false)
+                                    source: modelData.app ? "" : controller.artUrl(controller.titleObj(modelData.key), false)
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     visible: status === Image.Ready
@@ -378,7 +378,7 @@ Item {
                                 Text {
                                     anchors { fill: parent; margins: 1.2 * u }
                                     visible: !modelData.app && cover.status !== Image.Ready
-                                    text: Data.T[modelData.key] ? Data.T[modelData.key].t : ""
+                                    text: controller.titleObj(modelData.key) ? controller.titleObj(modelData.key).t : ""
                                     color: controller.mist
                                     font.family: controller.displayFont
                                     font.pixelSize: 1.4 * u
@@ -398,7 +398,7 @@ Item {
                                 y: art.height + 2.3 * u
                                 width: parent.width
                                 text: modelData.app ? controller.providerName(modelData.key)
-                                                    : (Data.T[modelData.key] ? Data.T[modelData.key].t : "")
+                                                    : (controller.titleObj(modelData.key) ? controller.titleObj(modelData.key).t : "")
                                 color: controller.ink
                                 font.family: controller.uiFont
                                 font.weight: Font.DemiBold

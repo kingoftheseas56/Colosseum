@@ -18,6 +18,10 @@ if(WIN32)
     add_subdirectory(feria_host_probe)
 endif()
 
+add_executable(feria_account_store_test feria_account_store_test.cpp)
+target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)
+
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})

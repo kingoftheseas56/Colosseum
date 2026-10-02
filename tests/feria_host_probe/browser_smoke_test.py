@@ -7,6 +7,16 @@ import subprocess
 import sys
 import tempfile
 import threading
+import io
+import wave
+
+audio_buffer = io.BytesIO()
+with wave.open(audio_buffer, 'wb') as audio:
+    audio.setnchannels(1)
+    audio.setsampwidth(2)
+    audio.setframerate(8000)
+    audio.writeframes(b'\0\0' * 8000 * 40)
+AUDIO_FIXTURE = audio_buffer.getvalue()
 
 
 class Fixture(http.server.BaseHTTPRequestHandler):
@@ -14,6 +24,13 @@ class Fixture(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if self.path == '/fixture/audio.wav':
+            self.send_response(200)
+            self.send_header('Content-Type', 'audio/wav')
+            self.send_header('Content-Length', str(len(AUDIO_FIXTURE)))
+            self.end_headers()
+            self.wfile.write(AUDIO_FIXTURE)
+            return
         if self.path == '/fixture/redirect':
             self.send_response(302)
             self.send_header('Location', f'http://localhost:{self.server.server_port}/fixture/page')
@@ -38,7 +55,8 @@ class Fixture(http.server.BaseHTTPRequestHandler):
             script = f"window.opener.postMessage('auth-returned', 'http://127.0.0.1:{self.server.server_port}'); window.close();"
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.end_headers()
-        body = f"<html><body data-passed='{str(passed).lower()}'>Feria browser fixture<script>{script}</script></body></html>"
+        media = '<audio autoplay muted src="/fixture/audio.wav"></audio>' if self.path == '/fixture/media' else ''
+        body = f"<html><head><title>Feria fixture</title></head><body data-passed='{str(passed).lower()}'>Feria browser fixture{media}<script>{script}</script></body></html>"
         self.wfile.write(body.encode())
 
 
@@ -64,10 +82,15 @@ def main():
         failures = 0
         for engine in ['webview2', 'qtwebengine']:
             urls.write_text(json.dumps([base + route for route in
-                ['page', 'redirect', 'setcookie', 'checkcookie', 'popup']]), encoding='utf-8')
+                ['page', 'redirect', 'setcookie', 'checkcookie', 'popup', 'media']]), encoding='utf-8')
             print(f'Testing {engine}: page, cross-domain redirect, cookies, popup/opener', flush=True)
             result = subprocess.run([str(executable), str(Path(__file__).with_name('BrowserSmoke.qml').resolve()),
                 engine, str(urls), str(root / 'profiles')], timeout=150, env=environment)
+            failures += result.returncode != 0
+            urls.write_text(json.dumps([base + 'media']), encoding='utf-8')
+            print(f'Testing {engine}: production Feria account and Continue integration', flush=True)
+            result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaAccountSmoke.qml').resolve()),
+                engine, str(urls), str(root / 'profiles')], timeout=60, env=environment)
             failures += result.returncode != 0
             urls.write_text(json.dumps([base + 'checkcookie']), encoding='utf-8')
             print(f'Testing {engine}: persistent cookies after process restart', flush=True)

@@ -18,7 +18,8 @@ Window {
         deadline.restart()
         browser.setSource(smokeEngine === "webview2"
             ? "../../qml/feria/FeriaWebView2.qml" : "../../qml/feria/FeriaQtWebEngine.qml", {
-            sourceUrl: smokeUrls[index], profilePath: smokeProfileRoot
+            sourceUrl: smokeUrls[index], profilePath: smokeProfileRoot,
+            resumePosition: String(smokeUrls[index]).endsWith("/fixture/media") ? 10 : 0
         })
         browser.active = true
         advancing = false
@@ -37,8 +38,14 @@ Window {
     Loader { id: browser; anchors.fill: parent }
     Connections {
         target: browser.item
+        function onPlaybackObserved(sample) {
+            if (!String(smokeUrls[window.index]).endsWith("/fixture/media")) return
+            if (sample && sample.duration >= 30 && sample.position >= 9 && !sample.paused)
+                window.finishOne(true, "Playback observation and resume position verified")
+        }
         function onFailed(reason) { window.finishOne(false, reason) }
         function onCompleted(location, success) {
+            if (String(smokeUrls[window.index]).endsWith("/fixture/media") && success) return
             if (window.settling || window.advancing) return
             window.settling = true
             window.results.push({ location: location, success: success })

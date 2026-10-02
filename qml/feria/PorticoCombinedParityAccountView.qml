@@ -173,4 +173,10 @@ Item {
                 statsView.clearContentFocus()
         }
     }
+    Text {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: root.m; bottomMargin: 90 }
+        text: controller.accountStore ? controller.accountStore.error : "Feria account storage is unavailable."
+        visible: text.length > 0
+        color: controller.gold; wrapMode: Text.WordWrap
+    }
 }

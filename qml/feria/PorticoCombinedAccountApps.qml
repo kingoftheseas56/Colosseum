@@ -386,7 +386,7 @@ Item {
                             selected: controller.accountApp === modelData
                             focusedState: root.contentFocusArea === "service" && root.serviceFocusIndex === globalServiceIndex
                             name: controller.providerName(modelData)
-                            detail: "Not signed in"
+                            detail: "Sign in with the provider"
                             glyph: modelData
                             controller: root.controller
                             onEntered: root.setServiceFocus(globalServiceIndex)

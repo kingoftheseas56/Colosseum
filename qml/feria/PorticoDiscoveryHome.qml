@@ -317,7 +317,7 @@ Item {
                                 onEntered: { controller.selectApp(index) }
                                 onTriggered: {
                                     controller.selectApp(index)
-                                    if (pk) controller.openHost(pk,"","home"); else controller.viewState = "apps"
+                                    if (pk) controller.openHost(pk,"","home"); else controller.openApps()
                                 }
                             }
                         }
@@ -363,6 +363,11 @@ Item {
                         controller.selectLens(tab)
                     }
                 }
+            }
+
+            FeriaContinueRow {
+                x: m; width: parent.width - 2 * m
+                controller: home.controller
             }
 
             Repeater {
