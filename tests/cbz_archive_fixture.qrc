@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/cbz-test">
+    <file alias="volume.cbz">fixtures/tankoban/tiny-volume.cbz</file>
+  </qresource>
+</RCC>

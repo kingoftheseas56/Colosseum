@@ -2245,6 +2245,7 @@ target_link_libraries(manga_volume_index_harness PRIVATE Qt6::Core Qt6::Concurre
 
 add_executable(cbz_archive_harness
     ../tests/cbz_archive_harness.cpp
+    ../tests/cbz_archive_fixture.qrc
     engine/CbzArchive.cpp
     engine/CbzArchive.h
     third_party/miniz/miniz.c

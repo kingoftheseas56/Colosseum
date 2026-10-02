@@ -33,6 +33,16 @@ int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
 
+    // A Qt resource has no libc filesystem path, just like an Android content URI.
+    // Read it through the public archive API without copying it to a local file.
+    QString resourceError;
+    const auto resourcePages = CbzArchive::imageEntries(
+        QStringLiteral(":/cbz-test/volume.cbz"), &resourceError);
+    require(!resourcePages.isEmpty(), "Qt file-engine archive entries are readable");
+    require(!CbzArchive::readEntry(QStringLiteral(":/cbz-test/volume.cbz"),
+                                  resourcePages.first().name, &resourceError).isEmpty(),
+            "Qt file-engine archive page bytes are readable");
+
     QTemporaryDir temp;
     require(temp.isValid(), "temporary archive root created");
     const QString pagesDir = temp.path() + QStringLiteral("/pages");

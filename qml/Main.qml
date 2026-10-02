@@ -4756,7 +4756,10 @@ Window {
         id: openMediaDialog
         title: "Open Media"
         fileMode: FileDialog.OpenFiles
-        nameFilters: [
+        // Android providers may label CBZ/EPUB as application/octet-stream. Qt's
+        // extension-to-MIME filter disables those documents before LocalLaunch can
+        // inspect them. Let the user select a document and keep admission in C++.
+        nameFilters: Qt.platform.os === "android" ? ["All files (*)"] : [
             "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
             "Comics (*.cbz *.cbr)",
             "Books (*.epub)",

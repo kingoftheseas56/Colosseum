@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <limits>
 
 namespace MangaTankoban {
 namespace {
@@ -48,6 +49,27 @@ bool imageNameAccepted(const QString& name)
 QString zipError(mz_zip_archive& zip)
 {
     return QString::fromLatin1(mz_zip_get_error_string(mz_zip_get_last_error(&zip)));
+}
+
+// Qt's file engines also open Android content:// documents and Qt resources.
+// Keep the authorized source open for this operation; no permanent copy is needed.
+bool openReader(mz_zip_archive& zip, QFile& source)
+{
+    if (!source.open(QIODevice::ReadOnly) || source.isSequential() || source.size() < 0) {
+        mz_zip_set_last_error(&zip, MZ_ZIP_FILE_OPEN_FAILED);
+        return false;
+    }
+    zip.m_pIO_opaque = &source;
+    zip.m_pRead = [](void* opaque, mz_uint64 offset, void* buffer, size_t count) -> size_t {
+        auto& file = *static_cast<QFile*>(opaque);
+        if (offset > mz_uint64(std::numeric_limits<qint64>::max())
+            || count > size_t(std::numeric_limits<qint64>::max())
+            || !file.seek(qint64(offset)))
+            return 0;
+        const qint64 read = file.read(static_cast<char*>(buffer), qint64(count));
+        return read > 0 ? size_t(read) : 0;
+    };
+    return mz_zip_reader_init(&zip, mz_uint64(source.size()), 0);
 }
 
 // A cheap "is this a real image" gate: sniff the leading magic bytes rather than
@@ -103,8 +125,8 @@ QVector<CbzPageEntry> CbzArchive::imageEntries(const QString& archivePath, QStri
 {
     QVector<CbzPageEntry> result;
     mz_zip_archive zip{};
-    const QByteArray path = nativePath(archivePath);
-    if (!mz_zip_reader_init_file(&zip, path.constData(), 0)) {
+    QFile source(archivePath);
+    if (!openReader(zip, source)) {
         setError(error, QStringLiteral("cannot open CBZ: %1").arg(zipError(zip)));
         return result;
     }
@@ -143,8 +165,8 @@ QByteArray CbzArchive::readEntry(const QString& archivePath,
                                  QString* error)
 {
     mz_zip_archive zip{};
-    const QByteArray path = nativePath(archivePath);
-    if (!mz_zip_reader_init_file(&zip, path.constData(), 0)) {
+    QFile source(archivePath);
+    if (!openReader(zip, source)) {
         setError(error, QStringLiteral("cannot open CBZ: %1").arg(zipError(zip)));
         return {};
     }
@@ -277,8 +299,8 @@ CbzProbeResult CbzArchive::probe(const QString& archivePath, QString* error)
     CbzProbeResult result;
 
     mz_zip_archive zip{};
-    const QByteArray path = nativePath(archivePath);
-    if (!mz_zip_reader_init_file(&zip, path.constData(), 0)) {
+    QFile source(archivePath);
+    if (!openReader(zip, source)) {
         setError(error, QStringLiteral("cannot open CBZ: %1").arg(zipError(zip)));
         return result;
     }
