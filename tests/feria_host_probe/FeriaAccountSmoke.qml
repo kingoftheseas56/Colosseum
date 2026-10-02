@@ -29,6 +29,7 @@ Window {
         if (!host) { finish(false, "Browser host missing"); return }
         host.enginePreferences = {youtube:smokeEngine}
         feria.openHost("youtube", "", "resume", smokeUrls[0], 10)
+        Qt.callLater(function() { host.engineOverride = smokeEngine })
         deadline.start()
     }
     Connections {
@@ -44,6 +45,7 @@ Window {
                 feria.openAccount()
                 feria.accountTab = "stats"
                 ok = ok && feria.totalMins(feria.allSessions()) > 0
+                    && find(feria, "feriaBrowserHost").engine === smokeEngine
                 finish(ok, "Production browser → account store → Continue, history and stats")
             })
         }

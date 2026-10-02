@@ -31,7 +31,7 @@ target_include_directories(feria_discovery PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/app-state"
     "${CMAKE_CURRENT_SOURCE_DIR}/destination-router"
     "${CMAKE_CURRENT_SOURCE_DIR}/identity-state")
-target_link_libraries(feria_discovery PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml)
+target_link_libraries(feria_discovery PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::WebEngineQuick Qt6::Sql)
 
 if(WIN32)
     find_package(unofficial-webview2 CONFIG QUIET)

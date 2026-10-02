@@ -31,6 +31,8 @@ public:
     void goBack();
     void executeScript(const QString &label, const QString &script);
     void pauseMedia(const QString &label);
+    void clearSiteData(const QUrl &origin);
+    void clearCookies(const QStringList &domains);
 
 signals:
     void initializationFailed(const QString &reason);
@@ -44,6 +46,8 @@ signals:
     void escapeRequested();
     void popupOpened(const QString &uri);
     void hostLog(const QString &message);
+    void siteDataCleared(bool success);
+    void cookiesCleared(bool success);
 
 private:
     struct Impl;

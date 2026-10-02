@@ -90,6 +90,34 @@ Item {
     readonly property var recordedSessions: accountStore ? accountStore.sessions : []
     readonly property var continueItems: accountStore ? accountStore.continueItems : []
     property real hostResumePosition: 0
+    property var hostResumeLocator: null
+    property string signingOutProvider: ""
+    property string signOutMessage: ""
+    property var signOutScope: ({})
+    function providerMode(pk) { return Data.P[pk] ? Data.P[pk].v : "watch" }
+    function signOutHere(pk) {
+        if (signingOutProvider || viewState === "host") return
+        var scope = FeriaBrowserPolicy.sessionScope(pk)
+        if (!scope.domains || !scope.domains.length) { signOutMessage = "This service has no saved browser session."; return }
+        signOutScope = scope; signOutMessage = "Signing out…"; signingOutProvider = pk
+    }
+    Loader {
+        id: sessionCleaner
+        active: shell.signingOutProvider.length > 0
+        sourceComponent: FeriaSessionCleaner {
+            profilePath: FeriaBrowserPolicy.storageRoot
+            domains: shell.signOutScope.domains
+            origins: shell.signOutScope.origins
+            onFinished: function(success) {
+                shell.signOutMessage = success ? "Signed out here. Your history and row are unchanged." : "Could not finish signing out. Try again."
+                shell.signingOutProvider = ""
+            }
+        }
+    }
+    Connections {
+        target: FeriaBrowserPolicy
+        function onStorageRootChanged() { shell.signingOutProvider = ""; shell.signOutMessage = "" }
+    }
     readonly property bool activityAllowed: typeof ProfilePreferences === "undefined" || ProfilePreferences.keepActivityHistory
     property bool clearPending: false
     property string toast: ""
@@ -311,7 +339,9 @@ Item {
             if (searchView.searchField) searchView.searchField.forceActiveFocus()
         })
     }
-    function openHost(pk,id,mode,url,position) {
+    function openHost(pk,id,mode,url,position,locator) {
+        if (signingOutProvider) { setToast("Wait for sign-out to finish."); return }
+        hostResumeLocator = locator || null
         hostResumePosition = position || 0
         var provider = Data.P[pk]
         var destination = url || (provider && provider.d ? "https://" + provider.d : "")
@@ -452,7 +482,7 @@ Item {
         openAccount()
     }
     function resumeSession(session) {
-        openHost(session.pk, "", "resume", session.url, session.completed ? 0 : session.position)
+        openHost(session.pk, "", "resume", session.url, session.completed || session.kind === "book" ? 0 : session.position, session.completed ? null : session.locator)
     }
     function allSessions() { return recordedSessions }
     Connections {

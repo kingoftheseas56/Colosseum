@@ -18,12 +18,21 @@ Item {
     readonly property var feeds: Data.SHELVES.filter(function(s) { return s.apps.indexOf(controller.accountApp) >= 0 })
 
     property string contentFocusArea: ""
+    property string signOutConfirmation: ""
+    Timer { id: signOutConfirmTimer; interval: 8000; onTriggered: root.signOutConfirmation = "" }
+    Connections {
+        target: root.controller
+        function onAccountAppChanged() { root.signOutConfirmation = ""; root.controller.signOutMessage = "" }
+        function onViewStateChanged() { root.signOutConfirmation = "" }
+        function onAccountTabChanged() { root.signOutConfirmation = "" }
+    }
     property int serviceFocusIndex: -1
     property int regionFocusIndex: -1
     property int actionFocusIndex: -1
     readonly property bool contentFocusActive: contentFocusArea !== ""
 
     function select(k) {
+        if (controller.signingOutProvider) return
         controller.accountApp = k
     }
 
@@ -90,7 +99,7 @@ Item {
         if (controller.accountApp === "region" || !selected || selected.app)
             return []
         var rowActions = inRow ? ["Move earlier", "Move later", "Remove from row"] : ["Add to row"]
-        return ["Open provider"].concat(rowActions, ["See all stats"])
+        return ["Open provider"].concat(rowActions, ["See all stats", "Sign out here"])
     }
 
     function actionIndexForLabel(label) {
@@ -103,6 +112,13 @@ Item {
             return false
         var label = labels[index]
         var k = controller.accountApp
+        if (controller.signingOutProvider) return true
+        if (label === "Sign out here") {
+            if (signOutConfirmation !== k) { signOutConfirmation = k; signOutConfirmTimer.restart() }
+            else { signOutConfirmation = ""; signOutConfirmTimer.stop(); controller.signOutHere(k) }
+            return true
+        }
+        signOutConfirmation = ""
         if (label === "Open provider") {
             controller.openHost(k, "", "home")
         } else if (label === "Add to row" || label === "Remove from row") {
@@ -632,7 +648,7 @@ Item {
                                     font.family: controller.uiFont
                                     font.pixelSize: 0.92 * u
                                     text: modelData === "Sign-in"
-                                          ? "Sign in on " + controller.providerName(controller.accountApp) + "'s own page. Colosseum keeps the session; only the service can confirm whether you are signed in."
+                                          ? "Sign in on " + controller.providerName(controller.accountApp) + "'s own page. Colosseum keeps the session. Sign out here clears it in both browsers; services sharing the same login may also sign out."
                                           : modelData === "Your row"
                                             ? (root.inRow ? "Position " + (controller.activeApps.indexOf(controller.accountApp) + 1) + " of " + controller.activeApps.length + "."
                                                           : "Add this service to show its shelves on Home.")
@@ -642,11 +658,19 @@ Item {
                                                                     : "Nothing recorded here yet.")
                                 }
 
+                                Text {
+                                    visible: modelData === "Sign-in" && controller.signOutMessage.length > 0
+                                    width: parent.width
+                                    text: controller.signOutMessage
+                                    wrapMode: Text.WordWrap
+                                    color: controller.gold; font.family: controller.uiFont; font.pixelSize: 0.92 * u
+                                    Accessible.role: Accessible.StaticText
+                                }
                                 Row {
                                     visible: modelData === "Sign-in" || modelData === "Your row" || modelData === "Your time here"
                                     spacing: 0.6 * u
                                     Repeater {
-                                        model: modelData === "Sign-in" ? ["Open provider"]
+                                        model: modelData === "Sign-in" ? ["Open provider", "Sign out here"]
                                              : modelData === "Your row" ? (root.inRow ? ["Move earlier", "Move later", "Remove from row"] : ["Add to row"])
                                              : ["See all stats"]
                                         delegate: Rectangle {
@@ -654,6 +678,10 @@ Item {
                                             readonly property int globalActionIndex: root.actionIndexForLabel(modelData)
                                             property bool focusedState: root.contentFocusArea === "action" && root.actionFocusIndex === globalActionIndex
                                             objectName: "account-apps-action-" + globalActionIndex
+                                            enabled: !controller.signingOutProvider
+                                            opacity: enabled ? 1 : 0.55
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: label.text
                                             width: Math.max(6 * u, label.implicitWidth + 2 * u)
                                             height: 2.5 * u
                                             radius: 0.7 * u
@@ -663,7 +691,8 @@ Item {
                                             Text {
                                                 id: label
                                                 anchors.centerIn: parent
-                                                text: modelData
+                                                text: modelData === "Sign out here" && root.signOutConfirmation === controller.accountApp ? "Press again to sign out"
+                                                    : modelData === "Sign out here" && controller.signingOutProvider ? "Signing out…" : modelData
                                                 color: controller.ink
                                                 font.family: controller.uiFont
                                                 font.pixelSize: 0.88 * u

@@ -44,7 +44,8 @@ Item {
     function tryOtherBrowser() {
         if (!FeriaBrowserPolicy.webView2Available) return
         var resume = controller.continueItems.find(function(item) { return item.url === root.currentUrl })
-        controller.hostResumePosition = resume ? resume.position : 0
+        controller.hostResumePosition = resume && resume.kind !== "book" ? resume.position : 0
+        controller.hostResumeLocator = resume ? resume.locator || null : null
         var next = engine === "webview2" ? "qtwebengine" : "webview2"
         var values = JSON.parse(JSON.stringify(enginePreferences))
         values[controller.hostApp] = next
@@ -139,6 +140,8 @@ Item {
                 sourceUrl: root.currentUrl || controller.hostUrl,
                 profilePath: FeriaBrowserPolicy.storageRoot,
                 resumePosition: controller.hostResumePosition,
+                resumeLocator: controller.hostResumeLocator,
+                observationMode: controller.providerMode(controller.hostApp),
                 observationEnabled: Qt.binding(function() { return controller.recording }),
                 suppressed: Qt.binding(function() { return controller.browserSuppressed })
             })
@@ -152,7 +155,9 @@ Item {
     Connections {
         target: browserLoader.item
         function onPlaybackObserved(sample) { root.receivePlayback(sample) }
+        function onResumeUnavailable() { controller.setToast("The saved page is open. Use the provider's controls to restore your position.") }
         function onStarted(location) {
+            FeriaBrowserPolicy.rememberOrigin(controller.hostApp, location)
             root.pageTitle = ""
             root.currentUrl = location
             root.loading = true

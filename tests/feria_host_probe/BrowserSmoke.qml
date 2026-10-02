@@ -9,17 +9,19 @@ Window {
     visible: true
     property int index: -1
     property bool settling: false
+    property double mediaLoadedAt: 0
     property bool advancing: false
     property var results: []
     function next() {
         settling = false
+        mediaLoadedAt = 0
         ++index
         if (index >= smokeUrls.length) { browserReporter.finish(); return }
         deadline.restart()
         browser.setSource(smokeEngine === "webview2"
             ? "../../qml/feria/FeriaWebView2.qml" : "../../qml/feria/FeriaQtWebEngine.qml", {
             sourceUrl: smokeUrls[index], profilePath: smokeProfileRoot,
-            resumePosition: String(smokeUrls[index]).endsWith("/fixture/media") ? 10 : 0
+            resumePosition: String(smokeUrls[index]).indexOf("/fixture/media") >= 0 ? 10 : 0
         })
         browser.active = true
         advancing = false
@@ -39,13 +41,13 @@ Window {
     Connections {
         target: browser.item
         function onPlaybackObserved(sample) {
-            if (!String(smokeUrls[window.index]).endsWith("/fixture/media")) return
+            if (String(smokeUrls[window.index]).indexOf("/fixture/media") < 0) return
             if (sample && sample.duration >= 30 && sample.position >= 9 && !sample.paused)
-                window.finishOne(true, "Playback observation and resume position verified")
+                window.finishOne(window.mediaLoadedAt > 0 && Date.now()-window.mediaLoadedAt < 9000, "Playback observation and seek verified before natural playback reaches the saved position")
         }
         function onFailed(reason) { window.finishOne(false, reason) }
         function onCompleted(location, success) {
-            if (String(smokeUrls[window.index]).endsWith("/fixture/media") && success) return
+            if (String(smokeUrls[window.index]).indexOf("/fixture/media") >= 0 && success) { if (!window.mediaLoadedAt) window.mediaLoadedAt = Date.now(); return }
             if (window.settling || window.advancing) return
             window.settling = true
             window.results.push({ location: location, success: success })
@@ -61,7 +63,10 @@ Window {
                 var script = "Boolean(document.body.dataset.passed === 'true')"
                 if (smokeEngine === "webview2") browser.item.executeScript("fixture-check", script)
                 else browser.item.runJavaScript(script, function(passed) {
-                    window.finishOne(passed === true, result.location)
+                    if (passed === true) window.finishOne(true, result.location)
+                    else browser.item.runJavaScript("document.body.dataset.detail || ''", function(detail) {
+                        window.finishOne(false, result.location + " " + detail)
+                    })
                 })
             } else window.finishOne(result.success, result.location)
         }

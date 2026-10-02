@@ -79,6 +79,8 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
             this, &FeriaHostItem::popupOpened);
     connect(m_host, &FeriaProviderHost::hostLog,
             this, &FeriaHostItem::hostLog);
+    connect(m_host, &FeriaProviderHost::siteDataCleared, this, &FeriaHostItem::siteDataCleared);
+    connect(m_host, &FeriaProviderHost::cookiesCleared, this, &FeriaHostItem::cookiesCleared);
     connect(m_host, &FeriaProviderHost::escapeRequested,
             this, &FeriaHostItem::returnToQml);
 }
@@ -327,3 +329,6 @@ QString FeriaHostItem::captureGeometry(const QString &label)
     emit geometryCaptured(result);
     return result;
 }
+
+void FeriaHostItem::clearSiteData(const QUrl &origin) { m_host->clearSiteData(origin); }
+void FeriaHostItem::clearCookies(const QStringList &domains) { m_host->clearCookies(domains); }

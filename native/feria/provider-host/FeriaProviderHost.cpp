@@ -14,6 +14,8 @@
 #include <QPointer>
 #include <QTimer>
 #include <QWindow>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <climits>
 #include <cmath>
@@ -671,8 +673,8 @@ void FeriaProviderHost::executeScript(const QString &label,
                     resultJson ? QString::fromWCharArray(resultJson)
                                : QStringLiteral("null");
                 m_impl->log(
-                    QStringLiteral("SCRIPT label=%1 hr=%2 result=%3")
-                        .arg(label, hresultText(scriptResult), json));
+                    QStringLiteral("SCRIPT label=%1 hr=%2")
+                        .arg(label, hresultText(scriptResult)));
                 emit this->scriptResult(label, json);
                 return S_OK;
             }).Get());
@@ -692,4 +694,63 @@ void FeriaProviderHost::pauseMedia(const QString &label)
             "m.forEach(x=>x.pause());"
             "return {count:m.length,paused:m.every(x=>x.paused),"
             "currentTime:m[0]?m[0].currentTime:null};})()"));
+}
+
+void FeriaProviderHost::clearSiteData(const QUrl &origin)
+{
+    if (!m_impl->webView || !FeriaBrowserPolicy::allows(origin)
+        || (origin.scheme() != "http" && origin.scheme() != "https")) {
+        emit siteDataCleared(false); return;
+    }
+    const auto params = QString::fromUtf8(QJsonDocument(QJsonObject{
+        {"origin", origin.adjusted(QUrl::RemovePath | QUrl::RemoveUserInfo | QUrl::RemoveQuery | QUrl::RemoveFragment).toString()},
+        {"storageTypes", "all"}}).toJson(QJsonDocument::Compact)).toStdWString();
+    const HRESULT result = m_impl->webView->CallDevToolsProtocolMethod(L"Storage.clearDataForOrigin", params.c_str(),
+        Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>(
+            [guard = QPointer<FeriaProviderHost>(this)](HRESULT error, LPCWSTR) -> HRESULT {
+                if (guard) emit guard->siteDataCleared(SUCCEEDED(error)); return S_OK;
+            }).Get());
+    if (FAILED(result)) emit siteDataCleared(false);
+}
+
+void FeriaProviderHost::clearCookies(const QStringList &domains)
+{
+    ComPtr<ICoreWebView2_2> view;
+    ComPtr<ICoreWebView2CookieManager> manager;
+    if (!m_impl->webView || FAILED(m_impl->webView.As(&view))
+        || FAILED(view->get_CookieManager(&manager)) || domains.isEmpty()) {
+        emit cookiesCleared(false); return;
+    }
+    const auto guard = QPointer<FeriaProviderHost>(this);
+    const HRESULT result = manager->GetCookies(L"", Callback<ICoreWebView2GetCookiesCompletedHandler>(
+        [guard, manager, domains](HRESULT error, ICoreWebView2CookieList *list) -> HRESULT {
+            if (!guard) return S_OK;
+            if (FAILED(error) || !list) { emit guard->cookiesCleared(false); return S_OK; }
+            UINT count = 0;
+            if (FAILED(list->get_Count(&count))) { emit guard->cookiesCleared(false); return S_OK; }
+            bool ok = true;
+            for (UINT i = 0; i < count; ++i) {
+                ComPtr<ICoreWebView2Cookie> cookie; LPWSTR raw = nullptr;
+                if (FAILED(list->GetValueAtIndex(i, &cookie)) || FAILED(cookie->get_Domain(&raw))) { ok = false; continue; }
+                const QString domain = takeWideString(raw);
+                if (FeriaBrowserPolicy::cookieInScope(domain, domains) && FAILED(manager->DeleteCookie(cookie.Get()))) ok = false;
+            }
+            if (!ok) { emit guard->cookiesCleared(false); return S_OK; }
+            const HRESULT verify = manager->GetCookies(L"", Callback<ICoreWebView2GetCookiesCompletedHandler>(
+                [guard, domains](HRESULT error, ICoreWebView2CookieList *remaining) -> HRESULT {
+                    if (!guard) return S_OK;
+                    bool clean = SUCCEEDED(error) && remaining;
+                    UINT count = 0;
+                    if (clean) clean = SUCCEEDED(remaining->get_Count(&count));
+                    for (UINT i = 0; clean && i < count; ++i) {
+                        ComPtr<ICoreWebView2Cookie> cookie; LPWSTR raw = nullptr;
+                        if (FAILED(remaining->GetValueAtIndex(i, &cookie)) || FAILED(cookie->get_Domain(&raw))) { clean = false; break; }
+                        if (FeriaBrowserPolicy::cookieInScope(takeWideString(raw), domains)) clean = false;
+                    }
+                    emit guard->cookiesCleared(clean); return S_OK;
+                }).Get());
+            if (FAILED(verify)) emit guard->cookiesCleared(false);
+            return S_OK;
+        }).Get());
+    if (FAILED(result)) emit cookiesCleared(false);
 }

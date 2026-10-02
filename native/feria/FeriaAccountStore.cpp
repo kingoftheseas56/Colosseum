@@ -62,7 +62,7 @@ QString FeriaAccountStore::safeUrl(const QString &value) {
     url.setFragment(fragment.startsWith('/') && !fragment.contains('?') && !fragment.contains('=') ? fragment : QString());
     QUrlQuery kept;
     for (const auto &pair : QUrlQuery(url).queryItems())
-        if (QStringList{"v", "id", "chapter", "episode", "page", "book", "volume", "asin", "title_no", "episode_no"}.contains(pair.first)) kept.addQueryItem(pair.first, pair.second);
+        if (QStringList{"v", "id", "chapter", "episode", "page", "book", "volume", "asin", "title_no", "episode_no", "pg", "loc", "cfi"}.contains(pair.first)) kept.addQueryItem(pair.first, pair.second);
     url.setQuery(kept);
     return url.toString();
 }
@@ -94,16 +94,37 @@ void FeriaAccountStore::beginVisit(const QVariantMap &context) {
 void FeriaAccountStore::endVisit() {
     m_context.clear(); m_sessionId.clear(); m_lastItem.clear(); m_lastPlaying = false; m_clock.invalidate();
 }
-bool FeriaAccountStore::observe(const QVariantMap &sample) { return record(sample, false); }
+bool FeriaAccountStore::observe(const QVariantMap &sample) {
+    const bool reading = sample.value("kind").toString() == "book";
+    if (reading && !QStringList{"kindle", "playbooks", "mangaplus", "viz", "webtoon", "dcui", "marvel"}.contains(m_context.value("pk").toString())) return false;
+    return record(sample, reading);
+}
 bool FeriaAccountStore::saveReadingPlace(const QString &url, const QString &title) {
-    return record({{"href", url}, {"title", title}}, true);
+    QVariantMap sample{{"href", url}, {"title", title}};
+    for (const auto &value : sessions()) {
+        const auto row = value.toMap();
+        if (row.value("pk") == m_context.value("pk") && row.value("url") == safeUrl(url)
+            && row.value("kind") == "book") {
+            sample.insert("locator", row.value("locator"));
+            break;
+        }
+    }
+    return record(sample, true);
 }
 bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     const double elapsed = m_clock.isValid() ? m_clock.restart() / 1000.0 : 0;
     if (!recording() || m_context.isEmpty()) { m_lastPlaying = false; return false; }
     const auto url = safeUrl(sample.value("href").toString());
-    const double position = sample.value("position").toDouble();
-    const double duration = sample.value("duration").toDouble();
+    auto locator = sample.value("locator").toMap();
+    if (reading && locator.isEmpty()) locator.insert("type", "url");
+    const bool scroll = reading && locator.value("type") == "scroll";
+    const double fraction = locator.value("fraction").toDouble();
+    if (reading && (locator.value("type") != "url" && !scroll)) return false;
+    if (scroll && (!std::isfinite(fraction) || fraction < 0 || fraction > 1
+        || locator.value("selector").toString().size() > 512)) return false;
+    if (reading) locator = scroll ? QVariantMap{{"type", "scroll"}, {"fraction", fraction}, {"selector", locator.value("selector").toString()}} : QVariantMap{{"type", "url"}};
+    const double position = reading ? (scroll ? fraction * 100 : 0) : sample.value("position").toDouble();
+    const double duration = reading ? (scroll ? 100 : 0) : sample.value("duration").toDouble();
     const bool playing = !sample.value("paused", true).toBool() && !sample.value("ended").toBool();
     if (url.isEmpty() || (!reading && (sample.value("ad").toBool() || !std::isfinite(position)
         || !std::isfinite(duration) || duration < 30 || position <= 0))) { m_lastPlaying = false; return false; }
@@ -118,6 +139,7 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     if (!reading && m_lastPlaying && m_lastItem == id && elapsed > 0 && elapsed <= 6
         && delta > 0 && std::isfinite(rate) && rate > 0 && rate <= 16 && delta <= elapsed * rate + 2)
         active = std::min(elapsed, delta / rate);
+    if (reading && playing && m_lastPlaying && m_lastItem == id && elapsed > 0 && elapsed <= 6) active = elapsed;
     m_lastItem = id; m_lastPosition = position; m_lastPlaying = playing;
     auto rows = sessions();
     QVariantMap row;
@@ -135,9 +157,10 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     row.insert("cover", m_context.value("cover"));
     row.insert("at", QDateTime::currentMSecsSinceEpoch());
     row.insert("mins", row.value("mins").toDouble() + active / 60.0);
-    row.insert("position", reading ? 0 : std::min(position, duration));
-    row.insert("duration", reading ? 0 : duration);
-    row.insert("completed", !reading && (sample.value("ended").toBool() || position >= duration * 0.98));
+    row.insert("position", std::min(position, duration));
+    if (reading) row.insert("locator", locator);
+    row.insert("duration", duration);
+    row.insert("completed", duration > 0 && (sample.value("ended").toBool() || position >= duration * 0.98));
     row.insert("sample", false); row.insert("dismissed", false);
     rows.prepend(row);
     while (rows.size() > 5000) rows.removeLast();

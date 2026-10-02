@@ -66,7 +66,7 @@ Item {
                 spacing:0.7*u
                 Text {
                     Layout.fillWidth:true
-                    text:"Playback and reading places recorded in Feria on this profile. Playback time is measured where the provider exposes a player. Reading places are saved manually."
+                    text:"Activity recorded in Feria on this profile. Playback and reading positions save automatically where the page exposes them. Reading time counts while the page is visible and you are active."
                     color:controller.slate;font.family:controller.uiFont;font.pixelSize:0.9*u;lineHeight:1.5;wrapMode:Text.WordWrap
                 }
                 Rectangle {
@@ -110,7 +110,7 @@ Item {
             Text {
                 visible: root.sessions.length === 0
                 width: parent.width
-                text: "No activity yet. Play something in Feria or save your reading place."
+                text: "No activity yet. Play or read something in Feria."
                 color: controller.mist
                 font.family: controller.uiFont
                 font.pixelSize: 1.2*u
@@ -159,7 +159,7 @@ Item {
                             }
                             Column {
                                 Layout.alignment:Qt.AlignRight|Qt.AlignVCenter
-                                Text{text:modelData.kind === "book" ? "Saved place" : controller.durationText(modelData.mins);color:controller.ink;font.family:controller.displayFont;font.pixelSize:1.45*u;font.weight:Font.Medium;horizontalAlignment:Text.AlignRight;width:implicitWidth}
+                                Text{text:modelData.kind === "book" && modelData.mins <= 0 ? "Saved place" : controller.durationText(modelData.mins);color:controller.ink;font.family:controller.displayFont;font.pixelSize:1.45*u;font.weight:Font.Medium;horizontalAlignment:Text.AlignRight;width:implicitWidth}
                                 Text{text:"on "+controller.providerName(modelData.pk);color:controller.slate;font.family:controller.uiFont;font.pixelSize:0.8*u;horizontalAlignment:Text.AlignRight;width:parent.width}
                             }
                         }

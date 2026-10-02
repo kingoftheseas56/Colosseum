@@ -1,4 +1,5 @@
 #include "FeriaAccountStore.h"
+#include "FeriaBrowserPolicy.h"
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QThread>
@@ -53,6 +54,42 @@ int main(int argc, char **argv) {
     check(!reopened.recording() && !reopened.setRecording(true), "Sealed profile cannot persist");
     store.clearHistory();
     check(store.sessions().isEmpty() && store.continueItems().isEmpty(), "Clear removes history and Continue");
+    store.beginVisit({{"pk", "webtoon"}});
+    QVariantMap reading{{"href", "https://www.webtoons.com/en/reader?episode_no=12"}, {"title", "Chapter 12"},
+        {"kind", "book"}, {"paused", false}, {"locator", QVariantMap{{"type", "scroll"}, {"selector", "#reader"}, {"fraction", 0.4}}}};
+    check(store.observe(reading), "Automatic reading place");
+    auto saved = store.continueItems().first().toMap();
+    check(saved.value("position").toDouble() == 40 && saved.value("duration").toDouble() == 100, "Reading percentage stored");
+    check(saved.value("locator").toMap().value("selector") == "#reader", "Nested reader locator retained");
+    QThread::msleep(80); store.observe(reading);
+    check(store.sessions().first().toMap().value("mins").toDouble() > 0, "Active reading time counted");
+    reading.insert("paused", true); store.observe(reading);
+    time = store.sessions().first().toMap().value("mins").toDouble();
+    QThread::msleep(80); store.observe(reading);
+    check(store.sessions().first().toMap().value("mins").toDouble() == time, "Idle reading excluded");
+    check(store.saveReadingPlace(reading.value("href").toString(), reading.value("title").toString()), "Save automatic reading place manually");
+    check(store.continueItems().first().toMap().value("position").toDouble() == 40, "Manual save preserves automatic position");
+    reopened.setStoragePath(path);
+    check(reopened.continueItems().first().toMap().value("locator").toMap().value("fraction").toDouble() == 0.4, "Reading locator persists across restart");
+    reading.insert("locator", QVariantMap{{"type", "scroll"}, {"fraction", 0.99}});
+    check(store.observe(reading) && store.continueItems().isEmpty(), "Completed reading leaves Continue");
+    reading.insert("locator", QVariantMap{{"type", "scroll"}, {"fraction", std::nan("")}});
+    check(!store.observe(reading), "Invalid reading locator rejected");
+    store.beginVisit({{"pk", "netflix"}});
+    check(!store.observe(reading), "A video provider cannot submit reading observations");
+    FeriaBrowserPolicy policy;
+    policy.setStorageRoot(temp.filePath("browser-a"));
+    policy.rememberOrigin("netflix", QUrl("https://user:secret@player.netflix.com/watch/1?token=secret#secret"));
+    const auto scope = policy.sessionScope("netflix");
+    check(scope.value("origins").toStringList().contains("https://player.netflix.com"), "Visited provider origin retained without credentials");
+    check(!scope.value("origins").toStringList().join(',').contains("secret"), "Session scope excludes credentials");
+    check(FeriaBrowserPolicy::cookieInScope(".netflix.com", scope.value("domains").toStringList()), "Parent provider cookie matched");
+    check(!FeriaBrowserPolicy::cookieInScope("evilnetflix.com", scope.value("domains").toStringList()), "Domain suffix boundary enforced");
+    check(policy.sessionScope("unknown").isEmpty(), "Unknown provider scope rejected");
+    policy.setStorageRoot(temp.filePath("browser-b"));
+    check(!policy.sessionScope("netflix").value("origins").toStringList().contains("https://player.netflix.com"), "Origin history isolated by profile");
+    policy.setStorageRoot({});
+    check(policy.sessionScope("netflix").isEmpty(), "Sealed profile cannot clear another browser profile");
     QFile broken(temp.filePath("broken.json")); check(broken.open(QIODevice::WriteOnly), "Create corrupt fixture"); broken.write("broken"); broken.close();
     reopened.setStoragePath(broken.fileName());
     check(!reopened.error().isEmpty() && !reopened.clearHistory(), "Preserve unreadable store");

@@ -294,7 +294,7 @@ Item {
                     columnSpacing: 1.5 * u
                     Repeater {
                         model: [
-                            {v:controller.durationText(controller.totalMins(root.sessions)), l:"Playback time"},
+                            {v:controller.durationText(controller.totalMins(root.sessions)), l:"Active time"},
                             {v:controller.distinct(root.sessions,"id"), l:"Titles"},
                             {v:Array.from(new Set(root.sessions.map(function(s) {
                                 return new Date(s.at).toDateString()

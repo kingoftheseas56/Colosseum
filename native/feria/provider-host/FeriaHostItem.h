@@ -36,6 +36,8 @@ public:
     Q_INVOKABLE void goBack();
     Q_INVOKABLE void executeScript(const QString &label, const QString &script);
     Q_INVOKABLE QString captureGeometry(const QString &label);
+    Q_INVOKABLE void clearSiteData(const QUrl &origin);
+    Q_INVOKABLE void clearCookies(const QStringList &domains);
 
 signals:
     void initializationFailed(const QString &reason);
@@ -53,6 +55,8 @@ signals:
     void observerMessage(const QString &jsonMessage);
     void popupOpened(const QString &uri);
     void hostLog(const QString &message);
+    void siteDataCleared(bool success);
+    void cookiesCleared(bool success);
     void geometryCaptured(const QString &json);
 
 protected:

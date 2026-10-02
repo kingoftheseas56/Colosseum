@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Window
 import QtWebEngine
 import "FeriaPlayback.js" as Playback
+import "FeriaSession.js" as Session
 
 WebEngineView {
     id: browser
@@ -9,22 +10,68 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     signal playbackObserved(var observation)
+    signal resumeUnavailable()
     property real resumePosition: 0
+    property var resumeLocator: null
+    property string observationMode: "watch"
     property bool observationEnabled: true
+    property int readingResumeAttempts: 0
+    property int mediaResumeAttempts: 0
     function samplePlayback() {
         var generation = navigationGeneration
-        runJavaScript(Playback.sample, function(sample) {
-            if (!sample || generation !== navigationGeneration || !observationEnabled) return
-            if (resumePosition > 0 && sample.duration > 0 && !sample.ad && Playback.sameDestination(sample.href, sourceUrl)) {
-                runJavaScript(Playback.seek(resumePosition), function(success) {
-                    if (success && generation === navigationGeneration) resumePosition = 0
+        runJavaScript(Playback.observation(observationMode), function(sample) {
+            if (!sample || generation !== navigationGeneration) return
+            if (resumeLocator && resumeLocator.type === "url") resumeLocator = null
+            if (resumeLocator && sample.kind === "book" && Playback.sameDestination(sample.href, sourceUrl)) {
+                ++readingResumeAttempts
+                runJavaScript(Playback.restoreReading(resumeLocator), function(ok) {
+                    if (generation !== navigationGeneration) return
+                    if (ok) resumeLocator = null
+                    else if (readingResumeAttempts >= 10) { resumeLocator = null; resumeUnavailable() }
                 })
-            } else playbackObserved(sample)
+                return
+            }
+            if (sample.kind !== "book" && resumePosition > 0 && sample.duration > 0 && !sample.ad && Playback.sameDestination(sample.href, sourceUrl)) {
+                ++mediaResumeAttempts
+                runJavaScript(Playback.seek(resumePosition), function(success) {
+                    if (generation !== navigationGeneration) return
+                    if (success) resumePosition = 0
+                    else if (mediaResumeAttempts >= 10) { resumePosition = 0; resumeUnavailable() }
+                })
+            } else if (observationEnabled) playbackObserved(sample)
         })
     }
     Timer {
-        interval: 2000; repeat: true; running: browser.observationEnabled
+        interval: 2000; repeat: true; running: browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null
         onTriggered: browser.samplePlayback()
+    }
+    signal localSessionCleared(bool success)
+    property bool clearingSession: false
+    property var clearOrigins: []
+    property var clearDomains: []
+    property bool cleanupNavigationPending: false
+    function clearLocalSession(domains, origins) {
+        clearingSession = true; clearDomains = domains; clearOrigins = origins.slice(); clearNextOrigin()
+    }
+    function clearNextOrigin() {
+        if (clearOrigins.length === 0) {
+            clearingSession = false; localSessionCleared(true)
+            return
+        }
+        var origin = clearOrigins[0]; clearOrigins = clearOrigins.slice(1)
+        // This blank page has the site's origin but executes no provider scripts
+        // and makes no network request. It can clear origin storage offline.
+        cleanupNavigationPending = true
+        loadHtml("<!doctype html><title>Feria session cleanup</title>", origin + "/")
+    }
+    Timer {
+        id: cleanupPoll; interval: 100; repeat: true
+        onTriggered: browser.runJavaScript("window.__feriaStorageCleared || ''", function(result) {
+            if (result === "done") { cleanupPoll.stop(); browser.clearNextOrigin() }
+            else if (result === "failed") {
+                cleanupPoll.stop(); browser.clearingSession = false; browser.localSessionCleared(false)
+            }
+        })
     }
     property bool suppressed: false
     readonly property bool ready: true
@@ -48,6 +95,12 @@ WebEngineView {
         persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
     }
     onNavigationRequested: function(request) {
+        // loadHtml creates a data URL internally. Permit just the next blank
+        // document initiated by cleanup; normal pages retain the URL policy.
+        if (clearingSession && cleanupNavigationPending && String(request.url).indexOf("data:text/html") === 0) {
+            cleanupNavigationPending = false
+            return
+        }
         if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()
     }
     onLoadingChanged: function(info) {
@@ -60,11 +113,18 @@ WebEngineView {
         else if (info.status === WebEngineView.LoadSucceededStatus) {
             documentCheck.stop()
             documentReady = true
+            if (clearingSession) {
+                runJavaScript(Session.clearStorage)
+                cleanupPoll.start()
+            }
+            // A completed listener may begin cleanup synchronously. Inspect the
+            // current load before notifying it, so about:blank is never cleaned.
             completed(String(info.url), true)
         } else if (info.status === WebEngineView.LoadFailedStatus) {
             ++navigationGeneration
             documentCheck.stop()
             documentReady = false
+            if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             completed(String(info.url), false)
         }
     }

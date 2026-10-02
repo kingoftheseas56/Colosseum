@@ -223,6 +223,88 @@
     },
     {
       "cmd": "ui-click",
+      "label": "arm local Netflix sign-out",
+      "payload": {
+        "target": "account-apps-action-5"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "sign-out requires the mock second press",
+      "payload": {
+        "object": "account-apps-content",
+        "prop": "signOutConfirmation",
+        "value": "netflix",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "first press does not sign out",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "signingOutProvider",
+        "value": "",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "confirm local Netflix sign-out",
+      "payload": {
+        "target": "account-apps-action-5"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "both browser sessions cleared",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "signOutMessage",
+        "value": "Signed out here. Your history and row are unchanged.",
+        "timeout_ms": 65000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "sign-out preserves Netflix in the row",
+      "payload": {
+        "object": "account-apps-content",
+        "prop": "inRow",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
       "label": "remove Netflix from the row",
       "payload": {
         "target": "account-apps-action-3"

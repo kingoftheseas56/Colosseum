@@ -15,7 +15,7 @@ Item {
     readonly property var rows: controller.tallySessions(sessions, controller.statsBy === "title" ? "id" : "pk")
     readonly property int actionableRowCount: Math.min(rows.length, controller.statsBy === "title" ? 15 : 30)
     readonly property var metrics: [
-        {v:controller.durationText(controller.totalMins(sessions)),l:"Playback time"},
+        {v:controller.durationText(controller.totalMins(sessions)),l:"Active time"},
         {v:controller.distinct(sessions,"id"),l:"Titles"},
         {v:sessions.length,l:"Sessions"},
         {v:Array.from(new Set(sessions.map(function(s){return new Date(s.at).toDateString()}))).length,l:"Active days"},
@@ -155,7 +155,7 @@ Item {
                                 spacing: u
                                 Text { Layout.preferredWidth: 2*u; text: index===0?"#":String(index); color: controller.slate; font.family: controller.uiFont; font.pixelSize: 0.9*u }
                                 Text { Layout.fillWidth: true; text: index===0?(controller.statsBy==="title"?"Title":"App"):(controller.statsBy==="title"?(controller.titleObj(modelData.key)?controller.titleObj(modelData.key).t:modelData.key):controller.providerName(modelData.key)); color: index===0?controller.slate:controller.ink; font.family: controller.uiFont; font.pixelSize: 0.95*u; font.weight: index===0?Font.Normal:Font.DemiBold; elide: Text.ElideRight }
-                                Text { Layout.preferredWidth: 8*u; text:index===0?"Playback time":((controller.statsBy==="title" && controller.titleObj(modelData.key) && controller.titleObj(modelData.key).k==="book") || (controller.statsBy==="app" && controller.isReadingProvider(modelData.key))) ? "Saved place" : controller.durationText(modelData.mins); color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u }
+                                Text { Layout.preferredWidth: 8*u; text:index===0?"Active time":controller.durationText(modelData.mins); color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u }
                                 Text { Layout.preferredWidth: 7*u; text:index===0?(controller.statsBy==="title"?"Sessions":"Sessions"):String(modelData.n); color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u }
                                 Text { Layout.preferredWidth: 16*u; text:index===0?(controller.statsBy==="title"?"On":"Titles"):(controller.statsBy==="title"?modelData.apps.map(function(k){return controller.providerName(k)}).join(", "):String(modelData.titles.length)); color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u; elide:Text.ElideRight }
                             }

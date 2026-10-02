@@ -35,7 +35,7 @@ Column {
                     color: controller.ink; font.family: controller.uiFont; font.pixelSize: root.u
                 }
                 Text {
-                    text: controller.providerName(modelData.pk) + " · " + (modelData.kind === "book" ? "Saved reading place"
+                    text: controller.providerName(modelData.pk) + " · " + (modelData.kind === "book" ? (modelData.duration > 0 ? Math.round(modelData.position) + "% · Saved reading place" : "Saved reading place")
                         : controller.durationText(modelData.position / 60) + " / " + controller.durationText(modelData.duration / 60))
                     color: controller.mist; font.pixelSize: 0.8 * root.u
                 }
