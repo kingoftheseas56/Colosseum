@@ -123,7 +123,12 @@ endif()
 
 add_library(colosseum_libtorrent INTERFACE)
 find_package(LibtorrentRasterbar CONFIG QUIET)
-find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
+if(ANDROID)
+    # Boost 1.90's system library is header-only; b2 need not install a component package.
+    find_package(Boost CONFIG QUIET COMPONENTS filesystem OPTIONAL_COMPONENTS system)
+else()
+    find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
+endif()
 find_package(OpenSSL QUIET)
 if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
     message(STATUS "libtorrent + Boost + OpenSSL found via find_package")
@@ -174,7 +179,8 @@ elseif(WIN32)
 elseif(ANDROID)
     message(FATAL_ERROR
         "libtorrent + Boost + OpenSSL NOT found for Android. Provide Android-ABI CMake packages "
-        "through CMAKE_PREFIX_PATH; Colosseum keeps TorrentEngine and the Aqueduct-ready core in the Android build.")
+        "through CMAKE_PREFIX_PATH; Colosseum keeps TorrentEngine and the Aqueduct-ready core in the Android build. "
+        "Found: libtorrent=${LibtorrentRasterbar_FOUND}, Boost=${Boost_FOUND}, OpenSSL=${OpenSSL_FOUND}.")
 else()
     # Linux: no C:/tools fallback exists off Windows. apt's libtorrent-rasterbar-dev/
     # libboost-all-dev/libssl-dev should satisfy find_package above; a failure here is a

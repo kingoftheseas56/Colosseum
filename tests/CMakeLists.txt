@@ -983,7 +983,7 @@ add_executable(tst_vault_mal_match
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
 target_include_directories(tst_vault_mal_match PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_mal_match PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_mal_match POST_BUILD
@@ -1039,7 +1039,7 @@ add_executable(tst_vault_identifier
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h")
 target_include_directories(tst_vault_identifier PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_identifier PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_identifier POST_BUILD
