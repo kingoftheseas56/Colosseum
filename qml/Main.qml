@@ -4281,9 +4281,11 @@ Window {
         property string title: "Comic"
         source: "comicreader/VaultComicReader.qml"
         onLoaded: {
-            item.archivePath = vaultComicLayer.archivePath
+            // archivePath opens the reader synchronously. Supply its progress key
+            // first so the first load can restore the saved page.
             item.vaultId = vaultComicLayer.vaultId
             item.title = vaultComicLayer.title
+            item.archivePath = vaultComicLayer.archivePath
             item.minimizeRequested.connect(win.minimizeVaultComic)
             item.closeRequested.connect(win.closeVaultComic)
             item.backRequested.connect(win.closeVaultComic)
