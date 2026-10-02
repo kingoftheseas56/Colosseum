@@ -56,7 +56,7 @@ jobs:
 
       - name: Restore dependency prefixes
         id: deps-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.COLOSSEUM_ANDROID_DEPS }}
           key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
@@ -66,6 +66,13 @@ jobs:
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           scripts/android/build_deps.sh arm64-v8a x86_64
+
+      - name: Save built dependency prefixes
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.COLOSSEUM_ANDROID_DEPS }}
+          key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
 
       - name: Decode stable test signing key
         # Test-only keystore shared by every CI build so a new APK installs over the previous one.
@@ -94,8 +101,8 @@ jobs:
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
-          scripts/android/build_apk.sh x86_64 apk-out 2>&1 | tee build-x86_64.log | grep -E "error:|FAILED:|^\[android|sha256|\.apk" | head -80
-          test "${PIPESTATUS[0]}" = 0 || { grep -E "error:|FAILED:|fatal" build-x86_64.log | head -60; exit 1; }
+          set -o pipefail
+          scripts/android/build_apk.sh x86_64 apk-out 2>&1 | tee build-x86_64.log
 
       - name: Build arm64-v8a APK
         env:
@@ -103,8 +110,8 @@ jobs:
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
-          scripts/android/build_apk.sh arm64-v8a apk-out 2>&1 | tee build-arm64-v8a.log | grep -E "error:|FAILED:|^\[android|sha256|\.apk" | head -80
-          test "${PIPESTATUS[0]}" = 0 || { grep -E "error:|FAILED:|fatal" build-arm64-v8a.log | head -60; exit 1; }
+          set -o pipefail
+          scripts/android/build_apk.sh arm64-v8a apk-out 2>&1 | tee build-arm64-v8a.log
 
       - name: Save compiler cache
         if: always()
