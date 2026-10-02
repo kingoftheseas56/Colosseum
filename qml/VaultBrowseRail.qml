@@ -124,14 +124,6 @@ Item {
 
     VaultTheme { id: theme }
 
-    Rectangle {
-        anchors.fill: parent
-        color: theme.sidebar
-        radius: 0
-        border.width: 0
-        border.color: theme.edge
-    }
-
     Column {
         id: col
         anchors.fill: parent

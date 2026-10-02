@@ -1,6 +1,7 @@
 // Vault — local storage, continue shelves, and a virtualized media library.
 // Backend ownership, navigation, identity, and launch signals stay in their existing services.
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Controls
 import QtCore
 import "VaultApi.js" as VaultApi
@@ -851,7 +852,17 @@ Item {
             required property var modelData
             width: Math.max(220, Math.min(360, (ListView.view.width - 32) / 3))
             height: 204
-            radius: 7
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: Rectangle {
+                    parent: continueTile
+                    width: continueTile.width; height: continueTile.height
+                    radius: continueTile.radius; color: "white"
+                    layer.enabled: true; visible: false
+                }
+            }
+            radius: 12
             color: theme.panel
             border.width: 1
             border.color: continueAction.interactionActive ? theme.gold : theme.edge
@@ -859,7 +870,7 @@ Item {
             Rectangle {
                 id: continueArt
                 anchors.top: parent.top; width: parent.width; height: 145
-                color: "#292d34"
+                color: theme.panel
                 Image {
                     id: continueImage
                     anchors.fill: parent
@@ -941,7 +952,8 @@ Item {
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
-    Rectangle { anchors.fill: parent; color: theme.background }
+    // The shell wallpaper remains visible, as in the three worlds.
+    Rectangle { anchors.fill: parent; color: theme.background; visible: !root.backdrop }
 
     Flickable {
         id: page
@@ -1106,10 +1118,12 @@ Item {
                 root.openSearch(); event.accepted = true
             }
         }
-        Rectangle {
-            anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-            width: browseRail.width; color: theme.sidebar
-            Rectangle { anchors.right: parent.right; height: parent.height; width: 1; color: theme.edge }
+        Glass {
+            objectName: "vaultStorageGlass"
+            backdrop: root.backdrop
+            x: 12; y: 82
+            width: browseRail.width; height: parent.height - 106
+            radius: 18; scrim: 0.32
         }
         Text {
             visible: browseRail.expanded
@@ -1118,7 +1132,8 @@ Item {
         }
             VaultBrowseRail {
                 id: browseRail
-                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                anchors.left: parent.left; anchors.leftMargin: 12
+                anchors.top: parent.top; anchors.bottom: parent.bottom
                 anchors.topMargin: 92; anchors.bottomMargin: 80
                 roots: root.browseRootsDetail
                 expanded: root.width < 860 ? root.narrowRailExpanded : browseSettings.railExpanded
@@ -1175,8 +1190,8 @@ Item {
         }
         Item {
             id: mainArea
-            anchors.left: browseRail.right; anchors.leftMargin: root.width < 1000 ? 22 : 40
-            anchors.right: parent.right; anchors.rightMargin: root.width < 1000 ? 22 : 40
+            anchors.left: browseRail.right; anchors.leftMargin: root.width < 1000 ? 22 : theme.margin
+            anchors.right: parent.right; anchors.rightMargin: root.width < 1000 ? 22 : theme.margin
             anchors.top: parent.top; anchors.topMargin: 88
             anchors.bottom: parent.bottom; anchors.bottomMargin: 24
             VaultBrowseCrumb {
@@ -1292,7 +1307,7 @@ Item {
                             Text {
                                 objectName: "vaultContinueRailKicker"
                                 text: "Pick up where you left off"
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.display; font.pixelSize: 22
                             }
                             ListView {
                                 id: continueList
@@ -1310,7 +1325,7 @@ Item {
                             width: parent.width; spacing: 14
                             visible: (root.continueItems.length === 0 || root.recentShelfExpanded) && root.carouselSlides.length > 0
                                 && !root.searchViewActive && !root.hiddenViewActive
-                            Text { text: "Just arrived"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            Text { text: "Just arrived"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
                             ListView {
                                 id: arrivals; objectName: "vaultBrowseCarousel"
                                 width: parent.width; height: 174
@@ -1319,7 +1334,7 @@ Item {
                                 ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: Math.max(240, (arrivals.width - 32) / 3); height: 164; radius: 7
+                                    width: Math.max(240, (arrivals.width - 32) / 3); height: 164; radius: 12
                                     color: theme.panel; clip: true
                                     Image { anchors.fill: parent; source: modelData.art || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
                                     Rectangle { anchors.fill: parent; gradient: Gradient { GradientStop { position: 0; color: "#22000000" } GradientStop { position: 1; color: "#ef101215" } } }
@@ -1339,7 +1354,7 @@ Item {
                         Column {
                             width: parent.width; spacing: 14
                             visible: root.browseFolderRows.length > 0
-                            Text { text: "Your folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            Text { text: "Your folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
                             ListView {
                                 id: foldersList
                                 width: parent.width; height: 80; spacing: 12
@@ -1357,7 +1372,7 @@ Item {
                                         id: folderTile
                                         required property var modelData
                                         width: Math.max(200, (foldersList.width - 36) / 4)
-                                        height: 68; radius: 6
+                                        height: 68; radius: 14
                                         color: folderAction.interactionActive ? theme.glassHi : theme.panel
                                         border.width: 1; border.color: theme.edge
                                         Image { anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter; width: 22; height: 22; source: "../assets/icons/vault-folder.svg" }
@@ -1380,7 +1395,7 @@ Item {
                             id: showNextUp; objectName: "vaultShowNextUp"
                             width: parent.width; spacing: 14
                             visible: root.showPageActive && root.showNextUpRows.length > 0 && !root.searchViewActive && !root.hiddenViewActive
-                            Text { objectName: "vaultShowNextUpKicker"; text: "Next up"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            Text { objectName: "vaultShowNextUpKicker"; text: "Next up"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
                             ListView { width: parent.width; height: 214; orientation: ListView.Horizontal; model: root.showNextUpRows; delegate: vaultContinueTileComp }
                         }
                         Item {
@@ -1388,7 +1403,7 @@ Item {
                             Text {
                                 anchors.left: parent.left; y: 8
                                 text: "In your library  ·  " + grid.count
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.display; font.pixelSize: 22
                             }
                             Row {
                                 anchors.right: parent.right; anchors.bottom: parent.bottom; spacing: 8
@@ -1486,11 +1501,16 @@ Item {
     }
 
     // Permanent search and title strip; the window controls keep their existing signals.
-    Rectangle {
+    Item {
         anchors.left: parent.left; anchors.leftMargin: root.hasConfirmedStorage ? browseRail.width : 100
         anchors.right: parent.right
-        height: 70; color: theme.background
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
+        height: 70
+        Glass {
+            objectName: "vaultHeaderGlass"
+            anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16
+            anchors.topMargin: 12; anchors.bottomMargin: 4
+            backdrop: root.backdrop; radius: 27; scrim: 0.28
+        }
         Text {
             anchors.left: parent.left; anchors.leftMargin: 40; anchors.verticalCenter: parent.verticalCenter
             text: "Vault"; color: theme.ink; font.family: theme.display; font.pixelSize: 22; font.weight: Font.DemiBold
@@ -1498,7 +1518,7 @@ Item {
         Rectangle {
             id: browseSearchField; objectName: "vaultBrowseSearchField"
             anchors.right: parent.right; anchors.rightMargin: 180; anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(150, Math.min(350, parent.width - 330)); height: 36; radius: 6
+            width: Math.max(150, Math.min(350, parent.width - 330)); height: 36; radius: 18
             color: theme.glassTint; border.width: 1
             border.color: searchInput.activeFocus ? theme.gold : theme.edge
             TextInput {
@@ -2025,6 +2045,7 @@ Item {
     //    bridge cannot see a secondary window). z above the browse face, below the window chrome
     //    so minimize/fullscreen/close stay reachable while the sheet is up. ──
     VaultDetailSheet {
+        backdrop: root.backdrop
         anchors.fill: parent
         z: 45
         visible: root.detailSheetVisible

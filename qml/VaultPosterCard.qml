@@ -83,9 +83,9 @@ Item {
         objectName: "vaultBrowseCard_" + card.nodeKey + "_art"
         width: card.compact ? 52 : parent.width
         height: Math.round(width * 3 / 2)   // 2:3 poster
-        radius: 5                            // near-square corners, not the app's larger panels
+        radius: 12
         clip: true
-        color: "#292d34"
+        color: theme.panel
         border.width: 1
         border.color: cardMa.containsMouse ? theme.gold : theme.edge
 
@@ -151,6 +151,13 @@ Item {
                 anchors.fill: parent
                 source: artImage
                 saturation: card.away ? -1.0 : 0.0
+                maskEnabled: true
+                maskSource: Rectangle {
+                    parent: artBox
+                    width: artBox.width; height: artBox.height
+                    radius: artBox.radius; color: "white"
+                    layer.enabled: true; visible: false
+                }
                 opacity: artImage.status === Image.Ready ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             }
@@ -159,6 +166,7 @@ Item {
             Rectangle {
                 id: hoverScrim
                 anchors.fill: parent
+                radius: artBox.radius
                 color: Qt.rgba(0, 0, 0, 0.55)
                 opacity: cardMa.containsMouse ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }

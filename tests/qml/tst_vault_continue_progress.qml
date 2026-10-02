@@ -86,8 +86,8 @@ TestCase {
         compare(track.visible, true)
         // the STORED position, surfaced as-is: 42% of the track, never recomputed
         verify(Math.abs(fill.width - track.width * 0.42) < 1.5)
-        // VaultTheme.gold ("#eab45a") — the spec's gold hairline, not a neutral bar
-        verify(Math.abs(fill.color.r - 234 / 255) < 0.01)
+        // Theme.gold ("#f0c44a") — the spec's gold hairline, not a neutral bar
+        verify(Math.abs(fill.color.r - 240 / 255) < 0.01)
         c.destroy()
 
         var poster = makePoster({

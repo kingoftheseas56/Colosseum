@@ -18,6 +18,7 @@ import QtQuick.Controls
 
 Item {
     id: sheet
+    property Item backdrop: null
     objectName: "vaultBrowseSheet"
     anchors.fill: parent
 
@@ -116,7 +117,11 @@ Item {
         anchors.centerIn: parent
         width: Math.min(880, parent.width - 40)
         height: Math.min(body.implicitHeight + 84, parent.height - 64)
-        radius: 12; color: "#1b1e23"; border.width: 1; border.color: theme.edge
+        radius: 20; color: "transparent"
+        Glass {
+            anchors.fill: parent
+            backdrop: sheet.backdrop; radius: panel.radius; scrim: 0.68
+        }
         clip: true
         MouseArea { anchors.fill: parent }
         Image {
@@ -127,8 +132,8 @@ Item {
         Rectangle {
             width: parent.width; height: 212
             gradient: Gradient {
-                GradientStop { position: 0; color: "#001b1e23" }
-                GradientStop { position: 1; color: "#1b1e23" }
+                GradientStop { position: 0; color: "transparent" }
+                GradientStop { position: 1; color: theme.panel }
             }
         }
         Flickable {
@@ -146,7 +151,7 @@ Item {
                 Row {
                     width: parent.width; spacing: 22
                     Rectangle {
-                        width: panel.width < 600 ? 90 : 120; height: width * 1.5; radius: 6
+                        width: panel.width < 600 ? 90 : 120; height: width * 1.5; radius: 12
                         color: theme.panel; clip: true
                         Text {
                             objectName: "vaultBrowseSheetPosterTitle"
