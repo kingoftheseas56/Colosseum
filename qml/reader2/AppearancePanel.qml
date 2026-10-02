@@ -17,7 +17,8 @@ import QtQuick
 import QtQuick.Window
 import "Reader2Logic.js" as L
 
-Item {
+ReaderOverlay {
+    overlayActive: open
     id: panel
 
     // ---- inputs (bound by ReaderChrome from ReaderShell's shell.appearance) ----

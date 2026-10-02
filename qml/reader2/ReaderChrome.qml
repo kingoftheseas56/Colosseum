@@ -251,12 +251,14 @@ Item {
     // covers the central text column where selection happens.
 
     // ---------- 2. edge page-turn zones (~11% each side) ----------
-    ReaderKeyboardArea {
-        id: leftEdge
+    ReaderOverlay {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: parent.width * 0.11
+        ReaderKeyboardArea {
+        id: leftEdge
+        anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         keyboardTabStop: false
         onClicked: chrome.prevRequested()
@@ -271,12 +273,15 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         }
     }
-    ReaderKeyboardArea {
-        id: rightEdge
+    }
+    ReaderOverlay {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: parent.width * 0.11
+        ReaderKeyboardArea {
+        id: rightEdge
+        anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         keyboardTabStop: false
         onClicked: chrome.nextRequested()
@@ -290,6 +295,7 @@ Item {
             opacity: chrome.awake ? 0.26 : 0
             Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         }
+    }
     }
 
     // ---------- 3. reveal scrims (paint-only, never block input) ----------

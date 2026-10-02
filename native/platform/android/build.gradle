@@ -22,6 +22,7 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
     //noinspection GradleDependency
     implementation 'androidx.core:core:1.17.0'
+    implementation 'androidx.webkit:webkit:1.14.0'
     implementation 'androidx.media3:media3-exoplayer:1.11.0'
     implementation 'androidx.media3:media3-exoplayer-hls:1.11.0'
     implementation 'androidx.media3:media3-exoplayer-dash:1.11.0'

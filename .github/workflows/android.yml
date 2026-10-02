@@ -31,6 +31,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Reader publication and message boundary
+        run: |
+          python tests/test_android_reader_session.py
+          node tests/android_reader_boot_test.mjs
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift || true

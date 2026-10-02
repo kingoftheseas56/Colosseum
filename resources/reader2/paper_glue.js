@@ -156,6 +156,8 @@ const syncVendorParams = () => {
 // Build a parsed "book" object from a File. Same branches as the fork's getView().
 const makeBook = async file => {
   let book
+  if (window.bridge?.epubOnly && !(await isZip(file)))
+    throw new Error('Only EPUB books are supported on Android')
   if (!file.size) throw new Error('File not found')
   else if (await isZip(file)) {
     const loader = await makeZipLoader(file)
@@ -1010,6 +1012,11 @@ const paperOpen = async (path, cfi, gen) => {
     flatToc = []
     try { readAlong?.invalidate() } catch (e) {}   // a previous book's paint/caches can't cross over
 
+    let file
+    if (typeof window.bridge?.filesReadBlob === 'function') {
+      file = await window.bridge.filesReadBlob(path)
+      if (superseded()) return
+    } else {
     if (!window.bridge || typeof window.bridge.filesRead !== 'function')
       throw new Error('bridge.filesRead is not available')
     // Timeout guard: the native callback normally fires within a few ms, but if the
@@ -1040,9 +1047,10 @@ const paperOpen = async (path, cfi, gen) => {
     if (superseded()) return                      // a newer open replaced us during filesRead
     if (!b64) throw new Error('no book bytes for ' + path)
 
-    syncVendorParams()                            // satisfy epub.js Loader's URL 'style' read
     const name = String(path).split(/[\\/]/).pop() || String(path)
-    const file = base64ToFile(b64, name)
+    file = base64ToFile(b64, name)
+    }
+    syncVendorParams()                            // satisfy epub.js Loader's URL 'style' read
     const book = await makeBook(file)
     if (superseded()) return                      // a newer open replaced us during makeBook (big-PDF parse)
 

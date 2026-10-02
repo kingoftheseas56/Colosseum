@@ -1,9 +1,7 @@
 // AndroidPaper.qml - Android-side renderer contract for ReaderShell.
 //
-// This file deliberately imports no QtWebEngine/QtWebChannel. ReaderShell may keep
-// its existing state/chrome logic while an Android renderer object supplies only the
-// visual publication operations below. The renderer is injected as `backend` so this
-// scaffold does not choose a Java/Kotlin/web renderer before the Android host is ready.
+// ReaderShell keeps its existing state/chrome logic. The native backend supplies
+// a foreign Android WebView window and the shared Foliate command/event protocol.
 import QtQuick
 
 Item {
@@ -17,10 +15,16 @@ Item {
     property var backend: (typeof AndroidEbookRenderer !== "undefined")
                           ? AndroidEbookRenderer : null
 
-    // ReaderShell waits for glueUp before issuing openAtResume(). The adapter itself is
-    // immediately callable; an absent backend therefore produces an explicit open error
-    // instead of leaving the reader forever waiting on a readiness bit that cannot change.
-    readonly property bool glueUp: true
+    // Production readiness comes from the trusted WebView shell. The missing/fake
+    // backend fallback preserves the explicit error and host-test contract.
+    readonly property bool glueUp: backend ? (backend.glueUp === undefined ? true : backend.glueUp) : true
+
+    WindowContainer {
+        anchors.fill: parent
+        window: paper.backend && paper.backend.foreignWindow !== undefined ? paper.backend.foreignWindow : null
+    }
+    Component.onCompleted: if (backend && typeof backend.create === "function") backend.create()
+    Component.onDestruction: if (backend && typeof backend.close === "function") backend.close()
 
     function _missing(command, gen) {
         if (readerDebug) console.warn("[android-paper] backend missing command:", command)

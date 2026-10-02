@@ -785,6 +785,8 @@ endif()
 
 if(ANDROID)
     target_sources(colosseum PRIVATE
+        reader2/AndroidEbookRenderer.cpp
+        reader2/AndroidEbookRenderer.h
         player/androidmedia3state.cpp
         player/androidmedia3state.h
         player/androidmedia3item.cpp
@@ -848,6 +850,7 @@ if(ANDROID)
         # Android's AssetManager does not expose dotfiles even when they are present
         # in the source tree. They are development metadata here, never runtime data.
         list(FILTER _runtime_files EXCLUDE REGEX "(^|/)[.][^/]+")
+        list(FILTER _runtime_files EXCLUDE REGEX "^resources/reader2/")
         foreach(_runtime_rel IN LISTS _runtime_files)
             get_filename_component(_runtime_out_dir
                 "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/${_runtime_rel}" DIRECTORY)
@@ -855,6 +858,20 @@ if(ANDROID)
             configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../${_runtime_rel}"
                            "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/${_runtime_rel}" COPYONLY)
         endforeach()
+    endforeach()
+
+    # The WebView serves the common Foliate sources directly through AssetManager.
+    # Stage one source-of-truth graph; desktop boot and non-EPUB engines stay out.
+    set(_reader_root "${CMAKE_CURRENT_SOURCE_DIR}/../resources/reader2")
+    file(GLOB_RECURSE _reader_assets CONFIGURE_DEPENDS LIST_DIRECTORIES false
+        RELATIVE "${_reader_root}" "${_reader_root}/vendor/*")
+    list(FILTER _reader_assets EXCLUDE REGEX "(^|/)[.][^/]+|/pdfjs/|/(pdf|mobi|fb2|comic-book|book)[.]js$")
+    list(APPEND _reader_assets android_paper.html android_boot.js paper_glue.js)
+    foreach(_reader_asset IN LISTS _reader_assets)
+        get_filename_component(_reader_dir "${COLOSSEUM_ANDROID_PACKAGE_DIR}/assets/reader2/${_reader_asset}" DIRECTORY)
+        file(MAKE_DIRECTORY "${_reader_dir}")
+        configure_file("${_reader_root}/${_reader_asset}"
+                       "${COLOSSEUM_ANDROID_PACKAGE_DIR}/assets/reader2/${_reader_asset}" COPYONLY)
     endforeach()
 
     # The staged qmldir must not advertise the desktop Paper type after its file is excluded.

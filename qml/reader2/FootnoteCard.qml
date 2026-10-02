@@ -14,7 +14,8 @@
 import QtQuick
 import "Reader2Logic.js" as L
 
-Item {
+ReaderOverlay {
+    overlayActive: shown
     id: fnCard
     objectName: "reader2FootnoteCard"
 

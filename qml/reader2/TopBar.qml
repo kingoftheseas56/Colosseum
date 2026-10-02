@@ -10,8 +10,9 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 
-Item {
+ReaderOverlay {
     id: root
+    overlayActive: shown
     height: 64
 
     // ---- inputs (the shell feeds these from book metadata + the paper's relocated) ----
@@ -36,6 +37,8 @@ Item {
     function focusAppearance() { appearanceBtn.focusKeyboard() }
 
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
+
+    Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 
     // reveal: fade + a small downward slide-in from the top edge (mock: translateY(-6)).
     opacity: shown ? 1 : 0

@@ -1,5 +1,8 @@
 IN PROGRESS
 
+Current stop/review state: [Android review handoff — 2026-10-02](ANDROID-REVIEW-HANDOFF-2026-10-02.md).
+The historical status below is superseded where that handoff gives newer evidence.
+
 # Android Checkpoint A — 2026-10-02
 
 Phase 1 is incomplete. Do not merge this branch or start Phase 2 on this evidence.

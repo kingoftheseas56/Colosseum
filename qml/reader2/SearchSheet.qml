@@ -21,7 +21,8 @@
 import QtQuick
 import "Reader2Logic.js" as L
 
-Item {
+ReaderOverlay {
+    overlayActive: open
     id: sheet
 
     // ---- inputs (bound by ReaderChrome from ReaderShell) ----

@@ -142,6 +142,7 @@
 #if defined(Q_OS_ANDROID)
 #include "platform/AndroidWindowModeAdapter.h"
 #include "platform/AndroidGraphicsWorkarounds.h"
+#include "reader2/AndroidEbookRenderer.h"
 #else
 #include "player/windowmodestore.h"
 #endif
@@ -1150,6 +1151,10 @@ int main(int argc, char *argv[]) {
     // storage, not part of the old reader.
     auto *reader2Bridge = new Reader2Bridge(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
+#ifdef Q_OS_ANDROID
+    engine.rootContext()->setContextProperty(QStringLiteral("AndroidEbookRenderer"),
+                                             new AndroidEbookRenderer(reader2Bridge, &app));
+#endif
 
     // From-scratch native Comic Reader backend (Agent 1, plan 2026-07-23, Task 7)
     // exposed to QML as `ComicReaderCore`: the ONE orchestrator over the five pure
