@@ -13,7 +13,6 @@ Item {
     // The expanded dock/fan is visual chrome, so arrows follow its geometry instead
     // of the incidental QML child order. Boundary keys remain available to the host.
     KeyboardSpatialNavigator { id: spatialNav; root: bar }
-    Keys.onPressed: function(event) { spatialNav.handle(event) }
 
     Theme { id: theme }
 
@@ -60,7 +59,10 @@ Item {
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => {
-        if (!bar.televisionMode) return
+        if (!bar.televisionMode) {
+            spatialNav.handle(event)
+            return
+        }
         if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
         else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
         else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)

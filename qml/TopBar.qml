@@ -18,7 +18,6 @@ Item {
         root: bar
         onBoundaryRequested: (key, fromItem) => bar.boundaryArrowRequested(key, fromItem)
     }
-    Keys.onPressed: function(event) { spatialNav.handle(event) }
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
@@ -92,7 +91,10 @@ Item {
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => {
-        if (!bar.televisionMode) return
+        if (!bar.televisionMode) {
+            spatialNav.handle(event)
+            return
+        }
         if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
         else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
         else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)

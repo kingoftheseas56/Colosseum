@@ -60,6 +60,8 @@ cmake --build "$BUILD_DIR" --target apk --parallel "$JOBS"
 apk=$(find "$BUILD_DIR" -path '*/outputs/apk/*' -name '*.apk' -newer "$BUILD_DIR/CMakeCache.txt" | head -1)
 [[ -n "$apk" ]] || apk=$(find "$BUILD_DIR" -path '*/outputs/apk/*' -name '*.apk' | head -1)
 [[ -n "$apk" ]] || { echo "no APK produced under $BUILD_DIR" >&2; exit 1; }
+python3 "$REPO/tests/verify_android_apk_runtime_bundle.py" "$apk" \
+    --qmlcachegen "$COLOSSEUM_QT_HOST_ROOT/libexec/qmlcachegen"
 mkdir -p "$OUT_DIR"
 if [[ -n "${COLOSSEUM_ANDROID_KEYSTORE:-}" ]]; then
     : "${COLOSSEUM_ANDROID_KEYSTORE_PASSWORD:?keystore password required}"

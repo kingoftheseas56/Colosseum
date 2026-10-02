@@ -88,7 +88,12 @@ Item {
             event.accepted = true
             return
         }
-        event.accepted = spatialNav.handle(event)
+        if (world.televisionMode && event.key === Qt.Key_Up)
+            event.accepted = world.moveVerticalFocus(false)
+        else if (world.televisionMode && event.key === Qt.Key_Down)
+            event.accepted = world.moveVerticalFocus(true)
+        else
+            event.accepted = spatialNav.handle(event)
     }
     Keys.onReleased: function(event) { spatialNav.handleRelease(event) }
     KeyboardSectionCoordinator { id: keyboardSections }
@@ -106,8 +111,13 @@ Item {
     onVisibleChanged: {
         if (!visible)
             keyboardSections.clear()
-        else if (lifecycleActive)
-            Qt.callLater(function() { if (world.visible && world.lifecycleActive) world.forceActiveFocus(Qt.TabFocusReason) })
+        else if (lifecycleActive) {
+            Qt.callLater(function() {
+                if (!world.visible || !world.lifecycleActive) return
+                if (world.televisionMode) topbar.focusFirst()
+                else world.forceActiveFocus(Qt.TabFocusReason)
+            })
+        }
     }
     onEnabledChanged: if (!enabled) keyboardSections.clear()
     property string medium: ""               // which library pill reads as selected
@@ -184,13 +194,6 @@ Item {
     }
 
     Keys.priority: Keys.AfterItem
-    Keys.onPressed: (event) => {
-        if (!world.televisionMode) return
-        if (event.key === Qt.Key_Up)
-            event.accepted = world.moveVerticalFocus(false)
-        else if (event.key === Qt.Key_Down)
-            event.accepted = world.moveVerticalFocus(true)
-    }
 
     signal homeRequested()
     signal mediumSelected(string medium)     // tapped another pill → host switches world
@@ -249,8 +252,6 @@ Item {
     }
 
     Component.onCompleted: if (world.televisionMode && world.visible)
-        Qt.callLater(function() { topbar.focusFirst() })
-    onVisibleChanged: if (world.televisionMode && world.visible)
         Qt.callLater(function() { topbar.focusFirst() })
 
     // Read-only viewport seam for viewport-aware lazy shelves (LazyPosterShelf). These expose the

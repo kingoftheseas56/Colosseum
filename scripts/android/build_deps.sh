@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Cross-build Colosseum's native Android dependencies with NDK r27c:
 #
-#   OpenSSL 3.5.9                   static (libssl.a, libcrypto.a)
+#   OpenSSL 3.5.9                   static + Qt runtime shared libraries
 #   Boost 1.90.0                    headers + static filesystem (system is header-only)
 #   libtorrent-rasterbar 2.0.14     static, C++17, OpenSSL-backed
 #
@@ -27,7 +27,7 @@ BOOST_VERSION=1.90.0
 BOOST_SHA256=49551aff3b22cbc5c5a9ed3dbc92f0e23ea50a0f7325b0d198b705e8ee3fc305
 LIBTORRENT_VERSION=2.0.14
 LIBTORRENT_SHA256=1b0b21b9755b5fbec23ca9ba2d2d10434ecb6711c39f37f5fc9d5aa25cf369c9
-STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-static-v1"
+STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v2"
 
 OUT="${COLOSSEUM_ANDROID_DEPS:-$HOME/colosseum-android/deps}"
 SRC_CACHE="${COLOSSEUM_ANDROID_SRC_CACHE:-$HOME/colosseum-android/src-cache}"
@@ -43,6 +43,7 @@ die() { log "ERROR: $*"; exit 1; }
 grep -q 'Pkg.Revision = 27.2.12479018' "$ANDROID_NDK_ROOT/source.properties" \
     || die "NDK revision is not 27.2.12479018"
 TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+command -v patchelf >/dev/null || die "patchelf is required to package Qt's OpenSSL runtime"
 
 fetch() {  # url sha256 -> path
     local url="$1" sha="$2" file="$SRC_CACHE/${1##*/}"
@@ -76,10 +77,18 @@ build_openssl() {  # abi prefix work
     (
         cd "$work/openssl-$OPENSSL_VERSION"
         export PATH="$TOOLCHAIN/bin:$PATH"
-        ./Configure "$target" -D__ANDROID_API__=$API no-shared no-tests no-docs no-apps \
-            --prefix="$prefix" --libdir=lib >"$work/openssl-configure.log" 2>&1
-        make -j"$JOBS" build_libs >"$work/openssl-build.log" 2>&1
-        make install_dev >"$work/openssl-install.log" 2>&1
+        ./Configure "$target" -D__ANDROID_API__=$API shared no-tests no-docs no-apps \
+            -Wl,-z,max-page-size=16384 \
+            --prefix="$prefix" --libdir=lib >"$work/openssl-configure.log" 2>&1 || exit 1
+        make -j"$JOBS" build_libs >"$work/openssl-build.log" 2>&1 || exit 1
+        make install_dev >"$work/openssl-install.log" 2>&1 || exit 1
+        # Keep the static archives for libtorrent, and give Qt its own runtime
+        # libraries instead of resolving Android's incompatible system OpenSSL.
+        cp libcrypto.so "$prefix/lib/libcrypto_3.so" || exit 1
+        cp libssl.so "$prefix/lib/libssl_3.so" || exit 1
+        patchelf --page-size 16384 --set-soname libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
+        patchelf --page-size 16384 --set-soname libssl_3.so "$prefix/lib/libssl_3.so" || exit 1
+        patchelf --page-size 16384 --replace-needed libcrypto.so libcrypto_3.so "$prefix/lib/libssl_3.so" || exit 1
     ) || { tail -40 "$work"/openssl-*.log >&2; die "$abi: OpenSSL failed"; }
 }
 
@@ -149,7 +158,8 @@ for abi in "${ABIS[@]}"; do
     build_boost "$abi" "$prefix" "$work"
     build_libtorrent "$abi" "$prefix" "$work"
     rm -rf "$work"
-    for f in lib/libssl.a lib/libcrypto.a lib/libboost_filesystem.a lib/libtorrent-rasterbar.a \
+    for f in lib/libssl.a lib/libcrypto.a lib/libssl_3.so lib/libcrypto_3.so \
+             lib/libboost_filesystem.a lib/libtorrent-rasterbar.a \
              lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake; do
         [[ -f "$prefix/$f" ]] || die "$abi: missing $prefix/$f"
     done

@@ -891,6 +891,18 @@ if(ANDROID)
         QT_ANDROID_APP_NAME "Colosseum"
         QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
     )
+    # Qt's TLS plugin dlopens OpenSSL. The static libtorrent dependency alone
+    # cannot provide these runtime libraries.
+    set(COLOSSEUM_ANDROID_OPENSSL_LIB_DIR "${OPENSSL_ROOT_DIR}/lib" CACHE PATH
+        "Directory containing Android libcrypto_3.so and libssl_3.so")
+    foreach(_openssl_runtime IN ITEMS libcrypto_3.so libssl_3.so)
+        set(_openssl_runtime_path "${COLOSSEUM_ANDROID_OPENSSL_LIB_DIR}/${_openssl_runtime}")
+        if(NOT EXISTS "${_openssl_runtime_path}")
+            message(FATAL_ERROR "Missing Android TLS runtime: ${_openssl_runtime_path}. Re-run scripts/android/build_deps.sh.")
+        endif()
+        set_property(TARGET colosseum APPEND PROPERTY QT_ANDROID_EXTRA_LIBS
+            "${_openssl_runtime_path}")
+    endforeach()
 endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")

@@ -3260,7 +3260,6 @@ Window {
                     homeTopSpatialNav.moveFrom(fromItem, key)
             }
         }
-        Keys.onPressed: function(event) { homePageSpatialNav.handle(event) }
         Keys.onReleased: function(event) { homePageSpatialNav.handleRelease(event) }
         // the HOME page never had the eased wheel — the one surface scrolled most was the
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
@@ -3300,9 +3299,12 @@ Window {
         }
         Keys.priority: Keys.AfterItem
         Keys.onPressed: (event) => {
-            if (!win.televisionMode) return
-            if (event.key === Qt.Key_Up) event.accepted = page.moveVerticalFocus(false)
-            else if (event.key === Qt.Key_Down) event.accepted = page.moveVerticalFocus(true)
+            if (win.televisionMode && event.key === Qt.Key_Up)
+                event.accepted = page.moveVerticalFocus(false)
+            else if (win.televisionMode && event.key === Qt.Key_Down)
+                event.accepted = page.moveVerticalFocus(true)
+            else
+                homePageSpatialNav.handle(event)
         }
 
         Column {

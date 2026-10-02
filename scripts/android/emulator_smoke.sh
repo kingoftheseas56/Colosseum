@@ -69,6 +69,11 @@ done
 if grep -q "FATAL EXCEPTION" "$ART/logcat.txt"; then
     log "FATAL EXCEPTION in logcat:"; grep -A20 -m1 "FATAL EXCEPTION" "$ART/logcat.txt"; fail=1
 fi
+if grep -qE 'QQmlApplicationEngine failed to load component|No functional TLS backend|main\(\) returned -1' "$ART/logcat.txt"; then
+    log "QML startup or TLS initialization failed:"
+    grep -E 'QQmlApplicationEngine failed to load component|No functional TLS backend|main\(\) returned -1' "$ART/logcat.txt" | head -20
+    fail=1
+fi
 if grep -qE "Fatal signal [0-9]+|\*\*\* \*\*\* \*\*\* \*\*\* \*\*\* \*\*\*|backtrace:" "$ART/logcat.txt" "$ART/logcat-crash.txt"; then
     log "native crash in logcat:"
     grep -hE -A25 -m1 "Fatal signal [0-9]+|\*\*\* \*\*\* \*\*\*" "$ART/logcat.txt" "$ART/logcat-crash.txt" | head -60
