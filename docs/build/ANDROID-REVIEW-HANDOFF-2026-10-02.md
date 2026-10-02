@@ -1,150 +1,187 @@
 # Android review handoff — 2026-10-02
 
-## Stop and scope
+## Status: BLOCKED (one reader interaction defect; everything else recorded below)
 
-Stopped at the user's requested review gate. This is an implementation/build checkpoint,
-not a declaration that Phase 1 or full app functionality is complete. Do not merge to
-master, start Phase 2, or resume implementation without the user's direction.
+Blocked item, in user-visible terms: **while the reader's top/bottom chrome is
+showing, taps on the page do nothing** — no page turns, no button presses. Once
+the chrome recedes (3 s idle), edge taps turn pages in both directions and the
+failed-open surface takes touches. This is pre-existing (see the A/B control
+below), not caused by the desktop pass-through fix.
 
-The Nokia T20 was explicitly excluded from this testing session. Audiobooks remain
-deferred. No landscape-only restriction was implemented; portrait browsing/reading and
-landscape video were recommended, with both orientations available on tablets.
+Executor: GLM (ZCode) on the `android-startup-fix` worktree, per Claude's
+2026-10-02 handoff. All runtime evidence is from CI-built APKs.
 
-## Review target and saved work
+## Proof table (handoff steps 4–6)
 
-Use the existing `android-startup-fix/Colosseum` Codex worktree, branch
-`codex/android-startup-fix`. The primary checkout has unrelated changes and must remain
-untouched. The remote target for any subsequently authorized push is
-`origin` branch `android/installable`, without force.
+Evidence files live in `C:\Users\Suprabha\AppData\Local\Temp\colosseum-phase1\glm-evidence\`
+(screenshots named `NN-*.jpg|png`); raw sequences in the parent folder.
 
-Last pushed source: `f458ccc6cf42042ccf46690d470b66eb6f0c5304`.
-Local commits already present before this checkpoint:
+| Proof | Result | Evidence |
+| --- | --- | --- |
+| EPUB opens via document picker, real page pixels | PASS | `01-epub-first-render-page.jpg` (Alice text, chrome visible; first-ever Android EPUB render confirmed with pixels) |
+| Page turn forward | PASS (chrome receded) | `02`→`03`→`04` successive full-page diffs after right-edge taps |
+| Page turn backward | PASS (chrome receded) | `04`→`05` full-page diff after left-edge tap |
+| Close/reopen resumes | PARTIAL | `06` (library after close; Continue card earlier showed `Chapter 1 · 2/18 · 4%`) and `07` (reopened book) — progress persists and reopens in-book; exact same-page pixel equality not established (reopen rendered a different page band than the moment before closing) |
+| Top/bottom chrome + appearance panel appear above page and take touches | FAIL while chrome visible (pre-existing defect, see below); appearance panel not reachable | `01` shows chrome above page; edge/button taps during the awake window produce zero pixel change |
+| Failed-open message for corrupt file | PASS | `08-corrupt-epub-error-surface.jpg` ("Couldn't open this book" + Go back), `09` Go-back tap returns to library |
+| logcat CSP violations / missing modules | PASS (none observed) | repeated greps of logcat + `files/logs/colosseum.log` during EPUB opens: no CSP console errors, no missing-module errors |
+| World tab opens its world (×3) | PASS | Tankoban `13`, Biblio `14`, Theatre `11` (Lanista dump: TheatreWorld + Cinemeta Discover wall visible) |
+| Catalogue loads over HTTPS | PASS | `10-tankoban-discover-catalogue-grid.jpg` (10–12 distinct manga covers); app log: `[net] cached IPv4 pin … mangadex.org / cinemeta-catalogs.strem.io`, `[comics-catalog] ready` |
+| Direct-URL MP4 with picture + sound, pause, seek | NOT RUN | no reachable direct-URL stream source in the default addon set on-device; the local-HTTP-fixture and public-test-URL approaches were policy-blocked for the previous engineer too; earlier diagnostic-build evidence (frames + pause + seek, audio not confirmed) remains the only video proof |
+| Account sign-in reaches the service | NOT RUN | no test credentials available in this session |
+| Manga chapter opens | NOT RUN | time budget consumed by the touch-delivery diagnosis; catalogue discovery itself proven above |
+| Comic CBZ downloads then opens | NOT RUN (current build) | inherited evidence at `13ffd9ce`/`64855902` (document picker + resume patch) predates this checkpoint's APK; not re-proven on `6ee28634` |
+| Nokia T20 tablet (arm64 install + spot checks) | NOT RUN — device not listed | `adb devices` shows only `emulator-5554`; USB debugging presumably still not enabled on the tablet |
 
-- `64855902`: assign Vault comic identity before opening the archive, allowing resume
-  to use the correct progress key during initial loading.
-- `35c4e7c0`: earlier progress report; its pending graphics statements are superseded here.
+## The reader touch-delivery defect (the blocker)
 
-The checkpoint commit containing this document also saves the EPUB implementation.
-Review the changes after `35c4e7c0` for EPUB, and after `f458ccc6` for all unpushed work.
-The new checkpoint is local only; it has not been pushed, merged, deployed, or released.
+Observations on the CI x86_64 APK of `6ee28634` (evidence in parent folder,
+`glm-*`, `r*`, `my-*` series):
 
-## Implemented in this checkpoint
+1. Reader opens, page renders, chrome shows and auto-recedes after ~3 s idle.
+2. While the chrome is VISIBLE: right-edge tap, center tap → **zero** pixel
+   change (not even a chrome toggle). Hardware BACK still works, so the app and
+   the Qt window are alive.
+3. Once the chrome is receded: right-edge and left-edge taps turn pages (three
+   consecutive pixel-verified turns).
+4. The failed-open surface — also a `ReaderOverlay` native child window — takes
+   touches fine (Go back works), so native child windows CAN receive input.
 
-- `native/reader2/AndroidEbookRenderer.{h,cpp}` owns the foreign WebView window,
-  JNI command/event transport, generation isolation, readiness, lifecycle, and teardown.
-- `native/platform/android/src/org/colosseum/reader/AndroidEbookHost.java` hosts
-  Foliate through AndroidX WebKit, with exact-origin/main-frame messages, local asset
-  interception, typed source errors, and publication scripts disabled.
+**A/B control.** `android/installable` temporarily carried `8440dc86`
+(= `6ee28634` with only `qml/reader2/ReaderOverlay.qml` reverted to its
+`9fbfeeb3` form; branch `codex/readeroverlay-control`, since deleted). Its CI
+x86_64 APK (`colosseum-x86_64-debug.apk`, SHA-256
+`f5a5a76beb86d7220eeafd8e3d7a074b1919bcde959911eeea4e2d66c04df08b`, run
+37055351373): the reader is **fully** touch-dead — edge taps do nothing even
+with the chrome receded, and double-tap center does nothing
+(`ctl-04`…`ctl-08`).
+
+Verdict: the Loader-gated rewrite (`6ee28634`) is a strict improvement and the
+desktop regression defect Claude flagged is fixed without regressing Android.
+The chrome-visible touch deadness is pre-existing in Codex's overlay-window
+architecture. Prime suspect for the next engineer: when the TopBar/BottomRail
+overlay windows become visible, something (their stacking relative to the
+foreign WebView window, or Qt's child-window input routing with multiple
+`WindowContainer`s on Android) swallows every touch; when they hide, the edge
+windows route fine.
+
+## Desktop pass-through fix (Claude's defect 1)
+
+`6ee28634` "Create the reader overlay native chrome only on Android":
+`ReaderOverlay` now instantiates its `Window`/`WindowContainer` pair behind a
+Loader that is active only on Android; every other platform gets a plain
+pass-through Item (no hidden Window, no null-window WindowContainer). Desktop
+harnesses re-run offscreen, all exit 0: `reader2_chrome_smoke.qml`,
+`reader2_logic_harness.qml`, `android_reader_paper_contract_harness.qml`.
+qmllint on the file reports only non-hard categories (`unqualified`,
+`missing-property`), same class of warnings as before.
+
+## Desktop CI baseline (Claude's defect 2) — master cannot run its own tests
+
+Master's desktop-ci has been dying at the public-trust gate (private Windows
+path in a design doc), skipping every test job, since runs 698–702. The
+baseline was therefore rebuilt on a throwaway branch from the merge-base
+`a602b86c` with build-only cherry-picks so linux-desktop could run at all:
+
+- `95094c43` public-path redaction (port of `97c1c7b2`) — public-trust then passes.
+- `edba3667` Qt6::Concurrent into `tst_vault_mal_match`/`tst_vault_identifier`
+  (port of `7fac8537`) — merge-base otherwise cannot compile `MalCatalog.cpp`.
+- `3b91b0ab` RatingsReviewsDelivery sources into `reader2_profile_runtime_harness`
+  (port of `a5d49e2f`) — merge-base otherwise fails to link it.
+- `bb1551a6` same sources into `account_first_light` (port of part of
+  `c1bd188e`) — the factory-loop half of that commit cannot port because
+  `AccountCredentialStoreFactory.cpp` is android-branch-only.
+
+Each of these is a master regression invisible until the gate is fixed; the
+branch already carries the fixes. Baseline v5 (branch
+`codex/baseline-desktop-ci-a602b86c`, run 37061867998) **ran the full
+platform-neutral suite at merge-base: 6 of 120 failed —
+`account_attachment_runtime`, `account_core`, `account_attachment_coordinator`,
+`core_sync_adapters`, `keyboard_key_events`, `tracker_lifecycle` — exactly
+Claude's six.** All six are therefore PRE-EXISTING on master; the Android branch
+did not cause them (their test sources are byte-identical between merge-base
+and branch). The extra `background_work_coordinator_harness` failure seen at
+`9fbfeeb3` ("watchdog fired = scheduling bug", 10.5 s) was a flake: it passed
+in both the baseline run and the final-tip run.
+
+**Final-tip linux-desktop (run 37061956894 at `cd3ce9d7`): 5 of 122 failed —
+`account_attachment_runtime`, `account_core`, `account_attachment_coordinator`,
+`keyboard_key_events`, `tracker_lifecycle` — all five proven pre-existing by
+the baseline. `core_sync_adapters` passed at the tip (failed at `9fbfeeb3` and
+at baseline → flaky). The branch's Linux desktop gate therefore ends with only
+proven pre-existing failures, satisfying the handoff's condition.** The
+windows-desktop job was still in flight at the stop gate.
+
+## CI and artifacts (final branch tip `cd3ce9d7` = tree of `6ee28634`)
+
+Branch history on `android/installable`: `9fbfeeb3` → `6ee28634` (desktop
+pass-through fix) → `8440dc86` (control, A/B only) → `cd3ce9d7` (revert of the
+control; no force used). Final tip tree is identical to `6ee28634`.
+
+- android (build + API-34 emulator smoke), PASS:
+  https://github.com/kingoftheseas56/Colosseum/actions/runs/37061956762
+- code-quality at the tip: PASS (run 37061956772); at `6ee28634`: PASS (37044895065).
+- android at `6ee28634` (the build most runtime evidence comes from), PASS:
+  run 37044895048; x86_64 APK SHA-256
+  `fb186187dae6120ab191eb22375e304ff3b602c9b4b79ec2bb28497cb94ca053`
+  (loader-alignment verifier: `ANDROID_RUNTIME_BUNDLE_OK`).
+- desktop-ci at the tip: linux-desktop failed with ONLY the 5 proven
+  pre-existing account/keyboard/tracker tests (run 37061956894, see the
+  baseline section); windows-desktop in flight when this document was written.
+- **arm64 APK for the tablet: `colosseum-arm64-v8a-debug.apk`, SHA-256
+  `1a852f3fe8bfe65798818a6919fba4c13b0c15168600c3c4185798cb6366f7f3`**
+  (artifact of run 37061956762; local re-hash matches the artifact manifest).
+  Not installed anywhere: the Nokia T20 was not listed.
+
+## What the next engineer should do first
+
+1. Attack the chrome-visible touch deadness with the A/B facts above; the
+   appearance-panel proof is unreachable until it is fixed.
+2. Re-prove the four NOT RUN items (video, account, manga chapter, CBZ) on a
+   CI APK of the final tip. The tablet needs USB debugging enabled by Hemanth.
+3. Master-side cleanups outside this branch's scope: fix the public-path
+   redaction on master itself and the four build regressions the baseline
+   cherry-picked (public path, Qt6::Concurrent links, RatingsReviewsDelivery
+   harness links), plus the six pre-existing account/keyboard/tracker test
+   failures, so master's desktop-ci runs again.
+
+Evidence root: `C:\Users\Suprabha\AppData\Local\Temp\colosseum-phase1\`
+(`glm-evidence\` curated; `ci-apks-6ee28634\`, `ci-apks-control\`,
+`ci-apks-final-arm64\` artifacts; `diag\` the unused instrumentation patch
+files). A Lanista read bridge (`adb` + `run-as` + `nc -U cache/ColosseumLanista`)
+was used for scene introspection; drive commands stay env-gated off.
+
+## Previous checkpoint content (Codex, `9fbfeeb3`) — still accurate where not superseded
+
+Stopped at the user's requested review gate. This is an implementation/build
+checkpoint, not a declaration that Phase 1 or full app functionality is
+complete. Do not merge to master, start Phase 2, or resume implementation
+without the user's direction.
+
+The Nokia T20 was explicitly excluded from this testing session. Audiobooks
+remain deferred. No landscape-only restriction was implemented; portrait
+browsing/reading and landscape video were recommended, with both orientations
+available on tablets.
+
+- `native/reader2/AndroidEbookRenderer.{h,cpp}` owns the foreign WebView
+  window, JNI command/event transport, generation isolation, readiness,
+  lifecycle, and teardown.
+- `native/platform/android/src/org/colosseum/reader/AndroidEbookHost.java`
+  hosts Foliate through AndroidX WebKit, with exact-origin/main-frame messages,
+  local asset interception, typed source errors, and publication scripts
+  disabled.
 - `ReaderPublicationSession.java` maps a random per-open token to the original
-  document URI. New opens and teardown revoke old tokens. No permanent book copy is made.
+  document URI. New opens and teardown revoke old tokens. No permanent book
+  copy is made.
 - `resources/reader2/android_paper.html` and `android_boot.js` adapt the common
   Foliate glue to token-based publication fetches. The build stages EPUB assets.
 - `qml/reader2/AndroidPaper.qml` embeds the foreign window. `ReaderOverlay.qml`
   gives existing reader controls separate native child windows above it.
 - `ReaderShell.qml` and `Reader2Logic.js` use stable Vault book IDs on Android,
   retaining the existing desktop identity scheme.
-- Host Java/JavaScript regressions and Android CI steps exercise token/event isolation
-  and boot transport. Read-along returns an explicit unsupported-feature error.
+- Host Java/JavaScript regressions and Android CI steps exercise token/event
+  isolation and boot transport. Read-along returns an explicit
+  unsupported-feature error.
 
-## Verification at the stop gate
-
-Fresh checks on this source:
-
-- Java publication-session regression: PASS.
-- JavaScript boot transport regression: `ANDROID_READER_BOOT_OK`.
-- Android reader boundary: six checks PASS.
-- Android build graph: nine tests PASS.
-- Qt offscreen `reader2_logic_harness.qml`: exit 0, `VERDICT: PASS`.
-- Qt offscreen `android_reader_paper_contract_harness.qml`: exit 0, `VERDICT: PASS`.
-- Qt offscreen `reader2_chrome_smoke.qml`: exit 0, `VERDICT: PASS`.
-- `git diff --check`: clean at inspection.
-
-The final ARM64 native compile/link and Gradle APK build succeeded. However, the
-package verifier rejects both bundled `libcrypto_3.so` and `libssl_3.so`:
-
-```
-PT_LOAD file/virtual offsets violate segment alignment; Android maps the wrong bytes
-```
-
-This is a **failed packaging acceptance gate**. Do not install or distribute this
-local APK. It reproduces the known OpenSSL loader-metadata defect in locally staged
-runtime libraries; the earlier CI build at `f458ccc6` passed this check. The source
-fix and the local dependency artifacts must not be treated as equivalent evidence.
-No dependency repair or new runtime test was started after discovering this failure,
-in accordance with the requested stop for review.
-
-All 283 packaged QML files compiled in the verifier; its only reported failures were
-the two OpenSSL libraries. The five checked core EPUB assets match the current
-source byte-for-byte; its `assets/reader2` graph contains no PDF modules. These checks
-do not prove the complete module graph or Android WebView composition/functionality.
-
-The rejected ARM64 artifact is retained only as build evidence in the user's Downloads
-folder, under `Colosseum-Android-Review-2026-10-02`, named
-`colosseum-arm64-build-only-REJECTED.apk`. SHA-256:
-`cf29b5106ad801b6a4b63d963a9d3222d08b5db5dec448f0b302e6a8ecdce0d0`.
-
-## Earlier runtime evidence, with source boundaries
-
-- [Android CI 37025500432](https://github.com/kingoftheseas56/Colosseum/actions/runs/37025500432)
-  at `f458ccc6` succeeded for both ABIs and the API 34 emulator startup smoke.
-  The downloaded x86_64 build was also installed locally on the API 36 emulator,
-  re-signed with the local debug key to retain test data. Theatre rendered correctly
-  with all three temporary GPU debug settings removed. The production graphics
-  workaround therefore has full-app evidence, beyond the earlier standalone probe.
-- CBZ at `13ffd4ce`: a three-page fixture opened through Android's document picker
-  and all pages displayed. A runtime patched with the `64855902` ordering change
-  restored page 2 after closing/reopening. That resume change is not in the
-  `f458ccc6` CI APK.
-- HTTPS catalogue at `13ffd4ce`: a previously unused Animation filter returned
-  50 titles with loading false and no warning. Successful account sign-in/sync
-  remains unverified.
-- Earlier diagnostic x86_64 video run displayed local H.264/AAC frames, paused,
-  sought, and resumed. An audio track was detected, but audible output was not tested.
-- Production EPUB rendering, page turns, resume, search, selection, and appearance
-  have no Android runtime pass yet. Do not infer them from host tests or compilation.
-
-## Review priorities and unfinished qualification
-
-1. Repair/rebuild the local OpenSSL runtime dependencies using the corrected build
-   procedure, or build the checkpoint through the known-good CI lane after review.
-   Require the final APK loader-metadata verifier to pass before installing it.
-   Then open an EPUB through SAF and confirm visible book pixels and canonical CFI
-   relocation before evaluating higher-level controls.
-2. Check child-window stacking, transparency, touch delivery, chrome reveal, edge
-   page turns, selection, search, appearance, and the failed-open surface. The ruler
-   overlay is still ordinary QML and may be hidden behind the WebView.
-3. Exercise close/reopen resume, background/foreground, rotation, revoked document
-   permission, renderer loss, account state sealing, and stale events. Inspect JNI
-   thread/lifetime ownership and error delivery during initial shell loading.
-4. Inspect CSP and the packaged Foliate module graph on a real WebView. The optional
-   `alignment_text.js` import already lacks a source file and is caught by shared glue;
-   it is not packaged. Ensure EPUB requirements do not depend on it.
-5. Validate manga chapter/download-then-read and audible media. Direct-URL video,
-   successful authentication/sync, and physical-device qualification remain open.
-6. Desktop merge gate remains red: Linux built, but 116/122 platform-neutral tests
-   passed in [run 37025499672](https://github.com/kingoftheseas56/Colosseum/actions/runs/37025499672).
-   Failures: `account_attachment_runtime`, `account_core`,
-   `account_attachment_coordinator`, `core_sync_adapters`, `keyboard_key_events`,
-   and `tracker_lifecycle`. No baseline comparison establishes whether they predate
-   this branch. Windows was still running when checked for this handoff.
-
-Automatic approval review previously rejected starting the local HTTP media fixture
-server and relaunching with the public HTTPS test-video URL, reporting only
-"blocked by policy". Neither rejected action was retried; direct-URL playback is
-unverified. This restriction does not establish a defect in the app.
-
-## Local evidence locations
-
-Under the user's temporary directory:
-
-- `colosseum-phase1/review-gate-build.log`: final build output.
-- `colosseum-phase1/review-gate-package-check.log`: rejected OpenSSL metadata evidence.
-- `colosseum-phase1/*-gate.err`: Qt harness verdicts.
-- `colosseum-functional-smoke/graphics-production-theatre.png`: full-app graphics proof.
-- `colosseum-functional-smoke/comic-new-order-page2.png` and
-  `comic-new-order-resumed.png`: earlier patched-runtime resume evidence.
-- `colosseum-phase1/ci-graphics-fixed`: untouched `f458ccc6` CI APKs.
-
-The next engineer should start with this checkpoint and live source. The older
-`ANDROID-INSTALLABLE-HANDOFF.md` describes earlier builds and contains superseded
-status; it is not the current qualification matrix.
+Local `libcrypto_3.so`/`libssl_3.so` staging remains broken (loader-alignment);
+CI-built APKs are the only installable artifacts, per Claude's instruction.
