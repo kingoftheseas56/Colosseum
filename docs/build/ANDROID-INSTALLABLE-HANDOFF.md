@@ -1,137 +1,77 @@
 BLOCKED
 
-# Android installable — handoff (2026-09-30)
+# Android Checkpoint A — 2026-10-02
 
-**Blocking step:** publishing the branch. Everything up to "two signed APKs built locally" is done
-and committed on `android/installable` in the cloud session. The push was refused, so no CI run,
-emulator smoke, or desktop CI run exists yet.
+Phase 1 is incomplete. Do not merge this branch or start Phase 2 on this evidence.
+The Nokia T20 is not connected; Hemanth explicitly said to continue without it.
 
-```
-$ git push -u origin android/installable
-remote: Claude doesn't have GitHub access to kingoftheseas56/Colosseum for your organization. ...
-fatal: unable to access 'https://github.com/kingoftheseas56/Colosseum/': The requested URL returned error: 403
-```
+## Saved changes
 
-Reads (fetch, Actions API) work. Writes need the Claude GitHub App installed on the repo, or a
-reconnected GitHub account at https://claude.ai/connect-github. After that, push the branch
-(it touches no other branch) and the `android` workflow runs by itself.
+All work stays on `android/installable`; master and the primary checkout are untouched.
 
-## Status by gate (evidence level in brackets)
+- `1001a9df`: saved the ten original launch repairs, packaged Qt TLS libraries, and added packaged-QML compilation to APK verification.
+- `7fac8537`: corrected the player pause handler's activityTracker reference; linked Qt Concurrent into the Vault tests that compile MalCatalog.
+- `78a55bd7`: limited mouse Back and right-click context handlers to mouse/touchpad. Touch previously opened a world and immediately invoked Back.
+- `01fe7626`: explicit Android OpenSSL paths, full build diagnostics, and dependency caching before application compilation.
+- `a5d49e2f`, `c1bd188e`: completed missing desktop test-target dependency lists and added the standalone A-01 composition probe.
+- `ec79b2c1`: link OpenSSL with Qt's `_3.so` names directly; reject invalid ELF load-segment alignment in the final APK.
 
-| Gate | State |
+## Phase 1 evidence
+
+| Requirement | State and remaining gap |
 | --- | --- |
-| merged | yes: `origin/master` a602b86c + `origin/recon/android-master-2026-09-05` 0877d48c (merge 9dd861b2) [committed locally] |
-| deps script works | yes, both ABIs [built locally, ~10 min per ABI on 4 cores] |
-| arm64-v8a APK built | yes [built locally] |
-| x86_64 APK built | yes [built locally] |
-| emulator installs | not run: no KVM in the cloud container, and CI never ran (push blocked) |
-| emulator launches | not run |
-| alive after 60 s | not run |
-| desktop CI green on the branch | not run (push blocked). See "Desktop CI on master is already red" below |
+| Save repairs | Committed and pushed with explicit pathspecs. |
+| World navigation | Focused Qt touch tests pass. Repaired ARM64 runtime reaches Tankoban and Theatre instead of returning Home; the diagnostic x86_64 runtime also reaches Biblio. Screenshots show each world's content. Emulator rendering artifacts limit visual qualification. |
+| HTTPS | Qt loads both TLS libraries. Sign-in with synthetic invalid credentials reaches the production HTTPS service and displays its rejection. Successful sign-in/sync was not tested. Catalogue data appears, but fresh-fetch proof remains incomplete. |
+| Video | Pause-handler regression passes. Diagnostic x86_64 runtime plays a local 60-second H.264/AAC MP4 with visible 640x360 frames and an audio track. Pause holds at 25.094 seconds; the forward button seeks to 35.094 while paused; resume reaches 37.397 with pause=false. Audible sound and direct-URL playback remain unverified. |
+| EPUB | Production renderer not implemented; mandatory A-01 real-hardware composition gate is open. |
+| Manga / CBZ | End-to-end chapter and download-then-read checks remain incomplete. A complete three-page CBZ fixture was pushed to Downloads, but tapping it in the Android picker did not return to the reader. This is not a passing CBZ test; its cause is not yet isolated. |
+| Nokia tablet | Not tested; user instructed continuation without the tablet. |
 
-Local APKs (debug build, re-signed with the stable test key below):
+Focused checks pass: nine Android build-graph tests; shell touch versus mouse Back (four Qt Quick passes); KeyboardAction touch versus context click (four passes); player pause/resume activity regression. All 282 packaged QML components compile. The ELF check rejects the crashing CI APK and accepts the corrected local ARM64 runtime.
 
-| File | SHA-256 |
-| --- | --- |
-| `colosseum-arm64-v8a-debug.apk` | `9cdd90ee64dff1831c5e3b4666b3cea662a44d98b6e01510be5d7e85b08d3d7a` |
-| `colosseum-x86_64-debug.apk` | `af545c96df83c9f3edbee233238c11de05c3a69fe97b42fcb08ff17ad3c04fb2` |
+## A-01 gate
 
-These are the local build's hashes. CI builds are rebuilt from source and will hash differently.
+Approved `A-01-DESIGN.md`, section 4: “Full EPUB bridge work starts only after this mechanism passes on required real hardware.” This is the specific reason the full Foliate bridge is not claimed as implemented.
 
-## What was done
+`tools/android-reader-probe` builds separately for both ABIs. The x86_64 emulator demonstrates a real WebView in a foreign QWindow, an overlapping QML child window receiving touch, uncovered WebView scrolling, text entry and IME, view recreation, and background/foreground return. Logs include:
 
-### Merge (master is the trunk: recon was merged *into* a branch cut from master)
-There were 16 conflicted files. Desktop behaviour was kept everywhere:
-- `native/CMakeLists.txt`: master's new trackers/stremio/tankoyomi sources stay in the shared
-  target. Windows credential/clipboard, updater, mpv and streamserver sources stay in recon's
-  `if(NOT ANDROID)` block.
-- `AccountRuntime`: keeps both master's `StremioSyncOptions` constructor and recon's per-platform
-  credential store. `loadStremio/saveStremio/clearStremio` became `AccountCredentialStore` virtuals
-  that fail closed by default; the Windows store overrides them. The Android store and the
-  "unavailable" store fail closed for master's new pending-deletion API.
-- `main.cpp`: master's ratings fixture and frame/poster probes plus recon's platform runtime and
-  Back handling. `UpdateUserAgent.h` is no longer platform-gated because the catalogue fetch uses
-  it on every host.
-- QML focus/TV conflicts (KeyboardAction, TopBar, Taskbar, tab bars, CataloguePosterCard,
-  ContinueRow, PlayerPage stats) take master's side: FocusRing and the async mpv stats. TV mode
-  and player UX are out of scope. `tests/test_android_tv_navigation.py` no longer requires recon's
-  `focusFrameWidth` or the Settings/Keyboard Guide taskbar buttons, which master removed.
-- The keyboard censuses were regenerated from the merged QML.
-- `.github/clang-tidy-allowlist.txt`: the two `main.cpp` leak lines moved. Both sides' line numbers
-  were mapped onto the merged file. Unconfirmed until clang-tidy runs, and stale entries don't
-  fail the gate.
-
-### Toolchain (all scripts, no machine state)
-- `scripts/android/install_toolchain.sh`: Qt 6.11.1 through aqtinstall 3.3.0 (host `linux_gcc_64`,
-  `android_arm64_v8a`, `android_x86_64`, plus qtwebsockets and qtimageformats), SDK platform 36,
-  build-tools 36.0.0, NDK 27.2.12479018, and a JDK 21 check. It writes `env.sh`.
-- `scripts/android/build_deps.sh`: OpenSSL 3.5.9, Boost 1.90.0 (headers plus static filesystem;
-  system is header-only) and libtorrent-rasterbar 2.0.14. All static, C++17, API 28, one prefix per
-  ABI, checksum-pinned sources, and a stamp so a cached prefix is never rebuilt.
-- `scripts/android/build_apk.sh <abi>`: single-ABI debug APK with the SHA-256 written next to it.
-- `scripts/android/emulator_smoke.sh`: install, launch, 60 s hold, liveness check,
-  logcat/screenshot/tombstones. Fails on `FATAL EXCEPTION`, a native crash signature, or a new
-  tombstone.
-- `native/CMakeLists.txt` (Android block only): `QT_ANDROID_ABIS` follows the configured kit's ABI.
-
-Local reproduction:
-```bash
-scripts/android/install_toolchain.sh && source ~/colosseum-android/env.sh
-scripts/android/build_deps.sh              # arm64-v8a x86_64
-scripts/android/build_apk.sh x86_64        # -> native/build-android/out/
-scripts/android/build_apk.sh arm64-v8a
+```
+reader-probe foreign window true
+reader-probe overlay tap 1
+reader-probe document "Reader composition probe" progress 100
 ```
 
-### CI: `.github/workflows/android.yml` (push to `android/installable` only)
-- Caches: Qt plus SDK/NDK (keyed on `install_toolchain.sh`), deps prefixes (keyed on
-  `build_deps.sh`), and ccache.
-- Builds both APKs, uploads the `colosseum-x86_64-debug-apk` and `colosseum-arm64-v8a-debug-apk`
-  artifacts (each with a `.sha256` file), and writes the hashes to the job summary.
-- `emulator-smoke`: ubuntu-latest with KVM enabled, reactivecircus/android-emulator-runner@v2,
-  API 34 google_apis x86_64. Runs `emulator_smoke.sh` and uploads artifact
-  `emulator-smoke-x86_64` (`screenshot.png`, `screenshot-25s.png`, `logcat.txt`,
-  `logcat-crash.txt`, tombstones).
+Selection, rotation, repeated lifecycle stress, and physical-device qualification remain open. This is not a production reader or fallback architecture. AndroidPaper still reports that the Android ebook renderer is unavailable.
 
-### Stable test signing
-Every CI APK is re-signed with one dedicated **test-only** key (never a release key), so a new
-build installs over the previous one.
-- Keystore: PKCS12, alias `colosseum-test`, RSA 3072, 25-year validity,
-  DN `CN=Colosseum Android TEST ONLY, O=Colosseum, OU=CI test signing (not a release key)`.
-  Certificate SHA-256: `75:34:5E:F0:68:94:FD:80:4B:A4:96:7A:F3:F8:65:00:FB:8B:01:03:F7:83:E7:64:BE:BB:C3:39:32:CD:EB:A2`.
-- It is **not in the repo**. It was handed to Hemanth outside Git. Add two repository secrets
-  (Settings → Secrets and variables → Actions):
-  - `ANDROID_TEST_KEYSTORE_B64`: `base64 -w0 colosseum-test.jks`
-  - `ANDROID_TEST_KEYSTORE_PASSWORD`: the store/key password (both are the same)
-- The workflow decodes it into `$RUNNER_TEMP`, and `build_apk.sh` re-signs with
-  `apksigner` (build-tools 36.0.0). Without the secrets, the build emits a warning and keeps Qt's
-  per-run debug signature, so builds will not install over each other.
-- Locally: `COLOSSEUM_ANDROID_KEYSTORE=... COLOSSEUM_ANDROID_KEYSTORE_PASSWORD=... scripts/android/build_apk.sh <abi>`.
-- To regenerate: `keytool -genkeypair -storetype PKCS12 -keystore colosseum-test.jks -alias colosseum-test -keyalg RSA -keysize 3072 -validity 9125`,
-  then update both secrets. Devices must uninstall once after a key change.
+## Build evidence
 
-## Desktop CI on master is already red
-`desktop-ci` runs 698–702 on master all fail in about 40 s at `public-trust`
-(`scripts/check_public_paths.py`), which skips every desktop build job. The cause is a private
-absolute path on line 5 of `docs/superpowers/specs/2026-09-29-discover-sidebar-design.md`. This
-branch drops that path (commit 97c1c7b2, docs only) so desktop CI can actually run here.
-`check_public_paths.py`, `tests.test_public_path_guard` and `tests.test_linux_runtime_dependency_gate`
-pass locally. The Windows/Linux desktop builds have not been run on the merged tree.
+[Android run 37011845498](https://github.com/kingoftheseas56/Colosseum/actions/runs/37011845498) built both ABIs, then correctly failed its emulator startup gate:
 
-## Known gaps (expected, not addressed)
-- Qt's TLS plugin (`qopensslbackend`) is packaged, but no `libssl_3.so`/`libcrypto_3.so` is
-  shipped, so Qt Network HTTPS will fail at runtime on Android. OpenSSL is linked statically only
-  for libtorrent. That should break catalogues, not launch. The fix is shared OpenSSL in
-  `build_deps.sh` plus `QT_ANDROID_EXTRA_LIBS`.
-- androiddeployqt warns about unresolved `Colosseum.Activity/Bridge/Player` imports (they are
-  registered in C++ at runtime) and `QtWebEngine`. On Android that import is used only by the
-  lazily loaded `ExtensionsSetupSheet.qml`, which will fail when opened.
-- Torrent playback is expected not to work (no Node runtime by design; the native stream server
-  isn't finished).
+```
+UnsatisfiedLinkError: dlopen failed: cannot find "9_CRL_get_nextUpdate"
+from verneed[0] in DT_NEEDED list ... libcrypto_3.so
+```
 
-## Next steps once push access exists
-1. Push `android/installable`. Watch the `android` run (build, then emulator-smoke) and `desktop-ci`.
-2. If the smoke fails, start from `emulator-smoke-x86_64/logcat.txt` (`[boot]` lines,
-   `FATAL EXCEPTION`, `Fatal signal`). Stop rule: three distinct fixes for the same crash, then
-   BLOCKED with the evidence.
-3. When the smoke and desktop CI are green, change the status word to COMPLETE with the run URL
-   and artifact names.
+After post-link renaming and llvm-strip, the library's final PT_LOAD had file offset `0x5afe20`, virtual address `0x5c0000`, and alignment `0x4000`. These are not congruent; Android maps the wrong bytes. Section-header inspection alone missed this. The new packaging check catches it. Do not distribute that run's uncorrected APKs.
+
+Replacement [Android run 37015687738](https://github.com/kingoftheseas56/Colosseum/actions/runs/37015687738), source commit `ec79b2c1`, is **green**: both ABI builds, packaged-QML/ELF checks, and the API 34 x86_64 install/launch/60-second smoke passed. This is startup verification, not full functional qualification.
+
+[Desktop run 37015687500](https://github.com/kingoftheseas56/Colosseum/actions/runs/37015687500) now builds Linux successfully, but seven test executables fail: `background_work_coordinator_harness`, `account_attachment_runtime`, `account_core`, `account_attachment_coordinator`, `core_sync_adapters`, `keyboard_key_events`, and `tracker_lifecycle`. Examples include `profileReady.count()` actual 0 versus expected 1, Stremio pending count 2 versus expected 0, and `client.available()` false. No baseline comparison establishes whether these failures predate this branch. Windows was still running at the last inspection. The desktop merge gate is red.
+
+Automatic approval review rejected starting the local HTTP fixture server with "blocked by policy" and supplied no further reason. It was not retried; the direct-URL media check remains open.
+
+## Local artifacts
+
+Artifacts are in Downloads, outside Git:
+
+- **Review APK: `colosseum-arm64-v8a-checkpoint-a-ci.apk`**, downloaded unchanged from green Android run 37015687738, source `ec79b2c1`. SHA-256: `6458330297c564253a32ab8d53719c5b67e4701c84dccd0bd0d1b59221ac6123`. Hash matches CI; APK signature, 16 KiB ZIP alignment and runtime-bundle/ELF verification also pass locally. ARM hardware was not tested. This supersedes the earlier locally repacked `colosseum-arm64-v8a-checkpoint-a.apk` for review.
+- Corresponding x86_64 CI APK SHA-256: `8f8576d6b771dfc2e2e643f62ce4c43fd2deaa0476348551d81d2b14acd499d8`; downloaded hash matches CI and runtime-bundle verification passes locally. Its startup was verified in CI. Local detailed playback evidence used the earlier diagnostic build, not this exact APK.
+- `colosseum-reader-composition-probe-arm64.apk`: separate Task Zero app; built, not tested on ARM hardware.
+- `colosseum-checkpoint-a-evidence.zip`: selected runtime screenshots, probe logs, desktop failure log, and this report. Images document emulator rendering limitations as well as successful interactions.
+
+The local API 36 x86_64 emulator uses ARM translation. Host GPU, SwiftShader, and ANGLE runs showed rendering artifacts and System UI ANRs. Audio output was disabled; audible sound is unverified. A temporary x86_64 diagnostic APK repairs only the CI ELF file alignment; it is separate from untouched CI artifacts.
+
+CI test-signing secrets were absent in the observed run. CI kept its per-run debug signature, which differs from the local debug key. No credentials or keystores were committed. Release signing remains out of scope.
+
+The Android native stream server is still an unavailable placeholder. Node was not packaged. Torrent streaming and all Phase 2 UI decisions remain untouched.
