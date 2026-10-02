@@ -141,6 +141,7 @@
 #include "player/streamserver.h"
 #if defined(Q_OS_ANDROID)
 #include "platform/AndroidWindowModeAdapter.h"
+#include "platform/AndroidGraphicsWorkarounds.h"
 #else
 #include "player/windowmodestore.h"
 #endif
@@ -2101,6 +2102,9 @@ int main(int argc, char *argv[]) {
 #endif
 
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
+#ifdef Q_OS_ANDROID
+        Colosseum::Platform::installAndroidGraphicsWorkarounds(rootWindow);
+#endif
         platformRuntime->attachWindow(rootWindow);
         if (posterTimingEnabled) posterTiming->attach(rootWindow);
         if (frameProbeEnabled)
