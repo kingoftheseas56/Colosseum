@@ -1839,6 +1839,13 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_sources(account_first_light PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp")
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
@@ -4256,6 +4263,11 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
     LABELS "unit;qttest;tracker;sync-center"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
+
+foreach(_account_runtime_target IN ITEMS account_first_light tst_account_attachment_runtime)
+    target_sources(${_account_runtime_target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp")
+endforeach()
 
 foreach(_tracker_profile_target IN ITEMS
         account_first_light
