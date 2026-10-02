@@ -1,9 +1,44 @@
-BLOCKED
+IN PROGRESS
 
 # Android Checkpoint A — 2026-10-02
 
 Phase 1 is incomplete. Do not merge this branch or start Phase 2 on this evidence.
 The Nokia T20 is not connected; Hemanth explicitly said to continue without it.
+
+## Emulator-first continuation (2026-10-02)
+
+Hemanth subsequently instructed continued work toward a functioning emulator build without
+waiting for Claude review. The earlier real-hardware stop below is historical; physical-device
+qualification remains unverified, but it no longer blocks implementation in this task.
+
+- `13ffd4ce`: Android's document picker now admits provider-tagged CBZ/EPUB documents. LocalLaunch
+  reads provider display names without changing the opaque source URI. CBZ reads use Qt's file
+  engine instead of libc paths. Both ABI builds and emulator smoke pass in Android run 37021459073.
+  Local API 36 testing opens the three-page CBZ through its SAF URI and displays all three pages.
+  This proves local reading, not download-then-read.
+- `f458ccc6`: emulator-specific Qt Quick indexed-strip workaround committed and pushed. A minimal
+  native Qt app using this production helper renders correctly with the GLES diagnostic layer
+  disabled. Full-app APK run 37025500432 is still building; full-app qualification is pending.
+- `64855902`: set the Vault comic identity before the archive path, so resume can read the correct
+  progress key during its first load. Existing resume regression harness and QML compilation pass.
+  A patched runtime reproduces page 2 -> close -> reopen -> page 2. This commit is local pending
+  completion of the graphics build; it is not yet present in a CI APK.
+- HTTPS catalogue proof: in the installed source-13ffd4ce runtime, selecting the previously unused
+  Animation genre in Theatre performs the DiscoverApi/AddonClient HTTPS catalogue request and
+  returns 50 titles (`loading=false`, `warning=""`, `Genre=Animation`). Sign-in rejection evidence
+  below remains separate from successful authentication, which has not been tested.
+- Local main-app screenshots for these checks still use a temporary GLES diagnostic layer. They
+  are not evidence that the full-app graphics workaround has passed. Remove the three temporary
+  GPU debug settings and restart before qualifying the new APK.
+- Current desktop Linux run 37025499672 builds successfully; 116 of 122 platform-neutral tests
+  pass. Six failing executables remain: account_attachment_runtime, account_core,
+  account_attachment_coordinator, core_sync_adapters, keyboard_key_events, tracker_lifecycle.
+  Windows is still running. No baseline comparison establishes which failures predate this branch.
+- Automatic approval review also rejected relaunching with a public HTTPS test-video URL, giving
+  only "blocked by policy". Direct-URL playback remains unverified.
+
+EPUB production rendering, end-to-end manga/download reading, and audible audio remain open.
+The artifacts and original checkpoint evidence below predate this continuation.
 
 ## Saved changes
 
