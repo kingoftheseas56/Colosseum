@@ -21,6 +21,8 @@ Item {
     // backend fallback preserves the explicit error and host-test contract.
     readonly property bool glueUp: backend ? (backend.glueUp === undefined ? true : backend.glueUp) : true
 
+    // Opaque floor: while a sheet hides the WebView nothing behind the reader may show.
+    Rectangle { anchors.fill: parent; color: "#09090b" }
     WindowContainer {
         anchors.fill: parent
         visible: !paper.covered

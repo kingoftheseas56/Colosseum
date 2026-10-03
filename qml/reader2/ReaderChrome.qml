@@ -14,6 +14,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import QtQuick.Window
 import "Reader2Logic.js" as L
 
 Item {
@@ -95,6 +96,11 @@ Item {
     // Android: the bars are native windows above the scene; a full-screen sheet lives in the
     // scene, so the bars step aside while one is open. Always false elsewhere.
     readonly property bool sheetCoversBars: Qt.platform.os === "android" && anyPanelOpen
+    // A sheet hides the page on Android, so picking a destination must return to it.
+    function leaveSheetOnPick() { if (Qt.platform.os === "android") closeAnyPanel() }
+    // The tap that opens a sheet lands in a bar's native window, which then hides; give the
+    // main window focus so the sheet's fields receive keys and the soft keyboard.
+    onSheetCoversBarsChanged: if (sheetCoversBars && chrome.Window.window) chrome.Window.window.requestActivate()
 
     // ---- signals up ----
     signal backRequested()
@@ -805,10 +811,10 @@ Item {
 
         onCloseRequested: chrome.closePanel()
         onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }
-        onTocActivated: (href) => chrome.tocActivated(href)
-        onBookmarkActivated: (cfi) => chrome.bookmarkActivated(cfi)
+        onTocActivated: (href) => { chrome.tocActivated(href); chrome.leaveSheetOnPick() }
+        onBookmarkActivated: (cfi) => { chrome.bookmarkActivated(cfi); chrome.leaveSheetOnPick() }
         onBookmarkDeleted: (id) => chrome.bookmarkDeleted(id)
-        onHighlightActivated: (cfi) => chrome.highlightActivated(cfi)
+        onHighlightActivated: (cfi) => { chrome.highlightActivated(cfi); chrome.leaveSheetOnPick() }
         onFollowToggled: (on) => chrome.followToggled(on)
         onAudioPlayToggled: chrome.audioPlayToggled()
         onAudioSpeedCycled: chrome.audioSpeedCycled()
@@ -841,7 +847,7 @@ Item {
         capped: chrome.searchCapped
         lastQuery: chrome.searchLastQuery
         onSubmitted: (q) => chrome.searchSubmitted(q)
-        onResultActivated: (cfi) => chrome.searchResultActivated(cfi)
+        onResultActivated: (cfi) => { chrome.searchResultActivated(cfi); chrome.leaveSheetOnPick() }
         onCloseRequested: chrome.closeSearch()
     }
 }
