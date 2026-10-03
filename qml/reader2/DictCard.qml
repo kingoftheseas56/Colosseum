@@ -17,6 +17,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
+    nativeWindow: false
     id: dictCard
     objectName: "reader2DictCard"
 

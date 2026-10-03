@@ -976,6 +976,9 @@ FocusScope {
         id: paper
         anchors.fill: parent
         readerDebug: shell.readerDebug
+        // Android: the WebView is a native view above the whole QML scene, so a full-screen
+        // sheet (contents, appearance, search, failed-open) can only show with it hidden.
+        covered: Qt.platform.os === "android" && (chrome.anyPanelOpen || shell.openErrorShown)
         onGlueUpChanged: if (glueUp && shell.bookPath !== "" && !shell.personalStateSealed)
                               shell.openAtResume(shell.bookPath)
         onPaperEvent: (name, p) => {
@@ -1394,6 +1397,7 @@ FocusScope {
     ReaderOverlay {
         anchors.fill: parent
         overlayActive: shell.openErrorShown
+        nativeWindow: false
     Rectangle {
         id: openErrorView
         anchors.fill: parent

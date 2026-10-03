@@ -9,6 +9,8 @@ Item {
 
     signal paperEvent(string name, var payload)
     property bool readerDebug: false
+    // True while a full-screen QML sheet must show through: the native WebView is hidden.
+    property bool covered: false
 
     // Expected production default: a platform context property registered only in an
     // Android build. Tests and experiments can inject any object with the same surface.
@@ -21,6 +23,7 @@ Item {
 
     WindowContainer {
         anchors.fill: parent
+        visible: !paper.covered
         window: paper.backend && paper.backend.foreignWindow !== undefined ? paper.backend.foreignWindow : null
     }
     Component.onCompleted: if (backend && typeof backend.create === "function") backend.create()

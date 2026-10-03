@@ -10,7 +10,11 @@ Item {
     id: host
     default property alias surfaceData: surfaceItem.data
     property bool overlayActive: true
-    readonly property bool nativeOverlay: Qt.platform.os === "android"
+    // false keeps this overlay an ordinary item in the main scene on Android too. Full-screen
+    // sheets use that: the shell hides the WebView while one is open (ReaderPaper.covered),
+    // so they need no native window of their own.
+    property bool nativeWindow: true
+    readonly property bool nativeOverlay: Qt.platform.os === "android" && nativeWindow
 
     property Item surface: Item {
         id: surfaceItem

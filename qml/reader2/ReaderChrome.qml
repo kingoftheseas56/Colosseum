@@ -92,6 +92,9 @@ Item {
     // Any of the three overlays open pins the chrome shown; Esc closes whichever is open
     // (ReaderShell's cascade). Search counts too, so Esc dismisses it via closeAnyPanel.
     readonly property bool anyPanelOpen: panelOpen || appearanceOpen || searchOpen
+    // Android: the bars are native windows above the scene; a full-screen sheet lives in the
+    // scene, so the bars step aside while one is open. Always false elsewhere.
+    readonly property bool sheetCoversBars: Qt.platform.os === "android" && anyPanelOpen
 
     // ---- signals up ----
     signal backRequested()
@@ -332,6 +335,7 @@ Item {
         id: topBar
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         shown: chrome.awake
+        overlayActive: shown && !chrome.sheetCoversBars
         title: chrome.title
         author: chrome.author
         chapterLabel: chrome.chapterLabel
@@ -350,6 +354,7 @@ Item {
         id: bottomRail
         anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
         shown: chrome.awake
+        overlayActive: shown && !chrome.sheetCoversBars
         fraction: chrome.percent / 100
         pageInChapter: chrome.pageInChapter
         pagesInChapter: chrome.pagesInChapter

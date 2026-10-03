@@ -16,6 +16,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
+    nativeWindow: false
     id: fnCard
     objectName: "reader2FootnoteCard"
 

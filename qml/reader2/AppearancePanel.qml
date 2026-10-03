@@ -19,6 +19,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: open
+    nativeWindow: false
     id: panel
 
     // ---- inputs (bound by ReaderChrome from ReaderShell's shell.appearance) ----

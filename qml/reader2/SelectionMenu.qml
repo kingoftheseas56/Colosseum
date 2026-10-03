@@ -28,6 +28,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
+    nativeWindow: false
     id: menu
 
     // ---- inputs ----

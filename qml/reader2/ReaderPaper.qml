@@ -8,6 +8,7 @@ Item {
 
     signal paperEvent(string name, var payload)
     property bool readerDebug: false
+    property bool covered: false
     readonly property bool glueUp: loader.item ? !!loader.item.glueUp : false
 
     function _call(name, args) {
@@ -44,6 +45,8 @@ Item {
         onLoaded: {
             if (item.readerDebug !== undefined)
                 item.readerDebug = host.readerDebug
+            if (item.covered !== undefined)
+                item.covered = Qt.binding(function() { return host.covered })
             if (item.paperEvent)
                 item.paperEvent.connect(function(name, payload) {
                     host.paperEvent(name, payload)
