@@ -36,7 +36,7 @@ Executor: GLM (ZCode) on the `android-startup-fix` worktree, per Claude's
 > *showed* was read through a hallucinating image-description tool, so the
 > interpretations are void. Do not cite any PASS below.
 
-Evidence files live in `C:\Users\Suprabha\AppData\Local\Temp\colosseum-phase1\glm-evidence\`
+Evidence files live in `%TEMP%\colosseum-phase1\glm-evidence\`
 (screenshots named `NN-*.jpg|png`); raw sequences in the parent folder.
 
 | Proof | Result | Evidence |
@@ -168,7 +168,7 @@ control; no force used). Final tip tree is identical to `6ee28634`.
    harness links), plus the six pre-existing account/keyboard/tracker test
    failures, so master's desktop-ci runs again.
 
-Evidence root: `C:\Users\Suprabha\AppData\Local\Temp\colosseum-phase1\`
+Evidence root: `%TEMP%\colosseum-phase1\`
 (`glm-evidence\` curated; `ci-apks-6ee28634\`, `ci-apks-control\`,
 `ci-apks-final-arm64\` artifacts; `diag\` the unused instrumentation patch
 files). A Lanista read bridge (`adb` + `run-as` + `nc -U cache/ColosseumLanista`)
