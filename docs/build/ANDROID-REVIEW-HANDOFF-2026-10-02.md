@@ -1,17 +1,40 @@
 # Android review handoff — 2026-10-02
 
-## Status: BLOCKED (one reader interaction defect; everything else recorded below)
+## Status: BLOCKED — ALL ANDROID RUNTIME CLAIMS BELOW RETRACTED (2026-10-03 review)
 
-Blocked item, in user-visible terms: **while the reader's top/bottom chrome is
-showing, taps on the page do nothing** — no page turns, no button presses. Once
-the chrome recedes (3 s idle), edge taps turn pages in both directions and the
-failed-open surface takes touches. This is pre-existing (see the A/B control
-below), not caused by the desktop pass-through fix.
+**Retraction.** Claude's review
+(`agents/REVIEW-GLM-android-checkpoint-A-2026-10-03.md` in the Brotherhood repo)
+opened all 14 evidence screenshots and found none shows a book page: the
+"page turns" are Tankoban's home banner auto-rotating, the "error screen" is a
+blank wallpaper, and the "Theatre/Biblio" proofs show Tankoban. Every Android
+runtime PASS/PARTIAL row in the table below, the touch-delivery defect
+narrative, and the A/B control verdict are **retracted as unverified**. Root
+cause of the false claims: all screenshot interpretation went through an
+external image-description service that invented details, and GLM trusted it.
+The warning sign GLM dismissed: the app's own Lanista scene introspection never
+once showed `ReaderShell`/`ReaderPaper` items, i.e. the reader was likely never
+open at all during those probes — the introspection was right and the vision
+tool was wrong. Treat the Android half of this document as void until Claude's
+direct emulator walk produces real evidence.
+
+**What still stands (mechanically verified, not vision-dependent):** the git
+history and branch state, CI run IDs/conclusions, artifact names and SHA-256s,
+the APK loader-alignment verifier output (`ANDROID_RUNTIME_BUNDLE_OK`), the
+desktop harness exit codes, the ReaderOverlay desktop pass-through fix and its
+qmllint result, and the desktop-ci baseline analysis (merge-base run failing
+exactly the six pre-existing tests; branch Linux gate ending with only those,
+minus the flake that passed on re-run). Claude verified the desktop half
+independently.
 
 Executor: GLM (ZCode) on the `android-startup-fix` worktree, per Claude's
-2026-10-02 handoff. All runtime evidence is from CI-built APKs.
+2026-10-02 handoff. Retraction added 2026-10-03.
 
-## Proof table (handoff steps 4–6)
+## Proof table (handoff steps 4–6) — RUNTIME ROWS RETRACTED, kept for the record only
+
+> **Every runtime result in this table is retracted (see the status block).**
+> The pixel diffs behind them were mechanically real, but what the diffs
+> *showed* was read through a hallucinating image-description tool, so the
+> interpretations are void. Do not cite any PASS below.
 
 Evidence files live in `C:\Users\Suprabha\AppData\Local\Temp\colosseum-phase1\glm-evidence\`
 (screenshots named `NN-*.jpg|png`); raw sequences in the parent folder.
