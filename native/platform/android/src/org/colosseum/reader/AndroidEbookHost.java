@@ -46,6 +46,7 @@ public final class AndroidEbookHost {
         this.context = context;
         nativeId = instance;
         view = new WebView(context);
+        view.setBackgroundColor(0xFF09090B); // the shell's own background; no white flash before it loads
         WebSettings settings = view.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setAllowFileAccess(false);

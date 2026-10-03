@@ -3629,9 +3629,18 @@ Window {
             id: worldRepeater
             model: openModes
             delegate: Loader {
+                id: worldLoader
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
+                // Android builds a world page for several seconds on first entry. Say so
+                // instead of leaving a bare wallpaper; desktop is unchanged.
+                Text {
+                    anchors.centerIn: parent
+                    visible: Qt.platform.os === "android" && worldLoader.status !== Loader.Ready
+                    text: qsTr("Loading %1…").arg(worldLoader.mode)
+                    color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
+                }
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
                 active: false

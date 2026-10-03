@@ -25,10 +25,12 @@ Item {
         id: nativeOverlayLoader
         anchors.fill: parent
         active: host.nativeOverlay
+        // The WindowContainer is the Loader's own item, so it is a real child in the
+        // scene. Held only as a property value it has no visual parent, the native
+        // window is never attached, and the chrome reparented into it is never shown.
         sourceComponent: Component {
-            Item {
+            WindowContainer {
                 id: nativeChrome
-                anchors.fill: parent
                 property Window overlay: Window {
                     color: "transparent"
                     Component.onCompleted: {
@@ -36,11 +38,8 @@ Item {
                             AndroidEbookRenderer.configureOverlay(this)
                     }
                 }
-                property WindowContainer container: WindowContainer {
-                    anchors.fill: parent
-                    visible: host.overlayActive && host.opacity > 0.01
-                    window: nativeChrome.overlay
-                }
+                visible: host.overlayActive && host.opacity > 0.01
+                window: nativeChrome.overlay
             }
         }
     }

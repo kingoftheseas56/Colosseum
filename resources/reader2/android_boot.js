@@ -10,6 +10,7 @@
   window.colosseumDisablePublicationScripts = true
   window.bridge = {
     epubOnly: true,
+    touchTaps: true,
     paperEvent(name, json) {
       const payload = JSON.parse(json)
       const eventGeneration = name === 'glueLoaded' ? 0 : (payload.gen ?? generation)

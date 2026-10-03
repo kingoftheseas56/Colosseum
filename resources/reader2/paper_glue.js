@@ -674,6 +674,26 @@ const attachSelection = (view, doc, index, gen) => {
     }
     if (!hasText) emit('toggleChrome', {})
   })
+
+  // Touch hosts (Android) opt in through the bridge: a single tap is the reader gesture.
+  // Outer quarters turn the page, the middle toggles the chrome. Desktop keeps its QML edge
+  // zones and the double-click above; a tap on a link or with a live selection is left alone.
+  if (window.bridge?.touchTaps) {
+    doc.addEventListener('click', e => {
+      if (e.defaultPrevented) return
+      const t = e.target
+      if (t && t.closest && t.closest('a[href]')) return
+      const sel = doc.getSelection && doc.getSelection()
+      if (sel && !sel.isCollapsed) return
+      const frame = doc.defaultView && doc.defaultView.frameElement
+      const left = frame ? frame.getBoundingClientRect().left : 0
+      const x = e.clientX + left
+      const width = window.innerWidth || 1
+      if (x < width * 0.25) currentView?.renderer?.prev()
+      else if (x > width * 0.75) currentView?.renderer?.next()
+      else emit('toggleChrome', {})
+    })
+  }
 }
 
 const wireView = (view, gen) => {

@@ -251,7 +251,11 @@ Item {
     // covers the central text column where selection happens.
 
     // ---------- 2. edge page-turn zones (~11% each side) ----------
+    // On Android the WebView handles taps itself (paper_glue touchTaps: outer quarters turn
+    // the page), so these zones get no native window there and swipes from the edge still
+    // reach the book.
     ReaderOverlay {
+        overlayActive: Qt.platform.os !== "android"
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -275,6 +279,7 @@ Item {
     }
     }
     ReaderOverlay {
+        overlayActive: Qt.platform.os !== "android"
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
