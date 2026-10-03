@@ -22,11 +22,18 @@ Item {
     property var lensPositions: ({})
     property var pendingLensPosition: null
     property int shelfRevision: 0
+    function focusRowLink(name, item) {
+        item = item || home
+        if (item.objectName === name) { item.forceActiveFocus(Qt.BacktabFocusReason); return true }
+        for (var i = 0; i < item.children.length; ++i)
+            if (focusRowLink(name, item.children[i])) return true
+        return false
+    }
     readonly property var rowIndexRows: {
         shelfRevision
         var rows = [
             {key:"featured", title:"Featured", target:feature},
-            {key:"apps", title:"Apps", target:appsGrid}
+            {key:"apps", title:"Apps", target:appsHeader}
         ]
         if (continueRow.visible) rows.push({key:"continue", title:"Continue", target:continueRow})
         for (var i = 0; i < shelfRepeater.count; ++i) {
@@ -302,7 +309,7 @@ Item {
             Item {
                 id: topHalf
                 width: parent.width
-                height: 108 + feature.height + 20 + appsGrid.implicitHeight + 36
+                height: 108 + feature.height + 70 + appsGrid.implicitHeight + 36
 
                 Column {
                     anchors { left:parent.left; right:parent.right; top:parent.top; leftMargin:m; rightMargin:m; topMargin:108 }
@@ -381,6 +388,14 @@ Item {
                         }
                     }
 
+                    Colosseum.WidgetHeader {
+                        id: appsHeader
+                        width: parent.width
+                        title: "Your apps"
+                        moreLabel: "See all"
+                        automationId: "feriaAppsSeeAll"
+                        onMoreClicked: controller.openApps()
+                    }
                     GridLayout {
                         id: appsGrid
                         width: Math.min(parent.width, columns * 180 + (columns - 1) * columnSpacing)
@@ -470,16 +485,18 @@ Item {
 
                     Colosseum.WidgetHeader {
                         x: m
-                        width: parent.width - 2 * m - (shelf.modelData.chips ? providerChips.width + 20 : 0)
+                        width: parent.width - 2 * m
                         title: shelf.modelData.title
                         sub: shelf.modelData.chips ? controller.providerName(controller.chipSelection[shelf.modelData.id]) + " chart" : (shelf.modelData.src || "")
-                        navigable: false
+                        moreLabel: "See all"
+                        automationId: "feriaSeeAll_" + shelf.modelData.id
+                        onMoreClicked: controller.openSeeAll(shelf.modelData)
                     }
 
                     Row {
                         id: providerChips
                         visible: !!modelData.chips
-                        anchors { right:parent.right; rightMargin:m; top:parent.top; topMargin:0 }
+                        anchors { right:parent.right; rightMargin:m + 104; top:parent.top; topMargin:0 }
                         spacing: 0.4 * u
                         Repeater {
                             model: modelData.chips ? Object.keys(modelData.chips).filter(function(pk){ return controller.activeApps.indexOf(pk)>=0 }) : []

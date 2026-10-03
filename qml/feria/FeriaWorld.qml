@@ -53,6 +53,11 @@ Item {
     property var saved: []
     property string lens: "all"
     property string viewState: "home"
+    property string seeAllKind: "shelf"
+    property string seeAllShelfId: ""
+    property string seeAllTitle: ""
+    property string seeAllReturnLink: ""
+    readonly property var seeAllShelf: shownShelves().find(function(row) { return row.id === seeAllShelfId }) || ({})
     property string selectedApp: activeApps.length ? activeApps[0] : ""
     property string selectedTitle: ""
     property var titleHistory: []
@@ -93,6 +98,20 @@ Item {
     readonly property var accountStore: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
     readonly property var recordedSessions: accountStore ? accountStore.sessions : []
     readonly property var continueItems: accountStore ? accountStore.continueItems : []
+    function continueEntries() {
+        return continueItems.filter(function(row) {
+            return lens === "all" || (lens === "read" ? row.kind === "book"
+                : lens === "listen" ? row.kind === "audio" : row.kind === "video")
+        }).map(function(row) {
+            var entry = Object.assign({}, row)
+            entry.progress = row.duration > 0 ? row.position / row.duration : 0
+            entry.source = providerName(row.pk)
+            entry.sub = entry.source + " · " + (row.kind === "book"
+                ? (row.duration > 0 ? Math.round(entry.progress * 100) + "% read" : "Saved reading place")
+                : durationText(row.position / 60) + " / " + durationText(row.duration / 60))
+            return entry
+        })
+    }
     property real hostResumePosition: 0
     property var hostResumeLocator: null
     property string signingOutProvider: ""
@@ -350,6 +369,15 @@ Item {
         var keys = ["all","watch","listen","read"], i = keys.indexOf(lens)
         selectLens(keys[(i + delta + keys.length) % keys.length])
     }
+    function openSeeAll(shelf) {
+        homeView.rememberLens()
+        seeAllKind = shelf ? "shelf" : "continue"
+        seeAllShelfId = shelf ? shelf.id : ""
+        seeAllTitle = shelf ? shelf.title : "Continue"
+        seeAllReturnLink = shelf ? "feriaSeeAll_" + shelf.id : "feriaContinueRailHeader"
+        viewState = "seeAll"
+        Qt.callLater(function() { seeAllView.resetSelection() })
+    }
     function openTitle(id) {
         if (!titleObj(id)) return
         if (titleObj(id).resume) { resumeSession(titleObj(id).resume); return }
@@ -404,10 +432,16 @@ Item {
         else if (viewState === "title") {
             var previous = titleHistory.length ? titleHistory[titleHistory.length - 1] : {state:"home",id:""}
             titleHistory = titleHistory.slice(0, -1); viewState = previous.state; selectedTitle = previous.id
+        } else if (viewState === "seeAll") {
+            viewState = "home"
+            homeView.restoreLens()
+            Qt.callLater(function() { homeView.focusRowLink(shell.seeAllReturnLink) })
+            return
         } else if (viewState === "search" || viewState === "apps" || viewState === "account") viewState = "home"
         else if (focusArea === "shelf") { focusArea = "app"; shelfIndex = 0; shelfCardIndex = 0; homeView.revealApp(focusIndex) }
         else { homeRequested(); return }
         if (viewState === "search") Qt.callLater(function() { searchView.searchField.forceActiveFocus() })
+        else if (viewState === "seeAll") Qt.callLater(function() { seeAllView.focusGrid() })
         else content.forceActiveFocus()
     }
     function activateTitleAction() {
@@ -627,7 +661,7 @@ Item {
         anchors.fill: parent
         focus: true
         Keys.onPressed: function(event) {
-            if (shell.viewState === "search") return
+            if (shell.viewState === "search" || shell.viewState === "seeAll") return
             if (shell.viewState === "title") {
                 if (event.key === Qt.Key_Down || event.key === Qt.Key_Right) shell.titleActionIndex = Math.min(shell.titleActionCount() - 1, shell.titleActionIndex + 1)
                 else if (event.key === Qt.Key_Up || event.key === Qt.Key_Left) shell.titleActionIndex = Math.max(0, shell.titleActionIndex - 1)
@@ -768,6 +802,12 @@ Item {
                 anchors.fill: parent
                 controller: shell
                 visible: shell.viewState === "title"
+            }
+            FeriaSeeAllView {
+                id: seeAllView
+                anchors.fill: parent
+                controller: shell
+                visible: shell.viewState === "seeAll"
             }
             PorticoDiscoverySearchRedesign {
                 id: searchView

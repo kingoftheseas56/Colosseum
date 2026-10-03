@@ -144,6 +144,11 @@ def main():
         result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaChromeSmoke.qml').resolve()),
             'navigation', str(urls), str(root / 'chrome')], timeout=30, env=environment)
         failures += result.returncode != 0
+        urls.write_text(json.dumps(['feria-see-all']), encoding='utf-8')
+        print('Testing Feria row expansion, return state and Continue', flush=True)
+        result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaSeeAllSmoke.qml').resolve()),
+            'navigation', str(urls), str(root / 'see-all')], timeout=35, env=environment)
+        failures += result.returncode != 0
         for engine in ['webview2', 'qtwebengine']:
             urls.write_text(json.dumps([base + 'app-mode']), encoding='utf-8')
             print(f'Testing {engine}: app layout and spatial navigation', flush=True)
