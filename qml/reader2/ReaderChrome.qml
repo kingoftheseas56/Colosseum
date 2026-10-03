@@ -96,8 +96,31 @@ Item {
     // Android: the bars are native windows above the scene; a full-screen sheet lives in the
     // scene, so the bars step aside while one is open. Always false elsewhere.
     readonly property bool sheetCoversBars: Qt.platform.os === "android" && anyPanelOpen
-    // A sheet hides the page on Android, so picking a destination must return to it.
-    function leaveSheetOnPick() { if (Qt.platform.os === "android") closeAnyPanel() }
+    // A sheet hides the page on Android, so picking a destination must return to it. The jump
+    // runs while the sheet still covers the page; the sheet closes when the reader reports the
+    // new location (or after a short fallback). Revealing the WebView in the same beat as the
+    // jump loses the jump.
+    property bool leavingSheet: false
+    function leaveSheetOnPick() {
+        if (Qt.platform.os !== "android" || !anyPanelOpen) return
+        leavingSheet = true
+        leaveSheetTimer.restart()
+    }
+    function finishLeaveSheet() {
+        if (!leavingSheet) return
+        leavingSheet = false
+        leaveSheetTimer.stop()
+        closeAnyPanel()
+    }
+    Timer { id: leaveSheetTimer; interval: 4000; onTriggered: chrome.finishLeaveSheet() }
+    Connections {
+        target: chrome
+        enabled: chrome.leavingSheet
+        function onPercentChanged() { chrome.finishLeaveSheet() }
+        function onPageInChapterChanged() { chrome.finishLeaveSheet() }
+        function onChapterLabelChanged() { chrome.finishLeaveSheet() }
+        function onCurrentTocIndexChanged() { chrome.finishLeaveSheet() }
+    }
     // The tap that opens a sheet lands in a bar's native window, which then hides; give the
     // main window focus so the sheet's fields receive keys and the soft keyboard.
     onSheetCoversBarsChanged: if (sheetCoversBars && chrome.Window.window) chrome.Window.window.requestActivate()
