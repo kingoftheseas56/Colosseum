@@ -223,7 +223,7 @@ struct FeriaProviderHost::Impl
         ComPtr<ICoreWebView2NewWindowRequestedEventArgs> argsRef(args);
         auto popup = std::make_unique<PopupState>();
         popup->window = std::make_unique<QWindow>();
-        popup->window->setTitle(QStringLiteral("Feria Provider Popup"));
+        popup->window->setTitle(QStringLiteral("Feria — Sign in"));
         for (QWindow *window : QGuiApplication::allWindows()) {
             if (reinterpret_cast<HWND>(window->winId()) == parentWindow) {
                 popup->window->setTransientParent(window);
@@ -333,6 +333,15 @@ struct FeriaProviderHost::Impl
         installNavigationPolicy(webView.Get(), true);
 
         EventRegistrationToken token{};
+        webView->add_ContainsFullScreenElementChanged(
+            Callback<ICoreWebView2ContainsFullScreenElementChangedEventHandler>(
+                [this, guard = QPointer<FeriaProviderHost>(q)](ICoreWebView2 *sender, IUnknown *) -> HRESULT {
+                    if (!guard) return S_OK;
+                    BOOL active = FALSE;
+                    if (SUCCEEDED(sender->get_ContainsFullScreenElement(&active)))
+                        emit q->fullScreenChanged(active == TRUE);
+                    return S_OK;
+                }).Get(), &token);
         ComPtr<ICoreWebView2_2> documentView;
         if (SUCCEEDED(webView.As(&documentView))) {
             documentView->add_DOMContentLoaded(
@@ -398,9 +407,23 @@ struct FeriaProviderHost::Impl
                     log(QStringLiteral("WEBVIEW_KEY vk=%1 kind=%2")
                             .arg(virtualKey)
                             .arg(static_cast<int>(kind)));
+                    if ((virtualKey == VK_F10 || virtualKey == VK_APPS)
+                        && (kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN
+                            || kind == COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN)) {
+                        args->put_Handled(TRUE);
+                        emit q->appMenuRequested();
+                        return S_OK;
+                    }
                     if (virtualKey == VK_ESCAPE
                         && (kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN
                             || kind == COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN)) {
+                        BOOL fullscreen = FALSE;
+                        if (SUCCEEDED(webView->get_ContainsFullScreenElement(&fullscreen)) && fullscreen) {
+                            args->put_Handled(TRUE);
+                            q->executeScript(QStringLiteral("fullscreen-exit"),
+                                QStringLiteral("if(document.fullscreenElement) document.exitFullscreen()"));
+                            return S_OK;
+                        }
                         args->put_Handled(TRUE);
                         log(QStringLiteral("ESCAPE_FROM_WEBVIEW"));
                         emit q->escapeRequested();

@@ -83,6 +83,10 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
     connect(m_host, &FeriaProviderHost::cookiesCleared, this, &FeriaHostItem::cookiesCleared);
     connect(m_host, &FeriaProviderHost::escapeRequested,
             this, &FeriaHostItem::returnToQml);
+    connect(m_host, &FeriaProviderHost::fullScreenChanged,
+            this, &FeriaHostItem::fullScreenChanged);
+    connect(m_host, &FeriaProviderHost::appMenuRequested,
+            this, &FeriaHostItem::appMenuRequested);
 }
 
 FeriaHostItem::~FeriaHostItem() = default;
@@ -249,6 +253,14 @@ void FeriaHostItem::returnToQml()
     QTimer::singleShot(0, this, [this]() {
         emit qmlFocusRestored(hasActiveFocus());
     });
+}
+
+void FeriaHostItem::focusAppControls()
+{
+    if (!window()) return;
+    window()->requestActivate();
+    SetFocus(reinterpret_cast<HWND>(window()->winId()));
+    forceActiveFocus(Qt::OtherFocusReason);
 }
 
 void FeriaHostItem::resumeWebView()

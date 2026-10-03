@@ -226,6 +226,13 @@ PorticoTrend::Shelf StremioCatalogAdapter::parsePayload(
         item.imageUrl = meta.value(QStringLiteral("poster")).toString();
         item.canonicalUrl = meta.value(QStringLiteral("website")).toString();
         item.sourceId = QStringLiteral("stremio");
+        QString imdb = meta.value(QStringLiteral("imdb_id")).toString();
+        if (imdb.isEmpty() && QRegularExpression(QStringLiteral("^tt[0-9]+$")).match(item.id).hasMatch())
+            imdb = item.id;
+        if (!imdb.isEmpty()) item.externalIds.insert(QStringLiteral("imdb"), imdb);
+        const auto tmdb = meta.value(QStringLiteral("tmdb_id"));
+        if (tmdb.isString()) item.externalIds.insert(QStringLiteral("tmdb"), tmdb.toString());
+        else if (tmdb.isDouble()) item.externalIds.insert(QStringLiteral("tmdb"), QString::number(tmdb.toInt()));
         item.rank = i + 1;
         item.year = meta.value(QStringLiteral("releaseInfo")).toString().left(4).toInt();
         item.genres = jsonStringList(meta.value(QStringLiteral("genres")));

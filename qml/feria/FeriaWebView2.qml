@@ -1,12 +1,30 @@
 import QtQuick
 import Colosseum.FeriaHost 1.0
 import "FeriaPlayback.js" as Playback
+import "FeriaAppMode.js" as AppMode
 
 FeriaHostItem {
     id: browser
     objectName: "feriaWebView2"
     required property url sourceUrl
     required property string profilePath
+    property string providerId: ""
+    property bool fullScreenActive: false
+    onFullScreenChanged: function(active) { fullScreenActive = active }
+    property bool appLayout: true
+    property bool appKeyboard: true
+    property string appAccent: "#f2c94c"
+    property bool appDocumentReady: false
+    function applyAppMode() {
+        if (providerId.length > 0 && ready && appDocumentReady && !clearingSession) executeScript("feria-app-mode",AppMode.script(providerId,appLayout,appKeyboard,appAccent))
+    }
+    onAppLayoutChanged: applyAppMode()
+    onAppKeyboardChanged: applyAppMode()
+    onProviderIdChanged: applyAppMode()
+    Timer {
+        interval:1500; repeat:true; running:browser.ready && browser.appDocumentReady && !browser.clearingSession && browser.providerId.length > 0
+        onTriggered:browser.applyAppMode()
+    }
     signal playbackObserved(var observation)
     signal resumeUnavailable()
     property real resumePosition: 0
@@ -68,11 +86,13 @@ FeriaHostItem {
     signal completed(string location, bool success)
     signal failed(string reason)
     signal exitRequested()
+    signal optionsRequested()
+    onAppMenuRequested: optionsRequested()
     url: sourceUrl
     userDataFolder: profilePath + "/webview2"
-    onNavigationStarted: function(location) { ++navigationGeneration; started(location) }
-    onDocumentReady: function(location) { completed(location, true) }
-    onNavigationCompleted: function(location, success) { completed(location, success) }
+    onNavigationStarted: function(location) { fullScreenActive = false; appDocumentReady = false; ++navigationGeneration; started(location) }
+    onDocumentReady: function(location) { appDocumentReady = true; applyAppMode(); completed(location, true) }
+    onNavigationCompleted: function(location, success) { appDocumentReady = success; if (success) applyAppMode(); completed(location, success) }
     onInitializationFailed: function(reason) { failed(reason) }
     onReturnedToQml: exitRequested()
 }

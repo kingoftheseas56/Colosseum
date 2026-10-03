@@ -304,6 +304,8 @@ Item {
                 Rectangle {
                     id: featureCard
                     objectName: "search-feature"
+                    readonly property var confirmedOffers: feature
+                        ? controller.offers(feature).filter(function(d) { return d.availabilityConfirmed === true }) : []
                     width: parent.width
                     height: 13.2 * u
                     radius: 1.25 * u
@@ -416,7 +418,7 @@ Item {
                             }
 
                             Text {
-                                text: "Available through"
+                                text: featureCard.confirmedOffers.length ? "Available through" : "Availability"
                                 color: controller.slate
                                 font.family: controller.uiFont
                                 font.pixelSize: 0.76 * u
@@ -425,11 +427,11 @@ Item {
 
                             Text {
                                 width: parent.width
-                                text: featureCard.feature
-                                      ? controller.offers(featureCard.feature).map(function(d) {
-                                            return controller.providerName(d.pk)
-                                        }).join("   ·   ")
-                                      : ""
+                                text: featureCard.confirmedOffers.length
+                                      ? featureCard.confirmedOffers.map(function(d) {
+                                            return d.label || controller.providerName(d.pk)
+                                        }).filter(function(name, index, names) { return names.indexOf(name) === index }).join("   ·   ")
+                                      : "Open title to check providers in your country"
                                 color: controller.ink
                                 font.family: controller.uiFont
                                 font.pixelSize: 0.9 * u

@@ -3,12 +3,34 @@ import QtQuick.Window
 import QtWebEngine
 import "FeriaPlayback.js" as Playback
 import "FeriaSession.js" as Session
+import "FeriaAppMode.js" as AppMode
 
 WebEngineView {
     id: browser
     objectName: "feriaQtWebEngine"
     required property url sourceUrl
     required property string profilePath
+    property string providerId: ""
+    property bool fullScreenActive: false
+    Shortcut {
+        sequence:"Escape"
+        context:Qt.WindowShortcut
+        enabled:browser.fullScreenActive
+        onActivated:browser.runJavaScript("if(document.fullscreenElement) document.exitFullscreen()")
+    }
+    property bool appLayout: true
+    property bool appKeyboard: true
+    property string appAccent: "#f2c94c"
+    function applyAppMode() {
+        if (providerId.length > 0 && documentReady && !clearingSession) runJavaScript(AppMode.script(providerId,appLayout,appKeyboard,appAccent))
+    }
+    onAppLayoutChanged: applyAppMode()
+    onAppKeyboardChanged: applyAppMode()
+    onProviderIdChanged: applyAppMode()
+    Timer {
+        interval:1500; repeat:true; running:browser.documentReady && !browser.clearingSession && browser.providerId.length > 0
+        onTriggered:browser.applyAppMode()
+    }
     signal playbackObserved(var observation)
     signal resumeUnavailable()
     property real resumePosition: 0
@@ -82,6 +104,13 @@ WebEngineView {
     signal completed(string location, bool success)
     signal failed(string reason)
     signal exitRequested()
+    signal optionsRequested()
+    Shortcut {
+        sequences:["F10","Menu"]
+        context:Qt.WindowShortcut
+        enabled:browser.visible && !browser.fullScreenActive
+        onActivated:browser.optionsRequested()
+    }
     url: sourceUrl
     backgroundColor: "#08090d"
     settings.javascriptCanOpenWindows: true
@@ -105,6 +134,7 @@ WebEngineView {
     }
     onLoadingChanged: function(info) {
         if (info.status === WebEngineView.LoadStartedStatus) {
+            fullScreenActive = false
             ++navigationGeneration
             documentReady = false
             documentCheck.restart()
@@ -113,6 +143,7 @@ WebEngineView {
         else if (info.status === WebEngineView.LoadSucceededStatus) {
             documentCheck.stop()
             documentReady = true
+            applyAppMode()
             if (clearingSession) {
                 runJavaScript(Session.clearStorage)
                 cleanupPoll.start()
@@ -139,12 +170,13 @@ WebEngineView {
                         || String(result.url) !== String(browser.url)) return
                 documentCheck.stop()
                 browser.documentReady = true
+                browser.applyAppMode()
                 browser.completed(String(browser.url), true)
             })
         }
     }
     onRenderProcessTerminated: function(status, exitCode) { completed(String(url), false) }
-    onFullScreenRequested: function(request) { request.accept() }
+    onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
     onNewWindowRequested: function(request) { openPopup(request) }
     function openPopup(request) {
         if (!FeriaBrowserPolicy.allowsNavigation(request.requestedUrl)) return

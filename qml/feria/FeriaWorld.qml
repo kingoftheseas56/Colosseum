@@ -60,6 +60,7 @@ Item {
     property string hostTitle: ""
     property string hostMode: "home"
     property string hostUrl: ""
+    readonly property bool hostFullScreenActive: viewState === "host" && hostView.fullScreenActive
     property string hostReturnState: "home"
     property double hostOpenedAt: 0
     property bool providerWebViewReady: false
@@ -145,7 +146,12 @@ Item {
     readonly property bool liveDiscovery: discovery !== null && contentStore !== null
     onActiveAppsChanged: if (liveDiscovery && appStateBridge) appStateBridge.settingsApps = activeApps
     onLensChanged: if (liveDiscovery) discovery.lens = lens
-    onRegionChanged: if (liveDiscovery) discovery.region = regionCodes[region] || "US"
+    onRegionChanged: {
+        if (liveDiscovery) {
+            discovery.region = regionCodes[region] || "US"
+            if (viewState === "title") requestAvailability(titleObj(selectedTitle))
+        }
+    }
     function providerName(pk) { return Data.P[pk] ? Data.P[pk].n : (contentStore ? contentStore.providerLabel(pk) : pk) }
     function isReadingProvider(pk) { return !!Data.P[pk] && Data.P[pk].v === "read" }
     function titleObj(id) {
@@ -256,12 +262,18 @@ Item {
     }
     function offers(it) {
         if (!it) return []
+        if (liveDiscovery) {
+            discovery.availabilityRevision
+            discovery.region
+        }
         if (it._trend && liveDiscovery) return discovery.destinationsFor(it._trend).map(function(d, i) {
             var action = destinationRouter ? destinationRouter.actionFor(d) : d
             return { pk:action.providerId, label:d.label, url:action.url, exact:action.exact,
                 level:action.mode === "exact" ? "t" : "s", fallback:action.mode !== "exact",
                 appOnly:action.appOnly, actionable:action.actionable, reason:d.reason,
-                mode:action.mode, order:i }
+                mode:action.mode, order:i, availabilityConfirmed:d.availabilityConfirmed === true,
+                offerType:d.offerType || "", availabilitySource:d.availabilitySource || "",
+                region:d.region || "", catalogListed:d.catalogListed === true }
         })
         var list = (it.d || []).map(function(d, i) { return {pk:d[0], level:d[1], order:i, appOnly:!!Data.P[d[0]].app} })
         if (!list.length) {
@@ -275,6 +287,17 @@ Item {
                 Number(activeApps.indexOf(b.pk) >= 0) - Number(activeApps.indexOf(a.pk) >= 0) || a.order - b.order
         })
         return list
+    }
+    function requestAvailability(it, force) {
+        if (liveDiscovery && it && it._trend && typeof discovery.requestAvailability === "function")
+            discovery.requestAvailability(it._trend, force === true)
+    }
+    function availabilityFor(it) {
+        if (!liveDiscovery || !it || !it._trend || typeof discovery.availabilityFor !== "function")
+            return {status:"unsupported"}
+        discovery.availabilityRevision
+        discovery.region
+        return discovery.availabilityFor(it._trend)
     }
     function relatedTitles(it) {
         if (!it) return []
@@ -325,16 +348,14 @@ Item {
     }
     function shiftLens(delta) {
         var keys = ["all","watch","listen","read"], i = keys.indexOf(lens)
-        lens = keys[(i + delta + keys.length) % keys.length]
-        shelfIndex = 0; shelfCardIndex = 0
-        if (viewState === "home" && focusArea === "shelf")
-            Qt.callLater(function() { homeView.revealShelf(shelfIndex) })
+        selectLens(keys[(i + delta + keys.length) % keys.length])
     }
     function openTitle(id) {
         if (!titleObj(id)) return
         if (titleObj(id).resume) { resumeSession(titleObj(id).resume); return }
         titleHistory = titleHistory.concat([{state:viewState,id:selectedTitle}])
         selectedTitle = id; titleActionIndex = 0; viewState = "title"; content.forceActiveFocus()
+        requestAvailability(titleObj(id))
     }
     function openSearch(seed) {
         query = seed || ""; searchResultIndex = -1; viewState = "search"
@@ -376,6 +397,8 @@ Item {
     function back() {
         if (movingApp) { movingApp = false; setToast("Order unchanged"); return }
         if (viewState === "host") {
+            if (hostView.fullScreenActive) { hostView.exitFullScreen(); return }
+            if (hostView.optionsOpen) { hostView.focusApp(); return }
             viewState = hostReturnState
         }
         else if (viewState === "title") {
@@ -400,7 +423,13 @@ Item {
         if (searchResultIndex < ids.length && ids[searchResultIndex]) openTitle(ids[searchResultIndex])
         else if (apps[searchResultIndex - ids.length]) openHost(apps[searchResultIndex - ids.length], "", "search")
     }
-    function selectLens(key) { lens = key; shelfIndex = 0; shelfCardIndex = 0 }
+    function selectLens(key) {
+        if (["all","watch","listen","read"].indexOf(key) < 0 || lens === key) return
+        homeView.rememberLens()
+        lens = key
+        shelfIndex = 0; shelfCardIndex = 0
+        homeView.restoreLens()
+    }
     function selectApp(index) {
         focusArea = "app"; focusIndex = Math.max(0, Math.min(activeApps.length, index))
         if (activeApps[focusIndex]) selectedApp = activeApps[focusIndex]
@@ -771,7 +800,7 @@ Item {
                 controller: shell
                 backdrop: shell.backdrop
                 showLenses: false
-                visible: shell.viewState === "home"
+                visible: shell.viewState !== "host" && shell.viewState !== "account"
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 z: 80
             }

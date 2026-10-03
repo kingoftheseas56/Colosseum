@@ -1,5 +1,7 @@
 #include "FeriaBrowserPolicy.h"
 #include "FeriaAccountStore.h"
+#include "provider-host/FeriaHostItem.h"
+#include <QQuickItem>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -9,6 +11,10 @@
 #include <QJsonObject>
 #include <QTextStream>
 #include <QtWebEngineQuick/QtWebEngineQuick>
+#include <QWindow>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 class BrowserReporter : public QObject {
     Q_OBJECT
@@ -19,6 +25,30 @@ public:
             {"detail", detail}}).toJson(QJsonDocument::Compact) << Qt::endl;
     }
     Q_INVOKABLE void finish() { QCoreApplication::exit(failures ? 1 : 0); }
+    Q_INVOKABLE bool sendKey(int key, QQuickItem *target) {
+#ifdef Q_OS_WIN
+        if ((key != VK_ESCAPE && key != 'F' && key != VK_F10) || !target || !target->window()) return false;
+        {
+            const HWND owned = reinterpret_cast<HWND>(target->window()->winId());
+            const DWORD foregroundThread = GetWindowThreadProcessId(GetForegroundWindow(),nullptr);
+            const DWORD currentThread = GetCurrentThreadId();
+            const bool attached = foregroundThread != currentThread && AttachThreadInput(currentThread,foregroundThread,TRUE);
+            BringWindowToTop(owned); SetForegroundWindow(owned);
+            if (attached) AttachThreadInput(currentThread,foregroundThread,FALSE);
+        }
+        if (auto *native = qobject_cast<FeriaHostItem *>(target)) native->focusWebView();
+        else target->forceActiveFocus(Qt::OtherFocusReason);
+        DWORD process = 0;
+        GetWindowThreadProcessId(GetForegroundWindow(),&process);
+        if (process != GetCurrentProcessId()) return false;
+        INPUT input[2]{};
+        for (auto &event : input) { event.type = INPUT_KEYBOARD; event.ki.wVk = static_cast<WORD>(key); }
+        input[1].ki.dwFlags = KEYEVENTF_KEYUP;
+        return SendInput(2,input,sizeof(INPUT)) == 2;
+#else
+        return false;
+#endif
+    }
     int failures = 0;
 };
 

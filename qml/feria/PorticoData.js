@@ -1,4 +1,17 @@
 .pragma library
+// Shared logo paths for app tiles and provider navigation.
+var BRAND_FORMAT = {
+  netflix:"svg", prime:"png", hbomax:"svg", disney:"png",
+  appletv:"svg", crunchyroll:"svg", youtube:"svg", hulu:"png",
+  mubi:"svg", spotify:"svg", ytmusic:"svg", applemusic:"svg",
+  kindle:"png", playbooks:"svg", mangaplus:"png", viz:"png",
+  webtoon:"svg", dcui:"png", marvel:"png", kobo:"svg", applebooks:"png"
+}
+function glyphSource(key) {
+  return BRAND_FORMAT[key] ? "brand-logos/" + key + "." + BRAND_FORMAT[key]
+                          : "portico-glyphs/" + key + ".svg"
+}
+
 // Sample data lifted from the adjacent HTML prototype. Listings and availability are illustrative.
 
 var P = {

@@ -13,6 +13,7 @@ Item {
     property Item backdrop: null
     property var rows: []
     property string worldName: ""
+    property string contextLabel: "WORLD"
     property string automationPrefix: "rowIndex"
     property real currentOffset: 78
     property real currentEpsilon: 4
@@ -175,7 +176,7 @@ Item {
             y: 2
             spacing: 5
             Text {
-                text: "WORLD"
+                text: rail.contextLabel
                 color: theme.gold
                 font.family: theme.ui
                 font.pixelSize: 10
@@ -256,7 +257,9 @@ Item {
                         height: 20
                         sourceSize.width: 40
                         sourceSize.height: 40
+                        fillMode: Image.PreserveAspectFit
                         source: {
+                            if (rowItem.modelData.iconSource) return rowItem.modelData.iconSource
                             const title = String(rowItem.modelData.title || "").toLowerCase()
                             let paths = '<path d="M4 6h16M4 12h16M4 18h16"/>'
                             if (/collection|library|shelf|shelves/.test(title))

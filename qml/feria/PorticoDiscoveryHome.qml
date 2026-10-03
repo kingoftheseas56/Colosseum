@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "PorticoData.js" as Data
 import ".." as Colosseum
@@ -10,6 +11,97 @@ Item {
     readonly property real u: controller.unit
     readonly property real m: controller.marginX
     property bool snapReveal: false
+    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property bool tabsDocked: {
+        page.contentY
+        page.contentHeight
+        lensRail.y
+        return lensRail.mapToItem(home, 0, 0).y < 96 && page.contentY > 0
+    }
+    readonly property real contentTopInset: tabsDocked ? 166 : 108
+    property var lensPositions: ({})
+    property var pendingLensPosition: null
+    property int shelfRevision: 0
+    readonly property var rowIndexRows: {
+        shelfRevision
+        var rows = [
+            {key:"featured", title:"Featured", target:feature},
+            {key:"apps", title:"Apps", target:appsGrid}
+        ]
+        if (continueRow.visible) rows.push({key:"continue", title:"Continue", target:continueRow})
+        for (var i = 0; i < shelfRepeater.count; ++i) {
+            var shelf = shelfRepeater.itemAt(i)
+            if (shelf) {
+                var sh = shelf.modelData
+                var provider = sh.providerId || (sh.apps && sh.apps.length === 1 ? sh.apps[0] : "")
+                rows.push({key:sh.id, title:sh.title, target:shelf,
+                    iconSource:Data.BRAND_FORMAT[provider] ? Qt.resolvedUrl(Data.glyphSource(provider)) : ""})
+            }
+        }
+        return rows
+    }
+    function rememberLens() {
+        pageGlide.cancelGlide()
+        var rails = ({})
+        for (var i = 0; i < shelfRepeater.count; ++i) {
+            var shelf = shelfRepeater.itemAt(i)
+            if (shelf) rails[shelf.modelData.id] = shelf.railContentX
+        }
+        lensPositions[controller.lens] = {y:page.contentY, rails:rails}
+    }
+    function restoreLens() {
+        pendingLensPosition = lensPositions[controller.lens] || {
+            y:Math.min(page.contentY, Math.max(0, lensRail.y - 96)), rails:({})
+        }
+        restorePosition.restart()
+    }
+    function parkRow(target) {
+        if (!target) return
+        var top = target.mapToItem(page.contentItem, 0, 0).y
+        // Rows below the tabs park below the compact dock; the hero/apps keep the mast clear.
+        animateContentY(top - (top >= lensRail.y + lensRail.height ? 166 : 108))
+    }
+    function leaveTabs(event) {
+        if (event.key === Qt.Key_Up) {
+            controller.focusArea = "app"
+            controller.keyboardTarget.forceActiveFocus()
+            revealApp(controller.focusIndex)
+        } else if (event.key === Qt.Key_Down) {
+            if (controller.shownShelves().length) {
+                controller.focusArea = "shelf"
+                controller.shelfIndex = 0
+                controller.shelfCardIndex = 0
+                controller.keyboardTarget.forceActiveFocus()
+                revealShelf(0)
+            }
+        } else return
+        event.accepted = true
+    }
+    onTabsDockedChanged: {
+        var from = tabsDocked ? lensTabs : lensDock
+        var to = tabsDocked ? lensDock : lensTabs
+        if (from.activeFocus) {
+            to.keyboardIndex = from.keyboardIndex
+            to.forceActiveFocus(Qt.OtherFocusReason)
+        }
+    }
+    Timer {
+        id: restorePosition
+        interval: 0
+        onTriggered: {
+            if (!home.pendingLensPosition) return
+            var position = home.pendingLensPosition
+            homeColumn.forceLayout()
+            pageGlide.cancelGlide()
+            page.contentY = home.boundedContentY(position.y)
+            for (var i = 0; i < shelfRepeater.count; ++i) {
+                var shelf = shelfRepeater.itemAt(i)
+                if (shelf && position.rails[shelf.modelData.id] !== undefined)
+                    shelf.restoreRail(position.rails[shelf.modelData.id])
+            }
+            home.pendingLensPosition = null
+        }
+    }
 
     function boundedContentY(value) {
         return Math.max(0, Math.min(Math.max(0, page.contentHeight - page.height), value))
@@ -19,15 +111,12 @@ Item {
         var distance = Math.abs(target - page.contentY)
         if (distance < 0.5)
             return
-        focusScroll.stop()
         if (snapReveal) {
+            pageGlide.cancelGlide()
             page.contentY = target
             return
         }
-        focusScroll.from = page.contentY
-        focusScroll.to = target
-        focusScroll.duration = Math.max(120, Math.min(240, distance * 0.55))
-        focusScroll.start()
+        pageGlide.glideTo(target)
     }
     function mappedRect(item, targetItem, localRect) {
         var p1 = item.mapToItem(targetItem, localRect.x, localRect.y)
@@ -49,7 +138,7 @@ Item {
                                                         localRect.y - pad,
                                                         localRect.width + 2 * pad,
                                                         localRect.height + 2 * pad))
-        var topInset = page.contentY > 40 ? 5.25 * u : 0.55 * u
+        var topInset = home.contentTopInset + 8
         var bottomInset = 1.0 * u
         var target = page.contentY
         var visibleTop = page.contentY + topInset
@@ -83,10 +172,10 @@ Item {
         if (item)
             ensureVisibleRect(item, Qt.rect(0, 0, item.width, item.height - controller.galleryMetrics.shelfGap))
     }
-    function revealLens() { ensureVisible(lensRail) }
+    function revealLens() { if (!tabsDocked) ensureVisible(lensRail) }
     function focusLens() {
         revealLens()
-        lensTabs.forceActiveFocus(Qt.TabFocusReason)
+        (tabsDocked ? lensDock : lensTabs).forceActiveFocus(Qt.TabFocusReason)
     }
     function focusedItem() {
         if (controller.focusArea === "feature")
@@ -142,15 +231,12 @@ Item {
 
     Connections {
         target: page
-        function onContentHeightChanged() { resizeReveal.restart() }
+        function onContentHeightChanged() {
+            if (home.pendingLensPosition) restorePosition.restart()
+        }
     }
 
-    NumberAnimation {
-        id: focusScroll
-        target: page
-        property: "contentY"
-        easing.type: Easing.OutCubic
-    }
+    Colosseum.ScrollGlide { id: pageGlide; flick: page }
 
     Item {
         id: backdropLayer
@@ -198,12 +284,16 @@ Item {
 
     Flickable {
         id: page
-        anchors.fill: parent
+        objectName: "feriaHomeScroll"
+        x: home.contentLeft
+        width: Math.max(0, home.width - x)
+        height: home.height
         contentWidth: width
         contentHeight: homeColumn.implicitHeight + 9 * u
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         interactive: true
+        ScrollBar.vertical: Colosseum.HouseScrollBar { flick: page }
 
         Column {
             id: homeColumn
@@ -294,7 +384,7 @@ Item {
                     GridLayout {
                         id: appsGrid
                         width: Math.min(parent.width, columns * 180 + (columns - 1) * columnSpacing)
-                        columns: controller.appColumns()
+                        columns: Math.max(1, Math.floor((parent.width + columnSpacing) / (180 + columnSpacing)))
                         columnSpacing: controller.galleryMetrics.cardGap
                         rowSpacing: controller.galleryMetrics.cardGap
                         Repeater {
@@ -330,27 +420,15 @@ Item {
                 id: lensRail
                 width: homeColumn.width
                 height: 58
-                Keys.onPressed: function(event) {
-                    if (event.key === Qt.Key_Up) {
-                        controller.focusArea = "app"
-                        controller.keyboardTarget.forceActiveFocus()
-                        home.revealApp(controller.focusIndex)
-                        event.accepted = true
-                    } else if (event.key === Qt.Key_Down) {
-                        if (controller.shownShelves().length) {
-                            controller.focusArea = "shelf"
-                            controller.shelfIndex = 0
-                            controller.shelfCardIndex = 0
-                            controller.keyboardTarget.forceActiveFocus()
-                            home.revealShelf(0)
-                        }
-                        event.accepted = true
-                    }
-                }
+                Keys.onPressed: (event) => home.leaveTabs(event)
                 Colosseum.WorldTabBar {
                     id: lensTabs
+                    objectName: "feriaTabBar"
                     width: parent.width
                     backdrop: controller.backdrop
+                    track: page.contentY
+                    opacity: home.tabsDocked ? 0 : 1
+                    enabled: !home.tabsDocked
                     tabModel: [
                         { key: "all", label: "All" },
                         { key: "watch", label: "Watch" },
@@ -367,6 +445,7 @@ Item {
             }
 
             FeriaContinueRow {
+                id: continueRow
                 x: m; width: parent.width - 2 * m
                 controller: home.controller
                 bottomPadding: 36
@@ -375,10 +454,17 @@ Item {
             Repeater {
                 id: shelfRepeater
                 model: controller.shownShelves()
+                onItemAdded: home.shelfRevision++
+                onItemRemoved: home.shelfRevision++
                 delegate: Item {
                     id: shelf
                     required property var modelData
                     required property int index
+                    readonly property real railContentX: rail.contentX
+                    function restoreRail(value) {
+                        rail.forceLayout()
+                        rail.contentX = Math.max(rail.originX, Math.min(rail.originX + Math.max(0, rail.contentWidth - rail.width), value))
+                    }
                     width: homeColumn.width
                     height: 50 + rail.height + controller.galleryMetrics.shelfGap
 
@@ -477,5 +563,39 @@ Item {
         color: Qt.rgba(8/255,10/255,16/255,0.88)
         border.width: 0
         z: 35
+    }
+    Colosseum.RowIndexSidebar {
+        id: rowIndex
+        x: m
+        z: 36
+        pageFlick: page
+        backdrop: controller.backdrop
+        worldName: "Feria"
+        contextLabel: "APP"
+        automationPrefix: "feriaRowIndex"
+        rows: home.rowIndexRows
+        fixedTopInset: 108
+        currentOffset: home.contentTopInset
+        onRowRequested: (target) => home.parkRow(target)
+    }
+    Colosseum.WorldTabBar {
+        id: lensDock
+        objectName: "feriaTabDock"
+        tabPrefix: "feriaTabDock"
+        compact: true
+        x: page.x + m
+        y: 100
+        width: Math.max(0, page.width - 2 * m)
+        visible: home.tabsDocked
+        backdrop: controller.backdrop
+        track: page.contentY
+        contentBackdrop: page
+        contentTrack: page.contentY
+        tabModel: lensTabs.tabModel
+        currentTab: controller.lens
+        z: 36
+        onTabRequested: (tab) => lensTabs.tabRequested(tab)
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: (event) => home.leaveTabs(event)
     }
 }

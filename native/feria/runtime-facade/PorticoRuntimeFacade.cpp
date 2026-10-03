@@ -3,6 +3,10 @@
 PorticoRuntimeFacade::PorticoRuntimeFacade(QObject *parent)
     : QObject(parent)
 {
+    connect(&m_availability, &PorticoAvailabilityService::changed, this, [this] {
+        ++m_availabilityRevision;
+        emit availabilityRevisionChanged();
+    });
     connect(&m_discovery, &PorticoDiscoveryService::lensChanged,
             this, &PorticoRuntimeFacade::lensChanged);
     connect(&m_discovery, &PorticoDiscoveryService::activeAppsChanged,
@@ -85,7 +89,41 @@ QStringList PorticoRuntimeFacade::search(const QString &query, int limit) const
 
 QVariantList PorticoRuntimeFacade::destinationsFor(const QVariantMap &item) const
 {
-    return m_discovery.destinationsFor(normalizedItem(item));
+    const auto normalized = normalizedItem(item);
+    const auto confirmed = m_availability.lookup(normalized, region()).value("offers").toList();
+    QVariantList result;
+    QStringList confirmedProviders;
+    for (const auto &value : confirmed) {
+        auto offer = value.toMap();
+        const QString provider = offer.value("providerId").toString();
+        offer.insert("installed", activeApps().contains(provider));
+        confirmedProviders.append(provider);
+        result.append(offer);
+    }
+    const auto catalogs = normalized.value("extra").toMap().value("catalogProviders").toStringList();
+    QVariantList catalogDoors, otherDoors;
+    for (const auto &value : m_discovery.destinationsFor(normalized)) {
+        auto door = value.toMap();
+        const auto provider = door.value("providerId").toString();
+        if (confirmedProviders.contains(provider)) continue;
+        if (catalogs.contains(provider)) {
+            door.insert("catalogListed", true);
+            catalogDoors.append(door);
+        } else otherDoors.append(door);
+    }
+    result.append(catalogDoors);
+    result.append(otherDoors);
+    return result;
+}
+
+void PorticoRuntimeFacade::requestAvailability(const QVariantMap &item, bool force)
+{
+    m_availability.request(normalizedItem(item), region(), force);
+}
+
+QVariantMap PorticoRuntimeFacade::availabilityFor(const QVariantMap &item) const
+{
+    return m_availability.lookup(normalizedItem(item), region());
 }
 
 QString PorticoRuntimeFacade::canonicalKeyFor(const QVariantMap &item) const

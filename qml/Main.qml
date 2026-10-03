@@ -870,7 +870,11 @@ Window {
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
-    Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
+    Shortcut {
+        sequences: escapeCommand.sequences
+        enabled: !(feriaLayer.active && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
+        onActivated: escapeCommand.invoke("shortcut")
+    }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
     // shortcut), and the Vault keeps its own Backspace (folder up), so it is off while Vault is open.
     Shortcut {
@@ -4494,6 +4498,9 @@ Window {
             item.backdrop = wall
             item.lifecycleActive = true
             item.homeRequested.connect(win.closeFeriaPage)
+            item.fullscreenClicked.connect(win.toggleFullscreenShell)
+            item.minimizeClicked.connect(win.minimizeShell)
+            item.powerClicked.connect(function() { Qt.quit() })
             item.accountClicked.connect(function(anchorRight, anchorBottom) {
                 accountFlyout.toggleAt(anchorRight, anchorBottom)
             })
@@ -4635,6 +4642,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
+            && !(feriaLayer.active && feriaLayer.item && feriaLayer.item.viewState === "host")
         enabled: visible
         onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)

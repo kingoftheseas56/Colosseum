@@ -70,12 +70,15 @@ class Fixture(http.server.BaseHTTPRequestHandler):
             script = f"window.opener.postMessage('auth-returned', 'http://127.0.0.1:{self.server.server_port}'); window.close();"
         if self.path == '/fixture/session-set':
             passed = False
-            script = """(async()=>{localStorage.setItem('feria_session','fixture');
+            script = """(async()=>{document.body.dataset.stage='local';localStorage.setItem('feria_session','fixture');
+                document.body.dataset.stage='database';
                 await new Promise((ok,no)=>{const r=indexedDB.open('feria_session',1);r.onsuccess=()=>{r.result.close();ok()};r.onerror=no});
+                document.body.dataset.stage='cache';
                 await caches.open('feria_session');
+                document.body.dataset.stage='worker';
                 await navigator.serviceWorker.register('/fixture/sw.js');
                 await navigator.serviceWorker.ready;
-                document.body.dataset.passed='true';})()"""
+                document.body.dataset.stage='done';document.body.dataset.passed='true';})().catch(e=>document.body.dataset.detail=String(e))"""
         elif self.path.split('?')[0] in ['/fixture/session-cleared', '/fixture/session-kept']:
             cookie = 'feria_fixture=persisted' in self.headers.get('Cookie','')
             kept = self.path.endswith('kept')
@@ -89,6 +92,15 @@ class Fixture(http.server.BaseHTTPRequestHandler):
                 document.body.dataset.passed=String(values.every(value=>value===kept)); }})()"""
         if self.path == '/fixture/media-shadow':
             script = "document.body.attachShadow({mode:'open'}).innerHTML='<audio autoplay muted src=\"/fixture/audio.wav\"></audio>';"
+        if self.path == '/fixture/app-mode':
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(b'''<html><head><title>Feria app fixture</title></head><body>
+                <main><button id="first" style="position:absolute;left:40px;top:80px;width:100px;height:60px">First</button>
+                <button id="second" style="position:absolute;left:200px;top:80px;width:100px;height:60px">Second</button>
+                <input id="typing" style="position:absolute;left:40px;top:200px" /></main><footer>Site footer</footer>
+                <footer id="consent"><button>Accept cookies</button></footer></body></html>''')
+            return
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.end_headers()
         media = '<audio autoplay muted src="/fixture/audio.wav"></audio>' if self.path == '/fixture/media' else ''
@@ -107,6 +119,7 @@ def main():
         executable = Path(sys.argv[1]).resolve()
     environment = os.environ.copy()
     environment['QT_FORCE_STDERR_LOGGING'] = '1'
+    environment['QT_QUICK_CONTROLS_STYLE'] = 'Basic'
     cache = repository / 'native/build-msvc/CMakeCache.txt'
     if cache.exists():
         for line in cache.read_text(encoding='utf-8').splitlines():
@@ -121,7 +134,22 @@ def main():
         urls = root / 'urls.json'
         base = f'http://127.0.0.1:{fixture.server_port}/fixture/'
         failures = 0
+        urls.write_text(json.dumps(['feria-navigation']), encoding='utf-8')
+        print('Testing Feria tabs and section sidebar', flush=True)
+        result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaNavigationSmoke.qml').resolve()),
+            'navigation', str(urls), str(root / 'navigation')], timeout=30, env=environment)
+        failures += result.returncode != 0
+        urls.write_text(json.dumps(['feria-chrome']), encoding='utf-8')
+        print('Testing Feria navigation and window controls', flush=True)
+        result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaChromeSmoke.qml').resolve()),
+            'navigation', str(urls), str(root / 'chrome')], timeout=30, env=environment)
+        failures += result.returncode != 0
         for engine in ['webview2', 'qtwebengine']:
+            urls.write_text(json.dumps([base + 'app-mode']), encoding='utf-8')
+            print(f'Testing {engine}: app layout and spatial navigation', flush=True)
+            result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaAppModeSmoke.qml').resolve()),
+                engine, str(urls), str(root / 'profiles')], timeout=45, env=environment)
+            failures += result.returncode != 0
             urls.write_text(json.dumps([base + route for route in
                 ['page', 'redirect', 'setcookie', 'checkcookie', 'popup', 'media', 'media-shadow', 'media-frame']]), encoding='utf-8')
             print(f'Testing {engine}: page, cross-domain redirect, cookies, popup/opener', flush=True)
@@ -154,6 +182,25 @@ def main():
                 result = subprocess.run([str(executable), str(Path(__file__).with_name(qml).resolve()),
                     engine, str(urls), str(root / 'profiles')], timeout=90, env=environment)
                 failures += result.returncode != 0
+        # The account centre clears both engines in one operation. Separate
+        # single-engine tests cannot catch a broken Loader handover.
+        for engine in ['webview2', 'qtwebengine']:
+            urls.write_text(json.dumps([base + 'session-set', other + 'session-set']), encoding='utf-8')
+            result = subprocess.run([str(executable), str(Path(__file__).with_name('BrowserSmoke.qml').resolve()),
+                engine, str(urls), str(root / 'profiles')], timeout=90, env=environment)
+            failures += result.returncode != 0
+        urls.write_text(json.dumps([f'http://127.0.0.1:{fixture.server_port}', 'https://netflix.com',
+                                   'https://www.netflix.com']), encoding='utf-8')
+        print('Testing combined WebView2 and QtWebEngine sign-out, including HTTPS origin cleanup', flush=True)
+        result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaSignOutSmoke.qml').resolve()),
+            'both', str(urls), str(root / 'profiles')], timeout=90, env=environment)
+        failures += result.returncode != 0
+        for engine in ['webview2', 'qtwebengine']:
+            urls.write_text(json.dumps([base + 'session-cleared' + ('?qt-cleanup' if engine == 'qtwebengine' else ''),
+                                       other + 'session-kept']), encoding='utf-8')
+            result = subprocess.run([str(executable), str(Path(__file__).with_name('BrowserSmoke.qml').resolve()),
+                engine, str(urls), str(root / 'profiles')], timeout=90, env=environment)
+            failures += result.returncode != 0
         fixture.shutdown()
         return 1 if failures else 0
 

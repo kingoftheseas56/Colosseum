@@ -171,7 +171,7 @@ Item {
                     }
                 }
             }
-            Text { width:parent.width; text:"Time means how long a service's page stayed open in Feria, not how long something played."; color:controller.slate; font.family:controller.uiFont; font.pixelSize:0.83*u; wrapMode:Text.WordWrap }
+            Text { width:parent.width; text:"Active time counts playback and reading activity Feria can detect. Paused playback and idle reading are excluded."; color:controller.slate; font.family:controller.uiFont; font.pixelSize:0.83*u; wrapMode:Text.WordWrap }
         }
     }
 }

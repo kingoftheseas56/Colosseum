@@ -12,6 +12,13 @@ Window {
     property double mediaLoadedAt: 0
     property bool advancing: false
     property var results: []
+    function fixtureStatus(status) {
+        if (String(smokeUrls[index]).endsWith('/fixture/session-set') && status.stage && status.stage !== 'done' && !status.detail) {
+            // Storage and service-worker setup is asynchronous. Keep the existing
+            // deadline, and wait for the fixture's readiness flag rather than a fixed delay.
+            settleTimer.restart()
+        } else finishOne(false, JSON.stringify(status))
+    }
     function next() {
         settling = false
         mediaLoadedAt = 0
@@ -64,8 +71,8 @@ Window {
                 if (smokeEngine === "webview2") browser.item.executeScript("fixture-check", script)
                 else browser.item.runJavaScript(script, function(passed) {
                     if (passed === true) window.finishOne(true, result.location)
-                    else browser.item.runJavaScript("document.body.dataset.detail || ''", function(detail) {
-                        window.finishOne(false, result.location + " " + detail)
+                    else browser.item.runJavaScript("({detail:document.body.dataset.detail || '',stage:document.body.dataset.stage || ''})", function(status) {
+                        window.fixtureStatus(status)
                     })
                 })
             } else window.finishOne(result.success, result.location)
@@ -74,7 +81,11 @@ Window {
     Connections {
         target: smokeEngine === "webview2" ? browser.item : null
         function onScriptResult(label, jsonResult) {
-            if (label === "fixture-check") window.finishOne(jsonResult === "true", "DOM, redirect, cookie or popup check")
+            if (label === "fixture-check") {
+                if (jsonResult === "true") window.finishOne(true,"DOM, redirect, cookie or popup check")
+                else browser.item.executeScript("fixture-stage","({detail:document.body.dataset.detail || '',stage:document.body.dataset.stage || ''})")
+            }
+            else if (label === "fixture-stage") window.fixtureStatus(JSON.parse(jsonResult))
             else if (label === "timeout-inspect") window.finishOne(false, "Timeout: " + jsonResult)
         }
     }

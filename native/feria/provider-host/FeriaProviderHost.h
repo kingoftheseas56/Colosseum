@@ -44,6 +44,8 @@ signals:
     void scriptResult(const QString &label, const QString &jsonResult);
     void observerMessage(const QString &jsonMessage);
     void escapeRequested();
+    void appMenuRequested();
+    void fullScreenChanged(bool active);
     void popupOpened(const QString &uri);
     void hostLog(const QString &message);
     void siteDataCleared(bool success);

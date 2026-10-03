@@ -27,18 +27,17 @@ Item {
     signal searchClicked()
     signal sectionRequested(string section)
     signal addonToggleRequested(string extensionId, bool enabled)
+    signal manageRequested()
 
     Theme { id: theme }
-    FontLoader { id: frauncesFont; source: "../assets/fonts/Fraunces-Regular.ttf" }
-    FontLoader { id: interFont; source: "../assets/fonts/Inter-Regular.otf" }
 
     readonly property color gold: theme.gold
     readonly property color ivory: "#f7f7f5"
     readonly property color dimInk: "#aaa59b"
-    readonly property string displayFamily: frauncesFont.status === FontLoader.Ready ? frauncesFont.name : theme.display
-    readonly property string uiFamily: interFont.status === FontLoader.Ready ? interFont.name : theme.ui
+    readonly property string displayFamily: "Georgia"
+    readonly property string uiFamily: "Segoe UI"
     readonly property real designWidth: Math.max(chainScroll.width, 1180)
-    readonly property real designHeight: 1060
+    readonly property real designHeight: 1312
 
     function takeKeyboardFocus() {
         chainTab.forceActiveFocus(Qt.TabFocusReason)
@@ -140,7 +139,7 @@ Item {
             sourceSize.height: Math.max(2, Math.round(height * 2))
             smooth: true
             cache: true
-            opacity: 0.28
+            opacity: 1.0
         }
         MultiEffect {
             anchors.fill: goldIconSource
@@ -340,10 +339,12 @@ Item {
         property string extensionId: ""
         property bool installed: false
         property bool rootNode: false
+        readonly property bool available: !optional || root.prototypeMode || root.rowFor(extensionId) !== null
+        readonly property bool hovered: nodeMouse.containsMouse
         property bool showLetterIcon: false
         property string letterIcon: ""
 
-        radius: optional ? 18 : 20
+        radius: root.designWidth * 0.0125
         color: {
             if (optional && installed)
                 return "#241c0e"
@@ -357,10 +358,10 @@ Item {
                                    : Qt.rgba(1,1,1,0.12))
                       : Qt.rgba(240/255,196/255,74/255, rootNode ? 0.78 : 0.48)
 
-        activeFocusOnTab: optional
+        activeFocusOnTab: optional && available
         Accessible.role: optional ? Accessible.Button : Accessible.StaticText
         Accessible.name: optional
-                         ? ((installed ? "Installed " : "Install ") + title)
+                         ? ((available ? (installed ? "Installed " : "Install ") : "Unavailable ") + title)
                          : title
 
         Rectangle {
@@ -376,14 +377,14 @@ Item {
 
         Rectangle {
             id: iconPlate
-            width: chainNode.optional ? 54 : Math.min(parent.height, 76)
-            height: chainNode.optional ? 54 : Math.min(parent.height, 76)
-            radius: chainNode.optional ? 12 : 14
+            width: chainNode.optional ? root.designWidth * 0.0415 : root.designWidth * 0.0455
+            height: width
+            radius: root.designWidth * 0.010
             anchors.left: chainNode.optional ? undefined : parent.left
             anchors.leftMargin: chainNode.optional ? 0 : 10
             anchors.horizontalCenter: chainNode.optional ? parent.horizontalCenter : undefined
             anchors.top: chainNode.optional ? parent.top : undefined
-            anchors.topMargin: chainNode.optional ? 13 : 0
+            anchors.topMargin: chainNode.optional ? 18 : 0
             anchors.verticalCenter: chainNode.optional ? undefined : parent.verticalCenter
             color: chainNode.optional
                    ? Qt.rgba(1,1,1,0.04)
@@ -415,6 +416,12 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 cache: true
+                opacity: chainNode.optional && !chainNode.installed && !chainNode.hovered ? 0.66 : 1.0
+                layer.enabled: chainNode.optional
+                layer.effect: MultiEffect {
+                    saturation: chainNode.installed || chainNode.hovered ? 0 : -0.90
+                    brightness: chainNode.installed || chainNode.hovered ? 0 : -0.18
+                }
             }
         }
 
@@ -424,7 +431,7 @@ Item {
                 text: chainNode.letterIcon
                 color: root.gold
                 font.family: root.displayFamily
-                font.pixelSize: 30
+                font.pixelSize: root.designWidth * 0.021
                 font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -443,8 +450,9 @@ Item {
                 width: parent.width
                 text: chainNode.title
                 color: root.ivory
-                font.family: root.displayFamily
-                font.pixelSize: chainNode.rootNode ? 34 : 26
+                font.family: "Georgia"
+                font.pixelSize: chainNode.rootNode ? root.designWidth * 0.0215
+                                                     : root.designWidth * 0.0148
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -453,12 +461,14 @@ Item {
                 text: chainNode.subtitle
                 color: root.dimInk
                 font.family: root.uiFamily
-                font.pixelSize: 12
+                font.pixelSize: chainNode.rootNode ? root.designWidth * 0.0077
+                                                     : root.designWidth * 0.0071
                 elide: Text.ElideRight
             }
         }
 
         Text {
+            id: optionalTitle
             visible: chainNode.optional
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: iconPlate.bottom
@@ -467,8 +477,22 @@ Item {
             text: chainNode.title
             color: chainNode.installed ? root.ivory : root.dimInk
             font.family: root.displayFamily
-            font.pixelSize: 14
+            font.pixelSize: root.designWidth * 0.011
             font.weight: Font.DemiBold
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+        }
+
+        Text {
+            visible: chainNode.optional
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: optionalTitle.bottom
+            anchors.topMargin: 3
+            width: parent.width - 14
+            text: chainNode.subtitle
+            color: "#7f7b73"
+            font.family: root.uiFamily
+            font.pixelSize: root.designWidth * 0.0068
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
         }
@@ -483,7 +507,7 @@ Item {
                    ? Qt.rgba(240/255,196/255,74/255,0.82)
                    : Qt.rgba(1,1,1,0.40)
             font.family: root.uiFamily
-            font.pixelSize: 9
+            font.pixelSize: root.designWidth * 0.0056
             font.capitalization: Font.AllUppercase
             font.letterSpacing: 1.1
         }
@@ -505,7 +529,7 @@ Item {
                 text: "SHARED"
                 color: root.gold
                 font.family: root.uiFamily
-                font.pixelSize: 9
+                font.pixelSize: root.designWidth * 0.0061
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1.0
             }
@@ -522,18 +546,19 @@ Item {
         }
 
         MouseArea {
+            id: nodeMouse
             anchors.fill: parent
-            enabled: chainNode.optional
-            hoverEnabled: true
-            cursorShape: chainNode.optional ? Qt.PointingHandCursor : Qt.ArrowCursor
+            enabled: chainNode.optional && chainNode.available
+            hoverEnabled: chainNode.optional
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: {
                 chainNode.forceActiveFocus(Qt.MouseFocusReason)
                 root.toggleAddon(chainNode.extensionId)
             }
         }
 
-        Keys.onReturnPressed: if (optional) root.toggleAddon(extensionId)
-        Keys.onSpacePressed: if (optional) root.toggleAddon(extensionId)
+        Keys.onReturnPressed: if (optional && available) root.toggleAddon(extensionId)
+        Keys.onSpacePressed: if (optional && available) root.toggleAddon(extensionId)
     }
 
     component EndpointCard: Rectangle {
@@ -586,8 +611,8 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: 15
-            width: 58
-            height: 58
+            width: root.designWidth * 0.0435
+            height: width
             source: endpoint.iconSource
             ink: endpoint.unlocked ? "#ffe477" : "#9d9991"
             opacity: endpoint.unlocked ? 1 : 0.82
@@ -601,7 +626,7 @@ Item {
             text: endpoint.label
             color: endpoint.unlocked ? "#ffe477" : "#a6a199"
             font.family: root.displayFamily
-            font.pixelSize: 18
+            font.pixelSize: root.designWidth * 0.0102
             font.weight: Font.DemiBold
             font.letterSpacing: 1.0
             horizontalAlignment: Text.AlignHCenter
@@ -664,23 +689,23 @@ Item {
             Rectangle {
                 id: picker
                 x: (stage.width - width) / 2
-                y: 31
-                width: 380
-                height: 60
-                radius: 30
+                y: 15
+                width: 230
+                height: 46
+                radius: 23
                 color: Qt.rgba(0.28,0.29,0.31,0.90)
                 border.width: 1
                 border.color: Qt.rgba(1,1,1,0.08)
 
                 Row {
                     anchors.fill: parent
-                    anchors.margins: 7
+                    anchors.margins: 6
                     spacing: 4
 
                     Rectangle {
                         id: chainTab
-                        width: 118
-                        height: parent.height
+                        width: 70
+                        height: 34
                         radius: height / 2
                         color: root.gold
                         activeFocusOnTab: true
@@ -691,7 +716,7 @@ Item {
                             text: "Chain"
                             color: "#15120b"
                             font.family: root.uiFamily
-                            font.pixelSize: 17
+                            font.pixelSize: 14
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -703,8 +728,8 @@ Item {
 
                     Rectangle {
                         id: houseTab
-                        width: 118
-                        height: parent.height
+                        width: 72
+                        height: 34
                         radius: height / 2
                         color: houseTabMouse.containsMouse ? Qt.rgba(1,1,1,0.07) : "transparent"
                         activeFocusOnTab: true
@@ -716,7 +741,7 @@ Item {
                             color: root.ivory
                             opacity: 0.72
                             font.family: root.uiFamily
-                            font.pixelSize: 17
+                            font.pixelSize: 14
                         }
                         MouseArea {
                             id: houseTabMouse
@@ -730,138 +755,174 @@ Item {
                     }
 
                     Rectangle {
-                        width: 118
-                        height: parent.height
+                        id: storeTab
+                        width: 68
+                        height: 34
                         radius: height / 2
-                        color: "transparent"
-                        opacity: 0.72
+                        color: storeTabMouse.containsMouse ? Qt.rgba(1,1,1,0.07) : "transparent"
+                        activeFocusOnTab: true
                         Accessible.role: Accessible.Button
-                        Accessible.name: "Store unavailable"
+                        Accessible.name: "Store"
                         Text {
                             anchors.centerIn: parent
                             text: "Store"
                             color: root.ivory
                             opacity: 0.70
                             font.family: root.uiFamily
-                            font.pixelSize: 17
+                            font.pixelSize: 14
                         }
+                        MouseArea {
+                            id: storeTabMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.sectionRequested("store")
+                        }
+                        Keys.onReturnPressed: root.sectionRequested("store")
+                        Keys.onSpacePressed: root.sectionRequested("store")
                     }
                 }
             }
 
+            Rectangle {
+                id: manageButton
+                x: stage.width - width - 44
+                y: 21
+                width: 88
+                height: 34
+                radius: 17
+                color: Qt.rgba(15/255,16/255,22/255,0.80)
+                border.width: 1
+                border.color: Qt.rgba(1,1,1,0.12)
+                activeFocusOnTab: true
+                Text {
+                    anchors.centerIn: parent
+                    text: "Manage"
+                    color: Qt.rgba(1,1,1,0.78)
+                    font.family: root.uiFamily
+                    font.pixelSize: 14
+                    font.weight: Font.Medium
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.manageRequested()
+                }
+            }
             ChainWire {
-                startX: stage.width * 0.50; startY: 182
-                endX: stage.width * 0.185; endY: 245
+                startX: stage.width * 0.50; startY: 196
+                endX: stage.width * 0.185; endY: 306
                 core: true
             }
             ChainWire {
-                startX: stage.width * 0.50; startY: 182
-                endX: stage.width * 0.50; endY: 245
+                startX: stage.width * 0.50; startY: 196
+                endX: stage.width * 0.50; endY: 306
                 core: true
             }
             ChainWire {
-                startX: stage.width * 0.50; startY: 182
-                endX: stage.width * 0.815; endY: 245
+                startX: stage.width * 0.50; startY: 196
+                endX: stage.width * 0.815; endY: 306
                 core: true
             }
             ChainWire {
-                startX: stage.width * 0.185; startY: 330
-                endX: stage.width * 0.185; endY: 385
+                startX: stage.width * 0.185; startY: 390
+                endX: stage.width * 0.185; endY: 480
                 core: true
             }
             ChainWire {
-                startX: stage.width * 0.50; startY: 330
-                endX: stage.width * 0.50; endY: 385
+                startX: stage.width * 0.50; startY: 390
+                endX: stage.width * 0.50; endY: 480
                 core: true
             }
             ChainWire {
-                startX: stage.width * 0.815; startY: 330
-                endX: stage.width * 0.815; endY: 385
+                startX: stage.width * 0.815; startY: 390
+                endX: stage.width * 0.815; endY: 480
                 core: true
             }
 
             ChainWire {
-                startX: stage.width * 0.185; startY: 470
-                endX: stage.width * 0.0875; endY: 585
+                startX: stage.width * 0.185; startY: 564
+                endX: stage.width * 0.0875; endY: 732
                 active: root.isInstalled("colosseum.well.getcomics.issues")
             }
             ChainWire {
-                startX: stage.width * 0.185; startY: 470
-                endX: stage.width * 0.2495; endY: 585
+                startX: stage.width * 0.185; startY: 564
+                endX: stage.width * 0.2495; endY: 732
                 active: root.isInstalled("colosseum.well.tankoyomi")
             }
             ChainWire {
-                startX: stage.width * 0.185; startY: 470
-                endX: stage.width * 0.42; endY: 585
+                startX: stage.width * 0.185; startY: 564
+                endX: stage.width * 0.42; endY: 732
                 active: root.isInstalled("colosseum.well.indexers")
             }
             ChainWire {
-                startX: stage.width * 0.50; startY: 470
-                endX: stage.width * 0.42; endY: 585
+                startX: stage.width * 0.50; startY: 564
+                endX: stage.width * 0.42; endY: 732
                 active: root.isInstalled("colosseum.well.indexers")
             }
             ChainWire {
-                startX: stage.width * 0.50; startY: 470
-                endX: stage.width * 0.5795; endY: 585
+                startX: stage.width * 0.50; startY: 564
+                endX: stage.width * 0.5795; endY: 732
                 active: root.isInstalled("colosseum.well.libgen")
             }
             ChainWire {
-                startX: stage.width * 0.50; startY: 470
-                endX: stage.width * 0.7415; endY: 585
+                startX: stage.width * 0.50; startY: 564
+                endX: stage.width * 0.7415; endY: 732
                 active: root.isInstalled("colosseum.well.audiobookbay")
             }
             ChainWire {
-                startX: stage.width * 0.815; startY: 470
-                endX: stage.width * 0.9035; endY: 585
+                startX: stage.width * 0.815; startY: 564
+                endX: stage.width * 0.9035; endY: 732
                 active: root.isInstalled("com.stremio.torrentio.addon")
             }
 
             ChainWire {
-                startX: stage.width * 0.0875; startY: 677
-                endX: stage.width * 0.080; endY: 790
+                startX: stage.width * 0.0875; startY: 864
+                endX: stage.width * 0.0775; endY: 1044
                 active: root.isInstalled("colosseum.well.getcomics.issues")
             }
             ChainWire {
-                startX: stage.width * 0.2495; startY: 677
-                endX: stage.width * 0.248; endY: 790
+                startX: stage.width * 0.2495; startY: 864
+                endX: stage.width * 0.2475; endY: 1044
                 active: root.isInstalled("colosseum.well.tankoyomi")
             }
             ChainWire {
-                startX: stage.width * 0.42; startY: 677
-                endX: stage.width * 0.248; endY: 790
+                startX: stage.width * 0.42; startY: 864
+                endX: stage.width * 0.2475; endY: 1044
                 active: root.isInstalled("colosseum.well.indexers")
             }
             ChainWire {
-                startX: stage.width * 0.42; startY: 677
-                endX: stage.width * 0.416; endY: 790
+                startX: stage.width * 0.42; startY: 864
+                endX: stage.width * 0.4175; endY: 1044
                 active: root.isInstalled("colosseum.well.indexers")
             }
             ChainWire {
-                startX: stage.width * 0.5795; startY: 677
-                endX: stage.width * 0.416; endY: 790
+                startX: stage.width * 0.5795; startY: 864
+                endX: stage.width * 0.4175; endY: 1044
                 active: root.isInstalled("colosseum.well.libgen")
             }
             ChainWire {
-                startX: stage.width * 0.7415; startY: 677
-                endX: stage.width * 0.584; endY: 790
+                startX: stage.width * 0.7415; startY: 864
+                endX: stage.width * 0.5875; endY: 1044
                 active: root.isInstalled("colosseum.well.audiobookbay")
             }
             ChainWire {
-                startX: stage.width * 0.9035; startY: 677
-                endX: stage.width * 0.752; endY: 790
+                startX: stage.width * 0.9035; startY: 864
+                endX: stage.width * 0.7575; endY: 1044
                 active: root.isInstalled("com.stremio.torrentio.addon")
             }
             ChainWire {
-                startX: stage.width * 0.9035; startY: 677
-                endX: stage.width * 0.920; endY: 790
+                startX: stage.width * 0.9035; startY: 864
+                endX: stage.width * 0.9225; endY: 1044
                 active: root.isInstalled("com.stremio.torrentio.addon")
             }
 
             ChainNode {
                 x: stage.width * 0.29
-                y: 112
+                y: 116
                 width: stage.width * 0.42
-                height: 70
+                height: 80
                 title: "Colosseum App"
                 subtitle: "The root layer"
                 statusText: "ROOT"
@@ -870,41 +931,41 @@ Item {
             }
 
             ChainNode {
-                x: stage.width * 0.05; y: 245
-                width: stage.width * 0.27; height: 85
+                x: stage.width * 0.05; y: 306
+                width: stage.width * 0.27; height: 84
                 title: "Tankoban"; subtitle: "Comics & manga"; statusText: "BUILT-IN"
                 iconSource: "../assets/icons/manga.svg"
             }
             ChainNode {
-                x: stage.width * 0.365; y: 245
-                width: stage.width * 0.27; height: 85
+                x: stage.width * 0.365; y: 306
+                width: stage.width * 0.27; height: 84
                 title: "Biblio"; subtitle: "Books & audiobooks"; statusText: "BUILT-IN"
                 iconSource: "../assets/icons/books.svg"
             }
             ChainNode {
-                x: stage.width * 0.68; y: 245
-                width: stage.width * 0.27; height: 85
+                x: stage.width * 0.68; y: 306
+                width: stage.width * 0.27; height: 84
                 title: "Theatre"; subtitle: "Film, shows & anime"; statusText: "BUILT-IN"
                 iconSource: "../assets/icons/projector-theatre.svg"
             }
 
             ChainNode {
-                x: stage.width * 0.05; y: 385
-                width: stage.width * 0.27; height: 85
+                x: stage.width * 0.05; y: 480
+                width: stage.width * 0.27; height: 84
                 title: "Colosseum Database"; subtitle: "Tankoban foundation"; statusText: "BUILT-IN"
                 iconSource: "../assets/addon-logos/colosseum-grand-database.png"
                 rawIcon: true
             }
             ChainNode {
-                x: stage.width * 0.365; y: 385
-                width: stage.width * 0.27; height: 85
+                x: stage.width * 0.365; y: 480
+                width: stage.width * 0.27; height: 84
                 title: "Apple Books"; subtitle: "Biblio foundation"; statusText: "BUILT-IN"
                 iconSource: "../assets/addon-logos/applebooks.ico"
                 rawIcon: true
             }
             ChainNode {
-                x: stage.width * 0.68; y: 385
-                width: stage.width * 0.27; height: 85
+                x: stage.width * 0.68; y: 480
+                width: stage.width * 0.27; height: 84
                 title: "Cinemeta"; subtitle: "Theatre catalogue"; statusText: "BUILT-IN"
                 showLetterIcon: true
                 letterIcon: "C"
@@ -915,43 +976,49 @@ Item {
                 ListElement {
                     modelExtensionId: "colosseum.well.getcomics.issues"
                     modelTitle: "GetComics"
+                    modelSubtitle: "Comic source"
                     modelIcon: "../assets/addon-logos/getcomics.png"
-                    xPct: 0.01
+                    xPct: 0.02
                     isShared: false
                 }
                 ListElement {
                     modelExtensionId: "colosseum.well.tankoyomi"
                     modelTitle: "Tankoyomi"
+                    modelSubtitle: "Chapter source"
                     modelIcon: "../assets/addon-logos/tankoyomi.png"
-                    xPct: 0.172
+                    xPct: 0.182
                     isShared: false
                 }
                 ListElement {
                     modelExtensionId: "colosseum.well.indexers"
                     modelTitle: "Tankorent"
+                    modelSubtitle: "Manga & books"
                     modelIcon: "../assets/addon-logos/tankorent.png"
-                    xPct: 0.34
+                    xPct: 0.3525
                     isShared: true
                 }
                 ListElement {
                     modelExtensionId: "colosseum.well.libgen"
                     modelTitle: "LibGen"
+                    modelSubtitle: "Book source"
                     modelIcon: "../assets/addon-logos/libgen.ico"
-                    xPct: 0.502
+                    xPct: 0.512
                     isShared: false
                 }
                 ListElement {
                     modelExtensionId: "colosseum.well.audiobookbay"
                     modelTitle: "AudioBookBay"
+                    modelSubtitle: "Audiobook source"
                     modelIcon: "../assets/addon-logos/audiobookbay.png"
-                    xPct: 0.664
+                    xPct: 0.674
                     isShared: false
                 }
                 ListElement {
                     modelExtensionId: "com.stremio.torrentio.addon"
                     modelTitle: "Torrentio"
+                    modelSubtitle: "Video source"
                     modelIcon: "../assets/addon-logos/torrentio.png"
-                    xPct: 0.826
+                    xPct: 0.836
                     isShared: false
                 }
             }
@@ -962,17 +1029,19 @@ Item {
                     required property string modelExtensionId
                     required property string modelTitle
                     required property string modelIcon
+                    required property string modelSubtitle
                     required property real xPct
                     required property bool isShared
 
                     x: stage.width * xPct
-                    y: 585
-                    width: stage.width * (isShared ? 0.16 : 0.155)
-                    height: 92
+                    y: 732
+                    width: stage.width * 0.135
+                    height: 132
                     optional: true
                     rawIcon: true
                     extensionId: modelExtensionId
                     title: modelTitle
+                    subtitle: modelSubtitle
                     shared: isShared
                     iconSource: modelIcon
                     statusText: installed ? "INSTALLED" : "INSTALL"
@@ -986,37 +1055,37 @@ Item {
                     key: "comics"
                     modelLabel: "COMICS"
                     modelIcon: "../assets/icons/comics.svg"
-                    xPct: 0.016
+                    xPct: 0.02
                 }
                 ListElement {
                     key: "manga"
                     modelLabel: "MANGA"
                     modelIcon: "../assets/icons/manga.svg"
-                    xPct: 0.184
+                    xPct: 0.19
                 }
                 ListElement {
                     key: "books"
                     modelLabel: "BOOKS"
                     modelIcon: "../assets/icons/books.svg"
-                    xPct: 0.352
+                    xPct: 0.36
                 }
                 ListElement {
                     key: "audiobook"
                     modelLabel: "AUDIOBOOK"
                     modelIcon: "../assets/icons/music.svg"
-                    xPct: 0.520
+                    xPct: 0.53
                 }
                 ListElement {
                     key: "tv"
                     modelLabel: "TV"
                     modelIcon: "../assets/icons/feria-tv.svg"
-                    xPct: 0.688
+                    xPct: 0.70
                 }
                 ListElement {
                     key: "movies"
                     modelLabel: "MOVIES"
                     modelIcon: "../assets/icons/movies.svg"
-                    xPct: 0.856
+                    xPct: 0.865
                 }
             }
 
@@ -1029,9 +1098,9 @@ Item {
                     required property real xPct
 
                     x: stage.width * xPct
-                    y: 790
-                    width: stage.width * 0.128
-                    height: 138
+                    y: 1044
+                    width: stage.width * 0.115
+                    height: 150
                     mediumKey: key
                     label: modelLabel
                     iconSource: modelIcon

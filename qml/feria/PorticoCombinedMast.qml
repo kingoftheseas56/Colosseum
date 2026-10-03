@@ -11,9 +11,22 @@ Item {
     height: 6 * u
     z: 40
 
+    Colosseum.KeyboardSpatialNavigator { id: navigation; root: mast }
+    Keys.onPressed: function(event) { navigation.handle(event) }
+
     RowLayout {
         anchors { fill: parent; leftMargin: controller.marginX; rightMargin: controller.marginX }
         spacing: 1 * u
+
+        Colosseum.BackAction {
+            objectName: "feriaBack"
+            visible: controller.viewState !== "home"
+            variant: "capsule"
+            tip: "Back"
+            idleColor: controller.mist
+            hoverColor: controller.ink
+            onTriggered: controller.back()
+        }
 
         Item {
             objectName: "feriaReturnToColosseum"
@@ -99,6 +112,7 @@ Item {
             Colosseum.KeyboardAction {
                 anchors.fill: parent
                 showFocusFrame: false
+                accessibleName: "Search Feria"
                 onTriggered: controller.openSearch("")
             }
         }
@@ -137,6 +151,11 @@ Item {
             font.pixelSize: 0.85 * u
             Layout.leftMargin: -0.7 * u
             Layout.alignment: Qt.AlignVCenter
+        }
+        FeriaWindowControls {
+            controller: mast.controller
+            Layout.preferredWidth: implicitWidth
+            Layout.preferredHeight: 44
         }
     }
     Colosseum.Theme { id: theme }

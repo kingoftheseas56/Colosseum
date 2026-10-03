@@ -28,10 +28,13 @@ Item {
         loadBrowser()
     }
     function loadBrowser() {
-        browser.active = true
+        // Replace the source while inactive; activating first recreates the
+        // previous engine and races its callbacks against the new cleaner.
+        browser.active = false
         browser.setSource(engines[engineIndex] === "webview2" ? "FeriaWebView2.qml" : "FeriaQtWebEngine.qml", {
             sourceUrl: "about:blank", profilePath: profilePath, observationEnabled: false, suppressed: true
         })
+        browser.active = true
     }
     Connections {
         target: FeriaBrowserPolicy

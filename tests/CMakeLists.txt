@@ -22,6 +22,16 @@ add_executable(feria_account_store_test feria_account_store_test.cpp)
 target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
 add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)
 
+add_executable(feria_availability_test feria_availability_test.cpp)
+target_link_libraries(feria_availability_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
+
+find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
+if(COLOSSEUM_FERIA_TEST_NODE)
+    add_test(NAME colosseum.feria_app_mode_test
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
+endif()
+
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})

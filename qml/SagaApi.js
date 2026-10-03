@@ -107,6 +107,50 @@ function mapWatch(meta) {
     };
 }
 
+// Preserve every curated slot even when its provider has no listing yet.
+// Unresolved entries are informational and cannot open a media detail.
+function sagaSlots(canon, resolved, kind) {
+    return canon.map(function(entry, index) {
+        var item = {};
+        var hit = resolved[index];
+        if (hit) Object.keys(hit).forEach(function(k) { item[k] = hit[k]; });
+        item.title = item.title || (entry && entry.t !== undefined ? entry.t : entry);
+        item.canonIndex = index;
+        item.medium = kind;
+        item.resolved = !!hit;
+        item.upcoming = item.upcoming === true || !!(entry && entry.upcoming)
+            || !!(entry && entry.releaseDate && Date.parse(entry.releaseDate) > Date.now());
+        return item;
+    });
+}
+
+function sagaCollections(uni, cfg) {
+    var source = { books: uni.books || [], films: uni.films || [], shows: uni.shows || [] };
+    var used = { books: {}, films: {}, shows: {} };
+    var branches = (cfg.sagaBranches || []).map(function(branch) {
+        var result = { title: branch.title, books: [], adaptations: [] };
+        ["books", "films", "shows"].forEach(function(kind) {
+            source[kind].forEach(function(item, index) {
+                var position = item.canonIndex === undefined ? index : item.canonIndex;
+                if ((branch[kind] || []).indexOf(position) < 0) return;
+                used[kind][position] = true;
+                (kind === "books" ? result.books : result.adaptations).push(item);
+            });
+        });
+        return result;
+    }).filter(function(branch) { return branch.books.length || branch.adaptations.length; });
+    function core(kind) {
+        return source[kind].filter(function(item, index) {
+            return !used[kind][item.canonIndex === undefined ? index : item.canonIndex];
+        });
+    }
+    return { books: core("books"), adaptations: core("films").concat(core("shows")),
+        branches: branches,
+        upcoming: source.books.concat(source.films, source.shows).filter(function(item) {
+            return item.upcoming === true;
+        }) };
+}
+
 // loadSaga("Harry Potter", push) — push({ name, blurb, banner, metaline, books[], films[],
 // shows[] }) once per response. books = full Biblio objects in reading order; films/shows =
 // Cinemeta items in canon order.
@@ -122,13 +166,13 @@ function loadSaga(name, push) {
         banner: cfg.banner || "",
         metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
         books: new Array(novels.length),    // reading-order slots (null until its lookup lands)
-        films: [], shows: [],
+        films: sagaSlots(filmCanon, [], "film"), shows: sagaSlots(showCanon, [], "series"),
         comics: cfg.comics || null          // curated GC archive pin → the comics door
     };
     function emit() {
         push({
             name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
-            books: out.books.filter(function(b) { return !!b; }),
+            books: sagaSlots(novels, out.books, "book"),
             films: out.films, shows: out.shows,
             comics: out.comics
         });
@@ -136,7 +180,7 @@ function loadSaga(name, push) {
 
     // --- BOOKS: one Apple lookup per curated novel, slotted in reading order ---
     novels.forEach(function(title, i) {
-        Biblio.lookupBook(title, function(book) {
+        Biblio.lookupBook(title && title.t !== undefined ? title.t : title, function(book) {
             if (book) { out.books[i] = book; emit(); }
         });
     });
@@ -150,8 +194,8 @@ function loadSaga(name, push) {
                 function(json) {
                     filmPool = filmPool.concat((json && json.metas) ? json.metas : []);
                     function refilm() {
-                        out.films = slotByCanon(filmCanon, filmPool)
-                            .filter(function(m) { return !!m; }).map(mapWatch);
+                        out.films = sagaSlots(filmCanon, slotByCanon(filmCanon, filmPool)
+                            .map(function(m) { return m ? mapWatch(m) : null; }), "film");
                         emit();
                     }
                     refilm();
@@ -169,8 +213,8 @@ function loadSaga(name, push) {
                 function(json) {
                     showPool = showPool.concat((json && json.metas) ? json.metas : []);
                     function reshow() {
-                        out.shows = slotByCanon(showCanon, showPool)
-                            .filter(function(m) { return !!m; }).map(mapWatch);
+                        out.shows = sagaSlots(showCanon, slotByCanon(showCanon, showPool)
+                            .map(function(m) { return m ? mapWatch(m) : null; }), "series");
                         emit();
                     }
                     reshow();

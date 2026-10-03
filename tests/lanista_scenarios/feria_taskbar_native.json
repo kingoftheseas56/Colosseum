@@ -147,6 +147,101 @@
       ]
     },
     {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 1",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 2",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 3",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 4",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 5",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 6",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 7",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 8",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 9",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 10",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 11",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 12",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 13",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
+    },
+    {
       "cmd": "ui-click",
       "label": "open original app management",
       "payload": {
@@ -266,6 +361,17 @@
       ]
     },
     {
+      "cmd": "ui-keypress",
+      "label": "reveal the lens controls",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
+    },
+    {
       "cmd": "ui-click",
       "label": "switch Feria to Watch",
       "payload": {
@@ -312,6 +418,108 @@
           "value": "true"
         }
       ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 1",
+      "payload": {
+        "key": "Up"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 2",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 3",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 4",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 5",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 6",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 7",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 8",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 9",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 10",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 11",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 12",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 13",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 14",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
     },
     {
       "cmd": "ui-click",
@@ -435,6 +643,17 @@
           "value": "true"
         }
       ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 1",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
     },
     {
       "cmd": "ui-click",

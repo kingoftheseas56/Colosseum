@@ -55,7 +55,10 @@ QString PorticoCanonicalizer::sharedExternalKey(const PorticoTrend::Item &item)
 QString PorticoCanonicalizer::canonicalKey(const PorticoTrend::Item &item)
 {
     const QString group = kindGroup(item.kind);
-    const QString external = sharedExternalKey(item);
+    // Catalog IDs already back saved titles. Newly retained lookup IDs must not
+    // rename them; availability still matches the explicit IMDb metadata.
+    const QString external = item.sourceId == QStringLiteral("stremio")
+        ? QString() : sharedExternalKey(item);
     if (!external.isEmpty())
         return group + QLatin1Char(':') + external;
 

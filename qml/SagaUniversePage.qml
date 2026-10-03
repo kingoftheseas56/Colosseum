@@ -1,17 +1,9 @@
-// SagaUniversePage — the SAGA universe template: book-first IPs (Harry Potter, Lord of the
-// Rings, A Song of Ice and Fire, Dune). Born from the 2026-07-12 correction: these pages are
-// NOT the anime template re-worn — the anime reading lane does not exist here, and nothing on
-// this page is a fuzzy search hit. The canon (novels / films / shows) is curated in
-// Universes.js; SagaApi dresses it with real Biblio books and real Cinemeta items.
-//
-//   READ  = the novel sequence, reading order. The duality's Read half and every shelf
-//           book route into the Biblio detail (win.openBook) — book ONE is the golden path.
-//   WATCH = the adaptations: films in canon order (the duality routes to film one; for a
-//           saga with no films — ASOIAF — the show is the Watch), shows beside them.
+// Saga collection: reading and screen adaptations share equal prominence.
 import QtQuick
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "ComicsApi.js" as ComicsApi
+import "Universes.js" as UDB
 
 Item {
     id: root
@@ -30,6 +22,29 @@ Item {
     signal comicsArchiveRequested(var box)   // the comics door → the GC archive index
 
     Theme { id: theme }
+    // Typography and control geometry adapted from the supplied Harbor QML prototype.
+    FontLoader { id: sagaDisplay; source: "../assets/fonts/Fraunces-Regular.ttf" }
+    FontLoader { id: sagaUi; source: "../assets/fonts/Switzer-Regular.otf" }
+    FontLoader { source: "../assets/fonts/Switzer-Semibold.otf" }
+    readonly property string uiFace: sagaUi.name
+    property bool reducedMotion: true
+    readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
+    readonly property color worldColor: guide.c1 || "#221c30"
+    readonly property color paper: theme.ink
+    readonly property real gutter: width < 700 ? 24 : 64
+    readonly property bool compact: width < 800
+    readonly property string displayFace: sagaDisplay.name
+    readonly property var collections: Saga.sagaCollections(root.uni, root.guide)
+    property int loadGeneration: 0
+    function openWork(item, book) {
+        if (!item || item.resolved === false) return
+        if (book || item.medium === "book") root.bookRequested(item)
+        else root.watchRequested(item)
+    }
+    function revealSection(section) {
+        page.contentY = Math.min(Math.max(0, section.mapToItem(page.contentItem, 0, 0).y - 90),
+                                Math.max(0, page.contentHeight - page.height))
+    }
 
     KeyboardScrollController {
         id: pageKeyboardScroll
@@ -51,9 +66,15 @@ Item {
 
     // the pinned archive resolved live (real GC name + release count); curated pin = fallback
     property var comicsBox: null
+    property int comicsGeneration: -1
     onUniChanged: {
-        if (root.uni.comics && root.uni.comics.tagId && !root.comicsBox)
-            ComicsApi.tagBox(root.uni.comics.tagId, function(b) { if (b) root.comicsBox = b })
+        if (root.uni.comics && root.uni.comics.tagId && root.comicsGeneration !== root.loadGeneration) {
+            const generation = root.loadGeneration
+            root.comicsGeneration = generation
+            ComicsApi.tagBox(root.uni.comics.tagId, function(b) {
+                if (b && generation === root.loadGeneration) root.comicsBox = b
+            })
+        }
     }
     function comicsDoor() {
         return root.comicsBox || { name: root.uni.name, tag: root.uni.comics.tag,
@@ -63,15 +84,17 @@ Item {
     function reload() {
         if (!root.universeName.length) return         // never load a default universe (the OP-flash lesson)
         root.comicsBox = null
-        Saga.loadSaga(root.universeName, function(u) { if (u) root.uni = u; })
+        const generation = ++root.loadGeneration
+        Saga.loadSaga(root.universeName, function(u) {
+            if (generation === root.loadGeneration && u) root.uni = u
+        })
     }
     Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
     onUniverseNameChanged: reload()
 
-    readonly property var firstBook: uni.books.length ? uni.books[0] : null
-    // Watch's golden path: film one; a saga with no films (ASOIAF) leads with show one
-    readonly property var firstWatch: uni.films.length ? uni.films[0]
-                                    : (uni.shows.length ? uni.shows[0] : null)
+    readonly property var firstBook: uni.books.length && uni.books[0].resolved !== false ? uni.books[0] : null
+    readonly property var adaptations: root.collections.adaptations
+    readonly property var firstWatch: adaptations.length && adaptations[0].resolved !== false && !adaptations[0].upcoming ? adaptations[0] : null
 
     // ---- persistent wallpaper the page floats over ----
     Item {
@@ -87,17 +110,40 @@ Item {
         Image { anchors.fill: parent; visible: root.backdrop === null
                 source: "../assets/wallpaper/captured-motion.jpg"
                 fillMode: Image.PreserveAspectCrop; cache: true }
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.03,0.04,0.07,0.82) }
+        Image {
+            id: worldWallpaper
+            anchors.fill: parent
+            source: root.guide.wallpaper || root.uni.banner
+            asynchronous: true; cache: true
+            fillMode: Image.PreserveAspectCrop
+        }
+        // Harbor's directional scrims keep the world visible behind the content.
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: Qt.rgba(0.067, 0.071, 0.075, 0.88) }
+                GradientStop { position: 1; color: Qt.rgba(0.067, 0.071, 0.075, 0.36) }
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0; color: "transparent" }
+                GradientStop { position: 0.45; color: Qt.rgba(0.067, 0.071, 0.075, 0.4) }
+                GradientStop { position: 1; color: Qt.rgba(0.067, 0.071, 0.075, 0.92) }
+            }
+        }
     }
 
     Flickable {
         id: page
+        objectName: "sagaScroll"
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }
         ScrollGlide { flick: page }
 
         Column {
@@ -105,226 +151,139 @@ Item {
             width: page.width
             spacing: 0
 
-            // ===== BANNER =====
+            // The world leads; both media have the same action weight.
             Item {
-                width: parent.width; height: 360
-                Image {
-                    anchors.fill: parent
-                    source: root.uni.banner
-                    fillMode: Image.PreserveAspectCrop
-                    cache: true
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(0.035,0.043,0.07,0.12) }
-                        GradientStop { position: 0.45; color: Qt.rgba(0.035,0.043,0.07,0.04) }
-                        GradientStop { position: 1.0; color: Qt.rgba(0.035,0.043,0.07,0.92) }
-                    }
-                }
+                width: parent.width
+                height: root.compact ? 420 : 400
                 Column {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.leftMargin: 54; anchors.rightMargin: 54; anchors.bottomMargin: 28
-                    spacing: 9
-                    Text { text: "UNIVERSE  ·  THE SAGA"; color: theme.gold; font.family: theme.ui
-                           font.pixelSize: 12; font.letterSpacing: 4; font.bold: true }
-                    Text { text: root.uni.name; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 62 }
-                    Text { text: root.uni.metaline; color: theme.inkDimmer
-                           font.family: theme.ui; font.pixelSize: 14 }
+                    x: root.gutter; y: 120
+                    width: parent.width - root.gutter * 2
+                    spacing: 18
+                    Text {
+                        text: "SAGA"
+                        color: theme.inkDim; font.family: root.uiFace
+                        font.pixelSize: 11; font.letterSpacing: 3
+                    }
+                    Text {
+                        width: parent.width
+                        text: root.uni.name || root.universeName
+                        color: root.paper; font.family: root.displayFace
+                        font.pixelSize: root.compact ? 40 : 72
+                        lineHeight: 1.05; wrapMode: Text.WordWrap
+                    }
+                    Flow {
+                        width: parent.width; spacing: 12
+                        SagaAction {
+                            objectName: "sagaReadButton"
+                            text: "Read"; primary: true; width: 128
+                            enabled: !!root.firstBook
+                            onTriggered: root.bookRequested(root.firstBook)
+                        }
+                        SagaAction {
+                            objectName: "sagaAdaptationsButton"
+                            text: "Watch"; primary: true; width: 128
+                            enabled: !!root.firstWatch
+                            onTriggered: root.watchRequested(root.firstWatch)
+                        }
+                        SagaAction {
+                            text: "Beyond the saga"
+                            enabled: root.collections.branches.length > 0
+                            onTriggered: root.revealSection(branchSection)
+                        }
+                        SagaAction {
+                            text: "Upcoming"
+                            enabled: root.collections.upcoming.length > 0
+                            onTriggered: root.revealSection(upcomingSection)
+                        }
+                    }
                 }
             }
 
-            // ===== BODY =====
             Column {
-                x: 54; width: parent.width - 108; spacing: 0
-                topPadding: 26
-
-                Text {
-                    bottomPadding: 30
-                    text: root.uni.blurb
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
-                    lineHeight: 1.5; wrapMode: Text.WordWrap
-                    maximumLineCount: 3; elide: Text.ElideRight
-                    width: Math.min(parent.width, 760)
+                x: root.gutter; width: parent.width - root.gutter * 2; spacing: 0
+                Row {
+                    spacing: 24; height: 62
+                    Text { text: "BOOKS & SCREEN"; color: theme.inkDimmer
+                           font.family: root.uiFace; font.pixelSize: 10; font.letterSpacing: 2 }
+                    Text { text: root.uni.metaline; color: theme.inkDim; font.family: root.uiFace
+                           font.pixelSize: 12; width: Math.max(0, col.width - root.gutter * 2 - 140)
+                           elide: Text.ElideRight }
                 }
-
-                // ===== THE CLEAVED READ / WATCH DUALITY — books vs adaptations =====
-                Rectangle {
-                    width: parent.width; height: 330; radius: 22; clip: true
-                    color: "transparent"; border.width: 1; border.color: theme.edge
-                    SagaHalf {
-                        anchors.left: parent.left; width: parent.width/2; height: parent.height
-                        align: Qt.AlignLeft
-                        label: "Read"
-                        sub: root.firstBook ? ("Begin with " + root.firstBook.title) : "The novels"
-                        icon: "../assets/icons/books.svg"
-                        artImage: root.firstBook ? (root.firstBook.cover || "") : ""
-                        warm: true
-                        enabled: !!root.firstBook
-                        onActivated: if (root.firstBook) root.bookRequested(root.firstBook)
-                    }
-                    SagaHalf {
-                        anchors.right: parent.right; width: parent.width/2; height: parent.height
-                        align: Qt.AlignRight
-                        label: "Watch"
-                        sub: root.firstWatch ? ("Begin with " + root.firstWatch.title) : "The adaptations"
-                        icon: "../assets/icons/movies.svg"
-                        artImage: root.firstWatch ? (root.firstWatch.art || root.firstWatch.cover || "") : ""
-                        warm: false
-                        enabled: !!root.firstWatch
-                        onActivated: if (root.firstWatch) root.watchRequested(root.firstWatch)
-                    }
-                    Rectangle {   // luminous gold seam (the house duality signature)
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top; anchors.bottom: parent.bottom
-                        width: 2; z: 3
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 0.18; color: Qt.rgba(0.94,0.77,0.29,0.9) }
-                            GradientStop { position: 0.5; color: "#fff7df" }
-                            GradientStop { position: 0.82; color: Qt.rgba(0.94,0.77,0.29,0.9) }
-                            GradientStop { position: 1.0; color: "transparent" }
-                        }
-                    }
-                    Rectangle {
-                        anchors.centerIn: parent; width: 30; height: 30; radius: 6; z: 4
-                        rotation: 45
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#fff3cf" }
-                            GradientStop { position: 1.0; color: "#e0a634" }
-                        }
-                        border.width: 1; border.color: "#fff7df"
-                    }
-                }
-
-                Item { width: 1; height: 44 }
-
-                // ===== THE SHELF — the novels standing in reading order =====
-                Column {
+                Grid {
                     width: parent.width
-                    spacing: 16
-                    visible: root.uni.books.length > 0
-                    Row {
-                        spacing: 12
-                        Text { text: "The Novels"; color: theme.ink
-                               font.family: theme.display; font.pixelSize: 25 }
-                        Text { text: root.uni.books.length + " books  ·  reading order"
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                               anchors.baseline: parent.children[0].baseline }
-                    }
-                    Item {
-                        width: parent.width; height: 246
-                        // the ledge the books stand on
-                        Rectangle {
-                            anchors.bottom: parent.bottom
-                            width: parent.width; height: 3; radius: 1.5
-                            color: Qt.rgba(0.97, 0.97, 0.96, 0.14)
+                    columns: root.compact ? 1 : 2
+                    columnSpacing: 40; rowSpacing: 28
+                    Column {
+                        width: root.compact ? parent.width : (parent.width - parent.columnSpacing) / 2
+                        AdaptationRow {
+                            id: readingSection
+                            width: parent.width; title: "Books"
+                            items: root.collections.books; numbered: true; books: true
                         }
-                        Row {
-                            id: bookRow
-                            property int currentIndex: root.uni.books.length > 0 ? 0 : -1
-                            focusPolicy: root.uni.books.length > 0 ? Qt.TabFocus : Qt.NoFocus
-                            Keys.onPressed: (event) => bookNav.handle(event)
-                            spacing: 22
-                            anchors.bottom: parent.bottom; anchors.bottomMargin: 6
-                            Repeater {
-                                id: bookRepeater
-                                model: root.uni.books
-                                delegate: Item {
-                                    id: bookTile
-                                    required property var modelData
-                                    required property int index
-                                    width: 150; height: 236
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: 8; clip: true
-                                        color: "#241c14"
-                                        border.width: 1
-                                        border.color: (bookMa.containsMouse || (bookRow.activeFocus && bookRow.currentIndex === bookTile.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
-                                                                           : Qt.rgba(0.97,0.97,0.96,0.14)
-                                        Image {
-                                            anchors.fill: parent
-                                            source: bookTile.modelData.cover || ""
-                                            asynchronous: true; cache: true
-                                            fillMode: Image.PreserveAspectCrop
-                                            opacity: status === Image.Ready ? 1 : 0
-                                            Behavior on opacity { NumberAnimation { duration: 220 } }
-                                        }
-                                        // the number plate — reading order is the shelf's whole claim
-                                        Rectangle {
-                                            anchors.top: parent.top; anchors.left: parent.left
-                                            anchors.margins: 8
-                                            width: 26; height: 26; radius: 6
-                                            color: Qt.rgba(0, 0, 0, 0.62)
-                                            border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.55)
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: bookTile.index + 1
-                                                color: theme.gold; font.family: theme.ui
-                                                font.pixelSize: 13; font.weight: Font.Bold
-                                            }
-                                        }
-                                        Rectangle {   // title scrim
-                                            anchors.left: parent.left; anchors.right: parent.right
-                                            anchors.bottom: parent.bottom
-                                            height: 56
-                                            gradient: Gradient {
-                                                GradientStop { position: 0; color: "transparent" }
-                                                GradientStop { position: 1; color: Qt.rgba(0,0,0,0.86) }
-                                            }
-                                        }
-                                        Text {
-                                            anchors.left: parent.left; anchors.right: parent.right
-                                            anchors.bottom: parent.bottom
-                                            anchors.margins: 9
-                                            text: bookTile.modelData.title
-                                            color: theme.ink; font.family: theme.ui
-                                            font.pixelSize: 12; font.weight: Font.DemiBold
-                                            wrapMode: Text.WordWrap; maximumLineCount: 2
-                                            elide: Text.ElideRight
-                                        }
-                                    }
-                                    MouseArea {
-                                        id: bookMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.bookRequested(bookTile.modelData)
-                                    }
+                        Text {
+                            visible: root.uni.books.length === 0
+                            width: parent.width; height: 80
+                            text: "Books unavailable"
+                            color: theme.inkDim; font.family: root.uiFace; wrapMode: Text.WordWrap
+                        }
+                    }
+                    Column {
+                        width: root.compact ? parent.width : (parent.width - parent.columnSpacing) / 2
+                        AdaptationRow {
+                            id: screenSection
+                            width: parent.width; title: "Adaptations"
+                            items: root.collections.adaptations
+                        }
+                        Text {
+                            visible: root.adaptations.length === 0
+                            width: parent.width; height: 80
+                            text: "Adaptations unavailable"
+                            color: theme.inkDim; font.family: root.uiFace; wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+                Column {
+                    id: branchSection
+                    objectName: "sagaBranches"
+                    width: parent.width; spacing: 30
+                    visible: root.collections.branches.length > 0
+                    topPadding: 32
+                    Rectangle { width: parent.width; height: 1; color: theme.edge }
+                    Text { text: "Beyond the saga"; color: root.paper
+                           font.family: root.displayFace; font.pixelSize: 34 }
+                    Repeater {
+                        model: root.collections.branches
+                        delegate: Column {
+                            id: branch
+                            required property var modelData
+                            width: branchSection.width; spacing: 18
+                            Text { text: branch.modelData.title; color: root.paper
+                                   width: parent.width; wrapMode: Text.WordWrap
+                                   font.family: root.displayFace; font.pixelSize: 25 }
+                            Grid {
+                                width: parent.width
+                                columns: root.compact || !branch.modelData.books.length || !branch.modelData.adaptations.length ? 1 : 2
+                                columnSpacing: 40; rowSpacing: 20
+                                AdaptationRow {
+                                    width: parent.columns === 1 ? parent.width : (parent.width - parent.columnSpacing) / 2
+                                    title: "Books"; headingVisible: false; books: true
+                                    items: branch.modelData.books
                                 }
-                            }
-                            KeyboardCollectionController {
-                                id: bookNav
-                                view: bookRow
-                                count: root.uni.books.length
-                                orientation: "horizontal"
-                                positionIndexFn: function(index) {
-                                    const item = bookRepeater.itemAt(index)
-                                    if (!item) return
-                                    const p = item.mapToItem(page.contentItem, 0, 0)
-                                    const top = p.y
-                                    const bottom = p.y + item.height
-                                    const maxY = Math.max(0, page.contentHeight - page.height)
-                                    if (top < page.contentY) page.contentY = Math.max(0, top)
-                                    else if (bottom > page.contentY + page.height)
-                                        page.contentY = Math.min(maxY, bottom - page.height)
-                                }
-                                onActivated: (index) => {
-                                    if (index >= 0 && index < root.uni.books.length)
-                                        root.bookRequested(root.uni.books[index])
+                                AdaptationRow {
+                                    width: parent.columns === 1 ? parent.width : (parent.width - parent.columnSpacing) / 2
+                                    title: "Adaptations"; headingVisible: false
+                                    items: branch.modelData.adaptations
                                 }
                             }
                         }
                     }
                 }
-
-                Item { width: 1; height: 40; visible: root.uni.books.length > 0 }
-
-                // ===== THE ADAPTATIONS =====
-                AdaptationRow { width: parent.width; title: "The Films";  items: root.uni.films;  numbered: true }
-                AdaptationRow { width: parent.width; title: "TV Shows";   items: root.uni.shows;  numbered: false }
-
+                AdaptationRow {
+                    id: upcomingSection
+                    objectName: "sagaUpcoming"
+                    width: parent.width; title: "Upcoming"
+                    items: root.collections.upcoming
+                }
                 Item { width: 1; height: 34; visible: !!root.uni.comics }
 
                 // ===== THE COMICS DOOR — the canon in print (curated GC pin, 2026-07-13) =====
@@ -342,7 +301,7 @@ Item {
                         asynchronous: true; cache: true
                         fillMode: Image.PreserveAspectCrop
                         opacity: status === Image.Ready ? ((sagaComicsMa.containsMouse || sagaComicsKey.activeFocus) ? 0.5 : 0.28) : 0
-                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                        Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 220 } }
                     }
                     Rectangle {
                         anchors.fill: parent
@@ -355,22 +314,25 @@ Item {
                     Column {
                         anchors.left: parent.left; anchors.leftMargin: 26
                         anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - (root.compact ? 52 : 270)
                         spacing: 7
-                        Text { text: "GETCOMICS ARCHIVE"; color: theme.gold
-                               font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                        Text { text: "COMICS"; color: theme.gold
+                               font.family: root.uiFace; font.pixelSize: 10; font.letterSpacing: 3 }
                         Text {
-                            text: (root.uni.comics && root.uni.comics.line) || "The canon continues in print."
+                            text: "Graphic adaptations"
+                            width: parent.width; elide: Text.ElideRight
                             color: theme.ink; font.family: theme.display; font.pixelSize: 19
                         }
                     }
                     Row {
+                        visible: !root.compact
                         anchors.right: parent.right; anchors.rightMargin: 26
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
                         Text { text: root.comicsBox && root.comicsBox.count
                                      ? "Browse " + root.comicsBox.count + " releases"
                                      : "Browse the archive"
-                               color: theme.ink; font.family: theme.ui
+                               color: theme.ink; font.family: root.uiFace
                                font.pixelSize: 13; font.weight: Font.DemiBold }
                         Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
                     }
@@ -423,76 +385,55 @@ Item {
         }
     }
 
-    // ---- one duality half: art + big verb; whole-half click ----
-    component SagaHalf: Item {
-        id: half
-        property int align: Qt.AlignLeft
-        property string label
-        property string sub
-        property string icon
-        property string artImage
-        property bool warm: true
-        signal activated()
-        clip: true
+    component SagaAction: Rectangle {
+        id: actionButton
+        property string text
+        property bool primary: false
+        signal triggered()
+        width: actionText.implicitWidth + 44; height: 48; radius: height / 2
+        scale: actionKey.pressed ? 0.98 : 1
+        Behavior on scale { NumberAnimation { duration: root.reducedMotion ? 0 : 180 } }
+        opacity: enabled ? 1 : 0.4
+        color: actionKey.pressed ? theme.glassHi : (primary ? root.paper : (actionKey.hovered ? theme.glassTint : "transparent"))
+        border.width: primary ? 0 : 1; border.color: theme.edge
+        Text {
+            id: actionText; anchors.centerIn: parent; text: actionButton.text
+            color: actionButton.primary && !actionKey.pressed ? "#090c13" : root.paper
+            font.family: root.uiFace; font.pixelSize: 13; font.weight: Font.DemiBold
+        }
+        KeyboardAction {
+            id: actionKey; anchors.fill: parent
+            accessibleName: actionButton.text
+            focusRadius: actionButton.radius
+            onTriggered: actionButton.triggered()
+        }
+    }
+
+    // The same soft edge scrim and chevron treatment as TrendingTop10.
+    component SagaChevron: Item {
+        id: chevron
+        property bool atRight: false
+        signal triggered()
+        width: 46; z: 5
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
                 orientation: Gradient.Horizontal
-                GradientStop { position: half.align === Qt.AlignLeft ? 0.0 : 1.0
-                               color: half.warm ? "#7a4a28" : "#28405c" }
-                GradientStop { position: half.align === Qt.AlignLeft ? 1.0 : 0.0
-                               color: half.warm ? "#2e1a0c" : "#0e1826" }
+                GradientStop { position: 0; color: Qt.rgba(0, 0, 0, chevron.atRight ? 0 : 0.65) }
+                GradientStop { position: 1; color: Qt.rgba(0, 0, 0, chevron.atRight ? 0.65 : 0) }
             }
         }
-        Image {
-            anchors.fill: parent
-            source: half.artImage
-            asynchronous: true; cache: true
-            fillMode: Image.PreserveAspectCrop
-            opacity: status === Image.Ready ? ((halfMa.containsMouse || halfKey.activeFocus) ? 0.65 : 0.45) : 0
-            Behavior on opacity { NumberAnimation { duration: 220 } }
-        }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.3; color: "transparent" }
-                GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.66) }
-            }
-        }
-        Column {
-            anchors.left: half.align === Qt.AlignLeft ? parent.left : undefined
-            anchors.right: half.align === Qt.AlignRight ? parent.right : undefined
-            anchors.margins: 40
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 34
-            spacing: 8
-            Text {
-                text: half.label
-                color: theme.ink; font.family: theme.display; font.pixelSize: 54
-                horizontalAlignment: half.align === Qt.AlignLeft ? Text.AlignLeft : Text.AlignRight
-                width: half.width - 80
-            }
-            Text {
-                text: half.sub
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                horizontalAlignment: half.align === Qt.AlignLeft ? Text.AlignLeft : Text.AlignRight
-                width: half.width - 80
-                elide: Text.ElideRight
-            }
+        Text {
+            anchors.centerIn: parent
+            text: chevron.atRight ? "\u203a" : "\u2039"
+            color: edgeAction.hovered ? theme.gold : theme.ink
+            font.family: root.displayFace; font.pixelSize: 42
         }
         KeyboardAction {
-            id: halfKey
-            anchors.fill: parent
-            pointerEnabled: false
-            focusEnabled: half.visible && half.enabled
-            accessibleName: half.label
-            onTriggered: half.activated()
-        }
-        MouseArea {
-            id: halfMa
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: half.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: half.activated()
+            id: edgeAction; anchors.fill: parent
+            focusPolicy: Qt.NoFocus; focusEnabled: false
+            accessibleName: chevron.atRight ? "Show later items" : "Show earlier items"
+            onTriggered: chevron.triggered()
         }
     }
 
@@ -502,26 +443,57 @@ Item {
         property string title
         property var items: []
         property bool numbered: false
+        property bool books: false
+        property bool headingVisible: true
+        // HarborPosterRail geometry: fit whole covers to the available width.
+        readonly property int fitCount: Math.max(1, Math.floor((width + 20) / 164))
+        readonly property real cardWidth: (width - (fitCount - 1) * 20) / fitCount
+        readonly property real posterHeight: cardWidth * 1.5
         spacing: 16
+        bottomPadding: 28
         visible: items && items.length > 0
-        Row {
-            spacing: 12
-            Text { text: arow.title; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 25 }
-            Text { text: (arow.items ? arow.items.length : 0) + (arow.items && arow.items.length === 1 ? " title" : " titles")
-                   color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                   anchors.baseline: parent.children[0].baseline }
+        Column {
+            visible: arow.headingVisible
+            width: parent.width; spacing: 8
+            Text { text: arow.title + " (" + arow.items.length + ")"; color: root.paper
+                   font.family: root.uiFace; font.pixelSize: 20; font.weight: Font.Medium }
+
         }
         Flickable {
             id: adaptationRail
-            width: parent.width; height: 238
+            width: parent.width; height: arow.posterHeight + 104
             contentWidth: rowContent.width; contentHeight: height
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
+            // Match TrendingTop10: edge chevrons page the strip, no scrollbar.
+            function pageBy(direction) {
+                const next = Math.max(0, Math.min(contentWidth - width, contentX + direction * width * 0.8))
+                slide.stop()
+                slide.to = next
+                slide.start()
+            }
+            NumberAnimation {
+                id: slide; target: adaptationRail; property: "contentX"
+                duration: root.reducedMotion ? 0 : 300; easing.type: Easing.OutCubic
+            }
+            SagaChevron {
+                objectName: arow.books ? "sagaBooksPrevious" : "saga" + arow.title + "Previous"
+                x: adaptationRail.contentX
+                height: arow.posterHeight
+                visible: adaptationRail.contentX > 1
+                onTriggered: adaptationRail.pageBy(-1)
+            }
+            SagaChevron {
+                objectName: arow.books ? "sagaBooksNext" : "saga" + arow.title + "Next"
+                x: adaptationRail.contentX + adaptationRail.width - width
+                height: arow.posterHeight; atRight: true
+                visible: adaptationRail.contentX < adaptationRail.contentWidth - adaptationRail.width - 1
+                onTriggered: adaptationRail.pageBy(1)
+            }
             Row {
                 id: rowContent
-                spacing: 18
+                spacing: 20
                 Repeater {
                     id: adaptationRepeater
                     model: arow.items
@@ -529,21 +501,30 @@ Item {
                         id: wTile
                         required property var modelData
                         required property int index
-                        width: 150; height: 232
+                        width: arow.cardWidth; height: arow.posterHeight + 80
                         Rectangle {
-                            anchors.fill: parent
-                            radius: 8; clip: true
-                            color: "#1a2030"
+                            width: parent.width; height: arow.posterHeight
+                            radius: 3; clip: true
+                            color: root.worldColor
                             border.width: 1
                             border.color: (wMa.containsMouse || (adaptationRailFocus.activeFocus && adaptationRailFocus.currentIndex === wTile.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                             : Qt.rgba(0.97,0.97,0.96,0.12)
+                            Text {
+                                anchors.centerIn: parent; width: parent.width - 24
+                                text: wTile.modelData.title
+                                color: theme.inkDim; font.family: root.displayFace
+                                font.pixelSize: 18; wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
+                                visible: coverArt.status !== Image.Ready
+                            }
                             Image {
+                                id: coverArt
                                 anchors.fill: parent
                                 source: wTile.modelData.cover || ""
                                 asynchronous: true; cache: true
-                                fillMode: Image.PreserveAspectCrop
+                                fillMode: Image.PreserveAspectFit
                                 opacity: status === Image.Ready ? 1 : 0
-                                Behavior on opacity { NumberAnimation { duration: 220 } }
+                                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 220 } }
                             }
                             Rectangle {
                                 visible: arow.numbered
@@ -555,7 +536,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: wTile.index + 1
-                                    color: theme.gold; font.family: theme.ui
+                                    color: theme.gold; font.family: root.uiFace
                                     font.pixelSize: 13; font.weight: Font.Bold
                                 }
                             }
@@ -569,47 +550,45 @@ Item {
                                 width: sagaUpTag.implicitWidth + 12; height: sagaUpTag.implicitHeight + 6
                                 Text { id: sagaUpTag; anchors.centerIn: parent
                                        text: "UPCOMING"; color: theme.gold
-                                       font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
+                                       font.family: root.uiFace; font.pixelSize: 9; font.letterSpacing: 2 }
                             }
-                            Rectangle {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 52
-                                gradient: Gradient {
-                                    GradientStop { position: 0; color: "transparent" }
-                                    GradientStop { position: 1; color: Qt.rgba(0,0,0,0.86) }
-                                }
-                            }
-                            Text {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                anchors.margins: 9
-                                text: wTile.modelData.title
-                                color: theme.ink; font.family: theme.ui
-                                font.pixelSize: 12; font.weight: Font.DemiBold
-                                wrapMode: Text.WordWrap; maximumLineCount: 2
-                                elide: Text.ElideRight
-                            }
+                        }
+                        Text {
+                            x: 0; y: arow.posterHeight + 12; width: parent.width
+                            text: wTile.modelData.title
+                            color: root.paper; font.family: root.uiFace; font.pixelSize: 13
+                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                        }
+                        Text {
+                            visible: !arow.books || wTile.modelData.resolved === false
+                            y: arow.posterHeight + 56; width: parent.width
+                            text: wTile.modelData.resolved === false ? "Details pending"
+                                  : (wTile.modelData.medium === "book" ? "Book"
+                                     : (wTile.modelData.type === "series" ? "Series" : "Film"))
+                            color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
                         }
                         MouseArea {
                             id: wMa
                             anchors.fill: parent
+                            enabled: wTile.modelData.resolved !== false
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: root.watchRequested(wTile.modelData)
+                            onClicked: root.openWork(wTile.modelData, arow.books)
                         }
                     }
                 }
             }
             UniverseRailFocus {
                 id: adaptationRailFocus
+                objectName: arow.books ? "sagaBooksFocus" : "saga" + arow.title + "Focus"
                 flick: adaptationRail
                 repeater: adaptationRepeater
                 count: arow.items ? arow.items.length : 0
-                itemGap: 18
+                itemGap: 20
                 accessibleName: arow.title
+                onActiveFocusChanged: if (activeFocus) root.revealSection(arow)
                 onActivated: (index) => {
                     if (index >= 0 && index < arow.items.length)
-                        root.watchRequested(arow.items[index])
+                        root.openWork(arow.items[index], arow.books)
                 }
             }
         }

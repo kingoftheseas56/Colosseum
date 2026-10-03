@@ -32,6 +32,7 @@ QVariantMap PorticoContentStore::toPorticoTitle(const QVariantMap &item)
     out.insert(QStringLiteral("externalIds"), item.value(QStringLiteral("externalIds")).toMap());
     out.insert(QStringLiteral("rank"), item.value(QStringLiteral("rank")).toInt());
     out.insert(QStringLiteral("_trend"), item);
+    out.insert(QStringLiteral("catalogProviders"), extra.value(QStringLiteral("catalogProviders")).toStringList());
     return out;
 }
 void PorticoContentStore::ingestShelf(const QString &, const QVariantMap &shelf)
@@ -52,6 +53,18 @@ void PorticoContentStore::ingestShelf(const QString &, const QVariantMap &shelf)
             if (title.value(QStringLiteral("s")).toString().isEmpty())
                 title.insert(QStringLiteral("s"), existing->value(QStringLiteral("s")));
         }
+        QStringList providers = title.value(QStringLiteral("catalogProviders")).toStringList();
+        if (existing != m_titles.cend()) providers.append(existing->value(QStringLiteral("catalogProviders")).toStringList());
+        const QString provider = item.value(QStringLiteral("sourceId")) == QStringLiteral("stremio")
+            ? shelf.value(QStringLiteral("providerId")).toString() : QString();
+        if (!provider.isEmpty()) providers.append(provider);
+        providers.removeDuplicates();
+        title.insert(QStringLiteral("catalogProviders"), providers);
+        auto trend = title.value(QStringLiteral("_trend")).toMap();
+        auto extra = trend.value(QStringLiteral("extra")).toMap();
+        extra.insert(QStringLiteral("catalogProviders"), providers);
+        trend.insert(QStringLiteral("extra"), extra);
+        title.insert(QStringLiteral("_trend"), trend);
         if (existing == m_titles.cend() || existing.value() != title) {
             m_titles.insert(key, title);
             changed = true;
@@ -139,6 +152,7 @@ QString PorticoContentStore::providerLabel(const QString &providerId) const
         {QStringLiteral("anilist"), QStringLiteral("AniList")},
         {QStringLiteral("globalcomix"), QStringLiteral("GlobalComix")},
         {QStringLiteral("stremio"), QStringLiteral("Stremio")},
+        {QStringLiteral("justwatch"), QStringLiteral("JustWatch")},
         {QStringLiteral("applemusic"), QStringLiteral("Apple Music")},
         {QStringLiteral("youtube"), QStringLiteral("YouTube")},
         {QStringLiteral("ytmusic"), QStringLiteral("YouTube Music")},

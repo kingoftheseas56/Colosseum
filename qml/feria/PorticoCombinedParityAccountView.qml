@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import ".." as Colosseum
 
 Item {
     id: root
@@ -66,12 +67,16 @@ Item {
                 color: Qt.rgba(0,0,0,0.42)
                 border.width: 1
                 border.color: Qt.rgba(1,1,1,0.16)
-                Text {
+                Colosseum.BackAction {
                     anchors.centerIn: parent
-                    text: "‹   Feria"
-                    color: controller.mist
-                    font.family: controller.uiFont
-                    font.pixelSize: 0.9 * u
+                    label: "Feria"
+                    idleColor: controller.mist
+                    hoverColor: controller.ink
+                    labelSize: 14
+                    onTriggered: {
+                        controller.setAccountShellFocus(0)
+                        controller.back()
+                    }
                 }
                 Rectangle {
                     objectName: "account-back-focus"
@@ -83,15 +88,6 @@ Item {
                     border.color: controller.gold
                     visible: !root.contentFocused && controller.accountShellFocusIndex === 0
                 }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onEntered: controller.setAccountShellFocus(0)
-                    onClicked: {
-                        controller.setAccountShellFocus(0)
-                        controller.back()
-                    }
-                }
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -101,6 +97,12 @@ Item {
                 font.pixelSize: 30
                 font.weight: Font.Medium
             }
+        }
+
+        FeriaWindowControls {
+            controller: root.controller
+            namePrefix: "feriaAccount"
+            anchors { right: parent.right; rightMargin: m; top: parent.top; topMargin: 26 }
         }
 
         Rectangle {

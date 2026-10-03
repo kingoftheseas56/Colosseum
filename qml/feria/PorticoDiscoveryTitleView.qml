@@ -12,19 +12,23 @@ Item {
     property var it: controller.titleObj(controller.selectedTitle)
     property var doors: controller.offers(it)
     property var related: controller.relatedTitles(it)
+    readonly property var availability: typeof controller.availabilityFor === "function"
+        ? controller.availabilityFor(it) : ({status:"unsupported"})
     // A direct URL identifies a title page; only an offer source may confirm availability.
     readonly property var offerGroups: buildOfferGroups()
 
     function groupFor(door) {
         if (door.appOnly || door.reason === "app-only") return "app"
         if (door.availabilityConfirmed === true) return "available"
+        if (door.catalogListed === true) return "catalog"
         if (door.fallback || door.level === "s" || door.reason === "search" ||
                 (door.exact === false && door.level !== "t")) return "search"
         return "direct"
     }
     function buildOfferGroups() {
         var labels = {
-            available:{ title:"Available from", note:"Offers listed for this title and region." },
+            available:{ title:"", note:"" },
+            catalog:{ title:"Listed in provider catalogs", note:"Catalog listings may differ from availability in your country." },
             direct:{ title:"Direct title links", note:"A title link does not confirm playback or plan access." },
             search:{ title:"Search other services", note:"Search links do not confirm that the title is available there." },
             app:{ title:"App only", note:"These services need their own app." }
@@ -41,14 +45,35 @@ Item {
     }
     function providerKey(door) { return door.pk || door.providerId || "" }
     function providerLabel(door) { return door.label || controller.providerName(providerKey(door)) }
+    function offerAction(door) {
+        var service = providerLabel(door)
+        if (door.availabilityConfirmed === true) {
+            if (door.offerType === "Rent") return "Rent on " + service
+            if (door.offerType === "Buy") return "Buy on " + service
+            return "Watch on " + service
+        }
+        if (groupFor(door) === "search") return "Search " + service
+        return "Open " + service
+    }
     function offerDetail(door) {
         if (door.appOnly || door.reason === "app-only") return "Open in the service app"
         if (door.availabilityConfirmed === true) {
             var type = door.offerType || door.monetizationType || "Listed offer"
             return door.priceLabel ? type + " · " + door.priceLabel : type
         }
+        if (door.catalogListed === true) return "Listed by Streaming Catalogs"
         if (groupFor(door) === "search") return "Availability unconfirmed"
         return "Title page link"
+    }
+    function availabilityNote() {
+        var country = controller.region || availability.region || "your country"
+        if (availability.status === "loading" || availability.status === "idle") return "Checking availability in " + country + "…"
+        if (availability.status === "error") return "Availability could not be checked. Retry below."
+        if (availability.status === "unmatched") return "No matching title was found on JustWatch."
+        if (availability.status === "ready") return availability.offers.length
+            ? "Availability for " + country
+            : "No streaming offers are listed for this title in " + country + "."
+        return ""
     }
 
     Rectangle {
@@ -167,6 +192,21 @@ Item {
                     wrapMode:Text.WordWrap
                 }
                 Text { topPadding:1.2*u; text:"Where to " + (root.it?Data.VERB[root.it.k]:"watch"); color:controller.ink; font.family:controller.displayFont; font.pixelSize:22; font.weight:Font.Medium }
+                Text {
+                    objectName:"feriaAvailabilityStatus"
+                    visible:root.availability.status !== "unsupported"
+                    width:parent.width; text:root.availabilityNote(); wrapMode:Text.WordWrap
+                    color:controller.mist; font.family:controller.uiFont; font.pixelSize:14
+                }
+                Row {
+                    visible:root.availability.status === "error" || root.availability.status === "unmatched"
+                    spacing:controller.unit
+                    Text {
+                        visible:root.availability.status === "error" || root.availability.status === "unmatched"
+                        text:"Retry"; color:controller.gold; font.family:controller.uiFont; font.pixelSize:13; font.underline:true
+                        MouseArea { anchors.fill:parent; cursorShape:Qt.PointingHandCursor; onClicked:controller.requestAvailability(root.it,true) }
+                    }
+                }
                 Text { visible:root.offerGroups.length===0; text:"No provider options are listed for this title yet."; color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u }
                 Column {
                     id: offerSections
@@ -180,6 +220,7 @@ Item {
                             width:offerSections.width
                             spacing:0.55*u
                             Text {
+                                visible:offerSection.modelData.title.length > 0
                                 text:offerSection.modelData.title
                                 color:controller.ink
                                 font.family:controller.uiFont
@@ -187,6 +228,7 @@ Item {
                                 font.weight:Font.DemiBold
                             }
                             Text {
+                                visible:offerSection.modelData.note.length > 0
                                 width:parent.width
                                 text:offerSection.modelData.note
                                 color:controller.slate
@@ -206,6 +248,14 @@ Item {
                                         readonly property var door: modelData.door
                                         readonly property int sourceIndex: modelData.sourceIndex
                                         readonly property string pk: root.providerKey(door)
+                                        objectName:"feriaTitleOffer_" + sourceIndex
+                                        Accessible.role:Accessible.Button
+                                        Accessible.name:root.offerAction(door)
+                                        Accessible.description:root.offerDetail(door)
+                                        Accessible.onPressAction: {
+                                            controller.titleActionIndex=sourceIndex
+                                            controller.activateTitleAction()
+                                        }
                                         width:(doorGrid.width - (doorGrid.columns - 1) * doorGrid.spacing) / doorGrid.columns
                                         height:5*u
                                         radius:1*u
@@ -229,11 +279,11 @@ Item {
                                                 Layout.preferredWidth:3.2*u; Layout.preferredHeight:3.2*u
                                                 radius:0.85*u; color:Qt.rgba(1,1,1,0.05)
                                                 border.width:1; border.color:Qt.rgba(1,1,1,0.10)
-                                                PorticoCombinedGlyph { anchors.centerIn:parent; width:1.7*u; height:1.7*u; glyphKey:pk; tone:controller.ink }
+                                                PorticoCombinedGlyph { anchors.centerIn:parent; width:1.7*u; height:1.7*u; glyphKey:Data.P[pk] ? pk : "portico"; tone:controller.ink }
                                             }
                                             ColumnLayout {
                                                 Layout.fillWidth:true; spacing:0.2*u
-                                                Text { text:root.providerLabel(door); color:controller.ink; font.family:controller.uiFont; font.pixelSize:1.08*u; font.weight:Font.DemiBold; elide:Text.ElideRight; Layout.fillWidth:true }
+                                                Text { text:root.offerAction(door); color:controller.ink; font.family:controller.uiFont; font.pixelSize:1.08*u; font.weight:Font.DemiBold; elide:Text.ElideRight; Layout.fillWidth:true }
                                                 Text { text:root.offerDetail(door); color:controller.slate; font.family:controller.uiFont; font.pixelSize:0.84*u; elide:Text.ElideRight; Layout.fillWidth:true }
                                             }
                                             Text { text:controller.activeApps.indexOf(pk)>=0?"In your apps":""; color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.78*u }
@@ -251,6 +301,18 @@ Item {
                                 }
                             }
                         }
+                    }
+                }
+                Text {
+                    objectName:"feriaAvailabilityAttribution"
+                    visible:root.availability.status === "ready"
+                    text:"Availability data from JustWatch"
+                    color:controller.slate; font.family:controller.uiFont; font.pixelSize:12
+                    topPadding:0.4*u
+                    Colosseum.KeyboardAction {
+                        anchors.fill:parent
+                        accessibleName:"View the availability source on JustWatch"
+                        onTriggered:controller.openHost("justwatch",controller.selectedTitle,"title",root.availability.attributionUrl)
                     }
                 }
                 Row {

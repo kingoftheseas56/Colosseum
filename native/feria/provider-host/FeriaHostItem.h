@@ -29,6 +29,7 @@ public:
     void setSuppressed(bool suppressed);
     bool ready() const;
     Q_INVOKABLE void focusWebView();
+    Q_INVOKABLE void focusAppControls();
     Q_INVOKABLE void returnToQml();
     Q_INVOKABLE void resumeWebView();
     Q_INVOKABLE void navigate(const QUrl &url);
@@ -48,6 +49,8 @@ signals:
     void suppressedChanged();
     void readyChanged();
     void returnedToQml();
+    void appMenuRequested();
+    void fullScreenChanged(bool active);
     void qmlFocusRestored(bool activeFocus);
     void navigationBlocked(const QString &uri);
     void navigationCompleted(const QString &uri, bool success);

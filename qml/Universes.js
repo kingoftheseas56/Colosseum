@@ -333,6 +333,8 @@ var universes = [
           ] }
       ] },
     { name: "Harry Potter", c1: "#221c30", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/harry-potter.jpg",
+      sagaBranches: [{ title: "Hogwarts Library", books: [7, 8, 9] }, { title: "Fantastic Beasts", films: [8, 9, 10] }, { title: "Harry Potter on television", shows: [0] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Wizarding World — Rowling's seven novels, the eight films, and the Fantastic Beasts era beyond.",
       banner: "https://live.metahub.space/background/medium/tt1201607/img",
@@ -355,10 +357,13 @@ var universes = [
                 "Fantastic Beasts: The Secrets of Dumbledore" ],
       // the HBO show is id-pinned (Cinemeta names it bare "Harry Potter" — search also
       // returns Wizards of Baking / Tournament of Houses); premieres 2026-12-25 → UPCOMING tag
-      shows:  [ { t: "Harry Potter", id: "tt13918446" } ],
+      // Official premiere window: harrypotter.com/news/watch-the-first-teaser-for-hbo-original-harry-potter-series-premiering-christmas-2026
+      shows:  [ { t: "Harry Potter", id: "tt13918446", releaseDate: "2026-12-25" } ],
       movieQueries: [ "Harry Potter", "Fantastic Beasts" ],
       chips: [ { t: "10 Books", ic: "books" }, { t: "11 Films", ic: "movies" }, { t: "1 Show", ic: "movies" } ] },
     { name: "Lord of the Rings", c1: "#1c2414", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/lord-of-the-rings.jpg",
+      sagaBranches: [{ title: "More of Middle-earth", books: [4], films: [6, 7, 8], shows: [0] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Tolkien's Middle-earth — the novels, Jackson's films, and the age of Rings of Power.",
       banner: "https://live.metahub.space/background/medium/tt0167260/img",
@@ -378,6 +383,8 @@ var universes = [
       readQueries: [ "The Hobbit Tolkien" ],
       chips: [ { t: "5 Novels", ic: "books" }, { t: "9 Films", ic: "movies" }, { t: "1 Show", ic: "movies" } ] },
     { name: "A Song of Ice and Fire", c1: "#1f2429", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/ice-and-fire.jpg",
+      sagaBranches: [{ title: "Histories of Westeros", books: [5, 6, 7, 8], shows: [1, 2] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Martin's Westeros — the saga still being written, and the shows that carved it into legend.",
       banner: "https://live.metahub.space/background/medium/tt0944947/img",
@@ -616,6 +623,8 @@ var universes = [
                        "tales of the underworld", "young jedi adventures" ],
       chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
     { name: "Dune", c1: "#3a2a18", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/dune.jpg",
+      sagaBranches: [{ title: "Dune on television", shows: [0, 1, 2] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Frank Herbert's world, end to end — the novels, the films, the graphic novel.",
       banner: "https://live.metahub.space/background/medium/tt15239678/img",
@@ -638,6 +647,8 @@ var universes = [
     // ===== the 2026-07-12 second expansion (10 more, researched via parallel agents:
     // every Cinemeta name query-verified, every banner HEAD-checked 200 on pinned hosts) =====
     { name: "The Witcher", c1: "#26221c", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/the-witcher.jpg",
+      sagaBranches: [{ title: "Stories of the Continent", books: [7, 8], films: [0, 1, 2], shows: [1] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Geralt's path through a Continent of monsters — the saga, the Netflix shows, and the animated film, in one place.",
       banner: "https://live.metahub.space/background/medium/tt5180504/img",
@@ -659,6 +670,8 @@ var universes = [
                 line: "Geralt in panels — the Dark Horse hunts." },
       chips: [ { t: "9 Novels", ic: "books" }, { t: "2 Shows", ic: "movies" }, { t: "3 Films", ic: "movies" } ] },
     { name: "Sherlock Holmes", c1: "#1f242c", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/sherlock-holmes.jpg",
+      sagaBranches: [{ title: "Other interpretations", shows: [1] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Baker Street canon — Doyle's nine books and the defining screen deductions, in one place.",
       banner: "https://live.metahub.space/background/medium/tt1475582/img",
@@ -672,6 +685,8 @@ var universes = [
       seriesQueries: [ "sherlock", "elementary" ],
       chips: [ { t: "9 Books", ic: "books" }, { t: "2 Films", ic: "movies" }, { t: "3 Shows", ic: "movies" } ] },
     { name: "Jurassic Park", c1: "#1c2a20", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/jurassic-park.jpg",
+      sagaBranches: [{ title: "Jurassic World", films: [3, 4, 5, 6], shows: [0, 1] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Crichton's islands of resurrected giants — the novels, all seven films, and the animated escapes, in one place.",
       banner: "https://live.metahub.space/background/medium/tt0107290/img",
@@ -684,6 +699,8 @@ var universes = [
       seriesQueries: [ "jurassic" ],
       chips: [ { t: "2 Novels", ic: "books" }, { t: "7 Films", ic: "movies" }, { t: "2 Shows", ic: "movies" } ] },
     { name: "Percy Jackson", c1: "#1a2430", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/percy-jackson.jpg",
+      sagaBranches: [{ title: "Senior Year", books: [5, 6] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "A demigod's quests from Camp Half-Blood to Olympus — the five books, the films, and the series, in one place.",
       banner: "https://live.metahub.space/background/medium/tt12324366/img",
