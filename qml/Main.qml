@@ -1941,7 +1941,8 @@ Window {
     // A "More universes" card names a sibling; its template comes from the curated list.
     function openUniverseByName(name) {
         var cfg = UniverseCanon.configFor(name)
-        if (cfg && cfg.category) win.openArchivedUniverse(cfg.name, cfg.category)
+        // same rule as the Universes world's roster: a curated sagaGrid opens the story grid
+        if (cfg && cfg.category) win.openArchivedUniverse(cfg.name, cfg.sagaGrid ? "saga" : cfg.category)
     }
     function closeUniverse() {
         win.closeOnePieceArc()

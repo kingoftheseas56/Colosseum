@@ -105,8 +105,32 @@ QtObject {
              "OP's other seven manga are the Spin-offs MANGA shelf, got "
              + spin.shelves[0].items.length + " (" + spin.shelves[0].label + ")")
 
+        // Naruto (pinned 2026-10-04): 4 stories over 4 columns; the original manga centres
+        // over Naruto and Shippuden; Two Blue Vortex has a manga and no anime; the Scarlet
+        // Spring gaiden is the one spin-off; one block per film group.
+        var na = grid("Naruto")
+        need(na.stories.length === 4 && na.cols === 4, "Naruto must be 4 stories over 4 columns, got "
+             + na.stories.length + "/" + na.cols)
+        need(labels(na) === "MANGA,ANIME", "Naruto rows: " + labels(na))
+        need(na.rows[0].cells.length === 3 && na.rows[0].cells[0].span === 2 && na.rows[0].cells[0].form === "center",
+             "the Naruto manga must centre over Naruto and Shippuden")
+        need(na.rows[1].cells.length === 3, "Naruto has three anime, got " + na.rows[1].cells.length)
+        need(na.blocks.map(function(b) { return b.title }).join("|")
+             === "Spin-offs|The Naruto Films|The Shippuden Films|The Boruto Film",
+             "Naruto blocks: " + na.blocks.map(function(b) { return b.title }).join("|"))
+
+        // Attack on Titan (pinned 2026-10-04): one story, one column, the manga over the one
+        // anime series; two spin-off manga; the live-action films stand apart.
+        var at = grid("Attack on Titan")
+        need(at.stories.length === 1 && at.cols === 1, "AoT must be 1 story over 1 column, got "
+             + at.stories.length + "/" + at.cols)
+        need(labels(at) === "MANGA,ANIME", "AoT rows: " + labels(at))
+        need(at.blocks.map(function(b) { return b.title }).join("|")
+             === "Spin-offs|The Compilation Films|The Live-Action Films",
+             "AoT blocks: " + at.blocks.map(function(b) { return b.title }).join("|"))
+
         // the anime universes' cells sit inside their grids too
-        ;["Dragon Ball", "One Piece"].forEach(function(name) {
+        ;["Dragon Ball", "One Piece", "Naruto", "Attack on Titan"].forEach(function(name) {
             var g = grid(name)
             g.rows.forEach(function(r) { r.cells.forEach(function(c) {
                 need(c.item && c.col >= 0 && c.col + c.span <= g.cols, name + " has a cell outside the grid")

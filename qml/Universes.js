@@ -442,14 +442,56 @@ var universes = [
     //    Begins" excluded — canon only. The SEVEN anime map to the seven Dragon Balls.
     { name: "Naruto", c1: "#2a3212", category: "anime",
       archived: true,   // benched 2026-07-18 — returns when custom-made
-      blurb: "The Hidden Leaf's loudest ninja — Kishimoto's manga, the anime and Shippuden, and Boruto's generation.",
+      // PINNED 2026-10-04 (Arc 58-D, Preflight; every id re-verified live by Agent 0 against
+      // Cinemeta and AniList the same day). Whole works only. Traps resolved by id: the manga
+      // is AL 30011 (the 1999 serialization, NOT the same-name 1997 one-shot AL 36444); Boruto
+      // is AL 87178 (MANGA, NOT the same-title novel AL 121093); the anime is tt0409591 (2002,
+      // NOT the Rock Lee spin-off tt2301807). `mal` is AniList's own idMal for each manga.
+      // Wikipedia REST summary, fetched 2026-10-04 verbatim.
+      blurb: "Naruto is a Japanese manga series written and illustrated by Masashi Kishimoto. It tells the story of Naruto Uzumaki, a young, socially isolated ninja who seeks recognition from his peers and dreams of becoming the Hokage, the leader of his village. The story is told in two parts: the first is set in Naruto's pre-teen years, and the second in his teens. The series is based on two one-shot manga by Kishimoto: Karakuri (1995), which earned Kishimoto an honorable mention in Shueisha's monthly Hop Step Award the following year, and Naruto (1997).",
+      blurbSource: "Wikipedia — Naruto",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30011-pkX1O0EFqvV7.jpg",
-      // expansion 2026-07-13 (AniList-verified): Boruto NNG (AL 87178, finished) + Two Blue
-      // Vortex (AL 168468, the live continuation) + the Scarlet Spring gaiden (AL 86171)
-      readQueries: [ "Naruto", "Boruto", "Boruto: Two Blue Vortex",
-                     "Naruto: The Seventh Hokage and the Scarlet Spring" ],
-      seriesQueries: [ "naruto", "boruto" ],
-      chips: [ { t: "5 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "11 Films", ic: "movies" } ] },
+      saga: [
+        { t: "Naruto",                          id: "tt0409591", year: "2002" },
+        { t: "Naruto: Shippuden",               id: "tt0988824", year: "2007" },
+        { t: "Boruto: Naruto Next Generations", id: "tt6342474", year: "2017" }
+      ],
+      filmEras: [
+        { era: "The Naruto Films", films: [
+            { t: "Naruto the Movie: Ninja Clash in the Land of Snow",          id: "tt0476680", year: "2004" },
+            { t: "Naruto the Movie 2: Legend of the Stone of Gelel",           id: "tt0791188", year: "2005" },
+            { t: "Naruto the Movie 3: Guardians of the Crescent Moon Kingdom", id: "tt1071815", year: "2006" }
+        ] },
+        { era: "The Shippuden Films", films: [
+            { t: "Naruto Shippûden: The Movie",                                   id: "tt0988982", year: "2007" },
+            { t: "Naruto Shippuden: The Movie - Bonds",                           id: "tt1160524", year: "2008" },
+            { t: "Naruto Shippûden: The Movie 3: Inheritors of the Will of Fire", id: "tt1481363", year: "2009" },
+            { t: "Naruto Shippûden: The Lost Tower",                              id: "tt1703048", year: "2010" },
+            { t: "Naruto Shippuden the Movie: Blood Prison",                      id: "tt1999167", year: "2011" },
+            { t: "Road to Ninja - Naruto the Movie",                              id: "tt2290828", year: "2012" },
+            { t: "The Last: Naruto the Movie",                                    id: "tt3717532", year: "2014" }
+        ] },
+        { era: "The Boruto Film", films: [
+            { t: "Boruto: Naruto the Movie", id: "tt4618398", year: "2015" }
+        ] }
+      ],
+      manga: [
+        { t: "Naruto",                          q: "Naruto",                          al: 30011,  mal: 11,     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30011-9yUF1dXWgDOx.jpg" },
+        { t: "Boruto: Naruto Next Generations", q: "Boruto: Naruto Next Generations", al: 87178,  mal: 95210,  cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx87178-CPMk8QdPo7c8.png" },
+        { t: "Boruto: Two Blue Vortex",         q: "Boruto: Two Blue Vortex",         al: 168468, mal: 160786, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx168468-FEo5x1ZZyWj4.png" },
+        { t: "The Seventh Hokage and the Scarlet Spring", q: "Naruto: The Seventh Hokage and the Scarlet Spring", al: 86171, mal: 87866, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86171-MqLAklSEVTI7.jpg" }
+      ],
+      firstWatch: { t: "Naruto", id: "tt0409591" },
+      // THE STORY GRID (whole works only): the original manga spans Naruto and Shippuden;
+      // Boruto's manga rides Boruto's column; Two Blue Vortex has no anime yet; the Scarlet
+      // Spring gaiden falls to Spin-offs.
+      sagaGrid: { labels: { shows: "ANIME" },
+                  stories: [ { short: "Naruto",                  shows: [0] },
+                             { short: "Naruto Shippuden",        shows: [1] },
+                             { short: "Boruto",                  book: 1, shows: [2] },
+                             { short: "Boruto: Two Blue Vortex", book: 2 } ],
+                  spans: [ { books: 0, from: 1, to: 2 } ] },
+      chips: [ { t: "4 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "11 Films", ic: "movies" } ] },
     // ERAS template — THE TIMELINE: the Timmverse in in-universe chronology. Ids pinned
     // where research flagged impostors (Batman Beyond's 2015 web series; Batwoman ranks 8th).
     { name: "DC Animated Universe", c1: "#101622", category: "eras",
@@ -875,16 +917,40 @@ var universes = [
       chips: [ { t: "3 Shows", ic: "movies" }, { t: "2 Films", ic: "movies" }, { t: "6 Novels", ic: "books" }, { t: "Comics", ic: "comics" } ] },
     { name: "Attack on Titan", c1: "#2a2018", category: "anime",
       archived: true,   // benched 2026-07-18 — returns when custom-made
-      blurb: "Humanity's last walls and the titans beyond them — Isayama's manga, the landmark anime, and the compilation films.",
+      // PINNED 2026-10-04 (Arc 58-D, Preflight; every id re-verified live by Agent 0 against
+      // Cinemeta and AniList the same day). Whole works only: the anime is ONE series
+      // (tt2560140, 2013–2023), not seasons or Final Chapters entries. Traps resolved by id:
+      // Before the Fall is AL 85312 (MANGA, NOT the same-title novel AL 73999); No Regrets is
+      // AL 85199 (NOT its one-shot prologue AL 85476). The two 2015 live-action films diverge
+      // from the source, so they stand in their own group. `mal` is AniList's own idMal.
+      // Wikipedia REST summary, fetched 2026-10-04.
+      blurb: "Attack on Titan is a Japanese manga series written and illustrated by Hajime Isayama. Set in a world where humanity is forced to live in cities surrounded by three enormous walls that protect them from gigantic man-eating humanoids referred to as Titans, the story follows Eren Yeager, an adolescent boy who vows to exterminate the Titans after they bring about the destruction of his hometown and the death of his mother. It was serialized in Kodansha's monthly magazine Bessatsu Shonen Magazine from September 2009 to April 2021, with its chapters collected in 34 tankobon volumes.",
+      blurbSource: "Wikipedia — Attack on Titan",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/53390-6Uru5rrjh8zv.jpg",
-      // expansion 2026-07-13 (AniList/Kitsu-verified): No Regrets (AL 85199) + Before the
-      // Fall (AL 85312 — the same-title NOVEL outranks the manga on bare search) + the
-      // Final Chapters specials (Kitsu 46038/47132, invisible on the bare query)
-      readQueries: [ "Attack on Titan", "Attack on Titan: No Regrets",
-                     "Attack on Titan: Before the Fall" ],
-      seriesQueries: [ "attack on titan", "attack on titan final chapters" ],
-      movieQueries: [ "attack on titan" ],
-      chips: [ { t: "3 Manga", ic: "manga" }, { t: "1 Anime", ic: "movies" }, { t: "Films", ic: "movies" } ] }
+      saga: [ { t: "Attack on Titan", id: "tt2560140", year: "2013" } ],
+      filmEras: [
+        { era: "The Compilation Films", films: [
+            { t: "Attack on Titan: Crimson Bow and Arrow",     id: "tt3646944",  year: "2014" },
+            { t: "Attack on Titan: The Wings of Freedom",      id: "tt3646946",  year: "2015" },
+            { t: "Attack on Titan: The Roar of Awakening",     id: "tt7941892",  year: "2018" },
+            { t: "Attack on Titan: Chronicle",                 id: "tt12415546", year: "2020" },
+            { t: "Attack on Titan the Movie: The Last Attack", id: "tt33175825", year: "2024" }
+        ] },
+        { era: "The Live-Action Films", films: [
+            { t: "Attack on Titan Part 1",  id: "tt2072230", year: "2015" },
+            { t: "Attack on Titan: Part 2", id: "tt4294052", year: "2015" }
+        ] }
+      ],
+      manga: [
+        { t: "Attack on Titan",  q: "Attack on Titan",                  al: 53390, mal: 23390, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53390-1RsuABC34P9D.jpg" },
+        { t: "No Regrets",       q: "Attack on Titan: No Regrets",      al: 85199, mal: 58007, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx85199-IzuYa59zXTBN.jpg" },
+        { t: "Before the Fall",  q: "Attack on Titan: Before the Fall", al: 85312, mal: 57795, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx85312-q88Zhgf7W9fh.jpg" }
+      ],
+      firstWatch: { t: "Attack on Titan", id: "tt2560140" },
+      // THE STORY GRID (whole works only): one story, the manga over the one anime series.
+      sagaGrid: { labels: { shows: "ANIME" },
+                  stories: [ { short: "Attack on Titan", book: 0, shows: [0] } ] },
+      chips: [ { t: "3 Manga", ic: "manga" }, { t: "1 Anime", ic: "movies" }, { t: "7 Films", ic: "movies" } ] }
 ];
 
 // Hemanth 2026-07-13: the Cognitive Atlas belongs at the front. Preserve One Piece as

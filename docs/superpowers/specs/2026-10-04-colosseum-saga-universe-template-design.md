@@ -145,7 +145,14 @@ Known gaps:
 - The manga detail panel has no facts or synopsis (none curated).
 - "The saga", "Beyond the saga" and the "1 story" pill are saga wording on an anime page.
 - Long film groups wrap to many lines (Dragon Ball's Z films); no "see all".
-- Naruto and Attack on Titan still open the July anime page until their works are pinned.
+- An anime universe with no `wallpaper` uses the low, wide AniList banner as its backdrop
+  (Naruto, Attack on Titan); it is soft at full height.
+
+Naruto and Attack on Titan joined the same day (Arc 58-D): Preflight pinned every work, Agent 0
+re-verified all 29 identities live against Cinemeta and AniList and merged them. Their manga carry
+`al` and `mal` ids, which is what manga progress matching and open-by-id need; One Piece and Dragon
+Ball manga still lack them. `openUniverseByName` follows the roster's rule (a `sagaGrid` opens
+"saga"), so nothing routes to the July anime page any more.
 
 ## Deferred
 
