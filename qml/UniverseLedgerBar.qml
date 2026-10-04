@@ -84,7 +84,7 @@ Item {
                 spacing: 8
                 opacity: bar.open ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 250 } }
-                Text { text: "Enter the universe"; color: theme.ink
+                Text { text: "Enter the tribute"; color: theme.ink
                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
                 Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
             }
@@ -103,7 +103,7 @@ Item {
             // blurb and the media ledger below it are GONE with the baked list, because
             // the roster supplies neither and faking either would put words in a
             // universe's mouth.
-            Text { text: "UNIVERSE  ·  " + ((bar.numeral + 1 < 10 ? "0" : "") + (bar.numeral + 1))
+            Text { text: "TRIBUTE  ·  " + ((bar.numeral + 1 < 10 ? "0" : "") + (bar.numeral + 1))
                    color: theme.gold; font.family: theme.ui
                    font.pixelSize: 10; font.letterSpacing: 3 }
         }

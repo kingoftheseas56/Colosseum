@@ -80,9 +80,9 @@ Item {
                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
         Row {
             spacing: 14
-            Text { text: "Hall of Worlds"; color: theme.ink
+            Text { text: "Hall of Tributes"; color: theme.ink
                    font.family: theme.display; font.pixelSize: 34 }
-            Text { text: root.universes.length + " universes"
+            Text { text: root.universes.length + (root.universes.length === 1 ? " tribute" : " tributes")
                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                    anchors.baseline: parent.children[0].baseline }
         }

@@ -367,7 +367,7 @@ Item {
         ListModel {
             id: houseModel
             ListElement {
-                tileName: "Universes"; extensionId: ""; icon: ""; tileKind: "universes"; downloadable: false
+                tileName: "Tributes"; extensionId: ""; icon: ""; tileKind: "universes"; downloadable: false
             }
             ListElement {
                 tileName: "Grand Database"; extensionId: ""; icon: "../assets/addon-logos/colosseum-grand-database.png"; tileKind: "database"; downloadable: false

@@ -37,7 +37,7 @@ foreach ($needle in @(
     'id: universeLayer',
     'id: universeWarmer',
     'id: heroView',
-    'Explore the universe'
+    'Explore the tribute'
 )) {
     if ($main.Contains($needle)) { throw "live universe seam remains: $needle" }
 }

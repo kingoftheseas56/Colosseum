@@ -3387,7 +3387,7 @@ Window {
                             Column {
                                 anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
                                 spacing: 12
-                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
                                 Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
                                 // (the blurb line went with the baked list — the roster carries
                                 // identity and art, no prose, and a faked one would be a lie)
@@ -3404,7 +3404,7 @@ Window {
                                         Behavior on border.color { ColorAnimation { duration: 160 } }
                                         Row {
                                             id: exploreRow; anchors.centerIn: parent; spacing: 10
-                                            Text { text: "Explore the universe"; color: theme.ink
+                                            Text { text: "Explore the tribute"; color: theme.ink
                                                 font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                                 anchors.verticalCenter: parent.verticalCenter }
                                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
@@ -3418,7 +3418,7 @@ Window {
                                             // assertions ambiguous even though only one is a legal target.
                                             objectName: slide.SwipeView.isCurrentItem ? "homeHeroExplore" : ""
                                             anchors.fill: parent
-                                            accessibleName: "Explore the universe"
+                                            accessibleName: "Explore the tribute"
                                             pointerEnabled: false
                                             focusRadius: 12
                                             onTriggered: win.openUniverse(slide.modelData.extensionId,
@@ -3457,7 +3457,7 @@ Window {
                         id: hallRow
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         spacing: 7
-                        Text { text: win.installedUniverses.length + " worlds"
+                        Text { text: win.installedUniverses.length + (win.installedUniverses.length === 1 ? " tribute" : " tributes")
                                color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
                                font.family: theme.display; font.pixelSize: 16
                                Behavior on color { ColorAnimation { duration: 120 } } }
@@ -3470,7 +3470,7 @@ Window {
                         id: hallKey
                         objectName: "homeUniverseHall"
                         anchors.fill: parent
-                        accessibleName: "Hall of Worlds"
+                        accessibleName: "Hall of Tributes"
                         pointerEnabled: false
                         focusRadius: 8
                         onTriggered: win.openUniverseHall()

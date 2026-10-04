@@ -164,7 +164,7 @@ Item {
 
             Repeater {
                 model: [
-                    { name: "Universes", id: "", icon: "../assets/icons/universes-atom.svg", kind: "universes" },
+                    { name: "Tributes", id: "", icon: "../assets/icons/universes-atom.svg", kind: "universes" },
                     { name: "Grand Database", id: "", icon: "../assets/addon-logos/colosseum-grand-database.png", kind: "builtin" },
                     { name: "Nyaa", id: "colosseum.well.nyaa", icon: "../assets/addon-logos/nyaa.png", kind: "source" },
                     { name: "Tankoyomi", id: "colosseum.well.tankoyomi", icon: "../assets/addon-logos/tankoyomi.png", kind: "source" },

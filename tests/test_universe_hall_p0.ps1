@@ -22,7 +22,7 @@ function Assert-Lacks($text, $needle, $message) {
 # --- the hall: flat bars in a vertical pile, breathing on hover ---
 $hp = Read-File "qml/UniverseHallPage.qml"
 foreach ($n in @('signal exploreRequested(string name)', 'property int hovered',
-                 'Universes.universes', 'Hall of Worlds',
+                 'Universes.universes', 'Hall of Tributes',
                  'flickableDirection: Flickable.VerticalFlick',
                  'ScrollBar.vertical: HouseScrollBar', 'ScrollGlide')) {
     Assert-Contains $hp $n "UniverseHallPage must carry: $n"
