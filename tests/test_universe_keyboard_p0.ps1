@@ -65,6 +65,11 @@ Need 'qml\SagaUniversePage.qml' 'Saga.gridMove(' 'grid arrows must walk the stor
 Need 'qml\SagaUniversePage.qml' 'id: sagaComicsKey' 'saga comics archive door needs keyboard activation.'
 Need 'qml\SagaUniversePage.qml' 'objectName: "sagaShelfFocus"' 'branch shelves need local arrows.'
 
+# Shelves centre (Arc 58, 2026-10-04): the anime universes divide by medium; each medium
+# row is ONE composite Tab stop, arrows follow the row, and the works walk across runs.
+Need 'qml\ShelvesUniversePage.qml' 'KeyboardCollectionController {' 'each medium shelf must be a single composite Tab stop.'
+Need 'qml\ShelvesUniversePage.qml' 'orientation: "horizontal"' 'shelf arrows must follow the row it owns.'
+
 # Studio: the filmography is a responsive grid composite.
 Need 'qml\StudioUniversePage.qml' 'readonly property int keyboardColumns' 'filmography grid columns must derive from visual width.'
 Need 'qml\StudioUniversePage.qml' 'orientation: "grid"' 'filmography arrows must follow its wrapped grid.'
@@ -90,8 +95,8 @@ foreach ($rel in @(
 # every page claims entry focus so Esc/PageUp/PageDown work before the first Tab.
 foreach ($rel in @(
     'qml\EraUniversePage.qml','qml\GalaxyUniversePage.qml','qml\SagaUniversePage.qml',
-    'qml\StudioUniversePage.qml','qml\UniverseExtensionPage.qml','qml\UniverseHallPage.qml',
-    'qml\UniversePage.qml','qml\LocgPublisherPage.qml'
+    'qml\ShelvesUniversePage.qml','qml\StudioUniversePage.qml','qml\UniverseExtensionPage.qml',
+    'qml\UniverseHallPage.qml','qml\UniversePage.qml','qml\LocgPublisherPage.qml'
 )) {
     Need $rel 'UniverseChromeAction {' 'minimize/fullscreen/close chrome must be keyboard reachable.'
     Need $rel 'forceActiveFocus(Qt.TabFocusReason)' 'page entry must establish deterministic keyboard focus.'

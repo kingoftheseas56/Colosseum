@@ -469,6 +469,68 @@ function loadMangaUniverse(name, cfg, push) {
     return null;
 }
 
+// loadShelves(name, push) — the SHELVES centre's loader (the anime universes' second form,
+// 2026-10-04: Hemanth's ruling on the story grid — "fundamentally flawed in terms of
+// navigation, division of mediums and overall flow"). The page divides by MEDIUM, so the
+// payload keeps each medium's own shape: the manga with their run split, the shows, and
+// the films still grouped in their eras. Every work stays a pinned identity — nothing is
+// searched. The manga's run split comes from the story pairing that already exists: the
+// books it names (story books and spanning books) are THE SERIES, the rest are spin-offs.
+// A `live: true` pin marks a live-action series (One Piece's Netflix adaptation).
+function loadShelves(name, push) {
+    var cfg = UDB.configFor(name);
+    var canon = sagaCanon(cfg);
+    var main = {};
+    var pair = cfg.sagaGrid || {};
+    (pair.stories || []).forEach(function(s) {
+        if (s.book !== undefined && s.book !== null) main[s.book] = true;
+    });
+    (pair.spans || []).forEach(function(sp) {
+        if (sp.books !== undefined) main[sp.books] = true;
+    });
+    function pinned(entry, type) {
+        return entry && entry.id
+            ? mapWatch({ id: entry.id, type: type, name: entry.t, releaseInfo: entry.year })
+            : null;
+    }
+    var out = {
+        name: name,
+        blurb: cfg.blurb || "",
+        blurbSource: cfg.blurbSource || "",
+        banner: cfg.banner || "",
+        wallpaper: cfg.wallpaper || "",
+        color: cfg.c1 || "#221c30",
+        manga: sagaSlots(canon.books, canon.books.map(function(m, i) {
+            return m ? { title: m.t, cover: m.cover || "", query: m.q || m.t,
+                         main: !!main[i], mal: m.mal } : null;
+        }), "manga"),
+        shows: sagaSlots(canon.shows, canon.shows.map(function(e) {
+            return pinned(e, "series");
+        }), "series"),
+        filmEras: (cfg.filmEras || []).map(function(group) {
+            return { era: group.era,
+                     films: sagaSlots(group.films || [], (group.films || []).map(function(e) {
+                         return pinned(e, "movie");
+                     }), "film") };
+        })
+    };
+    canon.shows.forEach(function(e, i) {
+        if (e && e.live && out.shows[i]) out.shows[i].live = true;
+    });
+    function emit() {
+        push({ name: out.name, blurb: out.blurb, blurbSource: out.blurbSource,
+               banner: out.banner, wallpaper: out.wallpaper, color: out.color,
+               manga: out.manga, shows: out.shows, filmEras: out.filmEras,
+               detailRevision: ++_detailRevision });
+    }
+    var flat = [];
+    out.filmEras.forEach(function(g) { flat = flat.concat(g.films); });
+    enrichWatch(out.shows, emit);
+    enrichWatch(flat, emit);
+    emit();   // curation paints instantly; the records dress in as they land
+    return null;
+}
+
 // loadGalaxy(name, push) — the GALAXY template's loader (Star Wars): the Skywalker Saga as
 // three curated trilogies, the standalone stories, and the series in live-action + animated
 // rails. Same law as the saga: canon lists from Universes.js, Cinemeta only DRESSES the

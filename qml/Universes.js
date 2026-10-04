@@ -74,7 +74,7 @@ var universes = [
       ],
       // the other adaptations — the live action and the announced remake.
       adaptations: [
-        { t: "One Piece — Live Action", id: "tt11737520", year: "2023", note: "Netflix sets sail in the flesh" },
+        { t: "One Piece — Live Action", id: "tt11737520", year: "2023", note: "Netflix sets sail in the flesh", live: true },
         { t: "The One Piece",           id: "tt30476502", year: "2026", note: "The WIT Studio remake", upcoming: true }
       ],
       // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
