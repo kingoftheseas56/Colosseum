@@ -966,6 +966,36 @@ function worldRoster(installed) {
     return roster;
 }
 
+// What a universe holds, as filter facets. Read from the SAME chips the banner prints, so the
+// filter can never disagree with what the user sees on the banner.
+var FACETS = [
+    { key: "books",  label: "Books",  match: /book|novel|stor/i },
+    { key: "manga",  label: "Manga",  match: /manga/i },
+    { key: "anime",  label: "Anime",  match: /anime/i },
+    { key: "films",  label: "Films",  match: /film|movie/i },
+    { key: "series", label: "Series", match: /show|series/i },
+    { key: "comics", label: "Comics", match: /comic|graphic/i }
+];
+function holds(entry, key) {
+    var chips = (entry && entry.chips) || [];
+    for (var f = 0; f < FACETS.length; f++) {
+        if (FACETS[f].key !== key) continue;
+        for (var i = 0; i < chips.length; i++)
+            if (FACETS[f].match.test(String(chips[i].t))) return true;
+    }
+    return false;
+}
+// the facets worth offering: only those at least one universe in the roster holds
+function rosterFacets(roster) {
+    return FACETS.filter(function(f) {
+        return (roster || []).some(function(e) { return holds(e, f.key); });
+    }).map(function(f) { return { key: f.key, label: f.label }; });
+}
+function filterRoster(roster, key) {
+    if (!key) return roster || [];
+    return (roster || []).filter(function(e) { return holds(e, key); });
+}
+
 // The Tributes: the hand-made art pages. Today these are exactly the installed universe
 // extensions; the Universes world shows them in its carousel, above the list.
 function tributes(installed) {

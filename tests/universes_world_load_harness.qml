@@ -31,6 +31,21 @@ Window {
             console.log("[diag] HARNESS FAIL — roster must be alphabetical: " + roster[0].name + " … " + roster[roster.length - 1].name)
             Qt.exit(2)
         }
+        // the filter offers only what some universe holds, and narrows the list by it
+        const facets = Universes.rosterFacets(roster).map(function(f) { return f.key }).join(",")
+        if (facets !== "books,manga,anime,films,series,comics") {
+            console.log("[diag] HARNESS FAIL — facets: " + facets)
+            Qt.exit(2)
+        }
+        const manga = Universes.filterRoster(roster, "manga").map(function(e) { return e.name }).join("|")
+        if (manga !== "Attack on Titan|Naruto|One Piece") {
+            console.log("[diag] HARNESS FAIL — manga filter: " + manga)
+            Qt.exit(2)
+        }
+        if (Universes.filterRoster(roster, "").length !== 18) {
+            console.log("[diag] HARNESS FAIL — the empty filter must show everything")
+            Qt.exit(2)
+        }
         if (Universes.tributes(four).length !== 4) {
             console.log("[diag] HARNESS FAIL — the four installed universes are the Tributes")
             Qt.exit(2)

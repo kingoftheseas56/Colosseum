@@ -1,7 +1,9 @@
 // UniversesWorld — the fourth world. Unlike the other three it is not an endless catalogue:
 // the set is finite and curated, so the page is two things (Hemanth 2026-10-04):
 //   · a carousel of TRIBUTES — the hand-made art pages;
-//   · every universe that has a working page, as a large full-width BANNER (never a tile).
+//   · every universe that has a working page, as a large full-width BANNER (never a tile),
+//     under one row of filter chips (by what a universe holds). No tabs: a short curated
+//     list split across tabs only looks emptier.
 // WorldPage owns the top bar, the ONE page scroller and keyboard routing. A banner's click
 // or Enter emits universeRequested with the roster entry; Main routes it to that universe's
 // standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
@@ -14,6 +16,8 @@ WorldPage {
     medium: "Universes"
     initialFocusName: "universesLedger"   // the first D-pad arrow lands the pile
 
+    Theme { id: theme }
+
     // the shell sets this (Main's world-loader binds it to installedUniverses):
     // { extensionId, name, banner, logo } per installed universe
     property var installed: []
@@ -25,10 +29,13 @@ WorldPage {
     readonly property var tributes: Universes.tributes(universes.installed)
 
     readonly property var roster: Universes.worldRoster(universes.installed)
-    onRosterChanged: {
+    // the filter: "" shows everything; otherwise only universes that hold that form
+    property string facet: ""
+    readonly property var facets: Universes.rosterFacets(universes.roster)
+    readonly property var shown: Universes.filterRoster(universes.roster, universes.facet)
+    onShownChanged: {
         universes.hovered = -1
-        if (pile.currentIndex >= universes.roster.length)
-            pile.currentIndex = universes.roster.length > 0 ? universes.roster.length - 1 : -1
+        pile.currentIndex = universes.shown.length > 0 ? 0 : -1
     }
 
     // hover goes STILL while the page moves (the Hall's walking rule, Hemanth 2026-07-13):
@@ -70,6 +77,46 @@ WorldPage {
         navigable: false          // the banners below ARE the destination; no deeper page
     }
 
+    // ---- THE FILTER — one row of chips: All, then each form some universe holds ----
+    Flow {
+        id: chips
+        objectName: "universesFilter"
+        width: parent.width
+        spacing: 8
+        visible: universes.facets.length > 1
+        Repeater {
+            model: [{ key: "", label: "All" }].concat(universes.facets)
+            delegate: Rectangle {
+                id: chip
+                required property var modelData
+                readonly property bool active: universes.facet === chip.modelData.key
+                objectName: "universesFilter_" + (chip.modelData.key || "all")
+                width: chipText.implicitWidth + 32; height: 34; radius: 17
+                // a dark pill, like the capsule Back: it sits straight on the wallpaper and must
+                // read over a bright pick as well as a dark one
+                color: chip.active ? theme.ink : Qt.rgba(0, 0, 0, chipKey.hovered ? 0.58 : 0.42)
+                border.width: 1
+                border.color: chip.active ? "transparent" : theme.edge
+                Text {
+                    id: chipText
+                    anchors.centerIn: parent
+                    text: chip.modelData.label
+                    color: chip.active ? "#090c13" : (chipKey.hovered ? theme.ink : theme.inkDim)
+                    font.family: theme.ui; font.pixelSize: 13
+                    font.weight: chip.active ? Font.DemiBold : Font.Medium
+                }
+                KeyboardAction {
+                    id: chipKey
+                    anchors.fill: parent
+                    focusRadius: 17
+                    accessibleName: chip.modelData.key ? "Show universes with " + chip.modelData.label
+                                                       : "Show all universes"
+                    onTriggered: universes.facet = chip.modelData.key
+                }
+            }
+        }
+    }
+
     // ---- THE UNIVERSES — one large banner each, alphabetical ----
     Column {
         id: pile
@@ -77,13 +124,13 @@ WorldPage {
         width: parent.width
         spacing: 12
 
-        property int currentIndex: universes.roster.length > 0 ? 0 : -1
-        focusPolicy: universes.roster.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        property int currentIndex: universes.shown.length > 0 ? 0 : -1
+        focusPolicy: universes.shown.length > 0 ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => ledgerNav.handle(event)
 
         Repeater {
             id: ledgerRepeater
-            model: universes.roster
+            model: universes.shown
             delegate: UniverseBanner {
                 id: bar
                 required property var modelData
@@ -107,7 +154,7 @@ WorldPage {
             id: ledgerNav
             view: pile
             orientation: "vertical"
-            count: universes.roster.length
+            count: universes.shown.length
             // the pile scrolls with WorldPage's ONE page scroller — keep the landed bar
             // inside it (the Hall's own reveal math, mapped into the page's contentItem)
             positionIndexFn: function(index) {
@@ -122,8 +169,8 @@ WorldPage {
                     flick.contentY = Math.min(maxY, bottom - flick.height)
             }
             onActivated: (index) => {
-                if (index >= 0 && index < universes.roster.length)
-                    universes.universeRequested(universes.roster[index])
+                if (index >= 0 && index < universes.shown.length)
+                    universes.universeRequested(universes.shown[index])
             }
         }
     }

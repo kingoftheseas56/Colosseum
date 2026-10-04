@@ -13,6 +13,10 @@ Window {
     height: Number(argument("--height", "720"))
     color: "#111213"
     title: "Universes world"
+    // A capture run must not take the keyboard or the mouse from whoever is at the machine:
+    // the window pops up over their work, and a stray click or Enter would land in it.
+    flags: argument("--capture", "").length > 0
+           ? Qt.Window | Qt.WindowDoesNotAcceptFocus | Qt.WindowTransparentForInput : Qt.Window
     function argument(key, fallback) {
         const i = Qt.application.arguments.indexOf(key)
         return i >= 0 ? Qt.application.arguments[i + 1] : fallback
@@ -24,11 +28,14 @@ Window {
     FontLoader { source: "../assets/fonts/Fraunces-Regular.ttf" }
 
     Image { id: wall; anchors.fill: parent; source: "../assets/wallpaper/cold-ripple.jpg"
-            fillMode: Image.PreserveAspectCrop }
+            fillMode: Image.PreserveAspectCrop
+            // stands in for the shell's adaptive vignette (Main.qml: deepens on bright wallpapers)
+            Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.45) } }
     App.UniversesWorld {
         id: world
         anchors.fill: parent
         backdrop: wall
+        facet: host.argument("--facet", "")
         installed: [ host.seeded("com.colosseum.universe.onepiece", "One Piece"),
                      host.seeded("com.colosseum.universe.cosmere", "Cosmere"),
                      host.seeded("com.colosseum.universe.dcau", "DC Animated Universe"),
@@ -45,7 +52,9 @@ Window {
     Timer {
         interval: host.waitMs
         running: host.argument("--capture", "").length > 0
-        onTriggered: world.grabToImage(function(result) {
+        // grab the WINDOW, not the world: the world is translucent over the wallpaper, and a
+        // grab of it alone saves see-through pixels that every viewer then paints differently
+        onTriggered: host.contentItem.grabToImage(function(result) {
             const saved = result.saveToFile(host.argument("--capture", ""))
             console.log("[universes-preview] capture", saved, "tributes", world.tributes.length, "universes", world.roster.length)
             Qt.exit(saved ? 0 : 1)

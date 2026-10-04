@@ -8,6 +8,10 @@ Window {
     width: Number(argument("--width", "1440"))
     height: Number(argument("--height", "720"))
     title: "Saga template — " + saga.universeName
+    // A capture run must not take the keyboard or the mouse from whoever is at the machine:
+    // the window pops up over their work, and a stray click or Enter would land in it.
+    flags: argument("--capture", "").length > 0
+           ? Qt.Window | Qt.WindowDoesNotAcceptFocus | Qt.WindowTransparentForInput : Qt.Window
     function argument(key, fallback) {
         const i = Qt.application.arguments.indexOf(key)
         return i >= 0 ? Qt.application.arguments[i + 1] : fallback
