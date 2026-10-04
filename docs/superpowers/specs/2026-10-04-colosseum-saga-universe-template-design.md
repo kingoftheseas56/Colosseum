@@ -154,6 +154,35 @@ re-verified all 29 identities live against Cinemeta and AniList and merged them.
 Ball manga still lack them. `openUniverseByName` follows the roster's rule (a `sagaGrid` opens
 "saga"), so nothing routes to the July anime page any more.
 
+## The shelves page serves every universe that is not a book saga (2026-10-05, Arc 58-E)
+
+The story grid on anime was rejected in the app (navigation, division of mediums, flow), so the
+second centre is not "Eras" but SHELVES: `qml/ShelvesUniversePage.qml`. One glass panel per medium
+(Films, Series, Books, Manga, Anime), each a single row of same-size tiles that scrolls sideways;
+the franchise's own grouping (Bond's actors, Marvel's phases, a film era) is the labelled runs in
+the row; the tabs name the shelves. A panel is only as wide as its row and short panels share a
+line. A long row with three or more runs gets one-click run jumps. A magazine (`form: "table"`,
+Weekly Shonen Jump) is two numbered tables instead of covers.
+
+- **Data.** A universe declares `shelves: [{ title, kind, tab?, pill?, form?, order?, runs: [{ label,
+  works }] }]`; kinds are `movie` / `series` (Cinemeta id), `book` (Apple Books id), `manga` (AniList +
+  MAL id). Eight universes carry it, in the generated block at the end of `qml/Universes.js`
+  (regenerate with `Brotherhood/agents/_gen_universe_shelf_overlays.mjs`): James Bond, Marvel, Star
+  Trek, Star Wars, DC Animated Universe, Avatar, Studio Ghibli, Weekly Shonen Jump. The four anime
+  universes have their shelves derived from `manga` / `saga` / `filmEras` (`SagaApi.shelfSpecsFor`).
+- **Loading.** `SagaApi.loadShelves` pushes once and searches nothing. A book opens through
+  `resolveBook`, a lookup by its pinned Apple Books id. A manga opens Tankoban with its MAL id.
+- **Routing.** `worldRoster` and `openUniverseByName`: `shelves` or `manga` opens "shelves"; else a
+  `sagaGrid` opens "saga". The Universes world lists 21 universes.
+- **Layout authority.** `Brotherhood/agents/colosseum-universe-shelves-all-mock.html`.
+- **Checks.** `tests/qml/tst_ShelvesTemplate.qml`, `tests/shelves_universe_load_harness.qml` (the
+  shelf, run and work counts of all twelve), `tests/shelves_template_preview.qml`.
+
+Known gaps: not yet seen inside the running app; on a shared line a panel with run labels sits 26px
+lower than one without; Avatar's sixth novel has no ebook; Star Wars and DCAU banners now open this
+page while their Tributes open from the carousel; the story grid is left for book sagas only and the
+anime `sagaGrid` pairings now only decide which manga are "The series".
+
 ## Deferred
 
 The Eras centre; Tribute doors and downloadable Tributes; the Patreon gate; the One Piece story line (reading and watching position on one line) — the saga grid already shows both positions per story.

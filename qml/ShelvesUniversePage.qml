@@ -1,17 +1,15 @@
-// Shelves universe (Arc 58): the SHELVES centre of the universe page — the anime
-// universes' second form, after Hemanth's ruling on the story grid in the app: "the
-// structure is fundamentally flawed in terms of navigation, division of mediums and
-// overall flow". The page divides by MEDIUM: one shelf per medium (Manga, Anime, Films),
-// each a single row of same-size tiles that scrolls sideways, and the tabs name the
-// mediums. Labelled runs inside a row carry the split (the series vs the spin-offs, a
-// film era). Since 2026-10-04 (evening) the rows wear the GLASS the book sagas' pages
-// already have: every medium sits in a house glass panel over the universe's own
-// wallpaper, the row keeps to its panel, and the wallpaper no longer dims behind scroll.
-// Since 2026-10-05 a panel is only as wide as its row needs, and consecutive short panels
-// share a line (root.panelLayout) — a three-tile shelf no longer drags a full-width slab.
-// No grid, no side panel, no boxes.
-// Layout authority: Brotherhood/agents/colosseum-universe-shelves-mock.html (plain) and
-// colosseum-universe-shelves-glass-mock.html (the ruled-in glass form), 1280x720.
+// Shelves universe (Arc 58): THE universe page for every universe that is not a book saga.
+// Born for the anime universes after Hemanth's ruling on the story grid ("the structure is
+// fundamentally flawed in terms of navigation, division of mediums and overall flow"), then
+// generalised on 2026-10-05 (Arc 58-E) to any universe that declares `shelves`.
+// The page divides by MEDIUM: one glass panel per shelf (Films, Series, Books, Manga, Anime),
+// each a single row of same-size tiles that scrolls sideways, and the tabs name the shelves.
+// The franchise's own grouping (Bond's actors, Marvel's phases, a film era) becomes the
+// labelled RUNS inside the row; a long row with three or more runs gets one-click run jumps.
+// A panel is only as wide as its row, and short panels share a line. A MAGAZINE's lineup
+// (form "table") is a numbered table instead of covers. No grid, no side panel.
+// Layout authority: Brotherhood/agents/colosseum-universe-shelves-all-mock.html, 1280x720.
+// Data: SagaApi.loadShelves, from the universe's curated `shelves` (or derived for anime).
 import QtQuick
 import QtQuick.Controls
 import "SagaApi.js" as Saga
@@ -30,7 +28,8 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal watchRequested(var item)          // anime/film tile → A4's TheatreSeries
-    signal seriesRequested(string title)     // manga tile / Read → Tankoban, by its curated query
+    signal seriesRequested(string title, var malId)   // manga / Read → Tankoban, by its pinned MAL id when curated
+    signal bookRequested(var book)           // book tile / Read → the Biblio book page
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
     signal continueDetailRequested(var entry)   // Continue tile → its title page
     signal universeRequested(string name)       // a "More universes" card
@@ -52,41 +51,72 @@ Item {
     readonly property bool compact: width < 800
     property int loadGeneration: 0
 
-    property var uni: ({ name: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
-                         color: "", manga: [], shows: [], filmEras: [] })
+    property var uni: ({ name: "", category: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
+                         color: "", shelves: [] })
 
-    // ---- the mediums, each with its runs (labelled stretches inside the one row) ----
-    readonly property var filmsFlat: {
-        const out = []
-        ;(root.uni.filmEras || []).forEach(function(g) { (g.films || []).forEach(function(f) { out.push(f) }) })
+    // ---- the shelves are data: one panel per non-empty shelf, in entry order ----
+    function runWorks(run) { return run ? (run.works || run.items || []) : [] }
+    function shelfCount(shelf) {
+        let n = 0
+        ;(shelf && shelf.runs ? shelf.runs : []).forEach(function(r) { n += root.runWorks(r).length })
+        return n
+    }
+    function shelfKey(shelf, index) {
+        if (shelf && shelf.key) return shelf.key
+        let k = String((shelf && shelf.title) || ("shelf-" + index)).toLowerCase().replace(/[^a-z0-9]+/g, "-")
+        k = k.replace(/^-+|-+$/g, "")
+        return k || ("shelf-" + index)
+    }
+    readonly property var shelves: root.uni.shelves || []
+    readonly property var activeShelves: root.shelves.filter(function(s) { return root.shelfCount(s) > 0 })
+    readonly property var rowShelves: root.activeShelves.filter(function(s) { return s.form !== "table" })
+    readonly property var tableShelves: root.activeShelves.filter(function(s) { return s.form === "table" })
+    // the section drawn for activeShelves[i], whichever kind it is
+    function sectionAt(i) {
+        const s = root.activeShelves[i]
+        if (!s) return null
+        const isTable = s.form === "table"
+        let k = 0
+        for (let j = 0; j < i; ++j)
+            if ((root.activeShelves[j].form === "table") === isTable) k++
+        return isTable ? tableRepeater.itemAt(k) : mediumRepeater.itemAt(k)
+    }
+    readonly property var works: {
+        let out = []
+        root.activeShelves.forEach(function(s) {
+            ;(s.runs || []).forEach(function(r) { out = out.concat(root.runWorks(r)) })
+        })
         return out
     }
-    readonly property var works: (root.uni.manga || []).concat(root.uni.shows || [], root.filmsFlat)
-    readonly property int nManga: (root.uni.manga || []).length
-    readonly property int nAnime: (root.uni.shows || []).length
-    readonly property int nFilms: root.filmsFlat.length
-    readonly property var mangaRuns: [
-        { label: "The series", items: (root.uni.manga || []).filter(function(m) { return m.main === true }) },
-        { label: "Spin-offs",  items: (root.uni.manga || []).filter(function(m) { return m.main !== true }) } ]
-    readonly property var animeRuns: [ { label: "", items: root.uni.shows || [] } ]
-    readonly property var filmRuns: (root.uni.filmEras || []).map(function(g) {
-        return { label: g.era, items: g.films || [] }
-    })
+    function isManga(item) { return !!item && item.medium === "manga" }
+    function isBook(item) { return !!item && item.medium === "book" }
+    function isScreen(item) { return !!item && (item.medium === "movie" || item.medium === "series"
+                                                  || item.type === "movie" || item.type === "series") }
+    function isReading(item) { return root.isManga(item) || root.isBook(item) }
+    readonly property bool hasReadShelf: root.activeShelves.some(function(s) { return s.kind === "book" || s.kind === "manga" })
+    readonly property bool hasScreenShelf: root.activeShelves.some(function(s) { return s.kind === "movie" || s.kind === "series" })
+    function kickerOf(category) {
+        return category === "anime" ? "ANIME" : category === "studio" ? "STUDIO"
+             : category === "magazine" ? "MAGAZINE" : "UNIVERSE"
+    }
+    // a curated entry's kicker: an anime universe that predates `shelves` carries only `manga`
+    function kickerFor(cfg) { return root.kickerOf(cfg && cfg.shelves ? cfg.category : (cfg && cfg.manga ? "anime" : "")) }
+    readonly property string kicker: root.kickerOf(root.uni.category)
 
     // ---- identity: loader pushes rebuild every item, so selection is held by key ----
     function keyOf(item) {
         if (!item) return ""
-        return item.medium !== undefined && item.canonIndex !== undefined
-                ? item.medium + ":" + item.canonIndex : "x:" + (item.id || item.title || "")
+        return item.key || (item.shelfKey ? item.shelfKey + ":" + (item.id || item.apple || item.al || item.title || "") :
+                "x:" + (item.id || item.apple || item.al || item.title || ""))
     }
-    function isManga(item) { return !!item && item.medium === "manga" }
-    function isSeries(item) { return !!item && (item.medium ? item.medium === "series" : item.type === "series") }
-    function kindLabel(item) { return root.isManga(item) ? "MANGA" : (root.isSeries(item) ? "ANIME" : "FILM") }
+    function kindLabel(item) { return item && item.shelfTitle ? String(item.shelfTitle).toUpperCase() : "" }
     function canOpen(item) { return !!item && item.resolved !== false }
     function openWork(item) {
         if (!root.canOpen(item)) return
-        if (root.isManga(item)) root.seriesRequested(item.query || item.title)
-        else root.watchRequested(item)
+        if (root.isManga(item)) root.seriesRequested(item.query || item.title || "", item.mal || 0)
+        // a book opens by its pinned Apple Books id: the full record is looked up BY ID
+        else if (root.isBook(item)) Saga.resolveBook(item, function(book) { root.bookRequested(book) })
+        else if (root.isScreen(item)) root.watchRequested(item)
     }
 
     // ---- progress: gold marks this and focus, nothing else. Tankoban keys a manga by
@@ -104,7 +134,8 @@ Item {
         if (!entry || !root.canOpen(item)) return false
         const kind = String(entry.kind || ""), id = String(entry.id || "")
         if (root.isManga(item)) return kind === "manga" && item.mal && id === "mal:" + item.mal
-        return kind === "video" && item.id !== undefined && id.split(":")[0] === String(item.id)
+        if (root.isBook(item)) return kind === "book" && item.id !== undefined && id === String(item.id)
+        return root.isScreen(item) && kind === "video" && item.id !== undefined && id.split(":")[0] === String(item.id)
     }
     function entryFor(item) {
         const list = root.recentEntries
@@ -131,18 +162,18 @@ Item {
         }
         return out
     }
-    function resumeOf(wantManga) {
+    function resumeOf(wantRead) {
         const list = root.recentEntries
         for (let i = 0; i < list.length; ++i)
             for (let w = 0; w < root.works.length; ++w)
-                if (root.isManga(root.works[w]) === wantManga && root.entryMatches(list[i], root.works[w])
+                if (root.isReading(root.works[w]) === wantRead && root.entryMatches(list[i], root.works[w])
                         && list[i].watched !== true)
                     return { item: root.works[w], entry: list[i] }
         return null
     }
-    function firstOf(wantManga) {
+    function firstOf(wantRead) {
         for (let w = 0; w < root.works.length; ++w)
-            if (root.isManga(root.works[w]) === wantManga && root.canOpen(root.works[w])
+            if (root.isReading(root.works[w]) === wantRead && root.canOpen(root.works[w])
                     && root.works[w].upcoming !== true)
                 return root.works[w]
         return null
@@ -163,9 +194,11 @@ Item {
     }
     readonly property var tabs: {
         const out = []
-        if (root.nManga > 0) out.push({ title: "Manga", count: root.nManga, target: mangaSection })
-        if (root.nAnime > 0) out.push({ title: "Anime", count: root.nAnime, target: animeSection })
-        if (root.nFilms > 0) out.push({ title: "Films", count: root.nFilms, target: filmsSection })
+        mediumRepeater.count; tableRepeater.count
+        for (let i = 0; i < root.activeShelves.length; ++i) {
+            const shelf = root.activeShelves[i]
+            out.push({ title: shelf.tab || shelf.title, count: root.shelfCount(shelf), target: root.sectionAt(i) })
+        }
         out.push({ title: "About", count: 0, target: aboutAnchor })
         return out
     }
@@ -178,8 +211,12 @@ Item {
     readonly property real contentWidth: col.width - root.gutter * 2
     readonly property real panelSeam: 24
     readonly property var panelLayout: {
-        const sections = [mangaSection, animeSection, filmsSection]
-            .filter(function(s) { return s.visible && s.total > 0 })
+        const sections = []
+        mediumRepeater.count; tableRepeater.count
+        for (let si = 0; si < root.activeShelves.length; ++si) {
+            const candidate = root.sectionAt(si)
+            if (candidate && candidate.visible && candidate.total > 0) sections.push(candidate)
+        }
         const placed = {}
         const lines = []
         let line = null
@@ -321,7 +358,7 @@ Item {
                     width: parent.width - root.gutter * 2
                     spacing: 18
                     Text {
-                        text: "ANIME"
+                        text: root.kicker
                         color: theme.inkDim; font.family: root.uiFace
                         font.pixelSize: 11; font.letterSpacing: 3
                     }
@@ -334,7 +371,7 @@ Item {
                     }
                     Flow {
                         width: parent.width; spacing: 8
-                        visible: root.nManga + root.nAnime + root.nFilms > 0
+                        visible: root.works.length > 0
                         Repeater {
                             model: root.facts
                             delegate: Rectangle {
@@ -354,6 +391,7 @@ Item {
                             objectName: "shelvesReadButton"
                             text: "Read"; primary: true
                             sub: root.resumeRead && root.resumeRead.entry ? String(root.resumeRead.entry.sub || "") : ""
+                            visible: root.hasReadShelf
                             enabled: !!root.readTarget
                             onTriggered: root.openWork(root.readTarget)
                         }
@@ -361,6 +399,7 @@ Item {
                             objectName: "shelvesWatchButton"
                             text: "Watch"; primary: true
                             sub: root.resumeWatch && root.resumeWatch.entry ? String(root.resumeWatch.entry.sub || "") : ""
+                            visible: root.hasScreenShelf
                             enabled: !!root.watchTarget
                             onTriggered: root.openWork(root.watchTarget)
                         }
@@ -400,9 +439,30 @@ Item {
                 id: mediums
                 width: col.width
                 height: root.panelLayout.totalHeight
-                MediumSection { id: mangaSection; objectName: "shelvesManga"; title: "Manga"; key: "manga"; runs: root.mangaRuns }
-                MediumSection { id: animeSection; objectName: "shelvesAnime"; title: "Anime"; key: "anime"; runs: root.animeRuns }
-                MediumSection { id: filmsSection; objectName: "shelvesFilms"; title: "Films"; key: "films"; runs: root.filmRuns }
+                Repeater {
+                    id: mediumRepeater
+                    model: root.rowShelves
+                    delegate: MediumSection {
+                        required property var modelData
+                        required property int index
+                        objectName: "shelvesMedium_" + root.shelfKey(modelData, index)
+                        title: modelData.title || "Shelf"
+                        kind: modelData.kind || "movie"
+                        key: root.shelfKey(modelData, index)
+                        runs: modelData.runs || []
+                    }
+                }
+                Repeater {
+                    id: tableRepeater
+                    model: root.tableShelves
+                    delegate: TableSection {
+                        required property var modelData
+                        required property int index
+                        objectName: "shelvesTablePanel_" + root.shelfKey(modelData, index)
+                        shelf: modelData
+                        key: root.shelfKey(modelData, index)
+                    }
+                }
             }
 
             // ===== about: gallery, information, more universes =====
@@ -518,7 +578,7 @@ Item {
                                 anchors.left: parent.left; anchors.right: parent.right
                                 anchors.bottom: parent.bottom; anchors.margins: 14
                                 spacing: 3
-                                Text { text: "ANIME"; color: theme.inkDim; font.family: root.uiFace
+                                Text { text: root.kickerFor(sibling.modelData); color: theme.inkDim; font.family: root.uiFace
                                        font.pixelSize: 9; font.letterSpacing: 2 }
                                 Text { width: parent.width; text: sibling.modelData.name
                                        color: root.paper; font.family: root.displayFace; font.pixelSize: 19
@@ -543,33 +603,33 @@ Item {
 
     // ---- hero facts and the Information grid: counts read from the shelves, never
     //      written down; the catalogue line names what actually dressed the works ----
-    readonly property var facts: {
-        const out = []
-        if (root.nManga > 0) out.push(root.nManga + " Manga")
-        if (root.nAnime > 0) out.push(root.nAnime + " Anime")
-        if (root.nFilms > 0) out.push(root.nFilms + " Films")
-        return out
-    }
+    readonly property var facts: root.activeShelves.map(function(s) {
+        return root.shelfCount(s) + " " + (s.pill || s.title)
+    })
     readonly property var information: {
         const out = []
-        if (root.nManga > 0) out.push(["MANGA", String(root.nManga)])
-        if (root.nAnime > 0) out.push(["ANIME", root.nAnime + " series"])
-        if (root.nFilms > 0) {
-            const years = root.filmsFlat.map(function(f) { return f.year })
-                             .filter(function(y) { return y > 0 }).sort(function(a, b) { return a - b })
-            out.push(["FILMS", root.nFilms + (years.length > 1 && years[0] !== years[years.length - 1]
-                                               ? " · " + years[0] + " to " + years[years.length - 1] : "")])
-        }
-        out.push(["CATALOGUE", "Curation · Cinemeta"])
+        const providers = []
+        root.activeShelves.forEach(function(s) {
+            const items = []
+            ;(s.runs || []).forEach(function(r) { root.runWorks(r).forEach(function(w) { items.push(w) }) })
+            const years = items.map(function(w) { return Number(w.year) || Number(w.from) || 0 })
+                               .filter(function(y) { return y > 0 }).sort(function(a, b) { return a - b })
+            out.push([String(s.pill || s.title || "").toUpperCase(),
+                      String(items.length) + (years.length > 1 && years[0] !== years[years.length - 1]
+                        ? " · " + years[0] + " to " + years[years.length - 1] : "")])
+            const provider = (s.kind === "book") ? "Apple Books" : (s.kind === "manga") ? "AniList" : "Cinemeta"
+            if (providers.indexOf(provider) < 0) providers.push(provider)
+        })
+        out.push(["CATALOGUE", "Curation · " + providers.join(" · ")])
         return out
     }
     readonly property var stills: root.works.filter(function(item) {
-        return !root.isManga(item) && root.canOpen(item) && !!item.art
+        return root.isScreen(item) && root.canOpen(item) && !!item.art
     }).slice(0, 4)
     // the other anime universes with a working page
     readonly property var siblings: {
         const all = UDB.universes.concat(UDB.archive)
-        return all.filter(function(u) { return !!u.manga && u.name !== (root.universeName || root.uni.name) })
+        return all.filter(function(u) { return (!!u.shelves || !!u.manga) && u.name !== (root.universeName || root.uni.name) })
                   .slice(0, 4)
     }
 
@@ -733,33 +793,34 @@ Item {
     component MediumSection: Column {
         id: medium
         property string title
+        property string kind
         property string key
         property var runs: []
         property int total: {
             let n = 0
-            for (let i = 0; i < medium.runs.length; ++i) n += (medium.runs[i].items || []).length
+            for (let i = 0; i < medium.runs.length; ++i) n += root.runWorks(medium.runs[i]).length
             return n
         }
-        readonly property var liveRuns: medium.runs.filter(function(r) { return (r.items || []).length > 0 })
+        readonly property var liveRuns: medium.runs.filter(function(r) { return root.runWorks(r).length > 0 })
         readonly property bool labelled: medium.liveRuns.length > 1
         readonly property var flatWorks: {
             let out = []
             for (let i = 0; i < medium.liveRuns.length; ++i)
-                out = out.concat(medium.liveRuns[i].items)
+                out = out.concat(root.runWorks(medium.liveRuns[i]))
             return out
         }
         // the row's natural width from the data: tiles + tile gaps + the seams between runs
         readonly property real rowWidth: {
             let w = 0
             for (let i = 0; i < medium.liveRuns.length; ++i) {
-                const n = (medium.liveRuns[i].items || []).length
+                const n = root.runWorks(medium.liveRuns[i]).length
                 if (i > 0) w += 28
                 w += n * root.tileW + (n - 1) * root.tileGap
             }
             return w
         }
         // never narrower than its heading needs
-        readonly property real headingWidth: headingRow.implicitWidth
+        readonly property real headingWidth: headingLeft.implicitWidth
         // the panel this section asks for, before line packing clamps it to the page
         readonly property real naturalWidth: Math.min(root.contentWidth,
                 Math.max(root.rowInset * 2 + medium.rowWidth, root.rowInset * 2 + medium.headingWidth))
@@ -768,6 +829,29 @@ Item {
         // where panelLayout put this section (its own slot until the layout has run)
         readonly property var slot: root.panelLayout.placed[medium.key]
                 || { x: 0, y: 0, width: root.contentWidth, height: medium.naturalHeight }
+        function runStartAt(index) {
+            let x = 0
+            for (let i = 0; i < index; ++i) {
+                const n = root.runWorks(medium.liveRuns[i]).length
+                x += n * root.tileW + Math.max(0, n - 1) * root.tileGap + 28
+            }
+            return x
+        }
+        readonly property int currentRunIndex: {
+            shelfFlick.contentX
+            let at = 0
+            for (let i = 0; i < medium.liveRuns.length; ++i)
+                if (medium.runStartAt(i) <= shelfFlick.contentX + 40) at = i
+            if (shelfFlick.contentX + shelfFlick.width >= shelfFlick.contentWidth - 8)
+                at = Math.max(at, medium.liveRuns.length - 1)
+            return at
+        }
+        function jumpToRun(index) {
+            if (index < 0 || index >= medium.liveRuns.length) return
+            slide.stop()
+            shelfFlick.contentX = Math.max(0, Math.min(shelfFlick.contentWidth - shelfFlick.width,
+                                                       medium.runStartAt(index)))
+        }
         x: root.gutter + slot.x
         y: slot.y
         width: slot.width
@@ -787,15 +871,51 @@ Item {
             // the heading carries the count — the tab, the fact pill and the shelf agree
             Item {
                 x: 24; y: 20
-                width: parent.width - 24; height: 30
+                width: parent.width - 48; height: 30
                 Row {
-                    id: headingRow
+                    id: headingLeft
                     spacing: 12
                     Text { text: medium.title; color: root.paper
                            font.family: root.displayFace; font.pixelSize: 22
                            anchors.baseline: countText.baseline }
                     Text { id: countText; text: medium.total
                            color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
+                }
+                Row {
+                    id: jumps
+                    objectName: "shelvesJumps_" + medium.key
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+                    visible: shelfFlick.interactive && medium.liveRuns.length >= 3
+                    Repeater {
+                        model: medium.liveRuns
+                        delegate: Rectangle {
+                            id: jump
+                            required property var modelData
+                            required property int index
+                            objectName: "shelvesJump_" + medium.key + "_" + index
+                            height: 26
+                            width: jumpText.implicitWidth + 22
+                            radius: 13
+                            color: medium.currentRunIndex === jump.index || jumpMouse.containsMouse
+                                   ? theme.glassTint : "transparent"
+                            Text {
+                                id: jumpText
+                                anchors.centerIn: parent
+                                text: jump.modelData.label || ""
+                                color: medium.currentRunIndex === jump.index ? root.paper : theme.inkDimmer
+                                font.family: root.uiFace; font.pixelSize: 11; font.weight: Font.Medium
+                            }
+                            MouseArea {
+                                id: jumpMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: medium.jumpToRun(jump.index)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -841,11 +961,11 @@ Item {
                                 // where this run's works start in the row's flat order
                                 readonly property int runBase: {
                                     let base = 0
-                                    for (let i = 0; i < run.index; ++i) base += medium.liveRuns[i].items.length
+                                    for (let i = 0; i < run.index; ++i) base += root.runWorks(medium.liveRuns[i]).length
                                     return base
                                 }
                                 // the keyboard walker's seams into this run's works
-                                readonly property int workCount: (run.modelData.items || []).length
+                                readonly property int workCount: root.runWorks(run.modelData).length
                                 function workAt(i) { return workRepeater.itemAt(i) }
                                 spacing: 0
                                 // the run's label rides above its tiles, hairline after
@@ -873,7 +993,7 @@ Item {
                                     spacing: root.tileGap
                                     Repeater {
                                         id: workRepeater
-                                        model: run.modelData.items
+                                        model: root.runWorks(run.modelData)
                                         delegate: Column {
                                             id: work
                                             required property var modelData
@@ -972,6 +1092,195 @@ Item {
         }
     }
 
+    // ---- a MAGAZINE's lineup (Hemanth 2026-10-05, Weekly Shonen Jump): not a shelf of covers
+    //      but a numbered TABLE in the same glass panel, always full width. Two columns of
+    //      rows, numbered DOWN the first column then the second; each row is one work: its
+    //      place, cover, title, author and years. One keyboard stop: Up/Down walk the rows,
+    //      Left/Right change column, Enter opens ----
+    component TableSection: Item {
+        id: table
+        property var shelf: ({})
+        property string key
+        readonly property string title: shelf.title || ""
+        readonly property var rows: {
+            let out = []
+            ;(table.shelf.runs || []).forEach(function(r) { out = out.concat(root.runWorks(r)) })
+            return out
+        }
+        readonly property int total: table.rows.length
+        readonly property bool twoColumns: !root.compact && table.total > 1
+        readonly property int perColumn: table.twoColumns ? Math.ceil(table.total / 2) : table.total
+        readonly property real rowH: 78
+        readonly property real columnSeam: 40
+        readonly property real naturalWidth: root.contentWidth
+        // 20 top + 30 heading + 14 gap + the rows + 14 bottom
+        readonly property real naturalHeight: 64 + table.perColumn * table.rowH + 14
+        readonly property var slot: root.panelLayout.placed[table.key]
+                || { x: 0, y: 0, width: root.contentWidth, height: table.naturalHeight }
+        property int currentIndex: 0
+        function years(w) { return w.to ? w.from + " to " + w.to : (w.from ? "Since " + w.from : "") }
+        // keep the keyboard's row clear of the docked tabs above and the taskbar below
+        function keepRowInView(index) {
+            const line = table.twoColumns ? index % table.perColumn : index
+            const top = table.mapToItem(page.contentItem, 0, 0).y + 44 + 64 + line * table.rowH
+            if (top < page.contentY + 110) page.contentY = Math.max(0, top - 110)
+            else if (top + table.rowH > page.contentY + page.height - 96)
+                page.contentY = Math.min(Math.max(0, page.contentHeight - page.height), top + table.rowH - page.height + 96)
+        }
+        x: root.gutter + slot.x
+        y: slot.y
+        width: slot.width
+        height: 44 + slot.height
+        visible: table.total > 0
+
+        Glass {
+            y: 44
+            backdrop: wall
+            track: page.contentY
+            radius: 18
+            width: parent.width
+            height: parent.height - 44
+
+            Item {
+                x: 24; y: 20
+                width: parent.width - 48; height: 30
+                Row {
+                    spacing: 12
+                    Text { text: table.title; color: root.paper
+                           font.family: root.displayFace; font.pixelSize: 22
+                           anchors.baseline: tableCount.baseline }
+                    Text { id: tableCount; text: table.total
+                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
+                }
+                Text {
+                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                    text: String(table.shelf.order || "").toUpperCase()
+                    color: theme.inkDimmer; font.family: root.uiFace
+                    font.pixelSize: 11; font.letterSpacing: 2
+                }
+            }
+
+            Item {
+                id: tableBody
+                x: 24; y: 64
+                width: parent.width - 48
+                height: table.perColumn * table.rowH
+                readonly property real colW: table.twoColumns ? (width - table.columnSeam) / 2 : width
+
+                Repeater {
+                    id: tableRows
+                    model: table.rows
+                    delegate: Item {
+                        id: line
+                        required property var modelData
+                        required property int index
+                        readonly property int col: table.twoColumns ? Math.floor(line.index / table.perColumn) : 0
+                        readonly property int place: table.twoColumns ? line.index % table.perColumn : line.index
+                        readonly property bool keyed: tableFocus.activeFocus && table.currentIndex === line.index
+                        readonly property bool hot: lineMouse.containsMouse || line.keyed
+                        readonly property real done: root.fraction(line.modelData)
+                        objectName: "shelvesTableRow_" + table.key + "_" + line.index
+                        x: line.col * (tableBody.colW + table.columnSeam)
+                        y: line.place * table.rowH
+                        width: tableBody.colW; height: table.rowH
+                        Rectangle {      // hairline above every row but a column's first
+                            visible: line.place > 0 && !line.hot
+                            width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.07)
+                        }
+                        Rectangle {
+                            anchors.fill: parent; anchors.leftMargin: -4; anchors.rightMargin: -4
+                            radius: 10
+                            color: line.hot ? theme.glassTint : "transparent"
+                            border.width: line.keyed ? 1 : 0; border.color: root.goldEdge
+                        }
+                        Text {
+                            width: 34; anchors.verticalCenter: parent.verticalCenter
+                            horizontalAlignment: Text.AlignRight
+                            text: line.index + 1
+                            color: line.index < 3 ? root.paper : theme.inkDimmer
+                            font.family: root.displayFace; font.pixelSize: 24
+                        }
+                        Rectangle {
+                            x: 50; anchors.verticalCenter: parent.verticalCenter
+                            width: 44; height: 66; radius: 3; clip: true
+                            color: root.worldColor
+                            border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.12)
+                            Image {
+                                anchors.fill: parent; anchors.margins: 1
+                                source: line.modelData.cover || ""
+                                asynchronous: true; cache: true
+                                sourceSize.width: 160
+                                fillMode: Image.PreserveAspectCrop
+                            }
+                        }
+                        Column {
+                            x: 110; anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 110 - when.width - 28
+                            spacing: 3
+                            Text { width: parent.width; text: line.modelData.title
+                                   color: root.paper; font.family: root.uiFace
+                                   font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { width: parent.width; visible: text.length > 0
+                                   text: line.modelData.by || ""
+                                   color: theme.inkDimmer; font.family: root.uiFace
+                                   font.pixelSize: 12; elide: Text.ElideRight }
+                            Rectangle {      // where you are in it (gold marks progress only)
+                                visible: line.done > 0 && line.done < 1
+                                width: Math.min(parent.width, 220); height: 3; radius: 2
+                                color: Qt.rgba(1, 1, 1, 0.18)
+                                Rectangle { width: parent.width * line.done; height: parent.height; radius: 2; color: theme.gold }
+                            }
+                        }
+                        Column {
+                            id: when
+                            anchors.right: parent.right; anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 3
+                            Text { anchors.right: parent.right; text: table.years(line.modelData)
+                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: 12 }
+                            Text { anchors.right: parent.right; visible: line.modelData.volumes > 0
+                                   text: line.modelData.volumes + " volumes"
+                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
+                        }
+                        MouseArea {
+                            id: lineMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openWork(line.modelData)
+                        }
+                    }
+                }
+
+                Item {
+                    id: tableFocus
+                    objectName: "shelvesTableFocus_" + table.key
+                    anchors.fill: parent
+                    focusPolicy: table.total > 0 ? Qt.TabFocus : Qt.NoFocus
+                    onActiveFocusChanged: if (activeFocus) table.keepRowInView(table.currentIndex)
+                    Keys.onPressed: (event) => {
+                        const step = event.key === Qt.Key_Down ? 1 : event.key === Qt.Key_Up ? -1
+                                   : (event.key === Qt.Key_Right && table.twoColumns) ? table.perColumn
+                                   : (event.key === Qt.Key_Left && table.twoColumns) ? -table.perColumn : 0
+                        if (step) {
+                            const next = table.currentIndex + step
+                            if (next < 0 || next >= table.total) return      // the arrow leaves the table
+                            table.currentIndex = next
+                            table.keepRowInView(next)
+                            event.accepted = true
+                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            root.openWork(table.rows[table.currentIndex])
+                            event.accepted = true
+                        }
+                    }
+                    Accessible.role: Accessible.List
+                    Accessible.name: table.title
+                    Accessible.focusable: focusPolicy !== Qt.NoFocus
+                }
+            }
+        }
+    }
+
     // The same soft edge chevron as the saga grid: a scrim gradient with a serif arrow,
     // fading into the glass panel's own tint rather than the page black. Pointer-only by
     // design — the keyboard walks the row itself and it scrolls to follow.
@@ -1009,6 +1318,7 @@ Item {
     component ShelfTile: Rectangle {
         id: tile
         property var item: null
+        readonly property string rowLabel: item && item.shelfTitle ? String(item.shelfTitle) : ""
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
         readonly property real done: root.fraction(tile.item)

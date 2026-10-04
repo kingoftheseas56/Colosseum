@@ -11,13 +11,32 @@ Item {
     SignalSpy { id: tankoban; target: shelves; signalName: "seriesRequested" }
     SignalSpy { id: theatre; target: shelves; signalName: "watchRequested" }
 
-    function works(prefix, medium, n) {
+    SignalSpy { id: biblio; target: shelves; signalName: "bookRequested" }
+
+    function works(prefix, medium, n, from) {
         const out = []
         for (let i = 0; i < n; ++i)
             out.push({ title: prefix + " " + (i + 1), medium: medium, canonIndex: i, cover: "",
-                       id: prefix + i, type: medium === "series" ? "series" : "movie",
-                       query: prefix + " " + (i + 1), main: i < 2, resolved: true })
+                       key: prefix + ":" + (from || 0) + ":" + i, id: prefix + i,
+                       type: medium === "series" ? "series" : (medium === "movie" ? "movie" : medium),
+                       query: prefix + " " + (i + 1), mal: medium === "manga" ? 100 + i : 0,
+                       by: "Author " + (i + 1), from: 1990 + i, to: i % 2 ? 2000 + i : 0, resolved: true })
         return out
+    }
+    // the page's data shape: a list of shelves, each with labelled runs (SagaApi.loadShelves)
+    function shelf(title, kind, runs, more) {
+        const out = { title: title, kind: kind, key: title.toLowerCase(), tab: "", pill: "", form: "", order: "", runs: runs }
+        for (const k in (more || {})) out[k] = more[k]
+        return out
+    }
+    function animeUni(nManga, nAnime, eras) {
+        const manga = works("Manga", "manga", nManga)
+        return { name: "Dragon Ball", category: "anime", blurb: "", blurbSource: "", banner: "", wallpaper: "", color: "#222",
+            shelves: [
+                shelf("Manga", "manga", [ { label: "The series", items: manga.slice(0, Math.min(2, nManga > 3 ? 2 : 1)) },
+                                          { label: "Spin-offs", items: manga.slice(Math.min(2, nManga > 3 ? 2 : 1)) } ]),
+                shelf("Anime", "series", [ { label: "", items: works("Anime", "series", nAnime) } ]),
+                shelf("Films", "movie", eras) ] }
     }
 
     TestCase {
@@ -25,15 +44,13 @@ Item {
         when: windowShown
         function init() {
             shelves.previewProgress = null
-            shelves.uni = { name: "Dragon Ball", blurb: "", blurbSource: "", banner: "", wallpaper: "", color: "#222",
-                manga: works("Manga", "manga", 12), shows: works("Anime", "series", 3),
-                filmEras: [ { era: "First era", films: works("Early film", "film", 9) },
-                            { era: "Second era", films: works("Late film", "film", 9) } ] }
+            shelves.uni = animeUni(12, 3, [ { label: "First era", items: works("Early film", "movie", 9) },
+                                            { label: "Second era", items: works("Late film", "movie", 9) } ])
             tryVerify(function() { return findChild(shelves, "shelvesScroll").contentHeight > 1200 })
             findChild(shelves, "shelvesScroll").contentY = 0
             findChild(shelves, "shelvesRow_manga").contentX = 0
             findChild(shelves, "shelvesRow_films").contentX = 0
-            tankoban.clear(); theatre.clear()
+            tankoban.clear(); theatre.clear(); biblio.clear()
         }
         function page() { return findChild(shelves, "shelvesScroll") }
 
@@ -82,7 +99,7 @@ Item {
         }
         function test_tabLandsItsPanelUnderTheChromeWithTabsDocked() {
             const flick = page(), tabs = findChild(shelves, "shelvesTabs")
-            const section = findChild(shelves, "shelvesManga")
+            const section = findChild(shelves, "shelvesMedium_manga")
             shelves.revealSection(section)
             // the panel (44px below the section's top) sits just under the chrome band
             compare(section.mapToItem(shelves, 0, 44).y, 100)
@@ -103,20 +120,19 @@ Item {
             keyClick(Qt.Key_Return)
             compare(tankoban.count, 1)
             compare(tankoban.signalArguments[0][0], "Manga 1")
+            compare(tankoban.signalArguments[0][1], 100, "a manga opens Tankoban by its pinned MAL id")
         }
 
         // ── panel lines (2026-10-05): a short row's panel hugs its row; consecutive
         //    short panels share a line; a long row keeps the full width ──
         function shortUniverse() {
             // Attack-on-Titan-shaped: 3 manga (1 series + 2 spin-offs), 1 anime, many films
-            shelves.uni = { name: "Short", blurb: "", blurbSource: "", banner: "", wallpaper: "", color: "#222",
-                manga: works("Manga", "manga", 3), shows: works("Anime", "series", 1),
-                filmEras: [ { era: "Only era", films: works("Film", "film", 18) } ] }
-            tryVerify(function() { return findChild(shelves, "shelvesManga").width > 0 })
+            shelves.uni = animeUni(3, 1, [ { label: "Only era", items: works("Film", "movie", 18) } ])
+            tryVerify(function() { const m = findChild(shelves, "shelvesMedium_manga"); return m && m.width > 0 })
         }
         function test_shortPanelHugsItsRow() {
             shortUniverse()
-            const manga = findChild(shelves, "shelvesManga"), anime = findChild(shelves, "shelvesAnime")
+            const manga = findChild(shelves, "shelvesMedium_manga"), anime = findChild(shelves, "shelvesMedium_anime")
             const contentWidth = shelves.width - shelves.gutter * 2
             // 1 series tile + a 28px seam + 2 spin-off tiles, inset both ends
             compare(manga.width, shelves.rowInset * 2 + (164 + 28 + 2 * 164 + 16))
@@ -125,11 +141,11 @@ Item {
         }
         function test_shortPanelsShareALine() {
             shortUniverse()
-            const manga = findChild(shelves, "shelvesManga"), anime = findChild(shelves, "shelvesAnime")
+            const manga = findChild(shelves, "shelvesMedium_manga"), anime = findChild(shelves, "shelvesMedium_anime")
             compare(anime.y, manga.y, "two panels that fit share the line's y")
             compare(anime.x, manga.x + manga.width + shelves.panelSeam, "24px between panels on a line")
             compare(anime.height, manga.height, "panels on one line share the tallest height")
-            const films = findChild(shelves, "shelvesFilms")
+            const films = findChild(shelves, "shelvesMedium_films")
             verify(films.y > anime.y, "the full-width films panel takes its own line below")
             compare(films.width, shelves.width - shelves.gutter * 2, "a long row's panel is the full content width")
         }
@@ -137,10 +153,96 @@ Item {
             shortUniverse()
             // the shared line: revealing EITHER of its sections lands the line under the
             // chrome, and the FIRST of the two (Manga) is the active tab
-            shelves.revealSection(findChild(shelves, "shelvesAnime"))
+            shelves.revealSection(findChild(shelves, "shelvesMedium_anime"))
             compare(shelves.activeTab, 0)
-            shelves.revealSection(findChild(shelves, "shelvesManga"))
+            shelves.revealSection(findChild(shelves, "shelvesMedium_manga"))
             compare(shelves.activeTab, 0)
+        }
+
+        // ── any universe (2026-10-05, Arc 58-E): the shelves are DATA ──
+        function generalUniverse() {
+            shelves.uni = { name: "James Bond", category: "eras", blurb: "", blurbSource: "", banner: "", wallpaper: "", color: "#222",
+                shelves: [
+                    shelf("Films", "movie", [ { label: "First actor", items: works("A film", "movie", 6, 0) },
+                                              { label: "Second actor", items: works("B film", "movie", 6, 1) },
+                                              { label: "Third actor", items: works("C film", "movie", 6, 2) } ]),
+                    shelf("Series", "series", [ { label: "One", items: works("S", "series", 1, 0) },
+                                                { label: "Two", items: works("T", "series", 1, 1) },
+                                                { label: "Three", items: works("U", "series", 1, 2) } ]),
+                    shelf("Books", "book", [ { label: "", items: works("Book", "book", 3) } ]) ] }
+            tryVerify(function() { const m = findChild(shelves, "shelvesMedium_books"); return m && m.width > 0 })
+        }
+        function test_shelvesTabsAndKickerComeFromData() {
+            generalUniverse()
+            compare(shelves.tabs.map(function(t) { return t.title }).join("|"), "Films|Series|Books|About")
+            compare(shelves.facts.join("|"), "18 Films|3 Series|3 Books")
+            compare(shelves.kicker, "UNIVERSE")
+            verify(findChild(shelves, "shelvesReadButton").visible && findChild(shelves, "shelvesWatchButton").visible)
+            shelves.uni = animeUni(3, 1, [])
+            tryCompare(shelves, "kicker", "ANIME")
+            compare(shelves.tabs.map(function(t) { return t.title }).join("|"), "Manga|Anime|About", "an empty shelf draws no tab")
+        }
+        function test_runJumpsOnlyOnALongRowWithThreeRuns() {
+            generalUniverse()
+            const films = findChild(shelves, "shelvesJumps_films"), series = findChild(shelves, "shelvesJumps_series")
+            verify(films.visible, "18 films in three runs overflow: the jumps show")
+            verify(!series.visible, "three runs that FIT need no jumps")
+            const row = findChild(shelves, "shelvesRow_films")
+            findChild(shelves, "shelvesScroll").contentY = 300
+            const chip = findChild(shelves, "shelvesJump_films_2")
+            mouseClick(chip, chip.width / 2, chip.height / 2)
+            // the third run starts after two runs of six tiles and two seams
+            tryCompare(row, "contentX", Math.min(row.contentWidth - row.width, 2 * (6 * 164 + 5 * 16 + 28)))
+        }
+        function test_aBookOpensBiblio() {
+            generalUniverse()
+            findChild(shelves, "shelvesRowFocus_books").forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            tryCompare(biblio, "count", 1)
+            compare(biblio.signalArguments[0][0].title, "Book 1")
+            compare(tankoban.count, 0); compare(theatre.count, 0)
+        }
+
+        // ── a magazine's lineup is a numbered TABLE (Weekly Shonen Jump) ──
+        function magazine() {
+            shelves.uni = { name: "Weekly Shonen Jump", category: "magazine", blurb: "", blurbSource: "", banner: "", wallpaper: "", color: "#222",
+                shelves: [
+                    shelf("In the magazine now", "manga", [ { label: "", items: works("Now", "manga", 20) } ],
+                          { key: "now", tab: "Now", pill: "running now", form: "table", order: "Longest-running first" }),
+                    shelf("The classics", "manga", [ { label: "", items: works("Classic", "manga", 20) } ],
+                          { key: "classics", tab: "Classics", pill: "classics", form: "table", order: "In order of first issue" }) ] }
+            tryVerify(function() { const t = findChild(shelves, "shelvesTablePanel_now"); return t && t.width > 0 })
+        }
+        function test_tableIsFullWidthAndNumberedDownThenAcross() {
+            magazine()
+            compare(shelves.kicker, "MAGAZINE")
+            compare(shelves.tabs.map(function(t) { return t.title }).join("|"), "Now|Classics|About")
+            compare(shelves.facts.join("|"), "20 running now|20 classics")
+            verify(findChild(shelves, "shelvesReadButton").visible && !findChild(shelves, "shelvesWatchButton").visible)
+            const now = findChild(shelves, "shelvesTablePanel_now"), classics = findChild(shelves, "shelvesTablePanel_classics")
+            compare(now.width, shelves.width - shelves.gutter * 2)
+            verify(classics.y > now.y, "each table takes its own line")
+            const r1 = findChild(shelves, "shelvesTableRow_now_0"), r2 = findChild(shelves, "shelvesTableRow_now_1")
+            const r10 = findChild(shelves, "shelvesTableRow_now_9"), r11 = findChild(shelves, "shelvesTableRow_now_10")
+            compare(r2.x, r1.x); compare(r2.y, r1.y + 78)
+            compare(r10.y, r1.y + 9 * 78)
+            compare(r11.y, r1.y, "row 11 starts the second column")
+            verify(r11.x > r1.x + r1.width)
+        }
+        function test_tableKeyboardWalksRowsAndColumns() {
+            magazine()
+            const table = findChild(shelves, "shelvesTablePanel_now")
+            findChild(shelves, "shelvesTableFocus_now").forceActiveFocus()
+            keyClick(Qt.Key_Down); keyClick(Qt.Key_Down)
+            compare(table.currentIndex, 2)
+            keyClick(Qt.Key_Right)
+            compare(table.currentIndex, 12)
+            keyClick(Qt.Key_Left); keyClick(Qt.Key_Up)
+            compare(table.currentIndex, 1)
+            keyClick(Qt.Key_Return)
+            compare(tankoban.count, 1)
+            compare(tankoban.signalArguments[0][0], "Now 2")
+            compare(tankoban.signalArguments[0][1], 101)
         }
     }
 }

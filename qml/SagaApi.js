@@ -469,66 +469,110 @@ function loadMangaUniverse(name, cfg, push) {
     return null;
 }
 
-// loadShelves(name, push) — the SHELVES centre's loader (the anime universes' second form,
-// 2026-10-04: Hemanth's ruling on the story grid — "fundamentally flawed in terms of
-// navigation, division of mediums and overall flow"). The page divides by MEDIUM, so the
-// payload keeps each medium's own shape: the manga with their run split, the shows, and
-// the films still grouped in their eras. Every work stays a pinned identity — nothing is
-// searched. The manga's run split comes from the story pairing that already exists: the
-// books it names (story books and spanning books) are THE SERIES, the rest are spin-offs.
-// A `live: true` pin marks a live-action series (One Piece's Netflix adaptation).
-function loadShelves(name, push) {
-    var cfg = UDB.configFor(name);
+// THE SHELVES (Arc 58 / 58-E). One universe page serves every universe that is not a book
+// saga: the page divides by MEDIUM, one shelf per medium, the franchise's own grouping as
+// labelled runs. A universe declares its shelves in curation (`shelves`, see the generated
+// block at the end of Universes.js); an anime universe that predates that shape (curated
+// `manga` + `saga`/`anime` + `filmEras`) has them DERIVED here. Every work is a pinned
+// provider identity and nothing is ever searched.
+
+// shelfSpecsFor(cfg) -> [{ title, kind, tab?, pill?, form?, order?, runs: [{ label, works }] }]. PURE.
+function shelfSpecsFor(cfg) {
+    cfg = cfg || {};
+    if (cfg.shelves) return cfg.shelves;
+    if (!cfg.manga) return [];
     var canon = sagaCanon(cfg);
-    var main = {};
-    var pair = cfg.sagaGrid || {};
-    (pair.stories || []).forEach(function(s) {
-        if (s.book !== undefined && s.book !== null) main[s.book] = true;
+    // the manga the story pairing names are THE SERIES; the rest are spin-offs
+    var main = {}, pair = cfg.sagaGrid || {};
+    (pair.stories || []).forEach(function(st) {
+        if (st.book !== undefined && st.book !== null) main[st.book] = true;
     });
     (pair.spans || []).forEach(function(sp) {
         if (sp.books !== undefined) main[sp.books] = true;
     });
-    function pinned(entry, type) {
-        return entry && entry.id
-            ? mapWatch({ id: entry.id, type: type, name: entry.t, releaseInfo: entry.year })
-            : null;
+    var series = [], spinoffs = [];
+    canon.books.forEach(function(m, i) { (main[i] ? series : spinoffs).push(m); });
+    return [
+        { title: "Manga", kind: "manga",
+          runs: [ { label: "The series", works: series }, { label: "Spin-offs", works: spinoffs } ] },
+        { title: "Anime", kind: "series", runs: [ { label: "", works: canon.shows } ] },
+        { title: "Films", kind: "movie",
+          runs: (cfg.filmEras || []).map(function(g) { return { label: g.era, works: g.films || [] }; }) }
+    ];
+}
+
+function shelfKeyOf(title, index) {
+    var k = String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return k || ("shelf-" + index);
+}
+
+// one curated work -> the tile the page draws. PURE.
+function shelfItem(work, kind, key, index) {
+    var item;
+    work = work || {};
+    if (kind === "movie" || kind === "series") {
+        item = work.id ? mapWatch({ id: work.id, type: kind, name: work.t, releaseInfo: work.year })
+                       : { title: work.t || "", cover: "", art: "", year: 0 };
+        if (!work.id) item.resolved = false;
+        if (work.upcoming === true) item.upcoming = true;
+        if (work.live === true) item.live = true;
+    } else if (kind === "manga") {
+        item = { title: work.t || "", cover: work.cover || "", query: work.q || work.t || "",
+                 al: work.al || 0, mal: work.mal || 0, by: work.by || "",
+                 from: work.from || 0, to: work.to || 0, volumes: work.volumes || 0 };
+    } else {
+        // a book: the object BiblioBook renders, keyed by its Apple Books id; resolveBook
+        // fills the synopsis and facts by ID when the tile is opened
+        item = { id: work.apple || 0, apple: work.apple || 0, title: work.t || "",
+                 cover: work.cover || "", author: work.author || "", year: String(work.year || ""),
+                 genres: [], genreLine: work.author || "", tagline: "", synopsis: "",
+                 rating: 0, ratingCount: 0 };
+        if (!work.apple) item.resolved = false;
     }
-    var out = {
-        name: name,
-        blurb: cfg.blurb || "",
-        blurbSource: cfg.blurbSource || "",
-        banner: cfg.banner || "",
-        wallpaper: cfg.wallpaper || "",
-        color: cfg.c1 || "#221c30",
-        manga: sagaSlots(canon.books, canon.books.map(function(m, i) {
-            return m ? { title: m.t, cover: m.cover || "", query: m.q || m.t,
-                         main: !!main[i], mal: m.mal } : null;
-        }), "manga"),
-        shows: sagaSlots(canon.shows, canon.shows.map(function(e) {
-            return pinned(e, "series");
-        }), "series"),
-        filmEras: (cfg.filmEras || []).map(function(group) {
-            return { era: group.era,
-                     films: sagaSlots(group.films || [], (group.films || []).map(function(e) {
-                         return pinned(e, "movie");
-                     }), "film") };
-        })
-    };
-    canon.shows.forEach(function(e, i) {
-        if (e && e.live && out.shows[i]) out.shows[i].live = true;
+    item.medium = kind;
+    item.canonIndex = index;
+    item.key = key + ":" + index;
+    if (item.resolved !== false) item.resolved = true;
+    return item;
+}
+
+// loadShelves(name, push) -> push({ name, category, blurb, blurbSource, banner, wallpaper,
+// color, shelves: [{ title, tab, pill, key, kind, form, order, runs: [{ label, items }] }] })
+// exactly ONCE: curation is complete, so the page never rebuilds under the reader.
+function loadShelves(name, push) {
+    var cfg = UDB.configFor(name);
+    var shelves = shelfSpecsFor(cfg).map(function(spec, si) {
+        var key = shelfKeyOf(spec.title, si), index = 0;
+        return { title: spec.title || "", tab: spec.tab || "", pill: spec.pill || "", key: key,
+                 kind: spec.kind || "movie", form: spec.form || "", order: spec.order || "",
+                 runs: (spec.runs || []).map(function(run) {
+                     return { label: run.label || "",
+                              items: (run.works || []).map(function(w) {
+                                  var item = shelfItem(w, spec.kind || "movie", key, index++);
+                                  item.shelfTitle = spec.title || "";
+                                  return item;
+                              }) };
+                 }) };
     });
-    function emit() {
-        push({ name: out.name, blurb: out.blurb, blurbSource: out.blurbSource,
-               banner: out.banner, wallpaper: out.wallpaper, color: out.color,
-               manga: out.manga, shows: out.shows, filmEras: out.filmEras,
-               detailRevision: ++_detailRevision });
-    }
-    var flat = [];
-    out.filmEras.forEach(function(g) { flat = flat.concat(g.films); });
-    enrichWatch(out.shows, emit);
-    enrichWatch(flat, emit);
-    emit();   // curation paints instantly; the records dress in as they land
+    push({ name: name, category: cfg.shelves ? (cfg.category || "") : "anime",
+           blurb: cfg.blurb || "", blurbSource: cfg.blurbSource || "",
+           banner: cfg.banner || "", wallpaper: cfg.wallpaper || "", color: cfg.c1 || "#221c30",
+           shelves: shelves, detailRevision: ++_detailRevision });
     return null;
+}
+
+// resolveBook(item, done) -> the full Biblio book for a pinned Apple Books id. A lookup BY ID,
+// never a title search; on any failure the pinned tile itself opens (it is already a book).
+function resolveBook(item, done) {
+    if (!item || !item.apple) { done(item); return; }
+    requestJson("https://itunes.apple.com/lookup?id=" + encodeURIComponent(item.apple), function(json) {
+        var r = json && json.results && json.results[0];
+        if (!r || String(r.trackId) !== String(item.apple)) { done(item); return; }
+        var full = Biblio.fullBook(r);
+        full.title = item.title || full.title;     // the curated title: store names run long
+        full.cover = full.cover || item.cover;
+        done(full);
+    });
 }
 
 // loadGalaxy(name, push) — the GALAXY template's loader (Star Wars): the Skywalker Saga as

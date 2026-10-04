@@ -3,7 +3,7 @@
 // real. (backdrop stays null under the harness — Glass is null-safe; creation succeeding
 // is exactly what READY proves.) Also pins the roster contract: the four seeded
 // installed universes + every curated door with a real page (Dragon Ball's story grid
-// joined 2026-10-04) = 19 ledger bars.
+// joined 2026-10-04; Marvel and Weekly Shonen Jump joined 2026-10-05 with the shelves page) = 21 ledger bars.
 import QtQuick
 import QtQuick.Window
 import "../qml/Universes.js" as Universes
@@ -23,8 +23,8 @@ Window {
               banner: "", logo: "" } ]
         const roster = Universes.worldRoster(four)
         console.log("[diag] worldRoster length = " + roster.length)
-        if (roster.length !== 19) {
-            console.log("[diag] HARNESS FAIL — expected 19 roster bars, got " + roster.length)
+        if (roster.length !== 21) {
+            console.log("[diag] HARNESS FAIL — expected 21 roster bars, got " + roster.length)
             Qt.exit(2)
         }
         // the list is alphabetical (articles aside), and the carousel holds the art pages
@@ -39,11 +39,11 @@ Window {
             Qt.exit(2)
         }
         const manga = Universes.filterRoster(roster, "manga").map(function(e) { return e.name }).join("|")
-        if (manga !== "Attack on Titan|Dragon Ball|Naruto|One Piece") {
+        if (manga !== "Attack on Titan|Dragon Ball|Naruto|One Piece|Weekly Shonen Jump") {
             console.log("[diag] HARNESS FAIL — manga filter: " + manga)
             Qt.exit(2)
         }
-        if (Universes.filterRoster(roster, "").length !== 19) {
+        if (Universes.filterRoster(roster, "").length !== 21) {
             console.log("[diag] HARNESS FAIL — the empty filter must show everything")
             Qt.exit(2)
         }

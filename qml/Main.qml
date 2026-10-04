@@ -1983,7 +1983,7 @@ Window {
         // same rule as the Universes world's roster: an anime universe (curated manga)
         // opens its shelves page; a curated sagaGrid opens the story grid
         if (cfg && cfg.category)
-            win.openArchivedUniverse(cfg.name, cfg.manga ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
+            win.openArchivedUniverse(cfg.name, (cfg.shelves || cfg.manga) ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
         win.closeOnePieceArc()

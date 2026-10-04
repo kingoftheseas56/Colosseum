@@ -45,7 +45,10 @@ Window {
         interval: 12000
         running: host.argument("--state", "") === "returning"
         onTriggered: {
-            const m = page.uni.manga, s = page.uni.shows, out = []
+            const all = []
+            ;(page.uni.shelves || []).forEach(function(sh) { sh.runs.forEach(function(r) { r.items.forEach(function(w) { all.push(w) }) }) })
+            const m = all.filter(function(w) { return w.medium === "manga" })
+            const s = all.filter(function(w) { return w.medium === "series" || w.medium === "movie" }), out = []
             function add(id, kind, title, progress, sub, watched) {
                 if (id) out.push({ id: String(id), kind: kind, title: title, sub: sub,
                                    cover: "", progress: progress, watched: watched === true })
@@ -74,9 +77,8 @@ Window {
             const saved = result.saveToFile(host.argument("--capture", ""))
             console.log("[shelves-preview] focus", host.activeFocusItem ? (host.activeFocusItem.objectName || host.activeFocusItem) : "none",
                         "scroll", findItem(page, "shelvesScroll").contentY)
-            console.log("[shelves-preview] capture", saved, "manga", page.uni.manga.length,
-                        "shows", page.uni.shows.length,
-                        "filmEras", page.uni.filmEras.map(function(g) { return g.era + ":" + g.films.length }).join("|"))
+            console.log("[shelves-preview] capture", saved, (page.uni.shelves || []).map(function(sh) {
+                return sh.title + ":" + sh.runs.map(function(r) { return r.items.length }).join("+") }).join(" | "))
             Qt.exit(saved ? 0 : 1)
             })
         }
