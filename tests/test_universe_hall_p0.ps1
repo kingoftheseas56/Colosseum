@@ -24,9 +24,15 @@ $hp = Read-File "qml/UniverseHallPage.qml"
 foreach ($n in @('signal exploreRequested(string name)', 'property int hovered',
                  'Universes.universes', 'Hall of Worlds',
                  'flickableDirection: Flickable.VerticalFlick',
-                 'ScrollBar.vertical: HouseScrollBar', 'ScrollGlide',
-                 'Behavior on height', 'Gradient.Horizontal')) {
+                 'ScrollBar.vertical: HouseScrollBar', 'ScrollGlide')) {
     Assert-Contains $hp $n "UniverseHallPage must carry: $n"
+}
+# The bar itself (breathe height Behaviour + the washed-dark horizontal gradient) moved to
+# UniverseLedgerBar.qml in the 2026-10-04 extraction — the Hall still houses the pile, the
+# bar's own checks point at the component now.
+$lb = Read-File "qml/UniverseLedgerBar.qml"
+foreach ($n in @('Behavior on height', 'Gradient.Horizontal')) {
+    Assert-Contains $lb $n "UniverseLedgerBar must carry: $n"
 }
 Assert-Lacks $hp 'PortraitTile' "The hall must NOT be generic tiles (ratified constraint)."
 Assert-Lacks $hp 'ContinueTile' "The hall must NOT reuse the continue tiles."

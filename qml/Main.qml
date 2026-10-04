@@ -1029,6 +1029,7 @@ Window {
         if (medium === "Tankoban") return "TankobanWorld.qml"
         if (medium === "Theatre") return "TheatreWorld.qml"
         if (medium === "Biblio") return "BiblioWorld.qml"
+        if (medium === "Universes") return "UniversesWorld.qml"
         return "DemoWorld.qml"
     }
     function openWorld(medium) {

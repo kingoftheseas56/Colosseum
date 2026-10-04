@@ -923,3 +923,37 @@ function configFor(name) {
         if (all[i].name.toLowerCase() === q) return all[i];
     return {};
 }
+
+// The UNIVERSES WORLD roster (2026-10-04): every universe with a working page, as ledger
+// bars. First the INSTALLED roster exactly as the shell hands it down ({extensionId,
+// name, banner, logo} — Main's installedUniverses); then every curated door that opens a
+// real page today, from universes and archive alike, in curation order — categories saga,
+// eras, studio, anime (openArchivedUniverse's template set). A curated entry already on
+// the installed shelf by name is skipped: the installed bar owns that universe. The other
+// categories (cinematic, dragonball, magazine, onepiece, cosmere, galaxy) have no page
+// this world can open yet and stay out rather than dead bars. Installed entries pass
+// through untouched; curated entries carry name, banner (the local wallpaper art when a
+// saga has it), blurb, chips and their template page. Pure — same input, same bars.
+function worldRoster(installed) {
+    var roster = [];
+    var seen = {};
+    var shelf = installed || [];
+    for (var i = 0; i < shelf.length; i++) {
+        if (!shelf[i] || !shelf[i].name) continue;
+        seen[shelf[i].name] = true;
+        roster.push(shelf[i]);
+    }
+    var opensPage = { saga: true, eras: true, studio: true, anime: true };
+    var curated = universes.concat(archive);
+    for (var j = 0; j < curated.length; j++) {
+        var c = curated[j];
+        if (!opensPage[c.category] || seen[c.name]) continue;
+        seen[c.name] = true;
+        roster.push({ name: c.name,
+                      banner: c.wallpaper || c.banner || "",
+                      blurb: c.blurb || "",
+                      chips: c.chips || [],
+                      page: c.category });
+    }
+    return roster;
+}

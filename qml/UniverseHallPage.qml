@@ -139,106 +139,23 @@ Item {
         Repeater {
             id: hallRepeater
             model: root.universes
-            delegate: Item {
+            // the bar itself lives in UniverseLedgerBar.qml since 2026-10-04 (extracted
+            // verbatim so the Universes world can house the same bar); the Hall keeps
+            // owning the pile: the breathe state, the walk-still rule and the click route.
+            delegate: UniverseLedgerBar {
                 id: bar
                 required property var modelData
                 required property int index
-                readonly property bool open: root.hovered === bar.index || (stackWalk.activeFocus && stackWalk.currentIndex === bar.index)
-                width: pile.width
-                height: open ? pile.openH : pile.restH
-                Behavior on height { NumberAnimation { duration: 340; easing.type: Easing.OutCubic } }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 14; clip: true
-                    color: "#14161d"   // the per-IP accent went with the baked list
-                    border.width: 1
-                    border.color: bar.open ? Qt.rgba(0.94, 0.77, 0.29, 0.65)
-                                           : Qt.rgba(0.97, 0.97, 0.96, 0.10)
-                    Behavior on border.color { ColorAnimation { duration: 240 } }
-
-                    // the world's art, washed dark so the type carries the bar
-                    Image {
-                        anchors.fill: parent
-                        source: bar.modelData.banner
-                        asynchronous: true; cache: true
-                        fillMode: Image.PreserveAspectCrop
-                        opacity: status === Image.Ready ? (bar.open ? 0.55 : 0.30) : 0
-                        Behavior on opacity { NumberAnimation { duration: 300 } }
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.74) }
-                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, bar.open ? 0.45 : 0.28) }
-                        }
-                    }
-
-                    // ---- title row (always level, always present) ----
-                    Item {
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.top: parent.top
-                        height: pile.restH
-                        Text {   // the index numeral — library plate
-                            id: plate
-                            anchors.left: parent.left; anchors.leftMargin: 22
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: (bar.index + 1 < 10 ? "0" : "") + (bar.index + 1)
-                            color: Qt.rgba(0.94, 0.77, 0.29, 0.8)
-                            font.family: theme.display; font.pixelSize: 14; font.italic: true
-                        }
-                        Text {   // the name reads level — no tilted head
-                            anchors.left: plate.right; anchors.leftMargin: 18
-                            anchors.right: enterRow.left; anchors.rightMargin: 18
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: bar.modelData.name
-                            color: theme.ink
-                            font.family: theme.display; font.pixelSize: 21
-                            elide: Text.ElideRight
-                        }
-                        Row {
-                            id: enterRow
-                            anchors.right: parent.right; anchors.rightMargin: 22
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 8
-                            opacity: bar.open ? 1 : 0
-                            Behavior on opacity { NumberAnimation { duration: 250 } }
-                            Text { text: "Enter the universe"; color: theme.ink
-                                   font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-                            Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
-                        }
-                    }
-
-                    // ---- the breathe: the world introduces itself under its own title ----
-                    Column {
-                        anchors.left: parent.left; anchors.leftMargin: 68
-                        anchors.right: parent.right; anchors.rightMargin: 24
-                        anchors.top: parent.top; anchors.topMargin: pile.restH
-                        spacing: 8
-                        opacity: bar.open ? 1 : 0
-                        visible: opacity > 0.01
-                        Behavior on opacity { NumberAnimation { duration: 260 } }
-                        // the kicker is derived from the pile's own order, not from the row —
-                        // the blurb and the media ledger below it are GONE with the baked
-                        // list, because the roster supplies neither and faking either would
-                        // put words in a universe's mouth.
-                        Text { text: "UNIVERSE  ·  " + ((bar.index + 1 < 10 ? "0" : "") + (bar.index + 1))
-                               color: theme.gold; font.family: theme.ui
-                               font.pixelSize: 10; font.letterSpacing: 3 }
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onEntered: if (!root.walking && !hallNav.keyboardRecentlyMoved) root.hovered = bar.index
-                    onExited: if (root.hovered === bar.index) root.hovered = -1
-                    onClicked: {
-                        stackWalk.currentIndex = bar.index
-                        root.exploreRequested(bar.modelData.extensionId, bar.modelData.name)
-                    }
+                entry: bar.modelData
+                numeral: bar.index
+                restHeight: pile.restH
+                openHeight: pile.openH
+                open: root.hovered === bar.index || (stackWalk.activeFocus && stackWalk.currentIndex === bar.index)
+                onHoverEntered: if (!root.walking && !hallNav.keyboardRecentlyMoved) root.hovered = bar.index
+                onHoverExited: if (root.hovered === bar.index) root.hovered = -1
+                onActivated: {
+                    stackWalk.currentIndex = bar.index
+                    root.exploreRequested(bar.modelData.extensionId, bar.modelData.name)
                 }
             }
         }

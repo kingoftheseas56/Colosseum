@@ -263,6 +263,7 @@ Item {
             Pill { label: "Tankoban" }
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
+            Pill { label: "Universes" }
         }
     }
 
@@ -276,7 +277,7 @@ Item {
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: 20
-        // Search — worlds only.
+        // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
             // non-Theatre search a world-specific name so Lanista can target
@@ -286,7 +287,7 @@ Item {
             source: "../assets/icons/search.svg"
             accessibleName: "Search"
             onClicked: bar.searchClicked()
-            visible: bar.activeMedium !== ""
+            visible: bar.activeMedium !== "" && bar.activeMedium !== "Universes"
         }
         // Theatre's provider door. The official artwork remains untouched;
         // only the small external badge communicates an actionable state.
