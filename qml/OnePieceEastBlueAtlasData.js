@@ -3,13 +3,27 @@
 // Static atlas geometry and Index payloads. Story/provider metadata remains in
 // OnePieceEastBlueData.js; these records only bind the fitted plate to native UI.
 var canonMarkers = [
-    { id: "romance", x: 0.88869, y: 0.35208, badge: "../assets/universes/one-piece/east-blue-markers/romance.png", poster: "../assets/universes/one-piece/east-blue/canon/romance-dawn.png" },
-    { id: "orange", x: 0.56726, y: 0.31667, badge: "../assets/universes/one-piece/east-blue-markers/orange.png", poster: "../assets/universes/one-piece/east-blue/canon/orange-town.png" },
-    { id: "syrup", x: 0.41250, y: 0.38646, badge: "../assets/universes/one-piece/east-blue-markers/syrup.png", poster: "../assets/universes/one-piece/east-blue/canon/syrup-village.png" },
-    { id: "baratie", x: 0.63988, y: 0.62917, badge: "../assets/universes/one-piece/east-blue-markers/baratie.png", poster: "../assets/universes/one-piece/east-blue/canon/baratie.png" },
-    { id: "arlong", x: 0.33095, y: 0.34271, badge: "../assets/universes/one-piece/east-blue-markers/arlong.png", poster: "../assets/universes/one-piece/east-blue/canon/arlong-park.png" },
-    { id: "loguetown", x: 0.23750, y: 0.69167, badge: "../assets/universes/one-piece/east-blue-markers/loguetown.png", poster: "../assets/universes/one-piece/east-blue/canon/loguetown.png" }
+    { id: "romance", x: 0.11131, y: 0.35208, badge: "../assets/universes/one-piece/east-blue-markers/romance.png", poster: "../assets/universes/one-piece/east-blue/canon/romance-dawn.png" },
+    { id: "orange", x: 0.41500, y: 0.31667, badge: "../assets/universes/one-piece/east-blue-markers/orange.png", poster: "../assets/universes/one-piece/east-blue/canon/orange-town.png" },
+    { id: "syrup", x: 0.61500, y: 0.41200, badge: "../assets/universes/one-piece/east-blue-markers/syrup.png", poster: "../assets/universes/one-piece/east-blue/canon/syrup-village.png" },
+    { id: "baratie", x: 0.35000, y: 0.64000, badge: "../assets/universes/one-piece/east-blue-markers/baratie.png", poster: "../assets/universes/one-piece/east-blue/canon/baratie.png" },
+    { id: "arlong", x: 0.80000, y: 0.35000, badge: "../assets/universes/one-piece/east-blue-markers/arlong.png", poster: "../assets/universes/one-piece/east-blue/canon/arlong-park.png" },
+    { id: "loguetown", x: 0.75000, y: 0.69000, badge: "../assets/universes/one-piece/east-blue-markers/loguetown.png", poster: "../assets/universes/one-piece/east-blue/canon/loguetown.png" }
 ];
+
+function badgeSource(id) {
+    for (var i = 0; i < canonMarkers.length; ++i)
+        if (canonMarkers[i].id === id)
+            return canonMarkers[i].badge;
+    return "";
+}
+
+function bannerSource(id) {
+    for (var i = 0; i < canonMarkers.length; ++i)
+        if (canonMarkers[i].id === id)
+            return "../assets/universes/one-piece/east-blue/banners/" + id + ".png";
+    return "";
+}
 
 var nonCanonEntries = [
     { id: "ganzack", title: "One Piece: Defeat Him! The Pirate Ganzack!", year: "1998", kindLabel: "OVA", placement: "Between Orange Town and Syrup Village", poster: "../assets/universes/one-piece/east-blue/noncanon/01-ganzack.png", entry: { id: "tt1012788", type: "movie", title: "One Piece: Defeat Him! The Pirate Ganzack!", year: "1998" } },

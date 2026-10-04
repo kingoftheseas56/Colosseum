@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Window
 import QtTest
 import "../../qml" as Colosseum
+import "../../qml/OnePieceEastBlueAtlasData.js" as AtlasData
 
 TestCase {
     id: testCase
@@ -22,8 +23,8 @@ TestCase {
 
     Window {
         id: testWindow
-        width: 900
-        height: 360
+        width: 1280
+        height: 720
         visible: true
         color: "#101816"
     }
@@ -248,6 +249,8 @@ TestCase {
         compare(atlas.previewVisible, true)
         compare(atlas.selectedArc.id, "orange")
         compare(atlas.selectedArc.title, "Orange Town")
+        // Let the scheduled placement reach the rendered frame before handoff.
+        wait(20)
 
         var banner = findDescendant(atlas, function(item) { return item.objectName === "eastBlueArcPreview" })
         verify(banner !== null, "preview banner must have a stable objectName")
@@ -266,6 +269,14 @@ TestCase {
             verify(marker !== null, ids[i] + " marker exists")
             verify(marker.modelData.poster !== marker.modelData.badge,
                    ids[i] + " poster path must differ from its circular badge path")
+            var badgeButton = findDescendant(marker, function(item) {
+                return item.objectName === "eastBlueBadgeImage-" + ids[i]
+            })
+            verify(badgeButton !== null, ids[i] + " badge image exists")
+            var badge = badgeButton.contentItem
+            tryCompare(badge, "status", Image.Ready, 3000)
+            verify(String(badge.source).indexOf("east-blue-markers/" + ids[i] + ".png") >= 0,
+                   ids[i] + " badge uses the original symbol artwork")
             atlas.openPreview(ids[i])
             wait(40)
             poster = findDescendant(atlas, function(item) {
@@ -275,10 +286,36 @@ TestCase {
             tryVerify(function() { return poster.status === Image.Ready }, 3000)
             compare(poster.status, Image.Ready)
             compare(poster.posterFallback, false)
-            verify(String(poster.source).indexOf("east-blue/canon/") >= 0,
-                   ids[i] + " preview uses local canon artwork")
+            verify(String(poster.source).indexOf(poster.canonPosterFallback
+                   ? "east-blue/canon/" : "east-blue/banners/" + ids[i] + ".png") >= 0,
+                   ids[i] + " preview uses local banner or canon artwork")
         }
         atlas.closePreview()
+    }
+
+    function test_missing_canon_poster_uses_badge_and_next_arc_resets_fallback() {
+        var markerData = AtlasData.canonMarker("romance")
+        var originalPoster = markerData.poster
+        try {
+            markerData.poster = "../assets/universes/one-piece/east-blue/canon/missing-test-poster.png"
+            atlas.openPreview("romance")
+            var poster = findDescendant(atlas, function(item) {
+                return item.objectName === "eastBlueArcPreviewPoster"
+            })
+            verify(poster !== null)
+            poster.canonPosterFallback = true // Exercise legacy failure even when new art is present.
+            tryCompare(poster, "status", Image.Ready, 3000)
+            compare(poster.posterFallback, true)
+            verify(String(poster.source).indexOf("east-blue-markers/romance.png") >= 0)
+            atlas.openPreview("orange")
+            tryCompare(poster, "status", Image.Ready, 3000)
+            compare(poster.posterFallback, false)
+            verify(String(poster.source).indexOf(poster.canonPosterFallback
+                   ? "east-blue/canon/orange-town.png" : "east-blue/banners/orange.png") >= 0)
+        } finally {
+            markerData.poster = originalPoster
+            atlas.closePreview()
+        }
     }
 
     function test_index_is_parchment_in_all_button_states() {
@@ -533,6 +570,9 @@ TestCase {
     }
 
     function test_index_is_attached_scrolls_noncanon_and_back_restores_index() {
+        atlas.width = 900
+        atlas.height = 360
+        wait(20)
         var index = findDescendant(atlas, function(item) { return item.objectName === "eastBlueIndexButton" })
         verify(index !== null)
         mouseClick(testWindow.contentItem, index.mapToItem(testWindow.contentItem, index.width / 2, index.height / 2).x, index.mapToItem(testWindow.contentItem, index.width / 2, index.height / 2).y, Qt.LeftButton)

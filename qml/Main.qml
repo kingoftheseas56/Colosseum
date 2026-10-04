@@ -778,8 +778,8 @@ Window {
         if (bookReaderLayer.active) win.closeBookReader()
     }
     function requestUniverseEscape() {
-        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape) {
-            universeLayer.item.requestEscape()
+        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape
+                && universeLayer.item.requestEscape()) {
             return
         }
         win.closeUniverse()
@@ -1995,6 +1995,8 @@ Window {
     function closeOnePieceArc() {
         onePieceArcLayer.active = false
         onePieceArcLayer.arcData = null
+        if (universeLayer.active && universeLayer.item && universeLayer.item.takeKeyboardFocus)
+            Qt.callLater(universeLayer.item.takeKeyboardFocus)
     }
     function routeUniverseSeries(e) {
         var requested = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
@@ -4520,6 +4522,7 @@ Window {
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
             if (universeLayer.bespokeId === "com.colosseum.universe.onepiece") {
+                item.arcPageOpen = Qt.binding(function() { return onePieceArcLayer.active })
                 item.arcRequested.connect(win.openOnePieceArc)
                 item.mediaRequested.connect(win.openTheatreSeries)
             } else if (universeLayer.bespokeId === "com.colosseum.universe.cosmere") {

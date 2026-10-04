@@ -172,8 +172,8 @@ FocusScope {
         var maxY = Math.max(safeTop, safeBottom - preview.height)
         for (var c = 0; c < candidates.length; ++c) {
             var candidate = {
-                x: candidates[c].x,
-                y: candidates[c].y,
+                x: Math.max(safeLeft, Math.min(maxX, candidates[c].x)),
+                y: Math.max(safeTop, Math.min(maxY, candidates[c].y)),
                 width: preview.width,
                 height: preview.height
             }
@@ -265,7 +265,10 @@ FocusScope {
     onZoomChanged: root.schedulePreviewGeometry()
     onSelectedMarkerIdChanged: root.schedulePreviewGeometry()
     onSelectedArcChanged: {
-        if (previewPoster) previewPoster.posterFallback = false
+        if (previewPoster) {
+            previewPoster.canonPosterFallback = false
+            previewPoster.posterFallback = false
+        }
         root.schedulePreviewGeometry()
     }
 
@@ -350,8 +353,8 @@ FocusScope {
                         id: markerHover
                         onHoveredChanged: {
                             if (hovered) {
-                                root.previewMarkerHovered = true
                                 root.openPreview(marker.markerId)
+                                root.previewMarkerHovered = true
                             } else {
                                 if (root.selectedMarkerId === marker.markerId)
                                     root.previewMarkerHovered = false
@@ -379,7 +382,7 @@ FocusScope {
                         background: null
                         contentItem: Image {
                             id: badgeImage
-                            source: marker.modelData.badge
+                            source: AtlasData.badgeSource(marker.markerId)
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                             mipmap: true
@@ -387,6 +390,7 @@ FocusScope {
                         Rectangle {
                             anchors.fill: parent
                             visible: badgeImage.status === Image.Error
+                            radius: width / 2
                             color: "#d8bd8a"
                             border.color: "#80633e"
                             Text { anchors.centerIn: parent; text: "ARC"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 9; font.bold: true }
@@ -407,11 +411,11 @@ FocusScope {
             Button {
                 id: paradiseButton
                 objectName: "eastBlueToParadise"
-                x: 0.1619 * mapStage.width
+                x: 0.8381 * mapStage.width - width
                 // The design coordinate sits beside Reverse Mountain. At short
                 // viewports the 48 px native hit target would otherwise fall
                 // through the Flickable clip by a few pixels; keep it in the
-                // same mapped lower-left region while clamping its bottom edge.
+                // same mapped lower-right region while clamping its bottom edge.
                 y: Math.min(0.8938 * mapStage.height,
                             Math.max(0, mapViewport.height - mapStage.y - height))
                 width: 148 * root.zoom
@@ -786,10 +790,13 @@ FocusScope {
                     id: previewPoster
                     anchors.fill: parent
                     objectName: "eastBlueArcPreviewPoster"
+                    property bool canonPosterFallback: false
                     property bool posterFallback: false
                     source: {
                         var marker = root.selectedArc ? AtlasData.canonMarker(root.selectedArc.id) : null
-                        return marker ? (posterFallback ? marker.badge : marker.poster) : ""
+                        return marker ? (posterFallback ? marker.badge
+                                       : canonPosterFallback ? marker.poster
+                                       : AtlasData.bannerSource(marker.id)) : ""
                     }
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
@@ -797,8 +804,10 @@ FocusScope {
                     mipmap: true
                     sourceSize: Qt.size(540, 816)
                     onStatusChanged: {
-                        if (status === Image.Error && !posterFallback)
-                            posterFallback = true
+                        if (status === Image.Error && !posterFallback) {
+                            if (!canonPosterFallback) canonPosterFallback = true
+                            else posterFallback = true
+                        }
                     }
                 }
                 Rectangle {

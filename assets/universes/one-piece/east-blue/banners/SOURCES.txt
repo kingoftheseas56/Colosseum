@@ -1,0 +1,14 @@
+East Blue arc banner artwork
+
+These six files are byte-for-byte copies of the existing One Piece Wiki arc-infobox artwork in ../canon/.
+They are normalized to the same <arc-id>.png naming used by Paradise, New World, and Final Sea.
+Original Wiki page/image provenance and source dimensions remain recorded in ../canon/SOURCES.txt.
+
+romance.png   <- ../canon/romance-dawn.png
+orange.png    <- ../canon/orange-town.png
+syrup.png     <- ../canon/syrup-village.png
+baratie.png   <- ../canon/baratie.png
+arlong.png    <- ../canon/arlong-park.png
+loguetown.png <- ../canon/loguetown.png
+
+SHA-256 equality with each source copy was verified on 2026-10-05.

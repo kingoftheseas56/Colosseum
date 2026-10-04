@@ -1,0 +1,98 @@
+{
+  "formatVersion": 1,
+  "purpose": "One Piece Paradise atlas runtime round badges",
+  "lookup": "<arcId>.png",
+  "badges": [
+    {
+      "arcId": "reverse-mountain",
+      "file": "reverse-mountain.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "whisky-peak",
+      "file": "whisky-peak.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "little-garden",
+      "file": "little-garden.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "drum-island",
+      "file": "drum-island.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "arabasta",
+      "file": "arabasta.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "jaya",
+      "file": "jaya.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "skypiea",
+      "file": "skypiea.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "long-ring-long-land",
+      "file": "long-ring-long-land.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "water-7",
+      "file": "water-7.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "enies-lobby",
+      "file": "enies-lobby.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "post-enies-lobby",
+      "file": "post-enies-lobby.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "thriller-bark",
+      "file": "thriller-bark.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "sabaody",
+      "file": "sabaody.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "amazon-lily",
+      "file": "amazon-lily.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "impel-down",
+      "file": "impel-down.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "marineford",
+      "file": "marineford.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "post-war",
+      "file": "post-war.png",
+      "canvasPx": 256
+    },
+    {
+      "arcId": "return-to-sabaody",
+      "file": "return-to-sabaody.png",
+      "canvasPx": 512
+    }
+  ],
+  "sourcePack": "Arc 58 / prototypes/paradise-native-atlas/assets/round-badges"
+}

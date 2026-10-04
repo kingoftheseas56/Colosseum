@@ -147,7 +147,7 @@ if (fs.existsSync(pagePath)) {
         'readonly property bool atlasTransientOpen',
         'function requestEscape()',
         'OnePieceEastBlueAtlas {',
-        'atlasTransientOpen: atlas.transientOpen',
+        'atlasTransientOpen: !!root.activeAtlas && root.activeAtlas.transientOpen',
         'return atlas.requestEscape()',
         'onArcRequested: function(arc)',
         'onMediaRequested: function(entry)',
@@ -212,7 +212,7 @@ if (fs.existsSync(cataloguePagePath)) {
         'sub: root.animeLoading ? "Anime Kitsu · loading"',
         'sub: root.onePaceLoading ? "One Pace Addon · loading"',
         'root.countLabel(root.volumeItems.length, "volume") + " · Tankoban"',
-        'root.countLabel(root.volumeItems.length, "volume") + " · WeebCentral"',
+        'root.countLabel(root.volumeItems.length, "volume") + " · Tankoban · Colored edition"',
         'sub: root.liveLoading ? "Cinemeta · loading"'
     ]) eq(catalogueSrc.includes(needle), true, `arc catalogue contains ${needle}`);
 }

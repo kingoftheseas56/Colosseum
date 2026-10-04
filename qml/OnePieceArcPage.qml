@@ -4,6 +4,7 @@ import "UniverseExtApi.js" as UniverseApi
 
 Item {
     id: root
+    objectName: "onePieceArcPage"
     anchors.fill: parent
     focus: true
     activeFocusOnTab: true
@@ -25,6 +26,7 @@ Item {
     Theme { id: theme }
 
     onExtensionIdChanged: root.reload()
+    onArcChanged: if (heroImage) heroImage.fallbackActive = false
     Component.onCompleted: root.reload()
 
     function reload() {
@@ -64,6 +66,8 @@ Item {
     }
 
     function relatedItemsForArc() {
+        if (root.arc && root.arc.relatedMedia !== undefined)
+            return root.arc.relatedMedia || []
         var rows = [{
             id: "tt11757066", type: "movie", title: "Episode of East Blue",
             episode: "", thumbnail: "https://live.metahub.space/background/medium/tt11757066/img"
@@ -78,6 +82,7 @@ Item {
     }
 
     function heroSourceForArc() {
+        if (root.arc && root.arc.heroSource) return String(root.arc.heroSource)
         var id = root.arc && root.arc.id ? String(root.arc.id) : "romance"
         return "../assets/universes/one-piece/east-blue-markers/" + id + ".png"
     }
@@ -87,12 +92,20 @@ Item {
         anchors.fill: parent
         Rectangle { anchors.fill: parent; color: "#080b0f" }
         Image {
+            id: heroImage
+            objectName: "onePieceArcHero"
+            property bool fallbackActive: false
             anchors.fill: parent
-            source: root.heroSourceForArc()
+            source: fallbackActive && root.arc && root.arc.heroFallbackSource
+                    ? root.arc.heroFallbackSource : root.heroSourceForArc()
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
             opacity: 0.30
+            onStatusChanged: {
+                if (status === Image.Error && !fallbackActive && root.arc && root.arc.heroFallbackSource)
+                    fallbackActive = true
+            }
         }
         Rectangle { anchors.fill: parent; color: Qt.rgba(0.015, 0.02, 0.025, 0.58) }
     }
