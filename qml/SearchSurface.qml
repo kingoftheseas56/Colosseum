@@ -257,7 +257,7 @@ Item {
                 width: 26; height: 26; radius: 13
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
-                Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
+                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
@@ -433,7 +433,7 @@ Item {
                                     Rectangle { width: 20; height: 20; radius: 10
                                         anchors.verticalCenter: parent.verticalCenter
                                         color: xMa.containsMouse ? Qt.rgba(1,1,1,0.18) : "transparent"
-                                        Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
+                                        Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
                                         MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             onClicked: surf.removeRecent(modelData) } }
                                 }
@@ -483,7 +483,10 @@ Item {
                         width: parent.width; height: 24
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
-                            Text { text: "✦"; color: surMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 14
+                            Text { visible: Qt.platform.os !== "android"; text: "✦"; color: surMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                            Image { visible: Qt.platform.os === "android"; source: "../assets/icons/star.svg"; width: 14; height: 14
+                                fillMode: Image.PreserveAspectFit; opacity: surMa.containsMouse ? 1.0 : 0.65
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: surf.surprising ? "Picking…" : "Surprise me"
                                 color: surMa.containsMouse ? theme.ink : theme.inkDim

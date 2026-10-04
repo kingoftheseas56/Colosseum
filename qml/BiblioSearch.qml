@@ -218,7 +218,7 @@ Item {
                 width: 26; height: 26; radius: 13
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
-                Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
+                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
@@ -302,7 +302,7 @@ Item {
                             Rectangle { id: removeRecentButton; width: 28; height: parent.height; radius: height / 2
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
                                 color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
-                                Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
+                                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
                                 MouseArea { id: removeRecentMa; anchors.fill: parent; hoverEnabled: true
                                     objectName: "biblioRecentRemove"; cursorShape: Qt.PointingHandCursor
                                     onClicked: search.removeRecent(modelData) } }
