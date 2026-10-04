@@ -29,6 +29,10 @@ public:
     void navigate(const QUrl &url);
     void reload();
     void goBack();
+    void goForward();
+    void stop();
+    bool canGoBack() const;
+    bool canGoForward() const;
     void executeScript(const QString &label, const QString &script);
     void pauseMedia(const QString &label);
     void clearSiteData(const QUrl &origin);
@@ -41,6 +45,7 @@ signals:
     void readyChanged(bool ready);
     void navigationBlocked(const QString &uri);
     void navigationCompleted(const QString &uri, bool success);
+    void historyChanged(bool canGoBack, bool canGoForward);
     void scriptResult(const QString &label, const QString &jsonResult);
     void observerMessage(const QString &jsonMessage);
     void escapeRequested();

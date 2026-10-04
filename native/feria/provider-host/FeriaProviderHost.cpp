@@ -19,6 +19,7 @@
 
 #include <climits>
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -26,6 +27,21 @@ using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
 
 namespace {
+
+// Prime probes its Windows app's COM component whenever chrome.webview exists.
+// In a generic WebView2 host that getter throws 0x80070490 before the web
+// player can mount. Select the browser path before any Prime script executes.
+constexpr wchar_t kProviderWebCompatibilityScript[] = LR"JS(
+(() => {
+    const host = location.hostname.toLowerCase();
+    if ((host === 'primevideo.com' || host.endsWith('.primevideo.com'))
+            && window.chrome && chrome.webview) {
+        Object.defineProperty(chrome, 'webview', {
+            value: undefined, configurable: true, writable: true
+        });
+    }
+})();
+)JS";
 
 QString takeWideString(LPWSTR value)
 {
@@ -133,6 +149,12 @@ struct FeriaProviderHost::Impl
     QRect requestedBounds;
     QUrl pendingUrl;
     std::vector<std::unique_ptr<PopupState>> popups;
+    // NavigationStarting reports a fresh id per navigation (redirects reuse it),
+    // so a NavigationCompleted with any other id belongs to a superseded load.
+    UINT64 currentNavigationId = 0;
+    // Stop() can surface as OPERATION_CANCELED or as the underlying network
+    // error (e.g. ERR_CONNECTION_ABORTED); the flag makes either benign.
+    bool stopRequested = false;
     bool initializing = false;
     bool ready = false;
     bool visible = true;
@@ -144,6 +166,26 @@ struct FeriaProviderHost::Impl
         emit q->hostLog(message);
     }
 
+    void prepareDocumentScripts(ICoreWebView2 *view, bool observeYouTube,
+                                const std::function<void(bool)> &done)
+    {
+        std::wstring script(kProviderWebCompatibilityScript);
+        if (observeYouTube) script += kYouTubeObserverScript;
+        const HRESULT result = view->AddScriptToExecuteOnDocumentCreated(
+            script.c_str(),
+            Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
+                [guard = QPointer<FeriaProviderHost>(q), done](HRESULT result, PCWSTR) -> HRESULT {
+                    if (guard && FAILED(result))
+                        guard->m_impl->log(QStringLiteral("DOCUMENT_SCRIPTS_FAILED hr=%1").arg(hresultText(result)));
+                    done(guard && SUCCEEDED(result));
+                    return S_OK;
+                }).Get());
+        if (FAILED(result)) {
+            log(QStringLiteral("DOCUMENT_SCRIPTS_FAILED hr=%1").arg(hresultText(result)));
+            done(false);
+        }
+    }
+
     bool isAllowed(const QString &rawUri) const
     {
         return FeriaBrowserPolicy::allows(QUrl(rawUri));
@@ -153,6 +195,22 @@ struct FeriaProviderHost::Impl
     {
         log(QStringLiteral("NAV_BLOCKED uri=%1").arg(QUrl(uri).toDisplayString(QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)));
         emit q->navigationBlocked(uri);
+    }
+
+    // NavigationCompleted can still report the pre-traversal CanGoBack/
+    // CanGoForward, and HistoryChanged does not reliably fire after traversals.
+    // Delayed re-queries let the engine state settle before it is published.
+    void scheduleHistoryRefresh(int delayMs)
+    {
+        ComPtr<ICoreWebView2> view = webView;
+        QTimer::singleShot(delayMs, q, [guard = QPointer<FeriaProviderHost>(q), view]() {
+            if (!guard || !view) return;
+            BOOL back = FALSE;
+            BOOL forward = FALSE;
+            view->get_CanGoBack(&back);
+            view->get_CanGoForward(&forward);
+            emit guard->historyChanged(back != FALSE, forward != FALSE);
+        });
     }
 
     void installNavigationPolicy(ICoreWebView2 *view, bool mainView = false)
@@ -171,6 +229,12 @@ struct FeriaProviderHost::Impl
                         args->put_Cancel(TRUE);
                         reportBlocked(uri);
                     } else if (mainView) {
+                        UINT64 navigationId = 0;
+                        if (SUCCEEDED(args->get_NavigationId(&navigationId)))
+                            currentNavigationId = navigationId;
+                        // A fresh navigation supersedes any pending stop; its
+                        // own failures must still surface honestly.
+                        stopRequested = false;
                         emit q->navigationStarted(uri);
                     }
                     return S_OK;
@@ -184,6 +248,29 @@ struct FeriaProviderHost::Impl
                     if (!guard) return S_OK;
                     BOOL success = FALSE;
                     args->get_IsSuccess(&success);
+                    if (mainView) {
+                        UINT64 navigationId = 0;
+                        if (SUCCEEDED(args->get_NavigationId(&navigationId))
+                            && navigationId != currentNavigationId) {
+                            // A newer navigation replaced this load; its own
+                            // events own the state, so this callback is noise.
+                            log(QStringLiteral("NAV_SUPERSEDED id=%1").arg(navigationId));
+                            return S_OK;
+                        }
+                        if (!success) {
+                            COREWEBVIEW2_WEB_ERROR_STATUS error =
+                                COREWEBVIEW2_WEB_ERROR_STATUS_UNKNOWN;
+                            args->get_WebErrorStatus(&error);
+                            if (error == COREWEBVIEW2_WEB_ERROR_STATUS_OPERATION_CANCELED
+                                || stopRequested) {
+                                // Stop() or an in-page cancellation: the previous
+                                // page remains displayed and usable, which is not
+                                // a "could not open" failure.
+                                success = TRUE;
+                            }
+                        }
+                        stopRequested = false;
+                    }
                     LPWSTR raw = nullptr;
                     view->get_Source(&raw);
                     const QString uri = takeWideString(raw);
@@ -191,7 +278,19 @@ struct FeriaProviderHost::Impl
                             .arg(success ? QStringLiteral("true")
                                          : QStringLiteral("false"),
                                  QUrl(uri).toDisplayString(QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)));
-                    if (mainView) emit q->navigationCompleted(uri, success != FALSE);
+                    if (mainView) {
+                        // HistoryChanged can trail NavigationCompleted — and
+                        // skip traversals entirely — so refresh alongside it and
+                        // again once the engine state has settled.
+                        BOOL back = FALSE;
+                        BOOL forward = FALSE;
+                        view->get_CanGoBack(&back);
+                        view->get_CanGoForward(&forward);
+                        emit q->historyChanged(back != FALSE, forward != FALSE);
+                        scheduleHistoryRefresh(150);
+                        scheduleHistoryRefresh(500);
+                        emit q->navigationCompleted(uri, success != FALSE);
+                    }
                     return S_OK;
                 }).Get(),
             &token);
@@ -309,11 +408,16 @@ struct FeriaProviderHost::Impl
                                 }).Get(),
                             &popupToken);
 
-                        argsRef->put_NewWindow(popupRaw->webView.Get());
-                        argsRef->put_Handled(TRUE);
-                        deferral->Complete();
-                        log(QStringLiteral("POPUP_HOSTED uri=%1").arg(QUrl(uri).toDisplayString(QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)));
-                        emit q->popupOpened(uri);
+                        prepareDocumentScripts(popupRaw->webView.Get(), false,
+                            [guard, popupRaw, argsRef, deferral, uri](bool ok) {
+                                if (guard && ok) argsRef->put_NewWindow(popupRaw->webView.Get());
+                                argsRef->put_Handled(TRUE);
+                                deferral->Complete();
+                                if (!guard) return;
+                                if (!ok) { popupRaw->window->hide(); return; }
+                                guard->m_impl->log(QStringLiteral("POPUP_HOSTED uri=%1").arg(QUrl(uri).toDisplayString(QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)));
+                                emit guard->popupOpened(uri);
+                            });
                         return S_OK;
                     }).Get());
 
@@ -333,6 +437,18 @@ struct FeriaProviderHost::Impl
         installNavigationPolicy(webView.Get(), true);
 
         EventRegistrationToken token{};
+        webView->add_HistoryChanged(
+            Callback<ICoreWebView2HistoryChangedEventHandler>(
+                [guard = QPointer<FeriaProviderHost>(q)](ICoreWebView2 *sender, IUnknown *) -> HRESULT {
+                    if (!guard) return S_OK;
+                    BOOL back = FALSE;
+                    BOOL forward = FALSE;
+                    sender->get_CanGoBack(&back);
+                    sender->get_CanGoForward(&forward);
+                    emit guard->historyChanged(back != FALSE, forward != FALSE);
+                    return S_OK;
+                }).Get(),
+            &token);
         webView->add_ContainsFullScreenElementChanged(
             Callback<ICoreWebView2ContainsFullScreenElementChangedEventHandler>(
                 [this, guard = QPointer<FeriaProviderHost>(q)](ICoreWebView2 *sender, IUnknown *) -> HRESULT {
@@ -347,8 +463,15 @@ struct FeriaProviderHost::Impl
             documentView->add_DOMContentLoaded(
                 Callback<ICoreWebView2DOMContentLoadedEventHandler>(
                     [this, guard = QPointer<FeriaProviderHost>(q)](
-                        ICoreWebView2 *sender, ICoreWebView2DOMContentLoadedEventArgs *) -> HRESULT {
+                        ICoreWebView2 *sender, ICoreWebView2DOMContentLoadedEventArgs *args) -> HRESULT {
                         if (!guard) return S_OK;
+                        UINT64 navigationId = 0;
+                        if (SUCCEEDED(args->get_NavigationId(&navigationId))
+                            && navigationId != currentNavigationId) {
+                            // Readiness of a superseded document: the load that
+                            // replaced it owns the current state.
+                            return S_OK;
+                        }
                         LPWSTR raw = nullptr;
                         if (SUCCEEDED(sender->get_Source(&raw)))
                             emit q->documentReady(takeWideString(raw));
@@ -509,21 +632,15 @@ void FeriaProviderHost::initialize(quintptr parentWindowId,
                             impl.installMainEvents();
                             guard->setPhysicalBounds(impl.requestedBounds);
                             guard->setVisible(impl.visible);
-                            impl.ready = true;
-                            impl.initializing = false;
-                            emit guard->readyChanged(true);
-                            if (impl.youtubeObserver) {
-                                const HRESULT addResult = impl.webView->AddScriptToExecuteOnDocumentCreated(
-                                    kYouTubeObserverScript,
-                                    Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
-                                        [guard](HRESULT, PCWSTR) -> HRESULT {
-                                            if (guard) guard->navigate(guard->m_impl->pendingUrl);
-                                            return S_OK;
-                                        }).Get());
-                                if (FAILED(addResult)) guard->navigate(impl.pendingUrl);
-                            } else {
-                                guard->navigate(impl.pendingUrl);
-                            }
+                            impl.prepareDocumentScripts(impl.webView.Get(), impl.youtubeObserver,
+                                [guard, fail](bool ok) {
+                                    if (!guard) return;
+                                    if (!ok) { fail(QStringLiteral("WebView2 document scripts could not be installed")); return; }
+                                    guard->m_impl->ready = true;
+                                    guard->m_impl->initializing = false;
+                                    emit guard->readyChanged(true);
+                                    guard->navigate(guard->m_impl->pendingUrl);
+                                });
                             return S_OK;
                         }).Get());
                 if (FAILED(createResult))
@@ -646,7 +763,7 @@ void FeriaProviderHost::navigate(const QUrl &url)
 {
     if (!url.isValid()) return;
     m_impl->pendingUrl = url;
-    if (!m_impl->webView) return;
+    if (!m_impl->webView || !m_impl->ready) return;
 
     const QString uri = url.toString();
     if (!m_impl->isAllowed(uri)) {
@@ -675,6 +792,36 @@ void FeriaProviderHost::goBack()
     BOOL available = FALSE;
     if (SUCCEEDED(m_impl->webView->get_CanGoBack(&available)) && available)
         m_impl->webView->GoBack();
+}
+
+void FeriaProviderHost::goForward()
+{
+    if (!m_impl->webView) return;
+    BOOL available = FALSE;
+    if (SUCCEEDED(m_impl->webView->get_CanGoForward(&available)) && available)
+        m_impl->webView->GoForward();
+}
+
+void FeriaProviderHost::stop()
+{
+    if (m_impl->webView) {
+        m_impl->stopRequested = true;
+        m_impl->webView->Stop();
+    }
+}
+
+bool FeriaProviderHost::canGoBack() const
+{
+    if (!m_impl->webView) return false;
+    BOOL available = FALSE;
+    return SUCCEEDED(m_impl->webView->get_CanGoBack(&available)) && available == TRUE;
+}
+
+bool FeriaProviderHost::canGoForward() const
+{
+    if (!m_impl->webView) return false;
+    BOOL available = FALSE;
+    return SUCCEEDED(m_impl->webView->get_CanGoForward(&available)) && available == TRUE;
 }
 
 void FeriaProviderHost::executeScript(const QString &label,

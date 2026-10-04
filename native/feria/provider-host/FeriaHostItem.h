@@ -14,6 +14,8 @@ class FeriaHostItem : public QQuickItem
     Q_PROPERTY(QUrl url READ url WRITE setUrl NOTIFY urlChanged)
     Q_PROPERTY(bool suppressed READ suppressed WRITE setSuppressed NOTIFY suppressedChanged)
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
+    Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY canGoBackChanged)
+    Q_PROPERTY(bool canGoForward READ canGoForward NOTIFY canGoForwardChanged)
 
 public:
     explicit FeriaHostItem(QQuickItem *parent = nullptr);
@@ -28,6 +30,8 @@ public:
     bool suppressed() const;
     void setSuppressed(bool suppressed);
     bool ready() const;
+    bool canGoBack() const;
+    bool canGoForward() const;
     Q_INVOKABLE void focusWebView();
     Q_INVOKABLE void focusAppControls();
     Q_INVOKABLE void returnToQml();
@@ -35,6 +39,8 @@ public:
     Q_INVOKABLE void navigate(const QUrl &url);
     Q_INVOKABLE void reload();
     Q_INVOKABLE void goBack();
+    Q_INVOKABLE void goForward();
+    Q_INVOKABLE void stop();
     Q_INVOKABLE void executeScript(const QString &label, const QString &script);
     Q_INVOKABLE QString captureGeometry(const QString &label);
     Q_INVOKABLE void clearSiteData(const QUrl &origin);
@@ -48,6 +54,8 @@ signals:
     void urlChanged();
     void suppressedChanged();
     void readyChanged();
+    void canGoBackChanged();
+    void canGoForwardChanged();
     void returnedToQml();
     void appMenuRequested();
     void fullScreenChanged(bool active);
@@ -70,6 +78,7 @@ private:
     void ensureHost();
     void syncHost();
     bool hostShouldBeVisible() const;
+    void updateHistoryState();
 
     FeriaProviderHost *m_host = nullptr;
     QQuickWindow *m_attachedWindow = nullptr;
@@ -78,4 +87,6 @@ private:
     bool m_suppressed = false;
     bool m_returnedToQml = false;
     bool m_complete = false;
+    bool m_canGoBack = false;
+    bool m_canGoForward = false;
 };

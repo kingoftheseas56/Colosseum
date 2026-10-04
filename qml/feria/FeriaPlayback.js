@@ -15,6 +15,10 @@ function destinationKey(value) {
 function sameDestination(actual, requested) {
     return destinationKey(actual) === destinationKey(requested)
 }
+function canResume(sample) {
+    return sample && !sample.paused && sample.readyState >= 3
+            && sample.duration >= 30 && !sample.ad
+}
 var pageProbeSource = [
     "function pageProbe(mode, position, locator) {",
     "    var roots = [], media = [], seen = []",
@@ -37,7 +41,7 @@ var pageProbeSource = [
     "    var ad = !!document.querySelector('.ad-showing,.ad-interrupting')",
     "        || !!(selected && selected.root.querySelector('.ad-showing,.ad-interrupting'))",
     "    if (mode === 'seek') {",
-    "        if (!m || !Number.isFinite(m.duration) || m.duration < 30 || ad) return false",
+    "        if (!m || m.paused || m.readyState < 3 || !Number.isFinite(m.duration) || m.duration < 30 || ad) return false",
     "        try { m.currentTime = Math.min(position, Math.max(0,m.duration-1)); return Math.abs(m.currentTime-position) < 2 } catch (_) { return false }",
     "    }",
     "    if (mode === 'restore-reading') {",
@@ -51,7 +55,7 @@ var pageProbeSource = [
     "    var meta = typeof navigator !== 'undefined' && navigator.mediaSession && navigator.mediaSession.metadata",
     "    var result = {href:location.href, title:meta && meta.title || document.title,",
     "        kind:mode === 'listen' || m && m.tagName === 'AUDIO' ? 'audio' : 'video', position:m ? m.currentTime : 0,",
-    "        duration:m && Number.isFinite(m.duration) ? m.duration : 0, paused:!m || m.paused,",
+    "        duration:m && Number.isFinite(m.duration) ? m.duration : 0, paused:!m || m.paused, readyState:m ? m.readyState : 0,",
     "        ended:!!m && m.ended, rate:m ? m.playbackRate : 1, ad:ad}",
     "    if (mode !== 'read') return result",
     "    // Reader routes, not shop/catalogue pages. Canvas readers still retain the",

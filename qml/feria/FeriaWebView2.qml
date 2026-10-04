@@ -50,7 +50,7 @@ FeriaHostItem {
                     executeScript("feria-reading-resume-" + navigationGeneration, Playback.restoreReading(resumeLocator))
                     return
                 }
-                if (sample.kind !== "book" && resumePosition > 0 && sample.duration > 0 && !sample.ad && Playback.sameDestination(sample.href, sourceUrl)) {
+                if (sample.kind !== "book" && resumePosition > 0 && Playback.canResume(sample) && Playback.sameDestination(sample.href, sourceUrl)) {
                     ++mediaResumeAttempts
                     executeScript("feria-account-resume-" + navigationGeneration, Playback.seek(resumePosition))
                 } else if (browser.observationEnabled) playbackObserved(sample)
@@ -87,12 +87,23 @@ FeriaHostItem {
     signal failed(string reason)
     signal exitRequested()
     signal optionsRequested()
+    // Engine load state for the shell. WebView2 reports no load percentage,
+    // so loadProgress stays -1 and the shell shows an indeterminate indicator.
+    // DOM readiness does not end a load — subresources can still be fetching —
+    // so loadActive only clears on the terminal NavigationCompleted.
+    property bool loadActive: false
+    readonly property real loadProgress: -1
+    readonly property bool navCanGoBack: canGoBack
+    readonly property bool navCanGoForward: canGoForward
+    function pageBack() { goBack() }
+    function pageForward() { goForward() }
+    function stopLoad() { if (loadActive) stop() }
     onAppMenuRequested: optionsRequested()
     url: sourceUrl
     userDataFolder: profilePath + "/webview2"
-    onNavigationStarted: function(location) { fullScreenActive = false; appDocumentReady = false; ++navigationGeneration; started(location) }
+    onNavigationStarted: function(location) { fullScreenActive = false; appDocumentReady = false; ++navigationGeneration; loadActive = true; started(location) }
     onDocumentReady: function(location) { appDocumentReady = true; applyAppMode(); completed(location, true) }
-    onNavigationCompleted: function(location, success) { appDocumentReady = success; if (success) applyAppMode(); completed(location, success) }
+    onNavigationCompleted: function(location, success) { appDocumentReady = success; loadActive = false; if (success) applyAppMode(); completed(location, success) }
     onInitializationFailed: function(reason) { failed(reason) }
     onReturnedToQml: exitRequested()
 }

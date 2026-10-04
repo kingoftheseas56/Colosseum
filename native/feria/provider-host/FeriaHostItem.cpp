@@ -59,8 +59,11 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
     connect(m_host, &FeriaProviderHost::readyChanged,
             this, [this](bool) {
                 syncHost();
+                updateHistoryState();
                 emit readyChanged();
             });
+    connect(m_host, &FeriaProviderHost::historyChanged,
+            this, &FeriaHostItem::updateHistoryState);
     connect(m_host, &FeriaProviderHost::navigationBlocked,
             this, &FeriaHostItem::navigationBlocked);
     connect(m_host, &FeriaProviderHost::initializationFailed,
@@ -137,6 +140,30 @@ void FeriaHostItem::setSuppressed(bool suppressed)
 bool FeriaHostItem::ready() const
 {
     return m_host->isReady();
+}
+
+bool FeriaHostItem::canGoBack() const
+{
+    return m_canGoBack;
+}
+
+bool FeriaHostItem::canGoForward() const
+{
+    return m_canGoForward;
+}
+
+void FeriaHostItem::updateHistoryState()
+{
+    const bool back = m_host->canGoBack();
+    const bool forward = m_host->canGoForward();
+    if (back != m_canGoBack) {
+        m_canGoBack = back;
+        emit canGoBackChanged();
+    }
+    if (forward != m_canGoForward) {
+        m_canGoForward = forward;
+        emit canGoForwardChanged();
+    }
 }
 
 void FeriaHostItem::componentComplete()
@@ -275,6 +302,8 @@ void FeriaHostItem::navigate(const QUrl &url)
 
 void FeriaHostItem::reload() { m_host->reload(); }
 void FeriaHostItem::goBack() { m_host->goBack(); }
+void FeriaHostItem::goForward() { m_host->goForward(); }
+void FeriaHostItem::stop() { m_host->stop(); }
 
 void FeriaHostItem::executeScript(const QString &label,
                                   const QString &script)

@@ -11,7 +11,7 @@ const QStringList &porticoProviderIds()
 {
     static const QStringList ids = {
         QStringLiteral("netflix"), QStringLiteral("prime"),
-        QStringLiteral("hbomax"), QStringLiteral("disney"),
+        QStringLiteral("hbomax"), QStringLiteral("disney"), QStringLiteral("hotstar"),
         QStringLiteral("appletv"), QStringLiteral("crunchyroll"),
         QStringLiteral("youtube"), QStringLiteral("hulu"),
         QStringLiteral("mubi"), QStringLiteral("spotify"),

@@ -35,6 +35,7 @@ namespace {
 const QMap<QString, QStringList> sessionDomains{
     {"netflix", {"netflix.com"}}, {"prime", {"primevideo.com", "amazon.com", "amazon.in"}},
     {"hbomax", {"hbomax.com", "max.com"}}, {"disney", {"disneyplus.com", "disney.com", "bamgrid.com"}},
+    {"hotstar", {"hotstar.com", "jiohotstar.com"}},
     {"appletv", {"apple.com"}}, {"applemusic", {"apple.com"}},
     {"crunchyroll", {"crunchyroll.com"}}, {"youtube", {"youtube.com", "google.com"}},
     {"ytmusic", {"youtube.com", "google.com"}}, {"hulu", {"hulu.com"}}, {"mubi", {"mubi.com"}},

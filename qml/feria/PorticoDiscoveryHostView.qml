@@ -69,6 +69,16 @@ Item {
     }
     readonly property bool browserReady: browserLoader.item ? browserLoader.item.ready : false
     readonly property bool fullScreenActive: browserLoader.item ? browserLoader.item.fullScreenActive === true : false
+    // Engine-reported navigation state. History comes from engine APIs/events,
+    // never a manually maintained URL stack. loadProgress is a real percentage
+    // when the engine exposes one and -1 when it does not (indeterminate).
+    readonly property bool engineCanGoBack: browserLoader.item ? browserLoader.item.navCanGoBack === true : false
+    readonly property bool engineCanGoForward: browserLoader.item ? browserLoader.item.navCanGoForward === true : false
+    readonly property bool pageLoading: browserLoader.item
+        ? (browserLoader.item.loadActive === true) : root.loading
+    readonly property real pageProgress: browserLoader.item
+        && typeof browserLoader.item.loadProgress === "number"
+        ? browserLoader.item.loadProgress : -1
     Settings {
         id: preferences
         category: "FeriaBrowser"
@@ -144,7 +154,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                text: root.errorText || (root.loading ? "Opening " + controller.providerName(controller.hostApp) + "…" : controller.toast || "")
+                text: root.errorText || (root.pageLoading ? "Opening " + controller.providerName(controller.hostApp) + "…" : controller.toast || "")
                 color: controller.slate
                 font.family: controller.uiFont
                 font.pixelSize: 13
@@ -188,7 +198,14 @@ Item {
                 id:appOptionsButton
                 objectName:"feriaBrowserBack"
                 text:"Previous page"
-                onClicked: { if (browserLoader.item) browserLoader.item.goBack(); root.focusApp() }
+                enabled:root.engineCanGoBack
+                onClicked: { if (browserLoader.item) browserLoader.item.pageBack(); root.focusApp() }
+            }
+            BrowserAction {
+                objectName:"feriaBrowserForward"
+                text:"Next page"
+                enabled:root.engineCanGoForward
+                onClicked: { if (browserLoader.item) browserLoader.item.pageForward(); root.focusApp() }
             }
             BrowserAction {
                 objectName:"feriaAppHome"
@@ -198,8 +215,14 @@ Item {
             }
             BrowserAction {
                 objectName:"feriaBrowserReload"
-                text:"Reload"
-                onClicked: { if (browserLoader.item) browserLoader.item.reload(); root.focusApp() }
+                text:root.pageLoading ? "Stop" : "Reload"
+                enabled:browserLoader.item !== null && root.browserReady
+                onClicked: {
+                    if (!browserLoader.item) return
+                    if (root.pageLoading) browserLoader.item.stopLoad()
+                    else browserLoader.item.reload()
+                    root.focusApp()
+                }
             }
             BrowserAction {
                 objectName:"feriaAppLayout"
@@ -216,6 +239,33 @@ Item {
                 visible:FeriaBrowserPolicy.webView2Available
                 text:"Compatibility mode"
                 onClicked: { root.tryOtherBrowser(); root.optionsOpen = false }
+            }
+        }
+        // Engine load feedback: a real percentage where the engine reports one,
+        // an honest indeterminate sweep where it does not.
+        Rectangle {
+            id: loadTrack
+            objectName: "feriaLoadTrack"
+            anchors { left: parent.left; right: parent.right }
+            y: parent.height - height
+            height: 2
+            color: "#141824"
+            visible: root.pageLoading
+            clip: true
+            Rectangle {
+                id: loadFill
+                objectName: "feriaLoadFill"
+                height: parent.height
+                color: controller.gold
+                width: root.pageProgress >= 0
+                    ? Math.max(2, parent.width * Math.min(100, Math.max(0, root.pageProgress)) / 100)
+                    : parent.width * 0.3
+                x: 0
+                SequentialAnimation on x {
+                    running: loadTrack.visible && root.pageProgress < 0
+                    loops: Animation.Infinite
+                    NumberAnimation { from: -loadFill.width; to: loadTrack.width; duration: 1100; easing.type: Easing.InOutQuad }
+                }
             }
         }
     }

@@ -1,7 +1,7 @@
 .pragma library
 // Shared logo paths for app tiles and provider navigation.
 var BRAND_FORMAT = {
-  netflix:"svg", prime:"png", hbomax:"svg", disney:"png",
+  netflix:"svg", prime:"png", hbomax:"svg", disney:"png", hotstar:"ico",
   appletv:"svg", crunchyroll:"svg", youtube:"svg", hulu:"png",
   mubi:"svg", spotify:"svg", ytmusic:"svg", applemusic:"svg",
   kindle:"png", playbooks:"svg", mangaplus:"png", viz:"png",
@@ -19,6 +19,7 @@ var P = {
   prime:{n:"Prime Video",v:"watch",d:"primevideo.com",tp:"primevideo.com/detail/‹id›",sp:"primevideo.com/search?phrase="},
   hbomax:{n:"HBO Max",v:"watch",d:"hbomax.com",tp:"play.hbomax.com/‹type›/‹id›",sp:"play.hbomax.com/search?q="},
   disney:{n:"Disney+",v:"watch",d:"disneyplus.com",tp:"disneyplus.com/browse/entity-‹id›",sp:"disneyplus.com/search?q="},
+  hotstar:{n:"JioHotstar",v:"watch",d:"www.hotstar.com/in",sp:"www.hotstar.com/in/search?q="},
   appletv:{n:"Apple TV",v:"watch",d:"tv.apple.com",tp:"tv.apple.com/‹type›/‹slug›/‹id›",sp:"tv.apple.com/search?term="},
   crunchyroll:{n:"Crunchyroll",v:"watch",d:"crunchyroll.com",tp:"crunchyroll.com/series/‹id›",sp:"crunchyroll.com/search?q="},
   youtube:{n:"YouTube",v:"watch",d:"youtube.com",tp:"youtube.com/watch?v=‹id›",sp:"youtube.com/results?search_query="},
@@ -38,7 +39,7 @@ var P = {
   applebooks:{n:"Apple Books",v:"read",d:"books.apple.com",app:true},
 };
 
-var CATALOG = { watch:["netflix","prime","hbomax","disney","appletv","crunchyroll","youtube","hulu","mubi"], listen:["spotify","ytmusic","applemusic"], read:["kindle","playbooks","mangaplus","viz","webtoon","dcui","marvel","kobo","applebooks"] };
+var CATALOG = { watch:["netflix","prime","hbomax","disney","hotstar","appletv","crunchyroll","youtube","hulu","mubi"], listen:["spotify","ytmusic","applemusic"], read:["kindle","playbooks","mangaplus","viz","webtoon","dcui","marvel","kobo","applebooks"] };
 
 var DEFAULT_APPS = ["netflix","prime","hbomax","disney","appletv","crunchyroll","youtube","spotify","ytmusic","kindle","mangaplus","webtoon","dcui"];
 

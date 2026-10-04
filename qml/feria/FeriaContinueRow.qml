@@ -5,7 +5,8 @@ Colosseum.ContinueRow {
     id: root
     required property var controller
     automationId: "feriaContinueRail"
-    title: "Continue"
+    title: controller.lens === "listen" ? "Continue Listening"
+           : controller.lens === "read" ? "Continue Reading" : "Continue Watching"
     showSeeAll: true
     onSeeAllRequested: controller.openSeeAll(null)
     // Keep the provider session intact for resume; adapt only its presentation.

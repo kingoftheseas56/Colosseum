@@ -35,7 +35,7 @@ Item {
             {key:"featured", title:"Featured", target:feature},
             {key:"apps", title:"Apps", target:appsHeader}
         ]
-        if (continueRow.visible) rows.push({key:"continue", title:"Continue", target:continueRow})
+        if (continueRow.visible) rows.push({key:"continue", title:continueRow.title, target:continueRow})
         for (var i = 0; i < shelfRepeater.count; ++i) {
             var shelf = shelfRepeater.itemAt(i)
             if (shelf) {

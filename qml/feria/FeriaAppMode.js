@@ -2,7 +2,8 @@
 var profiles = {
     netflix: {domains:["netflix.com"],kind:"watch",css:".mainView{min-height:calc(100vh - 70px)}"},
     prime: {domains:["primevideo.com","amazon.com","amazon.in","amazon.co.uk"],kind:"watch",css:"main{min-height:80vh}"},
-    disney: {domains:["disneyplus.com","hotstar.com"],kind:"watch",css:"main{min-height:80vh}"},
+    disney: {domains:["disneyplus.com"],kind:"watch",css:"main{min-height:80vh}"},
+    hotstar: {domains:["hotstar.com","jiohotstar.com"],kind:"watch",css:"main{min-height:80vh}"},
     hbomax: {domains:["hbomax.com","max.com"],kind:"watch",css:"main{min-height:80vh}"},
     appletv: {domains:["tv.apple.com"],kind:"watch",css:"main{min-height:80vh}"},
     crunchyroll: {domains:["crunchyroll.com"],kind:"watch",css:"main{min-height:80vh}"},

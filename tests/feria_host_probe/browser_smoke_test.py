@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+import base64
 import io
 import wave
 
@@ -18,12 +20,37 @@ with wave.open(audio_buffer, 'wb') as audio:
     audio.writeframes(b'\0\0' * 8000 * 40)
 AUDIO_FIXTURE = audio_buffer.getvalue()
 
+# 1x1 transparent PNG for the delayed-image fixture.
+PNG_FIXTURE = base64.b64decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+
 
 class Fixture(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
     def do_GET(self):
+        if self.path.split('?')[0] == '/fixture/slow':
+            # Deliberately slow load for Stop verification; the threaded server
+            # keeps other fixture requests responsive meanwhile.
+            time.sleep(2.5)
+        if self.path == '/fixture/slow-image.png':
+            # The document commits fast while this subresource stalls, keeping
+            # the navigation alive past DOM readiness.
+            time.sleep(2.5)
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/png')
+            self.send_header('Content-Length', str(len(PNG_FIXTURE)))
+            self.end_headers()
+            self.wfile.write(PNG_FIXTURE)
+            return
+        if self.path == '/fixture/slow-image':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(b"<html><head><title>Feria slow image</title></head><body data-passed='true'>"
+                             b'Slow image fixture<img src="/fixture/slow-image.png"></body></html>')
+            return
         if self.path == '/fixture/sw.js':
             self.send_response(200)
             self.send_header('Content-Type', 'text/javascript')
@@ -150,6 +177,13 @@ def main():
             'navigation', str(urls), str(root / 'see-all')], timeout=35, env=environment)
         failures += result.returncode != 0
         for engine in ['webview2', 'qtwebengine']:
+            urls.write_text(json.dumps([base + 'slow']), encoding='utf-8')
+            print(f'Testing {engine}: website navigation controls in the host Options area', flush=True)
+            # Own profile root: this smoke records activity and switches engines,
+            # which must not leak into the account/reading sections' shared state.
+            result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaBrowserNavSmoke.qml').resolve()),
+                engine, str(urls), str(root / 'nav-profiles')], timeout=120, env=environment)
+            failures += result.returncode != 0
             urls.write_text(json.dumps([base + 'app-mode']), encoding='utf-8')
             print(f'Testing {engine}: app layout and spatial navigation', flush=True)
             result = subprocess.run([str(executable), str(Path(__file__).with_name('FeriaAppModeSmoke.qml').resolve()),

@@ -93,5 +93,16 @@ int main(int argc, char **argv) {
     QFile broken(temp.filePath("broken.json")); check(broken.open(QIODevice::WriteOnly), "Create corrupt fixture"); broken.write("broken"); broken.close();
     reopened.setStoragePath(broken.fileName());
     check(!reopened.error().isEmpty() && !reopened.clearHistory(), "Preserve unreadable store");
+    FeriaAccountStore hotstar;
+    hotstar.setStoragePath(temp.filePath("hotstar.json"));
+    hotstar.beginVisit({{"pk", "hotstar"}});
+    check(hotstar.observe({{"href", "https://www.hotstar.com/in/shows/example/1260000001/watch"},
+        {"title", "JioHotstar episode"}, {"position", 42}, {"duration", 1200}, {"paused", false}}),
+        "JioHotstar playback accepted by provider registry");
+    check(hotstar.continueItems().first().toMap().value("pk") == "hotstar",
+        "JioHotstar Continue retains its own provider");
+    policy.setStorageRoot(temp.filePath("browser-hotstar"));
+    check(FeriaBrowserPolicy::cookieInScope(".hotstar.com", policy.sessionScope("hotstar").value("domains").toStringList()),
+        "JioHotstar sign-out scope includes its service domain");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
 }
