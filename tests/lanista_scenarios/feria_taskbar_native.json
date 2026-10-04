@@ -1,6 +1,6 @@
 {
   "name": "feria-taskbar-native",
-  "comment": "Separate native Feria app launched from the taskbar: service showcase, apps, search, lenses, provider back, and return to Colosseum.",
+  "comment": "Feria world launched from the shared world selector: service showcase, apps, search, lenses, provider back, and return to Colosseum.",
   "steps": [
     {
       "cmd": "ping",
@@ -73,9 +73,9 @@
     },
     {
       "cmd": "ui-click",
-      "label": "open original Feria through the taskbar",
+      "label": "open Feria through the world selector",
       "payload": {
-        "target": "taskbarFeria"
+        "target": "modePill_Feria"
       }
     },
     {
@@ -787,9 +787,9 @@
     },
     {
       "cmd": "ui-click",
-      "label": "taskbar reopens original Feria",
+      "label": "world selector reopens Feria",
       "payload": {
-        "target": "taskbarFeria"
+        "target": "modePill_Feria"
       }
     },
     {

@@ -72,9 +72,9 @@
     },
     {
       "cmd": "ui-click",
-      "label": "open original Feria through the taskbar",
+      "label": "open Feria through the world selector",
       "payload": {
-        "target": "taskbarFeria"
+        "target": "modePill_Feria"
       }
     },
     {

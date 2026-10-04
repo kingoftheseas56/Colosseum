@@ -41,7 +41,9 @@ bool FeriaAccountStore::recording() const { return m_state.value("recording", tr
 QVariantList FeriaAccountStore::continueItems() const {
     QVariantList result;
     QSet<QString> seen;
-    for (const auto &value : sessions()) {
+    auto rows = sessions();
+    rows.append(m_state.value("retainedContinue").toList());
+    for (const auto &value : rows) {
         const auto row = value.toMap();
         const auto id = row.value("id").toString();
         if (seen.contains(id)) continue;
@@ -101,7 +103,9 @@ bool FeriaAccountStore::observe(const QVariantMap &sample) {
 }
 bool FeriaAccountStore::saveReadingPlace(const QString &url, const QString &title) {
     QVariantMap sample{{"href", url}, {"title", title}};
-    for (const auto &value : sessions()) {
+    auto rows = sessions();
+    rows.append(m_state.value("retainedContinue").toList());
+    for (const auto &value : rows) {
         const auto row = value.toMap();
         if (row.value("pk") == m_context.value("pk") && row.value("url") == safeUrl(url)
             && row.value("kind") == "book") {
@@ -173,10 +177,33 @@ bool FeriaAccountStore::setRecording(bool enabled) {
 }
 bool FeriaAccountStore::clearHistory() {
     endVisit();
-    auto state = m_state; state.insert("sessions", QVariantList{}); return commit(state);
+    auto state = m_state;
+    state.insert("sessions", QVariantList{});
+    state.remove("retainedContinue");
+    return commit(state);
+}
+bool FeriaAccountStore::clearActivity() {
+    auto state = m_state;
+    auto retained = continueItems();
+    for (auto &value : retained) {
+        auto row = value.toMap();
+        row.remove("mins");
+        row.remove("sessionId");
+        value = row;
+    }
+    state.insert("retainedContinue", retained);
+    state.insert("sessions", QVariantList{});
+    if (!commit(state)) return false;
+    m_lastPlaying = false;
+    m_lastItem.clear();
+    if (!m_context.isEmpty()) m_sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (m_clock.isValid()) m_clock.restart();
+    return true;
 }
 bool FeriaAccountStore::dismissContinue(const QString &id) {
     auto rows = sessions();
     for (auto &value : rows) { auto row = value.toMap(); if (row.value("id") == id) { row.insert("dismissed", true); value = row; } }
-    auto state = m_state; state.insert("sessions", rows); return commit(state);
+    auto retained = m_state.value("retainedContinue").toList();
+    for (auto &value : retained) { auto row = value.toMap(); if (row.value("id") == id) { row.insert("dismissed", true); value = row; } }
+    auto state = m_state; state.insert("sessions", rows); state.insert("retainedContinue", retained); return commit(state);
 }

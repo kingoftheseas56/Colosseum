@@ -28,6 +28,7 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
+    property bool wallpaperEnabled: true
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
@@ -168,7 +169,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + 34
+        implicitWidth: pillContent.implicitWidth + (bar.width < 1000 ? 24 : 34)
         implicitHeight: 34
 
         Rectangle {
@@ -264,6 +265,7 @@ Item {
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
+            Pill { label: "Feria" }
         }
     }
 
@@ -484,6 +486,7 @@ Item {
         // the top bar with a harness-only presentation.
         SysIcon {
             objectName: "topBarWallpaperButton"
+            visible: bar.wallpaperEnabled
             source: "../assets/icons/settings.svg"
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()

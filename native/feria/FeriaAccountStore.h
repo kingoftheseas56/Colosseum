@@ -25,6 +25,7 @@ public:
     Q_INVOKABLE bool saveReadingPlace(const QString &url, const QString &title);
     Q_INVOKABLE bool setRecording(bool enabled);
     Q_INVOKABLE bool clearHistory();
+    Q_INVOKABLE bool clearActivity();
     Q_INVOKABLE bool dismissContinue(const QString &id);
     static QString safeUrl(const QString &url);
 signals:

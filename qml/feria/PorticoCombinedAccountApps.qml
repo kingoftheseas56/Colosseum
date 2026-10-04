@@ -99,7 +99,7 @@ Item {
     function actionLabels() {
         if (controller.accountApp === "region" || !selected || selected.app)
             return []
-        var rowActions = inRow ? ["Move earlier", "Move later", "Remove from row"] : ["Add to row"]
+        var rowActions = inRow ? ["Move earlier", "Move later", "Remove from Feria"] : ["Add to Feria"]
         return ["Open provider"].concat(rowActions, ["See all stats", "Sign out here"])
     }
 
@@ -122,7 +122,7 @@ Item {
         signOutConfirmation = ""
         if (label === "Open provider") {
             controller.openHost(k, "", "home")
-        } else if (label === "Add to row" || label === "Remove from row") {
+        } else if (label === "Add to Feria" || label === "Remove from Feria") {
             controller.toggleApp(k)
         } else if (label === "See all stats") {
             controller.statsBy = "app"
@@ -139,7 +139,7 @@ Item {
             }
         }
 
-        if (controller.viewState === "account" && controller.accountTab === "apps") {
+        if ((controller.accountContentActive || controller.viewState === "account") && controller.accountTab === "apps") {
             serviceFocusIndex = selectedServiceIndex()
             var nextLabels = actionLabels()
             if (nextLabels.length > 0) {
@@ -674,7 +674,7 @@ Item {
                                     spacing: 0.6 * u
                                     Repeater {
                                         model: modelData === "Sign-in" ? ["Open provider", "Sign out here"]
-                                             : modelData === "Your row" ? (root.inRow ? ["Move earlier", "Move later", "Remove from row"] : ["Add to row"])
+                                             : modelData === "Your row" ? (root.inRow ? ["Move earlier", "Move later", "Remove from Feria"] : ["Add to Feria"])
                                              : ["See all stats"]
                                         delegate: Rectangle {
                                             required property string modelData

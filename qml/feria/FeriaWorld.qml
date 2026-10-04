@@ -20,6 +20,13 @@ Item {
     signal genreRequested(var genre)
     signal searchClicked()
     signal accountClicked(real anchorRight, real anchorBottom)
+    signal accountRequested(string tab)
+    signal accountDestinationRequested()
+    property bool sharedAccount: false
+    property bool sharedAccountActive: false
+    property var sharedAccountView: null
+    readonly property var activeAccountView: sharedAccountView || accountView
+    readonly property bool accountContentActive: sharedAccountActive || viewState === "account"
     signal wallpaperClicked()
     signal fullscreenClicked()
     signal minimizeClicked()
@@ -93,7 +100,7 @@ Item {
     readonly property var regionCodes: ({ "United States": "US", "United Kingdom": "GB",
                                    "India": "IN", "Canada": "CA", "Australia": "AU",
                                    "Germany": "DE", "Japan": "JP", "Brazil": "BR" })
-    readonly property bool recording: accountStore && accountStore.recording && activityAllowed
+    readonly property bool recording: accountStore && accountStore.recording
     property string accountMonth: Qt.formatDate(new Date(), "yyyy-MM")
     readonly property var accountStore: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
     readonly property var recordedSessions: accountStore ? accountStore.sessions : []
@@ -141,7 +148,6 @@ Item {
         target: FeriaBrowserPolicy
         function onStorageRootChanged() { shell.signingOutProvider = ""; shell.signOutMessage = "" }
     }
-    readonly property bool activityAllowed: typeof ProfilePreferences === "undefined" || ProfilePreferences.keepActivityHistory
     property bool clearPending: false
     property string toast: ""
 
@@ -380,6 +386,7 @@ Item {
     }
     function openTitle(id) {
         if (!titleObj(id)) return
+        if (sharedAccountActive) accountDestinationRequested()
         if (titleObj(id).resume) { resumeSession(titleObj(id).resume); return }
         titleHistory = titleHistory.concat([{state:viewState,id:selectedTitle}])
         selectedTitle = id; titleActionIndex = 0; viewState = "title"; content.forceActiveFocus()
@@ -403,6 +410,7 @@ Item {
             setToast("This service has no web destination.")
             return
         }
+        if (sharedAccountActive) accountDestinationRequested()
         if (accountStore) {
             var title = titleObj(id)
             accountStore.beginVisit({pk:pk,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
@@ -475,8 +483,9 @@ Item {
     function setAccountShellFocus(index) {
         accountHistoryFocusIndex = -1
         accountContentFocusActive = false
-        accountView.resetContentFocus()
-        accountShellFocusIndex = Math.max(0, Math.min(4, index))
+        activeAccountView.resetContentFocus()
+        accountShellFocusIndex = Math.max(sharedAccountActive ? 1 : 0, Math.min(sharedAccountActive && accountTab !== "apps" ? 3 : 4, index))
+        if (sharedAccountActive && activeAccountView) activeAccountView.forceActiveFocus()
     }
     function historyActionSessionIndices() {
         var sessions = allSessions().slice(0, 60)
@@ -487,17 +496,18 @@ Item {
     }
     function accountHistoryFocusCount() { return 2 + historyActionSessionIndices().length }
     function setAccountHistoryFocus(index) {
-        if (viewState !== "account" || accountTab !== "history") return
+        if (!accountContentActive || accountTab !== "history") return
         var count = accountHistoryFocusCount()
         if (count <= 0) return
         var targetIndex = Math.max(0, Math.min(count - 1, index))
-        accountView.resetContentFocus()
+        activeAccountView.resetContentFocus()
         accountShellFocusIndex = -1
         accountHistoryFocusIndex = targetIndex
-        Qt.callLater(function() { accountView.revealHistoryFocus(targetIndex) })
+        if (sharedAccountActive && activeAccountView) activeAccountView.forceActiveFocus()
+        Qt.callLater(function() { activeAccountView.revealHistoryFocus(targetIndex) })
     }
     function enterAccountHistoryContent() {
-        if (viewState === "account" && accountTab === "history") setAccountHistoryFocus(0)
+        if (accountContentActive && accountTab === "history") setAccountHistoryFocus(0)
     }
     function leaveAccountHistoryContent() {
         accountHistoryFocusIndex = -1
@@ -534,10 +544,11 @@ Item {
     onAccountTabChanged: {
         accountHistoryFocusIndex = -1
         accountContentFocusActive = false
-        if (viewState === "account")
+        if (accountContentActive)
             accountShellFocusIndex = accountFocusForTab(accountTab)
     }
     function openAccount() {
+        if (sharedAccount) { accountRequested("apps"); return }
         viewState = "account"
         accountShellFocusIndex = accountFocusForTab(accountTab)
         content.forceActiveFocus()
@@ -583,13 +594,12 @@ Item {
     }
     function setRegion(value) { region=value; settings.catalogueRegion=value }
     function toggleRecording() {
-        if (!activityAllowed) { setToast("Enable activity history in Account Centre → Data & privacy first."); return }
         if (accountStore) accountStore.setRecording(!recording)
         clearPending=false
     }
     function clearHistory() {
         if (!clearPending) { clearPending=true; setToast("Press Clear history again to confirm"); return }
-        if (accountStore && accountStore.clearHistory()) clearPending=false
+        if (accountStore && accountStore.clearActivity()) clearPending=false
     }
     function durationText(m) { return m <= 0 ? "0 min" : m < 1 ? "Under a minute" : m < 60 ? Math.round(m) + " min" : Math.floor(m / 60) + "h " + String(Math.round(m % 60)).padStart(2,"0") + "m" }
     function clockText() { clockRevision; return Qt.formatTime(new Date(), "h:mm") }
@@ -645,7 +655,7 @@ Item {
                         "title", titleView.visible, titleView.width, titleView.height,
                         "search", searchView.visible, searchView.width, searchView.height,
                         "apps", appsView.visible, appsView.width, appsView.height,
-                        "account", accountView.visible, accountView.width, accountView.height,
+                        "account", activeAccountView.visible, activeAccountView.width, activeAccountView.height,
                         "host", hostView.visible, hostView.width, hostView.height)
             stage.grabToImage(function(result) {
             var ok = result.saveToFile(shell.snapshotOutput)
@@ -678,42 +688,8 @@ Item {
                 event.accepted = true; return
             }
             if (shell.viewState === "account") {
-                if (shell.accountTab === "history" && shell.accountHistoryFocusIndex >= 0) {
-                    if (event.key === Qt.Key_Down) shell.moveAccountHistoryFocus(1)
-                    else if (event.key === Qt.Key_Up) shell.moveAccountHistoryFocus(-1)
-                    else if (event.key === Qt.Key_Right && shell.accountHistoryFocusIndex === 0) shell.setAccountHistoryFocus(1)
-                    else if (event.key === Qt.Key_Left && shell.accountHistoryFocusIndex === 1) shell.setAccountHistoryFocus(0)
-                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) shell.activateAccountHistoryFocus()
-                    else return
-                    event.accepted = true; return
-                }
-                if (shell.accountTab === "highlights" && shell.accountContentFocusActive) {
-                    if (accountView.handleHighlightsKey(event.key)) event.accepted = true
-                    return
-                }
-                if (shell.accountTab === "stats" && accountView.statsContentActive) {
-                    if (accountView.handleStatsKey(event.key)) event.accepted = true
-                    return
-                }
-                if (shell.accountTab === "apps" && accountView.appsContentFocused) {
-                    if (accountView.handleAppsKey(event.key)) event.accepted = true
-                    return
-                }
-                if (event.key === Qt.Key_Down && shell.accountShellFocusIndex === shell.accountFocusForTab(shell.accountTab)) {
-                    if (shell.accountTab === "history") shell.enterAccountHistoryContent()
-                    else if (shell.accountTab === "highlights" && !accountView.enterHighlightsContent()) shell.setAccountShellFocus(Math.min(4, shell.accountShellFocusIndex + 1))
-                    else if (shell.accountTab === "stats") accountView.enterStatsContent()
-                    else if (shell.accountTab === "apps" && !accountView.enterAppsContent()) shell.setAccountShellFocus(4)
-                    event.accepted = true; return
-                }
-                if (event.key === Qt.Key_Left || event.key === Qt.Key_Up)
-                    shell.setAccountShellFocus(Math.max(0, shell.accountShellFocusIndex - 1))
-                else if (event.key === Qt.Key_Right || event.key === Qt.Key_Down)
-                    shell.setAccountShellFocus(Math.min(4, shell.accountShellFocusIndex + 1))
-                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-                    shell.activateAccountShellFocus()
-                else return
-                event.accepted = true; return
+                event.accepted = activeAccountView.handleKey(event.key)
+                return
             }
             if (shell.viewState === "host") return
             if (event.key === Qt.Key_BracketLeft) { shell.shiftLens(-1); event.accepted = true; return }
@@ -840,9 +816,27 @@ Item {
                 controller: shell
                 backdrop: shell.backdrop
                 showLenses: false
-                visible: shell.viewState !== "host" && shell.viewState !== "account"
+                visible: !shell.sharedAccount && shell.viewState !== "host" && shell.viewState !== "account"
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 z: 80
+            }
+            Colosseum.TopBar {
+                objectName: "feriaWorldTopBar"
+                backdrop: shell.backdrop
+                activeMedium: "Feria"
+                lifecycleActive: shell.lifecycleActive
+                wallpaperEnabled: false
+                x: shell.marginX; y: 30
+                width: parent.width - 2 * shell.marginX
+                z: 80
+                visible: shell.sharedAccount && shell.viewState !== "account" && shell.viewState !== "host"
+                onMediumSelected: (medium) => shell.mediumSelected(medium)
+                onHomeRequested: shell.homeRequested()
+                onSearchClicked: shell.openSearch("")
+                onAccountClicked: shell.openAccount()
+                onFullscreenClicked: shell.fullscreenClicked()
+                onMinimizeClicked: shell.minimizeClicked()
+                onPowerClicked: shell.powerClicked()
             }
             Rectangle {
                 anchors { right: parent.right; top: parent.top; rightMargin: shell.marginX; topMargin: 6.2 * shell.unit }

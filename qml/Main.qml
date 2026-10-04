@@ -11,6 +11,7 @@ import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
 import "account"
+import "feria" as Feria
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
@@ -720,9 +721,10 @@ Window {
             comicReaderActive: win.embeddedComicReaderOpen(),
             updateActive: updateLayer.active,
             historyStatsActive: historyStatsLayer.active,
+            yourFeriaActive: yourFeriaLayer.active,
             syncCenterActive: syncCenterLayer.active,
             extensionsActive: extensionsLayer.active,
-            feriaActive: feriaLayer.active,
+            feriaActive: feriaLayer.open,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
             bookActive: bookLayer.active,
@@ -832,6 +834,7 @@ Window {
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
         case "historyStats": win.closeHistoryStatsPage(); return
+        case "yourFeria": win.closeYourFeriaPage(); return
         case "syncCenter":
             if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
                 syncCenterLayer.item.requestEscape()
@@ -875,7 +878,7 @@ Window {
     }
     Shortcut {
         sequences: escapeCommand.sequences
-        enabled: !(feriaLayer.active && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
+        enabled: !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         onActivated: escapeCommand.invoke("shortcut")
     }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
@@ -1033,6 +1036,8 @@ Window {
         return "DemoWorld.qml"
     }
     function openWorld(medium) {
+        if (medium === "Feria") { win.openFeriaPage(); return }
+        feriaLayer.open = false
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -1067,6 +1072,7 @@ Window {
         }
     }
     function closeWorld() {
+        feriaLayer.open = false
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
@@ -1741,7 +1747,7 @@ Window {
         }
     }
 
-    // ---- Feria: discovery surface entered from the permanent dock button ----
+    // ---- Feria: streaming world, entered from the shared selector ----
     function openFeriaPage() {
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -1750,17 +1756,21 @@ Window {
         updateLayer.active = false
         historyStatsLayer.active = false
         syncCenterLayer.active = false
-        feriaLayer.active = true
+        feriaLayer.open = true
+        worldStack.current = ""
+        currentSurface = "Feria"
+        refreshWallpaper()
+        topbar.visible = true
+        page.visible = true
         taskbar.open = false
     }
     function closeFeriaPage() {
-        feriaLayer.active = false
-        taskbar.focusFeriaAction()
+        win.closeWorld()
     }
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
-        feriaLayer.active = false
+        feriaLayer.open = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1796,7 +1806,7 @@ Window {
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
-        feriaLayer.active = false
+        feriaLayer.open = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1808,6 +1818,18 @@ Window {
         if (historyStatsLayer.item && historyStatsLayer.item.takeKeyboardFocus)
             Qt.callLater(historyStatsLayer.item.takeKeyboardFocus)
     }
+    function openYourFeriaPage(section) {
+        if (!feriaLayer.open) win.openFeriaPage()
+        accountCenter.close()
+        feriaLayer.item.accountTab = ["history", "highlights", "stats"].indexOf(section) >= 0 ? section : "history"
+        yourFeriaLayer.open = true
+        taskbar.open = false
+        if (yourFeriaLayer.item) Qt.callLater(yourFeriaLayer.item.takeKeyboardFocus)
+    }
+    function closeYourFeriaPage() {
+        yourFeriaLayer.open = false
+        taskbar.focusHistoryStatsAction()
+    }
     function closeHistoryStatsPage() {
         historyStatsLayer.active = false
         taskbar.focusHistoryStatsAction()
@@ -1817,7 +1839,7 @@ Window {
     // Downloads and Extensions are taskbar full-pages; opening either one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
-        feriaLayer.active = false
+        feriaLayer.open = false
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
@@ -1837,7 +1859,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
-        feriaLayer.active = false
+        feriaLayer.open = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -1869,6 +1891,23 @@ Window {
             return
         }
         win.closeVaultPage()
+    }
+
+    Loader {
+        id: yourFeriaLayer
+        objectName: "yourFeriaLayer"
+        anchors.fill: parent
+        z: 58.5
+        property bool open: false
+        active: open && feriaLayer.open && feriaLayer.item !== null
+        visible: active
+        onActiveChanged: if (!active) open = false
+        sourceComponent: Feria.YourFeriaPage { controller: feriaLayer.item }
+        onLoaded: {
+            item.backRequested.connect(win.closeYourFeriaPage)
+            item.settingsRequested.connect(function() { feriaLayer.item.openApps() })
+            item.takeKeyboardFocus()
+        }
     }
 
     // ---- Extensions page: the store, entered from the taskbar beside Downloads ----
@@ -1976,7 +2015,7 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
-        feriaLayer.active = false
+        feriaLayer.open = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         updateLayer.active = false
@@ -1994,7 +2033,7 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
-        feriaLayer.active = false
+        feriaLayer.open = false
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -3566,7 +3605,7 @@ Window {
             // is exactly the hitch Hemanth reported. Everything else in this file already stands
             // down for immersiveSurfaceOpen (wallpaper animation :1423, download reveal :2328/:2337,
             // chrome :2345); the warmer was the one that did not.
-            if (worldStack.current !== "" || win.immersiveSurfaceOpen) return   // → yield, retry next tick
+            if (worldStack.current !== "" || feriaLayer.open || win.immersiveSurfaceOpen) return   // → yield, retry next tick
             var names = []
             for (var i = 0; i < openModes.count; i++) names.push(openModes.get(i).mode)
             var next = Warming.nextWarmMode(names, warmer.targets)
@@ -4554,19 +4593,42 @@ Window {
         objectName: "feriaLayer"
         anchors.fill: parent
         z: 58
-        active: false
-        visible: active
+        property bool open: false
+        onOpenChanged: {
+            if (!open && win.currentSurface === "Feria") {
+                win.currentSurface = worldStack.current || "Home"
+                win.refreshWallpaper()
+            }
+        }
+        active: open || accountCenter.visible
+        visible: open
         source: "feria/FeriaWorld.qml"
         Binding {
             target: feriaLayer.item
+            property: "lifecycleActive"
+            value: feriaLayer.open
+            when: feriaLayer.item !== null
+        }
+        Binding {
+            target: feriaLayer.item
             property: "browserSuppressed"
-            value: taskbar.open || accountFlyout.visible || accountHost.visible
+            value: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible || accountHost.visible
                 || watchPartyJoinSheet.opened || openRecentPanel.visible
             when: feriaLayer.item !== null
         }
         onLoaded: {
             item.backdrop = wall
-            item.lifecycleActive = true
+            item.sharedAccount = true
+            item.mediumSelected.connect(win.openWorld)
+            item.accountRequested.connect(function(tab) {
+                yourFeriaLayer.open = false
+                accountCenter.open("feria", item.keyboardTarget, "feria")
+            })
+            item.accountDestinationRequested.connect(function() {
+                win.openFeriaPage()
+                yourFeriaLayer.open = false
+                accountCenter.close()
+            })
             item.homeRequested.connect(win.closeFeriaPage)
             item.fullscreenClicked.connect(win.toggleFullscreenShell)
             item.minimizeClicked.connect(win.minimizeShell)
@@ -4712,7 +4774,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
-            && !(feriaLayer.active && feriaLayer.item && feriaLayer.item.viewState === "host")
+            && !(feriaLayer.open && !yourFeriaLayer.active && feriaLayer.item && feriaLayer.item.viewState === "host")
         enabled: visible
         onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)
@@ -4732,10 +4794,17 @@ Window {
         onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
-        historyStatsActive: historyStatsLayer.active
-        onHistoryStatsClicked: !historyStatsLayer.active ? win.openHistoryStatsPage() : win.closeHistoryStatsPage()
-        feriaActive: feriaLayer.active
-        onFeriaClicked: !feriaLayer.active ? win.openFeriaPage() : win.closeFeriaPage()
+        historyStatsActive: historyStatsLayer.active || yourFeriaLayer.active
+        feriaContext: feriaLayer.open
+        onHistoryStatsClicked: {
+            if (feriaLayer.open) {
+                if (yourFeriaLayer.active) win.closeYourFeriaPage()
+                else win.openYourFeriaPage("history")
+            } else {
+                if (historyStatsLayer.active) win.closeHistoryStatsPage()
+                else win.openHistoryStatsPage()
+            }
+        }
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -5102,6 +5171,8 @@ Window {
     AccountCenter {
         id: accountCenter
         objectName: "accountCenter"
+        feriaController: feriaLayer.item
+        onFeriaActivityRequested: function(section) { win.openYourFeriaPage(section) }
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
         privacyDataExportBusy: typeof AccountLifecycle !== "undefined"

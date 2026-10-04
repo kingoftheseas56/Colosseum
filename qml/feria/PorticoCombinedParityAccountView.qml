@@ -5,6 +5,48 @@ import ".." as Colosseum
 Item {
     id: root
     required property var controller
+    property bool embedded: false
+    property bool servicesOnly: false
+    property bool activityOnly: false
+    activeFocusOnTab: embedded
+    Keys.onPressed: function(event) { event.accepted = root.handleKey(event.key) }
+    TapHandler { onTapped: if (root.embedded) root.forceActiveFocus() }
+
+    function handleKey(key) {
+        if (controller.accountTab === "history" && controller.accountHistoryFocusIndex >= 0) {
+            if (key === Qt.Key_Down) controller.moveAccountHistoryFocus(1)
+            else if (key === Qt.Key_Up) controller.moveAccountHistoryFocus(-1)
+            else if (key === Qt.Key_Right && controller.accountHistoryFocusIndex === 0) controller.setAccountHistoryFocus(1)
+            else if (key === Qt.Key_Left && controller.accountHistoryFocusIndex === 1) controller.setAccountHistoryFocus(0)
+            else if (key === Qt.Key_Return || key === Qt.Key_Enter || key === Qt.Key_Space) controller.activateAccountHistoryFocus()
+            else return false
+            return true
+        }
+        if (controller.accountTab === "highlights" && controller.accountContentFocusActive) return handleHighlightsKey(key)
+        if (controller.accountTab === "stats" && statsContentActive) return handleStatsKey(key)
+        if (controller.accountTab === "apps" && appsContentFocused) return handleAppsKey(key)
+        if (servicesOnly) {
+            if (key === Qt.Key_Down || key === Qt.Key_Return || key === Qt.Key_Enter) return enterAppsContent()
+            return false
+        }
+        if (key === Qt.Key_Down && controller.accountShellFocusIndex === controller.accountFocusForTab(controller.accountTab)) {
+            if (controller.accountTab === "history") controller.enterAccountHistoryContent()
+            else if (controller.accountTab === "highlights") enterHighlightsContent()
+            else if (controller.accountTab === "stats") enterStatsContent()
+            else if (controller.accountTab === "apps") enterAppsContent()
+            return true
+        }
+        if (key === Qt.Key_Left || key === Qt.Key_Up) controller.setAccountShellFocus(controller.accountShellFocusIndex - 1)
+        else if (key === Qt.Key_Right || key === Qt.Key_Down) controller.setAccountShellFocus(controller.accountShellFocusIndex + 1)
+        else if (key === Qt.Key_Return || key === Qt.Key_Enter || key === Qt.Key_Space) controller.activateAccountShellFocus()
+        else return false
+        return true
+    }
+    function focusContent() {
+        forceActiveFocus()
+        if (servicesOnly) enterAppsContent()
+        else controller.setAccountShellFocus(controller.accountFocusForTab(controller.accountTab))
+    }
     readonly property real u: controller.unit
     readonly property real m: controller.marginX
     readonly property bool statsContentActive: statsView.contentFocusIndex >= 0
@@ -42,7 +84,7 @@ Item {
     Item {
         id: head
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: root.width < 1100 ? 140 : 6.2 * u
+        height: embedded ? (servicesOnly ? 96 : 118) : root.width < 1100 ? 140 : 6.2 * u
         z: 4
 
         Rectangle {
@@ -55,12 +97,13 @@ Item {
         }
 
         Row {
-            anchors { left: parent.left; leftMargin: m }
+            anchors { left: parent.left; leftMargin: m + (root.activityOnly ? 110 : 0) }
             height: 44
-            y: root.width < 1100 ? 16 : (parent.height - height) / 2
+            y: embedded || root.width < 1100 ? 16 : (parent.height - height) / 2
             spacing: 1.2 * u
             Rectangle {
                 objectName: "account-back"
+                visible: !root.embedded
                 width: 6.4 * u
                 height: 2.5 * u
                 radius: height / 2
@@ -91,7 +134,7 @@ Item {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Your Feria"
+                text: root.activityOnly ? "Your Feria" : root.embedded ? "Streaming services" : "Your Feria"
                 color: controller.ink
                 font.family: controller.displayFont
                 font.pixelSize: 30
@@ -101,14 +144,16 @@ Item {
 
         FeriaWindowControls {
             controller: root.controller
+            visible: !root.embedded
             namePrefix: "feriaAccount"
             anchors { right: parent.right; rightMargin: m; top: parent.top; topMargin: 26 }
         }
 
         Rectangle {
             objectName: "feriaAccountTabs"
+            visible: !root.servicesOnly
             anchors.horizontalCenter: parent.horizontalCenter
-            y: root.width < 1100 ? parent.height - height - 12 : (parent.height - height) / 2
+            y: embedded || root.width < 1100 ? parent.height - height - 12 : (parent.height - height) / 2
             height: 3.25 * u
             width: tabs.implicitWidth + 0.625 * u
             radius: 18
@@ -120,7 +165,7 @@ Item {
                 anchors.centerIn: parent
                 spacing: 0.375 * u
                 Repeater {
-                    model: [{k:"history",n:"History"},{k:"highlights",n:"Highlights"},{k:"stats",n:"Stats"},{k:"apps",n:"Apps"}]
+                    model: root.embedded ? [{k:"history",n:"History"},{k:"highlights",n:"Highlights"},{k:"stats",n:"Stats"}] : [{k:"history",n:"History"},{k:"highlights",n:"Highlights"},{k:"stats",n:"Stats"},{k:"apps",n:"Apps"}]
                     delegate: PorticoCombinedPill {
                         required property int index
                         required property var modelData
@@ -140,30 +185,38 @@ Item {
         }
     }
 
+    Text {
+        visible: root.servicesOnly
+        z: 4
+        x: m; y: 60; width: parent.width - 2 * m
+        text: "Manage your Feria apps. Removing an app does not cancel its subscription."
+        color: controller.mist; font.family: controller.uiFont; font.pixelSize: 14; wrapMode: Text.WordWrap
+    }
+
     PorticoCombinedParityAccountHistory {
         id: historyView
         anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom }
         controller: root.controller
-        visible: controller.accountTab === "history"
+        visible: !root.servicesOnly && controller.accountTab === "history"
     }
 
     PorticoCombinedAccountHighlights {
         id: highlights
         anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom }
         controller: root.controller
-        visible: controller.accountTab === "highlights"
+        visible: !root.servicesOnly && controller.accountTab === "highlights"
     }
     PorticoCombinedAccountStats {
         id: statsView
         anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom }
         controller: root.controller
-        visible: controller.accountTab === "stats"
+        visible: !root.servicesOnly && controller.accountTab === "stats"
     }
     PorticoCombinedAccountApps {
         id: appsView
         anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom }
         controller: root.controller
-        visible: controller.accountTab === "apps"
+        visible: !root.activityOnly && controller.accountTab === "apps"
     }
 
     Connections {

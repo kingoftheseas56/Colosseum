@@ -26,6 +26,7 @@ TestCase {
 
     SignalSpy { id: boundarySpy; target: bar; signalName: "boundaryArrowRequested" }
     SignalSpy { id: stremioSpy; target: bar; signalName: "stremioClicked" }
+    SignalSpy { id: mediumSpy; target: bar; signalName: "mediumSelected" }
 
     function findChild(root, objectName) {
         if (!root) return null
@@ -54,6 +55,7 @@ TestCase {
         testWindow.requestActivate()
         boundarySpy.clear()
         stremioSpy.clear()
+        mediumSpy.clear()
         bar.activeMedium = ""
         bar.lifecycleActive = true
         wait(20)
@@ -107,5 +109,21 @@ TestCase {
         keyClick(Qt.Key_Down)
         compare(boundarySpy.count, 1)
         compare(boundarySpy.signalArguments[0][0], Qt.Key_Down)
+    }
+
+    function test_feria_is_the_fifth_world_and_keyboard_reachable() {
+        var universes = focusableFace(findChild(bar, "modePill_Universes"))
+        var feriaPill = findChild(bar, "modePill_Feria")
+        var feria = focusableFace(feriaPill)
+        verify(universes !== null && feria !== null)
+        universes.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Right)
+        verify(feria.activeFocus)
+        keyClick(Qt.Key_Return)
+        compare(mediumSpy.count, 1)
+        compare(mediumSpy.signalArguments[0][0], "Feria")
+        bar.activeMedium = "Feria"
+        compare(feriaPill.active, true)
+        compare(findChild(bar, "modePill_Universes").active, false)
     }
 }

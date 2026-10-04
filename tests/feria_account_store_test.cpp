@@ -4,7 +4,11 @@
 #include <QTemporaryDir>
 #include <QThread>
 #include <QFile>
+#include <QDir>
 #include <QDebug>
+#include <QDateTime>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <cmath>
 
 int main(int argc, char **argv) {
@@ -104,5 +108,64 @@ int main(int argc, char **argv) {
     policy.setStorageRoot(temp.filePath("browser-hotstar"));
     check(FeriaBrowserPolicy::cookieInScope(".hotstar.com", policy.sessionScope("hotstar").value("domains").toStringList()),
         "JioHotstar sign-out scope includes its service domain");
+    FeriaAccountStore privacy;
+    const auto privacyPath = temp.filePath("privacy/account.json");
+    privacy.setStoragePath(privacyPath);
+    privacy.beginVisit({{"pk", "webtoon"}});
+    reading.insert("locator", QVariantMap{{"type", "scroll"}, {"fraction", 0.4}, {"selector", "#reader"}});
+    reading.insert("paused", false);
+    check(privacy.observe(reading), "Create saved reading place for clear regression");
+    privacy.beginVisit({{"pk", "youtube"}});
+    sample.insert("position", 20.0); sample.insert("paused", false); sample.insert("ended", false);
+    check(privacy.observe(sample), "Create playback place for clear regression");
+    QThread::msleep(80); sample.insert("position", 20.08); privacy.observe(sample);
+    const auto continuing = privacy.continueItems();
+    const auto videoId = continuing.first().toMap().value("id").toString();
+    check(continuing.size() == 2 && privacy.clearActivity() && privacy.sessions().isEmpty(),
+          "Feria activity clear removes only activity sessions");
+    const auto retained = privacy.continueItems();
+    check(retained.size() == 2
+          && retained.first().toMap().value("position") == continuing.first().toMap().value("position")
+          && retained.last().toMap().value("locator") == continuing.last().toMap().value("locator"),
+          "Clear preserves video position and reading locator");
+    check(!retained.first().toMap().contains("mins") && !retained.first().toMap().contains("sessionId"),
+          "Retained progress does not preserve cleared activity measurements");
+    FeriaAccountStore privacyReopened;
+    privacyReopened.setStoragePath(privacyPath);
+    check(privacyReopened.sessions().isEmpty()
+          && QJsonDocument::fromVariant(privacyReopened.continueItems()).toJson()
+              == QJsonDocument::fromVariant(retained).toJson(),
+          "Clear survives restart without restoring activity");
+    check(privacyReopened.dismissContinue(videoId), "Dismiss retained playback place");
+    FeriaAccountStore afterDismiss;
+    afterDismiss.setStoragePath(privacyPath);
+    check(afterDismiss.continueItems().size() == 1, "Retained dismissal survives restart");
+    sample.insert("position", 21.0);
+    check(privacy.observe(sample) && privacy.sessions().first().toMap().value("mins").toDouble() == 0,
+          "Existing host can record after clear without inheriting old activity time");
+    QThread::msleep(80); sample.insert("position", 21.08); privacy.observe(sample);
+    check(privacy.sessions().first().toMap().value("mins").toDouble() > 0,
+          "New playback time is recorded after clearing");
+    check(!reopened.clearActivity(), "Unreadable activity store rejects clear");
+    QFile preserved(broken.fileName());
+    check(preserved.open(QIODevice::ReadOnly), "Read rejected clear source file");
+    check(preserved.readAll() == "broken", "Rejected clear preserves unreadable source file");
+    FeriaAccountStore failedClear;
+    const auto blockedPath = temp.filePath("write-failure/account.json");
+    failedClear.setStoragePath(blockedPath);
+    failedClear.beginVisit({{"pk", "youtube"}});
+    check(failedClear.observe(sample), "Create activity before write-failure clear");
+    const auto beforeFailedClear = failedClear.sessions();
+    const auto backupPath = blockedPath + ".preserved";
+    check(QFile::rename(blockedPath, backupPath) && QDir().mkdir(blockedPath), "Block atomic save with a directory");
+    check(!failedClear.clearActivity() && failedClear.sessions() == beforeFailedClear,
+          "Failed save leaves activity and Continue available");
+    FeriaAccountStore preservedActivity;
+    preservedActivity.setStoragePath(backupPath);
+    check(QJsonDocument::fromVariant(preservedActivity.sessions()).toJson()
+              == QJsonDocument::fromVariant(beforeFailedClear).toJson(),
+          "Failed clear preserves persisted activity");
+    check(privacyReopened.clearHistory() && privacyReopened.continueItems().isEmpty(),
+          "Internal full-reset API can still reset isolated fixtures");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
 }
