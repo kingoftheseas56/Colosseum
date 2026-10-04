@@ -1572,6 +1572,24 @@ int main(int argc, char *argv[]) {
         else if (name == QStringLiteral("imdb_catalog.db")) imdbCatalog->reopen(path);
     });
 
+    // A failed pass (an offline first launch, a transfer that died while the app was in the
+    // background) used to stay failed until the next app start, leaving Discover empty with no
+    // trace in the log. The client schedules nothing itself (its contract), so the retry lives
+    // here: 30 s, doubling, five tries per run.
+    auto *catalogVaultRetry = new QTimer(catalogVaultClient);
+    catalogVaultRetry->setSingleShot(true);
+    QObject::connect(catalogVaultRetry, &QTimer::timeout,
+                     catalogVaultClient, &CatalogVaultClient::checkAndFetch);
+    const auto catalogVaultAttempts = std::make_shared<int>(0);
+    QObject::connect(catalogVaultClient, &CatalogVaultClient::fetchFailed, &app,
+                     [catalogVaultRetry, catalogVaultAttempts](const QString& name, const QString& error) {
+        qWarning("[catalog-vault] fetch failed (%s): %s", qUtf8Printable(name), qUtf8Printable(error));
+        if (*catalogVaultAttempts >= 5) return;
+        catalogVaultRetry->start(30000 << (*catalogVaultAttempts)++);
+    });
+    QObject::connect(catalogVaultClient, &CatalogVaultClient::allFresh, &app,
+                     [catalogVaultAttempts](const QString&) { *catalogVaultAttempts = 0; });
+
     // Kick once, off the cold-launch critical path — never blocks boot. A no-op (zero
     // network) when every catalog is dev-overridden, per the comment above.
     QTimer::singleShot(0, catalogVaultClient, [catalogVaultClient] { catalogVaultClient->checkAndFetch(); });
