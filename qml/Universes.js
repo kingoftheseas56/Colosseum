@@ -110,6 +110,9 @@ var universes = [
         { t: "Chapter 1000 Special",     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
         { t: "Wanted! — Oda's Origins",  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
       ],
+      // THE STORY GRID (2026-10-04, whole works only — the sagas-as-waypoints list above
+      // is Tribute material and ignored here): one story, the manga over its three shows.
+      sagaGrid: { stories: [ { short: "One Piece", book: 0, shows: [0, 1, 2] } ] },
       chips: [ { t: "8 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "17 Films", ic: "movies" } ] },
     // renamed Marvel → full name (Hemanth 2026-07-13) + THE TELEVISION ACT: every Marvel
     // Studios series + the Special Presentations, release-ordered, ALL id-pinned (bare
@@ -224,6 +227,17 @@ var universes = [
         { t: "Goku & Friends Return!!",    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
       ],
       firstWatch: { t: "Dragon Ball", id: "tt0088509" },
+      // THE STORY GRID (2026-10-04, whole works only): a column per series, the manga row
+      // over the anime row. Kai is Z recut; GT, Heroes and Daima have no manga of their own;
+      // the original manga spans Dragon Ball and Z, the Super manga rides Super's column.
+      sagaGrid: { labels: { shows: "ANIME" },
+                  stories: [ { short: "Dragon Ball",              shows: [0] },
+                             { short: "Dragon Ball Z",            shows: [1, 3] },   // Kai is Z recut
+                             { short: "Dragon Ball GT",           shows: [2] },      // no manga
+                             { short: "Dragon Ball Super",        book: 1, shows: [4] },
+                             { short: "Super Dragon Ball Heroes", shows: [5] },
+                             { short: "Dragon Ball Daima",        shows: [6] } ],
+                  spans: [ { books: 0, from: 1, to: 2 } ] },   // the original manga covers Dragon Ball and Z
       chips: [ { t: "8 Manga", ic: "manga" }, { t: "7 Anime", ic: "movies" }, { t: "25 Films", ic: "movies" } ] },
     { name: "Cosmere", c1: "#101927", category: "cosmere",
       // Wikipedia lead (Brandon Sanderson — the Cosmere has no standalone article), fetched
@@ -927,13 +941,16 @@ function configFor(name) {
 // The UNIVERSES WORLD roster (2026-10-04): every universe with a working page, as ledger
 // bars. First the INSTALLED roster exactly as the shell hands it down ({extensionId,
 // name, banner, logo} — Main's installedUniverses); then every curated door that opens a
-// real page today, from universes and archive alike, in curation order — categories saga,
-// eras, studio, anime (openArchivedUniverse's template set). A curated entry already on
-// the installed shelf by name is skipped: the installed bar owns that universe. The other
-// categories (cinematic, dragonball, magazine, onepiece, cosmere, galaxy) have no page
-// this world can open yet and stay out rather than dead bars. Installed entries pass
-// through untouched; curated entries carry name, banner (the local wallpaper art when a
-// saga has it), blurb, chips and their template page. Pure — same input, same bars.
+// real page today, from universes and archive alike. The page a door opens is DATA: a
+// curated sagaGrid (the story grid, whichever category the entry rides) opens "saga";
+// otherwise the category's own template (saga, eras, studio, anime). A curated entry
+// already on the installed shelf by name is skipped: the installed bar owns that
+// universe — and an installed universe whose curation carries a sagaGrid gets the page
+// beside its extensionId (the shell prefers the page). Entries with no page either way
+// (cinematic, magazine, cosmere, galaxy, and onepiece/dragonball without a sagaGrid)
+// stay out rather than dead bars. Installed entries pass through otherwise untouched;
+// curated entries carry name, banner (the local wallpaper art when a saga has it),
+// blurb, chips and their template page. Pure — same input, same bars.
 function worldRoster(installed) {
     var roster = [];
     var seen = {};
@@ -943,22 +960,25 @@ function worldRoster(installed) {
         seen[shelf[i].name] = true;
         // an installed universe supplies identity and art; what it holds comes from curation
         var cfg = configFor(shelf[i].name);
-        roster.push({ extensionId: shelf[i].extensionId, name: shelf[i].name,
+        var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
                       banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
                       logo: shelf[i].logo || "",
-                      blurb: cfg.blurb || "", chips: cfg.chips || [] });
+                      blurb: cfg.blurb || "", chips: cfg.chips || [] };
+        if (cfg.sagaGrid) entry.page = "saga";
+        roster.push(entry);
     }
     var opensPage = { saga: true, eras: true, studio: true, anime: true };
     var curated = universes.concat(archive);
     for (var j = 0; j < curated.length; j++) {
         var c = curated[j];
-        if (!opensPage[c.category] || seen[c.name]) continue;
+        var page = c.sagaGrid ? "saga" : (opensPage[c.category] ? c.category : null);
+        if (!page || seen[c.name]) continue;
         seen[c.name] = true;
         roster.push({ name: c.name,
                       banner: c.wallpaper || c.banner || "",
                       blurb: c.blurb || "",
                       chips: c.chips || [],
-                      page: c.category });
+                      page: page });
     }
     // a finite, curated list has no ranking: alphabetical, articles aside
     function key(e) { return String(e.name).toLowerCase().replace(/^(the|a|an) /, ""); }

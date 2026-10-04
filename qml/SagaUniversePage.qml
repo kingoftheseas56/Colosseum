@@ -22,6 +22,7 @@ Item {
     signal searchClicked()
     signal watchRequested(var item)     // film/show tile → A4's TheatreSeries
     signal bookRequested(var book)      // novel tile / Read → the Biblio book detail
+    signal seriesRequested(string title)   // manga tile / Read → Tankoban's series page (by its curated query)
     signal comicsArchiveRequested(var box)   // the comics door → the GC archive index
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
     signal continueDetailRequested(var entry)   // Continue tile → its title page
@@ -37,6 +38,11 @@ Item {
     readonly property string displayFace: sagaDisplay.name
     property bool reducedMotion: true
     readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
+    // an anime universe (curated manga list) is the same page with the read form in manga:
+    // the hero kicker reads ANIME, the read row and blocks say MANGA, and the read form
+    // opens Tankoban. One variation per TYPE, never per franchise — all data-driven.
+    readonly property bool animeUniverse: !!root.guide.manga
+    readonly property string readWord: root.animeUniverse ? "Manga" : "Book"
     readonly property color worldColor: guide.c1 || "#221c30"
     readonly property color paper: theme.ink
     readonly property color hair: Qt.rgba(1, 1, 1, 0.09)
@@ -75,14 +81,19 @@ Item {
     }
     function isBook(item) {
         if (!item) return false
-        return item.medium !== undefined ? item.medium === "book" : (root.uni.books || []).indexOf(item) >= 0
+        if (item.medium !== undefined) return item.medium === "book" || item.medium === "manga"
+        return (root.uni.books || []).indexOf(item) >= 0
     }
     function isSeries(item) { return !!item && (item.medium ? item.medium === "series" : item.type === "series") }
-    function kindLabel(item) { return root.isBook(item) ? "BOOK" : (root.isSeries(item) ? "SERIES" : "FILM") }
+    function kindLabel(item) {
+        if (!!item && item.medium === "manga") return "MANGA"
+        return root.isBook(item) ? "BOOK" : (root.isSeries(item) ? "SERIES" : "FILM")
+    }
     function canOpen(item) { return !!item && item.resolved !== false }
     function openWork(item) {
         if (!root.canOpen(item)) return
-        if (root.isBook(item)) root.bookRequested(item)
+        if (item.medium === "manga") root.seriesRequested(item.query || item.title)
+        else if (root.isBook(item)) root.bookRequested(item)
         else root.watchRequested(item)
     }
     function locate(item) {
@@ -162,7 +173,7 @@ Item {
         const at = item ? root.locate(item) : null
         if (!at) return ""
         const cell = root.grid.rows[at.row].cells[at.cell]
-        if (root.isBook(item)) return "Book " + root.storyAt(cell.col).n
+        if (root.isBook(item)) return root.readWord + " " + root.storyAt(cell.col).n
         return root.isSeries(item) ? "" : "Film " + (at.cell + 1)
     }
     function storyAt(col) {
@@ -286,14 +297,14 @@ Item {
             (root.isBook(item) ? books : (root.isSeries(item) ? shows : films)).push(item)
         })
         if (root.creators.length && root.creators[0].role.indexOf("Author") === 0) out.push(["CREATOR", root.creators[0].name])
-        if (books.length) out.push(["BOOKS", String(books.length)])
+        if (books.length) out.push([root.animeUniverse ? "MANGA" : "BOOKS", String(books.length)])
         if (films.length) {
             const years = films.map(function(f) { return f.year }).filter(function(y) { return y > 0 }).sort()
             out.push(["FILMS", films.length + (years.length > 1 && years[0] !== years[years.length - 1]
                                                ? " · " + years[0] + " to " + years[years.length - 1] : "")])
         }
         if (shows.length) out.push(["TELEVISION", shows.length + " series"])
-        out.push(["CATALOGUE", "Apple Books · Cinemeta"])
+        out.push(["CATALOGUE", root.animeUniverse ? "Curation · Cinemeta" : "Apple Books · Cinemeta"])
         return out
     }
     readonly property var stills: root.works.filter(function(item) {
@@ -442,7 +453,7 @@ Item {
                     width: parent.width - root.gutter * 2
                     spacing: 18
                     Text {
-                        text: "SAGA"
+                        text: root.animeUniverse ? "ANIME" : "SAGA"
                         color: theme.inkDim; font.family: root.uiFace
                         font.pixelSize: 11; font.letterSpacing: 3
                     }
@@ -755,7 +766,8 @@ Item {
                             Text {
                                 anchors.right: root.sideDetail ? undefined : parent.right
                                 text: !root.canOpen(root.shown) ? "Details pending"
-                                      : (root.isBook(root.shown) ? "Opens in Biblio" : "Opens in Theatre")
+                                      : (root.shown && root.shown.medium === "manga" ? "Opens in Tankoban"
+                                         : (root.isBook(root.shown) ? "Opens in Biblio" : "Opens in Theatre"))
                                 color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
                             }
                         }
@@ -884,6 +896,7 @@ Item {
                     Shelf {
                         id: upcomingShelf
                         x: 24; y: 24
+                        width: parent.width - 48
                         label: ""
                         items: root.grid.upcoming
                     }
@@ -1315,12 +1328,16 @@ Item {
         }
     }
 
-    // ---- a labelled run of works with captions: branches and Upcoming ----
+    // ---- a labelled run of works with captions: branches and Upcoming. The tiles WRAP
+    // inside the block's width (a twelve-film group is two lines, not an overflow) and the
+    // shelf stays ONE keyboard stop: Left/Right walk the tiles in order, line breaks and all ----
     component Shelf: Column {
         id: shelf
         property string label: ""
         property var items: []
-        width: Math.max(1, shelf.items.length) * root.tileW + Math.max(0, shelf.items.length - 1) * root.tileGap
+        readonly property real natural: Math.max(1, shelf.items.length) * root.tileW
+                                       + Math.max(0, shelf.items.length - 1) * root.tileGap
+        width: Math.min(natural, parent ? parent.width : natural)
         Item {
             width: parent.width; height: 28
             visible: shelf.label.length > 0
@@ -1331,9 +1348,10 @@ Item {
         }
         Item {
             width: parent.width
-            height: shelfRow.implicitHeight
-            Row {
-                id: shelfRow
+            height: shelfFlow.implicitHeight
+            Flow {
+                id: shelfFlow
+                width: parent.width
                 spacing: root.tileGap
                 Repeater {
                     id: shelfRepeater
@@ -1355,8 +1373,9 @@ Item {
                                maximumLineCount: 2; elide: Text.ElideRight }
                         Text { topPadding: 3; width: parent.width
                                text: entry.modelData.resolved === false ? "Details pending"
-                                     : (root.isBook(entry.modelData) ? (entry.modelData.author || "")
-                                        : (entry.modelData.year ? String(entry.modelData.year) : ""))
+                                     : (entry.modelData.medium === "manga" ? ""
+                                        : (root.isBook(entry.modelData) ? (entry.modelData.author || "")
+                                           : (entry.modelData.year ? String(entry.modelData.year) : "")))
                                color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                     }

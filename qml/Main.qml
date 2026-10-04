@@ -1924,14 +1924,17 @@ Window {
             universeLayer.item.universeName = name
         universeLayer.active = true
     }
-    // A banner in the Universes world opens the universe's STANDARD page. An archived universe
-    // carries a template page. An installed one opens the plain page when it ships a payload;
-    // one with no payload (Cosmere) has only its Tribute, so that is what opens.
+    // A banner in the Universes world opens the universe's STANDARD page. An entry with a
+    // page (a curated sagaGrid, or an archived universe's template) opens through
+    // openArchivedUniverse; only an entry with no page falls back to the extension route —
+    // an installed One Piece carries both, and its story-grid page wins over the payload
+    // route (a payload-less Cosmere still lands on its Tribute).
     function openRosterUniverse(entry) {
         if (!entry) return
-        if (entry.extensionId)
+        if (entry.page)
+            win.openArchivedUniverse(entry.name, entry.page)
+        else
             win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0)
-        else win.openArchivedUniverse(entry.name, entry.page)
     }
     // The Universes world's carousel: the hand-made art page.
     function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }

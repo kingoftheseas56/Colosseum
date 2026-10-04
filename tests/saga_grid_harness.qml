@@ -19,7 +19,9 @@ QtObject {
                          type: medium === "series" ? "series" : "movie", id: medium + i, resolved: true }
             })
         }
-        return { cfg: c, uni: { books: slots(c.novels, "book"), films: slots(c.films, "film"), shows: slots(c.shows, "series") } }
+        var canon = Saga.sagaCanon(c)
+        return { cfg: c, uni: { books: slots(canon.books, c.manga ? "manga" : "book"),
+                                films: slots(canon.films, "film"), shows: slots(canon.shows, "series") } }
     }
     function grid(name) { var r = resolved(name); return Saga.sagaGrid(r.uni, r.cfg) }
     function labels(g) { return g.rows.map(function(r) { return r.label }).join(",") }
@@ -62,6 +64,50 @@ QtObject {
           "Sherlock Holmes", "Jurassic Park", "Percy Jackson"].forEach(function(name) {
             var g = grid(name)
             need(g.cols > 0 && g.rows.length > 0, name + " grid is empty")
+            g.rows.forEach(function(r) { r.cells.forEach(function(c) {
+                need(c.item && c.col >= 0 && c.col + c.span <= g.cols, name + " has a cell outside the grid")
+            }) })
+        })
+
+        // ── the anime universes ride the same grid (2026-10-04): whole works only, the
+        //    manga row over the anime row, one canon for both kinds of universe ──
+
+        // Dragon Ball: 6 stories over 7 columns; rows read MANGA and ANIME (the data's
+        // label); the original manga centres over Dragon Ball + Z; GT, Heroes and Daima
+        // have no manga of their own; both film groups stand as blocks.
+        var db = grid("Dragon Ball")
+        need(db.stories.length === 6 && db.cols === 7, "DB must be 6 stories over 7 columns, got "
+             + db.stories.length + "/" + db.cols)
+        need(labels(db) === "MANGA,ANIME", "DB rows: " + labels(db))
+        need(db.rows[0].cells.length === 2, "DB manga row must be exactly two cells, got " + db.rows[0].cells.length)
+        need(db.rows[0].cells[0].span === 3 && db.rows[0].cells[0].form === "center" && db.rows[0].cells[0].col === 0,
+             "the original manga must centre over Dragon Ball and Z")
+        need(db.rows[0].cells[1].item.title === "Dragon Ball Super" && db.rows[0].cells[1].span === 1,
+             "the Super manga rides Super's column alone")
+        need(db.stories[2].book === null && db.stories[4].book === null && db.stories[5].book === null,
+             "GT, Heroes and Daima have no manga cell")
+        need(db.blocks.map(function(b) { return b.title }).join("|")
+             === "Spin-offs|The Dragon Ball Films|The Z Films & Specials|The Modern Films",
+             "DB blocks: " + db.blocks.map(function(b) { return b.title }).join("|"))
+
+        // One Piece: one story over its three shows, the manga centred over them; the
+        // other seven manga are Spin-offs; both film groups stand as blocks.
+        var op = grid("One Piece")
+        need(op.stories.length === 1 && op.cols === 3, "OP must be 1 story over 3 columns, got "
+             + op.stories.length + "/" + op.cols)
+        need(labels(op) === "MANGA,SERIES", "OP rows: " + labels(op))
+        need(op.rows[0].cells.length === 1 && op.rows[0].cells[0].span === 3 && op.rows[0].cells[0].form === "center",
+             "the One Piece manga must centre over its three shows")
+        var opBlocks = op.blocks.map(function(b) { return b.title }).join("|")
+        need(opBlocks === "Spin-offs|The Films|Episode Of & Specials", "OP blocks: " + opBlocks)
+        var spin = op.blocks.filter(function(b) { return b.title === "Spin-offs" })[0]
+        need(spin.shelves[0].label === "MANGA" && spin.shelves[0].items.length === 7,
+             "OP's other seven manga are the Spin-offs MANGA shelf, got "
+             + spin.shelves[0].items.length + " (" + spin.shelves[0].label + ")")
+
+        // the anime universes' cells sit inside their grids too
+        ;["Dragon Ball", "One Piece"].forEach(function(name) {
+            var g = grid(name)
             g.rows.forEach(function(r) { r.cells.forEach(function(c) {
                 need(c.item && c.col >= 0 && c.col + c.span <= g.cols, name + " has a cell outside the grid")
             }) })

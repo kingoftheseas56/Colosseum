@@ -1,7 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 # Saga universe template contract (Hemanth correction 2026-07-12): book-first IPs get their
-# OWN template — curated canon, Read = book one via Biblio, Watch = film one, no manga ever.
+# OWN template — curated canon, Read = book one via Biblio, Watch = film one. Since
+# 2026-10-04 an anime universe rides the same template with the read form in manga (whole
+# works only, Tankoban by curated query) — still curated canon, never a name search.
 # The behavioral truth rides the canon harness (exit code); this runs it then greps shape.
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -30,13 +32,21 @@ function Assert-Lacks($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
 
-# --- the saga page: books are the spine, manga does not exist here ---
+# --- the saga page: books are the spine; a manga universe rides the SAME curated law ---
 $sp = Read-File "qml/SagaUniversePage.qml"
 Assert-Contains $sp 'signal bookRequested(var book)' "Saga page must carry the book verb."
 Assert-Contains $sp 'root.openWork(root.readTarget)' "Read must resume the reader's book, or start at book ONE."
 Assert-Contains $sp 'SagaApi.js' "Saga page must ride SagaApi (curated canon, not name-search)."
-Assert-Lacks $sp 'manga' "The word manga must not exist on the saga template (the LOTR anthology lesson)."
+# The old blanket word-ban ('manga' must not appear) died 2026-10-04 when the story grid
+# learned the manga read form (medium 'manga', kindLabel MANGA, Opens in Tankoban). The
+# REAL rule it guarded survives: the page and the loader never SEARCH a manga provider —
+# manga identities are pinned curation (covers baked as URLs in Universes.js), so no
+# AniList, no Jikan, anywhere in the saga template's own code.
 Assert-Lacks $sp 'AniList' "AniList must not be a saga source."
+Assert-Lacks $sp 'Jikan' "Jikan must not be a saga source."
+$saProviders = Read-File "qml/SagaApi.js"
+Assert-Lacks $saProviders 'AniList' "SagaApi must not search AniList (manga identities are curated pins)."
+Assert-Lacks $saProviders 'Jikan' "SagaApi must not search Jikan (manga identities are curated pins)."
 
 # --- the saga engine: canon in, fuzz out ---
 $sa = Read-File "qml/SagaApi.js"

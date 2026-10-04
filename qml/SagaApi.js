@@ -124,10 +124,46 @@ function sagaSlots(canon, resolved, kind) {
     });
 }
 
+// THE ONE CANON (2026-10-04): a book-first saga and an anime universe resolve to the same
+// three shelves. A saga reads its curated novels/films/shows as today. A manga universe
+// (cfg.manga) is canonized the same way: books are the manga ({ t, q?, cover }), films
+// are every filmEras group flattened in order, shows are the seven-series saga (Dragon
+// Ball) or the anime followed by its adaptations (One Piece). Screen entries stay pinned
+// { t, id, year }; nothing here touches the network. PURE.
+function sagaCanon(cfg) {
+    cfg = cfg || {};
+    if (!cfg.manga)
+        return { books: cfg.novels || [], films: cfg.films || [], shows: cfg.shows || [] };
+    var films = [];
+    (cfg.filmEras || []).forEach(function(group) {
+        (group.films || []).forEach(function(f) { films.push(f); });
+    });
+    var shows = cfg.saga ? cfg.saga.slice()
+               : (cfg.anime ? [cfg.anime] : []).concat(cfg.adaptations || []);
+    return { books: cfg.manga, films: films, shows: shows };
+}
+
+// The branches: a saga curates its own (cfg.sagaBranches). A manga universe gets one per
+// filmEras group, titled with its era, holding that group's films by flattened index.
+// PURE.
+function sagaBranchesFor(cfg) {
+    cfg = cfg || {};
+    if (cfg.sagaBranches) return cfg.sagaBranches;
+    if (!cfg.manga) return [];
+    var branches = [], flat = 0;
+    (cfg.filmEras || []).forEach(function(group) {
+        var films = [];
+        for (var i = 0; i < (group.films || []).length; i++) films.push(flat + i);
+        flat += (group.films || []).length;
+        if (films.length) branches.push({ title: group.era, films: films });
+    });
+    return branches;
+}
+
 function sagaCollections(uni, cfg) {
     var source = { books: uni.books || [], films: uni.films || [], shows: uni.shows || [] };
     var used = { books: {}, films: {}, shows: {} };
-    var branches = (cfg.sagaBranches || []).map(function(branch) {
+    var branches = (sagaBranchesFor(cfg) || []).map(function(branch) {
         var result = { title: branch.title, books: [], adaptations: [] };
         ["books", "films", "shows"].forEach(function(kind) {
             source[kind].forEach(function(item, index) {
@@ -169,6 +205,15 @@ function sagaGrid(uni, cfg) {
         return item.canonIndex === undefined ? (uni[kind] || []).indexOf(item) : item.canonIndex;
     }
     var pair = cfg.sagaGrid || { stories: coll.books.map(function(b) { return { book: canonOf("books", b) }; }) };
+    // row labels come from the data: the read row is MANGA when its items are manga; a
+    // curated sagaGrid.labels may override any row (Dragon Ball's shows row reads ANIME)
+    var canonBooks = sagaCanon(cfg).books;
+    var manga = (uni.books || []).length > 0 && uni.books[0].medium === "manga";
+    var overrides = (cfg.sagaGrid && cfg.sagaGrid.labels) || {};
+    function rowLabel(kind, fallback) {
+        if (overrides[kind]) return overrides[kind];
+        return kind === "books" && manga ? "MANGA" : fallback;
+    }
     var kinds = [{ kind: "films", label: "FILMS" }, { kind: "shows", label: "SERIES" }];
     function at(kind, index) {
         var list = uni[kind] || [];
@@ -183,14 +228,26 @@ function sagaGrid(uni, cfg) {
         var book = s.book === undefined || s.book === null ? null : at("books", s.book);
         if (book) placed.books[s.book] = true;
         // the header wears the CURATED title — a store's listing name can run to a paragraph
-        var canon = s.book === undefined || s.book === null ? null : (cfg.novels || [])[s.book];
+        var canon = s.book === undefined || s.book === null ? null : canonBooks[s.book];
         var canonTitle = canon && canon.t !== undefined ? canon.t : canon;
         stories.push({ n: i + 1, col: col, span: span, book: book, pair: s,
                        short: s.short || canonTitle || (book ? book.title : "") });
         col += span;
     });
-    var rows = [{ kind: "books", label: "BOOKS", cells: stories.filter(function(s) { return !!s.book; })
+    var rows = [{ kind: "books", label: rowLabel("books", "BOOKS"), cells: stories.filter(function(s) { return !!s.book; })
         .map(function(s) { return { item: s.book, col: s.col, span: s.span, form: s.span > 1 ? "center" : "tile" }; }) }];
+    // a book may span stories, exactly as a screen work already can — the original Dragon
+    // Ball manga covers both Dragon Ball and Z. A story covered by a spanning book has no
+    // book of its own (the pairing says so; nothing is invented here).
+    (pair.spans || []).forEach(function(sp) {
+        if (sp.books === undefined) return;
+        var item = at("books", sp.books), a = stories[sp.from - 1], b = stories[sp.to - 1];
+        if (!item || !a || !b) return;
+        placed.books[sp.books] = true;
+        var span = b.col + b.span - a.col;
+        rows[0].cells.push({ item: item, col: a.col, span: span, form: span > 1 ? "center" : "tile" });
+    });
+    rows[0].cells.sort(function(x, y) { return x.col - y.col; });
     kinds.forEach(function(k) {
         var cells = [];
         stories.forEach(function(s) {
@@ -210,7 +267,7 @@ function sagaGrid(uni, cfg) {
             cells.push({ item: item, col: a.col, span: span, form: span > 1 ? "banner" : "tile" });
         });
         cells.sort(function(x, y) { return x.col - y.col; });
-        if (cells.length) rows.push({ kind: k.kind, label: k.label, cells: cells });
+        if (cells.length) rows.push({ kind: k.kind, label: rowLabel(k.kind, k.label), cells: cells });
     });
     if (!rows[0].cells.length) rows.shift();
 
@@ -222,9 +279,9 @@ function sagaGrid(uni, cfg) {
     function shelves(books, films, shows) {
         var out = [];
         books = out_(books); films = out_(films); shows = out_(shows);
-        if (books.length) out.push({ label: "BOOKS", items: books });
+        if (books.length) out.push({ label: rowLabel("books", "BOOKS"), items: books });
         if (films.length) out.push({ label: "FILMS", items: films });
-        if (shows.length) out.push({ label: "SERIES", items: shows });
+        if (shows.length) out.push({ label: rowLabel("shows", "SERIES"), items: shows });
         return out;
     }
     function isSeries(x) { return x.medium ? x.medium === "series" : x.type === "series"; }
@@ -235,7 +292,7 @@ function sagaGrid(uni, cfg) {
     if (looseScreen.length)
         blocks.push({ title: "On screen", shelves: shelves([], ofType(looseScreen, "movie"), ofType(looseScreen, "series")) });
     var looseBooks = loose("books", coll.books);
-    if (looseBooks.length) blocks.push({ title: "More books", shelves: shelves(looseBooks, [], []) });
+    if (looseBooks.length) blocks.push({ title: manga ? "Spin-offs" : "More books", shelves: shelves(looseBooks, [], []) });
     coll.branches.forEach(function(b) {
         blocks.push({ title: b.title, shelves: shelves(b.books, ofType(b.adaptations, "movie"), ofType(b.adaptations, "series")) });
     });
@@ -298,9 +355,11 @@ function enrichWatch(items, onUpdate) {
 
 // loadSaga("Harry Potter", push) — push({ name, blurb, banner, metaline, books[], films[],
 // shows[] }) once per response. books = full Biblio objects in reading order; films/shows =
-// Cinemeta items in canon order.
+// Cinemeta items in canon order. An anime universe (cfg.manga) takes its own path below —
+// the loader picks it; the page and the push shape stay the same.
 function loadSaga(name, push) {
     var cfg = UDB.configFor(name);
+    if (cfg.manga) return loadMangaUniverse(name, cfg, push);
     var novels = cfg.novels || [];
     var filmCanon = cfg.films || [];
     var showCanon = cfg.shows || [];
@@ -372,6 +431,42 @@ function loadSaga(name, push) {
     }
 
     emit();   // paint banner/blurb/metaline instantly from curation, before any network lands
+}
+
+// loadMangaUniverse — the anime universes' loader (One Piece, Dragon Ball): every work is
+// PINNED in curation, so nothing is ever searched — no Biblio lookup, no catalog search,
+// no manga provider. Manga items come straight from the curated list (Tankoban opens them
+// by their query); films and shows are built from their pinned ids, mapWatch dressing each
+// with the metahub poster/backdrop, and enrichWatch fetching the one full record per work
+// for the facts a tile cannot carry. Same push shape as loadSaga.
+function loadMangaUniverse(name, cfg, push) {
+    var canon = sagaCanon(cfg);
+    function pinned(entry, type) {
+        return entry && entry.id
+            ? mapWatch({ id: entry.id, type: type, name: entry.t, releaseInfo: entry.year })
+            : null;
+    }
+    var out = {
+        name: name,
+        blurb: cfg.blurb || "",
+        banner: cfg.banner || "",
+        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
+        books: sagaSlots(canon.books, canon.books.map(function(m) {
+            return m ? { title: m.t, cover: m.cover || "", query: m.q || m.t } : null;
+        }), "manga"),
+        films: sagaSlots(canon.films, canon.films.map(function(e) { return pinned(e, "movie"); }), "film"),
+        shows: sagaSlots(canon.shows, canon.shows.map(function(e) { return pinned(e, "series"); }), "series"),
+        comics: cfg.comics || null
+    };
+    function emit() {
+        push({ name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
+               books: out.books, films: out.films, shows: out.shows, comics: out.comics,
+               detailRevision: ++_detailRevision });
+    }
+    enrichWatch(out.films, emit);
+    enrichWatch(out.shows, emit);
+    emit();   // curation paints instantly; the records dress in as they land
+    return null;
 }
 
 // loadGalaxy(name, push) — the GALAXY template's loader (Star Wars): the Skywalker Saga as

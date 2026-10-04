@@ -18,6 +18,7 @@ Item {
     }
     SignalSpy { id: books; target: saga; signalName: "bookRequested" }
     SignalSpy { id: films; target: saga; signalName: "watchRequested" }
+    SignalSpy { id: tankoban; target: saga; signalName: "seriesRequested" }
     TestCase {
         name: "SagaTemplate"
         when: windowShown
@@ -30,7 +31,7 @@ Item {
                 { title: "Second book", id: "book-2", cover: "" }
             ], films: [{ title: "First film", id: "film-1", cover: "" }], shows: [], comics: null }
             tryVerify(function() { return findChild(saga, "sagaScroll").contentHeight > 600 })
-            books.clear(); films.clear()
+            books.clear(); films.clear(); tankoban.clear()
             findChild(saga, "sagaScroll").contentY = 0
         }
         function test_firstBookAction() {
@@ -113,6 +114,20 @@ Item {
             tryVerify(function() { return previous.visible })
             mouseClick(previous, previous.width / 2, previous.height / 2)
             tryVerify(function() { return !previous.visible })
+        }
+        // A manga is the read form (2026-10-04): activating it opens Tankoban by its
+        // curated query — never the Biblio book detail.
+        function test_mangaOpensTankobanByQuery() {
+            saga.uni = { name: "One Piece", banner: "", metaline: "", books: [
+                { title: "One Piece", medium: "manga", query: "One Piece", cover: "", resolved: true },
+                { title: "Ace's Story", medium: "manga", query: "One Piece Ace Story", cover: "", resolved: true }
+            ], films: [], shows: [], comics: null }
+            const grid = findChild(saga, "sagaGridFocus")
+            grid.forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            compare(tankoban.count, 1)
+            compare(tankoban.signalArguments[0][0], "One Piece")
+            compare(books.count, 0)
         }
         function test_unresolvedWorkCannotOpen() {
             saga.uni = { name: "Dune", books: [{ title: "Pending book", resolved: false }],

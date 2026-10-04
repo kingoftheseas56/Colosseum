@@ -126,6 +126,27 @@ Comics). No tabs. A banner opens the universe's standard page; an installed univ
 payload (Cosmere) opens its Tribute. The Home page keeps its carousel and its wording.
 Not built: an "In progress" chip (needs per-universe progress matching), search.
 
+## Anime universes on the story grid (built 2026-10-04, GLM; reviewed and rendered by Agent 0)
+
+One Piece and Dragon Ball ride `SagaUniversePage` with the read form in manga. `SagaApi.sagaCanon`
+gives both kinds of universe the same three shelves; `loadMangaUniverse` builds every work from its
+curated pin and searches nothing. A book may span stories (`spans: [{ books, from, to }]`); row
+labels come from the data (`MANGA`, and `sagaGrid.labels` for `ANIME`); leftover manga are
+`Spin-offs`; each `filmEras` group is a block; a shelf wraps inside its block. `worldRoster` gives
+any entry with a `sagaGrid` the page `"saga"`, and `openRosterUniverse` prefers the page.
+
+Known gaps:
+
+- **Manga progress is unmatched.** Tankoban keys reading by `mal:<id>`; the curated manga carry no
+  MAL id, so a manga has no Continue tile, bar or resume here. Pinning MAL ids fixes it.
+- **A manga opens Tankoban by its curated title query**, not a pinned id (same fix).
+- **A book centred over three columns sits exactly on the middle one.** Dragon Ball's original
+  manga reads as belonging to Z alone; only the detail line ("STORIES 1 TO 2") says otherwise.
+- The manga detail panel has no facts or synopsis (none curated).
+- "The saga", "Beyond the saga" and the "1 story" pill are saga wording on an anime page.
+- Long film groups wrap to many lines (Dragon Ball's Z films); no "see all".
+- Naruto and Attack on Titan still open the July anime page until their works are pinned.
+
 ## Deferred
 
 The Eras centre; Tribute doors and downloadable Tributes; the Patreon gate; the One Piece story line (reading and watching position on one line) — the saga grid already shows both positions per story.
