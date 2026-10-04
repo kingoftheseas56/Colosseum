@@ -151,6 +151,151 @@ function sagaCollections(uni, cfg) {
         }) };
 }
 
+// THE SAGA GRID (Arc 58) — a column per story, a row per form, so a book and its adaptation
+// carry the same weight. The curated pairing (cfg.sagaGrid, by canon index) says which screen
+// work adapts which story; this turns it into drawable rows. PURE — headless-tested.
+//   stories  [{ n, short, col, span }]            one header per story
+//   rows     [{ kind, label, cells: [{ item, col, span, form }] }]
+//            form: "tile" | "center" (a book over a story told in two films) |
+//                  "banner" (a screen work stretched across the stories it covers)
+//   cols     grid width in tiles
+//   blocks   [{ title, shelves: [{ label, items }] }]  branches, plus whatever the pairing
+//            left out ("On screen": adaptations that go their own way)
+// A cfg without sagaGrid still works: every core book becomes a story, every adaptation
+// lands in "On screen". An unmatched slot stays EMPTY — never a stand-in.
+function sagaGrid(uni, cfg) {
+    var coll = sagaCollections(uni, cfg);
+    function canonOf(kind, item) {
+        return item.canonIndex === undefined ? (uni[kind] || []).indexOf(item) : item.canonIndex;
+    }
+    var pair = cfg.sagaGrid || { stories: coll.books.map(function(b) { return { book: canonOf("books", b) }; }) };
+    var kinds = [{ kind: "films", label: "FILMS" }, { kind: "shows", label: "SERIES" }];
+    function at(kind, index) {
+        var list = uni[kind] || [];
+        for (var i = 0; i < list.length; i++)
+            if (canonOf(kind, list[i]) === index) return list[i];
+        return null;
+    }
+    var placed = { books: {}, films: {}, shows: {} };
+    var stories = [], col = 0;
+    (pair.stories || []).forEach(function(s, i) {
+        var span = Math.max(1, (s.films || []).length, (s.shows || []).length);
+        var book = s.book === undefined || s.book === null ? null : at("books", s.book);
+        if (book) placed.books[s.book] = true;
+        // the header wears the CURATED title — a store's listing name can run to a paragraph
+        var canon = s.book === undefined || s.book === null ? null : (cfg.novels || [])[s.book];
+        var canonTitle = canon && canon.t !== undefined ? canon.t : canon;
+        stories.push({ n: i + 1, col: col, span: span, book: book, pair: s,
+                       short: s.short || canonTitle || (book ? book.title : "") });
+        col += span;
+    });
+    var rows = [{ kind: "books", label: "BOOKS", cells: stories.filter(function(s) { return !!s.book; })
+        .map(function(s) { return { item: s.book, col: s.col, span: s.span, form: s.span > 1 ? "center" : "tile" }; }) }];
+    kinds.forEach(function(k) {
+        var cells = [];
+        stories.forEach(function(s) {
+            (s.pair[k.kind] || []).forEach(function(index, j) {
+                var item = at(k.kind, index);
+                if (!item) return;
+                placed[k.kind][index] = true;
+                cells.push({ item: item, col: s.col + j, span: 1, form: "tile" });
+            });
+        });
+        (pair.spans || []).forEach(function(sp) {
+            if (sp[k.kind] === undefined) return;
+            var item = at(k.kind, sp[k.kind]), a = stories[sp.from - 1], b = stories[sp.to - 1];
+            if (!item || !a || !b) return;
+            placed[k.kind][sp[k.kind]] = true;
+            var span = b.col + b.span - a.col;
+            cells.push({ item: item, col: a.col, span: span, form: span > 1 ? "banner" : "tile" });
+        });
+        cells.sort(function(x, y) { return x.col - y.col; });
+        if (cells.length) rows.push({ kind: k.kind, label: k.label, cells: cells });
+    });
+    if (!rows[0].cells.length) rows.shift();
+
+    function loose(kind, list) {
+        return list.filter(function(item) { return !placed[kind][canonOf(kind, item)]; });
+    }
+    // what is still to come is listed once, under Upcoming — a block never repeats it
+    function out_(list) { return list.filter(function(x) { return x.upcoming !== true; }); }
+    function shelves(books, films, shows) {
+        var out = [];
+        books = out_(books); films = out_(films); shows = out_(shows);
+        if (books.length) out.push({ label: "BOOKS", items: books });
+        if (films.length) out.push({ label: "FILMS", items: films });
+        if (shows.length) out.push({ label: "SERIES", items: shows });
+        return out;
+    }
+    function isSeries(x) { return x.medium ? x.medium === "series" : x.type === "series"; }
+    function ofType(list, type) { return list.filter(function(x) { return isSeries(x) === (type === "series"); }); }
+    var blocks = [];
+    var looseScreen = loose("films", ofType(coll.adaptations, "movie"))
+        .concat(loose("shows", ofType(coll.adaptations, "series")));
+    if (looseScreen.length)
+        blocks.push({ title: "On screen", shelves: shelves([], ofType(looseScreen, "movie"), ofType(looseScreen, "series")) });
+    var looseBooks = loose("books", coll.books);
+    if (looseBooks.length) blocks.push({ title: "More books", shelves: shelves(looseBooks, [], []) });
+    coll.branches.forEach(function(b) {
+        blocks.push({ title: b.title, shelves: shelves(b.books, ofType(b.adaptations, "movie"), ofType(b.adaptations, "series")) });
+    });
+    blocks = blocks.filter(function(blk) { return blk.shelves.length > 0; });
+    return { stories: stories, rows: rows, cols: col, blocks: blocks, upcoming: coll.upcoming };
+}
+
+// Where the keyboard lands from one grid cell: left/right walk the story within a row,
+// up/down move between the forms of the same story, skipping a form that has nothing
+// there. Returns { row, cell } or null at a boundary (the arrow then leaves the grid).
+// PURE — headless-tested.
+function gridMove(grid, row, cell, dx, dy) {
+    var cur = grid.rows[row] && grid.rows[row].cells[cell];
+    if (!cur) return null;
+    if (dx) {
+        var next = cell + dx;
+        return grid.rows[row].cells[next] ? { row: row, cell: next } : null;
+    }
+    var mid = cur.col + (cur.span - 1) / 2;
+    for (var r = row + dy; r >= 0 && r < grid.rows.length; r += dy) {
+        var best = -1, bestGap = 1e9;
+        grid.rows[r].cells.forEach(function(c, i) {
+            if (c.col + c.span <= cur.col || c.col >= cur.col + cur.span) return;   // not under this story
+            var gap = Math.abs(c.col + (c.span - 1) / 2 - mid);
+            if (gap < bestGap) { bestGap = gap; best = i; }
+        });
+        if (best >= 0) return { row: r, cell: best };
+    }
+    return null;
+}
+
+// The facts a tile cannot carry: synopsis, runtime, rating, makers. One full-meta fetch per
+// screen work, cached for the process; onUpdate fires as each lands.
+var _detailById = {};
+var _detailRevision = 0;
+function detailFor(id) { return _detailById[id] || null; }
+function enrichWatch(items, onUpdate) {
+    (items || []).forEach(function(m) {
+        if (!m || !m.id || m.resolved === false || (m.id in _detailById)) return;
+        _detailById[m.id] = null;
+        requestJson(CINEMETA + "/meta/" + m.type + "/" + m.id + ".json", function(j) {
+            var meta = j && j.meta;
+            if (!meta) { delete _detailById[m.id]; return; }      // failures are not cached
+            var now = new Date().toISOString(), seasons = {};
+            (meta.videos || []).forEach(function(v) {
+                if (v.season && (!v.released || String(v.released) <= now)) seasons[v.season] = true;
+            });
+            var people = [];
+            (m.type === "series" ? [] : (meta.director || [])).forEach(function(n) { people.push({ name: n, role: "Director" }); });
+            (m.type === "series" ? (meta.writer || []).slice(0, 2) : []).forEach(function(n) { people.push({ name: n, role: "Writer" }); });
+            _detailById[m.id] = {
+                summary: meta.description || "", runtime: meta.runtime || "",
+                rating: meta.imdbRating || "", span: String(meta.releaseInfo || ""),
+                seasons: Object.keys(seasons).length, people: people
+            };
+            onUpdate();
+        });
+    });
+}
+
 // loadSaga("Harry Potter", push) — push({ name, blurb, banner, metaline, books[], films[],
 // shows[] }) once per response. books = full Biblio objects in reading order; films/shows =
 // Cinemeta items in canon order.
@@ -174,7 +319,8 @@ function loadSaga(name, push) {
             name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
             books: sagaSlots(novels, out.books, "book"),
             films: out.films, shows: out.shows,
-            comics: out.comics
+            comics: out.comics,
+            detailRevision: ++_detailRevision      // a detail landed → the page re-reads detailFor()
         });
     }
 
@@ -200,6 +346,7 @@ function loadSaga(name, push) {
                     }
                     refilm();
                     probeUpcoming(out.films, refilm);   // same-year boundary (Part Three case)
+                    enrichWatch(out.films, emit);
                 });
         });
     }
@@ -219,6 +366,7 @@ function loadSaga(name, push) {
                     }
                     reshow();
                     probeUpcoming(out.shows, reshow);   // same-year boundary (the HBO HP show)
+                    enrichWatch(out.shows, emit);
                 });
         });
     }

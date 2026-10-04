@@ -59,11 +59,11 @@ Need 'qml\StarWarsGalaxySystem.qml' 'Keys.onSpacePressed' 'galaxy destinations n
 Need 'qml\StarWarsMediaShelf.qml' 'Keys.onLeftPressed' 'media shelves need local Left navigation.'
 Need 'qml\StarWarsMediaShelf.qml' 'Keys.onRightPressed' 'media shelves need local Right navigation.'
 
-# Sagas: Read/Watch halves, ordered novel shelf, adaptation rails, comics door.
-Need 'qml\SagaUniversePage.qml' 'id: halfKey' 'Read/Watch halves need keyboard activation.'
-Need 'qml\SagaUniversePage.qml' 'id: bookNav' 'novel shelf must be a horizontal composite.'
+# Sagas (Arc 58 grid): one keyboard stop for the story grid, one per branch shelf, comics door.
+Need 'qml\SagaUniversePage.qml' 'objectName: "sagaGridFocus"' 'the saga grid needs one keyboard stop.'
+Need 'qml\SagaUniversePage.qml' 'Saga.gridMove(' 'grid arrows must walk the story and swap its forms.'
 Need 'qml\SagaUniversePage.qml' 'id: sagaComicsKey' 'saga comics archive door needs keyboard activation.'
-Need 'qml\SagaUniversePage.qml' 'UniverseRailFocus {' 'adaptation shelves need local arrows.'
+Need 'qml\SagaUniversePage.qml' 'objectName: "sagaShelfFocus"' 'branch shelves need local arrows.'
 
 # Studio: the filmography is a responsive grid composite.
 Need 'qml\StudioUniversePage.qml' 'readonly property int keyboardColumns' 'filmography grid columns must derive from visual width.'

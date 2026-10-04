@@ -1,0 +1,102 @@
+# Colosseum — Saga universe template (Arc 58)
+
+[Agent 0 (Claude), design + build] · 2026-10-04 · locked by Hemanth 2026-10-04 ("lock it and build the QML yourself").
+
+Concept authority: `Preflight-Architect/arcs/58-universes-and-tributes/README.md`.
+Layout authority: `Brotherhood/agents/colosseum-universe-saga-organised-mock.html` (five sagas, one renderer; measured at 1280×720).
+Code: `qml/SagaUniversePage.qml`, `qml/SagaApi.js` (`sagaGrid`, `gridMove`, `enrichWatch`), `qml/Universes.js` (`sagaGrid` pairing).
+
+## Promise
+
+A saga's universe page lets you see the whole story at once and pick up any part of it in either form, without the page ranking the book above the film or the film above the book.
+
+## Locked decisions
+
+1. **Equal weight.** A book and its adaptation are the same tile, the same size, in the same grid. Exception: adaptations that have little to do with the source (Hemanth's examples: Dexter, the Bond films) are not paired; they sit in their own block.
+2. **One grid for the saga.** A column per story, a row per form (Books, Films, Series). A story told in two films is two columns wide and its book centres over them.
+3. **A show that covers several books is one wide tile across them.** Season tiles were rejected: shows stop following the books (Game of Thrones after season five), and the template must stay reusable.
+4. **Colosseum's glass stays the material.** Panels, the section switcher and Continue tiles are glass over the universe's wallpaper; the hero has no panel over the artwork.
+5. **Gold is sparing.** Gold marks progress and focus only. The active tab and primary buttons are white; number plates, ticks and the Upcoming tag are neutral. (Hemanth: "our gold color scheme is working against us in this mock"; this is the proposal carried forward — he has not explicitly ratified a tone change, and the house gold token is unchanged.)
+6. **A Continue row**, the house Continue tile, limited to this universe's works.
+7. **Harbor-level depth** below the story: gallery, creators, information, more universes.
+8. **Every work carries a provider identity** (Universe Page Law). Unresolved slots stay empty and cannot be opened.
+9. **Reusable without fuss.** The only hand-edited part per franchise is the pairing (which screen work adapts which story), plus branch titles, wallpaper and name, which the archive already holds.
+
+## The page, top to bottom
+
+- **Chrome** — Back, window controls, top scrim (unchanged house chrome).
+- **Hero** — `SAGA`, the name, fact pills (story count + the archive's chips), `Read` and `Watch` with equal weight. While resuming they name where: "Read · Book 2".
+- **Section switcher** — glass capsule: The saga · Beyond the saga · Upcoming · About. It scrolls with the page under the hero, then docks beside Back. A tab exists only if its section does.
+- **Continue** — shown only when this universe has unfinished works in the Progress store.
+- **The saga** — the grid in one glass panel, with a detail line for the work under the pointer or the keyboard: where it sits ("STORY 3 OF 7 · BOOK · 41% READ"), title, facts, synopsis, one action, and which world opens it.
+- **Beyond the saga** — a glass block per branch (`sagaBranches`), each holding shelves by form. Adaptations the pairing left out fall into an "On screen" block. The comics door stays here.
+- **Upcoming** — works a provider already identifies as unreleased.
+- **Gallery · Creators · Information · More universes.**
+
+## Grid rules
+
+| Situation | Behaviour |
+|---|---|
+| More than fits the panel | The grid scrolls sideways, all rows together, with edge arrows. |
+| Four columns or fewer | The detail line moves beside the grid. |
+| Three or more rows | Tiles cap at 132 px wide instead of 164 px. |
+| A story with no book | Its book slot stays empty. |
+| A form with nothing in it | No row is drawn. |
+| No pairing in the data | Every core book is a story; every adaptation goes to "On screen". |
+
+Tiles are 124 px wide at minimum and grow to fill a short saga.
+
+## Data contract
+
+`Universes.js`, per saga entry, by canon index into `novels` / `films` / `shows`:
+
+```js
+sagaGrid: {
+  stories: [ { short: "Deathly Hallows", book: 6, films: [6, 7] }, … ],   // `short` optional; default is the curated novel title
+  spans:   [ { shows: 0, from: 1, to: 5 } ]                                // a work across several stories
+}
+```
+
+`SagaApi.sagaGrid(uni, cfg)` → `{ stories, rows, cols, blocks, upcoming }` (pure). `SagaApi.gridMove(grid, row, cell, dx, dy)` → next cell or `null` (pure). `SagaApi.enrichWatch` fetches one full Cinemeta record per screen work for synopsis, runtime, rating and makers.
+
+Creators, information and gallery are derived from the provider records, not written down.
+
+## Keyboard and accessibility
+
+- The grid is one Tab stop. Left/Right walk the story within a form; Up/Down move between the forms of the same story, skipping a form that has nothing there; Enter opens. At an edge the arrow leaves the grid.
+- Each branch shelf is one Tab stop: Left/Right, Enter.
+- Hover and keyboard move the same selection; the detail line follows both.
+- Focus uses the house focus ring. Entering the grid scrolls the saga panel under the docked switcher.
+
+## Opening a work
+
+A tile, the detail action, Read and Watch hand the work to its owner: books to Biblio, films and series to Theatre. The universe page opens no player and no reader. Back returns to the universe (the shell stacks title pages above the universe layer).
+
+## States
+
+- **First visit** — no Continue row, no marks; Read and Watch start at the first story.
+- **Returning** — Continue row; a tick on finished works, a gold bar on unfinished ones; Read and Watch resume.
+- **Loading** — tiles show the title on the universe colour until the cover lands; slots keep their place.
+- **Unresolved** — the slot shows its curated title, says "Details pending", cannot be opened.
+- **Nothing upcoming / no branches / no stills** — the section and its tab are absent.
+
+## Known gaps (state at commit)
+
+- **Not reachable in the app yet.** `Main.qml` does not route to this page; the Universes world owns that. Verified through `tests/saga_template_preview.qml` under `qml.exe`, not in the running app.
+- **Upcoming** is a shelf of tagged tiles. The mock's teaser-first block needs a teaser field the archive does not carry.
+- **Information** shows the archive's `blurb`; several saga blurbs are house-written, not sourced. Status, studio, language and box office from the mock are not derived.
+- **Creators** show initials; no portrait source is wired.
+- **Book identities** are still resolved by title at runtime. Harry Potter lands "Enhanced Edition" listings and Percy Jackson's second book lands the graphic novel. Pinning Apple Books ids per novel fixes both.
+- **Progress** matching for books assumes the Progress store keys a book by its Biblio id; not exercised against real progress.
+- **Glass while scrolling** — the saga panel is a large live-blurred surface. Not measured for smoothness.
+- Lord of the Rings, The Witcher and Dune have pairings and pass the headless grid test; they were not captured.
+
+## Verification
+
+- `tests/saga_grid_harness.qml` — the grid for all eight archived sagas and the keyboard walk (exit code).
+- `tests/qml/tst_SagaTemplate.qml` — 12 cases: Read/Watch, keyboard order and form swap, detail follows selection, Continue and resume, edge arrows, unresolved works, empty state.
+- `tests/saga_template_preview.qml --universe "<name>" --state returning --scroll N --wait S --capture out.png` — the real page with live provider data.
+
+## Deferred
+
+The Universes world and its routing; the other six templates (anime, eras, galaxy, cinematic, magazine, studio); Tribute doors and downloadable Tributes; the Patreon gate; the One Piece story line (reading and watching position on one line) — the saga grid already shows both positions per story.

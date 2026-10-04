@@ -13,6 +13,11 @@ $env:QT_FORCE_STDERR_LOGGING = "1"
 cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "saga canon harness failed (exit $LASTEXITCODE)" }
 
+# the saga GRID (Arc 58): pairing -> rows for every archived saga, and the keyboard walk
+$gridHarness = Join-Path $PSScriptRoot "saga_grid_harness.qml"
+cmd /c "`"$qmlExe`" -platform offscreen `"$gridHarness`" 2>&1" | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "saga grid harness failed (exit $LASTEXITCODE)" }
+
 function Read-File($rel) {
     $p = Join-Path $root $rel
     if (-not (Test-Path $p)) { throw "MISSING FILE: $rel" }
@@ -28,7 +33,7 @@ function Assert-Lacks($text, $needle, $message) {
 # --- the saga page: books are the spine, manga does not exist here ---
 $sp = Read-File "qml/SagaUniversePage.qml"
 Assert-Contains $sp 'signal bookRequested(var book)' "Saga page must carry the book verb."
-Assert-Contains $sp 'root.bookRequested(root.firstBook)' "Read must route to book ONE."
+Assert-Contains $sp 'root.openWork(root.readTarget)' "Read must resume the reader's book, or start at book ONE."
 Assert-Contains $sp 'SagaApi.js' "Saga page must ride SagaApi (curated canon, not name-search)."
 Assert-Lacks $sp 'manga' "The word manga must not exist on the saga template (the LOTR anthology lesson)."
 Assert-Lacks $sp 'AniList' "AniList must not be a saga source."
