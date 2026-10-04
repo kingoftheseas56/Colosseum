@@ -97,17 +97,19 @@ A tile, the detail action, Read and Watch hand the work to its owner: books to B
 - `tests/qml/tst_SagaTemplate.qml` — 12 cases: Read/Watch, keyboard order and form swap, detail follows selection, Continue and resume, edge arrows, unresolved works, empty state.
 - `tests/saga_template_preview.qml --universe "<name>" --state returning --scroll N --wait S --capture out.png` — the real page with live provider data.
 
-## Template model — one page, three centres (locked by Hemanth 2026-10-04)
+## Template model — one page, two centres (locked by Hemanth 2026-10-04)
 
 This supersedes the earlier lock that the standard pages follow the archive's seven templates.
+An arc grid (columns as arcs, tiles as chapter and episode ranges) was proposed for One Piece and
+withdrawn the same day on Hemanth's ruling: "only tributes get such meticulous cataloguing". Arc-,
+chapter- and episode-level structure belongs to a Tribute; one variation per type, never per franchise.
 There is one universe page. Hero, section switcher, Continue, the detail line, gallery, creators,
 information and more universes are shared. Only the centre section differs, and the archive
 category picks it:
 
 | Centre | For | Archive categories |
 |---|---|---|
-| **Story grid** (built, this spec) | A column per story, a row per form. Also franchises made of separate series: columns are the series, rows Manga and Anime. Needs one addition: a manga that stretches across two columns, as a show already can. | `saga`; `anime` / `dragonball` when the franchise is several series (Dragon Ball, Naruto) |
-| **Arc grid** (not built) | One long manga and one long anime: a column is an arc, a tile is a stretch of the work (chapters 1–100, episodes 1–61). Carries the reading and watching position on one line. Needs an arc → chapter → episode map per franchise; arcs map to chapter numbers, never volumes. | `onepiece`; `anime` when it is one long serial (Attack on Titan) |
+| **Story grid** (built, this spec) | A column per story, a row per form. For anime the column is a series and the rows are Manga and Anime: Dragon Ball has several columns, One Piece and Attack on Titan have one (the manga over its adaptations). Films, specials, spin-offs and novels sit in blocks beneath. A universe page lists WHOLE WORKS only. | `saga`, `anime`, `onepiece`, `dragonball` |
 | **Eras** (not built; mock first, on Bond and Marvel) | No book-to-film pairing to line up: ordered groups (actors, phases, eras, decades), each a block with a shelf per form; the switcher jumps between groups. Long groups need a collapsed state or "see all". | `eras`, `cinematic`, `galaxy`, `studio`, `magazine` |
 
 Known weak points, accepted: Eras flattens a franchise's own character (that belongs in a
@@ -126,4 +128,4 @@ Not built: an "In progress" chip (needs per-universe progress matching), search.
 
 ## Deferred
 
-The arc grid and the Eras centre; Tribute doors and downloadable Tributes; the Patreon gate; the One Piece story line (reading and watching position on one line) — the saga grid already shows both positions per story.
+The Eras centre; Tribute doors and downloadable Tributes; the Patreon gate; the One Piece story line (reading and watching position on one line) — the saga grid already shows both positions per story.
