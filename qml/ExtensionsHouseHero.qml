@@ -17,6 +17,7 @@ Item {
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
+    readonly property real sourceToggleMinimumTouchTarget: 44
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
@@ -158,6 +159,7 @@ Item {
         }
 
         Row {
+            id: appsRow
             anchors.centerIn: parent
             spacing: hero.compact ? 8 : 15
             scale: Math.min(1, (tray.width - 40) / Math.max(1, implicitWidth))
@@ -258,7 +260,14 @@ Item {
                             }
                             KeyboardAction {
                                 id: toggleAction
-                                anchors.fill: parent
+                                anchors.centerIn: parent
+                                width: Qt.platform.os === "android"
+                                       ? Math.max(parent.width, hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale))
+                                       : parent.width
+                                height: Qt.platform.os === "android"
+                                        ? Math.max(parent.height, hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale))
+                                        : parent.height
+                                focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
                                 enabled: hero.isPresent(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
                                 focusRadius: 14
