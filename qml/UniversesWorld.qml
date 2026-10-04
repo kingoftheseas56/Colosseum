@@ -1,11 +1,10 @@
-// UniversesWorld — the fourth world: every universe that has a working page today, as the
-// ratified LEDGER STACK (Hemanth 2026-07-12) re-housed in the shared world shell. Nothing
-// here is new design: WorldPage owns the top bar, the ONE page scroller and keyboard
-// routing; the pile is the Hall of Worlds' own UniverseLedgerBar, one per
-// Universes.worldRoster entry — the installed roster first, then the curated doors whose
-// template pages exist (saga · eras · studio · anime). Still never a tile grid (standing
-// constraint). A bar's click or Enter emits universeRequested with the roster entry; Main
-// routes it (openRosterUniverse: installed → openUniverse, curated → openArchivedUniverse).
+// UniversesWorld — the fourth world. Unlike the other three it is not an endless catalogue:
+// the set is finite and curated, so the page is two things (Hemanth 2026-10-04):
+//   · a carousel of TRIBUTES — the hand-made art pages;
+//   · every universe that has a working page, as a large full-width BANNER (never a tile).
+// WorldPage owns the top bar, the ONE page scroller and keyboard routing. A banner's click
+// or Enter emits universeRequested with the roster entry; Main routes it to that universe's
+// standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
 import QtQuick
 import "Universes.js" as Universes
 
@@ -18,8 +17,12 @@ WorldPage {
     // the shell sets this (Main's world-loader binds it to installedUniverses):
     // { extensionId, name, banner, logo } per installed universe
     property var installed: []
-    // a bar → the shell: installed entries carry extensionId, curated ones a page
+    // a banner → the shell: installed entries carry extensionId, curated ones a page
     signal universeRequested(var entry)
+    // the carousel → the shell: the hand-made art page of an installed universe
+    signal tributeRequested(var entry)
+
+    readonly property var tributes: Universes.tributes(universes.installed)
 
     readonly property var roster: Universes.worldRoster(universes.installed)
     onRosterChanged: {
@@ -28,11 +31,9 @@ WorldPage {
             pile.currentIndex = universes.roster.length > 0 ? universes.roster.length - 1 : -1
     }
 
-    // the breathe goes STILL while the page moves (the Hall's walking rule, Hemanth
-    // 2026-07-13: bars ballooning under a stationary cursor shoved the content around
-    // mid-scroll). Any contentY motion closes the open bar and holds the pile flat until
-    // the walk settles.
-    property int hovered: -1              // which bar breathes (-1 = the pile at rest)
+    // hover goes STILL while the page moves (the Hall's walking rule, Hemanth 2026-07-13):
+    // a stationary cursor must not light banner after banner as the page scrolls under it.
+    property int hovered: -1              // which banner the pointer is on (-1 = none)
     property bool walking: false
     Timer { id: walkSettle; interval: 260; onTriggered: universes.walking = false }
     Connections {
@@ -44,17 +45,37 @@ WorldPage {
         }
     }
 
-    WidgetHeader {
-        title: "Universes"
-        navigable: false          // the pile below IS the destination; no deeper page
+    // ---- TRIBUTES — the art pages; the second button goes to the same universe's page ----
+    FeaturedCarousel {
+        objectName: "universesTributeCarousel"
+        automationId: "universesTributeCarouselView"
+        visible: universes.tributes.length > 0
+        kicker: "Tribute"
+        primaryLabel: "Enter"
+        secondaryLabel: "Universe page"
+        slides: universes.tributes.map(function(t) {
+            return { id: t.extensionId, title: t.name, blurb: t.blurb, ghost: "",
+                     c1: "#14161d", c2: "#0c0e11", art: t.banner }
+        })
+        onPrimaryClicked: (i) => universes.tributeRequested(universes.tributes[i])
+        onSecondaryClicked: (i) => {
+            for (let r = 0; r < universes.roster.length; ++r)
+                if (universes.roster[r].extensionId === universes.tributes[i].extensionId)
+                    universes.universeRequested(universes.roster[r])
+        }
     }
 
-    // ---- THE STACK — the books lie flat, one world under another ----
+    WidgetHeader {
+        title: "Universes"
+        navigable: false          // the banners below ARE the destination; no deeper page
+    }
+
+    // ---- THE UNIVERSES — one large banner each, alphabetical ----
     Column {
         id: pile
         objectName: "universesLedger"     // one keyboard focus region (the Hall's own law)
         width: parent.width
-        spacing: 8
+        spacing: 12
 
         property int currentIndex: universes.roster.length > 0 ? 0 : -1
         focusPolicy: universes.roster.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -63,14 +84,12 @@ WorldPage {
         Repeater {
             id: ledgerRepeater
             model: universes.roster
-            delegate: UniverseLedgerBar {
+            delegate: UniverseBanner {
                 id: bar
                 required property var modelData
                 required property int index
                 entry: bar.modelData
-                numeral: bar.index
-                open: universes.hovered === bar.index
-                      || (pile.activeFocus && pile.currentIndex === bar.index)
+                hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index
                 onHoverEntered: if (!universes.walking && !ledgerNav.keyboardRecentlyMoved)
                                     universes.hovered = bar.index

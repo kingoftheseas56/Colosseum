@@ -26,6 +26,15 @@ Window {
             console.log("[diag] HARNESS FAIL — expected 18 roster bars, got " + roster.length)
             Qt.exit(2)
         }
+        // the list is alphabetical (articles aside), and the carousel holds the art pages
+        if (roster[0].name !== "Attack on Titan" || roster[roster.length - 1].name !== "The Witcher") {
+            console.log("[diag] HARNESS FAIL — roster must be alphabetical: " + roster[0].name + " … " + roster[roster.length - 1].name)
+            Qt.exit(2)
+        }
+        if (Universes.tributes(four).length !== 4) {
+            console.log("[diag] HARNESS FAIL — the four installed universes are the Tributes")
+            Qt.exit(2)
+        }
     }
     Loader {
         id: l

@@ -941,7 +941,12 @@ function worldRoster(installed) {
     for (var i = 0; i < shelf.length; i++) {
         if (!shelf[i] || !shelf[i].name) continue;
         seen[shelf[i].name] = true;
-        roster.push(shelf[i]);
+        // an installed universe supplies identity and art; what it holds comes from curation
+        var cfg = configFor(shelf[i].name);
+        roster.push({ extensionId: shelf[i].extensionId, name: shelf[i].name,
+                      banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
+                      logo: shelf[i].logo || "",
+                      blurb: cfg.blurb || "", chips: cfg.chips || [] });
     }
     var opensPage = { saga: true, eras: true, studio: true, anime: true };
     var curated = universes.concat(archive);
@@ -955,5 +960,19 @@ function worldRoster(installed) {
                       chips: c.chips || [],
                       page: c.category });
     }
+    // a finite, curated list has no ranking: alphabetical, articles aside
+    function key(e) { return String(e.name).toLowerCase().replace(/^(the|a|an) /, ""); }
+    roster.sort(function(x, y) { return key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0; });
     return roster;
+}
+
+// The Tributes: the hand-made art pages. Today these are exactly the installed universe
+// extensions; the Universes world shows them in its carousel, above the list.
+function tributes(installed) {
+    return (installed || []).filter(function(u) { return u && u.name && u.extensionId; })
+        .map(function(u) {
+            var cfg = configFor(u.name);
+            return { extensionId: u.extensionId, name: u.name,
+                     banner: u.banner || cfg.banner || "", blurb: cfg.blurb || "" };
+        });
 }

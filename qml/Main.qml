@@ -1899,10 +1899,11 @@ Window {
     // for the header band before the payload lands.
     // One renderer for every universe. The per-category dispatcher is gone: it existed to
     // pick between bespoke per-IP pages, and those are being deleted (next task).
-    function openUniverse(extensionId, name) {
+    function openUniverse(extensionId, name, plain) {
         if (!extensionId) return
         win.closeOnePieceArc()
         universeLayer.templatePage = ""
+        universeLayer.plain = plain === true
         universeLayer.extensionId = extensionId
         universeLayer.universeName = name || ""
         if (universeLayer.item) {
@@ -1915,6 +1916,7 @@ Window {
     function openArchivedUniverse(name, page) {
         if (!name || !universeLayer.templateSources[page]) return
         win.closeOnePieceArc()
+        universeLayer.plain = false
         universeLayer.extensionId = "archive." + page
         universeLayer.universeName = name
         universeLayer.templatePage = page
@@ -1922,12 +1924,17 @@ Window {
             universeLayer.item.universeName = name
         universeLayer.active = true
     }
-    // A bar in the Universes world: installed universes carry an extensionId, archived ones a page.
+    // A banner in the Universes world opens the universe's STANDARD page. An archived universe
+    // carries a template page. An installed one opens the plain page when it ships a payload;
+    // one with no payload (Cosmere) has only its Tribute, so that is what opens.
     function openRosterUniverse(entry) {
         if (!entry) return
-        if (entry.extensionId) win.openUniverse(entry.extensionId, entry.name)
+        if (entry.extensionId)
+            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0)
         else win.openArchivedUniverse(entry.name, entry.page)
     }
+    // The Universes world's carousel: the hand-made art page.
+    function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }
     // A "More universes" card names a sibling; its template comes from the curated list.
     function openUniverseByName(name) {
         var cfg = UniverseCanon.configFor(name)
@@ -3622,6 +3629,7 @@ Window {
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
                     if (item.universeRequested) item.universeRequested.connect(win.openRosterUniverse)
+                    if (item.tributeRequested) item.tributeRequested.connect(win.openTribute)
                     if (item.installed !== undefined) item.installed = Qt.binding(function() { return win.installedUniverses })
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
                     if (item.libraryResumeRequested) item.libraryResumeRequested.connect(win.resumeLibraryEntry)
@@ -4410,16 +4418,20 @@ Window {
         // An archived universe on a shared template (Arc 58) is opened by NAME, not by an
         // installed extension: "saga" | "eras" | "studio" | "anime", empty for extensions.
         property string templatePage: ""
+        // An installed universe has two faces (Arc 58): its hand-made TRIBUTE page, and — when
+        // it ships a payload — the plain standard page the Universes world's banner opens.
+        property bool plain: false
+        readonly property string bespokeId: plain ? "" : extensionId
         readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "eras": "EraUniversePage.qml",
                                                   "studio": "StudioUniversePage.qml", "anime": "UniversePage.qml" })
         source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
-              : extensionId === "com.colosseum.universe.dcau"
+              : bespokeId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
-                : (extensionId === "com.colosseum.universe.starwars"
+                : (bespokeId === "com.colosseum.universe.starwars"
                    ? "GalaxyUniversePage.qml"
-                   : (extensionId === "com.colosseum.universe.onepiece"
+                   : (bespokeId === "com.colosseum.universe.onepiece"
                       ? "OnePieceUniversePage.qml"
-                      : (extensionId === "com.colosseum.universe.cosmere"
+                      : (bespokeId === "com.colosseum.universe.cosmere"
                          ? "CosmereUniversePage.qml"
                          : "UniverseExtensionPage.qml")))
         onLoaded: {
@@ -4443,11 +4455,11 @@ Window {
             }
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
-            if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
-                    universeLayer.extensionId === "com.colosseum.universe.starwars" ||
-                    universeLayer.extensionId === "com.colosseum.universe.onepiece")
+            if (universeLayer.bespokeId === "com.colosseum.universe.dcau" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.starwars" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            if (universeLayer.extensionId === "com.colosseum.universe.onepiece")
+            if (universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.installedExtensions = Qt.binding(function() { return win.installedExtensions })
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4464,16 +4476,16 @@ Window {
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
-            if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+            if (universeLayer.bespokeId === "com.colosseum.universe.onepiece") {
                 item.arcRequested.connect(win.openOnePieceArc)
                 item.mediaRequested.connect(win.openTheatreSeries)
-            } else if (universeLayer.extensionId === "com.colosseum.universe.cosmere") {
+            } else if (universeLayer.bespokeId === "com.colosseum.universe.cosmere") {
                 // The Cognitive Atlas self-sources from CosmereApi; its only content signal
                 // is a resolved Biblio book opening into the reader.
                 item.bookRequested.connect(win.openBook)
             } else {
                 item.watchRequested.connect(win.openTheatreSeries)
-                if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
+                if (universeLayer.bespokeId === "com.colosseum.universe.dcau") {
                     item.comicRequested.connect(win.openGcdSeries)
                     item.continueResumeRequested.connect(win.resumeContinue)
                     item.continueDetailRequested.connect(win.detailContinue)
