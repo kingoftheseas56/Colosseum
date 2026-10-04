@@ -1927,6 +1927,12 @@ Item {
             }
         }
         onPanBy: function (dx, dy) { if (reader._pagedSurface) reader._pagedSurface.panBy(dx, dy) }
+        // touch (phone / tablet): pinch + double-tap zoom, and the strip's finger drag + fling
+        stripFlinging: stripSurface.flinging
+        onZoomTo: function (pct) { if (reader._pagedSurface) reader._pagedSurface.setZoom(pct) }
+        onDragScroll: function (dy) { stripSurface.touchDragBy(dy) }
+        onFlingScroll: function (velocity) { stripSurface.touchFling(velocity) }
+        onHoldScroll: stripSurface.touchHold()
         // chrome + window verbs
         onToggleChrome: reader.chromeVisible = !reader.chromeVisible
         onToggleFullscreen: reader.fullscreenRequested()
