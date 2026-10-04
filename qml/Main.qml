@@ -15,6 +15,7 @@ import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
+import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -616,6 +617,8 @@ Window {
                 win.openUniverse("com.colosseum.universe.starwars", "Star Wars")
             else if (devUniverse === "cosmere")
                 win.openUniverse("com.colosseum.universe.cosmere", "Cosmere")
+            else   // COLOSSEUM_OPEN_UNIVERSE="Harry Potter": an archived universe, by curated name
+                win.openUniverseByName(String(DevOpenUniverse))
         }
         // bakeoff harness (COLOSSEUM_BAKEOFF_STRIP=<dir>): page-only production
         // MangaReader over the canonical fixture (long-strip bakeoff spec §10)
@@ -1898,6 +1901,7 @@ Window {
     function openUniverse(extensionId, name) {
         if (!extensionId) return
         win.closeOnePieceArc()
+        universeLayer.templatePage = ""
         universeLayer.extensionId = extensionId
         universeLayer.universeName = name || ""
         if (universeLayer.item) {
@@ -1905,6 +1909,28 @@ Window {
             universeLayer.item.universeName = name || ""
         }
         universeLayer.active = true
+    }
+    // An archived universe has no extension; it opens by name on its category's template.
+    function openArchivedUniverse(name, page) {
+        if (!name || !universeLayer.templateSources[page]) return
+        win.closeOnePieceArc()
+        universeLayer.extensionId = "archive." + page
+        universeLayer.universeName = name
+        universeLayer.templatePage = page
+        if (universeLayer.item && universeLayer.status === Loader.Ready && universeLayer.item.universeName !== undefined)
+            universeLayer.item.universeName = name
+        universeLayer.active = true
+    }
+    // A bar in the Universes world: installed universes carry an extensionId, archived ones a page.
+    function openRosterUniverse(entry) {
+        if (!entry) return
+        if (entry.extensionId) win.openUniverse(entry.extensionId, entry.name)
+        else win.openArchivedUniverse(entry.name, entry.page)
+    }
+    // A "More universes" card names a sibling; its template comes from the curated list.
+    function openUniverseByName(name) {
+        var cfg = UniverseCanon.configFor(name)
+        if (cfg && cfg.category) win.openArchivedUniverse(cfg.name, cfg.category)
     }
     function closeUniverse() {
         win.closeOnePieceArc()
@@ -3593,6 +3619,9 @@ Window {
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                    // the Universes world: its list is the installed roster plus the archived templates
+                    if (item.universeRequested) item.universeRequested.connect(win.openRosterUniverse)
+                    if (item.installed !== undefined) item.installed = Qt.binding(function() { return win.installedUniverses })
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
                     if (item.libraryResumeRequested) item.libraryResumeRequested.connect(win.resumeLibraryEntry)
                     if (item.libraryMarkWatchedRequested) item.libraryMarkWatchedRequested.connect(win.markLibraryWatched)
@@ -4377,7 +4406,13 @@ Window {
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
-        source: extensionId === "com.colosseum.universe.dcau"
+        // An archived universe on a shared template (Arc 58) is opened by NAME, not by an
+        // installed extension: "saga" | "eras" | "studio" | "anime", empty for extensions.
+        property string templatePage: ""
+        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "eras": "EraUniversePage.qml",
+                                                  "studio": "StudioUniversePage.qml", "anime": "UniversePage.qml" })
+        source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
+              : extensionId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
                 : (extensionId === "com.colosseum.universe.starwars"
                    ? "GalaxyUniversePage.qml"
@@ -4387,6 +4422,24 @@ Window {
                          ? "CosmereUniversePage.qml"
                          : "UniverseExtensionPage.qml")))
         onLoaded: {
+            if (universeLayer.templatePage.length) {
+                // Template pages share one contract; a page simply lacks the signals it has no use for.
+                item.backdrop = wall
+                item.universeName = universeLayer.universeName
+                item.backRequested.connect(win.closeUniverse)
+                item.minimizeRequested.connect(win.minimizeShell)
+                item.fullscreenRequested.connect(win.toggleFullscreenShell)
+                item.closeRequested.connect(function() { Qt.quit() })
+                if (accountHost.visible) accountHost.focusReturnItem = item
+                item.watchRequested.connect(win.openTheatreSeries)
+                if (item.bookRequested) item.bookRequested.connect(win.openBook)
+                if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openUniverseComic)
+                if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)
+                if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
+                if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                if (item.universeRequested) item.universeRequested.connect(win.openUniverseByName)
+                return
+            }
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
             if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
