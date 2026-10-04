@@ -65,6 +65,13 @@ const store = readFileSync('qml/ExtensionsStorePage.qml', 'utf8');
 check(sheet.includes('WebEngineView') && sheet.includes('stremio://'),
   'setup opens inside the app and catches the stremio:// install link');
 check(!/openUrlExternally/.test(sheet + store), 'nothing in the Store opens the outside browser');
+// Android has no QtWebEngine: the Store must not name the WebEngine sheet statically (the whole
+// page fails to load), and its own sheet hands setup to the phone's browser.
+const phoneSheet = readFileSync('qml/ExtensionsSetupSheetAndroid.qml', 'utf8');
+check(!/^\s*ExtensionsSetupSheet\s*\{/m.test(store) && /Qt\.platform\.os === "android" \? "ExtensionsSetupSheetAndroid\.qml" : "ExtensionsSetupSheet\.qml"/.test(store),
+  'the Store loads the setup sheet per platform, never as a static child');
+check(!/QtWebEngine/.test(phoneSheet.replace(/^\s*\/\/.*$/gm, '')) && /openUrlExternally/.test(phoneSheet),
+  'the Android sheet needs no WebEngine and opens setup in the browser');
 check(/topBarBackOnly:\s*true/.test(store), 'the Store top bar carries only Back');
 
 if (failures) { console.error('\n' + failures + ' Store contract check(s) failed'); process.exit(1); }

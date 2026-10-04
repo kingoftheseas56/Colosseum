@@ -2,7 +2,9 @@
 // a top bar with only Back and the page name (as Your Colosseum), the House hero, the Essentials row, then the Store rows filled
 // live from stremio-addons.net (ExtensionsStoreApi.js). Search lives in the House corner. An
 // add-on that needs setup is set up inside the app (ExtensionsSetupSheet), never in the outside
-// browser; Tankoyomi's own settings open from its House tile (TankoyomiConfigurationPage).
+// browser — except on Android, which has no QtWebEngine and hands setup to the phone's browser
+// (ExtensionsSetupSheetAndroid). Tankoyomi's own settings open from its House tile
+// (TankoyomiConfigurationPage).
 import QtQuick
 import "ExtensionsStoreApi.js" as StoreApi
 
@@ -32,6 +34,7 @@ Item {
 
     readonly property var essentials: StoreApi.essentials(root.catalogue)
     readonly property var rows: StoreApi.rows(root.catalogue, root.showExplicit)
+    readonly property Item setup: setupLoader.item
 
     Theme { id: theme }
 
@@ -74,7 +77,7 @@ Item {
     }
     // Main asks first: setup closes, then a settings page, then search / See all, then the world.
     function requestEscape() {
-        if (setup.open) { setup.addon = null; return true }
+        if (setup && setup.open) { setup.addon = null; return true }
         if (root.configuringExtensionId.length) { root.closeConfiguration(); return true }
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
         return false
@@ -230,12 +233,18 @@ Item {
         }
     }
 
-    ExtensionsSetupSheet {
-        id: setup
+    // A Loader, not a static child: naming ExtensionsSetupSheet here would pull QtWebEngine into
+    // the Android build, where it does not exist, and the whole Store would fail to load.
+    Loader {
+        id: setupLoader
         anchors.fill: parent
         z: 20
-        onCloseRequested: setup.addon = null
-        onInstallRequested: (url) => {
+        source: Qt.platform.os === "android" ? "ExtensionsSetupSheetAndroid.qml" : "ExtensionsSetupSheet.qml"
+    }
+    Connections {
+        target: setupLoader.item
+        function onCloseRequested() { setup.addon = null }
+        function onInstallRequested(url) {
             setup.pendingUrl = Extensions.normalizeUrl(url)
             Extensions.install(url)
         }
