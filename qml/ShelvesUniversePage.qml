@@ -7,6 +7,8 @@
 // film era). Since 2026-10-04 (evening) the rows wear the GLASS the book sagas' pages
 // already have: every medium sits in a house glass panel over the universe's own
 // wallpaper, the row keeps to its panel, and the wallpaper no longer dims behind scroll.
+// Since 2026-10-05 a panel is only as wide as its row needs, and consecutive short panels
+// share a line (root.panelLayout) — a three-tile shelf no longer drags a full-width slab.
 // No grid, no side panel, no boxes.
 // Layout authority: Brotherhood/agents/colosseum-universe-shelves-mock.html (plain) and
 // colosseum-universe-shelves-glass-mock.html (the ruled-in glass form), 1280x720.
@@ -167,12 +169,57 @@ Item {
         out.push({ title: "About", count: 0, target: aboutAnchor })
         return out
     }
+    // THE PANEL LINES (2026-10-05): a panel is only as wide as its row needs (never
+    // narrower than its heading, never wider than the content width); consecutive panels
+    // that fit share one line, 24px apart, top-aligned, the tallest one's height; a row
+    // wider than the content takes the full line and scrolls sideways, as always. Narrow
+    // windows (compact) put every panel on its own line. Pure — computed from the
+    // sections' own numbers, in medium order, nothing per-universe.
+    readonly property real contentWidth: col.width - root.gutter * 2
+    readonly property real panelSeam: 24
+    readonly property var panelLayout: {
+        const sections = [mangaSection, animeSection, filmsSection]
+            .filter(function(s) { return s.visible && s.total > 0 })
+        const placed = {}
+        const lines = []
+        let line = null
+        for (let i = 0; i < sections.length; ++i) {
+            const s = sections[i]
+            const w = s.naturalWidth
+            const seam = line && line.items.length ? root.panelSeam : 0
+            if (!line || root.compact || line.used + seam + w > root.contentWidth + 0.5) {
+                line = { items: [], used: 0 }
+                lines.push(line)
+            }
+            line.used += (line.items.length ? root.panelSeam : 0) + s.naturalWidth
+            line.items.push(s)
+        }
+        let y = 0
+        for (let k = 0; k < lines.length; ++k) {
+            let tallest = 0, x = 0
+            for (let j = 0; j < lines[k].items.length; ++j)
+                tallest = Math.max(tallest, lines[k].items[j].naturalHeight)
+            for (let j = 0; j < lines[k].items.length; ++j) {
+                const s = lines[k].items[j]
+                placed[s.key] = { x: x, y: y, width: s.naturalWidth, height: tallest }
+                x += s.naturalWidth + root.panelSeam
+            }
+            y += 44 + tallest      // the 44px gap above every line (each section's padding)
+        }
+        return { placed: placed, totalHeight: y }
+    }
     readonly property int activeTab: {
         page.contentY; col.implicitHeight
-        let active = 0
-        for (let i = 0; i < root.tabs.length; ++i)
-            if (root.tabs[i].target && root.tabs[i].target.mapToItem(page.contentItem, 0, 0).y - 140 <= page.contentY)
-                active = i
+        // the line under the chrome is the LAST line whose top has passed; when two
+        // sections share a line the FIRST of them is the active tab (a shared line is
+        // one y — later sections on it must not steal the tab)
+        let active = 0, activeY = -Infinity
+        for (let i = 0; i < root.tabs.length; ++i) {
+            const t = root.tabs[i].target
+            if (!t) continue
+            const y = t.mapToItem(page.contentItem, 0, 0).y
+            if (y - 140 <= page.contentY && y > activeY + 1) { activeY = y; active = i }
+        }
         return active
     }
 
@@ -346,10 +393,17 @@ Item {
                 }
             }
 
-            // ===== THE SHELVES: one row per medium, divided by runs =====
-            MediumSection { id: mangaSection; objectName: "shelvesManga"; title: "Manga"; key: "manga"; runs: root.mangaRuns }
-            MediumSection { id: animeSection; objectName: "shelvesAnime"; title: "Anime"; key: "anime"; runs: root.animeRuns }
-            MediumSection { id: filmsSection; objectName: "shelvesFilms"; title: "Films"; key: "films"; runs: root.filmRuns }
+            // ===== THE SHELVES: one row per medium, divided by runs. The panels are
+            // placed by root.panelLayout — a short row's panel hugs its row, and
+            // consecutive short panels share a line =====
+            Item {
+                id: mediums
+                width: col.width
+                height: root.panelLayout.totalHeight
+                MediumSection { id: mangaSection; objectName: "shelvesManga"; title: "Manga"; key: "manga"; runs: root.mangaRuns }
+                MediumSection { id: animeSection; objectName: "shelvesAnime"; title: "Anime"; key: "anime"; runs: root.animeRuns }
+                MediumSection { id: filmsSection; objectName: "shelvesFilms"; title: "Films"; key: "films"; runs: root.filmRuns }
+            }
 
             // ===== about: gallery, information, more universes =====
             Item { id: aboutAnchor; width: 1; height: 1 }
@@ -671,10 +725,11 @@ Item {
 
     // ---- one medium: a titled GLASS PANEL holding THE ONE ROW — the same surface the
     //      book sagas' pages wrap their own sections in, ruled in 2026-10-04 evening on
-    //      the glass mock. The row keeps to its panel (no bleed off the screen edge);
-    //      its labelled RUNS carry the split — the series vs the spin-offs, a film era.
-    //      One keyboard stop: Left/Right walk the works across the runs, Enter opens,
-    //      an arrow at either end leaves the row ----
+    //      the glass mock. The panel is as wide as its row needs (never narrower than its
+    //      heading); root.panelLayout places it — short panels share a line. Its labelled
+    //      RUNS carry the split — the series vs the spin-offs, a film era. One keyboard
+    //      stop: Left/Right walk the works across the runs, Enter opens, an arrow at
+    //      either end leaves the row ----
     component MediumSection: Column {
         id: medium
         property string title
@@ -693,8 +748,30 @@ Item {
                 out = out.concat(medium.liveRuns[i].items)
             return out
         }
-        x: root.gutter
-        width: col.width - root.gutter * 2
+        // the row's natural width from the data: tiles + tile gaps + the seams between runs
+        readonly property real rowWidth: {
+            let w = 0
+            for (let i = 0; i < medium.liveRuns.length; ++i) {
+                const n = (medium.liveRuns[i].items || []).length
+                if (i > 0) w += 28
+                w += n * root.tileW + (n - 1) * root.tileGap
+            }
+            return w
+        }
+        // never narrower than its heading needs
+        readonly property real headingWidth: headingRow.implicitWidth
+        // the panel this section asks for, before line packing clamps it to the page
+        readonly property real naturalWidth: Math.min(root.contentWidth,
+                Math.max(root.rowInset * 2 + medium.rowWidth, root.rowInset * 2 + medium.headingWidth))
+        // 20 top + 30 heading + 14 gap + the row + 22 bottom (the Glass's own rhythm)
+        readonly property real naturalHeight: 64 + runsRow.height + 6 + 22
+        // where panelLayout put this section (its own slot until the layout has run)
+        readonly property var slot: root.panelLayout.placed[medium.key]
+                || { x: 0, y: 0, width: root.contentWidth, height: medium.naturalHeight }
+        x: root.gutter + slot.x
+        y: slot.y
+        width: slot.width
+        height: 44 + slot.height       // the 44px gap above the line rides on the section
         topPadding: 44
         visible: medium.total > 0
 
@@ -704,7 +781,7 @@ Item {
             track: page.contentY
             radius: 18
             width: parent.width
-            height: 64 + runsRow.height + 6 + 22   // 20 top + 30 heading + 14 gap + row + 22 bottom
+            height: parent.height - 44   // fill the line's shared height below the gap
             clip: true
 
             // the heading carries the count — the tab, the fact pill and the shelf agree
@@ -712,6 +789,7 @@ Item {
                 x: 24; y: 20
                 width: parent.width - 24; height: 30
                 Row {
+                    id: headingRow
                     spacing: 12
                     Text { text: medium.title; color: root.paper
                            font.family: root.displayFace; font.pixelSize: 22

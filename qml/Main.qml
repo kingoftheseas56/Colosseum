@@ -1980,8 +1980,10 @@ Window {
     // A "More universes" card names a sibling; its template comes from the curated list.
     function openUniverseByName(name) {
         var cfg = UniverseCanon.configFor(name)
-        // same rule as the Universes world's roster: a curated sagaGrid opens the story grid
-        if (cfg && cfg.category) win.openArchivedUniverse(cfg.name, cfg.sagaGrid ? "saga" : cfg.category)
+        // same rule as the Universes world's roster: an anime universe (curated manga)
+        // opens its shelves page; a curated sagaGrid opens the story grid
+        if (cfg && cfg.category)
+            win.openArchivedUniverse(cfg.name, cfg.manga ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
         win.closeOnePieceArc()
@@ -4467,7 +4469,8 @@ Window {
         // it ships a payload — the plain standard page the Universes world's banner opens.
         property bool plain: false
         readonly property string bespokeId: plain ? "" : extensionId
-        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "eras": "EraUniversePage.qml",
+        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "shelves": "ShelvesUniversePage.qml",
+                                                  "eras": "EraUniversePage.qml",
                                                   "studio": "StudioUniversePage.qml", "anime": "UniversePage.qml" })
         source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
               : bespokeId === "com.colosseum.universe.dcau"

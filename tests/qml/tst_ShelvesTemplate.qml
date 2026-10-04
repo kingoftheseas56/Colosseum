@@ -104,5 +104,43 @@ Item {
             compare(tankoban.count, 1)
             compare(tankoban.signalArguments[0][0], "Manga 1")
         }
+
+        // ── panel lines (2026-10-05): a short row's panel hugs its row; consecutive
+        //    short panels share a line; a long row keeps the full width ──
+        function shortUniverse() {
+            // Attack-on-Titan-shaped: 3 manga (1 series + 2 spin-offs), 1 anime, many films
+            shelves.uni = { name: "Short", blurb: "", blurbSource: "", banner: "", wallpaper: "", color: "#222",
+                manga: works("Manga", "manga", 3), shows: works("Anime", "series", 1),
+                filmEras: [ { era: "Only era", films: works("Film", "film", 18) } ] }
+            tryVerify(function() { return findChild(shelves, "shelvesManga").width > 0 })
+        }
+        function test_shortPanelHugsItsRow() {
+            shortUniverse()
+            const manga = findChild(shelves, "shelvesManga"), anime = findChild(shelves, "shelvesAnime")
+            const contentWidth = shelves.width - shelves.gutter * 2
+            // 1 series tile + a 28px seam + 2 spin-off tiles, inset both ends
+            compare(manga.width, shelves.rowInset * 2 + (164 + 28 + 2 * 164 + 16))
+            verify(manga.width < contentWidth, "a 3-tile panel must not take the full width")
+            compare(anime.width, shelves.rowInset * 2 + 164)
+        }
+        function test_shortPanelsShareALine() {
+            shortUniverse()
+            const manga = findChild(shelves, "shelvesManga"), anime = findChild(shelves, "shelvesAnime")
+            compare(anime.y, manga.y, "two panels that fit share the line's y")
+            compare(anime.x, manga.x + manga.width + shelves.panelSeam, "24px between panels on a line")
+            compare(anime.height, manga.height, "panels on one line share the tallest height")
+            const films = findChild(shelves, "shelvesFilms")
+            verify(films.y > anime.y, "the full-width films panel takes its own line below")
+            compare(films.width, shelves.width - shelves.gutter * 2, "a long row's panel is the full content width")
+        }
+        function test_firstOfALineIsTheActiveTab() {
+            shortUniverse()
+            // the shared line: revealing EITHER of its sections lands the line under the
+            // chrome, and the FIRST of the two (Manga) is the active tab
+            shelves.revealSection(findChild(shelves, "shelvesAnime"))
+            compare(shelves.activeTab, 0)
+            shelves.revealSection(findChild(shelves, "shelvesManga"))
+            compare(shelves.activeTab, 0)
+        }
     }
 }

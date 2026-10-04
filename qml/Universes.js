@@ -1030,14 +1030,15 @@ function worldRoster(installed) {
                       banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
                       logo: shelf[i].logo || "",
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
-        if (cfg.sagaGrid) entry.page = "saga";
+        if (cfg.manga) entry.page = "shelves";
+        else if (cfg.sagaGrid) entry.page = "saga";
         roster.push(entry);
     }
     var opensPage = { saga: true, eras: true, studio: true, anime: true };
     var curated = universes.concat(archive);
     for (var j = 0; j < curated.length; j++) {
         var c = curated[j];
-        var page = c.sagaGrid ? "saga" : (opensPage[c.category] ? c.category : null);
+        var page = c.manga ? "shelves" : (c.sagaGrid ? "saga" : (opensPage[c.category] ? c.category : null));
         if (!page || seen[c.name]) continue;
         seen[c.name] = true;
         roster.push({ name: c.name,
