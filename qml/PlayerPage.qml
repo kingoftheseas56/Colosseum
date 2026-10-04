@@ -4237,6 +4237,7 @@ Item {
 
             Row {
                 id: titleBarVerbs
+                visible: Qt.platform.os !== "android"
                 anchors.right: parent.right
                 anchors.rightMargin: tight ? 12 : 20
                 anchors.top: parent.top
@@ -5984,6 +5985,7 @@ Item {
                     // in the bottom-right transport (approved 2026-07-19). Keeps the F11 toggle.
                     RoundButton {
                         id: bottomFullscreenButton
+                        visible: Qt.platform.os !== "android"
                         anchors.verticalCenter: parent.verticalCenter
                         size: 40
                         icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"

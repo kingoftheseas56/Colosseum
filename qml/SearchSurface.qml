@@ -704,6 +704,7 @@ Item {
     Row {
         id: winChrome
         z: 30
+        visible: Qt.platform.os !== "android"
         anchors.right: parent.right
         anchors.rightMargin: theme.margin
         y: 34
