@@ -75,7 +75,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 34; height: 34; radius: 17
                     color: closeAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                    Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDim; font.pixelSize: 15 }
+                    // "×", not the desktop sheet's "✕": Android's system font has no glyph for that one.
+                    Text { anchors.centerIn: parent; text: "×"; color: theme.inkDim; font.pixelSize: 22 }
                     KeyboardAction {
                         id: closeAction
                         anchors.fill: parent
