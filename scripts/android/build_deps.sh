@@ -29,7 +29,7 @@ BOOST_VERSION=1.90.0
 BOOST_SHA256=49551aff3b22cbc5c5a9ed3dbc92f0e23ea50a0f7325b0d198b705e8ee3fc305
 LIBTORRENT_VERSION=2.0.14
 LIBTORRENT_SHA256=1b0b21b9755b5fbec23ca9ba2d2d10434ecb6711c39f37f5fc9d5aa25cf369c9
-STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v5"
+STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v6"
 
 OUT="${COLOSSEUM_ANDROID_DEPS:-$HOME/colosseum-android/deps}"
 SRC_CACHE="${COLOSSEUM_ANDROID_SRC_CACHE:-$HOME/colosseum-android/src-cache}"
@@ -78,25 +78,22 @@ build_openssl() {  # abi prefix work
     (
         cd "$work/openssl-$OPENSSL_VERSION"
         export PATH="$TOOLCHAIN/bin:$PATH"
-        command -v patchelf >/dev/null || { echo "patchelf is required for Qt Android OpenSSL packaging" >&2; exit 1; }
+        # Qt 6.5+ expects OpenSSL 3 Android runtimes with the _3 filename variant,
+        # but the variant must be part of OpenSSL's own link step. This is the KDAB/Qt
+        # contract: set shlib_variant before Configure and keep symbol-version tags
+        # OPENSSL_* rather than OPENSSL_3_*.
+        patch -p0 < "$REPO/scripts/android/openssl_3_qt_android.patch" \
+            >"$work/openssl-qt-patch.log" 2>&1 || exit 1
 
-        # Qt's Android TLS loader expects an unversioned OpenSSL build renamed to the
-        # _3 suffix after linking. Keep OpenSSL's own link graph intact here; patch only
-        # the runtime copies below.
         ./Configure "$target" -D__ANDROID_API__=$API shared no-tests no-docs no-apps \
-            -Wl,-z,max-page-size=16384 \
+            -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384 \
             --prefix="$prefix" --libdir=lib >"$work/openssl-configure.log" 2>&1 || exit 1
         make -j"$JOBS" SHLIB_VERSION_NUMBER= build_libs >"$work/openssl-build.log" 2>&1 || exit 1
         make SHLIB_VERSION_NUMBER= install_dev >"$work/openssl-install.log" 2>&1 || exit 1
         # Keep the static archives for libtorrent, and give Qt its own runtime
         # libraries instead of resolving Android's incompatible system OpenSSL.
-        cp libcrypto.so "$prefix/lib/libcrypto_3.so" || exit 1
-        cp libssl.so "$prefix/lib/libssl_3.so" || exit 1
-        # patchelf otherwise assumes the host page size while moving ELF metadata.
-        # Pin Android's 16 KiB alignment so PT_LOAD file/vaddr congruence survives.
-        patchelf --page-size 16384 --set-soname libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
-        patchelf --page-size 16384 --set-soname libssl_3.so \
-            --replace-needed libcrypto.so libcrypto_3.so "$prefix/lib/libssl_3.so" || exit 1
+        cp libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
+        cp libssl_3.so "$prefix/lib/libssl_3.so" || exit 1
         bash "$REPO/scripts/android/verify_openssl_runtime_pair.sh" "$prefix/lib" || exit 1
     ) || { tail -40 "$work"/openssl-*.log >&2; die "$abi: OpenSSL failed"; }
 }
