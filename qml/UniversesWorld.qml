@@ -183,6 +183,10 @@ WorldPage {
                 id: bar
                 required property var modelData
                 required property int index
+                // Arc 63-C1/C2: semantic, unique named target for deterministic
+                // pointer travel. The roster owns the key; generic template categories
+                // (for example "anime") are not safe identities because they collide.
+                objectName: "universesBanner_" + String(bar.modelData.automationKey || bar.index)
                 entry: bar.modelData
                 objectName: "universesBanner_" + String(bar.modelData.name || bar.index)
                                 .toLowerCase()

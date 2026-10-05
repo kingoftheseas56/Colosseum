@@ -38,6 +38,8 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
+#include <QPoint>
+#include <QRectF>
 #include <QSharedPointer>
 #include <QString>
 #include <functional>
@@ -221,7 +223,14 @@ private:
     void cmdUiKeypress(const QJsonObject& p, Replier reply) const;
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
     void cmdUiScroll(const QJsonObject& p, Replier reply) const;
+    // Arc 63-B: deterministic eased contentY motion on a named Flickable surface.
     void cmdGlide(const QJsonObject& p, Replier reply);
+    // Arc 63-C1/C2: real visible system-pointer travel to a resolved named target.
+    // Async because the path deliberately spans multiple event-loop turns.
+    void cmdPoint(const QJsonObject& p, Replier reply);
+    // Arc 63-C2b1: one real OS left-button click at the CURRENT pointer endpoint,
+    // still bound to a named, currently-safe target in the first root window.
+    void cmdPointerClick(const QJsonObject& p, Replier reply);
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
     // Function 0007 prerequisite: one typed, tagged-session-only diagnostic
     // that drives the real root openBookSession() path for an A -> B switch.
@@ -276,6 +285,22 @@ private:
     // bridge. Handles live only until the next snapshot; names live as long as the
     // item does.
     QQuickItem* resolveTarget(const QString& ref) const;   // objectName or snapshot handle
+
+    // Arc 63-C2: one shared pointer-target resolver for point + pointer-click.
+    // It carries the exact visible/clipped scene region and global endpoint so
+    // the two real-OS pointer verbs cannot drift into different safety rules.
+    struct PointerTargetSnapshot {
+        QPointer<QQuickItem> item;
+        QPointer<QQuickWindow> window;
+        QRectF visibleScene;
+        QPoint targetScene;
+        QPoint targetGlobal;
+        const char* errorCode = nullptr;
+        QString errorMessage;
+
+        bool ok() const { return errorCode == nullptr; }
+    };
+    PointerTargetSnapshot resolvePointerTarget(const QString& ref) const;
 
     // L1-Bridge (2026-08-13): the SAME identity scheme above, reused rather than
     // reinvented (L1-Discovery's verdict) so dump-ui's all-item walk and

@@ -17,6 +17,7 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    objectName: "shelvesUniversePage"
     anchors.fill: parent
 
     // shell contract — the same verbs the other template pages speak (Main's template

@@ -42,10 +42,22 @@ Item {
             const blurb = findChild(banner, "universeBannerBlurb")
             compare(blurb.text, banner.entry.blurb)
             verify(blurb.lineCount <= 2, "the About copy is clamped to two lines")
-            // the copy starts after the rail and never runs under the Explore affordance
-            const copy = findChild(banner, "universeBannerCopy"), explore = findChild(banner, "universeBannerExplore")
+            // the copy starts after the rail and never runs under the Explore affordance.
+            // Explore is namespaced from the production banner target so Lanista can
+            // prove the hovered affordance for one exact universe without DFS collisions.
+            const copy = findChild(banner, "universeBannerCopy")
+            const explore = findChild(banner, banner.objectName + "_explore")
+            verify(explore !== null)
             compare(copy.x, 30 + 98 + 26)
             verify(copy.x + copy.width <= banner.width - 28 - explore.width)
+        }
+        function test_onePiecePointerIdentityAndRoute() {
+            const onePiece = findChild(world, "universesBanner_onepiece")
+            verify(onePiece !== null, "One Piece exposes the production pointer target")
+            compare(onePiece.entry.name, "One Piece")
+            compare(onePiece.entry.page, "shelves")
+            const explore = findChild(onePiece, "universesBanner_onepiece_explore")
+            verify(explore !== null, "One Piece Explore affordance has a unique automation identity")
         }
         function test_everyMarkFileLoads() {
             const ledger = findChild(world, "universesLedger")

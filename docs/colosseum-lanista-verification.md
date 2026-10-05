@@ -58,6 +58,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `ui-text-input` | Drive | forceActiveFocus + per-char KeyPress | no KeyRelease pairs |
 | `ui-scroll` | Drive | wheel event, `dy` (default −120) | no scroll phases |
 | `glide` | Drive | animate a real Flickable/ListView `contentY` to one named descendant or explicit offset over `duration_ms` with a named easing curve | fail-closed payload; exactly one of `target`/`offset`; integral duration 100..20000 ms; easing `linear`/`inOutCubic`/`outCubic`/`inOutSine`; target align `start`/`center`/`end`; replies only after exact final `contentY` settle or a coded failure |
+| `point` | Drive | move the real system pointer along a timed path to the visible portion of a named target — Arc 63-C1 | **tagged-session/foreground/first-root-window only**; movement only, no button event; client never supplies screen coords |
 | `window-set-state` | Drive | restore/minimize/hide the first root window via real `QWindow::showNormal()`/`showMinimized()`/`hide()` — J1-Tray-Bridge, 2026-08-14 | `state` required, exactly `normal`/`minimized`/`hidden`; **first root window only**; see "Window state" below |
 | `ui-wait-for` | Read | poll one property until **equal** to a value | 50 ms poll, default 3 s timeout, strict equality ONLY — no operators, no compound predicates |
 | `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |
@@ -205,6 +206,33 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
   `state:"normal", visible:true`. PID of the daily app (`22956`) verified running,
   untouched, before and after. Evidence under
   `artifacts/visibility-phase2/j1-tray-bridge/` (gitignored).
+
+### Arc 63-C1 pointer targeting
+
+`point target=<objectName|handle> duration_ms=<16..10000> path=<smoothstep|linear> tolerance_px=<0..16>`
+is Drive-gated, requires a non-empty `COLOSSEUM_APPDATA_TAG`, and moves the **real OS cursor**.
+`DRIVE=1` alone is deliberately insufficient for this global-state operation. It deliberately owns
+only targeting and travel: it synthesizes no press/release and makes no C2 hover-contract claim.
+
+The coordinate conversion is fixed and caller-independent: the target's local rect is mapped with
+`QQuickItem::mapRectToScene()`, intersected with every `clip:true` ancestor and the first root
+window's client rect, then the visible intersection's center is converted to global screen
+coordinates with that owning `QQuickWindow::mapToGlobal()`. A caller can name a target but cannot
+supply an arbitrary pixel coordinate: the point payload is fail-closed to `target`, `duration_ms`,
+`path`, `tolerance_px`, plus the bridge-wide optional `grab`; any other field fails
+`BAD_PAYLOAD`. Duration and tolerance must be integral JSON numbers, and path must be a string.
+The command also requires that same first root window to be visible, non-minimized, and active;
+background-window choreography is intentionally deferred.
+
+Target and clipping geometry must remain finite through local -> scene -> visible-intersection
+mapping; non-finite geometry fails `INVALID_TARGET_GEOMETRY` before a cursor coordinate is driven.
+Successful replies are coordinate/timing receipts: pid, window name/title, actual starting OS cursor
+point, target scene/screen point, explicit requested screen endpoint, actual final OS cursor point,
+x/y endpoint delta, requested duration, observed elapsed time, path, tolerance, and the visible scene
+rect used for resolution. Endpoint misses outside tolerance fail `ENDPOINT_MISS`. Missing,
+invisible/transparent/zero-size, fully clipped/off-window, wrong-window, inactive-window,
+hidden/minimized-window, and invalid payload/path/duration/tolerance cases fail before a dangerous
+coordinate is driven.
 
 ### Combined state + capture (grabs)
 

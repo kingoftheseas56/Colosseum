@@ -15,6 +15,7 @@
 #include "engine/VaultLibrary.h"
 #include "engine/VaultScanner.h"
 
+#include <QCursor>
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
@@ -29,8 +30,10 @@
 #include <QJsonObject>
 #include <QList>
 #include <QLocalSocket>
+#include <QLibrary>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QMouseEvent>
 #include <QQuickWindow>
 #include <QSet>
 #include <QStandardPaths>
@@ -44,6 +47,13 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 static void require(bool cond, const QString& msg)
 {
@@ -85,7 +95,92 @@ static QString why()
                : QStringLiteral(" [") + g_lastCallError + QLatin1Char(']');
 }
 
-// Writes `chunks` — one per event-loop turn, so the server really does see them
+class NativeMouseEventProbe final : public QObject
+{
+public:
+    void reset()
+    {
+        pressCount = 0;
+        releaseCount = 0;
+        doubleClickCount = 0;
+        pressTimestamp = 0;
+        releaseTimestamp = 0;
+        order.clear();
+    }
+
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        Q_UNUSED(watched);
+        if (event->type() != QEvent::MouseButtonPress
+            && event->type() != QEvent::MouseButtonRelease
+            && event->type() != QEvent::MouseButtonDblClick) {
+            return false;
+        }
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        if (mouse->button() != Qt::LeftButton)
+            return false;
+        if (event->type() == QEvent::MouseButtonPress) {
+            ++pressCount;
+            pressTimestamp = mouse->timestamp();
+            order.append(QEvent::MouseButtonPress);
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            ++releaseCount;
+            releaseTimestamp = mouse->timestamp();
+            order.append(QEvent::MouseButtonRelease);
+        } else {
+            ++doubleClickCount;
+            order.append(QEvent::MouseButtonDblClick);
+        }
+        return false;
+    }
+
+    int pressCount = 0;
+    int releaseCount = 0;
+    int doubleClickCount = 0;
+    quint64 pressTimestamp = 0;
+    quint64 releaseTimestamp = 0;
+    QList<QEvent::Type> order;
+};
+
+// Independent harness-only native button injector used solely to prove that
+// pointer-click refuses an already-held left button. It is never exposed by
+// Lanista and is deliberately outside the product command path.
+static bool setNativeLeftButton(bool down, QQuickWindow* window)
+{
+#ifdef Q_OS_WIN
+    Q_UNUSED(window);
+    INPUT input{};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = down ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
+    return SendInput(1, &input, sizeof(INPUT)) == 1;
+#elif defined(Q_OS_LINUX)
+    if (!window)
+        return false;
+    auto* x11 = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+    if (!x11 || !x11->display())
+        return false;
+    using FakeButtonFn = int (*)(void*, unsigned int, int, unsigned long);
+    using SyncFn = int (*)(void*, int);
+    QLibrary xtst(QStringLiteral("Xtst"), 6);
+    QLibrary x11lib(QStringLiteral("X11"), 6);
+    if (!xtst.load() || !x11lib.load())
+        return false;
+    const auto fakeButton =
+        reinterpret_cast<FakeButtonFn>(xtst.resolve("XTestFakeButtonEvent"));
+    const auto sync = reinterpret_cast<SyncFn>(x11lib.resolve("XSync"));
+    if (!fakeButton || !sync)
+        return false;
+    const bool ok = fakeButton(x11->display(), 1u, down ? 1 : 0, 0ul) != 0;
+    sync(x11->display(), 0);
+    return ok;
+#else
+    Q_UNUSED(down);
+    Q_UNUSED(window);
+    return false;
+#endif
+}
+
+// Writes \`chunks\` — one per event-loop turn, so the server really does see them
 // as separate readyRead deliveries — and collects EVERY byte the server writes
 // back until it hangs up or the timeout expires. The framing tests assert on the
 // NUMBER of reply lines, so this must never stop at the first one.
@@ -328,6 +423,8 @@ int main(int argc, char** argv)
     auto* rootWindow = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
     require(rootWindow != nullptr, QStringLiteral("harness root is a Window"));
     const qreal dpr = rootWindow->devicePixelRatio();
+    NativeMouseEventProbe nativeMouseProbe;
+    rootWindow->installEventFilter(&nativeMouseProbe);
 
     auto* server = new LanistaServer(&engine, &app);
     require(server->isListening(),
@@ -1199,10 +1296,397 @@ int main(int argc, char** argv)
         require(glideDenied.value("type").toString() == "error"
                     && glideDenied.value("code").toString() == "DRIVE_DISABLED",
                 "glide is refused with the DRIVE gate closed" + why());
+        QJsonObject pointDenied = call(pipe, {{"cmd", "point"}, {"seq", 701},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 64}}}});
+        require(pointDenied.value("type").toString() == "error"
+                    && pointDenied.value("code").toString() == "DRIVE_DISABLED",
+                "point is refused with the DRIVE gate closed" + why());
+        QJsonObject pointerClickDenied = call(pipe, {{"cmd", "pointer-click"}, {"seq", 7012},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}});
+        require(pointerClickDenied.value("type").toString() == "error"
+                    && pointerClickDenied.value("code").toString() == "DRIVE_DISABLED",
+                "pointer-click is refused with the DRIVE gate closed" + why());
 
         // Open the DRIVE gate for the rest of the hands tests. driveOpen() reads
         // the env live per call, so this takes effect immediately.
         qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
+
+        // A global cursor move is tagged-session-only. DRIVE=1 must not be enough
+        // to aim the daily, unisolated Colosseum process.
+        qunsetenv("COLOSSEUM_APPDATA_TAG");
+        QJsonObject untaggedPoint = call(pipe, {{"cmd", "point"}, {"seq", 7051},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(untaggedPoint.value("type").toString() == "error"
+                    && untaggedPoint.value("code").toString() == "ISOLATION_REQUIRED",
+                "point refuses an untagged session even when DRIVE is open" + why());
+        QJsonObject untaggedPointerClick = call(pipe, {{"cmd", "pointer-click"}, {"seq", 7054},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}}, 2000);
+        require(untaggedPointerClick.value("type").toString() == "error"
+                    && untaggedPointerClick.value("code").toString() == "ISOLATION_REQUIRED",
+                "pointer-click also requires the tagged isolated session" + why());
+        qputenv("COLOSSEUM_APPDATA_TAG", "lanista-harness");
+
+        QJsonObject badClickPayload = call(pipe, {{"cmd", "pointer-click"}, {"seq", 7055},
+            {"payload", QJsonObject{{"target", "counterMouse"}, {"screen_x", 200}}}}, 2000);
+        require(badClickPayload.value("type").toString() == "error"
+                    && badClickPayload.value("code").toString() == "BAD_PAYLOAD",
+                "pointer-click refuses raw/unsupported coordinate payloads" + why());
+        QJsonObject badClickButton = call(pipe, {{"cmd", "pointer-click"}, {"seq", 7056},
+            {"payload", QJsonObject{{"target", "counterMouse"}, {"button", "right"}}}}, 2000);
+        require(badClickButton.value("type").toString() == "error"
+                    && badClickButton.value("code").toString() == "BAD_BUTTON",
+                "pointer-click refuses unsupported button values" + why());
+        QJsonObject badClickAction = call(pipe, {{"cmd", "pointer-click"}, {"seq", 7057},
+            {"payload", QJsonObject{{"target", "counterMouse"}, {"action", "press"}}}}, 2000);
+        require(badClickAction.value("type").toString() == "error"
+                    && badClickAction.value("code").toString() == "BAD_ACTION",
+                "pointer-click refuses press-only/action variants" + why());
+        QJsonObject stalePointerClick = call(pipe, {{"cmd", "pointer-click"}, {"seq", 7058},
+            {"payload", QJsonObject{{"target", staleHandle}}}}, 2000);
+        require(stalePointerClick.value("type").toString() == "error"
+                    && stalePointerClick.value("code").toString() == "NO_SUCH_ITEM",
+                "pointer-click refuses a stale snapshot handle" + why());
+
+        // Arc 63-C1: point is a strict named-target command. Payload shape is
+        // fail-closed so a client cannot attach a raw coordinate or smuggle a
+        // non-integral timing/tolerance value that Qt would otherwise coerce.
+        QJsonObject rawCoordinate = call(pipe, {{"cmd", "point"}, {"seq", 706},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32},
+                                    {"screen_x", 1}}}}, 2000);
+        require(rawCoordinate.value("type").toString() == "error"
+                    && rawCoordinate.value("code").toString() == "BAD_PAYLOAD",
+                "point refuses raw/unsupported coordinate payload fields" + why());
+
+        QJsonObject badTarget = call(pipe, {{"cmd", "point"}, {"seq", 707},
+            {"payload", QJsonObject{{"target", 42},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(badTarget.value("type").toString() == "error"
+                    && badTarget.value("code").toString() == "BAD_TARGET",
+                "point requires a non-empty string target" + why());
+
+        QJsonObject badDuration = call(pipe, {{"cmd", "point"}, {"seq", 708},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32.5}}}}, 2000);
+        require(badDuration.value("type").toString() == "error"
+                    && badDuration.value("code").toString() == "BAD_DURATION",
+                "point refuses fractional duration_ms instead of coercing it" + why());
+
+        QJsonObject badPath = call(pipe, {{"cmd", "point"}, {"seq", 709},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32},
+                                    {"path", 7}}}}, 2000);
+        require(badPath.value("type").toString() == "error"
+                    && badPath.value("code").toString() == "BAD_PATH",
+                "point refuses a non-string path instead of defaulting it" + why());
+
+        QJsonObject badTolerance = call(pipe, {{"cmd", "point"}, {"seq", 710},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32},
+                                    {"tolerance_px", 1.5}}}}, 2000);
+        require(badTolerance.value("type").toString() == "error"
+                    && badTolerance.value("code").toString() == "BAD_TOLERANCE",
+                "point refuses fractional tolerance_px instead of coercing it" + why());
+
+        // C1 is foreground-only by contract, so activate the fixture window
+        // before any command that can actually move the OS pointer.
+        rootWindow->requestActivate();
+        settle(100);
+        require(rootWindow->isActive(),
+                "point fixture window is active before foreground-only motion" + why());
+
+        QJsonObject hiddenPoint = call(pipe, {{"cmd", "point"}, {"seq", 711},
+            {"payload", QJsonObject{{"target", "reader2RootProbe"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(hiddenPoint.value("type").toString() == "error"
+                    && hiddenPoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses an invisible target" + why());
+
+        QJsonObject transparentPoint = call(pipe, {{"cmd", "point"}, {"seq", 712},
+            {"payload", QJsonObject{{"target", "transparentItem"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(transparentPoint.value("type").toString() == "error"
+                    && transparentPoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses a fully transparent target" + why());
+
+        QJsonObject zeroSizePoint = call(pipe, {{"cmd", "point"}, {"seq", 713},
+            {"payload", QJsonObject{{"target", "zeroSizeItem"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(zeroSizePoint.value("type").toString() == "error"
+                    && zeroSizePoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses a zero-size target" + why());
+
+        // C2a hover proof starts from a known non-hover point inside the same
+        // real root window. This is test setup only; the Lanista command still
+        // receives no raw coordinate and must resolve its own named endpoint.
+        QCursor::setPos(rootWindow->mapToGlobal(QPoint(20, 20)));
+        settle(80);
+        QJsonObject hoverBefore = call(pipe, {{"cmd", "qml-get"}, {"seq", 7011},
+            {"payload", QJsonObject{{"object", "counterMouse"},
+                                    {"props", QJsonArray{"containsMouse"}}}}});
+        require(!hoverBefore.value("props").toObject().value("containsMouse").toBool(),
+                "C2a: counterMouse starts outside the real hover state" + why());
+
+        const QPoint pointerBefore = QCursor::pos();
+        QJsonObject pointed = call(pipe, {{"cmd", "point"}, {"seq", 702},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 64},
+                                    {"path", "linear"},
+                                    {"tolerance_px", 2}}}}, 2000);
+        require(pointed.value("type").toString() == "reply",
+                "point replies after pointer travel" + why());
+        require(pointed.value("pointed").toString() == QStringLiteral("counterMouse"),
+                "point names the resolved target" + why());
+        require(pointed.value("startScreenX").toInt() == pointerBefore.x()
+                    && pointed.value("startScreenY").toInt() == pointerBefore.y(),
+                "point receipt starts at the actual pre-command OS cursor position" + why());
+        require(pointed.value("targetSceneX").toInt() == 200
+                    && pointed.value("targetSceneY").toInt() == 124,
+                "point resolves the counterMouse center in scene coordinates" + why());
+
+        const QJsonObject visibleRect = pointed.value("visibleSceneRect").toObject();
+        require(visibleRect.value("x").toInt() == 100
+                    && visibleRect.value("y").toInt() == 100
+                    && visibleRect.value("width").toInt() == 200
+                    && visibleRect.value("height").toInt() == 48,
+                "point receipt carries the exact visible scene rect used for resolution" + why());
+        require(pointed.value("targetScreenX").toInt()
+                        == pointed.value("windowScreenX").toInt()
+                           + pointed.value("targetSceneX").toInt()
+                    && pointed.value("targetScreenY").toInt()
+                        == pointed.value("windowScreenY").toInt()
+                           + pointed.value("targetSceneY").toInt(),
+                "point scene->global coordinate conversion is internally consistent" + why());
+        require(pointed.value("requestedScreenX").toInt()
+                        == pointed.value("targetScreenX").toInt()
+                    && pointed.value("requestedScreenY").toInt()
+                        == pointed.value("targetScreenY").toInt(),
+                "point receipt identifies the resolved target as the requested endpoint" + why());
+        require(pointed.value("actualScreenX").toInt()
+                        - pointed.value("requestedScreenX").toInt()
+                        == pointed.value("deltaX").toInt()
+                    && pointed.value("actualScreenY").toInt()
+                        - pointed.value("requestedScreenY").toInt()
+                        == pointed.value("deltaY").toInt(),
+                "point receipt deltas match requested versus actual endpoint" + why());
+        require(pointed.value("path").toString() == QStringLiteral("linear")
+                    && pointed.value("durationMs").toInt() == 64
+                    && pointed.value("tolerancePx").toInt() == 2,
+                "point receipt carries the requested path, duration and tolerance" + why());
+        require(qAbs(pointed.value("deltaX").toInt()) <= 2
+                    && qAbs(pointed.value("deltaY").toInt()) <= 2,
+                "point arrives within the declared endpoint tolerance" + why());
+        require(pointed.value("elapsedMs").toInt() >= 64
+                    && pointed.value("elapsedMs").toInt() <= 500,
+                "point duration is observable and bounded" + why());
+
+        // C2a: QCursor travel must produce the MouseArea's REAL hover state.
+        // No test or bridge property is written to fake containsMouse. Hold the
+        // pointer at rest for a visible shot beat, then read the production Qt
+        // hover state back through the ordinary read channel.
+        settle(220);
+        QJsonObject hoverAtRest = call(pipe, {{"cmd", "qml-get"}, {"seq", 7021},
+            {"payload", QJsonObject{{"object", "counterMouse"},
+                                    {"props", QJsonArray{"containsMouse"}}}}});
+        require(hoverAtRest.value("props").toObject().value("containsMouse").toBool(),
+                "C2a: real pointer arrival activates MouseArea.containsMouse" + why());
+        QJsonObject clicksAtHover = call(pipe, {{"cmd", "qml-get"}, {"seq", 7022},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(clicksAtHover.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 0"),
+                "C2a: resting on real hover does not synthesize a click" + why());
+
+        // Partly outside the root window is still targetable, but the point must
+        // use the VISIBLE intersection, not the off-window item center.
+        QJsonObject clippedPoint = call(pipe, {{"cmd", "point"}, {"seq", 703},
+            {"payload", QJsonObject{{"target", "clippedBox"},
+                                    {"duration_ms", 32},
+                                    {"path", "smoothstep"}}}}, 2000);
+        require(clippedPoint.value("type").toString() == "reply",
+                "point accepts a partially visible target" + why());
+        require(clippedPoint.value("targetSceneX").toInt() == 780
+                    && clippedPoint.value("targetSceneY").toInt() == 320,
+                "point targets the center of clippedBox's visible window intersection" + why());
+        const QJsonObject clippedRect = clippedPoint.value("visibleSceneRect").toObject();
+        require(clippedRect.value("x").toInt() == 760
+                    && clippedRect.value("y").toInt() == 300
+                    && clippedRect.value("width").toInt() == 40
+                    && clippedRect.value("height").toInt() == 40,
+                "point reports clippedBox's visible 40x40 window intersection" + why());
+
+        // Fully clipped and missing targets refuse BEFORE producing a dangerous
+        // screen coordinate.
+        QJsonObject offscreenPoint = call(pipe, {{"cmd", "point"}, {"seq", 704},
+            {"payload", QJsonObject{{"target", "clipHostChild"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(offscreenPoint.value("type").toString() == "error"
+                    && offscreenPoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses a target fully clipped by an ancestor" + why());
+        QJsonObject missingPoint = call(pipe, {{"cmd", "point"}, {"seq", 705},
+            {"payload", QJsonObject{{"target", "no-such-point-target"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(missingPoint.value("type").toString() == "error"
+                    && missingPoint.value("code").toString() == "NO_SUCH_ITEM",
+                "point refuses a missing target without a coordinate" + why());
+
+        // C2a: the target is not allowed to drift underneath an in-flight
+        // gesture. Move the real visual owner after point starts; the next
+        // revalidation turn must refuse instead of continuing toward the stale
+        // screen coordinate captured at command start.
+        QObject* counterButtonObject =
+            rootWindow->findChild<QObject*>(QStringLiteral("counterButton"));
+        require(counterButtonObject != nullptr,
+                "C2a: counterButton fixture is reachable for the movement race" + why());
+        const double originalCounterX = counterButtonObject->property("x").toDouble();
+        QTimer::singleShot(32, counterButtonObject,
+                           [counterButtonObject, originalCounterX]() {
+            counterButtonObject->setProperty("x", originalCounterX + 48.0);
+        });
+        QJsonObject movedDuringPoint = call(pipe, {{"cmd", "point"}, {"seq", 7052},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 160},
+                                    {"path", "linear"}}}}, 2000);
+        require(movedDuringPoint.value("type").toString() == "error"
+                    && movedDuringPoint.value("code").toString() == "TARGET_MOVED",
+                "C2a: point fails closed when the named target moves during the gesture" + why());
+        counterButtonObject->setProperty("x", originalCounterX);
+        settle(48);
+
+        // Losing the exact named identity mid-gesture is also terminal. This
+        // models a delegate disappearing/rebinding while the pointer is moving.
+        QObject* counterMouseObject =
+            rootWindow->findChild<QObject*>(QStringLiteral("counterMouse"));
+        require(counterMouseObject != nullptr,
+                "C2a: counterMouse fixture is reachable for the identity race" + why());
+        QTimer::singleShot(32, counterMouseObject, [counterMouseObject]() {
+            counterMouseObject->setObjectName(QStringLiteral("counterMouse_rebound"));
+        });
+        QJsonObject identityLostDuringPoint = call(pipe, {{"cmd", "point"}, {"seq", 7053},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 160},
+                                    {"path", "linear"}}}}, 2000);
+        require(identityLostDuringPoint.value("type").toString() == "error"
+                    && identityLostDuringPoint.value("code").toString() == "NO_SUCH_ITEM",
+                "C2a: point fails closed when the named target identity disappears" + why());
+        counterMouseObject->setObjectName(QStringLiteral("counterMouse"));
+        settle(48);
+
+        // Movement-only means movement-only: the same MouseArea used by the
+        // next ui-click test must still have observed zero clicks after every
+        // successful point command above.
+        QJsonObject afterPoint = call(pipe, {{"cmd", "qml-get"}, {"seq", 714},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(afterPoint.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 0"),
+                "point emits no mouse press/release and therefore no click" + why());
+
+        // ── Arc 63-C2b1: one real OS click at the current pointer endpoint ──
+        // Off-target refuses before any native input is submitted.
+        QCursor::setPos(rootWindow->mapToGlobal(QPoint(20, 20)));
+        settle(80);
+        nativeMouseProbe.reset();
+        QJsonObject offTargetClick = call(pipe, {{"cmd", "pointer-click"}, {"seq", 715},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}}, 2000);
+        require(offTargetClick.value("type").toString() == "error"
+                    && offTargetClick.value("code").toString() == "POINTER_OFF_TARGET",
+                "C2b1: pointer-click refuses when the OS cursor left the current target" + why());
+        require(nativeMouseProbe.pressCount == 0 && nativeMouseProbe.releaseCount == 0,
+                "C2b1: off-target refusal submits no native mouse button events" + why());
+
+        // Re-enter the target through point, not a raw coordinate, then prove an
+        // already-held physical button is an impossible state. Release outside
+        // the target afterward so this negative-control press cannot count as a click.
+        QJsonObject repointedForBusy = call(pipe, {{"cmd", "point"}, {"seq", 716},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 48},
+                                    {"path", "linear"}}}}, 2000);
+        require(repointedForBusy.value("type").toString() == "reply",
+                "C2b1: point re-establishes the named endpoint before busy-state proof" + why());
+        settle(80);
+        nativeMouseProbe.reset();
+        require(setNativeLeftButton(true, rootWindow),
+                "C2b1: harness can hold the native left button for the negative control" + why());
+        settle(30);
+        QJsonObject busyClick = call(pipe, {{"cmd", "pointer-click"}, {"seq", 717},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}}, 2000);
+        require(busyClick.value("type").toString() == "error"
+                    && busyClick.value("code").toString() == "IMPOSSIBLE_POINTER_STATE",
+                "C2b1: pointer-click refuses an already-held left mouse button" + why());
+        QCursor::setPos(rootWindow->mapToGlobal(QPoint(20, 20)));
+        settle(20);
+        require(setNativeLeftButton(false, rootWindow),
+                "C2b1: harness releases the native left button after the negative control" + why());
+        settle(80);
+        rootWindow->setProperty("clickCount", 0);
+        nativeMouseProbe.reset();
+
+        // Real click proof: named point -> hover -> pointer-click. The event
+        // filter sees the native press/release that Qt receives from the window
+        // system, not events directly constructed by Lanista.
+        QJsonObject repointedForClick = call(pipe, {{"cmd", "point"}, {"seq", 718},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 64},
+                                    {"path", "smoothstep"}}}}, 2000);
+        require(repointedForClick.value("type").toString() == "reply",
+                "C2b1: point lands on counterMouse before native click" + why());
+        settle(220);
+        QJsonObject hoverBeforeNativeClick = call(pipe, {{"cmd", "qml-get"}, {"seq", 719},
+            {"payload", QJsonObject{{"object", "counterMouse"},
+                                    {"props", QJsonArray{"containsMouse"}}}}});
+        require(hoverBeforeNativeClick.value("props").toObject().value("containsMouse").toBool(),
+                "C2b1: real hover is still active immediately before native click" + why());
+
+        nativeMouseProbe.reset();
+        QJsonObject nativeClick = call(pipe, {{"cmd", "pointer-click"}, {"seq", 720},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"button", "left"},
+                                    {"action", "click"}}}}, 3000);
+        require(nativeClick.value("type").toString() == "reply",
+                "C2b1: pointer-click replies after native OS injection" + why());
+        require(nativeClick.value("clicked").toString() == QStringLiteral("counterMouse"),
+                "C2b1: pointer-click receipt names the resolved target" + why());
+        require(nativeClick.value("submittedEvents").toInt() == 2,
+                "C2b1: exactly one native press and one native release were submitted" + why());
+#ifdef Q_OS_WIN
+        require(nativeClick.value("backend").toString() == QStringLiteral("win32-sendinput"),
+                "C2b1: Windows proof uses SendInput" + why());
+#elif defined(Q_OS_LINUX)
+        require(nativeClick.value("backend").toString() == QStringLiteral("x11-xtest"),
+                "C2b1: X11 proof uses XTEST" + why());
+#endif
+        settle(120);
+
+        QJsonObject afterNativeClick = call(pipe, {{"cmd", "qml-get"}, {"seq", 721},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(afterNativeClick.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 1"),
+                "C2b1: native pointer-click increments the target exactly once" + why());
+        require(nativeMouseProbe.pressCount == 1 && nativeMouseProbe.releaseCount == 1,
+                "C2b1: Qt received exactly one native left press and one native left release"
+                    + why());
+        require(nativeMouseProbe.doubleClickCount == 0,
+                "C2b1: native pointer-click did not synthesize a double-click" + why());
+        require(nativeMouseProbe.order.size() == 2
+                    && nativeMouseProbe.order.at(0) == QEvent::MouseButtonPress
+                    && nativeMouseProbe.order.at(1) == QEvent::MouseButtonRelease,
+                "C2b1: native mouse event ordering is press then release" + why());
+        require(nativeMouseProbe.releaseTimestamp >= nativeMouseProbe.pressTimestamp,
+                "C2b1: native release timestamp is not earlier than press timestamp" + why());
+        QJsonObject hoverAfterNativeClick = call(pipe, {{"cmd", "qml-get"}, {"seq", 722},
+            {"payload", QJsonObject{{"object", "counterMouse"},
+                                    {"props", QJsonArray{"containsMouse"}}}}});
+        require(hoverAfterNativeClick.value("props").toObject().value("containsMouse").toBool(),
+                "C2b1: pointer remains resting on the intended target after click" + why());
+
+        // Restore the counter so the pre-existing ui-click test below keeps its
+        // independent historical expectation of 0 -> 1.
+        rootWindow->setProperty("clickCount", 0);
+        nativeMouseProbe.reset();
 
         // ── Task 5: ui-click genuinely lands — the counter really increments ──
         // A reply is not enough: the press+release must reach counterMouse and
