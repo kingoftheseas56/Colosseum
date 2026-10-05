@@ -64,7 +64,11 @@ Window {
         source: "../qml/ShelvesUniversePage.qml"
         onStatusChanged: {
             if (status === Loader.Error) { console.log("[diag] LOADER ERROR — see warnings above"); Qt.exit(2) }
-            if (status === Loader.Ready) console.log("[diag] LOADER READY — page created fine")
+            if (status === Loader.Ready) {
+                if (!item || item.objectName !== "shelvesUniversePage")
+                    fail("ShelvesUniversePage production automation identity missing")
+                console.log("[diag] LOADER READY — page created fine")
+            }
         }
     }
     Timer { interval: 3000; running: true; onTriggered: Qt.quit() }
