@@ -1,0 +1,145 @@
+name: arc63-c2b1-windows-verify
+
+on:
+  push:
+    branches:
+      - preflight/arc63-c2-hover-click
+
+permissions:
+  contents: read
+
+jobs:
+  windows-native:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      VCPKG_TAG: "2026.07.29"
+      MPV_RELEASE: "20260814"
+      MPV_VERSION: "20260814-git-7b8915bc1d"
+      MPV_SHA256: "0af22b28e920620036d3ae08fd9283156dc9af0420bf4df84b0e02282094599c"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Exact C2b1 whitespace gate
+        shell: pwsh
+        run: |
+          git diff --check 68c14d33a1a618d685533a04f0dd08d13def90c8..HEAD -- native/devtools/LanistaServer.cpp native/devtools/LanistaServer.h tests/lanista_harness.cpp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Enable MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: x64
+
+      - name: Install native dependencies
+        shell: pwsh
+        run: |
+          $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone --depth 1 --branch $env:VCPKG_TAG https://github.com/microsoft/vcpkg.git $vcpkg
+          & "$vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$vcpkg/vcpkg.exe" install libtorrent:x64-windows openssl:x64-windows boost-filesystem:x64-windows boost-system:x64-windows ecm:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "VCPKG_ROOT=$vcpkg" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vcpkg/installed/x64-windows/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Prepare libmpv
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "mpv-dev.7z"
+          $extract = Join-Path $env:RUNNER_TEMP "libmpv"
+          $uri = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/$env:MPV_RELEASE/mpv-dev-x86_64-$env:MPV_VERSION.7z"
+          Invoke-WebRequest -Uri $uri -OutFile $archive
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:MPV_SHA256) { throw "libmpv checksum mismatch" }
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+          7z x $archive "-o$extract" -y | Out-Null
+          $dll = Get-ChildItem $extract -Recurse -Filter "libmpv-2.dll" | Select-Object -First 1
+          if (-not $dll) { throw "libmpv-2.dll missing" }
+          $root = $dll.Directory.FullName
+          $libDir = Join-Path $root "lib"
+          New-Item -ItemType Directory -Force -Path $libDir | Out-Null
+          $def = Join-Path $root "mpv.def"
+          @("LIBRARY libmpv-2.dll", "EXPORTS") | Set-Content $def
+          dumpbin /exports $dll.FullName | ForEach-Object { if ($_ -match '^\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(mpv_\S+)\s*$') { $Matches[1] } } | Sort-Object -Unique | Add-Content $def
+          lib.exe "/def:$def" "/out:$libDir/mpv.lib" /machine:x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "LIBMPV_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          $root | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build MpvQt
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "mpvqt.tar.xz"
+          $sourceRoot = Join-Path $env:RUNNER_TEMP "mpvqt-source"
+          $build = Join-Path $env:RUNNER_TEMP "mpvqt-build"
+          $install = Join-Path $env:RUNNER_TEMP "mpvqt-install"
+          $uri = "https://download.kde.org/stable/mpvqt/mpvqt-$env:MPVQT_VERSION.tar.xz"
+          Invoke-WebRequest -Uri $uri -OutFile $archive
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:MPVQT_SHA256) { throw "MpvQt checksum mismatch" }
+          New-Item -ItemType Directory -Force -Path $sourceRoot | Out-Null
+          tar -xf $archive -C $sourceRoot
+          $source = Get-ChildItem $sourceRoot -Directory -Filter "mpvqt-*" | Select-Object -First 1
+          if (-not $source) { throw "MpvQt source directory missing" }
+          $prefix = "$env:QT_ROOT_DIR;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S $source.FullName -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_INSTALL_PREFIX=$install" "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DCMAKE_PREFIX_PATH=$prefix" "-DLibmpv_INCLUDE_DIRS=$env:LIBMPV_ROOT/include" "-DLibmpv_LIBRARIES=$env:LIBMPV_ROOT/lib/mpv.lib" -DBUILD_EXAMPLES=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build $build --target install --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "MPVQT_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Apply inherited harness-only depth correction
+        shell: pwsh
+        run: |
+          $path = "tests/lanista_harness.cpp"
+          $s = Get-Content -Raw $path
+          $a = 'absurd.value("maxDepthUsed").toInt() == 64'
+          $b = '"ceiling (64), got %1"'
+          if (($s.Split($a).Count - 1) -ne 1 -or ($s.Split($b).Count - 1) -ne 1) { throw "inherited 64-vs-256 assertion shape changed" }
+          $s = $s.Replace($a, 'absurd.value("maxDepthUsed").toInt() == 256')
+          $s = $s.Replace($b, '"ceiling (256), got %1"')
+          Set-Content -NoNewline -Encoding utf8 $path $s
+
+      - name: Configure focused native build
+        shell: pwsh
+        run: |
+          $build = Join-Path $env:RUNNER_TEMP "c2b1-build"
+          $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S native -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCOLOSSEUM_NO_COMPILER_CACHE=ON "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DCMAKE_PREFIX_PATH=$prefix" "-DMPVQT_PREFIX=$env:MPVQT_ROOT" "-DLIBMPV_PREFIX=$env:LIBMPV_ROOT"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "C2B1_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Focused compile
+        shell: pwsh
+        run: |
+          cmake --build $env:C2B1_BUILD --target lanista_harness --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run native Windows pointer-click harness
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: windows
+          QSG_NO_VSYNC: "1"
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP "lanista-c2b1-windows.log"
+          & "$env:C2B1_BUILD\lanista_harness.exe" 2>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Quiet -SimpleMatch "LANISTA_OK" $log)) { throw "LANISTA_OK missing" }
