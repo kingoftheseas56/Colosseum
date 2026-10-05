@@ -1549,11 +1549,30 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
 // changing what the command meant halfway through the shot.
 void LanistaServer::cmdGlide(const QJsonObject& p, Replier reply)
 {
-    const QString surfaceRef = p.value(QStringLiteral("surface")).toString().trimmed();
-    if (surfaceRef.isEmpty()) {
-        reply.fail("GLIDE_BAD_PAYLOAD", QStringLiteral("glide requires a non-empty surface"));
+    const QSet<QString> allowedPayloadKeys{
+        QStringLiteral("surface"),
+        QStringLiteral("target"),
+        QStringLiteral("offset"),
+        QStringLiteral("duration_ms"),
+        QStringLiteral("easing"),
+        QStringLiteral("align"),
+        QStringLiteral("grab")
+    };
+    for (auto it = p.constBegin(); it != p.constEnd(); ++it) {
+        if (!allowedPayloadKeys.contains(it.key())) {
+            reply.fail("GLIDE_BAD_PAYLOAD",
+                       QStringLiteral("unsupported glide payload field: ") + it.key());
+            return;
+        }
+    }
+
+    const QJsonValue surfaceValue = p.value(QStringLiteral("surface"));
+    if (!surfaceValue.isString() || surfaceValue.toString().trimmed().isEmpty()) {
+        reply.fail("GLIDE_BAD_PAYLOAD",
+                   QStringLiteral("glide requires a non-empty string surface"));
         return;
     }
+    const QString surfaceRef = surfaceValue.toString().trimmed();
 
     QQuickItem* surface = resolveTarget(surfaceRef);
     if (!surface) {
@@ -1572,28 +1591,45 @@ void LanistaServer::cmdGlide(const QJsonObject& p, Replier reply)
         return;
     }
 
-    const bool hasTarget = p.contains(QStringLiteral("target"))
-        && !p.value(QStringLiteral("target")).toString().trimmed().isEmpty();
+    const bool hasTarget = p.contains(QStringLiteral("target"));
     const bool hasOffset = p.contains(QStringLiteral("offset"));
     if (hasTarget == hasOffset) {
         reply.fail("GLIDE_BAD_PAYLOAD",
                    QStringLiteral("glide requires exactly one of target or offset"));
         return;
     }
-
-    if (!p.value(QStringLiteral("duration_ms")).isDouble()) {
-        reply.fail("GLIDE_BAD_DURATION",
-                   QStringLiteral("duration_ms is required and must be 100..20000"));
+    if (hasTarget) {
+        const QJsonValue targetValue = p.value(QStringLiteral("target"));
+        if (!targetValue.isString() || targetValue.toString().trimmed().isEmpty()) {
+            reply.fail("GLIDE_BAD_TARGET",
+                       QStringLiteral("target must be a non-empty string"));
+            return;
+        }
+    } else if (p.contains(QStringLiteral("align"))) {
+        reply.fail("GLIDE_BAD_PAYLOAD",
+                   QStringLiteral("align is valid only with a named target"));
         return;
     }
-    const int durationMs = p.value(QStringLiteral("duration_ms")).toInt(-1);
-    if (durationMs < 100 || durationMs > 20000) {
+
+    const QJsonValue durationValue = p.value(QStringLiteral("duration_ms"));
+    const double rawDuration = durationValue.toDouble(
+        std::numeric_limits<double>::quiet_NaN());
+    if (!durationValue.isDouble() || !std::isfinite(rawDuration)
+        || std::floor(rawDuration) != rawDuration
+        || rawDuration < 100.0 || rawDuration > 20000.0) {
         reply.fail("GLIDE_BAD_DURATION",
-                   QStringLiteral("duration_ms must be between 100 and 20000"));
+                   QStringLiteral("duration_ms must be an integer between 100 and 20000"));
         return;
     }
+    const int durationMs = int(rawDuration);
 
-    const QString easingName = p.value(QStringLiteral("easing")).toString();
+    const QJsonValue easingValue = p.value(QStringLiteral("easing"));
+    if (!easingValue.isString()) {
+        reply.fail("GLIDE_BAD_EASING",
+                   QStringLiteral("easing must be linear, inOutCubic, outCubic, or inOutSine"));
+        return;
+    }
+    const QString easingName = easingValue.toString();
     QEasingCurve::Type easingType = QEasingCurve::Linear;
     if (easingName == QStringLiteral("linear"))
         easingType = QEasingCurve::Linear;
@@ -1683,7 +1719,15 @@ void LanistaServer::cmdGlide(const QJsonObject& p, Replier reply)
             return;
         }
 
-        align = p.value(QStringLiteral("align")).toString(QStringLiteral("start"));
+        if (p.contains(QStringLiteral("align"))) {
+            const QJsonValue alignValue = p.value(QStringLiteral("align"));
+            if (!alignValue.isString()) {
+                reply.fail("GLIDE_BAD_ALIGN",
+                           QStringLiteral("align must be start, center, or end"));
+                return;
+            }
+            align = alignValue.toString();
+        }
         if (align != QStringLiteral("start") && align != QStringLiteral("center")
             && align != QStringLiteral("end")) {
             reply.fail("GLIDE_BAD_ALIGN",
