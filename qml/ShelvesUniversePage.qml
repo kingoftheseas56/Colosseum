@@ -43,6 +43,7 @@ Item {
     readonly property string uiFace: shelfUi.name
     readonly property string displayFace: shelfDisplay.name
     property bool reducedMotion: true
+    property int directorLoadedGenerationInternal: 0
     readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
     readonly property color worldColor: root.uni.color || root.guide.c1 || "#221c30"
     readonly property color paper: theme.ink
@@ -61,6 +62,280 @@ Item {
     readonly property string directorWallpaperStatus: directorWallpaperSource.length === 0 ? "unavailable"
             : wallpaperImage.status === Image.Ready ? "ready"
             : wallpaperImage.status === Image.Error ? "error" : "loading"
+
+    // Arc 63-D2B production readiness. The declared shot is Arc 63-B's
+    // title -> final shelf glide (align:start) and return. Readiness includes only image
+    // delegates whose rendered pixels can intersect that vertical sweep, after every
+    // intermediate clipping ancestor has been applied.
+    function directorShelfWorkCountInternal(list) {
+        let n = 0
+        ;(list || []).forEach(function(shelf) {
+            ;(shelf && shelf.runs ? shelf.runs : []).forEach(function(run) {
+                n += root.runWorks(run).length
+            })
+        })
+        return n
+    }
+
+    readonly property int directorExpectedDelegateCountInternal:
+        continueRepeater.count
+        + root.directorShelfWorkCountInternal(root.rowShelves)
+        + root.directorShelfWorkCountInternal(root.tableShelves)
+        + galleryRepeater.count
+        + siblingRepeater.count
+
+    readonly property Item directorShotEndSectionInternal:
+        root.activeShelves.length > 0 ? root.sectionAt(root.activeShelves.length - 1) : null
+    readonly property string directorShotEndObjectName:
+        root.directorShotEndSectionInternal
+        ? String(root.directorShotEndSectionInternal.objectName || "") : ""
+    readonly property real directorShotEndContentYInternal:
+        root.directorShotEndSectionInternal
+        ? root.directorShotEndSectionInternal.mapToItem(page.contentItem, 0, 0).y : -1
+    readonly property real directorShotSweepBottomInternal:
+        root.directorShotEndContentYInternal >= 0 && page.height > 0 && page.contentHeight > 0
+        ? Math.min(page.contentHeight, root.directorShotEndContentYInternal + page.height) : -1
+
+    function directorIsEffectivelyVisibleInternal(item) {
+        for (let node = item; node; node = node.parent) {
+            if (node.visible === false)
+                return false
+        }
+        return true
+    }
+
+    function directorRectInPageInternal(item) {
+        const p0 = item.mapToItem(page.contentItem, 0, 0)
+        const p1 = item.mapToItem(page.contentItem, item.width, 0)
+        const p2 = item.mapToItem(page.contentItem, 0, item.height)
+        const p3 = item.mapToItem(page.contentItem, item.width, item.height)
+        return {
+            left: Math.min(p0.x, p1.x, p2.x, p3.x),
+            right: Math.max(p0.x, p1.x, p2.x, p3.x),
+            top: Math.min(p0.y, p1.y, p2.y, p3.y),
+            bottom: Math.max(p0.y, p1.y, p2.y, p3.y)
+        }
+    }
+
+    function directorIntersectRectInternal(a, b) {
+        return {
+            left: Math.max(a.left, b.left),
+            right: Math.min(a.right, b.right),
+            top: Math.max(a.top, b.top),
+            bottom: Math.min(a.bottom, b.bottom)
+        }
+    }
+
+    function directorItemCanAppearInternal(item, sweepBottom) {
+        if (!item || item.width <= 0 || item.height <= 0 || !isFinite(sweepBottom) || sweepBottom <= 0)
+            return false
+        if (!root.directorIsEffectivelyVisibleInternal(item))
+            return false
+
+        let rect = root.directorRectInPageInternal(item)
+        for (let node = item.parent; node && node !== page.contentItem; node = node.parent) {
+            if (node.visible === false)
+                return false
+            if (node.clip === true) {
+                rect = root.directorIntersectRectInternal(rect, root.directorRectInPageInternal(node))
+                if (rect.right <= rect.left || rect.bottom <= rect.top)
+                    return false
+            }
+        }
+
+        rect = root.directorIntersectRectInternal(rect, {
+            left: 0, right: page.width, top: 0, bottom: sweepBottom
+        })
+        return rect.right > rect.left && rect.bottom > rect.top
+    }
+
+    function directorCollectMembersInternal(item, out) {
+        if (!item)
+            return
+        if (item["directorReadinessMember"] === true)
+            out.push(item)
+        const children = item.children || []
+        for (let i = 0; i < children.length; ++i)
+            root.directorCollectMembersInternal(children[i], out)
+    }
+
+    function directorSnapshotInternal() {
+        const diagnostics = []
+        const requiredMembers = []
+        const identityRows = []
+        const observationRows = []
+        const allMembers = []
+        root.directorCollectMembersInternal(root, allMembers)
+
+        const currentLoad = root.universeName.length > 0
+                && root.directorLoadedGenerationInternal === root.loadGeneration
+                && String(root.uni.name || "") === root.universeName
+        let enumerable = currentLoad
+                && root.directorShotEndSectionInternal !== null
+                && root.directorShotEndObjectName.length > 0
+                && root.directorShotSweepBottomInternal > 0
+                && allMembers.length === root.directorExpectedDelegateCountInternal
+        let required = 0
+        let ready = 0
+        let failed = 0
+
+        function diagnose(kind, key, source, status, reason) {
+            if (diagnostics.length < 8)
+                diagnostics.push({ kind: kind, key: key, source: source,
+                                   status: status, reason: reason })
+        }
+
+        function account(kind, key, expectedSource, actualSource, status) {
+            required += 1
+            requiredMembers.push({ kind: kind, key: key, source: expectedSource, status: status })
+            identityRows.push([kind, key, expectedSource, actualSource])
+            observationRows.push([kind, key, expectedSource, actualSource, status])
+            if (!key) {
+                failed += 1
+                diagnose(kind, key, expectedSource, status, "missing-key")
+                return
+            }
+            if (!expectedSource) {
+                failed += 1
+                diagnose(kind, key, expectedSource, "unavailable", "missing-source")
+                return
+            }
+            if (actualSource !== expectedSource) {
+                failed += 1
+                diagnose(kind, key, expectedSource, status, "source-assignment-mismatch")
+                return
+            }
+            if (status === "ready") {
+                ready += 1
+                return
+            }
+            if (status === "error" || status === "unavailable") {
+                failed += 1
+                diagnose(kind, key, expectedSource, status,
+                         status === "error" ? "image-error" : "image-unavailable")
+                return
+            }
+            diagnose(kind, key, expectedSource, status, "not-ready")
+        }
+
+        if (!currentLoad) {
+            diagnose("surface", root.universeName, "", "unavailable", "generation-or-universe-mismatch")
+        } else {
+            account("wallpaper", "wallpaper:" + root.universeName,
+                    String(root.directorWallpaperSource || ""),
+                    String(wallpaperImage.source || ""),
+                    String(root.directorWallpaperStatus || "loading"))
+        }
+
+        if (currentLoad && allMembers.length !== root.directorExpectedDelegateCountInternal) {
+            diagnose("surface", root.universeName, "", "unavailable",
+                     "delegate-cohort-not-enumerable:"
+                     + allMembers.length + "/" + root.directorExpectedDelegateCountInternal)
+        }
+        if (currentLoad && root.directorShotEndSectionInternal === null)
+            diagnose("surface", root.universeName, "", "unavailable", "final-shelf-not-enumerable")
+        if (currentLoad && root.directorShotSweepBottomInternal <= 0)
+            diagnose("surface", root.universeName, "", "unavailable", "shot-range-not-enumerable")
+
+        if (enumerable) {
+            for (let i = 0; i < allMembers.length; ++i) {
+                const member = allMembers[i]
+                if (!root.directorItemCanAppearInternal(member, root.directorShotSweepBottomInternal))
+                    continue
+                account(String(member["directorAssetKind"] || "asset"),
+                        String(member["directorAssetKey"] || ""),
+                        String(member["directorArtSource"] || ""),
+                        String(member["directorActualArtSource"] || ""),
+                        String(member["directorArtStatus"] || "loading"))
+            }
+        }
+
+        const identityToken = JSON.stringify({
+            generation: root.loadGeneration,
+            loadedGeneration: root.directorLoadedGenerationInternal,
+            requestedUniverse: root.universeName,
+            loadedUniverse: String(root.uni.name || ""),
+            endObject: root.directorShotEndObjectName,
+            sweepBottom: Math.round(root.directorShotSweepBottomInternal * 100) / 100,
+            expectedDelegates: root.directorExpectedDelegateCountInternal,
+            observedDelegates: allMembers.length,
+            enumerable: enumerable,
+            members: identityRows
+        })
+        const observationToken = JSON.stringify({
+            identity: identityToken,
+            currentLoad: currentLoad,
+            required: required,
+            ready: ready,
+            failed: failed,
+            observations: observationRows
+        })
+        return {
+            currentLoad: currentLoad,
+            enumerable: enumerable,
+            required: required,
+            ready: ready,
+            failed: failed,
+            diagnostics: diagnostics,
+            requiredMembers: requiredMembers,
+            identityToken: identityToken,
+            observationToken: observationToken
+        }
+    }
+
+    readonly property var directorCohortSnapshotInternal: root.directorSnapshotInternal()
+    readonly property string directorExpectedCohortTokenInternal:
+        String(root.directorCohortSnapshotInternal.identityToken || "")
+    readonly property string directorObservationTokenInternal:
+        String(root.directorCohortSnapshotInternal.observationToken || "")
+    property int directorReadinessEpoch: 0
+    property int directorPresentedFramesInternal: 0
+    readonly property int directorRequiredCount: root.directorCohortSnapshotInternal.required
+    readonly property int directorReadyCount: root.directorCohortSnapshotInternal.ready
+    readonly property int directorFailedCount: root.directorCohortSnapshotInternal.failed
+    readonly property var directorReadinessDiagnostics: root.directorCohortSnapshotInternal.diagnostics
+    readonly property var directorRequiredMembersInternal:
+        root.directorCohortSnapshotInternal.requiredMembers
+    readonly property int directorPresentedFrameCount: root.directorPresentedFramesInternal
+    readonly property bool directorSurfaceActiveInternal: {
+        const window = root.Window.window
+        return root.directorIsEffectivelyVisibleInternal(root)
+                && root.width > 0 && root.height > 0
+                && window !== null && window.visible
+    }
+    readonly property bool directorAllRequiredReadyInternal:
+        root.directorCohortSnapshotInternal.currentLoad
+        && root.directorCohortSnapshotInternal.enumerable
+        && root.directorRequiredCount > 0
+        && root.directorFailedCount === 0
+        && root.directorReadyCount === root.directorRequiredCount
+    readonly property string directorReadinessState:
+        !root.directorSurfaceActiveInternal
+             || !root.directorCohortSnapshotInternal.currentLoad
+             || !root.directorCohortSnapshotInternal.enumerable
+             || root.directorRequiredCount === 0 ? "unavailable"
+        : root.directorFailedCount > 0 ? "partial"
+        : !root.directorAllRequiredReadyInternal ? "loading"
+        : root.directorPresentedFramesInternal >= 2 ? "settled" : "loading"
+
+    onDirectorExpectedCohortTokenInternalChanged: {
+        root.directorReadinessEpoch += 1
+        root.directorPresentedFramesInternal = 0
+    }
+    onDirectorObservationTokenInternalChanged: root.directorPresentedFramesInternal = 0
+    onDirectorSurfaceActiveInternalChanged: root.directorPresentedFramesInternal = 0
+
+    Connections {
+        target: root.Window.window
+        function onFrameSwapped() {
+            if (!root.directorSurfaceActiveInternal || !root.directorAllRequiredReadyInternal) {
+                root.directorPresentedFramesInternal = 0
+                return
+            }
+            if (root.directorPresentedFramesInternal < 2)
+                root.directorPresentedFramesInternal += 1
+        }
+    }
 
     // ---- the shelves are data: one panel per non-empty shelf, in entry order ----
     function runWorks(run) { return run ? (run.works || run.items || []) : [] }
@@ -288,12 +563,16 @@ Item {
     Keys.onReleased: (event) => pageKeyboardScroll.handleRelease(event)
 
     function reload() {
+        const generation = ++root.loadGeneration
+        root.directorLoadedGenerationInternal = 0
         if (!root.universeName.length) return         // never load a default universe (the OP-flash lesson)
         root.selectedKey = ""
         page.contentY = 0
-        const generation = ++root.loadGeneration
         Saga.loadShelves(root.universeName, function(u) {
-            if (generation === root.loadGeneration && u) root.uni = u
+            if (generation === root.loadGeneration && u) {
+                root.uni = u
+                root.directorLoadedGenerationInternal = generation
+            }
         })
     }
     Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
@@ -429,6 +708,7 @@ Item {
                 Row {
                     spacing: 16
                     Repeater {
+                        id: continueRepeater
                         model: root.continueItems.slice(0, Math.max(1, Math.floor((continueSection.width + 16) / 356)))
                         delegate: ContinueTile {
                             id: continueTile
@@ -487,15 +767,25 @@ Item {
                 Row {
                     spacing: 24
                     Repeater {
+                        id: galleryRepeater
                         model: root.stills
                         delegate: Rectangle {
                             id: still
                             required property var modelData
+                            readonly property bool directorReadinessMember: true
+                            readonly property string directorAssetKind: "gallery"
+                            readonly property string directorAssetKey: "gallery:" + root.keyOf(still.modelData)
+                            readonly property string directorArtSource: String(still.modelData.art || "")
+                            readonly property string directorActualArtSource: String(stillArt.source || "")
+                            readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
+                                    : stillArt.status === Image.Ready ? "ready"
+                                    : stillArt.status === Image.Error ? "error" : "loading"
                             width: (gallerySection.width - 72) / 4; height: Math.round(width * 9 / 16)
                             radius: 8; clip: true
                             color: root.worldColor
                             border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.12)
                             Image {
+                                id: stillArt
                                 anchors.fill: parent; anchors.margins: 1
                                 source: still.modelData.art
                                 asynchronous: true; cache: true
@@ -563,16 +853,27 @@ Item {
                 Row {
                     spacing: 24
                     Repeater {
+                        id: siblingRepeater
                         model: root.siblings
                         delegate: Rectangle {
                             id: sibling
                             required property var modelData
+                            readonly property bool directorReadinessMember: true
+                            readonly property string directorAssetKind: "sibling"
+                            readonly property string directorAssetKey: "sibling:" + String(sibling.modelData.name || "")
+                            readonly property string directorArtSource:
+                                String(sibling.modelData.wallpaper || sibling.modelData.banner || "")
+                            readonly property string directorActualArtSource: String(siblingArt.source || "")
+                            readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
+                                    : siblingArt.status === Image.Ready ? "ready"
+                                    : siblingArt.status === Image.Error ? "error" : "loading"
                             width: (moreSection.width - 72) / 4; height: Math.round(width * 9 / 16)
                             radius: 12; clip: true
                             color: sibling.modelData.c1 || root.worldColor
                             border.width: siblingKey.interactionActive ? 2 : 1
                             border.color: siblingKey.interactionActive ? root.goldEdge : Qt.rgba(0.97, 0.97, 0.96, 0.12)
                             Image {
+                                id: siblingArt
                                 anchors.fill: parent; anchors.margins: 1
                                 source: sibling.modelData.wallpaper || sibling.modelData.banner || ""
                                 asynchronous: true; cache: true
@@ -1136,6 +1437,15 @@ Item {
                         readonly property bool keyed: tableFocus.activeFocus && table.currentIndex === line.index
                         readonly property bool hot: lineMouse.containsMouse || line.keyed
                         readonly property real done: root.fraction(line.modelData)
+                        readonly property bool directorReadinessMember: true
+                        readonly property string directorAssetKind: "table"
+                        readonly property string directorAssetKey:
+                            "table:" + table.key + ":" + root.keyOf(line.modelData)
+                        readonly property string directorArtSource: String(line.modelData.cover || "")
+                        readonly property string directorActualArtSource: String(tableCover.source || "")
+                        readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
+                                : tableCover.status === Image.Ready ? "ready"
+                                : tableCover.status === Image.Error ? "error" : "loading"
                         objectName: "shelvesTableRow_" + table.key + "_" + line.index
                         x: line.col * (tableBody.colW + table.columnSeam)
                         y: line.place * table.rowH
@@ -1163,6 +1473,7 @@ Item {
                             color: root.worldColor
                             border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.12)
                             Image {
+                                id: tableCover
                                 anchors.fill: parent; anchors.margins: 1
                                 source: line.modelData.cover || ""
                                 asynchronous: true; cache: true
@@ -1279,8 +1590,11 @@ Item {
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
         objectName: "shelvesTile_" + root.keyOf(tile.item).replace(/[^A-Za-z0-9]+/g, "_")
+        readonly property bool directorReadinessMember: true
+        readonly property string directorAssetKind: "shelf"
         readonly property string directorAssetKey: root.keyOf(tile.item)
         readonly property string directorArtSource: String(tile.item ? (tile.item.cover || "") : "")
+        readonly property string directorActualArtSource: String(art.source || "")
         readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
                 : art.status === Image.Ready ? "ready"
                 : art.status === Image.Error ? "error" : "loading"

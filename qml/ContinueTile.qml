@@ -56,6 +56,20 @@ Item {
     readonly property color c2: entry.c2 !== undefined ? entry.c2 : (videoPresentation.c2 || "#111")
     property string cover: (entry.cover !== undefined && ("" + entry.cover).length) ? entry.cover : (videoPresentation.cover || "")
 
+    // Arc 63-D2B: the owning surface decides whether this tile intersects its shot.
+    // This component only reports the exact production cover Image assignment/status.
+    readonly property bool directorReadinessMember: true
+    readonly property string directorAssetKind: "continue"
+    readonly property string directorAssetKey:
+        "continue:" + tile.kind + ":" + String(tile.entry && tile.entry.id !== undefined
+                                               ? tile.entry.id : tile.label)
+    readonly property string directorArtSource: String(tile.cover || "")
+    readonly property string directorActualArtSource:
+        tile.isHome ? String(homeCoverArt.directorActualSource || "")
+                    : String(worldCoverArt.directorActualSource || "")
+    readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
+            : tile.isHome ? homeCoverArt.directorStatus : worldCoverArt.directorStatus
+
     // "world" tiles share the catalogue gallery poster geometry (148x222) so Continue reads as one
     // family with the shelves below it; "home" keeps its 340x148 landscape glass card.
     readonly property int worldW: Metrics.gallery.posterWidth
@@ -98,8 +112,13 @@ Item {
 
     // ── the reliable cover: gradient instantly, cover fades over it, one retry, never blank ──
     component CoverArt: Item {
+        id: coverArt
         property real decodeW: 264
         property real decodeH: 392
+        readonly property string directorActualSource: String(art.source || "")
+        readonly property string directorStatus: tile.cover.length === 0 ? "unavailable"
+                : art.status === Image.Ready ? "ready"
+                : art.status === Image.Error ? "error" : "loading"
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -146,7 +165,7 @@ Item {
         }
         Item {
             width: 112; height: parent.height
-            CoverArt { anchors.fill: parent; decodeW: 224; decodeH: 296 }
+            CoverArt { id: homeCoverArt; anchors.fill: parent; decodeW: 224; decodeH: 296 }
             layer.enabled: true
             layer.effect: MultiEffect { maskEnabled: true; maskSource: homeArtMask }
         }
@@ -210,7 +229,7 @@ Item {
         anchors.fill: parent
         layer.enabled: true
         layer.effect: MultiEffect { maskEnabled: true; maskSource: worldMask; maskThresholdMin: 0.5 }
-        CoverArt { anchors.fill: parent; decodeW: 296; decodeH: 444 }
+        CoverArt { id: worldCoverArt; anchors.fill: parent; decodeW: 296; decodeH: 444 }
         // bottom scrim keeps the in-tile metadata readable over ANY cover art
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
