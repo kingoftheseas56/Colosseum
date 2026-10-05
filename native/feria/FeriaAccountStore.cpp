@@ -12,7 +12,18 @@
 #include <QUrlQuery>
 #include <QUuid>
 #include <QSet>
+#include <QRegularExpression>
 #include <cmath>
+
+namespace {
+QString continueIdentity(const QVariantMap &row) {
+    if (row.value("kind") == "book") {
+        const auto url = FeriaAccountStore::safeUrl(row.value("url").toString());
+        if (!url.isEmpty()) return "book\n" + row.value("pk").toString() + "\n" + url;
+    }
+    return "media\n" + row.value("id").toString();
+}
+}
 
 FeriaAccountStore::FeriaAccountStore(QObject *parent) : QObject(parent) {}
 
@@ -45,7 +56,9 @@ QVariantList FeriaAccountStore::continueItems() const {
     rows.append(m_state.value("retainedContinue").toList());
     for (const auto &value : rows) {
         const auto row = value.toMap();
-        const auto id = row.value("id").toString();
+        // Title-derived IDs in existing files refer to the same chapter. The
+        // newest row wins, including completion/dismissal, without deleting history.
+        const auto id = continueIdentity(row);
         if (seen.contains(id)) continue;
         seen.insert(id);
         if (!row.value("completed").toBool() && !row.value("dismissed").toBool()) result.append(row);
@@ -122,13 +135,31 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     auto locator = sample.value("locator").toMap();
     if (reading && locator.isEmpty()) locator.insert("type", "url");
     const bool scroll = reading && locator.value("type") == "scroll";
+    const bool mangaPage = reading && locator.value("type") == "mangaplus-page";
     const double fraction = locator.value("fraction").toDouble();
-    if (reading && (locator.value("type") != "url" && !scroll)) return false;
+    if (reading && (locator.value("type") != "url" && !scroll && !mangaPage)) return false;
     if (scroll && (!std::isfinite(fraction) || fraction < 0 || fraction > 1
         || locator.value("selector").toString().size() > 512)) return false;
-    if (reading) locator = scroll ? QVariantMap{{"type", "scroll"}, {"fraction", fraction}, {"selector", locator.value("selector").toString()}} : QVariantMap{{"type", "url"}};
-    const double position = reading ? (scroll ? fraction * 100 : 0) : sample.value("position").toDouble();
-    const double duration = reading ? (scroll ? 100 : 0) : sample.value("duration").toDouble();
+    double readingFraction = scroll ? fraction : 0;
+    if (mangaPage) {
+        bool pageOk = false, offsetOk = false, totalOk = false;
+        const double page = locator.value("page").toDouble(&pageOk);
+        const double offset = locator.value("offset").toDouble(&offsetOk);
+        const double total = locator.value("total").toDouble(&totalOk);
+        const QUrl readerUrl(url);
+        if (m_context.value("pk") != "mangaplus" || readerUrl.scheme() != "https"
+            || readerUrl.host() != "mangaplus.shueisha.co.jp"
+            || !QRegularExpression("^/viewer/[0-9]+$").match(readerUrl.path()).hasMatch()
+            || !pageOk || !offsetOk || !totalOk || !std::isfinite(page) || !std::isfinite(offset)
+            || !std::isfinite(total) || page < 0 || page != std::floor(page) || page >= total
+            || total < 1 || total > 10000 || total != std::floor(total) || offset < 0 || offset > 1) return false;
+        readingFraction = (page + offset) / total;
+        locator = {{"type", "mangaplus-page"}, {"page", int(page)}, {"offset", offset}, {"total", int(total)}};
+    } else if (reading) {
+        locator = scroll ? QVariantMap{{"type", "scroll"}, {"fraction", fraction}, {"selector", locator.value("selector").toString()}} : QVariantMap{{"type", "url"}};
+    }
+    const double position = reading ? readingFraction * 100 : sample.value("position").toDouble();
+    const double duration = reading ? (scroll || mangaPage ? 100 : 0) : sample.value("duration").toDouble();
     const bool playing = !sample.value("paused", true).toBool() && !sample.value("ended").toBool();
     if (url.isEmpty() || (!reading && (sample.value("ad").toBool() || !std::isfinite(position)
         || !std::isfinite(duration) || duration < 30 || position <= 0))) { m_lastPlaying = false; return false; }
@@ -136,7 +167,9 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     if (title.isEmpty()) title = m_context.value("title").toString();
     if (title.isEmpty()) title = QUrl(url).host();
     const auto pk = m_context.value("pk").toString();
-    const auto id = QString::fromLatin1(QCryptographicHash::hash((pk + "\n" + url + "\n" + title).toUtf8(), QCryptographicHash::Sha256).toHex());
+    const auto identity = reading ? continueIdentity({{"kind", "book"}, {"pk", pk}, {"url", url}})
+                                  : pk + "\n" + url + "\n" + title;
+    const auto id = QString::fromLatin1(QCryptographicHash::hash(identity.toUtf8(), QCryptographicHash::Sha256).toHex());
     double active = 0;
     const double delta = position - m_lastPosition;
     const double rate = sample.value("rate", 1).toDouble();
@@ -202,8 +235,19 @@ bool FeriaAccountStore::clearActivity() {
 }
 bool FeriaAccountStore::dismissContinue(const QString &id) {
     auto rows = sessions();
-    for (auto &value : rows) { auto row = value.toMap(); if (row.value("id") == id) { row.insert("dismissed", true); value = row; } }
     auto retained = m_state.value("retainedContinue").toList();
-    for (auto &value : retained) { auto row = value.toMap(); if (row.value("id") == id) { row.insert("dismissed", true); value = row; } }
+    auto all = rows; all.append(retained);
+    QString identity;
+    for (const auto &value : all) {
+        const auto row = value.toMap();
+        if (row.value("id") == id) { identity = continueIdentity(row); break; }
+    }
+    auto dismiss = [&](QVariantList &items) {
+        for (auto &value : items) {
+            auto row = value.toMap();
+            if (!identity.isEmpty() && continueIdentity(row) == identity) { row.insert("dismissed", true); value = row; }
+        }
+    };
+    dismiss(rows); dismiss(retained);
     auto state = m_state; state.insert("sessions", rows); state.insert("retainedContinue", retained); return commit(state);
 }

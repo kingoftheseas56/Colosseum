@@ -57,7 +57,7 @@ FeriaHostItem {
             } catch (e) {}
         } else if (label === "feria-reading-resume-" + navigationGeneration) {
             if (json === "true") resumeLocator = null
-            else if (readingResumeAttempts >= 10) { resumeLocator = null; resumeUnavailable() }
+            else if (readingResumeAttempts >= (resumeLocator && resumeLocator.type === "mangaplus-page" ? 60 : 10)) { resumeLocator = null; resumeUnavailable() }
         } else if (label === "feria-account-resume-" + navigationGeneration) {
             if (json === "true") resumePosition = 0
             else if (mediaResumeAttempts >= 10) { resumePosition = 0; resumeUnavailable() }
