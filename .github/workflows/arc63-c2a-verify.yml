@@ -33,7 +33,7 @@ jobs:
           version: "6.11.1"
           host: linux
           target: desktop
-          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qttools"
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
 
@@ -47,6 +47,21 @@ jobs:
             libboost-system-dev libssl-dev xvfb libxcb-cursor0 \
             libgl1-mesa-dev libxkbcommon-x11-0 libxcb-xinerama0 \
             libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0
+
+      - name: Build pinned ECM 6.15.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/ecm-source"
+          build_root="$RUNNER_TEMP/ecm-build"
+          install_root="$RUNNER_TEMP/ecm-install"
+          git clone --filter=blob:none https://github.com/KDE/extra-cmake-modules.git "$source_root"
+          git -C "$source_root" checkout d3263ec15541584c211ce106db92486881e07172
+          cmake -S "$source_root" -B "$build_root" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$install_root"
+          cmake --build "$build_root" --target install --parallel 2
+          echo "ECM_ROOT=$install_root" >> "$GITHUB_ENV"
 
       - name: Build pinned MpvQt
         shell: bash
@@ -67,7 +82,7 @@ jobs:
           cmake -S "$source_dir" -B "$build_root" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$install_root" \
-            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT" \
             -DBUILD_EXAMPLES=OFF
           cmake --build "$build_root" --target install --parallel 2
           echo "MPVQT_ROOT=$install_root" >> "$GITHUB_ENV"
