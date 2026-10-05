@@ -241,7 +241,7 @@ jobs:
 
           $generatedToolchains = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File
           if (-not $generatedToolchains) {
-            throw "run_core_GnDone completed but generated no Chromium toolchain.ninja files."
+            throw 'run_core_GnDone completed but generated no Chromium toolchain.ninja files.'
           }
           Write-Output "Generated $($generatedToolchains.Count) Chromium toolchain file(s)."
 
@@ -251,149 +251,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
 
           $argsHit = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File |
-            Select-String -Pattern '^cc_wrapper="sccache"
-          $hit = $toolchains |
-            Select-String -Pattern 'sccache' |
-            Where-Object { $_.Line -match 'cl\.exe' } |
-            Select-Object -First 1
-          if (-not $hit) {
-            Write-Output 'No generated compile command contained both sccache and cl.exe. Dumping cache-related GN evidence:'
-            Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File |
-              Select-String -Pattern 'cc_wrapper|sccache' |
-              Select-Object -First 20 |
-              ForEach-Object { Write-Output "$($_.Path):$($_.LineNumber): $($_.Line)" }
-            $toolchains |
-              Select-String -Pattern 'command =|sccache|cl\.exe' |
-              Select-Object -First 40 |
-              ForEach-Object { Write-Output "$($_.Path):$($_.LineNumber): $($_.Line)" }
-            throw 'Chromium GN toolchain is not invoking sccache before cl.exe; refusing to burn a multi-hour runner.'
-          }
-          Write-Output "cache wiring: $($hit.Path):$($hit.LineNumber)"
-          Write-Output $hit.Line
-          sccache --zero-stats
-      - name: Build WebEngine (${{ github.event.inputs.phase }})
-        id: webengine_build
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $PSNativeCommandUseErrorActionPreference = $false
-
-          $phase = '${{ github.event.inputs.phase }}'
-          $budgetMinutes = if ($phase -eq 'seed') { 320 } else { 330 }
-          $jobs = [int]$env:NUMBER_OF_PROCESSORS
-          $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
-          $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
-
-          Write-Output "phase=$phase; building with -j$jobs; controlled budget=$($budgetMinutes)m"
-          Write-Output 'Completed compiler results are written continuously to the sccache GHA backend.'
-
-          $proc = Start-Process -FilePath 'cmake.exe' -ArgumentList @('--build', $env:WEBENGINE_BUILD_DIR, '--parallel', "$jobs") -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
-          $deadline = (Get-Date).AddMinutes($budgetMinutes)
-          $nextReport = Get-Date
-
-          while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
-            Start-Sleep -Seconds 15
-            $proc.Refresh()
-            if ((Get-Date) -ge $nextReport) {
-              Write-Output "---- build heartbeat $(Get-Date -Format o) ----"
-              if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 3 }
-              if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 3 }
-              $nextReport = (Get-Date).AddMinutes(5)
-            }
-          }
-
-          $proc.Refresh()
-          if (-not $proc.HasExited) {
-            Write-Output "::warning::Build phase '$phase' reached its $budgetMinutes-minute budget; stopping the process tree before GitHub's six-hour job guillotine."
-            & taskkill.exe /PID $proc.Id /T /F | Out-Null
-            Start-Sleep -Seconds 3
-            'completed=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            'budget_exhausted=true' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-            if ($phase -eq 'seed') {
-              Write-Output 'Seed phase complete: compiler cache has been warmed. Re-run this workflow with phase=finish.'
-              exit 0
-            }
-
-            Write-Output '::error::Finish phase exhausted its build budget. Re-run phase=finish to consume the additional cache written by this attempt.'
-            exit 124
-          }
-
-          $proc.WaitForExit()
-          $rc = $proc.ExitCode
-          'budget_exhausted=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-          if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 20 }
-          if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 20 }
-
-          if ($rc -ne 0) {
-            $patterns = 'FAILED:|fatal error|\berror\b|LNK\d+|No such'
-            Select-String -Path @($stdoutLog, $stderrLog) -Pattern $patterns -ErrorAction SilentlyContinue | Select-Object -Last 40 | ForEach-Object {
-              $m = $_.Line.Replace('%','%25')
-              Write-Output "::error::$m"
-            }
-            'completed=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            exit $rc
-          }
-
-          'completed=true' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Output "WebEngine build completed inside the $phase phase."
-          Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
-
-      - name: Report sccache stats
-        if: always()
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $cmd = Get-Command sccache -ErrorAction SilentlyContinue
-          if (-not $cmd) {
-            Write-Output 'sccache is unavailable; no stats to report.'
-            exit 0
-          }
-          $stats = (sccache --show-stats 2>&1 | Out-String).TrimEnd()
-          Write-Output $stats
-          '### QtWebEngine sccache stats' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-          '```text' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-          $stats | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-          '```' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-      - name: Install WebEngine module
-        if: steps.webengine_build.outputs.completed == 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
-          cmake --install "$env:WEBENGINE_BUILD_DIR"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
-          if (-not $core) { throw "Qt6WebEngineCore.dll missing from install prefix" }
-          Write-Output "installed: $($core.FullName)"
-
-      - name: Package artifact
-        if: steps.webengine_build.outputs.completed == 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
-          $zip = Join-Path $env:RUNNER_TEMP "qtwebengine-$($env:QT_VERSION)-msvc2022_64-codecs.zip"
-          Compress-Archive -Path (Join-Path $env:WEBENGINE_INSTALL_DIR '*') -DestinationPath $zip -Force
-          "ARTIFACT_ZIP=$zip" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "{0:N1} MB" -f ((Get-Item $zip).Length/1MB)
-
-      - name: Upload codec-enabled WebEngine
-        if: steps.webengine_build.outputs.completed == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: qtwebengine-${{ env.QT_VERSION }}-msvc2022_64-codecs
-          path: ${{ env.ARTIFACT_ZIP }}
-          retention-days: 14
-          if-no-files-found: error
- |
+            Select-String -SimpleMatch 'cc_wrapper="sccache"' |
             Select-Object -First 1
           if (-not $argsHit) {
-            throw 'Qt did not propagate CMAKE_CXX_COMPILER_LAUNCHER into Chromium args.gn as cc_wrapper="sccache".'
+            throw 'Qt did not propagate the compiler launcher into Chromium args.gn as cc_wrapper="sccache".'
           }
           Write-Output "GN wrapper: $($argsHit.Path):$($argsHit.LineNumber): $($argsHit.Line)"
-
           $toolchains = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File
           $hit = $toolchains |
             Select-String -Pattern 'sccache' |
