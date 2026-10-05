@@ -101,14 +101,14 @@ var universes = [
       ],
       // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
       manga: [
-        { t: "One Piece",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
-        { t: "Ace's Story",              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
-        { t: "One Piece Party",          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
-        { t: "Shokugeki no Sanji",       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
-        { t: "Koisuru One Piece",        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
-        { t: "One Piece × Toriko",       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
-        { t: "Chapter 1000 Special",     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
-        { t: "Wanted! — Oda's Origins",  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
+        { t: "One Piece", al: 30013, mal: 13,                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+        { t: "Ace's Story", al: 117802, mal: 128594,              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
+        { t: "One Piece Party", al: 102533, mal: 86972,          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
+        { t: "Shokugeki no Sanji", al: 103252, mal: 114760,       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
+        { t: "Koisuru One Piece", al: 110233, mal: 120401,        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
+        { t: "One Piece × Toriko", al: 55146, mal: 25146,       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
+        { t: "Chapter 1000 Special", al: 154266, mal: 150042,     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
+        { t: "Wanted! — Oda's Origins", al: 30793, mal: 793,  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
       ],
       // THE STORY GRID (2026-10-04, whole works only — the sagas-as-waypoints list above
       // is Tribute material and ignored here): one story, the manga over its three shows.
@@ -217,14 +217,14 @@ var universes = [
       ],
       // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
       manga: [
-        { t: "Dragon Ball",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
-        { t: "Dragon Ball Super",          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
-        { t: "Dragon Ball SD",             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
-        { t: "Reincarnated as Yamcha!",    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
-        { t: "Episode of Bardock",         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
-        { t: "Resurrection 'F'",           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
+        { t: "Dragon Ball", al: 30042, mal: 42,                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
+        { t: "Dragon Ball Super", al: 86508, mal: 89734,          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
+        { t: "Dragon Ball SD", al: 53446, mal: 23446,             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
+        { t: "Reincarnated as Yamcha!", al: 98030, mal: 103047,    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
+        { t: "Episode of Bardock", al: 56373, mal: 26373,         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
+        { t: "Resurrection 'F'", al: 94109, mal: 86671,           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
         { t: "Dragon Ball Minus",          q: "Dragon Ball Minus Departure Fated Child", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx97900-EqScEWX0U6Tj.png" },
-        { t: "Goku & Friends Return!!",    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
+        { t: "Goku & Friends Return!!", al: 46110, mal: 16110,    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
       ],
       firstWatch: { t: "Dragon Ball", id: "tt0088509" },
       // THE STORY GRID (2026-10-04, whole works only): a column per series, the manga row

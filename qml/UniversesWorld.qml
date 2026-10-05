@@ -12,6 +12,7 @@
 // standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
 import QtQuick
 import "Universes.js" as Universes
+import "SagaApi.js" as Saga
 
 WorldPage {
     id: universes
@@ -54,6 +55,30 @@ WorldPage {
             universes.walking = true
             universes.hovered = -1
             walkSettle.restart()
+        }
+    }
+
+    // ---- WARMING: a banner that is pointed at (hovered, or selected by keyboard) for a
+    //      moment has the first posters of its shelves page fetched ahead of the click, so
+    //      the page does not open on empty tiles. One universe at a time, shelves pages only;
+    //      same sourceSize as the page's tiles, so the decoded image is reused as it is ----
+    readonly property var pointedAt: universes.hovered >= 0 ? universes.shown[universes.hovered]
+            : (pile.activeFocus && pile.currentIndex >= 0 ? universes.shown[pile.currentIndex] : null)
+    property string warming: ""
+    onPointedAtChanged: warmDelay.restart()
+    Timer {
+        id: warmDelay; interval: 320
+        onTriggered: if (universes.pointedAt && universes.pointedAt.page === "shelves")
+                         universes.warming = universes.pointedAt.name
+    }
+    Repeater {
+        objectName: "universesWarmer"
+        model: universes.warming.length ? Saga.shelfImageUrls(universes.warming, 8) : []
+        delegate: Image {
+            required property string modelData
+            source: modelData
+            asynchronous: true; cache: true; visible: false
+            sourceSize.width: 400
         }
     }
 

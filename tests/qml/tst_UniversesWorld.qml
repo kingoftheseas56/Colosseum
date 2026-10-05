@@ -101,6 +101,15 @@ Item {
             compare(carousel.slides[1].secondaryLabel, "")
             verify(carousel.slides[0].secondaryLabel === undefined)
         }
+        function test_pointedBannerWarmsItsFirstPosters() {
+            const ledger = findChild(world, "universesLedger")
+            ledger.forceActiveFocus()
+            keyClick(Qt.Key_Down)                       // Avatar: a shelves page
+            tryCompare(world, "warming", "Avatar: The Last Airbender")
+            // 3 series + 2 films + 5 books, every one a pinned cover
+            compare(findChild(world, "universesWarmer").count, 10)
+            ledger.currentIndex = 0
+        }
         function test_tributeOrderIsFixed() {
             const handed = world.installed
             world.installed = handed.slice().reverse()

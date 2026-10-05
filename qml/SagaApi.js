@@ -757,6 +757,25 @@ function loadStudio(name, push) {
     emit();
 }
 
+// The covers a shelves page shows first: the opening `perShelf` works of every shelf. The
+// Universes world warms these when a banner is pointed at, so the page opens with its posters
+// already in the cache. PURE: curation only, no request.
+function shelfImageUrls(name, perShelf) {
+    var urls = [], seen = {};
+    shelfSpecsFor(UDB.configFor(name)).forEach(function(spec, si) {
+        var taken = 0, key = shelfKeyOf(spec.title, si);
+        (spec.runs || []).forEach(function(run) {
+            (run.works || []).forEach(function(w) {
+                if (taken >= perShelf) return;
+                ++taken;
+                var cover = shelfItem(w, spec.kind || "movie", key, taken).cover;
+                if (cover && !seen[cover]) { seen[cover] = true; urls.push(cover); }
+            });
+        });
+    });
+    return urls;
+}
+
 // every remote cover, for prefetch / disk-cache warming
 function imageUrls(u) {
     var urls = [];
