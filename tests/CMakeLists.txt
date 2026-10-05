@@ -362,6 +362,31 @@ set_tests_properties(colosseum.qttest.capture_runner PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+
+# Arc 63-A: the scenario-local hold verb must wait honestly, reject malformed
+# durations as ordinary reds, and compose between keypresses without touching
+# the bridge. The test launches the real lanista binary against a tiny fake pipe.
+add_executable(tst_lanista_hold auto/lanista/tst_lanista_hold.cpp)
+target_link_libraries(tst_lanista_hold PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_dependencies(tst_lanista_hold lanista)
+set_target_properties(tst_lanista_hold PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_lanista_hold POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Core>"
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Network>"
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.lanista_hold COMMAND tst_lanista_hold)
+set_tests_properties(colosseum.qttest.lanista_hold PROPERTIES
+    LABELS "unit;qttest;lanista"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
 # Startup qualification probe helpers: pure formatting/severity/context logic. The executable
 # stays deterministic and does not boot the application or open a real window.
 add_executable(tst_gui_responsiveness_probe auto/lanista/tst_gui_responsiveness_probe.cpp)
