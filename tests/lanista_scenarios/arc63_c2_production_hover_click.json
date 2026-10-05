@@ -1,0 +1,338 @@
+{
+  "name": "arc63-c2-production-hover-click",
+  "comment": "Arc 63-C2b2 production route proof. Disposable tagged Main.qml session only. Enter the real Universes world through a real OS pointer click, narrow the production roster to Manga, use production keyboard navigation only to reveal One Piece, then deliberately remove keyboard selection so the hover treatment starts cold. The acceptance gesture is point -> real hover/Explore -> pointer-click -> real Main.openRosterUniverse route -> ShelvesUniversePage. No direct QML activation shortcut substitutes for the One Piece click.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated Drive session is ready",
+      "expect": [
+        { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+        { "path": "gates.drive", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "session is tagged and the root window is visible",
+      "expect": [
+        { "path": "windows.0.visible", "op": "==", "value": "true" },
+        { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash clears",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss fresh-session onboarding",
+      "payload": { "target": "accountWelcomeContinueLocal" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding closes",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "point",
+      "label": "real pointer moves to the Universes mode pill",
+      "payload": {
+        "target": "modePill_Universes",
+        "duration_ms": 180,
+        "path": "smoothstep",
+        "tolerance_px": 2
+      },
+      "expect": [
+        { "path": "pointed", "op": "==", "value": "modePill_Universes" }
+      ]
+    },
+    {
+      "cmd": "pointer-click",
+      "label": "real pointer enters the production Universes world",
+      "payload": {
+        "target": "modePill_Universes",
+        "button": "left",
+        "action": "click"
+      },
+      "expect": [
+        { "path": "clicked", "op": "==", "value": "modePill_Universes" },
+        { "path": "submittedEvents", "op": "==", "value": "2" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "production Universes world is visible",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "point",
+      "label": "real pointer moves to the Manga facet",
+      "payload": {
+        "target": "universesFilter_manga",
+        "duration_ms": 160,
+        "path": "smoothstep",
+        "tolerance_px": 2
+      },
+      "expect": [
+        { "path": "pointed", "op": "==", "value": "universesFilter_manga" }
+      ]
+    },
+    {
+      "cmd": "pointer-click",
+      "label": "real pointer selects Manga facet",
+      "payload": {
+        "target": "universesFilter_manga"
+      },
+      "expect": [
+        { "path": "clicked", "op": "==", "value": "universesFilter_manga" },
+        { "path": "submittedEvents", "op": "==", "value": "2" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Manga facet settles",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "facet",
+        "value": "manga",
+        "timeout_ms": 5000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Tab enters the production universe ledger",
+      "payload": { "key": "Tab" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "ledger owns keyboard focus",
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Manga row 1 to Dragon Ball",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Manga row 2 to Naruto",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Manga row 3 to One Piece",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece is the production ledger selection",
+      "payload": {
+        "object": "universesLedger",
+        "props": ["currentIndex"]
+      },
+      "expect": [
+        { "path": "props.currentIndex", "op": "==", "value": "3" }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Tab leaves the ledger so keyboard selection cannot fake hover",
+      "payload": { "key": "Tab" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "ledger releases keyboard focus",
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece hover treatment starts cold",
+      "payload": {
+        "object": "universesBanner_onepiece",
+        "props": ["hot", "keyboardSelected", "lit"]
+      },
+      "expect": [
+        { "path": "props.hot", "op": "==", "value": "false" },
+        { "path": "props.keyboardSelected", "op": "==", "value": "false" },
+        { "path": "props.lit", "op": "==", "value": "false" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece Explore affordance starts hidden",
+      "payload": {
+        "object": "universesBanner_onepiece_explore",
+        "props": ["opacity"]
+      },
+      "expect": [
+        { "path": "props.opacity", "op": "==", "value": "0" }
+      ]
+    },
+    {
+      "cmd": "point",
+      "label": "real pointer arrives at production One Piece banner",
+      "payload": {
+        "target": "universesBanner_onepiece",
+        "duration_ms": 420,
+        "path": "smoothstep",
+        "tolerance_px": 2
+      },
+      "expect": [
+        { "path": "pointed", "op": "==", "value": "universesBanner_onepiece" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "actual production One Piece hover becomes active",
+      "payload": {
+        "object": "universesBanner_onepiece",
+        "prop": "hot",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "actual production Explore affordance fully appears",
+      "payload": {
+        "object": "universesBanner_onepiece_explore",
+        "prop": "opacity",
+        "value": 1,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "hover remains on One Piece at the shot beat",
+      "payload": {
+        "object": "universesBanner_onepiece",
+        "props": ["hot", "lit"]
+      },
+      "expect": [
+        { "path": "props.hot", "op": "==", "value": "true" },
+        { "path": "props.lit", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "pointer-click",
+      "label": "real pointer clicks the production One Piece banner",
+      "payload": {
+        "target": "universesBanner_onepiece",
+        "button": "left",
+        "action": "click"
+      },
+      "expect": [
+        { "path": "clicked", "op": "==", "value": "universesBanner_onepiece" },
+        { "path": "submittedEvents", "op": "==", "value": "2" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "real Main route opens the universe layer",
+      "payload": {
+        "object": "universeLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece routes to its standard shelves page",
+      "payload": {
+        "object": "universeLayer",
+        "props": ["active", "universeName", "templatePage", "extensionId"]
+      },
+      "expect": [
+        { "path": "props.active", "op": "==", "value": "true" },
+        { "path": "props.universeName", "op": "==", "value": "One Piece" },
+        { "path": "props.templatePage", "op": "==", "value": "shelves" },
+        { "path": "props.extensionId", "op": "==", "value": "archive.shelves" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "production ShelvesUniversePage is visibly loaded",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "loaded destination owns One Piece identity",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "props": ["visible", "universeName"]
+      },
+      "expect": [
+        { "path": "props.visible", "op": "==", "value": "true" },
+        { "path": "props.universeName", "op": "==", "value": "One Piece" }
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "no crash or hang after production hover and click route",
+      "expect": [
+        { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" }
+      ]
+    }
+  ]
+}
