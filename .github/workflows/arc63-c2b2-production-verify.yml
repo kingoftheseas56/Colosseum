@@ -187,7 +187,7 @@ jobs:
           grep -F "real production hover becomes active" "$RUNNER_TEMP/c2b2-scenario.log"
           grep -F "real pointer clicks One Piece production banner" "$RUNNER_TEMP/c2b2-scenario.log"
           grep -F "destination identity is exactly One Piece" "$RUNNER_TEMP/c2b2-scenario.log"
-          grep -F "23 steps, 0 failed" "$RUNNER_TEMP/c2b2-scenario.log"
+          grep -F "25 steps, 0 failed" "$RUNNER_TEMP/c2b2-scenario.log"
 
       - name: Verify presentation artifacts
         shell: bash
