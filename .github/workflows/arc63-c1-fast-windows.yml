@@ -86,7 +86,7 @@ jobs:
           $cpp = Join-Path $env:RUNNER_TEMP "c1_cursor_smoke.cpp"
           Set-Content -Path $cpp -Value $src -Encoding utf8
           $qt = $env:QT_ROOT_DIR
-          & cl /nologo /std:c++20 /EHsc $cpp "/I$qt/include" "/I$qt/include/QtCore" "/I$qt/include/QtGui" /Fe:$env:RUNNER_TEMP/c1_cursor_smoke.exe /link "/LIBPATH:$qt/lib" Qt6Core.lib Qt6Gui.lib
+          & cl /nologo /std:c++20 /EHsc /Zc:__cplusplus $cpp "/I$qt/include" "/I$qt/include/QtCore" "/I$qt/include/QtGui" /Fe:$env:RUNNER_TEMP/c1_cursor_smoke.exe /link "/LIBPATH:$qt/lib" Qt6Core.lib Qt6Gui.lib
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run real Windows cursor smoke
         shell: pwsh
