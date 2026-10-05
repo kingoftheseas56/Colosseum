@@ -145,7 +145,7 @@ Item {
     // ---- the Explore affordance: appears with the gold edge, eases in from the right ----
     Rectangle {
         id: enter
-        objectName: "universeBannerExplore"
+        objectName: banner.objectName.length > 0 ? banner.objectName + "_explore" : "universeBannerExplore"
         anchors.verticalCenter: parent.verticalCenter
         x: banner.width - 28 - width + (banner.lit ? 0 : 8)
         width: enterRow.implicitWidth + 28; height: 38; radius: 11
