@@ -47,6 +47,7 @@ jobs:
           assert sum(s.get("cmd") == "pointer-click" for s in steps) == 2
           assert any(s.get("cmd") == "pointer-click" and s.get("payload", {}).get("target") == "modePillFocus_Universes" for s in steps)
           assert not any(s.get("cmd") == "ui-click" and s.get("payload", {}).get("target") == "universesBanner_onepiece" for s in steps)
+          assert all(s.get("expect") for s in steps if s.get("cmd") in {"ui-wait-for", "ui-scroll"})
           assert any(s.get("payload", {}).get("object") == "universesBanner_onepiece_explore" for s in steps)
           assert any(s.get("payload", {}).get("object") == "shelvesUniversePage" and
                      any(e.get("path") == "props.universeName" and e.get("value") == "One Piece"
