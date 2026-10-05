@@ -43,8 +43,9 @@ jobs:
           doc = json.loads(p.read_text(encoding="utf-8-sig"))
           steps = doc.get("steps")
           assert isinstance(steps, list) and steps
-          assert sum(s.get("cmd") == "point" for s in steps) == 1
-          assert sum(s.get("cmd") == "pointer-click" for s in steps) == 1
+          assert sum(s.get("cmd") == "point" for s in steps) == 2
+          assert sum(s.get("cmd") == "pointer-click" for s in steps) == 2
+          assert any(s.get("cmd") == "pointer-click" and s.get("payload", {}).get("target") == "modePillFocus_Universes" for s in steps)
           assert not any(s.get("cmd") == "ui-click" and s.get("payload", {}).get("target") == "universesBanner_onepiece" for s in steps)
           assert any(s.get("payload", {}).get("object") == "universesBanner_onepiece_explore" for s in steps)
           assert any(s.get("payload", {}).get("object") == "shelvesUniversePage" and
@@ -185,7 +186,7 @@ jobs:
           grep -F "real production hover becomes active" "$RUNNER_TEMP/c2b2-scenario.log"
           grep -F "real pointer clicks One Piece production banner" "$RUNNER_TEMP/c2b2-scenario.log"
           grep -F "destination identity is exactly One Piece" "$RUNNER_TEMP/c2b2-scenario.log"
-          grep -F "22 steps, 0 failed" "$RUNNER_TEMP/c2b2-scenario.log"
+          grep -F "23 steps, 0 failed" "$RUNNER_TEMP/c2b2-scenario.log"
 
       - name: Verify presentation artifacts
         shell: bash
