@@ -1,9 +1,6 @@
 name: arc63-a-hold-verify
 
 on:
-  push:
-    branches:
-      - preflight/arc63-a-hold-key-rhythm
   workflow_dispatch:
 
 permissions:
