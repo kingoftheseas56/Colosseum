@@ -1364,6 +1364,51 @@ int main(int argc, char** argv)
                     && glideRange.value("code").toString() == "GLIDE_OFFSET_OUT_OF_RANGE",
                 "glide refuses an impossible explicit offset" + why());
 
+        QJsonObject glideFractionalDuration = call(pipe, {{"cmd", "glide"}, {"seq", 187},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"duration_ms", 240.5}, {"easing", "linear"}}}});
+        require(glideFractionalDuration.value("type").toString() == "error"
+                    && glideFractionalDuration.value("code").toString() == "GLIDE_BAD_DURATION",
+                "glide refuses fractional duration instead of coercing it" + why());
+
+        QJsonObject glideBadEasingType = call(pipe, {{"cmd", "glide"}, {"seq", 188},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"duration_ms", 240}, {"easing", true}}}});
+        require(glideBadEasingType.value("type").toString() == "error"
+                    && glideBadEasingType.value("code").toString() == "GLIDE_BAD_EASING",
+                "glide refuses non-string easing" + why());
+
+        QJsonObject glideBadTargetType = call(pipe, {{"cmd", "glide"}, {"seq", 189},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", 30},
+                                    {"duration_ms", 240}, {"easing", "linear"}}}});
+        require(glideBadTargetType.value("type").toString() == "error"
+                    && glideBadTargetType.value("code").toString() == "GLIDE_BAD_TARGET",
+                "glide refuses non-string named target" + why());
+
+        QJsonObject glideOffsetAlign = call(pipe, {{"cmd", "glide"}, {"seq", 190},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"align", "start"}, {"duration_ms", 240},
+                                    {"easing", "linear"}}}});
+        require(glideOffsetAlign.value("type").toString() == "error"
+                    && glideOffsetAlign.value("code").toString() == "GLIDE_BAD_PAYLOAD",
+                "glide refuses target-only align with explicit offset" + why());
+
+        QJsonObject glideBadAlignType = call(pipe, {{"cmd", "glide"}, {"seq", 191},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", "row10"},
+                                    {"align", 1}, {"duration_ms", 240},
+                                    {"easing", "linear"}}}});
+        require(glideBadAlignType.value("type").toString() == "error"
+                    && glideBadAlignType.value("code").toString() == "GLIDE_BAD_ALIGN",
+                "glide refuses non-string align" + why());
+
+        QJsonObject glideUnknownField = call(pipe, {{"cmd", "glide"}, {"seq", 192},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"duration_ms", 240}, {"easing", "linear"},
+                                    {"screenX", 999}}}});
+        require(glideUnknownField.value("type").toString() == "error"
+                    && glideUnknownField.value("code").toString() == "GLIDE_BAD_PAYLOAD",
+                "glide fails closed on unsupported payload fields" + why());
+
         // ── Task 5: ui-wait-for matches a property value (async poll) ──
         // Drive the counter once more (clicks: 2), then wait for exactly that.
         call(pipe, {{"cmd", "ui-click"}, {"seq", 83},
