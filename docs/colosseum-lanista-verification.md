@@ -57,7 +57,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `ui-keypress` | Drive | key to the focus item of the main window | first key of sequence only; printable-ASCII text |
 | `ui-text-input` | Drive | forceActiveFocus + per-char KeyPress | no KeyRelease pairs |
 | `ui-scroll` | Drive | wheel event, `dy` (default −120) | no scroll phases |
-| `point` | Drive | move the real system pointer along a timed path to the visible portion of a named target — Arc 63-C1 | **foreground/first-root-window only**; movement only, no button event; client never supplies screen coords |
+| `point` | Drive | move the real system pointer along a timed path to the visible portion of a named target — Arc 63-C1 | **tagged-session/foreground/first-root-window only**; movement only, no button event; client never supplies screen coords |
 | `window-set-state` | Drive | restore/minimize/hide the first root window via real `QWindow::showNormal()`/`showMinimized()`/`hide()` — J1-Tray-Bridge, 2026-08-14 | `state` required, exactly `normal`/`minimized`/`hidden`; **first root window only**; see "Window state" below |
 | `ui-wait-for` | Read | poll one property until **equal** to a value | 50 ms poll, default 3 s timeout, strict equality ONLY — no operators, no compound predicates |
 | `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |
@@ -209,8 +209,9 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
 ### Arc 63-C1 pointer targeting
 
 `point target=<objectName|handle> duration_ms=<16..10000> path=<smoothstep|linear> tolerance_px=<0..16>`
-is Drive-gated and moves the **real OS cursor**. It deliberately owns only targeting and travel:
-it synthesizes no press/release and makes no C2 hover-contract claim.
+is Drive-gated, requires a non-empty `COLOSSEUM_APPDATA_TAG`, and moves the **real OS cursor**.
+`DRIVE=1` alone is deliberately insufficient for this global-state operation. It deliberately owns
+only targeting and travel: it synthesizes no press/release and makes no C2 hover-contract claim.
 
 The coordinate conversion is fixed and caller-independent: the target's local rect is mapped with
 `QQuickItem::mapRectToScene()`, intersected with every `clip:true` ancestor and the first root
