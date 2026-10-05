@@ -170,7 +170,7 @@ private slots:
         connect(&server, &QLocalServer::newConnection, this, [&]() {
             while (QLocalSocket* socket = server.nextPendingConnection()) {
                 auto* buffer = new QByteArray;
-                connect(socket, &QLocalSocket::readyRead, socket, [&, socket, buffer]() {
+                const auto consumeRequest = [&, socket, buffer]() {
                     *buffer += socket->readAll();
                     const qsizetype newline = buffer->indexOf('\n');
                     if (newline < 0)
@@ -193,7 +193,10 @@ private slots:
                     socket->write(QJsonDocument(reply).toJson(QJsonDocument::Compact) + "\n");
                     socket->flush();
                     socket->disconnectFromServer();
-                });
+                };
+                connect(socket, &QLocalSocket::readyRead, socket, consumeRequest);
+                if (socket->bytesAvailable() > 0)
+                    consumeRequest();
             }
         });
 
