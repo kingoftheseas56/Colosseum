@@ -118,6 +118,14 @@ TestCase {
         return false
     }
 
+    function hasKeyPrefix(page, prefix) {
+        const members = page.directorRequiredMembersInternal || []
+        for (let i = 0; i < members.length; ++i)
+            if (String(members[i].key || "").indexOf(prefix) === 0)
+                return true
+        return false
+    }
+
     function findNamed(item, name) {
         if (!item) return null
         if (item.objectName === name) return item
@@ -237,6 +245,7 @@ TestCase {
         verify(hasKind(page, "wallpaper"))
         verify(hasKind(page, "continue"))
         verify(hasKind(page, "shelf"))
+        verify(hasKeyPrefix(page, "films:"))
         verify(hasKind(page, "gallery"))
         tryCompare(page, "directorReadinessState", "settled", 5000)
         destroyHost(host)

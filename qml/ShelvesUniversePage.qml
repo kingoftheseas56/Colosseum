@@ -90,9 +90,18 @@ Item {
     readonly property string directorShotEndObjectName:
         root.directorShotEndSectionInternal
         ? String(root.directorShotEndSectionInternal.objectName || "") : ""
-    readonly property real directorShotEndContentYInternal:
-        root.directorShotEndSectionInternal
-        ? root.directorShotEndSectionInternal.mapToItem(page.contentItem, 0, 0).y : -1
+    readonly property real directorShotEndContentYInternal: {
+        // mapToItem() does not itself establish bindings to every ancestor transform.
+        // Name the production layout owners explicitly so a Continue row appearing,
+        // the Column repacking, or the shelf block moving re-enumerates the shot range.
+        root.directorMemberRevisionInternal
+        mediums.y
+        mediums.height
+        col.implicitHeight
+        page.contentHeight
+        const target = root.directorShotEndSectionInternal
+        return target ? target.mapToItem(page.contentItem, 0, 0).y : -1
+    }
     readonly property real directorShotSweepBottomInternal:
         root.directorShotEndContentYInternal >= 0 && page.height > 0 && page.contentHeight > 0
         ? Math.min(page.contentHeight, root.directorShotEndContentYInternal + page.height) : -1
@@ -1177,6 +1186,10 @@ Item {
         height: 44 + slot.height       // the 44px gap above the line rides on the section
         topPadding: 44
         visible: medium.total > 0
+        onXChanged: root.directorMemberRevisionInternal += 1
+        onYChanged: root.directorMemberRevisionInternal += 1
+        onWidthChanged: root.directorMemberRevisionInternal += 1
+        onHeightChanged: root.directorMemberRevisionInternal += 1
 
         Glass {
             id: mediumPanel
@@ -1416,6 +1429,10 @@ Item {
         width: slot.width
         height: 44 + slot.height
         visible: table.total > 0
+        onXChanged: root.directorMemberRevisionInternal += 1
+        onYChanged: root.directorMemberRevisionInternal += 1
+        onWidthChanged: root.directorMemberRevisionInternal += 1
+        onHeightChanged: root.directorMemberRevisionInternal += 1
 
         Glass {
             y: 44
