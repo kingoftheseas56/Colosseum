@@ -1,0 +1,217 @@
+{
+  "name": "arc63-a-hold-key-rhythm",
+  "comment": "Arc 63-A production-QML shot: Home -> Universes -> five keyboard-selected banners -> one universe -> back. The visible rhythm is ui-keypress -> hold; waits only guard route/focus readiness.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated drive session answers",
+      "expect": [
+        { "path": "gates.drive", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash leaves",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss onboarding if this disposable profile still shows it",
+      "payload": { "target": "accountWelcomeContinueLocal" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home shell is live",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell keyboard ignition is ready",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "enter visible Home content",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home hero owns focus",
+      "payload": {
+        "object": "homeHeroExplore",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "move to the Universes door",
+      "payload": { "key": "Up" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Universes door owns focus",
+      "payload": {
+        "object": "homeUniverseHall",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "capture": { "action": "start", "name": "arc63-a-hold-key-rhythm" },
+      "cmd": "__runner_local_presentation__",
+      "label": "start Arc 63-A production capture"
+    },
+    {
+      "cmd": "hold",
+      "label": "read the Home Universes door",
+      "payload": { "duration_ms": 900 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "enter the Universes world",
+      "payload": { "key": "Enter" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Universes ledger owns focus",
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "hold",
+      "label": "read banner one",
+      "payload": { "duration_ms": 800 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "walk to banner two",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "hold",
+      "label": "read banner two",
+      "payload": { "duration_ms": 650 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "walk to banner three",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "hold",
+      "label": "read banner three",
+      "payload": { "duration_ms": 650 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "walk to banner four",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "hold",
+      "label": "read banner four",
+      "payload": { "duration_ms": 650 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "walk to banner five",
+      "payload": { "key": "Down" }
+    },
+    {
+      "cmd": "hold",
+      "label": "read banner five",
+      "payload": { "duration_ms": 850 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "open banner five",
+      "payload": { "key": "Enter" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "selected universe opens",
+      "payload": {
+        "object": "universeLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "hold",
+      "label": "read the opened universe",
+      "payload": { "duration_ms": 1800 }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "go back to Universes",
+      "payload": { "key": "Escape" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "universe closes back to the world",
+      "payload": {
+        "object": "universeLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "hold",
+      "label": "settle back on banner five",
+      "payload": { "duration_ms": 900 }
+    },
+    {
+      "capture": { "action": "stop" },
+      "cmd": "__runner_local_presentation__",
+      "label": "stop Arc 63-A production capture"
+    }
+  ]
+}
