@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Window
 import QtTest
+import "../../qml/reader2" // Theme singleton — the chrome's own palette
 TestCase {
     name: "Arc64ReaderChrome"
     when: windowShown
@@ -37,5 +38,21 @@ TestCase {
         waitForRendering(chip)
         mouseClick(action)
         compare(subject.panelOpen,true);compare(subject.activeTab,"audio")
+    }
+    function test_sleep_line_only_the_sleep_label_is_gold() {
+        var sleepLine=findChild(subject,"readerSleepLineLabel"), countLine=findChild(subject,"readerChapterCountLabel")
+        verify(sleepLine!==null);verify(countLine!==null)
+        subject.audioSleepLabel=""
+        tryCompare(sleepLine,"visible",false)
+        verify(Qt.colorEqual(countLine.color,Theme.inkFaint),"chapter count keeps the faint ink")
+        compare(countLine.text,"1 of 2")
+        subject.audioSleepLabel="Sleeps in 15 min"
+        tryCompare(sleepLine,"visible",true)
+        compare(sleepLine.text,"Sleeps in 15 min")
+        verify(Qt.colorEqual(sleepLine.color,Theme.gold),"only the sleep label is gold")
+        verify(Qt.colorEqual(countLine.color,Theme.inkFaint),"separator and chapter count keep the faint ink")
+        compare(countLine.text," · 1 of 2")
+        compare(countLine.font.features["tnum"],1)
+        compare(sleepLine.font.features["tnum"],1)
     }
 }

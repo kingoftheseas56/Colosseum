@@ -85,8 +85,10 @@ Item {
         downloaded:detail.audioLocal, failed:detail.abHashFailed || detail.abDownloadFailed, entry:detail.abEntry
     })
     function refreshAudioState() {
-        detail.abRevision += 1
-        detail.audioLocal = typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(detail.pairKey)
+        detail.abRevision += 1   // audioLocal/abStatus/abEntry are bindings keyed on this revision
+    }
+    function audioIsDownloaded() {
+        return typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(detail.pairKey)
     }
     Connections {
         target: typeof Audiobooks !== "undefined" ? Audiobooks : null
@@ -104,7 +106,7 @@ Item {
     property string pairKey: (detail.book && detail.book.pairKey) ? detail.book.pairKey
                              : BiblioApi.pairKey(detail.book ? detail.book.title : "",
                                                  detail.book ? detail.book.author : "")
-    property bool audioLocal: false                     // recomputed in loadEditions + on Audiobooks.finished
+    property bool audioLocal: (detail.abRevision, detail.audioIsDownloaded()) // follows pairKey + Audiobooks signals; never assigned imperatively
 
     Theme { id: theme }
     readonly property var audioOfferTheme: theme
@@ -156,7 +158,6 @@ Item {
             detail._resolvePendingLookup(detail.pendingReadGeneration)
         })
         // audiobook lane: is one already downloaded? then find one to download.
-        detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
         detail.abLoading = true; detail.abRows = []
         detail.abError = false; detail.abHashFailed = false; detail.abHashResolving = false
         detail.abRetryRow = null; detail.abReplaceRow = null; detail.abInfoHash = ""
@@ -905,6 +906,15 @@ Item {
                             focusRadius: primaryCta.radius; onTriggered: detail.readBook()
                         }
                     }
+                    Text {
+                        objectName: "biblioPrimaryReadStatus"
+                        width: parent.width
+                        text: detail.primaryReadStatus()
+                        color: detail.readError.length ? "#e6a3a3" : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
                     AudiobookOfferButton {
                         objectName: "biblioAudiobookAction"
                         width: parent.width
@@ -914,15 +924,6 @@ Item {
                         meta: detail.abOffer.meta
                         progress: detail.abOffer.progress
                         onActivated: detail.activateAudioOffer()
-                    }
-                    Text {
-                        objectName: "biblioPrimaryReadStatus"
-                        width: parent.width
-                        text: detail.primaryReadStatus()
-                        color: detail.readError.length ? "#e6a3a3" : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
                     }
                     LibraryButton {
                         width: parent.width
@@ -1266,7 +1267,7 @@ Item {
                             target: (typeof Audiobooks !== 'undefined') ? Audiobooks : null
                             function onResolving(key) { if (key === detail.pairKey) abCol.abState = "resolving" }
                             function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
-                            function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
+                            function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.refreshAudioState() } }
                             function onFailed(key, why) { if (key === detail.pairKey) abCol.abState = "failed" }
                         }
                         // REHYDRATE on page (re)entry: the download runs in C++ and survives leaving

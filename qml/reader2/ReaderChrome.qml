@@ -450,15 +450,29 @@ Item {
                 color: clMa.containsMouse ? Theme.ink : Theme.inkTitle
                 font.family: Theme.display; font.weight: Font.Medium; font.pixelSize: 16
             }
-            Text {
+            Row {
                 id: chapPos
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 visible: chapterLine.count > 0
-                text: (chrome.audioSleepLabel ? chrome.audioSleepLabel + " · " : "")
-                    + (chapterLine.idx >= 0 ? ((chapterLine.idx + 1) + " of " + chapterLine.count) : (chapterLine.count + " chapters"))
-                color: chrome.audioSleepLabel ? Theme.gold : Theme.inkFaint
-                font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
-                font.features: ({ "tnum": 1 })
+                Text {
+                    id: chapSleep
+                    objectName: "readerSleepLineLabel"
+                    visible: text.length > 0
+                    text: chrome.audioSleepLabel
+                    color: Theme.gold
+                    font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
+                    font.features: ({ "tnum": 1 })
+                }
+                Text {
+                    id: chapCount
+                    objectName: "readerChapterCountLabel"
+                    // the " · " separator belongs to the faint side: only the sleep label is gold
+                    text: (chrome.audioSleepLabel ? " · " : "")
+                        + (chapterLine.idx >= 0 ? ((chapterLine.idx + 1) + " of " + chapterLine.count) : (chapterLine.count + " chapters"))
+                    color: Theme.inkFaint
+                    font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
+                    font.features: ({ "tnum": 1 })
+                }
             }
             ReaderKeyboardArea { id: clMa; anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor; keyboardLabel: "Audiobook chapters"; onClicked: chrome.openPanelTo("audio", "audioChapter") }

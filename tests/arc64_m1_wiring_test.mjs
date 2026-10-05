@@ -87,3 +87,19 @@ test('replacement No cancels; Yes starts exactly once',()=>{
  detail.abReplaceOpen=true;detail.abReplaceRow={slug:'new'};page.finishAudiobookReplace(true);page.finishAudiobookReplace(true);assert.equal(replaces,1);
 });
 console.log('PASS '+passed+' total production-source wiring checks (v2)');
+
+// ── v2 defect 1: the book page's downloaded flag must be DERIVED from pairKey, not captured once ──
+vm.runInContext(extract('qml/BiblioBook.qml','audioIsDownloaded'),page);
+vm.runInContext(extract('qml/BiblioBook.qml','refreshAudioState'),page);
+const biblioSource=fs.readFileSync('qml/BiblioBook.qml','utf8');
+test('audioLocal is a binding on pairKey + revision, never assigned',()=>{
+ assert(biblioSource.includes('property bool audioLocal: (detail.abRevision, detail.audioIsDownloaded())'));
+ assert(!/detail\.audioLocal\s*=[^=]/.test(biblioSource),'imperative assignment would break the binding');
+});
+test('late-settling pairKey still reports the downloaded audiobook',()=>{
+ page.Audiobooks={isDownloaded:k=>k==='late|key'};
+ detail.pairKey='stale|key';assert.equal(page.audioIsDownloaded(),false);
+ detail.pairKey='late|key';assert.equal(page.audioIsDownloaded(),true);
+ detail.abRevision=0;page.refreshAudioState();assert.equal(detail.abRevision,1);
+});
+console.log('PASS '+passed+' total production-source wiring checks (v3)');
