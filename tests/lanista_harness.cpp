@@ -15,6 +15,7 @@
 #include "engine/VaultLibrary.h"
 #include "engine/VaultScanner.h"
 
+#include <QCursor>
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
@@ -1195,27 +1196,121 @@ int main(int argc, char** argv)
         // the env live per call, so this takes effect immediately.
         qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
 
-        // Arc 63-C1: point resolves a visible QML target into the owning
-        // QQuickWindow's scene space, maps it to screen coordinates, and moves
-        // the real system pointer there over an observable bounded path. C1 is
-        // foreground-only by contract, so activate the fixture window first.
+        // Arc 63-C1: point is a strict named-target command. Payload shape is
+        // fail-closed so a client cannot attach a raw coordinate or smuggle a
+        // non-integral timing/tolerance value that Qt would otherwise coerce.
+        QJsonObject rawCoordinate = call(pipe, {{"cmd", "point"}, {"seq", 706},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32},
+                                    {"screen_x", 1}}}}, 2000);
+        require(rawCoordinate.value("type").toString() == "error"
+                    && rawCoordinate.value("code").toString() == "BAD_PAYLOAD",
+                "point refuses raw/unsupported coordinate payload fields" + why());
+
+        QJsonObject badTarget = call(pipe, {{"cmd", "point"}, {"seq", 707},
+            {"payload", QJsonObject{{"target", 42},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(badTarget.value("type").toString() == "error"
+                    && badTarget.value("code").toString() == "BAD_TARGET",
+                "point requires a non-empty string target" + why());
+
+        QJsonObject badDuration = call(pipe, {{"cmd", "point"}, {"seq", 708},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32.5}}}}, 2000);
+        require(badDuration.value("type").toString() == "error"
+                    && badDuration.value("code").toString() == "BAD_DURATION",
+                "point refuses fractional duration_ms instead of coercing it" + why());
+
+        QJsonObject badPath = call(pipe, {{"cmd", "point"}, {"seq", 709},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32},
+                                    {"path", 7}}}}, 2000);
+        require(badPath.value("type").toString() == "error"
+                    && badPath.value("code").toString() == "BAD_PATH",
+                "point refuses a non-string path instead of defaulting it" + why());
+
+        QJsonObject badTolerance = call(pipe, {{"cmd", "point"}, {"seq", 710},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32},
+                                    {"tolerance_px", 1.5}}}}, 2000);
+        require(badTolerance.value("type").toString() == "error"
+                    && badTolerance.value("code").toString() == "BAD_TOLERANCE",
+                "point refuses fractional tolerance_px instead of coercing it" + why());
+
+        // C1 is foreground-only by contract, so activate the fixture window
+        // before any command that can actually move the OS pointer.
         rootWindow->requestActivate();
         settle(100);
         require(rootWindow->isActive(),
                 "point fixture window is active before foreground-only motion" + why());
 
+        QJsonObject hiddenPoint = call(pipe, {{"cmd", "point"}, {"seq", 711},
+            {"payload", QJsonObject{{"target", "reader2RootProbe"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(hiddenPoint.value("type").toString() == "error"
+                    && hiddenPoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses an invisible target" + why());
+
+        QJsonObject transparentPoint = call(pipe, {{"cmd", "point"}, {"seq", 712},
+            {"payload", QJsonObject{{"target", "transparentItem"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(transparentPoint.value("type").toString() == "error"
+                    && transparentPoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses a fully transparent target" + why());
+
+        QJsonObject zeroSizePoint = call(pipe, {{"cmd", "point"}, {"seq", 713},
+            {"payload", QJsonObject{{"target", "zeroSizeItem"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(zeroSizePoint.value("type").toString() == "error"
+                    && zeroSizePoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses a zero-size target" + why());
+
+        const QPoint pointerBefore = QCursor::pos();
         QJsonObject pointed = call(pipe, {{"cmd", "point"}, {"seq", 702},
             {"payload", QJsonObject{{"target", "counterMouse"},
                                     {"duration_ms", 64},
                                     {"path", "linear"},
                                     {"tolerance_px", 2}}}}, 2000);
         require(pointed.value("type").toString() == "reply",
-                "point replies after real pointer travel" + why());
+                "point replies after pointer travel" + why());
         require(pointed.value("pointed").toString() == QStringLiteral("counterMouse"),
                 "point names the resolved target" + why());
+        require(pointed.value("startScreenX").toInt() == pointerBefore.x()
+                    && pointed.value("startScreenY").toInt() == pointerBefore.y(),
+                "point receipt starts at the actual pre-command OS cursor position" + why());
         require(pointed.value("targetSceneX").toInt() == 200
                     && pointed.value("targetSceneY").toInt() == 124,
                 "point resolves the counterMouse center in scene coordinates" + why());
+
+        const QJsonObject visibleRect = pointed.value("visibleSceneRect").toObject();
+        require(visibleRect.value("x").toInt() == 100
+                    && visibleRect.value("y").toInt() == 100
+                    && visibleRect.value("width").toInt() == 200
+                    && visibleRect.value("height").toInt() == 48,
+                "point receipt carries the exact visible scene rect used for resolution" + why());
+        require(pointed.value("targetScreenX").toInt()
+                        == pointed.value("windowScreenX").toInt()
+                           + pointed.value("targetSceneX").toInt()
+                    && pointed.value("targetScreenY").toInt()
+                        == pointed.value("windowScreenY").toInt()
+                           + pointed.value("targetSceneY").toInt(),
+                "point scene->global coordinate conversion is internally consistent" + why());
+        require(pointed.value("requestedScreenX").toInt()
+                        == pointed.value("targetScreenX").toInt()
+                    && pointed.value("requestedScreenY").toInt()
+                        == pointed.value("targetScreenY").toInt(),
+                "point receipt identifies the resolved target as the requested endpoint" + why());
+        require(pointed.value("actualScreenX").toInt()
+                        - pointed.value("requestedScreenX").toInt()
+                        == pointed.value("deltaX").toInt()
+                    && pointed.value("actualScreenY").toInt()
+                        - pointed.value("requestedScreenY").toInt()
+                        == pointed.value("deltaY").toInt(),
+                "point receipt deltas match requested versus actual endpoint" + why());
+        require(pointed.value("path").toString() == QStringLiteral("linear")
+                    && pointed.value("durationMs").toInt() == 64
+                    && pointed.value("tolerancePx").toInt() == 2,
+                "point receipt carries the requested path, duration and tolerance" + why());
         require(qAbs(pointed.value("deltaX").toInt()) <= 2
                     && qAbs(pointed.value("deltaY").toInt()) <= 2,
                 "point arrives within the declared endpoint tolerance" + why());
@@ -1234,9 +1329,15 @@ int main(int argc, char** argv)
         require(clippedPoint.value("targetSceneX").toInt() == 780
                     && clippedPoint.value("targetSceneY").toInt() == 320,
                 "point targets the center of clippedBox's visible window intersection" + why());
+        const QJsonObject clippedRect = clippedPoint.value("visibleSceneRect").toObject();
+        require(clippedRect.value("x").toInt() == 760
+                    && clippedRect.value("y").toInt() == 300
+                    && clippedRect.value("width").toInt() == 40
+                    && clippedRect.value("height").toInt() == 40,
+                "point reports clippedBox's visible 40x40 window intersection" + why());
 
         // Fully clipped and missing targets refuse BEFORE producing a dangerous
-        // screen coordinate. These are the two C1 safety negatives.
+        // screen coordinate.
         QJsonObject offscreenPoint = call(pipe, {{"cmd", "point"}, {"seq", 704},
             {"payload", QJsonObject{{"target", "clipHostChild"},
                                     {"duration_ms", 32}}}}, 2000);
@@ -1249,6 +1350,16 @@ int main(int argc, char** argv)
         require(missingPoint.value("type").toString() == "error"
                     && missingPoint.value("code").toString() == "NO_SUCH_ITEM",
                 "point refuses a missing target without a coordinate" + why());
+
+        // Movement-only means movement-only: the same MouseArea used by the
+        // next ui-click test must still have observed zero clicks after every
+        // successful point command above.
+        QJsonObject afterPoint = call(pipe, {{"cmd", "qml-get"}, {"seq", 714},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(afterPoint.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 0"),
+                "point emits no mouse press/release and therefore no click" + why());
 
         // ── Task 5: ui-click genuinely lands — the counter really increments ──
         // A reply is not enough: the press+release must reach counterMouse and
