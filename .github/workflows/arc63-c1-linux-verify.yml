@@ -1,0 +1,102 @@
+name: arc63-c1-linux-verify
+on:
+  push:
+    branches:
+      - preflight/arc63-c1-final-diffcheck
+permissions:
+  contents: read
+jobs:
+  linux-lanista:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ECM_VERSION: "6.15.0"
+      ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+      PRODUCT_SHA: eda3c0e108a538784ebc2a65464f01443aaa33b3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.PRODUCT_SHA }}
+          fetch-depth: 0
+      - name: Prove exact product SHA
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             build-essential ninja-build pkg-config             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev             libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0             xvfb xauth openbox xdotool curl
+      - name: Build Extra CMake Modules
+        run: |
+          archive="$RUNNER_TEMP/extra-cmake-modules.tar.xz"
+          source="$RUNNER_TEMP/ecm-source"
+          build="$RUNNER_TEMP/ecm-build"
+          install="$RUNNER_TEMP/ecm-install"
+          curl --fail --location --retry 3             "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz"             --output "$archive"
+          echo "$ECM_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja             -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$install"
+          cmake --build "$build" --target install --parallel 2
+          echo "ECM_ROOT=$install" >> "$GITHUB_ENV"
+      - name: Build MpvQt
+        run: |
+          archive="$RUNNER_TEMP/mpvqt.tar.xz"
+          source="$RUNNER_TEMP/mpvqt-source"
+          build="$RUNNER_TEMP/mpvqt-build"
+          install="$RUNNER_TEMP/mpvqt-install"
+          curl --fail --location --retry 3             "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz"             --output "$archive"
+          echo "$MPVQT_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja             -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF             -DCMAKE_INSTALL_PREFIX="$install"             -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT"
+          cmake --build "$build" --target install --parallel 2
+          echo "MPVQT_ROOT=$install" >> "$GITHUB_ENV"
+      - name: Configure focused C1 harness
+        run: |
+          build="$RUNNER_TEMP/arc63-c1-build"
+          cmake -S native -B "$build" -G Ninja             -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON             -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF             -DCOLOSSEUM_NO_COMPILER_CACHE=ON             -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT"             -DMPVQT_PREFIX="$MPVQT_ROOT"
+          echo "C1_BUILD=$build" >> "$GITHUB_ENV"
+      - name: Build focused C1 harness
+        run: cmake --build "$C1_BUILD" --target lanista_harness --parallel 2
+      - name: Run C1 harness under X11 with independent cursor telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          Xvfb :99 -screen 0 1280x800x24 >"$RUNNER_TEMP/xvfb.log" 2>&1 &
+          export DISPLAY=:99
+          openbox >"$RUNNER_TEMP/openbox.log" 2>&1 &
+          sleep 2
+          export QT_QPA_PLATFORM=xcb
+          stdout="$RUNNER_TEMP/lanista-c1-linux.log"
+          "$C1_BUILD/lanista_harness" >"$stdout" 2>&1 &
+          pid=$!
+          samples="$RUNNER_TEMP/cursor-samples.txt"
+          : >"$samples"
+          while kill -0 "$pid" 2>/dev/null; do
+            xdotool getmouselocation --shell 2>/dev/null | awk -F= '/^X=/{x=$2}/^Y=/{y=$2}END{if(x!=""&&y!="")print x "," y}' >>"$samples" || true
+            sleep 0.01
+          done
+          wait "$pid"
+          cat "$stdout"
+          grep -q "LANISTA_OK" "$stdout"
+          unique=$(sort -u "$samples" | wc -l)
+          minx=$(cut -d, -f1 "$samples" | sort -n | head -1)
+          maxx=$(cut -d, -f1 "$samples" | sort -n | tail -1)
+          miny=$(cut -d, -f2 "$samples" | sort -n | head -1)
+          maxy=$(cut -d, -f2 "$samples" | sort -n | tail -1)
+          echo "X11_CURSOR_UNIQUE=$unique"
+          echo "X11_CURSOR_RANGE_X=$minx..$maxx"
+          echo "X11_CURSOR_RANGE_Y=$miny..$maxy"
+          test "$unique" -ge 2
+          test $((maxx-minx)) -ge 10 -o $((maxy-miny)) -ge 10
