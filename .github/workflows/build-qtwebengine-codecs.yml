@@ -234,8 +234,20 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $toolchains = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File
-          $hit = $toolchains | Select-String -Pattern 'sccache(?:\.exe)? cl\.exe' | Select-Object -First 1
+          $hit = $toolchains |
+            Select-String -Pattern 'sccache' |
+            Where-Object { $_.Line -match 'cl\.exe' } |
+            Select-Object -First 1
           if (-not $hit) {
+            Write-Output 'No generated compile command contained both sccache and cl.exe. Dumping cache-related GN evidence:'
+            Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File |
+              Select-String -Pattern 'cc_wrapper|sccache' |
+              Select-Object -First 20 |
+              ForEach-Object { Write-Output "$($_.Path):$($_.LineNumber): $($_.Line)" }
+            $toolchains |
+              Select-String -Pattern 'command =|sccache|cl\.exe' |
+              Select-Object -First 40 |
+              ForEach-Object { Write-Output "$($_.Path):$($_.LineNumber): $($_.Line)" }
             throw 'Chromium GN toolchain is not invoking sccache before cl.exe; refusing to burn a multi-hour runner.'
           }
           Write-Output "cache wiring: $($hit.Path):$($hit.LineNumber)"
