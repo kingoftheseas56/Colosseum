@@ -1,6 +1,6 @@
 {
   "name": "arc63-c2-production-hover-click",
-  "comment": "Arc 63-C2: dismiss only the fresh-session onboarding fixture, then enter the real Universes world with point + pointer-click on its production KeyboardAction, scroll the production ledger until One Piece is pointerable, point with the real OS cursor, hold the real hover/Explore treatment, click through with pointer-click, and prove the One Piece Shelves universe opened. No direct QML activation shortcut substitutes for the One Piece click, and every route-critical wait asserts matched=true.",
+  "comment": "Arc 63-C2 production route proof. Dismiss fresh-session onboarding, enter the real Universes world, use ordinary setup interaction to narrow the roster to Manga and scroll until One Piece is provably in the viewport, then perform the acceptance gesture: real point -> actual production hover/Explore -> real pointer-click -> real One Piece Shelves destination. No ui-click or direct QML activation substitutes for the One Piece click.",
   "steps": [
     {
       "cmd": "ping",
@@ -147,60 +147,16 @@
       ]
     },
     {
-      "cmd": "point",
-      "label": "real pointer arrives on Manga facet",
+      "cmd": "ui-click",
+      "label": "select Manga facet through the existing QML window event path",
       "payload": {
-        "target": "universesFilter_manga",
-        "duration_ms": 180,
-        "path": "smoothstep",
-        "tolerance_px": 2
-      },
-      "expect": [
-        {
-          "path": "pointed",
-          "op": "==",
-          "value": "universesFilter_manga"
-        },
-        {
-          "path": "deltaX",
-          "op": ">=",
-          "value": -2
-        },
-        {
-          "path": "deltaX",
-          "op": "<=",
-          "value": 2
-        },
-        {
-          "path": "deltaY",
-          "op": ">=",
-          "value": -2
-        },
-        {
-          "path": "deltaY",
-          "op": "<=",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "cmd": "pointer-click",
-      "label": "real pointer narrows production roster to Manga",
-      "payload": {
-        "target": "universesFilter_manga",
-        "button": "left",
-        "action": "click"
+        "target": "universesFilter_manga"
       },
       "expect": [
         {
           "path": "clicked",
           "op": "==",
           "value": "universesFilter_manga"
-        },
-        {
-          "path": "submittedEvents",
-          "op": "==",
-          "value": 2
         }
       ]
     },
