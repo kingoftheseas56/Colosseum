@@ -1049,6 +1049,35 @@ var MARKS = {
     "Weekly Shonen Jump":         ["shonen-jump.png", "wide"],
     "The Witcher":                ["the-witcher.png", "wide"]
 };
+// WHAT A UNIVERSE PRIMARILY IS (Hemanth 2026-10-05): the filter strip in the Universes world
+// classifies, it does not inventory. "I click books and I see Avatar ... it is primarily a TV
+// show" — so every universe has ONE primary label, or TWO when the second is a direct
+// adaptation that stands level with the source (the books and their films, the manga and its
+// anime). What else a universe happens to hold stays on its banner and inside its page; it does
+// not put the universe under that tab. A curated judgment, like the pairing tables: edit here.
+var PRIMARY = {
+    "Attack on Titan":            ["manga", "anime"],
+    "Avatar: The Last Airbender": ["series"],
+    "DC Animated Universe":       ["series"],
+    "Dragon Ball":                ["manga", "anime"],
+    "Dune":                       ["books", "films"],
+    "Harry Potter":               ["books", "films"],
+    "James Bond":                 ["films"],
+    "Jurassic Park":              ["films"],
+    "Lord of the Rings":          ["books", "films"],
+    "Marvel Cinematic Universe":  ["films", "series"],
+    "Naruto":                     ["manga", "anime"],
+    "One Piece":                  ["manga", "anime"],
+    "Percy Jackson":              ["books", "series"],
+    "Sherlock Holmes":            ["books", "series"],
+    "A Song of Ice and Fire":     ["books", "series"],
+    "Star Trek":                  ["series", "films"],
+    "Star Wars":                  ["films", "series"],
+    "Studio Ghibli":              ["films", "anime"],
+    "Weekly Shonen Jump":         ["manga"],
+    "The Witcher":                ["books", "series"]
+};
+
 function markFor(name) {
     var m = MARKS[name];
     return m ? { logo: "../assets/universes/marks/" + m[0], shape: m[1] } : { logo: "", shape: "" };
@@ -1067,6 +1096,7 @@ function worldRoster(installed) {
         var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
                       banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
                       logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
+                      primary: PRIMARY[shelf[i].name] || null,
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
         if (cfg.shelves || cfg.manga) entry.page = "shelves";
         else if (cfg.sagaGrid) entry.page = "saga";
@@ -1083,6 +1113,7 @@ function worldRoster(installed) {
         roster.push({ name: c.name,
                       banner: c.wallpaper || c.banner || "",
                       logo: cmark.logo, logoShape: cmark.shape,
+                      primary: PRIMARY[c.name] || null,
                       blurb: c.blurb || "",
                       chips: c.chips || [],
                       page: page });
@@ -1093,8 +1124,9 @@ function worldRoster(installed) {
     return roster;
 }
 
-// What a universe holds, as filter facets. Read from the SAME chips the banner prints, so the
-// filter can never disagree with what the user sees on the banner.
+// The filter's facets. A universe sits under a facet when that is what it PRIMARILY is (its
+// `primary` labels, from PRIMARY above). A universe nobody has classified yet falls back to
+// what its banner's chips say it holds, so a new entry is never invisible to the filter.
 var FACETS = [
     { key: "books",  label: "Books",  match: /book|novel|stor/i },
     { key: "manga",  label: "Manga",  match: /manga/i },
@@ -1104,6 +1136,7 @@ var FACETS = [
     { key: "comics", label: "Comics", match: /comic|graphic/i }
 ];
 function holds(entry, key) {
+    if (entry && entry.primary) return entry.primary.indexOf(key) >= 0;
     var chips = (entry && entry.chips) || [];
     for (var f = 0; f < FACETS.length; f++) {
         if (FACETS[f].key !== key) continue;
@@ -1112,7 +1145,7 @@ function holds(entry, key) {
     }
     return false;
 }
-// the facets worth offering: only those at least one universe in the roster holds
+// the facets worth offering: only those at least one universe in the roster primarily is
 function rosterFacets(roster) {
     return FACETS.filter(function(f) {
         return (roster || []).some(function(e) { return holds(e, f.key); });

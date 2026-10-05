@@ -32,9 +32,10 @@ Window {
             console.log("[diag] HARNESS FAIL — roster must be alphabetical: " + roster[0].name + " … " + roster[roster.length - 1].name)
             Qt.exit(2)
         }
-        // the filter offers only what some universe holds, and narrows the list by it
+        // the filter CLASSIFIES: a universe sits under what it primarily is (one label, or two
+        // for a direct adaptation), never under everything it happens to hold
         const facets = Universes.rosterFacets(roster).map(function(f) { return f.key }).join(",")
-        if (facets !== "books,manga,anime,films,series,comics") {
+        if (facets !== "books,manga,anime,films,series") {
             console.log("[diag] HARNESS FAIL — facets: " + facets)
             Qt.exit(2)
         }
@@ -42,6 +43,26 @@ Window {
         if (manga !== "Attack on Titan|Dragon Ball|Naruto|One Piece|Weekly Shonen Jump") {
             console.log("[diag] HARNESS FAIL — manga filter: " + manga)
             Qt.exit(2)
+        }
+        const expected = {
+            books: "Dune|Harry Potter|Lord of the Rings|Percy Jackson|Sherlock Holmes|A Song of Ice and Fire|The Witcher",
+            anime: "Attack on Titan|Dragon Ball|Naruto|One Piece|Studio Ghibli",
+            films: "Dune|Harry Potter|James Bond|Jurassic Park|Lord of the Rings|Marvel Cinematic Universe|Star Trek|Star Wars|Studio Ghibli",
+            series: "Avatar: The Last Airbender|DC Animated Universe|Marvel Cinematic Universe|Percy Jackson|Sherlock Holmes|A Song of Ice and Fire|Star Trek|Star Wars|The Witcher" }
+        for (const key in expected) {
+            const got = Universes.filterRoster(roster, key).map(function(e) { return e.name }).join("|")
+            if (got !== expected[key]) {
+                console.log("[diag] HARNESS FAIL — " + key + " filter: " + got)
+                Qt.exit(2)
+            }
+        }
+        // every universe is classified, with one or two labels
+        for (let p = 0; p < roster.length; ++p) {
+            const labels = roster[p].primary
+            if (!labels || labels.length < 1 || labels.length > 2) {
+                console.log("[diag] HARNESS FAIL — " + roster[p].name + " needs one or two primary labels")
+                Qt.exit(2)
+            }
         }
         if (Universes.filterRoster(roster, "").length !== 20) {
             console.log("[diag] HARNESS FAIL — the empty filter must show everything")

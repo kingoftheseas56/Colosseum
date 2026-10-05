@@ -57,13 +57,21 @@ Item {
         }
         function test_facetStripFiltersTheOneList() {
             const strip = findChild(world, "universesFilter")
-            compare(strip.tabModel.map(function(t) { return t.key }).join(","), "all,books,manga,anime,films,series,comics")
+            compare(strip.tabModel.map(function(t) { return t.key }).join(","), "all,books,manga,anime,films,series")
             compare(strip.currentTab, "all")
             strip.tabRequested("manga")
             compare(world.facet, "manga")
             compare(world.shown.map(function(e) { return e.name }).join("|"),
                     "Attack on Titan|Dragon Ball|Naruto|One Piece|Weekly Shonen Jump")
             compare(findChild(world, "universesCount").text, "5 universes")
+            // a tab is what a universe PRIMARILY is: Avatar holds novels but is a series
+            strip.tabRequested("books")
+            compare(world.shown.map(function(e) { return e.name }).join("|"),
+                    "Dune|Harry Potter|Lord of the Rings|Percy Jackson|Sherlock Holmes|A Song of Ice and Fire|The Witcher")
+            strip.tabRequested("series")
+            verify(world.shown.some(function(e) { return e.name === "Avatar: The Last Airbender" }))
+            verify(world.shown.some(function(e) { return e.name === "A Song of Ice and Fire" }),
+                   "a direct adaptation stands under both of its labels")
             strip.tabRequested("all")
             compare(world.shown.length, 20)
         }
