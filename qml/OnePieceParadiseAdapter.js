@@ -5,8 +5,9 @@ var BANNER_ROOT = "../assets/universes/one-piece/paradise/banners/";
 
 var _assets = {
     "reverse-mountain": { markerId: "reverse-mountain" },
-    "whisky-peak": { markerId: "whisky-peak" },
-    "little-garden": { markerId: "little-garden" },
+    // The custom badge ZIP named these two artworks backwards; keep arc identity correct at runtime.
+    "whisky-peak": { markerId: "whisky-peak", badgeFile: "little-garden.png" },
+    "little-garden": { markerId: "little-garden", badgeFile: "whisky-peak.png" },
     "drum-island": { markerId: "drum-island" },
     "arabasta": { markerId: "arabasta" },
     "jaya": { markerId: "jaya" },
@@ -17,8 +18,9 @@ var _assets = {
     "post-enies-lobby": { markerId: "water-7" },
     "thriller-bark": { markerId: "thriller-bark" },
     "sabaody": { markerId: "sabaody" },
-    "amazon-lily": { markerId: "amazon-lily" },
-    "impel-down": { markerId: "impel-down" },
+    // Same source-pack naming error: the Kuja and Impel Down emblems were exported under each other's names.
+    "amazon-lily": { markerId: "amazon-lily", badgeFile: "impel-down.png" },
+    "impel-down": { markerId: "impel-down", badgeFile: "amazon-lily.png" },
     "marineford": { markerId: "marineford" },
     "post-war": { markerId: "post-war" },
     "return-to-sabaody": { markerId: "sabaody" }
@@ -27,10 +29,11 @@ function _asset(id) {
     var key = typeof id === "string" ? id : "";
     if (!Object.prototype.hasOwnProperty.call(_assets, key)) return null;
     var row = _assets[key];
+    var badgeFile = row.badgeFile || key + ".png";
     return {
         arcId: key,
         markerId: row.markerId,
-        badgeSource: BADGE_ROOT + key + ".png",
+        badgeSource: BADGE_ROOT + badgeFile,
         posterSource: BANNER_ROOT + key + ".png"
     };
 }

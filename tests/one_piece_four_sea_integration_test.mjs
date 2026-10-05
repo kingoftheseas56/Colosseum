@@ -74,11 +74,21 @@ test('all 26 later-sea arcs route finite catalogues and existing local artwork',
 test('badge packs cover distinct Paradise arc art and non-routable Reverie context', () => {
     const story = qmlJs('OnePieceParadiseData.js');
     const adapter = qmlJs('OnePieceParadiseAdapter.js');
+    const correctedFiles = {
+        'whisky-peak': 'little-garden', 'little-garden': 'whisky-peak',
+        'amazon-lily': 'impel-down', 'impel-down': 'amazon-lily'
+    };
     const sources = new Set();
     for (const arc of story.arcs) {
         const art = adapter.artForArc(arc);
-        assert.ok(art.badgeSource.endsWith(`/badges/${arc.id}.png`));
-        assert.equal(arc.markerSource, art.badgeSource);
+        const payload = adapter.cataloguePayload(arc);
+        assert.ok(art.badgeSource.endsWith(`/badges/${correctedFiles[arc.id] || arc.id}.png`), arc.id);
+        assert.equal(payload.markerSource, art.badgeSource);
+        assert.equal(payload.id, arc.id);
+        assert.equal(payload.markerId, art.markerId);
+        assert.ok(payload.heroSource.endsWith(`/banners/${arc.id}.png`));
+        assert.deepEqual(Array.from(payload.onePacePrefixes), Array.from(arc.onePacePrefixes));
+        assert.ok(arc.markerSource.endsWith(`/badges/${arc.id}.png`), 'Story identity stays unchanged');
         sources.add(art.badgeSource);
     }
     assert.equal(sources.size, 18);

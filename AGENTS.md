@@ -41,6 +41,7 @@
 
 ## Working-tree safety
 - Preserve unrelated modified, staged, and untracked work.
+- After completing and verifying a task, commit and push only your own work by default, unless Hemanth asks otherwise. Leave unrelated changes out of the commit.
 - Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task.
 - Do not commit credentials, tokens, machine-specific paths, local databases, caches, logs, screenshots, or build output unless they are intentional repository artifacts.
 

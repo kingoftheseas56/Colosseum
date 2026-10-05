@@ -27,7 +27,7 @@ var locations = [
     { id: "impel-down", x: 0.77, y: 0.835, kind: "prison", domain: "calm-belt", label: "IMPEL DOWN", labelX: 0.77, labelY: 0.888, size: 15, w: 60, h: 72, detail: "Underwater prison · Gates of Justice" }
 ];
 
-// Seals sit beside the drawn landmark rather than replacing its silhouette.
+// Marker coordinates are island-side placement seeds; the collision resolver may nudge them only as needed.
 var canonMarkers = [
     { id: "reverse-mountain", locationId: "twin-cape", x: 0.194, y: 0.5, arcIds: ["reverse-mountain"] },
     { id: "whisky-peak", locationId: "cactus-island", x: 0.235, y: 0.307, arcIds: ["whisky-peak"] },
@@ -35,14 +35,14 @@ var canonMarkers = [
     { id: "drum-island", locationId: "drum-island", x: 0.367, y: 0.3, arcIds: ["drum-island"] },
     { id: "arabasta", locationId: "sandy-island", x: 0.355, y: 0.622, arcIds: ["arabasta"] },
     { id: "jaya", locationId: "jaya", x: 0.518, y: 0.402, arcIds: ["jaya"] },
-    { id: "skypiea", locationId: "skypiea", x: 0.66, y: 0.205, arcIds: ["skypiea"] },
+    { id: "skypiea", locationId: "skypiea", x: 0.59, y: 0.195, arcIds: ["skypiea"] },
     { id: "long-ring-long-land", locationId: "long-ring-long-land", x: 0.663, y: 0.377, arcIds: ["long-ring-long-land"] },
     { id: "water-7", locationId: "water-7", x: 0.634, y: 0.557, arcIds: ["water-7", "post-enies-lobby"] },
     { id: "enies-lobby", locationId: "enies-lobby", x: 0.747, y: 0.263, arcIds: ["enies-lobby"] },
     { id: "thriller-bark", locationId: "thriller-bark", x: 0.767, y: 0.593, arcIds: ["thriller-bark"] },
     { id: "sabaody", locationId: "sabaody", x: 0.88, y: 0.257, arcIds: ["sabaody", "return-to-sabaody"] },
     { id: "amazon-lily", locationId: "amazon-lily", x: 0.694, y: 0.84, arcIds: ["amazon-lily"] },
-    { id: "impel-down", locationId: "impel-down", x: 0.824, y: 0.815, arcIds: ["impel-down"] },
+    { id: "impel-down", locationId: "impel-down", x: 0.817, y: 0.835, arcIds: ["impel-down"] },
     { id: "marineford", locationId: "marineford", x: 0.869, y: 0.712, arcIds: ["marineford"] },
     { id: "post-war", locationId: "rusukaina", x: 0.575, y: 0.825, arcIds: ["post-war"] }
 ];

@@ -22,15 +22,13 @@ function protectedAreas(chart, locations) {
         for (var i = 0; i < children.length; ++i) visit(children[i]);
     }
     visit(chart);
-    // Coastlines stay clear; outlined sea regions still offer room beside islands.
+    // Keep hard map boundaries clear. Individual landmark items already protect their own art.
     for (var j = 0; j < locations.length; ++j) {
         var place = locations[j];
         if (place.id === "reverse-mountain") {
             areas.push({ x: 0, y: 0, width: 145, height: 960 });
             areas.push({ x: 1535, y: 0, width: 145, height: 960 });
         }
-        if (place.id === "skypiea")
-            areas.push({ x: 667, y: 103, width: 383, height: 196 });
         if (place.kind === "boundary" && place.w && place.h)
             areas.push({ x: place.x * 1680 - place.w / 2, y: place.y * 960 - place.h / 2, width: place.w, height: place.h });
     }
