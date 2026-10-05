@@ -46,6 +46,8 @@
 - Do not commit credentials, tokens, machine-specific paths, local databases, caches, logs, screenshots, or build output unless they are intentional repository artifacts.
 
 ## Verification
+- Hemanth testing is an optional acceptance ritual, never a prerequisite for completing otherwise verified work. Offer a short, relevant checklist when useful; do not require Hemanth to pilot the app.
+- For recent implementations, record outstanding human/live-provider checks and their actual results. Skipped or unrecorded checks remain unverified; automated, agent-runtime, and Hemanth-tested evidence stay distinct.
 - Start with the smallest meaningful check for the changed surface.
 - Broaden testing only when affected dependencies, failures, risk, or the task itself justify it.
 - Do not run full builds, full suites, runtime harnesses, or broad searches by default.
