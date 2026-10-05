@@ -3757,6 +3757,7 @@ Window {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
+        anchors.bottomMargin: win.SafeArea.margins.bottom
         worlds: win.worldDefinitions
         activeTab: downloadsLayer.active ? "Profile" : worldStack.current
         visible: win.androidHost && win.width < 840
