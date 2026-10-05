@@ -21,6 +21,8 @@ public:
     QString error() const { return m_error; }
     Q_INVOKABLE void beginVisit(const QVariantMap &context);
     Q_INVOKABLE void endVisit();
+    Q_INVOKABLE QString visitToken() const { return m_visitToken; }
+    Q_INVOKABLE void setMediaCaptureBlocked(bool blocked, const QString &visitToken = QString());
     Q_INVOKABLE bool observe(const QVariantMap &sample);
     Q_INVOKABLE bool saveReadingPlace(const QString &url, const QString &title);
     Q_INVOKABLE bool setRecording(bool enabled);
@@ -35,8 +37,9 @@ private:
     bool commit(const QVariantMap &state);
     bool record(const QVariantMap &sample, bool reading);
     QVariantMap m_state, m_context;
-    QString m_path, m_error, m_sessionId, m_lastItem;
+    QString m_path, m_error, m_sessionId, m_lastItem, m_visitToken;
     double m_lastPosition = 0;
     bool m_lastPlaying = false;
+    bool m_mediaCaptureBlocked = false;
     QElapsedTimer m_clock;
 };

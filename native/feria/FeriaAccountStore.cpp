@@ -14,12 +14,32 @@
 #include <QSet>
 #include <QRegularExpression>
 #include <cmath>
+#include <algorithm>
 
 namespace {
+// Only a provider-specific rule can qualify an external media ID. Context comes
+// from beginVisit(), never from the page payload. Other providers remain legacy.
+QString youtubeMusicId(const QString &href) {
+    const QUrl url(href);
+    const auto ids = QUrlQuery(url).allQueryItemValues("v");
+    if (url.scheme() != "https" || url.host() != "music.youtube.com"
+        || (url.port(-1) != -1 && url.port() != 443) || url.path() != "/watch" || !url.userInfo().isEmpty() || ids.size() != 1) return {};
+    static const QRegularExpression valid("^[A-Za-z0-9_-]{11}$");
+    return valid.match(ids.first()).hasMatch() ? ids.first() : QString();
+}
+QString qualifiedIdentity(const QString &pk, const QString &id) {
+    return "provider-media-v1\n" + pk + "\nyoutube-video\n" + id;
+}
 QString continueIdentity(const QVariantMap &row) {
     if (row.value("kind") == "book") {
         const auto url = FeriaAccountStore::safeUrl(row.value("url").toString());
         if (!url.isEmpty()) return "book\n" + row.value("pk").toString() + "\n" + url;
+    }
+    if (row.value("pk") == "ytmusic") {
+        const auto provenId = youtubeMusicId(row.value("url").toString());
+        const auto declaredId = row.value("providerMediaId").toString();
+        if (!provenId.isEmpty() && (declaredId.isEmpty() || declaredId == provenId))
+            return qualifiedIdentity("ytmusic", provenId);
     }
     return "media\n" + row.value("id").toString();
 }
@@ -54,6 +74,11 @@ QVariantList FeriaAccountStore::continueItems() const {
     QSet<QString> seen;
     auto rows = sessions();
     rows.append(m_state.value("retainedContinue").toList());
+    // Retained rows can be newer than history aliases. One O(n log n) ordering
+    // and a set lookup per row; never scan all history separately for each alias.
+    std::stable_sort(rows.begin(), rows.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value("at").toLongLong() > b.toMap().value("at").toLongLong();
+    });
     for (const auto &value : rows) {
         const auto row = value.toMap();
         // Title-derived IDs in existing files refer to the same chapter. The
@@ -103,15 +128,29 @@ void FeriaAccountStore::beginVisit(const QVariantMap &context) {
     endVisit();
     if (!PorticoAppStateBridge::currentPorticoProviderIds().contains(context.value("pk").toString())) return;
     m_context = context;
+    m_mediaCaptureBlocked = context.value("resumePending").toBool();
     m_sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    m_visitToken = m_sessionId;
     m_clock.start();
 }
 void FeriaAccountStore::endVisit() {
+    m_mediaCaptureBlocked = false;
+    m_visitToken.clear();
     m_context.clear(); m_sessionId.clear(); m_lastItem.clear(); m_lastPlaying = false; m_clock.invalidate();
 }
+void FeriaAccountStore::setMediaCaptureBlocked(bool blocked, const QString &visitToken) {
+    if (!visitToken.isEmpty() && visitToken != m_visitToken) return;
+    m_mediaCaptureBlocked = blocked;
+    if (blocked) m_lastPlaying = false;
+}
 bool FeriaAccountStore::observe(const QVariantMap &sample) {
+    if (sample.contains("visitToken") && sample.value("visitToken").toString() != m_visitToken) return false;
     const bool reading = sample.value("kind").toString() == "book";
     if (reading && !QStringList{"kindle", "playbooks", "mangaplus", "viz", "webtoon", "dcui", "marvel"}.contains(m_context.value("pk").toString())) return false;
+    if (!reading && (m_mediaCaptureBlocked
+        || (sample.contains("connectorOutcome") && sample.value("connectorOutcome") != "observation")
+        || (sample.contains("captureState")
+        && sample.value("captureState").toString() != "observation"))) return false;
     return record(sample, reading);
 }
 bool FeriaAccountStore::saveReadingPlace(const QString &url, const QString &title) {
@@ -131,7 +170,15 @@ bool FeriaAccountStore::saveReadingPlace(const QString &url, const QString &titl
 bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     const double elapsed = m_clock.isValid() ? m_clock.restart() / 1000.0 : 0;
     if (!recording() || m_context.isEmpty()) { m_lastPlaying = false; return false; }
-    const auto url = safeUrl(sample.value("href").toString());
+    auto url = safeUrl(sample.value("href").toString());
+    const auto pk = m_context.value("pk").toString();
+    const auto mediaId = reading ? QString() : sample.value("providerMediaId").toString();
+    if (!mediaId.isEmpty()) {
+        if (pk != "ytmusic" || mediaId != youtubeMusicId(sample.value("href").toString())
+            || (!sample.value("identityProvider").toString().isEmpty()
+                && sample.value("identityProvider").toString() != pk)) return false;
+        url = "https://music.youtube.com/watch?v=" + mediaId;
+    }
     auto locator = sample.value("locator").toMap();
     if (reading && locator.isEmpty()) locator.insert("type", "url");
     const bool scroll = reading && locator.value("type") == "scroll";
@@ -162,13 +209,12 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     const double duration = reading ? (scroll || mangaPage ? 100 : 0) : sample.value("duration").toDouble();
     const bool playing = !sample.value("paused", true).toBool() && !sample.value("ended").toBool();
     if (url.isEmpty() || (!reading && (sample.value("ad").toBool() || !std::isfinite(position)
-        || !std::isfinite(duration) || duration < 30 || position <= 0))) { m_lastPlaying = false; return false; }
+        || !std::isfinite(duration) || duration < 30 || position <= 0 || position > duration))) { m_lastPlaying = false; return false; }
     QString title = sample.value("title").toString().trimmed().left(300);
     if (title.isEmpty()) title = m_context.value("title").toString();
     if (title.isEmpty()) title = QUrl(url).host();
-    const auto pk = m_context.value("pk").toString();
     const auto identity = reading ? continueIdentity({{"kind", "book"}, {"pk", pk}, {"url", url}})
-                                  : pk + "\n" + url + "\n" + title;
+                                  : !mediaId.isEmpty() ? qualifiedIdentity(pk, mediaId) : pk + "\n" + url + "\n" + title;
     const auto id = QString::fromLatin1(QCryptographicHash::hash(identity.toUtf8(), QCryptographicHash::Sha256).toHex());
     double active = 0;
     const double delta = position - m_lastPosition;
@@ -190,6 +236,14 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     if (row.isEmpty() && !reading && !playing) return false;
     row.insert("id", id); row.insert("sessionId", m_sessionId); row.insert("pk", pk);
     row.insert("title", title); row.insert("url", url);
+    if (!mediaId.isEmpty()) {
+        row.insert("identityVersion", 1);
+        row.insert("identityNamespace", "youtube-video");
+        row.insert("providerMediaId", mediaId);
+        row.insert("artist", sample.value("artist").toString().left(300));
+        row.insert("album", sample.value("album").toString().left(300));
+        row.insert("artwork", safeUrl(sample.value("artwork").toString()));
+    }
     row.insert("kind", reading ? "book" : sample.value("kind", "video").toString());
     row.insert("cover", m_context.value("cover"));
     row.insert("at", QDateTime::currentMSecsSinceEpoch());

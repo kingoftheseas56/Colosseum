@@ -601,14 +601,14 @@ Item {
         if (sharedAccountActive) accountDestinationRequested()
         if (accountStore) {
             var title = titleObj(id)
-            accountStore.beginVisit({pk:pk,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
+            accountStore.beginVisit({pk:pk,resumePending:position > 0,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
         }
         hostReturnState = viewState; hostApp = pk; hostTitle = id || ""; hostMode = mode || "home"; hostUrl = destination; providerWebViewReady = false; viewState = "host"; content.forceActiveFocus()
     }
     function beginHostVisit() {
         if (!accountStore) return
         var title = titleObj(hostTitle)
-        accountStore.beginVisit({pk:hostApp,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
+        accountStore.beginVisit({pk:hostApp,resumePending:hostResumePosition > 0,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
     }
     function goHome() {
         if (viewState === "home") { homeRequested(); return }

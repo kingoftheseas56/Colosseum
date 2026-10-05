@@ -21,6 +21,22 @@ endif()
 add_executable(feria_account_store_test feria_account_store_test.cpp)
 target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
 add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)
+add_executable(feria_media_contract_test feria_media_contract_test.cpp)
+target_link_libraries(feria_media_contract_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_media_contract_test COMMAND feria_media_contract_test)
+find_package(Qt6 QUIET COMPONENTS QuickTest)
+if(TARGET Qt6::QuickTest)
+    add_executable(feria_resume_qml_test feria_resume_qml_test.cpp)
+    set_target_properties(feria_resume_qml_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(feria_resume_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml)
+    add_test(NAME colosseum.feria_resume_qml_test COMMAND feria_resume_qml_test
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/feria_resume_probe")
+    # Explicit reviewer target: real engines, not an ordinary headless unit gate.
+    add_executable(feria_wrapper_qml_test feria_resume_qml_test.cpp)
+    set_target_properties(feria_wrapper_qml_test PROPERTIES AUTOMOC ON)
+    target_compile_definitions(feria_wrapper_qml_test PRIVATE FERIA_WRAPPER_RUNTIME)
+    target_link_libraries(feria_wrapper_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml Qt6::WebEngineQuick)
+endif()
 
 add_executable(feria_availability_test feria_availability_test.cpp)
 target_link_libraries(feria_availability_test PRIVATE feria_discovery Qt6::Core)
@@ -28,6 +44,10 @@ add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
 
 find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
 if(COLOSSEUM_FERIA_TEST_NODE)
+    foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
+        add_test(NAME colosseum.${test_name}_test
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
+    endforeach()
     add_test(NAME colosseum.feria_app_mode_test
         COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
 endif()

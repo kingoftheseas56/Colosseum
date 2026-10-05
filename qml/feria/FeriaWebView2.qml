@@ -9,6 +9,7 @@ FeriaHostItem {
     required property url sourceUrl
     required property string profilePath
     property string providerId: ""
+    property string accountVisitToken: ""
     property bool fullScreenActive: false
     onFullScreenChanged: function(active) { fullScreenActive = active }
     property bool appLayout: true
@@ -32,36 +33,51 @@ FeriaHostItem {
     property string observationMode: "watch"
     property bool observationEnabled: true
     property int readingResumeAttempts: 0
-    property int mediaResumeAttempts: 0
     property int navigationGeneration: 0
-    function samplePlayback() { executeScript("feria-account-sample-" + navigationGeneration, Playback.observation(observationMode)) }
+    signal captureProtectionChanged(bool blocked, string visitToken)
+    function cancelMediaResume(freshStart) { mediaGate.cancelResume(freshStart) }
+    function samplePlayback() { mediaGate.poll() }
+    function receiveMediaResult(label, frame) { mediaGate.acceptResult(label, frame) }
+    FeriaMediaSession {
+        id: mediaGate
+        providerId: browser.providerId; sourceUrl: String(browser.sourceUrl)
+        mode: browser.observationMode; initialPosition: browser.resumePosition
+        onScriptRequested: (label, script) => browser.executeScript(label, script)
+        onProtectionChanged: (blocked) => browser.captureProtectionChanged(blocked, browser.accountVisitToken)
+        onUnavailable: browser.resumeUnavailable()
+        onConnectorFailed: (reason) => console.warn("Feria connector:", reason)
+        onRestored: browser.resumePosition = 0
+        onObservation: (sample) => {
+            if (browser.resumeLocator && browser.resumeLocator.type === "url") browser.resumeLocator = null
+            if (browser.resumeLocator && sample.kind === "book"
+                    && Playback.sameDestination(sample.href, browser.sourceUrl)) {
+                ++browser.readingResumeAttempts
+                browser.executeScript("feria-reading-resume-" + browser.navigationGeneration,
+                    Playback.restoreReading(browser.resumeLocator))
+                return
+            }
+            if (browser.observationEnabled) {
+                if (browser.accountVisitToken) sample.visitToken = browser.accountVisitToken
+                browser.playbackObserved(sample)
+            }
+        }
+    }
+    onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
     Timer {
-        interval: 2000; repeat: true; running: browser.ready && (browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null)
+        interval: 2000; repeat: true
+        running: browser.ready && (browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null)
         onTriggered: browser.samplePlayback()
     }
     onScriptResult: function(label, json) {
-        if (label === "feria-account-sample-" + navigationGeneration) {
-            try {
-                var sample = JSON.parse(json)
-                if (!sample) return
-                if (resumeLocator && resumeLocator.type === "url") resumeLocator = null
-                if (resumeLocator && sample.kind === "book" && Playback.sameDestination(sample.href, sourceUrl)) {
-                    ++readingResumeAttempts
-                    executeScript("feria-reading-resume-" + navigationGeneration, Playback.restoreReading(resumeLocator))
-                    return
-                }
-                if (sample.kind !== "book" && resumePosition > 0 && Playback.canResume(sample) && Playback.sameDestination(sample.href, sourceUrl)) {
-                    ++mediaResumeAttempts
-                    executeScript("feria-account-resume-" + navigationGeneration, Playback.seek(resumePosition))
-                } else if (browser.observationEnabled) playbackObserved(sample)
-            } catch (e) {}
-        } else if (label === "feria-reading-resume-" + navigationGeneration) {
+        if (label === "feria-reading-resume-" + navigationGeneration) {
             if (json === "true") resumeLocator = null
-            else if (readingResumeAttempts >= (resumeLocator && resumeLocator.type === "mangaplus-page" ? 60 : 10)) { resumeLocator = null; resumeUnavailable() }
-        } else if (label === "feria-account-resume-" + navigationGeneration) {
-            if (json === "true") resumePosition = 0
-            else if (mediaResumeAttempts >= 10) { resumePosition = 0; resumeUnavailable() }
+            else if (readingResumeAttempts >= (resumeLocator && resumeLocator.type === "mangaplus-page" ? 60 : 10)) {
+                resumeLocator = null; resumeUnavailable()
+            }
+            return
         }
+        try { browser.receiveMediaResult(label, JSON.parse(json)) }
+        catch (e) { browser.receiveMediaResult(label, {outcome:"error",reason:"invalid-script-result"}) }
     }
     signal localSessionCleared(bool success)
     property var clearOrigins: []

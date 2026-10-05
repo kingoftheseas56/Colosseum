@@ -11,6 +11,7 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     property string providerId: ""
+    property string accountVisitToken: ""
     property bool fullScreenActive: false
     Shortcut {
         sequence:"Escape"
@@ -38,33 +39,47 @@ WebEngineView {
     property string observationMode: "watch"
     property bool observationEnabled: true
     property int readingResumeAttempts: 0
-    property int mediaResumeAttempts: 0
-    function samplePlayback() {
-        var generation = navigationGeneration
-        runJavaScript(Playback.observation(observationMode), function(sample) {
-            if (!sample || generation !== navigationGeneration) return
-            if (resumeLocator && resumeLocator.type === "url") resumeLocator = null
-            if (resumeLocator && sample.kind === "book" && Playback.sameDestination(sample.href, sourceUrl)) {
-                ++readingResumeAttempts
-                runJavaScript(Playback.restoreReading(resumeLocator), function(ok) {
-                    if (generation !== navigationGeneration) return
-                    if (ok) resumeLocator = null
-                    else if (readingResumeAttempts >= (resumeLocator && resumeLocator.type === "mangaplus-page" ? 60 : 10)) { resumeLocator = null; resumeUnavailable() }
+    signal captureProtectionChanged(bool blocked, string visitToken)
+    function cancelMediaResume(freshStart) { mediaGate.cancelResume(freshStart) }
+    function samplePlayback() { mediaGate.poll() }
+    function receiveMediaResult(label, frame) { mediaGate.acceptResult(label, frame) }
+    FeriaMediaSession {
+        id: mediaGate
+        providerId: browser.providerId; sourceUrl: String(browser.sourceUrl)
+        mode: browser.observationMode; initialPosition: browser.resumePosition
+        onScriptRequested: (label, script) => browser.runJavaScript(script, function(result) {
+            browser.receiveMediaResult(label, result)
+        })
+        onProtectionChanged: (blocked) => browser.captureProtectionChanged(blocked, browser.accountVisitToken)
+        onUnavailable: browser.resumeUnavailable()
+        onConnectorFailed: (reason) => console.warn("Feria connector:", reason)
+        onRestored: browser.resumePosition = 0
+        onObservation: (sample) => {
+            if (browser.resumeLocator && browser.resumeLocator.type === "url") browser.resumeLocator = null
+            if (browser.resumeLocator && sample.kind === "book"
+                    && Playback.sameDestination(sample.href, browser.sourceUrl)) {
+                ++browser.readingResumeAttempts
+                var generation = browser.navigationGeneration
+                browser.runJavaScript(Playback.restoreReading(browser.resumeLocator), function(ok) {
+                    if (generation !== browser.navigationGeneration) return
+                    if (ok) browser.resumeLocator = null
+                    else if (browser.readingResumeAttempts >=
+                             (browser.resumeLocator && browser.resumeLocator.type === "mangaplus-page" ? 60 : 10)) {
+                        browser.resumeLocator = null; browser.resumeUnavailable()
+                    }
                 })
                 return
             }
-            if (sample.kind !== "book" && resumePosition > 0 && Playback.canResume(sample) && Playback.sameDestination(sample.href, sourceUrl)) {
-                ++mediaResumeAttempts
-                runJavaScript(Playback.seek(resumePosition), function(success) {
-                    if (generation !== navigationGeneration) return
-                    if (success) resumePosition = 0
-                    else if (mediaResumeAttempts >= 10) { resumePosition = 0; resumeUnavailable() }
-                })
-            } else if (observationEnabled) playbackObserved(sample)
-        })
+            if (browser.observationEnabled) {
+                if (browser.accountVisitToken) sample.visitToken = browser.accountVisitToken
+                browser.playbackObserved(sample)
+            }
+        }
     }
+    onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
     Timer {
-        interval: 2000; repeat: true; running: browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null
+        interval: 2000; repeat: true
+        running: browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null
         onTriggered: browser.samplePlayback()
     }
     signal localSessionCleared(bool success)

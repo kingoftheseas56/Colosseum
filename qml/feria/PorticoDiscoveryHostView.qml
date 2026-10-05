@@ -45,6 +45,9 @@ Item {
     function appHome() {
         var provider = Data.P[controller.hostApp]
         if (browserLoader.item && provider && provider.d) {
+            controller.hostResumePosition = 0
+            controller.hostResumeLocator = null
+            browserLoader.item.cancelMediaResume(true)
             browserLoader.item.resumePosition = 0
             browserLoader.item.resumeLocator = null
             browserLoader.item.url = "https://" + provider.d
@@ -287,6 +290,7 @@ Item {
                 sourceUrl: root.currentUrl || controller.hostUrl,
                 profilePath: FeriaBrowserPolicy.storageRoot,
                 providerId:controller.hostApp,
+                accountVisitToken:controller.accountStore ? controller.accountStore.visitToken() : "",
                 appLayout:Qt.binding(function() { return root.appOptions.layout !== false }),
                 appKeyboard:Qt.binding(function() { return root.appOptions.keyboard !== false }),
                 appAccent:String(controller.gold),
@@ -305,6 +309,9 @@ Item {
     }
     Connections {
         target: browserLoader.item
+        function onCaptureProtectionChanged(blocked, visitToken) {
+            if (controller.accountStore) controller.accountStore.setMediaCaptureBlocked(blocked, visitToken)
+        }
         function onPlaybackObserved(sample) { root.receivePlayback(sample) }
         function onResumeUnavailable() { controller.setToast("The saved page is open. Use the provider's controls to restore your position.") }
         function onStarted(location) {

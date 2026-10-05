@@ -38,6 +38,7 @@ var pageProbeSource = [
     "        return Number(!b.media.paused) - Number(!a.media.paused) || (b.media.duration || 0) - (a.media.duration || 0)",
     "    })",
     "    var selected = media[0], m = selected && selected.media",
+    "    if (typeof window !== 'undefined') window.__feriaProbeMedia = m || null",
     "    var ad = !!document.querySelector('.ad-showing,.ad-interrupting')",
     "        || !!(selected && selected.root.querySelector('.ad-showing,.ad-interrupting'))",
     "    // MANGA Plus appends pages as the internal surface scrolls. Anchor to",
@@ -56,7 +57,7 @@ var pageProbeSource = [
     "    }",
     "    if (mode === 'seek') {",
     "        if (!m || m.paused || m.readyState < 3 || !Number.isFinite(m.duration) || m.duration < 30 || ad) return false",
-    "        try { m.currentTime = Math.min(position, Math.max(0,m.duration-1)); return Math.abs(m.currentTime-position) < 2 } catch (_) { return false }",
+    "        try { var target = Math.min(position, Math.max(0,m.duration-1)); m.currentTime = target; return Math.abs(m.currentTime-target) < 2 } catch (_) { return false }",
     "    }",
     "    if (mode === 'restore-reading') {",
     "        if (locator && locator.type === 'mangaplus-page') {",
@@ -131,5 +132,86 @@ var pageProbeSource = [
 
 function observation(mode) { return '(' + pageProbeSource + ')(' + JSON.stringify(mode || 'watch') + ',null,null)' }
 var sample = observation('watch')
+// Single-write compatibility acknowledgement only; production settlement uses seekMedia + FeriaResume.
 function seek(position) { return '(' + pageProbeSource + ')("seek",' + Math.max(0,Number(position)||0) + ',null)' }
 function restoreReading(locator) { return '(' + pageProbeSource + ')("restore-reading",null,' + JSON.stringify(locator) + ')' }
+
+// Qualified destination matching is narrow; generic/reading URL rules are unchanged.
+function mediaKey(provider, href) {
+    var text = String(href || "")
+    var address = destinationKey(text).split("#")[0]
+    if (provider === "ytmusic" && /^https:\/\/music\.youtube\.com(?::443)?\/watch[?]/.test(address)) {
+        try {
+            var pairs = address.split("?")[1].split("&").filter(function(pair) {
+                return decodeURIComponent(pair.split("=")[0]) === "v"
+            })
+            var id = pairs.length === 1 ? decodeURIComponent(pairs[0].slice(pairs[0].indexOf("=")+1)) : ""
+            if (/^[A-Za-z0-9_-]{11}$/.test(id)) return "ytmusic\n" + id
+        } catch (e) {}
+    }
+    return destinationKey(text)
+}
+var mediaEnvelopeSource = [
+    "function envelope(probe, connector, mode, provider, token) {",
+    " if(Number.isFinite(window.__feriaRequestToken) && token<window.__feriaRequestToken)",
+    "   return {outcome:'hold',reason:'stale-request'}",
+    " window.__feriaRequestToken = token",
+    " var selected, result = mode === 'read' ? {outcome:'not-applicable'} : connector(provider,function(){return probe(mode,null,null)})",
+    " if (result.outcome === 'not-applicable') {",
+    "   result = {outcome:'observation',sample:probe(mode,null,null)}; selected=window.__feriaProbeMedia",
+    " } else if (result.outcome === 'observation') selected=result.fallback ? window.__feriaProbeMedia : window.__feriaConnectorMedia",
+    " if (result.outcome !== 'observation' || !result.sample) return result",
+    " var sample=result.sample; if(sample.kind==='book') return result",
+    " var key=sample.providerMediaId ? provider+'\\n'+sample.providerMediaId : sample.href",
+    " if(!sample.providerMediaId) try {",
+    "   var clean=new URL(sample.href)",
+    "   Array.from(clean.searchParams.keys()).forEach(function(name){",
+    "     if(/^utm_/i.test(name) || ['fbclid','gclid','si','feature','trackid','tctx'].indexOf(name.toLowerCase())>=0)",
+    "       clean.searchParams.delete(name)",
+    "   });clean.searchParams.sort();key=clean.href",
+    " } catch(e) {}",
+    " var src=selected && (selected.currentSrc || selected.src || '')",
+    " var tracker=window.__feriaMediaEpoch",
+    " if(selected && (!tracker || tracker.media!==selected)) {",
+    "   tracker={media:selected,epoch:0,started:selected.readyState>=1,loading:false}",
+    "   window.__feriaMediaEpoch=tracker",
+    "   if(selected.addEventListener) ['loadedmetadata','emptied','loadstart'].forEach(function(type){",
+    "     selected.addEventListener(type,function(){",
+    "       if(type==='loadedmetadata') {",
+    "         if(tracker.started && !tracker.loading) ++tracker.epoch",
+    "         tracker.started=true;tracker.loading=false",
+    "       } else {",
+    "         if(tracker.started && !tracker.loading) ++tracker.epoch",
+    "         tracker.loading=true",
+    "       }",
+    "     },{passive:true})",
+    "   })",
+    " }",
+    " var mediaEpoch=tracker && tracker.media===selected ? tracker.epoch : 0",
+    " var old=window.__feriaFrame, generation=old ? old.generation : 0",
+    " if(!old || old.key!==key || (old.media && old.media!==selected)",
+    "   || (old.src && old.src!==src) || (old.media===selected && old.mediaEpoch!==mediaEpoch)) ++generation",
+    " var documentToken=old ? old.documentToken : Date.now().toString(36)+Math.random().toString(36)",
+    " window.__feriaFrame={key:key,media:selected,src:src,mediaEpoch:mediaEpoch,generation:generation,documentToken:documentToken}",
+    " sample.mediaGeneration=documentToken+':'+String(generation); sample.sourceKey=key",
+    " return result",
+    "}"
+].join("\n")
+function invalidateMediaRequest(token) {
+    return '(function(){var token=' + Number(token) + ';'
+        + 'if(!Number.isFinite(window.__feriaRequestToken)||window.__feriaRequestToken<token)'
+        + 'window.__feriaRequestToken=token})()'
+}
+function mediaObservation(mode, provider, connector, token) {
+    return '(' + mediaEnvelopeSource + ')(' + pageProbeSource + ',' + connector + ','
+        + JSON.stringify(mode) + ',' + JSON.stringify(provider) + ',' + Number(token) + ')'
+}
+function seekMedia(position, sample, mode, provider, connector, token) {
+    return '(function(){if(window.__feriaRequestToken!==' + Number(token) + ') return false;'
+        + 'var frame=' + mediaObservation(mode,provider,connector,token) + ';'
+        + 'if(!frame || frame.outcome!=="observation") return false;var s=frame.sample;'
+        + 'if(s.mediaGeneration!==' + JSON.stringify(sample.mediaGeneration)
+        + '||s.sourceKey!==' + JSON.stringify(sample.sourceKey) + ') return false;'
+        + 'var m=window.__feriaFrame.media;if(!m||m.isConnected===false||m.paused||m.readyState<3||s.ad) return false;'
+        + 'try{m.currentTime=Math.min(' + Number(position) + ',Math.max(0,m.duration-1));return true}catch(e){return false}})()'
+}
