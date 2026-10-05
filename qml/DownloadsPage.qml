@@ -13,6 +13,7 @@ Item {
     id: root
     objectName: "downloadsPage"
     property Item backdrop: null
+    property real contentBottomInset: 0
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -439,6 +440,7 @@ Item {
         id: page
         objectName: "downloadsPageScroll"   // test-only seam: Lanista ui-scroll target for the ledger Read action
         anchors.fill: parent
+        anchors.bottomMargin: root.contentBottomInset
         contentWidth: width
         contentHeight: col.implicitHeight + 140
         clip: true

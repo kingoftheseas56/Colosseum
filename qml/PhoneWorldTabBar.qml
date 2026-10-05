@@ -10,6 +10,9 @@ Item {
     signal worldRequested(string world)
     signal profileRequested()
 
+    Theme { id: theme }
+    readonly property real navigationBottomPadding: 48 // Assumes Android three-button navigation; gesture navigation remains an open risk.
+
     readonly property var tabs: {
         var out = []
         for (var i = 0; i < root.worlds.length; ++i) {
@@ -28,12 +31,13 @@ Item {
         return out
     }
 
-    implicitHeight: 72
+    implicitHeight: 72 + navigationBottomPadding
     height: implicitHeight
 
     Rectangle {
+        objectName: "phoneWorldTabBarBackground"
         anchors.fill: parent
-        color: Qt.rgba(0.039, 0.043, 0.063, 0.86)
+        color: "#0a0b10"
     }
 
     Rectangle {
@@ -47,7 +51,7 @@ Item {
     Row {
         id: row
         anchors.fill: parent
-        anchors.bottomMargin: 8
+        anchors.bottomMargin: root.navigationBottomPadding + 8
 
         Repeater {
             model: root.tabs.length
@@ -100,7 +104,7 @@ Item {
                     anchors.topMargin: 4
                     text: tab.entry.name
                     color: tab.active ? "#f0c44a" : "#9a99a5"
-                    font.family: "Segoe UI"
+                    font.family: theme.ui
                     font.pixelSize: 11
                     font.weight: tab.active ? Font.DemiBold : Font.Normal
                 }

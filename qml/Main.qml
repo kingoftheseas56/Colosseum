@@ -3666,6 +3666,10 @@ Window {
                         item.lifecycleActive = Qt.binding(function() {
                             return worldStack.current === mode && !win.immersiveSurfaceOpen
                         })
+                    if (item.contentBottomInset !== undefined)
+                        item.contentBottomInset = Qt.binding(function() {
+                            return phoneWorldTabs.visible ? phoneWorldTabs.height : 0
+                        })
                     item.medium = mode
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
@@ -3748,8 +3752,8 @@ Window {
         }
     }
 
-    // Android phone shell, Slice S1-A. Wide rail behaviour and page-content insets are later
-    // guardrail sub-slices; this component is intentionally narrow-screen only.
+    // Android phone shell. S1-B keeps the whole opaque bar on-screen and gives hosted pages
+    // its full height as a bottom content inset.
     PhoneWorldTabBar {
         id: phoneWorldTabs
         objectName: "phoneWorldTabBar"
@@ -3757,11 +3761,6 @@ Window {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        // Qt reports a zero bottom safe-area on the Nokia T20 even while Android's
-        // three-button navigation bar reserves 48 logical px. Keep the tabs above
-        // that system-owned strip; honor any larger safe area a device does report.
-        anchors.bottomMargin: Math.max(win.SafeArea.margins.bottom,
-                                       win.androidHost ? 48 : 0)
         worlds: win.worldDefinitions
         activeTab: downloadsLayer.active ? "Profile" : worldStack.current
         visible: win.androidHost && win.width < 840
@@ -4417,6 +4416,10 @@ Window {
         asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
+            if (item.contentBottomInset !== undefined)
+                item.contentBottomInset = Qt.binding(function() {
+                    return phoneWorldTabs.visible ? phoneWorldTabs.height : 0
+                })
             item.backdrop = wall
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)

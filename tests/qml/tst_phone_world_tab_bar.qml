@@ -63,7 +63,10 @@ TestCase {
     }
 
     function test_mock_geometry_and_targets() {
-        compare(bar.height, 72)
+        compare(bar.navigationBottomPadding, 48)
+        compare(bar.height, 120)
+        var background = findChild(bar, "phoneWorldTabBarBackground")
+        compare(background.color.a, 1)
         var names = ["Theatre", "Tankoban", "Biblio", "Profile"]
         for (var i = 0; i < names.length; ++i) {
             var tab = findChild(bar, "phoneWorldTab_" + names[i])

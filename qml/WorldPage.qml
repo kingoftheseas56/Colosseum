@@ -147,6 +147,9 @@ Item {
     property bool androidHost: Qt.platform.os === "android"
     AdaptiveLayout { id: adaptive; viewportWidth: world.width }
     readonly property real pageMargin: adaptive.pageMargin
+    // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
+    property real contentBottomInset: 0
+
     readonly property string layoutClass: adaptive.layoutClass
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
     // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
@@ -272,7 +275,7 @@ Item {
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
         y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
-        height: world.height - y
+        height: Math.max(0, world.height - y - world.contentBottomInset)
         contentWidth: width
         contentHeight: board.implicitHeight + 50
         clip: true
