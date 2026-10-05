@@ -29,6 +29,28 @@ Item {
     readonly property real markH: banner.shape === "tall" ? 70 : (banner.shape === "wide" ? 56 : 66)
     readonly property bool hasMark: String(banner.entry.logo || "").length > 0
 
+    // Arc 63-D1 diagnostic seam: expose the Image truth already used to decide what is
+    // painted. This is deliberately per-asset, not the final surface-level settled contract.
+    readonly property string directorAssetKey: String(banner.entry.name || "")
+    readonly property string directorBannerSource: String(banner.entry.banner || "")
+    readonly property string directorMarkSource: String(banner.entry.logo || "")
+    readonly property string directorBannerStatus: directorBannerSource.length === 0 ? "unavailable"
+            : artRaw.status === Image.Ready ? "ready"
+            : artRaw.status === Image.Error ? "error" : "loading"
+    readonly property string directorMarkStatus: !banner.hasMark ? "not-required"
+            : markImage.status === Image.Ready ? "ready"
+            : markImage.status === Image.Error ? "error" : "loading"
+    // The warm cohort is dynamic content art only. Bundled identity marks are exposed
+    // above for diagnostics, but they are not network/cache warm dependencies.
+    readonly property int directorRequiredAssetCount: directorBannerSource.length === 0 ? 0 : 1
+    readonly property int directorReadyAssetCount: directorBannerStatus === "ready" ? 1 : 0
+    readonly property int directorFailedAssetCount: directorBannerStatus === "error" ? 1 : 0
+    readonly property bool directorAssetsReady: directorRequiredAssetCount > 0
+            && directorReadyAssetCount === directorRequiredAssetCount && directorFailedAssetCount === 0
+    readonly property string directorAssetState: directorRequiredAssetCount === 0 ? "unavailable"
+            : directorFailedAssetCount > 0 ? "partial"
+            : directorAssetsReady ? "ready" : "loading"
+
     width: parent ? parent.width : 0
     height: 178
 
@@ -88,6 +110,7 @@ Item {
         height: parent.height
         visible: banner.hasMark
         Image {
+            id: markImage
             objectName: "universeBannerMark"
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: -9          // centred in the 80px slot left of the hairline

@@ -17,6 +17,7 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    objectName: "shelvesUniversePage"
     anchors.fill: parent
 
     // shell contract — the same verbs the other template pages speak (Main's template
@@ -53,6 +54,13 @@ Item {
 
     property var uni: ({ name: "", category: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
                          color: "", shelves: [] })
+
+    // Arc 63-D1 diagnostic seam: the wallpaper is shot-defining image content. Expose the
+    // existing Image status without turning it into the final surface-level readiness gate.
+    readonly property string directorWallpaperSource: String(root.uni.wallpaper || root.uni.banner || "")
+    readonly property string directorWallpaperStatus: directorWallpaperSource.length === 0 ? "unavailable"
+            : wallpaperImage.status === Image.Ready ? "ready"
+            : wallpaperImage.status === Image.Error ? "error" : "loading"
 
     // ---- the shelves are data: one panel per non-empty shelf, in entry order ----
     function runWorks(run) { return run ? (run.works || run.items || []) : [] }
@@ -309,6 +317,7 @@ Item {
                 source: "../assets/wallpaper/cold-ripple.jpg"
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Image {
+            id: wallpaperImage
             anchors.fill: parent
             source: root.uni.wallpaper || root.uni.banner
             asynchronous: true; cache: true
@@ -1269,6 +1278,13 @@ Item {
         readonly property string rowLabel: item && item.shelfTitle ? String(item.shelfTitle) : ""
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
+        objectName: "shelvesTile_" + root.keyOf(tile.item).replace(/[^A-Za-z0-9]+/g, "_")
+        readonly property string directorAssetKey: root.keyOf(tile.item)
+        readonly property string directorArtSource: String(tile.item ? (tile.item.cover || "") : "")
+        readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
+                : art.status === Image.Ready ? "ready"
+                : art.status === Image.Error ? "error" : "loading"
+        readonly property bool directorArtReady: directorArtStatus === "ready"
         readonly property real done: root.fraction(tile.item)
         signal hoveredIn()
         signal clicked()

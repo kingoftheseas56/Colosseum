@@ -161,6 +161,8 @@ WorldPage {
                 id: bar
                 required property var modelData
                 required property int index
+                objectName: "universeBanner_" + String(bar.modelData.name || "")
+                        .replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
                 entry: bar.modelData
                 hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index
