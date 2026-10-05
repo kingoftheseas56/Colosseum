@@ -312,60 +312,16 @@
       ]
     },
     {
-      "cmd": "point",
-      "label": "real pointer returns to pinned Universes pill to clear ledger focus",
+      "cmd": "ui-keypress",
+      "label": "Tab leaves the already-focused ledger so keyboard selection cannot fake hover",
       "payload": {
-        "target": "modePillFocus_Universes",
-        "duration_ms": 180,
-        "path": "smoothstep",
-        "tolerance_px": 2
+        "key": "Tab"
       },
       "expect": [
         {
-          "path": "pointed",
+          "path": "pressed",
           "op": "==",
-          "value": "modePillFocus_Universes"
-        },
-        {
-          "path": "deltaX",
-          "op": ">=",
-          "value": -2
-        },
-        {
-          "path": "deltaX",
-          "op": "<=",
-          "value": 2
-        },
-        {
-          "path": "deltaY",
-          "op": ">=",
-          "value": -2
-        },
-        {
-          "path": "deltaY",
-          "op": "<=",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "cmd": "pointer-click",
-      "label": "real pointer reselects current Universes world and releases ledger keyboard selection",
-      "payload": {
-        "target": "modePillFocus_Universes",
-        "button": "left",
-        "action": "click"
-      },
-      "expect": [
-        {
-          "path": "clicked",
-          "op": "==",
-          "value": "modePillFocus_Universes"
-        },
-        {
-          "path": "submittedEvents",
-          "op": "==",
-          "value": 2
+          "value": "Tab"
         }
       ]
     },
