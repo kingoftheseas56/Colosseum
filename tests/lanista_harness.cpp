@@ -1276,6 +1276,17 @@ int main(int argc, char** argv)
                     && zeroSizePoint.value("code").toString() == "OFFSCREEN_TARGET",
                 "point refuses a zero-size target" + why());
 
+        // C2a hover proof starts from a known non-hover point inside the same
+        // real root window. This is test setup only; the Lanista command still
+        // receives no raw coordinate and must resolve its own named endpoint.
+        QCursor::setPos(rootWindow->mapToGlobal(QPoint(20, 20)));
+        settle(80);
+        QJsonObject hoverBefore = call(pipe, {{"cmd", "qml-get"}, {"seq", 7011},
+            {"payload", QJsonObject{{"object", "counterMouse"},
+                                    {"props", QJsonArray{"containsMouse"}}}}});
+        require(!hoverBefore.value("props").toObject().value("containsMouse").toBool(),
+                "C2a: counterMouse starts outside the real hover state" + why());
+
         const QPoint pointerBefore = QCursor::pos();
         QJsonObject pointed = call(pipe, {{"cmd", "point"}, {"seq", 702},
             {"payload", QJsonObject{{"target", "counterMouse"},
@@ -1329,6 +1340,23 @@ int main(int argc, char** argv)
                     && pointed.value("elapsedMs").toInt() <= 500,
                 "point duration is observable and bounded" + why());
 
+        // C2a: QCursor travel must produce the MouseArea's REAL hover state.
+        // No test or bridge property is written to fake containsMouse. Hold the
+        // pointer at rest for a visible shot beat, then read the production Qt
+        // hover state back through the ordinary read channel.
+        settle(220);
+        QJsonObject hoverAtRest = call(pipe, {{"cmd", "qml-get"}, {"seq", 7021},
+            {"payload", QJsonObject{{"object", "counterMouse"},
+                                    {"props", QJsonArray{"containsMouse"}}}}});
+        require(hoverAtRest.value("props").toObject().value("containsMouse").toBool(),
+                "C2a: real pointer arrival activates MouseArea.containsMouse" + why());
+        QJsonObject clicksAtHover = call(pipe, {{"cmd", "qml-get"}, {"seq", 7022},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(clicksAtHover.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 0"),
+                "C2a: resting on real hover does not synthesize a click" + why());
+
         // Partly outside the root window is still targetable, but the point must
         // use the VISIBLE intersection, not the off-window item center.
         QJsonObject clippedPoint = call(pipe, {{"cmd", "point"}, {"seq", 703},
@@ -1361,6 +1389,48 @@ int main(int argc, char** argv)
         require(missingPoint.value("type").toString() == "error"
                     && missingPoint.value("code").toString() == "NO_SUCH_ITEM",
                 "point refuses a missing target without a coordinate" + why());
+
+        // C2a: the target is not allowed to drift underneath an in-flight
+        // gesture. Move the real visual owner after point starts; the next
+        // revalidation turn must refuse instead of continuing toward the stale
+        // screen coordinate captured at command start.
+        QObject* counterButtonObject =
+            rootWindow->findChild<QObject*>(QStringLiteral("counterButton"));
+        require(counterButtonObject != nullptr,
+                "C2a: counterButton fixture is reachable for the movement race" + why());
+        const double originalCounterX = counterButtonObject->property("x").toDouble();
+        QTimer::singleShot(32, counterButtonObject,
+                           [counterButtonObject, originalCounterX]() {
+            counterButtonObject->setProperty("x", originalCounterX + 48.0);
+        });
+        QJsonObject movedDuringPoint = call(pipe, {{"cmd", "point"}, {"seq", 7052},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 160},
+                                    {"path", "linear"}}}}, 2000);
+        require(movedDuringPoint.value("type").toString() == "error"
+                    && movedDuringPoint.value("code").toString() == "TARGET_MOVED",
+                "C2a: point fails closed when the named target moves during the gesture" + why());
+        counterButtonObject->setProperty("x", originalCounterX);
+        settle(48);
+
+        // Losing the exact named identity mid-gesture is also terminal. This
+        // models a delegate disappearing/rebinding while the pointer is moving.
+        QObject* counterMouseObject =
+            rootWindow->findChild<QObject*>(QStringLiteral("counterMouse"));
+        require(counterMouseObject != nullptr,
+                "C2a: counterMouse fixture is reachable for the identity race" + why());
+        QTimer::singleShot(32, counterMouseObject, [counterMouseObject]() {
+            counterMouseObject->setObjectName(QStringLiteral("counterMouse_rebound"));
+        });
+        QJsonObject identityLostDuringPoint = call(pipe, {{"cmd", "point"}, {"seq", 7053},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 160},
+                                    {"path", "linear"}}}}, 2000);
+        require(identityLostDuringPoint.value("type").toString() == "error"
+                    && identityLostDuringPoint.value("code").toString() == "NO_SUCH_ITEM",
+                "C2a: point fails closed when the named target identity disappears" + why());
+        counterMouseObject->setObjectName(QStringLiteral("counterMouse"));
+        settle(48);
 
         // Movement-only means movement-only: the same MouseArea used by the
         // next ui-click test must still have observed zero clicks after every
