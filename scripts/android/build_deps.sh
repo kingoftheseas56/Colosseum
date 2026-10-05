@@ -29,7 +29,7 @@ BOOST_VERSION=1.90.0
 BOOST_SHA256=49551aff3b22cbc5c5a9ed3dbc92f0e23ea50a0f7325b0d198b705e8ee3fc305
 LIBTORRENT_VERSION=2.0.14
 LIBTORRENT_SHA256=1b0b21b9755b5fbec23ca9ba2d2d10434ecb6711c39f37f5fc9d5aa25cf369c9
-STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v4"
+STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v5"
 
 OUT="${COLOSSEUM_ANDROID_DEPS:-$HOME/colosseum-android/deps}"
 SRC_CACHE="${COLOSSEUM_ANDROID_SRC_CACHE:-$HOME/colosseum-android/src-cache}"
@@ -92,9 +92,11 @@ build_openssl() {  # abi prefix work
         # libraries instead of resolving Android's incompatible system OpenSSL.
         cp libcrypto.so "$prefix/lib/libcrypto_3.so" || exit 1
         cp libssl.so "$prefix/lib/libssl_3.so" || exit 1
-        patchelf --set-soname libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
-        patchelf --set-soname libssl_3.so "$prefix/lib/libssl_3.so" || exit 1
-        patchelf --replace-needed libcrypto.so libcrypto_3.so "$prefix/lib/libssl_3.so" || exit 1
+        # patchelf otherwise assumes the host page size while moving ELF metadata.
+        # Pin Android's 16 KiB alignment so PT_LOAD file/vaddr congruence survives.
+        patchelf --page-size 16384 --set-soname libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
+        patchelf --page-size 16384 --set-soname libssl_3.so \
+            --replace-needed libcrypto.so libcrypto_3.so "$prefix/lib/libssl_3.so" || exit 1
         bash "$REPO/scripts/android/verify_openssl_runtime_pair.sh" "$prefix/lib" || exit 1
     ) || { tail -40 "$work"/openssl-*.log >&2; die "$abi: OpenSSL failed"; }
 }
