@@ -154,7 +154,9 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    implicitHeight: bar.televisionMode ? 68 : adaptive.topBarHeight
+    // Narrow Android no longer needs the compact layout's second row once S1 replaces world pills.
+    implicitHeight: bar.televisionMode ? 68
+                    : (bar.androidHost && bar.width < 840 ? 56 : adaptive.topBarHeight)
 
     Theme { id: theme }
 
@@ -315,7 +317,8 @@ Item {
 
     // ---- center: library pills in a glass capsule ----
     Glass {
-        visible: !bar.backOnly
+        // Android's phone/tablet shell owns world switching; desktop keeps the existing capsule.
+        visible: !bar.backOnly && !bar.androidHost
         backdrop: bar.backdrop
         x: Math.round((bar.width - width) / 2)
         y: bar.compactLayout ? bar.height - height : Math.round((bar.height - height) / 2)

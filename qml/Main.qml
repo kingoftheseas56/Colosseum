@@ -1023,10 +1023,17 @@ Window {
     // Home or between modes just toggles visibility. So returning to a mode shows the already-loaded
     // world with its covers INTACT instead of re-downloading them. Real mode pages route to their
     // own QML; unbuilt modes fall back to DemoWorld.qml.
+    // This ordered registry is also the Android shell's world-tab source. Registering a future
+    // world here therefore adds its tab without a second navigation list.
+    readonly property var worldDefinitions: [
+        { name: "Theatre",  source: "TheatreWorld.qml",  icon: "../assets/icons/projector-theatre.svg" },
+        { name: "Tankoban", source: "TankobanWorld.qml", icon: "../assets/icons/comic-book.svg" },
+        { name: "Biblio",   source: "BiblioWorld.qml",   icon: "../assets/icons/book-library.svg" }
+    ]
     function worldSourceFor(medium) {
-        if (medium === "Tankoban") return "TankobanWorld.qml"
-        if (medium === "Theatre") return "TheatreWorld.qml"
-        if (medium === "Biblio") return "BiblioWorld.qml"
+        for (var i = 0; i < win.worldDefinitions.length; ++i)
+            if (win.worldDefinitions[i].name === medium)
+                return win.worldDefinitions[i].source
         return "DemoWorld.qml"
     }
     function openWorld(medium) {
@@ -3739,6 +3746,25 @@ Window {
                 }
             }
         }
+    }
+
+    // Android phone shell, Slice S1-A. Wide rail behaviour and page-content insets are later
+    // guardrail sub-slices; this component is intentionally narrow-screen only.
+    PhoneWorldTabBar {
+        id: phoneWorldTabs
+        objectName: "phoneWorldTabBar"
+        z: 57
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        worlds: win.worldDefinitions
+        activeTab: downloadsLayer.active ? "Profile" : worldStack.current
+        visible: win.androidHost && win.width < 840
+        onWorldRequested: (world) => {
+            if (downloadsLayer.active) win.closeDownloadsPage()
+            win.openWorld(world)
+        }
+        onProfileRequested: win.openDownloadsPage()
     }
 
     Loader {
