@@ -28,12 +28,15 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QStandardPaths>
+#include <QEasingCurve>
+#include <QVariantAnimation>
 #include <QStringList>
 #include <QTimer>
 #include <QVariant>
 #include <QWheelEvent>
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
 // The listener is ALWAYS ON in Hemanth's daily app, so the two things a local
@@ -329,7 +332,7 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     addRead(QStringLiteral("ui-snapshot"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdUiSnapshot(p)); });
 
-    // Task 5: the "hands". The four driving commands sit behind the DRIVE gate —
+    // Task 5 + Arc 63-B: the "hands". These five driving commands sit behind the DRIVE gate —
     // addDrive() states that at the registration site, and dispatch() enforces it
     // centrally, so the handlers never re-check it. Each owns its Replier so it can
     // fail() on a missing target (like the Task 3 reads). ui-wait-for is a READ: it
@@ -343,9 +346,11 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
              [this](const QJsonObject& p, Replier reply) { cmdUiTextInput(p, std::move(reply)); });
     addDrive(QStringLiteral("ui-scroll"),
              [this](const QJsonObject& p, Replier reply) { cmdUiScroll(p, std::move(reply)); });
+    addDrive(QStringLiteral("glide"),
+             [this](const QJsonObject& p, Replier reply) { cmdGlide(p, std::move(reply)); });
     // J1-Tray-Bridge (2026-08-14): restores a minimized/hidden root window — the
     // bridge's only path onto "the taskbar can't be reached from here" (Lanista
-    // ledger, Planned §9). A fifth "hand", Drive-gated like the four above; the
+    // ledger, Planned §9). A sixth "hand", Drive-gated like the five above; the
     // real QWindow state-transition API only, never an OS-level taskbar click,
     // FlaUI/pywinauto, or secondary-window enumeration.
     addDrive(QStringLiteral("window-set-state"),
@@ -1533,6 +1538,261 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
     QCoreApplication::sendEvent(w, &ev);
     reply.reply({{QStringLiteral("scrolled"), item->objectName()},
                  {QStringLiteral("dy"), dy}});
+}
+
+// Arc 63-B: glide is presentation motion, not a delayed wheel jump. It animates
+// one real Flickable-derived production surface's contentY from its observed
+// position to one deterministic destination. The caller names the scroll owner
+// explicitly and chooses exactly one destination form: a named descendant item
+// or an absolute contentY offset. The destination is frozen before motion starts;
+// a later layout shift therefore fails the exact-settle check instead of silently
+// changing what the command meant halfway through the shot.
+void LanistaServer::cmdGlide(const QJsonObject& p, Replier reply)
+{
+    const QString surfaceRef = p.value(QStringLiteral("surface")).toString().trimmed();
+    if (surfaceRef.isEmpty()) {
+        reply.fail("GLIDE_BAD_PAYLOAD", QStringLiteral("glide requires a non-empty surface"));
+        return;
+    }
+
+    QQuickItem* surface = resolveTarget(surfaceRef);
+    if (!surface) {
+        reply.fail("NO_SUCH_ITEM", surfaceRef);
+        return;
+    }
+
+    bool flickable = false;
+    for (const QMetaObject* mo = surface->metaObject(); mo && !flickable; mo = mo->superClass())
+        flickable = QByteArray(mo->className()).contains("Flickable");
+    const int contentYIndex = surface->metaObject()->indexOfProperty("contentY");
+    if (!flickable || contentYIndex < 0
+        || !surface->metaObject()->property(contentYIndex).isWritable()) {
+        reply.fail("GLIDE_NOT_SCROLLABLE",
+                   surfaceRef + QStringLiteral(" is not a writable Flickable surface"));
+        return;
+    }
+
+    const bool hasTarget = p.contains(QStringLiteral("target"))
+        && !p.value(QStringLiteral("target")).toString().trimmed().isEmpty();
+    const bool hasOffset = p.contains(QStringLiteral("offset"));
+    if (hasTarget == hasOffset) {
+        reply.fail("GLIDE_BAD_PAYLOAD",
+                   QStringLiteral("glide requires exactly one of target or offset"));
+        return;
+    }
+
+    if (!p.value(QStringLiteral("duration_ms")).isDouble()) {
+        reply.fail("GLIDE_BAD_DURATION",
+                   QStringLiteral("duration_ms is required and must be 100..20000"));
+        return;
+    }
+    const int durationMs = p.value(QStringLiteral("duration_ms")).toInt(-1);
+    if (durationMs < 100 || durationMs > 20000) {
+        reply.fail("GLIDE_BAD_DURATION",
+                   QStringLiteral("duration_ms must be between 100 and 20000"));
+        return;
+    }
+
+    const QString easingName = p.value(QStringLiteral("easing")).toString();
+    QEasingCurve::Type easingType = QEasingCurve::Linear;
+    if (easingName == QStringLiteral("linear"))
+        easingType = QEasingCurve::Linear;
+    else if (easingName == QStringLiteral("inOutCubic"))
+        easingType = QEasingCurve::InOutCubic;
+    else if (easingName == QStringLiteral("outCubic"))
+        easingType = QEasingCurve::OutCubic;
+    else if (easingName == QStringLiteral("inOutSine"))
+        easingType = QEasingCurve::InOutSine;
+    else {
+        reply.fail("GLIDE_BAD_EASING",
+                   QStringLiteral("easing must be linear, inOutCubic, outCubic, or inOutSine"));
+        return;
+    }
+
+    const auto finiteProperty = [](QQuickItem* item, const char* name, double* value) {
+        bool ok = false;
+        const double number = item->property(name).toDouble(&ok);
+        if (!ok || !std::isfinite(number))
+            return false;
+        *value = number;
+        return true;
+    };
+
+    double startY = 0.0;
+    double contentHeight = 0.0;
+    double viewportHeight = 0.0;
+    if (!finiteProperty(surface, "contentY", &startY)
+        || !finiteProperty(surface, "contentHeight", &contentHeight)
+        || !finiteProperty(surface, "height", &viewportHeight)
+        || viewportHeight <= 0.0) {
+        reply.fail("GLIDE_NOT_SCROLLABLE",
+                   surfaceRef + QStringLiteral(" has invalid scroll geometry"));
+        return;
+    }
+
+    double originY = 0.0;
+    double topMargin = 0.0;
+    double bottomMargin = 0.0;
+    finiteProperty(surface, "originY", &originY);
+    finiteProperty(surface, "topMargin", &topMargin);
+    finiteProperty(surface, "bottomMargin", &bottomMargin);
+    const double minY = originY - topMargin;
+    const double maxY = std::max(minY, originY + contentHeight + bottomMargin - viewportHeight);
+
+    QString targetRef;
+    QString align = QStringLiteral("start");
+    double rawTargetY = startY;
+    double targetY = startY;
+    bool clamped = false;
+
+    if (hasOffset) {
+        if (!p.value(QStringLiteral("offset")).isDouble()) {
+            reply.fail("GLIDE_BAD_PAYLOAD", QStringLiteral("offset must be a finite number"));
+            return;
+        }
+        rawTargetY = p.value(QStringLiteral("offset")).toDouble();
+        if (!std::isfinite(rawTargetY)) {
+            reply.fail("GLIDE_BAD_PAYLOAD", QStringLiteral("offset must be a finite number"));
+            return;
+        }
+        constexpr double kRangeEpsilon = 0.01;
+        if (rawTargetY < minY - kRangeEpsilon || rawTargetY > maxY + kRangeEpsilon) {
+            reply.fail("GLIDE_OFFSET_OUT_OF_RANGE",
+                       QStringLiteral("offset %1 is outside [%2, %3]")
+                           .arg(rawTargetY).arg(minY).arg(maxY));
+            return;
+        }
+        targetY = std::clamp(rawTargetY, minY, maxY);
+    } else {
+        targetRef = p.value(QStringLiteral("target")).toString().trimmed();
+        QQuickItem* target = resolveTarget(targetRef);
+        if (!target) {
+            reply.fail("NO_SUCH_ITEM", targetRef);
+            return;
+        }
+        bool descendant = false;
+        for (QQuickItem* cursor = target->parentItem(); cursor; cursor = cursor->parentItem()) {
+            if (cursor == surface) {
+                descendant = true;
+                break;
+            }
+        }
+        if (!descendant) {
+            reply.fail("GLIDE_TARGET_OUTSIDE_SURFACE",
+                       targetRef + QStringLiteral(" is not a descendant of ") + surfaceRef);
+            return;
+        }
+
+        align = p.value(QStringLiteral("align")).toString(QStringLiteral("start"));
+        if (align != QStringLiteral("start") && align != QStringLiteral("center")
+            && align != QStringLiteral("end")) {
+            reply.fail("GLIDE_BAD_ALIGN",
+                       QStringLiteral("align must be start, center, or end"));
+            return;
+        }
+
+        const double targetViewportTop = target->mapToItem(surface, QPointF(0, 0)).y();
+        rawTargetY = startY + targetViewportTop;
+        if (align == QStringLiteral("center"))
+            rawTargetY -= (viewportHeight - target->height()) / 2.0;
+        else if (align == QStringLiteral("end"))
+            rawTargetY -= viewportHeight - target->height();
+        targetY = std::clamp(rawTargetY, minY, maxY);
+        clamped = std::abs(targetY - rawTargetY) > 0.01;
+    }
+
+    auto completionBody = [surfaceRef, targetRef, hasTarget, align, durationMs, easingName,
+                           startY, rawTargetY, targetY, clamped](double finalY, int updates,
+                                                                 bool hadIntermediate,
+                                                                 bool alreadyAtTarget) {
+        QJsonObject body{{QStringLiteral("completed"), true},
+                         {QStringLiteral("mode"), hasTarget ? QStringLiteral("target")
+                                                            : QStringLiteral("offset")},
+                         {QStringLiteral("surface"), surfaceRef},
+                         {QStringLiteral("startOffset"), startY},
+                         {QStringLiteral("rawTargetOffset"), rawTargetY},
+                         {QStringLiteral("targetOffset"), targetY},
+                         {QStringLiteral("finalOffset"), finalY},
+                         {QStringLiteral("durationMs"), durationMs},
+                         {QStringLiteral("easing"), easingName},
+                         {QStringLiteral("updates"), updates},
+                         {QStringLiteral("hadIntermediate"), hadIntermediate},
+                         {QStringLiteral("alreadyAtTarget"), alreadyAtTarget},
+                         {QStringLiteral("clamped"), clamped}};
+        if (hasTarget) {
+            body.insert(QStringLiteral("target"), targetRef);
+            body.insert(QStringLiteral("align"), align);
+        }
+        return body;
+    };
+
+    constexpr double kSettleEpsilon = 0.05;
+    if (std::abs(startY - targetY) <= kSettleEpsilon) {
+        surface->setProperty("contentY", targetY);
+        const double finalY = surface->property("contentY").toDouble();
+        if (std::abs(finalY - targetY) > kSettleEpsilon) {
+            reply.fail("GLIDE_NOT_SETTLED",
+                       QStringLiteral("surface stopped at %1 instead of %2").arg(finalY).arg(targetY));
+            return;
+        }
+        reply.reply(completionBody(finalY, 0, false, true));
+        return;
+    }
+
+    auto* animation = new QVariantAnimation(this);
+    animation->setStartValue(startY);
+    animation->setEndValue(targetY);
+    animation->setDuration(durationMs);
+    animation->setEasingCurve(QEasingCurve(easingType));
+
+    QPointer<QQuickItem> guardedSurface(surface);
+    auto updates = QSharedPointer<int>::create(0);
+    auto hadIntermediate = QSharedPointer<bool>::create(false);
+    connect(animation, &QVariantAnimation::valueChanged, this,
+            [animation, guardedSurface, startY, targetY, updates, hadIntermediate, reply](const QVariant& value) mutable {
+                if (!reply.canReply()) {
+                    animation->stop();
+                    animation->deleteLater();
+                    return;
+                }
+                if (!guardedSurface) {
+                    animation->stop();
+                    animation->deleteLater();
+                    reply.fail("GLIDE_TARGET_GONE",
+                               QStringLiteral("scroll surface disappeared during glide"));
+                    return;
+                }
+                const double y = value.toDouble();
+                guardedSurface->setProperty("contentY", y);
+                ++(*updates);
+                const double lo = std::min(startY, targetY) + 0.01;
+                const double hi = std::max(startY, targetY) - 0.01;
+                if (y > lo && y < hi)
+                    *hadIntermediate = true;
+            });
+    connect(animation, &QVariantAnimation::finished, this,
+            [animation, guardedSurface, completionBody, targetY, updates, hadIntermediate, reply]() mutable {
+                if (!reply.canReply()) {
+                    animation->deleteLater();
+                    return;
+                }
+                if (!guardedSurface) {
+                    animation->deleteLater();
+                    reply.fail("GLIDE_TARGET_GONE",
+                               QStringLiteral("scroll surface disappeared during glide"));
+                    return;
+                }
+                guardedSurface->setProperty("contentY", targetY);
+                const double finalY = guardedSurface->property("contentY").toDouble();
+                animation->deleteLater();
+                if (std::abs(finalY - targetY) > kSettleEpsilon) {
+                    reply.fail("GLIDE_NOT_SETTLED",
+                               QStringLiteral("surface stopped at %1 instead of %2").arg(finalY).arg(targetY));
+                    return;
+                }
+                reply.reply(completionBody(finalY, *updates, *hadIntermediate, false));
+            });
+    animation->start();
 }
 
 // J1-Tray-Bridge (2026-08-14): window-set-state — the one command that can
