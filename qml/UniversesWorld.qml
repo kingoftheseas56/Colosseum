@@ -222,8 +222,11 @@ WorldPage {
     readonly property int directorFailedCount: universes.directorCohortSnapshotInternal.failed
     readonly property var directorReadinessDiagnostics: universes.directorCohortSnapshotInternal.diagnostics
     readonly property int directorPresentedFrameCount: universes.directorPresentedFramesInternal
-    readonly property bool directorSurfaceActiveInternal:
-        universes.visible && universes.lifecycleActive && universes.Window.window !== null
+    readonly property bool directorSurfaceActiveInternal: {
+        const window = universes.Window.window
+        return universes.visible && universes.lifecycleActive
+                && window !== null && window.visible
+    }
     readonly property bool directorAllRequiredReadyInternal:
         universes.directorCohortSnapshotInternal.enumerable
         && universes.directorRequiredCount > 0
