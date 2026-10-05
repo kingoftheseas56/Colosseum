@@ -1,6 +1,6 @@
 {
   "name": "arc63-c2-production-hover-click",
-  "comment": "Arc 63-C2: enter the real Universes world with point + pointer-click on its production KeyboardAction, scroll the production ledger until One Piece is pointerable, point with the real OS cursor, hold the real hover/Explore treatment, click through with pointer-click, and prove the One Piece Shelves universe opened. Route-critical waits assert matched=true so a WAIT_TIMEOUT cannot be scored as a pass.",
+  "comment": "Arc 63-C2: dismiss only the fresh-session onboarding fixture, then enter the real Universes world with point + pointer-click on its production KeyboardAction, scroll the production ledger until One Piece is pointerable, point with the real OS cursor, hold the real hover/Explore treatment, click through with pointer-click, and prove the One Piece Shelves universe opened. No direct QML activation shortcut substitutes for the One Piece click, and every route-critical wait asserts matched=true.",
   "steps": [
     {
       "cmd": "ping",
@@ -21,6 +21,30 @@
         "prop": "visible",
         "value": false,
         "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss fresh-session onboarding",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding overlay closes before real pointer route",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
       },
       "expect": [
         {
