@@ -40,6 +40,7 @@
 #include <QVariantMap>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -287,7 +288,8 @@ int main(int argc, char** argv)
 #endif
 
     QGuiApplication app(argc, argv);
-    const bool serve = app.arguments().contains(QStringLiteral("--serve"));
+    const bool serveDrive = app.arguments().contains(QStringLiteral("--serve-drive"));
+    const bool serve = serveDrive || app.arguments().contains(QStringLiteral("--serve"));
 
     // Test pipe — NEVER the default, so a running daily Colosseum is untouched.
     const QString pipe = QStringLiteral("ColosseumLanistaTest");
@@ -296,8 +298,13 @@ int main(int argc, char** argv)
     // Short idle timeout so the always-on listener's hang-up is testable in
     // about a second instead of ten. Every real connection below speaks at once.
     qputenv("COLOSSEUM_LANISTA_IDLE_MS", "1200");
-    // The gates must start CLOSED: the denial tests are the point.
-    qunsetenv("COLOSSEUM_LANISTA_DRIVE");
+    // The gates must start CLOSED for the built-in denial tests. --serve-drive is
+    // an explicit harness-only seam for focused scenario clients that need to
+    // exercise Drive-gated commands without changing production gate semantics.
+    if (serveDrive)
+        qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
+    else
+        qunsetenv("COLOSSEUM_LANISTA_DRIVE");
     qunsetenv("COLOSSEUM_LANISTA_WRITE");
 
     QQmlApplicationEngine engine;
@@ -350,6 +357,8 @@ int main(int argc, char** argv)
                 "schema is colosseum.dev.v1.x");
         require(pong.value("commands").toArray().contains(QJsonValue("get-state")),
                 "command list present");
+        require(pong.value("commands").toArray().contains(QJsonValue("glide")),
+                "glide is advertised by ping");
 
         // command list is sorted — QHash order is randomised per process
         QStringList names;
@@ -1184,6 +1193,12 @@ int main(int argc, char** argv)
         require(clickDenied.value("type").toString() == "error"
                     && clickDenied.value("code").toString() == "DRIVE_DISABLED",
                 "ui-click is refused with the DRIVE gate closed" + why());
+        QJsonObject glideDenied = call(pipe, {{"cmd", "glide"}, {"seq", 170},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 300},
+                                    {"duration_ms", 240}, {"easing", "linear"}}}});
+        require(glideDenied.value("type").toString() == "error"
+                    && glideDenied.value("code").toString() == "DRIVE_DISABLED",
+                "glide is refused with the DRIVE gate closed" + why());
 
         // Open the DRIVE gate for the rest of the hands tests. driveOpen() reads
         // the env live per call, so this takes effect immediately.
@@ -1281,6 +1296,118 @@ int main(int argc, char** argv)
         require(cyAfter > cyBefore,
                 QStringLiteral("ui-scroll REALLY moved contentY (%1 -> %2)")
                     .arg(cyBefore).arg(cyAfter) + why());
+
+        // ── Arc 63-B: glide is phased motion with exact deterministic completion ──
+        // Explicit offset first: this proves the command writes several intermediate
+        // contentY values before landing exactly on the requested destination.
+        QJsonObject glideOffset = call(pipe, {{"cmd", "glide"}, {"seq", 180},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 300},
+                                    {"duration_ms", 240}, {"easing", "linear"}}}});
+        require(glideOffset.value("type").toString() == "reply"
+                    && glideOffset.value("completed").toBool(),
+                "glide offset completes" + why());
+        require(glideOffset.value("hadIntermediate").toBool()
+                    && glideOffset.value("updates").toInt() > 1,
+                "glide offset produced phased intermediate motion" + why());
+        require(std::abs(glideOffset.value("finalOffset").toDouble() - 300.0) <= 0.05,
+                "glide offset reports the exact requested final position" + why());
+        QJsonObject longListAt300 = call(pipe, {{"cmd", "qml-get"}, {"seq", 181},
+            {"payload", QJsonObject{{"object", "longList"},
+                                    {"props", QJsonArray{"contentY"}}}}});
+        require(std::abs(longListAt300.value("props").toObject().value("contentY").toDouble()
+                         - 300.0) <= 0.05,
+                "glide offset REALLY leaves contentY at the requested position" + why());
+
+        // Named target next: row30 starts at y=1500 with height 50 in a 400px
+        // viewport, so center alignment has one unambiguous absolute target: 1325.
+        QJsonObject glideTarget = call(pipe, {{"cmd", "glide"}, {"seq", 182},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", "row30"},
+                                    {"align", "center"}, {"duration_ms", 240},
+                                    {"easing", "inOutCubic"}}}});
+        require(glideTarget.value("type").toString() == "reply"
+                    && glideTarget.value("mode").toString() == "target"
+                    && glideTarget.value("target").toString() == "row30",
+                "glide resolves the named target" + why());
+        require(glideTarget.value("hadIntermediate").toBool()
+                    && glideTarget.value("updates").toInt() > 1,
+                "named-target glide produced phased intermediate motion" + why());
+        require(std::abs(glideTarget.value("targetOffset").toDouble() - 1325.0) <= 0.05
+                    && std::abs(glideTarget.value("finalOffset").toDouble() - 1325.0) <= 0.05,
+                "named-target glide settles row30 at deterministic center alignment" + why());
+
+        // Return to the title/top equivalent using the other destination form.
+        QJsonObject glideBack = call(pipe, {{"cmd", "glide"}, {"seq", 183},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 0},
+                                    {"duration_ms", 240}, {"easing", "outCubic"}}}});
+        require(glideBack.value("type").toString() == "reply"
+                    && std::abs(glideBack.value("finalOffset").toDouble()) <= 0.05,
+                "glide returns exactly to offset zero" + why());
+
+        // Refusal paths pin the contract rather than leaving callers to guess.
+        QJsonObject glideAmbiguous = call(pipe, {{"cmd", "glide"}, {"seq", 184},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", "row10"},
+                                    {"offset", 100}, {"duration_ms", 240},
+                                    {"easing", "linear"}}}});
+        require(glideAmbiguous.value("type").toString() == "error"
+                    && glideAmbiguous.value("code").toString() == "GLIDE_BAD_PAYLOAD",
+                "glide refuses target+offset ambiguity" + why());
+        QJsonObject glideOutside = call(pipe, {{"cmd", "glide"}, {"seq", 185},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", "counterButton"},
+                                    {"duration_ms", 240}, {"easing", "linear"}}}});
+        require(glideOutside.value("type").toString() == "error"
+                    && glideOutside.value("code").toString() == "GLIDE_TARGET_OUTSIDE_SURFACE",
+                "glide refuses a named target outside the scroll surface" + why());
+        QJsonObject glideRange = call(pipe, {{"cmd", "glide"}, {"seq", 186},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 99999},
+                                    {"duration_ms", 240}, {"easing", "linear"}}}});
+        require(glideRange.value("type").toString() == "error"
+                    && glideRange.value("code").toString() == "GLIDE_OFFSET_OUT_OF_RANGE",
+                "glide refuses an impossible explicit offset" + why());
+
+        QJsonObject glideFractionalDuration = call(pipe, {{"cmd", "glide"}, {"seq", 187},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"duration_ms", 240.5}, {"easing", "linear"}}}});
+        require(glideFractionalDuration.value("type").toString() == "error"
+                    && glideFractionalDuration.value("code").toString() == "GLIDE_BAD_DURATION",
+                "glide refuses fractional duration instead of coercing it" + why());
+
+        QJsonObject glideBadEasingType = call(pipe, {{"cmd", "glide"}, {"seq", 188},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"duration_ms", 240}, {"easing", true}}}});
+        require(glideBadEasingType.value("type").toString() == "error"
+                    && glideBadEasingType.value("code").toString() == "GLIDE_BAD_EASING",
+                "glide refuses non-string easing" + why());
+
+        QJsonObject glideBadTargetType = call(pipe, {{"cmd", "glide"}, {"seq", 189},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", 30},
+                                    {"duration_ms", 240}, {"easing", "linear"}}}});
+        require(glideBadTargetType.value("type").toString() == "error"
+                    && glideBadTargetType.value("code").toString() == "GLIDE_BAD_TARGET",
+                "glide refuses non-string named target" + why());
+
+        QJsonObject glideOffsetAlign = call(pipe, {{"cmd", "glide"}, {"seq", 190},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"align", "start"}, {"duration_ms", 240},
+                                    {"easing", "linear"}}}});
+        require(glideOffsetAlign.value("type").toString() == "error"
+                    && glideOffsetAlign.value("code").toString() == "GLIDE_BAD_PAYLOAD",
+                "glide refuses target-only align with explicit offset" + why());
+
+        QJsonObject glideBadAlignType = call(pipe, {{"cmd", "glide"}, {"seq", 191},
+            {"payload", QJsonObject{{"surface", "longList"}, {"target", "row10"},
+                                    {"align", 1}, {"duration_ms", 240},
+                                    {"easing", "linear"}}}});
+        require(glideBadAlignType.value("type").toString() == "error"
+                    && glideBadAlignType.value("code").toString() == "GLIDE_BAD_ALIGN",
+                "glide refuses non-string align" + why());
+
+        QJsonObject glideUnknownField = call(pipe, {{"cmd", "glide"}, {"seq", 192},
+            {"payload", QJsonObject{{"surface", "longList"}, {"offset", 100},
+                                    {"duration_ms", 240}, {"easing", "linear"},
+                                    {"screenX", 999}}}});
+        require(glideUnknownField.value("type").toString() == "error"
+                    && glideUnknownField.value("code").toString() == "GLIDE_BAD_PAYLOAD",
+                "glide fails closed on unsupported payload fields" + why());
 
         // ── Task 5: ui-wait-for matches a property value (async poll) ──
         // Drive the counter once more (clicks: 2), then wait for exactly that.

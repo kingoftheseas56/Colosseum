@@ -57,6 +57,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `ui-keypress` | Drive | key to the focus item of the main window | first key of sequence only; printable-ASCII text |
 | `ui-text-input` | Drive | forceActiveFocus + per-char KeyPress | no KeyRelease pairs |
 | `ui-scroll` | Drive | wheel event, `dy` (default −120) | no scroll phases |
+| `glide` | Drive | animate a real Flickable/ListView `contentY` to one named descendant or explicit offset over `duration_ms` with a named easing curve | fail-closed payload; exactly one of `target`/`offset`; integral duration 100..20000 ms; easing `linear`/`inOutCubic`/`outCubic`/`inOutSine`; target align `start`/`center`/`end`; replies only after exact final `contentY` settle or a coded failure |
 | `window-set-state` | Drive | restore/minimize/hide the first root window via real `QWindow::showNormal()`/`showMinimized()`/`hide()` — J1-Tray-Bridge, 2026-08-14 | `state` required, exactly `normal`/`minimized`/`hidden`; **first root window only**; see "Window state" below |
 | `ui-wait-for` | Read | poll one property until **equal** to a value | 50 ms poll, default 3 s timeout, strict equality ONLY — no operators, no compound predicates |
 | `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |

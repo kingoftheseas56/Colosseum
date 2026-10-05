@@ -1,0 +1,22 @@
+{
+  "name": "arc63-b-glide-production",
+  "comment": "Arc 63-B: real Universes -> Attack on Titan shelves page, one unbroken named-target glide to the last shelf and one glide back to title/top.",
+  "steps": [
+    { "cmd": "ping", "expect": [ { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "boot splash releases", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 } },
+    { "cmd": "ui-click", "label": "enter Universes", "payload": { "target": "modePill_Universes" } },
+    { "cmd": "ui-wait-for", "label": "Universes world active", "payload": { "object": "universesWorld", "prop": "visible", "value": true, "timeout_ms": 10000 } },
+    { "cmd": "ui-wait-for", "label": "Attack on Titan banner materialized", "payload": { "object": "universesBanner_attack_on_titan", "prop": "visible", "value": true, "timeout_ms": 10000 } },
+    { "cmd": "ui-click", "label": "open Attack on Titan production banner", "payload": { "target": "universesBanner_attack_on_titan" } },
+    { "cmd": "ui-wait-for", "label": "shelves page active", "payload": { "object": "shelvesScroll", "prop": "visible", "value": true, "timeout_ms": 10000 } },
+    { "cmd": "ui-wait-for", "label": "final Films shelf is materialized", "payload": { "object": "shelvesMedium_films", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "start at title", "payload": { "object": "shelvesScroll", "props": ["contentY", "contentHeight", "height"] }, "expect": [ { "path": "props.contentY", "op": "==", "value": 0 } ] },
+    { "capture": { "action": "start", "name": "arc63-b-glide" } },
+    { "presentation_hold_ms": 700, "label": "title beat" },
+    { "cmd": "glide", "label": "title to final Films shelf", "payload": { "surface": "shelvesScroll", "target": "shelvesMedium_films", "align": "start", "duration_ms": 1800, "easing": "inOutCubic" }, "expect": [ { "path": "completed", "op": "==", "value": "true" }, { "path": "target", "op": "==", "value": "shelvesMedium_films" }, { "path": "hadIntermediate", "op": "==", "value": "true" }, { "path": "clamped", "op": "==", "value": "false" } ] },
+    { "presentation_hold_ms": 650, "label": "final shelf beat" },
+    { "cmd": "glide", "label": "final shelf back to title", "payload": { "surface": "shelvesScroll", "offset": 0, "duration_ms": 1800, "easing": "inOutCubic" }, "expect": [ { "path": "completed", "op": "==", "value": "true" }, { "path": "finalOffset", "op": "==", "value": 0 }, { "path": "hadIntermediate", "op": "==", "value": "true" } ] },
+    { "presentation_hold_ms": 700, "label": "title return beat" },
+    { "capture": { "action": "stop" } }
+  ]
+}

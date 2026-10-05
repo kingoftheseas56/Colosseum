@@ -35,6 +35,7 @@ Item {
             const banner = ledger.children[0]
             compare(banner.height, 178)
             compare(banner.entry.name, "Attack on Titan")
+            compare(banner.objectName, "universesBanner_attack_on_titan")
             const mark = findChild(banner, "universeBannerMark")
             verify(String(mark.source).indexOf("assets/universes/marks/attack-on-titan.svg") >= 0)
             tryCompare(mark, "status", Image.Ready)

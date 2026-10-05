@@ -221,6 +221,7 @@ private:
     void cmdUiKeypress(const QJsonObject& p, Replier reply) const;
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
     void cmdUiScroll(const QJsonObject& p, Replier reply) const;
+    void cmdGlide(const QJsonObject& p, Replier reply);
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
     // Function 0007 prerequisite: one typed, tagged-session-only diagnostic
     // that drives the real root openBookSession() path for an A -> B switch.
