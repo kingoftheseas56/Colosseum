@@ -1627,127 +1627,174 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
         tolerancePx = int(raw);
     }
 
-    QQuickItem* item = resolveTarget(ref);
-    if (!item) {
-        reply.fail("NO_SUCH_ITEM", ref);
-        return;
-    }
+    // C2a keeps C1's exact fail-closed targeting contract, but makes it
+    // re-usable during the gesture. The pointer must never continue toward a
+    // coordinate after the named object, its first-root ownership, or its
+    // visible/clipped hit region has changed underneath us.
+    struct PointTargetSnapshot {
+        QPointer<QQuickItem> item;
+        QPointer<QQuickWindow> window;
+        QRectF visibleScene;
+        QPoint targetScene;
+        QPoint targetGlobal;
+        const char* errorCode = nullptr;
+        QString errorMessage;
 
-    QQuickWindow* w = item->window();
-    QQuickWindow* root = mainWindow();
-    if (!w || !root) {
-        reply.fail("NO_WINDOW", ref);
-        return;
-    }
-    if (w != root) {
-        reply.fail("WRONG_WINDOW",
-                   QStringLiteral("target is not in Lanista's first root window: ") + ref);
-        return;
-    }
-    if (!w->isVisible() || w->visibility() == QWindow::Hidden
-        || w->visibility() == QWindow::Minimized) {
-        reply.fail("WINDOW_NOT_TARGETABLE",
-                   QStringLiteral("target window is hidden or minimized"));
-        return;
-    }
-    // C1 is intentionally foreground-only. Without this guard, a screen-space
-    // point owned by Colosseum could currently be covered by another process,
-    // making a global cursor move unsafe. Background-window choreography is a
-    // separate, explicitly deferred problem.
-    if (!w->isActive()) {
-        reply.fail("WINDOW_NOT_ACTIVE",
-                   QStringLiteral("point requires the target Colosseum window to be active"));
-        return;
-    }
-
-    const auto finiteScalar = [](qreal value) {
-        return std::isfinite(double(value));
-    };
-    const auto finiteRect = [&](const QRectF& rect) {
-        return finiteScalar(rect.x()) && finiteScalar(rect.y())
-            && finiteScalar(rect.width()) && finiteScalar(rect.height());
+        bool ok() const { return errorCode == nullptr; }
     };
 
-    if (!finiteScalar(item->x()) || !finiteScalar(item->y())
-        || !finiteScalar(item->width()) || !finiteScalar(item->height())
-        || !finiteScalar(item->opacity())) {
-        reply.fail("INVALID_TARGET_GEOMETRY",
-                   QStringLiteral("target has non-finite geometry: ") + ref);
-        return;
-    }
-    if (!item->isVisible() || item->opacity() <= 0.0
-        || item->width() <= 0.0 || item->height() <= 0.0) {
-        reply.fail("OFFSCREEN_TARGET",
-                   QStringLiteral("target has no visible pointerable area: ") + ref);
-        return;
-    }
+    const auto resolveSnapshot = [this](const QString& targetRef) {
+        PointTargetSnapshot out;
+        QQuickItem* item = resolveTarget(targetRef);
+        if (!item) {
+            out.errorCode = "NO_SUCH_ITEM";
+            out.errorMessage = targetRef;
+            return out;
+        }
 
-    QRectF visibleScene = item->mapRectToScene(
-        QRectF(0.0, 0.0, item->width(), item->height()));
-    if (!finiteRect(visibleScene)) {
-        reply.fail("INVALID_TARGET_GEOMETRY",
-                   QStringLiteral("target maps to non-finite scene geometry: ") + ref);
-        return;
-    }
-    for (QQuickItem* ancestor = item->parentItem(); ancestor;
-         ancestor = ancestor->parentItem()) {
-        if (!finiteScalar(ancestor->opacity())) {
-            reply.fail("INVALID_TARGET_GEOMETRY",
-                       QStringLiteral("target ancestor has non-finite opacity: ") + ref);
-            return;
+        QQuickWindow* w = item->window();
+        QQuickWindow* root = mainWindow();
+        if (!w || !root) {
+            out.errorCode = "NO_WINDOW";
+            out.errorMessage = targetRef;
+            return out;
         }
-        if (!ancestor->isVisible() || ancestor->opacity() <= 0.0) {
-            reply.fail("OFFSCREEN_TARGET",
-                       QStringLiteral("target is hidden by an ancestor: ") + ref);
-            return;
+        if (w != root) {
+            out.errorCode = "WRONG_WINDOW";
+            out.errorMessage =
+                QStringLiteral("target is not in Lanista's first root window: ") + targetRef;
+            return out;
         }
-        if (ancestor->clip()) {
-            const QRectF ancestorScene = ancestor->mapRectToScene(
-                QRectF(0.0, 0.0, ancestor->width(), ancestor->height()));
-            if (!finiteRect(ancestorScene)) {
-                reply.fail("INVALID_TARGET_GEOMETRY",
-                           QStringLiteral("target clip ancestor maps to non-finite geometry: ")
-                               + ref);
-                return;
-            }
-            visibleScene = visibleScene.intersected(ancestorScene);
-            if (!finiteRect(visibleScene)) {
-                reply.fail("INVALID_TARGET_GEOMETRY",
-                           QStringLiteral("target visible intersection is non-finite: ") + ref);
-                return;
-            }
+        if (!w->isVisible() || w->visibility() == QWindow::Hidden
+            || w->visibility() == QWindow::Minimized) {
+            out.errorCode = "WINDOW_NOT_TARGETABLE";
+            out.errorMessage = QStringLiteral("target window is hidden or minimized");
+            return out;
         }
-    }
-    visibleScene = visibleScene.intersected(
-        QRectF(0.0, 0.0, w->width(), w->height()));
-    if (!finiteRect(visibleScene)) {
-        reply.fail("INVALID_TARGET_GEOMETRY",
-                   QStringLiteral("target window intersection is non-finite: ") + ref);
-        return;
-    }
-    if (visibleScene.isEmpty() || visibleScene.width() < 1.0
-        || visibleScene.height() < 1.0) {
-        reply.fail("OFFSCREEN_TARGET",
-                   QStringLiteral("target is outside its visible clip/window area: ") + ref);
-        return;
-    }
+        if (!w->isActive()) {
+            out.errorCode = "WINDOW_NOT_ACTIVE";
+            out.errorMessage =
+                QStringLiteral("point requires the target Colosseum window to be active");
+            return out;
+        }
 
-    const QPointF targetSceneF = visibleScene.center();
-    if (!finiteScalar(targetSceneF.x()) || !finiteScalar(targetSceneF.y())) {
-        reply.fail("INVALID_TARGET_GEOMETRY",
-                   QStringLiteral("resolved target point is non-finite: ") + ref);
-        return;
-    }
-    const QPoint targetScene(qRound(targetSceneF.x()), qRound(targetSceneF.y()));
-    const QPoint targetGlobal = w->mapToGlobal(targetScene);
-    if (!QGuiApplication::screenAt(targetGlobal)) {
-        reply.fail("OFFSCREEN_TARGET",
-                   QStringLiteral("resolved target is outside every attached screen"));
+        const auto finiteScalar = [](qreal value) {
+            return std::isfinite(double(value));
+        };
+        const auto finiteRect = [&](const QRectF& rect) {
+            return finiteScalar(rect.x()) && finiteScalar(rect.y())
+                && finiteScalar(rect.width()) && finiteScalar(rect.height());
+        };
+
+        if (!finiteScalar(item->x()) || !finiteScalar(item->y())
+            || !finiteScalar(item->width()) || !finiteScalar(item->height())
+            || !finiteScalar(item->opacity())) {
+            out.errorCode = "INVALID_TARGET_GEOMETRY";
+            out.errorMessage =
+                QStringLiteral("target has non-finite geometry: ") + targetRef;
+            return out;
+        }
+        if (!item->isVisible() || item->opacity() <= 0.0
+            || item->width() <= 0.0 || item->height() <= 0.0) {
+            out.errorCode = "OFFSCREEN_TARGET";
+            out.errorMessage =
+                QStringLiteral("target has no visible pointerable area: ") + targetRef;
+            return out;
+        }
+
+        QRectF visibleScene = item->mapRectToScene(
+            QRectF(0.0, 0.0, item->width(), item->height()));
+        if (!finiteRect(visibleScene)) {
+            out.errorCode = "INVALID_TARGET_GEOMETRY";
+            out.errorMessage =
+                QStringLiteral("target maps to non-finite scene geometry: ") + targetRef;
+            return out;
+        }
+        for (QQuickItem* ancestor = item->parentItem(); ancestor;
+             ancestor = ancestor->parentItem()) {
+            if (!finiteScalar(ancestor->opacity())) {
+                out.errorCode = "INVALID_TARGET_GEOMETRY";
+                out.errorMessage =
+                    QStringLiteral("target ancestor has non-finite opacity: ") + targetRef;
+                return out;
+            }
+            if (!ancestor->isVisible() || ancestor->opacity() <= 0.0) {
+                out.errorCode = "OFFSCREEN_TARGET";
+                out.errorMessage =
+                    QStringLiteral("target is hidden by an ancestor: ") + targetRef;
+                return out;
+            }
+            if (ancestor->clip()) {
+                const QRectF ancestorScene = ancestor->mapRectToScene(
+                    QRectF(0.0, 0.0, ancestor->width(), ancestor->height()));
+                if (!finiteRect(ancestorScene)) {
+                    out.errorCode = "INVALID_TARGET_GEOMETRY";
+                    out.errorMessage =
+                        QStringLiteral("target clip ancestor maps to non-finite geometry: ")
+                        + targetRef;
+                    return out;
+                }
+                visibleScene = visibleScene.intersected(ancestorScene);
+                if (!finiteRect(visibleScene)) {
+                    out.errorCode = "INVALID_TARGET_GEOMETRY";
+                    out.errorMessage =
+                        QStringLiteral("target visible intersection is non-finite: ") + targetRef;
+                    return out;
+                }
+            }
+        }
+
+        visibleScene = visibleScene.intersected(
+            QRectF(0.0, 0.0, w->width(), w->height()));
+        if (!finiteRect(visibleScene)) {
+            out.errorCode = "INVALID_TARGET_GEOMETRY";
+            out.errorMessage =
+                QStringLiteral("target window intersection is non-finite: ") + targetRef;
+            return out;
+        }
+        if (visibleScene.isEmpty() || visibleScene.width() < 1.0
+            || visibleScene.height() < 1.0) {
+            out.errorCode = "OFFSCREEN_TARGET";
+            out.errorMessage =
+                QStringLiteral("target is outside its visible clip/window area: ") + targetRef;
+            return out;
+        }
+
+        const QPointF targetSceneF = visibleScene.center();
+        if (!finiteScalar(targetSceneF.x()) || !finiteScalar(targetSceneF.y())) {
+            out.errorCode = "INVALID_TARGET_GEOMETRY";
+            out.errorMessage =
+                QStringLiteral("resolved target point is non-finite: ") + targetRef;
+            return out;
+        }
+
+        out.item = item;
+        out.window = w;
+        out.visibleScene = visibleScene;
+        out.targetScene = QPoint(qRound(targetSceneF.x()), qRound(targetSceneF.y()));
+        out.targetGlobal = w->mapToGlobal(out.targetScene);
+        if (!QGuiApplication::screenAt(out.targetGlobal)) {
+            out.errorCode = "OFFSCREEN_TARGET";
+            out.errorMessage =
+                QStringLiteral("resolved target is outside every attached screen");
+            return out;
+        }
+        return out;
+    };
+
+    const PointTargetSnapshot initial = resolveSnapshot(ref);
+    if (!initial.ok()) {
+        reply.fail(initial.errorCode, initial.errorMessage);
         return;
     }
 
     const QPoint startGlobal = QCursor::pos();
-    const QPointer<QQuickWindow> trackedWindow(w);
+    const QPointer<QQuickItem> trackedItem(initial.item);
+    const QPointer<QQuickWindow> trackedWindow(initial.window);
+    const QRectF visibleScene = initial.visibleScene;
+    const QPoint targetScene = initial.targetScene;
+    const QPoint targetGlobal = initial.targetGlobal;
+
     auto elapsed = std::make_shared<QElapsedTimer>();
     elapsed->start();
 
@@ -1755,21 +1802,42 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
     timer->setTimerType(Qt::PreciseTimer);
     timer->setInterval(16);
     connect(timer, &QTimer::timeout, this,
-            [reply, timer, elapsed, trackedWindow, startGlobal, targetGlobal,
-             targetScene, visibleScene, ref, path, durationMs, tolerancePx]() mutable {
+            [reply, timer, elapsed, trackedItem, trackedWindow, startGlobal,
+             targetGlobal, targetScene, visibleScene, ref, path, durationMs,
+             tolerancePx, resolveSnapshot]() mutable {
         if (!reply.canReply()) {
             timer->stop();
             timer->deleteLater();
             return;
         }
-        if (trackedWindow.isNull() || !trackedWindow->isVisible()
-            || trackedWindow->visibility() == QWindow::Hidden
-            || trackedWindow->visibility() == QWindow::Minimized
-            || !trackedWindow->isActive()) {
+
+        const PointTargetSnapshot current = resolveSnapshot(ref);
+        if (!current.ok()) {
+            timer->stop();
+            timer->deleteLater();
+            reply.fail(current.errorCode, current.errorMessage);
+            return;
+        }
+        if (trackedItem.isNull() || current.item.data() != trackedItem.data()) {
+            timer->stop();
+            timer->deleteLater();
+            reply.fail("TARGET_CHANGED",
+                       QStringLiteral("named point target changed identity during gesture: ") + ref);
+            return;
+        }
+        if (trackedWindow.isNull() || current.window.data() != trackedWindow.data()) {
             timer->stop();
             timer->deleteLater();
             reply.fail("WINDOW_LOST",
-                       QStringLiteral("target window stopped being active/visible during point"));
+                       QStringLiteral("target window changed identity during point"));
+            return;
+        }
+        if (current.visibleScene != visibleScene || current.targetScene != targetScene
+            || current.targetGlobal != targetGlobal) {
+            timer->stop();
+            timer->deleteLater();
+            reply.fail("TARGET_MOVED",
+                       QStringLiteral("named point target moved during gesture: ") + ref);
             return;
         }
 
