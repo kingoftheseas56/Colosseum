@@ -600,6 +600,44 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing,
                 QThread::msleep(unsigned(waitMs));
                 res.detail = QStringLiteral("waited %1 ms off-camera").arg(waitMs);
             }
+        // Arc 63 Director: a successful, bounded on-camera beat between ordinary actions.
+        // It is runner-local orchestration; active presentation capture observes the same beat.
+        } else if (step.value(QStringLiteral("cmd")).toString() == QStringLiteral("hold")) {
+            const QJsonObject payload = step.value(QStringLiteral("payload")).toObject();
+            const QJsonValue durationValue = payload.value(QStringLiteral("duration_ms"));
+            const int holdMs = durationValue.toInt(-1);
+            if (!durationValue.isDouble() || holdMs < 0 || holdMs > 20000) {
+                res.pass = false;
+                res.detail = QStringLiteral("hold duration_ms must be between 0 and 20000");
+            } else if (capture && capture->isActive()) {
+                int remainingMs = holdMs;
+                int capturedFrames = 0;
+                while (remainingMs > 0 || (holdMs == 0 && capturedFrames == 0)) {
+                    const int sliceMs = qMin(remainingMs, 5000);
+                    QString captureDetail;
+                    if (!capture->hold(sliceMs, &captureDetail)) {
+                        res.pass = false;
+                        res.detail = captureDetail;
+                        break;
+                    }
+                    const QRegularExpression framesRe(QStringLiteral("captured (\\d+) scene frames"));
+                    const auto match = framesRe.match(captureDetail);
+                    if (match.hasMatch())
+                        capturedFrames += match.captured(1).toInt();
+                    remainingMs -= sliceMs;
+                }
+                if (res.pass)
+                    res.detail = QStringLiteral("held %1 ms, captured %2 scene frames")
+                                     .arg(holdMs).arg(capturedFrames);
+            } else {
+                QElapsedTimer holdClock;
+                holdClock.start();
+                while (holdClock.elapsed() < holdMs) {
+                    const qint64 remaining = holdMs - holdClock.elapsed();
+                    QThread::msleep(static_cast<unsigned long>(qMax<qint64>(1, remaining)));
+                }
+                res.detail = QStringLiteral("held %1 ms").arg(holdMs);
+            }
         // expect_visual step: golden compare, no command needed
         } else if (step.contains(QStringLiteral("expect_visual"))) {
             const QJsonObject ev = step.value(QStringLiteral("expect_visual")).toObject();
