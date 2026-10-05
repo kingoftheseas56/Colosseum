@@ -18,7 +18,11 @@ WorldPage {
     id: universes
     objectName: "universesWorld"          // automation identity, like theatreWorld
     medium: "Universes"
-    initialFocusName: "universesLedger"   // the first D-pad arrow lands the pile
+    // the first D-pad arrow lands the first thing on the page: the Tribute carousel when
+    // there is one, as in the other worlds. The list starts below the fold then, and a
+    // region that is mostly off screen cannot take the first landing (in-app walk 2026-10-05:
+    // with Tributes installed the arrows never left the world root)
+    initialFocusName: universes.tributes.length > 0 ? "universesTributeCarouselView" : "universesLedger"
 
     Theme { id: theme }
 
@@ -141,6 +145,24 @@ WorldPage {
         tabModel: universes.facetTabs
         currentTab: universes.facet.length ? universes.facet : "all"
         onTabRequested: (tab) => universes.facet = (tab === "all" ? "" : tab)
+        // Down from the strip enters the list. The list is one region far taller than the
+        // window, which the page's spatial router cannot land on its own, so the strip
+        // hands over by name: bring the top of the list into view, then give it the focus.
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Down && universes.shown.length > 0) {
+                universes.enterLedger()
+                event.accepted = true
+            }
+        }
+    }
+    function enterLedger() {
+        const flick = universes.pageFlickable
+        const top = pile.mapToItem(flick.contentItem, 0, 0).y
+        const maxY = Math.max(0, flick.contentHeight - flick.height)
+        // leave the strip on screen above the first banner
+        if (top - flick.contentY > flick.height * 0.5)
+            flick.contentY = Math.min(maxY, Math.max(0, top - flick.height * 0.35))
+        pile.forceActiveFocus(Qt.TabFocusReason)
     }
 
     // ---- THE UNIVERSES — one large banner each, alphabetical ----

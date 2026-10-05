@@ -1057,7 +1057,8 @@
         "one-piece",
         "dcau",
         "star-wars",
-        "cosmere"
+        "cosmere",
+        "universes-world"
       ],
       "source_roots": [
         "qml/UniverseHallPage.qml",
@@ -1065,11 +1066,16 @@
         "qml/DCAUUniversePage.qml",
         "qml/GalaxyUniversePage.qml",
         "qml/OnePieceUniversePage.qml",
-        "qml/CosmereUniversePage.qml"
+        "qml/CosmereUniversePage.qml",
+        "qml/UniversesWorld.qml",
+        "qml/ShelvesUniversePage.qml",
+        "qml/SagaUniversePage.qml",
+        "qml/UniverseBanner.qml"
       ],
       "entry_points": [
         "qml/UniverseHallPage.qml",
-        "qml/Main.qml"
+        "qml/Main.qml",
+        "qml/UniversesWorld.qml"
       ],
       "owners": [
         {
@@ -1084,13 +1090,29 @@
               "contains": "com.colosseum.universe.dcau"
             }
           ]
+        },
+        {
+          "name": "UniversesWorld",
+          "path": "qml/UniversesWorld.qml",
+          "confidence": "observed",
+          "responsibility": "Fourth world shell: tribute carousel plus the roster ledger of standard-page universes (Arc 58); routes universeRequested/tributeRequested into Main.qml.",
+          "provenance": [
+            {
+              "path": "qml/UniversesWorld.qml"
+            },
+            {
+              "path": "qml/Main.qml",
+              "contains": "openWorld(\"Universes\")"
+            }
+          ]
         }
       ],
       "ctests": [],
       "checks": [
         "tests/test_universe_hall_p0.ps1",
         "tests/test_universe_keyboard_p0.ps1",
-        "tests/verify_universe_ids.mjs"
+        "tests/verify_universe_ids.mjs",
+        "tests/test_universe_archive_p0.ps1"
       ],
       "lanista_scenarios": [
         "tests/lanista_scenarios/keyboard_universe_utilities_completion.json",

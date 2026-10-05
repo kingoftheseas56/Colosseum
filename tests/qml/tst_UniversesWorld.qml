@@ -110,6 +110,25 @@ Item {
             compare(findChild(world, "universesWarmer").count, 10)
             ledger.currentIndex = 0
         }
+        function test_arrowsWalkFromTheCarouselIntoTheListAndBack() {
+            // found in the running app 2026-10-05: with Tributes installed the list starts
+            // below the fold and the arrows never reached it
+            const ledger = findChild(world, "universesLedger")
+            ledger.currentIndex = 0
+            findChild(world, "universesTributeCarouselView").forceActiveFocus()
+            keyClick(Qt.Key_Down)
+            compare(world.automationFocusedObject, "universesFilter")
+            keyClick(Qt.Key_Down)
+            verify(ledger.activeFocus, "Down from the filter strip enters the list")
+            compare(ledger.currentIndex, 0)
+            keyClick(Qt.Key_Down)
+            compare(ledger.currentIndex, 1)
+            keyClick(Qt.Key_Up); keyClick(Qt.Key_Up)
+            compare(world.automationFocusedObject, "universesFilter")
+            keyClick(Qt.Key_Up)
+            compare(world.automationFocusedObject, "universesTributeCarouselView")
+            ledger.currentIndex = 0
+        }
         function test_tributeOrderIsFixed() {
             const handed = world.installed
             world.installed = handed.slice().reverse()

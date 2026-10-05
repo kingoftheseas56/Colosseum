@@ -20,9 +20,16 @@ function Assert-Lacks($text, $needle, $message) {
 }
 
 # --- the hall: flat bars in a vertical pile, breathing on hover ---
+# 2026-10-05 needle refresh (Arc 58): the baked Universes.js roster is gone (the shell hands
+# the installed roster down), the bar moved to UniverseLedgerBar.qml (2026-10-04 extraction),
+# and the wiring needles follow the current Main.qml shapes. The hall itself has NO product
+# door since Arc 58 (Home's tribute link and Extensions open the Universes WORLD via
+# win.openWorld("Universes")); openUniverseHall() is orphaned pending the reachability audit,
+# so this check guards the hall's FORM + layer wiring for as long as it stays in source.
 $hp = Read-File "qml/UniverseHallPage.qml"
-foreach ($n in @('signal exploreRequested(string name)', 'property int hovered',
-                 'Universes.universes', 'Hall of Tributes',
+foreach ($n in @('signal exploreRequested(string extensionId, string name)', 'property int hovered',
+                 'property var universes:',
+                 'Hall of Tributes',
                  'flickableDirection: Flickable.VerticalFlick',
                  'ScrollBar.vertical: HouseScrollBar', 'ScrollGlide')) {
     Assert-Contains $hp $n "UniverseHallPage must carry: $n"
@@ -42,7 +49,7 @@ Assert-Lacks $hp 'HorizontalFlick' "The sideways walk is dead - the pile scrolls
 # the breathe must go still while the pile moves (2026-07-13: bars ballooning under the
 # cursor mid-scroll made scrolling a nightmare)
 Assert-Contains $hp 'property bool walking' "The hall must hold the breathe still while scrolling."
-Assert-Contains $hp 'if (!root.walking) root.hovered' "Hover must be gated on the walk settling."
+Assert-Contains $hp 'if (!root.walking && !hallNav.keyboardRecentlyMoved) root.hovered' "Hover must be gated on the walk settling (and on keyboard motion settling)."
 
 # the PROPER THUMB law (Hemanth 2026-07-13, reversing the sliver): the house scrollbar is
 # always present when the page overflows, and grabbable — never a motion-revealed phantom
@@ -51,15 +58,21 @@ Assert-Contains $sb 'interactive: true' "HouseScrollBar must be grabbable (the p
 Assert-Contains $sb 'ScrollBar.AlwaysOn' "HouseScrollBar must stand always-on when content overflows."
 Assert-Lacks $sb 'flick.moving || flick.flicking' "The motion-revealed sliver machinery must not return."
 
-# --- wiring: layer under the universe pages, door on the hero, Esc chain ---
+# --- wiring: layer under the universe pages, back door, Esc chain ---
+# 2026-10-05: the hero "Explore the tribute" door and the Extensions tile now open the
+# Universes WORLD (win.openWorld("Universes")), not the hall — openUniverseHall() has no
+# caller. closeUniverse() no longer falls back through the hall (it just deactivates
+# universeLayer; the Universes world owns the surface beneath). Both retired needles are
+# recorded here so the change is auditable; what remains guarded is the hall's own layer
+# wiring while the page stays in source.
 $main = Read-File "qml/Main.qml"
 foreach ($n in @('id: universeHallLayer', 'UniverseHallPage.qml',
                  'function openUniverseHall()', 'function closeUniverseHall()',
-                 'universeHallLayer.active) win.closeUniverseHall()',
-                 'onClicked: win.openUniverseHall()')) {
+                 'case "universeHall": win.closeUniverseHall(); return',
+                 'item.universes = win.installedUniverses',
+                 'item.backRequested.connect(win.closeUniverseHall)',
+                 'onClicked: win.openWorld("Universes")')) {
     Assert-Contains $main $n "Main.qml must wire: $n"
 }
-# back from a world must land on the hall when it sits beneath
-Assert-Contains $main 'if (!universeHallLayer.active) { topbar.visible = true; page.visible = true }' "closeUniverse must fall back to the hall when it is beneath."
 
 Write-Host "universe hall p0: OK"
