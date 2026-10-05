@@ -1,0 +1,96 @@
+name: arc63-c1-fast-windows
+
+on:
+  push:
+    branches:
+      - preflight/arc63-c1-pointer-verify
+
+permissions:
+  contents: read
+
+jobs:
+  fast-windows:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: C1 diff whitespace check
+        shell: pwsh
+        run: git diff --check 7e56664ec11d6987bdc6540c04ac98c5aeca4fcb..eda3c0e108a538784ebc2a65464f01443aaa33b3 -- docs/colosseum-lanista-verification.md native/devtools/LanistaServer.cpp native/devtools/LanistaServer.h qml/UniversesWorld.qml tests/lanista_harness.cpp
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Enable MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: x64
+      - name: Compile production LanistaServer translation unit
+        shell: pwsh
+        run: |
+          $qt = $env:QT_ROOT_DIR
+          $incs = @(
+            "/I$PWD/native",
+            "/I$qt/include/QtCore",
+            "/I$qt/include/QtGui",
+            "/I$qt/include/QtNetwork",
+            "/I$qt/include/QtQml",
+            "/I$qt/include/QtQuick",
+            "/I$qt/include/QtSql",
+            "/I$qt/include/QtConcurrent"
+          )
+          & cl /nologo /std:c++20 /EHsc /permissive- /Zc:__cplusplus /c native/devtools/LanistaServer.cpp /Fo:$env:RUNNER_TEMP/LanistaServer.obj $incs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "$env:RUNNER_TEMP/LanistaServer.obj")) { throw "LanistaServer.obj missing" }
+      - name: Build real Windows cursor smoke
+        shell: pwsh
+        run: |
+          $src = @'
+          #include <QGuiApplication>
+          #include <QCursor>
+          #include <QWindow>
+          #include <QScreen>
+          #include <QThread>
+          #include <iostream>
+          int main(int argc, char** argv) {
+              QGuiApplication app(argc, argv);
+              QWindow w;
+              w.setTitle("Arc63C1CursorSmoke");
+              w.setGeometry(120, 120, 420, 260);
+              w.show();
+              w.requestActivate();
+              for (int i = 0; i < 20; ++i) { app.processEvents(); QThread::msleep(10); }
+              const QPoint start = QCursor::pos();
+              const QPoint target = w.mapToGlobal(QPoint(210, 130));
+              if (!QGuiApplication::screenAt(target)) { std::cerr << "NO_SCREEN\n"; return 2; }
+              QCursor::setPos(target);
+              app.processEvents();
+              const QPoint actual = QCursor::pos();
+              const int dx = actual.x() - target.x();
+              const int dy = actual.y() - target.y();
+              std::cout << "CURSOR_START=" << start.x() << "," << start.y() << "\n";
+              std::cout << "CURSOR_TARGET=" << target.x() << "," << target.y() << "\n";
+              std::cout << "CURSOR_ACTUAL=" << actual.x() << "," << actual.y() << "\n";
+              std::cout << "CURSOR_DELTA=" << dx << "," << dy << "\n";
+              return (dx == 0 && dy == 0) ? 0 : 3;
+          }
+          '@
+          $cpp = Join-Path $env:RUNNER_TEMP "c1_cursor_smoke.cpp"
+          Set-Content -Path $cpp -Value $src -Encoding utf8
+          $qt = $env:QT_ROOT_DIR
+          & cl /nologo /std:c++20 /EHsc $cpp "/I$qt/include/QtCore" "/I$qt/include/QtGui" /Fe:$env:RUNNER_TEMP/c1_cursor_smoke.exe /link "/LIBPATH:$qt/lib" Qt6Core.lib Qt6Gui.lib
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run real Windows cursor smoke
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          $env:QT_QPA_PLATFORM = "windows"
+          & "$env:RUNNER_TEMP/c1_cursor_smoke.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
