@@ -33,17 +33,13 @@ jobs:
           from pathlib import Path
           p = Path("tests/lanista_harness.cpp")
           s = p.read_text(encoding="utf-8")
-          old = '''            require(absurd.value("maxDepthUsed").toInt() == 64,
-                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
-                                   "ceiling (64), got %1").arg(absurd.value("maxDepthUsed").toInt())
-                        + why());'''
-          new = '''            require(absurd.value("maxDepthUsed").toInt() == 256,
-                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
-                                   "ceiling (256), got %1").arg(absurd.value("maxDepthUsed").toInt())
-                        + why());'''
-          if old not in s:
-              raise SystemExit("stale baseline assertion not found")
-          p.write_text(s.replace(old, new, 1), encoding="utf-8")
+          old1 = 'absurd.value("maxDepthUsed").toInt() == 64'
+          old2 = '"ceiling (64), got %1"'
+          if s.count(old1) != 1 or s.count(old2) != 1:
+              raise SystemExit(f"unexpected stale assertion counts: {s.count(old1)}, {s.count(old2)}")
+          s = s.replace(old1, 'absurd.value("maxDepthUsed").toInt() == 256', 1)
+          s = s.replace(old2, '"ceiling (256), got %1"', 1)
+          p.write_text(s, encoding="utf-8")
           PY
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
