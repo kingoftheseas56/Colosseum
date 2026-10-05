@@ -1,0 +1,209 @@
+{
+  "name": "arc63-c2-production-hover-click",
+  "comment": "Arc 63-C2: enter the real Universes world, scroll the production ledger until One Piece is pointerable, point with the real OS cursor, hold the real hover/Explore treatment, click through with pointer-click, and prove the One Piece Shelves universe opened.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated Drive session answers",
+      "expect": [
+        { "path": "gates.drive", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash releases",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter production Universes world",
+      "payload": { "target": "modePill_Universes" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Universes world active",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "One Piece production banner materialized",
+      "payload": {
+        "object": "universesBanner_onepiece",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "scroll production Universes ledger toward One Piece 1",
+      "payload": {
+        "target": "universesWorldScroll",
+        "dy": -800,
+        "xFraction": 0.5,
+        "yFraction": 0.7
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "scroll production Universes ledger toward One Piece 2",
+      "payload": {
+        "target": "universesWorldScroll",
+        "dy": -800,
+        "xFraction": 0.5,
+        "yFraction": 0.7
+      }
+    },
+    {
+      "presentation_wait_ms": 1200,
+      "label": "let the production wheel glide settle"
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece starts without pointer hover",
+      "payload": {
+        "object": "universesBanner_onepiece",
+        "props": ["hot"]
+      },
+      "expect": [
+        { "path": "props.hot", "op": "==", "value": "false" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece Explore starts hidden",
+      "payload": {
+        "object": "universesBanner_onepiece_explore",
+        "props": ["opacity"]
+      },
+      "expect": [
+        { "path": "props.opacity", "op": "<=", "value": 0.05 }
+      ]
+    },
+    {
+      "capture": {
+        "action": "start",
+        "name": "arc63-c2-onepiece-hover-click"
+      },
+      "label": "start production hover-click shot"
+    },
+    {
+      "presentation_hold_ms": 350,
+      "label": "pre-hover beat"
+    },
+    {
+      "cmd": "point",
+      "label": "real pointer arrives on One Piece",
+      "payload": {
+        "target": "universesBanner_onepiece",
+        "duration_ms": 700,
+        "path": "smoothstep",
+        "tolerance_px": 2
+      },
+      "expect": [
+        { "path": "pointed", "op": "==", "value": "universesBanner_onepiece" },
+        { "path": "deltaX", "op": ">=", "value": -2 },
+        { "path": "deltaX", "op": "<=", "value": 2 },
+        { "path": "deltaY", "op": ">=", "value": -2 },
+        { "path": "deltaY", "op": "<=", "value": 2 }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "real production hover becomes active",
+      "payload": {
+        "object": "universesBanner_onepiece",
+        "prop": "hot",
+        "value": true,
+        "timeout_ms": 3000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "presentation_hold_ms": 600,
+      "label": "hold on real One Piece hover treatment"
+    },
+    {
+      "cmd": "qml-get",
+      "label": "One Piece Explore affordance is fully revealed",
+      "payload": {
+        "object": "universesBanner_onepiece_explore",
+        "props": ["opacity", "visible"]
+      },
+      "expect": [
+        { "path": "props.opacity", "op": ">=", "value": 0.95 },
+        { "path": "props.visible", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "pointer-click",
+      "label": "real pointer clicks One Piece production banner",
+      "payload": {
+        "target": "universesBanner_onepiece",
+        "button": "left",
+        "action": "click"
+      },
+      "expect": [
+        { "path": "clicked", "op": "==", "value": "universesBanner_onepiece" },
+        { "path": "submittedEvents", "op": "==", "value": 2 }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "One Piece Shelves destination opens",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "destination identity is exactly One Piece",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "props": ["universeName", "visible"]
+      },
+      "expect": [
+        { "path": "props.universeName", "op": "==", "value": "One Piece" },
+        { "path": "props.visible", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "One Piece Shelves scroll surface is live",
+      "payload": {
+        "object": "shelvesScroll",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "presentation_hold_ms": 700,
+      "label": "One Piece destination beat"
+    },
+    {
+      "capture": {
+        "action": "stop"
+      },
+      "label": "stop production hover-click shot"
+    }
+  ]
+}
