@@ -223,21 +223,21 @@
     },
     {
       "cmd": "ui-keypress",
-      "label": "Tab enters production universe ledger",
+      "label": "Down leaves the Manga facet through the production spatial router",
       "payload": {
-        "key": "Tab"
+        "key": "Down"
       },
       "expect": [
         {
           "path": "pressed",
           "op": "==",
-          "value": "Tab"
+          "value": "Down"
         }
       ]
     },
     {
       "cmd": "ui-wait-for",
-      "label": "production ledger owns keyboard focus",
+      "label": "production spatial router lands the universe ledger",
       "payload": {
         "object": "universesLedger",
         "prop": "activeFocus",
