@@ -1,7 +1,7 @@
 import fs from 'fs';
 let src = fs.readFileSync('qml/AbbApi.js','utf8').replace(/^\.pragma library\s*$/m,'');
 const mod = {};
-const fn = new Function('module', src + '\nmodule.parseSearch=parseSearch;module.parseDetail=parseDetail;module.constructMagnet=constructMagnet;module.searchTerm=searchTerm;module.relevantRows=relevantRows;');
+const fn = new Function('module', src + '\nmodule.parseSearch=parseSearch;module.parseDetail=parseDetail;module.constructMagnet=constructMagnet;module.searchTerm=searchTerm;module.relevantRows=relevantRows;module.pickAudiobook=pickAudiobook;module.resolveAudiobook=resolveAudiobook;');
 fn(mod);
 const searchHtml = fs.readFileSync('tests/fixtures/abb/search.html','utf8');
 const detailHtml = fs.readFileSync('tests/fixtures/abb/detail.html','utf8');
@@ -42,4 +42,35 @@ if (mod.relevantRows(rows, "Rhythm of War", "Brandon Sanderson").length < 1) fai
 
 console.log("PASS rows="+rows.length+" hash="+d.infoHash+" contents='"+d.contents+"'");
 console.log("  sample: '"+rows[0].title+"' by '"+rows[0].author+"' ["+rows[0].size+", "+rows[0].format+"]");
+
+// Arc64 L1: production pick rule plus the real XHR callback contract, offline only.
+const pickBook = { title: "The Quiet River", author: "Ada North", language: "English" };
+const pickRows = JSON.parse(fs.readFileSync('tests/fixtures/abb/pick-rows.json','utf8'));
+function check(name, predicate) { if (!predicate) fail(name); console.log('PASS '+name); }
+check('language filter', mod.pickAudiobook(pickRows, pickBook).candidates.every(r=>r.language!=='French'));
+check('abridged dropped', !mod.pickAudiobook(pickRows, pickBook).candidates.some(r=>r.slug==='abridged'));
+check('abridged kept when alone', mod.pickAudiobook([pickRows[2]],pickBook).pick.slug==='abridged');
+check('strict title miss gives confident false', !mod.pickAudiobook([{title:'A Quiet Night',author:'Ada North'}],pickBook).confident);
+check('author surname required', !mod.pickAudiobook([{title:'The Quiet River',author:'Ada West'}],pickBook).confident);
+check('short title and surname', mod.pickAudiobook([{title:'It',author:'Amy Li',format:'MP3'}],{title:'It',author:'Amy Li'}).confident);
+check('short surname must match', !mod.pickAudiobook([{title:'It',author:'Amy Wu'}],{title:'It',author:'Amy Li'}).confident);
+check('M4B over MP3', mod.pickAudiobook([pickRows[0],pickRows[1]],pickBook).pick.slug==='m4b');
+check('newest wins tie', mod.pickAudiobook([pickRows[1],{...pickRows[1],slug:'newer',posted:'2026-10-02'}],pickBook).pick.slug==='newer');
+check('unknown language retained', mod.pickAudiobook([{...pickRows[1],language:''}],{...pickBook,language:''}).confident);
+check('unparseable date stable', mod.pickAudiobook([{...pickRows[1],slug:'unknown',posted:'?'},pickRows[1]],pickBook).pick.slug==='unknown');
+check('no input mutation', JSON.stringify(pickRows)===fs.readFileSync('tests/fixtures/abb/pick-rows.json','utf8').trim());
+function lookupWith(status, body, throws=false) {
+ let calls=0, result;
+ globalThis.XMLHttpRequest=class { static DONE=4; open() {} setRequestHeader() {} send() {if(throws)throw new Error('offline');this.status=status;this.responseText=body;this.readyState=4;this.onreadystatechange();} };
+ mod.resolveAudiobook('Quiet River','Ada North',value=>{calls++;result=value});
+ delete globalThis.XMLHttpRequest;
+ check('callback exactly once '+status, calls===1);
+ return result;
+}
+check('network failure sets error true', lookupWith(0,'').error===true);
+check('HTTP failure sets error true', lookupWith(503,'').error===true);
+check('real empty sets error false', lookupWith(200,'<html>No results</html>').error===false);
+check('empty response sets error false', lookupWith(200,'').error===false);
+check('send exception sets error true', lookupWith(0,'',true).error===true);
+
 process.exit(0);

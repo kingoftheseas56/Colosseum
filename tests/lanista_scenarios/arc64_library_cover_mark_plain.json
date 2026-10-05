@@ -1,0 +1,226 @@
+{
+  "name": "arc64-library-cover-mark-plain",
+  "comment": "Authored, not Windows-executed. Use plain downloaded EPUB seed.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "the tagged session answers on its own pipe with Drive enabled",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "the session reports its isolated AppData root",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the boot splash has left the screen",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "dismiss account onboarding through the existing named action",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "account onboarding is gone",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter the Biblio world",
+      "payload": {
+        "target": "modePill_Biblio"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Biblio's tab bar appears",
+      "payload": {
+        "object": "biblioTabBar",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the retained Discover catalog load settles before the Library assertion",
+      "payload": {
+        "object": "biblioDiscoverPage",
+        "prop": "loading",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "reveal the pinned Biblio dock before choosing Library",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -1600
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the visible Biblio dock is ready",
+      "payload": {
+        "object": "biblioTabDock",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "switch to the Library tab",
+      "payload": {
+        "target": "biblioTabDock_library"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the Library page is on screen",
+      "payload": {
+        "object": "biblioLibraryPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "reveal the seeded Library card through the page's real scroll surface",
+      "payload": {
+        "target": "biblioTabBar",
+        "dy": -1200
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the seeded book's Library card is structurally present after the scroll",
+      "payload": {
+        "object": "biblioLibraryCard_arc 19 book|test author",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "biblioLibraryCardAudioMark_arc 19 book|test author",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "payload": {
+        "object": "biblioLibraryPage",
+        "props": [
+          "rowCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.rowCount",
+          "op": "==",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}

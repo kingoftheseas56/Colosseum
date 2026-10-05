@@ -80,8 +80,8 @@ bool naturalLess(const QString& a, const QString& b)
 
 } // namespace
 
-AudiobookDownloader::AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent)
-    : QObject(parent), m_nam(nam), m_stream(stream)
+AudiobookDownloader::AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent, const QString& dataRoot)
+    : QObject(parent), m_dataRoot(dataRoot), m_nam(nam), m_stream(stream)
 {
     loadIndex();
     if (m_stream)
@@ -101,7 +101,7 @@ AudiobookDownloader::~AudiobookDownloader()
 
 QString AudiobookDownloader::baseDir() const
 {
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+    return (m_dataRoot.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) : m_dataRoot)
            + QStringLiteral("/audiobooks");
 }
 
@@ -120,6 +120,10 @@ void AudiobookDownloader::loadIndex()
         const QJsonObject o = it.value().toObject();
         Entry e;
         e.dir     = o.value(QStringLiteral("dir")).toString();
+        e.infoHash = o.value(QStringLiteral("infoHash")).toString();
+        e.releaseSlug = o.value(QStringLiteral("releaseSlug")).toString();
+        e.format = o.value(QStringLiteral("format")).toString();
+        e.sizeLabel = o.value(QStringLiteral("sizeLabel")).toString();
         e.title   = o.value(QStringLiteral("title")).toString();
         e.author  = o.value(QStringLiteral("author")).toString();
         e.bookId  = o.value(QStringLiteral("bookId")).toString();
@@ -141,6 +145,10 @@ void AudiobookDownloader::saveIndex() const
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         QJsonObject o;
         o[QStringLiteral("dir")]     = it.value().dir;
+        o[QStringLiteral("infoHash")] = it.value().infoHash;
+        o[QStringLiteral("releaseSlug")] = it.value().releaseSlug;
+        o[QStringLiteral("format")] = it.value().format;
+        o[QStringLiteral("sizeLabel")] = it.value().sizeLabel;
         o[QStringLiteral("title")]   = it.value().title;
         o[QStringLiteral("author")]  = it.value().author;
         o[QStringLiteral("bookId")]  = it.value().bookId;
@@ -160,6 +168,47 @@ void AudiobookDownloader::saveIndex() const
 // ─────────────────────────────────────────────────────────────────────────────
 // QML read-model
 // ─────────────────────────────────────────────────────────────────────────────
+
+QVariantMap AudiobookDownloader::entryFor(const QString& pairKey) const
+{
+    if (!isDownloaded(pairKey)) return {};
+    const Entry& e = m_index.constFind(pairKey).value();
+    return {{QStringLiteral("infoHash"), e.infoHash}, {QStringLiteral("releaseSlug"), e.releaseSlug},
+            {QStringLiteral("format"), e.format}, {QStringLiteral("sizeLabel"), e.sizeLabel},
+            {QStringLiteral("title"), e.title}, {QStringLiteral("author"), e.author},
+            {QStringLiteral("bookId"), e.bookId}, {QStringLiteral("bookPath"), e.bookPath},
+            {QStringLiteral("dir"), e.dir}, {QStringLiteral("files"), e.files},
+            {QStringLiteral("bytes"), e.bytes}};
+}
+
+void AudiobookDownloader::replaceAudiobook(const QString& pairKey, const QString& infoHash,
+                                           const QString& title, const QString& author,
+                                           const QString& bookId, const QString& bookPath,
+                                           const QVariantMap& releaseMeta)
+{
+    static const QRegularExpression validHash(QStringLiteral("^[0-9a-fA-F]{40}$"));
+    if (pairKey.isEmpty() || !validHash.match(infoHash.trimmed()).hasMatch()) {
+        emit failed(pairKey, QStringLiteral("Invalid replacement identity"));
+        return;
+    }
+    const Entry old = m_index.value(pairKey);
+    if (isActive(pairKey)) {
+        cancelDownload(pairKey);
+        if (QDir(dirFor(pairKey)).exists()) {
+            emit failed(pairKey, QStringLiteral("Could not remove the previous download"));
+            return;
+        }
+    }
+    const auto removed = deleteAudiobook(pairKey);
+    if (!removed.value(QStringLiteral("success")).toBool()) {
+        emit failed(pairKey, removed.value(QStringLiteral("message")).toString());
+        return;
+    }
+    const QString owner = bookId.isEmpty() ? old.bookId : bookId;
+    if (m_pairing && !owner.isEmpty()) m_pairing->deletePairing(owner);
+    downloadAudiobook(pairKey, infoHash, title, author, owner,
+                      bookPath.isEmpty() ? old.bookPath : bookPath, releaseMeta);
+}
 
 QString AudiobookDownloader::localAudiobook(const QString& pairKey) const
 {
@@ -271,7 +320,8 @@ AudiobookDownloader::Job* AudiobookDownloader::jobForHash(const QString& infoHas
 
 void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QString& infoHashIn,
                                             const QString& title, const QString& author,
-                                            const QString& bookId, const QString& bookPath)
+                                            const QString& bookId, const QString& bookPath,
+                                            const QVariantMap& releaseMeta)
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (pairKey.isEmpty()) { emit failed(pairKey, QStringLiteral("empty pairKey")); return; }
@@ -303,6 +353,8 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
     }
 
     Job* job = new Job;
+    job->generation = ++m_nextGeneration;
+    job->releaseMeta = releaseMeta;
     job->pairKey = pairKey; job->infoHash = infoHash; job->title = title; job->author = author;
 
     emit resolving(pairKey);
@@ -349,7 +401,10 @@ void AudiobookDownloader::pollEngine(Job* job)
         failJob(job, QStringLiteral("stream engine did not start"));
         return;
     }
-    QTimer::singleShot(1000, this, [this, job]() { if (m_active == job) pollEngine(job); });
+    const quint64 generation = job->generation;
+    QTimer::singleShot(1000, this, [this, job, generation]() {
+        if (m_active == job && m_active->generation == generation) pollEngine(job);
+    });
 }
 
 void AudiobookDownloader::requestManifest(Job* job)
@@ -359,8 +414,9 @@ void AudiobookDownloader::requestManifest(Job* job)
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     req.setTransferTimeout(30000);   // a cold engine can hang /create — time out → retry (poll loop)
     QNetworkReply* reply = m_nam->post(req, QByteArray("{}"));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, job]() {
-        if (m_active != job) { reply->deleteLater(); return; }   // cancelled/replaced
+    const quint64 generation = job->generation;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, job, generation]() {
+        if (m_active != job || m_active->generation != generation) { reply->deleteLater(); return; }   // cancelled/replaced
         onManifestReply(reply, job);
     });
 }
@@ -384,8 +440,9 @@ void AudiobookDownloader::onManifestReply(QNetworkReply* reply, Job* job)
         }
         // metadata still loading (no peers/pieces/manifest yet) → poll again
         if (job->createAttempts < kMaxManifestPolls) {
-            QTimer::singleShot(kManifestPollMs, this, [this, job]() {
-                if (m_active == job) requestManifest(job);
+            const quint64 generation = job->generation;
+            QTimer::singleShot(kManifestPollMs, this, [this, job, generation]() {
+                if (m_active == job && m_active->generation == generation) requestManifest(job);
             });
             return;
         }
@@ -537,6 +594,10 @@ void AudiobookDownloader::finalizeJob(Job* job)
 {
     Entry e;
     e.dir = dirFor(job->pairKey);
+    e.infoHash = job->infoHash;
+    e.releaseSlug = job->releaseMeta.value(QStringLiteral("releaseSlug")).toString();
+    e.format = job->releaseMeta.value(QStringLiteral("format")).toString();
+    e.sizeLabel = job->releaseMeta.value(QStringLiteral("sizeLabel")).toString();
     e.title = job->title; e.author = job->author;
     e.bookId = m_bookIdFor.value(job->pairKey);
     e.bookPath = m_bookPathFor.value(job->pairKey);

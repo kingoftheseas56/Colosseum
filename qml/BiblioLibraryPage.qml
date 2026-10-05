@@ -14,6 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioLibraryApi.js" as Api
+import "BiblioApi.js" as BiblioApi
 
 Item {
     id: root
@@ -48,6 +49,17 @@ Item {
     property string query: ""
 
     // ── reactive data (recompute on Collection / Progress change) ──
+    property int audiobookRevision: 0
+    Connections {
+        target: typeof Audiobooks !== "undefined" ? Audiobooks : null
+        function onFinished(key, path) { root.audiobookRevision += 1 }
+        function onRemoved(key) { root.audiobookRevision += 1 }
+    }
+    function audiobookKey(row) {
+        var entry = row && row.entry ? row.entry : ({})
+        var book = entry.payload && entry.payload.book ? entry.payload.book : ({})
+        return book.pairKey || BiblioApi.pairKey(book.title || entry.title || "",book.author || (row && row.author) || "")
+    }
     property int collRev: (typeof Collection !== "undefined" ? Collection.revision : 0)
     property int progRev: (typeof Progress !== "undefined" ? Progress.revision : 0)
     property var allRows: computeRows(collRev, progRev, active)
@@ -452,6 +464,12 @@ Item {
                     asynchronous: true; cache: true
                     opacity: status === Image.Ready ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 180 } }
+                }
+
+                AudiobookCoverMark {
+                    objectName: "biblioLibraryCardAudioMark_" + String(card.modelData.entry.id || "")
+                    downloaded: (root.audiobookRevision, typeof Audiobooks !== "undefined"
+                        && Audiobooks.isDownloaded(root.audiobookKey(card.modelData)))
                 }
 
                 // in-progress hairline — cover base

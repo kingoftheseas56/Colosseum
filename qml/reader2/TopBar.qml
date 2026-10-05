@@ -18,6 +18,8 @@ Item {
     property string title: ""
     property string author: ""
     property string chapterLabel: ""
+    property bool audioOfferChipVisible: false
+    signal audioOfferRequested()
     property bool shown: false           // reveal drives this; controls interactivity
     property bool shellWindowed: false
 
@@ -146,6 +148,12 @@ Item {
         anchors.rightMargin: 22
         spacing: 12
 
+        AudioOfferChip {
+            objectName: "readerAudioChip"
+            visible: root.shown && root.audioOfferChipVisible
+            anchors.verticalCenter: parent.verticalCenter
+            onActivated: root.audioOfferRequested()
+        }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.chapterLabel

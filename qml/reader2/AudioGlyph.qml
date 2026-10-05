@@ -88,6 +88,28 @@ Canvas {
             // reader-only, family rules: a gauge — open arc over the top + a needle
             circleArc(0.30, 150, 390, false)
             line(0, 0.10, 0.17, -0.13)
+        } else if (kind === "sleep") {
+            // Arc 64 P3: the mock's 24x24 crescent, translated into this Canvas'
+            // forged-line coordinate system so it carries the same weight/caps as its siblings.
+            ctx.beginPath()
+            ctx.moveTo(cx + 0.312500 * s, cy + 0.104167 * s)
+            ctx.bezierCurveTo(cx + 0.194474 * s, cy + 0.140509 * s,
+                              cx + 0.066028 * s, cy + 0.108620 * s,
+                              cx - 0.021296 * s, cy + 0.021296 * s)
+            ctx.bezierCurveTo(cx - 0.108620 * s, cy - 0.066028 * s,
+                              cx - 0.140509 * s, cy - 0.194474 * s,
+                              cx - 0.104167 * s, cy - 0.312500 * s)
+            ctx.bezierCurveTo(cx - 0.255816 * s, cy - 0.265805 * s,
+                              cx - 0.353528 * s, cy - 0.118682 * s,
+                              cx - 0.337755 * s, cy + 0.039207 * s)
+            ctx.bezierCurveTo(cx - 0.321982 * s, cy + 0.197097 * s,
+                              cx - 0.197097 * s, cy + 0.321982 * s,
+                              cx - 0.039207 * s, cy + 0.337755 * s)
+            ctx.bezierCurveTo(cx + 0.118682 * s, cy + 0.353528 * s,
+                              cx + 0.265805 * s, cy + 0.255816 * s,
+                              cx + 0.312500 * s, cy + 0.104167 * s)
+            ctx.closePath()
+            ctx.stroke()
         } else if (kind === "volume" || kind === "mute") {
             // reader-only, family rules: outlined speaker wedge; waves when live, cross when muted
             ctx.beginPath()

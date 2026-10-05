@@ -38,6 +38,13 @@ Item {
     property var highlights: []
 
     // ---- Audio pane data (Task 13), bound through from ReaderShell ----
+    property var audioOffer: ({offerState:"unknown"})
+    property var audioOfferVersions: []
+    property bool audioOfferShowVersions: false
+    property bool audioOfferChipVisible: false
+    signal audioOfferGetRequested()
+    signal audioOfferVersionChosen(var row)
+    signal audioOfferVersionsRequested()
     property bool audioAttached: false
     property string audioTitle: ""
     property url audioCover: ""
@@ -47,6 +54,9 @@ Item {
     property string audioTimeLine: ""
     property real audioProgress: 0
     property real audioDurationSec: 0         // numeric total (s) — for the scrub tooltip's time
+    property var audioSleepMode: "off"
+    property string audioSleepLabel: ""
+    signal audioSleepChosen(var mode)
     property string audioSpeedLabel: "1.0×"
     property var audioPlaylist: []            // chapter/file labels for the Audio tab's playlist
     property int audioCurrentIndex: -1        // playing row (-1 = not live)
@@ -91,7 +101,7 @@ Item {
 
     // Any of the three overlays open pins the chrome shown; Esc closes whichever is open
     // (ReaderShell's cascade). Search counts too, so Esc dismisses it via closeAnyPanel.
-    readonly property bool anyPanelOpen: panelOpen || appearanceOpen || searchOpen
+    readonly property bool anyPanelOpen: panelOpen || appearanceOpen || searchOpen || (sleepMenu && sleepMenu.open)
 
     // ---- signals up ----
     signal backRequested()
@@ -223,7 +233,8 @@ Item {
 
     // Esc / a shared close: drop whichever overlay is open.
     function closeAnyPanel() {
-        var hadOpen = panelOpen || appearanceOpen || searchOpen
+        var hadOpen = panelOpen || appearanceOpen || searchOpen || (sleepMenu && sleepMenu.open)
+        sleepMenu.open = false
         panelOpen = false; appearanceOpen = false; searchOpen = false
         if (hadOpen) Qt.callLater(chrome.restorePanelFocus)
     }
@@ -232,7 +243,7 @@ Item {
     // last one unpins and restarts the idle countdown. Both open-state changes route here.
     // Read the RAW open flags (not the derived anyPanelOpen binding, which can lag one beat
     // behind a change signal) so the pin reflects the just-applied state.
-    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen || chrome.searchOpen) }
+    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen || chrome.searchOpen || (sleepMenu && sleepMenu.open)) }
     onPanelOpenChanged: updatePin()
     onAppearanceOpenChanged: updatePin()
     onSearchOpenChanged: updatePin()
@@ -321,6 +332,8 @@ Item {
         id: topBar
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         shown: chrome.awake
+        audioOfferChipVisible: chrome.audioOfferChipVisible
+        onAudioOfferRequested: chrome.openPanelTo("audio", "contents")
         title: chrome.title
         author: chrome.author
         chapterLabel: chrome.chapterLabel
@@ -366,7 +379,7 @@ Item {
         anchors.bottom: bottomRail.top
         anchors.bottomMargin: 10
         property bool showRemaining: false        // scrub total ↔ remaining (click the total)
-        width: Math.min(600, (parent ? parent.width : 648) - 48)
+        width: Math.min(640, (parent ? parent.width : 688) - 48)
         height: 138
         radius: 24
         color: Theme.bar
@@ -387,6 +400,7 @@ Item {
             id: hgb
             property string kind: ""
             property string label: ""
+            property bool selected: false
             property int box: 40                              // round-button diameter
             signal clicked()
             width: box; height: box
@@ -405,8 +419,8 @@ Item {
                 width: Math.round(hgb.box * 0.62); height: Math.round(hgb.box * 0.62)
                 kind: hgb.kind
                 label: hgb.label
-                ink: Theme.ink
-                opacity: hgbMa.containsMouse ? 1.0 : 0.62
+                ink: hgb.selected ? Theme.gold : Theme.ink
+                opacity: hgb.selected ? 1.0 : hgbMa.containsMouse ? 1.0 : 0.62
                 Behavior on opacity { NumberAnimation { duration: 120 } }
             }
             ReaderKeyboardArea { id: hgbMa; anchors.fill: parent
@@ -440,9 +454,9 @@ Item {
                 id: chapPos
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 visible: chapterLine.count > 0
-                text: chapterLine.idx >= 0 ? ((chapterLine.idx + 1) + " of " + chapterLine.count)
-                                           : (chapterLine.count + " chapters")
-                color: Theme.inkFaint
+                text: (chrome.audioSleepLabel ? chrome.audioSleepLabel + " · " : "")
+                    + (chapterLine.idx >= 0 ? ((chapterLine.idx + 1) + " of " + chapterLine.count) : (chapterLine.count + " chapters"))
+                color: chrome.audioSleepLabel ? Theme.gold : Theme.inkFaint
                 font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
                 font.features: ({ "tnum": 1 })
             }
@@ -644,11 +658,19 @@ Item {
                 HudGlyphButton { kind: "nextChapter"; box: 40; onClicked: chrome.audioNextChapterRequested() }
             }
 
-            // RIGHT zone · utilities (speed · chapter list)
+            // RIGHT zone · utilities (moon · speed · chapter list)
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 spacing: 4
+                HudGlyphButton {
+                    id: sleepButton
+                    objectName: "readerSleepButton"
+                    kind: "sleep"; label: "Sleep timer"; box: 36
+                    selected: chrome.audioSleepMode !== "off"
+                    onClicked: sleepMenu.open = !sleepMenu.open
+                }
                 Item {                            // speed — gauge glyph + rate, pill hover
+                    objectName: "readerSpeedButton"
                     width: speedInner.implicitWidth + 16; height: 34
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
@@ -678,6 +700,20 @@ Item {
                 }
                 HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
             }
+        }
+    }
+
+    SleepTimerMenu {
+        id: sleepMenu
+        objectName: "readerSleepMenu"
+        mode: chrome.audioSleepMode
+        x: Math.max(8,Math.min(chrome.width-width-8,audioHud.x+audioHud.width-width))
+        y: Math.max(8,audioHud.y-height-8)
+        z: 30
+        onChosen: (mode) => chrome.audioSleepChosen(mode)
+        onOpenChanged: {
+            chrome.updatePin()
+            if (!open) Qt.callLater(function() { if (chrome.awake) sleepButton.focusKeyboard() })
         }
     }
 
@@ -762,6 +798,12 @@ Item {
         highlights: chrome.highlights
 
         // Audio pane (Task 13) — data down, intent up.
+        audioOffer: chrome.audioOffer
+        audioOfferVersions: chrome.audioOfferVersions
+        audioOfferShowVersions: chrome.audioOfferShowVersions
+        onAudioOfferGetRequested: chrome.audioOfferGetRequested()
+        onAudioOfferVersionChosen: (row) => chrome.audioOfferVersionChosen(row)
+        onAudioOfferVersionsRequested: chrome.audioOfferVersionsRequested()
         audioAttached: chrome.audioAttached
         audioTitle: chrome.audioTitle
         audioCover: chrome.audioCover

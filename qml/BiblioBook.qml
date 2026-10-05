@@ -11,6 +11,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
 import "AbbApi.js" as Abb
+import "AudiobookOfferLogic.js" as AudioOffer
 
 Item {
     id: detail
@@ -59,6 +60,44 @@ Item {
     // ── audiobook pairing lane: the same title's audiobook, from AudioBookBay ──
     property var abRows: []                             // ABB search rows for this title
     property bool abLoading: false
+    property bool abError: false
+    property bool abHashResolving: false
+    property bool abHashFailed: false
+    property int abRevision: 0
+    property var abRetryRow: null
+    property var abReplaceRow: null
+    property bool abReplaceOpen: false
+    property int abReplaceIndex: 0
+    property var abPick: Abb.pickAudiobook(detail.abRows, detail.book)
+    property var abStatus: (detail.abRevision, detail.pairKey,
+        typeof Audiobooks !== "undefined" ? Audiobooks.statusOf(detail.pairKey) : ({}))
+    property var abEntry: (detail.abRevision, detail.pairKey,
+        typeof Audiobooks !== "undefined" && Audiobooks.entryFor ? Audiobooks.entryFor(detail.pairKey) : ({}))
+    property bool abDownloadFailed: {
+        detail.abRevision
+        if (typeof Audiobooks === "undefined") return false
+        var jobs = Audiobooks.activeDownloads() || []
+        return jobs.some(function(job) { return job.id === detail.pairKey && job.state === "failed" })
+    }
+    property var abOffer: AudioOffer.offerState({
+        lookup: {loading:detail.abLoading,error:detail.abError,rows:detail.abRows},
+        pick: detail.abPick, status: detail.abHashResolving ? {state:"resolving"} : detail.abStatus,
+        downloaded:detail.audioLocal, failed:detail.abHashFailed || detail.abDownloadFailed, entry:detail.abEntry
+    })
+    function refreshAudioState() {
+        detail.abRevision += 1
+        detail.audioLocal = typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(detail.pairKey)
+    }
+    Connections {
+        target: typeof Audiobooks !== "undefined" ? Audiobooks : null
+        function onResolving(key) { if (key === detail.pairKey) detail.refreshAudioState() }
+        function onProgress(key, received, total) { if (key === detail.pairKey) detail.refreshAudioState() }
+        function onFinished(key, path) { if (key === detail.pairKey) detail.refreshAudioState() }
+        function onFailed(key, reason) { if (key === detail.pairKey) detail.refreshAudioState() }
+        function onRemoved(key) { if (key === detail.pairKey) detail.refreshAudioState() }
+        function onActiveCountChanged() { detail.refreshAudioState() }
+        function onFailuresChanged() { detail.refreshAudioState() }
+    }
     property string abInfoHash: ""                      // resolved infoHash of the picked row
     // the pairing identity — same for this title's ebook and audiobook entities.
     // audiobook-opened pages carry book.pairKey; ebook-opened pages compute it from title/author.
@@ -68,6 +107,7 @@ Item {
     property bool audioLocal: false                     // recomputed in loadEditions + on Audiobooks.finished
 
     Theme { id: theme }
+    readonly property var audioOfferTheme: theme
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) biblioBookScrollKeys.handle(event) }
     Keys.onReleased: (event) => biblioBookScrollKeys.handleRelease(event)
@@ -94,6 +134,8 @@ Item {
 
     // ── editions: live LibGen search for this book (recreates TB2's scraper) ──
     onBookChanged: {
+        detail.abReplaceOpen = false
+        detail.abReplaceRow = null
         detail._invalidateReadIntent()
         detail.readChoiceOpen = false
         detail.readChoiceRows = []
@@ -116,16 +158,28 @@ Item {
         // audiobook lane: is one already downloaded? then find one to download.
         detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
         detail.abLoading = true; detail.abRows = []
+        detail.abError = false; detail.abHashFailed = false; detail.abHashResolving = false
+        detail.abRetryRow = null; detail.abReplaceRow = null; detail.abInfoHash = ""
+        detail.abReplaceOpen = false
+        detail.refreshAudioState()
+        if (abCol) {
+            var currentAudio = typeof Audiobooks !== "undefined" ? Audiobooks.statusOf(detail.pairKey) : ({})
+            abCol.abActiveSlug = ""
+            abCol.abState = detail._inFlight(String(currentAudio.state || "")) ? String(currentAudio.state) : "idle"
+            abCol.abPct = Number(currentAudio.total) > 0 ? Number(currentAudio.received) / Number(currentAudio.total) : 0
+        }
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
             if (gen !== detail.sourceGeneration) return
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
+            detail.abError = !res || res.error === true
             // Pre-warm the stream engine on the top match while the user reads: a COLD engine
             // can't fetch a torrent's peers fast (empty DHT), but by the time they click Download
             // it's warm. Best-effort — never blocks the UI. (root-caused 2026-07-12: cold /create
             // hangs 60s+; a warm engine resolves in seconds.)
-            if (!detail.audioLocal && detail.abRows.length > 0 && typeof Stream !== 'undefined') {
-                Abb.fetchInfoHash(detail.abRows[0].slug, function(d) {
+            if (!detail.audioLocal && detail.abPick.confident && typeof Stream !== 'undefined') {
+                Abb.fetchInfoHash(detail.abPick.pick.slug, function(d) {
+                    if (gen !== detail.sourceGeneration) return
                     if (d && d.infoHash) { detail.abInfoHash = d.infoHash; Stream.prefetch(d.infoHash, 0) }
                 })
             }
@@ -545,19 +599,60 @@ Item {
         if (String(st.state||"") === "done" || detail._inFlight(String(st.state||""))) return
         detail.downloadEdition(row)
     }
+    function listenToBook() {
+        detail.refreshLocal()
+        var path = detail.localPath || String(detail.abEntry.bookPath || "")
+        if (!path) { detail.readError = "Download an ebook edition first to listen in the reader"; return }
+        var meta = {}
+        for (var key in detail.book) meta[key] = detail.book[key]
+        meta.pairKey = detail.pairKey; meta.openAudio = true
+        detail.readRequested(path, meta)
+    }
+    function activateAudioOffer() {
+        var state = detail.abOffer.offerState
+        if (state === "ready") { detail.listenToBook(); return }
+        if (state === "choose") { detail.ensureBookItemVisible(audiobookList); audiobookList.forceActiveFocus(Qt.OtherFocusReason); return }
+        if (state === "available") detail.activateAudiobookRow(detail.abPick.pick)
+        else if (state === "failed") detail.activateAudiobookRow(detail.abRetryRow || detail.abPick.pick)
+    }
     function activateAudiobookRow(row) {
-        if (!row) return
-        var rowState = row.slug === abCol.abActiveSlug ? abCol.abState : "idle"
-        if (rowState === "done") { if (detail.localPath) detail.readRequested(detail.localPath, detail.book); return }
-        if (abCol.abState === "downloading" || abCol.abState === "resolving") return
-        if (typeof Audiobooks === 'undefined') return
+        if (!row || typeof Audiobooks === "undefined" || detail.abHashResolving) return
+        if (detail._inFlight(String(detail.abStatus.state || ""))) return
+        if (detail.audioLocal) {
+            if (row.slug === detail.abEntry.releaseSlug) { detail.listenToBook(); return }
+            detail.abReplaceRow = row
+            detail.abReplaceIndex = 0
+            detail.abReplaceOpen = true
+            replaceAudioFocus.forceActiveFocus(Qt.PopupFocusReason)
+            return
+        }
+        detail.startAudiobookRow(row, false)
+    }
+    function finishAudiobookReplace(accepted) {
+        if (!detail.abReplaceOpen) return
+        var row = detail.abReplaceRow
+        detail.abReplaceOpen = false
+        detail.abReplaceRow = null
+        audiobookList.forceActiveFocus(Qt.PopupFocusReason)
+        if (accepted && row) detail.startAudiobookRow(row, true)
+    }
+    function startAudiobookRow(row, replace) {
+        if (!row || typeof Audiobooks === "undefined") return
+        var gen = detail.sourceGeneration, pk = detail.pairKey
+        var title = detail.book.title || "", author = detail.book.author || "", path = detail.localPath || ""
+        var bookId = path && typeof Reader2Bridge !== "undefined" ? Reader2Bridge.bookKey(path) : ""
+        detail.abRetryRow = row; detail.abHashResolving = true; detail.abHashFailed = false
         abCol.abActiveSlug = row.slug; abCol.abState = "resolving"
-        Abb.fetchInfoHash(row.slug, function(d) {
-            if (!d || !d.infoHash) { abCol.abState = "failed"; return }
-            detail.abInfoHash = d.infoHash
-            var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined') ? Reader2Bridge.bookKey(detail.localPath) : ""
-            Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash, detail.book.title || "", detail.book.author || "", bookId, detail.localPath || "")
+        Abb.fetchInfoHash(row.slug, function(data) {
+            if (gen !== detail.sourceGeneration || pk !== detail.pairKey) return
+            detail.abHashResolving = false
+            if (!data || !data.infoHash) { detail.abHashFailed = true; abCol.abState = "failed"; return }
+            detail.abInfoHash = data.infoHash
+            var facts = {releaseSlug:String(row.slug || ""),format:String(row.format || ""),sizeLabel:String(row.size || "")}
+            if (replace) Audiobooks.replaceAudiobook(pk, data.infoHash, title, author, bookId, path, facts)
+            else Audiobooks.downloadAudiobook(pk, data.infoHash, title, author, bookId, path, facts)
             if (detail.collectionRef) detail.collectionRef.add("biblio", detail.collectionEntry())
+            detail.refreshAudioState()
         })
     }
 
@@ -809,6 +904,16 @@ Item {
                             focusEnabled: primaryCta.enabled; accessibleName: detail.primaryReadLabel()
                             focusRadius: primaryCta.radius; onTriggered: detail.readBook()
                         }
+                    }
+                    AudiobookOfferButton {
+                        objectName: "biblioAudiobookAction"
+                        width: parent.width
+                        theme: detail.audioOfferTheme
+                        offerState: detail.abOffer.offerState
+                        label: detail.abOffer.label
+                        meta: detail.abOffer.meta
+                        progress: detail.abOffer.progress
+                        onActivated: detail.activateAudioOffer()
                     }
                     Text {
                         objectName: "biblioPrimaryReadStatus"
@@ -1128,7 +1233,7 @@ Item {
                 // ── Audiobook — paired from AudioBookBay; acquisition remains orthogonal to ebook Read ──
                 Item { width: 1; height: 30 }
                 Text {
-                    text: "AUDIOBOOK" + (detail.abLoading ? "  ·  SEARCHING…"
+                    text: "OTHER VERSIONS" + (detail.abLoading ? "  ·  SEARCHING…"
                           : (detail.abRows.length > 0 ? "  ·  " + detail.abRows.length : "  ·  NONE"))
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
@@ -1136,6 +1241,7 @@ Item {
                 Item { width: 1; height: 12 }
                 Glass {
                     id: audiobookList
+                    objectName: "biblioOtherVersions"
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: abCol.implicitHeight
@@ -1191,7 +1297,7 @@ Item {
                             visible: detail.abLoading || detail.abRows.length === 0
                             width: parent.width; height: 52
                             Text { anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                text: detail.abLoading ? "Searching AudioBookBay…" : "No audiobook found"
+                                text: detail.abLoading ? "Searching AudioBookBay…" : (detail.abError ? "Could not check audiobook versions" : "No audiobook found")
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                         }
                         Repeater {
@@ -1203,7 +1309,9 @@ Item {
                                 required property int index
                                 width: parent.width; height: 52
                                 // this row reflects the download state ONLY if it's the active pick
-                                readonly property string rowState: (modelData.slug === abCol.abActiveSlug) ? abCol.abState : "idle"
+                                readonly property string rowState: detail.audioLocal && modelData.slug === detail.abEntry.releaseSlug ? "done"
+                                    : (modelData.slug === abCol.abActiveSlug) ? abCol.abState : "idle"
+                                readonly property bool recommended: !detail.audioLocal && detail.abPick.pick && modelData.slug === detail.abPick.pick.slug
                                 Rectangle { anchors.fill: parent; color: audiobookList.activeFocus && audiobookList.currentIndex === index
                                     ? Qt.rgba(0.94,0.77,0.29,0.11)
                                     : (abRowMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent") }
@@ -1223,11 +1331,11 @@ Item {
                                 }
                                 Text {
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                    text: abRow.rowState === "done" ? "✓"
+                                    text: abRow.rowState === "done" || abRow.recommended ? "✓"
                                         : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
                                         : abRow.rowState === "resolving" ? "…"
                                         : abRow.rowState === "failed" ? "retry" : "↓"
-                                    color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
+                                    color: abRow.rowState === "done" || abRow.recommended ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -1332,6 +1440,63 @@ Item {
                         font.family: theme.ui; font.pixelSize: 13 }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: detail.cancelReadChoice() }
+                }
+            }
+        }
+    }
+
+    // Same foreground shade/glass ownership as the edition choice above.
+    Rectangle {
+        id: replaceAudioShade
+        objectName: "biblioReplaceAudiobookConfirm"
+        anchors.fill: parent; z: 81
+        visible: detail.abReplaceOpen
+        color: Qt.rgba(0, 0, 0, 0.72)
+        MouseArea { anchors.fill: parent }
+        Glass {
+            anchors.centerIn: parent
+            width: Math.min(620, detail.width - theme.margin * 2)
+            height: replaceAudioCol.implicitHeight + 48
+            radius: 18; backdrop: detail.backdrop
+            FocusScope {
+                id: replaceAudioFocus; objectName: "biblioReplaceAudiobookFocus"; anchors.fill: parent; z: 5
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Escape) detail.finishAudiobookReplace(false)
+                    else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
+                             || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                        detail.abReplaceIndex = 1 - detail.abReplaceIndex
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space)
+                        detail.finishAudiobookReplace(detail.abReplaceIndex === 1)
+                    else return
+                    event.accepted = true
+                }
+            }
+            Column {
+                id: replaceAudioCol; x: 24; y: 24; width: parent.width - 48; spacing: 18
+                Text { width: parent.width; text: "Replace audiobook"; wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 28 }
+                Text { width: parent.width; text: "Replace the downloaded audiobook with this version?"
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
+                Row {
+                    width: parent.width; spacing: 12
+                    Repeater {
+                        model: ["No", "Yes"]
+                        delegate: Rectangle {
+                            required property string modelData
+                            required property int index
+                            width: (replaceAudioCol.width - 12) / 2; height: 44; radius: 10
+                            color: detail.abReplaceIndex === index ? Qt.rgba(0.94,0.77,0.29,0.11) : "transparent"
+                            border.width: replaceAudioFocus.activeFocus && detail.abReplaceIndex === index ? 2 : 1
+                            border.color: detail.abReplaceIndex === index ? theme.gold : theme.edge
+                            Accessible.role: Accessible.Button
+                            Accessible.name: modelData
+                            Accessible.onPressAction: detail.finishAudiobookReplace(index === 1)
+                            Text { anchors.centerIn: parent; text: parent.modelData
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14 }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: detail.finishAudiobookReplace(parent.index === 1) }
+                        }
+                    }
                 }
             }
         }

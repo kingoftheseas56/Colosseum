@@ -9,15 +9,17 @@ var ABB = "https://audiobookbay.lu";
 var ABB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 function requestText(url, done) {
-    var xhr = new XMLHttpRequest();
+    var xhr = new XMLHttpRequest(), completed = false;
+    function finish(value) { if (!completed) { completed = true; done(value); } }
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { done(null); return; }
-        done(xhr.responseText);
+        finish(xhr.status >= 200 && xhr.status < 300 ? xhr.responseText : null);
     };
-    xhr.open("GET", url);
-    try { xhr.setRequestHeader("User-Agent", ABB_UA); } catch (e) {}
-    xhr.send();
+    try {
+        xhr.open("GET", url);
+        try { xhr.setRequestHeader("User-Agent", ABB_UA); } catch (e) {}
+        xhr.send();
+    } catch (error) { finish(null); }
 }
 
 function decode(s) {
@@ -147,16 +149,57 @@ function relevantRows(rows, title, author) {
     return out;
 }
 
-// full delivery flow: search ABB for a book → rows. Caller picks a row, then calls
-// fetchInfoHash(slug) to resolve the torrent hash. done({ rows }) or done(null) on miss.
+// Conservative release choice. Unknown language survives; unknown dates never outrank
+// a neighbour merely because Date.parse failed. Input rows retain their source order.
+function pickAudiobook(rows, book) {
+    book = book || {};
+    function language(value) {
+        var s = String(value || "").trim().toLowerCase();
+        return s === "en" || s === "eng" ? "english" : s;
+    }
+    function words(value) { return String(value || "").toLowerCase().match(/[a-z0-9]+/g) || []; }
+    var wanted = language(book.language) || "english";
+    var candidates = (rows || []).filter(function(row) {
+        return row && (!language(row.language) || language(row.language) === wanted);
+    });
+    var whole = candidates.filter(function(row) { return !row.abridged && !/\babridged\b/i.test(String(row.title || "")); });
+    if (whole.length) candidates = whole;
+    var titleWords = words(book.title).filter(function(w) { return !STOP[w]; });
+    if (!titleWords.length) titleWords = words(book.title);
+    var authorWords = words(book.author), surname = authorWords.length ? authorWords[authorWords.length-1] : "";
+    var strict = candidates.filter(function(row) {
+        var title = words(row.title);
+        return titleWords.length > 0 && titleWords.every(function(w) { return title.indexOf(w) >= 0; })
+            && (!String(row.author || "").trim() || (surname && words(row.author).indexOf(surname) >= 0));
+    });
+    function rank(row) {
+        var format = String(row.format || "").toUpperCase();
+        return format.indexOf("M4B") >= 0 ? 0 : format.indexOf("MP3") >= 0 ? 1 : 2;
+    }
+    var ranked = [];
+    for (var formatRank = 0; formatRank < 3; ++formatRank) {
+        var group = strict.filter(function(row) { return rank(row) === formatRank; });
+        // Sort dated runs, leaving undated rows anchored in source order.
+        for (var start = 0; start < group.length;) {
+            if (!isFinite(Date.parse(group[start].posted))) { ranked.push(group[start++]); continue; }
+            var end = start;
+            while (end < group.length && isFinite(Date.parse(group[end].posted))) ++end;
+            var run = group.slice(start,end).map(function(row,i) { return {row:row,index:i}; });
+            run.sort(function(a,b) { return Date.parse(b.row.posted)-Date.parse(a.row.posted) || a.index-b.index; });
+            run.forEach(function(item) { ranked.push(item.row); });
+            start = end;
+        }
+    }
+    return { pick: ranked.length ? ranked[0] : null, confident: ranked.length > 0, candidates: candidates };
+}
+
+// Full delivery flow. Empty and failed checks are deliberately different states.
 function resolveAudiobook(title, author, done) {
     var term = searchTerm(title, author);
-    if (!term) { done(null); return; }
+    if (!term) { done({ rows: [], error: false }); return; }
     requestText(ABB + "/?s=" + encodeURIComponent(term), function(html) {
-        if (!html) { done(null); return; }
-        var rows = relevantRows(parseSearch(html), title, author);
-        if (rows.length === 0) { done(null); return; }
-        done({ rows: rows });
+        if (html === null) { done({ rows: [], error: true }); return; }
+        done({ rows: relevantRows(parseSearch(html), title, author), error: false });
     });
 }
 

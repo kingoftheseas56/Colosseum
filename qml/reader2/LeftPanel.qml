@@ -34,6 +34,13 @@ Item {
     // ---- Audio pane (Task 13 — read-along), all bound from ReaderShell ----
     // Bridge-free like the rest of the panel: it renders these values and reports the
     // user's intent via signals; ReaderShell owns the pairing lookup + the AudiobookSession.
+    property var audioOffer: ({offerState:"unknown"})
+    property var audioOfferVersions: []
+    property bool audioOfferShowVersions: false
+    readonly property bool showAudioOffer: !panel.audioAttached && (audioOffer.offerState === "available" || audioOffer.offerState === "choose" || audioOffer.offerState === "getting")
+    signal audioOfferGetRequested()
+    signal audioOfferVersionChosen(var row)
+    signal audioOfferVersionsRequested()
     property bool audioAttached: false           // a pairing exists for shell.bookId
     property string audioTitle: ""               // the audiobook's title
     property url audioCover: ""                   // cover art if any (else a placeholder glyph)
@@ -582,7 +589,7 @@ Item {
                     anchors.leftMargin: 22
                     anchors.rightMargin: 22
                     anchors.topMargin: 30
-                    visible: !panel.audioAttached
+                    visible: !panel.audioAttached && !panel.showAudioOffer
                     text: "Download the audiobook from this book's page to read along."
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
@@ -590,6 +597,36 @@ Item {
                     font.family: Theme.ui
                     font.pixelSize: 13
                     lineHeight: 1.4
+                }
+
+                Flickable {
+                    id: offerFlick
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    visible: panel.showAudioOffer
+                    clip: true
+                    contentWidth: width
+                    contentHeight: audioOfferCard.height
+                    boundsBehavior: Flickable.StopAtBounds
+                    AudioOfferCard {
+                        id: audioOfferCard
+                        objectName: "readerAudioOffer"
+                        width: parent.width
+                        offerState: panel.audioOfferShowVersions && panel.audioOffer.offerState === "available" ? "choose" : panel.audioOffer.offerState
+                        label: offerState === "choose" ? "Choose audiobook" : String(panel.audioOffer.label || "")
+                        meta: String(panel.audioOffer.meta || "")
+                        progress: Number(panel.audioOffer.progress || 0)
+                        versions: panel.audioOfferVersions
+                        onGetRequested: panel.audioOfferGetRequested()
+                        onVersionChosen: (row) => panel.audioOfferVersionChosen(row)
+                        onOtherVersionsRequested: panel.audioOfferVersionsRequested()
+                        onFocusRequested: (item) => {
+                            var y = item.mapToItem(offerFlick.contentItem,0,0).y
+                            if (y < offerFlick.contentY) offerFlick.contentY = y
+                            else if (y + item.height > offerFlick.contentY + offerFlick.height)
+                                offerFlick.contentY = Math.max(0,y + item.height - offerFlick.height)
+                        }
+                    }
                 }
 
                 // ---- attached state (scrollable — the playlist can outgrow the pane) ----
