@@ -413,6 +413,7 @@ class tst_account_identity : public QObject {
 
 private slots:
     void initTestCase();
+    void refreshResponseLossProcessProbe();
 
     void fixtureTransportRefusesUntaggedUse();
     void credentialTargetNamesAreIsolatedByAppDataTag();
@@ -513,6 +514,70 @@ void tst_account_identity::credentialTargetNamesAreIsolatedByAppDataTag() {
     qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("lanista-isolation-b"));
     QVERIFY(WindowsAccountCredentialStore::activeTargetName() != taggedActiveA);
     QVERIFY(WindowsAccountCredentialStore::pendingTargetPrefix() != taggedPendingA);
+}
+
+// Opt-in worker for the Go service's cross-process refresh reproduction.
+// Each invocation opens the same tagged Windows vault entry from a new process.
+void tst_account_identity::refreshResponseLossProcessProbe() {
+    const QString tag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG");
+    if (!tag.startsWith(QLatin1String("account-refresh-repro-")))
+        QSKIP("Run through TestDesktopRefreshResponseLoss in the account service.");
+
+    WindowsAccountCredentialStore credentials;
+    QVERIFY(credentials.isAvailable());
+    if (qEnvironmentVariableIsSet("COLOSSEUM_REFRESH_REPRO_CLEANUP")) {
+        QVERIFY(credentials.clearActive());
+        QVERIFY(!credentials.loadActive().has_value());
+        return;
+    }
+
+    const QUrl url(qEnvironmentVariable("COLOSSEUM_REFRESH_REPRO_URL"));
+    QCOMPARE(url.scheme(), QStringLiteral("http"));
+    QCOMPARE(url.host(), QStringLiteral("127.0.0.1"));
+    const QString stateDir = qEnvironmentVariable("COLOSSEUM_REFRESH_REPRO_STATE_DIR");
+    QVERIFY(QFileInfo(stateDir).isDir());
+    const QByteArray seed = qgetenv("COLOSSEUM_REFRESH_REPRO_SEED");
+    if (!seed.isEmpty()) {
+        QVERIFY(!credentials.loadActive().has_value());
+        const QJsonObject object = QJsonDocument::fromJson(seed).object();
+        StoredAccountCredential credential;
+        credential.accountId = object.value(QStringLiteral("account_id")).toString();
+        credential.deviceId = object.value(QStringLiteral("device_id")).toString();
+        credential.refreshToken = object.value(QStringLiteral("refresh_token")).toString().toLatin1();
+        QVERIFY(credentials.saveActive(credential));
+    }
+    const auto before = credentials.loadActive();
+    QVERIFY(before.has_value());
+
+    AccountHttpTransport transport(url);
+    AccountClient client(&transport);
+    AccountDeviceIdentity deviceIdentity(stateDir + QLatin1String("/device.ini"));
+    AccountBootstrapStore bootstrapStore(stateDir + QLatin1String("/bootstrap.ini"));
+    MemoryAccountOneTimeSecretSink secretSink;
+    AccountController controller(
+        &client, &credentials, &deviceIdentity, &bootstrapStore, &secretSink);
+    controller.setAutomaticPollingEnabled(false);
+    controller.restoreRememberedSession();
+    const QString expected = qEnvironmentVariable("COLOSSEUM_REFRESH_REPRO_EXPECTED");
+    QVERIFY(expected == QLatin1String("signedIn")
+        || expected == QLatin1String("offline") || expected == QLatin1String("locked"));
+    QTRY_COMPARE_WITH_TIMEOUT(controller.mode(), expected, 55000);
+
+    const auto after = credentials.loadActive();
+    if (expected == QLatin1String("locked")) {
+        QVERIFY(!after.has_value());
+        QVERIFY(client.accessToken().isEmpty());
+    } else {
+        QVERIFY(after.has_value());
+        QCOMPARE(after->accountId, before->accountId);
+        QCOMPARE(after->deviceId, before->deviceId);
+        if (expected == QLatin1String("offline"))
+            QVERIFY(after->refreshToken == before->refreshToken);
+        else
+            QVERIFY(after->refreshToken != before->refreshToken);
+    }
+    qInfo().noquote() << "Refresh reproduction: mode=" + expected
+                     << "remembered credential=" << after.has_value();
 }
 
 void tst_account_identity::pendingCredentialTargetsMatchOnlyTheirExactNamespace() {
