@@ -95,15 +95,13 @@ jobs:
           from pathlib import Path
           p = Path("tests/lanista_harness.cpp")
           s = p.read_text(encoding="utf-8")
-          old = '''require(absurd.value("maxDepthUsed").toInt() == 64,
-                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
-                                   "ceiling (64), got %1").arg(absurd.value("maxDepthUsed").toInt())'''
-          new = '''require(absurd.value("maxDepthUsed").toInt() == 256,
-                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
-                                   "ceiling (256), got %1").arg(absurd.value("maxDepthUsed").toInt())'''
-          if old not in s:
+          a = 'absurd.value("maxDepthUsed").toInt() == 64'
+          b = '"ceiling (64), got %1"'
+          if s.count(a) != 1 or s.count(b) != 1:
               raise SystemExit("inherited 64-vs-256 assertion shape changed")
-          p.write_text(s.replace(old, new, 1), encoding="utf-8")
+          s = s.replace(a, 'absurd.value("maxDepthUsed").toInt() == 256', 1)
+          s = s.replace(b, '"ceiling (256), got %1"', 1)
+          p.write_text(s, encoding="utf-8")
           PY
 
       - name: Configure focused native build
