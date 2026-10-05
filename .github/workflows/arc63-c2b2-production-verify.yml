@@ -28,6 +28,8 @@ jobs:
           git diff --check ea694b035c1d2d396b7757ddbe69d0377b3aa6bd..HEAD -- \
             qml/ShelvesUniversePage.qml \
             qml/UniverseBanner.qml \
+            qml/Universes.js \
+            qml/UniversesWorld.qml \
             tests/lanista_capture/arc63_c2_hover_click.json \
             tests/qml/tst_UniversesWorld.qml \
             tests/shelves_universe_load_harness.qml
