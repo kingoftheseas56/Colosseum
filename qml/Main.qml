@@ -3757,7 +3757,11 @@ Window {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: win.SafeArea.margins.bottom
+        // Qt reports a zero bottom safe-area on the Nokia T20 even while Android's
+        // three-button navigation bar reserves 48 logical px. Keep the tabs above
+        // that system-owned strip; honor any larger safe area a device does report.
+        anchors.bottomMargin: Math.max(win.SafeArea.margins.bottom,
+                                       win.androidHost ? 48 : 0)
         worlds: win.worldDefinitions
         activeTab: downloadsLayer.active ? "Profile" : worldStack.current
         visible: win.androidHost && win.width < 840
