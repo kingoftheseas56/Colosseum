@@ -1,8 +1,8 @@
 .pragma library
 
 // Interpretive chart composition. No official coordinates, bearings, distances or scale.
-var designWidth = 1680;
-var designHeight = 960;
+var designWidth = 1672;
+var designHeight = 941;
 
 var locations = [
     { id: "wano-context", x: 0.095, y: 0.615, kind: "wano-context", domain: "new-world",
@@ -81,8 +81,8 @@ var regions = [
 ];
 
 var canonMarkers = [
-    { id: "egghead", locationId: "egghead", x: 0.402, y: 0.515, arcIds: ["egghead"] },
-    { id: "elbaf", locationId: "elbaf", x: 0.902, y: 0.365, arcIds: ["elbaf"] }
+    { id: "egghead", locationId: "egghead", x: 0.38215, y: 0.47510, arcIds: ["egghead"] },
+    { id: "elbaf", locationId: "elbaf", x: 0.86965, y: 0.37725, arcIds: ["elbaf"] }
 ];
 
 var primaryVoyage = ["wano-context", "egghead", "sleeping-mist", "elbaf"];

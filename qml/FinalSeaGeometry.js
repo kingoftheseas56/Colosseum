@@ -13,7 +13,7 @@ function clamp(value, minimum, maximum) {
 function fitScale(width, height) {
     var w = Math.max(0, finite(width, 0));
     var h = Math.max(0, finite(height, 0));
-    return Math.min(w / 1680, h / 960);
+    return Math.min(w / 1672, h / 941);
 }
 
 function stageGeometry(width, height, zoom) {
@@ -21,9 +21,9 @@ function stageGeometry(width, height, zoom) {
     var h = Math.max(0, finite(height, 0));
     var scale = fitScale(w, h) * clamp(zoom, 1, 2);
     return {
-        width: 1680 * scale, height: 960 * scale,
-        x: Math.max(0, (w - 1680 * scale) / 2),
-        y: Math.max(0, (h - 960 * scale) / 2),
+        width: 1672 * scale, height: 941 * scale,
+        x: Math.max(0, (w - 1672 * scale) / 2),
+        y: Math.max(0, (h - 941 * scale) / 2),
         scale: scale
     };
 }
@@ -105,8 +105,8 @@ function nextMarker(markers, id, direction) {
     for (var j = 0; j < entries.length; ++j) {
         var candidate = entries[j];
         if (candidate.id === id) continue;
-        var dx = (candidate.x - current.x) * 1680;
-        var dy = (candidate.y - current.y) * 960;
+        var dx = (candidate.x - current.x) * 1672;
+        var dy = (candidate.y - current.y) * 941;
         var parallel = direction === "right" ? dx : direction === "left" ? -dx
                        : direction === "down" ? dy : -dy;
         if (parallel <= 0.001) continue;

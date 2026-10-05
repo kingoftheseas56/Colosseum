@@ -42,7 +42,7 @@ var canonMarkers = [
     { id: "thriller-bark", locationId: "thriller-bark", x: 0.767, y: 0.593, arcIds: ["thriller-bark"] },
     { id: "sabaody", locationId: "sabaody", x: 0.88, y: 0.257, arcIds: ["sabaody", "return-to-sabaody"] },
     { id: "amazon-lily", locationId: "amazon-lily", x: 0.694, y: 0.84, arcIds: ["amazon-lily"] },
-    { id: "impel-down", locationId: "impel-down", x: 0.806, y: 0.835, arcIds: ["impel-down"] },
+    { id: "impel-down", locationId: "impel-down", x: 0.824, y: 0.815, arcIds: ["impel-down"] },
     { id: "marineford", locationId: "marineford", x: 0.869, y: 0.712, arcIds: ["marineford"] },
     { id: "post-war", locationId: "rusukaina", x: 0.575, y: 0.825, arcIds: ["post-war"] }
 ];

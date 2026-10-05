@@ -22,7 +22,7 @@ FocusScope {
     readonly property real shellChromeReservedRight: root.width - 54
     readonly property bool transientOpen: root.previewVisible || root.indexVisible
     readonly property real fitScale: Math.max(0.01, Math.max(mapViewport.width / 1680, mapViewport.height / 960))
-    readonly property real badgeDiameter: 66 * root.fitScale * root.zoom
+    readonly property real badgeDiameter: 84 * root.fitScale * root.zoom
     readonly property real badgeHitDiameter: Math.max(44, root.badgeDiameter)
     readonly property bool fontsReady: atlasDisplayFont.status === FontLoader.Ready
             && atlasBodyFont.status === FontLoader.Ready

@@ -319,7 +319,7 @@ Item {
         x: 595; y: 792; spacing: 10
         OnePieceRoundBadge {
             objectName: "newWorldReverieContextBadge"
-            width: 42; height: 42
+            width: 84; height: 84
             source: Qt.resolvedUrl(Adapter.contextArt(Story.worldContext).badgeSource)
             Accessible.ignored: true
         }

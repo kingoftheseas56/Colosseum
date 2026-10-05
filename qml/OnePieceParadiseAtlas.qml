@@ -36,7 +36,7 @@ FocusScope {
     readonly property bool transientOpen: previewVisible || indexVisible
     readonly property bool captureReady: chartLoader.status === Loader.Ready
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
-    readonly property real sealDiameter: 56 * root.stageGeometry.scale
+    readonly property real sealDiameter: 84 * root.stageGeometry.scale
     readonly property var badgeProtectedAreas: BadgeLayout.protectedAreas(chartLoader.item, Atlas.locations)
     readonly property var badgePlacements: BadgeLayout.placeBadges(root.markerEntries,
         root.sealDiameter / Math.max(0.01, root.stageGeometry.scale), root.badgeProtectedAreas,

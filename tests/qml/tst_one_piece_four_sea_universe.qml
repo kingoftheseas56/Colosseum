@@ -92,12 +92,33 @@ TestCase {
                     sea(seas[i])
                     page.activeAtlas.zoom = zoom
                     var atlas = page.activeAtlas
-                    var designDiameter = seas[i] === "paradise" ? 56 : 66
+                    var designDiameter = 84
                     compare(atlas.sealDiameter, designDiameter * atlas.stageGeometry.scale,
                             seas[i] + " badge follows chart scale at zoom " + zoom)
                 }
             }
         }
+    }
+
+    function test_final_sea_index_clears_shared_window_controls() {
+        sea("final-sea")
+        var atlas = page.activeAtlas
+        var button = findChild(atlas, "finalSeaIndexButton")
+        verify(button !== null)
+        var count = 0
+        function visit(item) {
+            if (item.source !== undefined
+                    && ["Minimize", "Enter fullscreen", "Exit fullscreen", "Close Colosseum"].indexOf(item.accessibleName) >= 0) {
+                ++count
+                var point = item.mapToItem(atlas, 0, 0)
+                verify(button.x + button.width <= point.x || button.x >= point.x + item.width
+                       || button.y + button.height <= point.y || button.y >= point.y + item.height,
+                       "Final Sea Index clears " + item.accessibleName)
+            }
+            for (var child of item.children || []) visit(child)
+        }
+        visit(page)
+        compare(count, 3)
     }
 
     function test_round_badge_keeps_corners_transparent_at_every_size() {
@@ -129,7 +150,9 @@ TestCase {
     }
 
     function test_badges_clear_island_drawings_and_labels_at_every_zoom() {
-        var seas = ["paradise", "new-world", "final-sea"]
+        // Final Sea seals have locked positions over baked map artwork, covered
+        // separately by the generated-map tests in tst_one_piece_final_sea_atlas.
+        var seas = ["paradise", "new-world"]
         var viewports = [[1280, 720], [900, 600]]
         for (var v = 0; v < viewports.length; ++v) {
             testWindow.width = viewports[v][0]; testWindow.height = viewports[v][1]

@@ -5,16 +5,16 @@ import "OnePieceFinalSeaData.js" as Story
 import "OnePieceFinalSeaAdapter.js" as Adapter
 import "OnePieceFinalSeaAtlasData.js" as Atlas
 import "FinalSeaGeometry.js" as Geometry
-import "OnePieceAtlasBadgeLayout.js" as BadgeLayout
 
 FocusScope {
     id: root
     focus: true
+    clip: true
 
     property bool reducedMotion: false
     property string displayFamily: "Georgia"
     property string bodyFamily: "Georgia"
-    property url chartSource: Qt.resolvedUrl("FinalSeaChart.qml")
+    property url mapSource: Qt.resolvedUrl("../assets/universes/one-piece/final-sea/final-sea-map.png")
     property real shellChromeInset: 172
     property real zoom: 1
     property bool indexVisible: false
@@ -32,13 +32,16 @@ FocusScope {
     readonly property var selectedArc: Story.arc(selectedArcId)
     readonly property var selectedLocation: selectedArc ? Atlas.location(selectedArc.locationId) : null
     readonly property bool transientOpen: previewVisible || indexVisible
-    readonly property bool captureReady: chartLoader.status === Loader.Ready
+    readonly property bool captureReady: mapImage.status === Image.Ready
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
-    readonly property real sealDiameter: 66 * root.stageGeometry.scale
-    readonly property var badgeProtectedAreas: BadgeLayout.protectedAreas(chartLoader.item, Atlas.locations)
-    readonly property var badgePlacements: BadgeLayout.placeBadges(root.markerEntries,
-        root.sealDiameter / Math.max(0.01, root.stageGeometry.scale), root.badgeProtectedAreas,
-        9 / Math.max(0.01, root.stageGeometry.scale))
+    readonly property real sealDiameter: 84 * root.stageGeometry.scale
+    // These seals cover marker artwork baked into the map; never relocate them.
+    readonly property var badgePlacements: {
+        var placements = {}
+        for (var marker of root.markerEntries)
+            placements[marker.id] = {x: marker.x, y: marker.y, visible: true}
+        return placements
+    }
 
     signal arcRequested(var arc)
     signal newWorldRequested()
@@ -278,6 +281,8 @@ FocusScope {
         objectName: "finalSeaMapViewport"
         anchors.fill: parent
         anchors.margins: 14
+        // The painted Index sits at the image's upper right, below shell chrome.
+        anchors.topMargin: 64
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         contentWidth: Math.max(width, mapStage.width)
@@ -302,31 +307,20 @@ FocusScope {
             width: root.stageGeometry.width
             height: root.stageGeometry.height
 
-            Item {
-                width: 1680
-                height: 960
-                transform: Scale {
-                    xScale: root.stageGeometry.scale
-                    yScale: root.stageGeometry.scale
-                }
-
-                Loader {
-                    id: chartLoader
-                    width: 1680
-                    height: 960
-                    source: root.chartSource
-                    asynchronous: true
-                    onLoaded: {
-                        item.displayFamily = Qt.binding(function() { return root.displayFamily })
-                        item.bodyFamily = Qt.binding(function() { return root.bodyFamily })
-                        item.detailLevel = Qt.binding(function() { return root.zoom })
-                    }
-                }
+            Image {
+                id: mapImage
+                objectName: "finalSeaMapImage"
+                anchors.fill: parent
+                source: root.mapSource
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                smooth: true
+                mipmap: true
             }
 
             Rectangle {
                 anchors.fill: parent
-                visible: chartLoader.status !== Loader.Ready
+                visible: mapImage.status !== Image.Ready
                 color: "#ddc69a"
                 border.color: "#8a683e"
                 Column {
@@ -334,7 +328,7 @@ FocusScope {
                     spacing: 8
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: chartLoader.status === Loader.Error ? "CHART UNAVAILABLE" : "PREPARING FINAL SEA"
+                        text: mapImage.status === Image.Error ? "CHART UNAVAILABLE" : "PREPARING FINAL SEA"
                         color: "#63482b"
                         font.family: root.displayFamily
                         font.pixelSize: 20
@@ -400,15 +394,17 @@ FocusScope {
     Row {
         id: zoomTools
         objectName: "finalSeaZoomTools"
-        x: 28
-        y: root.height - height - 26
-        spacing: 4
+        x: root.mapPoint(0.0299, 0.8831).x
+        y: root.mapPoint(0.0299, 0.8831).y
+        spacing: 0
         z: 20
 
         FinalSeaInkButton {
             objectName: "finalSeaZoomOut"
             text: "−"
-            width: 44
+            width: 0.0353 * root.stageGeometry.width
+            height: 0.0584 * root.stageGeometry.height
+            mapArtwork: true
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom out"
@@ -417,7 +413,9 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomReset"
             text: Math.round(root.zoom * 100) + "%"
-            width: 62
+            width: 0.0604 * root.stageGeometry.width
+            height: 0.0584 * root.stageGeometry.height
+            mapArtwork: true
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Reset zoom to show the whole chart"
@@ -426,7 +424,9 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomIn"
             text: "+"
-            width: 44
+            width: 0.0359 * root.stageGeometry.width
+            height: 0.0584 * root.stageGeometry.height
+            mapArtwork: true
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom in"
@@ -437,10 +437,11 @@ FocusScope {
     FinalSeaInkButton {
         id: newWorldButton
         objectName: "finalSeaToNewWorld"
-        x: Geometry.clamp(root.mapPoint(0.11, 0.77).x - width / 2, 24, root.width - width - 24)
-        y: Geometry.clamp(root.mapPoint(0.11, 0.77).y, 90, root.height - height - 90)
-        width: 148
-        height: 48
+        x: root.mapPoint(0.0299, 0.8055).x
+        y: root.mapPoint(0.0299, 0.8055).y
+        width: 0.1441 * root.stageGeometry.width
+        height: 0.0616 * root.stageGeometry.height
+        mapArtwork: true
         z: 20
         text: "TO NEW WORLD"
         fontFamily: root.bodyFamily
@@ -456,10 +457,11 @@ FocusScope {
     FinalSeaInkButton {
         id: indexButton
         objectName: "finalSeaIndexButton"
-        x: Math.max(24, root.width - root.shellChromeInset - width)
-        y: 24
-        width: 116
-        height: 48
+        x: root.mapPoint(0.8439, 0.0372).x
+        y: root.mapPoint(0.8439, 0.0372).y
+        width: 0.1340 * root.stageGeometry.width
+        height: 0.0574 * root.stageGeometry.height
+        mapArtwork: true
         z: 30
         text: "INDEX"
         fontFamily: root.bodyFamily
@@ -473,9 +475,9 @@ FocusScope {
         objectName: "finalSeaIndexPanel"
         visible: root.indexVisible
         x: Geometry.clamp(indexButton.x + indexButton.width - width, 18, root.width - width - 18)
-        y: indexButton.y + indexButton.height + 8
+        y: Geometry.clamp(indexButton.y + indexButton.height + 8, 88, root.height - height - 24)
         width: Math.min(388, root.width - 36)
-        height: Math.min(300, root.height - y - 24)
+        height: Math.max(0, Math.min(300, root.height - 112))
         z: 50
 
         Rectangle {

@@ -6,6 +6,7 @@ Button {
     id: root
     property string fontFamily: "Georgia"
     property bool reducedMotion: false
+    property bool mapArtwork: false
     implicitWidth: Math.max(44, contentItem.implicitWidth + leftPadding + rightPadding)
     implicitHeight: 44
     leftPadding: 12
@@ -29,15 +30,16 @@ Button {
 
     background: Rectangle {
         radius: 2
-        color: !root.enabled ? "#ddcca6" : root.down ? "#cfb37e"
+        color: root.mapArtwork ? "transparent" : !root.enabled ? "#ddcca6" : root.down ? "#cfb37e"
                : root.activeFocus ? "#f5e4ba" : root.hovered ? "#eddbaf" : "#e2cc9b"
         border.color: root.activeFocus ? "#50381f" : "#a18454"
-        border.width: root.activeFocus ? 2 : 1
+        border.width: root.activeFocus ? 2 : root.mapArtwork ? (root.hovered || root.down ? 1 : 0) : 1
         Behavior on color {
             enabled: !root.reducedMotion
             ColorAnimation { duration: 90 }
         }
         Rectangle {
+            visible: !root.mapArtwork
             anchors.fill: parent
             anchors.margins: 4
             color: "transparent"
@@ -46,6 +48,7 @@ Button {
         }
     }
     contentItem: Text {
+        visible: !root.mapArtwork
         text: root.text
         font.family: root.fontFamily
         font.pixelSize: root.font.pixelSize

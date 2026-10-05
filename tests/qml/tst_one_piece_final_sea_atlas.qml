@@ -44,6 +44,63 @@ Item {
             return item
         }
 
+        function test_generated_map_keeps_exact_aspect_and_locked_badges() {
+            var image = control("finalSeaMapImage")
+            tryCompare(image, "status", Image.Ready, 5000)
+            verify(String(image.source).endsWith("/final-sea/final-sea-map.png"))
+            fuzzyCompare(atlas.stageGeometry.width / atlas.stageGeometry.height, 1672 / 941, 0.00001)
+            var centers = {egghead: [0.38215, 0.47510], elbaf: [0.86965, 0.37725]}
+            for (var zoom of [1, 1.5, 2]) {
+                atlas.setZoom(zoom)
+                wait(30)
+                for (var id of ["egghead", "elbaf"]) {
+                    var marker = atlas.markerItem(id)
+                    verify(marker.visible)
+                    fuzzyCompare((marker.x + marker.width / 2) / atlas.stageGeometry.width, centers[id][0], 0.00001)
+                    fuzzyCompare((marker.y + marker.height / 2) / atlas.stageGeometry.height, centers[id][1], 0.00001)
+                    verify(marker.diameter / atlas.stageGeometry.scale >= 84)
+                }
+            }
+        }
+
+        function test_native_controls_follow_painted_map_controls() {
+            var controls = [
+                ["finalSeaIndexButton", 0.8439, 0.0372, 0.1340, 0.0574],
+                ["finalSeaToNewWorld", 0.0299, 0.8055, 0.1441, 0.0616],
+                ["finalSeaZoomOut", 0.0299, 0.8831, 0.0353, 0.0584],
+                ["finalSeaZoomReset", 0.0652, 0.8831, 0.0604, 0.0584],
+                ["finalSeaZoomIn", 0.1256, 0.8831, 0.0359, 0.0584]
+            ]
+            for (var row of controls) {
+                var button = control(row[0])
+                var origin = button.mapToItem(atlas, 0, 0)
+                var painted = atlas.mapPoint(row[1], row[2])
+                fuzzyCompare(origin.x, painted.x, 0.2)
+                fuzzyCompare(origin.y, painted.y, 0.2)
+                fuzzyCompare(button.width, row[3] * atlas.stageGeometry.width, 0.2)
+                fuzzyCompare(button.height, row[4] * atlas.stageGeometry.height, 0.2)
+                verify(button.mapArtwork)
+                compare(button.contentItem.visible, false)
+            }
+            mouseClick(control("finalSeaZoomIn"))
+            compare(atlas.zoom, 1.25)
+            atlas.takeKeyboardFocus()
+            keyClick(Qt.Key_0)
+            compare(atlas.zoom, 1)
+        }
+
+        function test_keyboard_index_stays_on_screen_when_map_is_zoomed() {
+            atlas.setZoom(2)
+            wait(30)
+            atlas.takeKeyboardFocus()
+            keyClick(Qt.Key_I)
+            compare(atlas.indexVisible, true)
+            var panel = control("finalSeaIndexPanel")
+            verify(panel.x >= 0 && panel.y >= 0)
+            verify(panel.x + panel.width <= atlas.width)
+            verify(panel.y + panel.height <= atlas.height)
+        }
+
         function test_unknown_ids_fail_closed() {
             compare(atlas.focusArc("future-island-that-does-not-exist"), false)
             compare(atlas.focusLocation("laugh-tale"), false)
