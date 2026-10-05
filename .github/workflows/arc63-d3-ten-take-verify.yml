@@ -1,0 +1,82 @@
+name: arc63-d3-ten-take-verify
+
+on:
+  push:
+    branches:
+      - preflight/arc63-d3-verify
+
+permissions:
+  contents: read
+
+env:
+  PRODUCT_SHA: d2532e8a6bd44ce9c999ac839c16366305a9b0f5
+  D2_BASE: a2840db7f74b48c1faa66ad8737b8a29d995b377
+
+jobs:
+  ten-take:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.PRODUCT_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact D3 product SHA
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:PRODUCT_SHA) { throw "wrong D3 product SHA" }
+
+      - name: D3 diff whitespace gate
+        shell: pwsh
+        run: |
+          git diff --check "$env:D2_BASE..$env:PRODUCT_SHA" -- scripts/arc63_d3_ten_take_readiness.py scripts/arc63_d3_replay.ps1 tests/lanista_capture/arc63_d3_readiness_replay.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Validate D3 authored artifacts
+        shell: pwsh
+        run: |
+          python -m py_compile scripts/arc63_d3_ten_take_readiness.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m json.tool tests/lanista_capture/arc63_d3_readiness_replay.json | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          [void][scriptblock]::Create((Get-Content scripts/arc63_d3_replay.ps1 -Raw))
+
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Run canonical D3 ten-take proof
+        shell: pwsh
+        env:
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          $runner = Join-Path $env:QT_ROOT_DIR "bin/qmltestrunner.exe"
+          $result = Join-Path $env:RUNNER_TEMP "arc63-d3-ten-take-result.json"
+          python scripts/arc63_d3_ten_take_readiness.py --qmltestrunner "$runner" --repo "$PWD" --takes 10 --output "$result"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content $result
+
+      - name: Assert D3 result contract
+        shell: pwsh
+        run: |
+          $result = Get-Content (Join-Path $env:RUNNER_TEMP "arc63-d3-ten-take-result.json") -Raw | ConvertFrom-Json
+          if ($result.schema -ne "colosseum.arc63.d3.ten-take.v1") { throw "bad result schema" }
+          if ($result.status -ne "pass") { throw "D3 result is not pass" }
+          if ($result.takes -ne 10) { throw "D3 did not run exactly ten takes" }
+          if ($result.takeResults.Count -ne 10) { throw "D3 result does not contain ten take records" }
+          if ($result.scenarioGate.captureStarts.Count -ne 2) { throw "D3 replay is not guarded at both capture starts" }
+          if ($result.witness.required -ne 15 -or $result.witness.ready -ne 15 -or $result.witness.failed -ne 0) { throw "D3 AOT witness is not 15/15/0" }
+          $hashes = @($result.takeResults | ForEach-Object { $_.witnessSha256 } | Select-Object -Unique)
+          if ($hashes.Count -ne 1) { throw "D3 witness drifted across takes" }
+          Write-Host "ARC63_D3_RESULT_OK witness=$($hashes[0])"
