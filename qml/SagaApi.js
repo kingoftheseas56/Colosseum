@@ -537,7 +537,7 @@ function shelfItem(work, kind, key, index) {
 }
 
 // loadShelves(name, push) -> push({ name, category, blurb, blurbSource, banner, wallpaper,
-// color, shelves: [{ title, tab, pill, key, kind, form, order, runs: [{ label, items }] }] })
+// color, shelves: [{ title, tab, pill, key, kind, form, order, asOf, runs: [{ label, items }] }] })
 // exactly ONCE: curation is complete, so the page never rebuilds under the reader.
 function loadShelves(name, push) {
     var cfg = UDB.configFor(name);
@@ -545,6 +545,7 @@ function loadShelves(name, push) {
         var key = shelfKeyOf(spec.title, si), index = 0;
         return { title: spec.title || "", tab: spec.tab || "", pill: spec.pill || "", key: key,
                  kind: spec.kind || "movie", form: spec.form || "", order: spec.order || "",
+                 asOf: spec.asOf || "",
                  runs: (spec.runs || []).map(function(run) {
                      return { label: run.label || "",
                               items: (run.works || []).map(function(w) {

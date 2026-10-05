@@ -66,12 +66,14 @@ WorldPage {
         primaryLabel: "Enter tribute"
         secondaryLabel: "Browse universe"
         slides: universes.tributes.map(function(t) {
-            return { id: t.extensionId, title: t.name, blurb: t.blurb, ghost: "",
-                     c1: "#14161d", c2: "#0c0e11", art: t.banner }
+            // one button when the Tribute is the universe's only page (Cosmere)
+            const slide = { id: t.extensionId, title: t.name, blurb: t.blurb, ghost: "",
+                            c1: "#14161d", c2: "#0c0e11", art: t.banner }
+            if (!t.standard) slide.secondaryLabel = ""
+            return slide
         })
         onPrimaryClicked: (i) => universes.tributeRequested(universes.tributes[i])
-        // the same universe's standard page; a Tribute with none (Cosmere) is not in the
-        // roster, so the shell's own fallback opens the Tribute itself
+        // the same universe's standard page (a Tribute with none shows no second button)
         onSecondaryClicked: (i) => {
             const tribute = universes.tributes[i]
             for (let r = 0; r < universes.roster.length; ++r)

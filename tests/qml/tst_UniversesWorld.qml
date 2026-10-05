@@ -80,7 +80,7 @@ Item {
             ledger.forceActiveFocus()
             keyClick(Qt.Key_Down)
             tryCompare(ledger, "currentIndex", 1)
-            wait(150)        // let the keyboard glide settle, as a person's next keypress would
+            // Enter straight after the arrow, with no pause: a fast hand must not lose it
             keyClick(Qt.Key_Return)
             tryCompare(opened, "count", 1)
             compare(opened.signalArguments[0][0].name, "Avatar: The Last Airbender")
@@ -97,11 +97,16 @@ Item {
             carousel.secondaryClicked(0)
             compare(opened.signalArguments[0][0].name, "One Piece")
             compare(opened.signalArguments[0][0].page, "shelves")
-            // Cosmere has none: the Tribute entry itself, which the shell opens as the Tribute
-            carousel.secondaryClicked(1)
-            compare(opened.signalArguments[1][0].name, "Cosmere")
-            verify(!opened.signalArguments[1][0].page)
-            compare(opened.signalArguments[1][0].extensionId, "com.colosseum.universe.cosmere")
+            // Cosmere has none: its slide offers the Tribute alone
+            compare(carousel.slides[1].secondaryLabel, "")
+            verify(carousel.slides[0].secondaryLabel === undefined)
+        }
+        function test_tributeOrderIsFixed() {
+            const handed = world.installed
+            world.installed = handed.slice().reverse()
+            compare(world.tributes.map(function(t) { return t.name }).join("|"),
+                    "One Piece|Cosmere|DC Animated Universe|Star Wars")
+            world.installed = handed
         }
     }
 }

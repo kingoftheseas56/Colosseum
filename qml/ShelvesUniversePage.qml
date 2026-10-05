@@ -5,7 +5,7 @@
 // The page divides by MEDIUM: one glass panel per shelf (Films, Series, Books, Manga, Anime),
 // each a single row of same-size tiles that scrolls sideways, and the tabs name the shelves.
 // The franchise's own grouping (Bond's actors, Marvel's phases, a film era) becomes the
-// labelled RUNS inside the row; a long row with three or more runs gets one-click run jumps.
+// labelled RUNS inside the row.
 // A panel is only as wide as its row, and short panels share a line. A MAGAZINE's lineup
 // (form "table") is a numbered table instead of covers. No grid, no side panel.
 // Layout authority: Brotherhood/agents/colosseum-universe-shelves-all-mock.html, 1280x720.
@@ -95,13 +95,9 @@ Item {
     function isReading(item) { return root.isManga(item) || root.isBook(item) }
     readonly property bool hasReadShelf: root.activeShelves.some(function(s) { return s.kind === "book" || s.kind === "manga" })
     readonly property bool hasScreenShelf: root.activeShelves.some(function(s) { return s.kind === "movie" || s.kind === "series" })
-    function kickerOf(category) {
-        return category === "anime" ? "ANIME" : category === "studio" ? "STUDIO"
-             : category === "magazine" ? "MAGAZINE" : "UNIVERSE"
-    }
-    // a curated entry's kicker: an anime universe that predates `shelves` carries only `manga`
-    function kickerFor(cfg) { return root.kickerOf(cfg && cfg.shelves ? cfg.category : (cfg && cfg.manga ? "anime" : "")) }
-    readonly property string kicker: root.kickerOf(root.uni.category)
+    // every standard page is a Universe, whatever it holds; only the four hand-made art
+    // pages are Tributes (Hemanth 2026-10-05)
+    readonly property string kicker: "UNIVERSE"
 
     // ---- identity: loader pushes rebuild every item, so selection is held by key ----
     function keyOf(item) {
@@ -122,13 +118,13 @@ Item {
     // ---- progress: gold marks this and focus, nothing else. Tankoban keys a manga by
     //      its MAL id ("mal:<id>"), which the newer pins carry; a manga without the pin
     //      stays honestly unmatched rather than guessed by name ----
-    property int progressRevision: typeof Progress !== "undefined" ? Progress.revision : 0
+    property int progressRevision: typeof Progress !== "undefined" && Progress ? Progress.revision : 0
     // preview/test seam: [{ id, kind, title, sub, cover, progress, watched }]
     property var previewProgress: null
     readonly property var recentEntries: {
         root.progressRevision
         if (root.previewProgress) return root.previewProgress
-        return typeof Progress !== "undefined" ? Progress.recent("", 200) : []
+        return typeof Progress !== "undefined" && Progress ? Progress.recent("", 200) : []
     }
     function entryMatches(entry, item) {
         if (!entry || !root.canOpen(item)) return false
@@ -210,6 +206,7 @@ Item {
     // sections' own numbers, in medium order, nothing per-universe.
     readonly property real contentWidth: col.width - root.gutter * 2
     readonly property real panelSeam: 24
+    readonly property real runBand: 26      // the height of a run's label above its tiles
     readonly property var panelLayout: {
         const sections = []
         mediumRepeater.count; tableRepeater.count
@@ -233,12 +230,18 @@ Item {
         }
         let y = 0
         for (let k = 0; k < lines.length; ++k) {
-            let tallest = 0, x = 0
+            // a line with one labelled panel reserves the label band in all of them, so
+            // every row of tiles on the line starts at the same height
+            let tallest = 0, x = 0, band = false
             for (let j = 0; j < lines[k].items.length; ++j)
-                tallest = Math.max(tallest, lines[k].items[j].naturalHeight)
+                if (lines[k].items[j].labelled === true) band = true
+            for (let j = 0; j < lines[k].items.length; ++j) {
+                const item = lines[k].items[j]
+                tallest = Math.max(tallest, item.naturalHeight + (band && item.labelled === false ? root.runBand : 0))
+            }
             for (let j = 0; j < lines[k].items.length; ++j) {
                 const s = lines[k].items[j]
-                placed[s.key] = { x: x, y: y, width: s.naturalWidth, height: tallest }
+                placed[s.key] = { x: x, y: y, width: s.naturalWidth, height: tallest, band: band }
                 x += s.naturalWidth + root.panelSeam
             }
             y += 44 + tallest      // the 44px gap above every line (each section's padding)
@@ -578,7 +581,7 @@ Item {
                                 anchors.left: parent.left; anchors.right: parent.right
                                 anchors.bottom: parent.bottom; anchors.margins: 14
                                 spacing: 3
-                                Text { text: root.kickerFor(sibling.modelData); color: theme.inkDim; font.family: root.uiFace
+                                Text { text: root.kicker; color: theme.inkDim; font.family: root.uiFace
                                        font.pixelSize: 9; font.letterSpacing: 2 }
                                 Text { width: parent.width; text: sibling.modelData.name
                                        color: root.paper; font.family: root.displayFace; font.pixelSize: 19
@@ -829,29 +832,8 @@ Item {
         // where panelLayout put this section (its own slot until the layout has run)
         readonly property var slot: root.panelLayout.placed[medium.key]
                 || { x: 0, y: 0, width: root.contentWidth, height: medium.naturalHeight }
-        function runStartAt(index) {
-            let x = 0
-            for (let i = 0; i < index; ++i) {
-                const n = root.runWorks(medium.liveRuns[i]).length
-                x += n * root.tileW + Math.max(0, n - 1) * root.tileGap + 28
-            }
-            return x
-        }
-        readonly property int currentRunIndex: {
-            shelfFlick.contentX
-            let at = 0
-            for (let i = 0; i < medium.liveRuns.length; ++i)
-                if (medium.runStartAt(i) <= shelfFlick.contentX + 40) at = i
-            if (shelfFlick.contentX + shelfFlick.width >= shelfFlick.contentWidth - 8)
-                at = Math.max(at, medium.liveRuns.length - 1)
-            return at
-        }
-        function jumpToRun(index) {
-            if (index < 0 || index >= medium.liveRuns.length) return
-            slide.stop()
-            shelfFlick.contentX = Math.max(0, Math.min(shelfFlick.contentWidth - shelfFlick.width,
-                                                       medium.runStartAt(index)))
-        }
+        // an unlabelled panel beside a labelled one leaves the label band empty
+        readonly property real bandOffset: medium.slot.band === true && !medium.labelled ? root.runBand : 0
         x: root.gutter + slot.x
         y: slot.y
         width: slot.width
@@ -881,49 +863,13 @@ Item {
                     Text { id: countText; text: medium.total
                            color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
                 }
-                Row {
-                    id: jumps
-                    objectName: "shelvesJumps_" + medium.key
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
-                    visible: shelfFlick.interactive && medium.liveRuns.length >= 3
-                    Repeater {
-                        model: medium.liveRuns
-                        delegate: Rectangle {
-                            id: jump
-                            required property var modelData
-                            required property int index
-                            objectName: "shelvesJump_" + medium.key + "_" + index
-                            height: 26
-                            width: jumpText.implicitWidth + 22
-                            radius: 13
-                            color: medium.currentRunIndex === jump.index || jumpMouse.containsMouse
-                                   ? theme.glassTint : "transparent"
-                            Text {
-                                id: jumpText
-                                anchors.centerIn: parent
-                                text: jump.modelData.label || ""
-                                color: medium.currentRunIndex === jump.index ? root.paper : theme.inkDimmer
-                                font.family: root.uiFace; font.pixelSize: 11; font.weight: Font.Medium
-                            }
-                            MouseArea {
-                                id: jumpMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: medium.jumpToRun(jump.index)
-                            }
-                        }
-                    }
-                }
             }
 
                 Item {
                     id: shelfWrap
                     // the row keeps to its panel: it starts at the heading's left inset and
                     // ends at the panel's right edge (the glass mock's contained shelf)
-                    x: 24; y: 64
+                    x: 24; y: 64 + medium.bandOffset
                     width: parent.width - 24
                     height: runsRow.height + 6
 
@@ -971,7 +917,7 @@ Item {
                                 // the run's label rides above its tiles, hairline after
                                 Item {
                                     visible: medium.labelled
-                                    width: runTiles.width; height: 26
+                                    width: runTiles.width; height: root.runBand
                                     Row {
                                         spacing: 12
                                         Text {
@@ -1074,7 +1020,7 @@ Item {
                 ShelfChevron {
                     objectName: "shelvesPrev_" + medium.key
                     label: medium.title
-                    y: 3 + (medium.labelled ? 26 : 0)
+                    y: 3 + (medium.labelled ? root.runBand : 0)
                     height: root.tileH
                     visible: shelfFlick.interactive && shelfFlick.contentX > 8
                     onTriggered: shelfFlick.pageBy(-1)
@@ -1083,7 +1029,7 @@ Item {
                     objectName: "shelvesNext_" + medium.key
                     label: medium.title
                     atRight: true
-                    y: 3 + (medium.labelled ? 26 : 0)
+                    y: 3 + (medium.labelled ? root.runBand : 0)
                     height: root.tileH
                     visible: shelfFlick.interactive && shelfFlick.contentX + shelfFlick.width < shelfFlick.contentWidth - 8
                     onTriggered: shelfFlick.pageBy(1)
@@ -1154,7 +1100,9 @@ Item {
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: String(table.shelf.order || "").toUpperCase()
+                    // a list pinned from a moving source says when it was pinned
+                    text: (String(table.shelf.order || "")
+                           + (table.shelf.asOf ? "  ·  as of " + table.shelf.asOf : "")).toUpperCase()
                     color: theme.inkDimmer; font.family: root.uiFace
                     font.pixelSize: 11; font.letterSpacing: 2
                 }

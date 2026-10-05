@@ -173,7 +173,7 @@ Weekly Shonen Jump) is two numbered tables instead of covers.
 - **Loading.** `SagaApi.loadShelves` pushes once and searches nothing. A book opens through
   `resolveBook`, a lookup by its pinned Apple Books id. A manga opens Tankoban with its MAL id.
 - **Routing.** `worldRoster` and `openUniverseByName`: `shelves` or `manga` opens "shelves"; else a
-  `sagaGrid` opens "saga". The Universes world lists 21 universes.
+  `sagaGrid` opens "saga". The Universes world lists 20 universes (standard pages only; Cosmere is a Tribute and lives in the carousel).
 - **Layout authority.** `Brotherhood/agents/colosseum-universe-shelves-all-mock.html`.
 - **Checks.** `tests/qml/tst_ShelvesTemplate.qml`, `tests/shelves_universe_load_harness.qml` (the
   shelf, run and work counts of all twelve), `tests/shelves_template_preview.qml`.

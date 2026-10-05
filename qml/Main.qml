@@ -3452,7 +3452,9 @@ Window {
                                      heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
                 }
 
-                // the door to the Hall of Worlds — quiet, top-right, gold on hover
+                // the door to the Universes world, the single front door to every universe
+                // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
+                // — quiet, top-right, gold on hover
                 Item {
                     z: 5
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
@@ -3474,15 +3476,15 @@ Window {
                         id: hallKey
                         objectName: "homeUniverseHall"
                         anchors.fill: parent
-                        accessibleName: "Hall of Tributes"
+                        accessibleName: "Universes"
                         pointerEnabled: false
                         focusRadius: 8
-                        onTriggered: win.openUniverseHall()
+                        onTriggered: win.openWorld("Universes")
                     }
                     MouseArea {
                         id: hallMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: win.openUniverseHall()
+                        onClicked: win.openWorld("Universes")
                     }
                 }
             }
@@ -4658,7 +4660,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             if (item.universeHallRequested)
-                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openUniverseHall() })
+                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openWorld("Universes") })
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })

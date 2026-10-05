@@ -1158,13 +1158,20 @@ function filterRoster(roster, key) {
 
 // The Tributes: the hand-made art pages. Today these are exactly the installed universe
 // extensions; the Universes world shows them in its carousel, above the list.
+// Their order is fixed (Hemanth 2026-10-05), whatever order the shell hands them down in;
+// a Tribute nobody has placed yet follows the four. `standard` says whether the universe
+// also has a standard page: Cosmere has none, so its slide offers the Tribute only.
+var TRIBUTE_ORDER = ["One Piece", "Cosmere", "DC Animated Universe", "Star Wars"];
 function tributes(installed) {
+    function rank(name) { var i = TRIBUTE_ORDER.indexOf(name); return i < 0 ? TRIBUTE_ORDER.length : i; }
     return (installed || []).filter(function(u) { return u && u.name && u.extensionId; })
-        .map(function(u) {
+        .map(function(u, at) {
             var cfg = configFor(u.name);
-            return { extensionId: u.extensionId, name: u.name,
+            return { extensionId: u.extensionId, name: u.name, at: at,
+                     standard: !!(cfg.shelves || cfg.manga || cfg.sagaGrid),
                      banner: u.banner || cfg.banner || "", blurb: cfg.blurb || "" };
-        });
+        })
+        .sort(function(x, y) { return rank(x.name) - rank(y.name) || x.at - y.at; });
 }
 
 // ═══ BEGIN GENERATED: THE SHELVES (Arc 58-E) ═══
@@ -1492,7 +1499,7 @@ var shelfOverlays = {
     blurbSource: "Wikipedia — Weekly Shōnen Jump",
     chips: [ { t: "50+ Manga", ic: "manga" }, { t: "Weekly", ic: "manga" }, { t: "Since 1968", ic: "manga" } ],
     shelves: [
-      { title: "In the magazine now", kind: "manga", tab: "Now", pill: "running now", form: "table", order: "Longest-running first",
+      { title: "In the magazine now", kind: "manga", tab: "Now", pill: "running now", form: "table", order: "Longest-running first", asOf: "October 2026",
         runs: [
           { label: "", works: [
             { t: "One Piece", al: 30013, mal: 13, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg", by: "Eiichirou Oda", from: 1997 },

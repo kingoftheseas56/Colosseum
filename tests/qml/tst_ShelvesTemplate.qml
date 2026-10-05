@@ -179,20 +179,18 @@ Item {
             compare(shelves.kicker, "UNIVERSE")
             verify(findChild(shelves, "shelvesReadButton").visible && findChild(shelves, "shelvesWatchButton").visible)
             shelves.uni = animeUni(3, 1, [])
-            tryCompare(shelves, "kicker", "ANIME")
+            compare(shelves.kicker, "UNIVERSE", "every standard page is a Universe")
             compare(shelves.tabs.map(function(t) { return t.title }).join("|"), "Manga|Anime|About", "an empty shelf draws no tab")
         }
-        function test_runJumpsOnlyOnALongRowWithThreeRuns() {
-            generalUniverse()
-            const films = findChild(shelves, "shelvesJumps_films"), series = findChild(shelves, "shelvesJumps_series")
-            verify(films.visible, "18 films in three runs overflow: the jumps show")
-            verify(!series.visible, "three runs that FIT need no jumps")
-            const row = findChild(shelves, "shelvesRow_films")
-            findChild(shelves, "shelvesScroll").contentY = 300
-            const chip = findChild(shelves, "shelvesJump_films_2")
-            mouseClick(chip, chip.width / 2, chip.height / 2)
-            // the third run starts after two runs of six tiles and two seams
-            tryCompare(row, "contentX", Math.min(row.contentWidth - row.width, 2 * (6 * 164 + 5 * 16 + 28)))
+        function test_unlabelledPanelKeepsTheLabelBandOfItsLine() {
+            // Manga has two labelled runs, Anime has none, and they share a line: both
+            // rows of tiles must start at the same height (in-app walk, 2026-10-05)
+            shelves.uni = animeUni(3, 1, [])
+            const manga = findChild(shelves, "shelvesRow_manga"), anime = findChild(shelves, "shelvesRow_anime")
+            tryCompare(findChild(shelves, "shelvesMedium_anime"), "bandOffset", shelves.runBand)
+            compare(findChild(shelves, "shelvesMedium_manga").bandOffset, 0)
+            compare(anime.mapToItem(shelves, 0, 0).y, manga.mapToItem(shelves, 0, 0).y + shelves.runBand)
+            verify(!findChild(shelves, "shelvesJumps_manga"), "the run jumps are gone")
         }
         function test_aBookOpensBiblio() {
             generalUniverse()
@@ -215,7 +213,7 @@ Item {
         }
         function test_tableIsFullWidthAndNumberedDownThenAcross() {
             magazine()
-            compare(shelves.kicker, "MAGAZINE")
+            compare(shelves.kicker, "UNIVERSE")
             compare(shelves.tabs.map(function(t) { return t.title }).join("|"), "Now|Classics|About")
             compare(shelves.facts.join("|"), "20 running now|20 classics")
             verify(findChild(shelves, "shelvesReadButton").visible && !findChild(shelves, "shelvesWatchButton").visible)
