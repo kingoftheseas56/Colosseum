@@ -1,15 +1,20 @@
 name: build-qtwebengine-codecs
 
-# Builds Qt WebEngine 6.11.1 FROM SOURCE with proprietary codecs
-# (H.264 / AAC / Widevine) enabled -- the capability the stock Qt binaries
-# ship DISABLED. Produces a downloadable artifact: the codec-enabled
+# Builds Qt WebEngine 6.11.1 FROM SOURCE with proprietary codecs.
+# H.264/AAC support is compiled in, and Chromium is built Widevine-capable;
+# Google's Widevine CDM itself is NOT bundled. Produces a downloadable artifact:
+# the codec-enabled
 # Qt6WebEngineCore/Quick DLLs + resources + cmake package, to drop into a
 # Colosseum Qt install for the Streaming (OTT) runtime.
 #
 # Manual-only: this is a multi-hour job, never run it on push.
-# NOTE: GitHub-hosted runners cap a job at 360 min (6h) -- that is the max.
-# A standard 4-core windows-2025 runner may not finish in time; if it times
-# out, re-run with a larger runner via the `runner` input.
+# Standard GitHub-hosted Windows jobs are capped at 360 minutes. This workflow
+# therefore supports a resumable compiler-cache build:
+#   seed   - compile for up to 320 minutes and continuously populate sccache/GHA.
+#   finish - rebuild from a fresh VM, consume those cached compiler results,
+#            then install and package only after the build actually completes.
+# Re-run finish if cache eviction or a runner/toolchain change prevents a
+# one-follow-up-run completion. Keep SCCACHE_GHA_VERSION unchanged between phases.
 
 on:
   workflow_dispatch:
@@ -22,6 +27,14 @@ on:
         description: "Qt version to build WebEngine for"
         required: true
         default: "6.11.1"
+      phase:
+        description: "seed = warm compiler cache; finish = reuse cache and package"
+        required: true
+        type: choice
+        options:
+          - seed
+          - finish
+        default: seed
 
 permissions:
   contents: read
@@ -32,6 +45,10 @@ jobs:
     timeout-minutes: 360   # platform maximum for a hosted job
     env:
       QT_VERSION: ${{ github.event.inputs.qt_version }}
+      # Native sccache GHA storage writes compiler results during the run, so
+      # completed compilations survive even when the disposable runner goes away.
+      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_VERSION: "qtwebengine-${{ github.event.inputs.qt_version }}-msvc2022_64-codecs-v1"
 
     steps:
       - name: Checkout (workflow host only)
@@ -137,6 +154,11 @@ jobs:
           & (Join-Path $env:GPERF_DIR "flex.exe")  --version | Select-Object -First 1
           if ($LASTEXITCODE -ne 0) { throw "flex.exe --version failed (exit $LASTEXITCODE)" }
 
+      - name: Install sccache (persistent compiler cache)
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.18.0"
+
       - name: Verify toolchain
         shell: pwsh
         run: |
@@ -147,7 +169,10 @@ jobs:
           python --version
           gperf --version 2>&1 | Select-Object -First 1
           cl 2>&1 | Select-Object -First 1
+          sccache --version
           Write-Output "cores: $env:NUMBER_OF_PROCESSORS"
+          Write-Output "phase: ${{ github.event.inputs.phase }}"
+          Write-Output "sccache namespace: $env:SCCACHE_GHA_VERSION"
 
       - name: Download Qt WebEngine ${{ env.QT_VERSION }} source
         shell: pwsh
@@ -188,6 +213,8 @@ jobs:
             -B "$env:WEBENGINE_BUILD_DIR" `
             -DCMAKE_BUILD_TYPE=Release `
             "-DCMAKE_INSTALL_PREFIX=$env:WEBENGINE_INSTALL_DIR" `
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
             -DFEATURE_qtwebengine_widgets_build=OFF `
             -DFEATURE_webengine_geolocation=OFF `
             -DFEATURE_webengine_kerberos=OFF `
@@ -202,31 +229,105 @@ jobs:
             throw "Qt module configure did not create the expected single-config Ninja file: $env:WEBENGINE_BUILD_DIR\build.ninja"
           }
 
-      - name: Build WebEngine
+      - name: Verify Chromium compiler cache wiring
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $toolchains = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File
+          $hit = $toolchains | Select-String -Pattern 'sccache(?:\.exe)? cl\.exe' | Select-Object -First 1
+          if (-not $hit) {
+            throw 'Chromium GN toolchain is not invoking sccache before cl.exe; refusing to burn a multi-hour runner.'
+          }
+          Write-Output "cache wiring: $($hit.Path):$($hit.LineNumber)"
+          Write-Output $hit.Line
+          sccache --zero-stats
+      - name: Build WebEngine (${{ github.event.inputs.phase }})
+        id: webengine_build
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          # CRITICAL for this step specifically: cl.exe/ninja write routine compiler
-          # warnings to stderr constantly across a multi-hour Chromium build. Without
-          # this, PS7's native-stderr-as-terminating-error default would abort the
-          # ENTIRE build on the first warning anywhere in ~20k translation units --
-          # the exact failure mode that killed the "Install Chromium host tools" step
-          # on choco's harmless nuspec warning. Only the explicit $LASTEXITCODE check
-          # below decides pass/fail.
           $PSNativeCommandUseErrorActionPreference = $false
+
+          $phase = '${{ github.event.inputs.phase }}'
+          $budgetMinutes = if ($phase -eq 'seed') { 320 } else { 330 }
           $jobs = [int]$env:NUMBER_OF_PROCESSORS
-          Write-Output "building with -j$jobs"
-          cmake --build "$env:WEBENGINE_BUILD_DIR" --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
-          $rc = $LASTEXITCODE
-          if ($rc -ne 0) {
-            Get-Content (Join-Path $env:RUNNER_TEMP "webengine-build.log") | Where-Object { $_ -match 'FAILED:|fatal error|\berror\b|LNK\d+|No such' } | Select-Object -Last 40 | ForEach-Object {
-              $m = $_.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A'); Write-Output "::error::$m"
+          $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
+          $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
+
+          Write-Output "phase=$phase; building with -j$jobs; controlled budget=$($budgetMinutes)m"
+          Write-Output 'Completed compiler results are written continuously to the sccache GHA backend.'
+
+          $proc = Start-Process -FilePath 'cmake.exe' -ArgumentList @('--build', $env:WEBENGINE_BUILD_DIR, '--parallel', "$jobs") -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
+          $deadline = (Get-Date).AddMinutes($budgetMinutes)
+          $nextReport = Get-Date
+
+          while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 15
+            $proc.Refresh()
+            if ((Get-Date) -ge $nextReport) {
+              Write-Output "---- build heartbeat $(Get-Date -Format o) ----"
+              if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 3 }
+              if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 3 }
+              $nextReport = (Get-Date).AddMinutes(5)
             }
+          }
+
+          $proc.Refresh()
+          if (-not $proc.HasExited) {
+            Write-Output "::warning::Build phase '$phase' reached its $budgetMinutes-minute budget; stopping the process tree before GitHub's six-hour job guillotine."
+            & taskkill.exe /PID $proc.Id /T /F | Out-Null
+            Start-Sleep -Seconds 3
+            'completed=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            'budget_exhausted=true' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+            if ($phase -eq 'seed') {
+              Write-Output 'Seed phase complete: compiler cache has been warmed. Re-run this workflow with phase=finish.'
+              exit 0
+            }
+
+            Write-Output '::error::Finish phase exhausted its build budget. Re-run phase=finish to consume the additional cache written by this attempt.'
+            exit 124
+          }
+
+          $proc.WaitForExit()
+          $rc = $proc.ExitCode
+          'budget_exhausted=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 20 }
+          if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 20 }
+
+          if ($rc -ne 0) {
+            $patterns = 'FAILED:|fatal error|\berror\b|LNK\d+|No such'
+            Select-String -Path @($stdoutLog, $stderrLog) -Pattern $patterns -ErrorAction SilentlyContinue | Select-Object -Last 40 | ForEach-Object {
+              $m = $_.Line.Replace('%','%25')
+              Write-Output "::error::$m"
+            }
+            'completed=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit $rc
           }
+
+          'completed=true' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Output "WebEngine build completed inside the $phase phase."
           Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
 
+      - name: Report sccache stats
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $cmd = Get-Command sccache -ErrorAction SilentlyContinue
+          if (-not $cmd) {
+            Write-Output 'sccache is unavailable; no stats to report.'
+            exit 0
+          }
+          $stats = (sccache --show-stats 2>&1 | Out-String).TrimEnd()
+          Write-Output $stats
+          '### QtWebEngine sccache stats' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '```text' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          $stats | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '```' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
       - name: Install WebEngine module
+        if: steps.webengine_build.outputs.completed == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
@@ -238,6 +339,7 @@ jobs:
           Write-Output "installed: $($core.FullName)"
 
       - name: Package artifact
+        if: steps.webengine_build.outputs.completed == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
@@ -248,6 +350,7 @@ jobs:
           "{0:N1} MB" -f ((Get-Item $zip).Length/1MB)
 
       - name: Upload codec-enabled WebEngine
+        if: steps.webengine_build.outputs.completed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: qtwebengine-${{ env.QT_VERSION }}-msvc2022_64-codecs
