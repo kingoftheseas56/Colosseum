@@ -160,8 +160,7 @@ Item {
             root.directorCollectMembersInternal(children[i], out)
     }
 
-    function directorSnapshotInternal() {
-        root.directorMemberRevisionInternal
+    function directorSnapshotInternal(memberRevision) {
         const diagnostics = []
         const requiredMembers = []
         const identityRows = []
@@ -266,6 +265,7 @@ Item {
         })
         const observationToken = JSON.stringify({
             identity: identityToken,
+            memberRevision: memberRevision,
             currentLoad: currentLoad,
             required: required,
             ready: ready,
@@ -285,7 +285,8 @@ Item {
         }
     }
 
-    readonly property var directorCohortSnapshotInternal: root.directorSnapshotInternal()
+    readonly property var directorCohortSnapshotInternal:
+        root.directorSnapshotInternal(root.directorMemberRevisionInternal)
     readonly property string directorExpectedCohortTokenInternal:
         String(root.directorCohortSnapshotInternal.identityToken || "")
     readonly property string directorObservationTokenInternal:

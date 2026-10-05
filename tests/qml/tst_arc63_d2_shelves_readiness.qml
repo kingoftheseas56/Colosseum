@@ -118,6 +118,17 @@ TestCase {
         return false
     }
 
+    function findNamed(item, name) {
+        if (!item) return null
+        if (item.objectName === name) return item
+        const children = item.children || []
+        for (let i = 0; i < children.length; ++i) {
+            const hit = findNamed(children[i], name)
+            if (hit) return hit
+        }
+        return null
+    }
+
     Component {
         id: hostComponent
         Window {
@@ -164,6 +175,12 @@ TestCase {
         const host = createHost(420)
         const page = host.page
         installUni(host, simpleUni(tc.badImage, tc.readyA), [])
+        let tile = null
+        tryVerify(function() {
+            tile = findNamed(page, "shelvesTile_films_0")
+            return tile !== null && tile.directorArtStatus === "error"
+        }, 5000)
+        compare(tile.directorArtStatus, "error")
         tryVerify(function() { return page.directorFailedCount >= 1 }, 5000)
         compare(page.directorReadinessState, "partial")
         verify(page.directorReadinessState !== "settled")
@@ -209,6 +226,14 @@ TestCase {
                     && page.directorReadyCount === page.directorRequiredCount
                     && page.directorRequiredCount > 0
         }, 5000)
+        console.log("[D2BSHOT] " + JSON.stringify({
+            required: page.directorRequiredCount,
+            ready: page.directorReadyCount,
+            failed: page.directorFailedCount,
+            endObject: page.directorShotEndObjectName,
+            sweepBottom: page.directorShotSweepBottomInternal,
+            members: page.directorRequiredMembersInternal
+        }))
         verify(hasKind(page, "wallpaper"))
         verify(hasKind(page, "continue"))
         verify(hasKind(page, "shelf"))
