@@ -44,6 +44,7 @@ Item {
     readonly property string displayFace: shelfDisplay.name
     property bool reducedMotion: true
     property int directorLoadedGenerationInternal: 0
+    property int directorMemberRevisionInternal: 0
     readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
     readonly property color worldColor: root.uni.color || root.guide.c1 || "#221c30"
     readonly property color paper: theme.ink
@@ -160,6 +161,7 @@ Item {
     }
 
     function directorSnapshotInternal() {
+        root.directorMemberRevisionInternal
         const diagnostics = []
         const requiredMembers = []
         const identityRows = []
@@ -714,6 +716,14 @@ Item {
                             id: continueTile
                             required property var modelData
                             variant: "home"
+                            onDirectorAssetKeyChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorArtSourceChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorActualArtSourceChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorArtStatusChanged: root.directorMemberRevisionInternal += 1
+                            onXChanged: root.directorMemberRevisionInternal += 1
+                            onYChanged: root.directorMemberRevisionInternal += 1
+                            onWidthChanged: root.directorMemberRevisionInternal += 1
+                            onHeightChanged: root.directorMemberRevisionInternal += 1
                             entry: continueTile.modelData
                             backdrop: wall
                             track: page.contentY
@@ -780,6 +790,14 @@ Item {
                             readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
                                     : stillArt.status === Image.Ready ? "ready"
                                     : stillArt.status === Image.Error ? "error" : "loading"
+                            onDirectorAssetKeyChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorArtSourceChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorActualArtSourceChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorArtStatusChanged: root.directorMemberRevisionInternal += 1
+                            onXChanged: root.directorMemberRevisionInternal += 1
+                            onYChanged: root.directorMemberRevisionInternal += 1
+                            onWidthChanged: root.directorMemberRevisionInternal += 1
+                            onHeightChanged: root.directorMemberRevisionInternal += 1
                             width: (gallerySection.width - 72) / 4; height: Math.round(width * 9 / 16)
                             radius: 8; clip: true
                             color: root.worldColor
@@ -867,6 +885,14 @@ Item {
                             readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
                                     : siblingArt.status === Image.Ready ? "ready"
                                     : siblingArt.status === Image.Error ? "error" : "loading"
+                            onDirectorAssetKeyChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorArtSourceChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorActualArtSourceChanged: root.directorMemberRevisionInternal += 1
+                            onDirectorArtStatusChanged: root.directorMemberRevisionInternal += 1
+                            onXChanged: root.directorMemberRevisionInternal += 1
+                            onYChanged: root.directorMemberRevisionInternal += 1
+                            onWidthChanged: root.directorMemberRevisionInternal += 1
+                            onHeightChanged: root.directorMemberRevisionInternal += 1
                             width: (moreSection.width - 72) / 4; height: Math.round(width * 9 / 16)
                             radius: 12; clip: true
                             color: sibling.modelData.c1 || root.worldColor
@@ -1186,6 +1212,7 @@ Item {
                 Flickable {
                     id: shelfFlick
                     objectName: "shelvesRow_" + medium.key
+                    onContentXChanged: root.directorMemberRevisionInternal += 1
                     y: 3
                     width: parent.width
                     height: runsRow.height
@@ -1446,6 +1473,14 @@ Item {
                         readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
                                 : tableCover.status === Image.Ready ? "ready"
                                 : tableCover.status === Image.Error ? "error" : "loading"
+                        onDirectorAssetKeyChanged: root.directorMemberRevisionInternal += 1
+                        onDirectorArtSourceChanged: root.directorMemberRevisionInternal += 1
+                        onDirectorActualArtSourceChanged: root.directorMemberRevisionInternal += 1
+                        onDirectorArtStatusChanged: root.directorMemberRevisionInternal += 1
+                        onXChanged: root.directorMemberRevisionInternal += 1
+                        onYChanged: root.directorMemberRevisionInternal += 1
+                        onWidthChanged: root.directorMemberRevisionInternal += 1
+                        onHeightChanged: root.directorMemberRevisionInternal += 1
                         objectName: "shelvesTableRow_" + table.key + "_" + line.index
                         x: line.col * (tableBody.colW + table.columnSeam)
                         y: line.place * table.rowH
@@ -1598,6 +1633,14 @@ Item {
         readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
                 : art.status === Image.Ready ? "ready"
                 : art.status === Image.Error ? "error" : "loading"
+        onDirectorAssetKeyChanged: root.directorMemberRevisionInternal += 1
+        onDirectorArtSourceChanged: root.directorMemberRevisionInternal += 1
+        onDirectorActualArtSourceChanged: root.directorMemberRevisionInternal += 1
+        onDirectorArtStatusChanged: root.directorMemberRevisionInternal += 1
+        onXChanged: root.directorMemberRevisionInternal += 1
+        onYChanged: root.directorMemberRevisionInternal += 1
+        onWidthChanged: root.directorMemberRevisionInternal += 1
+        onHeightChanged: root.directorMemberRevisionInternal += 1
         readonly property bool directorArtReady: directorArtStatus === "ready"
         readonly property real done: root.fraction(tile.item)
         signal hoveredIn()
