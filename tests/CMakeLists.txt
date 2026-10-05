@@ -415,6 +415,15 @@ set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Android phone immersive-navigation contract: the browsing tab bar follows the existing
+# player/book/comic immersive authority instead of becoming a second full-canvas owner.
+add_test(NAME colosseum.phone_immersive_nav_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_immersive_nav.ps1")
+set_tests_properties(colosseum.phone_immersive_nav_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
 add_test(NAME colosseum.search_cancellation_contract

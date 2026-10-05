@@ -1607,6 +1607,11 @@ Window {
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
 
+    // Phone navigation belongs to browsing, never to the full-canvas player/readers.
+    // Reusing immersiveSurfaceOpen keeps Android on the same one-authority rule as desktop chrome.
+    readonly property bool phoneWorldNavigationVisible:
+        win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen
+
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
     //      engine URL. Deferred while the player streams (one engine, playback wins). ----
@@ -3752,8 +3757,8 @@ Window {
         }
     }
 
-    // Android phone shell. S1-B keeps the whole opaque bar on-screen and gives hosted pages
-    // its full height as a bottom content inset.
+    // Android phone shell. S1-B owns the opaque bar/inset; S1-C suppresses that browsing
+    // chrome whenever the existing immersive-surface authority owns the whole canvas.
     PhoneWorldTabBar {
         id: phoneWorldTabs
         objectName: "phoneWorldTabBar"
@@ -3763,7 +3768,7 @@ Window {
         anchors.bottom: parent.bottom
         worlds: win.worldDefinitions
         activeTab: downloadsLayer.active ? "Profile" : worldStack.current
-        visible: win.androidHost && win.width < 840
+        visible: win.phoneWorldNavigationVisible
         onWorldRequested: (world) => {
             if (downloadsLayer.active) win.closeDownloadsPage()
             win.openWorld(world)
