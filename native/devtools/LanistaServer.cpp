@@ -4,10 +4,12 @@
 #include "engine/VaultForensics.h"
 
 #include <QCoreApplication>
+#include <QCursor>
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -343,6 +345,8 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
              [this](const QJsonObject& p, Replier reply) { cmdUiTextInput(p, std::move(reply)); });
     addDrive(QStringLiteral("ui-scroll"),
              [this](const QJsonObject& p, Replier reply) { cmdUiScroll(p, std::move(reply)); });
+    addDrive(QStringLiteral("point"),
+             [this](const QJsonObject& p, Replier reply) { cmdPoint(p, std::move(reply)); });
     // J1-Tray-Bridge (2026-08-14): restores a minimized/hidden root window — the
     // bridge's only path onto "the taskbar can't be reached from here" (Lanista
     // ledger, Planned §9). A fifth "hand", Drive-gated like the four above; the
@@ -1533,6 +1537,206 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
     QCoreApplication::sendEvent(w, &ev);
     reply.reply({{QStringLiteral("scrolled"), item->objectName()},
                  {QStringLiteral("dy"), dy}});
+}
+
+// Arc 63-C1: point — move the REAL system pointer to a named QML target.
+// This is deliberately movement-only. No mouse button event is synthesized here;
+// click semantics and the final hover contract belong to 63-C2.
+//
+// Coordinate contract:
+//   item local rect -> mapRectToScene() -> intersect every clip:true ancestor and
+//   the root-window client rect -> visible-scene center -> QWindow::mapToGlobal().
+// The caller never supplies a screen coordinate, so a stale/scripted pixel value
+// cannot send the cursor somewhere unrelated to the intended tagged process.
+void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
+{
+    const QString ref = p.value(QStringLiteral("target")).toString();
+    QQuickItem* item = resolveTarget(ref);
+    if (!item) {
+        reply.fail("NO_SUCH_ITEM", ref);
+        return;
+    }
+
+    QQuickWindow* w = item->window();
+    QQuickWindow* root = mainWindow();
+    if (!w || !root) {
+        reply.fail("NO_WINDOW", ref);
+        return;
+    }
+    if (w != root) {
+        reply.fail("WRONG_WINDOW",
+                   QStringLiteral("target is not in Lanista's first root window: ") + ref);
+        return;
+    }
+    if (!w->isVisible() || w->visibility() == QWindow::Hidden
+        || w->visibility() == QWindow::Minimized) {
+        reply.fail("WINDOW_NOT_TARGETABLE",
+                   QStringLiteral("target window is hidden or minimized"));
+        return;
+    }
+    // C1 is intentionally foreground-only. Without this guard, a screen-space
+    // point owned by Colosseum could currently be covered by another process,
+    // making a global cursor move unsafe. Background-window choreography is a
+    // separate, explicitly deferred problem.
+    if (!w->isActive()) {
+        reply.fail("WINDOW_NOT_ACTIVE",
+                   QStringLiteral("point requires the target Colosseum window to be active"));
+        return;
+    }
+
+    if (!item->isVisible() || item->opacity() <= 0.0
+        || item->width() <= 0.0 || item->height() <= 0.0) {
+        reply.fail("OFFSCREEN_TARGET",
+                   QStringLiteral("target has no visible pointerable area: ") + ref);
+        return;
+    }
+
+    QRectF visibleScene = item->mapRectToScene(
+        QRectF(0.0, 0.0, item->width(), item->height()));
+    for (QQuickItem* ancestor = item->parentItem(); ancestor;
+         ancestor = ancestor->parentItem()) {
+        if (!ancestor->isVisible() || ancestor->opacity() <= 0.0) {
+            reply.fail("OFFSCREEN_TARGET",
+                       QStringLiteral("target is hidden by an ancestor: ") + ref);
+            return;
+        }
+        if (ancestor->clip()) {
+            visibleScene = visibleScene.intersected(ancestor->mapRectToScene(
+                QRectF(0.0, 0.0, ancestor->width(), ancestor->height())));
+        }
+    }
+    visibleScene = visibleScene.intersected(
+        QRectF(0.0, 0.0, w->width(), w->height()));
+    if (visibleScene.isEmpty() || visibleScene.width() < 1.0
+        || visibleScene.height() < 1.0) {
+        reply.fail("OFFSCREEN_TARGET",
+                   QStringLiteral("target is outside its visible clip/window area: ") + ref);
+        return;
+    }
+
+    const int durationMs = p.contains(QStringLiteral("duration_ms"))
+        ? p.value(QStringLiteral("duration_ms")).toInt(-1) : 700;
+    if (durationMs < 16 || durationMs > 10000) {
+        reply.fail("BAD_DURATION",
+                   QStringLiteral("duration_ms must be in [16,10000]"));
+        return;
+    }
+    const QString path = p.value(QStringLiteral("path")).toString(
+        QStringLiteral("smoothstep"));
+    if (path != QStringLiteral("smoothstep") && path != QStringLiteral("linear")) {
+        reply.fail("BAD_PATH",
+                   QStringLiteral("path must be smoothstep or linear"));
+        return;
+    }
+    const int tolerancePx = p.contains(QStringLiteral("tolerance_px"))
+        ? p.value(QStringLiteral("tolerance_px")).toInt(-1) : 2;
+    if (tolerancePx < 0 || tolerancePx > 16) {
+        reply.fail("BAD_TOLERANCE",
+                   QStringLiteral("tolerance_px must be in [0,16]"));
+        return;
+    }
+
+    const QPointF targetSceneF = visibleScene.center();
+    const QPoint targetScene(qRound(targetSceneF.x()), qRound(targetSceneF.y()));
+    const QPoint targetGlobal = w->mapToGlobal(targetScene);
+    if (!QGuiApplication::screenAt(targetGlobal)) {
+        reply.fail("OFFSCREEN_TARGET",
+                   QStringLiteral("resolved target is outside every attached screen"));
+        return;
+    }
+
+    const QPoint startGlobal = QCursor::pos();
+    const QPointer<QQuickWindow> trackedWindow(w);
+    auto elapsed = std::make_shared<QElapsedTimer>();
+    elapsed->start();
+
+    auto* timer = new QTimer(this);
+    timer->setTimerType(Qt::PreciseTimer);
+    timer->setInterval(16);
+    connect(timer, &QTimer::timeout, this,
+            [reply, timer, elapsed, trackedWindow, startGlobal, targetGlobal,
+             targetScene, visibleScene, ref, path, durationMs, tolerancePx]() mutable {
+        if (!reply.canReply()) {
+            timer->stop();
+            timer->deleteLater();
+            return;
+        }
+        if (trackedWindow.isNull() || !trackedWindow->isVisible()
+            || trackedWindow->visibility() == QWindow::Hidden
+            || trackedWindow->visibility() == QWindow::Minimized
+            || !trackedWindow->isActive()) {
+            timer->stop();
+            timer->deleteLater();
+            reply.fail("WINDOW_LOST",
+                       QStringLiteral("target window stopped being active/visible during point"));
+            return;
+        }
+
+        const qint64 nowMs = elapsed->elapsed();
+        const double t = qBound(0.0, double(nowMs) / double(durationMs), 1.0);
+        const double u = path == QStringLiteral("smoothstep")
+            ? (t * t * (3.0 - 2.0 * t)) : t;
+        const int x = qRound(double(startGlobal.x())
+                             + (double(targetGlobal.x() - startGlobal.x()) * u));
+        const int y = qRound(double(startGlobal.y())
+                             + (double(targetGlobal.y() - startGlobal.y()) * u));
+        QCursor::setPos(x, y);
+
+        if (t < 1.0)
+            return;
+
+        // Pin the final sample exactly, then read the OS cursor back. The reply is
+        // the target-coordinate receipt C1 needs; endpoint tolerance is enforced
+        // by the command rather than left as a prose-only verification claim.
+        QCursor::setPos(targetGlobal);
+        const QPoint actual = QCursor::pos();
+        const int dx = actual.x() - targetGlobal.x();
+        const int dy = actual.y() - targetGlobal.y();
+        const int totalElapsedMs = int(elapsed->elapsed());
+
+        timer->stop();
+        timer->deleteLater();
+
+        if (qAbs(dx) > tolerancePx || qAbs(dy) > tolerancePx) {
+            reply.fail("ENDPOINT_MISS",
+                       QStringLiteral("target=(%1,%2) actual=(%3,%4) delta=(%5,%6) tolerance=%7")
+                           .arg(targetGlobal.x()).arg(targetGlobal.y())
+                           .arg(actual.x()).arg(actual.y())
+                           .arg(dx).arg(dy).arg(tolerancePx));
+            return;
+        }
+
+        reply.reply({
+            {QStringLiteral("pointed"), ref},
+            {QStringLiteral("pid"), double(QCoreApplication::applicationPid())},
+            {QStringLiteral("windowObjectName"), trackedWindow->objectName()},
+            {QStringLiteral("windowTitle"), trackedWindow->title()},
+            {QStringLiteral("path"), path},
+            {QStringLiteral("durationMs"), durationMs},
+            {QStringLiteral("elapsedMs"), totalElapsedMs},
+            {QStringLiteral("startScreenX"), startGlobal.x()},
+            {QStringLiteral("startScreenY"), startGlobal.y()},
+            {QStringLiteral("targetSceneX"), targetScene.x()},
+            {QStringLiteral("targetSceneY"), targetScene.y()},
+            {QStringLiteral("targetClientX"), targetScene.x()},
+            {QStringLiteral("targetClientY"), targetScene.y()},
+            {QStringLiteral("windowScreenX"), trackedWindow->mapToGlobal(QPoint(0, 0)).x()},
+            {QStringLiteral("windowScreenY"), trackedWindow->mapToGlobal(QPoint(0, 0)).y()},
+            {QStringLiteral("targetScreenX"), targetGlobal.x()},
+            {QStringLiteral("targetScreenY"), targetGlobal.y()},
+            {QStringLiteral("actualScreenX"), actual.x()},
+            {QStringLiteral("actualScreenY"), actual.y()},
+            {QStringLiteral("deltaX"), dx},
+            {QStringLiteral("deltaY"), dy},
+            {QStringLiteral("tolerancePx"), tolerancePx},
+            {QStringLiteral("visibleSceneRect"),
+             QJsonObject{{QStringLiteral("x"), visibleScene.x()},
+                         {QStringLiteral("y"), visibleScene.y()},
+                         {QStringLiteral("width"), visibleScene.width()},
+                         {QStringLiteral("height"), visibleScene.height()}}}
+        });
+    });
+    timer->start();
 }
 
 // J1-Tray-Bridge (2026-08-14): window-set-state — the one command that can

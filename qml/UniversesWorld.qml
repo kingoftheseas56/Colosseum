@@ -161,6 +161,9 @@ WorldPage {
                 id: bar
                 required property var modelData
                 required property int index
+                // Arc 63-C1: semantic, unique named target for deterministic
+                // pointer travel. category is the universe routing key.
+                objectName: "universesBanner_" + String(bar.modelData.category || bar.index)
                 entry: bar.modelData
                 hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index

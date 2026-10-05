@@ -1184,10 +1184,71 @@ int main(int argc, char** argv)
         require(clickDenied.value("type").toString() == "error"
                     && clickDenied.value("code").toString() == "DRIVE_DISABLED",
                 "ui-click is refused with the DRIVE gate closed" + why());
+        QJsonObject pointDenied = call(pipe, {{"cmd", "point"}, {"seq", 701},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 64}}}});
+        require(pointDenied.value("type").toString() == "error"
+                    && pointDenied.value("code").toString() == "DRIVE_DISABLED",
+                "point is refused with the DRIVE gate closed" + why());
 
         // Open the DRIVE gate for the rest of the hands tests. driveOpen() reads
         // the env live per call, so this takes effect immediately.
         qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
+
+        // Arc 63-C1: point resolves a visible QML target into the owning
+        // QQuickWindow's scene space, maps it to screen coordinates, and moves
+        // the real system pointer there over an observable bounded path. C1 is
+        // foreground-only by contract, so activate the fixture window first.
+        rootWindow->requestActivate();
+        settle(100);
+        require(rootWindow->isActive(),
+                "point fixture window is active before foreground-only motion" + why());
+
+        QJsonObject pointed = call(pipe, {{"cmd", "point"}, {"seq", 702},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 64},
+                                    {"path", "linear"},
+                                    {"tolerance_px", 2}}}}, 2000);
+        require(pointed.value("type").toString() == "reply",
+                "point replies after real pointer travel" + why());
+        require(pointed.value("pointed").toString() == QStringLiteral("counterMouse"),
+                "point names the resolved target" + why());
+        require(pointed.value("targetSceneX").toInt() == 200
+                    && pointed.value("targetSceneY").toInt() == 124,
+                "point resolves the counterMouse center in scene coordinates" + why());
+        require(qAbs(pointed.value("deltaX").toInt()) <= 2
+                    && qAbs(pointed.value("deltaY").toInt()) <= 2,
+                "point arrives within the declared endpoint tolerance" + why());
+        require(pointed.value("elapsedMs").toInt() >= 64
+                    && pointed.value("elapsedMs").toInt() <= 500,
+                "point duration is observable and bounded" + why());
+
+        // Partly outside the root window is still targetable, but the point must
+        // use the VISIBLE intersection, not the off-window item center.
+        QJsonObject clippedPoint = call(pipe, {{"cmd", "point"}, {"seq", 703},
+            {"payload", QJsonObject{{"target", "clippedBox"},
+                                    {"duration_ms", 32},
+                                    {"path", "smoothstep"}}}}, 2000);
+        require(clippedPoint.value("type").toString() == "reply",
+                "point accepts a partially visible target" + why());
+        require(clippedPoint.value("targetSceneX").toInt() == 780
+                    && clippedPoint.value("targetSceneY").toInt() == 320,
+                "point targets the center of clippedBox's visible window intersection" + why());
+
+        // Fully clipped and missing targets refuse BEFORE producing a dangerous
+        // screen coordinate. These are the two C1 safety negatives.
+        QJsonObject offscreenPoint = call(pipe, {{"cmd", "point"}, {"seq", 704},
+            {"payload", QJsonObject{{"target", "clipHostChild"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(offscreenPoint.value("type").toString() == "error"
+                    && offscreenPoint.value("code").toString() == "OFFSCREEN_TARGET",
+                "point refuses a target fully clipped by an ancestor" + why());
+        QJsonObject missingPoint = call(pipe, {{"cmd", "point"}, {"seq", 705},
+            {"payload", QJsonObject{{"target", "no-such-point-target"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(missingPoint.value("type").toString() == "error"
+                    && missingPoint.value("code").toString() == "NO_SUCH_ITEM",
+                "point refuses a missing target without a coordinate" + why());
 
         // ── Task 5: ui-click genuinely lands — the counter really increments ──
         // A reply is not enough: the press+release must reach counterMouse and

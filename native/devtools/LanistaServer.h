@@ -221,6 +221,9 @@ private:
     void cmdUiKeypress(const QJsonObject& p, Replier reply) const;
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
     void cmdUiScroll(const QJsonObject& p, Replier reply) const;
+    // Arc 63-C1: real visible system-pointer travel to a resolved named target.
+    // Async because the path deliberately spans multiple event-loop turns.
+    void cmdPoint(const QJsonObject& p, Replier reply);
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
     // Function 0007 prerequisite: one typed, tagged-session-only diagnostic
     // that drives the real root openBookSession() path for an A -> B switch.
