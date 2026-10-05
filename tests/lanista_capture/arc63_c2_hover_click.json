@@ -1,12 +1,16 @@
 {
   "name": "arc63-c2-production-hover-click",
-  "comment": "Arc 63-C2: enter the real Universes world, scroll the production ledger until One Piece is pointerable, point with the real OS cursor, hold the real hover/Explore treatment, click through with pointer-click, and prove the One Piece Shelves universe opened.",
+  "comment": "Arc 63-C2: enter the real Universes world with point + pointer-click on its production KeyboardAction, scroll the production ledger until One Piece is pointerable, point with the real OS cursor, hold the real hover/Explore treatment, click through with pointer-click, and prove the One Piece Shelves universe opened. Route-critical waits assert matched=true so a WAIT_TIMEOUT cannot be scored as a pass.",
   "steps": [
     {
       "cmd": "ping",
       "label": "isolated Drive session answers",
       "expect": [
-        { "path": "gates.drive", "op": "==", "value": "true" }
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
       ]
     },
     {
@@ -20,9 +24,62 @@
       }
     },
     {
-      "cmd": "ui-click",
-      "label": "enter production Universes world",
-      "payload": { "target": "modePill_Universes" }
+      "cmd": "point",
+      "label": "real pointer arrives on production Universes mode action",
+      "payload": {
+        "target": "modePillFocus_Universes",
+        "duration_ms": 220,
+        "path": "smoothstep",
+        "tolerance_px": 2
+      },
+      "expect": [
+        {
+          "path": "pointed",
+          "op": "==",
+          "value": "modePillFocus_Universes"
+        },
+        {
+          "path": "deltaX",
+          "op": ">=",
+          "value": -2
+        },
+        {
+          "path": "deltaX",
+          "op": "<=",
+          "value": 2
+        },
+        {
+          "path": "deltaY",
+          "op": ">=",
+          "value": -2
+        },
+        {
+          "path": "deltaY",
+          "op": "<=",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "cmd": "pointer-click",
+      "label": "real pointer enters production Universes world",
+      "payload": {
+        "target": "modePillFocus_Universes",
+        "button": "left",
+        "action": "click"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePillFocus_Universes"
+        },
+        {
+          "path": "submittedEvents",
+          "op": "==",
+          "value": 2
+        }
+      ]
     },
     {
       "cmd": "ui-wait-for",
@@ -32,7 +89,14 @@
         "prop": "visible",
         "value": true,
         "timeout_ms": 10000
-      }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "cmd": "ui-wait-for",
@@ -42,7 +106,14 @@
         "prop": "visible",
         "value": true,
         "timeout_ms": 10000
-      }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "cmd": "ui-scroll",
@@ -73,10 +144,16 @@
       "label": "One Piece starts without pointer hover",
       "payload": {
         "object": "universesBanner_onepiece",
-        "props": ["hot"]
+        "props": [
+          "hot"
+        ]
       },
       "expect": [
-        { "path": "props.hot", "op": "==", "value": "false" }
+        {
+          "path": "props.hot",
+          "op": "==",
+          "value": "false"
+        }
       ]
     },
     {
@@ -84,10 +161,16 @@
       "label": "One Piece Explore starts hidden",
       "payload": {
         "object": "universesBanner_onepiece_explore",
-        "props": ["opacity"]
+        "props": [
+          "opacity"
+        ]
       },
       "expect": [
-        { "path": "props.opacity", "op": "<=", "value": 0.05 }
+        {
+          "path": "props.opacity",
+          "op": "<=",
+          "value": 0.05
+        }
       ]
     },
     {
@@ -111,11 +194,31 @@
         "tolerance_px": 2
       },
       "expect": [
-        { "path": "pointed", "op": "==", "value": "universesBanner_onepiece" },
-        { "path": "deltaX", "op": ">=", "value": -2 },
-        { "path": "deltaX", "op": "<=", "value": 2 },
-        { "path": "deltaY", "op": ">=", "value": -2 },
-        { "path": "deltaY", "op": "<=", "value": 2 }
+        {
+          "path": "pointed",
+          "op": "==",
+          "value": "universesBanner_onepiece"
+        },
+        {
+          "path": "deltaX",
+          "op": ">=",
+          "value": -2
+        },
+        {
+          "path": "deltaX",
+          "op": "<=",
+          "value": 2
+        },
+        {
+          "path": "deltaY",
+          "op": ">=",
+          "value": -2
+        },
+        {
+          "path": "deltaY",
+          "op": "<=",
+          "value": 2
+        }
       ]
     },
     {
@@ -128,7 +231,11 @@
         "timeout_ms": 3000
       },
       "expect": [
-        { "path": "matched", "op": "==", "value": "true" }
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
       ]
     },
     {
@@ -140,11 +247,22 @@
       "label": "One Piece Explore affordance is fully revealed",
       "payload": {
         "object": "universesBanner_onepiece_explore",
-        "props": ["opacity", "visible"]
+        "props": [
+          "opacity",
+          "visible"
+        ]
       },
       "expect": [
-        { "path": "props.opacity", "op": ">=", "value": 0.95 },
-        { "path": "props.visible", "op": "==", "value": "true" }
+        {
+          "path": "props.opacity",
+          "op": ">=",
+          "value": 0.95
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        }
       ]
     },
     {
@@ -156,8 +274,16 @@
         "action": "click"
       },
       "expect": [
-        { "path": "clicked", "op": "==", "value": "universesBanner_onepiece" },
-        { "path": "submittedEvents", "op": "==", "value": 2 }
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "universesBanner_onepiece"
+        },
+        {
+          "path": "submittedEvents",
+          "op": "==",
+          "value": 2
+        }
       ]
     },
     {
@@ -170,7 +296,11 @@
         "timeout_ms": 10000
       },
       "expect": [
-        { "path": "matched", "op": "==", "value": "true" }
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
       ]
     },
     {
@@ -178,11 +308,22 @@
       "label": "destination identity is exactly One Piece",
       "payload": {
         "object": "shelvesUniversePage",
-        "props": ["universeName", "visible"]
+        "props": [
+          "universeName",
+          "visible"
+        ]
       },
       "expect": [
-        { "path": "props.universeName", "op": "==", "value": "One Piece" },
-        { "path": "props.visible", "op": "==", "value": "true" }
+        {
+          "path": "props.universeName",
+          "op": "==",
+          "value": "One Piece"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        }
       ]
     },
     {
@@ -193,7 +334,14 @@
         "prop": "visible",
         "value": true,
         "timeout_ms": 10000
-      }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "presentation_hold_ms": 700,
