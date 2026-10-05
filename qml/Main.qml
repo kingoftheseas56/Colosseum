@@ -41,6 +41,7 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    property var feriaReturnSnapshot: null
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -1033,9 +1034,29 @@ Window {
         if (medium === "Universes") return "UniversesWorld.qml"
         return "DemoWorld.qml"
     }
+    function parkFeria(preserveSnapshot) {
+        var preserve = preserveSnapshot !== false
+        if (!preserve) {
+            feriaReturnSnapshot = null
+        } else if (feriaLayer.open && feriaLayer.item && feriaLayer.item.navigationSnapshot) {
+            feriaReturnSnapshot = feriaLayer.item.navigationSnapshot()
+        }
+        if (feriaLayer.open)
+            feriaLayer.open = false
+    }
+    function restoreFeriaIfReady() {
+        if (!feriaLayer.open || !feriaReturnSnapshot || !feriaLayer.item
+                || !feriaLayer.item.restoreNavigationSnapshot)
+            return false
+        var snapshot = feriaReturnSnapshot
+        if (!feriaLayer.item.restoreNavigationSnapshot(snapshot))
+            return false
+        feriaReturnSnapshot = null
+        return true
+    }
     function openWorld(medium) {
         if (medium === "Feria") { win.openFeriaPage(); return }
-        feriaLayer.open = false
+        win.parkFeria(true)
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -1070,7 +1091,7 @@ Window {
         }
     }
     function closeWorld() {
-        feriaLayer.open = false
+        win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
@@ -1761,14 +1782,16 @@ Window {
         topbar.visible = true
         page.visible = true
         taskbar.open = false
+        Qt.callLater(win.restoreFeriaIfReady)
     }
     function closeFeriaPage() {
+        win.parkFeria(false)
         win.closeWorld()
     }
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
-        feriaLayer.open = false
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1804,7 +1827,7 @@ Window {
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
-        feriaLayer.open = false
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1837,7 +1860,7 @@ Window {
     // Downloads and Extensions are taskbar full-pages; opening either one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
-        feriaLayer.open = false
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
@@ -1857,7 +1880,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
-        feriaLayer.open = false
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -2015,7 +2038,7 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
-        feriaLayer.open = false
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         updateLayer.active = false
@@ -2033,7 +2056,7 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
-        feriaLayer.open = false
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -4622,7 +4645,12 @@ Window {
             item.accountClicked.connect(function(anchorRight, anchorBottom) {
                 accountFlyout.toggleAt(anchorRight, anchorBottom)
             })
+            Qt.callLater(win.restoreFeriaIfReady)
         }
+    }
+    Connections {
+        target: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
+        function onProfileChanged() { win.feriaReturnSnapshot = null }
     }
 
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----

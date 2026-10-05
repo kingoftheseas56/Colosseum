@@ -10,6 +10,34 @@ Item {
     id: shell
     objectName: "feriaAppPage"
     property bool lifecycleActive: false
+    property int navigationEpoch: 0
+    property bool navigationSuspended: false
+    property bool applyingNavigationSnapshot: false
+    function deferNavigation(action) {
+        var epoch = navigationEpoch
+        var route = viewState
+        var tab = lens
+        Qt.callLater(function() {
+            if (shell.navigationEpoch === epoch && shell.viewState === route
+                    && shell.lens === tab && shell.visible && !shell.navigationSuspended)
+                action()
+        })
+    }
+    function noteNavigationInput() {
+        navigationEpoch++
+        seeAllResetTimer.stop()
+        if (viewState === "home") homeView.cancelRestoration()
+        if (viewState === "seeAll") seeAllView.cancelRestoration()
+    }
+    onVisibleChanged: {
+        navigationEpoch++
+        if (!visible) {
+            if (homeView) homeView.suspendRestoration()
+            if (seeAllView) seeAllView.cancelRestoration()
+        } else if (homeView && viewState === "home") {
+            homeView.resumeRestoration()
+        }
+    }
     property bool discoveryStarted: false
     property string medium: "Feria"
     property var backdrop: null
@@ -32,12 +60,21 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
     onLifecycleActiveChanged: {
+        navigationEpoch++
+        navigationSuspended = !lifecycleActive
+        if (!lifecycleActive) {
+            homeView.suspendRestoration()
+            seeAllView.cancelRestoration()
+        }
         if (!lifecycleActive && accountStore) accountStore.endVisit()
         if (lifecycleActive && liveDiscovery && !discoveryStarted) {
             discoveryStarted = true
             discovery.refresh()
         }
-        if (lifecycleActive) content.forceActiveFocus()
+        if (lifecycleActive) {
+            homeView.resumeRestoration()
+            content.forceActiveFocus()
+        }
     }
 
     Colosseum.Theme { id: theme }
@@ -60,6 +97,8 @@ Item {
     property var saved: []
     property string lens: "all"
     property string viewState: "home"
+    property string searchReturnState: "home"
+    property var seeAllReturnSnapshot: null
     property string seeAllKind: "shelf"
     property string seeAllShelfId: ""
     property string seeAllTitle: ""
@@ -170,7 +209,11 @@ Item {
     readonly property var identityBridge: typeof porticoIdentityState !== "undefined" ? porticoIdentityState : null
     readonly property bool liveDiscovery: discovery !== null && contentStore !== null
     onActiveAppsChanged: if (liveDiscovery && appStateBridge) appStateBridge.settingsApps = activeApps
-    onLensChanged: if (liveDiscovery) discovery.lens = lens
+    onLensChanged: {
+        navigationEpoch++
+        if (!applyingNavigationSnapshot && homeView) homeView.cancelRestoration()
+        if (liveDiscovery) discovery.lens = lens
+    }
     onRegionChanged: {
         if (liveDiscovery) {
             discovery.region = regionCodes[region] || "US"
@@ -342,7 +385,34 @@ Item {
         }).sort(function(a,b) { return Number(Data.T[b].t.toLowerCase().startsWith(q)) - Number(Data.T[a].t.toLowerCase().startsWith(q)) }).slice(0, 40)
     }
     function searchableApps() { return activeApps.filter(function(pk) { return Data.P[pk] && Data.P[pk].sp }) }
-    function appColumns() { return Math.max(1, Math.floor((width - 2 * marginX + galleryMetrics.cardGap) / (180 + galleryMetrics.cardGap))) }
+    function appColumns() { return homeView.appColumnCount }
+    function moveAppSelection(horizontal, vertical) {
+        var columns = appColumns()
+        var last = activeApps.length // The Apps management tile is a real grid cell.
+        var index = Math.max(0, Math.min(last, focusIndex))
+        var row = Math.floor(index / columns)
+        var next = index + horizontal
+        if (horizontal) {
+            if (next < 0 || next > last || Math.floor(next / columns) !== row)
+                return
+        } else if (vertical < 0) {
+            if (row === 0) {
+                focusArea = "feature"
+                homeView.revealFeature()
+                return
+            }
+            next = index - columns
+        } else {
+            if (row === Math.floor(last / columns)) {
+                homeView.focusLens()
+                return
+            }
+            // A short final row has no cell in every column; use its last cell.
+            next = Math.min(last, index + columns)
+        }
+        selectApp(next)
+        homeView.revealApp(focusIndex)
+    }
     function toggleSaved(id) {
         var next = saved.slice(); var p = next.indexOf(id)
         if (p < 0) next.unshift(id); else next.splice(p, 1)
@@ -375,17 +445,133 @@ Item {
         var keys = ["all","watch","listen","read"], i = keys.indexOf(lens)
         selectLens(keys[(i + delta + keys.length) % keys.length])
     }
+    function cloneNavigationValue(value, fallback) {
+        try {
+            return JSON.parse(JSON.stringify(value))
+        } catch (e) {
+            return fallback
+        }
+    }
+    function navigationSnapshot() {
+        var safeState = viewState === "host" ? hostReturnState : viewState
+        if (["home", "title", "search", "seeAll", "apps"].indexOf(safeState) < 0)
+            safeState = "home"
+
+        var gridSnapshot = seeAllReturnSnapshot
+        if (safeState === "seeAll")
+            gridSnapshot = seeAllView.returnSnapshot()
+
+        return {
+            version: 1,
+            viewState: safeState,
+            lens: lens,
+            selectedApp: selectedApp,
+            selectedTitle: selectedTitle,
+            titleHistory: cloneNavigationValue(titleHistory, []),
+            query: query,
+            searchReturnState: searchReturnState,
+            seeAllKind: seeAllKind,
+            seeAllShelfId: seeAllShelfId,
+            seeAllTitle: seeAllTitle,
+            seeAllReturnLink: seeAllReturnLink,
+            seeAllReturnSnapshot: cloneNavigationValue(gridSnapshot, null),
+            focusArea: focusArea,
+            focusIndex: focusIndex,
+            shelfIndex: shelfIndex,
+            shelfCardIndex: shelfCardIndex,
+            titleActionIndex: titleActionIndex,
+            searchResultIndex: searchResultIndex,
+            appManagerIndex: appManagerIndex,
+            chipSelection: cloneNavigationValue(chipSelection, ({ albums:"spotify", artists:"spotify" })),
+            home: homeView.navigationSnapshot()
+        }
+    }
+    function restoreNavigationSnapshot(snapshot) {
+        if (!snapshot || Number(snapshot.version) !== 1)
+            return false
+
+        applyingNavigationSnapshot = true
+        navigationEpoch++
+        homeView.cancelRestoration()
+        seeAllView.cancelRestoration()
+        var nextLens = String(snapshot.lens || "all")
+        if (["all", "watch", "listen", "read"].indexOf(nextLens) < 0)
+            nextLens = "all"
+        lens = nextLens
+
+        chipSelection = cloneNavigationValue(snapshot.chipSelection, ({ albums:"spotify", artists:"spotify" }))
+
+        var nextApp = String(snapshot.selectedApp || "")
+        selectedApp = activeApps.indexOf(nextApp) >= 0 ? nextApp : (activeApps.length ? activeApps[0] : "")
+        selectedTitle = String(snapshot.selectedTitle || "")
+        titleHistory = cloneNavigationValue(snapshot.titleHistory, [])
+        query = String(snapshot.query || "")
+
+        var searchOrigin = String(snapshot.searchReturnState || "home")
+        searchReturnState = ["home", "title", "seeAll", "apps"].indexOf(searchOrigin) >= 0 ? searchOrigin : "home"
+
+        seeAllKind = snapshot.seeAllKind === "continue" ? "continue" : "shelf"
+        seeAllShelfId = String(snapshot.seeAllShelfId || "")
+        seeAllTitle = String(snapshot.seeAllTitle || "")
+        seeAllReturnLink = String(snapshot.seeAllReturnLink || "")
+        seeAllReturnSnapshot = cloneNavigationValue(snapshot.seeAllReturnSnapshot, null)
+
+        focusArea = ["feature", "app", "lens", "continue", "shelf"].indexOf(snapshot.focusArea) >= 0
+                ? snapshot.focusArea : "app"
+        focusIndex = Math.max(0, Math.min(activeApps.length, Number(snapshot.focusIndex || 0)))
+        shelfIndex = Math.max(0, Number(snapshot.shelfIndex || 0))
+        shelfCardIndex = Math.max(0, Number(snapshot.shelfCardIndex || 0))
+        titleActionIndex = Math.max(0, Number(snapshot.titleActionIndex || 0))
+        searchResultIndex = Number(snapshot.searchResultIndex !== undefined ? snapshot.searchResultIndex : -1)
+        appManagerIndex = Math.max(0, Number(snapshot.appManagerIndex || 0))
+        movingApp = false
+
+        var nextState = String(snapshot.viewState || "home")
+        if (["home", "title", "search", "seeAll", "apps"].indexOf(nextState) < 0)
+            nextState = "home"
+        if (nextState === "title" && !selectedTitle.length)
+            nextState = "home"
+        if (nextState === "seeAll" && seeAllKind === "shelf" && !seeAllShelfId.length)
+            nextState = "home"
+
+        homeView.restoreNavigationSnapshot(snapshot.home || ({}))
+        viewState = nextState
+        applyingNavigationSnapshot = false
+
+        if (viewState === "title")
+            requestAvailability(titleObj(selectedTitle))
+
+        deferNavigation(function() {
+            if (viewState === "search") {
+                if (searchView.searchField) searchView.searchField.forceActiveFocus()
+            } else if (viewState === "seeAll") {
+                seeAllView.restoreReturn(shell.seeAllReturnSnapshot)
+            } else {
+                content.forceActiveFocus()
+            }
+        })
+        return true
+    }
     function openSeeAll(shelf) {
+        navigationEpoch++
+        seeAllView.cancelRestoration()
         homeView.rememberLens()
+        seeAllReturnSnapshot = null
         seeAllKind = shelf ? "shelf" : "continue"
         seeAllShelfId = shelf ? shelf.id : ""
         seeAllTitle = shelf ? shelf.title : "Continue"
         seeAllReturnLink = shelf ? "feriaSeeAll_" + shelf.id : "feriaContinueRailHeader"
         viewState = "seeAll"
-        Qt.callLater(function() { seeAllView.resetSelection() })
+        seeAllResetTimer.restart()
+    }
+    Timer {
+        id: seeAllResetTimer
+        interval: 0
+        onTriggered: if (shell.viewState === "seeAll") seeAllView.resetSelection()
     }
     function openTitle(id) {
         if (!titleObj(id)) return
+        if (viewState === "seeAll") seeAllReturnSnapshot = seeAllView.returnSnapshot()
         if (sharedAccountActive) accountDestinationRequested()
         if (titleObj(id).resume) { resumeSession(titleObj(id).resume); return }
         titleHistory = titleHistory.concat([{state:viewState,id:selectedTitle}])
@@ -393,8 +579,10 @@ Item {
         requestAvailability(titleObj(id))
     }
     function openSearch(seed) {
+        if (viewState === "seeAll") seeAllReturnSnapshot = seeAllView.returnSnapshot()
+        if (viewState !== "search") searchReturnState = viewState
         query = seed || ""; searchResultIndex = -1; viewState = "search"
-        Qt.callLater(function() {
+        deferNavigation(function() {
             if (searchView.searchField) searchView.searchField.forceActiveFocus()
         })
     }
@@ -443,13 +631,16 @@ Item {
         } else if (viewState === "seeAll") {
             viewState = "home"
             homeView.restoreLens()
-            Qt.callLater(function() { homeView.focusRowLink(shell.seeAllReturnLink) })
+            deferNavigation(function() { homeView.focusRowLink(shell.seeAllReturnLink) })
             return
-        } else if (viewState === "search" || viewState === "apps" || viewState === "account") viewState = "home"
+        } else if (viewState === "search") {
+            var returnState = searchReturnState
+            viewState = ["home", "title", "seeAll", "apps"].indexOf(returnState) >= 0 ? returnState : "home"
+        } else if (viewState === "apps" || viewState === "account") viewState = "home"
         else if (focusArea === "shelf") { focusArea = "app"; shelfIndex = 0; shelfCardIndex = 0; homeView.revealApp(focusIndex) }
         else { homeRequested(); return }
-        if (viewState === "search") Qt.callLater(function() { searchView.searchField.forceActiveFocus() })
-        else if (viewState === "seeAll") Qt.callLater(function() { seeAllView.focusGrid() })
+        if (viewState === "search") deferNavigation(function() { searchView.searchField.forceActiveFocus() })
+        else if (viewState === "seeAll") deferNavigation(function() { seeAllView.restoreReturn(shell.seeAllReturnSnapshot) })
         else content.forceActiveFocus()
     }
     function activateTitleAction() {
@@ -537,6 +728,14 @@ Item {
         if (tab) accountTab = tab
     }
     onViewStateChanged: {
+        navigationEpoch++
+        if (!applyingNavigationSnapshot) {
+            if (homeView) {
+                if (viewState === "home") homeView.resumeRestoration()
+                else homeView.suspendRestoration()
+            }
+            if (seeAllView) seeAllView.cancelRestoration()
+        }
         if (viewState !== "host" && accountStore) accountStore.endVisit()
         accountHistoryFocusIndex = -1
         accountContentFocusActive = false
@@ -564,7 +763,12 @@ Item {
     function allSessions() { return recordedSessions }
     Connections {
         target: shell.accountStore
-        function onProfileChanged() { shell.viewState = "home" }
+        function onProfileChanged() {
+            shell.navigationEpoch++
+            homeView.cancelRestoration()
+            seeAllView.cancelRestoration()
+            shell.viewState = "home"
+        }
     }
     function sessionDay(s) {
         var d = new Date(s.at), n = new Date(), y = new Date(n)
@@ -670,6 +874,11 @@ Item {
         objectName: "keyboardTarget"
         anchors.fill: parent
         focus: true
+        onActiveFocusChanged: {
+            // Restoring/returning to Home must hand actual focus back to the shared rail.
+            if (activeFocus && shell.viewState === "home" && shell.focusArea === "continue")
+                shell.deferNavigation(function() { homeView.restoreContinueFocus() })
+        }
         Keys.onPressed: function(event) {
             if (shell.viewState === "search" || shell.viewState === "seeAll") return
             if (shell.viewState === "title") {
@@ -677,6 +886,8 @@ Item {
                 else if (event.key === Qt.Key_Up || event.key === Qt.Key_Left) shell.titleActionIndex = Math.max(0, shell.titleActionIndex - 1)
                 else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) shell.activateTitleAction()
                 else return
+                if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                    titleView.revealCurrentAction()
                 event.accepted = true; return
             }
             if (shell.viewState === "apps") {
@@ -695,6 +906,7 @@ Item {
             if (event.key === Qt.Key_BracketLeft) { shell.shiftLens(-1); event.accepted = true; return }
             if (event.key === Qt.Key_BracketRight) { shell.shiftLens(1); event.accepted = true; return }
             if (shell.viewState !== "home") return
+            shell.noteNavigationInput()
             if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
                 var n = event.key - Qt.Key_1
                 if (n < shell.activeApps.length) { shell.selectApp(n); shell.openHost(shell.activeApps[n], "", "home") }
@@ -709,8 +921,7 @@ Item {
                 var d = event.key === Qt.Key_Right ? 1 : -1
                 if (shell.movingApp) shell.moveApp(d)
                 else if (shell.focusArea === "app") {
-                    shell.selectApp(shell.focusIndex + d)
-                    homeView.revealApp(shell.focusIndex)
+                    shell.moveAppSelection(d, 0)
                 }
                 else if (shell.focusArea === "shelf") {
                     var items = shell.shelfItems(shell.shownShelves()[shell.shelfIndex])
@@ -725,14 +936,15 @@ Item {
                     if (v > 0) homeView.revealApp(shell.focusIndex)
                 }
                 else if (shell.focusArea === "app") {
-                    if (v < 0) { shell.focusArea = "feature"; homeView.revealFeature() }
+                    if (!shell.movingApp) shell.moveAppSelection(0, v)
+                    else if (v < 0) { shell.focusArea = "feature"; homeView.revealFeature() }
                     else { shell.focusArea = "lens"; homeView.focusLens() }
                 } else if (shell.focusArea === "lens") {
                     if (v < 0) { shell.focusArea = "app"; homeView.revealApp(shell.focusIndex) }
-                    else if (shell.shownShelves().length) { shell.focusArea = "shelf"; shell.shelfIndex = 0; shell.shelfCardIndex = 0; homeView.revealShelf(0) }
+                    else homeView.focusBelowLens()
                 } else if (shell.focusArea === "shelf") {
                     shell.shelfIndex += v
-                    if (shell.shelfIndex < 0) { shell.focusArea = "lens"; shell.shelfIndex = 0; homeView.focusLens() }
+                    if (shell.shelfIndex < 0) { shell.shelfIndex = 0; homeView.focusAboveShelves() }
                     else { shell.shelfIndex = Math.min(shell.shownShelves().length - 1, shell.shelfIndex); shell.shelfCardIndex = 0; homeView.revealShelf(shell.shelfIndex) }
                 }
                 event.accepted = true; return
@@ -824,6 +1036,7 @@ Item {
                 objectName: "feriaWorldTopBar"
                 backdrop: shell.backdrop
                 activeMedium: "Feria"
+                backLabel: shell.viewState === "home" ? "Home" : "Feria"
                 lifecycleActive: shell.lifecycleActive
                 wallpaperEnabled: false
                 x: shell.marginX; y: 30
@@ -831,7 +1044,10 @@ Item {
                 z: 80
                 visible: shell.sharedAccount && shell.viewState !== "account" && shell.viewState !== "host"
                 onMediumSelected: (medium) => shell.mediumSelected(medium)
-                onHomeRequested: shell.homeRequested()
+                onHomeRequested: {
+                    if (shell.viewState === "home") shell.homeRequested()
+                    else shell.back()
+                }
                 onSearchClicked: shell.openSearch("")
                 onAccountClicked: shell.openAccount()
                 onFullscreenClicked: shell.fullscreenClicked()

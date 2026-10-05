@@ -11,6 +11,96 @@ Item {
     readonly property real u: controller.unit
     readonly property real m: controller.marginX
     property bool snapReveal: false
+    readonly property int appColumnCount: appsGrid.columns
+    property var continueKeyboardRail: null
+    property var pendingContinueSelection: null
+    readonly property bool hasContinue: continueRow.visible && continueRow.items.length > 0
+
+    function findNamedItem(item, name) {
+        if (!item) return null
+        if (item.objectName === name) return item
+        for (var i = 0; i < item.children.length; ++i) {
+            var found = findNamedItem(item.children[i], name)
+            if (found) return found
+        }
+        return null
+    }
+    function continueSelection() {
+        if (pendingContinueSelection) return pendingContinueSelection
+        var rail = continueKeyboardRail
+        return rail ? { index:rail.currentIndex,
+                        identity:rail.keyboardIdentityForIndex(rail.currentIndex) } : null
+    }
+    function focusContinue() {
+        var rail = continueKeyboardRail
+        if (!hasContinue || !rail) return false
+        controller.focusArea = "continue"
+        var index = rail.currentIndex
+        if (pendingContinueSelection) {
+            index = rail.keyboardIndexForIdentity(pendingContinueSelection.identity)
+            if (index < 0) index = Number(pendingContinueSelection.index || 0)
+            pendingContinueSelection = null
+        }
+        index = Math.max(0, Math.min(continueRow.ordered.length - 1, index))
+        rail.keyboardRevealIndex(index)
+        rail.forceActiveFocus(Qt.TabFocusReason)
+        revealContinue()
+        continueRevealTimer.restart()
+        return true
+    }
+    function revealContinue() {
+        var rail = continueKeyboardRail
+        if (!rail) return
+        var oldSnapReveal = snapReveal
+        snapReveal = true
+        ensureVisible(rail)
+        snapReveal = oldSnapReveal
+    }
+    Timer {
+        id: continueRevealTimer
+        interval: 60
+        repeat: false
+        onTriggered: if (home.visible && home.controller.viewState === "home"
+                         && !home.controller.navigationSuspended
+                         && home.controller.focusArea === "continue") home.revealContinue()
+    }
+    function restoreContinueFocus() {
+        if (controller.viewState !== "home" || controller.focusArea !== "continue"
+                || pendingNavigationPosition) return
+        if (!focusContinue()) focusLens()
+    }
+    function focusFirstShelf() {
+        if (!controller.shownShelves().length) return false
+        controller.focusArea = "shelf"
+        controller.shelfIndex = 0
+        controller.shelfCardIndex = 0
+        controller.keyboardTarget.forceActiveFocus()
+        revealShelf(0)
+        return true
+    }
+    function focusBelowLens() {
+        if (!focusContinue()) focusFirstShelf()
+    }
+    function focusAboveShelves() {
+        if (!focusContinue()) focusLens()
+    }
+    function leaveContinue(event) {
+        // Left/Right, Enter and context actions stay in ContinueRow's controller.
+        if (event.key === Qt.Key_Up) focusLens()
+        else if (event.key === Qt.Key_Down) focusFirstShelf()
+        else return
+        event.accepted = true
+    }
+    Connections {
+        target: home.continueKeyboardRail
+        function onActiveFocusChanged() {
+            if (home.continueKeyboardRail.activeFocus) {
+                home.controller.focusArea = "continue"
+                if (!home.pendingNavigationPosition)
+                    home.ensureVisible(home.continueKeyboardRail)
+            }
+        }
+    }
     readonly property real contentLeft: rowIndex.contentLeft
     readonly property bool tabsDocked: {
         page.contentY
@@ -21,6 +111,9 @@ Item {
     readonly property real contentTopInset: tabsDocked ? 166 : 108
     property var lensPositions: ({})
     property var pendingLensPosition: null
+    property var pendingNavigationPosition: null
+    property int navigationRestoreAttempts: 0
+    property int navigationRestoreStablePasses: 0
     property int shelfRevision: 0
     function focusRowLink(name, item) {
         item = item || home
@@ -47,7 +140,68 @@ Item {
         }
         return rows
     }
+    function boundFocusSelection() {
+        controller.focusIndex = Math.max(0, Math.min(controller.activeApps.length, controller.focusIndex))
+        var shelves = controller.shownShelves()
+        controller.shelfIndex = Math.max(0, Math.min(Math.max(0, shelves.length - 1), controller.shelfIndex))
+        var cards = shelves.length ? controller.shelfItems(shelves[controller.shelfIndex]) : []
+        controller.shelfCardIndex = Math.max(0, Math.min(Math.max(0, cards.length - 1), controller.shelfCardIndex))
+        if (!shelves.length && controller.focusArea === "shelf") controller.focusArea = "lens"
+    }
+    function cancelRestoration() {
+        boundFocusSelection()
+        pendingNavigationPosition = null
+        pendingLensPosition = null
+        pendingContinueSelection = null
+        restoreNavigationPosition.stop()
+        restorePosition.stop()
+        continueRevealTimer.stop()
+        resizeReveal.stop()
+        navigationRestoreAttempts = 0
+        navigationRestoreStablePasses = 0
+        pageGlide.cancelGlide()
+    }
+    function suspendRestoration() {
+        // Keep the intended parked position, but surrender timer/focus authority.
+        restoreNavigationPosition.stop()
+        restorePosition.stop()
+        continueRevealTimer.stop()
+        resizeReveal.stop()
+    }
+    function resumeRestoration() {
+        if (!visible || controller.viewState !== "home" || controller.navigationSuspended) return
+        if (pendingNavigationPosition) restoreNavigationPosition.restart()
+        else if (pendingLensPosition) restorePosition.restart()
+    }
+    function restoreNavigationStep() {
+        if (!pendingNavigationPosition) { restoreNavigationPosition.stop(); return }
+        if (!visible || controller.viewState !== "home" || controller.navigationSuspended) {
+            suspendRestoration()
+            return
+        }
+        var complete = applyPosition(pendingNavigationPosition)
+        navigationRestoreAttempts++
+        navigationRestoreStablePasses = complete ? navigationRestoreStablePasses + 1 : 0
+        if (navigationRestoreStablePasses >= 10 || navigationRestoreAttempts >= 15) {
+            pendingNavigationPosition = null
+            navigationRestoreAttempts = 0
+            navigationRestoreStablePasses = 0
+            restoreNavigationPosition.stop()
+            boundFocusSelection()
+            restoreContinueFocus()
+        }
+    }
+    FeriaRestorationInput {
+        id: restorationInput
+        enabled: home.visible && controller.viewState === "home" && !controller.navigationSuspended
+        onUserInput: controller.noteNavigationInput()
+    }
     function rememberLens() {
+        var intended = pendingNavigationPosition || pendingLensPosition
+        if (intended) {
+            lensPositions[controller.lens] = JSON.parse(JSON.stringify(intended))
+            return
+        }
         pageGlide.cancelGlide()
         var rails = ({})
         for (var i = 0; i < shelfRepeater.count; ++i) {
@@ -56,7 +210,34 @@ Item {
         }
         lensPositions[controller.lens] = {y:page.contentY, rails:rails}
     }
+    function navigationSnapshot() {
+        rememberLens()
+        try {
+            return { lensPositions: JSON.parse(JSON.stringify(lensPositions || ({}))),
+                     continueSelection: continueSelection() }
+        } catch (e) {
+            return { lensPositions: ({}) }
+        }
+    }
+    function restoreNavigationSnapshot(snapshot) {
+        var positions = snapshot && snapshot.lensPositions ? snapshot.lensPositions : ({})
+        try {
+            lensPositions = JSON.parse(JSON.stringify(positions))
+        } catch (e) {
+            lensPositions = ({})
+        }
+        pendingContinueSelection = snapshot && snapshot.continueSelection
+                ? snapshot.continueSelection : null
+        resizeReveal.stop()
+        pendingNavigationPosition = lensPositions[controller.lens] || ({ y:0, rails:({}) })
+        navigationRestoreAttempts = 0
+        navigationRestoreStablePasses = 0
+        resumeRestoration()
+    }
     function restoreLens() {
+        // The new lens owns this request; a previous lens must not keep replaying.
+        pendingNavigationPosition = null
+        restoreNavigationPosition.stop()
         pendingLensPosition = lensPositions[controller.lens] || {
             y:Math.min(page.contentY, Math.max(0, lensRail.y - 96)), rails:({})
         }
@@ -74,13 +255,7 @@ Item {
             controller.keyboardTarget.forceActiveFocus()
             revealApp(controller.focusIndex)
         } else if (event.key === Qt.Key_Down) {
-            if (controller.shownShelves().length) {
-                controller.focusArea = "shelf"
-                controller.shelfIndex = 0
-                controller.shelfCardIndex = 0
-                controller.keyboardTarget.forceActiveFocus()
-                revealShelf(0)
-            }
+            focusBelowLens()
         } else return
         event.accepted = true
     }
@@ -92,22 +267,48 @@ Item {
             to.forceActiveFocus(Qt.OtherFocusReason)
         }
     }
+    function applyPosition(position) {
+        if (!position) return true
+        homeColumn.forceLayout()
+        pageGlide.cancelGlide()
+
+
+        var desiredY = Number(position.y || 0)
+        page.contentY = home.boundedContentY(desiredY)
+
+        var rails = position.rails || ({})
+        var expectedRails = 0
+        var restoredRails = 0
+        for (var i = 0; i < shelfRepeater.count; ++i) {
+            var shelf = shelfRepeater.itemAt(i)
+            if (!shelf) continue
+            var key = shelf.modelData.id
+            if (rails[key] !== undefined) {
+                expectedRails++
+                var requestedX = shelf.boundedRailX(Number(rails[key]))
+                shelf.restoreRail(requestedX)
+                if (Math.abs(shelf.railContentX - requestedX) < 0.5)
+                    restoredRails++
+            }
+        }
+        return Math.abs(page.contentY - home.boundedContentY(desiredY)) < 0.5
+                && restoredRails >= expectedRails
+    }
     Timer {
         id: restorePosition
         interval: 0
         onTriggered: {
-            if (!home.pendingLensPosition) return
-            var position = home.pendingLensPosition
-            homeColumn.forceLayout()
-            pageGlide.cancelGlide()
-            page.contentY = home.boundedContentY(position.y)
-            for (var i = 0; i < shelfRepeater.count; ++i) {
-                var shelf = shelfRepeater.itemAt(i)
-                if (shelf && position.rails[shelf.modelData.id] !== undefined)
-                    shelf.restoreRail(position.rails[shelf.modelData.id])
-            }
+            if (!home.pendingLensPosition || !home.visible
+                    || controller.viewState !== "home" || controller.navigationSuspended) return
+            home.applyPosition(home.pendingLensPosition)
             home.pendingLensPosition = null
         }
+    }
+    Timer {
+        id: restoreNavigationPosition
+        interval: 60
+        repeat: true
+        onTriggered: home.restoreNavigationStep()
     }
 
     function boundedContentY(value) {
@@ -181,8 +382,13 @@ Item {
     }
     function revealLens() { if (!tabsDocked) ensureVisible(lensRail) }
     function focusLens() {
+        controller.focusArea = "lens"
         revealLens()
-        (tabsDocked ? lensDock : lensTabs).forceActiveFocus(Qt.TabFocusReason)
+        var target = tabsDocked ? lensDock : lensTabs
+        if (!target) return
+        target.focus = true
+        if (typeof target.forceActiveFocus === "function")
+            target.forceActiveFocus(Qt.TabFocusReason)
     }
     function focusedItem() {
         if (controller.focusArea === "feature")
@@ -191,6 +397,8 @@ Item {
             return appRepeater.itemAt(controller.focusIndex)
         if (controller.focusArea === "lens")
             return lensRail
+        if (controller.focusArea === "continue")
+            return continueKeyboardRail
         if (controller.focusArea === "shelf") {
             var shelfItem = shelfRepeater.itemAt(controller.shelfIndex)
             return shelfItem
@@ -226,20 +434,25 @@ Item {
     }
     readonly property real focusScrollY: page.contentY
 
-    onWidthChanged: resizeReveal.restart()
-    onHeightChanged: resizeReveal.restart()
+    onWidthChanged: if (!pendingNavigationPosition && !pendingLensPosition) resizeReveal.restart()
+    onHeightChanged: if (!pendingNavigationPosition && !pendingLensPosition) resizeReveal.restart()
 
     Timer {
         id: resizeReveal
         interval: 100
         repeat: false
-        onTriggered: home.snapCurrentFocus()
+        onTriggered: if (home.visible && controller.viewState === "home"
+                         && !controller.navigationSuspended && !home.pendingNavigationPosition
+                         && !home.pendingLensPosition) home.snapCurrentFocus()
     }
 
     Connections {
         target: page
         function onContentHeightChanged() {
             if (home.pendingLensPosition) restorePosition.restart()
+            if (home.controller.focusArea === "continue" && home.continueKeyboardRail
+                    && home.continueKeyboardRail.activeFocus)
+                continueRevealTimer.restart()
         }
     }
 
@@ -300,6 +513,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         interactive: true
+        onDraggingChanged: if (dragging) controller.noteNavigationInput()
         ScrollBar.vertical: Colosseum.HouseScrollBar { flick: page }
 
         Column {
@@ -383,7 +597,7 @@ Item {
                         MouseArea {
                             anchors.fill: parent
                             hoverEnabled: true
-                            onEntered: controller.focusArea = "feature"
+                            onEntered: if (!home.pendingNavigationPosition && !home.pendingLensPosition) controller.focusArea = "feature"
                             onClicked: controller.featured().item ? controller.openTitle(controller.featured().item.id) : controller.openHost(controller.selectedApp,"","home")
                         }
                     }
@@ -420,7 +634,7 @@ Item {
                                 displayFont: controller.displayFont
                                 uiFont: controller.uiFont
                                 ink: controller.ink; mist:controller.mist; slate:controller.slate; gold:controller.gold
-                                onEntered: { controller.selectApp(index) }
+                                onEntered: { if (!home.pendingNavigationPosition && !home.pendingLensPosition) controller.selectApp(index) }
                                 onTriggered: {
                                     controller.selectApp(index)
                                     if (pk) controller.openHost(pk,"","home"); else controller.openApps()
@@ -452,6 +666,8 @@ Item {
                     ]
                     tabPrefix: "feriaLens"
                     currentTab: controller.lens
+                    Keys.forwardTo: [restorationInput]
+                    onActiveFocusChanged: if (activeFocus) controller.focusArea = "lens"
                     onTabRequested: (tab) => {
                         controller.focusArea = "lens"
                         controller.selectLens(tab)
@@ -464,6 +680,18 @@ Item {
                 x: m; width: parent.width - 2 * m
                 controller: home.controller
                 bottomPadding: 36
+                Component.onCompleted: {
+                    home.continueKeyboardRail = home.findNamedItem(continueRow, "feriaContinueRail")
+                    if (home.continueKeyboardRail)
+                        home.continueKeyboardRail.Keys.forwardTo = [restorationInput]
+                }
+                Keys.priority: Keys.AfterItem
+                Keys.onPressed: (event) => home.leaveContinue(event)
+                onVisibleChanged: {
+                    if (!visible && controller.focusArea === "continue"
+                            && controller.viewState === "home" && !home.pendingNavigationPosition)
+                        home.focusLens()
+                }
             }
 
             Repeater {
@@ -476,9 +704,12 @@ Item {
                     required property var modelData
                     required property int index
                     readonly property real railContentX: rail.contentX
+                    function boundedRailX(value) {
+                        return Math.max(rail.originX, Math.min(rail.originX + Math.max(0, rail.contentWidth - rail.width), value))
+                    }
                     function restoreRail(value) {
                         rail.forceLayout()
-                        rail.contentX = Math.max(rail.originX, Math.min(rail.originX + Math.max(0, rail.contentWidth - rail.width), value))
+                        rail.contentX = boundedRailX(value)
                     }
                     width: homeColumn.width
                     height: 50 + rail.height + controller.galleryMetrics.shelfGap
@@ -542,7 +773,7 @@ Item {
                             toneB: controller.toneFor(modelData)[1]
                             displayFont: controller.displayFont
                             ink:controller.ink; mist:controller.mist; slate:controller.slate; gold:controller.gold
-                            onEntered: { controller.focusArea="shelf"; controller.shelfIndex=shelf.index; controller.shelfCardIndex=index }
+                            onEntered: { if (!home.pendingNavigationPosition && !home.pendingLensPosition) { controller.focusArea="shelf"; controller.shelfIndex=shelf.index; controller.shelfCardIndex=index } }
                             onTriggered: controller.openTitle(modelData)
                         }
                         Connections {
@@ -610,6 +841,8 @@ Item {
         contentTrack: page.contentY
         tabModel: lensTabs.tabModel
         currentTab: controller.lens
+        Keys.forwardTo: [restorationInput]
+        onActiveFocusChanged: if (activeFocus) controller.focusArea = "lens"
         z: 36
         onTabRequested: (tab) => lensTabs.tabRequested(tab)
         Keys.priority: Keys.AfterItem

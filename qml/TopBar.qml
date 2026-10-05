@@ -22,6 +22,9 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
+    // World roots keep the historical Home destination; nested surfaces can name their
+    // owning world without inventing a second Back control.
+    property string backLabel: "Home"
     // With backOnly, the page names itself beside the arrow (as Your Colosseum does).
     property string pageTitle: ""
     property string pageSubtitle: ""
@@ -219,7 +222,7 @@ Item {
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            label: bar.backOnly && bar.pageTitle.length ? "" : "Home"
+            label: bar.backOnly && bar.pageTitle.length ? "" : bar.backLabel
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtTest
 import "../../qml/feria"
 
 Window {
@@ -15,6 +16,28 @@ Window {
     property var sidebar: null
     property var tabs: null
     property var dock: null
+    TestCase {
+        id: eventPump
+        when: windowShown
+        function run() {
+            while (!window.finished) wait(50)
+        }
+    }
+    Timer {
+        interval: 100; running: true
+        onTriggered: { window.hide(); window.show(); window.requestActivate() }
+    }
+    Timer {
+        interval: 500; running: true
+        onTriggered: {
+            try { eventPump.run() }
+            finally {
+                browserReporter.report("feria-navigation", window.finished && window.phase >= 13,
+                                       "Navigation reached every acceptance phase")
+                browserReporter.finish()
+            }
+        }
+    }
     function find(item, name) {
         if (item.objectName === name) return item
         for (var i = 0; i < item.children.length; ++i) {
@@ -40,6 +63,9 @@ Window {
         id: step
         interval: 400; repeat: true; running: true
         onTriggered: {
+            // Wait for the actual replay before setting the next fixture
+            // position. Direct contentY writes do not signal deliberate input.
+            if (window.home && (home.pendingLensPosition || home.pendingNavigationPosition)) return
             if (window.phase === 0) {
                 window.home = window.find(feria,"home-focus-variant")
                 window.scroll = window.find(feria,"feriaHomeScroll")

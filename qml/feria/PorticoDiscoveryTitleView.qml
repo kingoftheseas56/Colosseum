@@ -43,6 +43,43 @@ Item {
         }
         return groups
     }
+    function actionItem(index) {
+        if (index < doors.length) {
+            for (var g = 0; g < offerRepeater.count; ++g) {
+                var section = offerRepeater.itemAt(g)
+                var item = section ? section.actionItem(index) : null
+                if (item) return item
+            }
+        } else if (index === doors.length) return saveAction
+        else return relatedRepeater.itemAt(index - doors.length - 1)
+        return null
+    }
+    function revealItem(item) {
+        if (!item) return
+        var p = item.mapToItem(scroll.contentItem, 0, 0)
+        var pad = 8
+        var topInset = Math.max(108, 7 * u)
+        var target = scroll.contentY
+        if (p.y - pad < target + topInset)
+            target = p.y - pad - topInset
+        else if (p.y + item.height + pad > target + scroll.height)
+            target = p.y + item.height + pad - scroll.height
+        // Synchronous reveal avoids a queue of animations trailing repeated arrows.
+        scroll.contentY = Math.max(0, Math.min(Math.max(0, scroll.contentHeight - scroll.height), target))
+        var x = scroll.contentX
+        if (p.x - pad < x) x = p.x - pad
+        else if (p.x + item.width + pad > x + scroll.width)
+            x = p.x + item.width + pad - scroll.width
+        scroll.contentX = Math.max(0, Math.min(Math.max(0, scroll.contentWidth - scroll.width), x))
+    }
+    function revealCurrentAction() {
+        if (visible) revealItem(actionItem(controller.titleActionIndex))
+    }
+    onWidthChanged: Qt.callLater(revealCurrentAction)
+    onHeightChanged: Qt.callLater(revealCurrentAction)
+    onVisibleChanged: if (visible) Qt.callLater(revealCurrentAction)
+    onDoorsChanged: if (visible) Qt.callLater(revealCurrentAction)
+
     function providerKey(door) { return door.pk || door.providerId || "" }
     function providerLabel(door) { return door.label || controller.providerName(providerKey(door)) }
     function offerAction(door) {
@@ -112,8 +149,10 @@ Item {
     }
     Flickable {
         id: scroll
+        objectName: "feriaTitleScroll"
         anchors.fill: parent
-        contentWidth: width
+        contentWidth: Math.max(width, body.x + body.implicitWidth + m,
+                               body.x + detailColumn.x + relatedRow.x + relatedRow.width + m)
         contentHeight: body.implicitHeight + 15*u
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -148,6 +187,7 @@ Item {
             }
 
             Column {
+                id: detailColumn
                 width:Math.min(56*u, scroll.width - 18*u - 2*m)
                 spacing:0.65*u
                 Text { text:root.it?Data.KIND[root.it.k]:""; color:controller.mist; font.family:controller.uiFont; font.pixelSize:1*u }
@@ -204,7 +244,14 @@ Item {
                     Text {
                         visible:root.availability.status === "error" || root.availability.status === "unmatched"
                         text:"Retry"; color:controller.gold; font.family:controller.uiFont; font.pixelSize:13; font.underline:true
-                        MouseArea { anchors.fill:parent; cursorShape:Qt.PointingHandCursor; onClicked:controller.requestAvailability(root.it,true) }
+                        Colosseum.KeyboardAction {
+                            objectName: "feriaAvailabilityRetry"
+                            anchors.fill: parent
+                            accessibleName: "Retry availability"
+                            focusRadius: 2
+                            onActiveFocusChanged: if (activeFocus) root.revealItem(parent)
+                            onTriggered: controller.requestAvailability(root.it, true)
+                        }
                     }
                 }
                 Text { visible:root.offerGroups.length===0; text:"No provider options are listed for this title yet."; color:controller.mist; font.family:controller.uiFont; font.pixelSize:0.92*u }
@@ -213,10 +260,18 @@ Item {
                     width:parent.width
                     spacing:1.15*u
                     Repeater {
+                        id: offerRepeater
                         model:root.offerGroups
                         delegate:Column {
                             id: offerSection
                             required property var modelData
+                            function actionItem(sourceIndex) {
+                                for (var i = 0; i < doorRepeater.count; ++i) {
+                                    var item = doorRepeater.itemAt(i)
+                                    if (item && item.sourceIndex === sourceIndex) return item
+                                }
+                                return null
+                            }
                             width:offerSections.width
                             spacing:0.55*u
                             Text {
@@ -242,6 +297,7 @@ Item {
                                 columns: width >= 42*u ? 2 : 1
                                 spacing:0.8*u
                                 Repeater {
+                                    id: doorRepeater
                                     model:offerSection.modelData.items
                                     delegate:Rectangle {
                                         required property var modelData
@@ -319,6 +375,8 @@ Item {
                     topPadding:0.4*u
                     spacing:0.7*u
                     Rectangle {
+                        id: saveAction
+                        objectName: "feriaTitleSave"
                         width:6*u;height:2.9*u;radius:0.8*u
                         color:controller.titleActionIndex===root.doors.length?Qt.rgba(1,1,1,0.09):Qt.rgba(1,1,1,0.06)
                         border.width:controller.titleActionIndex===root.doors.length?0.1875*u:1
@@ -337,9 +395,11 @@ Item {
                     font.weight:Font.Medium
                 }
                 Row {
+                    id: relatedRow
                     visible:root.related.length>0
                     spacing:1.25*u
                     Repeater {
+                        id: relatedRepeater
                         model:root.related
                         delegate:PorticoCombinedMediaCard {
                             required property string modelData
