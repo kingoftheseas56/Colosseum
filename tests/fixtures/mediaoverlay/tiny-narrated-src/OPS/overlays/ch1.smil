@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smil xmlns="http://www.w3.org/ns/SMIL" xmlns:epub="http://www.idpf.org/2007/ops" version="3.0"><body><seq id="chapter1" epub:type="chapter" epub:textref="../text/ch1.xhtml"><seq id="section1" epub:type="section" epub:textref="../text/ch1.xhtml#s1">
+<par id="p1"><text src="../text/ch1.xhtml#s1"/><audio src="../audio/one.mp3" clipBegin="0s" clipEnd="1s"/></par>
+<par id="p2"><text src="../text/ch1.xhtml#s2"/><audio src="../audio/one.mp3" clipBegin="1s" clipEnd="2s"/></par>
+</seq></seq></body></smil>

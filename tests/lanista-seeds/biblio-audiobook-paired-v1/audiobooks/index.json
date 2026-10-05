@@ -1,0 +1,19 @@
+{
+  "arc 19 book|test author": {
+    "dir": "__APPDATA__/audiobooks/ac85a8e91ce5a13c",
+    "files": [
+      "__APPDATA__/audiobooks/ac85a8e91ce5a13c/01 - chapter.wav",
+      "__APPDATA__/audiobooks/ac85a8e91ce5a13c/02 - chapter.wav"
+    ],
+    "title": "Arc 19 Book",
+    "author": "Test Author",
+    "bookId": "",
+    "bookPath": "__APPDATA__/books/tiny-book.epub",
+    "bytes": 529356,
+    "addedAt": 1756314000000,
+    "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "releaseSlug": "arc64-original-tone",
+    "format": "WAV",
+    "sizeLabel": "2 \u00d7 3 seconds"
+  }
+}

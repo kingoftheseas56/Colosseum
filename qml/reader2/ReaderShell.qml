@@ -15,6 +15,9 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 import "Reader2Logic.js" as L
+import "../AbbApi.js" as Abb
+import "../AudiobookOfferLogic.js" as Offer
+import "../AudiobookSessionLogic.js" as SessionLogic
 import "../BiblioApi.js" as B    // pairKey(title, author) — the ONE derivation Biblio keys audiobooks by
 import "../Reader2ActivityHelpers.js" as AH   // Your Colosseum reading activity (Slice D8, CPP-PORT-CONTRACT.md §9 Lane D)
 
@@ -385,9 +388,113 @@ FocusScope {
     // The session is LIVE for THIS book when it's loaded and streaming our pairKey (it may
     // be streaming a DIFFERENT book — another reader/full player — in which case our
     // transport shows the idle state, never the other book's position).
+    readonly property bool audioAttachedForAutomation: shell.audioAttached
+
     readonly property bool audioSessionLive: !!(shell.audioSession && shell.audioSession.ready
                                                 && shell.audioSession.activePairKey === shell.audioPairKey
                                                 && shell.audioPairKey !== "")
+
+    // Arc64: one open-book lookup; asynchronous results carry all ownership fences.
+    property var audioLookup: ({loading:false,error:false,rows:[]})
+    property int audioLookupGeneration: 0
+    property int audioDownloadRevision: 0
+    property bool audioHashResolving: false
+    property bool audioHashFailed: false
+    property bool audioOfferShowVersions: false
+    property bool audioOfferChipVisible: false
+    property var pendingOfferChapterSync: null
+    readonly property string audioLookupTitle: String(shell.bookMeta.title || shell.bookTitle || "")
+    readonly property string audioLookupAuthor: String(shell.bookMeta.author || shell.bookAuthor || "")
+    readonly property string audioLookupKey: shell.bookMeta && shell.bookMeta.pairKey
+        ? String(shell.bookMeta.pairKey) : B.pairKey(shell.audioLookupTitle,shell.audioLookupAuthor)
+    readonly property var audioPick: Abb.pickAudiobook(shell.audioLookup.rows || [], {title:shell.audioLookupTitle,author:shell.audioLookupAuthor,language:shell.bookMeta.language || ""})
+    readonly property var audioOfferStatus: (shell.audioDownloadRevision, shell.audioLookupKey,
+        typeof Audiobooks !== "undefined" ? Audiobooks.statusOf(shell.audioLookupKey) : ({}))
+    readonly property var audioOffer: Offer.offerState({lookup:shell.audioLookup,pick:shell.audioPick,
+        status:shell.audioHashResolving ? {state:"resolving"} : shell.audioOfferStatus,
+        downloaded:shell.audioAttached,failed:shell.audioHashFailed})
+    function audioOfferContext() {
+        return {path:shell.bookPath,id:shell.bookId,gen:shell.currentGen,
+            profile:Number(Reader2Bridge.personalStateGeneration),lookup:shell.audioLookupGeneration}
+    }
+    function ownsAudioOffer(ctx) {
+        return ctx && shell.bookReady && !shell.personalStateSealed && ctx.path === shell.bookPath
+            && ctx.id === shell.bookId && ctx.gen === shell.currentGen
+            && ctx.profile === Number(Reader2Bridge.personalStateGeneration)
+            && ctx.lookup === shell.audioLookupGeneration
+    }
+    function resetAudioOffer() {
+        shell.audioLookupGeneration += 1
+        shell.audioLookup = {loading:false,error:false,rows:[]}
+        shell.audioHashResolving = false; shell.audioHashFailed = false
+        shell.audioOfferShowVersions = false; shell.audioOfferChipVisible = false
+        shell.pendingOfferChapterSync = null
+    }
+    function lookupAudioOffer() {
+        if (!shell.bookReady || shell.personalStateSealed || !shell.audioLookupTitle || shell.audioAttached) return
+        var ctx = shell.audioOfferContext()
+        shell.audioLookup = {loading:true,error:false,rows:[]}
+        Abb.resolveAudiobook(shell.audioLookupTitle,shell.audioLookupAuthor,function(result) {
+            if (!shell.ownsAudioOffer(ctx)) return
+            shell.audioLookup = {loading:false,error:!result || result.error === true,rows:result && result.rows ? result.rows : []}
+        })
+    }
+    function maybeShowAudioChip() {
+        if (!chrome || !chrome.awake || !shell.bookReady || shell.personalStateSealed) return
+        if (shell.audioOffer.offerState !== "available" && shell.audioOffer.offerState !== "choose") return
+        var ctx = shell.audioOfferContext(), all = Reader2Bridge.settingsGet() || ({})
+        var seen = all.audiobookOfferSeen || ({})
+        if (seen[ctx.id]) return
+        shell.audioOfferChipVisible = true
+        seen[ctx.id] = true; all.audiobookOfferSeen = seen
+        if (shell.ownsAudioOffer(ctx)) Reader2Bridge.settingsSaveForGeneration(all,ctx.profile)
+    }
+    onAudioOfferChanged: shell.maybeShowAudioChip()
+    function getAudioOffer(row) {
+        row = row || shell.audioPick.pick
+        if (!row || shell.audioHashResolving || shell.audioAttached || typeof Audiobooks === "undefined") return
+        var state = String(shell.audioOfferStatus.state || "")
+        if (state === "resolving" || state === "downloading" || state === "queued") return
+        var ctx = shell.audioOfferContext(), pk = shell.audioLookupKey
+        if (!shell.ownsAudioOffer(ctx)) return
+        var title = shell.audioLookupTitle, author = shell.audioLookupAuthor
+        shell.audioHashResolving = true; shell.audioHashFailed = false
+        Abb.fetchInfoHash(row.slug,function(data) {
+            if (!shell.ownsAudioOffer(ctx)) return
+            shell.audioHashResolving = false
+            if (!data || !data.infoHash) { shell.audioHashFailed = true; return }
+            Audiobooks.downloadAudiobook(pk,data.infoHash,title,author,ctx.id,ctx.path,
+                {releaseSlug:String(row.slug || ""),format:String(row.format || ""),sizeLabel:String(row.size || "")})
+            shell.audioDownloadRevision += 1
+        })
+    }
+    function finishOfferChapterSync() {
+        var ctx = shell.pendingOfferChapterSync
+        if (!shell.ownsAudioOffer(ctx) || !shell.audioSessionLive) return
+        shell.pendingOfferChapterSync = null
+        var chapter = L.chapterFor(shell.currentTocIndex,shell.bookToc,shell.audioSession.chapterModel || [])
+        if (chapter >= 0) shell.audioSession.goToChapterKeepState(chapter)
+        shell.audioSession.paused = true
+    }
+    Connections {
+        target: typeof Audiobooks !== "undefined" ? Audiobooks : null
+        function onProgress(key, received, total) { if (key === shell.audioLookupKey) shell.audioDownloadRevision += 1 }
+        function onResolving(key) { if (key === shell.audioLookupKey) shell.audioDownloadRevision += 1 }
+        function onFailed(key, reason) { if (key === shell.audioLookupKey) { shell.audioDownloadRevision += 1; shell.audioHashFailed = true } }
+        function onRemoved(key) { if (key === shell.audioLookupKey) shell.audioDownloadRevision += 1 }
+        function onActiveCountChanged() { shell.audioDownloadRevision += 1 }
+        function onFinished(key, path) {
+            if (key !== shell.audioLookupKey || !shell.bookReady || shell.personalStateSealed) return
+            shell.audioDownloadRevision += 1
+            shell.healAudioPairing()
+            shell.pendingOfferChapterSync = shell.audioOfferContext()
+            if (!shell.prepareAttachedAudio()) shell.pendingOfferChapterSync = null
+        }
+    }
+    Connections {
+        target: shell.audioSession
+        function onNarrationLoaded() { shell.finishOfferChapterSync() }
+    }
 
     // ---- card + transport props (fed to the chrome → LeftPanel Audio pane) ----
     readonly property string audioTitle:
@@ -432,6 +539,7 @@ FocusScope {
     // acted on a LIVE stream). The choice now lives shell-side: cycling always works and
     // shows, and it's applied to the session on load and on every cycle while live.
     property real audioChosenSpeed: 1.0
+    property bool audioSpeedPending: false
     readonly property string audioSpeedLabel: L.speedLabel(shell.audioChosenSpeed)
 
     // ---- driving the shared session ----
@@ -451,8 +559,26 @@ FocusScope {
         if (!shell.audioSession || shell.audioPairKey === "") return false
         if (typeof Audiobooks !== "undefined" && !Audiobooks.isDownloaded(shell.audioPairKey)) return false
         shell.audioSession.openFor(shell.audioPairKey, shell.audioSessionBook(), startPaused === true)
-        if (shell.audioSession.setRate) shell.audioSession.setRate(shell.audioChosenSpeed)  // carry the chosen speed in
+        if (shell.audioSpeedPending) {
+            shell.audioSession.setRate(shell.audioChosenSpeed)
+            shell.audioSpeedPending = false
+        }
+        shell.audioChosenSpeed = shell.audioSession.speed // this book owns its restored speed
         return !!shell.audioSession.ready
+    }
+
+    // Passive reader entry must not replace another book's live narration. Explicit
+    // Play/Follow still own that switch; speed can be chosen locally until then.
+    function prepareAttachedAudio() {
+        if (!shell.audioAttached || !shell.audioSession) return false
+        if (shell.audioSession.ready && shell.audioSession.activePairKey !== shell.audioPairKey)
+            return false
+        return shell.ensureAudioLoaded(true)
+    }
+    function restoreAudioSpeedChoice() {
+        var pg = typeof Progress !== "undefined" ? Progress.get("audiobook", shell.audioPairKey) : null
+        shell.audioChosenSpeed = SessionLogic.speedFromResume(pg ? pg.resume : null)
+        shell.audioSpeedPending = false
     }
 
     // The speed cycle (AudiobookPlayer's ladder), shared by the transport pill.
@@ -602,11 +728,13 @@ FocusScope {
     // Cycle the playback speed — works BEFORE play too (the choice persists shell-side
     // and is applied when the stream loads; live streams re-rate immediately).
     function audioCycleSpeed() {
+        if (!shell.audioSessionLive) shell.prepareAttachedAudio()
         var s = shell.audioSpeeds, cur = shell.audioChosenSpeed, next = s[0]
         for (var i = 0; i < s.length; i++)
             if (Math.abs(s[i] - cur) < 0.01) { next = s[(i + 1) % s.length]; break }
         shell.audioChosenSpeed = next
         if (shell.audioSessionLive) shell.audioSession.setRate(next)
+        else shell.audioSpeedPending = true
     }
     // Chapter transport (the pill's ⏮ ⏭): live → clamped jump keeping play/pause state;
     // not live yet → load the stream (the jump lands via the pending-index seam below).
@@ -748,6 +876,10 @@ FocusScope {
     // Refresh marks whenever the panel opens, so a change made elsewhere shows up.
     Connections {
         target: chrome
+        function onAwakeChanged() {
+            if (!chrome.awake) shell.audioOfferChipVisible = false
+            else shell.maybeShowAudioChip()
+        }
         function onPanelOpenChanged() { if (chrome.panelOpen) shell.refreshMarks() }
         // When the search sheet closes (Esc, toggle, tap a panel), drop the paper's search
         // highlight, reset the view-model, and hand keyboard focus BACK to the web view — the
@@ -882,6 +1014,8 @@ FocusScope {
     // mounted for the host Loader but is hidden until Main opens a new book.
     function scrubForPersonalStateChange() {
         shell.flushProgressSave()
+        shell.resetAudioOffer()
+        shell.audioSpeedPending = false
         shell.personalStateGeneration += 1
         shell.currentGen = Math.max(1, shell.currentGen + 1)
         shell.bookReady = false
@@ -934,7 +1068,6 @@ FocusScope {
         shell.readAlongPreviewLabel = ""
         shell.pendingReadAlongJump = false
         shell.audioChapterBoundsMs = null
-        shell.audioChosenSpeed = 1.0
         shell.audioPendingJump = -1
         if (chrome.anyPanelOpen) chrome.closeAnyPanel()
         paper.scrub()
@@ -1026,6 +1159,9 @@ FocusScope {
                     if (typeof AudioTextAlignment !== "undefined" && shell.audioPairKey !== "")
                         AudioTextAlignment.ensurePair(shell.bookId, shell.bookPath, shell.audioPairKey)
                 }
+                shell.lookupAudioOffer()
+                shell.restoreAudioSpeedChoice()
+                if (shell.audioAttached) shell.prepareAttachedAudio()
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
                 paper.focusPaper()                                // the web view owns keys — focus it so keys work immediately
             } else if (name === "toggleChrome") {
@@ -1209,6 +1345,13 @@ FocusScope {
         highlights: shell.highlights
 
         // Audio pane data (Task 13)
+        audioOffer: shell.audioOffer
+        audioOfferVersions: shell.audioPick.candidates || []
+        audioOfferShowVersions: shell.audioOfferShowVersions
+        audioOfferChipVisible: shell.audioOfferChipVisible
+        onAudioOfferGetRequested: shell.getAudioOffer(null)
+        onAudioOfferVersionChosen: (row) => shell.getAudioOffer(row)
+        onAudioOfferVersionsRequested: shell.audioOfferShowVersions = true
         audioAttached: shell.audioAttached
         audioTitle: shell.audioTitle
         audioCover: shell.audioCover
@@ -1217,6 +1360,11 @@ FocusScope {
         audioPlaying: shell.audioPlaying
         audioTimeLine: shell.audioTimeLine
         audioProgress: shell.audioProgress
+        audioSleepMode: shell.audioSessionLive ? shell.audioSession.sleepMode : "off"
+        audioSleepLabel: shell.audioSessionLive ? shell.audioSession.sleepLabel : ""
+        onAudioSleepChosen: (mode) => {
+            if (shell.prepareAttachedAudio()) shell.audioSession.setSleepMode(mode)
+        }
         audioSpeedLabel: shell.audioSpeedLabel
         audioPlaylist: shell.audioPlaylist
         audioCurrentIndex: shell.audioCurrentIndex
@@ -1525,12 +1673,15 @@ FocusScope {
         shell.bookReady = false            // the new book hasn't reached 'ready' yet (Part B3 gate)
         shell.openErrorShown = false       // drop any prior failed-open surface
         shell.openErrorText = ""
+        shell.resetAudioOffer()
+        shell.audioSpeedPending = false
         bookPath = path
         shell.healAudioPairing()           // repair a missed auto-attach before the panel binds
         if (paper.glueUp) shell.openAtResume(path)
     }
 
     function openAudioPanel() {
+        if (shell.audioAttached) shell.prepareAttachedAudio()
         chrome.openPanelTo("audio")
     }
 }

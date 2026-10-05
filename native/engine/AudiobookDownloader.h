@@ -47,7 +47,8 @@ class AudiobookDownloader : public QObject {
 public:
     // nam is the shared uncached NAM (audiobook bytes must not hit the image cache).
     // stream is the app's StreamServer (torrent→localhost HTTP); not owned.
-    AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr);
+    AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr,
+                        const QString& dataRoot = QString());
     ~AudiobookDownloader() override;
 
     // The read-along pairing store. When set, a completed download auto-attaches
@@ -74,7 +75,15 @@ public:
     Q_INVOKABLE void downloadAudiobook(const QString& pairKey, const QString& infoHash,
                                        const QString& title, const QString& author,
                                        const QString& bookId = QString(),
-                                       const QString& bookPath = QString());
+                                       const QString& bookPath = QString(),
+                                       const QVariantMap& releaseMeta = QVariantMap());
+
+    Q_INVOKABLE QVariantMap entryFor(const QString& pairKey) const;
+    Q_INVOKABLE void replaceAudiobook(const QString& pairKey, const QString& infoHash,
+                                      const QString& title, const QString& author,
+                                      const QString& bookId = QString(),
+                                      const QString& bookPath = QString(),
+                                      const QVariantMap& releaseMeta = QVariantMap());
 
     // The local FLIP: absolute path of the audiobook's directory, or "" if not local.
     Q_INVOKABLE QString localAudiobook(const QString& pairKey) const;
@@ -119,6 +128,8 @@ private:
     };
     struct Job {
         QString pairKey, infoHash, title, author;
+        QVariantMap releaseMeta;
+        quint64 generation = 0;
         QString baseUrl;                       // http://127.0.0.1:<port>/<infoHash>
         QList<FileJob> files;                  // resolved audio files, natural-sorted
         int     current = 0;                   // index into files being downloaded
@@ -173,10 +184,13 @@ private:
         QString dir;
         QStringList files;         // ordered absolute paths
         QString title, author;
+        QString infoHash, releaseSlug, format, sizeLabel;
         QString bookId, bookPath;
         qint64  bytes = 0, addedAt = 0;
     };
 
+    QString m_dataRoot; // Optional explicit root for isolated stores/tests; production uses AppDataLocation.
+    quint64 m_nextGeneration = 0;
     QNetworkAccessManager* m_nam = nullptr;
     StreamServer* m_stream = nullptr;
     Job* m_active = nullptr;

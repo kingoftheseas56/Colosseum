@@ -16,11 +16,14 @@ import QtQuick
 import Colosseum.Player
 import Colosseum.Activity
 import "ActivityLaneHelpers.js" as ActivityLaneHelpers
+import "AudiobookSessionLogic.js" as SessionLogic
 
 Item {
     id: session
     visible: false
     width: 0; height: 0
+
+    signal narrationLoaded()
 
     property string activePairKey: ""
     property var book: ({})
@@ -35,7 +38,7 @@ Item {
     property alias duration: mpv.duration
     property alias paused: mpv.pause
     property alias speed: mpv.speed
-    property alias volume: mpv.volume      // 0..100 linear (player-house rule, Hemanth 2026-07-09)
+    property real volume: 100 // user level; the sleep fade never overwrites it
     property alias mute: mpv.mute
 
     // resume precision rides the load: a seek issued before the file is open NO-OPS
@@ -43,7 +46,9 @@ Item {
     property real pendingResumeSec: -1
 
     // ── the engine (audio only; the mpv surface is never shown — cover art is the remotes' job) ──
-    MpvItem { id: mpv; width: 1; height: 1; visible: false }
+    MpvItem { id: mpv; width: 1; height: 1; visible: false
+        volume: session.volume * session.sleepVolumeFactor
+    }
 
     // --- Your Colosseum activity (Lane E, CPP-PORT-CONTRACT.md §9): mirrors PlayerPage.qml's
     // Lane A pattern beside this app-wide session. activePairKey is BiblioApi.pairKey(title,
@@ -143,7 +148,13 @@ Item {
         }
         session.chapterModel = out
     }
-    Connections { target: mpv; function onChaptersChanged() { if (!session.multiFile) session.rebuildChapters() } }
+    Connections { target: mpv; function onChaptersChanged() {
+        if (!session.multiFile) session.rebuildChapters()
+        if (session.sleepMode === "chapterEnd") {
+            session.sleepChapterIndex = session.playingChapterIndex()
+            session.sleepNeedsChapterAnchor = session.pendingResumeSec > 0
+        }
+    } }
 
     // ── open / load — THE HEART ──
     // Same pairKey + ready → NO-OP (the stream keeps playing exactly where it is).
@@ -156,6 +167,8 @@ Item {
         if (!pk) return
         if (session.ready && session.activePairKey === pk) return
         if (session.ready) session.recordProgress()          // leaving the old book: save its spot first
+        session.setSleepMode("off")
+        session.sleepStoppedAtBoundary = false
         session.activePairKey = pk
         session.book = b || ({})
         session.files = (typeof Audiobooks !== 'undefined') ? Audiobooks.localFiles(pk) : []
@@ -165,14 +178,16 @@ Item {
         if (!session.ready) return
         session.activityBeginIfNeeded()   // Activity (Lane E): new pairKey — end old session, begin new one
         // Continue resume: the saved listening spot rides in from ProgressStore
-        var idx = 0, pos = 0
+        var idx = 0, pos = 0, resume = ({})
         if (typeof Progress !== 'undefined') {
             var pg = Progress.get("audiobook", pk)
             if (pg && pg.resume) {
+                resume = pg.resume
                 idx = Number(pg.resume.fileIndex) || 0
                 pos = Number(pg.resume.position) || 0
             }
         }
+        mpv.speed = SessionLogic.speedFromResume(resume)
         if (idx < 0 || idx >= session.files.length) idx = 0
         session.currentIndex = idx
         session.pendingResumeSec = (pos > 0) ? pos : -1   // applied in onFileLoaded — a pre-load seek no-ops
@@ -234,7 +249,7 @@ Item {
             session.seekTo(Number(ch.time) || 0)   // a seek already preserves play state
         }
     }
-    function setRate(r) { mpv.speed = r }
+    function setRate(r) { mpv.speed = SessionLogic.speedFromResume({speed:r}); session.recordProgress() }
     // a real close ends the stream for good (minimize never calls this — remotes just drop away)
     function stop() {
         if (session.ready) session.recordProgress()          // save the spot before the stream dies
@@ -247,12 +262,17 @@ Item {
         session.files = []
         session.currentIndex = 0
         session.chapterModel = []
-        session.sleepMinutes = 0
+        session.setSleepMode("off")
     }
     // a file ended → advance to the next in a multi-file set
     Connections {
         target: mpv
         function onEndFile(reason) {
+            if (reason === "eof" && session.sleepStoppedAtBoundary) { session.sleepStoppedAtBoundary = false; return }
+            if (SessionLogic.stopsAtChapterEnd(session.sleepMode,session.sleepChapterIndex,session.sleepChapterIndex,reason === "eof")) {
+                session.finishSleep(true)
+                return
+            }
             if (reason === "eof" && session.multiFile && session.currentIndex + 1 < session.files.length)
                 session.playIndex(session.currentIndex + 1)   // intermediate EOF: discontinuity, same session
             else if (reason === "eof")
@@ -273,8 +293,22 @@ Item {
                 session.recordProgress()
                 session.activityDiscontinuity()   // Activity (Lane E): ordinary (re)load / abnormal-recovery reset
             }
+            session.narrationLoaded()
         }
-        function onPauseChanged() { session.activityDiscontinuity() }   // Activity: pause/sleep-timer pause
+        function onPositionChanged() {
+            if (session.sleepMode === "chapterEnd" && session.sleepNeedsChapterAnchor && session.pendingResumeSec <= 0 && mpv.duration > 0) {
+                session.sleepChapterIndex = session.playingChapterIndex()
+                session.sleepNeedsChapterAnchor = false
+                return
+            }
+            if (session.sleepMode === "chapterEnd" && !mpv.pause
+                && SessionLogic.stopsAtChapterEnd(session.sleepMode,session.sleepChapterIndex,session.playingChapterIndex(),false))
+                session.finishSleep()
+        }
+        function onPauseChanged() {
+            if (!mpv.pause) session.sleepStoppedAtBoundary = false
+            session.activityDiscontinuity()
+        }   // Activity: pause/sleep-timer pause
         function onSpeedChanged() { session.activityDiscontinuity() }   // Activity: speed change
     }
 
@@ -313,7 +347,7 @@ Item {
             "cover": (session.book && session.book.cover) ? session.book.cover : "",
             "progress": session.overallProgress(),
             "resume": { "pairKey": session.activePairKey, "fileIndex": session.currentIndex,
-                        "position": mpv.position, "book": session.book }
+                        "position": mpv.position, "book": session.book, "speed": mpv.speed }
         })
     }
     Timer {
@@ -328,11 +362,56 @@ Item {
         session.activityEndSession()   // Activity (Lane E): the app itself is closing — end cleanly
     }
 
-    // ── sleep timer (lives here so it survives the page being minimized) ──
-    property int sleepMinutes: 0            // 0 = off
+    // Sleep state belongs to the one session, so a hidden reader does not stop its clock.
+    property var sleepMode: "off"
+    property real sleepDeadlineMs: 0
+    property real sleepClockMs: 0
+    property real sleepVolumeFactor: 1
+    property int sleepChapterIndex: -1
+    property bool sleepStoppedAtBoundary: false
+    property bool sleepNeedsChapterAnchor: false
+    readonly property int sleepRemainingSec: SessionLogic.sleepTick({mode:sleepMode,deadlineMs:sleepDeadlineMs},sleepClockMs).remainingSec
+    readonly property string sleepLabel: SessionLogic.countdownLabel(sleepMode,sleepRemainingSec)
+    function playingChapterIndex() {
+        if (session.multiFile) return session.currentIndex
+        var chapters = session.chapterModel || [], index = -1
+        for (var i = 0; i < chapters.length; ++i)
+            if (mpv.position >= Number(chapters[i].time || 0)) index = i
+        return index
+    }
+    function setSleepMode(mode) {
+        if (SessionLogic.choices().indexOf(mode) < 0) mode = "off"
+        session.sleepMode = mode
+        session.sleepClockMs = Date.now()
+        session.sleepDeadlineMs = typeof mode === "number" ? session.sleepClockMs + mode * 60000 : 0
+        session.sleepChapterIndex = session.playingChapterIndex()
+        session.sleepNeedsChapterAnchor = mode === "chapterEnd" && (mpv.duration <= 0 || session.pendingResumeSec > 0)
+        session.sleepVolumeFactor = 1
+        session.tickSleep()
+    }
+    function finishSleep(fromEof) {
+        session.sleepStoppedAtBoundary = session.sleepMode === "chapterEnd" && fromEof !== true
+        mpv.pause = true
+        session.recordProgress()
+        session.setSleepMode("off")
+    }
+    function tickSleep() {
+        session.sleepClockMs = Date.now()
+        if (session.sleepMode === "chapterEnd") {
+            if (session.sleepNeedsChapterAnchor) { session.sleepVolumeFactor = 1; return }
+            // Media duration/rate, not wall-clock guesswork, defines this boundary.
+            var end = mpv.duration
+            if (!session.multiFile && session.sleepChapterIndex + 1 < session.chapterModel.length)
+                end = Number(session.chapterModel[session.sleepChapterIndex + 1].time || 0)
+            var remaining = end > 0 ? Math.max(0,end-mpv.position) / Math.max(0.25,mpv.speed) : -1
+            session.sleepDeadlineMs = remaining >= 0 && !mpv.pause ? session.sleepClockMs + remaining * 1000 : 0
+        }
+        var result = SessionLogic.sleepTick({mode:session.sleepMode,deadlineMs:session.sleepDeadlineMs},session.sleepClockMs)
+        session.sleepVolumeFactor = result.volumeFactor
+        if (result.shouldPause) session.finishSleep()
+    }
     Timer {
-        interval: session.sleepMinutes * 60000
-        running: session.sleepMinutes > 0
-        onTriggered: { mpv.pause = true; session.sleepMinutes = 0 }
+        interval: 1000; running: session.sleepMode !== "off"; repeat: true
+        onTriggered: session.tickSleep()
     }
 }

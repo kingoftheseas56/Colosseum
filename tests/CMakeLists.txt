@@ -321,6 +321,8 @@ set_tests_properties(colosseum.qttest.http_header_fields PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+include("${CMAKE_CURRENT_LIST_DIR}/auto/arc64/arc64_m1_tests.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/auto/mediaoverlay/mediaoverlay_tests.cmake")
 
 # ── Lanista layout verdict (Agent Visibility Phase 2, Slice L2, 2026-08-13) ──────────
 # LanistaLayoutVerdict — the pure, header-only geometry evaluator behind the runner-local

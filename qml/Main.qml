@@ -4260,7 +4260,7 @@ Window {
     // Loader) so playback survives the reader opening/closing. The READER is the only
     // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
     // and Audio tab both drive this session. ----
-    AudiobookSession { id: audioSession }
+    AudiobookSession { id: audioSession; objectName: "audiobookSession" }
 
     Loader {
         id: bookReaderLayer

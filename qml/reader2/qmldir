@@ -22,3 +22,6 @@ ReaderKeyboardCollectionController ReaderKeyboardCollectionController.qml
 ReaderKeyboardScrollController ReaderKeyboardScrollController.qml
 ReaderKeyboardArea ReaderKeyboardArea.qml
 
+AudioOfferCard AudioOfferCard.qml
+AudioOfferChip AudioOfferChip.qml
+SleepTimerMenu SleepTimerMenu.qml
