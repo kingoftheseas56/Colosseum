@@ -64,3 +64,58 @@ assert.equal(scope.document.scrollingElement.scrollTop, 700);
 scope.location.href = 'https://reader.test/catalog';
 assert.notEqual(vm.runInContext(scope.observation('read'), scope).kind, 'book');
 console.log('Feria tracking URLs, nested players, reading observation and restore checks pass');
+
+// Model the live reader's nested surface and delayed image geometry, rather
+// than the document scroll range (which is zero on MANGA Plus).
+scope.location.href = 'https://mangaplus.shueisha.co.jp/viewer/1000486';
+const image = {complete:true, naturalWidth:800};
+let pageHeight = 1200;
+const surface = {scrollTop:4400, scrollHeight:11100, clientHeight:700,
+    getBoundingClientRect:() => ({top:0}),
+    querySelectorAll:s => s === '.zao-container' ? pages : []};
+const pages = Array.from({length:9}, (_, index) => ({
+    getBoundingClientRect:() => ({top:30+index*(pageHeight+30)-surface.scrollTop, height:pageHeight}),
+    querySelectorAll:s => s === 'img' ? [image] : []
+}));
+scope.document = {title:'[#001] One Piece | MANGA Plus', visibilityState:'visible',
+    body:{innerText:'3.7k\n\n4 / 58\n\nOne Piece'},
+    scrollingElement:{scrollTop:0,scrollHeight:900,clientHeight:900},
+    querySelector:s => s === '.zao-surface' ? surface : null,
+    querySelectorAll:() => []};
+reading = vm.runInContext(scope.observation('read'), scope);
+assert.equal(reading.locator.type, 'mangaplus-page', 'Capture the nested MANGA Plus reader');
+assert.equal(reading.locator.page, 3);
+assert.equal(reading.locator.total, 58);
+assert.ok(Math.abs(reading.locator.offset-(4400-3720)/1200) < 0.0001);
+assert.equal(reading.paused, true, 'Observation and programmatic restore do not invent user input');
+const place = JSON.parse(JSON.stringify(reading.locator));
+surface.scrollHeight = 18000;
+assert.equal(vm.runInContext(scope.observation('read'), scope).locator.offset, place.offset,
+    'Appending lazy pages must not change the captured place');
+surface.scrollTop = 0;
+image.complete = false;
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), false, 'Wait for page images before claiming restore');
+image.complete = true;
+pageHeight = 800; // Different window/image size on reopening.
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), false, 'First placement must be checked on a later probe');
+assert.ok(Math.abs(surface.scrollTop-(30+3*830+place.offset*800)) < 0.001);
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), true, 'Confirm a stable page position');
+pageHeight = 1000;
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), false, 'Reposition when late images change geometry');
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), true);
+const distantPlace = {...place,page:20};
+surface.scrollTop = 0;
+assert.equal(vm.runInContext(scope.restoreReading(distantPlace), scope), false,
+    'A not-yet-loaded page requires another lazy batch');
+assert.equal(surface.scrollTop, surface.scrollHeight-surface.clientHeight);
+assert.equal(vm.runInContext(scope.restoreReading({...place,total:57}), scope), false,
+    'A changed chapter length must not restore an unrelated page');
+for (const invalid of [{...place,page:-1},{...place,page:3.5},{...place,offset:NaN},{...place,offset:2}]) {
+    assert.equal(vm.runInContext(scope.restoreReading(invalid), scope), false);
+}
+surface.scrollHeight = surface.clientHeight;
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), false, 'Do not claim horizontal reader support');
+assert.equal(vm.runInContext(scope.observation('read'), scope).locator.type, 'url');
+scope.location.href = 'https://reader.test/chapter/1';
+assert.equal(vm.runInContext(scope.restoreReading(place), scope), false, 'Never apply a provider page locator to another site');
+console.log('MANGA Plus page anchors, delayed images, resized restore, and origin guards pass');

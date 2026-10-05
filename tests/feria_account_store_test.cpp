@@ -167,5 +167,76 @@ int main(int argc, char **argv) {
           "Failed clear preserves persisted activity");
     check(privacyReopened.clearHistory() && privacyReopened.continueItems().isEmpty(),
           "Internal full-reset API can still reset isolated fixtures");
+    FeriaAccountStore manga;
+    const auto mangaPath = temp.filePath("manga.json");
+    manga.setStoragePath(mangaPath);
+    manga.beginVisit({{"pk", "mangaplus"}});
+    QVariantMap chapter{{"href", "https://mangaplus.shueisha.co.jp/viewer/1000486"},
+        {"title", "MANGA Plus by SHUEISHA"}, {"kind", "book"}, {"paused", true},
+        {"locator", QVariantMap{{"type", "url"}}}};
+    check(manga.observe(chapter), "Record chapter while its title loads");
+    const auto chapterId = manga.continueItems().first().toMap().value("id");
+    chapter.insert("title", "[#001] One Piece | MANGA Plus");
+    check(manga.observe(chapter) && manga.continueItems().size() == 1
+          && manga.continueItems().first().toMap().value("id") == chapterId
+          && manga.sessions().size() == 1,
+          "Loading title changes must not duplicate a chapter or split its session");
+    const QVariantMap pagePlace{{"type", "mangaplus-page"}, {"page", 3}, {"offset", 0.5}, {"total", 58}};
+    chapter.insert("locator", pagePlace);
+    check(manga.observe(chapter), "Accept MANGA Plus page position");
+    FeriaAccountStore mangaReopened;
+    mangaReopened.setStoragePath(mangaPath);
+    check(mangaReopened.continueItems().first().toMap().value("locator").toMap() == pagePlace,
+          "MANGA Plus page and within-page offset survive restart");
+    check(std::abs(mangaReopened.continueItems().first().toMap().value("position").toDouble()
+          - 100.0 * 3.5 / 58) < 0.0001, "Page progress uses chapter length, not lazy scroll extent");
+    check(manga.saveReadingPlace(chapter.value("href").toString(), "One Piece")
+          && manga.continueItems().first().toMap().value("locator").toMap() == pagePlace,
+          "Manual save preserves the captured MANGA Plus page");
+    for (const QVariantMap &bad : {
+            QVariantMap{{"type", "mangaplus-page"}, {"page", 3.5}, {"offset", 0.5}, {"total", 58}},
+            QVariantMap{{"type", "mangaplus-page"}, {"page", 58}, {"offset", 0.5}, {"total", 58}},
+            QVariantMap{{"type", "mangaplus-page"}, {"page", 3}, {"offset", std::nan("")}, {"total", 58}},
+            QVariantMap{{"type", "mangaplus-page"}, {"page", 3}, {"offset", 0.5}, {"total", 0}}}) {
+        chapter.insert("locator", bad);
+        check(!manga.observe(chapter), "Reject malformed MANGA Plus page position");
+    }
+    chapter.insert("locator", pagePlace);
+    chapter.insert("href", "https://example.com/viewer/1000486");
+    check(!manga.observe(chapter), "MANGA Plus locator is scoped to its reader origin");
+    chapter.insert("href", "https://mangaplus.shueisha.co.jp/viewer/1000486");
+    manga.beginVisit({{"pk", "webtoon"}});
+    check(!manga.observe(chapter), "Other providers cannot submit a MANGA Plus locator");
+    manga.beginVisit({{"pk", "mangaplus"}});
+    chapter.insert("href", "https://mangaplus.shueisha.co.jp/viewer/1000487");
+    check(manga.observe(chapter) && manga.continueItems().size() == 2, "Distinct chapters retain separate Continue entries");
+
+    // Existing title-derived IDs must deduplicate without erasing activity history.
+    QVariantMap oldChapter{{"pk", "mangaplus"}, {"url", "https://mangaplus.shueisha.co.jp/viewer/1000486"},
+        {"kind", "book"}, {"id", "old-title"}, {"title", "Loading"}, {"locator", QVariantMap{{"type", "url"}}}};
+    auto latestChapter = oldChapter;
+    latestChapter.insert("id", "final-title"); latestChapter.insert("title", "One Piece");
+    latestChapter.insert("locator", pagePlace);
+    QFile legacyFile(temp.filePath("legacy-manga.json"));
+    auto writeLegacy = [&](bool completed, bool dismissed) {
+        latestChapter.insert("completed", completed); latestChapter.insert("dismissed", dismissed);
+        check(legacyFile.open(QIODevice::WriteOnly | QIODevice::Truncate), "Open legacy reading fixture");
+        legacyFile.write(QJsonDocument::fromVariant(QVariantMap{{"version", 1},
+            {"sessions", QVariantList{latestChapter, oldChapter}}, {"retainedContinue", QVariantList{oldChapter}}}).toJson());
+        legacyFile.close();
+    };
+    writeLegacy(false, false);
+    mangaReopened.setStoragePath(legacyFile.fileName());
+    check(mangaReopened.continueItems().size() == 1 && mangaReopened.sessions().size() == 2
+          && mangaReopened.continueItems().first().toMap().value("locator").toMap() == pagePlace,
+          "Legacy duplicate chapters show the newest place and preserve history");
+    check(mangaReopened.dismissContinue("final-title") && mangaReopened.continueItems().isEmpty(),
+          "Dismissing a legacy chapter must not reveal another title copy");
+    mangaReopened.setStoragePath(legacyFile.fileName());
+    check(mangaReopened.continueItems().isEmpty(), "Legacy chapter dismissal survives restart");
+    writeLegacy(true, false); mangaReopened.setStoragePath(legacyFile.fileName());
+    check(mangaReopened.continueItems().isEmpty(), "Completed latest chapter hides old title copies");
+    writeLegacy(false, true); mangaReopened.setStoragePath(legacyFile.fileName());
+    check(mangaReopened.continueItems().isEmpty(), "Dismissed latest chapter hides old title copies");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
 }

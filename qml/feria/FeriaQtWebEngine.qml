@@ -49,7 +49,7 @@ WebEngineView {
                 runJavaScript(Playback.restoreReading(resumeLocator), function(ok) {
                     if (generation !== navigationGeneration) return
                     if (ok) resumeLocator = null
-                    else if (readingResumeAttempts >= 10) { resumeLocator = null; resumeUnavailable() }
+                    else if (readingResumeAttempts >= (resumeLocator && resumeLocator.type === "mangaplus-page" ? 60 : 10)) { resumeLocator = null; resumeUnavailable() }
                 })
                 return
             }
