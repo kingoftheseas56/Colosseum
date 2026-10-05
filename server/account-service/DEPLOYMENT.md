@@ -64,10 +64,11 @@ container, secret, database, TLS, job, and monitoring setup.
    /colosseum-account-service
    ```
 
-   Production avatar storage is mandatory in the service configuration. The
-   bucket, endpoint, region, and provider credentials belong in secret or
-   managed environment configuration; built-in avatars do not remove this
-   startup contract.
+   Production deployments using only built-in avatars may explicitly set
+   `AVATAR_STORAGE=disabled` and omit the avatar bucket and endpoint. Otherwise,
+   avatar storage is required; the bucket, endpoint, region, and provider
+   credentials belong in secret or managed environment configuration. Missing
+   or misspelled `AVATAR_STORAGE` values do not waive the storage requirement.
 6. Bake or override the client endpoint only after the selected provider has
    supplied a deployment receipt and the service has passed the acceptance
    journey against that exact URL. The source fallback above remains a separate
