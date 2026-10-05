@@ -12,7 +12,7 @@ Item {
     id: root
     anchors.fill: parent
 
-    // shell contract (mirrors UniversePage; bookRequested is this template's own verb)
+    // shell contract (bookRequested is this template's own verb)
     property Item backdrop: null
     property string universeName: ""
     signal backRequested()
@@ -41,8 +41,7 @@ Item {
     // an anime universe (curated manga list) is the same page with the read form in manga:
     // the hero kicker reads ANIME, the read row and blocks say MANGA, and the read form
     // opens Tankoban. One variation per TYPE, never per franchise — all data-driven.
-    readonly property bool animeUniverse: !!root.guide.manga
-    readonly property string readWord: root.animeUniverse ? "Manga" : "Book"
+    readonly property string readWord: "Book"
     readonly property color worldColor: guide.c1 || "#221c30"
     readonly property color paper: theme.ink
     readonly property color hair: Qt.rgba(1, 1, 1, 0.09)
@@ -297,14 +296,14 @@ Item {
             (root.isBook(item) ? books : (root.isSeries(item) ? shows : films)).push(item)
         })
         if (root.creators.length && root.creators[0].role.indexOf("Author") === 0) out.push(["CREATOR", root.creators[0].name])
-        if (books.length) out.push([root.animeUniverse ? "MANGA" : "BOOKS", String(books.length)])
+        if (books.length) out.push(["BOOKS", String(books.length)])
         if (films.length) {
             const years = films.map(function(f) { return f.year }).filter(function(y) { return y > 0 }).sort()
             out.push(["FILMS", films.length + (years.length > 1 && years[0] !== years[years.length - 1]
                                                ? " · " + years[0] + " to " + years[years.length - 1] : "")])
         }
         if (shows.length) out.push(["TELEVISION", shows.length + " series"])
-        out.push(["CATALOGUE", root.animeUniverse ? "Curation · Cinemeta" : "Apple Books · Cinemeta"])
+        out.push(["CATALOGUE", "Apple Books · Cinemeta"])
         return out
     }
     readonly property var stills: root.works.filter(function(item) {
@@ -453,7 +452,7 @@ Item {
                     width: parent.width - root.gutter * 2
                     spacing: 18
                     Text {
-                        text: root.animeUniverse ? "ANIME" : "SAGA"
+                        text: "SAGA"
                         color: theme.inkDim; font.family: root.uiFace
                         font.pixelSize: 11; font.letterSpacing: 3
                     }

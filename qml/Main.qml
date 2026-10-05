@@ -737,7 +737,6 @@ Window {
                     && universeLayer.item
                     && universeLayer.item.atlasTransientOpen === true,
             universeActive: universeLayer.active,
-            universeHallActive: universeHallLayer.active,
             searchActive: searchLayer.active,
             worldSearchActive: worldSearchLayer.active,
             comicSeriesActive: comicSeriesLayer.active,
@@ -858,7 +857,6 @@ Window {
         case "onePieceArc": win.closeOnePieceArc(); return
         case "onePieceAtlasTransient": win.requestOnePieceAtlasEscape(); return
         case "universe": win.requestUniverseEscape(); return
-        case "universeHall": win.closeUniverseHall(); return
         case "search": win.closeSearch(); return
         case "worldSearch": win.closeWorldSearch(); return
         case "comicSeries": win.closeComicSeries(); return
@@ -2012,8 +2010,6 @@ Window {
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
-    function openUniverseHall() { universeHallLayer.active = true }
-    function closeUniverseHall() { universeHallLayer.active = false }
 
     // world (optional, R1 2026-08-21): lands the page straight on that world's Sources
     // tab instead of the default "theatre" — the manga picker's empty-state route
@@ -4471,9 +4467,7 @@ Window {
         // it ships a payload — the plain standard page the Universes world's banner opens.
         property bool plain: false
         readonly property string bespokeId: plain ? "" : extensionId
-        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "shelves": "ShelvesUniversePage.qml",
-                                                  "eras": "EraUniversePage.qml",
-                                                  "studio": "StudioUniversePage.qml", "anime": "UniversePage.qml" })
+        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "shelves": "ShelvesUniversePage.qml" })
         source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
               : bespokeId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
@@ -4573,25 +4567,6 @@ Window {
             item.watchRequested.connect(win.openTheatreSeries)
             item.seriesRequested.connect(win.routeUniverseSeries)
             item.onePaceRequested.connect(win.openOnePaceArc)
-        }
-    }
-
-    Loader {
-        id: universeHallLayer
-        objectName: "universeHallLayer"
-        anchors.fill: parent
-        z: 51
-        active: false
-        visible: active
-        asynchronous: true
-        source: "UniverseHallPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.universes = win.installedUniverses
-            item.backRequested.connect(win.closeUniverseHall)
-            item.exploreRequested.connect(function (extensionId, name) {
-                win.closeUniverseHall(); win.openUniverse(extensionId, name)
-            })
         }
     }
 

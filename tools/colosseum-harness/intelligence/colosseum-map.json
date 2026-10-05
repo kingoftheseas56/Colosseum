@@ -1061,7 +1061,6 @@
         "universes-world"
       ],
       "source_roots": [
-        "qml/UniverseHallPage.qml",
         "qml/UniverseExtensionPage.qml",
         "qml/DCAUUniversePage.qml",
         "qml/GalaxyUniversePage.qml",
@@ -1073,7 +1072,6 @@
         "qml/UniverseBanner.qml"
       ],
       "entry_points": [
-        "qml/UniverseHallPage.qml",
         "qml/Main.qml",
         "qml/UniversesWorld.qml"
       ],
@@ -1109,7 +1107,6 @@
       ],
       "ctests": [],
       "checks": [
-        "tests/test_universe_hall_p0.ps1",
         "tests/test_universe_keyboard_p0.ps1",
         "tests/verify_universe_ids.mjs",
         "tests/test_universe_archive_p0.ps1"
@@ -3285,105 +3282,6 @@
       "platform_constraints": [],
       "relations": [
         "search-discovery"
-      ],
-      "known_constraints": [
-        "No page-specific registered CTest is mapped.",
-        "No page-specific Lanista journey is mapped."
-      ]
-    },
-    {
-      "id": "page-universe-hall-page",
-      "kind": "page",
-      "display_name": "Universe Hall",
-      "aliases": [
-        "universe hall page"
-      ],
-      "source_roots": [
-        "qml/UniverseHallPage.qml"
-      ],
-      "entry_points": [
-        "qml/UniverseHallPage.qml"
-      ],
-      "qml_files": [
-        "qml/UniverseHallPage.qml"
-      ],
-      "host": {
-        "path": "qml/Main.qml",
-        "anchor": "\"UniverseHallPage.qml\"",
-        "route": "direct",
-        "note": "Component referenced by Main.qml."
-      },
-      "owners": [
-        {
-          "name": "UniverseHallPage",
-          "path": "qml/UniverseHallPage.qml",
-          "confidence": "observed",
-          "responsibility": "QML component for Universe Hall.",
-          "provenance": [
-            {
-              "path": "qml/UniverseHallPage.qml"
-            }
-          ]
-        }
-      ],
-      "ctests": [],
-      "checks": [],
-      "lanista_scenarios": [
-        "tests/lanista_scenarios/keyboard_universe_utilities_completion.json"
-      ],
-      "context": [],
-      "platform_constraints": [],
-      "relations": [
-        "universes"
-      ],
-      "known_constraints": [
-        "No page-specific registered CTest is mapped."
-      ]
-    },
-    {
-      "id": "page-universe-page",
-      "kind": "page",
-      "display_name": "Universe page · extension universe",
-      "aliases": [
-        "universe page"
-      ],
-      "source_roots": [
-        "qml/UniversePage.qml",
-        "qml/UniverseExtensionPage.qml"
-      ],
-      "entry_points": [
-        "qml/UniversePage.qml"
-      ],
-      "qml_files": [
-        "qml/UniversePage.qml",
-        "qml/UniverseExtensionPage.qml"
-      ],
-      "host": {
-        "path": "qml/Main.qml",
-        "anchor": "\"UniverseExtensionPage.qml\"",
-        "route": "direct",
-        "note": "Component referenced by Main.qml."
-      },
-      "owners": [
-        {
-          "name": "UniversePage",
-          "path": "qml/UniversePage.qml",
-          "confidence": "observed",
-          "responsibility": "QML component for Universe page · extension universe.",
-          "provenance": [
-            {
-              "path": "qml/UniversePage.qml"
-            }
-          ]
-        }
-      ],
-      "ctests": [],
-      "checks": [],
-      "lanista_scenarios": [],
-      "context": [],
-      "platform_constraints": [],
-      "relations": [
-        "universes"
       ],
       "known_constraints": [
         "No page-specific registered CTest is mapped.",

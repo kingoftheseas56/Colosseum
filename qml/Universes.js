@@ -984,9 +984,8 @@ universes = universes.filter(function(u) { return u.archived !== true; });
 //  future curations land here first if their page needs work before surfacing)
 var placeholders = [];
 
-// which page TEMPLATE a universe opens into: "cinematic" → CinematicPage (the MCU
-// Fandom-wiki phase template, Marvel-only for now); everything else → the generic
-// name/query-driven UniversePage.
+// a universe's curated category. Since Arc 58 the page it opens is decided by its data
+// (`shelves`/`manga` → the shelves page, `sagaGrid` → the story grid), not by this.
 function categoryFor(name) {
     var all = universes.concat(archive);
     for (var i = 0; i < all.length; i++)

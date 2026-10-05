@@ -59,10 +59,4 @@ $main = Read-File "qml/Main.qml"
 Assert-Contains $main 'SagaUniversePage.qml' "Main must route saga universes to the saga template."
 Assert-Contains $main 'item.bookRequested.connect(win.openBook)' "Saga books must open the Biblio detail."
 
-# --- the generic template: honest labels, no default universe, manga suppressible ---
-$up = Read-File "qml/UniversePage.qml"
-Assert-Contains $up 'property string universeName: ""' "No default universe (the One Piece flash lesson)."
-Assert-Contains $up 'root.seriesLabel' "Series row label must come from curation (TV Shows for western IPs)."
-Assert-Contains $up 'root.hasRead' "readMode none must suppress the manga machinery."
-
 Write-Host "saga universe p0: OK"

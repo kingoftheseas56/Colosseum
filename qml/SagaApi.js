@@ -65,7 +65,7 @@ function slotByCanon(canon, metas) {
 
 // UPCOMING law (Hemanth 2026-07-13): the metadata id is the gate, never the release date —
 // future work STAYS in its room wearing a small tag. Year > now ⇒ upcoming outright; a
-// same-year entry is ambiguous from catalog releaseInfo alone, so loadEras fires ONE
+// same-year entry is ambiguous from catalog releaseInfo alone, so the loader fires ONE
 // full-meta check per such id (cached below) and re-slots when a future date confirms.
 var _upcomingById = {};   // id → true (confirmed future) | false (probed: out or unknown)
 
@@ -355,11 +355,9 @@ function enrichWatch(items, onUpdate) {
 
 // loadSaga("Harry Potter", push) — push({ name, blurb, banner, metaline, books[], films[],
 // shows[] }) once per response. books = full Biblio objects in reading order; films/shows =
-// Cinemeta items in canon order. An anime universe (cfg.manga) takes its own path below —
-// the loader picks it; the page and the push shape stay the same.
+// Cinemeta items in canon order.
 function loadSaga(name, push) {
     var cfg = UDB.configFor(name);
-    if (cfg.manga) return loadMangaUniverse(name, cfg, push);
     var novels = cfg.novels || [];
     var filmCanon = cfg.films || [];
     var showCanon = cfg.shows || [];
@@ -432,49 +430,6 @@ function loadSaga(name, push) {
 
     emit();   // paint banner/blurb/metaline instantly from curation, before any network lands
 }
-
-// loadMangaUniverse — the anime universes' loader (One Piece, Dragon Ball): every work is
-// PINNED in curation, so nothing is ever searched — no Biblio lookup, no catalog search,
-// no manga provider. Manga items come straight from the curated list (Tankoban opens them
-// by their query); films and shows are built from their pinned ids, mapWatch dressing each
-// with the metahub poster/backdrop, and enrichWatch fetching the one full record per work
-// for the facts a tile cannot carry. Same push shape as loadSaga.
-function loadMangaUniverse(name, cfg, push) {
-    var canon = sagaCanon(cfg);
-    function pinned(entry, type) {
-        return entry && entry.id
-            ? mapWatch({ id: entry.id, type: type, name: entry.t, releaseInfo: entry.year })
-            : null;
-    }
-    var out = {
-        name: name,
-        blurb: cfg.blurb || "",
-        banner: cfg.banner || "",
-        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
-        books: sagaSlots(canon.books, canon.books.map(function(m) {
-            return m ? { title: m.t, cover: m.cover || "", query: m.q || m.t } : null;
-        }), "manga"),
-        films: sagaSlots(canon.films, canon.films.map(function(e) { return pinned(e, "movie"); }), "film"),
-        shows: sagaSlots(canon.shows, canon.shows.map(function(e) { return pinned(e, "series"); }), "series"),
-        comics: cfg.comics || null
-    };
-    function emit() {
-        push({ name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
-               books: out.books, films: out.films, shows: out.shows, comics: out.comics,
-               detailRevision: ++_detailRevision });
-    }
-    enrichWatch(out.films, emit);
-    enrichWatch(out.shows, emit);
-    emit();   // curation paints instantly; the records dress in as they land
-    return null;
-}
-
-// THE SHELVES (Arc 58 / 58-E). One universe page serves every universe that is not a book
-// saga: the page divides by MEDIUM, one shelf per medium, the franchise's own grouping as
-// labelled runs. A universe declares its shelves in curation (`shelves`, see the generated
-// block at the end of Universes.js); an anime universe that predates that shape (curated
-// `manga` + `saga`/`anime` + `filmEras`) has them DERIVED here. Every work is a pinned
-// provider identity and nothing is ever searched.
 
 // shelfSpecsFor(cfg) -> [{ title, kind, tab?, pill?, form?, order?, runs: [{ label, works }] }]. PURE.
 function shelfSpecsFor(cfg) {
@@ -645,118 +600,6 @@ function loadGalaxy(name, push) {
     emit();   // banner/blurb/metaline paint instantly from curation
 }
 
-// loadEras(name, push) — the ERAS template's loader (James Bond, Star Trek, DCAU, Avatar):
-// the universe as ordered ERA GROUPS, each group a curated list of films OR shows (its
-// `kind` picks the Cinemeta catalog). Same law as saga/galaxy: canon slots, search dresses.
-//   cfg.eras  = [ { era, kind: "movie"|"series", titles: [canon names] }, ... ]
-//   cfg.rails = [ { title, kind, titles } ]  (optional flat rails below the era columns)
-function loadEras(name, push) {
-    var cfg = UDB.configFor(name);
-    var eras = cfg.eras || [];
-    var rails = cfg.rails || [];
-    var novels = cfg.novels || [];       // optional BOOKS shelf (Bond's Fleming shelf,
-                                         // Avatar's Chronicles) — same lane as loadSaga
-
-    var out = {
-        name: name,
-        blurb: cfg.blurb || "",
-        banner: cfg.banner || "",
-        kicker: cfg.eraKicker || "THE ERAS",
-        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
-        eras: eras.map(function(e) { return { era: e.era, items: [] }; }),
-        rails: rails.map(function(r) { return { title: r.title, items: [] }; }),
-        books: new Array(novels.length),   // reading-order slots (null until lookup lands)
-        novelsTitle: cfg.novelsTitle || "The Novels",
-        comics: cfg.comics || null,      // curated GC archive pin → the COMICS column
-        firstWatch: null,
-        firstWatchLabel: cfg.firstWatchLabel || ""
-    };
-    function emit() {
-        push({ name: out.name, blurb: out.blurb, banner: out.banner, kicker: out.kicker,
-               metaline: out.metaline,
-               eras: out.eras.map(function(e) { return { era: e.era, items: e.items }; }),
-               rails: out.rails.map(function(r) { return { title: r.title, items: r.items }; }),
-               books: out.books.filter(function(b) { return !!b; }),
-               novelsTitle: out.novelsTitle,
-               comics: out.comics,
-               firstWatch: out.firstWatch, firstWatchLabel: out.firstWatchLabel });
-    }
-
-    // --- BOOKS: one Apple lookup per curated novel, slotted in reading order ---
-    novels.forEach(function(title, i) {
-        Biblio.lookupBook(title, function(book) {
-            if (book) { out.books[i] = book; emit(); }
-        });
-    });
-
-    var moviePool = [], seriesPool = [];
-    function reslot() {
-        out.eras = eras.map(function(e) {
-            return { era: e.era,
-                     items: slotByCanon(e.titles, e.kind === "series" ? seriesPool : moviePool)
-                            .filter(function(m) { return !!m; }).map(mapWatch) };
-        });
-        out.rails = rails.map(function(r) {
-            return { title: r.title,
-                     items: slotByCanon(r.titles, r.kind === "series" ? seriesPool : moviePool)
-                            .filter(function(m) { return !!m; }).map(mapWatch) };
-        });
-        if (cfg.firstWatch) {
-            var kind = cfg.firstWatchKind || "movie";
-            var fw = slotByCanon([cfg.firstWatch], kind === "series" ? seriesPool : moviePool);
-            if (fw[0]) out.firstWatch = mapWatch(fw[0]);
-        }
-        emit();
-        // UPCOMING boundary: a same-year entry can't be judged from releaseInfo alone
-        out.eras.concat(out.rails).forEach(function(group) {
-            probeUpcoming(group.items, reslot);
-        });
-    }
-
-    (cfg.movieQueries || []).forEach(function(q) {
-        requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json",
-            function(json) { moviePool = moviePool.concat((json && json.metas) ? json.metas : []); reslot(); });
-    });
-    (cfg.seriesQueries || []).forEach(function(q) {
-        requestJson(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(q) + ".json",
-            function(json) { seriesPool = seriesPool.concat((json && json.metas) ? json.metas : []); reslot(); });
-    });
-
-    emit();   // curation paints instantly
-}
-
-// loadStudio(name, push) — the STUDIO template's loader (Studio Ghibli): one chronological
-// FILMOGRAPHY (the studio's whole body of work as a wall), canon-slotted like everything else.
-//   cfg.filmography = [ canon film names, chronological ]
-function loadStudio(name, push) {
-    var cfg = UDB.configFor(name);
-    var filmography = cfg.filmography || [];
-    var out = {
-        name: name, blurb: cfg.blurb || "", banner: cfg.banner || "",
-        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
-        films: [], firstWatch: null, firstWatchLabel: cfg.firstWatchLabel || ""
-    };
-    function emit() {
-        push({ name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
-               films: out.films, firstWatch: out.firstWatch, firstWatchLabel: out.firstWatchLabel });
-    }
-    var pool = [];
-    (cfg.movieQueries || []).forEach(function(q) {
-        requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json",
-            function(json) {
-                pool = pool.concat((json && json.metas) ? json.metas : []);
-                out.films = slotByCanon(filmography, pool)
-                            .filter(function(m) { return !!m; }).map(mapWatch);
-                if (cfg.firstWatch) {
-                    var fw = slotByCanon([cfg.firstWatch], pool);
-                    if (fw[0]) out.firstWatch = mapWatch(fw[0]);
-                }
-                emit();
-            });
-    });
-    emit();
-}
-
 // The covers a shelves page shows first: the opening `perShelf` works of every shelf. The
 // Universes world warms these when a banner is pointed at, so the page opens with its posters
 // already in the cache. PURE: curation only, no request.
@@ -773,17 +616,5 @@ function shelfImageUrls(name, perShelf) {
             });
         });
     });
-    return urls;
-}
-
-// every remote cover, for prefetch / disk-cache warming
-function imageUrls(u) {
-    var urls = [];
-    if (u.banner) urls.push(u.banner);
-    var groups = [u.books, u.films, u.shows];
-    for (var g = 0; g < groups.length; g++)
-        for (var i = 0; i < (groups[g] || []).length; i++)
-            if (groups[g][i].cover && urls.indexOf(groups[g][i].cover) === -1)
-                urls.push(groups[g][i].cover);
     return urls;
 }
