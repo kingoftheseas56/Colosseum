@@ -1196,6 +1196,17 @@ int main(int argc, char** argv)
         // the env live per call, so this takes effect immediately.
         qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
 
+        // A global cursor move is tagged-session-only. DRIVE=1 must not be enough
+        // to aim the daily, unisolated Colosseum process.
+        qunsetenv("COLOSSEUM_APPDATA_TAG");
+        QJsonObject untaggedPoint = call(pipe, {{"cmd", "point"}, {"seq", 7051},
+            {"payload", QJsonObject{{"target", "counterMouse"},
+                                    {"duration_ms", 32}}}}, 2000);
+        require(untaggedPoint.value("type").toString() == "error"
+                    && untaggedPoint.value("code").toString() == "ISOLATION_REQUIRED",
+                "point refuses an untagged session even when DRIVE is open" + why());
+        qputenv("COLOSSEUM_APPDATA_TAG", "lanista-harness");
+
         // Arc 63-C1: point is a strict named-target command. Payload shape is
         // fail-closed so a client cannot attach a raw coordinate or smuggle a
         // non-integral timing/tolerance value that Qt would otherwise coerce.
