@@ -1017,6 +1017,43 @@ function configFor(name) {
 // stay out rather than dead bars. Installed entries pass through otherwise untouched;
 // curated entries carry name, banner (the local wallpaper art when a saga has it),
 // blurb, chips and their template page. Pure — same input, same bars.
+// Since 2026-10-05 the roster is STANDARD pages only: an installed universe with no page of
+// its own (Cosmere) is a Tribute and lives in the carousel, not in the list. Every entry
+// carries its identity mark (`logo`, `logoShape`) for the banner's rail.
+
+// THE MARKS (Arc 58, 2026-10-05): one recognisable identity per universe, for the banner in
+// the Universes world (Hemanth: "use accurate icons for each universe like the straw hat
+// symbol or the official DC logo"). Files live in assets/universes/marks/, presentation-ready
+// (already light where the mark must read on dark art; nothing is tinted at runtime). Shape
+// picks the box: wide wordmarks, tall emblems, square badges. Imported by
+// Brotherhood/agents/_import_universe_marks.py; provenance in Preflight's SOURCES.md.
+var MARKS = {
+    "Attack on Titan":            ["attack-on-titan.svg", "wide"],
+    "Avatar: The Last Airbender": ["avatar.svg", "wide"],
+    "DC Animated Universe":       ["dc.png", "square"],
+    "Dragon Ball":                ["dragon-ball.png", "wide"],
+    "Dune":                       ["dune.png", "wide"],
+    "Harry Potter":               ["harry-potter.png", "wide"],
+    "James Bond":                 ["james-bond.png", "wide"],
+    "Jurassic Park":              ["jurassic-park.png", "wide"],
+    "Lord of the Rings":          ["lord-of-the-rings.png", "wide"],
+    "Marvel Cinematic Universe":  ["marvel.png", "wide"],
+    "Naruto":                     ["naruto.svg", "square"],
+    "One Piece":                  ["one-piece.png", "square"],
+    "Percy Jackson":              ["percy-jackson.png", "wide"],
+    "Sherlock Holmes":            ["sherlock-holmes.png", "wide"],
+    "A Song of Ice and Fire":     ["ice-and-fire.png", "wide"],
+    "Star Trek":                  ["star-trek.png", "tall"],
+    "Star Wars":                  ["star-wars.png", "wide"],
+    "Studio Ghibli":              ["studio-ghibli.svg", "wide"],
+    "Weekly Shonen Jump":         ["shonen-jump.png", "wide"],
+    "The Witcher":                ["the-witcher.png", "wide"]
+};
+function markFor(name) {
+    var m = MARKS[name];
+    return m ? { logo: "../assets/universes/marks/" + m[0], shape: m[1] } : { logo: "", shape: "" };
+}
+
 function worldRoster(installed) {
     var roster = [];
     var seen = {};
@@ -1026,13 +1063,14 @@ function worldRoster(installed) {
         seen[shelf[i].name] = true;
         // an installed universe supplies identity and art; what it holds comes from curation
         var cfg = configFor(shelf[i].name);
+        var mark = markFor(shelf[i].name);
         var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
                       banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
-                      logo: shelf[i].logo || "",
+                      logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
         if (cfg.shelves || cfg.manga) entry.page = "shelves";
         else if (cfg.sagaGrid) entry.page = "saga";
-        roster.push(entry);
+        if (entry.page) roster.push(entry);      // no standard page = Tribute only (the carousel)
     }
     var opensPage = { saga: true, eras: true, studio: true, anime: true };
     var curated = universes.concat(archive);
@@ -1041,8 +1079,10 @@ function worldRoster(installed) {
         var page = (c.shelves || c.manga) ? "shelves" : (c.sagaGrid ? "saga" : (opensPage[c.category] ? c.category : null));
         if (!page || seen[c.name]) continue;
         seen[c.name] = true;
+        var cmark = markFor(c.name);
         roster.push({ name: c.name,
                       banner: c.wallpaper || c.banner || "",
+                      logo: cmark.logo, logoShape: cmark.shape,
                       blurb: c.blurb || "",
                       chips: c.chips || [],
                       page: page });

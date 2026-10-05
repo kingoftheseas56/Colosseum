@@ -3,7 +3,7 @@
 // real. (backdrop stays null under the harness — Glass is null-safe; creation succeeding
 // is exactly what READY proves.) Also pins the roster contract: the four seeded
 // installed universes + every curated door with a real page (Dragon Ball's story grid
-// joined 2026-10-04; Marvel and Weekly Shonen Jump joined 2026-10-05 with the shelves page) = 21 ledger bars.
+// joined 2026-10-04; Marvel and Weekly Shonen Jump joined 2026-10-05 with the shelves page; Cosmere left the list 2026-10-05 — a Tribute with no standard page lives in the carousel) = 20 banners.
 import QtQuick
 import QtQuick.Window
 import "../qml/Universes.js" as Universes
@@ -23,8 +23,8 @@ Window {
               banner: "", logo: "" } ]
         const roster = Universes.worldRoster(four)
         console.log("[diag] worldRoster length = " + roster.length)
-        if (roster.length !== 21) {
-            console.log("[diag] HARNESS FAIL — expected 21 roster bars, got " + roster.length)
+        if (roster.length !== 20) {
+            console.log("[diag] HARNESS FAIL — expected 20 roster banners, got " + roster.length)
             Qt.exit(2)
         }
         // the list is alphabetical (articles aside), and the carousel holds the art pages
@@ -43,8 +43,20 @@ Window {
             console.log("[diag] HARNESS FAIL — manga filter: " + manga)
             Qt.exit(2)
         }
-        if (Universes.filterRoster(roster, "").length !== 21) {
+        if (Universes.filterRoster(roster, "").length !== 20) {
             console.log("[diag] HARNESS FAIL — the empty filter must show everything")
+            Qt.exit(2)
+        }
+        // every banner opens a standard page and wears its identity mark and its About copy
+        for (let i = 0; i < roster.length; ++i) {
+            const e = roster[i]
+            if (!(e.page === "shelves" || e.page === "saga") || !e.logo || !e.logoShape || !e.blurb) {
+                console.log("[diag] HARNESS FAIL — incomplete banner entry: " + e.name + " page=" + e.page + " logo=" + e.logo)
+                Qt.exit(2)
+            }
+        }
+        if (roster.some(function(e) { return e.name === "Cosmere" })) {
+            console.log("[diag] HARNESS FAIL — Cosmere has no standard page; it is a Tribute only")
             Qt.exit(2)
         }
         if (Universes.tributes(four).length !== 4) {

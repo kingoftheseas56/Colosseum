@@ -183,6 +183,26 @@ lower than one without; Avatar's sixth novel has no ebook; Star Wars and DCAU ba
 page while their Tributes open from the carousel; the story grid is left for book sagas only and the
 anime `sagaGrid` pairings now only decide which manga are "The series".
 
+## The Universes world, portal layout (2026-10-05)
+
+Adopted from Preflight's prototype (`Preflight-Architect/arcs/58-universes-and-tributes/prototypes/
+universes-world-html-mock`), presentation only; routes and data are unchanged.
+
+- Tribute carousel: "Enter tribute" / "Browse universe". A Tribute with no standard page (Cosmere)
+  is in the carousel only; its second button opens the Tribute.
+- "Explore Universes" with the count of universes the filter shows.
+- The filter is the house `WorldTabBar` glass strip (All, Books, Manga, Anime, Films, Series,
+  Comics). It filters the one list in place.
+- `UniverseBanner` is a 178px portal: identity rail with the universe's own mark, name, two lines of
+  its About copy (the same `blurb` its page prints), what it holds, and an Explore affordance on
+  hover or keyboard selection.
+- Marks: `assets/universes/marks/`, mapped in `Universes.js` `MARKS` (`logo`, `logoShape` on every
+  roster entry). Presentation-ready files; nothing is tinted at runtime. Imported by
+  `Brotherhood/agents/_import_universe_marks.py`.
+- `worldRoster` returns standard pages only: 20 universes.
+- Checks: `tests/qml/tst_UniversesWorld.qml`, `tests/universes_world_load_harness.qml`,
+  `tests/universes_world_preview.qml`.
+
 ## Deferred
 
 The Eras centre; Tribute doors and downloadable Tributes; the Patreon gate; the One Piece story line (reading and watching position on one line) — the saga grid already shows both positions per story.

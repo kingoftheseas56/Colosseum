@@ -1,9 +1,12 @@
 // UniversesWorld — the fourth world. Unlike the other three it is not an endless catalogue:
 // the set is finite and curated, so the page is two things (Hemanth 2026-10-04):
 //   · a carousel of TRIBUTES — the hand-made art pages;
-//   · every universe that has a working page, as a large full-width BANNER (never a tile),
-//     under one row of filter chips (by what a universe holds). No tabs: a short curated
-//     list split across tabs only looks emptier.
+//   · every universe that has a standard page, as a large full-width BANNER (never a tile),
+//     under one glass strip that filters by what a universe holds. The strip is the house
+//     WorldTabBar, but it FILTERS one list in place; it never splits the list across pages.
+// Layout 2026-10-05 from Preflight's Universes world prototype (Preflight-Architect/arcs/
+// 58-universes-and-tributes/prototypes/universes-world-html-mock): "Explore Universes" with
+// its count, the glass facet strip, and 178px portal banners (UniverseBanner).
 // WorldPage owns the top bar, the ONE page scroller and keyboard routing. A banner's click
 // or Enter emits universeRequested with the roster entry; Main routes it to that universe's
 // standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
@@ -32,6 +35,8 @@ WorldPage {
     // the filter: "" shows everything; otherwise only universes that hold that form
     property string facet: ""
     readonly property var facets: Universes.rosterFacets(universes.roster)
+    // the strip's tabs: All, then each form some universe holds ("all" stands for the empty filter)
+    readonly property var facetTabs: [{ key: "all", label: "All" }].concat(universes.facets)
     readonly property var shown: Universes.filterRoster(universes.roster, universes.facet)
     onShownChanged: {
         universes.hovered = -1
@@ -58,63 +63,57 @@ WorldPage {
         automationId: "universesTributeCarouselView"
         visible: universes.tributes.length > 0
         kicker: "Tribute"
-        primaryLabel: "Enter"
-        secondaryLabel: "Universe page"
+        primaryLabel: "Enter tribute"
+        secondaryLabel: "Browse universe"
         slides: universes.tributes.map(function(t) {
             return { id: t.extensionId, title: t.name, blurb: t.blurb, ghost: "",
                      c1: "#14161d", c2: "#0c0e11", art: t.banner }
         })
         onPrimaryClicked: (i) => universes.tributeRequested(universes.tributes[i])
+        // the same universe's standard page; a Tribute with none (Cosmere) is not in the
+        // roster, so the shell's own fallback opens the Tribute itself
         onSecondaryClicked: (i) => {
+            const tribute = universes.tributes[i]
             for (let r = 0; r < universes.roster.length; ++r)
-                if (universes.roster[r].extensionId === universes.tributes[i].extensionId)
+                if (universes.roster[r].extensionId === tribute.extensionId) {
                     universes.universeRequested(universes.roster[r])
+                    return
+                }
+            universes.universeRequested(tribute)
         }
     }
 
-    WidgetHeader {
-        title: "Universes"
-        navigable: false          // the banners below ARE the destination; no deeper page
-    }
-
-    // ---- THE FILTER — one row of chips: All, then each form some universe holds ----
-    Flow {
-        id: chips
-        objectName: "universesFilter"
+    // ---- the heading, with how many universes the filter is showing ----
+    Item {
+        objectName: "universesHeading"
         width: parent.width
-        spacing: 8
-        visible: universes.facets.length > 1
-        Repeater {
-            model: [{ key: "", label: "All" }].concat(universes.facets)
-            delegate: Rectangle {
-                id: chip
-                required property var modelData
-                readonly property bool active: universes.facet === chip.modelData.key
-                objectName: "universesFilter_" + (chip.modelData.key || "all")
-                width: chipText.implicitWidth + 32; height: 34; radius: 17
-                // a dark pill, like the capsule Back: it sits straight on the wallpaper and must
-                // read over a bright pick as well as a dark one
-                color: chip.active ? theme.ink : Qt.rgba(0, 0, 0, chipKey.hovered ? 0.58 : 0.42)
-                border.width: 1
-                border.color: chip.active ? "transparent" : theme.edge
-                Text {
-                    id: chipText
-                    anchors.centerIn: parent
-                    text: chip.modelData.label
-                    color: chip.active ? "#090c13" : (chipKey.hovered ? theme.ink : theme.inkDim)
-                    font.family: theme.ui; font.pixelSize: 13
-                    font.weight: chip.active ? Font.DemiBold : Font.Medium
-                }
-                KeyboardAction {
-                    id: chipKey
-                    anchors.fill: parent
-                    focusRadius: 17
-                    accessibleName: chip.modelData.key ? "Show universes with " + chip.modelData.label
-                                                       : "Show all universes"
-                    onTriggered: universes.facet = chip.modelData.key
-                }
-            }
+        height: 34
+        Text {
+            anchors.left: parent.left; anchors.bottom: parent.bottom
+            text: "Explore Universes"
+            color: theme.ink
+            font.family: theme.display; font.pixelSize: 26
         }
+        Text {
+            objectName: "universesCount"
+            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+            text: universes.shown.length + (universes.shown.length === 1 ? " universe" : " universes")
+            color: theme.inkDim
+            font.family: theme.ui; font.pixelSize: 13
+        }
+    }
+
+    // ---- THE FILTER — the house glass tab strip: All, then each form some universe holds ----
+    WorldTabBar {
+        id: facetBar
+        objectName: "universesFilter"
+        tabPrefix: "universesFilter"
+        visible: universes.facets.length > 1
+        backdrop: universes.backdrop
+        track: universes.viewportContentY
+        tabModel: universes.facetTabs
+        currentTab: universes.facet.length ? universes.facet : "all"
+        onTabRequested: (tab) => universes.facet = (tab === "all" ? "" : tab)
     }
 
     // ---- THE UNIVERSES — one large banner each, alphabetical ----
@@ -122,7 +121,7 @@ WorldPage {
         id: pile
         objectName: "universesLedger"     // one keyboard focus region (the Hall's own law)
         width: parent.width
-        spacing: 12
+        spacing: 14
 
         property int currentIndex: universes.shown.length > 0 ? 0 : -1
         focusPolicy: universes.shown.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -146,6 +145,14 @@ WorldPage {
                     universes.universeRequested(bar.modelData)
                 }
             }
+        }
+
+        Text {
+            visible: universes.shown.length === 0
+            text: "No universes hold this yet."
+            color: theme.inkDim
+            font.family: theme.ui; font.pixelSize: 14
+            topPadding: 24; bottomPadding: 24
         }
 
         // Up/Down walk the pile, Enter opens; an arrow at either end stays unaccepted so
