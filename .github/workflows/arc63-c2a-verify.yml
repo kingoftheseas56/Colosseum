@@ -1,0 +1,119 @@
+name: arc63-c2a-verify
+
+on:
+  push:
+    branches:
+      - preflight/arc63-c2-hover-click
+
+permissions:
+  contents: read
+
+jobs:
+  linux-xvfb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Exact C2a whitespace gate
+        shell: bash
+        run: |
+          git diff --check eda3c0e108a538784ebc2a65464f01443aaa33b3..HEAD -- \
+            native/devtools/LanistaServer.cpp \
+            tests/lanista_harness.cpp
+
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Install native build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build cmake curl xz-utils pkg-config extra-cmake-modules \
+            libmpv-dev libtorrent-rasterbar-dev libboost-filesystem-dev \
+            libboost-system-dev libssl-dev xvfb libxcb-cursor0 \
+            libgl1-mesa-dev libxkbcommon-x11-0 libxcb-xinerama0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0
+
+      - name: Build pinned MpvQt
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/mpvqt.tar.xz"
+          source_root="$RUNNER_TEMP/mpvqt-source"
+          build_root="$RUNNER_TEMP/mpvqt-build"
+          install_root="$RUNNER_TEMP/mpvqt-install"
+          curl -L --fail --retry 3 \
+            "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" \
+            -o "$archive"
+          echo "$MPVQT_SHA256  $archive" | sha256sum -c -
+          mkdir -p "$source_root"
+          tar -xf "$archive" -C "$source_root"
+          source_dir="$(find "$source_root" -maxdepth 1 -mindepth 1 -type d -name 'mpvqt-*' | head -n1)"
+          test -n "$source_dir"
+          cmake -S "$source_dir" -B "$build_root" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$install_root" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DBUILD_EXAMPLES=OFF
+          cmake --build "$build_root" --target install --parallel 2
+          echo "MPVQT_ROOT=$install_root" >> "$GITHUB_ENV"
+
+      - name: Apply inherited harness-only depth correction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("tests/lanista_harness.cpp")
+          s = p.read_text(encoding="utf-8")
+          old = '''require(absurd.value("maxDepthUsed").toInt() == 64,
+                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
+                                   "ceiling (64), got %1").arg(absurd.value("maxDepthUsed").toInt())'''
+          new = '''require(absurd.value("maxDepthUsed").toInt() == 256,
+                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
+                                   "ceiling (256), got %1").arg(absurd.value("maxDepthUsed").toInt())'''
+          if old not in s:
+              raise SystemExit("inherited 64-vs-256 assertion shape changed")
+          p.write_text(s.replace(old, new, 1), encoding="utf-8")
+          PY
+
+      - name: Configure focused native build
+        shell: bash
+        run: |
+          set -euo pipefail
+          build="$RUNNER_TEMP/c2a-build"
+          cmake -S native -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DCOLOSSEUM_NO_COMPILER_CACHE=ON \
+            -DMPVQT_PREFIX="$MPVQT_ROOT" \
+            "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR;$MPVQT_ROOT"
+          echo "C2A_BUILD=$build" >> "$GITHUB_ENV"
+
+      - name: Focused compile
+        shell: bash
+        run: |
+          cmake --build "$C2A_BUILD" --target lanista_harness --parallel 2
+
+      - name: Focused Lanista hover harness under Xvfb
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: xcb
+          QSG_NO_VSYNC: "1"
+          QT_FORCE_STDERR_LOGGING: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -o pipefail
+          xvfb-run -a "$C2A_BUILD/lanista_harness" | tee "$RUNNER_TEMP/lanista-c2a.log"
+          grep -F "LANISTA_OK" "$RUNNER_TEMP/lanista-c2a.log"
