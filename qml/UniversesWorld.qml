@@ -162,6 +162,10 @@ WorldPage {
                 required property var modelData
                 required property int index
                 entry: bar.modelData
+                objectName: "universesBanner_" + String(bar.modelData.name || bar.index)
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, "_")
+                                .replace(/^_+|_+$/g, "")
                 hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index
                 onHoverEntered: if (!universes.walking && !ledgerNav.keyboardRecentlyMoved)
