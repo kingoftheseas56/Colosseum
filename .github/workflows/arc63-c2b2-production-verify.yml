@@ -53,9 +53,10 @@ jobs:
           assert any(s.get("payload", {}).get("object") == "universesBanner_onepiece_explore" for s in steps)
           walking_waits = [s for s in steps if s.get("cmd") == "ui-wait-for" and s.get("payload", {}).get("object") == "universesWorld" and s.get("payload", {}).get("prop") == "walking"]
           assert [s.get("payload", {}).get("value") for s in walking_waits] == [True, False]
-          assert any(s.get("payload", {}).get("object") == "shelvesUniversePage" and
-                     any(e.get("path") == "props.universeName" and e.get("value") == "One Piece"
-                         for e in s.get("expect", []))
+          assert any(s.get("cmd") == "ui-wait-for" and
+                     s.get("payload", {}).get("object") == "shelvesUniversePage" and
+                     s.get("payload", {}).get("prop") == "universeName" and
+                     s.get("payload", {}).get("value") == "One Piece"
                      for s in steps)
           print("C2B2_SCENARIO_JSON_OK")
 

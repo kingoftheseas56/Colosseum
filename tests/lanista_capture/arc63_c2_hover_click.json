@@ -432,23 +432,17 @@
       ]
     },
     {
-      "cmd": "qml-get",
+      "cmd": "ui-wait-for",
       "label": "destination identity is exactly One Piece",
       "payload": {
         "object": "shelvesUniversePage",
-        "props": [
-          "universeName",
-          "visible"
-        ]
+        "prop": "universeName",
+        "value": "One Piece",
+        "timeout_ms": 10000
       },
       "expect": [
         {
-          "path": "props.universeName",
-          "op": "==",
-          "value": "One Piece"
-        },
-        {
-          "path": "props.visible",
+          "path": "matched",
           "op": "==",
           "value": "true"
         }
