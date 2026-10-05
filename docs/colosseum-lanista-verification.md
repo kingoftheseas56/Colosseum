@@ -216,15 +216,21 @@ The coordinate conversion is fixed and caller-independent: the target's local re
 `QQuickItem::mapRectToScene()`, intersected with every `clip:true` ancestor and the first root
 window's client rect, then the visible intersection's center is converted to global screen
 coordinates with that owning `QQuickWindow::mapToGlobal()`. A caller can name a target but cannot
-supply an arbitrary pixel coordinate. The command also requires that same first root window to be
-visible, non-minimized, and active; background-window choreography is intentionally deferred.
+supply an arbitrary pixel coordinate: the point payload is fail-closed to `target`, `duration_ms`,
+`path`, `tolerance_px`, plus the bridge-wide optional `grab`; any other field fails
+`BAD_PAYLOAD`. Duration and tolerance must be integral JSON numbers, and path must be a string.
+The command also requires that same first root window to be visible, non-minimized, and active;
+background-window choreography is intentionally deferred.
 
-Successful replies are coordinate/timing receipts: pid, window name/title, start screen point,
-target scene/screen point, actual final OS cursor point, x/y endpoint delta, requested duration,
-observed elapsed time, path, tolerance, and the visible scene rect used for resolution. Endpoint
-misses outside tolerance fail `ENDPOINT_MISS`. Missing, fully clipped/off-window, wrong-window,
-inactive-window, hidden/minimized-window, and invalid path/duration/tolerance cases fail before a
-dangerous coordinate is driven.
+Target and clipping geometry must remain finite through local -> scene -> visible-intersection
+mapping; non-finite geometry fails `INVALID_TARGET_GEOMETRY` before a cursor coordinate is driven.
+Successful replies are coordinate/timing receipts: pid, window name/title, actual starting OS cursor
+point, target scene/screen point, explicit requested screen endpoint, actual final OS cursor point,
+x/y endpoint delta, requested duration, observed elapsed time, path, tolerance, and the visible scene
+rect used for resolution. Endpoint misses outside tolerance fail `ENDPOINT_MISS`. Missing,
+invisible/transparent/zero-size, fully clipped/off-window, wrong-window, inactive-window,
+hidden/minimized-window, and invalid payload/path/duration/tolerance cases fail before a dangerous
+coordinate is driven.
 
 ### Combined state + capture (grabs)
 
