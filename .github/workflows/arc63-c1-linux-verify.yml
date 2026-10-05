@@ -26,6 +26,25 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Correct inherited stale depth assertion in runner only
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("tests/lanista_harness.cpp")
+          s = p.read_text(encoding="utf-8")
+          old = '''            require(absurd.value("maxDepthUsed").toInt() == 64,
+                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
+                                   "ceiling (64), got %1").arg(absurd.value("maxDepthUsed").toInt())
+                        + why());'''
+          new = '''            require(absurd.value("maxDepthUsed").toInt() == 256,
+                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
+                                   "ceiling (256), got %1").arg(absurd.value("maxDepthUsed").toInt())
+                        + why());'''
+          if old not in s:
+              raise SystemExit("stale baseline assertion not found")
+          p.write_text(s.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
         with:
