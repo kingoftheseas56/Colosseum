@@ -13,6 +13,8 @@ name: build-qtwebengine-codecs
 #   seed   - compile for up to 320 minutes and continuously populate sccache/GHA.
 #   finish - rebuild from a fresh VM, consume those cached compiler results,
 #            then install and package only after the build actually completes.
+# A timed-out finish uploads a downloadable build-tree checkpoint before the
+# hosted runner is destroyed, while sccache continues to preserve compiler results.
 # Re-run finish if cache eviction or a runner/toolchain change prevents a
 # one-follow-up-run completion. Keep SCCACHE_GHA_VERSION unchanged between phases.
 
@@ -285,12 +287,15 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
 
           $phase = '${{ github.event.inputs.phase }}'
-          $budgetMinutes = if ($phase -eq 'seed') { 320 } else { 330 }
+          $budgetMinutes = if ($phase -eq 'seed') { 320 } else { 300 }
           $jobs = [int]$env:NUMBER_OF_PROCESSORS
           $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
           $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
 
           Write-Output "phase=$phase; building with -j$jobs; controlled budget=$($budgetMinutes)m"
+          if ($phase -eq 'finish') {
+            Write-Output 'Finish reserves roughly 45 minutes of the hosted-job window for timeout checkpoint upload and normal packaging.'
+          }
           Write-Output 'Completed compiler results are written continuously to the sccache GHA backend.'
 
           $proc = Start-Process -FilePath 'cmake.exe' -ArgumentList @('--build', $env:WEBENGINE_BUILD_DIR, '--parallel', "$jobs") -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
@@ -362,6 +367,62 @@ jobs:
           '```text' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           $stats | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           '```' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+      - name: Prepare timeout checkpoint metadata
+        if: always() && steps.webengine_build.outputs.budget_exhausted == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $checkpointMeta = Join-Path $env:RUNNER_TEMP 'qtwebengine-timeout-checkpoint-meta'
+          New-Item -ItemType Directory -Force -Path $checkpointMeta | Out-Null
+
+          $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
+          $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
+          if (Test-Path $stdoutLog) { Copy-Item $stdoutLog (Join-Path $checkpointMeta 'webengine-build.stdout.log') -Force }
+          if (Test-Path $stderrLog) { Copy-Item $stderrLog (Join-Path $checkpointMeta 'webengine-build.stderr.log') -Force }
+
+          @(
+            "run_id=$env:GITHUB_RUN_ID"
+            "run_number=$env:GITHUB_RUN_NUMBER"
+            "qt_version=$env:QT_VERSION"
+            "build_dir=$env:WEBENGINE_BUILD_DIR"
+            "source_dir=$env:WEBENGINE_SRC"
+            "sccache_namespace=$env:SCCACHE_GHA_VERSION"
+            "checkpoint_reason=controlled_build_budget_exhausted"
+            "created=$(Get-Date -Format o)"
+          ) | Out-File (Join-Path $checkpointMeta 'checkpoint.txt') -Encoding utf8
+
+          if (Test-Path $stdoutLog) {
+            Get-Content $stdoutLog -Tail 200 | Out-File (Join-Path $checkpointMeta 'last-build-output.txt') -Encoding utf8
+          }
+          $argsFiles = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File -ErrorAction SilentlyContinue
+          foreach ($f in $argsFiles) {
+            "### $($f.FullName)" | Out-File (Join-Path $checkpointMeta 'args-gn.txt') -Encoding utf8 -Append
+            Get-Content $f.FullName | Out-File (Join-Path $checkpointMeta 'args-gn.txt') -Encoding utf8 -Append
+          }
+          sccache --show-stats 2>&1 | Out-File (Join-Path $checkpointMeta 'sccache-stats.txt') -Encoding utf8
+
+      - name: Upload timeout checkpoint metadata
+        if: always() && steps.webengine_build.outputs.budget_exhausted == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-${{ env.QT_VERSION }}-timeout-metadata-run-${{ github.run_number }}
+          path: ${{ runner.temp }}/qtwebengine-timeout-checkpoint-meta
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 1
+
+      - name: Upload timeout build tree
+        if: always() && steps.webengine_build.outputs.budget_exhausted == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-${{ env.QT_VERSION }}-timeout-build-run-${{ github.run_number }}
+          path: ${{ env.WEBENGINE_BUILD_DIR }}
+          retention-days: 3
+          if-no-files-found: error
+          compression-level: 0
+          include-hidden-files: true
+
       - name: Install WebEngine module
         if: steps.webengine_build.outputs.completed == 'true'
         shell: pwsh
