@@ -130,6 +130,73 @@ def canonical_bytes(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
+def validate_replay_scenario(repo: Path) -> dict[str, Any]:
+    path = repo / "tests/lanista_capture/arc63_d3_readiness_replay.json"
+    if not path.is_file():
+        raise ProofError(f"D3 replay scenario missing: {path}")
+    try:
+        scenario = json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        raise ProofError("D3 replay scenario is not valid JSON") from exc
+
+    steps = scenario.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise ProofError("D3 replay scenario has no non-empty steps array")
+
+    if any("presentation_wait_ms" in step for step in steps if isinstance(step, dict)):
+        raise ProofError("D3 replay scenario contains a fixed off-camera readiness wait")
+
+    capture_starts: list[dict[str, Any]] = []
+    expected_objects = ["universesWorld", "shelvesUniversePage"]
+
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            raise ProofError(f"D3 replay step {index + 1} is not an object")
+        capture = step.get("capture")
+        if not isinstance(capture, dict) or capture.get("action") != "start":
+            continue
+        if index == 0:
+            raise ProofError("D3 replay begins capture without a readiness gate")
+
+        gate = steps[index - 1]
+        payload = gate.get("payload") if isinstance(gate, dict) else None
+        if (
+            not isinstance(gate, dict)
+            or gate.get("cmd") != "ui-wait-for"
+            or not isinstance(payload, dict)
+            or payload.get("prop") != "directorReadinessState"
+            or payload.get("value") != "settled"
+            or not isinstance(payload.get("timeout_ms"), int)
+            or payload["timeout_ms"] <= 0
+        ):
+            raise ProofError(
+                f"capture start at step {index + 1} is not immediately guarded by a bounded settled wait"
+            )
+        capture_starts.append(
+            {
+                "step": index + 1,
+                "object": str(payload.get("object", "")),
+                "timeout_ms": payload["timeout_ms"],
+                "name": str(capture.get("name", "")),
+            }
+        )
+
+    if len(capture_starts) != 2:
+        raise ProofError(
+            f"D3 replay has {len(capture_starts)} capture starts, expected exactly 2"
+        )
+    objects = [item["object"] for item in capture_starts]
+    if objects != expected_objects:
+        raise ProofError(
+            f"D3 capture gates are {objects!r}, expected {expected_objects!r}"
+        )
+    return {
+        "scenario": str(path.relative_to(repo)).replace("\\", "/"),
+        "captureStarts": capture_starts,
+        "fixedReadinessWaits": 0,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--qmltestrunner", required=True)
@@ -145,6 +212,8 @@ def main() -> int:
         raise ProofError("canonical Arc 63-D3 proof requires exactly 10 takes")
     if not runner.is_file():
         raise ProofError(f"qmltestrunner not found: {runner}")
+
+    scenario_gate = validate_replay_scenario(repo)
 
     universes_test = "tests/qml/tst_arc63_d2_universes_readiness.qml"
     shelves_test = "tests/qml/tst_arc63_d2_shelves_readiness.qml"
@@ -206,6 +275,7 @@ def main() -> int:
         "status": "pass",
         "witnessSha256": canonical_hash,
         "witness": canonical_witness,
+        "scenarioGate": scenario_gate,
         "takeResults": take_records,
     }
 
