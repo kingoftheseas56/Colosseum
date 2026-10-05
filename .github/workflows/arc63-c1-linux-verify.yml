@@ -87,9 +87,12 @@ jobs:
             xdotool getmouselocation --shell 2>/dev/null | awk -F= '/^X=/{x=$2}/^Y=/{y=$2}END{if(x!=""&&y!="")print x "," y}' >>"$samples" || true
             sleep 0.01
           done
+          set +e
           wait "$pid"
+          rc=$?
+          set -e
           cat "$stdout"
-          grep -q "LANISTA_OK" "$stdout"
+          echo "LANISTA_EXIT=$rc"
           unique=$(sort -u "$samples" | wc -l)
           minx=$(cut -d, -f1 "$samples" | sort -n | head -1)
           maxx=$(cut -d, -f1 "$samples" | sort -n | tail -1)
@@ -98,5 +101,7 @@ jobs:
           echo "X11_CURSOR_UNIQUE=$unique"
           echo "X11_CURSOR_RANGE_X=$minx..$maxx"
           echo "X11_CURSOR_RANGE_Y=$miny..$maxy"
+          test "$rc" -eq 0
+          grep -q "LANISTA_OK" "$stdout"
           test "$unique" -ge 2
           test $((maxx-minx)) -ge 10 -o $((maxy-miny)) -ge 10
