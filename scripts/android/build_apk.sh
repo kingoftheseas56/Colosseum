@@ -65,6 +65,7 @@ apk=$(find "$BUILD_DIR" -path '*/outputs/apk/*' -name '*.apk' -newer "$BUILD_DIR
 [[ -n "$apk" ]] || { echo "no APK produced under $BUILD_DIR" >&2; exit 1; }
 python3 "$REPO/tests/verify_android_apk_runtime_bundle.py" "$apk" \
     --qmlcachegen "$COLOSSEUM_QT_HOST_ROOT/libexec/qmlcachegen"
+bash "$REPO/scripts/android/verify_apk_openssl_pair.sh" "$apk" "$ABI"
 mkdir -p "$OUT_DIR"
 if [[ -n "${COLOSSEUM_ANDROID_KEYSTORE:-}" ]]; then
     : "${COLOSSEUM_ANDROID_KEYSTORE_PASSWORD:?keystore password required}"

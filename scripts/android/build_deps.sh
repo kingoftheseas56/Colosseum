@@ -20,6 +20,8 @@
 # pins, so re-running is a no-op unless versions/flags change.
 set -euo pipefail
 
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 API=28
 OPENSSL_VERSION=3.5.9
 OPENSSL_SHA256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
@@ -27,7 +29,7 @@ BOOST_VERSION=1.90.0
 BOOST_SHA256=49551aff3b22cbc5c5a9ed3dbc92f0e23ea50a0f7325b0d198b705e8ee3fc305
 LIBTORRENT_VERSION=2.0.14
 LIBTORRENT_SHA256=1b0b21b9755b5fbec23ca9ba2d2d10434ecb6711c39f37f5fc9d5aa25cf369c9
-STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v3"
+STAMP_KEY="api${API}-openssl${OPENSSL_VERSION}-boost${BOOST_VERSION}-libtorrent${LIBTORRENT_VERSION}-cxx17-qt-tls-v4"
 
 OUT="${COLOSSEUM_ANDROID_DEPS:-$HOME/colosseum-android/deps}"
 SRC_CACHE="${COLOSSEUM_ANDROID_SRC_CACHE:-$HOME/colosseum-android/src-cache}"
@@ -76,25 +78,24 @@ build_openssl() {  # abi prefix work
     (
         cd "$work/openssl-$OPENSSL_VERSION"
         export PATH="$TOOLCHAIN/bin:$PATH"
-        # Name the libraries at link time. Post-link SONAME/string-table rewriting
-        # can leave version-needed offsets invalid after Android's llvm-strip.
-        cat > Configurations/99-colosseum.conf <<EOF
-my %targets = (
-    "colosseum-$target" => {
-        inherit_from => [ "$target" ],
-        shared_extension => "_3.so",
-    },
-);
-EOF
-        ./Configure "colosseum-$target" -D__ANDROID_API__=$API shared no-tests no-docs no-apps \
+        command -v patchelf >/dev/null || { echo "patchelf is required for Qt Android OpenSSL packaging" >&2; exit 1; }
+
+        # Qt's Android TLS loader expects an unversioned OpenSSL build renamed to the
+        # _3 suffix after linking. Keep OpenSSL's own link graph intact here; patch only
+        # the runtime copies below.
+        ./Configure "$target" -D__ANDROID_API__=$API shared no-tests no-docs no-apps \
             -Wl,-z,max-page-size=16384 \
             --prefix="$prefix" --libdir=lib >"$work/openssl-configure.log" 2>&1 || exit 1
-        make -j"$JOBS" build_libs >"$work/openssl-build.log" 2>&1 || exit 1
-        make install_dev >"$work/openssl-install.log" 2>&1 || exit 1
+        make -j"$JOBS" SHLIB_VERSION_NUMBER= build_libs >"$work/openssl-build.log" 2>&1 || exit 1
+        make SHLIB_VERSION_NUMBER= install_dev >"$work/openssl-install.log" 2>&1 || exit 1
         # Keep the static archives for libtorrent, and give Qt its own runtime
         # libraries instead of resolving Android's incompatible system OpenSSL.
-        cp libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
-        cp libssl_3.so "$prefix/lib/libssl_3.so" || exit 1
+        cp libcrypto.so "$prefix/lib/libcrypto_3.so" || exit 1
+        cp libssl.so "$prefix/lib/libssl_3.so" || exit 1
+        patchelf --set-soname libcrypto_3.so "$prefix/lib/libcrypto_3.so" || exit 1
+        patchelf --set-soname libssl_3.so "$prefix/lib/libssl_3.so" || exit 1
+        patchelf --replace-needed libcrypto.so libcrypto_3.so "$prefix/lib/libssl_3.so" || exit 1
+        bash "$REPO/scripts/android/verify_openssl_runtime_pair.sh" "$prefix/lib" || exit 1
     ) || { tail -40 "$work"/openssl-*.log >&2; die "$abi: OpenSSL failed"; }
 }
 

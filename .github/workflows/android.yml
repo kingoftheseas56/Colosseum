@@ -35,6 +35,7 @@ jobs:
         run: |
           python tests/test_android_reader_session.py
           node tests/android_reader_boot_test.mjs
+          python tests/test_android_openssl_packaging_contract.py
 
       - name: Free disk space
         run: |
@@ -44,7 +45,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build ccache patchelf
+          sudo apt-get install -y --no-install-recommends ninja-build ccache patchelf binutils
           ccache --max-size=2G
 
       - name: Restore toolchain (Qt, SDK, NDK)
