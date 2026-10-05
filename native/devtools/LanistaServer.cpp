@@ -17,6 +17,7 @@
 #include <QKeySequence>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QLibrary>
 #include <QMetaMethod>
 #include <QMetaProperty>
 #include <QMouseEvent>
@@ -38,6 +39,13 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace {
 // The listener is ALWAYS ON in Hemanth's daily app, so the two things a local
@@ -349,6 +357,10 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
              [this](const QJsonObject& p, Replier reply) { cmdUiScroll(p, std::move(reply)); });
     addDrive(QStringLiteral("point"),
              [this](const QJsonObject& p, Replier reply) { cmdPoint(p, std::move(reply)); });
+    addDrive(QStringLiteral("pointer-click"),
+             [this](const QJsonObject& p, Replier reply) {
+                 cmdPointerClick(p, std::move(reply));
+             });
     // J1-Tray-Bridge (2026-08-14): restores a minimized/hidden root window — the
     // bridge's only path onto "the taskbar can't be reached from here" (Lanista
     // ledger, Planned §9). A fifth "hand", Drive-gated like the four above; the
@@ -1550,101 +1562,10 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
 //   the root-window client rect -> visible-scene center -> QWindow::mapToGlobal().
 // The caller never supplies a screen coordinate, so a stale/scripted pixel value
 // cannot send the cursor somewhere unrelated to the intended tagged process.
-void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
+LanistaServer::PointerTargetSnapshot
+LanistaServer::resolvePointerTarget(const QString& targetRef) const
 {
-    // QCursor::setPos() changes global OS state. DRIVE=1 is necessary but not
-    // sufficient: refuse point unless this process is an explicitly tagged,
-    // isolated Colosseum session rather than the daily app.
-    const QString appDataTag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").trimmed();
-    if (appDataTag.isEmpty()) {
-        reply.fail("ISOLATION_REQUIRED",
-                   QStringLiteral("point requires a non-empty COLOSSEUM_APPDATA_TAG"));
-        return;
-    }
-
-    // C1 is deliberately a named-target command, not a general pointer API.
-    // Fail closed on every field except the generic reply-grab hook so a caller
-    // cannot smuggle a raw screen coordinate beside a legitimate target.
-    const QSet<QString> allowedPayloadKeys{
-        QStringLiteral("target"),
-        QStringLiteral("duration_ms"),
-        QStringLiteral("path"),
-        QStringLiteral("tolerance_px"),
-        QStringLiteral("grab")
-    };
-    for (auto it = p.constBegin(); it != p.constEnd(); ++it) {
-        if (!allowedPayloadKeys.contains(it.key())) {
-            reply.fail("BAD_PAYLOAD",
-                       QStringLiteral("unsupported point payload field: ") + it.key());
-            return;
-        }
-    }
-
-    const QJsonValue targetValue = p.value(QStringLiteral("target"));
-    if (!targetValue.isString() || targetValue.toString().trimmed().isEmpty()) {
-        reply.fail("BAD_TARGET", QStringLiteral("point needs a non-empty named target"));
-        return;
-    }
-    const QString ref = targetValue.toString();
-
-    int durationMs = 700;
-    if (p.contains(QStringLiteral("duration_ms"))) {
-        const QJsonValue value = p.value(QStringLiteral("duration_ms"));
-        const double raw = value.toDouble(std::numeric_limits<double>::quiet_NaN());
-        if (!value.isDouble() || !std::isfinite(raw) || std::floor(raw) != raw
-            || raw < 16.0 || raw > 10000.0) {
-            reply.fail("BAD_DURATION",
-                       QStringLiteral("duration_ms must be an integer in [16,10000]"));
-            return;
-        }
-        durationMs = int(raw);
-    }
-
-    QString path = QStringLiteral("smoothstep");
-    if (p.contains(QStringLiteral("path"))) {
-        const QJsonValue value = p.value(QStringLiteral("path"));
-        if (!value.isString()) {
-            reply.fail("BAD_PATH", QStringLiteral("path must be smoothstep or linear"));
-            return;
-        }
-        path = value.toString();
-    }
-    if (path != QStringLiteral("smoothstep") && path != QStringLiteral("linear")) {
-        reply.fail("BAD_PATH", QStringLiteral("path must be smoothstep or linear"));
-        return;
-    }
-
-    int tolerancePx = 2;
-    if (p.contains(QStringLiteral("tolerance_px"))) {
-        const QJsonValue value = p.value(QStringLiteral("tolerance_px"));
-        const double raw = value.toDouble(std::numeric_limits<double>::quiet_NaN());
-        if (!value.isDouble() || !std::isfinite(raw) || std::floor(raw) != raw
-            || raw < 0.0 || raw > 16.0) {
-            reply.fail("BAD_TOLERANCE",
-                       QStringLiteral("tolerance_px must be an integer in [0,16]"));
-            return;
-        }
-        tolerancePx = int(raw);
-    }
-
-    // C2a keeps C1's exact fail-closed targeting contract, but makes it
-    // re-usable during the gesture. The pointer must never continue toward a
-    // coordinate after the named object, its first-root ownership, or its
-    // visible/clipped hit region has changed underneath us.
-    struct PointTargetSnapshot {
-        QPointer<QQuickItem> item;
-        QPointer<QQuickWindow> window;
-        QRectF visibleScene;
-        QPoint targetScene;
-        QPoint targetGlobal;
-        const char* errorCode = nullptr;
-        QString errorMessage;
-
-        bool ok() const { return errorCode == nullptr; }
-    };
-
-    const auto resolveSnapshot = [this](const QString& targetRef) {
-        PointTargetSnapshot out;
+        PointerTargetSnapshot out;
         QQuickItem* item = resolveTarget(targetRef);
         if (!item) {
             out.errorCode = "NO_SUCH_ITEM";
@@ -1674,7 +1595,7 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
         if (!w->isActive()) {
             out.errorCode = "WINDOW_NOT_ACTIVE";
             out.errorMessage =
-                QStringLiteral("point requires the target Colosseum window to be active");
+                QStringLiteral("pointer target requires the Colosseum window to be active");
             return out;
         }
 
@@ -1780,9 +1701,87 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
             return out;
         }
         return out;
-    };
 
-    const PointTargetSnapshot initial = resolveSnapshot(ref);
+}
+
+void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
+{
+    // QCursor::setPos() changes global OS state. DRIVE=1 is necessary but not
+    // sufficient: refuse point unless this process is an explicitly tagged,
+    // isolated Colosseum session rather than the daily app.
+    const QString appDataTag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").trimmed();
+    if (appDataTag.isEmpty()) {
+        reply.fail("ISOLATION_REQUIRED",
+                   QStringLiteral("point requires a non-empty COLOSSEUM_APPDATA_TAG"));
+        return;
+    }
+
+    // C1 is deliberately a named-target command, not a general pointer API.
+    // Fail closed on every field except the generic reply-grab hook so a caller
+    // cannot smuggle a raw screen coordinate beside a legitimate target.
+    const QSet<QString> allowedPayloadKeys{
+        QStringLiteral("target"),
+        QStringLiteral("duration_ms"),
+        QStringLiteral("path"),
+        QStringLiteral("tolerance_px"),
+        QStringLiteral("grab")
+    };
+    for (auto it = p.constBegin(); it != p.constEnd(); ++it) {
+        if (!allowedPayloadKeys.contains(it.key())) {
+            reply.fail("BAD_PAYLOAD",
+                       QStringLiteral("unsupported point payload field: ") + it.key());
+            return;
+        }
+    }
+
+    const QJsonValue targetValue = p.value(QStringLiteral("target"));
+    if (!targetValue.isString() || targetValue.toString().trimmed().isEmpty()) {
+        reply.fail("BAD_TARGET", QStringLiteral("point needs a non-empty named target"));
+        return;
+    }
+    const QString ref = targetValue.toString();
+
+    int durationMs = 700;
+    if (p.contains(QStringLiteral("duration_ms"))) {
+        const QJsonValue value = p.value(QStringLiteral("duration_ms"));
+        const double raw = value.toDouble(std::numeric_limits<double>::quiet_NaN());
+        if (!value.isDouble() || !std::isfinite(raw) || std::floor(raw) != raw
+            || raw < 16.0 || raw > 10000.0) {
+            reply.fail("BAD_DURATION",
+                       QStringLiteral("duration_ms must be an integer in [16,10000]"));
+            return;
+        }
+        durationMs = int(raw);
+    }
+
+    QString path = QStringLiteral("smoothstep");
+    if (p.contains(QStringLiteral("path"))) {
+        const QJsonValue value = p.value(QStringLiteral("path"));
+        if (!value.isString()) {
+            reply.fail("BAD_PATH", QStringLiteral("path must be smoothstep or linear"));
+            return;
+        }
+        path = value.toString();
+    }
+    if (path != QStringLiteral("smoothstep") && path != QStringLiteral("linear")) {
+        reply.fail("BAD_PATH", QStringLiteral("path must be smoothstep or linear"));
+        return;
+    }
+
+    int tolerancePx = 2;
+    if (p.contains(QStringLiteral("tolerance_px"))) {
+        const QJsonValue value = p.value(QStringLiteral("tolerance_px"));
+        const double raw = value.toDouble(std::numeric_limits<double>::quiet_NaN());
+        if (!value.isDouble() || !std::isfinite(raw) || std::floor(raw) != raw
+            || raw < 0.0 || raw > 16.0) {
+            reply.fail("BAD_TOLERANCE",
+                       QStringLiteral("tolerance_px must be an integer in [0,16]"));
+            return;
+        }
+        tolerancePx = int(raw);
+    }
+
+    const PointerTargetSnapshot initial = resolvePointerTarget(ref);
     if (!initial.ok()) {
         reply.fail(initial.errorCode, initial.errorMessage);
         return;
@@ -1804,14 +1803,14 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
     connect(timer, &QTimer::timeout, this,
             [reply, timer, elapsed, trackedItem, trackedWindow, startGlobal,
              targetGlobal, targetScene, visibleScene, ref, path, durationMs,
-             tolerancePx, resolveSnapshot]() mutable {
+             tolerancePx, this]() mutable {
         if (!reply.canReply()) {
             timer->stop();
             timer->deleteLater();
             return;
         }
 
-        const PointTargetSnapshot current = resolveSnapshot(ref);
+        const PointerTargetSnapshot current = resolvePointerTarget(ref);
         if (!current.ok()) {
             timer->stop();
             timer->deleteLater();
@@ -1908,6 +1907,226 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
         });
     });
     timer->start();
+}
+
+
+// Arc 63-C2b1: one REAL OS left-button click at the current pointer endpoint.
+// Unlike ui-click, this does not construct a QMouseEvent or invoke QML directly.
+// The caller supplies only a named target; the OS cursor must already be inside
+// that target's CURRENT visible/clipped region, normally because point just put
+// it there. The command is intentionally not a general desktop click primitive.
+void LanistaServer::cmdPointerClick(const QJsonObject& p, Replier reply)
+{
+    const QString appDataTag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").trimmed();
+    if (appDataTag.isEmpty()) {
+        reply.fail("ISOLATION_REQUIRED",
+                   QStringLiteral("pointer-click requires a non-empty COLOSSEUM_APPDATA_TAG"));
+        return;
+    }
+
+    const QSet<QString> allowedPayloadKeys{
+        QStringLiteral("target"),
+        QStringLiteral("button"),
+        QStringLiteral("action"),
+        QStringLiteral("grab")
+    };
+    for (auto it = p.constBegin(); it != p.constEnd(); ++it) {
+        if (!allowedPayloadKeys.contains(it.key())) {
+            reply.fail("BAD_PAYLOAD",
+                       QStringLiteral("unsupported pointer-click payload field: ") + it.key());
+            return;
+        }
+    }
+
+    const QJsonValue targetValue = p.value(QStringLiteral("target"));
+    if (!targetValue.isString() || targetValue.toString().trimmed().isEmpty()) {
+        reply.fail("BAD_TARGET",
+                   QStringLiteral("pointer-click needs a non-empty named target"));
+        return;
+    }
+    const QString ref = targetValue.toString();
+
+    const QJsonValue buttonValue = p.value(QStringLiteral("button"));
+    const QString button = p.contains(QStringLiteral("button"))
+        && buttonValue.isString() ? buttonValue.toString() : QStringLiteral("left");
+    if ((p.contains(QStringLiteral("button")) && !buttonValue.isString())
+        || button != QStringLiteral("left")) {
+        reply.fail("BAD_BUTTON", QStringLiteral("pointer-click supports only button=left"));
+        return;
+    }
+
+    const QJsonValue actionValue = p.value(QStringLiteral("action"));
+    const QString action = p.contains(QStringLiteral("action"))
+        && actionValue.isString() ? actionValue.toString() : QStringLiteral("click");
+    if ((p.contains(QStringLiteral("action")) && !actionValue.isString())
+        || action != QStringLiteral("click")) {
+        reply.fail("BAD_ACTION", QStringLiteral("pointer-click supports only action=click"));
+        return;
+    }
+
+    const PointerTargetSnapshot target = resolvePointerTarget(ref);
+    if (!target.ok()) {
+        reply.fail(target.errorCode, target.errorMessage);
+        return;
+    }
+
+    const QPoint cursorGlobal = QCursor::pos();
+    if (!QGuiApplication::screenAt(cursorGlobal)) {
+        reply.fail("IMPOSSIBLE_POINTER_STATE",
+                   QStringLiteral("current pointer is outside every attached screen"));
+        return;
+    }
+    const QPoint cursorScene = target.window->mapFromGlobal(cursorGlobal);
+    if (!target.visibleScene.contains(QPointF(cursorScene))) {
+        reply.fail("POINTER_OFF_TARGET",
+                   QStringLiteral("current pointer is outside the target's visible hit region: ")
+                       + ref);
+        return;
+    }
+
+    QString backend;
+    int submittedEvents = 0;
+
+#ifdef Q_OS_WIN
+    const HWND hwnd = reinterpret_cast<HWND>(target.window->winId());
+    if (!hwnd || GetForegroundWindow() != hwnd) {
+        reply.fail("WINDOW_NOT_ACTIVE",
+                   QStringLiteral("pointer-click requires the first root HWND to be foreground"));
+        return;
+    }
+    if ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0) {
+        reply.fail("IMPOSSIBLE_POINTER_STATE",
+                   QStringLiteral("left mouse button is already pressed"));
+        return;
+    }
+
+    INPUT inputs[2]{};
+    inputs[0].type = INPUT_MOUSE;
+    inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+    inputs[0].mi.time = 0;  // OS assigns the real input timestamp.
+    inputs[1].type = INPUT_MOUSE;
+    inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    inputs[1].mi.time = 0;
+
+    SetLastError(ERROR_SUCCESS);
+    const UINT sent = SendInput(2, inputs, sizeof(INPUT));
+    submittedEvents = int(sent);
+    backend = QStringLiteral("win32-sendinput");
+    if (sent != 2) {
+        const DWORD err = GetLastError();
+        // A one-event partial write could leave the physical button state down.
+        // If that happened, release it before reporting the failure.
+        if (sent == 1) {
+            INPUT release{};
+            release.type = INPUT_MOUSE;
+            release.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+            SendInput(1, &release, sizeof(INPUT));
+        }
+        reply.fail("NATIVE_INPUT_FAILED",
+                   QStringLiteral("SendInput inserted %1/2 events (GetLastError=%2)")
+                       .arg(sent).arg(qulonglong(err)));
+        return;
+    }
+#elif defined(Q_OS_LINUX)
+    auto* x11 =
+        qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+    if (!x11 || !x11->display()) {
+        reply.fail("PLATFORM_UNSUPPORTED",
+                   QStringLiteral("pointer-click currently requires Windows or X11"));
+        return;
+    }
+
+    using QueryExtensionFn = int (*)(void*, int*, int*, int*, int*);
+    using FakeButtonFn = int (*)(void*, unsigned int, int, unsigned long);
+    using QueryPointerFn = int (*)(void*, unsigned long, unsigned long*, unsigned long*,
+                                   int*, int*, int*, int*, unsigned int*);
+    using SyncFn = int (*)(void*, int);
+
+    QLibrary xtst(QStringLiteral("Xtst"), 6);
+    QLibrary x11lib(QStringLiteral("X11"), 6);
+    if (!xtst.load() || !x11lib.load()) {
+        reply.fail("PLATFORM_UNSUPPORTED",
+                   QStringLiteral("X11 pointer-click requires libXtst and libX11"));
+        return;
+    }
+
+    const auto queryExtension =
+        reinterpret_cast<QueryExtensionFn>(xtst.resolve("XTestQueryExtension"));
+    const auto fakeButton =
+        reinterpret_cast<FakeButtonFn>(xtst.resolve("XTestFakeButtonEvent"));
+    const auto queryPointer =
+        reinterpret_cast<QueryPointerFn>(x11lib.resolve("XQueryPointer"));
+    const auto sync =
+        reinterpret_cast<SyncFn>(x11lib.resolve("XSync"));
+    if (!queryExtension || !fakeButton || !queryPointer || !sync) {
+        reply.fail("PLATFORM_UNSUPPORTED",
+                   QStringLiteral("required X11/XTEST symbols are unavailable"));
+        return;
+    }
+
+    void* display = x11->display();
+    int eventBase = 0, errorBase = 0, major = 0, minor = 0;
+    if (!queryExtension(display, &eventBase, &errorBase, &major, &minor)) {
+        reply.fail("PLATFORM_UNSUPPORTED",
+                   QStringLiteral("XTEST extension is unavailable on this X server"));
+        return;
+    }
+
+    unsigned long root = 0, child = 0;
+    int rootX = 0, rootY = 0, winX = 0, winY = 0;
+    unsigned int mask = 0;
+    const unsigned long windowId =
+        static_cast<unsigned long>(target.window->winId());
+    if (!queryPointer(display, windowId, &root, &child,
+                      &rootX, &rootY, &winX, &winY, &mask)) {
+        reply.fail("IMPOSSIBLE_POINTER_STATE",
+                   QStringLiteral("XQueryPointer could not read the current button state"));
+        return;
+    }
+    constexpr unsigned int kButton1Mask = 1u << 8;
+    if ((mask & kButton1Mask) != 0) {
+        reply.fail("IMPOSSIBLE_POINTER_STATE",
+                   QStringLiteral("left mouse button is already pressed"));
+        return;
+    }
+
+    const int pressed = fakeButton(display, 1u, 1, 0ul);
+    const int released = fakeButton(display, 1u, 0, 0ul);
+    sync(display, 0);
+    submittedEvents = (pressed ? 1 : 0) + (released ? 1 : 0);
+    backend = QStringLiteral("x11-xtest");
+    if (!pressed || !released) {
+        if (pressed && !released) {
+            fakeButton(display, 1u, 0, 0ul);
+            sync(display, 0);
+        }
+        reply.fail("NATIVE_INPUT_FAILED",
+                   QStringLiteral("XTestFakeButtonEvent inserted %1/2 events")
+                       .arg(submittedEvents));
+        return;
+    }
+#else
+    reply.fail("PLATFORM_UNSUPPORTED",
+               QStringLiteral("pointer-click currently requires Windows or X11"));
+    return;
+#endif
+
+    reply.reply({
+        {QStringLiteral("clicked"), ref},
+        {QStringLiteral("button"), button},
+        {QStringLiteral("action"), action},
+        {QStringLiteral("backend"), backend},
+        {QStringLiteral("submittedEvents"), submittedEvents},
+        {QStringLiteral("pointerScreenX"), cursorGlobal.x()},
+        {QStringLiteral("pointerScreenY"), cursorGlobal.y()},
+        {QStringLiteral("pointerSceneX"), cursorScene.x()},
+        {QStringLiteral("pointerSceneY"), cursorScene.y()},
+        {QStringLiteral("visibleSceneRect"),
+         QJsonObject{{QStringLiteral("x"), target.visibleScene.x()},
+                     {QStringLiteral("y"), target.visibleScene.y()},
+                     {QStringLiteral("width"), target.visibleScene.width()},
+                     {QStringLiteral("height"), target.visibleScene.height()}}}
+    });
 }
 
 // J1-Tray-Bridge (2026-08-14): window-set-state — the one command that can
