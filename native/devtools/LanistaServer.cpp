@@ -1552,6 +1552,16 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
 // cannot send the cursor somewhere unrelated to the intended tagged process.
 void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
 {
+    // QCursor::setPos() changes global OS state. DRIVE=1 is necessary but not
+    // sufficient: refuse point unless this process is an explicitly tagged,
+    // isolated Colosseum session rather than the daily app.
+    const QString appDataTag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").trimmed();
+    if (appDataTag.isEmpty()) {
+        reply.fail("ISOLATION_REQUIRED",
+                   QStringLiteral("point requires a non-empty COLOSSEUM_APPDATA_TAG"));
+        return;
+    }
+
     // C1 is deliberately a named-target command, not a general pointer API.
     // Fail closed on every field except the generic reply-grab hook so a caller
     // cannot smuggle a raw screen coordinate beside a legitimate target.
