@@ -17,6 +17,8 @@ jobs:
       MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Exact C2a whitespace gate
         shell: bash
