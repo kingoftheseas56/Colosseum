@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtTest
 import "../../qml/feria"
 
@@ -15,11 +16,13 @@ Item {
         property var browser
         function find(item, name) {
             if (item.objectName === name) return item
-            for (var i = 0; i < item.children.length; ++i) {
-                var found = find(item.children[i], name)
-                if (found) return found
-            }
-            return null
+            return findChild(item, name)
+        }
+        function openAddress() {
+            var address = find(feria, "feriaBrowserAddress")
+            mouseClick(find(feria, "feriaBrowserAddressToggle"))
+            tryVerify(function() { return address.visible && address.activeFocus })
+            return address
         }
         function initTestCase() {
             host = find(feria, "feriaBrowserHost")
@@ -51,14 +54,25 @@ Item {
         }
         function test_controls_available_without_options() {
             compare(host.optionsOpen, false)
-            var names = ["feriaBrowserBack", "feriaBrowserForward", "feriaBrowserReload", "feriaBrowserAddress"]
+            var names = ["feriaBrowserBack", "feriaBrowserForward", "feriaBrowserReload", "feriaBrowserAddressToggle"]
             for (var i = 0; i < names.length; ++i) {
                 var control = find(feria, names[i])
                 verify(control !== null, names[i] + " exists")
                 verify(control.visible, names[i] + " is visible without opening Options")
                 verify(control.mapToItem(feria, 0, 0).y + control.height <= browser.mapToItem(feria, 0, 0).y)
             }
+            compare(find(feria, "feriaBrowserAddress").visible, false)
+            compare(find(feria, "feriaAppBar").height, 52)
             grabImage(feria).save(feriaBrowserTestOutput + "/toolbar-wide.png")
+            var address = openAddress()
+            mouseClick(find(feria, "feriaBrowserAddressToggle"))
+            tryCompare(address, "visible", false)
+            openAddress()
+            address.text = "unfinished.example/draft"
+            mouseClick(browser, 100, 100)
+            tryCompare(address, "visible", false)
+            compare(address.text, host.currentUrl)
+            compare(feria.viewState, "host")
         }
         function test_options_pointer_and_close() {
             var options = find(feria, "feriaAppOptions")
@@ -74,9 +88,11 @@ Item {
             browser.forceActiveFocus()
             keyClick(Qt.Key_L, Qt.ControlModifier)
             tryVerify(function() { return address.activeFocus })
+            verify(address.visible)
             compare(address.selectedText, host.currentUrl)
             address.text = feriaBrowserTestBaseUrl + "page?b"
             keyClick(Qt.Key_Return)
+            tryCompare(address, "visible", false)
             tryVerify(function() { return !host.pageLoading && host.currentUrl.endsWith("page?b") && host.engineCanGoBack }, 10000)
             var back = find(feria, "feriaBrowserBack")
             verify(back.visible && back.enabled)
@@ -94,7 +110,7 @@ Item {
         function test_address_edit_and_escape() {
             var address = find(feria, "feriaBrowserAddress")
             verify(address !== null, "Editable address field exists")
-            mouseClick(address)
+            openAddress()
             address.text = "unfinished.example/draft"
             host.currentUrl = feriaBrowserTestBaseUrl + "page?redirected"
             wait(20)
@@ -102,13 +118,14 @@ Item {
             keyClick(Qt.Key_Escape)
             tryCompare(address, "text", host.currentUrl)
             verify(!address.activeFocus)
+            compare(address.visible, false)
             compare(feria.viewState, "host", "Cancelling address editing does not exit Feria's browser")
         }
         function test_address_rejects_executable_scheme() {
             var address = find(feria, "feriaBrowserAddress")
             verify(address !== null, "Editable address field exists")
             var before = host.currentUrl
-            mouseClick(address)
+            openAddress()
             address.text = "javascript:document.title='wrong'"
             keyClick(Qt.Key_Return)
             compare(host.currentUrl, before)
@@ -117,7 +134,7 @@ Item {
         }
         function test_address_context_menu_preserves_draft() {
             var address = find(feria, "feriaBrowserAddress")
-            mouseClick(address)
+            openAddress()
             address.text = "example.com/draft"
             address.select(12, 17)
             mouseClick(address, 30, address.height / 2, Qt.RightButton)
@@ -126,20 +143,21 @@ Item {
             tryCompare(menu, "opened", true)
             compare(address.text, "example.com/draft")
             compare(address.selectedText, "draft")
-            grabImage(feria).save(feriaBrowserTestOutput + "/toolbar-context-menu.png")
+            grabImage(scene.Window.window.contentItem).save(feriaBrowserTestOutput + "/toolbar-context-menu.png")
             mouseClick(findChild(feria, "feriaAddressDelete"))
             tryCompare(menu, "visible", false)
             compare(address.text, "example.com/")
         }
         function test_shell_escape_cancels_address() {
             var address = find(feria, "feriaBrowserAddress")
-            mouseClick(address)
+            openAddress()
             address.text = "unfinished.example/draft"
             // Main.qml's global Escape command delegates to FeriaWorld.back().
             feria.back()
             compare(feria.viewState, "host")
             compare(address.text, host.currentUrl)
             verify(!address.activeFocus)
+            compare(address.visible, false)
         }
         function test_reload_and_stop() {
             var reload = find(feria, "feriaBrowserReload")
@@ -156,7 +174,7 @@ Item {
             tryVerify(function() { return completed > previous && !host.pageLoading }, 10000)
             browser.completed.disconnect(observed)
             var address = find(feria, "feriaBrowserAddress")
-            mouseClick(address)
+            openAddress()
             address.text = feriaBrowserTestBaseUrl + "slow-image"
             keyClick(Qt.Key_Return)
             tryCompare(host, "pageLoading", true)
@@ -179,13 +197,17 @@ Item {
             wait(50)
             var address = find(feria, "feriaBrowserAddress")
             verify(address !== null, "Editable address field exists")
+            grabImage(feria).save(feriaBrowserTestOutput + "/toolbar-narrow.png")
+            openAddress()
             verify(address.width >= 120)
             var reload = find(feria, "feriaBrowserReload")
-            verify(reload.mapToItem(feria, reload.width, 0).x <= address.mapToItem(feria, 0, 0).x)
+            var toggle = find(feria, "feriaBrowserAddressToggle")
+            verify(reload.mapToItem(feria, reload.width, 0).x <= toggle.mapToItem(feria, 0, 0).x)
+            verify(address.mapToItem(feria, 0, 0).x >= 0)
             verify(address.mapToItem(feria, address.width, 0).x <= feria.width)
             var options = find(feria, "feriaAppOptions")
             verify(options.mapToItem(feria, options.width, 0).x <= find(feria, "feriaHostMinimize").mapToItem(feria, 0, 0).x)
-            grabImage(feria).save(feriaBrowserTestOutput + "/toolbar-narrow.png")
+            grabImage(scene.Window.window.contentItem).save(feriaBrowserTestOutput + "/toolbar-address-expanded.png")
             mouseClick(options)
             tryCompare(host, "optionsOpen", true)
         }

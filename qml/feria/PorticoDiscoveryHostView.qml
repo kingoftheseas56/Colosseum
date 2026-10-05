@@ -26,12 +26,14 @@ Item {
     }
     function focusApp() {
         optionsOpen = false
+        navigationBar.hideAddress()
         if (!browserLoader.item) return
         if (root.engine === "webview2") browserLoader.item.focusWebView()
         else browserLoader.item.forceActiveFocus()
     }
     function showOptions() {
         if (fullScreenActive) return
+        navigationBar.hideAddress()
         optionsOpen = true
         if (browserLoader.item && engine === "webview2") browserLoader.item.focusAppControls()
         Qt.callLater(function() { appHomeButton.forceActiveFocus() })
@@ -174,7 +176,7 @@ Item {
         objectName: "feriaAppBar"
         anchors { left: parent.left; right: parent.right; top: parent.top }
         visible: !root.fullScreenActive
-        height: root.fullScreenActive ? 0 : root.optionsOpen ? 118 + optionsFlow.implicitHeight : 100
+        height: root.fullScreenActive ? 0 : root.optionsOpen ? 70 + optionsFlow.implicitHeight : 52
         color: "#08090d"
         Colosseum.KeyboardSpatialNavigator { id: appNav; root:strip }
         Keys.onPressed: function(event) { appNav.handle(event) }
@@ -183,7 +185,7 @@ Item {
             height:52
             anchors.leftMargin: controller.marginX
             anchors.rightMargin: controller.marginX
-            spacing: root.u
+            spacing: strip.width < 1000 ? 6 : root.u
             Colosseum.BackAction {
                 objectName: "feriaBrowserReturn"
                 label: "Feria"
@@ -201,10 +203,27 @@ Item {
             Text {
                 text: controller.providerName(controller.hostApp)
                 Layout.maximumWidth: strip.width < 900 ? 120 : 240
+                Layout.minimumWidth: 0
                 elide: Text.ElideRight
                 color: controller.ink
                 font.family: controller.uiFont
                 font.pixelSize: 14
+            }
+            FeriaBrowserToolbar {
+                id: navigationBar
+                Layout.preferredWidth: implicitWidth
+                Layout.minimumWidth: implicitWidth
+                Layout.preferredHeight: implicitHeight
+                currentUrl: root.currentUrl
+                canGoBack: root.engineCanGoBack
+                canGoForward: root.engineCanGoForward
+                loading: root.pageLoading
+                browserReady: root.browserReady
+                onBackRequested: root.pageBack()
+                onForwardRequested: root.pageForward()
+                onReloadRequested: root.reloadOrStop()
+                onAddressAccepted: function(address) { root.navigate(address) }
+                onEditingCancelled: root.focusApp()
             }
             Text {
                 Layout.fillWidth: true
@@ -244,24 +263,9 @@ Item {
                 Layout.preferredHeight: 44
             }
         }
-        FeriaBrowserToolbar {
-            id: navigationBar
-            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 52; leftMargin: controller.marginX; rightMargin: controller.marginX }
-            height: 44
-            currentUrl: root.currentUrl
-            canGoBack: root.engineCanGoBack
-            canGoForward: root.engineCanGoForward
-            loading: root.pageLoading
-            browserReady: root.browserReady
-            onBackRequested: root.pageBack()
-            onForwardRequested: root.pageForward()
-            onReloadRequested: root.reloadOrStop()
-            onAddressAccepted: function(address) { root.navigate(address) }
-            onEditingCancelled: root.focusApp()
-        }
         Flow {
             id:optionsFlow
-            anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:106; leftMargin:controller.marginX; rightMargin:controller.marginX }
+            anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:58; leftMargin:controller.marginX; rightMargin:controller.marginX }
             spacing:10
             visible:root.optionsOpen
             BrowserAction {

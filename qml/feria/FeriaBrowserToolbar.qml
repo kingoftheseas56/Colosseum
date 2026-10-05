@@ -12,6 +12,9 @@ import ".." as Colosseum
 
 Item {
     id: root
+    implicitWidth: 162
+    implicitHeight: 36
+    readonly property Item overlay: Overlay.overlay
     property string currentUrl: ""
     property bool canGoBack: false
     property bool canGoForward: false
@@ -22,14 +25,21 @@ Item {
     signal reloadRequested()
     signal addressAccepted(string address)
     signal editingCancelled()
-    function focusAddress() { address.forceActiveFocus(); address.selectAll() }
+    function focusAddress() {
+        addressPanel.open()
+        address.forceActiveFocus()
+        address.selectAll()
+    }
+    function hideAddress() { addressPanel.close() }
     function cancelAddressEditing() {
-        if (!address.activeFocus && !addressMenu.visible) return false
+        if (!addressPanel.visible) return false
         addressMenu.close()
         address.text = root.currentUrl
+        hideAddress()
         root.editingCancelled()
         return true
     }
+    onVisibleChanged: if (!visible) hideAddress()
     Colosseum.Theme { id: theme }
 
     component NavigationButton: AccountUi.AccountButton {
@@ -74,12 +84,46 @@ Item {
             enabled: root.browserReady
             onClicked: root.reloadRequested()
         }
-        TextField {
+        NavigationButton {
+            objectName: "feriaBrowserAddressToggle"
+            ToolTip.text: "Web address (Ctrl+L)"
+            variant: addressPanel.visible ? "secondary" : "link"
+            Accessible.description: "Show or hide the web address"
+            contentItem: Item {
+                Image {
+                    anchors.centerIn: parent
+                    width: 20; height: 20
+                    source: "../../assets/icons/link.svg"
+                    sourceSize: Qt.size(20, 20)
+                }
+            }
+            onClicked: {
+                if (addressPanel.visible) root.cancelAddressEditing()
+                else root.focusAddress()
+            }
+        }
+    }
+    Popup {
+        id: addressPanel
+        objectName: "feriaBrowserAddressPanel"
+        parent: root
+        x: root.overlay ? Math.min(0, root.overlay.width - root.mapToItem(root.overlay, 0, 0).x - width - 12) : 0
+        y: root.height + 8
+        width: root.overlay ? Math.min(520, Math.max(0, root.overlay.width - 24)) : 520
+        height: 52
+        padding: 8
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+        onClosed: { addressMenu.close(); address.text = root.currentUrl }
+        background: Rectangle {
+            radius: 12
+            color: theme.biblioWashTop
+            border.color: theme.edge
+        }
+        contentItem: TextField {
             id: address
             objectName: "feriaBrowserAddress"
-            Layout.fillWidth: true
-            Layout.minimumWidth: 120
-            Layout.preferredHeight: 36
+            focus: true
             leftPadding: 12
             rightPadding: 12
             color: theme.ink
