@@ -16,6 +16,18 @@ Item {
 
     readonly property bool isPoster: slide.artKind !== undefined && slide.artKind === "poster"
     readonly property bool compactCopy: slideRoot.height < 360
+
+    // Arc 63-D2A reads the exact Image that contributes this slide's pixels.
+    readonly property string directorAssetKey: String(
+        slide.id !== undefined ? slide.id
+        : slide.title !== undefined ? slide.title
+        : slideRoot.slideIndex)
+    readonly property string directorArtSource:
+        String(slide.art !== undefined ? slide.art : "")
+    readonly property string directorArtStatus: directorArtSource.length === 0 ? "unavailable"
+            : (isPoster ? posterArt.status : artRaw.status) === Image.Ready ? "ready"
+            : (isPoster ? posterArt.status : artRaw.status) === Image.Error ? "error" : "loading"
+
     Theme { id: theme }
 
     Rectangle {
@@ -64,6 +76,7 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
+            id: posterArt
             visible: slideRoot.isPoster
             source: slideRoot.isPoster && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true

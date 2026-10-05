@@ -44,6 +44,216 @@ WorldPage {
         pile.currentIndex = universes.shown.length > 0 ? 0 : -1
     }
 
+    // Arc 63-D2A production readiness contract. Lanista waits on
+    // directorReadinessState with the existing strict-equality ui-wait-for.
+    // Default to every banner in the current facet plus the active Tribute.
+    property int directorShotFirstBannerIndex: 0
+    property int directorShotLastBannerIndex: -1
+    property bool directorIncludeTributeArt: true
+
+    property int directorReadinessEpoch: 0
+    property int directorPresentedFramesInternal: 0
+    property int directorDelegateRevisionInternal: 0
+
+    function directorStableBannerKey(entry) {
+        if (!entry)
+            return ""
+        const extensionId = String(entry.extensionId || "")
+        const name = String(entry.name || "")
+        return extensionId.length > 0 ? extensionId + ":" + name : name
+    }
+
+    function directorResolvedBannerRange() {
+        const count = universes.shown.length
+        if (count === 0)
+            return { valid: true, first: 0, last: -1 }
+        const first = Number(universes.directorShotFirstBannerIndex)
+        const configuredLast = Number(universes.directorShotLastBannerIndex)
+        const last = configuredLast < 0 ? count - 1 : configuredLast
+        const valid = isFinite(first) && isFinite(last)
+                && Math.floor(first) === first && Math.floor(last) === last
+                && first >= 0 && first < count && last >= first && last < count
+        return { valid: valid, first: first, last: last }
+    }
+
+    readonly property string directorExpectedCohortTokenInternal: {
+        const range = universes.directorResolvedBannerRange()
+        const members = []
+        if (universes.directorIncludeTributeArt && universes.tributes.length > 0) {
+            const ti = tributeCarousel.index
+            if (ti >= 0 && ti < universes.tributes.length) {
+                const tribute = universes.tributes[ti]
+                members.push(["tribute", String(tribute.extensionId || tribute.name || ""),
+                              String(tribute.banner || "")])
+            } else {
+                members.push(["tribute-index-invalid", String(ti), ""])
+            }
+        }
+        if (range.valid) {
+            for (let i = range.first; i <= range.last; ++i) {
+                const entry = universes.shown[i]
+                members.push(["banner", universes.directorStableBannerKey(entry),
+                              String(entry ? (entry.banner || "") : "")])
+            }
+        } else {
+            members.push(["range-invalid", String(universes.directorShotFirstBannerIndex),
+                          String(universes.directorShotLastBannerIndex)])
+        }
+        return JSON.stringify({
+            facet: universes.facet,
+            first: universes.directorShotFirstBannerIndex,
+            last: universes.directorShotLastBannerIndex,
+            includeTribute: universes.directorIncludeTributeArt,
+            rangeValid: range.valid,
+            members: members
+        })
+    }
+
+    onDirectorExpectedCohortTokenInternalChanged: {
+        universes.directorReadinessEpoch += 1
+        universes.directorPresentedFramesInternal = 0
+    }
+
+    function directorCohortSnapshot() {
+        // Repeater item creation/removal is part of enumerability. This revision prevents
+        // a temporary delegate-construction gap from being mistaken for a stable cohort.
+        universes.directorDelegateRevisionInternal
+        universes.directorExpectedCohortTokenInternal
+
+        const diagnostics = []
+        const observations = []
+        let required = 0
+        let ready = 0
+        let failed = 0
+        let enumerable = true
+
+        function diagnose(key, source, status, reason) {
+            if (diagnostics.length < 8)
+                diagnostics.push({ key: key, source: source, status: status, reason: reason })
+        }
+
+        function account(kind, expectedKey, expectedSource, actualKey, actualSource, status, present) {
+            required += 1
+            observations.push([kind, expectedKey, expectedSource, actualKey, actualSource, status, present])
+            if (!expectedSource) {
+                failed += 1
+                diagnose(expectedKey, expectedSource, "unavailable", "missing-source")
+                return
+            }
+            if (!present) {
+                enumerable = false
+                diagnose(expectedKey, expectedSource, "unavailable", "delegate-unavailable")
+                return
+            }
+            if (actualKey !== expectedKey || actualSource !== expectedSource) {
+                failed += 1
+                diagnose(expectedKey, expectedSource, status, "identity-or-source-mismatch")
+                return
+            }
+            if (status === "ready") {
+                ready += 1
+                return
+            }
+            if (status === "error" || status === "unavailable") {
+                failed += 1
+                diagnose(expectedKey, expectedSource, status,
+                         status === "error" ? "image-error" : "image-unavailable")
+                return
+            }
+            diagnose(expectedKey, expectedSource, status, "not-ready")
+        }
+
+        if (universes.directorIncludeTributeArt && universes.tributes.length > 0) {
+            const ti = tributeCarousel.index
+            if (ti < 0 || ti >= universes.tributes.length) {
+                required += 1
+                enumerable = false
+                diagnose("tribute:" + ti, "", "unavailable", "active-tribute-not-enumerable")
+                observations.push(["tribute", String(ti), "", "", "", "unavailable", false])
+            } else {
+                const tribute = universes.tributes[ti]
+                const expectedKey = String(tribute.extensionId || tribute.name || "")
+                const expectedSource = String(tribute.banner || "")
+                const present = tributeCarousel.directorCurrentSlide !== null
+                account("tribute", expectedKey, expectedSource,
+                        present ? tributeCarousel.directorCurrentAssetKey : "",
+                        present ? tributeCarousel.directorCurrentArtSource : "",
+                        present ? tributeCarousel.directorCurrentArtStatus : "unavailable",
+                        present)
+            }
+        }
+
+        const range = universes.directorResolvedBannerRange()
+        if (!range.valid) {
+            enumerable = false
+            diagnose("banner-range", "", "unavailable", "invalid-shot-range")
+            observations.push(["range-invalid", universes.directorShotFirstBannerIndex,
+                               universes.directorShotLastBannerIndex])
+        } else {
+            for (let i = range.first; i <= range.last; ++i) {
+                const entry = universes.shown[i]
+                const expectedKey = universes.directorStableBannerKey(entry)
+                const expectedSource = String(entry ? (entry.banner || "") : "")
+                const item = ledgerRepeater.itemAt(i)
+                const present = item !== null
+                account("banner", expectedKey, expectedSource,
+                        present ? universes.directorStableBannerKey(item.entry) : "",
+                        present ? String(item.directorBannerSource || "") : "",
+                        present ? String(item.directorBannerStatus || "loading") : "unavailable",
+                        present)
+            }
+        }
+
+        return {
+            enumerable: enumerable,
+            required: required,
+            ready: ready,
+            failed: failed,
+            diagnostics: diagnostics,
+            observationToken: JSON.stringify(observations)
+        }
+    }
+
+    readonly property var directorCohortSnapshotInternal: universes.directorCohortSnapshot()
+    readonly property string directorObservationTokenInternal:
+        String(universes.directorCohortSnapshotInternal.observationToken || "")
+    readonly property int directorRequiredCount: universes.directorCohortSnapshotInternal.required
+    readonly property int directorReadyCount: universes.directorCohortSnapshotInternal.ready
+    readonly property int directorFailedCount: universes.directorCohortSnapshotInternal.failed
+    readonly property var directorReadinessDiagnostics: universes.directorCohortSnapshotInternal.diagnostics
+    readonly property int directorPresentedFrameCount: universes.directorPresentedFramesInternal
+    readonly property bool directorSurfaceActiveInternal:
+        universes.visible && universes.lifecycleActive && universes.Window.window !== null
+    readonly property bool directorAllRequiredReadyInternal:
+        universes.directorCohortSnapshotInternal.enumerable
+        && universes.directorRequiredCount > 0
+        && universes.directorFailedCount === 0
+        && universes.directorReadyCount === universes.directorRequiredCount
+    readonly property string directorReadinessState:
+        !universes.directorSurfaceActiveInternal ? "unavailable"
+        : !universes.directorCohortSnapshotInternal.enumerable || universes.directorRequiredCount === 0 ? "unavailable"
+        : universes.directorFailedCount > 0 ? "partial"
+        : !universes.directorAllRequiredReadyInternal ? "loading"
+        : universes.directorPresentedFramesInternal >= 2 ? "settled" : "loading"
+
+    onDirectorObservationTokenInternalChanged: universes.directorPresentedFramesInternal = 0
+    onDirectorSurfaceActiveInternalChanged: universes.directorPresentedFramesInternal = 0
+
+    // Settled is a presentation fact, not an Image.status instant: require two completed
+    // swaps while this exact key/source/status cohort remains fully Ready.
+    Connections {
+        target: universes.Window.window
+        function onFrameSwapped() {
+            if (!universes.directorSurfaceActiveInternal
+                    || !universes.directorAllRequiredReadyInternal) {
+                universes.directorPresentedFramesInternal = 0
+                return
+            }
+            if (universes.directorPresentedFramesInternal < 2)
+                universes.directorPresentedFramesInternal += 1
+        }
+    }
+
     // hover goes STILL while the page moves (the Hall's walking rule, Hemanth 2026-07-13):
     // a stationary cursor must not light banner after banner as the page scrolls under it.
     property int hovered: -1              // which banner the pointer is on (-1 = none)
@@ -84,6 +294,7 @@ WorldPage {
 
     // ---- TRIBUTES — the art pages; the second button goes to the same universe's page ----
     FeaturedCarousel {
+        id: tributeCarousel
         objectName: "universesTributeCarousel"
         automationId: "universesTributeCarouselView"
         visible: universes.tributes.length > 0
@@ -157,6 +368,8 @@ WorldPage {
         Repeater {
             id: ledgerRepeater
             model: universes.shown
+            onItemAdded: (index, item) => universes.directorDelegateRevisionInternal += 1
+            onItemRemoved: (index, item) => universes.directorDelegateRevisionInternal += 1
             delegate: UniverseBanner {
                 id: bar
                 required property var modelData

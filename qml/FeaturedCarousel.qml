@@ -24,6 +24,21 @@ Item {
     property var keyboardSectionCoordinator: _findKeyboardSectionCoordinator()
 
     property alias index: view.currentIndex
+
+    // Arc 63-D2A reports the active production slide; cohort policy stays with its owner.
+    readonly property Item directorCurrentSlide: {
+        view.count
+        view.currentIndex
+        return view.currentIndex >= 0 && view.currentIndex < view.count
+                ? view.itemAt(view.currentIndex) : null
+    }
+    readonly property string directorCurrentAssetKey:
+        directorCurrentSlide ? String(directorCurrentSlide.directorAssetKey || "") : ""
+    readonly property string directorCurrentArtSource:
+        directorCurrentSlide ? String(directorCurrentSlide.directorArtSource || "") : ""
+    readonly property string directorCurrentArtStatus:
+        directorCurrentSlide ? String(directorCurrentSlide.directorArtStatus || "loading") : "unavailable"
+
     implicitHeight: 330
     width: parent ? parent.width : 800
     Theme { id: theme }
