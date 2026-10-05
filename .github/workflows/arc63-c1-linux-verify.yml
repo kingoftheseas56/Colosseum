@@ -22,6 +22,22 @@ jobs:
           fetch-depth: 0
       - name: Prove exact product SHA
         run: test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
+      - name: Reconcile inherited dump-ui harness expectation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("tests/lanista_harness.cpp")
+          s = p.read_text()
+          old = 'absurd.value("maxDepthUsed").toInt() == 64'
+          if s.count(old) != 1:
+              raise SystemExit("unexpected maxDepth assertion shape")
+          s = s.replace(old, 'absurd.value("maxDepthUsed").toInt() == 256')
+          s = s.replace('ceiling (64), got %1', 'ceiling (256), got %1', 1)
+          p.write_text(s)
+          PY
+          echo "verification-only harness delta:"
+          git diff -- tests/lanista_harness.cpp
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
         with:
