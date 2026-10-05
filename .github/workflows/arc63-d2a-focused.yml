@@ -1,0 +1,40 @@
+name: arc63-d2a-focused
+
+on:
+  push:
+    branches:
+      - preflight/arc63-d2-readiness-wiring
+
+permissions:
+  contents: read
+
+jobs:
+  universes-readiness:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: D2-A diff whitespace gate
+        shell: pwsh
+        run: git diff --check e682fcd244b4ed1d22de0ea030db35579d5455f5 HEAD -- qml/UniversesWorld.qml qml/FeaturedCarousel.qml qml/CarouselSlide.qml tests/qml/tst_arc63_d2_universes_readiness.qml
+      - name: Focused UniversesWorld QuickTest
+        shell: pwsh
+        env:
+          QT_FORCE_STDERR_LOGGING: "1"
+          QT_QUICK_CONTROLS_STYLE: "Basic"
+        run: |
+          $runner = Join-Path $env:QT_ROOT_DIR "bin/qmltestrunner.exe"
+          if (-not (Test-Path $runner)) { throw "qmltestrunner.exe missing" }
+          & $runner -input "$PWD/tests/qml/tst_arc63_d2_universes_readiness.qml"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
