@@ -36,6 +36,8 @@
 #include <QWheelEvent>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace {
 // The listener is ALWAYS ON in Hemanth's daily app, so the two things a local
@@ -1550,7 +1552,71 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
 // cannot send the cursor somewhere unrelated to the intended tagged process.
 void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
 {
-    const QString ref = p.value(QStringLiteral("target")).toString();
+    // C1 is deliberately a named-target command, not a general pointer API.
+    // Fail closed on every field except the generic reply-grab hook so a caller
+    // cannot smuggle a raw screen coordinate beside a legitimate target.
+    const QSet<QString> allowedPayloadKeys{
+        QStringLiteral("target"),
+        QStringLiteral("duration_ms"),
+        QStringLiteral("path"),
+        QStringLiteral("tolerance_px"),
+        QStringLiteral("grab")
+    };
+    for (auto it = p.constBegin(); it != p.constEnd(); ++it) {
+        if (!allowedPayloadKeys.contains(it.key())) {
+            reply.fail("BAD_PAYLOAD",
+                       QStringLiteral("unsupported point payload field: ") + it.key());
+            return;
+        }
+    }
+
+    const QJsonValue targetValue = p.value(QStringLiteral("target"));
+    if (!targetValue.isString() || targetValue.toString().trimmed().isEmpty()) {
+        reply.fail("BAD_TARGET", QStringLiteral("point needs a non-empty named target"));
+        return;
+    }
+    const QString ref = targetValue.toString();
+
+    int durationMs = 700;
+    if (p.contains(QStringLiteral("duration_ms"))) {
+        const QJsonValue value = p.value(QStringLiteral("duration_ms"));
+        const double raw = value.toDouble(std::numeric_limits<double>::quiet_NaN());
+        if (!value.isDouble() || !std::isfinite(raw) || std::floor(raw) != raw
+            || raw < 16.0 || raw > 10000.0) {
+            reply.fail("BAD_DURATION",
+                       QStringLiteral("duration_ms must be an integer in [16,10000]"));
+            return;
+        }
+        durationMs = int(raw);
+    }
+
+    QString path = QStringLiteral("smoothstep");
+    if (p.contains(QStringLiteral("path"))) {
+        const QJsonValue value = p.value(QStringLiteral("path"));
+        if (!value.isString()) {
+            reply.fail("BAD_PATH", QStringLiteral("path must be smoothstep or linear"));
+            return;
+        }
+        path = value.toString();
+    }
+    if (path != QStringLiteral("smoothstep") && path != QStringLiteral("linear")) {
+        reply.fail("BAD_PATH", QStringLiteral("path must be smoothstep or linear"));
+        return;
+    }
+
+    int tolerancePx = 2;
+    if (p.contains(QStringLiteral("tolerance_px"))) {
+        const QJsonValue value = p.value(QStringLiteral("tolerance_px"));
+        const double raw = value.toDouble(std::numeric_limits<double>::quiet_NaN());
+        if (!value.isDouble() || !std::isfinite(raw) || std::floor(raw) != raw
+            || raw < 0.0 || raw > 16.0) {
+            reply.fail("BAD_TOLERANCE",
+                       QStringLiteral("tolerance_px must be an integer in [0,16]"));
+            return;
+        }
+        tolerancePx = int(raw);
+    }
+
     QQuickItem* item = resolveTarget(ref);
     if (!item) {
         reply.fail("NO_SUCH_ITEM", ref);
@@ -1584,6 +1650,21 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
         return;
     }
 
+    const auto finiteScalar = [](qreal value) {
+        return std::isfinite(double(value));
+    };
+    const auto finiteRect = [&](const QRectF& rect) {
+        return finiteScalar(rect.x()) && finiteScalar(rect.y())
+            && finiteScalar(rect.width()) && finiteScalar(rect.height());
+    };
+
+    if (!finiteScalar(item->x()) || !finiteScalar(item->y())
+        || !finiteScalar(item->width()) || !finiteScalar(item->height())
+        || !finiteScalar(item->opacity())) {
+        reply.fail("INVALID_TARGET_GEOMETRY",
+                   QStringLiteral("target has non-finite geometry: ") + ref);
+        return;
+    }
     if (!item->isVisible() || item->opacity() <= 0.0
         || item->width() <= 0.0 || item->height() <= 0.0) {
         reply.fail("OFFSCREEN_TARGET",
@@ -1593,20 +1674,47 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
 
     QRectF visibleScene = item->mapRectToScene(
         QRectF(0.0, 0.0, item->width(), item->height()));
+    if (!finiteRect(visibleScene)) {
+        reply.fail("INVALID_TARGET_GEOMETRY",
+                   QStringLiteral("target maps to non-finite scene geometry: ") + ref);
+        return;
+    }
     for (QQuickItem* ancestor = item->parentItem(); ancestor;
          ancestor = ancestor->parentItem()) {
+        if (!finiteScalar(ancestor->opacity())) {
+            reply.fail("INVALID_TARGET_GEOMETRY",
+                       QStringLiteral("target ancestor has non-finite opacity: ") + ref);
+            return;
+        }
         if (!ancestor->isVisible() || ancestor->opacity() <= 0.0) {
             reply.fail("OFFSCREEN_TARGET",
                        QStringLiteral("target is hidden by an ancestor: ") + ref);
             return;
         }
         if (ancestor->clip()) {
-            visibleScene = visibleScene.intersected(ancestor->mapRectToScene(
-                QRectF(0.0, 0.0, ancestor->width(), ancestor->height())));
+            const QRectF ancestorScene = ancestor->mapRectToScene(
+                QRectF(0.0, 0.0, ancestor->width(), ancestor->height()));
+            if (!finiteRect(ancestorScene)) {
+                reply.fail("INVALID_TARGET_GEOMETRY",
+                           QStringLiteral("target clip ancestor maps to non-finite geometry: ")
+                               + ref);
+                return;
+            }
+            visibleScene = visibleScene.intersected(ancestorScene);
+            if (!finiteRect(visibleScene)) {
+                reply.fail("INVALID_TARGET_GEOMETRY",
+                           QStringLiteral("target visible intersection is non-finite: ") + ref);
+                return;
+            }
         }
     }
     visibleScene = visibleScene.intersected(
         QRectF(0.0, 0.0, w->width(), w->height()));
+    if (!finiteRect(visibleScene)) {
+        reply.fail("INVALID_TARGET_GEOMETRY",
+                   QStringLiteral("target window intersection is non-finite: ") + ref);
+        return;
+    }
     if (visibleScene.isEmpty() || visibleScene.width() < 1.0
         || visibleScene.height() < 1.0) {
         reply.fail("OFFSCREEN_TARGET",
@@ -1614,29 +1722,12 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
         return;
     }
 
-    const int durationMs = p.contains(QStringLiteral("duration_ms"))
-        ? p.value(QStringLiteral("duration_ms")).toInt(-1) : 700;
-    if (durationMs < 16 || durationMs > 10000) {
-        reply.fail("BAD_DURATION",
-                   QStringLiteral("duration_ms must be in [16,10000]"));
-        return;
-    }
-    const QString path = p.value(QStringLiteral("path")).toString(
-        QStringLiteral("smoothstep"));
-    if (path != QStringLiteral("smoothstep") && path != QStringLiteral("linear")) {
-        reply.fail("BAD_PATH",
-                   QStringLiteral("path must be smoothstep or linear"));
-        return;
-    }
-    const int tolerancePx = p.contains(QStringLiteral("tolerance_px"))
-        ? p.value(QStringLiteral("tolerance_px")).toInt(-1) : 2;
-    if (tolerancePx < 0 || tolerancePx > 16) {
-        reply.fail("BAD_TOLERANCE",
-                   QStringLiteral("tolerance_px must be in [0,16]"));
-        return;
-    }
-
     const QPointF targetSceneF = visibleScene.center();
+    if (!finiteScalar(targetSceneF.x()) || !finiteScalar(targetSceneF.y())) {
+        reply.fail("INVALID_TARGET_GEOMETRY",
+                   QStringLiteral("resolved target point is non-finite: ") + ref);
+        return;
+    }
     const QPoint targetScene(qRound(targetSceneF.x()), qRound(targetSceneF.y()));
     const QPoint targetGlobal = w->mapToGlobal(targetScene);
     if (!QGuiApplication::screenAt(targetGlobal)) {
@@ -1722,6 +1813,8 @@ void LanistaServer::cmdPoint(const QJsonObject& p, Replier reply)
             {QStringLiteral("targetClientY"), targetScene.y()},
             {QStringLiteral("windowScreenX"), trackedWindow->mapToGlobal(QPoint(0, 0)).x()},
             {QStringLiteral("windowScreenY"), trackedWindow->mapToGlobal(QPoint(0, 0)).y()},
+            {QStringLiteral("requestedScreenX"), targetGlobal.x()},
+            {QStringLiteral("requestedScreenY"), targetGlobal.y()},
             {QStringLiteral("targetScreenX"), targetGlobal.x()},
             {QStringLiteral("targetScreenY"), targetGlobal.y()},
             {QStringLiteral("actualScreenX"), actual.x()},
