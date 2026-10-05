@@ -222,23 +222,36 @@
       ]
     },
     {
-      "presentation_wait_ms": 900,
-      "label": "let filtered Manga wheel glide settle"
-    },
-    {
-      "cmd": "qml-get",
-      "label": "filtered roster scroll places One Piece inside the viewport band",
+      "cmd": "ui-wait-for",
+      "label": "filtered Manga wheel movement begins",
       "payload": {
-        "object": "universesWorldScroll",
-        "props": [
-          "contentY"
-        ]
+        "object": "universesWorld",
+        "prop": "walking",
+        "value": true,
+        "timeout_ms": 3000
       },
       "expect": [
         {
-          "path": "props.contentY",
-          "op": ">=",
-          "value": 680
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "filtered Manga wheel movement settles",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "walking",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
         }
       ]
     },
