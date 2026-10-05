@@ -147,52 +147,204 @@
       ]
     },
     {
-      "cmd": "ui-scroll",
-      "label": "scroll production Universes ledger toward One Piece 1",
+      "cmd": "point",
+      "label": "real pointer arrives on Manga facet",
       "payload": {
-        "target": "universesWorldScroll",
-        "dy": -800,
-        "xFraction": 0.5,
-        "yFraction": 0.7
+        "target": "universesFilter_manga",
+        "duration_ms": 180,
+        "path": "smoothstep",
+        "tolerance_px": 2
       },
       "expect": [
         {
-          "path": "scrolled",
+          "path": "pointed",
           "op": "==",
-          "value": "universesWorldScroll"
+          "value": "universesFilter_manga"
         },
         {
-          "path": "dy",
-          "op": "==",
-          "value": -800
+          "path": "deltaX",
+          "op": ">=",
+          "value": -2
+        },
+        {
+          "path": "deltaX",
+          "op": "<=",
+          "value": 2
+        },
+        {
+          "path": "deltaY",
+          "op": ">=",
+          "value": -2
+        },
+        {
+          "path": "deltaY",
+          "op": "<=",
+          "value": 2
         }
       ]
     },
     {
-      "cmd": "ui-scroll",
-      "label": "scroll production Universes ledger toward One Piece 2",
+      "cmd": "pointer-click",
+      "label": "real pointer narrows production roster to Manga",
       "payload": {
-        "target": "universesWorldScroll",
-        "dy": -800,
-        "xFraction": 0.5,
-        "yFraction": 0.7
+        "target": "universesFilter_manga",
+        "button": "left",
+        "action": "click"
       },
       "expect": [
         {
-          "path": "scrolled",
+          "path": "clicked",
           "op": "==",
-          "value": "universesWorldScroll"
+          "value": "universesFilter_manga"
         },
         {
-          "path": "dy",
+          "path": "submittedEvents",
           "op": "==",
-          "value": -800
+          "value": 2
         }
       ]
     },
     {
-      "presentation_wait_ms": 1200,
-      "label": "let the production wheel glide settle"
+      "cmd": "ui-wait-for",
+      "label": "Manga facet settles",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "facet",
+        "value": "manga",
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Tab enters production universe ledger",
+      "payload": {
+        "key": "Tab"
+      },
+      "expect": [
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Tab"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "production ledger owns keyboard focus",
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Manga row 1 to Dragon Ball",
+      "payload": {
+        "key": "Down"
+      },
+      "expect": [
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Manga row 2 to Naruto",
+      "payload": {
+        "key": "Down"
+      },
+      "expect": [
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Manga row 3 to One Piece",
+      "payload": {
+        "key": "Down"
+      },
+      "expect": [
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "production ledger reveals One Piece at index 3",
+      "payload": {
+        "object": "universesLedger",
+        "props": [
+          "currentIndex"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Tab leaves ledger so keyboard selection cannot fake hover",
+      "payload": {
+        "key": "Tab"
+      },
+      "expect": [
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Tab"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "ledger releases keyboard focus",
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "let keyboard movement and page walking settle before hover proof"
     },
     {
       "cmd": "qml-get",
@@ -200,12 +352,24 @@
       "payload": {
         "object": "universesBanner_onepiece",
         "props": [
-          "hot"
+          "hot",
+          "keyboardSelected",
+          "lit"
         ]
       },
       "expect": [
         {
           "path": "props.hot",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.keyboardSelected",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.lit",
           "op": "==",
           "value": "false"
         }
