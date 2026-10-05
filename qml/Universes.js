@@ -50,7 +50,7 @@ var universes = [
     //    12 theatrical films + 5 "Episode of"/special films (Cinemeta), 8 manga (AniList).
     //    Sagas are the story's spine (arcs of the one anime), not separate ids — each opens
     //    the anime; ranges from the Wikipedia media list.
-    { name: "One Piece", c1: "#0e2a3f", category: "onepiece",
+    { name: "One Piece", c1: "#0e2a3f", category: "onepiece", automationKey: "onepiece",
       // Wikipedia lead, fetched 2026-07-18 (verbatim) — sourced copy, never self-written
       blurb: "One Piece is a Japanese manga series written and illustrated by Eiichiro Oda. It follows the adventures of Monkey D. Luffy and his crew, the Straw Hats, as he searches for the legendary treasure known as the \"One Piece\" to become the next King of the Pirates.",
       blurbSource: "Wikipedia — One Piece",
@@ -1083,6 +1083,17 @@ function markFor(name) {
     return m ? { logo: "../assets/universes/marks/" + m[0], shape: m[1] } : { logo: "", shape: "" };
 }
 
+// Stable, unique automation identity for a universe portal. Template categories such as
+// "anime" are intentionally NOT identities: many universes share them. A curation may pin a
+// historical/canonical key (One Piece keeps Arc 63's "onepiece"); otherwise the visible name
+// is normalized into a deterministic underscore slug.
+function automationKeyFor(entry) {
+    if (!entry) return "";
+    if (entry.automationKey) return String(entry.automationKey);
+    return String(entry.name || "").toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
 function worldRoster(installed) {
     var roster = [];
     var seen = {};
@@ -1097,7 +1108,10 @@ function worldRoster(installed) {
                       banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
                       logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
                       primary: PRIMARY[shelf[i].name] || null,
-                      blurb: cfg.blurb || "", chips: cfg.chips || [] };
+                      blurb: cfg.blurb || "", chips: cfg.chips || [],
+                      automationKey: automationKeyFor({
+                          name: shelf[i].name, automationKey: cfg.automationKey
+                      }) };
         if (cfg.shelves || cfg.manga) entry.page = "shelves";
         else if (cfg.sagaGrid) entry.page = "saga";
         if (entry.page) roster.push(entry);      // no standard page = Tribute only (the carousel)
@@ -1116,6 +1130,7 @@ function worldRoster(installed) {
                       primary: PRIMARY[c.name] || null,
                       blurb: c.blurb || "",
                       chips: c.chips || [],
+                      automationKey: automationKeyFor(c),
                       page: page });
     }
     // a finite, curated list has no ranking: alphabetical, articles aside
