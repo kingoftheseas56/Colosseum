@@ -1,0 +1,64 @@
+name: arc63-a-hold-verify
+
+on:
+  push:
+    branches:
+      - preflight/arc63-a-hold-key-rhythm
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hold-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check final diff whitespace
+        run: git diff --check 64a4d8605e8a34a3b177d92c3048c4c8b1b7daa3 HEAD
+
+      - name: Validate production-QML shot JSON
+        run: python -m json.tool tests/lanista_capture/arc63_a_hold_key_rhythm.json >/dev/null
+
+      - name: Install focused Qt build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build qt6-base-dev
+
+      - name: Configure focused Lanista contract build
+        run: |
+          cat > "$RUNNER_TEMP/CMakeLists.txt" <<'CMAKE'
+          cmake_minimum_required(VERSION 3.22)
+          project(arc63_a_hold_verify LANGUAGES CXX)
+          set(CMAKE_CXX_STANDARD 17)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          set(CMAKE_AUTOMOC ON)
+          find_package(Qt6 REQUIRED COMPONENTS Core Gui Network Test)
+
+          add_executable(lanista "$ENV{GITHUB_WORKSPACE}/native/tools/lanista.cpp")
+          target_include_directories(lanista PRIVATE "$ENV{GITHUB_WORKSPACE}/native")
+          target_link_libraries(lanista PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
+
+          add_executable(tst_lanista_hold "$ENV{GITHUB_WORKSPACE}/tests/auto/lanista/tst_lanista_hold.cpp")
+          target_link_libraries(tst_lanista_hold PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+          add_dependencies(tst_lanista_hold lanista)
+
+          set_target_properties(lanista tst_lanista_hold PROPERTIES
+              RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+          enable_testing()
+          add_test(NAME arc63.hold COMMAND "${CMAKE_BINARY_DIR}/bin/tst_lanista_hold")
+          CMAKE
+          cmake -S "$RUNNER_TEMP" -B "$RUNNER_TEMP/arc63-a-build" -G Ninja
+
+      - name: Build focused Lanista contract
+        run: cmake --build "$RUNNER_TEMP/arc63-a-build" --parallel 2
+
+      - name: Run focused hold tests
+        env:
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: ctest --test-dir "$RUNNER_TEMP/arc63-a-build" -R '^arc63\.hold$' --output-on-failure
