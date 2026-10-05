@@ -105,7 +105,14 @@ Item {
                     font.weight: tab.active ? Font.DemiBold : Font.Normal
                 }
 
-                TapHandler { onTapped: tab.activate() }
+                MouseArea {
+                    objectName: "phoneWorldTabHitArea_" + tab.entry.name
+                    anchors.fill: parent
+                    preventStealing: true
+                    propagateComposedEvents: false
+                    onClicked: tab.activate()
+                }
+
                 Keys.onReturnPressed: tab.activate()
                 Keys.onEnterPressed: tab.activate()
             }

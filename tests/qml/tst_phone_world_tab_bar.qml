@@ -70,6 +70,12 @@ TestCase {
             verify(tab !== null)
             verify(tab.width >= 48, names[i] + " width must be at least 48")
             verify(tab.height >= 48, names[i] + " height must be at least 48")
+            var hitArea = findChild(tab, "phoneWorldTabHitArea_" + names[i])
+            verify(hitArea !== null, names[i] + " must own a consuming hit area")
+            compare(hitArea.width, tab.width)
+            compare(hitArea.height, tab.height)
+            compare(hitArea.preventStealing, true)
+            compare(hitArea.propagateComposedEvents, false)
         }
     }
 
