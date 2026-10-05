@@ -1,0 +1,21 @@
+name: arc63-c1-final-diffcheck
+on:
+  push:
+    branches:
+      - preflight/arc63-c1-final-diffcheck
+permissions:
+  contents: read
+jobs:
+  final-diff-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: eda3c0e108a538784ebc2a65464f01443aaa33b3
+          fetch-depth: 0
+      - name: Prove final branch SHA
+        run: test "$(git rev-parse HEAD)" = "eda3c0e108a538784ebc2a65464f01443aaa33b3"
+      - name: Final C1 diff check
+        run: git diff --check c558fcdedfda6e100bb6729b9a8a70a83782ca0b..eda3c0e108a538784ebc2a65464f01443aaa33b3
+      - name: Final C1 diff inventory
+        run: git diff --name-status 7e56664ec11d6987bdc6540c04ac98c5aeca4fcb..eda3c0e108a538784ebc2a65464f01443aaa33b3
