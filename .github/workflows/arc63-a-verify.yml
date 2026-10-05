@@ -39,7 +39,7 @@ jobs:
           set(CMAKE_AUTOMOC ON)
           find_package(Qt6 REQUIRED COMPONENTS Core Gui Network Test)
 
-          add_executable(lanista "$ENV{GITHUB_WORKSPACE}/native/tools/lanista.cpp")
+          add_executable(lanista\n              "$ENV{GITHUB_WORKSPACE}/native/tools/lanista.cpp"\n              "$ENV{GITHUB_WORKSPACE}/native/tools/LanistaHash.cpp")
           target_include_directories(lanista PRIVATE "$ENV{GITHUB_WORKSPACE}/native")
           target_link_libraries(lanista PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
 
