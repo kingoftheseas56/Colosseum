@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <memory>
 #include <QProcess>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -169,16 +170,18 @@ private slots:
 
         connect(&server, &QLocalServer::newConnection, this, [&]() {
             while (QLocalSocket* socket = server.nextPendingConnection()) {
-                auto* buffer = new QByteArray;
+                const auto buffer = std::make_shared<QByteArray>();
                 const auto consumeRequest = [&, socket, buffer]() {
                     *buffer += socket->readAll();
                     const qsizetype newline = buffer->indexOf('\n');
                     if (newline < 0)
                         return;
 
+                    const QByteArray line = buffer->left(newline);
+                    buffer->remove(0, newline + 1);
                     QJsonParseError error{};
                     const QJsonObject request =
-                        QJsonDocument::fromJson(buffer->left(newline), &error).object();
+                        QJsonDocument::fromJson(line, &error).object();
                     if (error.error != QJsonParseError::NoError || request.isEmpty()) {
                         malformedRequest = true;
                         socket->disconnectFromServer();
