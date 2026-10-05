@@ -17,7 +17,7 @@ import (
 
 // Opt-in integration reproduction: a real PostgreSQL-backed Service, real Qt
 // HTTP transport and timers, and a tagged Windows vault shared by fresh processes.
-// This characterizes the current failure; it does not assert it is desirable.
+// Lost responses must recover without erasing the remembered session.
 func TestDesktopRefreshResponseLoss(t *testing.T) {
 	probe := os.Getenv("COLOSSEUM_REFRESH_REPRO_EXE")
 	if runtime.GOOS != "windows" || probe == "" {
@@ -126,25 +126,22 @@ func TestDesktopRefreshResponseLoss(t *testing.T) {
 				runProbe("signedIn", seed, false)
 				runProbe("signedIn", nil, false)
 			case "lost_response_automatic_retry":
-				runProbe("locked", seed, false)
+				runProbe("signedIn", seed, false)
 			case "lost_response_quick_restart":
 				runProbe("offline", seed, false)
 				runProbe("signedIn", nil, false)
 			case "lost_response_late_restart":
 				runProbe("offline", seed, false)
 				committedAt := <-lostAt
-				time.Sleep(time.Until(committedAt.Add(refreshRetryGrace + time.Second)))
-				runProbe("locked", nil, false)
+				// Reproduce a restart beyond the original 30-second retry window.
+				time.Sleep(time.Until(committedAt.Add(31 * time.Second)))
+				runProbe("signedIn", nil, false)
 			}
 			if calls.Load() != 2 {
 				t.Fatalf("refresh calls = %d, want 2", calls.Load())
 			}
-			wantRejected := int32(0)
-			if scenario == "lost_response_automatic_retry" || scenario == "lost_response_late_restart" {
-				wantRejected = 1
-			}
-			if rejected.Load() != wantRejected {
-				t.Fatalf("rejected refreshes = %d, want %d", rejected.Load(), wantRejected)
+			if rejected.Load() != 0 {
+				t.Fatalf("rejected refreshes = %d, want 0", rejected.Load())
 			}
 		})
 	}
