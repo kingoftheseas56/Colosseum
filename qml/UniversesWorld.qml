@@ -161,9 +161,10 @@ WorldPage {
                 id: bar
                 required property var modelData
                 required property int index
-                // Arc 63-C1: semantic, unique named target for deterministic
-                // pointer travel. category is the universe routing key.
-                objectName: "universesBanner_" + String(bar.modelData.category || bar.index)
+                // Arc 63-C1/C2: semantic, unique named target for deterministic
+                // pointer travel. The roster owns the key; generic template categories
+                // (for example "anime") are not safe identities because they collide.
+                objectName: "universesBanner_" + String(bar.modelData.automationKey || bar.index)
                 entry: bar.modelData
                 hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index
