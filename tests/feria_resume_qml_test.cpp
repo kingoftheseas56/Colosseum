@@ -22,6 +22,10 @@ public slots:
         m_store.setStoragePath(m_temp.filePath("account.json"));
         engine->rootContext()->setContextProperty("feriaTestStore", &m_store);
         engine->rootContext()->setContextProperty("feriaTestRoot", m_temp.path());
+        engine->rootContext()->setContextProperty("feriaBrowserTestBaseUrl",
+            qEnvironmentVariable("FERIA_BROWSER_TEST_BASE_URL"));
+        engine->rootContext()->setContextProperty("feriaBrowserTestOutput",
+            qEnvironmentVariable("FERIA_BROWSER_TEST_OUTPUT"));
     }
 };
 int main(int argc, char **argv) {

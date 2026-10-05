@@ -4,6 +4,16 @@
 #include <qqml.h>
 #endif
 
+QUrl FeriaBrowserPolicy::navigationUrl(const QString &text) const
+{
+    if (text.trimmed().isEmpty()) return {};
+    // Nano Browser uses QUrl::fromUserInput; Feria's address field keeps the
+    // existing remote-page boundary instead of accepting local files/scripts.
+    const QUrl url = QUrl::fromUserInput(text.trimmed());
+    const QString scheme = url.scheme().toLower();
+    return (scheme == "http" || scheme == "https") && allows(url) ? url : QUrl{};
+}
+
 bool FeriaBrowserPolicy::webView2Available() const
 {
 #ifdef FERIA_HAS_WEBVIEW2

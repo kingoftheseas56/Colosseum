@@ -622,6 +622,7 @@ Item {
         if (movingApp) { movingApp = false; setToast("Order unchanged"); return }
         if (viewState === "host") {
             if (hostView.fullScreenActive) { hostView.exitFullScreen(); return }
+            if (hostView.cancelAddressEditing()) return
             if (hostView.optionsOpen) { hostView.focusApp(); return }
             viewState = hostReturnState
         }

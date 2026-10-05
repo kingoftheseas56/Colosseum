@@ -34,7 +34,37 @@ Item {
         if (fullScreenActive) return
         optionsOpen = true
         if (browserLoader.item && engine === "webview2") browserLoader.item.focusAppControls()
-        Qt.callLater(function() { appOptionsButton.forceActiveFocus() })
+        Qt.callLater(function() { appHomeButton.forceActiveFocus() })
+    }
+    function navigate(address) {
+        var url = String(FeriaBrowserPolicy.navigationUrl(address))
+        if (!url.length) {
+            controller.setToast("Enter a valid HTTP or HTTPS web address")
+            return
+        }
+        if (!browserLoader.item) return
+        controller.hostResumePosition = 0
+        controller.hostResumeLocator = null
+        browserLoader.item.cancelMediaResume(true)
+        browserLoader.item.resumePosition = 0
+        browserLoader.item.resumeLocator = null
+        browserLoader.item.url = url
+        focusApp()
+    }
+    function cancelAddressEditing() { return navigationBar.cancelAddressEditing() }
+    function pageBack() {
+        if (browserLoader.item && engineCanGoBack) browserLoader.item.pageBack()
+        focusApp()
+    }
+    function pageForward() {
+        if (browserLoader.item && engineCanGoForward) browserLoader.item.pageForward()
+        focusApp()
+    }
+    function reloadOrStop() {
+        if (!browserLoader.item || !browserReady) return
+        if (pageLoading) browserLoader.item.stopLoad()
+        else browserLoader.item.reload()
+        focusApp()
     }
     function exitFullScreen() {
         if (!browserLoader.item) return
@@ -55,7 +85,7 @@ Item {
         }
     }
     readonly property string engine: engineOverride || enginePreferences[controller.hostApp]
-        || (FeriaBrowserPolicy.webView2Available ? "webview2" : "qtwebengine")
+        || "qtwebengine"
     property string currentUrl: controller.hostUrl
     property bool loading: false
     property bool loadSucceeded: false
@@ -118,13 +148,33 @@ Item {
         implicitHeight: 36
         Layout.minimumWidth: implicitWidth
     }
+    Shortcut {
+        sequence: "Ctrl+L"
+        enabled: root.visible && !root.fullScreenActive
+        onActivated: navigationBar.focusAddress()
+    }
+    Shortcut {
+        sequence: "Alt+Left"
+        enabled: root.visible && !root.fullScreenActive && root.engineCanGoBack
+        onActivated: root.pageBack()
+    }
+    Shortcut {
+        sequence: "Alt+Right"
+        enabled: root.visible && !root.fullScreenActive && root.engineCanGoForward
+        onActivated: root.pageForward()
+    }
+    Shortcut {
+        sequences: ["Ctrl+R", "F5"]
+        enabled: root.visible && !root.fullScreenActive && root.browserReady
+        onActivated: { browserLoader.item.reload(); root.focusApp() }
+    }
     Rectangle { anchors.fill: parent; color: "#08090d" }
     Rectangle {
         id: strip
         objectName: "feriaAppBar"
         anchors { left: parent.left; right: parent.right; top: parent.top }
         visible: !root.fullScreenActive
-        height: root.fullScreenActive ? 0 : root.optionsOpen ? 70 + optionsFlow.implicitHeight : 52
+        height: root.fullScreenActive ? 0 : root.optionsOpen ? 118 + optionsFlow.implicitHeight : 100
         color: "#08090d"
         Colosseum.KeyboardSpatialNavigator { id: appNav; root:strip }
         Keys.onPressed: function(event) { appNav.handle(event) }
@@ -150,6 +200,8 @@ Item {
             }
             Text {
                 text: controller.providerName(controller.hostApp)
+                Layout.maximumWidth: strip.width < 900 ? 120 : 240
+                elide: Text.ElideRight
                 color: controller.ink
                 font.family: controller.uiFont
                 font.pixelSize: 14
@@ -192,40 +244,32 @@ Item {
                 Layout.preferredHeight: 44
             }
         }
+        FeriaBrowserToolbar {
+            id: navigationBar
+            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 52; leftMargin: controller.marginX; rightMargin: controller.marginX }
+            height: 44
+            currentUrl: root.currentUrl
+            canGoBack: root.engineCanGoBack
+            canGoForward: root.engineCanGoForward
+            loading: root.pageLoading
+            browserReady: root.browserReady
+            onBackRequested: root.pageBack()
+            onForwardRequested: root.pageForward()
+            onReloadRequested: root.reloadOrStop()
+            onAddressAccepted: function(address) { root.navigate(address) }
+            onEditingCancelled: root.focusApp()
+        }
         Flow {
             id:optionsFlow
-            anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:58; leftMargin:controller.marginX; rightMargin:controller.marginX }
+            anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:106; leftMargin:controller.marginX; rightMargin:controller.marginX }
             spacing:10
             visible:root.optionsOpen
             BrowserAction {
-                id:appOptionsButton
-                objectName:"feriaBrowserBack"
-                text:"Previous page"
-                enabled:root.engineCanGoBack
-                onClicked: { if (browserLoader.item) browserLoader.item.pageBack(); root.focusApp() }
-            }
-            BrowserAction {
-                objectName:"feriaBrowserForward"
-                text:"Next page"
-                enabled:root.engineCanGoForward
-                onClicked: { if (browserLoader.item) browserLoader.item.pageForward(); root.focusApp() }
-            }
-            BrowserAction {
+                id:appHomeButton
                 objectName:"feriaAppHome"
                 text:"App home"
                 enabled:!!Data.P[controller.hostApp]
                 onClicked:root.appHome()
-            }
-            BrowserAction {
-                objectName:"feriaBrowserReload"
-                text:root.pageLoading ? "Stop" : "Reload"
-                enabled:browserLoader.item !== null && root.browserReady
-                onClicked: {
-                    if (!browserLoader.item) return
-                    if (root.pageLoading) browserLoader.item.stopLoad()
-                    else browserLoader.item.reload()
-                    root.focusApp()
-                }
             }
             BrowserAction {
                 objectName:"feriaAppLayout"
@@ -328,8 +372,8 @@ Item {
             root.loading = false
             root.loadSucceeded = success
             root.errorText = success ? "" : (FeriaBrowserPolicy.webView2Available
-                ? "Could not open the app. Use Options to reload or try compatibility mode."
-                : "Could not open the app. Use Options to reload.")
+                ? "Could not open the app. Reload or try compatibility mode in Options."
+                : "Could not open the app. Try Reload.")
             controller.providerWebViewReady = success
         }
         function onFailed(reason) {

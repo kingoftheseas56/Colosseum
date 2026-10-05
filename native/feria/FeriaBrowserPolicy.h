@@ -42,6 +42,7 @@ public:
     }
 
     Q_INVOKABLE bool allowsNavigation(const QUrl &url) const { return allows(url); }
+    Q_INVOKABLE QUrl navigationUrl(const QString &text) const;
     static bool allows(const QUrl &url)
     {
         if (!url.isValid())
