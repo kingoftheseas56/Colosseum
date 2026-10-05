@@ -1,0 +1,193 @@
+name: arc63-c2b2-production-verify
+
+on:
+  push:
+    branches:
+      - preflight/arc63-c2-hover-click
+
+permissions:
+  contents: read
+
+jobs:
+  linux-production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      ECM_VERSION: "6.15.0"
+      ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Exact C2b2 whitespace gate
+        shell: bash
+        run: |
+          git diff --check ea694b035c1d2d396b7757ddbe69d0377b3aa6bd..HEAD -- \
+            qml/ShelvesUniversePage.qml \
+            qml/UniverseBanner.qml \
+            tests/lanista_capture/arc63_c2_hover_click.json \
+            tests/qml/tst_UniversesWorld.qml \
+            tests/shelves_universe_load_harness.qml
+
+      - name: Validate production scenario JSON and no shortcut
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+          p = Path("tests/lanista_capture/arc63_c2_hover_click.json")
+          doc = json.loads(p.read_text(encoding="utf-8-sig"))
+          steps = doc.get("steps")
+          assert isinstance(steps, list) and steps
+          assert sum(s.get("cmd") == "point" for s in steps) == 1
+          assert sum(s.get("cmd") == "pointer-click" for s in steps) == 1
+          assert not any(s.get("cmd") == "ui-click" and s.get("payload", {}).get("target") == "universesBanner_onepiece" for s in steps)
+          assert any(s.get("payload", {}).get("object") == "universesBanner_onepiece_explore" for s in steps)
+          assert any(s.get("payload", {}).get("object") == "shelvesUniversePage" and
+                     any(e.get("path") == "props.universeName" and e.get("value") == "One Piece"
+                         for e in s.get("expect", []))
+                     for s in steps)
+          print("C2B2_SCENARIO_JSON_OK")
+
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Install Linux dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
+            xvfb xauth ffmpeg p7zip-full libarchive-tools libxtst6
+
+      - name: Build Extra CMake Modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/ecm.tar.xz"
+          source="$RUNNER_TEMP/ecm-source"
+          build="$RUNNER_TEMP/ecm-build"
+          install="$RUNNER_TEMP/ecm-install"
+          curl --fail --location --retry 3 \
+            "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" \
+            --output "$archive"
+          echo "$ECM_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+            -DCMAKE_INSTALL_PREFIX="$install"
+          cmake --build "$build" --target install --parallel 2
+          echo "ECM_ROOT=$install" >> "$GITHUB_ENV"
+
+      - name: Build MpvQt
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/mpvqt.tar.xz"
+          source="$RUNNER_TEMP/mpvqt-source"
+          build="$RUNNER_TEMP/mpvqt-build"
+          install="$RUNNER_TEMP/mpvqt-install"
+          curl --fail --location --retry 3 \
+            "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" \
+            --output "$archive"
+          echo "$MPVQT_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$install" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT"
+          cmake --build "$build" --target install --parallel 2
+          echo "MPVQT_ROOT=$install" >> "$GITHUB_ENV"
+
+      - name: Run Universes production QML test
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: xcb
+          QSG_NO_VSYNC: "1"
+          QT_FORCE_STDERR_LOGGING: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          xvfb-run -a "$QT_ROOT_DIR/bin/qmltestrunner" \
+            -input tests/qml/tst_UniversesWorld.qml -import qml
+
+      - name: Run Shelves destination load harness
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: xcb
+          QSG_NO_VSYNC: "1"
+          QT_FORCE_STDERR_LOGGING: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -o pipefail
+          xvfb-run -a "$QT_ROOT_DIR/bin/qml" tests/shelves_universe_load_harness.qml \
+            2>&1 | tee "$RUNNER_TEMP/shelves-load.log"
+          grep -F "LOADER READY — page created fine" "$RUNNER_TEMP/shelves-load.log"
+          grep -F "loadShelves contract holds for 12 universes" "$RUNNER_TEMP/shelves-load.log"
+
+      - name: Configure focused production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          build="$RUNNER_TEMP/c2b2-build"
+          prefix="$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT"
+          cmake -S native -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DCOLOSSEUM_BUILD_PLAYER2=OFF \
+            -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
+            -DCOLOSSEUM_NO_COMPILER_CACHE=ON \
+            -DCMAKE_PREFIX_PATH="$prefix" \
+            -DMPVQT_PREFIX="$MPVQT_ROOT"
+          echo "C2B2_BUILD=$build" >> "$GITHUB_ENV"
+
+      - name: Build assembled app and Lanista runner
+        shell: bash
+        run: |
+          cmake --build "$C2B2_BUILD" --target colosseum lanista --parallel 2
+
+      - name: Run assembled production One Piece hover-click journey
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: xcb
+          QSG_NO_VSYNC: "1"
+          QT_FORCE_STDERR_LOGGING: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/c2b2-capture"
+          xvfb-run -a "$C2B2_BUILD/lanista" --verbose session run \
+            tests/lanista_capture/arc63_c2_hover_click.json \
+            --exe "$C2B2_BUILD/colosseum" \
+            --qml qml/Main.qml \
+            --tag arc63-c2b2-ci \
+            --drive \
+            --ready-ms 60000 \
+            --capture-width 1280 \
+            --capture-height 720 \
+            --capture-out "$RUNNER_TEMP/c2b2-capture" \
+            2>&1 | tee "$RUNNER_TEMP/c2b2-scenario.log"
+          grep -F "real production hover becomes active" "$RUNNER_TEMP/c2b2-scenario.log"
+          grep -F "real pointer clicks One Piece production banner" "$RUNNER_TEMP/c2b2-scenario.log"
+          grep -F "destination identity is exactly One Piece" "$RUNNER_TEMP/c2b2-scenario.log"
+          grep -F "22 steps, 0 failed" "$RUNNER_TEMP/c2b2-scenario.log"
+
+      - name: Verify presentation artifacts
+        shell: bash
+        run: |
+          test -s "$RUNNER_TEMP/c2b2-capture/arc63-c2-onepiece-hover-click.mp4"
+          test -s "$RUNNER_TEMP/c2b2-capture/arc63-c2-onepiece-hover-click.gif"
+          ls -lh "$RUNNER_TEMP/c2b2-capture/arc63-c2-onepiece-hover-click."{mp4,gif}
