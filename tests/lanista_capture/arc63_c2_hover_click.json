@@ -222,129 +222,69 @@
       ]
     },
     {
-      "cmd": "ui-keypress",
-      "label": "Down leaves the Manga facet through the production spatial router",
+      "cmd": "ui-scroll",
+      "label": "scroll filtered Manga roster toward One Piece",
       "payload": {
-        "key": "Down"
+        "target": "universesWorldScroll",
+        "dy": -800,
+        "xFraction": 0.5,
+        "yFraction": 0.7
       },
       "expect": [
         {
-          "path": "pressed",
+          "path": "scrolled",
           "op": "==",
-          "value": "Down"
+          "value": "universesWorldScroll"
+        },
+        {
+          "path": "dy",
+          "op": "==",
+          "value": -800
         }
       ]
     },
     {
-      "cmd": "ui-wait-for",
-      "label": "production spatial router lands the universe ledger",
+      "cmd": "ui-scroll",
+      "label": "finish filtered Manga roster scroll",
       "payload": {
-        "object": "universesLedger",
-        "prop": "activeFocus",
-        "value": true,
-        "timeout_ms": 5000
+        "target": "universesWorldScroll",
+        "dy": -800,
+        "xFraction": 0.5,
+        "yFraction": 0.7
       },
       "expect": [
         {
-          "path": "matched",
+          "path": "scrolled",
           "op": "==",
-          "value": "true"
+          "value": "universesWorldScroll"
+        },
+        {
+          "path": "dy",
+          "op": "==",
+          "value": -800
         }
       ]
     },
     {
-      "cmd": "ui-keypress",
-      "label": "Manga row 1 to Dragon Ball",
-      "payload": {
-        "key": "Down"
-      },
-      "expect": [
-        {
-          "path": "pressed",
-          "op": "==",
-          "value": "Down"
-        }
-      ]
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "Manga row 2 to Naruto",
-      "payload": {
-        "key": "Down"
-      },
-      "expect": [
-        {
-          "path": "pressed",
-          "op": "==",
-          "value": "Down"
-        }
-      ]
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "Manga row 3 to One Piece",
-      "payload": {
-        "key": "Down"
-      },
-      "expect": [
-        {
-          "path": "pressed",
-          "op": "==",
-          "value": "Down"
-        }
-      ]
+      "presentation_wait_ms": 900,
+      "label": "let filtered Manga wheel glide settle"
     },
     {
       "cmd": "qml-get",
-      "label": "production ledger reveals One Piece at index 3",
+      "label": "filtered roster scroll places One Piece inside the viewport band",
       "payload": {
-        "object": "universesLedger",
+        "object": "universesWorldScroll",
         "props": [
-          "currentIndex"
+          "contentY"
         ]
       },
       "expect": [
         {
-          "path": "props.currentIndex",
-          "op": "==",
-          "value": 3
+          "path": "props.contentY",
+          "op": ">=",
+          "value": 680
         }
       ]
-    },
-    {
-      "cmd": "ui-keypress",
-      "label": "Tab leaves the already-focused ledger so keyboard selection cannot fake hover",
-      "payload": {
-        "key": "Tab"
-      },
-      "expect": [
-        {
-          "path": "pressed",
-          "op": "==",
-          "value": "Tab"
-        }
-      ]
-    },
-    {
-      "cmd": "ui-wait-for",
-      "label": "ledger releases keyboard focus",
-      "payload": {
-        "object": "universesLedger",
-        "prop": "activeFocus",
-        "value": false,
-        "timeout_ms": 5000
-      },
-      "expect": [
-        {
-          "path": "matched",
-          "op": "==",
-          "value": "true"
-        }
-      ]
-    },
-    {
-      "presentation_wait_ms": 350,
-      "label": "let keyboard movement and page walking settle before hover proof"
     },
     {
       "cmd": "qml-get",
