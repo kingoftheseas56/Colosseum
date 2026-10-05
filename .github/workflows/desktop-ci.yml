@@ -2,9 +2,6 @@ name: desktop-ci
 
 on:
   push:
-    branches-ignore:
-      - 'preflight/arc63-*'
-      - 'prototype/arc63-*'
   pull_request:
   workflow_dispatch:
 
