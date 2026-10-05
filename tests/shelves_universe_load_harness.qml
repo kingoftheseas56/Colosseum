@@ -11,10 +11,11 @@ Window {
     visible: true
     width: 300; height: 200
     // "shelf: n (run sizes)" per shelf — the anime four are DERIVED from manga/saga/filmEras,
-    // the other eight are the curated `shelves` generated into Universes.js (Arc 58-E)
+    // the other eight are the curated `shelves` generated into Universes.js (Arc 58-E);
+    // One Piece carries its own explicit 56-work shelves since the 2026-10-05 catalogue correction
     readonly property var expected: ({
         "Dragon Ball": "Manga:8(2+6) | Anime:7(7) | Films:25(4+17+4)",
-        "One Piece": "Manga:8(1+7) | Anime:3(3) | Films:17(12+5)",
+        "One Piece": "Manga:15(2+13) | Series:5(4+1) | Films:15(15) | Specials:17(17) | Novels:4(4)",
         "Naruto": "Manga:4(3+1) | Anime:3(3) | Films:11(3+7+1)",
         "Attack on Titan": "Manga:3(1+2) | Anime:1(1) | Films:7(5+2)",
         "James Bond": "Films:25(6+1+7+2+4+5) | Books:14(14)",
@@ -48,8 +49,36 @@ Window {
         }
         if (pushes !== 12) fail("loadShelves must push exactly once per universe, got " + pushes)
         Saga.loadShelves("One Piece", function(u) {
-            const anime = u.shelves[1].runs[0].items
-            if (!(anime[1].live === true && anime[2].upcoming === true)) fail("One Piece live-action / upcoming marks lost")
+            const series = u.shelves[1].runs
+            if (!(series[1].items[0].live === true)) fail("One Piece live-action mark lost")
+            if (!(series[0].items[3].upcoming === true)) fail("One Piece upcoming mark lost")
+            if (u.category !== "onepiece") fail("explicit shelves keep the universe's own category")
+            const manga = u.shelves[0].runs[0].items
+            if (!(manga[0].title === "One Piece" && manga[0].mal === 13)) fail("the first manga is One Piece with mal 13")
+            const color = manga[1]
+            if (!(color && color.provider === "tankoban" && color.malId === "13"
+                  && color.seriesId === "mal:13:color"))
+                fail("the colour edition must carry its Tankoban profile")
+            if (color && color.mal) fail("the colour edition must not borrow the base series' mal")
+            // no work appears twice across the shelves, and every work is resolved
+            const seen = {}
+            u.shelves.forEach(function(s) { s.runs.forEach(function(r) { r.items.forEach(function(w) {
+                const k = w.medium + ":" + String(w.id || w.apple || w.al || w.title)
+                if (seen[k]) fail("One Piece work appears twice: " + w.title + " (" + seen[k] + " and " + s.title + ")")
+                seen[k] = s.title
+                if (w.resolved !== true) fail("One Piece unresolved work: " + w.title)
+                if (s.kind === "manga" && w.provider === undefined && !(w.mal > 0 && w.al > 0 && w.cover))
+                    fail("an ordinary manga lost its pins or cover: " + w.title)
+            }) }) })
+            // the three Episode Of specials live under Specials only — never also under Films
+            const filmIds = u.shelves[2].runs[0].items.map(function(w) { return w.id })
+            const specialIds = u.shelves[3].runs[0].items.map(function(w) { return w.id })
+            ;["tt3354344", "tt3354352", "tt5098548"].forEach(function(tt) {
+                if (filmIds.indexOf(tt) >= 0) fail("Episode Of special " + tt + " must not sit under Films")
+                if (specialIds.indexOf(tt) < 0) fail("Episode Of special " + tt + " missing from Specials")
+            })
+        })
+        Saga.loadShelves("Dragon Ball", function(u) {
             if (u.category !== "anime") fail("a derived anime universe must read ANIME")
         })
         Saga.loadShelves("Weekly Shonen Jump", function(u) {

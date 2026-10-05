@@ -466,7 +466,11 @@ function shelfItem(work, kind, key, index) {
     var item;
     work = work || {};
     if (kind === "movie" || kind === "series") {
-        item = work.id ? mapWatch({ id: work.id, type: kind, name: work.t, releaseInfo: work.year })
+        // a curated poster/art overrides the generated metahub cover/backdrop (mapWatch
+        // prefers an explicit poster/background over the id-derived URL) — the generic
+        // escape hatch for a screen work whose generated art path is a known hole.
+        item = work.id ? mapWatch({ id: work.id, type: kind, name: work.t, releaseInfo: work.year,
+                                    poster: work.poster, background: work.art })
                        : { title: work.t || "", cover: "", art: "", year: 0 };
         if (!work.id) item.resolved = false;
         if (work.upcoming === true) item.upcoming = true;
@@ -475,6 +479,19 @@ function shelfItem(work, kind, key, index) {
         item = { title: work.t || "", cover: work.cover || "", query: work.q || work.t || "",
                  al: work.al || 0, mal: work.mal || 0, by: work.by || "",
                  from: work.from || 0, to: work.to || 0, volumes: work.volumes || 0 };
+        // an EDITION manga (e.g. a Tankoban colour edition) carries its own routing
+        // identity: provider + seriesId + the source-search profile the reader needs.
+        // It deliberately does NOT borrow the generic mal — edition progress must never
+        // merge with the base series (the page's entryMatches keys manga by "mal:<id>").
+        if (work.provider) {
+            item.id = work.id || "";
+            item.provider = work.provider;
+            item.malId = work.malId || "";
+            item.seriesId = work.seriesId || "";
+            if (work.sourceSearchTitle) item.sourceSearchTitle = work.sourceSearchTitle;
+            if (work.sourceSearchAliases) item.sourceSearchAliases = work.sourceSearchAliases;
+            if (work.sourceRequiredMarkers) item.sourceRequiredMarkers = work.sourceRequiredMarkers;
+        }
     } else {
         // a book: the object BiblioBook renders, keyed by its Apple Books id; resolveBook
         // fills the synopsis and facts by ID when the tile is opened

@@ -4492,6 +4492,9 @@ Window {
                 if (item.bookRequested) item.bookRequested.connect(win.openBook)
                 if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openUniverseComic)
                 if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)
+                // an edition manga (e.g. the One Piece colour edition) arrives as a whole
+                // entry — same router as the arc pages, its provider/seriesId profile intact
+                if (item.seriesEntryRequested) item.seriesEntryRequested.connect(win.routeUniverseSeries)
                 if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                 if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                 if (item.universeRequested) item.universeRequested.connect(win.openUniverseByName)

@@ -29,6 +29,7 @@ Item {
     signal closeRequested()
     signal watchRequested(var item)          // anime/film tile → A4's TheatreSeries
     signal seriesRequested(string title, var malId)   // manga / Read → Tankoban, by its pinned MAL id when curated
+    signal seriesEntryRequested(var entry)   // an EDITION manga (provider/seriesId, e.g. the colour edition) → Main's routeUniverseSeries with its whole profile
     signal bookRequested(var book)           // book tile / Read → the Biblio book page
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
     signal continueDetailRequested(var entry)   // Continue tile → its title page
@@ -109,7 +110,12 @@ Item {
     function canOpen(item) { return !!item && item.resolved !== false }
     function openWork(item) {
         if (!root.canOpen(item)) return
-        if (root.isManga(item)) root.seriesRequested(item.query || item.title || "", item.mal || 0)
+        // an edition manga carries its own routing identity (provider tankoban / a durable
+        // seriesId) — it must not collapse onto the base series' "title + mal" route
+        if (root.isManga(item) && (item.provider === "tankoban"
+                                   || (item.seriesId !== undefined && String(item.seriesId).length > 0)))
+            root.seriesEntryRequested(item)
+        else if (root.isManga(item)) root.seriesRequested(item.query || item.title || "", item.mal || 0)
         // a book opens by its pinned Apple Books id: the full record is looked up BY ID
         else if (root.isBook(item)) Saga.resolveBook(item, function(book) { root.bookRequested(book) })
         else if (root.isScreen(item)) root.watchRequested(item)

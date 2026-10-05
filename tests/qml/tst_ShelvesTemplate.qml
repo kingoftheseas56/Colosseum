@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml" as App
+import "../../qml/SagaApi.js" as Saga
 
 // The shelves universe page (Arc 58): the layout rules a screenshot review found broken on
 // 2026-10-04 — the gap between tiles, which side each row arrow sits on, the wheel, the
@@ -9,6 +10,7 @@ Item {
     width: 1280; height: 720
     App.ShelvesUniversePage { id: shelves }
     SignalSpy { id: tankoban; target: shelves; signalName: "seriesRequested" }
+    SignalSpy { id: edition; target: shelves; signalName: "seriesEntryRequested" }
     SignalSpy { id: theatre; target: shelves; signalName: "watchRequested" }
 
     SignalSpy { id: biblio; target: shelves; signalName: "bookRequested" }
@@ -50,7 +52,7 @@ Item {
             findChild(shelves, "shelvesScroll").contentY = 0
             findChild(shelves, "shelvesRow_manga").contentX = 0
             findChild(shelves, "shelvesRow_films").contentX = 0
-            tankoban.clear(); theatre.clear(); biblio.clear()
+            tankoban.clear(); edition.clear(); theatre.clear(); biblio.clear()
         }
         function page() { return findChild(shelves, "shelvesScroll") }
 
@@ -121,6 +123,49 @@ Item {
             compare(tankoban.count, 1)
             compare(tankoban.signalArguments[0][0], "Manga 1")
             compare(tankoban.signalArguments[0][1], 100, "a manga opens Tankoban by its pinned MAL id")
+            compare(edition.count, 0, "an ordinary manga must not take the edition route")
+        }
+
+        // ── edition manga routing (2026-10-05 catalogue correction): a provider/seriesId
+        //    manga is a whole entry of its own — it must never collapse onto the ordinary
+        //    "title + mal" route and merge with the base series ──
+        function test_anEditionMangaOpensItsOwnEntry() {
+            // a colour-edition-shaped universe: the second tile of "The series" carries the
+            // Tankoban profile (provider, malId, seriesId — and deliberately NO generic mal)
+            const u = animeUni(3, 1, [])
+            u.shelves[0].runs[0].items.push({ title: "One Piece (Color)", medium: "manga", canonIndex: 1,
+                                              cover: "", key: "manga:0:1", query: "One Piece (Color)",
+                                              mal: 0, provider: "tankoban", id: "one-piece-color",
+                                              malId: "13", seriesId: "mal:13:color", resolved: true })
+            shelves.uni = u
+            const focus = findChild(shelves, "shelvesRowFocus_manga")
+            focus.forceActiveFocus()
+            keyClick(Qt.Key_Right)
+            keyClick(Qt.Key_Return)
+            compare(edition.count, 1)
+            const entry = edition.signalArguments[0][0]
+            compare(entry.seriesId, "mal:13:color")
+            compare(entry.provider, "tankoban")
+            compare(entry.malId, "13")
+            compare(tankoban.count, 0, "an edition manga must not emit the ordinary seriesRequested")
+        }
+
+        // ── curated screen art (Fish-Man Island Log's poster override): the mapping rule
+        //    is generic — a curated poster/cover wins over the generated metahub art ──
+        function test_aCuratedPosterOverridesTheGeneratedCover() {
+            const curated = Saga.shelfItem({ t: "Log", id: "tt33992229", year: "2024",
+                                             poster: "https://img.example/fishman-poster.jpg" },
+                                           "series", "s", 0)
+            compare(curated.cover, "https://img.example/fishman-poster.jpg")
+            const generated = Saga.shelfItem({ t: "Log", id: "tt33992229", year: "2024" }, "series", "s", 0)
+            compare(generated.cover, "https://live.metahub.space/poster/medium/tt33992229/img",
+                    "without curation the metahub poster is generated from the id")
+            const backdrop = Saga.shelfItem({ t: "Log", id: "tt33992229", year: "2024",
+                                              art: "https://img.example/fishman-art.jpg" },
+                                            "series", "s", 0)
+            compare(backdrop.art, "https://img.example/fishman-art.jpg")
+            compare(backdrop.cover, "https://live.metahub.space/poster/medium/tt33992229/img",
+                    "an art override alone does not touch the poster")
         }
 
         // ── panel lines (2026-10-05): a short row's panel hugs its row; consecutive

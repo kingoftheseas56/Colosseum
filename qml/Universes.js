@@ -75,7 +75,7 @@ var universes = [
       // the other adaptations — the live action and the announced remake.
       adaptations: [
         { t: "One Piece — Live Action", id: "tt11737520", year: "2023", note: "Netflix sets sail in the flesh", live: true },
-        { t: "The One Piece",           id: "tt30476502", year: "2026", note: "The WIT Studio remake", upcoming: true }
+        { t: "The One Piece",           id: "tt30476502", year: "2027", note: "The WIT Studio remake", upcoming: true }
       ],
       // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
       filmEras: [
@@ -110,10 +110,105 @@ var universes = [
         { t: "Chapter 1000 Special", al: 154266, mal: 150042,     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
         { t: "Wanted! — Oda's Origins", al: 30793, mal: 793,  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
       ],
+      // THE STANDARD SHELVES (2026-10-05 catalogue correction): the full 56-work union —
+      // the old full-catalogue payload's breadth on the Arc 58 shelves contract, as explicit
+      // data instead of the generic three-shelf derivation. Manga / Series / Films /
+      // Specials / Novels. The identity law is unchanged: every screen work id-pinned to
+      // Cinemeta (type verified live 2026-10-05), every ordinary manga to AniList + MAL
+      // (pins and covers re-verified live by id, never by title search), the colour edition
+      // to its Tankoban series identity (it deliberately does NOT carry a generic mal — its
+      // progress must never merge with base One Piece), every novel to an exact Apple Books
+      // id (trackId re-verified). Spin-offs run in verified first-publication year order
+      // (AniList startDate). The Fish-Man Island Log carries its poster override (the
+      // generated metahub art is a known hole there). The fields above (anime, adaptations,
+      // filmEras, manga, sagas, sagaGrid) still feed the Tribute, the story grid and the
+      // older contracts — this list owns only the standard page.
+      shelves: [
+        { title: "Manga", kind: "manga",
+          runs: [
+            { label: "The series", works: [
+              { t: "One Piece", al: 30013, mal: 13,                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+              { id: "one-piece-color", provider: "tankoban", t: "One Piece (Color)",
+                malId: "13", seriesId: "mal:13:color",
+                sourceSearchTitle: "One Piece Colored",
+                sourceSearchAliases: [ "One Piece Digital Colored Comics" ],
+                sourceRequiredMarkers: [ "colored", "full color", "full colour" ],
+                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" } ] },
+            { label: "Spin-offs", works: [
+              { t: "Wanted! — Oda's Origins", al: 30793, mal: 793,  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" },
+              { t: "One Piece Log Book Omake", al: 44414, mal: 14414,                                   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx44414-5q51CV5hp2Yh.jpg" },
+              { t: "ONE PIECE: STRONG WORLD (Chapter 0)", al: 47152, mal: 17152,                         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/n47152-v3AqgrZH9BsU.jpg" },
+              { t: "One Piece × Toriko", al: 55146, mal: 25146,       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
+              { t: "Chopperman", al: 82353, mal: 52353,                                                   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/52353.jpg" },
+              { t: "One Piece Party", al: 102533, mal: 86972,          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
+              { t: "CHIN PIECE", al: 110258, mal: 142771,                                                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110258-w41GRxfZ1EvY.jpg" },
+              { t: "Koisuru One Piece", al: 110233, mal: 120401,        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
+              { t: "Shokugeki no Sanji", al: 103252, mal: 114760,       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
+              { t: "Kobiyama Who Looks Like Koby", al: 110232, mal: 115627,                               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110232-Ez6jnlZ7Pp9w.jpg" },
+              { t: "ONE PIECE Gakuen!!", al: 110715, mal: 122305,                                          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110715-IqObMH5zGdOM.jpg" },
+              { t: "Ace's Story", al: 117802, mal: 128594,              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
+              { t: "Chapter 1000 Special", al: 154266, mal: 150042,     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" } ] } ] },
+        { title: "Series", kind: "series",
+          runs: [
+            { label: "Animation", works: [
+              { t: "One Piece", id: "tt0388629", year: "1999" },
+              { t: "One Piece Log: Fish-Man Island Saga", id: "tt33992229", year: "2024",
+                poster: "https://m.media-amazon.com/images/M/MV5BYzRiYTcwM2YtMTE1OC00MGFkLTlmZjctMjI0YjQ5MWY1MTAwXkEyXkFqcGc@._V1_SX250.jpg" },
+              { t: "One Piece in Love", id: "tt36600601", year: "2025" },
+              { t: "THE ONE PIECE", id: "tt30476502", year: "2027", upcoming: true } ] },
+            { label: "Live action", works: [
+              { t: "One Piece — Live Action", id: "tt11737520", year: "2023", live: true } ] } ] },
+        { title: "Films", kind: "movie",
+          runs: [ { label: "", works: [
+            { t: "One Piece: The Movie",                   id: "tt0814243", year: "2000" },
+            { t: "Clockwork Island Adventure",             id: "tt0832449", year: "2001" },
+            { t: "Chopper's Kingdom on the Island of Strange Animals", id: "tt0997084", year: "2002" },
+            { t: "Dead End Adventure",                     id: "tt1006926", year: "2003" },
+            { t: "The Cursed Holy Sword",                  id: "tt1010435", year: "2004" },
+            { t: "Baron Omatsuri and the Secret Island",   id: "tt1018764", year: "2005" },
+            { t: "The Giant Mechanical Soldier of Karakuri Castle", id: "tt1059950", year: "2006" },
+            { t: "Episode of Alabasta",                    id: "tt1037116", year: "2007" },
+            { t: "Episode of Chopper Plus",                id: "tt1206326", year: "2008" },
+            { t: "Strong World",                           id: "tt1485763", year: "2009" },
+            { t: "One Piece 3D: Straw Hat Chase",          id: "tt1865467", year: "2011" },
+            { t: "Film Z",                                 id: "tt2375379", year: "2012" },
+            { t: "Film: Gold",                             id: "tt5251328", year: "2016" },
+            { t: "Stampede",                               id: "tt9430698", year: "2019" },
+            { t: "Film: Red",                              id: "tt16183464", year: "2022" } ] } ] },
+        { title: "Specials", kind: "movie",
+          runs: [ { label: "", works: [
+            { t: "Defeat the Pirate Ganzak!",              id: "tt1012788", year: "1998" },
+            { t: "Adventure in the Ocean's Navel",         id: "tt0975705", year: "2000" },
+            { t: "Open Upon the Great Sea! A Father's Huge, HUGE Dream!", id: "tt1003286", year: "2003" },
+            { t: "Protect! The Last Great Stage",          id: "tt1010037", year: "2003" },
+            { t: "Luffy's Detective Story",                id: "tt1012787", year: "2005" },
+            { t: "Strong World Episode 0",                 id: "tt7947592", year: "2010" },
+            { t: "Episode of Nami",                        id: "tt2598466", year: "2012" },
+            { t: "Episode of Luffy — Hand Island",         id: "tt3354344", year: "2012" },
+            { t: "Episode of Merry",                       id: "tt3354352", year: "2013" },
+            { t: "Dream 9 Toriko x One Piece x Dragon Ball Z", id: "tt2893336", year: "2013" },
+            { t: "3D2Y — Overcome Ace's Death",            id: "tt5098548", year: "2014" },
+            { t: "Episode of Sabo",                        id: "tt6597356", year: "2015" },
+            { t: "Adventure of Nebulandia",                id: "tt6609162", year: "2015" },
+            { t: "Heart of Gold",                          id: "tt6425816", year: "2016" },
+            { t: "Episode of East Blue",                   id: "tt11757066", year: "2017" },
+            { t: "Episode of Skypiea",                     id: "tt11744496", year: "2018" },
+            { t: "One Piece Fan Letter",                   id: "tt33998607", year: "2024" } ] } ] },
+        { title: "Novels", kind: "book",
+          runs: [ { label: "", works: [
+            { t: "One Piece: Ace's Story, Vol. 1", apple: 1509329459, author: "Sho Hinata", year: 2020,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication113/v4/3c/02/de/3c02decc-5827-f714-5f6b-8ad7f5547a85/9781974718528.jpg/400x600bb.jpg" },
+            { t: "One Piece: Ace's Story, Vol. 2", apple: 1528233153, author: "Sho Hinata", year: 2020,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication114/v4/a4/e7/d4/a4e7d44e-e8e6-f20a-4059-ef66599d5c12/9781974718535.jpg/400x600bb.jpg" },
+            { t: "One Piece: Law's Story", apple: 6741084754, author: "Eiichiro Oda", year: 2025,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/0c/67/48/0c67487b-ba94-6604-989a-8d8383d04124/9781974760145.jpg/400x600bb.jpg" },
+            { t: "One Piece: Heroines, Vol. 2", apple: 6736634886, author: "Eiichiro Oda", year: 2025,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/79/f4/6f/79f46fb0-4b43-3833-0ea9-eebc84c24ba0/9781974756230.jpg/400x600bb.jpg" } ] } ] }
+      ],
       // THE STORY GRID (2026-10-04, whole works only — the sagas-as-waypoints list above
       // is Tribute material and ignored here): one story, the manga over its three shows.
       sagaGrid: { stories: [ { short: "One Piece", book: 0, shows: [0, 1, 2] } ] },
-      chips: [ { t: "8 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "17 Films", ic: "movies" } ] },
+      chips: [ { t: "15 Manga", ic: "manga" }, { t: "5 Series", ic: "movies" }, { t: "15 Films", ic: "movies" }, { t: "17 Specials", ic: "movies" }, { t: "4 Novels", ic: "books" } ] },
     // renamed Marvel → full name (Hemanth 2026-07-13) + THE TELEVISION ACT: every Marvel
     // Studios series + the Special Presentations, release-ordered, ALL id-pinned (bare
     // names are impostor minefields — Loki/Hawkeye/Echo/What If all collide; Ms. Marvel
