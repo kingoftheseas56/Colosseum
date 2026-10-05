@@ -33,7 +33,7 @@ jobs:
           version: "6.11.1"
           host: linux
           target: desktop
-          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qttools"
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
 
@@ -42,11 +42,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build cmake curl xz-utils pkg-config extra-cmake-modules \
-            libmpv-dev libtorrent-rasterbar-dev libboost-filesystem-dev \
-            libboost-system-dev libssl-dev xvfb libxcb-cursor0 \
-            libgl1-mesa-dev libxkbcommon-x11-0 libxcb-xinerama0 \
-            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0
+            build-essential ninja-build cmake curl xz-utils pkg-config \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev \
+            libssl-dev libsecret-1-dev xvfb xauth libxcb-cursor0 \
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev \
+            libxkbcommon-x11-0 libxcb-xinerama0 libxcb-icccm4 \
+            libxcb-image0 libxcb-keysyms1 libxcb-render-util0
 
       - name: Build pinned ECM 6.15.0
         shell: bash
