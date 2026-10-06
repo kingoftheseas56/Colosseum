@@ -115,7 +115,7 @@ WorldPage {
 
     onDirectorExpectedCohortTokenInternalChanged: {
         universes.directorReadinessEpoch += 1
-        universes.directorPresentedFramesInternal = 0
+        universes.directorResetPresentationBarrierInternal()
     }
 
     function directorCohortSnapshot() {
@@ -243,8 +243,22 @@ WorldPage {
         : !universes.directorAllRequiredReadyInternal ? "loading"
         : universes.directorPresentedFramesInternal >= 2 ? "settled" : "loading"
 
-    onDirectorObservationTokenInternalChanged: universes.directorPresentedFramesInternal = 0
-    onDirectorSurfaceActiveInternalChanged: universes.directorPresentedFramesInternal = 0
+    function directorRequestPresentationFrameInternal() {
+        const window = universes.Window.window
+        if (!window || !universes.directorSurfaceActiveInternal
+                || !universes.directorAllRequiredReadyInternal
+                || universes.directorPresentedFramesInternal >= 2)
+            return
+        window.update()
+    }
+
+    function directorResetPresentationBarrierInternal() {
+        universes.directorPresentedFramesInternal = 0
+        Qt.callLater(universes.directorRequestPresentationFrameInternal)
+    }
+
+    onDirectorObservationTokenInternalChanged: universes.directorResetPresentationBarrierInternal()
+    onDirectorSurfaceActiveInternalChanged: universes.directorResetPresentationBarrierInternal()
 
     // Settled is a presentation fact, not an Image.status instant: require two completed
     // swaps while this exact key/source/status cohort remains fully Ready.
@@ -256,8 +270,11 @@ WorldPage {
                 universes.directorPresentedFramesInternal = 0
                 return
             }
-            if (universes.directorPresentedFramesInternal < 2)
+            if (universes.directorPresentedFramesInternal < 2) {
                 universes.directorPresentedFramesInternal += 1
+                if (universes.directorPresentedFramesInternal < 2)
+                    Qt.callLater(universes.directorRequestPresentationFrameInternal)
+            }
         }
     }
 

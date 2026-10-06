@@ -331,12 +331,26 @@ Item {
         : !root.directorAllRequiredReadyInternal ? "loading"
         : root.directorPresentedFramesInternal >= 2 ? "settled" : "loading"
 
+    function directorRequestPresentationFrameInternal() {
+        const window = root.Window.window
+        if (!window || !root.directorSurfaceActiveInternal
+                || !root.directorAllRequiredReadyInternal
+                || root.directorPresentedFramesInternal >= 2)
+            return
+        window.update()
+    }
+
+    function directorResetPresentationBarrierInternal() {
+        root.directorPresentedFramesInternal = 0
+        Qt.callLater(root.directorRequestPresentationFrameInternal)
+    }
+
     onDirectorExpectedCohortTokenInternalChanged: {
         root.directorReadinessEpoch += 1
-        root.directorPresentedFramesInternal = 0
+        root.directorResetPresentationBarrierInternal()
     }
-    onDirectorObservationTokenInternalChanged: root.directorPresentedFramesInternal = 0
-    onDirectorSurfaceActiveInternalChanged: root.directorPresentedFramesInternal = 0
+    onDirectorObservationTokenInternalChanged: root.directorResetPresentationBarrierInternal()
+    onDirectorSurfaceActiveInternalChanged: root.directorResetPresentationBarrierInternal()
 
     Connections {
         target: root.Window.window
@@ -345,8 +359,11 @@ Item {
                 root.directorPresentedFramesInternal = 0
                 return
             }
-            if (root.directorPresentedFramesInternal < 2)
+            if (root.directorPresentedFramesInternal < 2) {
                 root.directorPresentedFramesInternal += 1
+                if (root.directorPresentedFramesInternal < 2)
+                    Qt.callLater(root.directorRequestPresentationFrameInternal)
+            }
         }
     }
 
