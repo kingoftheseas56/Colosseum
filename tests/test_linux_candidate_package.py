@@ -161,6 +161,87 @@ class CandidatePackageTests(unittest.TestCase):
                         self.module.install_webp_plugin(root, "6.11.1")
                 self.assertFalse((root / "usr/plugins/imageformats/libqwebp.so").exists())
 
+    def load_smoke(self):
+        import sys
+        path = Path(__file__).resolve().parents[1] / "scripts/linux_candidate_smoke.py"
+        spec = importlib.util.spec_from_file_location("candidate_smoke", path)
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(sys.modules, {"linux_candidate_package": self.module}):
+            spec.loader.exec_module(module)
+        return module
+
+    def test_debugger_install_guard_requires_all_container_conditions(self):
+        smoke = self.load_smoke()
+        for github in ("true", "false"):
+            for uid in (0, 1000):
+                for marker in (True, False):
+                    with mock.patch.object(smoke.os, "geteuid", return_value=uid), \
+                         mock.patch.object(smoke.Path, "is_file", return_value=marker):
+                        self.assertEqual(smoke.debugger_install_allowed({"GITHUB_ACTIONS": github}),
+                                         github == "true" and uid == 0 and marker)
+
+    def test_debugger_install_is_refused_outside_disposable_ci(self):
+        import json
+        smoke = self.load_smoke()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); fixture = root / "Probe.qml"; fixture.write_text("fixture")
+            with mock.patch.object(smoke.shutil, "which", return_value=None), \
+                 mock.patch.object(smoke, "debugger_install_allowed", return_value=False), \
+                 mock.patch.object(smoke.subprocess, "run") as run:
+                smoke.collect_shutdown_trace(root, fixture, {}, root)
+                run.assert_not_called()
+            self.assertEqual(json.loads((root / "gdb-result.json").read_text())["status"], "BLOCKED")
+
+    def test_existing_debugger_keeps_aslr_and_original_capture(self):
+        import json
+        smoke = self.load_smoke()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); fixture = root / "Probe.qml"
+            content = str(root / "webengine.png") + " " + str(root / "browser-profile")
+            fixture.write_text(content)
+            with mock.patch.object(smoke.shutil, "which", return_value="/usr/bin/gdb"), \
+                 mock.patch.object(smoke.subprocess, "run", return_value=mock.Mock(returncode=1)) as run:
+                smoke.collect_shutdown_trace(root, fixture, {"HOME": str(root)}, root)
+            self.assertEqual(run.call_count, 1)
+            command = run.call_args.args[0]
+            self.assertIn("set disable-randomization off", command)
+            self.assertIn("set auto-load off", command)
+            self.assertIn("thread apply all bt", command)
+            self.assertNotIn("--no-sandbox", command)
+            self.assertEqual(fixture.read_text(), content)
+            self.assertIn("webengine-gdb.png", (root / "Probe-gdb.qml").read_text())
+            self.assertNotEqual(run.call_args.kwargs["env"]["COLOSSEUM_LANISTA_PIPE"], "")
+            self.assertEqual(json.loads((root / "gdb-result.json").read_text())["returncode"], 1)
+
+    def test_debugger_can_install_only_in_authorized_ci_container(self):
+        smoke = self.load_smoke()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); fixture = root / "Probe.qml"; fixture.write_text("fixture")
+            with mock.patch.object(smoke.shutil, "which", side_effect=[None, "/usr/bin/gdb"]), \
+                 mock.patch.object(smoke, "debugger_install_allowed", return_value=True), \
+                 mock.patch.object(smoke.subprocess, "run", return_value=mock.Mock(returncode=0)) as run:
+                smoke.collect_shutdown_trace(root, fixture, {}, root)
+            commands = [call.args[0] for call in run.call_args_list]
+            self.assertEqual(commands[0], ["apt-get", "update"])
+            self.assertEqual(commands[1], ["apt-get", "install", "-y", "--no-install-recommends", "gdb"])
+            self.assertEqual(commands[2][0], "/usr/bin/gdb")
+
+    def test_debugger_success_never_qualifies_crashed_webengine(self):
+        import subprocess
+        smoke = self.load_smoke()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            crashed = subprocess.CompletedProcess(["AppRun", "Probe.qml"], -11)
+            with mock.patch.object(smoke, "collect_shutdown_trace") as trace:
+                with self.assertRaises(subprocess.CalledProcessError) as caught:
+                    smoke.require_clean_webengine_exit(crashed, root, root / "Probe.qml", {}, root, "pin")
+                self.assertEqual(caught.exception.returncode, -11)
+                trace.assert_called_once()
+            with mock.patch.object(smoke, "collect_shutdown_trace") as trace:
+                smoke.require_clean_webengine_exit(subprocess.CompletedProcess(["AppRun"], 0), root,
+                    root / "Probe.qml", {}, root, "pin")
+                trace.assert_not_called()
+
     def test_unresolved_dependency_fails_closed(self):
         with self.assertRaisesRegex(RuntimeError, "libMpvQt.so.1"):
             self.module.parse_ldd("libMpvQt.so.1 => not found\n")

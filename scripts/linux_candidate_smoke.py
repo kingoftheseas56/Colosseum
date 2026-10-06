@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -30,6 +31,70 @@ def call(pipe: str, command: str) -> dict:
                 raise RuntimeError("Lanista disconnected without a reply")
             data += block
         return json.loads(data.split(b"\n", 1)[0])
+
+
+def debugger_install_allowed(env: dict) -> bool:
+    # Explicitly approved diagnostic for this disposable GitHub CI container.
+    # Never install packages on a reviewer's machine or alter sandbox settings.
+    return (env.get("GITHUB_ACTIONS") == "true" and os.geteuid() == 0
+            and Path("/.dockerenv").is_file())
+
+
+def collect_shutdown_trace(root: Path, fixture: Path, env: dict, evidence: Path) -> None:
+    """Best-effort crash diagnostics. This cannot turn a failed run into PASS."""
+    record = {"status": "BLOCKED", "installedDebugger": False}
+    try:
+        debugger = shutil.which("gdb")
+        if not debugger:
+            if not debugger_install_allowed(env):
+                raise RuntimeError("GDB unavailable; installation is restricted to the authorized disposable CI container")
+            setup_env = {key: value for key, value in env.items()
+                         if key != "LD_LIBRARY_PATH" and not key.startswith(("QT", "QML"))}
+            with (evidence / "gdb-setup.log").open("wb") as log:
+                for command in (["apt-get", "update"],
+                                ["apt-get", "install", "-y", "--no-install-recommends", "gdb"]):
+                    subprocess.run(command, env=setup_env, stdout=log, stderr=subprocess.STDOUT,
+                                   timeout=300, check=True)
+            record["installedDebugger"] = True
+            debugger = shutil.which("gdb")
+            if not debugger:
+                raise RuntimeError("GDB installation did not produce an executable")
+        # Preserve the original failed run's screenshot/profile and Unix socket
+        # identity. The second run is diagnostic evidence, never qualification.
+        diagnostic_fixture = fixture.with_name("Probe-gdb.qml")
+        diagnostic_fixture.write_text(fixture.read_text().replace(
+            str(evidence / "webengine.png"), str(evidence / "webengine-gdb.png")).replace(
+            str(fixture.parent / "browser-profile"), str(fixture.parent / "browser-profile-gdb")))
+        diagnostic_env = dict(env, COLOSSEUM_LANISTA_PIPE="ColosseumLanista-gdb-" + uuid.uuid4().hex,
+                              COLOSSEUM_APPDATA_TAG="candidate-gdb-" + uuid.uuid4().hex)
+        command = [debugger, "--batch", "--nx", "--return-child-result",
+                   "-iex", "set auto-load off", "-ex", "set pagination off",
+                   "-ex", "set debuginfod enabled off", "-ex", "set disable-randomization off",
+                   "-ex", "set print thread-events off", "-ex", "run",
+                   "-ex", "thread apply all bt", "--args", "/bin/sh", str(root / "AppRun"),
+                   str(diagnostic_fixture)]
+        # GDB follows the launcher's exec into the same packaged ELF. ASLR is
+        # retained, remote symbol downloads are off, and no ptrace/sandbox
+        # permissions or Qt/Chromium security flags are changed.
+        with (evidence / "gdb-backtrace.log").open("wb") as log:
+            result = subprocess.run(command, cwd=fixture.parent, env=diagnostic_env,
+                                    stdout=log, stderr=subprocess.STDOUT, timeout=120, check=False)
+        record.update(status="DIAGNOSTIC_RUN_FINISHED", returncode=result.returncode, command=command)
+    except Exception as error:
+        record["error"] = repr(error)
+    (evidence / "gdb-result.json").write_text(json.dumps(record, indent=2) + "\n")
+
+
+def require_clean_webengine_exit(result: subprocess.CompletedProcess, root: Path, fixture: Path,
+                                env: dict, evidence: Path, revision: str) -> None:
+    (evidence / "webengine-exit.json").write_text(json.dumps({
+        "returncode": result.returncode, "sourceRevision": revision,
+        "signal": -result.returncode if result.returncode < 0 else None,
+    }, indent=2) + "\n")
+    if result.returncode < 0:
+        collect_shutdown_trace(root, fixture, env, evidence)
+    # Keep the ORIGINAL exit-code gate even if the diagnostic run succeeds.
+    result.check_returncode()
 
 
 def smoke(root: Path, revision: str, evidence: Path) -> None:
@@ -152,11 +217,7 @@ Window {
             with (evidence / "webengine.log").open("wb") as log:
                 result = subprocess.run([str(root / "AppRun"), str(fixture)], cwd=work, env=env,
                                         stdout=log, stderr=log, timeout=60, check=False)
-            (evidence / "webengine-exit.json").write_text(json.dumps({
-                "returncode": result.returncode, "sourceRevision": revision,
-                "signal": -result.returncode if result.returncode < 0 else None,
-            }, indent=2) + "\n")
-            result.check_returncode()
+            require_clean_webengine_exit(result, root, fixture, env, evidence, revision)
             if not capture.is_file() or "CANDIDATE_WEBENGINE_PASS" not in (evidence / "webengine.log").read_text():
                 raise RuntimeError("WebEngine did not produce runtime evidence")
         finally:
