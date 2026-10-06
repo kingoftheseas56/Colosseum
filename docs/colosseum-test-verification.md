@@ -21,6 +21,15 @@ Focused local verification extracted these two target definitions into a tempora
 standalone CMake build against Qt 6.11.1/MSVC: both built and both CTests passed.
 This verifies the dependency fix locally; it is not Linux or packaged-runtime proof.
 
+Retry run `37416914762` built the vault targets, then failed linking
+`reader2_profile_runtime_harness`: its production `ProfileStoreRuntime` dependency
+required ratings/reviews and tracker sources absent from that harness target.
+The harness now includes `RatingsReviewsStore` and participates in the existing
+tracker runtime source helper; Windows also links its credential vault's
+`Advapi32` dependency. A focused temporary Qt 6.11.1/MSVC build of the actual
+harness definition and tracker helper linked successfully, and its CTest passed.
+Linux packaging and downloaded-candidate runtime proof are still pending.
+
 ## Arc 35 Tracker Connections — Slice 5 (2026-09-23)
 
 `colosseum.qttest.tracker_delivery` is the deterministic native delivery-journal

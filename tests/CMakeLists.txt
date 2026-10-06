@@ -4399,6 +4399,7 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
     TIMEOUT 60)
 
 foreach(_tracker_profile_target IN ITEMS
+        reader2_profile_runtime_harness
         account_first_light
         tst_privacy_policy
         tst_account_attachment_runtime
