@@ -1,0 +1,201 @@
+name: arc63-final-integration-verify
+
+on:
+  push:
+    branches:
+      - preflight/arc63-final-verify
+
+permissions:
+  contents: read
+
+env:
+  PRODUCT_SHA: 3384f344e37eba2d573d24c3b786b0cd25162541
+  MASTER_BASE: a126f0cd793043c5c6b3011cf2dad54783f8adbc
+  ECM_VERSION: "6.15.0"
+  ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
+  MPVQT_VERSION: "1.2.0"
+  MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+
+jobs:
+  native-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.PRODUCT_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact integration SHA
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
+
+      - name: Integration diff whitespace gate
+        run: git diff --check "$MASTER_BASE..$PRODUCT_SHA"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Validate Arc 63 scenario JSON
+        run: |
+          python -m json.tool tests/lanista_capture/arc63_a_hold_key_rhythm.json >/dev/null
+          python -m json.tool tests/lanista_capture/arc63_b_glide.json >/dev/null
+          python -m json.tool tests/lanista_capture/arc63_c2_hover_click.json >/dev/null
+          python -m json.tool tests/lanista_capture/arc63_d3_readiness_replay.json >/dev/null
+
+      - name: Correct inherited stale depth assertion in runner only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("tests/lanista_harness.cpp")
+          s = p.read_text(encoding="utf-8")
+          old1 = 'absurd.value("maxDepthUsed").toInt() == 64'
+          old2 = '"ceiling (64), got %1"'
+          if s.count(old1) != 1 or s.count(old2) != 1:
+              raise SystemExit(f"unexpected stale assertion counts: {s.count(old1)}, {s.count(old2)}")
+          s = s.replace(old1, 'absurd.value("maxDepthUsed").toInt() == 256', 1)
+          s = s.replace(old2, '"ceiling (256), got %1"', 1)
+          p.write_text(s, encoding="utf-8")
+          PY
+
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             build-essential ninja-build pkg-config libmpv-dev libtorrent-rasterbar-dev             libboost-all-dev libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev             libxkbcommon-dev libxcb-cursor0 libxtst6 xvfb xauth ffmpeg p7zip-full libarchive-tools
+
+      - name: Build Extra CMake Modules
+        run: |
+          archive="$RUNNER_TEMP/ecm.tar.xz"
+          source="$RUNNER_TEMP/ecm-source"
+          build="$RUNNER_TEMP/ecm-build"
+          install="$RUNNER_TEMP/ecm-install"
+          curl --fail --location --retry 3 "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" --output "$archive"
+          echo "$ECM_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$install"
+          cmake --build "$build" --target install --parallel 2
+          echo "ECM_ROOT=$install" >> "$GITHUB_ENV"
+
+      - name: Build MpvQt
+        run: |
+          archive="$RUNNER_TEMP/mpvqt.tar.xz"
+          source="$RUNNER_TEMP/mpvqt-source"
+          build="$RUNNER_TEMP/mpvqt-build"
+          install="$RUNNER_TEMP/mpvqt-install"
+          curl --fail --location --retry 3 "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" --output "$archive"
+          echo "$MPVQT_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_PREFIX="$install" -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT"
+          cmake --build "$build" --target install --parallel 2
+          echo "MPVQT_ROOT=$install" >> "$GITHUB_ENV"
+
+      - name: Configure integrated native tests
+        run: |
+          build="$RUNNER_TEMP/arc63-final-native"
+          cmake -S native -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release             -DBUILD_TESTING=ON -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF             -DCOLOSSEUM_NO_COMPILER_CACHE=ON             -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT" -DMPVQT_PREFIX="$MPVQT_ROOT"
+          echo "NATIVE_BUILD=$build" >> "$GITHUB_ENV"
+
+      - name: Build merged Lanista contracts
+        run: cmake --build "$NATIVE_BUILD" --target lanista_harness tst_lanista_hold --parallel 2
+
+      - name: Run merged Lanista harness
+        env:
+          QT_QPA_PLATFORM: xcb
+          QSG_NO_VSYNC: "1"
+          QT_FORCE_STDERR_LOGGING: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a "$NATIVE_BUILD/lanista_harness"
+
+      - name: Run hold contract
+        run: ctest --test-dir "$NATIVE_BUILD" -R 'lanista_hold' --output-on-failure
+
+  readiness-windows:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.PRODUCT_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact integration SHA
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:PRODUCT_SHA) { throw "wrong integration SHA" }
+
+      - name: Integration diff whitespace gate
+        shell: pwsh
+        run: |
+          git diff --check "$env:MASTER_BASE..$env:PRODUCT_SHA"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Validate D3 authored artifacts
+        shell: pwsh
+        run: |
+          python -m py_compile scripts/arc63_d3_ten_take_readiness.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m json.tool tests/lanista_capture/arc63_d3_readiness_replay.json | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          [void][scriptblock]::Create((Get-Content scripts/arc63_d3_replay.ps1 -Raw))
+
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Run production Universes and D1 readiness tests
+        shell: pwsh
+        env:
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          $runner = Join-Path $env:QT_ROOT_DIR "bin/qmltestrunner.exe"
+          & $runner -input "$PWD/tests/qml/tst_UniversesWorld.qml" -import "$PWD/qml"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $runner -input "$PWD/tests/qml/tst_arc63_d1_readiness.qml" -import "$PWD/qml"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run canonical integrated D3 ten-take proof
+        shell: pwsh
+        env:
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          $runner = Join-Path $env:QT_ROOT_DIR "bin/qmltestrunner.exe"
+          $result = Join-Path $env:RUNNER_TEMP "arc63-final-ten-take-result.json"
+          python scripts/arc63_d3_ten_take_readiness.py --qmltestrunner "$runner" --repo "$PWD" --takes 10 --output "$result"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content $result
+
+      - name: Assert integrated D3 result contract
+        shell: pwsh
+        run: |
+          $result = Get-Content (Join-Path $env:RUNNER_TEMP "arc63-final-ten-take-result.json") -Raw | ConvertFrom-Json
+          if ($result.schema -ne "colosseum.arc63.d3.ten-take.v1") { throw "bad result schema" }
+          if ($result.status -ne "pass") { throw "integration D3 result is not pass" }
+          if ($result.takes -ne 10 -or $result.takeResults.Count -ne 10) { throw "integration D3 did not run exactly ten takes" }
+          if ($result.scenarioGate.captureStarts.Count -ne 2) { throw "integration D3 replay is not guarded at both capture starts" }
+          if ($result.witness.required -ne 15 -or $result.witness.ready -ne 15 -or $result.witness.failed -ne 0) { throw "integration AOT witness is not 15/15/0" }
+          $hashes = @($result.takeResults | ForEach-Object { $_.witnessSha256 } | Select-Object -Unique)
+          if ($hashes.Count -ne 1) { throw "integration witness drifted across takes" }
+          Write-Host "ARC63_FINAL_D3_OK witness=$($hashes[0])"
