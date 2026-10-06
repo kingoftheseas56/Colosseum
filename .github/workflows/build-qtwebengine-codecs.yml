@@ -11,12 +11,13 @@ name: build-qtwebengine-codecs
 # Standard GitHub-hosted Windows jobs are capped at 360 minutes. This workflow
 # therefore supports a resumable compiler-cache build:
 #   seed   - compile for up to 320 minutes and continuously populate sccache/GHA.
-#   finish - rebuild from a fresh VM, consume those cached compiler results,
-#            then install and package only after the build actually completes.
-# A timed-out finish uploads a downloadable build-tree checkpoint before the
-# hosted runner is destroyed, while sccache continues to preserve compiler results.
-# Re-run finish if cache eviction or a runner/toolchain change prevents a
-# one-follow-up-run completion. Keep SCCACHE_GHA_VERSION unchanged between phases.
+#   finish - rebuild from a fresh VM, consume compiler-cache results, then package.
+#   resume - restore a timed-out build-tree artifact from an earlier run at the
+#            exact build path, verify it, and continue Ninja incrementally.
+# A timed-out finish/resume uploads a downloadable build-tree checkpoint before
+# the hosted runner is destroyed, while sccache continues to preserve compiler results.
+# Keep SCCACHE_GHA_VERSION unchanged between phases and run resume from the same
+# branch so GitHub's branch-scoped sccache entries remain eligible.
 
 on:
   workflow_dispatch:
@@ -30,16 +31,22 @@ on:
         required: true
         default: "6.11.1"
       phase:
-        description: "seed = warm compiler cache; finish = reuse cache and package"
+        description: "seed = warm cache; finish = rebuild from cache; resume = restore a timeout build tree"
         required: true
         type: choice
         options:
           - seed
           - finish
+          - resume
         default: seed
+      resume_run_id:
+        description: "Workflow run ID that owns the timeout build-tree artifact (required for resume)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build-webengine:
@@ -193,7 +200,43 @@ jobs:
           if (-not $inner) { throw "qtwebengine source dir missing after extract" }
           "WEBENGINE_SRC=$($inner.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Restore timeout build tree
+        if: github.event.inputs.phase == 'resume'
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.inputs.resume_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: qtwebengine-${{ env.QT_VERSION }}-timeout-build-run-*
+          path: ${{ env.WEBENGINE_BUILD_DIR }}
+          merge-multiple: true
+
+      - name: Verify restored build tree
+        if: github.event.inputs.phase == 'resume'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not '${{ github.event.inputs.resume_run_id }}') {
+            throw 'resume_run_id is required when phase=resume'
+          }
+          $ninja = Join-Path $env:WEBENGINE_BUILD_DIR 'build.ninja'
+          $cache = Join-Path $env:WEBENGINE_BUILD_DIR 'CMakeCache.txt'
+          if (-not (Test-Path -LiteralPath $ninja -PathType Leaf)) {
+            throw "restored checkpoint is missing build.ninja: $ninja"
+          }
+          if (-not (Test-Path -LiteralPath $cache -PathType Leaf)) {
+            throw "restored checkpoint is missing CMakeCache.txt: $cache"
+          }
+          $toolchains = @(Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File -ErrorAction Stop)
+          $objects = @(Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue)
+          if (-not $toolchains) { throw 'restored checkpoint contains no Chromium toolchain.ninja' }
+          if (-not $objects) { throw 'restored checkpoint contains no compiled .obj files' }
+          Write-Output "restored checkpoint: $($objects.Count) object files; $($toolchains.Count) Chromium toolchain file(s)"
+          Select-String -Path $cache -Pattern '^CMAKE_HOME_DIRECTORY:INTERNAL=' | ForEach-Object { Write-Output $_.Line }
+          Select-String -Path $cache -Pattern '^CMAKE_INSTALL_PREFIX:PATH=' | ForEach-Object { Write-Output $_.Line }
+          Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+
       - name: Configure WebEngine module (proprietary codecs, Release)
+        if: github.event.inputs.phase != 'resume'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
@@ -232,6 +275,7 @@ jobs:
           }
 
       - name: Generate Chromium Ninja files
+        if: github.event.inputs.phase != 'resume'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
@@ -293,8 +337,8 @@ jobs:
           $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
 
           Write-Output "phase=$phase; building with -j$jobs; controlled budget=$($budgetMinutes)m"
-          if ($phase -eq 'finish') {
-            Write-Output 'Finish reserves roughly 45 minutes of the hosted-job window for timeout checkpoint upload and normal packaging.'
+          if ($phase -eq 'finish' -or $phase -eq 'resume') {
+            Write-Output "$phase reserves roughly 45 minutes of the hosted-job window for checkpoint upload and normal packaging."
           }
           Write-Output 'Completed compiler results are written continuously to the sccache GHA backend.'
 
@@ -326,7 +370,7 @@ jobs:
               exit 0
             }
 
-            Write-Output '::error::Finish phase exhausted its build budget. Re-run phase=finish to consume the additional cache written by this attempt.'
+            Write-Output "::error::$phase phase exhausted its build budget. Re-run phase=resume against this run's timeout build-tree artifact."
             exit 124
           }
 
