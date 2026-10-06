@@ -442,6 +442,15 @@ set_tests_properties(colosseum.wide_android_navigation_contract PROPERTIES
     LABELS "unit;android;navigation;windows"
     TIMEOUT 120)
 
+# Android symbol fallback contract: one coverage-qualified application font is registered
+# only on Android, while existing QML symbol use sites remain platform-neutral.
+add_test(NAME colosseum.android_symbol_fallback_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_android_symbol_fallback.ps1")
+set_tests_properties(colosseum.android_symbol_fallback_contract PROPERTIES
+    LABELS "unit;android;fonts;windows"
+    TIMEOUT 120)
+
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
 add_test(NAME colosseum.search_cancellation_contract

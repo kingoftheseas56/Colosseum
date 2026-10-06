@@ -2,6 +2,9 @@
 // fingerprint emitted by the native build; explicit dev QML overrides remain opt-in.
 
 #include <QDir>
+#if defined(Q_OS_ANDROID)
+#include <QFontDatabase>
+#endif
 #include <QGuiApplication>
 #include <QHash>
 #include <QHostAddress>
@@ -681,6 +684,30 @@ int main(int argc, char *argv[]) {
     if (!QDir::setCurrent(*runtimeRoot)) {
         qCritical("[boot] Android runtime root unavailable: %s", qUtf8Printable(*runtimeRoot));
         return -1;
+    }
+
+    // Android's system fonts miss several symbols used by existing QML controls. Keep every
+    // use site platform-neutral and register one broad symbol fallback after the packaged
+    // runtime has been materialized, but before any QML text is created.
+    const QString symbolFontPath =
+        QDir(*runtimeRoot).filePath(QStringLiteral("assets/fonts/Unifont-17.0.05.otf"));
+    const int symbolFontId = QFontDatabase::addApplicationFont(symbolFontPath);
+    if (symbolFontId < 0) {
+        qWarning("[boot] Android symbol fallback font failed to load: source=%s",
+                 qUtf8Printable(symbolFontPath));
+    } else {
+        const QStringList symbolFontFamilies =
+            QFontDatabase::applicationFontFamilies(symbolFontId);
+        if (symbolFontFamilies.isEmpty()) {
+            qWarning("[boot] Android symbol fallback font loaded without a reported family: source=%s",
+                     qUtf8Printable(symbolFontPath));
+        } else {
+            const QString symbolFontFamily = symbolFontFamilies.constFirst();
+            QFontDatabase::addApplicationFallbackFontFamily(QChar::Script_Common,
+                                                             symbolFontFamily);
+            qInfo("[boot] Android symbol fallback font registered: family=%s source=%s",
+                  qUtf8Printable(symbolFontFamily), qUtf8Printable(symbolFontPath));
+        }
     }
     startupManifestPathOverride =
         QDir(*runtimeRoot).filePath(QStringLiteral("qml-build.manifest"));
