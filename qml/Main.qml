@@ -1607,10 +1607,13 @@ Window {
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
 
-    // Phone navigation belongs to browsing, never to the full-canvas player/readers.
-    // Reusing immersiveSurfaceOpen keeps Android on the same one-authority rule as desktop chrome.
+    // Phone navigation belongs to browsing, never to full-canvas consumption or IME entry.
+    // Android's activity uses adjustResize, so the app viewport shrinks above the software keyboard;
+    // hiding the tab bar while the IME is visible prevents a second fixed bar from stealing that
+    // reduced viewport. Desktop stays outside this rule through androidHost.
+    readonly property bool phoneImeVisible: win.androidHost && Qt.inputMethod.visible
     readonly property bool phoneWorldNavigationVisible:
-        win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen
+        win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
