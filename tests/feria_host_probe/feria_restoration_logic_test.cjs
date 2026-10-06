@@ -36,7 +36,7 @@ test('fresh input invalidates deferred work and cancels only the active owner',(
 });
 test('existing shell park/return, explicit Home clear and profile invalidation',()=>{
  const M=read('qml/Main.qml');let snap={version:1,viewState:'home'},received=null;
- let c={feriaReturnSnapshot:null,feriaLayer:{open:true,item:{navigationSnapshot:()=>snap,restoreNavigationSnapshot:s=>{received=s;return true}}}};
+ let c={activeBrowserSessionId:"",feriaReturnSnapshot:null,feriaLayer:{open:true,item:{navigationSnapshot:()=>snap,restoreNavigationSnapshot:s=>{received=s;return true}}}};
  c.win=c;bind(c,M,['parkFeria','restoreFeriaIfReady']);
  c.parkFeria(true);assert.strictEqual(c.feriaReturnSnapshot,snap);assert.equal(c.feriaLayer.open,false);
  assert.equal(c.restoreFeriaIfReady(),false);c.feriaLayer.open=true;assert.equal(c.restoreFeriaIfReady(),true);assert.strictEqual(received,snap);assert.equal(c.feriaReturnSnapshot,null);
@@ -46,6 +46,24 @@ test('existing shell park/return, explicit Home clear and profile invalidation',
  vm.runInContext(profile,c);c.onProfileChanged();assert.equal(c.feriaReturnSnapshot,null);
  assert(fn(M,'openWorld').includes('win.parkFeria(true)'));
 });
+test('browser world parking preserves snapshot and does not restore over active browser',()=>{
+ const M=read('qml/Main.qml');const snap={version:1,viewState:'title'};let parked=0;
+ const c={activeBrowserSessionId:'a',parkingBrowserForWorld:false,feriaReturnSnapshot:null,
+ feriaLayer:{open:true,item:{navigationSnapshot:()=>snap,restoreNavigationSnapshot:()=>{throw Error('must not restore over browser')}}}};
+ c.win=c;c.Sessions={switchTo:id=>{assert.equal(id,'');assert.equal(c.parkingBrowserForWorld,true);parked++}};
+ bind(c,M,['parkFeria','restoreFeriaIfReady']);assert.equal(c.restoreFeriaIfReady(),false);
+ c.parkFeria(true);assert.equal(parked,1);assert.strictEqual(c.feriaReturnSnapshot,snap);assert.equal(c.parkingBrowserForWorld,false);
+});
+test('browser switch tears down outgoing fullscreen only and preserves both pages',()=>{
+ const M=read('qml/Main.qml');let a=0,b=0;
+ const old={immersive:true,browser:{fullScreenActive:true,runJavaScript:()=>a++}};
+ const next={immersive:true,browser:{fullScreenActive:true,runJavaScript:()=>b++}};
+ const c={feriaLayer:{open:true},feriaSessionDeck:{entries:{a:old,b:next},activeEntry:next,activeBrowser:next.browser}};
+ bind(c,M,['teardownSession']);c.teardownSession({id:'a',contentKind:'browser'});
+ assert.equal(a,1);assert.equal(b,0);assert.equal(old.immersive,false);assert.equal(next.immersive,true);
+ assert.strictEqual(c.feriaSessionDeck.entries.a,old);assert.strictEqual(c.feriaSessionDeck.entries.b,next);assert.equal(c.feriaLayer.open,false);
+});
+
 test('input wiring preserves native handlers and passive pointer/wheel delivery',()=>{
  const I=read('qml/feria/FeriaRestorationInput.qml');
  assert(I.includes('PointHandler {'));assert(I.includes('WheelHandler {'));assert(I.includes('blocking: false'));

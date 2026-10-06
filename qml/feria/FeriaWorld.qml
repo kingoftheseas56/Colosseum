@@ -10,6 +10,31 @@ Item {
     id: shell
     objectName: "feriaAppPage"
     property bool lifecycleActive: false
+    property var browserDeck: null
+    property string hostSessionId: ""
+    property bool managedBrowserRoute: false
+    readonly property rect browserViewport: hostView.viewportRect
+    signal browserOpenRequested(var descriptor, bool fresh, bool navigate)
+    signal browserParkRequested(bool returnToFeria)
+    signal browserCloseRequested(string sessionId)
+    function activateBrowserRecord(record) {
+        if (!record || record.contentKind !== "browser") return
+        var target = record.target || ({})
+        if (viewState !== "host") hostReturnState = viewState
+        managedBrowserRoute = true
+        hostSessionId = record.id
+        hostApp = target.providerId
+        hostUrl = target.url
+        hostTitle = target.titleId || ""
+        hostMode = target.launchMode || "home"
+        viewState = "host"
+    }
+    function restoreBrowserWorld() {
+        viewState = hostReturnState === "host" ? "home" : hostReturnState
+        hostSessionId = ""
+        managedBrowserRoute = false
+        content.forceActiveFocus()
+    }
     property int navigationEpoch: 0
     property bool navigationSuspended: false
     property bool applyingNavigationSnapshot: false
@@ -161,6 +186,7 @@ Item {
     property real hostResumePosition: 0
     property var hostResumeLocator: null
     property string signingOutProvider: ""
+    property bool signOutQuiesced: false
     property string signOutMessage: ""
     property var signOutScope: ({})
     function providerMode(pk) { return Data.P[pk] ? Data.P[pk].v : "watch" }
@@ -168,18 +194,34 @@ Item {
         if (signingOutProvider || viewState === "host") return
         var scope = FeriaBrowserPolicy.sessionScope(pk)
         if (!scope.domains || !scope.domains.length) { signOutMessage = "This service has no saved browser session."; return }
-        signOutScope = scope; signOutMessage = "Signing out…"; signingOutProvider = pk
+        signOutScope = scope; signOutMessage = browserDeck ? "Closing browser sessions before signing out…" : "Signing out…"; signingOutProvider = pk
+        signOutQuiesced = !browserDeck
+        if (browserDeck) browserDeck.startQuiescence(true)
+    }
+    Connections {
+        target: shell.browserDeck
+        function onQuiesced() {
+            if (shell.signingOutProvider.length > 0) shell.signOutQuiesced = true
+        }
+        function onQuiescenceFailed(reason) {
+            shell.signOutMessage = reason
+            shell.signingOutProvider = ""
+            shell.signOutQuiesced = false
+            if (shell.browserDeck) shell.browserDeck.finishCleanup()
+        }
     }
     Loader {
         id: sessionCleaner
-        active: shell.signingOutProvider.length > 0
+        active: shell.signingOutProvider.length > 0 && shell.signOutQuiesced
         sourceComponent: FeriaSessionCleaner {
             profilePath: FeriaBrowserPolicy.storageRoot
             domains: shell.signOutScope.domains
             origins: shell.signOutScope.origins
             onFinished: function(success) {
-                shell.signOutMessage = success ? "Signed out here. Your history and row are unchanged." : "Could not finish signing out. Try again."
+                shell.signOutMessage = success ? "Signed out here. Browser sessions closed; history and Continue are unchanged." : "Could not finish signing out. Try again."
                 shell.signingOutProvider = ""
+                shell.signOutQuiesced = false
+                if (shell.browserDeck) shell.browserDeck.finishCleanup()
             }
         }
     }
@@ -586,7 +628,7 @@ Item {
             if (searchView.searchField) searchView.searchField.forceActiveFocus()
         })
     }
-    function openHost(pk,id,mode,url,position,locator) {
+    function openHost(pk,id,mode,url,position,locator,fresh) {
         if (signingOutProvider) { setToast("Wait for sign-out to finish."); return }
         hostResumeLocator = locator || null
         hostResumePosition = position || 0
@@ -599,11 +641,22 @@ Item {
             return
         }
         if (sharedAccountActive) accountDestinationRequested()
-        if (accountStore) {
-            var title = titleObj(id)
+        var retained = browserDeck && hostView.preferredEngine(pk) === "qtwebengine"
+        if (retained && !browserDeck.ready) { setToast("Wait for browser cleanup to finish."); return }
+        managedBrowserRoute = !!retained
+        var title = titleObj(id)
+        if (!retained && accountStore) {
             accountStore.beginVisit({pk:pk,resumePending:position > 0,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
         }
-        hostReturnState = viewState; hostApp = pk; hostTitle = id || ""; hostMode = mode || "home"; hostUrl = destination; providerWebViewReady = false; viewState = "host"; content.forceActiveFocus()
+        hostReturnState = viewState === "host" ? hostReturnState : viewState
+        hostApp = pk; hostTitle = id || ""; hostMode = mode || "home"; hostUrl = destination
+        hostSessionId = ""; providerWebViewReady = false; viewState = "host"; content.forceActiveFocus()
+        if (retained) browserOpenRequested({
+            providerId: pk, providerName: providerName(pk), title: title ? title.t : providerName(pk),
+            visitContext: { title: title ? title.t : "", cover: title ? artUrl(title, false) : "" },
+            logo: Qt.resolvedUrl(Data.glyphSource(pk)), url: destination, mode: providerMode(pk),
+            titleId: id || "", launchMode: mode || "home", position: position || 0, locator: locator || null
+        }, fresh === true, !!url && fresh !== true)
     }
     function beginHostVisit() {
         if (!accountStore) return
@@ -624,6 +677,10 @@ Item {
             if (hostView.fullScreenActive) { hostView.exitFullScreen(); return }
             if (hostView.cancelAddressEditing()) return
             if (hostView.optionsOpen) { hostView.focusApp(); return }
+            if (hostSessionId.length > 0) {
+                browserParkRequested(true)
+                return
+            }
             viewState = hostReturnState
         }
         else if (viewState === "title") {
@@ -975,10 +1032,19 @@ Item {
             anchors.fill: parent
             Rectangle {
                 anchors.fill: parent
+                // Both header levels share the actual wallpaper on provider routes.
+                visible: shell.viewState !== "host" || !shell.backdrop
                 gradient: Gradient {
                     GradientStop { position: 0; color: shell.dusk }
                     GradientStop { position: 1; color: shell.night }
                 }
+            }
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: hostView.y + hostView.chromeHeight
+                visible: shell.viewState === "host" && !!shell.backdrop && !shell.hostFullScreenActive
+                color: shell.night
+                opacity: 0.38
             }
             PorticoDiscoveryHome {
                 id: homeView
@@ -1020,6 +1086,7 @@ Item {
             PorticoDiscoveryHostView {
                 id: hostView
                 anchors.fill: parent
+                anchors.topMargin: shell.hostFullScreenActive ? 0 : (shell.sharedAccount ? 108 : 0)
                 controller: shell
                 visible: shell.viewState === "host"
             }
@@ -1037,13 +1104,14 @@ Item {
                 objectName: "feriaWorldTopBar"
                 backdrop: shell.backdrop
                 activeMedium: "Feria"
+                compactBrowserChrome: shell.viewState === "host" && shell.width < 900
                 backLabel: shell.viewState === "home" ? "Home" : "Feria"
                 lifecycleActive: shell.lifecycleActive
                 wallpaperEnabled: false
                 x: shell.marginX; y: 30
                 width: parent.width - 2 * shell.marginX
                 z: 80
-                visible: shell.sharedAccount && shell.viewState !== "account" && shell.viewState !== "host"
+                visible: shell.sharedAccount && shell.viewState !== "account" && !shell.hostFullScreenActive
                 onMediumSelected: (medium) => shell.mediumSelected(medium)
                 onHomeRequested: {
                     if (shell.viewState === "home") shell.homeRequested()

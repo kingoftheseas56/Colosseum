@@ -95,15 +95,27 @@ App.Main {
 
             // A real browser opens a harmless local page, with no provider login.
             feria().openHost("youtube", shell.smokeTitleId, "title", "about:blank")
-            until(function() { return shell.find(feria(), "feriaBrowserLoader").item !== null },
-                  "Provider host creates an actual browser")
+            var deck = shell.find(shell.contentItem, "feriaSessionDeck")
+            until(function() { return deck && deck.activeBrowser !== null },
+                  "Provider host creates an actual retained Qt browser")
+            var browserId = Sessions.activeId
+            var browser = deck.activeBrowser
             shell.openDownloadsPage()
-            until(function() { return !feriaLoader().item }, "Provider departure disposes the Feria/browser owner")
+            until(function() { return !feriaLoader().open && Sessions.activeId === "" },
+                  "Provider departure parks the browser activity")
+            check(deck.entries[browserId] && deck.entries[browserId].browser === browser,
+                  "World departure preserves the same live browser instance")
             check(shell.feriaReturnSnapshot.viewState === "title", "Provider departure parks the owning title route")
             open()
-            check(feria().viewState === "title" && feria().hostUrl === ""
-                  && !shell.find(feria(), "feriaBrowserLoader").item,
-                  "Return restores title without resurrecting the browser")
+            check(feria().viewState === "title" && deck.activeBrowser === null,
+                  "Return restores title without activating the parked browser")
+            Sessions.switchTo(browserId)
+            until(function() { return feria().viewState === "host" && deck.activeBrowser === browser },
+                  "Taskbar activation resumes the existing browser")
+            feria().browserParkRequested(true)
+            check(feria().viewState === "title", "Browser minimize returns to the owning Feria route")
+            shell.closeSession(browserId)
+            until(function() { return !deck.entries[browserId] }, "Close removes only this browser activity")
 
             shell.closeFeriaPage()
             until(function() { return !feriaLoader().item }, "Explicit Home disposes Feria")

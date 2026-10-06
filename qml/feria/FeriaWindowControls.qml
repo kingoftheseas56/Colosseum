@@ -6,8 +6,12 @@ Row {
     id: controls
     required property var controller
     property string namePrefix: "feria"
-    readonly property bool shellWindowed: typeof WindowMode === "undefined" || WindowMode.shellWindowed
-    spacing: 4
+    property bool sessionControls: false
+    property bool sessionFullscreen: false
+    property bool compactSessionTile: false
+    readonly property bool shellWindowed: sessionControls ? !sessionFullscreen
+        : typeof WindowMode === "undefined" || WindowMode.shellWindowed
+    spacing: compactSessionTile ? 0 : 4
     height: 44
 
     Colosseum.KeyboardSpatialNavigator { id: navigation; root: controls }
@@ -18,12 +22,12 @@ Row {
         property string label
         signal triggered()
         width: 44
-        height: 44
+        height: width
         Image {
             anchors.centerIn: parent
-            width: 22; height: 22
+            width: controls.compactSessionTile ? 18 : 22; height: width
             source: parent.source
-            sourceSize: Qt.size(22, 22)
+            sourceSize: Qt.size(width, height)
             fillMode: Image.PreserveAspectFit
             opacity: action.interactionActive ? 1 : 0.72
         }
@@ -40,22 +44,23 @@ Row {
     }
     WindowAction {
         objectName: controls.namePrefix + "Minimize"
-        source: Qt.resolvedUrl("../../assets/icons/minimize.svg")
-        label: "Minimize"
+        source: Qt.resolvedUrl(controls.compactSessionTile ? "../../assets/icons/feria/session-minimize.svg" : "../../assets/icons/minimize.svg")
+        label: controls.sessionControls ? "Minimize session" : "Minimize"
         onTriggered: controls.controller.minimizeClicked()
     }
     WindowAction {
         objectName: controls.namePrefix + "Fullscreen"
-        source: Qt.resolvedUrl(controls.shellWindowed
-                              ? "../../assets/icons/fullscreen.svg"
-                              : "../../assets/icons/fullscreen-exit.svg")
+        source: Qt.resolvedUrl(controls.compactSessionTile
+                              ? (controls.shellWindowed ? "../../assets/icons/feria/session-maximize.svg" : "../../assets/icons/feria/session-restore.svg")
+                              : (controls.shellWindowed ? "../../assets/icons/fullscreen.svg" : "../../assets/icons/fullscreen-exit.svg"))
         label: controls.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
         onTriggered: controls.controller.fullscreenClicked()
     }
     WindowAction {
         objectName: controls.namePrefix + "Close"
-        source: Qt.resolvedUrl("../../assets/icons/power.svg")
-        label: "Quit Colosseum"
+        source: Qt.resolvedUrl(controls.compactSessionTile ? "../../assets/icons/feria/session-close.svg" : controls.sessionControls ? "../../assets/icons/reader2/close.svg"
+                              : "../../assets/icons/power.svg")
+        label: controls.sessionControls ? "Close session" : "Quit Colosseum"
         onTriggered: controls.controller.powerClicked()
     }
 }

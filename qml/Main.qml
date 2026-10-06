@@ -418,9 +418,13 @@ Window {
     function pickFor(world) {
         return parsePick(wallpaperSettings[wallpaperKey(world)])
     }
+    property string activeBrowserSessionId: ""
+    property bool browserReturnToFeria: false
+    property bool parkingBrowserForWorld: false
     function wallpaperWorldForSession(rec) {
         var appType = rec && rec.appType ? ("" + rec.appType).toLowerCase() : ""
         var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
+        if (contentKind === "browser") return "Feria"
         if (appType === "theatre" || contentKind === "movie") return "Theatre"
         if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
         if (appType === "biblio" || contentKind === "book" || contentKind === "audiobook") return "Biblio"
@@ -1041,10 +1045,15 @@ Window {
         } else if (feriaLayer.open && feriaLayer.item && feriaLayer.item.navigationSnapshot) {
             feriaReturnSnapshot = feriaLayer.item.navigationSnapshot()
         }
-        if (feriaLayer.open)
-            feriaLayer.open = false
+        if (win.activeBrowserSessionId.length > 0) {
+            win.parkingBrowserForWorld = true
+            Sessions.switchTo("")
+            win.parkingBrowserForWorld = false
+        }
+        if (feriaLayer.open) feriaLayer.open = false
     }
     function restoreFeriaIfReady() {
+        if (win.activeBrowserSessionId.length > 0) return false
         if (!feriaLayer.open || !feriaReturnSnapshot || !feriaLayer.item
                 || !feriaLayer.item.restoreNavigationSnapshot)
             return false
@@ -2993,6 +3002,16 @@ Window {
 
     function activateSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "browser") {
+            if (!win.activeBrowserSessionId.length) win.browserReturnToFeria = feriaLayer.open
+            win.activeBrowserSessionId = rec.id
+            feriaLayer.open = true
+            win.currentSurface = "Feria"
+            win.refreshWallpaper()
+            if (feriaLayer.item) feriaLayer.item.activateBrowserRecord(rec)
+            return
+        }
+        win.activeBrowserSessionId = ""
         var t = rec.target || ({})
         var st = rec.savedState || ({})
         currentSurface = wallpaperWorldForSession(rec)
@@ -3095,6 +3114,17 @@ Window {
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
     function teardownSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "browser") {
+            // activeId's property signal already selects the incoming entry.
+            // Tear down presentation on the outgoing record, never its sibling.
+            var outgoing = feriaSessionDeck.entries[rec.id]
+            if (outgoing) outgoing.immersive = false
+            if (outgoing && outgoing.browser && outgoing.browser.fullScreenActive)
+                outgoing.browser.runJavaScript(
+                    "if(document.fullscreenElement) document.exitFullscreen()")
+            feriaLayer.open = false
+            return
+        }
         if (rec.contentKind === "movie") {
             // If first-open incubation has not dispatched playback yet, cancel that queued open;
             // there is no warm stream to resume. Once playback exists, preserve the old keep-alive.
@@ -4372,7 +4402,13 @@ Window {
             if (next && next.id) win.activateSession(next)
             else {
                 // no next session: land on the world behind (Windows-like), not always home
-                currentSurface = worldStack.current || "Home"
+                if (win.activeBrowserSessionId === prevId && win.browserReturnToFeria
+                        && !win.parkingBrowserForWorld && feriaLayer.item) {
+                    feriaLayer.item.restoreBrowserWorld()
+                    feriaLayer.open = true
+                    currentSurface = "Feria"
+                } else currentSurface = worldStack.current || "Home"
+                win.activeBrowserSessionId = ""
                 refreshWallpaper()
                 // a MINIMIZE (record kept, nothing became active): pop the taskbar out so the
                 // user sees where the session went; it pulls back after 15 idle seconds.
@@ -4609,7 +4645,7 @@ Window {
                 win.refreshWallpaper()
             }
         }
-        active: open || accountCenter.visible
+        active: open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0)
         visible: open
         source: "feria/FeriaWorld.qml"
         Binding {
@@ -4628,6 +4664,23 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.sharedAccount = true
+            item.browserDeck = feriaSessionDeck
+            item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
+                var id = Sessions.openBrowser(descriptor, fresh, navigate)
+                if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
+                item.activateBrowserRecord(Sessions.get(id))
+                if (navigate) Qt.callLater(function() {
+                    if (Sessions.get(id).id) feriaSessionDeck.navigateSession(
+                        id, descriptor.url, descriptor.position, descriptor.locator, descriptor.visitContext)
+                })
+            })
+            item.browserParkRequested.connect(function(returnToFeria) {
+                if (returnToFeria) win.browserReturnToFeria = true
+                Sessions.switchTo("")
+            })
+            item.browserCloseRequested.connect(win.closeSession)
+            if (win.activeBrowserSessionId.length)
+                item.activateBrowserRecord(Sessions.get(win.activeBrowserSessionId))
             item.mediumSelected.connect(win.openWorld)
             item.accountRequested.connect(function(tab) {
                 yourFeriaLayer.open = false
@@ -4651,6 +4704,24 @@ Window {
     Connections {
         target: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
         function onProfileChanged() { win.feriaReturnSnapshot = null }
+    }
+
+    Feria.FeriaSessionDeck {
+        id: feriaSessionDeck
+        sessions: Sessions
+        accountStore: FeriaAccount
+        policy: FeriaBrowserPolicy
+        z: 58.5
+        readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
+                                                        : Qt.rect(0, 160, win.width, win.height - 160)
+        x: viewport.x; y: viewport.y; width: viewport.width; height: viewport.height
+        displayed: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
+            && feriaLayer.item.hostSessionId.length > 0
+        suppressed: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
+            || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
+        onMessage: function(id, text) {
+            if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+        }
     }
 
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
@@ -4788,7 +4859,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
-            && !(feriaLayer.open && !yourFeriaLayer.active && feriaLayer.item && feriaLayer.item.viewState === "host")
+            && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)

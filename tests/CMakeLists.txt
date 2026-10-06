@@ -36,6 +36,14 @@ if(TARGET Qt6::QuickTest)
     set_target_properties(feria_wrapper_qml_test PROPERTIES AUTOMOC ON)
     target_compile_definitions(feria_wrapper_qml_test PRIVATE FERIA_WRAPPER_RUNTIME)
     target_link_libraries(feria_wrapper_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml Qt6::WebEngineQuick)
+    # Real retained WebEngine pages: run explicitly in a graphical desktop.
+    # This is not a mocked/headless CTest pass or an additional X11 CI gate.
+    add_executable(feria_session_runtime_test feria_session_runtime_test.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+    set_target_properties(feria_session_runtime_test PROPERTIES AUTOMOC ON)
+    target_include_directories(feria_session_runtime_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(feria_session_runtime_test PRIVATE feria_discovery
+        Qt6::QuickTest Qt6::WebEngineQuick Qt6::Network)
 endif()
 
 add_executable(feria_availability_test feria_availability_test.cpp)
@@ -159,6 +167,14 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 # per-case reporting, data rows, selectable by function/tag.
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
+
+add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+target_include_directories(feria_session_ownership_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+target_link_libraries(feria_session_ownership_test PRIVATE feria_discovery Qt6::Test)
+add_test(NAME colosseum.feria_session_ownership_test COMMAND feria_session_ownership_test)
+set_tests_properties(colosseum.feria_session_ownership_test PROPERTIES
+    LABELS "unit;feria;session;profile" TIMEOUT 60)
 
 # Slice-3 pilot: windowstatepolicy/windowmodestore contracts. Same production
 # units and link set as the legacy window_state_policy_harness, which stays

@@ -2,13 +2,14 @@
 
 // SessionStore - the OS-shell's open-sessions model, exposed to QML as `Sessions`.
 // One small thing: the list of "things you currently have open" (a comic, a movie, a
-// book), which one is ACTIVE, and the saved-state blob each carries so it can be torn
-// down and rebuilt exactly where you left it (Approach 2 - only the active session is
-// ever instantiated). The Taskbar reads this to draw app-grouped tiles; Main.qml's
+// book or browser activity), which one is ACTIVE, and the saved-state blob used to
+// rebuild local-media surfaces. FeriaQtWebEngine browser activities instead retain
+// live pages in FeriaSessionDeck while parked. The Taskbar draws app-grouped tiles; Main.qml's
 // switch glue listens to activeChanged to capture/teardown/restore.
 //
 // QML contract:
 //   Sessions.openOrSwitch({appType, contentKind, target, title}) -> id  (dedups by target key)
+//   Sessions.openBrowser(descriptor, fresh, navigate) -> id (provider MRU or explicit New)
 //   Sessions.switchTo(id)
 //   Sessions.close(id)
 //   Sessions.saveState(id, obj)   // switch glue writes captured state before teardown
@@ -25,6 +26,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtGlobal>
+#include <QUrl>
+#include <QUuid>
 
 class SessionStore : public QObject {
     Q_OBJECT
@@ -88,6 +91,96 @@ public:
         return id;
     }
 
+    // Browser identity is an activity ID, never its changing destination/title.
+    Q_INVOKABLE void setBrowserProfile(const QString &profile) {
+        if (profile == m_browserProfile)
+            return;
+        closeBrowserSessions();
+        m_browserProfile = profile;
+    }
+    Q_INVOKABLE QVariantList browsers() const {
+        QVariantList result;
+        for (const QVariant &value : m_sessions)
+            if (value.toMap().value(QStringLiteral("contentKind")) == QStringLiteral("browser"))
+                result.append(value);
+        return result;
+    }
+    Q_INVOKABLE void closeBrowserSessions() {
+        const QVariantList records = browsers();
+        for (const QVariant &value : records)
+            close(value.toMap().value(QStringLiteral("id")).toString());
+    }
+    Q_INVOKABLE QString openBrowser(const QVariantMap &desc, bool fresh = false, bool navigate = false) {
+        const QString provider = desc.value(QStringLiteral("providerId")).toString();
+        const QUrl url(desc.value(QStringLiteral("url")).toString());
+        const bool destinationAllowed = url.toString() == QStringLiteral("about:blank")
+            || (!url.host().isEmpty() && (url.scheme() == QStringLiteral("http")
+                                          || url.scheme() == QStringLiteral("https")));
+        if (m_browserProfile.isEmpty() || provider.isEmpty() || !url.isValid() || !destinationAllowed)
+            return {};
+        if (!fresh) {
+            QString latest;
+            quint64 order = 0;
+            for (const QVariant &value : browsers()) {
+                const QVariantMap rec = value.toMap();
+                const QVariantMap target = rec.value(QStringLiteral("target")).toMap();
+                const quint64 used = rec.value(QStringLiteral("browserUseOrder")).toULongLong();
+                if (target.value(QStringLiteral("providerId")).toString() == provider
+                    && (latest.isEmpty() || used > order)) {
+                    latest = rec.value(QStringLiteral("id")).toString();
+                    order = used;
+                }
+            }
+            if (!latest.isEmpty()) {
+                if (navigate) {
+                    const int index = indexOf(latest);
+                    QVariantMap rec = m_sessions.at(index).toMap();
+                    QVariantMap target = desc;
+                    target.insert(QStringLiteral("id"), latest);
+                    rec.insert(QStringLiteral("target"), target);
+                    rec.insert(QStringLiteral("title"), desc.value(QStringLiteral("title")));
+                    m_sessions[index] = rec;
+                    bump();
+                }
+                setActive(latest);
+                return latest;
+            }
+        }
+        const QString id = QStringLiteral("browser-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QVariantMap target = desc;
+        target.insert(QStringLiteral("id"), id);
+        QVariantMap rec{{QStringLiteral("id"), id}, {QStringLiteral("key"), id},
+            {QStringLiteral("contentKey"), id}, {QStringLiteral("appType"), QStringLiteral("feria/") + provider},
+            {QStringLiteral("contentKind"), QStringLiteral("browser")},
+            {QStringLiteral("title"), desc.value(QStringLiteral("title"))},
+            {QStringLiteral("groupTitle"), desc.value(QStringLiteral("providerName"), provider)},
+            {QStringLiteral("groupIcon"), desc.value(QStringLiteral("logo"))},
+            {QStringLiteral("target"), target}, {QStringLiteral("savedState"), QVariantMap{}}};
+        m_sessions.append(rec);
+        bump();
+        setActive(id);
+        return id;
+    }
+    Q_INVOKABLE void updateBrowser(const QString &id, const QString &url, const QString &title) {
+        const int index = indexOf(id);
+        if (index < 0) return;
+        QVariantMap rec = m_sessions.at(index).toMap();
+        if (rec.value(QStringLiteral("contentKind")) != QStringLiteral("browser")) return;
+        QVariantMap target = rec.value(QStringLiteral("target")).toMap();
+        const QUrl destination(url);
+        if (!destination.isValid() || destination.host().isEmpty()
+            || (destination.scheme() != QStringLiteral("http") && destination.scheme() != QStringLiteral("https")))
+            return;
+        const QString label = title.isEmpty() ? rec.value(QStringLiteral("title")).toString() : title.left(300);
+        if (target.value(QStringLiteral("url")).toString() == url
+            && rec.value(QStringLiteral("title")).toString() == label) return;
+        target.insert(QStringLiteral("url"), url);
+        rec.insert(QStringLiteral("target"), target);
+        rec.insert(QStringLiteral("title"), label);
+        m_sessions[index] = rec;
+        bump();
+    }
+
     Q_INVOKABLE void switchTo(const QString &id) { setActive(id); }
 
     Q_INVOKABLE void close(const QString &id) {
@@ -139,8 +232,8 @@ public:
                 order.append(app);
                 QVariantMap group;
                 group.insert(QStringLiteral("appType"), app);
-                group.insert(QStringLiteral("title"), appTitle(app));
-                group.insert(QStringLiteral("icon"), appIcon(app));
+                group.insert(QStringLiteral("title"), rec.value(QStringLiteral("groupTitle"), appTitle(app)));
+                group.insert(QStringLiteral("icon"), rec.value(QStringLiteral("groupIcon"), appIcon(app)));
                 group.insert(QStringLiteral("sessions"), QVariantList{rec});
                 out.append(group);
             } else {
@@ -309,6 +402,15 @@ private:
     void setActive(const QString &id) {
         if (m_activeId == id)
             return;
+        const int index = indexOf(id);
+        if (index >= 0) {
+            QVariantMap rec = m_sessions.at(index).toMap();
+            if (rec.value(QStringLiteral("contentKind")) == QStringLiteral("browser")) {
+                rec.insert(QStringLiteral("browserUseOrder"), ++m_browserUseOrder);
+                m_sessions[index] = rec;
+                bump();
+            }
+        }
         const QString prev = m_activeId;
         m_activeId = id;
         emit activeChangedProp();
@@ -324,4 +426,6 @@ private:
     QString m_activeId;
     int m_revision = 0;
     int m_idSeq = 0;
+    QString m_browserProfile;
+    quint64 m_browserUseOrder = 0;
 };

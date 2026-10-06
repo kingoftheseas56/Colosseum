@@ -48,7 +48,8 @@ QString continueIdentity(const QVariantMap &row) {
 FeriaAccountStore::FeriaAccountStore(QObject *parent) : QObject(parent) {}
 
 void FeriaAccountStore::setStoragePath(const QString &path) {
-    endVisit();
+    m_visits.clear();
+    m_legacyToken.clear();
     m_path = path;
     m_state = {};
     m_error.clear();
@@ -124,54 +125,87 @@ bool FeriaAccountStore::commit(const QVariantMap &state) {
     return true;
 }
 
+QString FeriaAccountStore::beginSessionVisit(const QString &sessionId, const QVariantMap &context) {
+    endSessionVisit(sessionId);
+    if (sessionId.isEmpty() || m_path.isEmpty() || !m_error.isEmpty()
+        || !PorticoAppStateBridge::currentPorticoProviderIds().contains(context.value("pk").toString())) return {};
+    Visit visit;
+    visit.context = context;
+    visit.mediaCaptureBlocked = context.value("resumePending").toBool();
+    visit.sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    visit.token = visit.sessionId;
+    visit.clock.start();
+    m_visits.insert(sessionId, visit);
+    return visit.token;
+}
+void FeriaAccountStore::endSessionVisit(const QString &sessionId) {
+    m_visits.remove(sessionId);
+    if (sessionId == QLatin1String("legacy")) m_legacyToken.clear();
+}
 void FeriaAccountStore::beginVisit(const QVariantMap &context) {
-    endVisit();
-    if (!PorticoAppStateBridge::currentPorticoProviderIds().contains(context.value("pk").toString())) return;
-    m_context = context;
-    m_mediaCaptureBlocked = context.value("resumePending").toBool();
-    m_sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    m_visitToken = m_sessionId;
-    m_clock.start();
+    m_legacyToken = beginSessionVisit(QStringLiteral("legacy"), context);
 }
-void FeriaAccountStore::endVisit() {
-    m_mediaCaptureBlocked = false;
-    m_visitToken.clear();
-    m_context.clear(); m_sessionId.clear(); m_lastItem.clear(); m_lastPlaying = false; m_clock.invalidate();
+void FeriaAccountStore::endVisit() { endSessionVisit(QStringLiteral("legacy")); }
+FeriaAccountStore::Visit *FeriaAccountStore::visitFor(const QString &id, const QString &token) {
+    auto it = m_visits.find(id);
+    return !token.isEmpty() && it != m_visits.end() && it->token == token ? &it.value() : nullptr;
 }
-void FeriaAccountStore::setMediaCaptureBlocked(bool blocked, const QString &visitToken) {
-    if (!visitToken.isEmpty() && visitToken != m_visitToken) return;
-    m_mediaCaptureBlocked = blocked;
-    if (blocked) m_lastPlaying = false;
+void FeriaAccountStore::setMediaCaptureBlocked(bool blocked, const QString &token) {
+    const QString expected = token.isEmpty() ? m_legacyToken : token;
+    if (expected.isEmpty()) return;
+    for (Visit &visit : m_visits) {
+        if (visit.token != expected) continue;
+        visit.mediaCaptureBlocked = blocked;
+        if (blocked) visit.lastPlaying = false;
+        return;
+    }
+}
+bool FeriaAccountStore::observeSession(const QString &id, const QString &token, const QVariantMap &sample) {
+    Visit *visit = visitFor(id, token);
+    return visit && observeVisit(*visit, sample);
 }
 bool FeriaAccountStore::observe(const QVariantMap &sample) {
-    if (sample.contains("visitToken") && sample.value("visitToken").toString() != m_visitToken) return false;
+    Visit *visit = visitFor(QStringLiteral("legacy"), m_legacyToken);
+    return visit && observeVisit(*visit, sample);
+}
+bool FeriaAccountStore::observeVisit(Visit &visit, const QVariantMap &sample) {
+    if (sample.contains("visitToken") && sample.value("visitToken").toString() != visit.token) return false;
     const bool reading = sample.value("kind").toString() == "book";
-    if (reading && !QStringList{"kindle", "playbooks", "mangaplus", "viz", "webtoon", "dcui", "marvel"}.contains(m_context.value("pk").toString())) return false;
-    if (!reading && (m_mediaCaptureBlocked
+    if (reading && !QStringList{"kindle", "playbooks", "mangaplus", "viz", "webtoon", "dcui", "marvel"}.contains(visit.context.value("pk").toString())) return false;
+    if (!reading && (visit.mediaCaptureBlocked
         || (sample.contains("connectorOutcome") && sample.value("connectorOutcome") != "observation")
         || (sample.contains("captureState")
         && sample.value("captureState").toString() != "observation"))) return false;
-    return record(sample, reading);
+    return record(visit, sample, reading);
 }
 bool FeriaAccountStore::saveReadingPlace(const QString &url, const QString &title) {
+    Visit *visit = visitFor(QStringLiteral("legacy"), m_legacyToken);
+    return visit && saveReadingPlace(*visit, url, title);
+}
+bool FeriaAccountStore::saveSessionReadingPlace(const QString &id, const QString &token,
+                                                const QString &url, const QString &title) {
+    Visit *visit = visitFor(id, token);
+    return visit && saveReadingPlace(*visit, url, title);
+}
+bool FeriaAccountStore::saveReadingPlace(Visit &visit, const QString &url, const QString &title) {
     QVariantMap sample{{"href", url}, {"title", title}};
     auto rows = sessions();
     rows.append(m_state.value("retainedContinue").toList());
     for (const auto &value : rows) {
         const auto row = value.toMap();
-        if (row.value("pk") == m_context.value("pk") && row.value("url") == safeUrl(url)
+        if (row.value("pk") == visit.context.value("pk") && row.value("url") == safeUrl(url)
             && row.value("kind") == "book") {
             sample.insert("locator", row.value("locator"));
             break;
         }
     }
-    return record(sample, true);
+    return record(visit, sample, true);
 }
-bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
-    const double elapsed = m_clock.isValid() ? m_clock.restart() / 1000.0 : 0;
-    if (!recording() || m_context.isEmpty()) { m_lastPlaying = false; return false; }
+bool FeriaAccountStore::record(Visit &visit, const QVariantMap &sample, bool reading) {
+    const double elapsed = visit.clock.isValid() ? visit.clock.restart() / 1000.0 : 0;
+    if (!recording() || visit.context.isEmpty()) { visit.lastPlaying = false; return false; }
     auto url = safeUrl(sample.value("href").toString());
-    const auto pk = m_context.value("pk").toString();
+    const auto pk = visit.context.value("pk").toString();
     const auto mediaId = reading ? QString() : sample.value("providerMediaId").toString();
     if (!mediaId.isEmpty()) {
         if (pk != "ytmusic" || mediaId != youtubeMusicId(sample.value("href").toString())
@@ -194,7 +228,7 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
         const double offset = locator.value("offset").toDouble(&offsetOk);
         const double total = locator.value("total").toDouble(&totalOk);
         const QUrl readerUrl(url);
-        if (m_context.value("pk") != "mangaplus" || readerUrl.scheme() != "https"
+        if (visit.context.value("pk") != "mangaplus" || readerUrl.scheme() != "https"
             || readerUrl.host() != "mangaplus.shueisha.co.jp"
             || !QRegularExpression("^/viewer/[0-9]+$").match(readerUrl.path()).hasMatch()
             || !pageOk || !offsetOk || !totalOk || !std::isfinite(page) || !std::isfinite(offset)
@@ -209,32 +243,32 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     const double duration = reading ? (scroll || mangaPage ? 100 : 0) : sample.value("duration").toDouble();
     const bool playing = !sample.value("paused", true).toBool() && !sample.value("ended").toBool();
     if (url.isEmpty() || (!reading && (sample.value("ad").toBool() || !std::isfinite(position)
-        || !std::isfinite(duration) || duration < 30 || position <= 0 || position > duration))) { m_lastPlaying = false; return false; }
+        || !std::isfinite(duration) || duration < 30 || position <= 0 || position > duration))) { visit.lastPlaying = false; return false; }
     QString title = sample.value("title").toString().trimmed().left(300);
-    if (title.isEmpty()) title = m_context.value("title").toString();
+    if (title.isEmpty()) title = visit.context.value("title").toString();
     if (title.isEmpty()) title = QUrl(url).host();
     const auto identity = reading ? continueIdentity({{"kind", "book"}, {"pk", pk}, {"url", url}})
                                   : !mediaId.isEmpty() ? qualifiedIdentity(pk, mediaId) : pk + "\n" + url + "\n" + title;
     const auto id = QString::fromLatin1(QCryptographicHash::hash(identity.toUtf8(), QCryptographicHash::Sha256).toHex());
     double active = 0;
-    const double delta = position - m_lastPosition;
+    const double delta = position - visit.lastPosition;
     const double rate = sample.value("rate", 1).toDouble();
-    if (!reading && m_lastPlaying && m_lastItem == id && elapsed > 0 && elapsed <= 6
+    if (!reading && visit.lastPlaying && visit.lastItem == id && elapsed > 0 && elapsed <= 6
         && delta > 0 && std::isfinite(rate) && rate > 0 && rate <= 16 && delta <= elapsed * rate + 2)
         active = std::min(elapsed, delta / rate);
-    if (reading && playing && m_lastPlaying && m_lastItem == id && elapsed > 0 && elapsed <= 6) active = elapsed;
-    m_lastItem = id; m_lastPosition = position; m_lastPlaying = playing;
+    if (reading && playing && visit.lastPlaying && visit.lastItem == id && elapsed > 0 && elapsed <= 6) active = elapsed;
+    visit.lastItem = id; visit.lastPosition = position; visit.lastPlaying = playing;
     auto rows = sessions();
     QVariantMap row;
     for (qsizetype i = 0; i < rows.size(); ++i) {
         auto candidate = rows[i].toMap();
-        if (candidate.value("sessionId") == m_sessionId && candidate.value("id") == id
+        if (candidate.value("sessionId") == visit.sessionId && candidate.value("id") == id
             && QDateTime::fromMSecsSinceEpoch(candidate.value("at").toLongLong()).date() == QDate::currentDate()) {
             row = candidate; rows.removeAt(i); break;
         }
     }
     if (row.isEmpty() && !reading && !playing) return false;
-    row.insert("id", id); row.insert("sessionId", m_sessionId); row.insert("pk", pk);
+    row.insert("id", id); row.insert("sessionId", visit.sessionId); row.insert("pk", pk);
     row.insert("title", title); row.insert("url", url);
     if (!mediaId.isEmpty()) {
         row.insert("identityVersion", 1);
@@ -245,7 +279,7 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
         row.insert("artwork", safeUrl(sample.value("artwork").toString()));
     }
     row.insert("kind", reading ? "book" : sample.value("kind", "video").toString());
-    row.insert("cover", m_context.value("cover"));
+    row.insert("cover", visit.context.value("cover"));
     row.insert("at", QDateTime::currentMSecsSinceEpoch());
     row.insert("mins", row.value("mins").toDouble() + active / 60.0);
     row.insert("position", std::min(position, duration));
@@ -259,11 +293,12 @@ bool FeriaAccountStore::record(const QVariantMap &sample, bool reading) {
     return commit(state);
 }
 bool FeriaAccountStore::setRecording(bool enabled) {
-    m_lastPlaying = false;
+    for (Visit &visit : m_visits) visit.lastPlaying = false;
     auto state = m_state; state.insert("recording", enabled); return commit(state);
 }
 bool FeriaAccountStore::clearHistory() {
-    endVisit();
+    m_visits.clear();
+    m_legacyToken.clear();
     auto state = m_state;
     state.insert("sessions", QVariantList{});
     state.remove("retainedContinue");
@@ -281,10 +316,12 @@ bool FeriaAccountStore::clearActivity() {
     state.insert("retainedContinue", retained);
     state.insert("sessions", QVariantList{});
     if (!commit(state)) return false;
-    m_lastPlaying = false;
-    m_lastItem.clear();
-    if (!m_context.isEmpty()) m_sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    if (m_clock.isValid()) m_clock.restart();
+    for (Visit &visit : m_visits) {
+        visit.lastPlaying = false;
+        visit.lastItem.clear();
+        visit.sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (visit.clock.isValid()) visit.clock.restart();
+    }
     return true;
 }
 bool FeriaAccountStore::dismissContinue(const QString &id) {

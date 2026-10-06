@@ -12,7 +12,7 @@ import ".." as Colosseum
 
 Item {
     id: root
-    implicitWidth: 162
+    implicitWidth: 146
     implicitHeight: 36
     readonly property Item overlay: Overlay.overlay
     property string currentUrl: ""
@@ -25,7 +25,10 @@ Item {
     signal reloadRequested()
     signal addressAccepted(string address)
     signal editingCancelled()
+    signal addressEditingStarted()
+    signal findRequested()
     function focusAddress() {
+        addressEditingStarted()
         addressPanel.open()
         address.forceActiveFocus()
         address.selectAll()
@@ -42,61 +45,36 @@ Item {
     onVisibleChanged: if (!visible) hideAddress()
     Colosseum.Theme { id: theme }
 
-    component NavigationButton: AccountUi.AccountButton {
-        id: navigationControl
-        variant: "link"
-        implicitWidth: 36
-        implicitHeight: 36
-        Accessible.name: ToolTip.text
-        ToolTip.visible: hovered
-        ToolTip.delay: 700
-        contentItem: Text {
-            text: navigationControl.text
-            color: navigationControl.enabled ? theme.ink : theme.inkDimmer
-            opacity: navigationControl.enabled ? 1 : 0.58
-            font.family: theme.ui
-            font.pixelSize: 20
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
     RowLayout {
         anchors.fill: parent
         spacing: 6
-        NavigationButton {
+        FeriaPageToolButton {
             objectName: "feriaBrowserBack"
-            text: "←"
-            ToolTip.text: "Back (Alt+Left)"
+            iconSource: "../../assets/icons/lucide/arrow-left.svg"
+            helpText: "Back (Alt+Left)"
             enabled: root.canGoBack
             onClicked: root.backRequested()
         }
-        NavigationButton {
+        FeriaPageToolButton {
             objectName: "feriaBrowserForward"
-            text: "→"
-            ToolTip.text: "Forward (Alt+Right)"
+            iconSource: "../../assets/icons/lucide/arrow-left.svg"; iconRotation: 180
+            helpText: "Forward (Alt+Right)"
             enabled: root.canGoForward
             onClicked: root.forwardRequested()
         }
-        NavigationButton {
+        FeriaPageToolButton {
             objectName: "feriaBrowserReload"
-            text: root.loading ? "×" : "↻"
-            ToolTip.text: root.loading ? "Stop loading" : "Reload (Ctrl+R / F5)"
+            iconSource: root.loading ? "../../assets/icons/reader2/close.svg" : "../../assets/icons/lucide/rotate-cw.svg"
+            helpText: root.loading ? "Stop loading" : "Reload (Ctrl+R / F5)"
             enabled: root.browserReady
             onClicked: root.reloadRequested()
         }
-        NavigationButton {
+        FeriaPageToolButton {
             objectName: "feriaBrowserAddressToggle"
-            ToolTip.text: "Web address (Ctrl+L)"
+            iconSource: "../../assets/icons/link.svg"
+            helpText: "Web address (Ctrl+L)"
             variant: addressPanel.visible ? "secondary" : "link"
             Accessible.description: "Show or hide the web address"
-            contentItem: Item {
-                Image {
-                    anchors.centerIn: parent
-                    width: 20; height: 20
-                    source: "../../assets/icons/link.svg"
-                    sourceSize: Qt.size(20, 20)
-                }
-            }
             onClicked: {
                 if (addressPanel.visible) root.cancelAddressEditing()
                 else root.focusAddress()
@@ -142,6 +120,12 @@ Item {
                 restoreMode: Binding.RestoreNone
             }
             onAccepted: root.addressAccepted(text)
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_F && (event.modifiers & Qt.ControlModifier)) {
+                    root.findRequested()
+                    event.accepted = true
+                }
+            }
             Keys.onEscapePressed: function(event) {
                 root.cancelAddressEditing()
                 event.accepted = true

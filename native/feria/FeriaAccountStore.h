@@ -4,6 +4,7 @@
 #include <QElapsedTimer>
 #include <QVariantMap>
 #include <QVariantList>
+#include <QHash>
 
 // Local, profile-owned Feria activity. Provider credentials stay in the browser.
 class FeriaAccountStore final : public QObject {
@@ -21,7 +22,12 @@ public:
     QString error() const { return m_error; }
     Q_INVOKABLE void beginVisit(const QVariantMap &context);
     Q_INVOKABLE void endVisit();
-    Q_INVOKABLE QString visitToken() const { return m_visitToken; }
+    Q_INVOKABLE QString beginSessionVisit(const QString &sessionId, const QVariantMap &context);
+    Q_INVOKABLE void endSessionVisit(const QString &sessionId);
+    Q_INVOKABLE bool observeSession(const QString &sessionId, const QString &token, const QVariantMap &sample);
+    Q_INVOKABLE bool saveSessionReadingPlace(const QString &sessionId, const QString &token,
+                                            const QString &url, const QString &title);
+    Q_INVOKABLE QString visitToken() const { return m_legacyToken; }
     Q_INVOKABLE void setMediaCaptureBlocked(bool blocked, const QString &visitToken = QString());
     Q_INVOKABLE bool observe(const QVariantMap &sample);
     Q_INVOKABLE bool saveReadingPlace(const QString &url, const QString &title);
@@ -34,12 +40,20 @@ signals:
     void changed();
     void profileChanged();
 private:
+    struct Visit {
+        QVariantMap context;
+        QString sessionId, lastItem, token;
+        double lastPosition = 0;
+        bool lastPlaying = false;
+        bool mediaCaptureBlocked = false;
+        QElapsedTimer clock;
+    };
+    Visit *visitFor(const QString &sessionId, const QString &token);
+    bool observeVisit(Visit &visit, const QVariantMap &sample);
+    bool saveReadingPlace(Visit &visit, const QString &url, const QString &title);
     bool commit(const QVariantMap &state);
-    bool record(const QVariantMap &sample, bool reading);
-    QVariantMap m_state, m_context;
-    QString m_path, m_error, m_sessionId, m_lastItem, m_visitToken;
-    double m_lastPosition = 0;
-    bool m_lastPlaying = false;
-    bool m_mediaCaptureBlocked = false;
-    QElapsedTimer m_clock;
+    bool record(Visit &visit, const QVariantMap &sample, bool reading);
+    QVariantMap m_state;
+    QString m_path, m_error, m_legacyToken;
+    QHash<QString, Visit> m_visits;
 };

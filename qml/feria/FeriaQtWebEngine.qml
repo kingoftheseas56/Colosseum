@@ -10,26 +10,66 @@ WebEngineView {
     objectName: "feriaQtWebEngine"
     required property url sourceUrl
     required property string profilePath
+    property var sharedProfile: null
+    readonly property alias pageTools: pageToolsController
+    FeriaPageTools { id: pageToolsController; browser: browser }
+    // Drain callbacks before the owner destroys this view. In Qt 6.11.1 a
+    // pending JavaScript callback can reach a torn-down QML context on close.
+    property bool closingSession: false
+    property int pendingJavaScript: 0
+    signal safeToDestroy()
+    function evaluateJavaScript(script, callback) {
+        if (closingSession) return false
+        // Legacy single-view and cleanup owners retain their existing API.
+        if (!sharedProfile) {
+            if (typeof callback === "function") runJavaScript(script, callback)
+            else runJavaScript(script)
+            return true
+        }
+        ++pendingJavaScript
+        runJavaScript(script, function(result) {
+            try {
+                if (!browser.closingSession && typeof callback === "function") callback(result)
+            } finally {
+                --browser.pendingJavaScript
+                if (browser.closingSession && browser.pendingJavaScript === 0)
+                    browser.safeToDestroy()
+            }
+        })
+        return true
+    }
+    function prepareForClose() {
+        if (closingSession) return
+        // Pause without depending on a successful provider-specific connector.
+        evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
+        closingSession = true
+        // Release focus while the retained owner's scope is still alive,
+        // before deferred parent/Loader destruction reaches the native view.
+        focus = false
+        documentCheck.stop(); navigationRefresh.stop(); cleanupPoll.stop()
+        stop()
+        if (pendingJavaScript === 0) safeToDestroy()
+    }
     property string providerId: ""
     property string accountVisitToken: ""
     property bool fullScreenActive: false
     Shortcut {
         sequence:"Escape"
         context:Qt.WindowShortcut
-        enabled:browser.fullScreenActive
-        onActivated:browser.runJavaScript("if(document.fullscreenElement) document.exitFullscreen()")
+        enabled:browser.visible && browser.fullScreenActive && !pageToolsController.findOpen
+        onActivated:browser.evaluateJavaScript("if(document.fullscreenElement) document.exitFullscreen()")
     }
     property bool appLayout: true
     property bool appKeyboard: true
     property string appAccent: "#f2c94c"
     function applyAppMode() {
-        if (providerId.length > 0 && documentReady && !clearingSession) runJavaScript(AppMode.script(providerId,appLayout,appKeyboard,appAccent))
+        if (providerId.length > 0 && documentReady && !clearingSession) evaluateJavaScript(AppMode.script(providerId,appLayout,appKeyboard,appAccent))
     }
     onAppLayoutChanged: applyAppMode()
     onAppKeyboardChanged: applyAppMode()
     onProviderIdChanged: applyAppMode()
     Timer {
-        interval:1500; repeat:true; running:browser.documentReady && !browser.clearingSession && browser.providerId.length > 0
+        interval:1500; repeat:true; running:!browser.closingSession && browser.documentReady && !browser.clearingSession && browser.providerId.length > 0
         onTriggered:browser.applyAppMode()
     }
     signal playbackObserved(var observation)
@@ -47,7 +87,7 @@ WebEngineView {
         id: mediaGate
         providerId: browser.providerId; sourceUrl: String(browser.sourceUrl)
         mode: browser.observationMode; initialPosition: browser.resumePosition
-        onScriptRequested: (label, script) => browser.runJavaScript(script, function(result) {
+        onScriptRequested: (label, script) => browser.evaluateJavaScript(script, function(result) {
             browser.receiveMediaResult(label, result)
         })
         onProtectionChanged: (blocked) => browser.captureProtectionChanged(blocked, browser.accountVisitToken)
@@ -60,7 +100,7 @@ WebEngineView {
                     && Playback.sameDestination(sample.href, browser.sourceUrl)) {
                 ++browser.readingResumeAttempts
                 var generation = browser.navigationGeneration
-                browser.runJavaScript(Playback.restoreReading(browser.resumeLocator), function(ok) {
+                browser.evaluateJavaScript(Playback.restoreReading(browser.resumeLocator), function(ok) {
                     if (generation !== browser.navigationGeneration) return
                     if (ok) browser.resumeLocator = null
                     else if (browser.readingResumeAttempts >=
@@ -79,7 +119,7 @@ WebEngineView {
     onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
     Timer {
         interval: 2000; repeat: true
-        running: browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null
+        running: !browser.closingSession && (browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null)
         onTriggered: browser.samplePlayback()
     }
     signal localSessionCleared(bool success)
@@ -103,7 +143,7 @@ WebEngineView {
     }
     Timer {
         id: cleanupPoll; interval: 100; repeat: true
-        onTriggered: browser.runJavaScript("window.__feriaStorageCleared || ''", function(result) {
+        onTriggered: browser.evaluateJavaScript("window.__feriaStorageCleared || ''", function(result) {
             if (result === "done") { cleanupPoll.stop(); browser.clearNextOrigin() }
             else if (result === "failed") {
                 cleanupPoll.stop(); browser.clearingSession = false; browser.localSessionCleared(false)
@@ -141,7 +181,7 @@ WebEngineView {
     function refreshNavigationState(bookkeep) {
         if (clearingSession) return
         var generation = navigationGeneration
-        runJavaScript("(function(){var n=window.navigation,c=n&&n.currentEntry;"
+        evaluateJavaScript("(function(){var n=window.navigation,c=n&&n.currentEntry;"
             + "return JSON.stringify({len:history.length,origin:location.origin,"
             + "idx:c?c.index:null,entries:n?n.entries().length:null,"
             + "nav:(performance.getEntriesByType('navigation')[0]||{}).type||''})})()",
@@ -189,13 +229,13 @@ WebEngineView {
     function pageBack() {
         if (!navCanGoBack) return
         pendingTraversal = "back"
-        runJavaScript("history.back()")
+        evaluateJavaScript("history.back()")
         navigationRefresh.restart()
     }
     function pageForward() {
         if (!navCanGoForward) return
         pendingTraversal = "forward"
-        runJavaScript("history.forward()")
+        evaluateJavaScript("history.forward()")
         navigationRefresh.restart()
     }
     signal started(string location)
@@ -214,11 +254,16 @@ WebEngineView {
     settings.javascriptCanOpenWindows: true
     settings.playbackRequiresUserGesture: false
     settings.fullScreenSupportEnabled: true
-    profile: WebEngineProfile {
-        storageName: "feria"
-        offTheRecord: false
-        persistentStoragePath: browser.profilePath + "/qtwebengine"
-        cachePath: browser.profilePath + "/qtwebengine-cache"
+    profile: sharedProfile || localProfile
+    WebEngineProfile {
+        id: localProfile
+        // The compatibility/cleaner path still owns its private persistent
+        // profile. Retained views use the shared profile and leave this unused
+        // fallback off-the-record, without another cookie database handle.
+        storageName: browser.sharedProfile ? "" : "feria"
+        offTheRecord: browser.sharedProfile !== null
+        persistentStoragePath: browser.sharedProfile ? "" : browser.profilePath + "/qtwebengine"
+        cachePath: browser.sharedProfile ? "" : browser.profilePath + "/qtwebengine-cache"
         persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
     }
     onNavigationRequested: function(request) {
@@ -231,6 +276,7 @@ WebEngineView {
         if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()
     }
     onLoadingChanged: function(info) {
+        if (closingSession) return
         if (info.status === WebEngineView.LoadStartedStatus) {
             fullScreenActive = false
             stopRequested = false
@@ -245,7 +291,7 @@ WebEngineView {
             documentReady = true
             applyAppMode()
             if (clearingSession) {
-                runJavaScript(Session.clearStorage)
+                evaluateJavaScript(Session.clearStorage)
                 cleanupPoll.start()
             }
             // A completed listener may begin cleanup synchronously. Inspect the
@@ -288,7 +334,7 @@ WebEngineView {
         repeat: true
         onTriggered: {
             var generation = browser.navigationGeneration
-            browser.runJavaScript("({ready:document.readyState !== 'loading' && !!document.body && document.body.childElementCount > 0,url:location.href})", function(result) {
+            browser.evaluateJavaScript("({ready:document.readyState !== 'loading' && !!document.body && document.body.childElementCount > 0,url:location.href})", function(result) {
                 if (generation !== browser.navigationGeneration || !result || result.ready !== true
                         || String(result.url) !== String(browser.url)) return
                 documentCheck.stop()
@@ -316,6 +362,10 @@ WebEngineView {
             for (var i = 0; i < windows.length; ++i) windows[i].close()
         }
     }
+    Component.onCompleted: {
+        FeriaBrowserPolicy.registerRuntimeView(browser)
+        FeriaBrowserPolicy.registerRuntimeProfile(profile)
+    }
     Component.onDestruction: {
         var windows = popups.slice()
         for (var i = 0; i < windows.length; ++i) windows[i].destroy()
@@ -337,6 +387,7 @@ WebEngineView {
                 id: popupView
                 anchors.fill: parent
                 profile: popup.sharedProfile
+                Component.onCompleted: FeriaBrowserPolicy.registerRuntimeView(popupView)
                 settings.javascriptCanOpenWindows: true
                 onNavigationRequested: function(request) {
                     if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()

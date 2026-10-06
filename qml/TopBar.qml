@@ -21,6 +21,7 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
+    property bool compactBrowserChrome: false
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -217,12 +218,14 @@ Item {
 
     // ---- left: "‹ Home" (world only) + clock/date ----
     Row {
+        id: leftChrome
+        objectName: "topBarLeftChrome"
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: 18
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            label: bar.backOnly && bar.pageTitle.length ? "" : bar.backLabel
+            label: bar.compactBrowserChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink
@@ -240,7 +243,8 @@ Item {
             }
         }
         Column {
-            visible: !bar.backOnly
+            objectName: "topBarClock"
+            visible: !bar.backOnly && !bar.compactBrowserChrome
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
@@ -255,9 +259,13 @@ Item {
 
     // ---- center: library pills in a glass capsule ----
     Glass {
+        objectName: "topBarWorldPicker"
         visible: !bar.backOnly
         backdrop: bar.backdrop
-        anchors.centerIn: parent
+        anchors.verticalCenter: parent.verticalCenter
+        x: bar.compactBrowserChrome
+           ? leftChrome.width + 12 + Math.max(0, (systemChrome.x - leftChrome.width - 24 - width) / 2)
+           : (bar.width - width) / 2
         radius: 999
         width: pillsRow.implicitWidth + 14; height: 46
         Row {
@@ -279,9 +287,11 @@ Item {
     // are gated on activeMedium, the same home/world discriminator BackAction
     // uses above, so only one is ever present in the slot.
     Row {
+        id: systemChrome
+        objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: 20
+        spacing: bar.compactBrowserChrome ? 10 : 20
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each

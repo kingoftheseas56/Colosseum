@@ -112,7 +112,19 @@ int FeriaBrowserPolicy::clearQtCookies(const QString &profilePath, const QString
     auto *retry = new QTimer(this);
     retry->setInterval(150);
     auto attempts = std::make_shared<int>(0);
-    const auto attempt = [this, retry, attempts, request, profilePath, domains] {
+    const quint64 generation = m_storageGeneration;
+    const auto attempt = [this, retry, attempts, request, profilePath, domains, generation] {
+        if (generation != m_storageGeneration || profilePath != m_storageRoot) {
+            retry->stop(); retry->deleteLater(); emit cookiesCleared(request, false); return;
+        }
+        // A retained WebEngine profile owns a live cookie database. Wait for
+        // QObject destruction, not merely a hidden or parked browser surface.
+        if (!m_runtimeProfiles.isEmpty() || !m_runtimeViews.isEmpty()) {
+            if (++*attempts >= 60) {
+                retry->stop(); retry->deleteLater(); emit cookiesCleared(request, false);
+            }
+            return;
+        }
         bool ok = !profilePath.isEmpty() && !domains.isEmpty();
         QString cookieFile;
         for (const auto &relative : {"/qtwebengine/Cookies", "/qtwebengine/Network/Cookies"}) {

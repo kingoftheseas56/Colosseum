@@ -1980,17 +1980,19 @@ int main(int argc, char *argv[]) {
     auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
     engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
     auto *feriaAccount = new FeriaAccountStore(&engine);
-    auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime] {
+    auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
         const auto &profile = accountRuntime->profileStores()->activeProfile();
         QString root = profile.profileRoot();
         if (profile.kind() == ProfilePaths::Kind::LegacyLocal)
             root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        sessions->setBrowserProfile(root);
         feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
         feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
     };
     bindFeriaProfile();
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
-                     feriaAccount, [feriaAccount, feriaBrowserPolicy] {
+                     feriaAccount, [feriaAccount, feriaBrowserPolicy, sessions] {
+                         sessions->setBrowserProfile({});
                          feriaAccount->setStoragePath({});
                          feriaBrowserPolicy->setStorageRoot({});
                      });
