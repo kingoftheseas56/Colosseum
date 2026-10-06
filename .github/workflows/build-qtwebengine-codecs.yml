@@ -117,8 +117,11 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false  # pip can report progress on stderr
           python -m pip install --disable-pip-version-check --no-warn-script-location "html5lib==1.1" "spdx-tools==0.8.5"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -c "import importlib.metadata as m; import html5lib; import spdx_tools.spdx.clitools.pyspdxtools as pyspdxtools; print('html5lib', html5lib.__version__); print('spdx-tools', m.version('spdx-tools')); print('pyspdxtools import OK')"
+          $pythonExe = (Get-Command python -ErrorAction Stop).Source
+          & $pythonExe -c "import importlib.metadata as m; import html5lib; import spdx_tools.spdx.clitools.pyspdxtools as pyspdxtools; print('html5lib', html5lib.__version__); print('spdx-tools', m.version('spdx-tools')); print('pyspdxtools import OK')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "QT_SBOM_PYTHON_INTERP=$pythonExe" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Output "Qt SBOM Python pinned to: $pythonExe"
 
       - name: Install Chromium host tools (gperf, flex, bison)
         shell: pwsh
@@ -256,7 +259,13 @@ jobs:
           $objects = @(Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue)
           if (-not $toolchains) { throw 'restored checkpoint contains no Chromium toolchain.ninja' }
           if (-not $objects) { throw 'restored checkpoint contains no compiled .obj files' }
+          if (-not $env:QT_SBOM_PYTHON_INTERP -or -not (Test-Path -LiteralPath $env:QT_SBOM_PYTHON_INTERP -PathType Leaf)) {
+            throw "QT_SBOM_PYTHON_INTERP is missing or invalid after checkpoint restore: '$env:QT_SBOM_PYTHON_INTERP'"
+          }
+          & $env:QT_SBOM_PYTHON_INTERP -c "import spdx_tools.spdx.clitools.pyspdxtools; print('restored-tree SBOM Python import OK')"
+          if ($LASTEXITCODE -ne 0) { throw 'The exact Qt SBOM Python interpreter cannot import pyspdxtools after checkpoint restore.' }
           Write-Output "restored checkpoint: $($objects.Count) object files; $($toolchains.Count) Chromium toolchain file(s)"
+          Write-Output "restored checkpoint SBOM Python: $env:QT_SBOM_PYTHON_INTERP"
           Select-String -Path $cache -Pattern '^CMAKE_HOME_DIRECTORY:INTERNAL=' | ForEach-Object { Write-Output $_.Line }
           Select-String -Path $cache -Pattern '^CMAKE_INSTALL_PREFIX:PATH=' | ForEach-Object { Write-Output $_.Line }
           Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
