@@ -370,16 +370,28 @@ jobs:
           $jobs = [int]$env:NUMBER_OF_PROCESSORS
           $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
           $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
+          $deadline = (Get-Date).AddMinutes($budgetMinutes)
+          $nextReport = Get-Date
+          $lastProgress = ''
+          $lastProgressAt = Get-Date
+          $localFallbackUsed = $false
+
+          if ($phase -eq 'resume') {
+            $env:SCCACHE_CLIENT_SIDE = '1'
+            Write-Output 'resume: sccache client-side mode enabled; GHA cache is read-only.'
+          }
+
+          function Start-WebEngineBuild([string]$outLog, [string]$errLog) {
+            return Start-Process -FilePath 'cmake.exe' -ArgumentList @('--build', $env:WEBENGINE_BUILD_DIR, '--parallel', "$jobs") -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru
+          }
 
           Write-Output "phase=$phase; building with -j$jobs; controlled budget=$($budgetMinutes)m"
           if ($phase -eq 'finish' -or $phase -eq 'resume') {
             Write-Output "$phase reserves roughly 45 minutes of the hosted-job window for checkpoint upload and normal packaging."
           }
-          Write-Output 'Completed compiler results are written continuously to the sccache GHA backend.'
+          Write-Output "sccache GHA mode=$env:SCCACHE_GHA_RW_MODE; namespace=$env:SCCACHE_GHA_VERSION"
 
-          $proc = Start-Process -FilePath 'cmake.exe' -ArgumentList @('--build', $env:WEBENGINE_BUILD_DIR, '--parallel', "$jobs") -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
-          $deadline = (Get-Date).AddMinutes($budgetMinutes)
-          $nextReport = Get-Date
+          $proc = Start-WebEngineBuild $stdoutLog $stderrLog
 
           while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
             Start-Sleep -Seconds 15
@@ -388,6 +400,35 @@ jobs:
               Write-Output "---- build heartbeat $(Get-Date -Format o) ----"
               if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 3 }
               if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 3 }
+
+              $progress = ''
+              if (Test-Path $stdoutLog) {
+                $match = Get-Content $stdoutLog -Tail 200 | Select-String -Pattern '\[(\d+)\/(\d+)\]' | Select-Object -Last 1
+                if ($match) { $progress = $match.Matches[0].Value }
+              }
+              if ($progress -and $progress -ne $lastProgress) {
+                $lastProgress = $progress
+                $lastProgressAt = Get-Date
+              } elseif ($phase -eq 'resume' -and -not $localFallbackUsed -and $lastProgress -and ((Get-Date) - $lastProgressAt).TotalMinutes -ge 20) {
+                Write-Output "::warning::Resume made no Ninja progress for 20 minutes at $lastProgress. Falling back from remote GHA sccache to local-only sccache on this same runner."
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                Start-Sleep -Seconds 3
+                & sccache --stop-server 2>$null | Out-Null
+                $env:SCCACHE_GHA_VERSION = ''
+                $env:SCCACHE_GHA_ENABLED = 'off'
+                $env:SCCACHE_GHA_RW_MODE = 'READ_WRITE'
+                $env:SCCACHE_CLIENT_SIDE = '1'
+                $env:SCCACHE_DIR = Join-Path $env:RUNNER_TEMP 'sccache-local-fallback'
+                $env:SCCACHE_CACHE_SIZE = '4G'
+                New-Item -ItemType Directory -Force -Path $env:SCCACHE_DIR | Out-Null
+                $localFallbackUsed = $true
+                $lastProgress = ''
+                $lastProgressAt = Get-Date
+                $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build-local-fallback.stdout.log'
+                $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build-local-fallback.stderr.log'
+                Write-Output "local fallback cache: $env:SCCACHE_DIR"
+                $proc = Start-WebEngineBuild $stdoutLog $stderrLog
+              }
               $nextReport = (Get-Date).AddMinutes(5)
             }
           }
