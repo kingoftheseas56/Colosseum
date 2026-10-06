@@ -12,6 +12,8 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
+import urllib.request
 
 
 def sha256(path: Path) -> str:
@@ -20,6 +22,42 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+# Official Qt 6.11.1 Linux GCC archive. Only the WebP runtime plugin is
+# extracted: other image-format plugins may require unrelated host libraries.
+WEBP_ARCHIVE_URL = (
+    "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6111/qt6_6111/"
+    "qt.qt6.6111.addons.qtimageformats.linux_gcc_64/"
+    "6.11.1-0-202605090529qtimageformats-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z")
+WEBP_ARCHIVE_SHA256 = "36d582d5f2a01823686a6b1743f4d759f57bdaf4a93bb1fd446a7eadb6c49644"
+
+
+def install_webp_plugin(root: Path, qt_version: str) -> dict:
+    if qt_version != "6.11.1":
+        raise RuntimeError("Pinned WebP runtime requires Qt 6.11.1")
+    extractor = shutil.which("7z") or shutil.which("7zz")
+    if not extractor:
+        raise RuntimeError("The existing Linux CI 7z extractor is required for the WebP runtime")
+    with tempfile.TemporaryDirectory(prefix="colosseum-webp-") as scratch:
+        archive = Path(scratch) / "qtimageformats.7z"
+        with urllib.request.urlopen(WEBP_ARCHIVE_URL, timeout=90) as response, archive.open("wb") as output:
+            shutil.copyfileobj(response, output)
+        if sha256(archive) != WEBP_ARCHIVE_SHA256:
+            raise RuntimeError("WebP archive checksum mismatch; refusing extraction")
+        # Stream one exact entry, never extract SDK paths or execute archive code.
+        result = subprocess.run([extractor, "e", "-so", str(archive),
+                                 "plugins/imageformats/libqwebp.so"],
+                                capture_output=True, check=True, timeout=60)
+        plugin = Path(scratch) / "libqwebp.so"
+        plugin.write_bytes(result.stdout)
+        if not is_runtime_elf(plugin):
+            raise RuntimeError("Pinned WebP plugin is not a runtime ELF")
+        target = root / "usr/plugins/imageformats/libqwebp.so"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(plugin, target)
+        return {"url": WEBP_ARCHIVE_URL, "archiveSha256": WEBP_ARCHIVE_SHA256,
+                "pluginSha256": sha256(target), "qtVersion": qt_version}
 
 
 def verify_qml(root: Path, manifest: Path) -> None:
@@ -45,6 +83,7 @@ def verify_payload(root: Path) -> None:
                 "usr/resources/icudtl.dat", "usr/resources/v8_context_snapshot.bin",
                 "usr/translations/qtwebengine_locales/en-US.pak",
                 "usr/plugins/platforms/libqxcb.so", "usr/plugins/sqldrivers/libqsqlite.so",
+                "usr/plugins/imageformats/libqwebp.so",
                 "usr/qml/QtWebEngine/qmldir",
                 "usr/bin/qml-build.manifest", "qml/Main.qml"]
     for name in required:
@@ -149,6 +188,8 @@ def assemble(repo: Path, build: Path, qt: Path, mpvqt: Path, output: Path) -> Pa
     for prefix in (qt, mpvqt):
         for source in (prefix / "lib").glob("*.so*"):
             shutil.copy2(source, library / source.name, follow_symlinks=False)
+    version = subprocess.check_output([str(qt / "bin/qmake"), "-query", "QT_VERSION"], text=True).strip()
+    webp = install_webp_plugin(root, version)
     # ldd resolves the transitive dependencies of each bundled ELF; the queue
     # also covers plugins loaded dynamically, not just the main executable.
     env = dict(os.environ, LD_LIBRARY_PATH=f"{library}:{qt / 'lib'}:{mpvqt / 'lib'}")
@@ -175,9 +216,9 @@ def assemble(repo: Path, build: Path, qt: Path, mpvqt: Path, output: Path) -> Pa
     (binary / "qt.conf").write_text("[Paths]\nPrefix=..\nLibraries=lib\nPlugins=plugins\nQmlImports=qml\nLibraryExecutables=libexec\nData=.\nTranslations=translations\n")
     (root / "AppRun").write_text(LAUNCHER)
     (root / "AppRun").chmod(0o755)
-    version = subprocess.check_output([str(qt / "bin/qmake"), "-query", "QT_VERSION"], text=True).strip()
     (root / "BUILD-INFO.json").write_text(json.dumps({
         "schema": 1, "sourceRevision": revision, "qtVersion": version,
+        "webpRuntime": webp,
         "engine": "QtWebEngine", "platform": "Ubuntu 24.04 x86_64",
         "workflowRun": os.environ.get("GITHUB_RUN_ID", "local"),
         "workflowAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", "1"),

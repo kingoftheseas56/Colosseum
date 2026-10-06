@@ -88,6 +88,7 @@ def smoke(root: Path, revision: str, evidence: Path) -> None:
                 marker = "Colosseum-dltest-" + env["COLOSSEUM_APPDATA_TAG"]
                 if not all(marker in state.get(key, "") for key in ("appDataRoot", "cacheRoot")):
                     raise RuntimeError("Candidate app data isolation failed")
+                (evidence / "app-ping.json").write_text(json.dumps(pong, indent=2) + "\n")
                 (evidence / "app-state.json").write_text(json.dumps(state, indent=2) + "\n")
             finally:
                 app.terminate()
@@ -113,6 +114,10 @@ import "''' + (root / "qml/feria").as_uri() + '''" as Feria
 Window {
     id: win; visible: true; width: 960; height: 640
     property bool captured: false
+    Image {
+        id: webpProbe; z: 2; width: 24; height: 24
+        source: "data:image/webp;base64,UklGRjwAAABXRUJQVlA4IDAAAADQAQCdASoCAAIAAUAmJaACdLoB+AADsAD+8ut//NgVzXPv9//S4P0uD9Lg/9KQAAA="
+    }
     Feria.FeriaQtWebEngine {
         id: view; anchors.fill: parent
         sourceUrl: "http://127.0.0.1:''' + str(server.server_port) + '''/index.html"
@@ -128,18 +133,30 @@ Window {
     }
     Timer {
         id: captureTimer; interval: 250
-        onTriggered: win.contentItem.grabToImage(function(result) {
+        onTriggered: {
+            if (webpProbe.status !== Image.Ready || webpProbe.sourceSize.width !== 2
+                    || webpProbe.sourceSize.height !== 2) {
+                console.error("CANDIDATE_WEBP_DECODE_FAILED"); Qt.exit(5); return
+            }
+            console.info("CANDIDATE_WEBP_DECODE_PASS")
+            win.contentItem.grabToImage(function(result) {
             if (!result.saveToFile(''' + json.dumps(str(capture)) + ''')) { Qt.exit(3); return }
             console.info("CANDIDATE_WEBENGINE_PASS"); Qt.quit()
-        })
+            })
+        }
     }
     Timer { interval: 45000; running: true; onTriggered: Qt.exit(4) }
 }
 ''')
         try:
             with (evidence / "webengine.log").open("wb") as log:
-                subprocess.run([str(root / "AppRun"), str(fixture)], cwd=work, env=env,
-                               stdout=log, stderr=log, timeout=60, check=True)
+                result = subprocess.run([str(root / "AppRun"), str(fixture)], cwd=work, env=env,
+                                        stdout=log, stderr=log, timeout=60, check=False)
+            (evidence / "webengine-exit.json").write_text(json.dumps({
+                "returncode": result.returncode, "sourceRevision": revision,
+                "signal": -result.returncode if result.returncode < 0 else None,
+            }, indent=2) + "\n")
+            result.check_returncode()
             if not capture.is_file() or "CANDIDATE_WEBENGINE_PASS" not in (evidence / "webengine.log").read_text():
                 raise RuntimeError("WebEngine did not produce runtime evidence")
         finally:
@@ -149,6 +166,7 @@ Window {
             "sourceRevision": revision, "qtVersion": info["qtVersion"],
             "normalAppLaunch": "PASS", "qmlBuildMatch": "PASS", "bundledDependencies": "PASS",
             "feriaQtWebEngineLocalPageJavaScriptAndCapture": "PASS",
+            "qtWebPDecode": "PASS",
             "unverified": info["unverified"],
         }, indent=2) + "\n")
         print("LINUX_CANDIDATE_RUNTIME_PASS " + revision)

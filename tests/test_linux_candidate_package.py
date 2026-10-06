@@ -3,6 +3,9 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
+import io
+import hashlib
 
 
 class CandidatePackageTests(unittest.TestCase):
@@ -113,6 +116,51 @@ class CandidatePackageTests(unittest.TestCase):
                 self.assertFalse((target / name).exists(), name)
             self.assertFalse((target / "objects-RelWithDebInfo").exists())
 
+    def test_pinned_webp_plugin_is_the_only_extracted_addon(self):
+        archive = b"pinned archive fixture"
+        plugin = self.elf_header(3)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with mock.patch.object(self.module, "WEBP_ARCHIVE_SHA256", hashlib.sha256(archive).hexdigest()), \
+                 mock.patch.object(self.module.urllib.request, "urlopen", return_value=io.BytesIO(archive)) as download, \
+                 mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/7z"), \
+                 mock.patch.object(self.module.subprocess, "run", return_value=mock.Mock(stdout=plugin, returncode=0)) as extract:
+                receipt = self.module.install_webp_plugin(root, "6.11.1")
+            self.assertEqual((root / "usr/plugins/imageformats/libqwebp.so").read_bytes(), plugin)
+            self.assertEqual(receipt["pluginSha256"], hashlib.sha256(plugin).hexdigest())
+            self.assertEqual(download.call_args.args[0], self.module.WEBP_ARCHIVE_URL)
+            self.assertEqual(extract.call_args.args[0][-1], "plugins/imageformats/libqwebp.so")
+            self.assertIn("-so", extract.call_args.args[0])
+            self.assertEqual(len(list(root.rglob("*.so"))), 1)
+
+    def test_webp_checksum_and_version_mismatch_fail_before_extraction(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with mock.patch.object(self.module.urllib.request, "urlopen", return_value=io.BytesIO(b"corrupt")), \
+                 mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/7z"), \
+                 mock.patch.object(self.module.subprocess, "run") as extract:
+                with self.assertRaisesRegex(RuntimeError, "WebP archive checksum mismatch"):
+                    self.module.install_webp_plugin(root, "6.11.1")
+                extract.assert_not_called()
+            with mock.patch.object(self.module.urllib.request, "urlopen") as download:
+                with self.assertRaisesRegex(RuntimeError, "requires Qt 6.11.1"):
+                    self.module.install_webp_plugin(root, "6.10.0")
+                download.assert_not_called()
+            self.assertFalse((root / "usr/plugins/imageformats/libqwebp.so").exists())
+
+    def test_webp_extracted_relocatable_or_non_elf_is_rejected(self):
+        archive = b"pinned archive fixture"
+        for invalid in (b"", b"not a plugin", self.elf_header(1)):
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                with mock.patch.object(self.module, "WEBP_ARCHIVE_SHA256", hashlib.sha256(archive).hexdigest()), \
+                     mock.patch.object(self.module.urllib.request, "urlopen", return_value=io.BytesIO(archive)), \
+                     mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/7z"), \
+                     mock.patch.object(self.module.subprocess, "run", return_value=mock.Mock(stdout=invalid)):
+                    with self.assertRaisesRegex(RuntimeError, "not a runtime ELF"):
+                        self.module.install_webp_plugin(root, "6.11.1")
+                self.assertFalse((root / "usr/plugins/imageformats/libqwebp.so").exists())
+
     def test_unresolved_dependency_fails_closed(self):
         with self.assertRaisesRegex(RuntimeError, "libMpvQt.so.1"):
             self.module.parse_ldd("libMpvQt.so.1 => not found\n")
@@ -152,6 +200,7 @@ class CandidatePackageTests(unittest.TestCase):
                         "usr/resources/icudtl.dat", "usr/resources/v8_context_snapshot.bin",
                         "usr/translations/qtwebengine_locales/en-US.pak",
                         "usr/plugins/platforms/libqxcb.so", "usr/plugins/sqldrivers/libqsqlite.so",
+                        "usr/plugins/imageformats/libqwebp.so",
                         "usr/qml/QtWebEngine/qmldir", "usr/bin/qml-build.manifest", "qml/Main.qml"]
             for name in required:
                 target = root / name
@@ -160,6 +209,10 @@ class CandidatePackageTests(unittest.TestCase):
             self.module.verify_payload(root)
             (root / "usr/resources/qtwebengine_resources.pak").unlink()
             with self.assertRaisesRegex(RuntimeError, "qtwebengine_resources.pak"):
+                self.module.verify_payload(root)
+            (root / "usr/resources/qtwebengine_resources.pak").write_bytes(b"fixture")
+            (root / "usr/plugins/imageformats/libqwebp.so").unlink()
+            with self.assertRaisesRegex(RuntimeError, "libqwebp.so"):
                 self.module.verify_payload(root)
 
 
