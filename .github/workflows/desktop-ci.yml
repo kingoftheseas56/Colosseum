@@ -43,6 +43,7 @@ jobs:
       - name: Verify Linux runtime dependency contract
         run: |
           python -m unittest -v tests.test_linux_runtime_dependency_gate
+          python -m unittest -v tests.test_linux_candidate_package
           python scripts/linux_runtime_dependency_gate.py
           # mpv CLI is optional for the beta: missing means DVR fails closed, not Player 1.
           apt-cache show mpv >/dev/null
@@ -510,9 +511,82 @@ jobs:
             --jobs 1 \
             --min-files 184
 
+      - name: Assemble Linux QtWebEngine candidate
+        run: |
+          python scripts/linux_candidate_package.py \
+            --build "$COLOSSEUM_LINUX_BUILD" \
+            --qt "$QT_ROOT_DIR" --mpvqt "$MPVQT_ROOT" \
+            --output "$RUNNER_TEMP/linux-candidate"
+          python scripts/linux_runtime_dependency_gate.py \
+            --appdir "$RUNNER_TEMP/linux-candidate/Colosseum-linux-qtwebengine-${GITHUB_SHA:0:12}"
+
+      - name: Upload candidate for isolated runtime qualification
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-candidate-staging-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/linux-candidate/*.tar.gz
+            ${{ runner.temp }}/linux-candidate/*.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
       - name: Show compiler-cache statistics
         if: always()
         run: ccache --show-stats || true
+
+  linux-candidate-runtime:
+    needs: [linux-desktop, linux-runtime-contract]
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 20
+    steps:
+      - name: Install runtime host support without a Qt SDK
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3 xvfb xauth libgl1-mesa-dri libegl1 \
+            fonts-dejavu-core dbus-x11 ca-certificates
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: linux-candidate-staging-${{ github.sha }}
+          path: /tmp/candidate-download
+      - name: Verify and launch downloaded package
+        shell: bash
+        env:
+          # This isolated CI container runs as root. The shipped launcher does
+          # not disable Chromium's sandbox on users' machines.
+          QTWEBENGINE_DISABLE_SANDBOX: "1"
+        run: |
+          cd /tmp/candidate-download
+          sha256sum --check --strict *.sha256
+          mkdir /tmp/candidate-runtime
+          tar -xzf ./*.tar.gz -C /tmp/candidate-runtime
+          xvfb-run -a python3 "$GITHUB_WORKSPACE/scripts/linux_candidate_smoke.py" \
+            --root "/tmp/candidate-runtime/Colosseum-linux-qtwebengine-${GITHUB_SHA:0:12}" \
+            --revision "$GITHUB_SHA" --evidence /tmp/candidate-evidence
+      - name: Upload qualified QtWebEngine candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-qtwebengine-candidate-${{ github.sha }}
+          path: |
+            /tmp/candidate-download/*.tar.gz
+            /tmp/candidate-download/*.sha256
+            /tmp/candidate-evidence/qualification.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload runtime qualification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-candidate-runtime-evidence-${{ github.sha }}
+          path: /tmp/candidate-evidence
+          if-no-files-found: warn
+          retention-days: 14
 
   dependency-scan:
     runs-on: ubuntu-24.04
