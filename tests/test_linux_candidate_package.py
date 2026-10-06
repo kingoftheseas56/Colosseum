@@ -65,6 +65,34 @@ class CandidatePackageTests(unittest.TestCase):
             self.assertEqual(sorted(p.name for p in (target / "sqldrivers").iterdir()),
                              ["libqsqlite.so"])
 
+    def test_positioning_copy_excludes_only_unused_serial_nmea_backend(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as temp:
+            sdk = Path(temp) / "plugins" / "position"
+            sdk.mkdir(parents=True)
+            for name in ("libqtposition_nmea.so", "libqtposition_geoclue2.so", "libqtposition_positionpoll.so"):
+                (sdk / name).write_bytes(self.elf_header(3))
+            target = Path(temp) / "runtime"
+            shutil.copytree(sdk.parent, target, ignore=self.module.sdk_runtime_ignores)
+            self.assertEqual(sorted(p.name for p in (target / "position").iterdir()),
+                             ["libqtposition_geoclue2.so", "libqtposition_positionpoll.so"])
+            # The same basename outside the backend directory is not filtered.
+            self.assertNotIn("libqtposition_nmea.so",
+                self.module.sdk_runtime_ignores("/sdk/other", ["libqtposition_nmea.so"]))
+
+    def test_designer_plugins_are_sdk_only(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "plugins"
+            for name in ("designer/libqwebengineview.so", "platforms/libqxcb.so", "imageformats/libqjpeg.so"):
+                p = source / name; p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(self.elf_header(3))
+            target = Path(temp) / "runtime"
+            shutil.copytree(source, target, ignore=self.module.sdk_runtime_ignores)
+            self.assertFalse((target / "designer").exists())
+            self.assertTrue((target / "platforms/libqxcb.so").is_file())
+            self.assertTrue((target / "imageformats/libqjpeg.so").is_file())
+
     def test_sdk_copy_excludes_object_outputs_but_keeps_runtime_resources(self):
         import shutil
         with tempfile.TemporaryDirectory() as temp:

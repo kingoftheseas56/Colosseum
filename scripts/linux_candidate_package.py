@@ -84,11 +84,20 @@ _sdk_development_ignores = shutil.ignore_patterns(
 
 def sdk_runtime_ignores(directory: str, names: list[str]) -> set[str]:
     ignored = set(_sdk_development_ignores(directory, names))
+    if Path(directory).name == "plugins":
+        # Qt Designer extension plugins are SDK authoring tools, not runtime
+        # application plugins. They can depend on an uninstalled Designer SDK.
+        ignored.update(name for name in names if name == "designer")
     if Path(directory).name == "sqldrivers":
         # Every native QSqlDatabase::addDatabase call uses QSQLITE. SDK-only
         # Oracle/MySQL/PostgreSQL/etc. plugins would introduce unused client
         # dependencies (including Oracle's proprietary libclntsh).
         ignored.update(name for name in names if not name.startswith("libqsqlite.so"))
+    if Path(directory).name == "position":
+        # The desktop candidate does not consume serial GPS/NMEA devices.
+        # Qt Positioning ships this optional backend even when QtSerialPort
+        # is not installed. Keep GeoClue and all other positioning support.
+        ignored.update(name for name in names if name == "libqtposition_nmea.so")
     return ignored
 
 
@@ -152,7 +161,11 @@ def assemble(repo: Path, build: Path, qt: Path, mpvqt: Path, output: Path) -> Pa
             continue
         visited.add(real)
         result = subprocess.run(["ldd", str(source)], env=env, text=True, capture_output=True, check=True)
-        for dependency in parse_ldd(result.stdout):
+        try:
+            dependencies = parse_ldd(result.stdout)
+        except RuntimeError as error:
+            raise RuntimeError(f"Dependency scan failed for {source}: {error}") from error
+        for dependency in dependencies:
             if HOST_LIBS.match(dependency.name):
                 continue
             target = library / dependency.name
