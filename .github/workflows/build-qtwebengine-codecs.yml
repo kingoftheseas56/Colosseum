@@ -270,6 +270,336 @@ jobs:
           Select-String -Path $cache -Pattern '^CMAKE_INSTALL_PREFIX:PATH=' | ForEach-Object { Write-Output $_.Line }
           Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
 
+      - name: Refresh restored CMake dependency detection
+        if: github.event.inputs.phase == 'resume'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false
+          if (-not $env:QT_SBOM_PYTHON_INTERP -or -not (Test-Path -LiteralPath $env:QT_SBOM_PYTHON_INTERP -PathType Leaf)) {
+            throw "QT_SBOM_PYTHON_INTERP is not a valid interpreter: $env:QT_SBOM_PYTHON_INTERP"
+          }
+          Write-Output "Refreshing restored CMake state with SBOM Python: $env:QT_SBOM_PYTHON_INTERP"
+          cmake -S "$env:WEBENGINE_SRC" -B "$env:WEBENGINE_BUILD_DIR" "-DQT_SBOM_PYTHON_INTERP=$env:QT_SBOM_PYTHON_INTERP" -DQT_SBOM_FORCE_USE_PYTHON_INTERP=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $cache = Join-Path $env:WEBENGINE_BUILD_DIR 'CMakeCache.txt'
+          $sbomPython = Select-String -Path $cache -Pattern '^QT_INTERNAL_SBOM_PYTHON_EXECUTABLE:INTERNAL=' | Select-Object -First 1
+          $sbomGenerate = Select-String -Path $cache -Pattern '^QT_INTERNAL_SBOM_DEPS_FOUND_FOR_GENERATE_JSON:INTERNAL=TRUE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # gn/python/cmake write routine progress to stderr; must not abort the step
+          # Mirrors the local configure-webengine.cmd but as a stripped Release
+          # build, far smaller/faster/lighter than the local RelWithDebInfo attempt.
+          # qt-configure-module accepts module switches before `--`; the build type
+          # must be passed as a CMake definition after `--`.
+          # Proprietary codecs + Chrome ffmpeg branding bring H.264/AAC; Widevine
+          # stays on by default.
+          & "$env:QT_ROOT_DIR\bin\qt-configure-module.bat" $env:WEBENGINE_SRC `
+            -cmake-generator Ninja `
+            -webengine-proprietary-codecs `
+            -no-webengine-printing-and-pdf `
+            -no-webengine-spellchecker `
+            -no-webengine-webrtc `
+            -no-build-qtpdf `
+            -- `
+            -B "$env:WEBENGINE_BUILD_DIR" `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_INSTALL_PREFIX=$env:WEBENGINE_INSTALL_DIR" `
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
+            -DFEATURE_qtwebengine_widgets_build=OFF `
+            -DFEATURE_webengine_geolocation=OFF `
+            -DFEATURE_webengine_kerberos=OFF `
+            -DFEATURE_webengine_extensions=OFF `
+            -DFEATURE_webenginedriver=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path -LiteralPath $env:WEBENGINE_BUILD_DIR -PathType Container)) {
+            throw "Qt module configure did not create build directory: $env:WEBENGINE_BUILD_DIR"
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $env:WEBENGINE_BUILD_DIR "build.ninja") -PathType Leaf)) {
+            Get-ChildItem -LiteralPath $env:WEBENGINE_BUILD_DIR -Force | Format-Table -AutoSize | Out-String | Write-Output
+            throw "Qt module configure did not create the expected single-config Ninja file: $env:WEBENGINE_BUILD_DIR\build.ninja"
+          }
+
+      - name: Generate Chromium Ninja files
+        if: github.event.inputs.phase != 'resume'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false
+          $jobs = [int]$env:NUMBER_OF_PROCESSORS
+          Write-Output "Running Qt's GN-only target before the expensive Chromium compile."
+          cmake --build "$env:WEBENGINE_BUILD_DIR" --target run_core_GnDone --parallel $jobs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $generatedToolchains = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File
+          if (-not $generatedToolchains) {
+            throw 'run_core_GnDone completed but generated no Chromium toolchain.ninja files.'
+          }
+          Write-Output "Generated $($generatedToolchains.Count) Chromium toolchain file(s)."
+
+      - name: Verify Chromium compiler cache wiring
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $argsHit = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File |
+            Select-String -SimpleMatch 'cc_wrapper="sccache"' |
+            Select-Object -First 1
+          if (-not $argsHit) {
+            throw 'Qt did not propagate the compiler launcher into Chromium args.gn as cc_wrapper="sccache".'
+          }
+          Write-Output "GN wrapper: $($argsHit.Path):$($argsHit.LineNumber): $($argsHit.Line)"
+          $toolchains = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'toolchain.ninja' -File
+          $hit = $toolchains |
+            Select-String -Pattern 'sccache' |
+            Where-Object { $_.Line -match 'cl\.exe' } |
+            Select-Object -First 1
+          if (-not $hit) {
+            Write-Output 'No generated compile command contained both sccache and cl.exe. Dumping cache-related GN evidence:'
+            Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File |
+              Select-String -Pattern 'cc_wrapper|sccache' |
+              Select-Object -First 20 |
+              ForEach-Object { Write-Output "$($_.Path):$($_.LineNumber): $($_.Line)" }
+            $toolchains |
+              Select-String -Pattern 'command =|sccache|cl\.exe' |
+              Select-Object -First 40 |
+              ForEach-Object { Write-Output "$($_.Path):$($_.LineNumber): $($_.Line)" }
+            throw 'Chromium GN toolchain is not invoking sccache before cl.exe; refusing to burn a multi-hour runner.'
+          }
+          Write-Output "cache wiring: $($hit.Path):$($hit.LineNumber)"
+          Write-Output $hit.Line
+          sccache --zero-stats
+      - name: Build WebEngine (${{ github.event.inputs.phase }})
+        id: webengine_build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          $phase = '${{ github.event.inputs.phase }}'
+          $budgetMinutes = if ($phase -eq 'seed') { 320 } else { 300 }
+          $jobs = [int]$env:NUMBER_OF_PROCESSORS
+          $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
+          $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
+          $deadline = (Get-Date).AddMinutes($budgetMinutes)
+          $nextReport = Get-Date
+          $lastProgress = ''
+          $lastProgressAt = Get-Date
+          $localFallbackUsed = $false
+
+          if ($phase -eq 'resume') {
+            $env:SCCACHE_CLIENT_SIDE = '1'
+            Write-Output 'resume: sccache client-side mode enabled; GHA cache is read-only.'
+          }
+
+          function Start-WebEngineBuild([string]$outLog, [string]$errLog) {
+            return Start-Process -FilePath 'cmake.exe' -ArgumentList @('--build', $env:WEBENGINE_BUILD_DIR, '--parallel', "$jobs") -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru
+          }
+
+          Write-Output "phase=$phase; building with -j$jobs; controlled budget=$($budgetMinutes)m"
+          if ($phase -eq 'finish' -or $phase -eq 'resume') {
+            Write-Output "$phase reserves roughly 45 minutes of the hosted-job window for checkpoint upload and normal packaging."
+          }
+          Write-Output "sccache GHA mode=$env:SCCACHE_GHA_RW_MODE; namespace=$env:SCCACHE_GHA_VERSION"
+
+          $proc = Start-WebEngineBuild $stdoutLog $stderrLog
+
+          while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 15
+            $proc.Refresh()
+            if ((Get-Date) -ge $nextReport) {
+              Write-Output "---- build heartbeat $(Get-Date -Format o) ----"
+              if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 3 }
+              if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 3 }
+
+              $progress = ''
+              if (Test-Path $stdoutLog) {
+                $match = Get-Content $stdoutLog -Tail 200 | Select-String -Pattern '\[(\d+)\/(\d+)\]' | Select-Object -Last 1
+                if ($match) { $progress = $match.Matches[0].Value }
+              }
+              if ($progress -and $progress -ne $lastProgress) {
+                $lastProgress = $progress
+                $lastProgressAt = Get-Date
+              } elseif ($phase -eq 'resume' -and -not $localFallbackUsed -and $lastProgress -and ((Get-Date) - $lastProgressAt).TotalMinutes -ge 20) {
+                Write-Output "::warning::Resume made no Ninja progress for 20 minutes at $lastProgress. Falling back from remote GHA sccache to local-only sccache on this same runner."
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                Start-Sleep -Seconds 3
+                & sccache --stop-server 2>$null | Out-Null
+                $env:SCCACHE_GHA_VERSION = ''
+                $env:SCCACHE_GHA_ENABLED = 'off'
+                $env:SCCACHE_GHA_RW_MODE = 'READ_WRITE'
+                $env:SCCACHE_CLIENT_SIDE = '1'
+                $env:SCCACHE_DIR = Join-Path $env:RUNNER_TEMP 'sccache-local-fallback'
+                $env:SCCACHE_CACHE_SIZE = '4G'
+                New-Item -ItemType Directory -Force -Path $env:SCCACHE_DIR | Out-Null
+                $localFallbackUsed = $true
+                $lastProgress = ''
+                $lastProgressAt = Get-Date
+                $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build-local-fallback.stdout.log'
+                $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build-local-fallback.stderr.log'
+                Write-Output "local fallback cache: $env:SCCACHE_DIR"
+                $proc = Start-WebEngineBuild $stdoutLog $stderrLog
+              }
+              $nextReport = (Get-Date).AddMinutes(5)
+            }
+          }
+
+          $proc.Refresh()
+          if (-not $proc.HasExited) {
+            Write-Output "::warning::Build phase '$phase' reached its $budgetMinutes-minute budget; stopping the process tree before GitHub's six-hour job guillotine."
+            & taskkill.exe /PID $proc.Id /T /F | Out-Null
+            Start-Sleep -Seconds 3
+            'completed=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            'budget_exhausted=true' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+            if ($phase -eq 'seed') {
+              Write-Output 'Seed phase complete: compiler cache has been warmed. Re-run this workflow with phase=finish.'
+              exit 0
+            }
+
+            Write-Output "::error::$phase phase exhausted its build budget. Re-run phase=resume against this run's timeout build-tree artifact."
+            exit 124
+          }
+
+          $proc.WaitForExit()
+          $rc = $proc.ExitCode
+          'budget_exhausted=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Tail 20 }
+          if (Test-Path $stderrLog) { Get-Content $stderrLog -Tail 20 }
+
+          if ($rc -ne 0) {
+            $patterns = 'FAILED:|fatal error|\berror\b|LNK\d+|No such'
+            Select-String -Path @($stdoutLog, $stderrLog) -Pattern $patterns -ErrorAction SilentlyContinue | Select-Object -Last 40 | ForEach-Object {
+              $m = $_.Line.Replace('%','%25')
+              Write-Output "::error::$m"
+            }
+            'completed=false' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit $rc
+          }
+
+          'completed=true' | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Output "WebEngine build completed inside the $phase phase."
+          Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+
+      - name: Report sccache stats
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $cmd = Get-Command sccache -ErrorAction SilentlyContinue
+          if (-not $cmd) {
+            Write-Output 'sccache is unavailable; no stats to report.'
+            exit 0
+          }
+          $stats = (sccache --show-stats 2>&1 | Out-String).TrimEnd()
+          Write-Output $stats
+          '### QtWebEngine sccache stats' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '```text' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          $stats | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '```' | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+      - name: Prepare timeout checkpoint metadata
+        if: always() && steps.webengine_build.outputs.budget_exhausted == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $checkpointMeta = Join-Path $env:RUNNER_TEMP 'qtwebengine-timeout-checkpoint-meta'
+          New-Item -ItemType Directory -Force -Path $checkpointMeta | Out-Null
+
+          $stdoutLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stdout.log'
+          $stderrLog = Join-Path $env:RUNNER_TEMP 'webengine-build.stderr.log'
+          if (Test-Path $stdoutLog) { Copy-Item $stdoutLog (Join-Path $checkpointMeta 'webengine-build.stdout.log') -Force }
+          if (Test-Path $stderrLog) { Copy-Item $stderrLog (Join-Path $checkpointMeta 'webengine-build.stderr.log') -Force }
+
+          @(
+            "run_id=$env:GITHUB_RUN_ID"
+            "run_number=$env:GITHUB_RUN_NUMBER"
+            "qt_version=$env:QT_VERSION"
+            "build_dir=$env:WEBENGINE_BUILD_DIR"
+            "source_dir=$env:WEBENGINE_SRC"
+            "sccache_namespace=$env:SCCACHE_GHA_VERSION"
+            "checkpoint_reason=controlled_build_budget_exhausted"
+            "created=$(Get-Date -Format o)"
+          ) | Out-File (Join-Path $checkpointMeta 'checkpoint.txt') -Encoding utf8
+
+          if (Test-Path $stdoutLog) {
+            Get-Content $stdoutLog -Tail 200 | Out-File (Join-Path $checkpointMeta 'last-build-output.txt') -Encoding utf8
+          }
+          $argsFiles = Get-ChildItem $env:WEBENGINE_BUILD_DIR -Recurse -Filter 'args.gn' -File -ErrorAction SilentlyContinue
+          foreach ($f in $argsFiles) {
+            "### $($f.FullName)" | Out-File (Join-Path $checkpointMeta 'args-gn.txt') -Encoding utf8 -Append
+            Get-Content $f.FullName | Out-File (Join-Path $checkpointMeta 'args-gn.txt') -Encoding utf8 -Append
+          }
+          sccache --show-stats 2>&1 | Out-File (Join-Path $checkpointMeta 'sccache-stats.txt') -Encoding utf8
+
+      - name: Upload timeout checkpoint metadata
+        if: always() && steps.webengine_build.outputs.budget_exhausted == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-${{ env.QT_VERSION }}-timeout-metadata-run-${{ github.run_number }}
+          path: ${{ runner.temp }}/qtwebengine-timeout-checkpoint-meta
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 1
+
+      - name: Upload timeout build tree
+        if: always() && steps.webengine_build.outputs.budget_exhausted == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-${{ env.QT_VERSION }}-timeout-build-run-${{ github.run_number }}
+          path: ${{ env.WEBENGINE_BUILD_DIR }}
+          retention-days: 3
+          if-no-files-found: error
+          compression-level: 0
+          include-hidden-files: true
+
+      - name: Install WebEngine module
+        if: steps.webengine_build.outputs.completed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
+          cmake --install "$env:WEBENGINE_BUILD_DIR"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
+          if (-not $core) { throw "Qt6WebEngineCore.dll missing from install prefix" }
+          Write-Output "installed: $($core.FullName)"
+
+      - name: Package artifact
+        if: steps.webengine_build.outputs.completed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
+          $zip = Join-Path $env:RUNNER_TEMP "qtwebengine-$($env:QT_VERSION)-msvc2022_64-codecs.zip"
+          Compress-Archive -Path (Join-Path $env:WEBENGINE_INSTALL_DIR '*') -DestinationPath $zip -Force
+          "ARTIFACT_ZIP=$zip" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "{0:N1} MB" -f ((Get-Item $zip).Length/1MB)
+
+      - name: Upload codec-enabled WebEngine
+        if: steps.webengine_build.outputs.completed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-${{ env.QT_VERSION }}-msvc2022_64-codecs
+          path: ${{ env.ARTIFACT_ZIP }}
+          retention-days: 14
+          if-no-files-found: error
+ | Select-Object -First 1
+          if (-not $sbomPython) { throw 'Qt CMake did not cache an SBOM Python interpreter after refresh.' }
+          if (-not $sbomGenerate) { throw 'Qt CMake did not confirm the spdx-tools dependency after refresh.' }
+          Write-Output $sbomPython.Line
+          Write-Output $sbomGenerate.Line
+
+          $summary = Join-Path $env:WEBENGINE_BUILD_DIR 'config.summary'
+          if (Test-Path $summary) {
+            $staleWarning = Select-String -Path $summary -SimpleMatch 'Required Python dependencies NOT found:  spdx_tools.spdx.clitools.pyspdxtools'
+            if ($staleWarning) { throw 'Qt config.summary still reports missing pyspdxtools after dependency refresh.' }
+          }
+
       - name: Configure WebEngine module (proprietary codecs, Release)
         if: github.event.inputs.phase != 'resume'
         shell: pwsh
