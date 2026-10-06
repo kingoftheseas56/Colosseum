@@ -433,6 +433,15 @@ set_tests_properties(colosseum.phone_keyboard_avoidance_contract PROPERTIES
     LABELS "unit;android;navigation;windows"
     TIMEOUT 120)
 
+# Android wide-navigation contract: narrow screens keep the bottom bar while landscape
+# tablets/open foldables use the same registry and routes from a left rail.
+add_test(NAME colosseum.wide_android_navigation_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_wide_android_navigation.ps1")
+set_tests_properties(colosseum.wide_android_navigation_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
 add_test(NAME colosseum.search_cancellation_contract

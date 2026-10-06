@@ -66,7 +66,7 @@ Window {
     // Shared Android presentation seam. Writable so desktop viewport harnesses can force the
     // phone/tablet geometry without pretending the whole desktop canvas was scaled down.
     property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: adaptive; viewportWidth: win.width }
+    AdaptiveLayout { id: adaptive; viewportWidth: Math.max(0, win.width - win.wideWorldNavigationLeftInset) }
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -1614,6 +1614,10 @@ Window {
     readonly property bool phoneImeVisible: win.androidHost && Qt.inputMethod.visible
     readonly property bool phoneWorldNavigationVisible:
         win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible
+    readonly property bool wideWorldNavigationVisible:
+        win.androidHost && win.width >= 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible
+    readonly property real wideWorldNavigationLeftInset:
+        win.wideWorldNavigationVisible ? wideWorldRail.width : 0
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
@@ -3126,8 +3130,8 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: adaptive.pageMargin; y: adaptive.topInset
-        width: win.width - adaptive.pageMargin * 2
+        x: win.wideWorldNavigationLeftInset + adaptive.pageMargin; y: adaptive.topInset
+        width: win.width - win.wideWorldNavigationLeftInset - adaptive.pageMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onFullscreenClicked: win.toggleFullscreenShell()
@@ -3261,6 +3265,7 @@ Window {
         z: 0
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         anchors.left: parent.left; anchors.right: parent.right
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + (win.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
         height: win.height - y
         contentWidth: width
@@ -3327,7 +3332,7 @@ Window {
         Column {
             id: contentCol
             x: adaptive.pageMargin
-            width: win.width - adaptive.pageMargin * 2
+            width: page.width - adaptive.pageMargin * 2
             topPadding: 10
             spacing: adaptive.homeSectionSpacing
 
@@ -3639,6 +3644,7 @@ Window {
     Item {
         id: worldStack
         anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
         Repeater {
             id: worldRepeater
@@ -3772,6 +3778,25 @@ Window {
         worlds: win.worldDefinitions
         activeTab: downloadsLayer.active ? "Profile" : worldStack.current
         visible: win.phoneWorldNavigationVisible
+        onWorldRequested: (world) => {
+            if (downloadsLayer.active) win.closeDownloadsPage()
+            win.openWorld(world)
+        }
+        onProfileRequested: win.openDownloadsPage()
+    }
+
+    // Wide Android shell (landscape tablets / open foldables). It uses the exact same
+    // registry and route handlers as the narrow bar; rotation merely changes which shell
+    // presentation is visible at the 840 dp breakpoint.
+    WideWorldRail {
+        id: wideWorldRail
+        z: 57
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        worlds: win.worldDefinitions
+        activeTab: downloadsLayer.active ? "Profile" : worldStack.current
+        visible: win.wideWorldNavigationVisible
         onWorldRequested: (world) => {
             if (downloadsLayer.active) win.closeDownloadsPage()
             win.openWorld(world)
@@ -4413,6 +4438,7 @@ Window {
         id: downloadsLayer
         objectName: "downloadsLayer"
         anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         z: 56     // taskbar full-page: ABOVE every browsing/detail page (universe 52, series/book 53)
                   // so clicking Downloads always lands on top — below only the immersive surfaces
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
