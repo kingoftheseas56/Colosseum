@@ -15,7 +15,7 @@ import threading
 import time
 import uuid
 
-from linux_candidate_package import HOST_LIBS, is_elf, parse_ldd, verify_payload, verify_qml
+from linux_candidate_package import HOST_LIBS, is_runtime_elf, parse_ldd, verify_payload, verify_qml
 
 
 def call(pipe: str, command: str) -> dict:
@@ -55,7 +55,7 @@ def smoke(root: Path, revision: str, evidence: Path) -> None:
         # Fail if a developer prefix or runner-installed Qt rescues the package.
         checked = set()
         for path in root.rglob("*"):
-            if not is_elf(path) or path.resolve() in checked:
+            if not is_runtime_elf(path) or path.resolve() in checked:
                 continue
             checked.add(path.resolve())
             result = subprocess.run(["ldd", str(path)], env=env, text=True, capture_output=True, check=True)

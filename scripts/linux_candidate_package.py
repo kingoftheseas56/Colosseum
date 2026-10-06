@@ -51,11 +51,34 @@ def verify_payload(root: Path) -> None:
             raise RuntimeError("Missing candidate runtime file: " + name)
 
 
-def is_elf(path: Path) -> bool:
+def is_runtime_elf(path: Path) -> bool:
+    """Select ET_EXEC/ET_DYN, never SDK ET_REL objects, for ldd.
+
+    A corrupt ELF must fail qualification rather than silently escape the
+    dependency audit. Non-ELF resources and directories are not candidates.
+    Both packaging and clean-runtime qualification use this same predicate.
+    """
     if not path.is_file():
         return False
     with path.open("rb") as stream:
-        return stream.read(4) == b"\x7fELF"
+        header = stream.read(64)
+    if header[:4] != b"\x7fELF":
+        return False
+    if len(header) < 16 or header[4] not in (1, 2) or header[5] not in (1, 2) or header[6] != 1:
+        raise RuntimeError(f"Malformed ELF identification: {path}")
+    size, size_offset = (52, 40) if header[4] == 1 else (64, 52)
+    order = "little" if header[5] == 1 else "big"
+    if (len(header) < size
+            or int.from_bytes(header[20:24], order) != 1
+            or int.from_bytes(header[size_offset:size_offset + 2], order) != size):
+        raise RuntimeError(f"Malformed ELF header: {path}")
+    return int.from_bytes(header[16:18], order) in (2, 3)
+
+
+# Qt SDK QML trees can contain CMake resource object outputs in addition to
+# runtime plugins. These are neither shipped libraries nor input to ldd.
+sdk_runtime_ignores = shutil.ignore_patterns(
+    "*.a", "*.o", "*.obj", "objects-*", "*.h", "*.cpp", "*.debug", "*.prl", "*.pdb")
 
 
 # Keep the host's glibc and graphics drivers. All other resolved dependencies,
@@ -99,9 +122,8 @@ def assemble(repo: Path, build: Path, qt: Path, mpvqt: Path, output: Path) -> Pa
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(repo / name, target)
     verify_qml(root / "qml", binary / "qml-build.manifest")
-    ignore = shutil.ignore_patterns("*.a", "*.h", "*.cpp", "*.debug", "*.prl", "*.pdb")
     for name in ("plugins", "qml", "resources", "translations"):
-        shutil.copytree(qt / name, root / "usr" / name, ignore=ignore)
+        shutil.copytree(qt / name, root / "usr" / name, ignore=sdk_runtime_ignores)
     (root / "usr/libexec").mkdir()
     shutil.copy2(qt / "libexec/QtWebEngineProcess", root / "usr/libexec/QtWebEngineProcess")
     for prefix in (qt, mpvqt):
@@ -110,7 +132,7 @@ def assemble(repo: Path, build: Path, qt: Path, mpvqt: Path, output: Path) -> Pa
     # ldd resolves the transitive dependencies of each bundled ELF; the queue
     # also covers plugins loaded dynamically, not just the main executable.
     env = dict(os.environ, LD_LIBRARY_PATH=f"{library}:{qt / 'lib'}:{mpvqt / 'lib'}")
-    queue = [path for path in root.rglob("*") if is_elf(path)]
+    queue = [path for path in root.rglob("*") if is_runtime_elf(path)]
     visited: set[Path] = set()
     while queue:
         source = queue.pop()
