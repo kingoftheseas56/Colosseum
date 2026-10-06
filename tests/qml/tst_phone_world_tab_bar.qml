@@ -63,8 +63,8 @@ TestCase {
     }
 
     function test_mock_geometry_and_targets() {
-        compare(bar.navigationBottomPadding, 48)
-        compare(bar.height, 120)
+        compare(bar.navigationBottomPadding, bar.SafeArea.margins.bottom)
+        compare(bar.height, 72 + bar.navigationBottomPadding)
         var background = findChild(bar, "phoneWorldTabBarBackground")
         compare(background.color.a, 1)
         var names = ["Theatre", "Tankoban", "Biblio", "Profile"]

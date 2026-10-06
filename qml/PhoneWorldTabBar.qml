@@ -11,7 +11,8 @@ Item {
     signal profileRequested()
 
     Theme { id: theme }
-    readonly property real navigationBottomPadding: 48 // Assumes Android three-button navigation; gesture navigation remains an open risk.
+    // Respect the real platform inset; Android system navigation is hidden while Colosseum is foreground.
+    readonly property real navigationBottomPadding: SafeArea.margins.bottom
 
     readonly property var tabs: {
         var out = []

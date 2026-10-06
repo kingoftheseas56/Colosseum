@@ -1607,15 +1607,40 @@ Window {
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
 
+    // Full-window pages opened from browsing own the canvas while they are active. Downloads is
+    // deliberately excluded because it is the Profile destination and keeps shell navigation.
+    readonly property bool fullWindowPageOpen:
+        theatreSeriesLayer.active
+        || bookLayer.active
+        || seriesLayer.active
+        || westernLayer.active
+        || comicSeriesLayer.active
+        || locgPublisherLayer.active
+        || comicIndexLayer.active
+        || comicBoardLayer.active
+        || genreLayer.active
+        || genreIndexLayer.active
+        || biblioGenreLayer.active
+        || biblioGenreIndexLayer.active
+        || theatreGenreLayer.active
+        || theatreGenreIndexLayer.active
+        || searchLayer.active
+        || worldSearchLayer.active
+        || universeLayer.active
+        || universeHallLayer.active
+        || onePieceArcLayer.active
+        || vaultLayer.active
+        || continueSeeAllLayer.active
+
     // Phone navigation belongs to browsing, never to full-canvas consumption or IME entry.
     // Android's activity uses adjustResize, so the app viewport shrinks above the software keyboard;
     // hiding the tab bar while the IME is visible prevents a second fixed bar from stealing that
     // reduced viewport. Desktop stays outside this rule through androidHost.
     readonly property bool phoneImeVisible: win.androidHost && Qt.inputMethod.visible
     readonly property bool phoneWorldNavigationVisible:
-        win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible
+        win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible && !win.fullWindowPageOpen
     readonly property bool wideWorldNavigationVisible:
-        win.androidHost && win.width >= 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible
+        win.androidHost && win.width >= 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible && !win.fullWindowPageOpen
     readonly property real wideWorldNavigationLeftInset:
         win.wideWorldNavigationVisible ? wideWorldRail.width : 0
 
