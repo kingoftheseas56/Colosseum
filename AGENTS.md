@@ -2,9 +2,21 @@
 
 ## Authority
 - Follow the user's current task first.
+- At the start of a fresh session, read `MEMORY.md` completely. It is intentionally compact product hot state, not a history archive.
 - Use live source, tests, build files, and runtime evidence for implementation facts.
-- Treat plans, handoffs, recaps, memory, and Git history as optional context; read them only when the task requires them.
+- Treat plans, handoffs, recaps, and Git history as optional context; read them only when the task requires them.
 - Do not preload documentation, skills, or historical context "just in case."
+
+## Product invariants
+- Colosseum is one product with five worlds: Tankoban, Biblio, Theatre, Universes, and Vault.
+- Universes is the fourth world. Vault is the fifth world even though it is not part of the normal world picker.
+- Tributes are separate stylized franchise experiences, not a sixth world and not a replacement for the structured Universe surface.
+- Core local use must not depend on third-party accounts or services. External providers, trackers, and accounts are optional enhancements.
+- Colosseum owns canonical state for identity, library, history, progress, and preferences; external services may enrich or synchronize it but do not silently become authority.
+- Prefer local-first behavior and graceful cached/offline operation where practical.
+- Keep providers replaceable and medium-aware rather than allowing one provider to define the product architecture.
+- Before creating a new store, cache, resolver, history system, identity system, player, database, or extension mechanism, check whether Colosseum already owns that truth and extend the existing owner when practical.
+- Do not lower the intended product end state merely because a shortcut is easier to implement.
 
 ## Task discipline
 - Treat the current conversation as one bounded task.
