@@ -53,6 +53,18 @@ class CandidatePackageTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "Malformed ELF"):
                         self.module.is_runtime_elf(path)
 
+    def test_sql_driver_selection_keeps_sqlite_without_shipping_unused_clients(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as temp:
+            sdk = Path(temp) / "plugins" / "sqldrivers"
+            sdk.mkdir(parents=True)
+            for driver in ("libqsqlite.so", "libqsqloci.so", "libqsqlmysql.so", "libqsqlpsql.so"):
+                (sdk / driver).write_bytes(self.elf_header(3))
+            target = Path(temp) / "runtime"
+            shutil.copytree(sdk.parent, target, ignore=self.module.sdk_runtime_ignores)
+            self.assertEqual(sorted(p.name for p in (target / "sqldrivers").iterdir()),
+                             ["libqsqlite.so"])
+
     def test_sdk_copy_excludes_object_outputs_but_keeps_runtime_resources(self):
         import shutil
         with tempfile.TemporaryDirectory() as temp:
@@ -111,7 +123,7 @@ class CandidatePackageTests(unittest.TestCase):
                         "usr/resources/qtwebengine_resources_200p.pak",
                         "usr/resources/icudtl.dat", "usr/resources/v8_context_snapshot.bin",
                         "usr/translations/qtwebengine_locales/en-US.pak",
-                        "usr/plugins/platforms/libqxcb.so",
+                        "usr/plugins/platforms/libqxcb.so", "usr/plugins/sqldrivers/libqsqlite.so",
                         "usr/qml/QtWebEngine/qmldir", "usr/bin/qml-build.manifest", "qml/Main.qml"]
             for name in required:
                 target = root / name

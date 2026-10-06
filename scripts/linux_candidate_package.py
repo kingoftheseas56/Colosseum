@@ -44,7 +44,8 @@ def verify_payload(root: Path) -> None:
                 "usr/resources/qtwebengine_resources_200p.pak",
                 "usr/resources/icudtl.dat", "usr/resources/v8_context_snapshot.bin",
                 "usr/translations/qtwebengine_locales/en-US.pak",
-                "usr/plugins/platforms/libqxcb.so", "usr/qml/QtWebEngine/qmldir",
+                "usr/plugins/platforms/libqxcb.so", "usr/plugins/sqldrivers/libqsqlite.so",
+                "usr/qml/QtWebEngine/qmldir",
                 "usr/bin/qml-build.manifest", "qml/Main.qml"]
     for name in required:
         if not (root / name).is_file():
@@ -77,8 +78,18 @@ def is_runtime_elf(path: Path) -> bool:
 
 # Qt SDK QML trees can contain CMake resource object outputs in addition to
 # runtime plugins. These are neither shipped libraries nor input to ldd.
-sdk_runtime_ignores = shutil.ignore_patterns(
+_sdk_development_ignores = shutil.ignore_patterns(
     "*.a", "*.o", "*.obj", "objects-*", "*.h", "*.cpp", "*.debug", "*.prl", "*.pdb")
+
+
+def sdk_runtime_ignores(directory: str, names: list[str]) -> set[str]:
+    ignored = set(_sdk_development_ignores(directory, names))
+    if Path(directory).name == "sqldrivers":
+        # Every native QSqlDatabase::addDatabase call uses QSQLITE. SDK-only
+        # Oracle/MySQL/PostgreSQL/etc. plugins would introduce unused client
+        # dependencies (including Oracle's proprietary libclntsh).
+        ignored.update(name for name in names if not name.startswith("libqsqlite.so"))
+    return ignored
 
 
 # Keep the host's glibc and graphics drivers. All other resolved dependencies,
