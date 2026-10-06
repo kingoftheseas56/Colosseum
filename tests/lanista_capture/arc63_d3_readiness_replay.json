@@ -1,0 +1,112 @@
+{
+  "name": "arc63-d3-readiness-replay",
+  "comment": "D3 replay recipe. Every capture start is preceded by a bounded ui-wait-for directorReadinessState == settled. presentation_hold_ms is an on-camera beat, never a readiness delay.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "tagged drive session answers",
+      "expect": [
+        { "path": "gates.drive", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash releases",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter Universes",
+      "payload": { "target": "modePill_Universes" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Universes world visible",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Universes production cohort settled",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "directorReadinessState",
+        "value": "settled",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "capture": { "action": "start", "name": "arc63-d3-universes-ready" },
+      "label": "start Universes capture only after settled"
+    },
+    {
+      "presentation_hold_ms": 900,
+      "label": "Universes settled frame beat"
+    },
+    {
+      "capture": { "action": "stop" },
+      "label": "stop Universes capture"
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Attack on Titan production banner",
+      "payload": { "target": "universesBanner_attack_on_titan" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Shelves production page visible",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Shelves production cohort settled",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "directorReadinessState",
+        "value": "settled",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": true }
+      ]
+    },
+    {
+      "capture": { "action": "start", "name": "arc63-d3-shelves-ready" },
+      "label": "start Shelves capture only after settled"
+    },
+    {
+      "presentation_hold_ms": 900,
+      "label": "Shelves settled frame beat"
+    },
+    {
+      "capture": { "action": "stop" },
+      "label": "stop Shelves capture"
+    }
+  ]
+}
