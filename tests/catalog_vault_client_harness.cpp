@@ -20,6 +20,10 @@
 #include <QDateTime>
 #include <QDir>
 #include <QEventLoop>
+#include <QElapsedTimer>
+#include <QNetworkReply>
+#include <QPointer>
+#include <QThread>
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
@@ -80,6 +84,8 @@ public:
     QHash<QString, QByteArray> assetBytes;
     QString truncateName; // non-empty: that asset's download is cut mid-stream
     int requestCount = 0;
+    QString holdName; // keep a real asset reply pending during ownership teardown
+    QPointer<QTcpSocket> heldDownload;
 
     QString baseUrl() const { return QStringLiteral("http://127.0.0.1:%1").arg(serverPort()); }
 
@@ -105,6 +111,10 @@ protected:
                 writeResponse(socket, 200, buildLatestJson(), {});
             } else if (path.startsWith("/download/")) {
                 const QString name = QString::fromUtf8(path.mid(int(strlen("/download/"))));
+                if (name == holdName) {
+                    heldDownload = socket;
+                    return; // deliberately no response until the client is destroyed
+                }
                 const QByteArray full = assetBytes.value(name);
                 if (!truncateName.isEmpty() && name == truncateName) {
                     const QByteArray partial = full.left(full.size() / 2);
@@ -238,6 +248,61 @@ bool anyDownloadingResidue(const QString& vaultDir)
     const QStringList entries =
         QDir(vaultDir).entryList(QStringList{QStringLiteral("*.downloading")}, QDir::Files);
     return !entries.isEmpty();
+}
+
+// Exercise the real client and QNetworkReply ownership, not copied destructor logic.
+// main.cpp creates the manager before the client under backendServices; QObject
+// destroys those children in insertion order, so the reply owner can die first.
+void checkPendingDownloadTeardown(FixtureServer& server, int order)
+{
+    QTemporaryDir dir;
+    require(dir.isValid(), "shutdown fixture vault created");
+    server.holdName = QStringLiteral("mal_catalog.db");
+    server.heldDownload.clear();
+    QObject backendServices;
+    auto* manager = new QNetworkAccessManager(&backendServices);
+    auto* client = new CatalogVaultClient(manager, dir.path(), server.baseUrl(), &backendServices);
+    client->setManagedNames(QStringList{server.holdName});
+    client->checkAndFetch();
+    QElapsedTimer deadline;
+    deadline.start();
+    while (!server.heldDownload && deadline.elapsed() < 1200) {
+        QCoreApplication::processEvents();
+        QThread::msleep(1);
+    }
+    require(server.heldDownload, "shutdown fixture reached a pending asset request");
+    QPointer<QNetworkReply> pending;
+    for (QNetworkReply* reply : manager->findChildren<QNetworkReply*>()) {
+        if (reply->url().path().startsWith(QStringLiteral("/download/")))
+            pending = reply;
+    }
+    require(pending && !pending->isFinished(), "real asset QNetworkReply is unfinished");
+    if (order == 0) {
+        delete manager;
+        require(!pending, "manager deletion destroyed its pending reply");
+        delete client; // Regression: raw m_downloadReply crashed in disconnect here.
+    } else if (order == 1) {
+        delete client;
+        require(!pending || pending->error() == QNetworkReply::OperationCanceledError,
+                "client-first teardown aborts the live asset reply");
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        require(!pending, "client-first teardown schedules the reply for deletion");
+        delete manager;
+    } else {
+        delete pending.data();
+        require(!pending, "external reply deletion completed");
+        delete client;
+        delete manager;
+    }
+    // Worker shutdown must close the temp file without publishing partial data.
+    require(!QFile::exists(dir.path() + QLatin1Char('/') + server.holdName),
+            "shutdown never lands an incomplete database");
+    require(!QFile::exists(dir.path() + QStringLiteral("/state.json")),
+            "shutdown never records an incomplete pass as fresh");
+    server.holdName.clear();
+    if (server.heldDownload)
+        server.heldDownload->close();
+    server.heldDownload.clear();
 }
 
 } // namespace
@@ -435,6 +500,13 @@ int main(int argc, char** argv)
     require(foregroundFresh, "(i) deferred pass resumes when foreground pressure returns Normal");
     require(server.requestCount >= 2, "(i) resumed pass fetched manifest and managed asset");
     pass("(i) foreground pressure defers and resumes a new pass");
+
+    checkPendingDownloadTeardown(server, 0);
+    pass("(j) manager-first pending download teardown");
+    checkPendingDownloadTeardown(server, 1);
+    pass("(k) client-first pending download abort and teardown");
+    checkPendingDownloadTeardown(server, 2);
+    pass("(l) externally destroyed pending reply teardown");
 
     std::cout << "CATALOG_VAULT_CLIENT_OK\n";
     return 0;

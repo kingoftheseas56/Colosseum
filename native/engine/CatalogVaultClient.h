@@ -18,6 +18,7 @@
 #include <QDateTime>
 #include <QHash>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QUrl>
 #include <QVector>
@@ -105,7 +106,9 @@ private:
     int m_queueIndex = 0;
     QThread* m_ioThread = nullptr;
     CatalogVaultIoWorker* m_ioWorker = nullptr;
-    QNetworkReply* m_downloadReply = nullptr;
+    // The injected network manager owns replies and may be destroyed before us
+    // during backendServices teardown. Never retain a dangling download pointer.
+    QPointer<QNetworkReply> m_downloadReply;
     int m_foregroundPressure = 0;
     bool m_deferredCheck = false;
     bool m_deferredDownloadStart = false;
