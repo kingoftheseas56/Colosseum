@@ -96,6 +96,40 @@ int main(int argc, char **argv)
     loop2.exec();
     require(sawYield.load(), "video/decode pressure reaches worker");
 
+    // Repeated idle -> Suspended -> Normal transitions exercise the wake-up
+    // boundary, not just work that happens to arrive while a worker is awake.
+    // Keep the same watchdog and require every submitted job to complete.
+    QEventLoop transitionLoop;
+    QTimer transitionWatchdog;
+    transitionWatchdog.setSingleShot(true);
+    QObject::connect(&transitionWatchdog, &QTimer::timeout, &transitionLoop, &QEventLoop::quit);
+    QString expectedId;
+    bool transitionFinished = false;
+    QObject::connect(&q, &work::BackgroundWorkCoordinator::workFinished, &transitionLoop,
+                     [&](const QString &id) {
+                         if (id == expectedId) {
+                             transitionFinished = true;
+                             transitionLoop.quit();
+                         }
+                     });
+    for (int i = 0; i < 512; ++i) {
+        q.setPressure(work::Pressure::Suspended);
+        expectedId = QStringLiteral("pressure-transition-%1").arg(i);
+        transitionFinished = false;
+        q.submit({expectedId, 1}, [](work::WorkContext &c) {
+            return c.checkpoint() ? work::WorkResult::Completed : work::WorkResult::Cancelled;
+        });
+        require(q.status(expectedId) == work::Status::Queued,
+                "suspended transition keeps work queued");
+        transitionWatchdog.start(10000);
+        q.setPressure(work::Pressure::Normal);
+        transitionLoop.exec();
+        transitionWatchdog.stop();
+        if (!transitionFinished)
+            std::cerr << "transition " << i << ", status " << static_cast<int>(q.status(expectedId)) << '\n';
+        require(transitionFinished, "resuming pressure wakes queued work without another notification");
+    }
+
     std::cout << "BACKGROUND_WORK_OK\n";
     return 0;
 }

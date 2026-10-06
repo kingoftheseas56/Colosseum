@@ -1,6 +1,18 @@
 # Exact, reviewed Qt/framework ownership false positives only.
 # Any line movement or message/check change intentionally requires re-review.
-native/main.cpp|898|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
-native/main.cpp|1260|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/main.cpp|972|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
+native/main.cpp|1353|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+# Reviewed 2026-10-06 at 424078f4: each watcher is parent-owned and
+# schedules deleteLater on completion; parent teardown covers cancellation.
+native/engine/BiblioCatalog.cpp|1182|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'snapshotWatcher'
+native/engine/BiblioCatalog.cpp|1192|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'canonicalWatcher'
+native/engine/MangaDownloader.cpp|222|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/torrent/ComicTorrentDownloader.cpp|781|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+# Request scope: parent MangaDownloader owns it; matching success/failure
+# schedules deleteLater and destroying the scope disconnects both callbacks.
+native/engine/MangaDownloader.cpp|503|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'scope'
+# PosterTimingProbe is a child of stack-owned backendServices, whose lifetime
+# outlasts the QML engine; the engine-empty early return destroys that owner.
+native/main.cpp|2005|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'posterTiming'

@@ -81,6 +81,11 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
     QVERIFY(accountActionA);
     auto *accountActionB = window->findChild<QQuickItem *>(QStringLiteral("accountActionB"));
     QVERIFY(accountActionB);
+    // Overflow alone is not a readiness barrier: contentHeight can be set
+    // while the window's first layout still leaves the viewport at 0 x 0.
+    // Deliver real keys only after the anchored viewport has its geometry.
+    QTRY_VERIFY_WITH_TIMEOUT(accountScroll->width() > 0.0
+                                 && accountScroll->height() > 0.0, 2000);
     QTRY_VERIFY_WITH_TIMEOUT(accountScroll->property("contentHeight").toReal()
                                  > accountScroll->property("height").toReal(),
                              2000);

@@ -1307,6 +1307,8 @@ add_executable(reader2_profile_runtime_harness
     account/ProfilePreferencesStore.h
     account/RatingsReviewsConversionMap.cpp
     account/RatingsReviewsConversionMap.h
+    account/RatingsReviewsStore.cpp
+    account/RatingsReviewsStore.h
     account/ProfileStoreRuntime.cpp
     account/ProfileStoreRuntime.h
     ProgressStore.h
@@ -1319,6 +1321,9 @@ target_compile_definitions(reader2_profile_runtime_harness PRIVATE
     COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 target_link_libraries(reader2_profile_runtime_harness PRIVATE
     Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+if(WIN32)
+    target_link_libraries(reader2_profile_runtime_harness PRIVATE Advapi32)
+endif()
 
 # Task 12: audiobook auto-attach on download completion. Offline/deterministic —
 # StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,

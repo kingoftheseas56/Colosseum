@@ -4,6 +4,30 @@ Colosseum's Linux beta target is Ubuntu 24.04 / Linux Mint 22.x on x86_64. The f
 
 ## Runtime policy
 
+### QtWebEngine development candidates
+
+`desktop-ci` assembles a source-pinned Linux candidate after the Linux build,
+CTest and clang-tidy gates pass. A separate Ubuntu 24.04 runner without an installed
+Qt SDK downloads it, checks dependencies and QML identity, launches the normal
+app, and loads a local page through the real Feria QtWebEngine wrapper.
+
+Only a successful runtime job publishes `linux-qtwebengine-candidate-<full-SHA>`.
+Download that Actions artifact, verify the included archive checksum, extract
+the complete `Colosseum-linux-qtwebengine-<short-SHA>` directory, and run
+`./AppRun`. `BUILD-INFO.json` records its source revision, Qt version and run;
+`qualification.json` records the runtime checks. The separate evidence artifact
+includes logs and a WebEngine screenshot. Actions artifacts expire after 14 days
+and their download requires GitHub access; verify the receiving environment can
+download this exact artifact before assigning implementation work.
+
+This is a Feria development package, not a release or an AppImage acceptance
+claim. It includes Qt libraries, QML modules, plugins, WebEngine resources and
+locales, MpvQt and resolved shared-library dependencies. Host glibc and graphics
+drivers are required. External Theatre streaming/DVR and media helpers are
+outside its qualification; DRM, proprietary codecs, live providers and Windows
+remain unverified. The runtime job runs unprivileged and retains Chromium sandboxing; no
+sandbox-disable flag is set by the workflow or delivered launcher.
+
 Player 1 uses `libmpv` through MpvQt. The standalone `mpv` executable is a separate helper used by Live/DVR recording.
 
 For the beta:
