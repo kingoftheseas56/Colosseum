@@ -10,6 +10,17 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Linux delivery prerequisite — 2026-10-06
+
+`tst_vault_mal_match` and `tst_vault_identifier` compile `MalCatalog.cpp`, whose
+asynchronous queries require `Qt6::Concurrent`. Both targets now link that module.
+Desktop CI run `37414330316` exposed the missing include dependency while building
+`tst_vault_mal_match` on Linux; that run produced no candidate artifact. The fixed
+Linux build and runtime qualification remain pending until the next CI run passes.
+Focused local verification extracted these two target definitions into a temporary
+standalone CMake build against Qt 6.11.1/MSVC: both built and both CTests passed.
+This verifies the dependency fix locally; it is not Linux or packaged-runtime proof.
+
 ## Arc 35 Tracker Connections — Slice 5 (2026-09-23)
 
 `colosseum.qttest.tracker_delivery` is the deterministic native delivery-journal
