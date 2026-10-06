@@ -112,9 +112,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
           $PSNativeCommandUseErrorActionPreference = $false  # pip can report progress on stderr
-          python -m pip install --disable-pip-version-check --no-warn-script-location "html5lib==1.1"
+          python -m pip install --disable-pip-version-check --no-warn-script-location "html5lib==1.1" "spdx-tools"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -c "import html5lib; print('html5lib', html5lib.__version__)"
+          python -c "import html5lib; import spdx_tools.spdx.clitools.pyspdxtools as pyspdxtools; print('html5lib', html5lib.__version__); print('spdx-tools import OK')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Chromium host tools (gperf, flex, bison)
