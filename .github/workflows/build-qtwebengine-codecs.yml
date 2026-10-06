@@ -58,6 +58,9 @@ jobs:
       # completed compilations survive even when the disposable runner goes away.
       SCCACHE_GHA_ENABLED: "on"
       SCCACHE_GHA_VERSION: "qtwebengine-${{ github.event.inputs.qt_version }}-msvc2022_64-codecs-v1"
+      # Resume consumes the already-warm #19/#20 cache without churning GitHub's
+      # ~10 GB repository cache ceiling. Seed/finish remain read-write.
+      SCCACHE_GHA_RW_MODE: "${{ github.event.inputs.phase == 'resume' && 'READ_ONLY' || 'READ_WRITE' }}"
 
     steps:
       - name: Checkout (workflow host only)
@@ -112,9 +115,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
           $PSNativeCommandUseErrorActionPreference = $false  # pip can report progress on stderr
-          python -m pip install --disable-pip-version-check --no-warn-script-location "html5lib==1.1" "spdx-tools"
+          python -m pip install --disable-pip-version-check --no-warn-script-location "html5lib==1.1" "spdx-tools==0.8.5"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -c "import html5lib; import spdx_tools.spdx.clitools.pyspdxtools as pyspdxtools; print('html5lib', html5lib.__version__); print('spdx-tools import OK')"
+          python -c "import importlib.metadata as m; import html5lib; import spdx_tools.spdx.clitools.pyspdxtools as pyspdxtools; print('html5lib', html5lib.__version__); print('spdx-tools', m.version('spdx-tools')); print('pyspdxtools import OK')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Chromium host tools (gperf, flex, bison)
@@ -167,6 +170,29 @@ jobs:
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
           version: "v0.18.0"
+
+      - name: Verify warm resume cache inventory
+        if: github.event.inputs.phase == 'resume'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ref = "refs/heads/$env:GITHUB_REF_NAME"
+          $cacheInventory = gh api --method GET "repos/$env:GITHUB_REPOSITORY/actions/caches" -f ref="$ref" -f per_page=1 | ConvertFrom-Json
+          $cacheUsage = gh api "repos/$env:GITHUB_REPOSITORY/actions/cache/usage" | ConvertFrom-Json
+          Write-Output "resume cache ref: $ref"
+          Write-Output "resume cache entries: $($cacheInventory.total_count)"
+          Write-Output "repository cache bytes: $($cacheUsage.active_caches_size_in_bytes)"
+          Write-Output "repository cache entries: $($cacheUsage.active_caches_count)"
+          Write-Output "sccache mode: $env:SCCACHE_GHA_RW_MODE"
+          Write-Output "sccache namespace: $env:SCCACHE_GHA_VERSION"
+          if ($env:SCCACHE_GHA_RW_MODE -ne 'READ_ONLY') {
+            throw "resume must use read-only GHA sccache to prevent cache churn"
+          }
+          if ([int64]$cacheInventory.total_count -lt 1000) {
+            throw "warm branch sccache inventory is unexpectedly small; refusing to burn the resume runner"
+          }
 
       - name: Verify toolchain
         shell: pwsh
