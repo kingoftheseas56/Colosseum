@@ -127,7 +127,13 @@ void BackgroundWorkCoordinator::reprioritize(const QString &id, int priority)
 
 void BackgroundWorkCoordinator::setPressure(Pressure pressure)
 {
-    m_pressure.store(static_cast<int>(pressure));
+    {
+        // Publish the wait predicate under the same mutex as both waiters.
+        // Atomic storage alone can lose a notification between predicate
+        // evaluation and wait registration, stranding an otherwise ready queue.
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_pressure.store(static_cast<int>(pressure));
+    }
     m_cv.notify_all();
 }
 
