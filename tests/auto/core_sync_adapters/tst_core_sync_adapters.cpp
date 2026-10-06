@@ -27,6 +27,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -371,13 +374,19 @@ public:
                 if (!socket)
                     return;
                 m_clients.append(socket);
-                QObject::connect(socket, &QTcpSocket::readyRead, [this, socket] {
-                    m_request += socket->readAll();
-                    if (m_replied.contains(socket)
-                        || !m_request.contains(QByteArrayLiteral("\r\n\r\n"))) {
+                // Reply ownership belongs to this connection. Keeping deleted
+                // socket addresses in a global set suppresses a later response
+                // when the allocator reuses an address, leaving sync pending.
+                QObject::connect(socket, &QTcpSocket::readyRead, socket,
+                    [this, socket, received = QByteArray{}, replied = false]() mutable {
+                    const QByteArray chunk = socket->readAll();
+                    m_request += chunk;
+                    received += chunk;
+                    if (replied
+                        || !received.contains(QByteArrayLiteral("\r\n\r\n"))) {
                         return;
                     }
-                    m_replied.insert(socket);
+                    replied = true;
                     const QByteArray body = QJsonDocument(QJsonObject{
                         {QStringLiteral("result"), m_result}}).toJson(QJsonDocument::Compact);
                     socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
@@ -414,7 +423,6 @@ public:
 private:
     QTcpServer m_server;
     QList<QPointer<QTcpSocket>> m_clients;
-    QSet<QTcpSocket *> m_replied;
     QByteArray m_request;
     QJsonValue m_result;
 };
@@ -671,6 +679,7 @@ private slots:
     void watchStateAdapterSkipsFilesystemIdentity();
     void twoReplicaCollectionConverges();
     void twoReplicaProgressConvergesAfterSilentOfflineTick();
+    void datastoreFixtureSupportsSequentialConnections();
     void stremioTwoReplicasProviderEqualitySettlesWithoutEcho();
 };
 
@@ -3043,6 +3052,32 @@ twoReplicaProgressConvergesAfterSilentOfflineTick() {
                 QStringLiteral("progress"))
             .toDouble(),
         0.75);
+}
+
+void tst_core_sync_adapters::datastoreFixtureSupportsSequentialConnections() {
+    FixtureDatastoreApi datastore;
+    QVERIFY(datastore.listen());
+    datastore.setResult(QJsonArray{});
+    const QJsonObject expected{{QStringLiteral("result"), QJsonArray{}}};
+    QNetworkAccessManager network;
+    QUrl endpoint = datastore.endpoint();
+    endpoint.setPath(endpoint.path() + QStringLiteral("/datastoreGet"));
+    for (int i = 0; i < 32; ++i) {
+        QNetworkRequest request(endpoint);
+        request.setHeader(QNetworkRequest::ContentTypeHeader,
+                          QStringLiteral("application/json"));
+        QNetworkReply *reply = network.post(request, QByteArrayLiteral("{}"));
+        QTRY_VERIFY_WITH_TIMEOUT(reply->isFinished(), 2000);
+        QCOMPARE(reply->error(), QNetworkReply::NoError);
+        QCOMPARE(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), 200);
+        QCOMPARE(QJsonDocument::fromJson(reply->readAll()).object(),
+                 expected);
+        reply->deleteLater();
+        // Release closed fixture sockets before accepting the next connection;
+        // the next QTcpSocket may legitimately occupy the same address.
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+    QCOMPARE(datastore.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 32);
 }
 
 void tst_core_sync_adapters::
