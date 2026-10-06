@@ -58,6 +58,101 @@ void caseK05_01()
     std::cout << "K05-01 PASS\n";
 }
 
+void requireAction(const std::vector<server1::policy::SwarmAction> &actions,
+                   std::size_t index, std::string_view peer, bool choke)
+{
+    require(index < actions.size() && actions[index].peerId == peer
+                && actions[index].choke == choke,
+            "rechoke emitted an unexpected peer transition");
+}
+
+void checkRechokeStability()
+{
+    SwarmPolicy single(100, 1);
+    single.addPeer(PeerState{"only", true, true, true, false, 10, 1, 1});
+    auto actions = single.rechoke(10000);
+    require(actions.size() == 1, "first selection emits one unchoke");
+    requireAction(actions, 0, "only", false);
+    for (std::uint64_t tick = 2; tick <= 32; ++tick) {
+        require(single.rechoke(tick * 10000).empty(),
+                "unchanged selected peer must not alternate choke state on later ticks");
+        require(!single.peer("only").amChoking, "selected peer remains unchoked");
+    }
+
+    // One ranked slot plus the existing optimistic interested peer policy.
+    SwarmPolicy swarm(100, 1);
+    swarm.addPeer(PeerState{"fast", true, true, true, false, 100, 10, 5});
+    swarm.addPeer(PeerState{"optimistic", true, true, true, false, 20, 10, 1});
+    swarm.addPeer(PeerState{"waiting", true, true, true, false, 10, 10, 2});
+    actions = swarm.rechoke(10000);
+    require(actions.size() == 2, "ranked and optimistic peers are selected");
+    requireAction(actions, 0, "fast", false);
+    requireAction(actions, 1, "optimistic", false);
+    for (std::uint64_t tick = 2; tick <= 32; ++tick) {
+        require(swarm.rechoke(tick * 10000).empty(),
+                "unchanged ranked and optimistic selections emit no repeated transitions");
+        require(!swarm.peer("fast").amChoking && !swarm.peer("optimistic").amChoking
+                    && swarm.peer("waiting").amChoking,
+                "stable selection retains both owners and leaves waiting peer choked");
+    }
+
+    // Match the engine's upsert: observations change, local choke state survives.
+    auto promoted = swarm.peer("waiting");
+    promoted.downloadSpeed = 200;
+    swarm.addPeer(promoted);
+    actions = swarm.rechoke(330000);
+    require(actions.size() == 2, "promotion displaces exactly the old ranked peer");
+    requireAction(actions, 0, "waiting", false);
+    requireAction(actions, 1, "fast", true);
+    require(!swarm.peer("waiting").amChoking && !swarm.peer("optimistic").amChoking
+                && swarm.peer("fast").amChoking,
+            "promotion preserves the already unchoked optimistic peer");
+    require(swarm.rechoke(340000).empty(), "promoted selection remains stable");
+
+    auto seeded = swarm.peer("waiting");
+    seeded.isSeeder = true;
+    swarm.addPeer(seeded);
+    actions = swarm.rechoke(350000);
+    require(actions.size() == 2, "new seeder is choked and ranked slot is refilled");
+    requireAction(actions, 0, "waiting", true);
+    requireAction(actions, 1, "fast", false);
+    require(swarm.rechoke(360000).empty() && swarm.peer("waiting").amChoking,
+            "seeders stay excluded on subsequent ticks");
+
+    SwarmPolicy alreadyOpen(100, 1);
+    alreadyOpen.addPeer(PeerState{"ranked", true, false, true, false, 100, 1, 2});
+    alreadyOpen.addPeer(PeerState{"optimistic", true, false, true, false, 10, 1, 1});
+    require(alreadyOpen.rechoke(10000).empty(),
+            "already unchoked ranked and optimistic peers are selected without new actions");
+    require(!alreadyOpen.peer("ranked").amChoking
+                && !alreadyOpen.peer("optimistic").amChoking,
+            "selected membership is independent from emitted actions");
+
+    SwarmPolicy zero(100, 0);
+    zero.addPeer(PeerState{"open", true, false, true, false, 10, 1, 1});
+    zero.addPeer(PeerState{"closed", true, true, true, false, 20, 1, 2});
+    actions = zero.rechoke(10000);
+    require(actions.size() == 1, "zero slots close an existing unchoked peer");
+    requireAction(actions, 0, "open", true);
+    require(zero.rechoke(20000).empty() && zero.peer("open").amChoking
+                && zero.peer("closed").amChoking,
+            "zero slots remain closed without redundant actions");
+
+    // Preserve the current interest-counting rule, not a redesigned upload budget.
+    SwarmPolicy prefix(100, 1);
+    prefix.addPeer(PeerState{"uninterested", true, true, false, false, 200, 1, 3});
+    prefix.addPeer(PeerState{"ranked", true, true, true, false, 100, 1, 2});
+    prefix.addPeer(PeerState{"optimistic", true, true, true, false, 10, 1, 1});
+    require(prefix.rechoke(10000).size() == 3,
+            "uninterested ranked prefix does not consume an interested upload slot");
+    require(prefix.rechoke(20000).empty() && !prefix.peer("uninterested").amChoking
+                && !prefix.peer("ranked").amChoking && !prefix.peer("optimistic").amChoking,
+            "whole selected prefix stays open on an unchanged tick");
+    SwarmPolicy empty(100, 1);
+    require(empty.rechoke(10000).empty(), "empty swarm emits no action");
+    std::cout << "K05-02 rechoke stability PASS: repeated/optimistic/displacement/seeder/zero/prefix/empty\n";
+}
+
 void caseK05_02()
 {
     SwarmPolicy swarm(100, 5);
@@ -85,6 +180,7 @@ void caseK05_02()
     require(actions.size() == 2 && actions[0].peerId == "fast" && !actions[0].choke
                 && actions[1].peerId == "slow" && !actions[1].choke,
             "source ordering unchokes the ranked peer then one optimistic interested peer");
+    checkRechokeStability();
     std::cout << "K05-02 PASS\n";
 }
 

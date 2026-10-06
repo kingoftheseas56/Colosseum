@@ -45,16 +45,22 @@ std::vector<SwarmAction> SwarmPolicy::rechoke(std::uint64_t nowMs)
         auto &p = *ranked[index]; if (p.amChoking) { p.amChoking=false; actions.push_back({p.id,false}); }
         if (p.amInterested) ++interested;
     }
+    PeerState *optimisticPeer = nullptr;
     if (uploads_ && index < ranked.size()) {
         auto optimistic = std::min_element(ranked.begin()+static_cast<std::ptrdiff_t>(index), ranked.end(),
             [](const auto *a, const auto *b) { if (a->amInterested != b->amInterested) return a->amInterested > b->amInterested; return a->salt < b->salt; });
-        if (optimistic != ranked.end() && (*optimistic)->amInterested && (*optimistic)->amChoking) {
-            (*optimistic)->amChoking=false; actions.push_back({(*optimistic)->id,false});
+        if (optimistic != ranked.end() && (*optimistic)->amInterested) {
+            optimisticPeer = *optimistic;
+            if (optimisticPeer->amChoking) {
+                optimisticPeer->amChoking=false; actions.push_back({optimisticPeer->id,false});
+            }
         }
     }
-    for (auto *p : ranked) {
-        const bool selected = std::any_of(actions.begin(), actions.end(), [&](const auto &a){ return a.peerId==p->id && !a.choke; });
-        if (!selected && !p->amChoking) { p->amChoking=true; actions.push_back({p->id,true}); }
+    // The ranked prefix and optimistic peer are selected even when already
+    // unchoked. Actions describe transitions, not selection membership.
+    for (auto remaining = index; remaining < ranked.size(); ++remaining) {
+        auto *p = ranked[remaining];
+        if (p != optimisticPeer && !p->amChoking) { p->amChoking=true; actions.push_back({p->id,true}); }
     }
     return actions;
 }
