@@ -143,4 +143,3 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
 
 QTEST_MAIN(tst_keyboard_key_events)
 #include "tst_keyboard_key_events.moc"
-
