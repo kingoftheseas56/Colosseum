@@ -8,9 +8,10 @@ ApplicationWindow {
     visible: true
     width: 1100; height: 760
     title: "Feria foundation 1–5 · real engine fixture"
+    readonly property bool previewReady: deck.activeBrowser !== null && deck.activeBrowser.documentReady
     property string provider: "mangaplus"
-    readonly property string selected: { Sessions.revision; return Sessions.selectedBrowser(provider) }
-    readonly property var nav: { Sessions.revision; return deck.navigationForSession(selected) }
+    readonly property string selected: { Sessions.revision; Sessions.activeId; return Sessions.selectedBrowser(provider) }
+    readonly property var nav: { Sessions.revision; Sessions.activeId; return deck.navigationForSession(selected) }
     function openApp(id, mode) {
         provider = id
         if (!Sessions.selectedBrowser(id))
@@ -45,7 +46,7 @@ ApplicationWindow {
                     onClicked: deck.newSpace(root.selected, false, true) }
                 ListView {
                     Layout.fillWidth: true; Layout.preferredHeight: 190
-                    model: { Sessions.revision; return Sessions.browserSpaces(root.provider) }
+                    model: { Sessions.revision; Sessions.activeId; return Sessions.browserSpaces(root.provider) }
                     delegate: Button {
                         required property var modelData
                         width: ListView.view.width
@@ -79,7 +80,7 @@ ApplicationWindow {
         }
         RowLayout {
             Repeater {
-                model: { Sessions.revision; return Sessions.browserApps() }
+                model: { Sessions.revision; Sessions.activeId; return Sessions.browserApps() }
                 Button {
                     required property var modelData
                     text: modelData.title

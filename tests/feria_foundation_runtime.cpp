@@ -168,6 +168,23 @@ int main(int argc, char **argv) {
         setup.qmlEngineAvailable(&engine);
         engine.load(QUrl::fromLocalFile(QFileInfo(QString::fromLocal8Bit(argv[2])).absoluteFilePath()));
         if (engine.rootObjects().isEmpty()) return 2;
+        // Optional bounded visual evidence, using this window's actual render.
+        const QString capture = qEnvironmentVariable("FERIA_PREVIEW_CAPTURE");
+        if (!capture.isEmpty()) {
+            auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+            if (!window) return 3;
+            auto *poll = new QTimer(window);
+            poll->setInterval(100);
+            QObject::connect(poll, &QTimer::timeout, window, [window, poll, capture] {
+                if (!window->property("previewReady").toBool()) return;
+                poll->stop();
+                QTimer::singleShot(200, window, [window, capture] {
+                    QCoreApplication::exit(window->grabWindow().save(capture) ? 0 : 4);
+                });
+            });
+            poll->start();
+            QTimer::singleShot(20000, &app, [] { QCoreApplication::exit(5); });
+        }
         return app.exec();
     }
     return quick_test_main_with_setup(argc, argv, "feria_foundation", nullptr, &setup);
