@@ -20,3 +20,6 @@ target_link_libraries(feria_session_ownership_test PRIVATE foundation_owners Qt6
 enable_testing()
 add_test(NAME foundation_policy COMMAND feria_foundation_policy_test)
 add_test(NAME session_ownership COMMAND feria_session_ownership_test)
+add_executable(feria_hosting_state_test "${ROOT}/tests/feria_hosting_state_test.cpp")
+target_link_libraries(feria_hosting_state_test PRIVATE foundation_owners Qt6::Test)
+add_test(NAME hosting_state COMMAND feria_hosting_state_test)
