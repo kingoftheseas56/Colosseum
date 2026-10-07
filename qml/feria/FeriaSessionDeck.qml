@@ -210,15 +210,23 @@ Item {
             if (surface) surface.visible = false
         }
     }
-    function moveToDesktop(id, geometry, dialogWindow, originatingWindow) {
+    function moveToDesktop(id, geometry, dialogWindow, originatingWindow, originatingScreenName) {
         var entry = entries[id]
-        if (!entry || !entry.browser || entry.retiring || entry.closePending) return false
+        if (!entry || !entry.browser || entry.retiring || entry.closeController.busy) return false
         if (entry.hostWindow) { entry.hostWindow.show(); entry.hostWindow.raise(); entry.hostWindow.requestActivate(); return true }
         if (entry.fullSizeHost && !restoreSession(id)) return false
         var host = desktopHostFactory.createObject(deck, {deck: deck, sessionId: id, dialogWindow: !!dialogWindow})
         if (!host) return false
         var origin = originatingWindow || entry.browser.Window.window
         if (origin && origin.screen) host.screen = origin.screen
+        else {
+            // QQuickView/plain QQuickWindow lacks QML Window.screen. Resolve
+            // its attached Screen against the public application screen list.
+            var screenName = originatingScreenName || entry.browser.Screen.name
+            for (var screen of Qt.application.screens) {
+                if (screen.name === screenName) { host.screen = screen; break }
+            }
+        }
         // Copy the value type while the original stack-backed Qt request lives.
         var rect = geometry ? Qt.rect(Number(geometry.x), Number(geometry.y),
             Number(geometry.width), Number(geometry.height)) : Qt.rect(100, 100, 900, 700)
@@ -244,7 +252,7 @@ Item {
     }
     function maximizeSession(id, surface) {
         var entry = entries[id]
-        if (!entry || !entry.browser || entry.retiring || entry.closePending || entry.hostWindow
+        if (!entry || !entry.browser || entry.retiring || entry.closeController.busy || entry.hostWindow
             || !surface || surface.Window.window !== deck.Window.window) return false
         if (entry.fullSizeHost) return true
         var host = fullSizeHostFactory.createObject(deck, {parent: surface, deck: deck, sessionId: id})
@@ -263,7 +271,7 @@ Item {
     }
     function returnToEmbedded(id) {
         var entry = entries[id]
-        if (!entry || entry.retiring || entry.closePending || entry.restoring || !entry.savedPlacement) return false
+        if (!entry || entry.retiring || entry.closeController.busy || entry.restoring || !entry.savedPlacement) return false
         // Capture and guard BEFORE the synchronous native changed signal can
         // re-enter selectActive while switching from maximized A to neighbor B.
         var saved = entry.savedPlacement
@@ -291,6 +299,12 @@ Item {
     function openWindow(sourceId, request) {
         var source = entries[sourceId]
         if (!source || source.retiring || !source.browser || !ready || !request.userInitiated) return
+        var admission = source.browser.windowAdmission
+        if (!admission || admission.consumed || admission.request !== request
+            || admission.profile !== source.browser.profile || admission.sessionId !== sourceId
+            || admission.documentGeneration !== source.browser.navigationGeneration) return
+        admission.consumed = true // before any canonical allocation or host creation
+        var sourceIdentity = sessions.browserIdentity(sourceId)
         var nativeDestination = request.destination === WebEngineNewWindowRequest.InNewWindow
             || request.destination === WebEngineNewWindowRequest.InNewDialog
         if (!nativeDestination && request.destination !== WebEngineNewWindowRequest.InNewTab
@@ -312,11 +326,12 @@ Item {
         // Adopt the original request synchronously: preserving opener/form/SSO
         // state requires openIn(), rather than reopening just its URL.
         if (ready && policy.storageRoot === originRoot && entries[sourceId] === source
+            && source.closeController.identityMatches(sourceIdentity)
             && entry && entry.browser && entry.browser.profile === originProfile) {
             // Allocate the disposable native host before accepting the original
             // request; failed presentation rolls back the canonical placeholder.
             if (nativeDestination && !moveToDesktop(id, request.requestedGeometry,
-                    request.destination === WebEngineNewWindowRequest.InNewDialog, source.browser.Window.window)) {
+                    request.destination === WebEngineNewWindowRequest.InNewDialog, source.browser.Window.window, source.browser.Screen.name)) {
                 sessions.close(id)
                 message(sourceId, "Could not create the requested window")
                 return
@@ -326,8 +341,11 @@ Item {
             // No hidden opener shell/lease workaround is enabled here.
             entry.creationEntry = source
             ++source.liveAdoptedChildren
+            entry.beginAdoption()
             request.openIn(entry.browser)
             entry.browser.adoptingWindowRequest = false
+            // openIn is void. Only subsequent real view events mark observation;
+            // an unobserved placeholder is rolled back, never timed into success.
         }
         else { if (id) sessions.close(id); message(sourceId, "Could not open the new tab") }
     }
@@ -388,12 +406,14 @@ Item {
             persistentCookiesPolicy: privateMode ? WebEngineProfile.NoPersistentCookies : WebEngineProfile.ForcePersistentCookies
         }
     }
-    function selectActive() {
+    function selectActive(activate) {
         var next = entries[sessions.activeId] || null
+        var selectionChanged = activeEntry !== next
         if (activeEntry && activeEntry !== next && activeEntry.fullSizeHost
-            && !activeEntry.closePending && !activeEntry.restoring)
+            && !activeEntry.closeController.busy && !activeEntry.restoring)
             restoreSession(activeEntry.sessionId)
         activeEntry = next
+        if (!activate && !selectionChanged) return
         if (activeEntry && activeEntry.hostWindow) {
             if (activeEntry.hostWindow.visibility === Window.Minimized) activeEntry.hostWindow.showNormal()
             else activeEntry.hostWindow.show()
@@ -540,7 +560,7 @@ Item {
     Connections {
         target: deck.sessions
         function onChanged() { deck.syncSessions(); deck.scheduleSnapshot() }
-        function onActiveChangedProp() { deck.selectActive() }
+        function onActiveChangedProp() { deck.selectActive(true) }
     }
     Connections {
         target: deck.accountStore
@@ -591,6 +611,23 @@ Item {
             property bool restoring: false
             property var creationEntry: null
             property int liveAdoptedChildren: 0
+            property string adoptionState: "none"
+            function beginAdoption() { adoptionState = "pending"; adoptionDeadline.restart() }
+            function observeAdoption() {
+                if (adoptionState !== "pending") return
+                adoptionState = "observed"
+                adoptionDeadline.stop()
+            }
+            Timer {
+                id: adoptionDeadline
+                interval: 10000
+                onTriggered: {
+                    if (entry.adoptionState !== "pending" || deck.entries[entry.sessionId] !== entry) return
+                    entry.adoptionState = "unobserved-failed"
+                    deck.sessions.close(entry.sessionId)
+                    deck.message(entry.sessionId, "The requested window did not initialize. Its placeholder was removed.")
+                }
+            }
             property string reopenRecordId: ""
             readonly property alias closeController: closeController
             readonly property alias closeConsent: closeController.consent
@@ -613,6 +650,7 @@ Item {
             function retire() {
                 if (retiring) return
                 retiring = true
+                adoptionDeadline.stop()
                 closeController.invalidate(false)
                 // Detach from a disposable host before destroying it. QObject
                 // ownership remains on the deck throughout this visual move.
@@ -677,12 +715,14 @@ Item {
                     if (entry.retiring) Qt.callLater(function() { entry.destroy() })
                 }
                 function onStarted(location) {
+                    entry.observeAdoption()
                     entry.errorText = ""
                     if (!entry.descriptor.privateBrowsing) deck.policy.rememberOrigin(entry.descriptor.providerId, location)
                     deck.sessions.updateBrowser(entry.sessionId, location, "")
                 }
                 function onCompleted(location, success) {
                     if (entry.retiring) return
+                    entry.observeAdoption()
                     if (entry.reopenRecordId) {
                         var recordId = entry.reopenRecordId
                         entry.reopenRecordId = ""
@@ -704,6 +744,7 @@ Item {
                 }
                 function onMessage(text) { deck.message(entry.sessionId, text) }
                 function onTitleChanged() {
+                    if (entry.browser && entry.browser.title.length) entry.observeAdoption()
                     if (entry.browser) deck.sessions.updateBrowser(entry.sessionId,
                         String(entry.browser.url), entry.browser.title)
                 }

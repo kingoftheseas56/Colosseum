@@ -24,6 +24,7 @@ Item {
     property var externalAccepted: null
     property string failure: ""
     readonly property bool pending: attempt.length > 0
+    readonly property bool busy: pending || request !== null || externalAccepted !== null || retiredBarrier
     signal changed()
     signal blocked(string reason)
     signal cancellationSettled()

@@ -7,8 +7,10 @@ import "../../qml/feria" as Feria
 Item {
     id: root
     width: 1060; height: 760
-    Item { id: embedded; x: 25; y: 75; width: 820; height: 580 }
-    Item { id: fullSize; anchors.fill: parent; visible: false }
+    Item { id: globalChrome; x: 0; y: 0; width: parent.width; height: 110 }
+    Item { id: embedded; x: 25; y: 125; width: 820; height: 580 }
+    Item { id: fullSize; anchors.top: globalChrome.bottom; anchors.left: parent.left
+        anchors.right: parent.right; anchors.bottom: parent.bottom; visible: false }
     Feria.FeriaSessionDeck {
         id: deck
         parent: embedded
@@ -30,6 +32,7 @@ Item {
             Fixture.switchProfile("hosting-" + (++serial))
             tryCompare(deck, "quiescing", false, 15000)
             fullSize.visible = false
+            deck.displayed = true; deck.suppressed = false
             embedded.width = 820; embedded.height = 580
         }
         function cleanup() {
@@ -57,9 +60,15 @@ Item {
                 + ").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()")
             verify(point && point.x > 0 && point.y > 0, "Expected DOM target must exist: " + selector)
             tryVerify(function() { return page.visible && page.width > point.x && page.height > point.y }, 5000)
-            if (page.Window.window) page.Window.window.requestActivate()
+            if (page.Window.window) {
+                page.Window.window.requestActivate()
+                tryVerify(function() { return Fixture.focusWindowMatches(page.Window.window) }, 5000)
+            }
             page.forceActiveFocus(); waitForRendering(page, 1000)
             mouseClick(page, point.x, point.y)
+            if (selector === "#guard")
+                tryVerify(function() { return js(page, "typeof window.onbeforeunload") === "function" }, 5000,
+                    "Real guard click must install the document's beforeunload handler")
         }
         function typeText(text) {
             for (var i=0; i<text.length; ++i) keyClick(text.toUpperCase().charCodeAt(i), Qt.NoModifier)
@@ -89,13 +98,14 @@ Item {
         }
         function test_nativeHostsAreExactAndDisposable() {
             var a = open("/hosting"), p = deck.browserForSession(a)
+            var originWindow = p.Window.window
             var b = open("/b")
             verify(typeof deck.moveToDesktop === "function", "Independent canonical desktop hosts required")
             verify(deck.moveToDesktop(a))
             var host = deck.entries[a].hostWindow
             verify(host && host.visible)
             compare(p.Window.window, host)
-            compare(host.screen, root.Window.window.screen)
+            verify(Fixture.sameScreen(originWindow, host), "Native fixture compares real QScreen identity, not QML wrapper types")
             host.requestActivate()
             click(p, "#edit"); typeText("native-input")
             compare(js(p, "document.querySelector('#edit').value"), "native-input")
@@ -118,6 +128,7 @@ Item {
             Sessions.switchTo(id)
             root.Window.window.requestActivate()
             tryCompare(Sessions, "activeId", id)
+            tryVerify(function() { return Fixture.focusWindowMatches(root.Window.window) }, 5000)
             wait(100)
             compare(Sessions.activeId, id)
         }
@@ -178,22 +189,35 @@ Item {
         }
         function test_navigationInvalidatesConsentAndLateCloseAcknowledgement() {
             var a = open("/hosting"), p = deck.browserForSession(a)
+            function closeEvent() { console.log("NAVIGATION_CLOSE_TRACE", "window-close", a) }
+            function rejectEvent() { console.log("NAVIGATION_CLOSE_TRACE", "close-rejected", a) }
+            function loadEvent(info) { console.log("NAVIGATION_CLOSE_TRACE", "load", info.status, String(info.url)) }
+            p.windowCloseRequested.connect(closeEvent)
+            p.closeRejected.connect(rejectEvent)
+            p.loadingChanged.connect(loadEvent)
             click(p, "#guard")
             verify(deck.closeTab(a))
             tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
             var old = deck.entries[a].closeConsent
+            var oldCallback = deck.entries[a].closeController.closeAcknowledgement
+            verify(typeof oldCallback === "function", "App-close callback must capture its original identity and attempt")
             verify(deck.navigateInput(a, FixtureUrl + "/b"))
             verify(!deck.answerClose(a, old.attempt, true))
             tryVerify(function() { return p.documentReady && p.title === "Fixture /b"
                 || deck.entries[a].closeConsent !== null }, 10000)
             if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
             tryCompare(p, "title", "Fixture /b", 10000)
-            // Fault injection of a late public callback after a REAL navigation.
-            // The callback itself carries no Qt attempt token; it must be fenced.
-            p.windowCloseRequested()
+            // A queued adapter callback retains the OLD attempt/identity. Do
+            // not invent an extra untagged engine event after its verified
+            // terminal barrier; Qt cannot distinguish that from a new site close.
+            verify(!deck.answerClose(a, old.attempt, true))
+            if (typeof oldCallback === "function") oldCallback()
             wait(100)
             compare(deck.browserForSession(a), p)
             compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+            p.windowCloseRequested.disconnect(closeEvent)
+            p.closeRejected.disconnect(rejectEvent)
+            p.loadingChanged.disconnect(loadEvent)
         }
         function test_siteCloseUsesOriginalDocumentConsent() {
             var a = open("/hosting"), p = deck.browserForSession(a)
@@ -338,6 +362,123 @@ Item {
             wait(100)
             compare(deck.browserForSession(a), p)
             compare(String(p.url), FixtureUrl + "/hosting")
+        }
+        function test_externalStayWaitsForEngineBeforeAppRetry() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','external-retry','width=520,height=420')}")
+            click(p, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { var q = deck.browserForSession(b)
+                return q && q.documentReady && q.title === "Fixture /hosting" }, 10000)
+            var child = deck.browserForSession(b), acknowledgements = 0
+            function rejected() { ++acknowledgements }
+            child.closeRejected.connect(rejected)
+            click(child, "#guard")
+            js(child, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.close()}")
+            click(child, "#dialog")
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
+            if (acknowledgements === 0)
+                verify(!deck.closeTab(b), "App retry cannot overlap external rejection still in flight")
+            tryVerify(function() { return acknowledgements === 1 }, 5000)
+            verify(deck.closeTab(b))
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
+            tryVerify(function() { return acknowledgements === 2 }, 5000)
+            child.closeRejected.disconnect(rejected)
+        }
+        function test_navigationStayAllowsLaterNavigation() {
+            var a = open("/hosting"), p = deck.browserForSession(a), events = []
+            function rejected() { events.push("close-rejected") }
+            function loading(info) { events.push("load:" + info.status) }
+            p.closeRejected.connect(rejected); p.loadingChanged.connect(loading)
+            click(p, "#guard")
+            verify(deck.navigateInput(a, FixtureUrl + "/b"))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, false))
+            wait(200)
+            console.log("NAVIGATION_REJECTION_EVENTS", JSON.stringify(events))
+            verify(!deck.entries[a].closePending)
+            compare(deck.entries[a].closeController.failure, "")
+            verify(deck.navigateInput(a, FixtureUrl + "/b"))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryCompare(p, "title", "Fixture /b", 10000)
+            p.closeRejected.disconnect(rejected); p.loadingChanged.disconnect(loading)
+        }
+        function test_newSiteCloseAfterCancelledCloseNavigation() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','cancel-then-site','width=520,height=420')}")
+            click(p, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { var q=deck.browserForSession(b); return q && q.documentReady && q.title === "Fixture /hosting" }, 10000)
+            var child = deck.browserForSession(b)
+            click(child, "#guard")
+            verify(deck.closeTab(b))
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.navigateInput(b, FixtureUrl + "/b"))
+            tryVerify(function() { return child.title === "Fixture /b" || deck.entries[b].closeConsent }, 10000)
+            if (deck.entries[b].closeConsent) verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
+            tryCompare(child, "title", "Fixture /b", 10000)
+            js(child, "document.querySelector('button').onclick=function(){window.close()}")
+            click(child, "button")
+            tryVerify(function() { return !deck.entries[b] }, 10000)
+            compare(deck.browserForSession(a), p)
+        }
+        function test_metadataDoesNotStealNativeWindowFocus() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            verify(deck.moveToDesktop(a))
+            var host = deck.entries[a].hostWindow
+            Sessions.switchTo(a)
+            host.requestActivate()
+            tryVerify(function() { return Fixture.focusWindowMatches(host) }, 5000)
+            root.Window.window.requestActivate()
+            tryVerify(function() { return Fixture.focusWindowMatches(root.Window.window) }, 5000)
+            Sessions.updateBrowser(a, String(p.url), "Background metadata")
+            wait(150)
+            verify(Fixture.focusWindowMatches(root.Window.window), "Metadata updates must not raise another window")
+        }
+        function test_allPagesHiddenConsentUsesReservedChrome() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            click(p, "#guard")
+            if (typeof deck.attachConsentSurface === "function") verify(deck.attachConsentSurface(globalChrome))
+            Sessions.switchTo("")
+            deck.displayed = false; deck.suppressed = true
+            verify(deck.closeTab(a))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            var panel = childMatching(globalChrome, function(item) {
+                return String(item).indexOf("FeriaCloseConsent") >= 0 && item.visible
+            })
+            verify(panel !== null, "Consent must remain visible in caller-reserved chrome when every page is hidden")
+            compare(panel.consent.identity.spaceId, a)
+            verify(globalChrome.y + globalChrome.height <= embedded.y, "Reserved chrome must not cover website")
+            var stay = childMatching(panel, function(item) { return item.text === "Stay" })
+            verify(stay !== null)
+            mouseClick(stay, stay.width/2, stay.height/2)
+            tryVerify(function() { return !deck.entries[a].closePending }, 5000)
+            compare(deck.browserForSession(a), p)
+        }
+        function test_rendererTerminalCancelsBarrierAndReloads() {
+            if (Qt.platform.os !== "linux") skip("Scoped renderer SIGTERM fixture is Linux-only")
+            var a = open("/hosting"), p = deck.browserForSession(a), terminalCount = 0
+            function terminated(status, code) { ++terminalCount; console.log("OWNED_RENDERER_TERMINATED", status, code) }
+            p.renderProcessTerminated.connect(terminated)
+            click(p, "#guard")
+            compare(js(p, "window.sessionMarker=818;window.sessionMarker"), 818)
+            verify(deck.closeTab(a))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            verify(Fixture.terminateOnlyRenderer(p), "Only this fixture's verified renderer child may be terminated")
+            tryVerify(function() { return terminalCount === 1 }, 10000)
+            compare(deck.entries[a].closeConsent, null)
+            compare(Sessions.get(a).browserCloseAttempt, "")
+            verify(deck.reload(a))
+            tryVerify(function() { return p.documentReady && p.title === "Fixture /hosting"
+                && String(p.url) === FixtureUrl + "/hosting" }, 15000)
+            compare(js(p, "window.sessionMarker"), 0)
+            verify(deck.closeTab(a), "A terminal renderer cannot leave close quarantined after reload")
+            tryVerify(function() { return !deck.entries[a] }, 10000)
         }
         function test_failedReopenRetainsRecordAndPrivateNeverRecords() {
             verify(typeof deck.reopenClosedSpace === "function", "Reopen requires failure-retaining runtime commit")

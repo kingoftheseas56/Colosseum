@@ -277,7 +277,10 @@ public:
         QVariantMap rec = m_sessions.at(index).toMap();
         if (rec.value(QStringLiteral("browserCloseAttempt")).toString() != attempt) return false;
         if (!accepted) {
-            // The adapter invokes this only after the renderer rejection barrier.
+            // Same-document retry requires an observed renderer rejection barrier,
+            // or an observed terminal close callback while the embedder cancels
+            // destruction. The latter does not undo renderer unload effects.
+            // Elapsed time alone is never a cancellation acknowledgement.
             rec.insert(QStringLiteral("browserCloseAttempt"), QString());
             m_sessions[index] = rec;
             bump();

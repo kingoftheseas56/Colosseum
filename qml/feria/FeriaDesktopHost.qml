@@ -28,7 +28,9 @@ Window {
         event.accepted = false
         deck.hostCommand(lease, "close", "")
     }
-    onActiveChanged: if (active && !retiring && entry && !entry.retiring) deck.hostCommand(lease, "activate", "")
+    // Native focus is window-local, not another writer of sidebar selection.
+    // Foreground requests/selecting a space use SessionStore explicitly; a late
+    // platform activation event cannot undo a newer canonical selection.
     ColumnLayout {
         anchors.fill: parent; spacing: 0
         RowLayout {

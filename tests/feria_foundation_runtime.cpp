@@ -26,6 +26,10 @@
 #include <QtQuickTest/quicktest.h>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 #include <cmath>
+#ifdef Q_OS_LINUX
+#include <sys/types.h>
+#include <signal.h>
+#endif
 
 class FeriaRuntimeFixture : public QObject {
     Q_OBJECT
@@ -38,6 +42,47 @@ public:
         if (!QDir::cleanPath(path).startsWith(downloadRoot() + '/')) return {};
         QFile file(path);
         return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
+    }
+    // Isolated renderer lifecycle probe only: never a process-name/broad kill.
+    // The one registered test view supplies its public renderer PID, and its
+    // ancestry must resolve to this exact fixture process before SIGTERM.
+    Q_INVOKABLE bool terminateOnlyRenderer(QObject *view) const {
+#ifdef Q_OS_LINUX
+        if (!view || !m_policy || m_policy->runtimeViewCount() != 1) return false;
+        bool webEngineView = false;
+        for (auto *meta = view->metaObject(); meta; meta = meta->superClass())
+            if (QByteArray(meta->className()) == "QQuickWebEngineView") webEngineView = true;
+        if (!webEngineView) return false;
+        const qint64 pid = view->property("renderProcessPid").toLongLong();
+        const qint64 self = QCoreApplication::applicationPid();
+        if (pid <= 1 || pid == self) return false;
+        qint64 cursor = pid;
+        bool owned = false;
+        for (int depth = 0; depth < 32 && cursor > 1; ++depth) {
+            if (cursor == self) { owned = true; break; }
+            QFile status(QStringLiteral("/proc/%1/status").arg(cursor));
+            if (!status.open(QIODevice::ReadOnly)) return false;
+            qint64 parent = 0;
+            for (const auto &line : status.readAll().split('\n'))
+                if (line.startsWith("PPid:")) parent = line.mid(5).trimmed().toLongLong();
+            if (parent <= 0 || parent == cursor) return false;
+            cursor = parent;
+        }
+        if (!owned || view->property("renderProcessPid").toLongLong() != pid) return false;
+        qInfo() << "Fixture SIGTERM verified owned renderer" << pid;
+        return ::kill(static_cast<pid_t>(pid), SIGTERM) == 0;
+#else
+        Q_UNUSED(view);
+        return false;
+#endif
+    }
+    Q_INVOKABLE bool sameScreen(QObject *first, QObject *second) const {
+        auto *origin = qobject_cast<QWindow *>(first);
+        auto *host = qobject_cast<QWindow *>(second);
+        return origin && host && origin->screen() == host->screen();
+    }
+    Q_INVOKABLE bool focusWindowMatches(QObject *object) const {
+        return qobject_cast<QWindow *>(object) == QGuiApplication::focusWindow();
     }
     Q_INVOKABLE bool captureWindow(QQuickItem *item, const QString &name) {
         if (evidenceRoot().isEmpty() || !item || !item->window()

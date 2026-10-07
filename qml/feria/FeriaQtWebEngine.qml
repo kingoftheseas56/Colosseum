@@ -19,6 +19,8 @@ WebEngineView {
     signal message(string text)
     signal tabRequested(var request)
     property bool managedBeforeUnload: false
+    property var windowAdmission: null
+    property int windowAdmissionSerial: 0
     signal closeRejected()
     // QtWebEngine 6.11.1 qquickwebengineview.cpp::windowCloseRejected invokes
     // this method dynamically. This is an UNDOCUMENTED PRIVATE compatibility
@@ -324,9 +326,14 @@ WebEngineView {
         // Retained spaces use the deck's canonical same-profile destination and
         // disposable native host, including dialogs. Legacy cleaner views keep
         // their separate compatibility popup path.
-        if (sharedProfile)
-            tabRequested(request)
-        else openPopup(request)
+        if (sharedProfile) {
+            // Synchronous one-shot capability: no Qt request object survives
+            // dispatch, and observers cannot replay a handled request afterward.
+            windowAdmission = {request: request, profile: profile, sessionId: accountSessionId,
+                documentGeneration: navigationGeneration, serial: ++windowAdmissionSerial, consumed: false}
+            try { tabRequested(request) }
+            finally { windowAdmission = null }
+        } else openPopup(request)
     }
     function openPopup(request) {
         if (!FeriaBrowserPolicy.allowsNavigation(String(request.requestedUrl || "about:blank"))) return
