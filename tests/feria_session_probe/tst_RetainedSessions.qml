@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import QtWebEngine
 import "../../qml/feria" as Feria
 
 Item {
@@ -133,6 +134,90 @@ Item {
                 href: FixtureUrl + "/a", kind: "book", title: "Old", locator: {type:"url"}
             }))
             compare(FeriaAccount.sessions.length, 0)
+        }
+        function test_privateTabsSeparateCookiesAndAutomaticState() {
+            var normal = open("mangaplus", "/a", true)
+            var normalPage = deck.entries[normal].browser
+            evaluate(normalPage, "document.cookie='normalMarker=one;path=/';true")
+            var id = Sessions.openBrowser({providerId:"mangaplus", providerName:"MANGA Plus",
+                title:"Private fixture", url:FixtureUrl + "/private", privateBrowsing:true}, true)
+            tryVerify(function() { return deck.entries[id] && deck.entries[id].browser }, 10000)
+            var page = deck.entries[id].browser
+            tryCompare(page, "documentReady", true, 15000)
+            verify(page.profile !== normalPage.profile, "Private pages must have a separate profile")
+            compare(page.profile.offTheRecord, true)
+            verify(evaluate(page, "document.cookie").indexOf("normalMarker") < 0)
+            verify(!FeriaAccount.browserHistory.some(function(row) { return row.url.indexOf("/private") >= 0 }))
+            deck.persistTabs()
+            verify(!FeriaAccount.browserTabs.some(function(row) { return row.privateBrowsing }))
+            evaluate(page, "document.cookie='privateMarker=secret;path=/';true")
+            Sessions.close(id)
+            tryCompare(deck, "privateProfile", null, 10000)
+            compare(FeriaBrowserPolicy.runtimeProfileCount, 1)
+            deck.startQuiescence(true)
+            tryCompare(deck, "cleanupNotified", true, 10000)
+            compare(FeriaBrowserPolicy.runtimeProfileCount, 0)
+            deck.finishCleanup()
+        }
+        function test_backgroundPageFreezesAndReactivates() {
+            var id = open("mangaplus", "/a", true)
+            var page = deck.entries[id].browser
+            page.freezeDelay = 100
+            deck.displayed = false
+            tryCompare(page, "lifecycleState", WebEngineView.LifecycleState.Frozen, 10000)
+            deck.displayed = true
+            tryCompare(page, "lifecycleState", WebEngineView.LifecycleState.Active, 5000)
+            compare(evaluate(page, "document.title"), "Fixture /a")
+        }
+        function test_userPopupAdoptsOriginalRequestAndProfile() {
+            var id = open("mangaplus", "/a", true)
+            var page = deck.entries[id].browser
+            mouseClick(page, 100, 220)
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var popupId = Sessions.browsers().find(function(row) { return row.id !== id }).id
+            var popup = deck.entries[popupId].browser
+            tryVerify(function() { return popup.documentReady && String(popup.url) === FixtureUrl + "/popup" }, 15000)
+            compare(String(popup.url), FixtureUrl + "/popup")
+            compare(popup.profile, page.profile)
+            compare(evaluate(popup, "!!window.opener"), true)
+            compare(Sessions.activeId, popupId)
+            var derivedId = deck.newTab(false, FixtureUrl + "/derived", true)
+            var derived = deck.entries[derivedId].browser
+            tryVerify(function() { return derived.documentReady && String(derived.url) === FixtureUrl + "/derived" }, 15000)
+            compare(derived.adoptingWindowRequest, false)
+            Sessions.close(derivedId)
+            tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 2, 5000)
+            Sessions.close(popupId)
+            tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 1, 5000)
+            deck.restoreClosedTab()
+            var restoredId = Sessions.activeId
+            var restored = deck.entries[restoredId].browser
+            tryVerify(function() { return restored.documentReady && String(restored.url) === FixtureUrl + "/popup" }, 15000)
+            compare(restored.adoptingWindowRequest, false)
+            Sessions.close(restoredId)
+            tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 1, 5000)
+            Sessions.switchTo(id)
+            mouseClick(page, 100, 220)
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            popupId = Sessions.activeId
+            popup = deck.entries[popupId].browser
+            tryVerify(function() { return popup.documentReady && String(popup.url) === FixtureUrl + "/popup" }, 15000)
+            // Cleanup closes this adopted page and its opener together.
+        }
+        function test_downloadContinuesAfterTabCloses() {
+            var id = open("mangaplus", "/a", true)
+            deck.sharedProfile.downloadPath = Fixture.downloadRoot
+            var page = deck.entries[id].browser
+            mouseClick(page, 280, 210)
+            tryVerify(function() { return deck.downloads.items.length === 1 }, 10000)
+            var download = deck.downloads.items[0]
+            verify(!download.finished, "The delayed fixture must still be downloading")
+            Sessions.close(id)
+            tryVerify(function() { return !deck.entries[id] }, 5000)
+            tryCompare(download, "completed", true, 10000)
+            tryVerify(function() { return FeriaAccount.browserDownloadHistory.length === 1 }, 5000)
+            compare(FeriaAccount.browserDownloadHistory[0].path, download.path)
+            compare(String(Fixture.downloadedContent(download.path)), "Colosseum browser download fixture\n")
         }
     }
 }

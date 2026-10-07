@@ -30,6 +30,12 @@ public:
     }
 
     int runtimeViewCount() const { return m_runtimeViews.size(); }
+    Q_INVOKABLE int runtimeViewsForProfile(QObject *profile) const {
+        int count = 0;
+        for (QObject *view : m_runtimeViews)
+            if (view->property("profile").value<QObject *>() == profile) ++count;
+        return count;
+    }
     Q_INVOKABLE void registerRuntimeView(QObject *view) {
         if (!view || m_runtimeViews.contains(view)) return;
         m_runtimeViews.insert(view);
@@ -67,6 +73,7 @@ public:
 
     Q_INVOKABLE bool allowsNavigation(const QUrl &url) const { return allows(url); }
     Q_INVOKABLE QUrl navigationUrl(const QString &text) const;
+    Q_INVOKABLE QUrl omniboxUrl(const QString &text, const QString &searchEngine = QStringLiteral("duckduckgo")) const;
     static bool allows(const QUrl &url)
     {
         if (!url.isValid())

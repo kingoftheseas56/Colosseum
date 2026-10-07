@@ -5,11 +5,44 @@
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QTemporaryDir>
+#include <QUrlQuery>
 #include <QtTest>
 
 class FeriaSessionOwnershipTest : public QObject {
     Q_OBJECT
 private slots:
+    void browserOmniboxKeepsAddressesAndSearchSeparate() {
+        FeriaBrowserPolicy policy;
+        QCOMPARE(policy.omniboxUrl("example.com/chapter?q=a%20b").host(), QStringLiteral("example.com"));
+        QCOMPARE(policy.omniboxUrl("localhost:8080/fixture").port(), 8080);
+        const QUrl search = policy.omniboxUrl("manga & music", "duckduckgo");
+        QCOMPARE(search.host(), QStringLiteral("duckduckgo.com"));
+        QCOMPARE(QUrlQuery(search).queryItemValue("q"), QStringLiteral("manga & music"));
+        QCOMPARE(policy.omniboxUrl("One Piece", "google").host(), QStringLiteral("www.google.com"));
+        QCOMPARE(policy.omniboxUrl("One Piece", "bing").host(), QStringLiteral("www.bing.com"));
+        for (const auto &input : {"file:///private.txt", "javascript:alert(1)", "data:text/html,x", ""})
+            QVERIFY(policy.omniboxUrl(QString::fromLatin1(input)).isEmpty());
+    }
+    void privateMruAndBackgroundOpen() {
+        SessionStore sessions;
+        sessions.setBrowserProfile(QStringLiteral("fixture"));
+        const QVariantMap regular{{"providerId", "youtube"}, {"url", "https://example.com/a"}};
+        auto privateTab = regular; privateTab.insert("privateBrowsing", true);
+        const QString normal = sessions.openBrowser(regular, true);
+        const QString privateId = sessions.openBrowser(privateTab, true);
+        QVERIFY(normal != privateId);
+        QCOMPARE(sessions.openBrowser(regular), normal);
+        QCOMPARE(sessions.openBrowser(privateTab), privateId);
+        QVERIFY(sessions.metaObject()->indexOfMethod("openBrowser(QVariantMap,bool,bool,bool)") >= 0);
+        QString background;
+        QVERIFY(QMetaObject::invokeMethod(&sessions, "openBrowser", Q_RETURN_ARG(QString, background),
+            Q_ARG(QVariantMap, regular), Q_ARG(bool, true), Q_ARG(bool, false), Q_ARG(bool, false)));
+        QVERIFY(!background.isEmpty());
+        QCOMPARE(sessions.activeId(), privateId);
+        QCOMPARE(sessions.browsers().size(), 3);
+        QVERIFY(sessions.metaObject()->indexOfMethod("openBrowser(QVariantMap,bool,bool)") >= 0);
+        QVERIFY(sessions.metaObject()->indexOfMethod("openBrowser(QVariantMap,bool)") >= 0);
+    }
     void browserIdentityAndMru() {
         SessionStore sessions;
         // Invocation keeps the baseline compilable: absent production support

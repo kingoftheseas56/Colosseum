@@ -17,6 +17,46 @@
 #include <algorithm>
 
 namespace {
+bool sensitiveBrowserKey(const QString &key) {
+    const auto name = key.toLower();
+    return QStringList{"code", "state", "token", "access_token", "refresh_token", "id_token",
+        "client_secret", "password", "passwd", "authorization", "auth", "credential",
+        "session", "sessionid", "session_id", "ticket", "code_verifier", "code_challenge",
+        "signature", "sig", "api_key"}.contains(name) || name.endsWith("_token");
+}
+
+QString browserUrl(const QString &value, bool automatic) {
+    QUrl url(value.trimmed());
+    if (!url.isValid() || (url.scheme() != "https" && url.scheme() != "http") || url.host().isEmpty()) return {};
+    static const QRegularExpression authRoute(
+        "(^|/)(oauth[^/]*|authorize|authorization|callback|sign[-_]?in|sign[-_]?out|log[-_]?in|log[-_]?out|authenticate)(/|$)",
+        QRegularExpression::CaseInsensitiveOption);
+    if (automatic && authRoute.match(url.path()).hasMatch()) return {};
+    url.setUserInfo({});
+    const auto sanitize = [](const QString &query, bool *sensitive) {
+        QUrlQuery kept;
+        for (const auto &pair : QUrlQuery(query).queryItems()) {
+            if (sensitiveBrowserKey(pair.first)) { *sensitive = true; continue; }
+            kept.addQueryItem(pair.first, pair.second);
+        }
+        return kept.query(QUrl::FullyEncoded);
+    };
+    bool sensitive = false;
+    const QString query = sanitize(url.query(QUrl::FullyEncoded), &sensitive);
+    // OAuth may deliver credentials in a fragment rather than the query.
+    const QString fragment = url.fragment(QUrl::FullyEncoded);
+    bool fragmentSensitive = false;
+    const QString cleanFragment = sanitize(fragment, &fragmentSensitive);
+    if (automatic && (sensitive || fragmentSensitive)) return {};
+    if (sensitive) url.setQuery(query, QUrl::StrictMode);
+    if (fragmentSensitive) url.setFragment(cleanFragment, QUrl::StrictMode);
+    return url.toString(QUrl::FullyEncoded);
+}
+
+bool knownBrowserProvider(const QString &provider) {
+    return PorticoAppStateBridge::currentPorticoProviderIds().contains(provider);
+}
+
 // Only a provider-specific rule can qualify an external media ID. Context comes
 // from beginVisit(), never from the page payload. Other providers remain legacy.
 QString youtubeMusicId(const QString &href) {
@@ -49,6 +89,7 @@ FeriaAccountStore::FeriaAccountStore(QObject *parent) : QObject(parent) {}
 
 void FeriaAccountStore::setStoragePath(const QString &path) {
     m_visits.clear();
+    m_downloadAuthorizations.clear();
     m_legacyToken.clear();
     m_path = path;
     m_state = {};
@@ -69,6 +110,140 @@ void FeriaAccountStore::setStoragePath(const QString &path) {
 
 QVariantList FeriaAccountStore::sessions() const { return m_state.value("sessions").toList(); }
 bool FeriaAccountStore::recording() const { return m_state.value("recording", true).toBool() && !m_path.isEmpty() && m_error.isEmpty(); }
+
+QVariantList FeriaAccountStore::browserBookmarks() const { return m_state.value("browserBookmarks").toList(); }
+QVariantList FeriaAccountStore::browserHistory() const { return m_state.value("browserHistory").toList(); }
+QVariantList FeriaAccountStore::browserTabs() const { return m_state.value("browserTabs").toList(); }
+QVariantList FeriaAccountStore::browserDownloadHistory() const { return m_state.value("browserDownloadHistory").toList(); }
+QVariantMap FeriaAccountStore::browserPreferences() const {
+    QVariantMap result{{"restoreTabs", false}, {"freezeBackground", true}, {"searchEngine", "duckduckgo"}};
+    const auto stored = m_state.value("browserPreferences").toMap();
+    for (auto it = stored.cbegin(); it != stored.cend(); ++it) result.insert(it.key(), it.value());
+    return result;
+}
+
+bool FeriaAccountStore::setBrowserBookmark(const QString &value, const QString &title, bool saved) {
+    const QString url = browserUrl(value, false);
+    if (url.isEmpty()) return false;
+    auto rows = browserBookmarks();
+    for (qsizetype i = rows.size(); i-- > 0;)
+        if (rows.at(i).toMap().value("url").toString() == url) rows.removeAt(i);
+    if (saved) rows.prepend(QVariantMap{{"url", url}, {"title", title.trimmed().left(300)},
+                                      {"at", QDateTime::currentMSecsSinceEpoch()}});
+    while (rows.size() > 500) rows.removeLast();
+    auto state = m_state; state.insert("browserBookmarks", rows); return commit(state);
+}
+
+bool FeriaAccountStore::recordBrowserVisit(const QString &sessionId, const QString &token,
+                                          const QString &value, const QString &title) {
+    const Visit *visit = visitFor(sessionId, token);
+    const QString url = browserUrl(value, true);
+    if (!visit || visit->privateBrowsing || !recording() || url.isEmpty()
+        || !knownBrowserProvider(visit->context.value("pk").toString())) return false;
+    auto rows = browserHistory();
+    if (!rows.isEmpty() && rows.first().toMap().value("sessionId").toString() == sessionId
+        && rows.first().toMap().value("url").toString() == url) rows.removeFirst();
+    rows.prepend(QVariantMap{{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+        {"sessionId", sessionId}, {"url", url}, {"title", title.trimmed().left(300)},
+        {"pk", visit->context.value("pk")}, {"at", QDateTime::currentMSecsSinceEpoch()}});
+    while (rows.size() > 1000) rows.removeLast();
+    auto state = m_state; state.insert("browserHistory", rows); return commit(state);
+}
+
+bool FeriaAccountStore::clearBrowserHistory() {
+    auto state = m_state; state.insert("browserHistory", QVariantList{}); return commit(state);
+}
+
+bool FeriaAccountStore::setBrowserPreference(const QString &key, const QVariant &value) {
+    if (key == "restoreTabs" || key == "freezeBackground") {
+        if (value.metaType().id() != QMetaType::Bool) return false;
+    } else if (key == "searchEngine") {
+        if (value.metaType().id() != QMetaType::QString
+            || !QStringList{"duckduckgo", "google", "bing"}.contains(value.toString())) return false;
+    } else return false;
+    auto preferences = browserPreferences(); preferences.insert(key, value);
+    auto state = m_state; state.insert("browserPreferences", preferences); return commit(state);
+}
+
+bool FeriaAccountStore::saveBrowserTabs(const QVariantList &descriptors) {
+    QVariantList rows;
+    for (const auto &value : descriptors) {
+        const auto descriptor = value.toMap();
+        const QString url = browserUrl(descriptor.value("url").toString(), true);
+        if (descriptor.value("privateBrowsing").toBool() || url.isEmpty()
+            || !knownBrowserProvider(descriptor.value("providerId").toString())) continue;
+        QVariantMap row{{"url", url}, {"providerId", descriptor.value("providerId")}};
+        for (const auto &key : {"providerName", "title", "mode", "launchMode", "titleId", "logo"})
+            if (descriptor.contains(key)) row.insert(key, descriptor.value(key).toString().left(2048));
+        rows.append(row);
+        if (rows.size() >= 50) break;
+    }
+    auto state = m_state; state.insert("browserTabs", rows); return commit(state);
+}
+
+QString FeriaAccountStore::authorizeBrowserDownload(const QString &sessionId, const QString &visitToken) {
+    const Visit *visit = visitFor(sessionId, visitToken);
+    if (!visit || visit->privateBrowsing || m_path.isEmpty() || !m_error.isEmpty()) return {};
+    const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    m_downloadAuthorizations.insert(token, {m_path, visit->context.value("pk").toString()});
+    return token;
+}
+
+bool FeriaAccountStore::cancelBrowserDownload(const QString &downloadToken) {
+    return m_downloadAuthorizations.remove(downloadToken);
+}
+
+bool FeriaAccountStore::recordBrowserDownload(const QVariantMap &descriptor) {
+    if (descriptor.value("privateBrowsing").toBool()) return false;
+    const bool authorized = descriptor.contains("downloadToken");
+    const QString downloadToken = descriptor.value("downloadToken").toString();
+    QString authorizedProvider;
+    if (authorized) {
+        const auto grant = m_downloadAuthorizations.constFind(downloadToken);
+        if (grant == m_downloadAuthorizations.cend() || grant->profilePath != m_path || grant->committing) return false;
+        authorizedProvider = grant->providerId;
+        if (descriptor.contains("providerId") && descriptor.value("providerId").toString() != authorizedProvider) return false;
+    } else if (descriptor.contains("sessionId") || descriptor.contains("visitToken")) {
+        const Visit *visit = visitFor(descriptor.value("sessionId").toString(), descriptor.value("visitToken").toString());
+        if (!visit || visit->privateBrowsing) return false;
+    }
+    const QString url = browserUrl(descriptor.value("url").toString(), true);
+    if (url.isEmpty()) return false;
+    QString id = descriptor.value("id").toString().left(100);
+    if (id.isEmpty()) id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QVariantMap row{{"id", id}, {"url", url}, {"at", QDateTime::currentMSecsSinceEpoch()}};
+    for (const auto &key : {"title", "fileName", "path", "state", "providerId", "mimeType"})
+        if (descriptor.contains(key)) row.insert(key, descriptor.value(key).toString().left(2048));
+    if (authorized) row.insert("providerId", authorizedProvider);
+    for (const auto &key : {"receivedBytes", "totalBytes"})
+        if (descriptor.contains(key)) {
+            bool ok = false;
+            const qint64 bytes = descriptor.value(key).toLongLong(&ok);
+            if (!ok || bytes < 0) return false;
+            row.insert(key, bytes);
+        }
+    auto rows = browserDownloadHistory();
+    for (qsizetype i = rows.size(); i-- > 0;)
+        if (rows.at(i).toMap().value("id").toString() == id) rows.removeAt(i);
+    rows.prepend(row);
+    while (rows.size() > 100) rows.removeLast();
+    auto state = m_state; state.insert("browserDownloadHistory", rows);
+    // changed() is synchronous; reserve the grant before commit so callbacks cannot replay it.
+    if (authorized) m_downloadAuthorizations[downloadToken].committing = true;
+    const bool saved = commit(state);
+    if (authorized) {
+        const auto grant = m_downloadAuthorizations.find(downloadToken);
+        if (grant != m_downloadAuthorizations.end()) {
+            if (saved) m_downloadAuthorizations.erase(grant);
+            else grant->committing = false;
+        }
+    }
+    return saved;
+}
+
+bool FeriaAccountStore::clearBrowserDownloads() {
+    auto state = m_state; state.insert("browserDownloadHistory", QVariantList{}); return commit(state);
+}
 
 QVariantList FeriaAccountStore::continueItems() const {
     QVariantList result;
@@ -131,6 +306,7 @@ QString FeriaAccountStore::beginSessionVisit(const QString &sessionId, const QVa
         || !PorticoAppStateBridge::currentPorticoProviderIds().contains(context.value("pk").toString())) return {};
     Visit visit;
     visit.context = context;
+    visit.privateBrowsing = context.value("privateBrowsing").toBool();
     visit.mediaCaptureBlocked = context.value("resumePending").toBool();
     visit.sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     visit.token = visit.sessionId;
@@ -169,6 +345,7 @@ bool FeriaAccountStore::observe(const QVariantMap &sample) {
     return visit && observeVisit(*visit, sample);
 }
 bool FeriaAccountStore::observeVisit(Visit &visit, const QVariantMap &sample) {
+    if (visit.privateBrowsing) return false;
     if (sample.contains("visitToken") && sample.value("visitToken").toString() != visit.token) return false;
     const bool reading = sample.value("kind").toString() == "book";
     if (reading && !QStringList{"kindle", "playbooks", "mangaplus", "viz", "webtoon", "dcui", "marvel"}.contains(visit.context.value("pk").toString())) return false;
@@ -203,7 +380,7 @@ bool FeriaAccountStore::saveReadingPlace(Visit &visit, const QString &url, const
 }
 bool FeriaAccountStore::record(Visit &visit, const QVariantMap &sample, bool reading) {
     const double elapsed = visit.clock.isValid() ? visit.clock.restart() / 1000.0 : 0;
-    if (!recording() || visit.context.isEmpty()) { visit.lastPlaying = false; return false; }
+    if (visit.privateBrowsing || !recording() || visit.context.isEmpty()) { visit.lastPlaying = false; return false; }
     auto url = safeUrl(sample.value("href").toString());
     const auto pk = visit.context.value("pk").toString();
     const auto mediaId = reading ? QString() : sample.value("providerMediaId").toString();

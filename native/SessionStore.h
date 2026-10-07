@@ -9,7 +9,8 @@
 //
 // QML contract:
 //   Sessions.openOrSwitch({appType, contentKind, target, title}) -> id  (dedups by target key)
-//   Sessions.openBrowser(descriptor, fresh, navigate) -> id (provider MRU or explicit New)
+//   Sessions.openBrowser(descriptor, fresh, navigate, activate) -> id
+//     (provider/private-mode MRU or explicit New; activate=false opens in background)
 //   Sessions.switchTo(id)
 //   Sessions.close(id)
 //   Sessions.saveState(id, obj)   // switch glue writes captured state before teardown
@@ -110,7 +111,7 @@ public:
         for (const QVariant &value : records)
             close(value.toMap().value(QStringLiteral("id")).toString());
     }
-    Q_INVOKABLE QString openBrowser(const QVariantMap &desc, bool fresh = false, bool navigate = false) {
+    Q_INVOKABLE QString openBrowser(const QVariantMap &desc, bool fresh = false, bool navigate = false, bool activate = true) {
         const QString provider = desc.value(QStringLiteral("providerId")).toString();
         const QUrl url(desc.value(QStringLiteral("url")).toString());
         const bool destinationAllowed = url.toString() == QStringLiteral("about:blank")
@@ -126,6 +127,7 @@ public:
                 const QVariantMap target = rec.value(QStringLiteral("target")).toMap();
                 const quint64 used = rec.value(QStringLiteral("browserUseOrder")).toULongLong();
                 if (target.value(QStringLiteral("providerId")).toString() == provider
+                    && target.value(QStringLiteral("privateBrowsing")).toBool() == desc.value(QStringLiteral("privateBrowsing")).toBool()
                     && (latest.isEmpty() || used > order)) {
                     latest = rec.value(QStringLiteral("id")).toString();
                     order = used;
@@ -142,7 +144,7 @@ public:
                     m_sessions[index] = rec;
                     bump();
                 }
-                setActive(latest);
+                if (activate) setActive(latest);
                 return latest;
             }
         }
@@ -158,7 +160,7 @@ public:
             {QStringLiteral("target"), target}, {QStringLiteral("savedState"), QVariantMap{}}};
         m_sessions.append(rec);
         bump();
-        setActive(id);
+        if (activate) setActive(id);
         return id;
     }
     Q_INVOKABLE void updateBrowser(const QString &id, const QString &url, const QString &title) {

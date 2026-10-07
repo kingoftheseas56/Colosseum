@@ -238,5 +238,210 @@ int main(int argc, char **argv) {
     check(mangaReopened.continueItems().isEmpty(), "Completed latest chapter hides old title copies");
     writeLegacy(false, true); mangaReopened.setStoragePath(legacyFile.fileName());
     check(mangaReopened.continueItems().isEmpty(), "Dismissed latest chapter hides old title copies");
+    FeriaAccountStore browser;
+    const auto browserPath = temp.filePath("browser-account.json");
+    browser.setStoragePath(browserPath);
+    check(browser.metaObject()->indexOfProperty("browserBookmarks") >= 0,
+          "Browser persistence API must exist");
+    auto bookmark = [&](const QString &url, const QString &title, bool saved) {
+        bool result = false;
+        return QMetaObject::invokeMethod(&browser, "setBrowserBookmark", Q_RETURN_ARG(bool, result),
+            Q_ARG(QString, url), Q_ARG(QString, title), Q_ARG(bool, saved)) && result;
+    };
+    auto visit = [&](const QString &id, const QString &token, const QString &url) {
+        bool result = false;
+        return QMetaObject::invokeMethod(&browser, "recordBrowserVisit", Q_RETURN_ARG(bool, result),
+            Q_ARG(QString, id), Q_ARG(QString, token), Q_ARG(QString, url), Q_ARG(QString, QStringLiteral("Page"))) && result;
+    };
+    auto preference = [&](const QString &key, const QVariant &value) {
+        bool result = false;
+        return QMetaObject::invokeMethod(&browser, "setBrowserPreference", Q_RETURN_ARG(bool, result),
+            Q_ARG(QString, key), Q_ARG(QVariant, value)) && result;
+    };
+    auto tabs = [&](const QVariantList &descriptors) {
+        bool result = false;
+        return QMetaObject::invokeMethod(&browser, "saveBrowserTabs", Q_RETURN_ARG(bool, result),
+            Q_ARG(QVariantList, descriptors)) && result;
+    };
+    auto download = [&](const QVariantMap &descriptor) {
+        bool result = false;
+        return QMetaObject::invokeMethod(&browser, "recordBrowserDownload", Q_RETURN_ARG(bool, result),
+            Q_ARG(QVariantMap, descriptor)) && result;
+    };
+    const QString webUrl = "https://example.com/search?q=Beacon#results";
+    check(bookmark("https://user:password@example.com/search?q=Beacon#results", "Beacon", true),
+          "Bookmark preserves ordinary query and fragment and strips credentials");
+    check(browser.property("browserBookmarks").toList().first().toMap().value("url") == webUrl,
+          "Bookmark URL is sanitized without collapsing web search identity");
+    check(bookmark(webUrl, "Renamed", true) && browser.property("browserBookmarks").toList().size() == 1,
+          "Repeated bookmark updates instead of duplicating");
+    check(!bookmark("javascript:alert(1)", "Bad", true), "Bookmark rejects executable scheme");
+    const auto normalToken = browser.beginSessionVisit("normal", {{"pk", "youtube"}});
+    const auto privateToken = browser.beginSessionVisit("private", {{"pk", "youtube"}, {"privateBrowsing", true}});
+    check(!normalToken.isEmpty() && !privateToken.isEmpty(), "Private service views receive loader tokens");
+    check(visit("normal", normalToken, webUrl), "Record ordinary successful browser visit");
+    check(!visit("private", privateToken, webUrl) && !browser.observeSession("private", privateToken, sample)
+          && !browser.saveSessionReadingPlace("private", privateToken, webUrl, "Private"),
+          "Private token rejects browser, media, and explicit reading capture");
+    check(!visit("normal", privateToken, webUrl) && !visit("normal", normalToken, "https://example.com/oauth/callback?code=secret")
+          && !visit("normal", normalToken, "https://example.com/?access_token=secret")
+          && !visit("normal", normalToken, "https://example.com/#access_token=secret"),
+          "History rejects wrong tokens and authentication destinations");
+    check(browser.property("browserHistory").toList().size() == 1 && browser.sessions().isEmpty(),
+          "Browser history stays separate from media activity and Continue");
+    check(preference("restoreTabs", true) && preference("freezeBackground", false)
+          && preference("searchEngine", QStringLiteral("bing")), "Persist validated browser preferences");
+    check(!preference("restoreTabs", QStringLiteral("false")) && !preference("searchEngine", QStringLiteral("unknown"))
+          && !preference("unknown", true), "Reject malformed and unknown preferences");
+    QVariantMap regularTab{{"providerId", "youtube"}, {"url", webUrl}, {"title", "Beacon"}};
+    auto privateTab = regularTab; privateTab.insert("privateBrowsing", true);
+    auto authTab = regularTab; authTab.insert("url", "https://example.com/login");
+    auto localTab = regularTab; localTab.insert("url", "file:///secret.txt");
+    check(tabs({regularTab, privateTab, authTab, localTab}) && browser.property("browserTabs").toList().size() == 1,
+          "Restore snapshots exclude private, authentication, and local pages");
+    check(download({{"id", "download-1"}, {"url", webUrl}, {"fileName", "beacon.txt"}, {"state", "completed"}})
+          && !download({{"id", "private-download"}, {"url", webUrl}, {"privateBrowsing", true}}),
+          "Download history excludes private transfers");
+    FeriaAccountStore browserReopened; browserReopened.setStoragePath(browserPath);
+    for (const char *property : {"browserBookmarks", "browserHistory", "browserTabs", "browserPreferences", "browserDownloadHistory"})
+        check(browserReopened.property(property) == browser.property(property), "Browser state survives restart");
+    check(bookmark(webUrl, "", false) && browser.property("browserBookmarks").toList().isEmpty(),
+          "Remove bookmark independently from history");
+    const auto replacementToken = browser.beginSessionVisit("normal", {{"pk", "youtube"}});
+    check(!visit("normal", normalToken, webUrl) && visit("normal", replacementToken, webUrl),
+          "Replaced browser token cannot append history");
+    browser.setStoragePath(temp.filePath("browser-other.json"));
+    check(!visit("normal", replacementToken, webUrl) && browser.property("browserHistory").toList().isEmpty()
+          && browser.property("browserBookmarks").toList().isEmpty()
+          && browser.property("browserPreferences").toMap().value("restoreTabs") == false,
+          "Profile switch fences old callbacks and resets browser preferences");
+    browser.setStoragePath({});
+    check(!bookmark(webUrl, "Sealed", true) && !preference("restoreTabs", true), "Sealed profile cannot persist browser state");
+    browser.setStoragePath(broken.fileName());
+    check(!bookmark(webUrl, "Corrupt", true), "Corrupt browser state is preserved without writes");
+    QFile capsFile(temp.filePath("browser-caps.json"));
+    QVariantList manyBookmarks, manyHistory, manyDownloads, manyTabs;
+    for (int i = 0; i < 1100; ++i) {
+        const QVariantMap row{{"url", QStringLiteral("https://example.com/%1").arg(i)}, {"id", QString::number(i)}};
+        manyBookmarks.append(row); manyHistory.append(row); manyDownloads.append(row);
+        manyTabs.append(regularTab);
+    }
+    check(capsFile.open(QIODevice::WriteOnly), "Create bounded persistence fixture");
+    capsFile.write(QJsonDocument::fromVariant(QVariantMap{{"version", 1}, {"browserBookmarks", manyBookmarks},
+        {"browserHistory", manyHistory}, {"browserDownloadHistory", manyDownloads}}).toJson());
+    capsFile.close(); browser.setStoragePath(capsFile.fileName());
+    const auto cappedToken = browser.beginSessionVisit("cap", {{"pk", "youtube"}});
+    check(bookmark(webUrl, "Capped", true) && browser.property("browserBookmarks").toList().size() == 500,
+          "Bookmarks are capped at 500");
+    check(visit("cap", cappedToken, webUrl) && browser.property("browserHistory").toList().size() == 1000,
+          "Browser history is capped at 1000");
+    check(tabs(manyTabs) && browser.property("browserTabs").toList().size() == 50, "Restored tabs are capped at 50");
+    check(download({{"id", "latest"}, {"url", webUrl}})
+          && browser.property("browserDownloadHistory").toList().size() == 100, "Downloads are capped at 100");
+    check(download({{"id", "latest"}, {"url", webUrl}, {"state", "completed"}})
+          && browser.property("browserDownloadHistory").toList().size() == 100,
+          "Download progress updates one record rather than creating duplicates");
+    check(!download({{"url", webUrl}, {"sessionId", "cap"}, {"visitToken", "stale"}}),
+          "Download callbacks with stale tokens cannot write");
+    const auto bookmarksBeforeClear = browser.property("browserBookmarks");
+    bool cleared = false;
+    check(QMetaObject::invokeMethod(&browser, "clearBrowserHistory", Q_RETURN_ARG(bool, cleared)) && cleared
+          && browser.property("browserHistory").toList().isEmpty()
+          && browser.property("browserBookmarks") == bookmarksBeforeClear,
+          "Clearing browser history preserves bookmarks");
+    cleared = false;
+    check(QMetaObject::invokeMethod(&browser, "clearBrowserDownloads", Q_RETURN_ARG(bool, cleared)) && cleared
+          && browser.property("browserDownloadHistory").toList().isEmpty(), "Clear download records independently");
+    const auto beforeFailedBookmark = browser.property("browserBookmarks");
+    const auto bookmarkBackup = capsFile.fileName() + ".preserved";
+    check(QFile::rename(capsFile.fileName(), bookmarkBackup) && QDir().mkdir(capsFile.fileName()),
+          "Block browser atomic write with directory");
+    check(!bookmark("https://example.com/new", "Failed", true)
+          && browser.property("browserBookmarks") == beforeFailedBookmark,
+          "Failed browser write preserves in-memory bookmarks");
+    FeriaAccountStore preservedBookmarks; preservedBookmarks.setStoragePath(bookmarkBackup);
+    check(preservedBookmarks.property("browserBookmarks") == beforeFailedBookmark,
+          "Failed browser write preserves persisted bookmarks");
+    FeriaAccountStore transfers;
+    transfers.setStoragePath(temp.filePath("transfer-account.json"));
+    check(transfers.metaObject()->indexOfMethod("authorizeBrowserDownload(QString,QString)") >= 0,
+          "Transient download authorization API must exist");
+    auto authorize = [&](const QString &id, const QString &visitToken) {
+        QString token;
+        QMetaObject::invokeMethod(&transfers, "authorizeBrowserDownload", Q_RETURN_ARG(QString, token),
+            Q_ARG(QString, id), Q_ARG(QString, visitToken));
+        return token;
+    };
+    auto complete = [&](const QVariantMap &descriptor) {
+        bool result = false;
+        return QMetaObject::invokeMethod(&transfers, "recordBrowserDownload", Q_RETURN_ARG(bool, result),
+            Q_ARG(QVariantMap, descriptor)) && result;
+    };
+    const auto sourceVisit = transfers.beginSessionVisit("source", {{"pk", "youtube"}});
+    const auto transferToken = authorize("source", sourceVisit);
+    check(!transferToken.isEmpty(), "Normal accepted download receives authorization");
+    transfers.endSessionVisit("source");
+    const QVariantMap closedCompletion{{"downloadToken", transferToken}, {"sessionId", "source"},
+        {"visitToken", sourceVisit}, {"url", webUrl}, {"state", "completed"}};
+    check(complete(closedCompletion) && transfers.browserDownloadHistory().size() == 1,
+          "Accepted download completion remains authorized after its source tab closes");
+    check(!complete(closedCompletion), "Successful download authorization is consumed once");
+    const auto completedRow = transfers.browserDownloadHistory().first().toMap();
+    check(completedRow.value("providerId") == "youtube" && !completedRow.contains("downloadToken")
+          && !completedRow.contains("visitToken"), "Download authorization stays transient with captured provider identity");
+    const auto beforeNavigation = transfers.beginSessionVisit("source", {{"pk", "youtube"}});
+    const auto navigationToken = authorize("source", beforeNavigation);
+    transfers.beginSessionVisit("source", {{"pk", "youtube"}});
+    check(authorize("source", beforeNavigation).isEmpty(), "Stale source Visit cannot mint authorization");
+    check(complete({{"downloadToken", navigationToken}, {"url", webUrl}, {"state", "completed"}}),
+          "Accepted download completion remains authorized after source navigation replaces its Visit");
+    const auto privateVisit = transfers.beginSessionVisit("private", {{"pk", "youtube"}, {"privateBrowsing", true}});
+    check(authorize("private", privateVisit).isEmpty() && authorize("missing", sourceVisit).isEmpty(),
+          "Private and unknown visits cannot authorize persistence");
+    check(!complete({{"downloadToken", "stale"}, {"url", webUrl}}), "Unknown download authorization is rejected");
+    const auto currentVisit = transfers.beginSessionVisit("source", {{"pk", "youtube"}});
+    check(!complete({{"downloadToken", QString()}, {"sessionId", "source"}, {"visitToken", currentVisit}, {"url", webUrl}}),
+          "An empty authorization cannot fall back to current Visit validation");
+    const auto privateMarked = authorize("source", currentVisit);
+    check(!complete({{"downloadToken", privateMarked}, {"url", webUrl}, {"privateBrowsing", true}}),
+          "Private-marked completion cannot use a normal download authorization");
+    check(!complete({{"downloadToken", privateMarked}, {"url", webUrl}, {"receivedBytes", -1}})
+          && !complete({{"downloadToken", privateMarked}, {"url", webUrl}, {"providerId", "netflix"}})
+          && complete({{"downloadToken", privateMarked}, {"url", webUrl}}),
+          "Failed completion validation does not consume authorization");
+    const auto reentrantToken = authorize("source", currentVisit);
+    const QVariantMap reentrantCompletion{{"downloadToken", reentrantToken}, {"url", webUrl}};
+    bool reentrantRejected = false;
+    const auto changedConnection = QObject::connect(&transfers, &FeriaAccountStore::changed, &transfers, [&] {
+        reentrantRejected = !complete(reentrantCompletion);
+    });
+    check(complete(reentrantCompletion) && reentrantRejected, "Synchronous changed callbacks cannot replay a committing authorization");
+    QObject::disconnect(changedConnection);
+    const auto cancelled = authorize("source", currentVisit);
+    bool cancelledResult = false;
+    check(QMetaObject::invokeMethod(&transfers, "cancelBrowserDownload", Q_RETURN_ARG(bool, cancelledResult),
+            Q_ARG(QString, cancelled)) && cancelledResult
+          && !complete({{"downloadToken", cancelled}, {"url", webUrl}}),
+          "Cancelled download authorization cannot be reused");
+    const auto oldProfileToken = authorize("source", currentVisit);
+    transfers.setStoragePath(temp.filePath("transfer-other.json"));
+    check(!complete({{"downloadToken", oldProfileToken}, {"url", webUrl}})
+          && transfers.browserDownloadHistory().isEmpty(), "Profile switch rejects old download completions");
+    const auto switchedVisit = transfers.beginSessionVisit("source", {{"pk", "youtube"}});
+    const auto switchedToken = authorize("source", switchedVisit);
+    transfers.setStoragePath({});
+    check(!complete({{"downloadToken", switchedToken}, {"url", webUrl}})
+          && authorize("source", switchedVisit).isEmpty(), "Signout clears grants and prevents new authorizations");
+    const auto failedTransferPath = temp.filePath("failed-transfer/account.json");
+    transfers.setStoragePath(failedTransferPath);
+    const auto failedVisit = transfers.beginSessionVisit("source", {{"pk", "youtube"}});
+    const auto failedTransferToken = authorize("source", failedVisit);
+    check(QDir().mkpath(failedTransferPath), "Block download metadata save with directory");
+    check(!complete({{"downloadToken", failedTransferToken}, {"url", webUrl}})
+          && transfers.browserDownloadHistory().isEmpty(), "Failed metadata commit preserves download history");
+    cancelledResult = false;
+    check(QMetaObject::invokeMethod(&transfers, "cancelBrowserDownload", Q_RETURN_ARG(bool, cancelledResult),
+            Q_ARG(QString, failedTransferToken)) && cancelledResult,
+          "Failed metadata commit leaves authorization unconsumed");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
 }

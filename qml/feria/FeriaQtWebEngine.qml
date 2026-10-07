@@ -1,3 +1,5 @@
+// Lifecycle handling adapted from Qt Lifecycle Browser; see NanoBrowser-LICENSE.txt.
+// Copyright (C) 2026 The Qt Company Ltd.
 import QtQuick
 import QtQuick.Window
 import QtWebEngine
@@ -13,13 +15,46 @@ WebEngineView {
     property var sharedProfile: null
     readonly property alias pageTools: pageToolsController
     FeriaPageTools { id: pageToolsController; browser: browser }
+    readonly property alias browserRequests: requestsController
+    signal message(string text)
+    signal tabRequested(var request)
+    FeriaBrowserRequests {
+        id: requestsController
+        browser: browser
+        onMessage: (text) => browser.message(text)
+    }
+    // Adapted from Qt's BSD-licensed Lifecycle Browser. Only freeze when the
+    // engine says it is safe; audible pages and pending callbacks stay active.
+    property bool freezeBackground: true
+    property int freezeDelay: 30000
+    function wakePage() {
+        freezeTimer.stop()
+        if (lifecycleState !== WebEngineView.LifecycleState.Active)
+            lifecycleState = WebEngineView.LifecycleState.Active
+    }
+    onVisibleChanged: if (visible) wakePage()
+    onFreezeBackgroundChanged: if (!freezeBackground) wakePage()
+    Timer {
+        id: freezeTimer
+        interval: browser.freezeDelay
+        running: browser.freezeBackground && !browser.visible && !browser.closingSession
+            && !browser.recentlyAudible
+            && browser.recommendedState !== WebEngineView.LifecycleState.Active
+            && browser.lifecycleState === WebEngineView.LifecycleState.Active
+        onTriggered: {
+            if (browser.pendingJavaScript === 0) browser.lifecycleState = WebEngineView.LifecycleState.Frozen
+            else restart()
+        }
+    }
     // Drain callbacks before the owner destroys this view. In Qt 6.11.1 a
     // pending JavaScript callback can reach a torn-down QML context on close.
     property bool closingSession: false
+    property bool adoptingWindowRequest: false
     property int pendingJavaScript: 0
     signal safeToDestroy()
     function evaluateJavaScript(script, callback) {
-        if (closingSession) return false
+        if (closingSession || adoptingWindowRequest) return false
+        if (lifecycleState !== WebEngineView.LifecycleState.Active) return false
         // Legacy single-view and cleanup owners retain their existing API.
         if (!sharedProfile) {
             if (typeof callback === "function") runJavaScript(script, callback)
@@ -32,26 +67,30 @@ WebEngineView {
                 if (!browser.closingSession && typeof callback === "function") callback(result)
             } finally {
                 --browser.pendingJavaScript
-                if (browser.closingSession && browser.pendingJavaScript === 0)
+                if (browser.closingSession && browser.pendingJavaScript === 0) {
+                    browser.stop()
                     browser.safeToDestroy()
+                }
             }
         })
         return true
     }
     function prepareForClose() {
         if (closingSession) return
-        // Pause without depending on a successful provider-specific connector.
+        wakePage()
+        // Pause without depending on a provider-specific connector, then drain
+        // callbacks before stopping the engine or destroying its QML context.
         evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
         closingSession = true
         // Release focus while the retained owner's scope is still alive,
         // before deferred parent/Loader destruction reaches the native view.
         focus = false
         documentCheck.stop(); navigationRefresh.stop(); cleanupPoll.stop()
-        stop()
-        if (pendingJavaScript === 0) safeToDestroy()
+        if (pendingJavaScript === 0) { stop(); safeToDestroy() }
     }
     property string providerId: ""
     property string accountVisitToken: ""
+    property string accountSessionId: ""
     property bool fullScreenActive: false
     Shortcut {
         sequence:"Escape"
@@ -69,7 +108,8 @@ WebEngineView {
     onAppKeyboardChanged: applyAppMode()
     onProviderIdChanged: applyAppMode()
     Timer {
-        interval:1500; repeat:true; running:!browser.closingSession && browser.documentReady && !browser.clearingSession && browser.providerId.length > 0
+        interval:1500; repeat:true; running:!browser.closingSession && browser.documentReady && !browser.clearingSession
+            && browser.providerId.length > 0 && browser.lifecycleState === WebEngineView.LifecycleState.Active
         onTriggered:browser.applyAppMode()
     }
     signal playbackObserved(var observation)
@@ -119,7 +159,8 @@ WebEngineView {
     onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
     Timer {
         interval: 2000; repeat: true
-        running: !browser.closingSession && (browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null)
+        running: !browser.closingSession && browser.lifecycleState === WebEngineView.LifecycleState.Active
+            && (browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null)
         onTriggered: browser.samplePlayback()
     }
     signal localSessionCleared(bool success)
@@ -276,7 +317,7 @@ WebEngineView {
         if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()
     }
     onLoadingChanged: function(info) {
-        if (closingSession) return
+        if (closingSession || adoptingWindowRequest) return
         if (info.status === WebEngineView.LoadStartedStatus) {
             fullScreenActive = false
             stopRequested = false
@@ -347,13 +388,22 @@ WebEngineView {
     }
     onRenderProcessTerminated: function(status, exitCode) { completed(String(url), false) }
     onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
-    onNewWindowRequested: function(request) { openPopup(request) }
+    onNewWindowRequested: function(request) {
+        if (!request.userInitiated) { message("Popup blocked"); return }
+        if (sharedProfile && request.destination !== WebEngineNewWindowRequest.InNewDialog)
+            tabRequested(request)
+        else openPopup(request)
+    }
     function openPopup(request) {
         if (!FeriaBrowserPolicy.allowsNavigation(request.requestedUrl)) return
         var popup = popupComponent.createObject(browser, { "sharedProfile": browser.profile })
         if (!popup) return
         popups = popups.concat([popup])
         request.openIn(popup.view)
+        if (request.requestedGeometry.width > 0 && request.requestedGeometry.height > 0) {
+            popup.width = Math.max(320, Math.min(1600, request.requestedGeometry.width))
+            popup.height = Math.max(240, Math.min(1000, request.requestedGeometry.height))
+        }
         popup.show()
     }
     onSuppressedChanged: {
@@ -374,7 +424,7 @@ WebEngineView {
         id: popupComponent
         Window {
             id: popup
-            title: "Feria — Sign in"
+            title: popupView.title || "Feria"
             width: 900
             height: 700
             required property var sharedProfile
@@ -387,12 +437,20 @@ WebEngineView {
                 id: popupView
                 anchors.fill: parent
                 profile: popup.sharedProfile
+                readonly property string accountSessionId: browser.accountSessionId
+                readonly property string accountVisitToken: browser.accountVisitToken
                 Component.onCompleted: FeriaBrowserPolicy.registerRuntimeView(popupView)
                 settings.javascriptCanOpenWindows: true
                 onNavigationRequested: function(request) {
                     if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()
                 }
-                onNewWindowRequested: function(request) { browser.openPopup(request) }
+                onNewWindowRequested: function(request) {
+                    if (request.userInitiated) browser.openPopup(request)
+                }
+                FeriaBrowserRequests {
+                    browser: popupView
+                    onMessage: (text) => browser.message(text)
+                }
                 onWindowCloseRequested: popup.close()
             }
         }

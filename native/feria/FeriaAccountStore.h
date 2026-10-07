@@ -13,6 +13,11 @@ class FeriaAccountStore final : public QObject {
     Q_PROPERTY(QVariantList continueItems READ continueItems NOTIFY changed)
     Q_PROPERTY(bool recording READ recording NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
+    Q_PROPERTY(QVariantList browserBookmarks READ browserBookmarks NOTIFY changed)
+    Q_PROPERTY(QVariantList browserHistory READ browserHistory NOTIFY changed)
+    Q_PROPERTY(QVariantMap browserPreferences READ browserPreferences NOTIFY changed)
+    Q_PROPERTY(QVariantList browserTabs READ browserTabs NOTIFY changed)
+    Q_PROPERTY(QVariantList browserDownloadHistory READ browserDownloadHistory NOTIFY changed)
 public:
     explicit FeriaAccountStore(QObject *parent = nullptr);
     void setStoragePath(const QString &path);
@@ -36,6 +41,21 @@ public:
     Q_INVOKABLE bool clearActivity();
     Q_INVOKABLE bool dismissContinue(const QString &id);
     static QString safeUrl(const QString &url);
+    QVariantList browserBookmarks() const;
+    QVariantList browserHistory() const;
+    QVariantMap browserPreferences() const;
+    QVariantList browserTabs() const;
+    QVariantList browserDownloadHistory() const;
+    Q_INVOKABLE bool setBrowserBookmark(const QString &url, const QString &title, bool saved);
+    Q_INVOKABLE bool recordBrowserVisit(const QString &sessionId, const QString &token,
+                                       const QString &url, const QString &title);
+    Q_INVOKABLE bool clearBrowserHistory();
+    Q_INVOKABLE bool setBrowserPreference(const QString &key, const QVariant &value);
+    Q_INVOKABLE bool saveBrowserTabs(const QVariantList &descriptors);
+    Q_INVOKABLE QString authorizeBrowserDownload(const QString &sessionId, const QString &visitToken);
+    Q_INVOKABLE bool cancelBrowserDownload(const QString &downloadToken);
+    Q_INVOKABLE bool recordBrowserDownload(const QVariantMap &descriptor);
+    Q_INVOKABLE bool clearBrowserDownloads();
 signals:
     void changed();
     void profileChanged();
@@ -46,7 +66,12 @@ private:
         double lastPosition = 0;
         bool lastPlaying = false;
         bool mediaCaptureBlocked = false;
+        bool privateBrowsing = false;
         QElapsedTimer clock;
+    };
+    struct DownloadAuthorization {
+        QString profilePath, providerId;
+        bool committing = false;
     };
     Visit *visitFor(const QString &sessionId, const QString &token);
     bool observeVisit(Visit &visit, const QVariantMap &sample);
@@ -56,4 +81,5 @@ private:
     QVariantMap m_state;
     QString m_path, m_error, m_legacyToken;
     QHash<QString, Visit> m_visits;
+    QHash<QString, DownloadAuthorization> m_downloadAuthorizations;
 };

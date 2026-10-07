@@ -13,6 +13,56 @@ Item {
     readonly property bool retained: controller.browserDeck && controller.managedBrowserRoute
     readonly property var browserItem: retained ? controller.browserDeck.activeBrowser : browserLoader.item
     readonly property var pageTools: engine === "qtwebengine" && browserItem ? browserItem.pageTools || null : null
+    FeriaBrowserMenu {
+        id: browserMenu
+        parent: Overlay.overlay
+        deck: root.controller.browserDeck
+        accountStore: root.controller.accountStore
+        providerId: root.controller.hostApp
+        currentTitle: root.pageTitle
+        currentUrl: root.currentUrl
+        onNavigateRequested: (url) => root.navigate(url)
+        onFocusAddressRequested: navigationBar.focusAddress()
+        onDownloadsRequested: if (deck) deck.showDownloads()
+        onPrintRequested: if (root.browserItem && root.browserItem.browserRequests) root.browserItem.browserRequests.printPage()
+        onMessage: (text) => root.controller.setToast(text)
+    }
+    function showBrowserTools(section) {
+        root.optionsOpen = false
+        browserMenu.openSection(section || "tabs")
+    }
+    function cycleBrowserTab(step) {
+        var deck = root.controller.browserDeck
+        if (!deck) return
+        var records = deck.sessions.browsers()
+        if (!records.length) return
+        var current = records.findIndex(function(record) { return record.id === deck.sessions.activeId })
+        deck.sessions.switchTo(records[(current + step + records.length) % records.length].id)
+    }
+    Shortcut {
+        sequence: "Ctrl+T"
+        enabled: root.visible && root.retained
+        onActivated: {
+            root.controller.browserDeck.newTab(browserMenu.privateBrowsing, "about:blank", true)
+            Qt.callLater(navigationBar.focusAddress)
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+Shift+N"
+        enabled: root.visible && root.retained
+        onActivated: {
+            root.controller.browserDeck.newTab(true, "about:blank", true)
+            Qt.callLater(navigationBar.focusAddress)
+        }
+    }
+    Shortcut { sequence: "Ctrl+W"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.closeTab(root.controller.hostSessionId) }
+    Shortcut { sequence: "Ctrl+Tab"; enabled: root.visible && root.retained; onActivated: root.cycleBrowserTab(1) }
+    Shortcut { sequence: "Ctrl+Shift+Tab"; enabled: root.visible && root.retained; onActivated: root.cycleBrowserTab(-1) }
+    Shortcut { sequence: "Ctrl+Shift+T"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.restoreClosedTab() }
+    Shortcut { sequence: "Ctrl+H"; enabled: root.visible && root.retained; onActivated: root.showBrowserTools("history") }
+    Shortcut { sequence: "Ctrl+D"; enabled: root.visible && root.retained; onActivated: root.showBrowserTools("bookmarks") }
+    Shortcut { sequence: "Ctrl+J"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.showDownloads() }
+    Shortcut { sequence: "Ctrl+P"; enabled: root.visible && root.retained && root.browserItem; onActivated: root.browserItem.browserRequests.printPage() }
     FeriaFindBar {
         id: findPanel
         parent: root
@@ -90,9 +140,10 @@ Item {
         Qt.callLater(function() { if (root.pageTools && root.pageTools.active) root.pageTools.openFind() })
     }
     function navigate(address) {
-        var url = String(FeriaBrowserPolicy.navigationUrl(address))
+        var prefs = root.controller.accountStore ? root.controller.accountStore.browserPreferences : ({})
+        var url = String(FeriaBrowserPolicy.omniboxUrl(address, prefs.searchEngine || "duckduckgo"))
         if (!url.length) {
-            controller.setToast("Enter a valid HTTP or HTTPS web address")
+            controller.setToast("Enter a web address or search")
             return
         }
         if (!root.browserItem) return
@@ -101,6 +152,7 @@ Item {
         root.browserItem.cancelMediaResume(true)
         root.browserItem.resumePosition = 0
         root.browserItem.resumeLocator = null
+        if (root.engine === "qtwebengine") root.browserItem.wakePage()
         root.browserItem.url = url
         focusApp()
     }
@@ -316,6 +368,31 @@ Item {
                     iconSource: "../../assets/icons/lucide/sliders-horizontal.svg"
                     helpText: "Site controls"
                     onClicked: { optionsPanel.siteControlsView = true; siteBack.forceActiveFocus() }
+                }
+            }
+            BrowserAction {
+                objectName: "feriaBrowserTools"
+                visible: root.retained && !optionsPanel.siteControlsView
+                Layout.fillWidth: true
+                text: "Tabs, bookmarks and browser settings"
+                onClicked: root.showBrowserTools("tabs")
+            }
+            BrowserAction {
+                objectName: "feriaBrowserDownloadsAction"
+                visible: root.retained && !optionsPanel.siteControlsView
+                Layout.fillWidth: true
+                text: "Downloads"
+                onClicked: { root.optionsOpen = false; root.controller.browserDeck.showDownloads() }
+            }
+            BrowserAction {
+                objectName: "feriaBrowserResetPermissions"
+                visible: root.retained && !optionsPanel.siteControlsView
+                Layout.fillWidth: true
+                text: "Reset this site's permissions"
+                onClicked: {
+                    root.optionsOpen = false
+                    if (root.browserItem && root.browserItem.browserRequests)
+                        root.browserItem.browserRequests.resetSitePermissions()
                 }
             }
             ColumnLayout {

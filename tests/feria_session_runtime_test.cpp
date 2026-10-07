@@ -13,6 +13,8 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QTimer>
+#include <QFile>
 #include <QtQuickTest/quicktest.h>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 #include <cmath>
@@ -21,7 +23,14 @@ class FeriaRuntimeFixture : public QObject {
     Q_OBJECT
 public:
     Q_PROPERTY(QString evidenceRoot READ evidenceRoot CONSTANT)
+    Q_PROPERTY(QString downloadRoot READ downloadRoot CONSTANT)
     QString evidenceRoot() const { return qEnvironmentVariable("FERIA_SESSION_EVIDENCE_DIR"); }
+    QString downloadRoot() const { return m_temp.filePath("downloads"); }
+    Q_INVOKABLE QByteArray downloadedContent(const QString &path) const {
+        if (!QDir::cleanPath(path).startsWith(downloadRoot() + '/')) return {};
+        QFile file(path);
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
+    }
     Q_INVOKABLE bool captureWindow(QQuickItem *item, const QString &name) {
         if (evidenceRoot().isEmpty() || !item || !item->window()
             || name.contains('/') || name.contains('\\')) return false;
@@ -40,6 +49,7 @@ public slots:
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_temp.filePath("settings"));
         if (!evidenceRoot().isEmpty()) QDir().mkpath(evidenceRoot());
+        QDir().mkpath(downloadRoot());
         connect(&m_server, &QTcpServer::newConnection, this, [this] {
             while (m_server.hasPendingConnections()) {
                 QTcpSocket *socket = m_server.nextPendingConnection();
@@ -51,6 +61,17 @@ public slots:
                     const QByteArray path = buffer.split(' ').value(1);
                     QByteArray body;
                     QByteArray mime("text/html");
+                    if (path == "/download") {
+                        body = "Colosseum browser download fixture\n";
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"
+                            "Content-Disposition: attachment; filename=browser-fixture.txt\r\nContent-Length: "
+                            + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n");
+                        QTimer::singleShot(1500, socket, [socket, body] {
+                            socket->write(body);
+                            socket->disconnectFromHost();
+                        });
+                        return;
+                    }
                     if (path == "/tone.wav") {
                         mime = "audio/wav";
                         QDataStream out(&body, QIODevice::WriteOnly);
@@ -68,6 +89,9 @@ public slots:
                             + "</h1><a href='/b'>Next page</a><audio id='audio' loop controls src='/tone.wav'></audio>"
                               "<p>Comet in the reading room. Comet in the listening room. Comet in Feria.</p>"
                               "<p>Search this local fixture with the native browser Find controls.</p>"
+                              "<button style='position:fixed;left:20px;top:200px;width:180px;height:40px' "
+                              "onclick=\"window.open('/popup','_blank')\">Open popup tab</button>"
+                              "<a href='/download' style='position:fixed;left:220px;top:200px;width:180px;height:40px'>Download fixture</a>"
                               "<div style='height:1400px'></div><p>Page bottom fixture.</p>"
                               "<script>window.sessionMarker=0</script></body>";
                     }

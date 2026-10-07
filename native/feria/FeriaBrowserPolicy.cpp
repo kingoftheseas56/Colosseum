@@ -1,4 +1,6 @@
 #include "FeriaBrowserPolicy.h"
+#include <QRegularExpression>
+#include <QUrlQuery>
 #ifdef FERIA_HAS_WEBVIEW2
 #include "provider-host/FeriaHostItem.h"
 #include <qqml.h>
@@ -12,6 +14,27 @@ QUrl FeriaBrowserPolicy::navigationUrl(const QString &text) const
     const QUrl url = QUrl::fromUserInput(text.trimmed());
     const QString scheme = url.scheme().toLower();
     return (scheme == "http" || scheme == "https") && allows(url) ? url : QUrl{};
+}
+
+QUrl FeriaBrowserPolicy::omniboxUrl(const QString &text, const QString &searchEngine) const
+{
+    const QString input = text.trimmed();
+    if (input.isEmpty() || input.size() > 8192) return {};
+    static const QRegularExpression scheme(QStringLiteral("^[a-zA-Z][a-zA-Z0-9+.-]*:"));
+    if (scheme.match(input).hasMatch()) return navigationUrl(input);
+    if (!input.contains(QRegularExpression(QStringLiteral("\\s")))
+        && (input.contains('.') || input.startsWith(QStringLiteral("localhost")) || input.startsWith('['))) {
+        const QUrl address = navigationUrl(input);
+        if (address.isValid() && !address.isEmpty()) return address;
+    }
+    const QString endpoint = searchEngine == QStringLiteral("google") ? QStringLiteral("https://www.google.com/search")
+        : searchEngine == QStringLiteral("bing") ? QStringLiteral("https://www.bing.com/search")
+        : QStringLiteral("https://duckduckgo.com/");
+    QUrl url(endpoint);
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("q"), input);
+    url.setQuery(query);
+    return url;
 }
 
 bool FeriaBrowserPolicy::webView2Available() const
