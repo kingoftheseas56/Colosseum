@@ -13,6 +13,42 @@ TestCase {
     }
     function cleanup() { if(host){host.close();host.destroy()} }
 
+    function test_pickerVisibleWithoutScrolling() {
+        verify(host.worldData!==undefined)
+        var world=item("vinylWorld")
+        var fold=host.worldScroll.y+host.worldScroll.height
+        function checkAll() {
+            ;["vinylPickerQuestion","vinylPickerSearch","vinylPickerSkip","vinylPickerDone"].forEach(function(name){
+                var it=item(name)
+                verify(it!==null,name+" must exist")
+                var p=it.mapToItem(host.contentItem,0,0)
+                verify(p.y>=host.worldScroll.y-1 && p.y+it.height<=fold+1,name+" must lie fully inside the visible page")
+            })
+        }
+        tryVerify(function(){return Math.abs(host.worldScroll.contentY-world.pickerParkY)<1})
+        verify(item("vinylTastePicker").visible)
+        checkAll()
+        host.worldData.resetPicker()
+        tryVerify(function(){return Math.abs(host.worldScroll.contentY-world.pickerParkY)<1})
+        checkAll()
+    }
+    function test_skipDoneReachableWhileArtistsScroll() {
+        verify(host.worldData!==undefined)
+        var fold=host.worldScroll.y+host.worldScroll.height
+        var scroll=item("vinylPickerScroll")
+        verify(scroll!==null)
+        tryVerify(function(){return scroll.contentHeight>scroll.height+200})
+        scroll.contentY=scroll.contentHeight-scroll.height
+        waitForRendering(host.contentItem)
+        verify(Math.abs(scroll.contentY-(scroll.contentHeight-scroll.height))<1,"artists must actually be scrolled")
+        ;["vinylPickerSkip","vinylPickerDone"].forEach(function(name){
+            var it=item(name)
+            var p=it.mapToItem(host.contentItem,0,0)
+            verify(p.y>=host.worldScroll.y-1 && p.y+it.height<=fold+1,name+" must stay fully inside the visible page while the artists are scrolled")
+        })
+        mouseClick(item("vinylPickerDone"))
+        verify(host.worldData.pickerAnswered,"clicking Done at the end of the artist list must still answer the picker")
+    }
     function test_skipDoneAndSearch() {
         verify(host.worldData!==undefined)
         var picker=item("vinylTastePicker")

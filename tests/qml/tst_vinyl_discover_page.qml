@@ -60,12 +60,50 @@ TestCase {
         mouseClick(value)
         compare(JSON.stringify(host.worldData.lens),before)
     }
+    function test_filterMenuInsideWindow() {
+        verify(host.worldData!==undefined)
+        var world=item("vinylWorld");world.setTab("discover")
+        waitForRendering(host.contentItem)
+        var barTop=item("vinylPlayerBar").mapToItem(host.contentItem,0,0).y
+        var fold=host.worldScroll.y+host.worldScroll.height
+        ;["genre","decade","country","language"].forEach(function(key) {
+            ["genre","decade","country","language"].forEach(function(k){host.worldData.setLens(k,"")})
+            var button=item("vinylFilter_"+key)
+            verify(button!==null)
+            mouseClick(button)
+            var menu=findChild(host,"vinylFilterMenu")
+            tryCompare(menu,"opened",true)
+            var scroll=item("vinylFilterMenuScroll")
+            verify(scroll!==null)
+            tryVerify(function(){return scroll.contentHeight>0 && scroll.height>0})
+            waitForRendering(host.contentItem)
+            var menuTop=menu.contentItem.mapToItem(host.contentItem,0,0)
+            var menuBottom=menuTop.y-menu.topPadding+menu.height
+            verify(menuBottom<=fold,key+" menu bottom "+menuBottom+" must stay inside the visible page (fold "+fold+")")
+            verify(menuBottom<=barTop,key+" menu must stay above the player bar (top "+barTop+")")
+            var options=host.worldData.filterOptions(key)
+            var value=options[options.length-1]
+            verify(value.enabled,"last "+key+" value must be choosable under an empty lens")
+            var btn=item("vinylFilterValue_"+key+"_"+value.value)
+            verify(btn!==null)
+            scroll.contentY=Math.max(0,btn.y+btn.height-scroll.height)
+            waitForRendering(host.contentItem)
+            var valueTop=btn.mapToItem(host.contentItem,0,0)
+            verify(valueTop.y>=menuTop.y-1 && valueTop.y+btn.height<=menuTop.y+scroll.height+1,"last "+key+" value must be inside the visible menu")
+            mouseClick(btn)
+            tryCompare(menu,"opened",false)
+            tryVerify(function(){return host.worldData.lens[key]===value.value})
+        })
+    }
     function test_windowGeometry_data() {
-        return [{tag:"compact",w:1280,h:720},{tag:"wide",w:1600,h:900}]
+        return [{tag:"compact",w:1280,h:720},{tag:"laptop",w:1280,h:700},{tag:"wide",w:1600,h:900}]
     }
     function test_windowGeometry(data) {
         verify(host.worldData!==undefined)
         host.width=data.w;host.height=data.h
+        waitForRendering(host.contentItem)
+        if (host.width!==data.w || host.height!==data.h)
+            skip("Screen granted "+host.width+"x"+host.height+" for "+data.w+"x"+data.h)
         var world=item("vinylWorld");world.setTab("discover")
         waitForRendering(host.contentItem)
         host.worldScroll.contentY=world.contentTop
@@ -75,7 +113,6 @@ TestCase {
         var p=card.mapToItem(host.contentItem,0,0)
         verify(p.x>=0 && p.x+card.width<=host.width)
         verify(p.y>=host.worldScroll.y && p.y+card.height<=host.worldScroll.y+host.worldScroll.height)
-        compare(host.width,data.w);compare(host.height,data.h)
     }
     function test_wrappedLensDoesNotOverlap() {
         host.width=1280;host.height=720

@@ -10,6 +10,12 @@ var listDefinitions = [
     {key: "global", title: "Global", icon: "global"}
 ]
 function copy(o) { return Object.assign({}, o) }
+function uniq(list) {
+    var seen = {}, out = []
+    list.forEach(function(v) { if (v !== "" && !seen[v]) { seen[v] = true; out.push(v) } })
+    return out
+}
+function overlap(a, b) { return a.some(function(v) { return b.indexOf(v) >= 0 }) }
 function canonical(c, name) {
     var table = c.people || {}, keys = Object.keys(table)
     if (keys.indexOf(name) >= 0) return name
@@ -28,6 +34,16 @@ function persons(c, a) {
         if (key && !seen[key]) { seen[key] = true; result.push(key) }
     })
     return result
+}
+function albumArtists(c, a) { return uniq((a.artists || []).map(function(n) { return canonical(c,n) })) }
+function trackSingers(c, a) {
+    var names = []
+    ;(a.tracks || []).forEach(function(t) { names = names.concat(t.artists || []) })
+    return uniq(names.map(function(n) { return canonical(c,n) }))
+}
+function canonSingersOf(c, a, t) {
+    var raw = (t.artists && t.artists.length) ? t.artists : (a.artists || [])
+    return { raw: raw, canonical: uniq(raw.map(function(n) { return canonical(c,n) })) }
 }
 function albums(c) { return (c.albums || []).filter(function(a) { return a.playable !== false }) }
 function matches(a, lens) {
@@ -113,18 +129,64 @@ function shelves(c,lens,profile) {
 function seedEvidence(c,profile,picks) {
     var result = []
     historyAlbums(c,profile).forEach(function(a) {
-        result.push({id:a.id, type:"album", name:a.title, people:persons(c,a), verb:"played"})
+        result.push({id:a.id, type:"album", name:a.title, people:persons(c,a), verb:"played", album:a})
     })
     ;(profile.saved || []).forEach(function(id) {
         var a=albums(c).find(function(a) {return a.id===id})
         if (a && !result.some(function(e) {return e.id===id}))
-            result.push({id:a.id,type:"album",name:a.title,people:persons(c,a),verb:"saved"})
+            result.push({id:a.id,type:"album",name:a.title,people:persons(c,a),verb:"saved",album:a})
     })
     ;(picks || []).forEach(function(person) {
         if (albums(c).some(function(a) {return persons(c,a).indexOf(person)>=0}))
             result.push({id:person,type:"artist",name:person,people:[person],verb:"picked"})
     })
     return result
+}
+// A reason must be connected to the thing it explains. Preference order for
+// the seed behind a recommended item: same composer or album artist, same
+// track singer, same decade and language. Zero means not connected.
+// seedInfo/albumInfo carry precomputed canonical people lists.
+function seedInfoOf(c,seed) {
+    var base = {type:seed.type,id:seed.id,name:seed.name,verb:seed.verb}
+    if (seed.type !== "album") return base
+    base.artists=albumArtists(c,seed.album); base.singers=trackSingers(c,seed.album)
+    base.year=seed.album.year; base.language=seed.album.language
+    return base
+}
+function albumInfoOf(c,a) {
+    return {artists:albumArtists(c,a),singers:trackSingers(c,a),year:a.year,language:a.language}
+}
+function levelAlbum(seedInfo,albumInfo) {
+    if (seedInfo.type==="artist")
+        return albumInfo.artists.indexOf(seedInfo.id)>=0 ? 1 : albumInfo.singers.indexOf(seedInfo.id)>=0 ? 2 : 0
+    if (overlap(albumInfo.artists,seedInfo.artists)) return 1
+    if (overlap(albumInfo.singers,seedInfo.singers)) return 2
+    if (Math.floor(albumInfo.year/10)===Math.floor(seedInfo.year/10) && albumInfo.language===seedInfo.language) return 3
+    return 0
+}
+function levelSong(seedInfo,albumInfo,singers) {
+    if (seedInfo.type==="artist") {
+        if (albumInfo.artists.indexOf(seedInfo.id)>=0) return 1
+        return singers.indexOf(seedInfo.id)>=0 ? 2 : 0
+    }
+    if (overlap(albumInfo.artists,seedInfo.artists)) return 1
+    if (overlap(singers,seedInfo.singers)) return 2
+    if (Math.floor(albumInfo.year/10)===Math.floor(seedInfo.year/10) && albumInfo.language===seedInfo.language) return 3
+    return 0
+}
+function levelPerson(seedInfo,person) {
+    if (seedInfo.type==="artist") return seedInfo.id===person ? 1 : 0
+    if (seedInfo.artists.indexOf(person)>=0) return 1
+    if (seedInfo.singers.indexOf(person)>=0) return 2
+    return 0
+}
+function bestSeed(seedInfos,levelFor) {
+    var best=null, bestLevel=0
+    seedInfos.forEach(function(info) {
+        var level=levelFor(info)
+        if (level>0 && (!best || level<bestLevel)) { best=info; bestLevel=level }
+    })
+    return best
 }
 function withReason(item,seed) {
     return Object.assign({},item,{reason:"Because you "+seed.verb+" "+seed.name,
@@ -135,34 +197,67 @@ function homeRows(c,profile,picks) {
     if (!evidence.length) return result
     if (history.length) result.push({key:"jump-back",title:"Jump back in",icon:"history",
         kind:"albums",items:history.slice(0,12).map(albumItem)})
-    var related=[]
-    albums(c).forEach(function(a) {
-        var people=persons(c,a)
-        var seed=evidence.find(function(e) {return e.people.some(function(p) {return people.indexOf(p)>=0})})
-        if (seed) related.push({album:a,seed:seed})
+    var playable=albums(c)
+    var seedInfos=evidence.map(function(seed) { return seedInfoOf(c,seed) })
+    var albumInfo={}, albumSeed={}
+    playable.forEach(function(a) {
+        albumInfo[a.id]=albumInfoOf(c,a)
+        albumSeed[a.id]=bestSeed(seedInfos,function(info){return levelAlbum(info,albumInfo[a.id])})
     })
     ;["songs","albums","artists","mixes","stations"].forEach(function(kind) {
         var items=[], seen={}
-        related.forEach(function(pair) {
-            var baseKind=kind==="mixes" || kind==="stations" ? "albums" : kind
-            project(c,[pair.album],baseKind).slice(0,kind==="songs" ? 2 : 20).forEach(function(item) {
-                if (kind==="mixes" || kind==="stations") {
-                    item=Object.assign({},item,{id:kind+":"+pair.seed.id,kind:kind,
-                        title:pair.seed.name+(kind==="mixes" ? " mix" : " station"),
-                        subtitle:"",sequence:related.filter(function(p) {
-                            return p.seed.id===pair.seed.id
-                        }).map(function(p) {return p.album.id})})
-                }
-                if (!seen[item.id]) { seen[item.id]=true; items.push(withReason(item,pair.seed)) }
-            })
+        playable.forEach(function(a) {
+            var info=albumInfo[a.id]
+            if (kind==="songs") {
+                var taken=0
+                a.tracks.forEach(function(t,trackIndex) {
+                    if (taken>=2) return
+                    var singers=canonSingersOf(c,a,t)
+                    var seed=bestSeed(seedInfos,function(si){return levelSong(si,info,singers.canonical)})
+                    if (!seed) return
+                    var item=Object.assign(albumItem(a),{id:a.id+":"+trackIndex,kind:"songs",
+                        title:t.title,artist:singers.raw.join(" · "),subtitle:singers.raw.join(" · "),
+                        trackIndex:trackIndex,seconds:t.seconds,plays:t.plays})
+                    if (seen[item.id]) return
+                    seen[item.id]=true; taken++
+                    items.push(withReason(item,seed))
+                })
+            } else if (kind==="albums") {
+                var seed=albumSeed[a.id]
+                if (!seed) return
+                var album=albumItem(a)
+                if (seen[album.id]) return
+                seen[album.id]=true
+                items.push(withReason(album,seed))
+            } else if (kind==="artists") {
+                persons(c,a).forEach(function(person) {
+                    if (seen[person]) return
+                    var seed=bestSeed(seedInfos,function(si){return levelPerson(si,person)})
+                    if (!seed) return
+                    seen[person]=true
+                    var from=project(c,[a],"artists").filter(function(i){return i.id===person})[0]
+                    if (from) items.push(withReason(from,seed))
+                })
+            } else {
+                var mixSeed=albumSeed[a.id]
+                if (!mixSeed) return
+                var id=kind+":"+mixSeed.id
+                if (seen[id]) return
+                seen[id]=true
+                var base=project(c,[a],"albums")[0]
+                var mix=Object.assign({},base,{id:id,kind:kind,
+                    title:mixSeed.name+(kind==="mixes" ? " mix" : " station"),
+                    subtitle:"",sequence:playable.filter(function(x){return albumSeed[x.id] && albumSeed[x.id].id===mixSeed.id}).map(function(x){return x.id})})
+                items.push(withReason(mix,mixSeed))
+            }
         })
         if (items.length) result.push({key:"recommend-"+kind,title:"Recommended "+kind,
             icon:kind,kind:kind,items:items.slice(0,24)})
     })
-    var newer=related.filter(function(p) {
-        return p.album.year>=Number(String(c.snapshotDate).slice(0,4))-2
-    }).sort(function(a,b) {return b.album.year-a.album.year}).map(function(p) {
-        return withReason(albumItem(p.album),p.seed)
+    var newer=playable.filter(function(a) {
+        return albumSeed[a.id] && a.year>=Number(String(c.snapshotDate).slice(0,4))-2
+    }).sort(function(a,b) {return b.year-a.year}).map(function(a) {
+        return withReason(albumItem(a),albumSeed[a.id])
     })
     if (newer.length) result.push({key:"new-artists",title:"New from artists you play",
         icon:"new",kind:"albums",items:newer})
@@ -177,8 +272,42 @@ function coldShelves(c,profile,picks) {
     var lens={kind:"albums"}
     return shelves(c,lens,{history:[]}).slice(0,3)
 }
+// The picker leads with names a listener is likeliest to recognise: album
+// artists ordered by their albums' total plays, then everyone else by plays.
+// One person once, under the canonical name from the catalogue's people table.
+function personStats(c) {
+    var stats = {}
+    albums(c).forEach(function(a) {
+        var leads = albumArtists(c,a), credited = persons(c,a)
+        credited.forEach(function(p) {
+            if (!stats[p]) stats[p] = {person:p, leadPlays:0, creditedPlays:0,
+                cover:a.cover, year:a.year, language:a.language, country:a.country}
+            stats[p].creditedPlays += a.plays || 0
+            if (leads.indexOf(p)>=0) stats[p].leadPlays += a.plays || 0
+        })
+    })
+    return stats
+}
+function personMatches(c,person,query) {
+    if (!query) return true
+    var q = String(query).toLocaleLowerCase()
+    var names = [person].concat((c.people || {})[person] || [])
+    return names.some(function(n) { return String(n).toLocaleLowerCase().indexOf(q) >= 0 })
+}
 function artistOptions(c,query) {
-    var items=project(c,albums(c),"artists")
-    return items.filter(function(i) {return i.title.toLocaleLowerCase().indexOf(String(query||"").toLocaleLowerCase())>=0})
-        .sort(function(a,b) {return a.title.localeCompare(b.title)})
+    var stats = personStats(c), q = String(query || "")
+    return Object.keys(stats).map(function(k) { return stats[k] })
+        .filter(function(s) { return personMatches(c,s.person,q) })
+        .sort(function(a,b) {
+            var aLeads=a.leadPlays>0, bLeads=b.leadPlays>0
+            if (aLeads!==bLeads) return aLeads ? -1 : 1
+            var ap=aLeads ? a.leadPlays : a.creditedPlays
+            var bp=bLeads ? b.leadPlays : b.creditedPlays
+            return bp-ap || a.person.localeCompare(b.person)
+        })
+        .map(function(s) {
+            return {id:s.person,kind:"artists",title:s.person,artist:s.person,subtitle:"",
+                cover:s.cover,year:s.year,language:s.language,country:s.country,
+                plays:s.creditedPlays,aspect:1,round:true,reason:""}
+        })
 }

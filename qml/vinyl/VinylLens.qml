@@ -6,6 +6,7 @@ Item {
     objectName: "vinylLens"
     required property var worldData
     required property Item backdrop
+    required property Flickable pageFlick
     readonly property string title: worldData.lensTitle
     property string openFilter: ""
     implicitHeight: filterRow.y + filterRow.height + 24
@@ -58,6 +59,7 @@ Item {
                 onTriggered: {
                     root.openFilter=modelData
                     menu.x=filter.mapToItem(root,0,0).x
+                    menu.clampToViewport()
                     menu.open()
                 }
             }
@@ -65,15 +67,30 @@ Item {
     }
     Popup {
         id: menu
+        objectName: "vinylFilterMenu"
         y: filterRow.y + filterRow.height + 8
         width: 250
-        height: Math.min(350,options.implicitHeight+24)
+        // Stays inside the visible page above the player bar: the height is
+        // clamped to the space left in the page viewport when the menu opens.
+        height: Math.min(350, options.implicitHeight + 24, menu.maxVisibleHeight)
+        property real maxVisibleHeight: 350
         padding: 12
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         onClosed: root.forceActiveFocus()
+        function clampToViewport() {
+            if (!root.pageFlick) { menu.maxVisibleHeight = 350; return }
+            // A popup's own y is not settled before its first open, so the
+            // top is taken from the filter row the menu hangs from.
+            var sceneTop = root.mapToItem(null, 0, filterRow.y + filterRow.height + 8).y
+            var viewportBottom = root.pageFlick.mapToItem(null, 0, 0).y + root.pageFlick.height
+            menu.maxVisibleHeight = Math.max(0, viewportBottom - sceneTop - 8)
+        }
         background: Glass { backdrop: root.backdrop; radius: 16; tint: 0.12; scrim: 0.64 }
         contentItem: Flickable {
+            id: menuScroll
+            objectName: "vinylFilterMenuScroll"
             clip: true
+            boundsBehavior: Flickable.StopAtBounds
             contentHeight: options.implicitHeight
             Column {
                 id: options

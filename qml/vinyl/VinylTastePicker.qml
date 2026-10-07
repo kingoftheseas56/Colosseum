@@ -6,10 +6,13 @@ Item {
     objectName: "vinylTastePicker"
     required property var worldData
     required property Item backdrop
+    required property Flickable pageFlick
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
     readonly property var offered: worldData.artistOptions(query)
-    implicitHeight: header.height + 30 + grid.implicitHeight
+    // The picker owns one page viewport: the header with the question, the
+    // search field and Skip/Done stays pinned while the artists scroll inside.
+    implicitHeight: pageFlick ? pageFlick.height : header.height + 30 + grid.implicitHeight
     Theme { id: theme }
     function toggleArtist(id) { worldData.togglePickerArtist(id) }
     Item {
@@ -17,6 +20,7 @@ Item {
         width: parent.width
         height: 110
         Text {
+            objectName: "vinylPickerQuestion"
             text: "What do you listen to?"
             color: theme.ink
             font.family: theme.display
@@ -70,38 +74,49 @@ Item {
             }
         }
     }
-    Grid {
-        id: grid
+    Flickable {
+        id: artistScroll
+        objectName: "vinylPickerScroll"
         y: header.height+30
-        columns: root.width>=1300 ? 7 : 6
-        columnSpacing: 24
-        rowSpacing: 28
-        Repeater {
-            model: root.offered
-            delegate: KeyboardAction {
-                required property var modelData
-                required property int index
-                objectName: "vinylPickerArtist_"+index
-                width: (root.width-(grid.columns-1)*24)/grid.columns
-                height: width+label.implicitHeight+18
-                accessibleName: modelData.title
-                onTriggered: root.toggleArtist(modelData.id)
-                RoundedPosterImage {
-                    width: parent.width; height: width; radius: width/2
-                    sources: [root.worldData.artwork(modelData.cover)]
-                    hovered: root.selected.indexOf(modelData.id)>=0
-                }
-                Text {
-                    id: label
-                    y: parent.width+12
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: parent.modelData.title
-                    wrapMode: Text.WordWrap
-                    color: root.selected.indexOf(parent.modelData.id)>=0 ? theme.gold : theme.ink
-                    font.family: theme.ui; font.pixelSize: 14
+        width: parent.width
+        height: parent.height-y
+        contentWidth: width
+        contentHeight: grid.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        Grid {
+            id: grid
+            columns: root.width>=1300 ? 7 : 6
+            columnSpacing: 24
+            rowSpacing: 28
+            Repeater {
+                model: root.offered
+                delegate: KeyboardAction {
+                    required property var modelData
+                    required property int index
+                    objectName: "vinylPickerArtist_"+index
+                    width: (root.width-(grid.columns-1)*24)/grid.columns
+                    height: width+label.implicitHeight+18
+                    accessibleName: modelData.title
+                    onTriggered: root.toggleArtist(modelData.id)
+                    RoundedPosterImage {
+                        width: parent.width; height: width; radius: width/2
+                        sources: [root.worldData.artwork(modelData.cover)]
+                        hovered: root.selected.indexOf(modelData.id)>=0
+                    }
+                    Text {
+                        id: label
+                        y: parent.width+12
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: parent.modelData.title
+                        wrapMode: Text.WordWrap
+                        color: root.selected.indexOf(parent.modelData.id)>=0 ? theme.gold : theme.ink
+                        font.family: theme.ui; font.pixelSize: 14
+                    }
                 }
             }
         }
+        ScrollBar.vertical: HouseScrollBar { flick: artistScroll }
     }
 }

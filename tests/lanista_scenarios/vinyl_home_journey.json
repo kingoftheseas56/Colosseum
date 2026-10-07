@@ -149,9 +149,26 @@
       "cmd": "ui-scroll",
       "label": "Move world viewport using its own scroll owner",
       "payload": {
-        "target": "vinylWorldScroll",
+        "target": "vinylPickerQuestion",
         "dy": -450
       }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World scroll settled before the next click",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "cmd": "ui-click",
@@ -239,6 +256,23 @@
         {
           "path": "grabPath",
           "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Offered artists back at the top of the picker",
+      "payload": {
+        "object": "vinylPickerArtist_0",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
         }
       ]
     },
@@ -366,6 +400,23 @@
         "target": "vinylWorldScroll",
         "dy": 1000
       }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World scroll settled before the next click",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "cmd": "ui-click",

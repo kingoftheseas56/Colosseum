@@ -10,14 +10,32 @@ Item {
     property string listKey: ""
     property bool listHome: false
     property real listReturnY: 0
-    property var tabOffsets: ({home:0,discover:0,library:0})
+    property var tabOffsets: ({})
     readonly property real contentTop: body.y
+    // Where the page sits while Home shows the picker: the tab bar at the
+    // top of the page area, so the tab bar stays usable beside the picker.
+    readonly property real pickerParkY: tabs.y
     implicitHeight: body.y + body.height + 50
+    function parkPage(y) {
+        // Set at once so a click in the same event-loop pass already sees the
+        // parked page, then re-assert once heights have settled, because a
+        // content-height change while a tab rebuilds can clamp contentY back.
+        root.pageFlick.contentY=y
+        Qt.callLater(function(){root.pageFlick.contentY=y})
+    }
+    function syncPickerPlacement() {
+        if (currentTab==="home" && !root.worldData.pickerAnswered && !listKey) parkPage(root.pickerParkY)
+    }
     function setTab(tab) {
         if (["home","discover","library"].indexOf(tab)<0 || tab===currentTab) return
-        var offsets=Object.assign({},tabOffsets);offsets[currentTab]=listKey ? listReturnY : pageFlick.contentY;tabOffsets=offsets
+        var offsets=Object.assign({},tabOffsets)
+        offsets[currentTab]=listKey ? listReturnY : pageFlick.contentY
+        tabOffsets=offsets
         listKey="";currentTab=tab
-        Qt.callLater(function(){root.pageFlick.contentY=root.tabOffsets[tab]||0})
+        // First entry to a tab parks at the tab bar; later entries return to
+        // where the listener left that tab, list detours included.
+        parkPage(tabOffsets[tab] || root.contentTop)
+        syncPickerPlacement()
     }
     function showList(key,home) {
         listReturnY=pageFlick.contentY
@@ -68,6 +86,7 @@ Item {
             visible: root.currentTab==="discover"
             worldData: root.worldData
             backdrop: root.backdrop
+            pageFlick: root.pageFlick
         }
         Item {
             id: panels
@@ -81,6 +100,7 @@ Item {
             visible: !root.listKey && root.currentTab==="home"
             worldData: root.worldData
             backdrop: root.backdrop
+            pageFlick: root.pageFlick
         }
         VinylDiscoverPage {
             id: discover
@@ -103,8 +123,11 @@ Item {
         }
         }
     }
+    Component.onCompleted: syncPickerPlacement()
     Connections {
         target: root.worldData
         function onListRequested(key,home) {root.showList(key,home)}
+        function onPickerAnsweredChanged() {root.syncPickerPlacement()}
+        function onProfileChanged() {root.syncPickerPlacement()}
     }
 }

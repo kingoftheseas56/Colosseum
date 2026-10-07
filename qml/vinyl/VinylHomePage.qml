@@ -4,6 +4,7 @@ Item {
     objectName: "vinylHomePage"
     required property var worldData
     required property Item backdrop
+    required property Flickable pageFlick
     readonly property var rowKeys: worldData.homeRows.map(function(r){return r.key})
     readonly property var coldShelfKeys: worldData.coldShelves.map(function(r){return r.key})
     implicitHeight: picker.visible ? picker.implicitHeight : shelves.implicitHeight
@@ -13,6 +14,7 @@ Item {
         visible: !root.worldData.pickerAnswered
         worldData: root.worldData
         backdrop: root.backdrop
+        pageFlick: root.pageFlick
     }
     Column {
         id: shelves

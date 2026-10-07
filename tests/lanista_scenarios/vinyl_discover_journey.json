@@ -139,12 +139,21 @@
       ]
     },
     {
-      "cmd": "ui-scroll",
-      "label": "Move world viewport using its own scroll owner",
+      "cmd": "ui-wait-for",
+      "label": "Page parked at the tab bar, no scroll needed to reach the lens",
       "payload": {
-        "target": "vinylWorldScroll",
-        "dy": -450
-      }
+        "object": "vinylWorldScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "cmd": "qml-get",
@@ -166,6 +175,48 @@
       "payload": {
         "target": "vinylFilter_language"
       }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Menu values built",
+      "payload": {
+        "object": "vinylFilterValue_language_Telugu",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Scroll the menu inside itself to its last values",
+      "payload": {
+        "target": "vinylFilterMenuScroll",
+        "dy": -500
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Menu scroll settled before the next click",
+      "payload": {
+        "object": "vinylFilterMenuScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
     },
     {
       "cmd": "ui-click",
