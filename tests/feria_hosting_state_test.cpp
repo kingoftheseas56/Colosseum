@@ -170,6 +170,34 @@ private slots:
         QCOMPARE(records(s, "youtube").size(), 1); QCOMPARE(records(s, "mangaplus").size(), 1);
         QCOMPARE(prepare(s, "youtube").value("descriptor").toMap().value("url").toString(), QStringLiteral("https://example.com/first"));
     }
+    void reopenedRedirectKeepsOriginalTransactionBinding() {
+        SessionStore s; s.setBrowserProfile("account-a");
+        const auto original = s.openBrowser(descriptor("youtube", "https://example.com/redirect"), true);
+        QVERIFY(accept(s, original));
+        const auto prepared = prepare(s, "youtube"); QVERIFY(!prepared.isEmpty());
+        const auto recordId = prepared.value("recordId").toString();
+        const auto reopened = s.openBrowser(prepared.value("descriptor").toMap(), true);
+        QVERIFY(!reopened.isEmpty());
+        s.updateBrowser(reopened, "https://example.com/final", "Redirected document");
+        // Successful policy-allowed navigation cannot invalidate original reconstruction.
+        QVERIFY(commit(s, recordId, reopened));
+        QCOMPARE(s.get(reopened).value("target").toMap().value("url").toString(),
+                 QStringLiteral("https://example.com/final"));
+        QVERIFY(records(s, "youtube").isEmpty());
+    }
+    void forgedReopenAllocationCannotConsumeRecord() {
+        SessionStore s; s.setBrowserProfile("account-a");
+        const auto original = s.openBrowser(descriptor(), true); QVERIFY(accept(s, original));
+        const auto prepared = prepare(s, "youtube"); QVERIFY(!prepared.isEmpty());
+        const auto recordId = prepared.value("recordId").toString();
+        auto forged = prepared.value("descriptor").toMap(); forged["reopenRecordId"] = "forged-record";
+        const auto badToken = s.openBrowser(forged, true); QVERIFY(!commit(s, recordId, badToken));
+        auto wrongUrl = prepared.value("descriptor").toMap(); wrongUrl["url"] = "https://example.com/wrong";
+        const auto badUrl = s.openBrowser(wrongUrl, true);
+        s.updateBrowser(badUrl, "https://example.com/a", "Changed after allocation");
+        QVERIFY(!commit(s, recordId, badUrl));
+        QCOMPARE(prepare(s, "youtube"), prepared);
+    }
     void privateInvalidAndStaleAccountNeverReopen() {
         SessionStore s; s.setBrowserProfile("account-a");
         auto privateDesc = descriptor(); privateDesc["privateBrowsing"] = true;

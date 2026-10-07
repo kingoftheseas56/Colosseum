@@ -18,6 +18,7 @@
 #include <QTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QDebug>
 #include <QtWebEngineCore/qtwebenginecoreglobal.h>
 #include <QJsonArray>
@@ -61,7 +62,7 @@ public slots:
             while (m_server.hasPendingConnections()) {
                 QTcpSocket *socket = m_server.nextPendingConnection();
                 connect(socket, &QTcpSocket::readyRead, socket,
-                        [socket, buffer = QByteArray{}, replied = false]() mutable {
+                        [this, socket, buffer = QByteArray{}, replied = false]() mutable {
                     buffer += socket->readAll();
                     if (replied || !buffer.contains("\r\n\r\n")) return;
                     const auto headerEnd = buffer.indexOf("\r\n\r\n");
@@ -75,6 +76,15 @@ public slots:
                     const QByteArray path = buffer.split(' ').value(1);
                     QByteArray body;
                     QByteArray mime("text/html");
+                    if (path.startsWith("/reopen-redirect") && ++m_routeHits[path] > 1) {
+                        socket->write("HTTP/1.1 302 Found\r\nLocation: /hosting\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/broken") {
+                        socket->disconnectFromHost();
+                        return;
+                    }
                     if (path == "/slow") {
                         QTimer::singleShot(5000, socket, [socket] {
                             socket->write("HTTP/1.1 200 OK\r\nContent-Length: 17\r\nConnection: close\r\n\r\n<title>ok</title>");
@@ -163,6 +173,7 @@ public slots:
 private:
     QTemporaryDir m_temp;
     QTcpServer m_server;
+    QHash<QByteArray, int> m_routeHits;
     SessionStore *m_sessions = nullptr;
     FeriaAccountStore *m_account = nullptr;
     FeriaBrowserPolicy *m_policy = nullptr;

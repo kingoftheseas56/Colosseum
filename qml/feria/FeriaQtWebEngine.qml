@@ -18,6 +18,12 @@ WebEngineView {
     readonly property alias browserRequests: requestsController
     signal message(string text)
     signal tabRequested(var request)
+    signal closeRejected()
+    // QtWebEngine 6.11.1 qquickwebengineview.cpp::windowCloseRejected invokes
+    // this method dynamically. This is an UNDOCUMENTED PRIVATE compatibility
+    // dependency, not a public Qt signal. Replace with a public acknowledgement
+    // once available; the controller fails safely if this hook is not delivered.
+    function windowCloseRejected() { closeRejected() }
     FeriaBrowserRequests {
         id: requestsController
         browser: browser
@@ -314,11 +320,10 @@ WebEngineView {
     onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
     onNewWindowRequested: function(request) {
         if (!request.userInitiated) { message("Popup blocked"); return }
-        // Until a separately owned window host exists, keep ordinary new-window
-        // destinations in the canonical retained deck. Never parent them to the opener.
-        if (sharedProfile && (request.destination === WebEngineNewWindowRequest.InNewWindow
-            || request.destination === WebEngineNewWindowRequest.InNewTab
-            || request.destination === WebEngineNewWindowRequest.InNewBackgroundTab))
+        // Retained spaces use the deck's canonical same-profile destination and
+        // disposable native host, including dialogs. Legacy cleaner views keep
+        // their separate compatibility popup path.
+        if (sharedProfile)
             tabRequested(request)
         else openPopup(request)
     }

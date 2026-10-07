@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtWebEngine
 import "PorticoData.js" as ProviderData
 
@@ -20,7 +21,19 @@ Item {
     property var restoreSource: []
     readonly property int restorableTabCount: restoreSource.length
     property string snapshotRoot: ""
-    property var closedTabs: []
+    property int presentationRevision: 0
+    property int hostSerial: 0
+    property var pendingRetirements: []
+    readonly property var closedTabs: { sessions.revision; return activeEntry
+        ? sessions.closedBrowserRecords(activeEntry.descriptor.providerId).map(function(r) { return r.descriptor }) : [] }
+    readonly property var embeddedConsent: {
+        presentationRevision
+        for (var id of Object.keys(entries)) {
+            var entry = entries[id]
+            if (entry.closeConsent && !entry.hostWindow) return entry.closeConsent
+        }
+        return null
+    }
     readonly property var downloads: sharedProfile ? regularDownloads : null
     property bool quiescing: false
     property bool holdForCleanup: false
@@ -134,18 +147,98 @@ Item {
     }
     function closeTab(id) {
         var entry = entries[id]
-        if (entry && entry.browser) entry.browser.triggerWebAction(WebEngineView.RequestClose)
-        else sessions.close(id)
+        return entry && !entry.retiring && entry.browser ? entry.closeController.begin(true) : false
     }
+    function answerClose(id, attempt, leave) {
+        var entry = entries[id]
+        return entry && !entry.retiring ? entry.closeController.answer(attempt, leave) : false
+    }
+    function savePlacement(entry) {
+        if (!entry.savedPlacement) entry.savedPlacement = {parent: entry.parent,
+            x: entry.x, y: entry.y, width: entry.width, height: entry.height,
+            focused: entry.browser && entry.browser.activeFocus}
+    }
+    function disposeHost(entry) {
+        var host = entry.hostWindow, full = entry.fullSizeHost
+        entry.hostWindow = null; entry.fullSizeHost = null
+        if (host) { host.retiring = true; host.hide(); host.destroy() }
+        if (full) {
+            var surface = full.parent
+            full.destroy()
+            if (surface) surface.visible = false
+        }
+    }
+    function moveToDesktop(id, geometry, dialogWindow) {
+        var entry = entries[id]
+        if (!entry || !entry.browser || entry.retiring || entry.closePending) return false
+        if (entry.hostWindow) { entry.hostWindow.show(); entry.hostWindow.raise(); entry.hostWindow.requestActivate(); return true }
+        if (entry.fullSizeHost && !restoreSession(id)) return false
+        var host = desktopHostFactory.createObject(deck, {deck: deck, sessionId: id, dialogWindow: !!dialogWindow})
+        if (!host) return false
+        var rect = geometry || Qt.rect(100, 100, 900, 700)
+        if (!host.applyGeometry(rect)) { host.destroy(); return false }
+        var identity = sessions.setBrowserHost(sessions.browserIdentity(id), "desktop:" + (++hostSerial))
+        if (!identity.spaceId) { host.destroy(); return false }
+        savePlacement(entry)
+        entry.hostWindow = host
+        entry.parent = host.viewport
+        entry.anchors.fill = host.viewport
+        host.show()
+        // Frames become measurable after native exposure; apply the same clamp
+        // again with actual screen/frame data, without changing page ownership.
+        Qt.callLater(function() { if (!host.retiring) host.applyGeometry(rect) })
+        host.requestActivate()
+        entry.browser.forceActiveFocus()
+        ++presentationRevision
+        return true
+    }
+    function maximizeSession(id, surface) {
+        var entry = entries[id]
+        if (!entry || !entry.browser || entry.retiring || entry.closePending || entry.hostWindow
+            || !surface || surface.Window.window !== deck.Window.window) return false
+        if (entry.fullSizeHost) return true
+        var host = fullSizeHostFactory.createObject(deck, {parent: surface, deck: deck, sessionId: id})
+        if (!host) return false
+        var identity = sessions.setBrowserHost(sessions.browserIdentity(id), "app-fullsize:" + (++hostSerial))
+        if (!identity.spaceId) { host.destroy(); return false }
+        savePlacement(entry)
+        entry.fullSizeHost = host
+        surface.visible = true
+        entry.parent = host.viewport
+        entry.anchors.fill = host.viewport
+        entry.browser.forceActiveFocus()
+        ++presentationRevision
+        return true
+    }
+    function returnToEmbedded(id) {
+        var entry = entries[id]
+        if (!entry || entry.retiring || entry.closePending || !entry.savedPlacement) return false
+        var identity = sessions.setBrowserHost(sessions.browserIdentity(id), "embedded")
+        if (!identity.spaceId) return false
+        var saved = entry.savedPlacement
+        entry.anchors.fill = null
+        entry.parent = saved.parent
+        entry.x = saved.x; entry.y = saved.y
+        entry.width = saved.width; entry.height = saved.height
+        entry.savedPlacement = null
+        disposeHost(entry)
+        if (saved.focused && entry.browser) entry.browser.forceActiveFocus()
+        ++presentationRevision
+        return true
+    }
+    function restoreSession(id) {
+        var entry = entries[id]
+        return entry && entry.fullSizeHost ? returnToEmbedded(id) : false
+    }
+    Component { id: desktopHostFactory; FeriaDesktopHost {} }
+    Component { id: fullSizeHostFactory; FeriaFullSizeHost {} }
     function openWindow(sourceId, request) {
         var source = entries[sourceId]
         if (!source || source.retiring || !source.browser || !ready || !request.userInitiated) return
-        if (request.destination !== WebEngineNewWindowRequest.InNewWindow
-            && request.destination !== WebEngineNewWindowRequest.InNewTab
-            && request.destination !== WebEngineNewWindowRequest.InNewBackgroundTab) {
-            source.browser.openPopup(request)
-            return
-        }
+        var nativeDestination = request.destination === WebEngineNewWindowRequest.InNewWindow
+            || request.destination === WebEngineNewWindowRequest.InNewDialog
+        if (!nativeDestination && request.destination !== WebEngineNewWindowRequest.InNewTab
+            && request.destination !== WebEngineNewWindowRequest.InNewBackgroundTab) return
         var originProfile = source.browser.profile
         var originRoot = policy.storageRoot
         var destination = String(request.requestedUrl || "about:blank")
@@ -164,6 +257,19 @@ Item {
         // state requires openIn(), rather than reopening just its URL.
         if (ready && policy.storageRoot === originRoot && entries[sourceId] === source
             && entry && entry.browser && entry.browser.profile === originProfile) {
+            // Allocate the disposable native host before accepting the original
+            // request; failed presentation rolls back the canonical placeholder.
+            if (nativeDestination && !moveToDesktop(id, request.requestedGeometry,
+                    request.destination === WebEngineNewWindowRequest.InNewDialog)) {
+                sessions.close(id)
+                message(sourceId, "Could not create the requested window")
+                return
+            }
+            // Track the actual creation-view dependency, not QObject ownership.
+            // New scoped close routes block its retirement until children die.
+            // No hidden opener shell/lease workaround is enabled here.
+            entry.creationEntry = source
+            ++source.liveAdoptedChildren
             request.openIn(entry.browser)
             entry.browser.adoptingWindowRequest = false
         }
@@ -189,11 +295,24 @@ Item {
         restoreSource = pending
         if (last) sessions.switchTo(last)
     }
+    function reopenClosedSpace(provider) {
+        if (!ready || !provider) return ""
+        var record = sessions.prepareBrowserReopen(provider)
+        if (!record.recordId || !record.descriptor || !policy.allowsNavigation(record.descriptor.url)) return ""
+        var id = sessions.openBrowser(record.descriptor, true, false, true)
+        var entry = entries[id]
+        if (!entry || !entry.browser) {
+            if (id) sessions.close(id)
+            message("", "Could not create the reopened space. Its closed record is still available.")
+            return ""
+        }
+        entry.reopenRecordId = record.recordId
+        // Loader success is not page success. Completion commits only the exact
+        // record; a failed load retires this placeholder without consuming it.
+        return id
+    }
     function restoreClosedTab() {
-        if (!closedTabs.length || !ready) return
-        var descriptor = closedTabs[0]
-        closedTabs = closedTabs.slice(1)
-        sessions.openBrowser(descriptor, true)
+        return activeEntry ? reopenClosedSpace(activeEntry.descriptor.providerId) : ""
     }
     function considerRestore() {
         if (!ready || restoredProfile) return
@@ -214,7 +333,15 @@ Item {
         }
     }
     function selectActive() {
-        activeEntry = entries[sessions.activeId] || null
+        var next = entries[sessions.activeId] || null
+        if (activeEntry && activeEntry !== next && activeEntry.fullSizeHost && !activeEntry.closePending)
+            restoreSession(activeEntry.sessionId)
+        activeEntry = next
+        if (activeEntry && activeEntry.hostWindow) {
+            activeEntry.hostWindow.show()
+            activeEntry.hostWindow.raise()
+            activeEntry.hostWindow.requestActivate()
+        }
     }
     function releasePrivateProfile() {
         if (quiescing || !privateProfileRetiring || !privateProfile) return
@@ -237,15 +364,10 @@ Item {
         for (var id of Object.keys(entries)) {
             if (live[id] && !quiescing) continue
             var previous = entries[id]
-            if (!quiescing && !previous.descriptor.privateBrowsing && previous.browser) {
-                var closed = Object.assign({}, previous.descriptor)
-                closed.url = String(previous.browser.url)
-                closed.title = previous.browser.title
-                closedTabs = [closed].concat(closedTabs).slice(0, 10)
-            }
             delete entries[id]
             accountStore.endSessionVisit(id)
-            previous.retire()
+            if (quiescing) pendingRetirements = pendingRetirements.concat([previous])
+            else previous.retire() // inherited direct-teardown input hazard is documented
         }
         if (ready) {
             if (!sharedProfile && records.some(function(r) { return !r.target.privateBrowsing })) {
@@ -267,10 +389,20 @@ Item {
                 if (entry) entries[current.id] = entry
             }
         }
+        ++presentationRevision
         selectActive()
         syncing = false
         if (syncAgain) { syncAgain = false; Qt.callLater(syncSessions) }
-        if (quiescing) Qt.callLater(advanceQuiescence)
+        if (quiescing) { Qt.callLater(drainRetirements); Qt.callLater(advanceQuiescence) }
+    }
+    function drainRetirements() {
+        var waiting = []
+        for (var entry of pendingRetirements) {
+            if (!entry) continue
+            if (entry.liveAdoptedChildren === 0) entry.retire()
+            else waiting.push(entry)
+        }
+        pendingRetirements = waiting
     }
     function startQuiescence(forCleanup) {
         quiescing = true
@@ -319,6 +451,7 @@ Item {
             return true
         }
         entry.pendingNavigation = null
+        if (entry.closePending) entry.closeController.invalidate(false)
         entry.browser.wakePage()
         if (context) entry.visitContext = context
         entry.token = accountStore.beginSessionVisit(id, {
@@ -348,7 +481,6 @@ Item {
         target: deck.accountStore
         function onProfileChanged() {
             snapshotTimer.stop()
-            deck.closedTabs = []
             deck.restoredProfile = false
             deck.captureRestoreSource()
             Qt.callLater(deck.considerRestore)
@@ -381,22 +513,50 @@ Item {
         Item {
             id: entry
             required property string sessionId
+            readonly property var ownerDeck: deck
             required property var descriptor
             property bool initialWindowRequest: false
             property var visitContext: descriptor.visitContext || ({ title: descriptor.title || "", cover: "" })
             property string token: ""
             property bool retiring: false
-            property bool immersive: false
+            property bool immersive: fullSizeHost !== null
+            property var hostWindow: null
+            property var fullSizeHost: null
+            property var savedPlacement: null
+            property var creationEntry: null
+            property int liveAdoptedChildren: 0
+            property string reopenRecordId: ""
+            readonly property alias closeController: closeController
+            readonly property alias closeConsent: closeController.consent
+            readonly property alias closePending: closeController.pending
+            FeriaCloseController {
+                id: closeController
+                browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
+                retirementAllowed: entry.liveAdoptedChildren === 0
+                onBlocked: (reason) => deck.message(entry.sessionId, reason)
+                onChanged: ++deck.presentationRevision
+                onFailureChanged: if (failure.length) deck.message(entry.sessionId, failure)
+            }
             property string errorText: ""
             property var pendingNavigation: null
             readonly property var browser: browserLoader.item
             anchors.fill: parent
-            visible: !retiring && deck.displayed && deck.sessions.activeId === sessionId && !deck.suppressed
+            visible: !retiring && (hostWindow ? hostWindow.visible
+                : deck.displayed && deck.sessions.activeId === sessionId && !deck.suppressed)
             function retire() {
                 if (retiring) return
                 retiring = true
+                closeController.invalidate(false)
+                // Detach from a disposable host before destroying it. QObject
+                // ownership remains on the deck throughout this visual move.
+                parent = deck
+                deck.disposeHost(entry)
                 if (browser) browser.prepareForClose()
                 else destroy()
+            }
+            Component.onDestruction: {
+                if (creationEntry) --creationEntry.liveAdoptedChildren
+                Qt.callLater(deck.drainRetirements)
             }
             Component.onCompleted: {
                 token = deck.accountStore.beginSessionVisit(sessionId, {
@@ -405,9 +565,16 @@ Item {
                     title: visitContext.title || "", cover: visitContext.cover || ""
                 })
             }
+            FeriaCloseConsent {
+                id: consentDock
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                deck: entry.ownerDeck
+                consent: entry.hostWindow ? entry.closeConsent : deck.embeddedConsent
+            }
             Loader {
                 id: browserLoader
-                anchors.fill: parent
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.top: consentDock.bottom
                 active: entry.token.length > 0 && (entry.descriptor.privateBrowsing
                     ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
                     : deck.sharedProfile !== null)
@@ -446,14 +613,26 @@ Item {
                     deck.sessions.updateBrowser(entry.sessionId, location, "")
                 }
                 function onCompleted(location, success) {
+                    if (entry.retiring) return
+                    if (entry.reopenRecordId) {
+                        var recordId = entry.reopenRecordId
+                        entry.reopenRecordId = ""
+                        if (!success || !deck.sessions.commitBrowserReopen(recordId, entry.sessionId)) {
+                            deck.sessions.close(entry.sessionId)
+                            deck.message(entry.sessionId, "The space could not reopen. Its closed record is still available.")
+                            return
+                        }
+                    }
                     entry.errorText = success ? "" : "Could not open the page. Try Reload."
                     deck.sessions.updateBrowser(entry.sessionId, location,
                                                 entry.browser ? entry.browser.title : "")
                     if (success) deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token,
                         location, entry.browser ? entry.browser.title : "")
                 }
-                function onWindowCloseRequested() { deck.sessions.close(entry.sessionId) }
                 function onTabRequested(request) { deck.openWindow(entry.sessionId, request) }
+                function onGeometryChangeRequested(geometry) {
+                    if (entry.hostWindow) entry.hostWindow.applyGeometry(geometry)
+                }
                 function onMessage(text) { deck.message(entry.sessionId, text) }
                 function onTitleChanged() {
                     if (entry.browser) deck.sessions.updateBrowser(entry.sessionId,

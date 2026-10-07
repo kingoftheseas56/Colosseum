@@ -103,17 +103,21 @@ Item {
             tryVerify(function() { return deck.entries[c].browser.documentReady }, 10000)
             compare(js(deck.entries[c].browser, "window.opener === null"), true)
         }
-        function test_siteWindowKeepsExistingHost() {
+        function test_siteDialogHasCanonicalNativeDestination() {
+            // 6–10 intentionally replaces the old raw opener-owned popup with
+            // a canonical independent native host. The hosting suite adds POST,
+            // geometry, exact-close, and lifetime regression assertions.
             var a = open("/a"), page = deck.entries[a].browser
             js(page, "document.querySelector('button').onclick=function(){window.open('/dialog','fixture-dialog','width=420,height=300')}")
             mouseClick(page, 80, 220)
-            tryVerify(function() { return page.popups.length === 1 }, 10000)
-            var popup = page.popups[0]
-            tryCompare(popup.view, "title", "Fixture /dialog", 10000)
-            compare(popup.view.profile, page.profile)
-            compare(Sessions.browsers().length, 1)
-            popup.close()
-            tryVerify(function() { return page.popups.length === 0 }, 5000)
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { return deck.entries[b] && deck.entries[b].hostWindow
+                && deck.entries[b].browser.title === "Fixture /dialog" }, 10000)
+            compare(deck.entries[b].browser.profile, page.profile)
+            compare(page.popups.length, 0)
+            deck.entries[b].hostWindow.close()
+            tryVerify(function() { return !deck.entries[b] }, 5000)
         }
         function test_newWindowSurvives_data() {
             return [{tag: "minimize", closeOpener: false}, {tag: "close-opener", closeOpener: true}]

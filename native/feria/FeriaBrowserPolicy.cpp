@@ -1,6 +1,10 @@
 #include "FeriaBrowserPolicy.h"
 #include <QRegularExpression>
 #include <QUrlQuery>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QWindow>
+#include <algorithm>
 #ifdef FERIA_HAS_WEBVIEW2
 #include "provider-host/FeriaHostItem.h"
 #include <qqml.h>
@@ -19,6 +23,41 @@ bool hostWithPort(const QString &text) {
         QRegularExpression::CaseInsensitiveOption);
     return hostPort.match(text).hasMatch();
 }
+}
+
+QRect FeriaBrowserPolicy::windowWorkArea(QObject *object) const
+{
+    const auto *window = qobject_cast<QWindow *>(object);
+    const QScreen *screen = window ? window->screen() : QGuiApplication::primaryScreen();
+    return screen ? screen->availableGeometry() : QRect{};
+}
+
+QRect FeriaBrowserPolicy::boundedWindowGeometry(const QRect &requested, QObject *object) const
+{
+    const auto *window = qobject_cast<QWindow *>(object);
+    return clampWindowGeometry(requested, windowWorkArea(object),
+                               window ? window->frameMargins() : QMargins{});
+}
+
+QRect FeriaBrowserPolicy::clampWindowGeometry(const QRect &requested, const QRect &area,
+                                             const QMargins &frame) const
+{
+    if (area.isEmpty()) return {};
+    // Wide arithmetic prevents overflow for hostile window.open feature values.
+    const qint64 left = std::max(0, frame.left()), top = std::max(0, frame.top());
+    const qint64 right = std::max(0, frame.right()), bottom = std::max(0, frame.bottom());
+    const qint64 availableWidth = qint64(area.width()) - left - right;
+    const qint64 availableHeight = qint64(area.height()) - top - bottom;
+    if (availableWidth < 1 || availableHeight < 1) return {};
+    const qint64 width = std::clamp<qint64>(requested.width() > 0 ? requested.width() : 960,
+                                          std::min<qint64>(320, availableWidth), availableWidth);
+    const qint64 height = std::clamp<qint64>(requested.height() > 0 ? requested.height() : 720,
+                                           std::min<qint64>(240, availableHeight), availableHeight);
+    const qint64 x = std::clamp<qint64>(requested.x(), qint64(area.x()) + left,
+                                       qint64(area.x()) + area.width() - right - width);
+    const qint64 y = std::clamp<qint64>(requested.y(), qint64(area.y()) + top,
+                                       qint64(area.y()) + area.height() - bottom - height);
+    return QRect(int(x), int(y), int(width), int(height));
 }
 
 QUrl FeriaBrowserPolicy::navigationUrl(const QString &text) const

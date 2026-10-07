@@ -97,8 +97,13 @@ public:
     Q_INVOKABLE void setBrowserProfile(const QString &profile) {
         if (profile == m_browserProfile)
             return;
+        // Retire the account before signals from teardown can dispatch old callbacks.
+        m_browserProfile.clear();
+        ++m_browserEpoch;
+        m_closedBrowsers.clear();
         closeBrowserSessions();
         m_browserProfile = profile;
+        bump();
     }
     Q_INVOKABLE QVariantList browsers() const {
         QVariantList result;
@@ -212,11 +217,136 @@ public:
             {QStringLiteral("groupTitle"), desc.value(QStringLiteral("providerName"), provider)},
             {QStringLiteral("groupIcon"), desc.value(QStringLiteral("logo"))},
             {QStringLiteral("target"), target}, {QStringLiteral("savedState"), QVariantMap{}}};
+        rec.insert(QStringLiteral("browserIdentity"), QVariantMap{
+            {QStringLiteral("accountEpoch"), m_browserEpoch},
+            {QStringLiteral("profileId"), m_browserProfile + (desc.value(QStringLiteral("privateBrowsing")).toBool()
+                ? QStringLiteral("/private") : QStringLiteral("/ordinary"))},
+            {QStringLiteral("spaceId"), id}, {QStringLiteral("pageGeneration"), ++m_browserPageSeq},
+            {QStringLiteral("documentGeneration"), quint64(1)},
+            {QStringLiteral("hostId"), QStringLiteral("embedded")},
+            {QStringLiteral("hostGeneration"), quint64(1)}});
+        rec.insert(QStringLiteral("browserCloseAttempt"), QString());
         m_sessions.append(rec);
         bump();
         if (activate) setActive(id);
         return id;
     }
+    // Exact close state is part of the canonical record, never selected-page state.
+    Q_INVOKABLE QVariantMap browserIdentity(const QString &id) const {
+        return get(id).value(QStringLiteral("browserIdentity")).toMap();
+    }
+    Q_INVOKABLE QString beginBrowserClose(const QVariantMap &identity) {
+        const int index = browserIdentityIndex(identity);
+        if (index < 0) return {};
+        QVariantMap rec = m_sessions.at(index).toMap();
+        if (!rec.value(QStringLiteral("browserCloseAttempt")).toString().isEmpty()) return {};
+        const QString attempt = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        rec.insert(QStringLiteral("browserCloseAttempt"), attempt);
+        m_sessions[index] = rec;
+        bump();
+        return attempt;
+    }
+    Q_INVOKABLE bool settleBrowserClose(const QVariantMap &identity, const QString &attempt,
+                                        bool accepted, const QVariantMap &descriptor) {
+        const int index = browserIdentityIndex(identity);
+        if (index < 0 || attempt.isEmpty()) return false;
+        QVariantMap rec = m_sessions.at(index).toMap();
+        if (rec.value(QStringLiteral("browserCloseAttempt")).toString() != attempt) return false;
+        if (!accepted) {
+            // The adapter invokes this only after the renderer rejection barrier.
+            rec.insert(QStringLiteral("browserCloseAttempt"), QString());
+            m_sessions[index] = rec;
+            bump();
+            return true;
+        }
+        const QVariantMap snapshot = sanitizedBrowserDescriptor(rec, descriptor);
+        if (!snapshot.isEmpty()) {
+            m_closedBrowsers.prepend(QVariantMap{
+                {QStringLiteral("recordId"), QUuid::createUuid().toString(QUuid::WithoutBraces)},
+                {QStringLiteral("accountEpoch"), m_browserEpoch},
+                {QStringLiteral("profileId"), identity.value(QStringLiteral("profileId"))},
+                {QStringLiteral("descriptor"), snapshot},
+                // Fresh reopen must have been allocated after this close, not an existing tab.
+                {QStringLiteral("closedPageSequence"), m_browserPageSeq}});
+            while (m_closedBrowsers.size() > 10) m_closedBrowsers.removeLast();
+        }
+        close(identity.value(QStringLiteral("spaceId")).toString());
+        return true;
+    }
+    Q_INVOKABLE QVariantMap advanceBrowserDocument(const QString &id) {
+        const int index = indexOf(id);
+        if (index < 0) return {};
+        QVariantMap rec = m_sessions.at(index).toMap();
+        QVariantMap identity = rec.value(QStringLiteral("browserIdentity")).toMap();
+        if (identity.isEmpty()) return {};
+        identity.insert(QStringLiteral("documentGeneration"),
+                        identity.value(QStringLiteral("documentGeneration")).toULongLong() + 1);
+        rec.insert(QStringLiteral("browserIdentity"), identity);
+        rec.insert(QStringLiteral("browserCloseAttempt"), QString());
+        m_sessions[index] = rec;
+        bump();
+        return identity;
+    }
+    Q_INVOKABLE QVariantMap setBrowserHost(const QVariantMap &identity, const QString &hostId) {
+        const int index = browserIdentityIndex(identity);
+        if (index < 0 || hostId.isEmpty()) return {};
+        if (identity.value(QStringLiteral("hostId")).toString() == hostId) return identity;
+        QVariantMap moved = identity;
+        moved.insert(QStringLiteral("hostId"), hostId);
+        moved.insert(QStringLiteral("hostGeneration"),
+                     identity.value(QStringLiteral("hostGeneration")).toULongLong() + 1);
+        QVariantMap rec = m_sessions.at(index).toMap();
+        rec.insert(QStringLiteral("browserIdentity"), moved);
+        rec.insert(QStringLiteral("browserCloseAttempt"), QString());
+        m_sessions[index] = rec;
+        bump();
+        return moved;
+    }
+    Q_INVOKABLE QVariantList closedBrowserRecords(const QString &provider) const {
+        QVariantList result;
+        if (provider.isEmpty() || m_browserProfile.isEmpty()) return result;
+        for (const QVariant &value : m_closedBrowsers) {
+            const QVariantMap rec = value.toMap();
+            if (rec.value(QStringLiteral("accountEpoch")).toULongLong() == m_browserEpoch
+                && rec.value(QStringLiteral("descriptor")).toMap()
+                   .value(QStringLiteral("providerId")).toString() == provider)
+                result.append(rec);
+        }
+        return result;
+    }
+    Q_INVOKABLE QVariantMap prepareBrowserReopen(const QString &provider) const {
+        const QVariantList records = closedBrowserRecords(provider);
+        return records.isEmpty() ? QVariantMap{} : records.first().toMap();
+    }
+    // Called only after the adapter has successfully created the fresh runtime view.
+    // Failure rolls that placeholder back with close(), retaining this record.
+    Q_INVOKABLE bool commitBrowserReopen(const QString &recordId, const QString &newSpaceId) {
+        const QVariantMap rec = get(newSpaceId);
+        const QVariantMap identity = browserIdentity(newSpaceId);
+        if (browserIdentityIndex(identity) < 0) return false;
+        const QVariantMap target = sanitizedBrowserDescriptor(rec, {});
+        if (target.isEmpty() || rec.value(QStringLiteral("browserReopenCommitted")).toBool()) return false;
+        for (int i = 0; i < m_closedBrowsers.size(); ++i) {
+            const QVariantMap closed = m_closedBrowsers.at(i).toMap();
+            if (closed.value(QStringLiteral("recordId")).toString() != recordId) continue;
+            const QVariantMap descriptor = closed.value(QStringLiteral("descriptor")).toMap();
+            if (closed.value(QStringLiteral("accountEpoch")) != identity.value(QStringLiteral("accountEpoch"))
+                || closed.value(QStringLiteral("profileId")) != identity.value(QStringLiteral("profileId"))
+                || identity.value(QStringLiteral("pageGeneration")).toULongLong()
+                   <= closed.value(QStringLiteral("closedPageSequence")).toULongLong()
+                || target.value(QStringLiteral("providerId")) != descriptor.value(QStringLiteral("providerId"))
+                || QUrl(target.value(QStringLiteral("url")).toString())
+                   != QUrl(descriptor.value(QStringLiteral("url")).toString())) return false;
+            QVariantMap reopened = rec;
+            reopened.insert(QStringLiteral("browserReopenCommitted"), true);
+            m_sessions[indexOf(newSpaceId)] = reopened;
+            m_closedBrowsers.removeAt(i);
+            bump();
+            return true;
+        }
+        return false;
+    }
+
     Q_INVOKABLE void updateBrowser(const QString &id, const QString &url, const QString &title) {
         const int index = indexOf(id);
         if (index < 0) return;
@@ -378,6 +508,50 @@ signals:
     void targetReplaced(const QString &id);
 
 private:
+    int browserIdentityIndex(const QVariantMap &identity) const {
+        if (identity.isEmpty() || m_browserProfile.isEmpty()
+            || identity.value(QStringLiteral("accountEpoch")).toULongLong() != m_browserEpoch) return -1;
+        const int index = indexOf(identity.value(QStringLiteral("spaceId")).toString());
+        if (index < 0) return -1;
+        const QVariantMap canonical = m_sessions.at(index).toMap()
+            .value(QStringLiteral("browserIdentity")).toMap();
+        // Map equality rejects missing and extraneous fields as well as stale values.
+        return !canonical.isEmpty() && canonical == identity ? index : -1;
+    }
+    static QString cleanBrowserUrl(const QVariant &value) {
+        QUrl url(value.toString());
+        if (!url.isValid()) return {};
+        if (url.toString() == QStringLiteral("about:blank")) return url.toString();
+        if (url.host().isEmpty() || (url.scheme() != QStringLiteral("http")
+                                   && url.scheme() != QStringLiteral("https"))) return {};
+        url.setUserInfo(QString());
+        return url.toString(QUrl::FullyEncoded);
+    }
+    static QVariantMap sanitizedBrowserDescriptor(const QVariantMap &record, const QVariantMap &snapshot) {
+        const QVariantMap target = record.value(QStringLiteral("target")).toMap();
+        if (record.value(QStringLiteral("contentKind")) != QStringLiteral("browser")
+            || target.value(QStringLiteral("privateBrowsing")).toBool()
+            || target.value(QStringLiteral("providerId")).toString().isEmpty()) return {};
+        QString url = cleanBrowserUrl(target.value(QStringLiteral("url")));
+        const bool sameProvider = !snapshot.contains(QStringLiteral("providerId"))
+            || snapshot.value(QStringLiteral("providerId")) == target.value(QStringLiteral("providerId"));
+        const QString observed = sameProvider ? cleanBrowserUrl(snapshot.value(QStringLiteral("url"))) : QString();
+        if (!observed.isEmpty()) url = observed;
+        if (url.isEmpty()) return {};
+        QVariantMap result;
+        // An allowlist strips IDs, requests, POST/opener/visit state and credentials.
+        for (const QString &key : {QStringLiteral("providerId"), QStringLiteral("providerName"),
+                                  QStringLiteral("mode"), QStringLiteral("logo")})
+            if (target.contains(key)) result.insert(key, target.value(key).toString().left(2048));
+        result.insert(QStringLiteral("title"), (sameProvider && snapshot.contains(QStringLiteral("title"))
+            ? snapshot.value(QStringLiteral("title")) : record.value(QStringLiteral("title"))).toString().left(300));
+        result.insert(QStringLiteral("url"), url);
+        result.insert(QStringLiteral("privateBrowsing"), false);
+        const QString start = cleanBrowserUrl(target.value(QStringLiteral("startUrl")));
+        if (!start.isEmpty()) result.insert(QStringLiteral("startUrl"), start);
+        return result;
+    }
+
     static QString appTitle(const QString &app) {
         if (app == QStringLiteral("tankoban"))
             return QStringLiteral("Tankoban");
@@ -484,5 +658,8 @@ private:
     int m_idSeq = 0;
     QString m_browserProfile;
     quint64 m_browserUseOrder = 0;
+    quint64 m_browserEpoch = 0;
+    quint64 m_browserPageSeq = 0;
+    QVariantList m_closedBrowsers;
 };
 
