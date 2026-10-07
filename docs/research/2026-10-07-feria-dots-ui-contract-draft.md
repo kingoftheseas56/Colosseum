@@ -2,6 +2,8 @@
 
 Status: reviewable design draft, not an implementation plan or dispatched Dots assignment.
 
+Phase update: Hemanth subsequently assigned Dots an independent source/integration inspection first. Backend implementation is a separate later assignment after review of that inspection. See `2026-10-07-dots-feria-inspection-brief.md` for the current phase contract.
+
 ## Source and purpose
 
 Colosseum source basis: `https://github.com/kingoftheseas56/Colosseum.git`, commit `022864eb52de908606e074827d3cd1a3a9fca8fd`.
@@ -34,8 +36,8 @@ Primary current seams: `native/SessionStore.h`, native Feria account/policy owne
 
 ## Constraints
 
-- Extend existing canonical session/account/policy owners; introduce no competing tab, account, history, download or preference store.
-- Build on the mixed donor selections: Nano for native browser actions and modern request routing; Lifecycle for recommended-state transitions; Morph for move/context survival and bounded recovery; Angelfish for profile-level downloads and selected native action/model patterns.
+- Preserve Colosseum's canonical session/account/policy authority and privacy behavior. Current backend implementation is not privileged: replace it when the independent inspection establishes a stronger Qt/Chromium/donor solution, identifying migration and frontend compatibility. Introduce no competing simultaneous tab, account, history, download or preference store.
+- The original five-donor selections are provisional inspection evidence. Check existing Qt APIs, Qt's integration and upstream Chromium, and compare wider relevant donors before choosing backend implementations. The original selections may be retained, corrected or superseded from source evidence.
 - Every adapted component records donor repository, commit, source path, retained notices and significant changes. Correct identified donor defects. If none of the donors provides a suitable component, identify the gap and the existing Colosseum owner to extend.
 - Donor behaviors do not override Colosseum product choices. Do not bring in whole donor shells, implicit session restore, automatic device/certificate selection or donor-global account state.
 - Private sessions never enter normal browsing history or persisted restore state. Delayed work and outstanding requests remain fenced to the originating session/account/page generation.
