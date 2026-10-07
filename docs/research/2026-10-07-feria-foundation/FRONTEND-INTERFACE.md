@@ -69,7 +69,7 @@ newSpace uses the canonical provider start destination from existing PorticoData
 
 The request's actual `destination` distinguishes tab/background/window/dialog. It is consumed synchronously inside its engine handler, in a fresh correctly profiled view. The request must not be stored in a list, passed through a timer/Promise/asynchronous Loader, or recreated from requestedUrl. Background creation leaves current selection/focus unchanged. A failed factory/profile/ownership fence cleans up the new record; it never borrows the current page.
 
-Window/dialog requests continue into the existing window host. That host is an integration boundary for the later hosting/close batch; there is no new visible Open-in-separate-window or Pop out control. No CEF-style deferred request/success callback is invented for Qt's void adoption API.
+InNewWindow requests use the canonical retained-space owner until an independent window owner is available. This preserves their profile and live lifetime across opener closure and app suppression. Only InNewDialog continues into the preexisting popup host; its opener-coupled lifetime and nested background routing are known inherited limitations for the later hosting batch. That host is an integration boundary for the later hosting/close batch; there is no new visible Open-in-separate-window or Pop out control. No CEF-style deferred request/success callback is invented for Qt's void adoption API.
 
 ## Presentation layout contract
 

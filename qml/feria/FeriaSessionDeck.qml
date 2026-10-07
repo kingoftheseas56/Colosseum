@@ -113,8 +113,9 @@ Item {
         var provider = ProviderData.P[descriptor.providerId]
         // Explicit fixture/integration startUrl is validated, never a page URL.
         var start = String(descriptor.startUrl || (provider ? "https://" + provider.d : ""))
-        if (!start || !policy.navigationUrl(start).toString().length) return ""
-        descriptor.url = start
+        var normalizedStart = String(policy.navigationUrl(start))
+        if (!start || !normalizedStart.length) return ""
+        descriptor.url = normalizedStart
         descriptor.title = descriptor.providerName || descriptor.providerId
         descriptor.privateBrowsing = Boolean(privateBrowsing)
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
@@ -139,7 +140,8 @@ Item {
     function openWindow(sourceId, request) {
         var source = entries[sourceId]
         if (!source || source.retiring || !source.browser || !ready || !request.userInitiated) return
-        if (request.destination !== WebEngineNewWindowRequest.InNewTab
+        if (request.destination !== WebEngineNewWindowRequest.InNewWindow
+            && request.destination !== WebEngineNewWindowRequest.InNewTab
             && request.destination !== WebEngineNewWindowRequest.InNewBackgroundTab) {
             source.browser.openPopup(request)
             return

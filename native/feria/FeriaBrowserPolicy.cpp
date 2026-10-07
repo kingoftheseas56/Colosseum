@@ -42,8 +42,10 @@ QUrl FeriaBrowserPolicy::omniboxUrl(const QString &text, const QString &searchEn
     if (input.isEmpty() || input.startsWith('/') || input.startsWith('\\')) return {};
     static const QRegularExpression scheme(QStringLiteral("^[a-zA-Z][a-zA-Z0-9+.-]*:"));
     if (hostWithPort(input) || scheme.match(input).hasMatch()) return navigationUrl(input);
+    static const QRegularExpression localhost(QStringLiteral("^localhost(?=$|[/?#])"),
+        QRegularExpression::CaseInsensitiveOption);
     if (!input.contains(QRegularExpression(QStringLiteral("\\s")))
-        && (input.contains('.') || input.compare("localhost", Qt::CaseInsensitive) == 0
+        && (input.contains('.') || localhost.match(input).hasMatch()
             || input.startsWith('['))) {
         const QUrl address = navigationUrl(input);
         if (address.isValid() && !address.isEmpty()) return address;

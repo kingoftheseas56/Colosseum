@@ -314,7 +314,10 @@ WebEngineView {
     onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
     onNewWindowRequested: function(request) {
         if (!request.userInitiated) { message("Popup blocked"); return }
-        if (sharedProfile && (request.destination === WebEngineNewWindowRequest.InNewTab
+        // Until a separately owned window host exists, keep ordinary new-window
+        // destinations in the canonical retained deck. Never parent them to the opener.
+        if (sharedProfile && (request.destination === WebEngineNewWindowRequest.InNewWindow
+            || request.destination === WebEngineNewWindowRequest.InNewTab
             || request.destination === WebEngineNewWindowRequest.InNewBackgroundTab))
             tabRequested(request)
         else openPopup(request)
