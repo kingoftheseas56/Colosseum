@@ -145,6 +145,7 @@ Item {
             return
         }
         var originProfile = source.browser.profile
+        var originRoot = policy.storageRoot
         var destination = String(request.requestedUrl || "about:blank")
         if (!policy.allowsNavigation(destination)) return
         var descriptor = Object.assign({}, source.descriptor)
@@ -159,7 +160,8 @@ Item {
         var entry = entries[id]
         // Adopt the original request synchronously: preserving opener/form/SSO
         // state requires openIn(), rather than reopening just its URL.
-        if (entry && entry.browser && entry.browser.profile === originProfile) {
+        if (ready && policy.storageRoot === originRoot && entries[sourceId] === source
+            && entry && entry.browser && entry.browser.profile === originProfile) {
             request.openIn(entry.browser)
             entry.browser.adoptingWindowRequest = false
         }

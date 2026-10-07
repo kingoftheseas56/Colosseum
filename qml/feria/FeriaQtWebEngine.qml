@@ -320,7 +320,7 @@ WebEngineView {
         else openPopup(request)
     }
     function openPopup(request) {
-        if (!FeriaBrowserPolicy.allowsNavigation(request.requestedUrl)) return
+        if (!FeriaBrowserPolicy.allowsNavigation(String(request.requestedUrl || "about:blank"))) return
         var popup = popupComponent.createObject(browser, { "sharedProfile": browser.profile })
         if (!popup) return
         popups = popups.concat([popup])
