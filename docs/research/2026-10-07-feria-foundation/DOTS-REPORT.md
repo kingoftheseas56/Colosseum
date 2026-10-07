@@ -1,3 +1,77 @@
+# Feria foundation categories 1–5: receiving repairs
+## Result
+R1–R5 repaired in canonical code commit **54249b66a28f23cbe7c56ee356cf3a7568756d82** on kingoftheseas56/Colosseum, branch **dots/feria-foundation-1-5**. Starting reviewed tip **e5c11ef6416a361bf2195c310810cfb53f6a129e**. Original product baseline remains **2916fe85812643c2e0ae45b0aec132cb6eb4e507**. No donor re-audit or categories 6–10 work.
+
+Linux focused verification passes. Overall CI remains **FAIL** because the unchanged retained download-timing assertion fails on both candidate and baseline. Windows replay of these repairs is **NOT RUN** by Dots and remains required. No production adoption.
+
+## What changed
+- **R1:** Both destination-dispatch gates route InNewWindow to the canonical retained SessionStore/deck owner again. Same synchronous original request.openIn, exact source profile/storage-root fences, independent ID; no requestedUrl replay. No new independent desktop-window presentation is claimed. InNewDialog retains the old popup host, whose opener lifetime and nested background routing problems remain inherited hosting-batch work.
+- **R2:** localhost followed by end, slash, query or fragment is classified as a hostname (case insensitive). Existing scheme, credentials, controls and local-file rejection remain. localhostish stays a search. Tests use synthetic private-token text and perform parsing only, never a remote query.
+- **R3:** newSpace passes the validated normalized URL to SessionStore instead of discarding it. Runtime test creates an independent space from a scheme-less loopback startUrl and verifies the committed /home destination.
+- **R4:** Fixture audio controls are explicitly separated from the tested link/button controls. POST checks require the intended URL, title and body before exact body/opener assertions. Background-link assertion also waits for its committed URL/title. Real mouse input and native OpenLinkInNewWindow WebAction remain. New two-row lifetime regression covers deck suppression and source retirement, preserved object identity and page JavaScript state.
+- **R5:** Negative control reads Qt's explicit '-o <file>,txt' output, requires nonzero exit plus FAIL/searchEscaping/%2B, restores exact source bytes in finally, rebuilds and requires green. Supports Release/config subdirectory on multi-config generators. Missing log fails explicitly. Actual Windows execution remains receiving work.
+
+## Reproduction and corrections during this repair
+Tests-first commit **7bd4a12642ef48a6a4a01ff25640021a103a2108** retained unchanged production. First run timed out during apt update; no tests ran.
+Next Linux run reproduced four localhost boundary failures and normalized-start failure. It also exposed two mistakes in the new test harness: native popup views expose runJavaScript rather than the wrapper's evaluateJavaScript; background documentReady alone can precede committed URL.
+Test refinement **b68db903216cb03e5bcaecc975e6562bca605e62** corrects those helpers without product changes. Run **37676302151** then gave:
+- native policy: 21 passed / 4 failed, all four localhost cases
+- real engine: 15 passed / 3 failed: two independent destination-ownership survival cases and normalized newSpace
+- original 13 engine cases remained green
+R1's red test observes missing canonical ownership after lifecycle transitions; the reviewer separately reproduced actual window loss on Windows. We do not mislabel the initial helper exception as an R1 reproduction.
+Only after this run were production fixes authored.
+
+## Final executed checks
+Hosted **Ubuntu 24.04.5 x86_64**, glibc 2.39, Qt/WebEngine **6.11.1**, Xvfb, CMake 3.31.6. Own cloud lacked the matching WebEngine SDK; compiled/runtime results are GitHub-hosted Linux evidence, not a claim of a local full-app launch.
+
+| Command/check | Result |
+|---|---|
+| cmake -S tests/feria_foundation_build -B foundation-build -G Ninja -DCMAKE_BUILD_TYPE=Release | exit 0 |
+| cmake --build foundation-build --parallel 2 | exit 0 |
+| ctest --test-dir foundation-build --output-on-failure | exit 0, 2/2 targets |
+| python3 tests/feria_foundation_build/negative_control.py . foundation-build | exit 0; injected query defect exit 1; restored exact source exit 0 |
+| xvfb-run -a -s '-screen 0 1280x800x24' foundation-build/feria_foundation_runtime -input tests/feria_foundation_probe | exit 0; 18/18 including setup/cleanup, 16 substantive data cases |
+| same runner -input tests/feria_session_probe | exit 1; 10 passed/1 failed |
+| unchanged original retained-runtime baseline comparison | exit 1; same 10/1, original assertion unchanged |
+| FERIA_PREVIEW_CAPTURE=... runner --preview tests/feria_foundation_probe/Preview.qml | exit 0, actual window PNG inspected |
+| own-cloud PySide6 6.11.1 qmlformat parsing: wrapper/deck/Navigation test | exit 0 for each, syntax only |
+| python3 -m py_compile negative_control.py | exit 0 |
+| final archive checksum, ZIP CRC and safe paths | PASS |
+
+Retained failure: test_downloadContinuesAfterTabCloses, 'The delayed fixture must still be downloading', before the tab-close behavior. No download assertion changed or skipped. Existing reviewer Windows 11/11 is reported historical evidence, not a diagnosis or Linux waiver.
+
+Expected warnings: no audio device on hosted runner, software/virtual-display graphics, existing WebEngineProfile deprecation. Screenshot is a functional synthetic-page harness, not approved Feria styling, live provider evidence or audio qualification.
+
+## CI and source ledger
+Canonical commits:
+1. 7bd4a12642ef48a6a4a01ff25640021a103a2108 — tests first and fixture geometry
+2. b68db903216cb03e5bcaecc975e6562bca605e62 — actual popup API and committed target test gates
+3. 54249b66a28f23cbe7c56ee356cf3a7568756d82 — repairs and corrected interface/donor delta
+
+Alternate CI branch: deliveringsake-rgb/Colosseum, dots/feria-foundation-ci. Exact 32 canonical component blobs are checked before execution. Fork's older root is not the source basis.
+- 90ef2837eac71c0d248f3c9150ea032615a303c1: run37670228671/job112959807969, cancelled after setup timeout, no compile/tests. Ubuntu mirror apt update stalled.
+- 691c3f97e3d3b1601605afea2bf18b0a2c2ad66b: run37675144270/job112976594647, red plus harness corrections identified
+- 2c6022794b2ab5375cb49b5fce4aacc727dbfaab: run37676302151/job112980575207, decisive red
+- 438ac6cece5acbf850d13eeb3519bb3d03783f90: run37677299958/job112983986323, focused green; unchanged retained red
+
+CI setup now checks installed dependencies before apt, bounds mirror/download timeouts, and still fails on missing dependencies. It changes no proxy/security settings and waives no gate. Canonical repository .github files were not changed.
+
+Final artifact: **11508105111**, filename **feria-foundation-evidence-438ac6cece5acbf850d13eeb3519bb3d03783f90.zip**, 110637 bytes.
+SHA256 **e16a6850507ee7173d660c71230465e3577e4fa9eb3958983d2db31c7333f293**.
+[Run](https://github.com/deliveringsake-rgb/Colosseum/actions/runs/37677299958)
+[Artifact](https://github.com/deliveringsake-rgb/Colosseum/actions/runs/37677299958/artifacts/11508105111)
+[Repair diff](https://github.com/kingoftheseas56/Colosseum/compare/e5c11ef6416a361bf2195c310810cfb53f6a129e...54249b66a28f23cbe7c56ee356cf3a7568756d82)
+
+## Receiving gate and boundaries
+Re-run original plus added cases on Windows Qt6.11.1, especially real context-menu request lifetime, POST commit gating and explicit-file negative control. Then review adoption. Full Colosseum/Main/Lanista, live accounts/providers, DRM/codecs, app minimize pause semantics, startup restoration and categories6–10 remain unverified/excluded.
+
+All implementation was performed by Dots in its own cloud, with direct GitHub connector commits and GitHub Actions. No Codex, Work, BDC, user-machine or delegated coding path. No main/master adoption, PR, merge, tag or release. Source lives on its working branch; Dots-Colosseum is the evidence index.
+
+
+---
+
+# Original delivery (historical, superseded by receiving repairs above)
+
 # Feria foundation categories 1–5
 
 Date: 2026-10-07. Scope: incremental audit plus working branch prototypes; stop for receiving review before categories 6–10.
