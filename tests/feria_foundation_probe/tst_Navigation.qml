@@ -42,6 +42,46 @@ Item {
             tryVerify(function() { return done }, 5000)
             return value
         }
+        function test_crossOriginAndSameDocumentHistory() {
+            var a = open("/a"), page = deck.entries[a].browser
+            var other = FixtureUrl.replace("127.0.0.1", "localhost") + "/cross"
+            verify(deck.navigateInput(a, other))
+            tryVerify(function() { return String(page.url) === other && page.title === "Fixture /cross" && page.documentReady }, 10000)
+            var nav = deck.navigationForSession(a)
+            tryCompare(nav, "canGoBack", true)
+            verify(deck.back(a))
+            tryVerify(function() { return String(page.url) === FixtureUrl + "/a" && page.title === "Fixture /a" && page.documentReady }, 10000)
+            js(page, "window.sessionMarker=88; history.pushState({},'', '#one'); history.pushState({},'', '#two')")
+            tryVerify(function() { return String(page.url).endsWith("#two") && nav.backCount >= 2 })
+            verify(deck.historyOffset(a, -1, nav.historyRevision))
+            tryVerify(function() { return String(page.url).endsWith("#one") })
+            compare(js(page, "window.sessionMarker"), 88)
+            verify(!nav.canGoForward || nav.forwardCount > 0)
+        }
+        function test_privateRequestProfileAndRetirementFence() {
+            var a = open("/a")
+            var b = deck.newSpace(a, true, true)
+            tryVerify(function() { return deck.entries[b] && deck.entries[b].browser.documentReady }, 15000)
+            var privateView = deck.entries[b].browser
+            verify(privateView.profile.offTheRecord)
+            mouseClick(privateView, 80, 220)
+            tryVerify(function() { return Sessions.browsers().length === 3 }, 10000)
+            var c = Sessions.activeId
+            verify(c !== b && c !== a)
+            tryVerify(function() { return deck.entries[c] && deck.entries[c].browser.documentReady }, 10000)
+            compare(deck.entries[c].browser.profile, privateView.profile)
+            verify(Sessions.get(c).target.privateBrowsing)
+            Sessions.close(c)
+            compare(deck.navigationForSession(c), null)
+            verify(!deck.back(c))
+            verify(!deck.navigateInput(c, FixtureUrl + "/b"))
+        }
+        function test_captureRealEngine() {
+            if (!Fixture.evidenceRoot.length) skip("No explicit capture directory")
+            var a = open("/a")
+            waitForRendering(deck)
+            verify(Fixture.captureWindow(deck, "foundation-engine.png"))
+        }
         function test_stopAndReload() {
             var a = open("/a"), page = deck.entries[a].browser
             var nav = deck.navigationForSession(a)

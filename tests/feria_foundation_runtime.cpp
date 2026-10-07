@@ -2,6 +2,8 @@
 #include "feria/FeriaAccountStore.h"
 #include "feria/FeriaBrowserPolicy.h"
 #include <QCoreApplication>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
 #include <QDataStream>
 #include <QDir>
 #include <QQuickItem>
@@ -15,6 +17,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QtQuickTest/quicktest.h>
@@ -111,7 +114,7 @@ public slots:
                     } else {
                         body = "<!doctype html><title>Fixture " + QString::fromUtf8(path).toHtmlEscaped().toUtf8() + "</title>"
                             "<body style='background:#173044;color:white'><h1>Retained page " + QString::fromUtf8(path).toHtmlEscaped().toUtf8()
-                            + "</h1><a href='/b'>Next page</a><audio id='audio' loop controls src='/tone.wav'></audio>"
+                            + "</h1><a href='/b' style='position:fixed;left:20px;top:70px;width:180px;height:30px'>Next page</a><audio id='audio' loop controls src='/tone.wav'></audio>"
                               "<p>Comet in the reading room. Comet in the listening room. Comet in Feria.</p>"
                               "<p>Search this local fixture with the native browser Find controls.</p>"
                               "<button style='position:fixed;left:20px;top:200px;width:180px;height:40px' "
@@ -120,7 +123,7 @@ public slots:
                               "<div style='height:1400px'></div><p>Page bottom fixture.</p>"
                               "<form method='post' action='/post' target='_blank' rel='opener' "
                               "style='position:fixed;left:20px;top:260px'>"
-                              "<input name='marker' value='original-post-body'><button style='width:180px;height:40px'>Post target</button></form>"
+                              "<input type='hidden' name='marker' value='original-post-body'><button style='width:180px;height:40px'>Post target</button></form>"
                               "<script>window.sessionMarker=0</script></body>";
                     }
                     socket->write("HTTP/1.1 200 OK\r\nContent-Type: " + mime + "\r\nContent-Length: "
@@ -154,6 +157,15 @@ private:
 int main(int argc, char **argv) {
     QtWebEngineQuick::initialize();
     FeriaRuntimeFixture setup;
+    if (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--preview") {
+        QGuiApplication app(argc, argv);
+        setup.applicationAvailable();
+        QQmlApplicationEngine engine;
+        setup.qmlEngineAvailable(&engine);
+        engine.load(QUrl::fromLocalFile(QFileInfo(QString::fromLocal8Bit(argv[2])).absoluteFilePath()));
+        if (engine.rootObjects().isEmpty()) return 2;
+        return app.exec();
+    }
     return quick_test_main_with_setup(argc, argv, "feria_foundation", nullptr, &setup);
 }
 #include "feria_foundation_runtime.moc"

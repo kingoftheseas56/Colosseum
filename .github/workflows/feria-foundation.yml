@@ -1,0 +1,62 @@
+name: Feria foundation categories 1-5
+on:
+  push:
+    branches: ['dots/feria-foundation-1-5']
+  workflow_dispatch:
+concurrency:
+  group: desktop-ci-desktop-ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  focused-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - name: Qt runtime system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build xvfb libxcb-cursor0 libxkbcommon-x11-0 libnss3 libasound2t64 libegl1 libopengl0
+      - name: Install matching Qt
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: '6.11.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: qtwebengine qtwebchannel qtpositioning
+          cache: true
+      - name: Configure and build only foundation components
+        run: |
+          set -o pipefail
+          mkdir -p evidence
+          cmake -S tests/feria_foundation_build -B foundation-build -G Ninja -DCMAKE_BUILD_TYPE=Release 2>&1 | tee evidence/configure.log
+          cmake --build foundation-build --parallel 2 2>&1 | tee evidence/build.log
+      - name: Native production-owner tests
+        run: |
+          set -o pipefail
+          ctest --test-dir foundation-build --output-on-failure 2>&1 | tee evidence/native-tests.log
+      - name: Real WebEngine component fixtures
+        env:
+          FERIA_SESSION_EVIDENCE_DIR: ${{ github.workspace }}/evidence/captures
+          QT_LOGGING_RULES: 'qt.webenginecontext.debug=true'
+        run: |
+          set -o pipefail
+          mkdir -p evidence/captures
+          xvfb-run -a -s '-screen 0 1280x800x24' foundation-build/feria_foundation_runtime -input tests/feria_foundation_probe 2>&1 | tee evidence/engine-tests.log
+      - name: Existing retained-session regressions
+        if: success()
+        run: |
+          set -o pipefail
+          xvfb-run -a -s '-screen 0 1280x800x24' foundation-build/feria_foundation_runtime -input tests/feria_session_probe 2>&1 | tee evidence/retained-tests.log
+      - name: Environment identity
+        if: always()
+        run: |
+          mkdir -p evidence
+          { git rev-parse HEAD; uname -a; cat /etc/os-release; ldd --version | head -1; cmake --version; qmake -query QT_VERSION; } > evidence/environment.log 2>&1
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: feria-foundation-evidence-${{ github.sha }}
+          path: evidence/

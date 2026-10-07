@@ -2,6 +2,7 @@ name: desktop-ci
 
 on:
   push:
+    branches-ignore: ['dots/feria-foundation-1-5']
   pull_request:
   workflow_dispatch:
 
