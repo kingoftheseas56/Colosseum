@@ -82,6 +82,17 @@ public slots:
                         });
                         return;
                     }
+                    if (path == "/hosting") {
+                        body = R"HTML(<!doctype html><title>Fixture /hosting</title>
+<body style="background:#173044;color:white"><input id="edit" style="position:fixed;left:20px;top:20px;width:230px;height:40px">
+<button id="guard" style="position:fixed;left:20px;top:80px;width:230px;height:40px" onclick="window.onbeforeunload=function(e){document.title='guard-fired';e.preventDefault();e.returnValue='guard';return 'guard'}">Protect unsaved changes</button>
+<form method="post" action="/post" target="hosting-dialog" rel="opener"><input type="hidden" name="marker" value="original-post-body"><button id="dialog" style="position:fixed;left:20px;top:140px;width:230px;height:40px" onclick="window.open('', 'hosting-dialog', 'width=420,height=300,left=-9000,top=-9000')">POST dialog</button></form>
+<audio id="audio" loop src="/tone.wav"></audio><div style="height:2400px"></div><script>window.sessionMarker=0</script></body>)HTML";
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: "
+                            + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
                     if (path == "/post") {
                         body = "<title>POST result</title><script>window.postBody="
                             + QJsonDocument(QJsonArray{QString::fromUtf8(requestBody)}).toJson(QJsonDocument::Compact)
