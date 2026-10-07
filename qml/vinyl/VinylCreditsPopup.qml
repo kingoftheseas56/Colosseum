@@ -8,7 +8,7 @@ Popup {
     required property var pageData
     required property Item backdrop
     width: Math.min(480, parent.width - 108)
-    height: Math.min(content.implicitHeight + 40, parent.height - 160)
+    height: Math.min(320, parent.height - 160)
     padding: 20
     modal: false
     focus: true
@@ -20,15 +20,47 @@ Popup {
         backdrop: root.backdrop
         radius: 18
     }
+    onOpened: {
+        creditsScroll.contentY = 0;
+        creditsScroll.forceActiveFocus();
+    }
     contentItem: Flickable {
+        id: creditsScroll
+        objectName: "vinylCreditsScroll"
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        function moveBy(amount) {
+            cancelFlick();
+            contentY = Math.max(0, Math.min(contentHeight - height, contentY + amount));
+        }
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Down)
+                moveBy(40);
+            else if (event.key === Qt.Key_Up)
+                moveBy(-40);
+            else if (event.key === Qt.Key_PageDown)
+                moveBy(height * 0.85);
+            else if (event.key === Qt.Key_PageUp)
+                moveBy(-height * 0.85);
+            else if (event.key === Qt.Key_Home)
+                moveBy(-contentHeight);
+            else if (event.key === Qt.Key_End)
+                moveBy(contentHeight);
+            else
+                return;
+            event.accepted = true;
+        }
+        ScrollGlide {
+            anchors.fill: parent
+            flick: creditsScroll
+        }
         contentHeight: content.height
         ScrollBar.vertical: HouseScrollBar {
             flick: parent
         }
         Column {
             id: content
-            width: parent.width
+            width: Math.max(0, parent.width - 18)
             spacing: 18
             Text {
                 text: "CREDITS"

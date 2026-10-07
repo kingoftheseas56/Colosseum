@@ -49,6 +49,40 @@ TestCase {
         keyClick(Qt.Key_Return);
         compare(host.page, "album");
     }
+    function test_creditsStayBoundedAndScroll() {
+        mouseClick(item("vinylBarCredits"));
+        var popup = item("vinylCreditsPopup");
+        tryCompare(popup, "opened", true);
+        var oldHeight = popup.height;
+        var edition = JSON.parse(JSON.stringify(host.pageData.playingEdition));
+        edition.credits = [];
+        for (var n = 0; n < 30; ++n)
+            edition.credits.push({
+                role: "Fixture role " + n,
+                names: ["Original stand-in " + n]
+            });
+        host.pageData.playingEdition = edition;
+        compare(popup.height, oldHeight, "Credit count must not grow the popup");
+        var scroll = item("vinylCreditsScroll");
+        verify(scroll !== null);
+        tryVerify(function () {
+            return scroll.contentHeight > scroll.height;
+        });
+        compare(popup.height, oldHeight, "Height stays fixed after credit layout");
+        scroll.forceActiveFocus();
+        keyClick(Qt.Key_PageDown);
+        tryVerify(function () {
+            return scroll.contentY > 0;
+        });
+        keyClick(Qt.Key_End);
+        tryVerify(function () {
+            return scroll.atYEnd;
+        });
+        keyClick(Qt.Key_Home);
+        compare(scroll.contentY, 0);
+        keyClick(Qt.Key_Escape);
+        tryCompare(popup, "opened", false);
+    }
     function test_restAndTools() {
         verify(!item('vinylLyricsColumn').visible);
         verify(!item('vinylNotesColumn').visible);
@@ -160,6 +194,32 @@ TestCase {
                 compare(capture.width, host.width);
                 capture.save(VinylCaptureDirectory + '/song-' + host.width + '-' + states[i] + '.png');
             }
+        }
+    }
+
+    function test_captureCreditsOverflow() {
+        if (typeof VinylCaptureDirectory === "undefined" || !VinylCaptureDirectory)
+            skip("Set VINYL_CAPTURE_DIR for visual captures");
+        host.developerStrip = false;
+        var edition = JSON.parse(JSON.stringify(host.pageData.playingEdition));
+        edition.credits = [];
+        for (var n = 0; n < 30; ++n)
+            edition.credits.push({
+                role: "Fixture role " + n,
+                names: ["Original stand-in " + n]
+            });
+        host.pageData.playingEdition = edition;
+        for (var size = 0; size < 2; ++size) {
+            host.width = size ? 1600 : 1280;
+            host.height = size ? 900 : 720;
+            item("vinylCreditsPopup").open();
+            tryCompare(item("vinylCreditsPopup"), "opened", true);
+            host.requestUpdate();
+            waitForRendering(host.contentItem);
+            var capture = grabImage(host.contentItem);
+            compare(capture.width, host.width);
+            capture.save(VinylCaptureDirectory + "/credits-overflow-" + host.width + ".png");
+            item("vinylCreditsPopup").close();
         }
     }
 

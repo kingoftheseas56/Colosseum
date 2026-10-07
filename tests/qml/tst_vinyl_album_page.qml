@@ -46,6 +46,23 @@ TestCase {
             tryCompare(icon, "status", Image.Ready);
         }
     }
+    function test_hudOpensSongWithoutHijackingControls() {
+        var bar = item("vinylPlayerBar");
+        mouseClick(bar, 35, 35);
+        compare(host.page, "song", "Artwork must open the playing song");
+        host.page = "album";
+        mouseClick(item("vinylBarNowPlaying"));
+        compare(host.page, "song");
+        host.page = "album";
+        var paused = host.pageData.paused;
+        mouseClick(item("vinylBarPlay"));
+        compare(host.page, "album", "Transport must not navigate");
+        compare(host.pageData.paused, !paused);
+        var index = host.pageData.playingIndex;
+        mouseClick(item("vinylBarNext"));
+        compare(host.page, "album");
+        compare(host.pageData.playingIndex, index + 1);
+    }
     function test_barStates() {
         var bar = item("vinylPlayerBar");
         compare(bar.toolCount, 1);

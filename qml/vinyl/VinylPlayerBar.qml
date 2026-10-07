@@ -56,6 +56,13 @@ Item {
         ToolTip.visible: hovered
         ToolTip.text: accessibleName
     }
+    KeyboardAction {
+        objectName: "vinylBarOpenSong"
+        anchors.fill: parent
+        enabled: root.page === "album"
+        accessibleName: "Open playing song"
+        onTriggered: root.songRequested()
+    }
     Image {
         id: cover
         x: 12
