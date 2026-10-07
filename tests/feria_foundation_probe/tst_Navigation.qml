@@ -39,7 +39,10 @@ Item {
         }
         function js(page, script) {
             var done = false, value
-            page.evaluateJavaScript(script, function(result) { value = result; done = true })
+            if (typeof page.evaluateJavaScript === "function")
+                page.evaluateJavaScript(script, function(result) { value = result; done = true })
+            else
+                page.runJavaScript(script, function(result) { value = result; done = true })
             tryVerify(function() { return done }, 5000)
             return value
         }
@@ -207,7 +210,8 @@ Item {
             compare(Sessions.activeId, a)
             var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
             tryVerify(function() { return deck.entries[b] && deck.entries[b].browser.documentReady }, 10000)
-            compare(String(deck.entries[b].browser.url), FixtureUrl + "/b")
+            tryVerify(function() { return String(deck.entries[b].browser.url) === FixtureUrl + "/b"
+                && deck.entries[b].browser.title === "Fixture /b" }, 10000)
         }
         function test_nativeNavigationTargetsBackgroundSpace() {
             var a = open("/a"), page = deck.entries[a].browser
