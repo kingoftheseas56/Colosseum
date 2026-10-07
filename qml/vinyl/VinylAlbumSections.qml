@@ -92,6 +92,7 @@ Column {
     Column {
         id: about
         objectName: "vinylSection_about"
+        visible: root.pageData.sectionVisible("about")
         width: parent.width
         spacing: 20
         Heading {
@@ -110,6 +111,7 @@ Column {
     Column {
         id: credits
         objectName: "vinylSection_credits"
+        visible: root.pageData.sectionVisible("credits")
         width: parent.width
         spacing: 24
         Heading {
@@ -157,6 +159,7 @@ Column {
     Column {
         id: videos
         objectName: "vinylSection_videos"
+        visible: root.pageData.sectionVisible("videos")
         width: parent.width
         spacing: 24
         Heading {
@@ -195,6 +198,7 @@ Column {
     Column {
         id: editions
         objectName: "vinylSection_editions"
+        visible: root.pageData.sectionVisible("editions")
         width: parent.width
         spacing: 20
         readonly property var sortedEditions: root.pageData.editions.slice().sort(function (a, b) {
@@ -257,6 +261,7 @@ Column {
     Column {
         id: more
         objectName: "vinylSection_more"
+        visible: root.pageData.sectionVisible("more")
         width: parent.width
         spacing: 24
         Heading {
@@ -298,6 +303,7 @@ Column {
     Column {
         id: info
         objectName: "vinylSection_information"
+        visible: root.pageData.sectionVisible("information")
         width: parent.width
         spacing: 26
         Heading {

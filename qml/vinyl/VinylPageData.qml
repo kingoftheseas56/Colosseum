@@ -9,7 +9,11 @@ Item {
     property string fixtureId: "thriller"
     property string shownEditionId: "original"
     property int shownDisc: 0
-    property var editions: Fixtures.editions(fixtureId)
+    property var snapshotEdition: null
+    property var continuousQueue: []
+    property int continuousIndex: 0
+    readonly property string shownAlbumId: shownEdition.albumId || shownEdition.id
+    property var editions: snapshotEdition ? [snapshotEdition] : Fixtures.editions(fixtureId)
     readonly property var shownEdition: edition(shownEditionId)
     readonly property var tracks: shownEdition.discs[shownDisc] || []
     property string playingEditionId: "original"
@@ -31,7 +35,7 @@ Item {
     readonly property bool hasVideo: !!playingEdition.hasVideo || (playingEdition.artist === "Michael Jackson" && ["Thriller", "Beat It", "Billie Jean"].indexOf(playingTrack.title) >= 0)
     readonly property var credits: shownEdition.credits || Fixtures.credits
     readonly property var playingCredits: playingEdition.credits || Fixtures.credits
-    readonly property var videos: [
+    readonly property var videos: shownEdition.snapshot ? [] : [
         {
             title: "Billie Jean",
             cover: "video-billie-jean.jpg",
@@ -48,7 +52,7 @@ Item {
             track: 3
         }
     ]
-    readonly property var moreAlbums: [
+    readonly property var moreAlbums: shownEdition.snapshot ? [] : [
         {
             title: "Off the Wall",
             year: 1979,
@@ -77,10 +81,41 @@ Item {
     ]
     readonly property var information: {
         var e = shownEdition;
+        if (e.snapshot) return [];
         var candidates = [["released", "Released", e.date], ["label", "Label", e.label], ["catalogue", "Catalogue number", e.catalogue], ["barcode", "Barcode", e.barcode], ["country", "Country", e.country], ["format", "Format", e.format], ["tracks", "Tracks", totalTracks(e)], ["length", "Length", e.length]];
         return candidates.filter(function (row) {
             return row[2] !== undefined && row[2] !== "";
         });
+    }
+    function sectionVisible(key) {
+        var visibility = shownEdition.sectionVisibility;
+        return visibility ? visibility[key] === true : true;
+    }
+    function snapshotRecord(album, coverUrl) {
+        var total = album.tracks.reduce(function(n,t) {return n + t.seconds},0);
+        return {id:album.id,albumId:album.id,snapshot:true,name:album.title,title:album.title,
+            artist:album.artists.join(" · "),year:album.year,cover:coverUrl,
+            length:formatTime(total),about:"",credits:[],hasLyrics:false,hasNotes:false,hasVideo:false,
+            sectionVisibility:{about:false,credits:false,videos:false,editions:false,more:false,information:false},
+            discs:[album.tracks.map(function(t) {return {title:t.title,seconds:t.seconds,
+                artist:(t.artists.length?t.artists:album.artists).join(" · ")}})]};
+    }
+    function loadAlbum(album, coverUrl) {
+        if (!album || !album.tracks || !album.tracks.length) return false;
+        snapshotEdition=snapshotRecord(album,coverUrl);
+        shownDisc=0;shownEditionId=album.id;saved=false;editionSelected();return true;
+    }
+    function showPlayingAlbum() {
+        snapshotEdition=playingEdition.snapshot ? playingEdition : null;
+        shownEditionId=playingEditionId;
+        shownDisc=playingDisc;
+        editionSelected();
+    }
+    function startContinuous(records) {
+        if (!records || !records.length) return;
+        continuousQueue=records;continuousIndex=0;
+        loadAlbum(records[0].album,records[0].cover);
+        playTrack(0,true);
     }
     function totalTracks(e) {
         return e.discs.reduce(function (n, d) {
@@ -127,6 +162,7 @@ Item {
         return editions[0];
     }
     function artwork(file) {
+        if (file && (/^(file:|qrc:|https?:)/).test(String(file))) return file;
         return file && artworkRoot ? artworkRoot + "/" + file : "";
     }
     function formatTime(seconds) {
@@ -152,9 +188,10 @@ Item {
         var t = tracks[index];
         return t && t.artist !== shownEdition.artist ? t.artist : "";
     }
-    function playTrack(index) {
+    function playTrack(index, retainContinuous) {
         if (index < 0 || index >= tracks.length)
             return;
+        if (retainContinuous !== true) continuousQueue=[];
         playingEdition = shownEdition;
         playingEditionId = shownEditionId;
         playingDisc = shownDisc;
@@ -166,6 +203,13 @@ Item {
     }
     function next(delta) {
         var list = playingEdition.discs[playingDisc];
+        if (continuousQueue.length && delta > 0 && playingIndex === list.length-1) {
+            continuousIndex=(continuousIndex+1)%continuousQueue.length;
+            var record=continuousQueue[continuousIndex];
+            playingEdition=snapshotRecord(record.album,record.cover);
+            playingEditionId=playingEdition.id;playingDisc=0;playingIndex=0;
+            position=0;resetSongTools();return;
+        }
         playingIndex = (playingIndex + delta + list.length) % list.length;
         position = 0;
         resetSongTools();
@@ -180,6 +224,8 @@ Item {
     function setFixture(id) {
         if (["thriller", "without-me", "mounamela"].indexOf(id) < 0)
             return;
+        snapshotEdition=null;
+        continuousQueue=[];
         fixtureId = id;
         shownDisc = 0;
         shownEditionId = editions[0].id;

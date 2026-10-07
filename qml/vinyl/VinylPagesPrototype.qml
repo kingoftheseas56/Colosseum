@@ -1,11 +1,12 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../../tests/fixtures/vinyl-world/Catalogue.js" as WorldSnapshot
 
 Window {
     id: root
     objectName: "vinylPrototypeWindow"
-    title: "Colosseum · Vinyl prototype"
+    title: "Colosseum · Vinyl world and pages prototype"
     width: 1280
     height: 720
     visible: true
@@ -13,6 +14,41 @@ Window {
     property bool ready: false
     property bool developerStrip: true
     property alias pageData: pageData
+    property alias worldData: worldData
+    property alias worldScroll: worldScroll
+    property string songReturnPage: "album"
+    property string albumReturnPage: "world"
+    property real worldReturnY: 0
+    function openSong() { if(root.page!=="song") songReturnPage=root.page;root.page="song"; }
+    function openWorldItem(item) {
+        if (item.kind==="artists") return;
+        var album=worldData.catalogue.albums.find(function(a){return a.id===item.albumId});
+        if (!album) return;
+        if (item.kind==="mixes" || item.kind==="stations") {
+            var records=(item.sequence||[item.albumId]).map(function(id) {
+                return worldData.catalogue.albums.find(function(a){return a.id===id});
+            }).filter(Boolean).map(function(a){return {album:a,cover:worldData.artwork(a.cover)}});
+            pageData.startContinuous(records);return;
+        }
+        pageData.loadAlbum(album,worldData.artwork(album.cover));
+        if (item.kind==="songs") {pageData.playTrack(item.trackIndex);return;}
+        worldReturnY=worldScroll.contentY;albumReturnPage=root.page;root.page="album";
+    }
+    VinylWorldData {
+        id: worldData
+        catalogue: WorldSnapshot.data
+        artworkRoot: Qt.resolvedUrl("../../tests/fixtures/vinyl-world")
+        resumeSlide: ({
+            title:pageData.playingTrack.title,
+            art:pageData.artwork(pageData.playingEdition.cover),
+            artKind:"poster",
+            blurb:pageData.playingEdition.artist+" · "+pageData.playingEdition.name+
+                "\nUp next: "+(pageData.playingEdition.discs[pageData.playingDisc][
+                    (pageData.playingIndex+1)%pageData.playingEdition.discs[pageData.playingDisc].length].title)
+        })
+        onItemRequested: item => root.openWorldItem(item)
+        onResumeRequested: root.openSong()
+    }
     // Lanista resolves QQuickItems rather than Window/QObject roots.
     Item {
         objectName: "vinylPrototype"
@@ -33,9 +69,15 @@ Window {
     VinylBackdrop {
         id: backdrop
         anchors.fill: parent
-        source: pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
+        source: root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
         wordsShown: root.page === "song" && pageData.lyricsShown
         tallFixture: root.page === "song" && pageData.playingEdition.id === "mounamela"
+        Rectangle {
+            anchors.fill: parent
+            visible: root.page === "world"
+            color: theme.biblioWashBottom
+            opacity: 0.68
+        }
     }
     Item {
         id: header
@@ -62,11 +104,15 @@ Window {
             width: 55
             height: 45
             visible: root.page === "album"
-            accessibleName: "Open song"
-            onTriggered: root.page = "song"
+            objectName: "vinylAlbumBack"
+            accessibleName: "Back to Vinyl"
+            onTriggered: {
+                root.page=root.albumReturnPage;
+                Qt.callLater(function(){worldScroll.contentY=root.worldReturnY});
+            }
             Text {
                 anchors.centerIn: parent
-                text: "‹ Vinyl"
+                text: "‹ Back"
                 color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 13
@@ -103,6 +149,29 @@ Window {
             }
         }
     }
+    Flickable {
+        id: worldScroll
+        objectName: "vinylWorldScroll"
+        x: theme.margin
+        y: 110
+        width: root.width-2*theme.margin
+        height: bar.y-y-20
+        contentWidth: width
+        contentHeight: world.height
+        visible: root.page==="world"
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollGlide {flick:worldScroll}
+        ScrollBar.vertical: HouseScrollBar {flick:worldScroll}
+        VinylWorld {
+            id: world
+            width: worldScroll.width
+            height: implicitHeight
+            worldData: worldData
+            backdrop: backdrop
+            pageFlick: worldScroll
+        }
+    }
     VinylAlbumPage {
         id: album
         anchors {
@@ -119,6 +188,7 @@ Window {
         onVideoRequested: track => {
             pageData.playTrack(track);
             pageData.videoShown = true;
+            root.songReturnPage="album";
             root.page = "song";
         }
     }
@@ -134,11 +204,12 @@ Window {
         visible: root.page === "song"
         pageData: pageData
         onBackRequested: {
-            root.page = "album";
-            album.forceActiveFocus();
+            root.page = root.songReturnPage;
+            if(root.page==="album") album.forceActiveFocus();
         }
         onAlbumRequested: {
-            pageData.selectEdition(pageData.playingEditionId);
+            pageData.showPlayingAlbum();
+            if(root.songReturnPage!=="album") root.albumReturnPage=root.songReturnPage;
             root.page = "album";
         }
     }
@@ -159,7 +230,7 @@ Window {
         pageData: pageData
         backdrop: backdrop
         page: root.page
-        onSongRequested: root.page = "song"
+        onSongRequested: root.openSong()
         onCreditsRequested: creditsPopup.opened ? creditsPopup.close() : creditsPopup.open()
     }
     Flow {
@@ -171,7 +242,7 @@ Window {
         spacing: 3
         z: 100
         Repeater {
-            model: [["PageAlbum", "Album"], ["PageSong", "Song"], ["FixtureThriller", "Thriller"], ["FixtureWithoutMe", "Without Me"], ["FixtureMounamela", "Mounamela"], ["SourcePlaying", "Playing"], ["SourceFinding", "Finding"], ["SourceRetrying", "Retrying"], ["Freeze", "Freeze"], ["Size720", "1280×720"], ["Size900", "1600×900"], ["Clean", "Hide controls"]]
+            model: [["PageWorld","World"], ["ProfileNew","New"], ["ProfileSkipped","Skipped"], ["ProfileSeasoned","Seasoned"], ["Catalogue","Catalogue"], ["ResetPicker","Reset picker"], ["PageAlbum", "Album"], ["PageSong", "Song"], ["FixtureThriller", "Thriller"], ["FixtureWithoutMe", "Without Me"], ["FixtureMounamela", "Mounamela"], ["SourcePlaying", "Playing"], ["SourceFinding", "Finding"], ["SourceRetrying", "Retrying"], ["Freeze", "Freeze"], ["Size720", "1280×720"], ["Size900", "1600×900"], ["Clean", "Hide controls"]]
             delegate: Button {
                 required property var modelData
                 objectName: "vinylDev" + modelData[0]
@@ -180,7 +251,13 @@ Window {
                 font.pixelSize: 10
                 onClicked: {
                     var action = modelData[0];
-                    if (action === "PageAlbum")
+                    if (action === "PageWorld") root.page="world";
+                    else if (action === "ProfileNew") worldData.setProfile("new");
+                    else if (action === "ProfileSkipped") worldData.setProfile("skipped");
+                    else if (action === "ProfileSeasoned") worldData.setProfile("seasoned");
+                    else if (action === "Catalogue") worldData.setCatalogueReachable(!worldData.catalogueReachable);
+                    else if (action === "ResetPicker") worldData.resetPicker();
+                    else if (action === "PageAlbum")
                         root.page = "album";
                     else if (action === "PageSong")
                         root.page = "song";

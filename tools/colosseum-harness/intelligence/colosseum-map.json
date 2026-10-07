@@ -446,7 +446,7 @@
           "provenance": [
             {
               "path": "native/player/mpvitem.h",
-              "contains": "MpvItem — the playable mpv surface"
+              "contains": "MpvItem \u2014 the playable mpv surface"
             }
           ]
         }
@@ -543,7 +543,7 @@
           "provenance": [
             {
               "path": "native/engine/VaultLibrary.h",
-              "contains": "VaultLibrary — the Vault's single QML façade"
+              "contains": "VaultLibrary \u2014 the Vault's single QML fa\u00e7ade"
             }
           ]
         }
@@ -622,7 +622,7 @@
           "provenance": [
             {
               "path": "native/engine/LocalDownloads.h",
-              "contains": "LocalDownloads — the unified read-model behind the Downloads page"
+              "contains": "LocalDownloads \u2014 the unified read-model behind the Downloads page"
             }
           ]
         }
@@ -1971,7 +1971,7 @@
     {
       "id": "page-continue-see-all-page",
       "kind": "page",
-      "display_name": "Continue — See All",
+      "display_name": "Continue \u2014 See All",
       "aliases": [
         "continue see all page"
       ],
@@ -1995,7 +1995,7 @@
           "name": "ContinueSeeAllPage",
           "path": "qml/ContinueSeeAllPage.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Continue — See All.",
+          "responsibility": "QML component for Continue \u2014 See All.",
           "provenance": [
             {
               "path": "qml/ContinueSeeAllPage.qml"
@@ -2072,7 +2072,7 @@
     {
       "id": "page-theatre-world",
       "kind": "page",
-      "display_name": "Theatre world: Discover · Movies · Shows · Anime",
+      "display_name": "Theatre world: Discover \u00b7 Movies \u00b7 Shows \u00b7 Anime",
       "aliases": [
         "theatre world"
       ],
@@ -2098,7 +2098,7 @@
           "name": "TheatreWorld",
           "path": "qml/TheatreWorld.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Theatre world: Discover · Movies · Shows · Anime.",
+          "responsibility": "QML component for Theatre world: Discover \u00b7 Movies \u00b7 Shows \u00b7 Anime.",
           "provenance": [
             {
               "path": "qml/TheatreWorld.qml"
@@ -2226,7 +2226,7 @@
     {
       "id": "page-theatre-genre-index",
       "kind": "page",
-      "display_name": "Genre index · genre page",
+      "display_name": "Genre index \u00b7 genre page",
       "aliases": [
         "theatre genre index"
       ],
@@ -2252,7 +2252,7 @@
           "name": "TheatreGenreIndex",
           "path": "qml/TheatreGenreIndex.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Genre index · genre page.",
+          "responsibility": "QML component for Genre index \u00b7 genre page.",
           "provenance": [
             {
               "path": "qml/TheatreGenreIndex.qml"
@@ -2474,7 +2474,7 @@
     {
       "id": "page-tankoban-world",
       "kind": "page",
-      "display_name": "Tankoban world: Discover · Manga · Comics · Library",
+      "display_name": "Tankoban world: Discover \u00b7 Manga \u00b7 Comics \u00b7 Library",
       "aliases": [
         "tankoban world"
       ],
@@ -2500,7 +2500,7 @@
           "name": "TankobanWorld",
           "path": "qml/TankobanWorld.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Tankoban world: Discover · Manga · Comics · Library.",
+          "responsibility": "QML component for Tankoban world: Discover \u00b7 Manga \u00b7 Comics \u00b7 Library.",
           "provenance": [
             {
               "path": "qml/TankobanWorld.qml"
@@ -2580,7 +2580,7 @@
     {
       "id": "page-manga-series",
       "kind": "page",
-      "display_name": "Manga series (old) · chapter view",
+      "display_name": "Manga series (old) \u00b7 chapter view",
       "aliases": [
         "manga series"
       ],
@@ -2608,7 +2608,7 @@
           "name": "MangaSeries",
           "path": "qml/MangaSeries.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Manga series (old) · chapter view.",
+          "responsibility": "QML component for Manga series (old) \u00b7 chapter view.",
           "provenance": [
             {
               "path": "qml/MangaSeries.qml"
@@ -2837,7 +2837,7 @@
     {
       "id": "page-comic-archive-board",
       "kind": "page",
-      "display_name": "Comic archive board · index",
+      "display_name": "Comic archive board \u00b7 index",
       "aliases": [
         "comic archive board"
       ],
@@ -2863,7 +2863,7 @@
           "name": "ComicArchiveBoard",
           "path": "qml/ComicArchiveBoard.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Comic archive board · index.",
+          "responsibility": "QML component for Comic archive board \u00b7 index.",
           "provenance": [
             {
               "path": "qml/ComicArchiveBoard.qml"
@@ -2887,7 +2887,7 @@
     {
       "id": "page-comic-torrent-sources-page",
       "kind": "page",
-      "display_name": "Comic torrent sources · archive picker",
+      "display_name": "Comic torrent sources \u00b7 archive picker",
       "aliases": [
         "comic torrent sources page"
       ],
@@ -2913,7 +2913,7 @@
           "name": "ComicTorrentSourcesPage",
           "path": "qml/ComicTorrentSourcesPage.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Comic torrent sources · archive picker.",
+          "responsibility": "QML component for Comic torrent sources \u00b7 archive picker.",
           "provenance": [
             {
               "path": "qml/ComicTorrentSourcesPage.qml"
@@ -2985,7 +2985,7 @@
     {
       "id": "page-biblio-world",
       "kind": "page",
-      "display_name": "Biblio world: Discover · Explore · Library",
+      "display_name": "Biblio world: Discover \u00b7 Explore \u00b7 Library",
       "aliases": [
         "biblio world"
       ],
@@ -3015,7 +3015,7 @@
           "name": "BiblioWorld",
           "path": "qml/BiblioWorld.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Biblio world: Discover · Explore · Library.",
+          "responsibility": "QML component for Biblio world: Discover \u00b7 Explore \u00b7 Library.",
           "provenance": [
             {
               "path": "qml/BiblioWorld.qml"
@@ -3044,7 +3044,7 @@
     {
       "id": "page-biblio-genre-index",
       "kind": "page",
-      "display_name": "Genre index · genre page",
+      "display_name": "Genre index \u00b7 genre page",
       "aliases": [
         "biblio genre index"
       ],
@@ -3070,7 +3070,7 @@
           "name": "BiblioGenreIndex",
           "path": "qml/BiblioGenreIndex.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Genre index · genre page.",
+          "responsibility": "QML component for Genre index \u00b7 genre page.",
           "provenance": [
             {
               "path": "qml/BiblioGenreIndex.qml"
@@ -3193,7 +3193,7 @@
     {
       "id": "page-genre-index",
       "kind": "page",
-      "display_name": "Genre index · genre page (generic)",
+      "display_name": "Genre index \u00b7 genre page (generic)",
       "aliases": [
         "genre index"
       ],
@@ -3219,7 +3219,7 @@
           "name": "GenreIndex",
           "path": "qml/GenreIndex.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Genre index · genre page (generic).",
+          "responsibility": "QML component for Genre index \u00b7 genre page (generic).",
           "provenance": [
             {
               "path": "qml/GenreIndex.qml"
@@ -3886,7 +3886,7 @@
     {
       "id": "page-account-data-privacy-page",
       "kind": "page",
-      "display_name": "Profile · Your Colosseum · Devices · Data & Privacy · Security · Recovery",
+      "display_name": "Profile \u00b7 Your Colosseum \u00b7 Devices \u00b7 Data & Privacy \u00b7 Security \u00b7 Recovery",
       "aliases": [
         "account data privacy page",
         "profile page",
@@ -3926,7 +3926,7 @@
           "name": "AccountDataPrivacyPage",
           "path": "qml/account/AccountDataPrivacyPage.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Profile · Your Colosseum · Devices · Data & Privacy · Security · Recovery.",
+          "responsibility": "QML component for Profile \u00b7 Your Colosseum \u00b7 Devices \u00b7 Data & Privacy \u00b7 Security \u00b7 Recovery.",
           "provenance": [
             {
               "path": "qml/account/AccountDataPrivacyPage.qml"
@@ -3954,7 +3954,7 @@
     {
       "id": "page-account-welcome",
       "kind": "page",
-      "display_name": "Welcome · sign-in · create · onboarding · recovery key · device approval",
+      "display_name": "Welcome \u00b7 sign-in \u00b7 create \u00b7 onboarding \u00b7 recovery key \u00b7 device approval",
       "aliases": [
         "account welcome",
         "welcome page",
@@ -3996,7 +3996,7 @@
           "name": "AccountWelcome",
           "path": "qml/account/AccountWelcome.qml",
           "confidence": "observed",
-          "responsibility": "QML component for Welcome · sign-in · create · onboarding · recovery key · device approval.",
+          "responsibility": "QML component for Welcome \u00b7 sign-in \u00b7 create \u00b7 onboarding \u00b7 recovery key \u00b7 device approval.",
           "provenance": [
             {
               "path": "qml/account/AccountWelcome.qml"
@@ -4469,7 +4469,7 @@
     },
     {
       "id": "vinyl",
-      "display_name": "Vinyl pages prototype",
+      "display_name": "Vinyl world and pages prototype",
       "aliases": [
         "vinyl-pages"
       ],
@@ -4491,6 +4491,18 @@
               "contains": "objectName: \"vinylPageData\""
             }
           ]
+        },
+        {
+          "name": "VinylWorldData",
+          "path": "qml/vinyl/VinylWorldData.qml",
+          "confidence": "observed",
+          "responsibility": "Single fixture catalogue, lens, profile and actions owner for Home, Discover, carousel and See all.",
+          "provenance": [
+            {
+              "path": "qml/vinyl/VinylWorldData.qml",
+              "contains": "objectName: \"vinylWorldData\""
+            }
+          ]
         }
       ],
       "ctests": [
@@ -4506,11 +4518,18 @@
         "tests/qml/tst_vinyl_page_data.qml",
         "tests/qml/tst_vinyl_album_page.qml",
         "tests/qml/tst_vinyl_song_page.qml",
-        "tests/qml/tst_vinyl_note_picker.qml"
+        "tests/qml/tst_vinyl_note_picker.qml",
+        "tests/qml/tst_vinyl_world_lists.qml",
+        "tests/qml/tst_vinyl_discover_page.qml",
+        "tests/qml/tst_vinyl_home_page.qml",
+        "tests/qml/tst_vinyl_world_navigation.qml",
+        "tests/qml/tst_vinyl_world_visual.qml"
       ],
       "lanista_scenarios": [
         "tests/lanista_scenarios/vinyl_album_journey.json",
-        "tests/lanista_scenarios/vinyl_song_journey.json"
+        "tests/lanista_scenarios/vinyl_song_journey.json",
+        "tests/lanista_scenarios/vinyl_discover_journey.json",
+        "tests/lanista_scenarios/vinyl_home_journey.json"
       ],
       "context": [],
       "platform_constraints": [
