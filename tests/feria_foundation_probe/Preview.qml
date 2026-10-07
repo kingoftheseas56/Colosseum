@@ -8,7 +8,8 @@ ApplicationWindow {
     visible: true
     width: 1100; height: 760
     title: "Feria foundation 1–5 · real engine fixture"
-    readonly property bool previewReady: deck.activeBrowser !== null && deck.activeBrowser.documentReady
+    readonly property bool previewReady: deck.width >= 400 && deck.height >= 300
+        && deck.activeBrowser !== null && deck.activeBrowser.documentReady
     property string provider: "mangaplus"
     readonly property string selected: { Sessions.revision; Sessions.activeId; return Sessions.selectedBrowser(provider) }
     readonly property var nav: { Sessions.revision; Sessions.activeId; return deck.navigationForSession(selected) }
@@ -36,12 +37,15 @@ ApplicationWindow {
                 onAccepted: deck.navigateInput(root.selected, text) }
             Button { text: "Sidebar"; onClicked: sidebar.visible = !sidebar.visible }
         }
-        RowLayout {
+        Item {
+            id: body
             Layout.fillWidth: true; Layout.fillHeight: true
             ColumnLayout {
                 id: sidebar
-                Layout.preferredWidth: 240
-                Layout.fillHeight: true
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 240
                 Button { text: root.provider === "ytmusic" ? "soundspaces+" : "readspaces+"
                     onClicked: deck.newSpace(root.selected, false, true) }
                 ListView {
@@ -73,7 +77,11 @@ ApplicationWindow {
             }
             Feria.FeriaSessionDeck {
                 id: deck
-                Layout.fillWidth: true; Layout.fillHeight: true
+                anchors.left: sidebar.visible ? sidebar.right : parent.left
+                anchors.leftMargin: sidebar.visible ? 8 : 0
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
                 sessions: Sessions; accountStore: FeriaAccount; policy: FeriaBrowserPolicy
                 displayed: true
             }
