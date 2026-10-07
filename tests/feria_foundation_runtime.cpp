@@ -116,7 +116,7 @@ public slots:
                     } else {
                         body = "<!doctype html><title>Fixture " + QString::fromUtf8(path).toHtmlEscaped().toUtf8() + "</title>"
                             "<body style='background:#173044;color:white'><h1>Retained page " + QString::fromUtf8(path).toHtmlEscaped().toUtf8()
-                            + "</h1><a href='/b' style='position:fixed;left:20px;top:70px;width:180px;height:30px'>Next page</a><audio id='audio' loop controls src='/tone.wav'></audio>"
+                            + "</h1><a href='/b' style='position:fixed;left:20px;top:70px;width:180px;height:30px'>Next page</a><audio id='audio' style='position:fixed;left:220px;top:110px;width:300px;height:54px' loop controls src='/tone.wav'></audio>"
                               "<p>Comet in the reading room. Comet in the listening room. Comet in Feria.</p>"
                               "<p>Search this local fixture with the native browser Find controls.</p>"
                               "<button style='position:fixed;left:20px;top:200px;width:180px;height:40px' "

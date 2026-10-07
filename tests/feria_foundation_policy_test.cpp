@@ -21,6 +21,20 @@ private slots:
         const auto url = policy.omniboxUrl(input);
         QVERIFY(url.isValid()); QCOMPARE(url.host(), host);
     }
+    void localhostBoundaries_data() {
+        QTest::addColumn<QString>("input");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("path") << "localhost/account?code=private-token" << "http://localhost/account?code=private-token";
+        QTest::newRow("query") << "localhost?code=private-token" << "http://localhost?code=private-token";
+        QTest::newRow("fragment") << "localhost#section" << "http://localhost#section";
+        QTest::newRow("case") << "LOCALHOST/account" << "http://localhost/account";
+        QTest::newRow("word") << "localhostish" << "https://duckduckgo.com/?q=localhostish";
+    }
+    void localhostBoundaries() {
+        QFETCH(QString, input); QFETCH(QString, expected);
+        FeriaBrowserPolicy policy;
+        QCOMPARE(policy.omniboxUrl(input).toString(), expected);
+    }
     void searchEscaping() {
         FeriaBrowserPolicy policy;
         const QString text = QString::fromUtf8("music & words # + 🎵 Telugu");

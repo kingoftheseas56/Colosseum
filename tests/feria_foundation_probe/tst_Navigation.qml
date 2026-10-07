@@ -18,6 +18,7 @@ Item {
         when: windowShown
         property int serial: 0
         function init() {
+            deck.displayed = true
             deck.startQuiescence(false)
             tryCompare(deck, "quiescing", false, 10000)
             Fixture.switchProfile("foundation-" + (++serial))
@@ -111,6 +112,56 @@ Item {
             popup.close()
             tryVerify(function() { return page.popups.length === 0 }, 5000)
         }
+        function test_newWindowSurvives_data() {
+            return [{tag: "minimize", closeOpener: false}, {tag: "close-opener", closeOpener: true}]
+        }
+        function test_newWindowSurvives(data) {
+            var a = open("/a"), page = deck.entries[a].browser
+            var contextSeen = false, destination = -1
+            function context(request) { request.accepted = true; contextSeen = true }
+            function requested(request) { destination = request.destination }
+            page.contextMenuRequested.connect(context)
+            page.newWindowRequested.connect(requested)
+            mouseClick(page, 45, 80, Qt.RightButton)
+            tryVerify(function() { return contextSeen }, 5000)
+            page.triggerWebAction(WebEngineView.OpenLinkInNewWindow)
+            tryVerify(function() { return destination === WebEngineNewWindowRequest.InNewWindow }, 10000)
+            var target = null, id = ""
+            tryVerify(function() {
+                var records = Sessions.browsers().filter(function(r) { return r.id !== a })
+                if (records.length) {
+                    id = records[0].id
+                    target = deck.entries[id] ? deck.entries[id].browser : null
+                } else if (page.popups.length) target = page.popups[0].view
+                return target && target.title === "Fixture /b"
+            }, 10000)
+            compare(target.profile, page.profile)
+            js(target, "window.sessionMarker=9191")
+            page.contextMenuRequested.disconnect(context)
+            page.newWindowRequested.disconnect(requested)
+            if (data.closeOpener) {
+                Sessions.close(a)
+                tryVerify(function() { return !deck.entries[a] }, 10000)
+            } else {
+                deck.displayed = false
+                tryCompare(page, "suppressed", true)
+            }
+            wait(200) // allow deferred deletion; assertions are about survival
+            verify(target !== null, "Committed destination survives opener lifecycle")
+            verify(id.length > 0 && deck.entries[id], "Destination has independent canonical ownership")
+            compare(deck.entries[id].browser, target)
+            compare(js(target, "window.sessionMarker"), 9191)
+            compare(String(target.url), FixtureUrl + "/b")
+        }
+        function test_normalizedNewSpaceStart() {
+            var a = open("/a")
+            deck.entries[a].descriptor.startUrl = FixtureUrl.replace("http://", "") + "/home"
+            var b = deck.newSpace(a, false, true)
+            verify(b.length > 0 && b !== a)
+            tryVerify(function() { return deck.entries[b] && deck.entries[b].browser
+                && deck.entries[b].browser.title === "Fixture /home" }, 15000)
+            compare(String(deck.entries[b].browser.url), FixtureUrl + "/home")
+        }
         function test_captureRealEngine() {
             if (!Fixture.evidenceRoot.length) skip("No explicit capture directory")
             var a = open("/a")
@@ -141,6 +192,8 @@ Item {
             var b = ids.filter(function(id) { return id !== a })[0]
             tryVerify(function() { return deck.entries[b] && deck.entries[b].browser.documentReady }, 10000)
             var target = deck.entries[b].browser
+            tryVerify(function() { return String(target.url) === FixtureUrl + "/post"
+                && target.title === "POST result" && js(target, "window.postBody") !== undefined }, 10000)
             compare(js(target, "window.postBody"), "marker=original-post-body")
             compare(js(target, "window.openerMarker"), 2718)
             compare(target.profile, page.profile)
