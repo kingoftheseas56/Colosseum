@@ -11,9 +11,41 @@ Item {
     readonly property bool autoNotes: pageData.autoNotes
     readonly property bool videoShown: pageData.videoShown
     readonly property real cardHeight: Math.min(470, Window.height * 0.48)
+    signal backRequested
     signal albumRequested
     Theme {
         id: theme
+    }
+    KeyboardAction {
+        id: backAction
+        objectName: "vinylSongBack"
+        x: theme.margin
+        y: 4
+        width: 92
+        height: 42
+        accessibleName: "Back to album"
+        onTriggered: root.backRequested()
+        Rectangle {
+            anchors.fill: parent
+            radius: 12
+            color: backAction.interactionActive ? theme.edge : Qt.rgba(0, 0, 0, 0)
+            border.color: backAction.interactionActive ? theme.edge : Qt.rgba(0, 0, 0, 0)
+        }
+        Image {
+            x: 12
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20
+            height: 20
+            source: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + theme.ink + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + '<path d="m14 6-6 6 6 6M8 12h12"/></svg>')
+        }
+        Text {
+            x: 40
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Back"
+            color: theme.ink
+            font.family: theme.ui
+            font.pixelSize: 13
+        }
     }
     Item {
         id: room

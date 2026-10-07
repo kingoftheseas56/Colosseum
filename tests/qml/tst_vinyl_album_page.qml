@@ -33,6 +33,19 @@ TestCase {
             host.destroy();
         }
     }
+    function test_sectionIconsAreDistinctAndLoaded() {
+        var sidebar = item("vinylRowIndexSidebar");
+        var sources = {};
+        for (var i = 0; i < sidebar.visibleRows.length; ++i) {
+            var row = sidebar.visibleRows[i];
+            verify(!!row.iconSource, row.key + " needs an explicit section icon");
+            verify(!sources[row.iconSource], "Section icons must be distinct");
+            sources[row.iconSource] = true;
+            var icon = item("vinylRowIndexRow_" + row.key + "Icon");
+            verify(icon !== null);
+            tryCompare(icon, "status", Image.Ready);
+        }
+    }
     function test_barStates() {
         var bar = item("vinylPlayerBar");
         compare(bar.toolCount, 1);

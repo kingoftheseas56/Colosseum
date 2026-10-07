@@ -61,8 +61,9 @@ Window {
         KeyboardAction {
             width: 55
             height: 45
-            accessibleName: "Back"
-            onTriggered: root.page = root.page === "album" ? "song" : "album"
+            visible: root.page === "album"
+            accessibleName: "Open song"
+            onTriggered: root.page = "song"
             Text {
                 anchors.centerIn: parent
                 text: "‹ Vinyl"
@@ -132,6 +133,10 @@ Window {
         }
         visible: root.page === "song"
         pageData: pageData
+        onBackRequested: {
+            root.page = "album";
+            album.forceActiveFocus();
+        }
         onAlbumRequested: {
             pageData.selectEdition(pageData.playingEditionId);
             root.page = "album";

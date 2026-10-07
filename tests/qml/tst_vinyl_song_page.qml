@@ -34,6 +34,21 @@ TestCase {
             host.destroy();
         }
     }
+    function test_visibleBackPreservesPlayback() {
+        var back = item("vinylSongBack");
+        verify(back !== null, "Song page needs a visible Back control");
+        verify(back.visible && back.width >= 40 && back.height >= 40);
+        var edition = host.pageData.playingEditionId;
+        var position = host.pageData.position;
+        mouseClick(back);
+        compare(host.page, "album");
+        compare(host.pageData.playingEditionId, edition);
+        compare(host.pageData.position, position);
+        host.page = "song";
+        back.forceActiveFocus();
+        keyClick(Qt.Key_Return);
+        compare(host.page, "album");
+    }
     function test_restAndTools() {
         verify(!item('vinylLyricsColumn').visible);
         verify(!item('vinylNotesColumn').visible);

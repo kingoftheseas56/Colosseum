@@ -11,35 +11,45 @@ Column {
     readonly property var sectionRows: [
         {
             key: "about",
+            iconSource: sectionIcon("about", '<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>'),
             title: "About",
             target: about
         },
         {
             key: "credits",
+            iconSource: sectionIcon("credits", '<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v2"/>'),
             title: "Credits",
             target: credits
         },
         {
             key: "videos",
+            iconSource: sectionIcon("videos", '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/>'),
             title: "Videos",
             target: videos
         },
         {
             key: "editions",
+            iconSource: sectionIcon("editions", '<rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/><circle cx="10" cy="14" r="3"/>'),
             title: "Editions",
             target: editions
         },
         {
             key: "more",
+            iconSource: sectionIcon("more", '<path d="M9 18V5l11-2v13M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/>'),
             title: "More by this artist",
             target: more
         },
         {
             key: "information",
+            iconSource: sectionIcon("information", '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.1"/>'),
             title: "Information",
             target: info
         }
     ]
+    function sectionIcon(key, paths) {
+        var ink = theme.inkDim;
+        return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + ink + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>');
+    }
     function countryIcon(country) {
         var content = '';
         if (country === "United States") {
