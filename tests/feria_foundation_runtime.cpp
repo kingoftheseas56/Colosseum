@@ -18,6 +18,8 @@
 #include <QTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QDebug>
+#include <QtWebEngineCore/qtwebenginecoreglobal.h>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QtQuickTest/quicktest.h>
@@ -94,12 +96,8 @@ public slots:
                         socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"
                             "Content-Disposition: attachment; filename=browser-fixture.txt\r\nContent-Length: "
                             + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n");
-                        // Chromium can defer exposing a download until body data
-                        // arrives. Start the transfer now, delay only its remainder.
-                        socket->write(body.left(1));
-                        socket->flush();
                         QTimer::singleShot(1500, socket, [socket, body] {
-                            socket->write(body.mid(1));
+                            socket->write(body);
                             socket->disconnectFromHost();
                         });
                         return;
@@ -160,6 +158,10 @@ private:
 };
 int main(int argc, char **argv) {
     QtWebEngineQuick::initialize();
+    qInfo().noquote() << "Runtime versions: Qt" << qVersion()
+        << "WebEngine" << qWebEngineVersion()
+        << "Chromium" << qWebEngineChromiumVersion()
+        << "security-patch" << qWebEngineChromiumSecurityPatchVersion();
     FeriaRuntimeFixture setup;
     if (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--preview") {
         QGuiApplication app(argc, argv);
