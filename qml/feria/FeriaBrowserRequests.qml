@@ -249,6 +249,10 @@ Item {
             if (!root.active) { request.accepted = true; request.dialogReject() }
         }
         function onJavaScriptDialogRequested(request) {
+            // Retained close/navigation unload consent has one exact-origin
+            // owner, including hidden pages. Other dialog policies stay intact.
+            if (root.browser && root.browser.managedBeforeUnload === true
+                && request.type === JavaScriptDialogRequest.DialogTypeBeforeUnload) return
             if (!root.active) { request.accepted = true; request.dialogReject() }
         }
         function onNavigationRequested(request) { if (request.isMainFrame) root.cancelPending() }

@@ -178,6 +178,28 @@ public:
                                           || url.scheme() == QStringLiteral("https")));
         if (m_browserProfile.isEmpty() || provider.isEmpty() || !url.isValid() || !destinationAllowed)
             return {};
+        // A prepared reopen is an explicit, one-record reconstruction transaction.
+        // Bind the ORIGINAL requested URL before page loading can redirect/update it.
+        const QString reopenRecordId = desc.value(QStringLiteral("reopenRecordId")).toString();
+        if (desc.contains(QStringLiteral("reopenRecordId"))) {
+            if (!fresh || reopenRecordId.isEmpty() || !url.userInfo().isEmpty()
+                || desc.value(QStringLiteral("privateBrowsing")).toBool()) return {};
+            bool valid = false;
+            for (const QVariant &value : m_closedBrowsers) {
+                const QVariantMap closed = value.toMap();
+                const QVariantMap original = closed.value(QStringLiteral("descriptor")).toMap();
+                if (closed.value(QStringLiteral("recordId")).toString() == reopenRecordId
+                    && closed.value(QStringLiteral("accountEpoch")).toULongLong() == m_browserEpoch
+                    && closed.value(QStringLiteral("profileId")).toString() == m_browserProfile + QStringLiteral("/ordinary")
+                    && original.value(QStringLiteral("providerId")).toString() == provider
+                    && QUrl(cleanBrowserUrl(desc.value(QStringLiteral("url"))))
+                       == QUrl(original.value(QStringLiteral("url")).toString())) {
+                    valid = true;
+                    break;
+                }
+            }
+            if (!valid) return {};
+        }
         if (!fresh) {
             QString latest;
             quint64 order = 0;
@@ -209,6 +231,7 @@ public:
         }
         const QString id = QStringLiteral("browser-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
         QVariantMap target = desc;
+        target.remove(QStringLiteral("reopenRecordId"));
         target.insert(QStringLiteral("id"), id);
         QVariantMap rec{{QStringLiteral("id"), id}, {QStringLiteral("key"), id},
             {QStringLiteral("contentKey"), id}, {QStringLiteral("appType"), QStringLiteral("feria/") + provider},
@@ -226,6 +249,7 @@ public:
             {QStringLiteral("hostId"), QStringLiteral("embedded")},
             {QStringLiteral("hostGeneration"), quint64(1)}});
         rec.insert(QStringLiteral("browserCloseAttempt"), QString());
+        if (!reopenRecordId.isEmpty()) rec.insert(QStringLiteral("browserReopenRecordId"), reopenRecordId);
         m_sessions.append(rec);
         bump();
         if (activate) setActive(id);
@@ -316,7 +340,12 @@ public:
     }
     Q_INVOKABLE QVariantMap prepareBrowserReopen(const QString &provider) const {
         const QVariantList records = closedBrowserRecords(provider);
-        return records.isEmpty() ? QVariantMap{} : records.first().toMap();
+        if (records.isEmpty()) return {};
+        QVariantMap prepared = records.first().toMap();
+        QVariantMap descriptor = prepared.value(QStringLiteral("descriptor")).toMap();
+        descriptor.insert(QStringLiteral("reopenRecordId"), prepared.value(QStringLiteral("recordId")));
+        prepared.insert(QStringLiteral("descriptor"), descriptor);
+        return prepared;
     }
     // Called only after the adapter has successfully created the fresh runtime view.
     // Failure rolls that placeholder back with close(), retaining this record.
@@ -325,7 +354,8 @@ public:
         const QVariantMap identity = browserIdentity(newSpaceId);
         if (browserIdentityIndex(identity) < 0) return false;
         const QVariantMap target = sanitizedBrowserDescriptor(rec, {});
-        if (target.isEmpty() || rec.value(QStringLiteral("browserReopenCommitted")).toBool()) return false;
+        if (target.isEmpty() || rec.value(QStringLiteral("browserReopenCommitted")).toBool()
+            || rec.value(QStringLiteral("browserReopenRecordId")).toString() != recordId) return false;
         for (int i = 0; i < m_closedBrowsers.size(); ++i) {
             const QVariantMap closed = m_closedBrowsers.at(i).toMap();
             if (closed.value(QStringLiteral("recordId")).toString() != recordId) continue;
@@ -334,9 +364,7 @@ public:
                 || closed.value(QStringLiteral("profileId")) != identity.value(QStringLiteral("profileId"))
                 || identity.value(QStringLiteral("pageGeneration")).toULongLong()
                    <= closed.value(QStringLiteral("closedPageSequence")).toULongLong()
-                || target.value(QStringLiteral("providerId")) != descriptor.value(QStringLiteral("providerId"))
-                || QUrl(target.value(QStringLiteral("url")).toString())
-                   != QUrl(descriptor.value(QStringLiteral("url")).toString())) return false;
+                || target.value(QStringLiteral("providerId")) != descriptor.value(QStringLiteral("providerId"))) return false;
             QVariantMap reopened = rec;
             reopened.insert(QStringLiteral("browserReopenCommitted"), true);
             m_sessions[indexOf(newSpaceId)] = reopened;

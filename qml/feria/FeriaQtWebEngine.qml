@@ -18,6 +18,7 @@ WebEngineView {
     readonly property alias browserRequests: requestsController
     signal message(string text)
     signal tabRequested(var request)
+    property bool managedBeforeUnload: false
     signal closeRejected()
     // QtWebEngine 6.11.1 qquickwebengineview.cpp::windowCloseRejected invokes
     // this method dynamically. This is an UNDOCUMENTED PRIVATE compatibility

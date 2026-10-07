@@ -187,13 +187,18 @@ Item {
             compare(derived.adoptingWindowRequest, false)
             Sessions.close(derivedId)
             tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 2, 5000)
-            Sessions.close(popupId)
+            // Categories 9–10: user close records history; generic teardown
+            // deliberately does not. Reopen is explicitly scoped to this app.
+            evaluate(popup, "window.retainedMarker=197")
+            deck.closeTab(popupId)
             tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 1, 5000)
-            deck.restoreClosedTab()
-            var restoredId = Sessions.activeId
+            var restoredId = deck.reopenClosedSpace("mangaplus")
+            verify(restoredId !== popupId)
             var restored = deck.entries[restoredId].browser
             tryVerify(function() { return restored.documentReady && String(restored.url) === FixtureUrl + "/popup" }, 15000)
             compare(restored.adoptingWindowRequest, false)
+            compare(evaluate(restored, "window.opener === null"), true)
+            compare(evaluate(restored, "typeof window.retainedMarker"), "undefined")
             Sessions.close(restoredId)
             tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 1, 5000)
             Sessions.switchTo(id)

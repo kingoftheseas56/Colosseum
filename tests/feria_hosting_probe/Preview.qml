@@ -10,7 +10,9 @@ ApplicationWindow {
     title: "Feria 6–10 · component runtime exerciser"
     property string provider: "mangaplus"
     readonly property string selected: { Sessions.revision; Sessions.activeId; return Sessions.selectedBrowser(provider) }
-    readonly property bool previewReady: deck.activeBrowser !== null && deck.activeBrowser.documentReady
+    readonly property bool previewReady: deck.width >= 400 && deck.height >= 300
+        && deck.activeBrowser !== null && deck.activeBrowser.width >= 400 && deck.activeBrowser.documentReady
+        && deck.activeBrowser.title === "Fixture /hosting"
     function openApp(id) {
         provider = id
         var existing = Sessions.selectedBrowser(id)
@@ -43,7 +45,8 @@ ApplicationWindow {
         RowLayout {
             Layout.fillWidth:true; Layout.fillHeight:true
             ColumnLayout {
-                Layout.preferredWidth:220; Layout.fillHeight:true
+                Layout.minimumWidth:220; Layout.preferredWidth:220; Layout.maximumWidth:220
+                Layout.fillWidth:false; Layout.fillHeight:true
                 Button { text:root.provider === "ytmusic" ? "New soundspace" : "New readspace"; onClicked:deck.newSpace(root.selected,false,true) }
                 Button { text:"Reopen closed space"; onClicked:deck.reopenClosedSpace(root.provider) }
                 ListView {
@@ -61,7 +64,7 @@ ApplicationWindow {
             }
             Feria.FeriaSessionDeck {
                 id:deck
-                Layout.fillWidth:true; Layout.fillHeight:true
+                Layout.minimumWidth:400; Layout.fillWidth:true; Layout.fillHeight:true
                 sessions:Sessions; accountStore:FeriaAccount; policy:FeriaBrowserPolicy; displayed:true
             }
         }

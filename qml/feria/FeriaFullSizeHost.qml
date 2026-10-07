@@ -7,6 +7,7 @@ Item {
     id: host
     required property var deck
     required property string sessionId
+    property var lease: null
     readonly property alias viewport: viewport
     anchors.fill: parent
     Rectangle {
@@ -14,7 +15,7 @@ Item {
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         height: 44; color: "#202936"
         Button { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            text: "Restore"; onClicked: host.deck.restoreSession(host.sessionId) }
+            text: "Restore"; onClicked: host.deck.hostCommand(host.lease, "restore", "") }
     }
     Item { id: viewport; anchors.top: chrome.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom }
 }

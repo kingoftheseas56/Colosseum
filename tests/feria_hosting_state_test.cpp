@@ -178,6 +178,7 @@ private slots:
         const auto recordId = prepared.value("recordId").toString();
         const auto reopened = s.openBrowser(prepared.value("descriptor").toMap(), true);
         QVERIFY(!reopened.isEmpty());
+        QVERIFY(!s.get(reopened).value("target").toMap().contains("reopenRecordId"));
         s.updateBrowser(reopened, "https://example.com/final", "Redirected document");
         // Successful policy-allowed navigation cannot invalidate original reconstruction.
         QVERIFY(commit(s, recordId, reopened));
@@ -191,9 +192,10 @@ private slots:
         const auto prepared = prepare(s, "youtube"); QVERIFY(!prepared.isEmpty());
         const auto recordId = prepared.value("recordId").toString();
         auto forged = prepared.value("descriptor").toMap(); forged["reopenRecordId"] = "forged-record";
-        const auto badToken = s.openBrowser(forged, true); QVERIFY(!commit(s, recordId, badToken));
+        const auto badToken = s.openBrowser(forged, true); QVERIFY(badToken.isEmpty());
+        QVERIFY(!commit(s, recordId, badToken));
         auto wrongUrl = prepared.value("descriptor").toMap(); wrongUrl["url"] = "https://example.com/wrong";
-        const auto badUrl = s.openBrowser(wrongUrl, true);
+        const auto badUrl = s.openBrowser(wrongUrl, true); QVERIFY(badUrl.isEmpty());
         s.updateBrowser(badUrl, "https://example.com/a", "Changed after allocation");
         QVERIFY(!commit(s, recordId, badUrl));
         QCOMPARE(prepare(s, "youtube"), prepared);

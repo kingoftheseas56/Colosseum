@@ -24,6 +24,7 @@ Item {
         when: windowShown
         property int serial: 0
         function init() {
+            failOnWarning(/TypeError|ReferenceError|incompatible arguments|Could not convert argument|Cannot anchor/)
             deck.startQuiescence(false)
             tryCompare(deck, "quiescing", false, 15000)
             Fixture.switchProfile("hosting-" + (++serial))
@@ -40,7 +41,9 @@ Item {
                 url: FixtureUrl + path, startUrl: FixtureUrl + "/home", mode: "read",
                 privateBrowsing: !!privateMode}, true)
             verify(id.length > 0)
-            tryVerify(function() { var p = deck.browserForSession(id); return p && p.documentReady }, 15000)
+            tryVerify(function() { var p = deck.browserForSession(id)
+                return p && p.documentReady && String(p.url) === FixtureUrl + path
+                    && p.title === "Fixture " + path }, 15000)
             return id
         }
         function js(page, source) {
@@ -52,7 +55,10 @@ Item {
         function click(page, selector) {
             var point = js(page, "(()=>{let r=document.querySelector(" + JSON.stringify(selector)
                 + ").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()")
-            page.forceActiveFocus(); waitForRendering(page)
+            verify(point && point.x > 0 && point.y > 0, "Expected DOM target must exist: " + selector)
+            tryVerify(function() { return page.visible && page.width > point.x && page.height > point.y }, 5000)
+            if (page.Window.window) page.Window.window.requestActivate()
+            page.forceActiveFocus(); waitForRendering(page, 1000)
             mouseClick(page, point.x, point.y)
         }
         function typeText(text) {
@@ -89,6 +95,7 @@ Item {
             var host = deck.entries[a].hostWindow
             verify(host && host.visible)
             compare(p.Window.window, host)
+            compare(host.screen, root.Window.window.screen)
             host.requestActivate()
             click(p, "#edit"); typeText("native-input")
             compare(js(p, "document.querySelector('#edit').value"), "native-input")
@@ -107,6 +114,13 @@ Item {
             click(p, "#after"); typeText("after-host")
             compare(js(p, "document.querySelector('#after').value"), "after-host")
         }
+        function selectStableNeighbor(id) {
+            Sessions.switchTo(id)
+            root.Window.window.requestActivate()
+            tryCompare(Sessions, "activeId", id)
+            wait(100)
+            compare(Sessions.activeId, id)
+        }
         function test_nativeCloseRejectRetryAndNeighbor() {
             var a = open("/hosting"), p = deck.browserForSession(a)
             click(p, "#guard")
@@ -114,10 +128,12 @@ Item {
             verify(deck.moveToDesktop(a))
             var host = deck.entries[a].hostWindow, b = open("/b")
             rejectionSource = p; rejectionSpy.clear()
+            selectStableNeighbor(b)
             host.close()
             tryVerify(function() { return deck.entries[a] && deck.entries[a].closeConsent }, 5000)
             var consent = deck.entries[a].closeConsent
             compare(consent.identity.spaceId, a)
+            selectStableNeighbor(b)
             host.close()
             compare(deck.entries[a].closeConsent.attempt, consent.attempt, "Duplicate close coalesces")
             verify(!deck.returnToEmbedded(a), "Pending close fences transfer")
@@ -125,6 +141,7 @@ Item {
             tryVerify(function() { return !deck.entries[a].closePending }, 5000)
             compare(rejectionSpy.count, 1, "Pinned Qt rejection acknowledgement must originate from this view")
             for (var retry = 0; retry < 2; ++retry) {
+                selectStableNeighbor(b)
                 host.close()
                 tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
                 verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, false))
@@ -133,6 +150,7 @@ Item {
             compare(rejectionSpy.count, 3)
             verify(host.visible); verify(Sessions.get(a).id === a); verify(Sessions.get(b).id === b)
             compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+            selectStableNeighbor(b)
             host.close()
             tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
             verify(!deck.answerClose(a, consent.attempt, true), "Old rejected attempt cannot approve retry")
@@ -146,7 +164,9 @@ Item {
             click(p, "#dialog")
             tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
             var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
-            tryVerify(function() { return deck.browserForSession(b) && deck.browserForSession(b).documentReady }, 10000)
+            tryVerify(function() { var page = deck.browserForSession(b)
+                return page && page.documentReady && String(page.url) === FixtureUrl + "/post"
+                    && page.title === "POST result" }, 10000)
             var e = deck.entries[b]
             verify(e.hostWindow && e.hostWindow.visible, "Site dialog requires independent canonical native host")
             compare(e.browser.profile, p.profile)
@@ -181,12 +201,16 @@ Item {
             click(p, "#dialog")
             tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
             var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
-            tryVerify(function() { return deck.browserForSession(b) && deck.browserForSession(b).documentReady }, 10000)
+            tryVerify(function() { var page = deck.browserForSession(b)
+                return page && page.documentReady && String(page.url) === FixtureUrl + "/hosting"
+                    && page.title === "Fixture /hosting" }, 10000)
             var child = deck.browserForSession(b)
             click(child, "#guard")
             js(child, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.close()}")
             click(child, "#dialog")
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            compare(deck.entries[b].closeConsent.kind, "unload")
+            verify(!deck.returnToEmbedded(b), "Held external unload consent must fence host transfer")
             Sessions.switchTo(a)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
             tryVerify(function() { return !deck.entries[b].closePending }, 5000)
@@ -264,8 +288,8 @@ Item {
             function duplicate(request) { replayed = true; deck.openWindow(a, request) }
             p.newWindowRequested.connect(duplicate)
             click(p, "#dialog")
+            tryVerify(function() { return replayed }, 10000, "Replay comes from the same actual Qt request dispatch")
             p.newWindowRequested.disconnect(duplicate)
-            verify(replayed, "Replay comes from the same actual Qt request dispatch")
             compare(Sessions.browsers().length, 2, "Repeated void-openIn request must not leave an orphan entry/host")
             var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
             tryVerify(function() { return deck.browserForSession(b) && deck.browserForSession(b).documentReady }, 10000)
