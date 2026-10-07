@@ -3,7 +3,9 @@
 
 #include <QDir>
 #if defined(Q_OS_ANDROID)
+#include <QFont>
 #include <QFontDatabase>
+#include <QFontInfo>
 #endif
 #include <QGuiApplication>
 #include <QHash>
@@ -685,6 +687,16 @@ int main(int argc, char *argv[]) {
         qCritical("[boot] Android runtime root unavailable: %s", qUtf8Printable(*runtimeRoot));
         return -1;
     }
+
+    // QML asks for "Segoe UI" in Theme.ui and several direct use sites. Android does not ship
+    // that family, so bind the requested UI family to Android's real sans-serif family before
+    // installing the symbol fallback. Otherwise the Script_Common fallback wins for ordinary
+    // body text as well as missing symbols.
+    QFont::insertSubstitution(QStringLiteral("Segoe UI"), QStringLiteral("Roboto"));
+    const QFont requestedUiFont(QStringLiteral("Segoe UI"));
+    const QFontInfo resolvedUiFontInfo(requestedUiFont);
+    qInfo("[boot] Android UI font substitution: requested=Segoe UI substitute=Roboto resolved=%s",
+          qUtf8Printable(resolvedUiFontInfo.family()));
 
     // Android's system fonts miss several symbols used by existing QML controls. Keep every
     // use site platform-neutral and register one broad symbol fallback after the packaged

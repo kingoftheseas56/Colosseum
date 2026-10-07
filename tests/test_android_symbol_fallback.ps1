@@ -28,10 +28,10 @@ Need ($license.Contains("SIL OPEN FONT LICENSE Version 1.1")) `
 
 $includeMatch = [regex]::Match(
     $main,
-    '(?s)#if defined\(Q_OS_ANDROID\)\s*#include <QFontDatabase>\s*#endif'
+    '(?s)#if defined\(Q_OS_ANDROID\)\s*#include <QFont>\s*#include <QFontDatabase>\s*#include <QFontInfo>\s*#endif'
 )
 Need ($includeMatch.Success) `
-    "QFontDatabase must be included only on the Android compile path."
+    "QFont/QFontDatabase/QFontInfo must be included only on the Android compile path."
 
 $runtimeMatch = [regex]::Match(
     $main,
@@ -40,6 +40,15 @@ $runtimeMatch = [regex]::Match(
 Need ($runtimeMatch.Success) `
     "Main must retain one Android runtime-materialization block."
 $body = $runtimeMatch.Groups["body"].Value
+
+Need ($body.Contains('QFont::insertSubstitution(QStringLiteral("Segoe UI"), QStringLiteral("Roboto"))')) `
+    "Android boot must resolve the requested Segoe UI family through Roboto before adding the symbol fallback."
+Need ($body.Contains('Android UI font substitution: requested=Segoe UI substitute=Roboto resolved=%s')) `
+    "Android boot must log the family Qt resolved for the requested UI font."
+$substitutionIndex = $body.IndexOf('QFont::insertSubstitution(QStringLiteral("Segoe UI"), QStringLiteral("Roboto"))')
+$fallbackIndex = $body.IndexOf('QFontDatabase::addApplicationFont(symbolFontPath)')
+Need ($substitutionIndex -ge 0 -and $fallbackIndex -gt $substitutionIndex) `
+    "Segoe UI -> Roboto substitution must be installed before the Unifont application fallback."
 
 Need ($body.Contains('assets/fonts/Unifont-17.0.05.otf')) `
     "Android boot must load the coverage-qualified symbol font from the materialized runtime."
