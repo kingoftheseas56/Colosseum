@@ -22,6 +22,7 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
+    readonly property bool compactChrome: compactBrowserChrome || width < 1000
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -225,7 +226,7 @@ Item {
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            label: bar.compactBrowserChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
+            label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink
@@ -244,7 +245,7 @@ Item {
         }
         Column {
             objectName: "topBarClock"
-            visible: !bar.backOnly && !bar.compactBrowserChrome
+            visible: !bar.backOnly && !bar.compactChrome
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
@@ -263,7 +264,7 @@ Item {
         visible: !bar.backOnly
         backdrop: bar.backdrop
         anchors.verticalCenter: parent.verticalCenter
-        x: bar.compactBrowserChrome
+        x: bar.compactChrome
            ? leftChrome.width + 12 + Math.max(0, (systemChrome.x - leftChrome.width - 24 - width) / 2)
            : (bar.width - width) / 2
         radius: 999
@@ -291,7 +292,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.compactBrowserChrome ? 10 : 20
+        spacing: bar.compactChrome ? 10 : 20
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each

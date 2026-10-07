@@ -1074,8 +1074,6 @@ Window {
         currentSurface = medium
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
-        topbar.visible = false
-        page.visible = false
     }
     // Vault identity door: reuse the already-owned world entry points. The Vault never edits a
     // world page or invents a second reader route; it only hands over a certain identity.
@@ -1105,8 +1103,6 @@ Window {
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
         refreshWallpaper()
-        topbar.visible = true
-        page.visible = true
         win.armHomeIntroWidgets()
         win.armHomeContinueRail()
     }
@@ -1788,8 +1784,6 @@ Window {
         worldStack.current = ""
         currentSurface = "Feria"
         refreshWallpaper()
-        topbar.visible = true
-        page.visible = true
         taskbar.open = false
         Qt.callLater(win.restoreFeriaIfReady)
     }
@@ -2624,7 +2618,10 @@ Window {
             // volume id rides in resume.chapterId (curChapterId of the volume reader).
             win.openComicSession(title, entry.id || "", r.chapterId || "", "tankoban")
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            win.openComicSession(title, entry.id || "", r.chapterId || "")
+            // Loose Vault comics save the archive as chapterId; they have no series page.
+            if (/^(vault:|vault-file:)/.test(String(entry.id || "")))
+                win.openVaultComic(r.path || r.chapterId || "", entry.id, title)
+            else win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
             if (r.path) win.openBookSession(r.path, r.book ? r.book : entry)
             else win.openBook(r.book ? r.book : entry)
@@ -3031,9 +3028,9 @@ Window {
                 vaultComicLayer.vaultId = t.id || ""
                 vaultComicLayer.title = t.title || rec.title || "Comic"
                 if (vaultComicLayer.active && vaultComicLayer.item) {
-                    vaultComicLayer.item.archivePath = t.vaultPath
                     vaultComicLayer.item.vaultId = t.id || ""
                     vaultComicLayer.item.title = vaultComicLayer.title
+                    vaultComicLayer.item.archivePath = t.vaultPath
                 } else vaultComicLayer.active = true
                 return
             }
@@ -3259,7 +3256,7 @@ Window {
         onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
         z: 20
-        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
+        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
         x: theme.margin; y: 30
@@ -3356,7 +3353,7 @@ Window {
         id: page
         objectName: "homePageFlickable"
         z: 0
-        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
+        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         anchors.left: parent.left; anchors.right: parent.right
         y: 96
         height: win.height - 96
@@ -4333,9 +4330,9 @@ Window {
         property string title: "Comic"
         source: "comicreader/VaultComicReader.qml"
         onLoaded: {
-            item.archivePath = vaultComicLayer.archivePath
             item.vaultId = vaultComicLayer.vaultId
             item.title = vaultComicLayer.title
+            item.archivePath = vaultComicLayer.archivePath
             item.minimizeRequested.connect(win.minimizeVaultComic)
             item.closeRequested.connect(win.closeVaultComic)
             item.backRequested.connect(win.closeVaultComic)
