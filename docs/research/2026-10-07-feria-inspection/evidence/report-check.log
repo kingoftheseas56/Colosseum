@@ -1,0 +1,2 @@
+PASS: 52 ordered capability rows, six columns per row, local report links resolve
+This validates report structure, not browser behavior

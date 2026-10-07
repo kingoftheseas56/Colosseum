@@ -1,0 +1,4 @@
+Linux-6.18.44-x86_64-with-glibc2.41
+Qt 6.11.1
+PySide6.QtWebEngineCore BLOCKED ModuleNotFoundError("No module named 'PySide6.QtWebEngineCore'")
+PySide6.QtWebEngineQuick BLOCKED ModuleNotFoundError("No module named 'PySide6.QtWebEngineQuick'")

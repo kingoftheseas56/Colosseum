@@ -1,0 +1,171 @@
+{
+  "source": "97d5f18f7abad992f0686acba6219d97e4fe514d",
+  "normalization": "connector text saved UTF-8 with terminal newline; not a raw-binary attestation",
+  "files": [
+    {
+      "path": ".github/workflows/desktop-ci.yml",
+      "bytes": 30314,
+      "sha256": "df24b2fc14bc8a00c0e0d38ca71a476c17508950fe65c87a033015cc16ac8bf7"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 4934,
+      "sha256": "10d00113fb85f65ada56190b9ccceab6748ace6111e3d9c7424fcff603bb96ed"
+    },
+    {
+      "path": "MEMORY.md",
+      "bytes": 4255,
+      "sha256": "8093f2874f56fc97fed0d14fe3cb8e3a3f1fe685d41458e0ff658b72ce898d91"
+    },
+    {
+      "path": "docs/research/2026-10-07-feria-browser-donor-quality-comparison.md",
+      "bytes": 44065,
+      "sha256": "1d2b6620b7b87d0433b77768ff340743cbbf3ba5f398484829a100ab13bb1443"
+    },
+    {
+      "path": "docs/research/2026-10-07-feria-dots-ui-contract-draft.md",
+      "bytes": 13258,
+      "sha256": "d42fb295ce6043cd7f1d9a4d08c6333322ef3ca9bf32520ff46151ba2870ec24"
+    },
+    {
+      "path": "native/CMakeLists.txt",
+      "bytes": 129862,
+      "sha256": "810c864a4072ccb7261d59f0795a8464336dc844bc8853b164c05a055b748b0e"
+    },
+    {
+      "path": "native/SessionStore.h",
+      "bytes": 21614,
+      "sha256": "74dbe527741f5b195f9902ea000871d5c8fefbea804bfa34c3047a97a2a35fc3"
+    },
+    {
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "bytes": 27321,
+      "sha256": "d5b4ea7b2adfe003a9b177c9f1fd46e1e9badbbb7c30eb0eafa512bc04613544"
+    },
+    {
+      "path": "native/feria/FeriaAccountStore.h",
+      "bytes": 4230,
+      "sha256": "878d1e01b693e9b160d7a6e607cf4d951e5f6ca466bedf88ee738ce508a5bb3b"
+    },
+    {
+      "path": "native/feria/FeriaBrowserPolicy.cpp",
+      "bytes": 9145,
+      "sha256": "02ade9d55638876ec9193297db161a641d81870f18e91670c25583478a2ef964"
+    },
+    {
+      "path": "native/feria/FeriaBrowserPolicy.h",
+      "bytes": 4241,
+      "sha256": "a01ade1a1fa22365ef81fddbdfa4a2d0c4d29c0425468b5eda9b318b861bb703"
+    },
+    {
+      "path": "native/feria/provider-host/FeriaHostItem.cpp",
+      "bytes": 11152,
+      "sha256": "79f255eaadcb51d1989daad3eb8dfba3e65bde280e0d65edc85ff5a0de9f063d"
+    },
+    {
+      "path": "native/feria/provider-host/FeriaHostItem.h",
+      "bytes": 3062,
+      "sha256": "0f81330e1ede4f24d4b46cdce399304365ac15e75fa14603008f9c63900f7ba4"
+    },
+    {
+      "path": "native/feria/provider-host/FeriaProviderHost.cpp",
+      "bytes": 39506,
+      "sha256": "1ac21edb6b968172c06c327fac8b92822bc3391d188cfffd50a751e555d15a15"
+    },
+    {
+      "path": "qml/Main.qml",
+      "bytes": 273549,
+      "sha256": "48913ab9778d607fc598745df9d383149ddbad3c560984b9108f820d3e301562"
+    },
+    {
+      "path": "qml/Taskbar.qml",
+      "bytes": 33841,
+      "sha256": "cbb9cd8594cbf3258b9b448ff79ec3727379d1d12fe53c405c2531ca6288ed75"
+    },
+    {
+      "path": "qml/feria/FeriaBrowserDownloads.qml",
+      "bytes": 11617,
+      "sha256": "9825d83cd8f52f502ce3c33062a3b5ce3f074406696663a5de65c2f98927663a"
+    },
+    {
+      "path": "qml/feria/FeriaBrowserMenu.qml",
+      "bytes": 20457,
+      "sha256": "10f6031279de4896a534c7b386b7060cac90e1d5236376f2bcbe4591b90ec345"
+    },
+    {
+      "path": "qml/feria/FeriaBrowserRequests.qml",
+      "bytes": 23238,
+      "sha256": "ae849278ccf5ed0ab301dbb0e1f4d75c15b2dac9c528badd16173327e87a076a"
+    },
+    {
+      "path": "qml/feria/FeriaMediaSession.qml",
+      "bytes": 5758,
+      "sha256": "d64c2426ed15270eee6b09a60192a570f42cc06b2fa25c45b071b6594e1aec16"
+    },
+    {
+      "path": "qml/feria/FeriaPageTools.qml",
+      "bytes": 6401,
+      "sha256": "7b2f1877c12874d3744abc3684fb6f304e3a1948dbcf2a1cbeea3f4514c46fb6"
+    },
+    {
+      "path": "qml/feria/FeriaPlayback.js",
+      "bytes": 14735,
+      "sha256": "64f3f17e46016f65d9e43213b7431869dd4d51fc797386f9fa796069a331d6c9"
+    },
+    {
+      "path": "qml/feria/FeriaQtWebEngine.qml",
+      "bytes": 21956,
+      "sha256": "d194e1a338c1edaf92639a1e3c06e9737f4796037c057da23305cfdfbdb887b8"
+    },
+    {
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "bytes": 19543,
+      "sha256": "d7fa3552f46875d5e3d16ace4792ce795801ac116690dfc140b871bb59cae3eb"
+    },
+    {
+      "path": "qml/feria/FeriaWebView2.qml",
+      "bytes": 6301,
+      "sha256": "9fbbe0993b0fd62ecba3c316b2bbc91ee48e9d532b24b9efca2702fa0ad32f5c"
+    },
+    {
+      "path": "qml/feria/FeriaWorld.qml",
+      "bytes": 56798,
+      "sha256": "09e6e480eb0c42c3b78a0a912cc8a06c262bed7624406128a0b6a6ec163419ec"
+    },
+    {
+      "path": "qml/feria/PorticoDiscoveryHostView.qml",
+      "bytes": 31974,
+      "sha256": "ad60bacf989fda7eb4377039d1ec981413755add44a678ff4ac2479b38118a84"
+    },
+    {
+      "path": "tests/feria_account_store_test.cpp",
+      "bytes": 33122,
+      "sha256": "a493fa8c468b64891c96e82153f5d4dfb029598d31f3dc88daa417802529d60e"
+    },
+    {
+      "path": "tests/feria_browser_menu_probe/tst_browser_menu.qml",
+      "bytes": 12772,
+      "sha256": "3b24b73487b04d1d16952f9a6312ed9c6be5631a9778959bebda1fd5b058a874"
+    },
+    {
+      "path": "tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "bytes": 22490,
+      "sha256": "c7c4760ded67e5f9fdb7ad8043bbec8bd9c2af523b3d27cfc21f26cebd04dca6"
+    },
+    {
+      "path": "tests/feria_session_probe/tst_RetainedSessions.qml",
+      "bytes": 11700,
+      "sha256": "e0cb9b141efe02f45971633f8f320fb94be5d41036b820edb23d92158ce2f1e1"
+    },
+    {
+      "path": "tests/feria_session_runtime_test.cpp",
+      "bytes": 7203,
+      "sha256": "91bb05b6baf1a7e7106a8f3e1543335ade29ffca54db5be7d7e2816bbc4aa01f"
+    },
+    {
+      "path": "tests/feria_tab_restore_test.mjs",
+      "bytes": 4965,
+      "sha256": "69b798699d2ddc1d7a45d79889428619a7da86605e6fa9e2abf96410afc00b94"
+    }
+  ]
+}
